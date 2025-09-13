@@ -1,0 +1,23 @@
+import { Module } from '@nestjs/common';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { ConfigModule } from '@nestjs/config';
+import { AuthModule } from './auth/auth.module';
+import envConfig from './config/env.config';
+import { MongooseModule } from '@nestjs/mongoose';
+import { UserModule } from './user/user.module';
+import { InvolveModule } from './involve/involve.module';
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      load: [envConfig],
+    }),
+    MongooseModule.forRoot(process.env.MONGO_URI!),
+    AuthModule,
+    UserModule,
+    InvolveModule,
+  ],
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule {}
