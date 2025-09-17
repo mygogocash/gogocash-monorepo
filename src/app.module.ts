@@ -6,7 +6,8 @@ import { AuthModule } from './auth/auth.module';
 import envConfig from './config/env.config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { UserModule } from './user/user.module';
-import { InvolveModule } from './involve/involve.module';
+import { AdminModule } from './admin/admin.module';
+import { OfferModule } from './offer/offer.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -15,7 +16,8 @@ import { InvolveModule } from './involve/involve.module';
     MongooseModule.forRoot(process.env.MONGO_URI!),
     AuthModule,
     UserModule,
-    InvolveModule,
+    AdminModule,
+    OfferModule,
   ],
   controllers: [AppController],
   providers: [AppService],
