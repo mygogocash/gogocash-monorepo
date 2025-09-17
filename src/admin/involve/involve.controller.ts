@@ -12,7 +12,7 @@ import { OfferDto } from './dto/create-involve.dto';
 import { UpdateInvolveDto } from './dto/update-involve.dto';
 import { ApiTags } from '@nestjs/swagger';
 
-@ApiTags('Involve')
+@ApiTags('involve')
 @Controller('involve')
 export class InvolveController {
   constructor(private readonly involveService: InvolveService) {}
