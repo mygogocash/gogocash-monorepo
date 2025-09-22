@@ -1,5 +1,5 @@
 # ใช้ base image ที่มี Node.js
-FROM node:20.18.0-slim
+FROM --platform=linux/amd64 node:20.18.0-slim
 
 # กำหนด working directory ใน container
 WORKDIR /app
