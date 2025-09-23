@@ -1,20 +1,27 @@
-# ใช้ base image ที่มี Node.js
-FROM --platform=linux/amd64 node:20.18.0-slim
-
-# กำหนด working directory ใน container
+FROM node:20-alpine AS build
 WORKDIR /app
 
-# Copy package.json และ package-lock.json
-COPY package*.json ./
-
 # ติดตั้ง dependencies
+COPY package*.json ./
+RUN yarn add @nestjs/cli
 RUN yarn install
 
-# Copy source code ทั้งหมด
+# คัดลอก source code
 COPY . .
 
-# Build project
+# build project
 RUN yarn build
 
-# กำหนด command สำหรับ run app
-CMD [ "node", "dist/main" ]
+# Stage 2: Production
+FROM node:20-alpine
+WORKDIR /app
+
+# copy package.json สำหรับ production
+COPY package*.json ./
+RUN yarn install --only=production
+
+# copy ไฟล์ build จาก builder stage
+COPY --from=build /app/dist ./dist
+
+# ใช้ start:prod จาก NestJS
+CMD ["yarn", "start:prod"]
