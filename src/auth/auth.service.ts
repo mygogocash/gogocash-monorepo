@@ -49,10 +49,31 @@ export class AuthService {
     if (!data.id) {
       throw new Error('User not found in Crossmint');
     }
+    console.log('payload', data.id);
+    const userExist = await this.userService.findOne({
+      id_crossmint: data.id,
+    });
+    console.log('userExist', userExist);
+
+    if (userExist) {
+      const user = await this.userService.update(userExist._id, {
+        email: data.email,
+        username: data?.twitter
+          ? data.twitter.username
+          : data?.email?.split('@')[0],
+        id_twitter: data?.twitter ? data.twitter.id : '',
+        address: payload.address,
+      });
+      return user;
+    }
     const user = await this.userService.create({
       address: payload.address,
       id_crossmint: data.id,
       email: data.email,
+      username: data?.twitter
+        ? data.twitter.username
+        : data?.email?.split('@')[0],
+      id_twitter: data?.twitter ? data.twitter.id : '',
     });
     return user; // { accessToken, refreshToken, user }
   }

@@ -20,7 +20,7 @@ export class AuthController {
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
   @ApiResponse({ status: 201, description: 'User login successfully' })
-  async login(@Body() body: any) {
+  async login(@Body() body: SignInDto) {
     // The guard has already validated the token and added the user payload to the request
     const user = await this.auth.signIn(body);
     return { message: 'Login successful!', user };
