@@ -3,7 +3,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { User } from './schemas/user.schema';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 
 @Injectable()
 export class UserService {
@@ -23,16 +23,12 @@ export class UserService {
     return `This action returns all user`;
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} user`;
+  findOne(data: { [key: string]: string }) {
+    return this.userModel.findOne(data);
   }
 
-  update(id: number, updateUserDto: UpdateUserDto) {
+  update(id: Types.ObjectId, updateUserDto: UpdateUserDto) {
     console.log(updateUserDto);
-    return `This action updates a #${id} user`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} user`;
+    return this.userModel.findByIdAndUpdate(id, updateUserDto, { new: true });
   }
 }

@@ -11,8 +11,16 @@ export class SignInDto {
   id_crossmint: string;
 
   @ApiProperty()
-  @IsNotEmpty()
+  @IsString()
   email: string;
+
+  @ApiProperty()
+  @IsString()
+  username?: string;
+
+  @ApiProperty()
+  @IsString()
+  id_twitter?: string;
 }
 
 export class SignUpDto {
