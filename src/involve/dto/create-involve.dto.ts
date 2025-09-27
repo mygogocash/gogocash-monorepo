@@ -1,9 +1,12 @@
 // src/offers/dto/offer.dto.ts
+import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
   IsInt,
+  IsNotEmpty,
+  IsNumber,
   IsString,
   ValidateNested,
 } from 'class-validator';
@@ -85,4 +88,21 @@ export class OfferDto {
 
   @IsString()
   directory_page: string;
+}
+
+export class CreateAffiliateDto {
+  @IsNumber()
+  @IsNotEmpty()
+  @ApiProperty()
+  offer_id: number;
+
+  @IsNumber()
+  @IsNotEmpty()
+  @ApiProperty()
+  merchant_id: number;
+
+  @IsString()
+  @IsNotEmpty()
+  @ApiProperty()
+  deeplink: string;
 }

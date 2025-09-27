@@ -6,22 +6,29 @@ import {
   Patch,
   Param,
   Delete,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
 import { InvolveService } from './involve.service';
-import { OfferDto } from './dto/create-involve.dto';
+import { CreateAffiliateDto } from './dto/create-involve.dto';
 import { UpdateInvolveDto } from './dto/update-involve.dto';
-import { ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiResponse,
+  ApiSecurity,
+  ApiTags,
+} from '@nestjs/swagger';
+import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
+import { CrossmintAuthGuard } from 'src/auth/jwt-auth.guard';
+import { Request } from 'express';
 
 @ApiTags('Involve')
 @Controller('involve')
 export class InvolveController {
   constructor(private readonly involveService: InvolveService) {}
 
-  @Post()
-  create(@Body() createInvolveDto: OfferDto) {
-    return this.involveService.create(createInvolveDto);
-  }
-
+  @UseGuards(AuthAdminGuard)
   @Get()
   findAll() {
     return this.involveService.findAll();
@@ -40,5 +47,20 @@ export class InvolveController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.involveService.remove(+id);
+  }
+
+  @UseGuards(CrossmintAuthGuard)
+  @ApiBody({ type: CreateAffiliateDto })
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
+  @ApiResponse({ status: 201, description: 'User login successfully' })
+  @Post('create-affiliate')
+  createAffiliate(
+    @Body() createInvolveDto: CreateAffiliateDto,
+    @Req() req: Request,
+  ) {
+    const user = req['user'] as any;
+    const id_crossmint = user?.sub;
+    return this.involveService.createAffiliate(createInvolveDto, id_crossmint);
   }
 }
