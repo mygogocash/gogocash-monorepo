@@ -99,6 +99,10 @@ export class InvolveService {
         'Error creating deeplink:',
         error.response?.data || error.message,
       );
+      if (error.response?.data?.status_code === 401) {
+        await this.signIn();
+        return this.createDeeplinkInvolve(createInvolveDto);
+      }
       throw new Error(error.message || 'Failed to create deeplink');
     }
   }
