@@ -24,7 +24,7 @@ export class CrossmintAuthGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<Request>();
     const authHeader = request.headers['authorization'];
     if (!authHeader) {
-      return false;
+      throw new UnauthorizedException('token not found');
     }
 
     try {

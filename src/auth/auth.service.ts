@@ -45,15 +45,15 @@ export class AuthService {
 
   async signIn(payload: SignInDto) {
     const data = await this.crossmintAuth.getUser(payload.id_crossmint);
-    console.log('data', data);
+    // console.log('data', data);
     if (!data.id) {
       throw new Error('User not found in Crossmint');
     }
-    console.log('payload', data.id);
+    // console.log('payload', data.id);
     const userExist = await this.userService.findOne({
       id_crossmint: data.id,
     });
-    console.log('userExist', userExist);
+    // console.log('userExist', userExist);
 
     if (userExist) {
       const user = await this.userService.update(userExist._id, {

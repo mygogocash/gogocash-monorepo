@@ -16,11 +16,11 @@ async function bootstrap() {
     .setDescription('API for authentication with Crossmint (full mode)')
     .setVersion('1.0')
     // กำหนด Security Scheme สำหรับ Admin Token
-    .addSecurity('admin-token', {
-      type: 'apiKey',
-      name: 'X-Admin-Token', // ชื่อ Header ที่จะส่ง Token
-      in: 'header',
-    })
+    // .addSecurity('admin-token', {
+    //   type: 'apiKey',
+    //   name: 'X-Admin-Token', // ชื่อ Header ที่จะส่ง Token
+    //   in: 'header',
+    // })
     .addBearerAuth(
       // This is the key part for Bearer token
       {
