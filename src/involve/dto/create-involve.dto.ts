@@ -106,3 +106,11 @@ export class CreateAffiliateDto {
   @ApiProperty()
   deeplink: string;
 }
+
+export class RequestGetConversion {
+  @IsNumber()
+  page: string;
+
+  @IsNumber()
+  limit: string;
+}

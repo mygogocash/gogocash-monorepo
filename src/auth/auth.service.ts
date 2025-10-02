@@ -56,15 +56,18 @@ export class AuthService {
     // console.log('userExist', userExist);
 
     if (userExist) {
-      const user = await this.userService.update(userExist._id, {
-        email: data.email,
-        username: data?.twitter
-          ? data.twitter.username
-          : data?.email?.split('@')[0],
-        id_twitter: data?.twitter ? data.twitter.id : '',
-        address: payload.address,
-      });
-      return user;
+      if (userExist.address) {
+        const user = await this.userService.update(userExist._id, {
+          email: data.email,
+          username: data?.twitter
+            ? data.twitter.username
+            : data?.email?.split('@')[0],
+          id_twitter: data?.twitter ? data.twitter.id : '',
+          address: payload.address,
+        });
+        return user;
+      }
+      return userExist;
     }
     const user = await this.userService.create({
       address: payload.address,
