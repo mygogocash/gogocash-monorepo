@@ -1,10 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { CreateAffiliateDto } from './dto/create-involve.dto';
+import {
+  CreateAffiliateDto,
+  RequestGetConversion,
+} from './dto/create-involve.dto';
 import { UpdateInvolveDto } from './dto/update-involve.dto';
 import axios from 'axios';
 import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 import { InjectModel } from '@nestjs/mongoose';
-import { Offer } from './schemas/offer.schema';
+import { Offer } from '../offer/schemas/offer.schema';
 import { Model, Types } from 'mongoose';
 import { Deeplink } from './schemas/deeplink.schema';
 import { User } from 'src/user/schemas/user.schema';
@@ -150,5 +153,62 @@ export class InvolveService {
 
   remove(id: number) {
     return `This action removes a #${id} involve`;
+  }
+
+  async getConversion(
+    offer_id: string,
+    payload: RequestGetConversion,
+    id_crossmint: string,
+  ) {
+    const user = await this.userModel.findOne({ id_crossmint });
+    if (!user) {
+      throw new Error('User not found');
+    }
+    const id_user = user._id.toString();
+    let token = await this.cacheManager.get('access_token_involve');
+    if (!token) {
+      await this.signIn();
+      token = await this.cacheManager.get('access_token_involve');
+    }
+    try {
+      const res = await axios.post(
+        `${this.endpoint}/conversions/all`,
+        {
+          page: payload.page || 1,
+          limit: payload.limit || 100,
+          filters: {
+            offer_id: Number(offer_id),
+          },
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      const dt = res.data?.data?.data?.filter((item) =>
+        item.aff_sub1?.includes(`user_id:${id_user}`),
+      );
+      const obj = {
+        ...res.data,
+        data: {
+          ...res.data.data,
+          count: dt.length,
+          data: dt,
+        },
+      };
+      return obj;
+    } catch (error) {
+      console.error(
+        'Error get conversion:',
+        error.response?.data || error.message,
+      );
+      if (error.response?.data?.status_code === 401) {
+        await this.signIn();
+        return this.getConversion(offer_id, payload, id_crossmint);
+      }
+      throw new Error(error.message || 'Failed to get conversion');
+    }
+    // return this.deeplinkModel.countDocuments({ offer_id: Number(offer_id) });
   }
 }

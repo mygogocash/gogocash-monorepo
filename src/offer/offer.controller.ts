@@ -1,7 +1,17 @@
-import { Controller, Get, Param, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { OfferService } from './offer.service';
-import { ApiQuery } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiQuery, ApiSecurity } from '@nestjs/swagger';
 import { Request } from 'express';
+import { CrossmintAuthGuard } from 'src/auth/jwt-auth.guard';
+import { GetMyOfferDto } from './dto/create-offer.dto';
 @Controller('offer')
 export class OfferController {
   constructor(private readonly offerService: OfferService) {}
@@ -44,7 +54,28 @@ export class OfferController {
 
   @Get(':id')
   findOne(@Param('id') id: string) {
-    console.log('id', id);
     return this.offerService.findOne(id);
+  }
+
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Page number for pagination',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Number of items per page',
+  })
+  @UseGuards(CrossmintAuthGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
+  @Post('my-offers')
+  myOffers(@Req() request: Request, @Body() body: GetMyOfferDto) {
+    const user = request.user as any;
+    const id = user.sub;
+    return this.offerService.findMyOffer(id, body);
   }
 }
