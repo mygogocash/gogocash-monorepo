@@ -32,6 +32,9 @@ export class InvolveController {
   constructor(private readonly involveService: InvolveService) {}
 
   @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
+  @ApiResponse({ status: 201, description: 'User login successfully' })
   @Get()
   findAll() {
     return this.involveService.findAll();

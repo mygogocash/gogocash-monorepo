@@ -18,9 +18,8 @@ export class AuthAdminGuard implements CanActivate {
     // @TODO YUI GUARD ADMIN
     // console.log('headers', request);
     // const adminToken = request.headers['x-admin-token']; // ดึง Token จาก Header
-    // console.log('adminToken', adminToken);
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return false;
+      throw new UnauthorizedException('token not found');
     }
     const token = authHeader.substring(7);
     try {
