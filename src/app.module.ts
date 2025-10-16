@@ -8,6 +8,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { UserModule } from './user/user.module';
 import { AdminModule } from './admin/admin.module';
 import { OfferModule } from './offer/offer.module';
+import { WithdrawModule } from './withdraw/withdraw.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -18,6 +19,7 @@ import { OfferModule } from './offer/offer.module';
     UserModule,
     AdminModule,
     OfferModule,
+    WithdrawModule,
   ],
   controllers: [AppController],
   providers: [AppService],
