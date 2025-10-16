@@ -1,8 +1,19 @@
-import { Controller, Get, Post, Body, Patch, Param } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  UseGuards,
+  Query,
+} from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Types } from 'mongoose';
+import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
+import { ApiBearerAuth, ApiSecurity } from '@nestjs/swagger';
 
 @Controller('user')
 export class UserController {
@@ -13,9 +24,16 @@ export class UserController {
     return this.userService.create(createUserDto);
   }
 
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
   @Get()
-  findAll() {
-    return this.userService.findAll();
+  findAll(
+    @Query('limit') limit?: number,
+    @Query('page') page?: number,
+    @Query('search') search?: string,
+  ) {
+    return this.userService.findAll(page, limit, search);
   }
 
   @Get(':id')

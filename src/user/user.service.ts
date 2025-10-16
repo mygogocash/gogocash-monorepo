@@ -19,8 +19,35 @@ export class UserService {
     return user;
   }
 
-  findAll() {
-    return `This action returns all user`;
+  async findAll(page: number = 1, limit: number = 10, search?: string) {
+    const skip = (page - 1) * limit;
+
+    const query = search
+      ? {
+          $or: [
+            { username: { $regex: search, $options: 'i' } },
+            { email: { $regex: search, $options: 'i' } },
+            { address: { $regex: search, $options: 'i' } },
+          ],
+        }
+      : {};
+
+    const [data, total] = await Promise.all([
+      this.userModel.find(query).skip(skip).limit(limit).exec(),
+      this.userModel.countDocuments(query).exec(),
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+      },
+    };
   }
 
   findOne(data: { [key: string]: string }) {
