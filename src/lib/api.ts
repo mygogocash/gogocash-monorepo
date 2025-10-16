@@ -1,0 +1,452 @@
+import { LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ApiError, AdminUsersQuery, AdminUsersResponse, RegularUser, UsersQuery, UsersResponse, Offer, OffersQuery, OffersResponse } from '@/types/api';
+
+class ApiClient {
+  private baseURL: string;
+
+  constructor() {
+    this.baseURL = process.env.NEXT_PUBLIC_API_URL || 'https://api.gogocash.co';
+  }
+
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> {
+    const url = `${this.baseURL}${endpoint}`;
+    
+    const config: RequestInit = {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        ...options.headers,
+      },
+      ...options,
+    };
+
+    try {
+      const response = await fetch(url, config);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        
+        const apiError: ApiError = {
+          message: errorData.message || `HTTP Error ${response.status}`,
+          status: response.status,
+          errors: errorData.errors,
+        };
+        
+        throw apiError;
+      }
+
+      return await response.json();
+    } catch (error) {
+      if (error instanceof Error && 'status' in error) {
+        throw error; // Re-throw API errors
+      }
+      
+      // Handle network or other errors
+      throw {
+        message: error instanceof Error ? error.message : 'Network error',
+        status: 0,
+      } as ApiError;
+    }
+  }
+
+  // Authentication endpoints
+  async login(credentials: LoginRequest): Promise<LoginResponse> {
+    return this.request<LoginResponse>('/admin/login', {
+      method: 'POST',
+      body: JSON.stringify(credentials),
+    });
+  }
+
+  async register(userData: RegisterRequest): Promise<RegisterResponse> {
+    return this.request<RegisterResponse>('/admin/register', {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    });
+  }
+
+  async logout(token?: string): Promise<{ message: string }> {
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    return this.request<{ message: string }>('/auth/logout', {
+      method: 'POST',
+      headers,
+    });
+  }
+
+  async getProfile(token: string): Promise<LoginResponse> {
+    return this.request<LoginResponse>('/auth/profile', {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  }
+
+  async refreshToken(token: string): Promise<{ token: string }> {
+    return this.request<{ token: string }>('/auth/refresh', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  }
+
+  // Password reset endpoints
+  async requestPasswordReset(email: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  async resetPassword(data: {
+    email: string;
+    token: string;
+    password: string;
+    password_confirmation: string;
+  }): Promise<{ message: string }> {
+    return this.request<{ message: string }>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // User management endpoints
+  async updateProfile(
+    token: string,
+    userData: Partial<{ name: string; email: string; avatar: string }>
+  ): Promise<LoginResponse> {
+    return this.request<LoginResponse>('/user/profile', {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(userData),
+    });
+  }
+
+  async changePassword(
+    token: string,
+    passwordData: {
+      current_password: string;
+      password: string;
+      password_confirmation: string;
+    }
+  ): Promise<{ message: string }> {
+    return this.request<{ message: string }>('/user/change-password', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(passwordData),
+    });
+  }
+
+  // Generic API method for custom endpoints
+  async get<T>(endpoint: string, token?: string): Promise<T> {
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    return this.request<T>(endpoint, {
+      method: 'GET',
+      headers,
+    });
+  }
+
+  async post<T>(
+    endpoint: string,
+    data: Record<string, unknown>,
+    token?: string
+  ): Promise<T> {
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    return this.request<T>(endpoint, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(data),
+    });
+  }
+
+  async put<T>(
+    endpoint: string,
+    data: Record<string, unknown>,
+    token?: string
+  ): Promise<T> {
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    return this.request<T>(endpoint, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(data),
+    });
+  }
+
+  async delete<T>(endpoint: string, token?: string): Promise<T> {
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    return this.request<T>(endpoint, {
+      method: 'DELETE',
+      headers,
+    });
+  }
+
+  // Admin User Management
+  async getAdminUsers(
+    query: AdminUsersQuery = {},
+    token?: string
+  ): Promise<AdminUsersResponse> {
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    // Build query parameters
+    const params = new URLSearchParams();
+    if (query.limit) params.append('limit', query.limit.toString());
+    if (query.page) params.append('page', query.page.toString());
+    if (query.search) params.append('search', query.search);
+    if (query.role) params.append('role', query.role);
+    if (query.status) params.append('status', query.status);
+
+    const queryString = params.toString();
+    const endpoint = queryString ? `/admin?${queryString}` : '/admin';
+
+    return this.request<AdminUsersResponse>(endpoint, {
+      method: 'GET',
+      headers,
+    });
+  }
+
+  async getAdminUser(userId: string, token?: string): Promise<AdminUsersResponse> {
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    return this.request<AdminUsersResponse>(`/admin/${userId}`, {
+      method: 'GET',
+      headers,
+    });
+  }
+
+  async createAdminUser(
+    userData: Omit<AdminUsersResponse, '_id' | 'createdAt' | 'updatedAt' | '__v'>,
+    token?: string
+  ): Promise<AdminUsersResponse> {
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    return this.request<AdminUsersResponse>('/admin', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(userData),
+    });
+  }
+
+  async updateAdminUser(
+    userId: string,
+    userData: Partial<Omit<AdminUsersResponse, '_id' | 'createdAt' | 'updatedAt' | '__v'>>,
+    token?: string
+  ): Promise<AdminUsersResponse> {
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    return this.request<AdminUsersResponse>(`/admin/${userId}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(userData),
+    });
+  }
+
+  async deleteAdminUser(userId: string, token?: string): Promise<{ message: string }> {
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    return this.request<{ message: string }>(`/admin/${userId}`, {
+      method: 'DELETE',
+      headers,
+    });
+  }
+
+  // Regular User Management (from /user endpoint)
+  async getUsers(
+    query: UsersQuery = {},
+    token?: string
+  ): Promise<UsersResponse> {
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    // Build query parameters
+    const params = new URLSearchParams();
+    if (query.limit) params.append('limit', query.limit.toString());
+    if (query.page) params.append('page', query.page.toString());
+    if (query.search) params.append('search', query.search);
+    if (query.role) params.append('role', query.role);
+    if (query.status) params.append('status', query.status);
+
+    const queryString = params.toString();
+    const endpoint = queryString ? `/user?${queryString}` : '/user';
+
+    return this.request<UsersResponse>(endpoint, {
+      method: 'GET',
+      headers,
+    });
+  }
+
+  async getUser(userId: string, token?: string): Promise<RegularUser> {
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    return this.request<RegularUser>(`/user/${userId}`, {
+      method: 'GET',
+      headers,
+    });
+  }
+
+  async createUser(
+    userData: Omit<RegularUser, '_id' | 'createdAt' | 'updatedAt' | '__v'>,
+    token?: string
+  ): Promise<RegularUser> {
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    return this.request<RegularUser>('/user', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(userData),
+    });
+  }
+
+  async updateUser(
+    userId: string,
+    userData: Partial<Omit<RegularUser, '_id' | 'createdAt' | 'updatedAt' | '__v'>>,
+    token?: string
+  ): Promise<RegularUser> {
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    return this.request<RegularUser>(`/user/${userId}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(userData),
+    });
+  }
+
+  async deleteUser(userId: string, token?: string): Promise<{ message: string }> {
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    return this.request<{ message: string }>(`/user/${userId}`, {
+      method: 'DELETE',
+      headers,
+    });
+  }
+
+  // Offer Management (from /offer endpoint)
+  async getOffers(
+    query: OffersQuery = {}
+  ): Promise<OffersResponse> {
+    // Build query parameters
+    const params = new URLSearchParams();
+    if (query.search) params.append('search', query.search);
+    if (query.limit) params.append('limit', query.limit.toString());
+    if (query.page) params.append('page', query.page.toString());
+    if (query.category) params.append('category', query.category);
+    if (query.status) params.append('status', query.status);
+    if (query.type) params.append('type', query.type);
+
+    const queryString = params.toString();
+    const endpoint = queryString ? `/offer?${queryString}` : '/offer';
+
+    return this.request<OffersResponse>(endpoint, {
+      method: 'GET',
+    });
+  }
+
+  async getOffer(offerId: string): Promise<Offer> {
+    return this.request<Offer>(`/offer/${offerId}`, {
+      method: 'GET',
+    });
+  }
+
+  async createOffer(
+    offerData: Omit<Offer, '_id' | 'createdAt' | 'updatedAt' | '__v'>,
+    token?: string
+  ): Promise<Offer> {
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    return this.request<Offer>('/offer', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(offerData),
+    });
+  }
+
+  async updateOffer(
+    offerId: string,
+    offerData: Partial<Omit<Offer, '_id' | 'createdAt' | 'updatedAt' | '__v'>>,
+    token?: string
+  ): Promise<Offer> {
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    return this.request<Offer>(`/offer/${offerId}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(offerData),
+    });
+  }
+
+  async deleteOffer(offerId: string, token?: string): Promise<{ message: string }> {
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    return this.request<{ message: string }>(`/offer/${offerId}`, {
+      method: 'DELETE',
+      headers,
+    });
+  }
+}
+
+// Export singleton instance
+export const apiClient = new ApiClient();
+export default apiClient;
