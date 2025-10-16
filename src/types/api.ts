@@ -1,0 +1,149 @@
+// API Types
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  _id: string;
+  username: string;
+  email: string;
+  password: string;
+  createdAt: string;
+  updatedAt: string;
+  __v: number;
+  token: string;
+}
+
+export interface ApiError {
+  message: string;
+  status: number;
+  errors?: Record<string, string[]>;
+}
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+}
+
+export interface RegisterRequest {
+  name: string;
+  email: string;
+  password: string;
+  password_confirmation: string;
+}
+
+export interface RegisterResponse {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+  message?: string;
+}
+
+export interface AdminUsersQuery {
+  limit?: number;
+  page?: number;
+  search?: string;
+  role?: string;
+  status?: string;
+}
+
+export interface AdminUsersResponse {
+  data: DataAdminUsers[];
+  pagination: Pagination;
+}
+
+export interface DataAdminUsers {
+  _id: string;
+  username: string;
+  password: string;
+  email: string;
+  createdAt: Date;
+  updatedAt: Date;
+  __v: number;
+}
+
+export interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+// Regular User Types (from /user endpoint)
+
+export interface RegularUser {
+  _id: string;
+  address: string;
+  __v: number;
+  email: string;
+  id_crossmint: string;
+  id_twitter: string;
+  username: string;
+}
+export interface UsersQuery {
+  limit?: number;
+  page?: number;
+  search?: string;
+  role?: string;
+  status?: string;
+}
+
+export interface UsersResponse {
+  data: RegularUser[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+// Offer Types (from /offer endpoint)
+export interface Offer {
+      _id:                     string;
+    offer_id:                number;
+    __v:                     number;
+    categories:              string;
+    commission_tracking:     string;
+    commissions:             string[];
+    countries:               string;
+    currency:                string;
+    datetime_created:        Date;
+    datetime_updated:        Date;
+    description:             string;
+    directory_page:          string;
+    is_require_approval:     number;
+    logo:                    string;
+    lookup_value:            string;
+    marketplace_store_offer: boolean;
+    merchant_id:             number;
+    offer_name:              string;
+    payment_terms:           number;
+    preview_url:             string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    special_commissions:     any[];
+    tracking_link:           string;
+    tracking_type:           string;
+    validation_terms:        number;
+}
+
+export interface OffersQuery {
+  search?: string;
+  limit?: number;
+  page?: number;
+  category?: string;
+  status?: string;
+  type?: string;
+}
+
+export interface OffersResponse {
+  data: Offer[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
