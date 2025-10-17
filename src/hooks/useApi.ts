@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { apiClient } from '@/lib/api';
-import { ApiError, RegisterRequest, AdminUsersQuery, AdminUsersResponse, DataAdminUsers, UsersQuery, UsersResponse, RegularUser, OffersQuery, OffersResponse, Offer } from '@/types/api';
+import { ApiError, RegisterRequest, AdminUsersQuery, AdminUsersResponse, UsersQuery, UsersResponse, RegularUser, OffersQuery, OffersResponse, Offer } from '@/types/api';
 
 // Hook for authentication operations
 export function useAuth() {
@@ -159,20 +159,20 @@ export function useApi() {
     return apiCall(() => apiClient.getAdminUsers(query, token));
   };
 
-  const getAdminUser = async (userId: string): Promise<DataAdminUsers> => {
+  const getAdminUser = async (userId: string): Promise<AdminUsersResponse> => {
     const token = getToken();
     return apiCall(() => apiClient.getAdminUser(userId, token));
   };
 
-  const createAdminUser = async (userData: Omit<DataAdminUsers, '_id' | 'createdAt' | 'updatedAt' | '__v'>): Promise<DataAdminUsers> => {
+  const createAdminUser = async (userData: Omit<AdminUsersResponse, '_id' | 'createdAt' | 'updatedAt' | '__v'>): Promise<AdminUsersResponse> => {
     const token = getToken();
     return apiCall(() => apiClient.createAdminUser(userData, token));
   };
 
   const updateAdminUser = async (
     userId: string, 
-    userData: Partial<Omit<DataAdminUsers, '_id' | 'createdAt' | 'updatedAt' | '__v'>>
-  ): Promise<DataAdminUsers> => {
+    userData: Partial<Omit<AdminUsersResponse, '_id' | 'createdAt' | 'updatedAt' | '__v'>>
+  ): Promise<AdminUsersResponse> => {
     const token = getToken();
     return apiCall(() => apiClient.updateAdminUser(userId, userData, token));
   };

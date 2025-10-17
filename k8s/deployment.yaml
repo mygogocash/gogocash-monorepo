@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gogocash-admin
+  labels:
+    app: gogocash-admin
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: gogocash-admin
+  template:
+    metadata:
+      labels:
+        app: gogocash-admin
+    spec:
+      containers:
+      - name: gogocash-admin
+        image: gcr.io/PROJECT_ID/gogocash-admin:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: NEXT_TELEMETRY_DISABLED
+          value: "1"
+        - name: NEXTAUTH_URL
+          value: "https://your-domain.com"
+        - name: NEXTAUTH_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: nextauth-secret
+        - name: API_BASE_URL
+          value: "https://your-api.com"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5
