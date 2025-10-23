@@ -11,6 +11,7 @@ export class AdminService {
     @InjectModel(UserAdmin.name) private userAdminModel: Model<UserAdmin>,
   ) {}
   create(createAdminDto: CreateAdminDto) {
+    console.log(createAdminDto);
     return 'This action adds a new admin';
   }
 
@@ -53,6 +54,7 @@ export class AdminService {
   }
 
   remove(id: number) {
+    console.log('remove admin id:', id);
     // this.userAdminModel.findByIdAndDelete(id).exec();
     return null;
   }

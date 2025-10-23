@@ -211,4 +211,40 @@ export class InvolveService {
     }
     // return this.deeplinkModel.countDocuments({ offer_id: Number(offer_id) });
   }
+
+  async getConversionAll(payload: RequestGetConversion, user_id: string) {
+    let token = await this.cacheManager.get('access_token_involve');
+    if (!token) {
+      await this.signIn();
+      token = await this.cacheManager.get('access_token_involve');
+    }
+    try {
+      const res = await axios.post(
+        `${this.endpoint}/conversions/all`,
+        {
+          page: payload.page || 1,
+          limit: payload.limit || 100,
+          // filters: {
+          //   offer_id: Number(offer_id),
+          // },
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      return res.data;
+    } catch (error) {
+      console.error(
+        'Error get conversion:',
+        error.response?.data || error.message,
+      );
+      if (error.response?.data?.status_code === 401) {
+        await this.signIn();
+        return this.getConversionAll(payload, user_id);
+      }
+      throw new Error(error.message || 'Failed to get conversion');
+    }
+  }
 }
