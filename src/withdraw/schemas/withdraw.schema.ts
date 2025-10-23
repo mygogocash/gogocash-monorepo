@@ -3,13 +3,28 @@ import { HydratedDocument, Types } from 'mongoose';
 
 export type WithdrawDocument = HydratedDocument<Withdraw>;
 
-@Schema()
+@Schema({ timestamps: true })
 export class Withdraw {
-  @Prop({ required: true, unique: false })
+  @Prop({ required: false, unique: false })
   address: string;
 
+  @Prop({ required: false })
+  account_number: string;
+
+  @Prop({ required: false })
+  account_name: string;
+
+  @Prop({ required: false })
+  bank_name: string;
+
   @Prop({ required: true })
-  amount: number;
+  amount_total: number;
+
+  @Prop({ required: true })
+  amount_net: number;
+
+  @Prop({ required: true, type: Number })
+  percent_fee: number;
 
   @Prop({ required: true })
   status: string; // pending, completed, rejected
@@ -23,11 +38,8 @@ export class Withdraw {
   @Prop({ required: true, ref: 'User', type: Types.ObjectId })
   user_id: Types.ObjectId;
 
-  @Prop({ required: true, type: Number })
-  conversion_id: number;
-
-  @Prop({ required: true, type: Number })
-  offer_id: number;
+  @Prop({ required: true, type: [Number] })
+  conversion_id: number[];
 
   @Prop({ required: true })
   currency: string; // USDC, ETH, BTC etc.

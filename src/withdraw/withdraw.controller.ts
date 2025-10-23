@@ -6,18 +6,47 @@ import {
   Patch,
   Param,
   Delete,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
 import { WithdrawService } from './withdraw.service';
-import { CreateWithdrawDto } from './dto/create-withdraw.dto';
+import { CreateWithdrawDto, GETSignDTO } from './dto/create-withdraw.dto';
 import { UpdateWithdrawDto } from './dto/update-withdraw.dto';
-
+import { CrossmintAuthGuard } from 'src/auth/jwt-auth.guard';
+import { ApiBearerAuth, ApiBody, ApiSecurity } from '@nestjs/swagger';
+import { Request } from 'express';
 @Controller('withdraw')
 export class WithdrawController {
   constructor(private readonly withdrawService: WithdrawService) {}
 
+  @UseGuards(CrossmintAuthGuard)
+  @ApiBody({ type: GETSignDTO })
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
+  @Post('signature')
+  getSign(@Body() createWithdrawDto: GETSignDTO) {
+    return this.withdrawService.getSign(createWithdrawDto);
+  }
+
+  @UseGuards(CrossmintAuthGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
+  @Post('check')
+  checkWithdraw(@Req() req: Request) {
+    const user = req['user'] as any;
+    const id_crossmint = user?.sub;
+    return this.withdrawService.checkWithdraw(id_crossmint);
+  }
+
+  @UseGuards(CrossmintAuthGuard)
+  @ApiBody({ type: GETSignDTO })
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
   @Post()
-  create(@Body() createWithdrawDto: CreateWithdrawDto) {
-    return this.withdrawService.create(createWithdrawDto);
+  create(@Req() req: Request, @Body() createWithdrawDto: CreateWithdrawDto) {
+    const user = req['user'] as any;
+    const id_crossmint = user?.sub;
+    return this.withdrawService.create(createWithdrawDto, id_crossmint);
   }
 
   @Get()
@@ -30,12 +59,16 @@ export class WithdrawController {
     return this.withdrawService.findOne(+id);
   }
 
+  @UseGuards(CrossmintAuthGuard)
+  @ApiBody({ type: GETSignDTO })
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth()
   @Patch(':id')
   update(
     @Param('id') id: string,
     @Body() updateWithdrawDto: UpdateWithdrawDto,
   ) {
-    return this.withdrawService.update(+id, updateWithdrawDto);
+    return this.withdrawService.update(id, updateWithdrawDto);
   }
 
   @Delete(':id')
