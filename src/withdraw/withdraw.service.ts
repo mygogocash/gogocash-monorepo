@@ -3,7 +3,11 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { CreateWithdrawDto, GETSignDTO } from './dto/create-withdraw.dto';
+import {
+  CreateWithdrawDto,
+  GETSignDTO,
+  GetWithdrawTransactionsDTO,
+} from './dto/create-withdraw.dto';
 import { UpdateWithdrawDto } from './dto/update-withdraw.dto';
 import { ethers, keccak256, toUtf8Bytes } from 'ethers';
 import { InjectModel } from '@nestjs/mongoose';
@@ -264,8 +268,39 @@ export class WithdrawService {
     return { message: 'Withdraw request created', data: dt, status: 'success' };
   }
 
-  findAll() {
-    return `This action returns all withdraw`;
+  async findAll(params: GetWithdrawTransactionsDTO, id_crossmint: string) {
+    const user = await this.userModel.findOne({ id_crossmint });
+    if (!user) {
+      throw new UnauthorizedException({ message: 'User not found' });
+    }
+    const page = Number(params.page) || 1;
+    const limit = Number(params.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const query: any = { user_id: new Types.ObjectId(user._id) };
+
+    if (params.search) {
+      query.$or = [
+        { address: { $regex: params.search, $options: 'i' } },
+        { account_name: { $regex: params.search, $options: 'i' } },
+        { bank_name: { $regex: params.search, $options: 'i' } },
+        { account_number: { $regex: params.search, $options: 'i' } },
+      ];
+    }
+
+    const [data, total] = await Promise.all([
+      this.withdrawModel
+        .find(query)
+        .skip(skip)
+        .limit(limit)
+        .sort({ createdAt: -1 })
+        .lean(),
+      this.withdrawModel.countDocuments(query),
+    ]);
+    return {
+      data,
+      pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
   findOne(id: number) {
