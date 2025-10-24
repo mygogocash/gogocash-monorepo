@@ -19,3 +19,9 @@ export class GETSignDTO {
   conversionIdHashes: string[];
   expireAt: string;
 }
+
+export class GetWithdrawTransactionsDTO {
+  page: number;
+  limit: number;
+  search?: string;
+}
