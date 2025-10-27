@@ -109,27 +109,54 @@ export class InvolveService {
       throw new Error(error.message || 'Failed to create deeplink');
     }
   }
-  async findAll() {
-    let token = await this.cacheManager.get('access_token_involve');
-    if (!token) {
-      await this.signIn();
-      token = await this.cacheManager.get('access_token_involve');
-    }
-    const filter = { page: 1, limit: 100 };
-    filter['application_status'] = 'Approved'; //Approved|Blocked|Pending|Rejected
-    filter['offer_status'] = 'Active'; //Active|Paused
 
-    const res = await axios.post(
-      `${this.endpoint}/offers/all`,
-      { page: 1, limit: 100, filter },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
+  async getOfferAll(pageFilter?: { page?: number; limit?: number }) {
+    try {
+      let token = await this.cacheManager.get('access_token_involve');
+      if (!token) {
+        await this.signIn();
+        token = await this.cacheManager.get('access_token_involve');
+      }
+      const filter = {
+        page: pageFilter?.page || 1,
+        limit: pageFilter?.limit || 100,
+      };
+      filter['application_status'] = 'Approved'; //Approved|Blocked|Pending|Rejected
+      filter['offer_status'] = 'Active'; //Active|Paused
+
+      const res = await axios.post(
+        `${this.endpoint}/offers/all`,
+        { page: filter.page, limit: filter.limit, filter },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         },
-      },
-    );
+      );
+
+      return res.data;
+    } catch (error) {
+      console.error('Error get offers:', error.response?.data || error.message);
+      if (error.response?.data?.status_code === 401) {
+        await this.signIn();
+        return this.getOfferAll();
+      }
+      throw new Error(error.message || 'Failed to get offers');
+    }
+  }
+  async findAll() {
+    const res = await this.getOfferAll();
+    let allOffers = res.data.data;
+    let currentPage = 1;
+
+    while (res.data.nextPage) {
+      currentPage++;
+      const nextOffers = await this.getOfferAll({ page: currentPage });
+      allOffers = allOffers.concat(nextOffers.data.data);
+      res.data.nextPage = nextOffers.data.nextPage;
+    }
     // Save or update many offers in MongoDB
-    const offers = Array.isArray(res.data.data.data) ? res.data.data.data : [];
+    const offers = Array.isArray(allOffers) ? allOffers : [];
     for (const offer of offers) {
       await this.offerModel.updateOne(
         { offer_id: offer.offer_id }, // Assuming offer_id is unique
