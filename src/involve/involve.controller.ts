@@ -40,9 +40,9 @@ export class InvolveController {
     return this.involveService.findAll();
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.involveService.findOne(+id);
+  @Get('checkOfferDuplicate')
+  checkOfferDuplicate() {
+    return this.involveService.checkOfferDuplicate();
   }
 
   @Patch(':id')

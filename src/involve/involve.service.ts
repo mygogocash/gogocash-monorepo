@@ -168,8 +168,13 @@ export class InvolveService {
     return offers;
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} involve`;
+  async checkOfferDuplicate() {
+    const duplicateOffers = await this.offerModel.aggregate([
+      { $group: { _id: '$offer_id', count: { $sum: 1 } } },
+      { $match: { count: { $gt: 1 } } },
+      { $sort: { count: -1 } },
+    ]);
+    return duplicateOffers;
   }
 
   update(id: number, updateInvolveDto: UpdateInvolveDto) {
@@ -181,7 +186,6 @@ export class InvolveService {
   remove(id: number) {
     return `This action removes a #${id} involve`;
   }
-
   async getConversion(
     offer_id: string,
     payload: RequestGetConversion,
@@ -239,7 +243,7 @@ export class InvolveService {
     // return this.deeplinkModel.countDocuments({ offer_id: Number(offer_id) });
   }
 
-  async getConversionAll(payload: RequestGetConversion, user_id: string) {
+  async getConversionAll(payload: RequestGetConversion) {
     let token = await this.cacheManager.get('access_token_involve');
     if (!token) {
       await this.signIn();
@@ -269,7 +273,7 @@ export class InvolveService {
       );
       if (error.response?.data?.status_code === 401) {
         await this.signIn();
-        return this.getConversionAll(payload, user_id);
+        return this.getConversionAll(payload);
       }
       throw new Error(error.message || 'Failed to get conversion');
     }

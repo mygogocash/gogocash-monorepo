@@ -27,16 +27,19 @@ export class AdminController {
     private readonly userAdminService: UserAdminService,
   ) {}
 
-  @ApiBody({ type: RegisterAdminDto })
-  @Post('register')
-  register(@Body() createAdminDto: RegisterAdminDto) {
-    return this.userAdminService.register(createAdminDto);
-  }
-
   @ApiBody({ type: LoginAdminDto })
   @Post('login')
   login(@Body() createAdminDto: LoginAdminDto) {
     return this.userAdminService.login(createAdminDto);
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth()
+  @ApiBody({ type: RegisterAdminDto })
+  @Post('register')
+  register(@Body() createAdminDto: RegisterAdminDto) {
+    return this.userAdminService.register(createAdminDto);
   }
 
   @UseGuards(AuthAdminGuard)
@@ -59,6 +62,46 @@ export class AdminController {
   @UseGuards(AuthAdminGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
+  @Get('withdraw-all')
+  withdrawAll(
+    @Query('limit') limit?: number,
+    @Query('page') page?: number,
+    @Query('search') search?: string,
+  ) {
+    // return this.adminService.findAll(page, limit, search);
+    return this.adminService.getWithdrawAll(page, limit, search);
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
+  @Get('conversion-all')
+  getConversionAll(
+    @Query('page') page: string,
+    @Query('limit') limit: string,
+    @Query('search') search: string,
+  ) {
+    return this.adminService.getConversionAll(page, limit, search);
+  }
+
+  // @Get(':id')
+  // findOne(@Param('id') id: string) {
+  //   return this.adminService.findOne(id);
+  // }
+
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() updateAdminDto: UpdateAdminDto) {
+    return this.adminService.update(id, updateAdminDto);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.adminService.remove(id);
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
   @Get()
   findAll(
     @Query('limit') limit?: number,
@@ -66,20 +109,5 @@ export class AdminController {
     @Query('search') search?: string,
   ) {
     return this.adminService.findAll(page, limit, search);
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.adminService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateAdminDto: UpdateAdminDto) {
-    return this.adminService.update(+id, updateAdminDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.adminService.remove(+id);
   }
 }

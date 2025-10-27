@@ -100,20 +100,20 @@ export class WithdrawService {
       await this.getConversionIdsWithdrawedByUserId(user._id.toString());
     // console.log('conversionIdsWithdrawed:', conversionIdsWithdrawed);
 
-    const conversions = await this.involveService.getConversionAll(
-      { page: '1', limit: '10' },
-      user._id.toString(),
-    );
+    const conversions = await this.involveService.getConversionAll({
+      page: '1',
+      limit: '10',
+    });
 
     let allConversions = conversions.data.data;
     let currentPage = 1;
 
     while (conversions.data.nextPage) {
       currentPage++;
-      const nextConversions = await this.involveService.getConversionAll(
-        { page: currentPage.toString(), limit: '10' },
-        user._id.toString(),
-      );
+      const nextConversions = await this.involveService.getConversionAll({
+        page: currentPage.toString(),
+        limit: '10',
+      });
       allConversions = allConversions.concat(nextConversions.data.data);
       conversions.data.nextPage = nextConversions.data.nextPage;
     }
