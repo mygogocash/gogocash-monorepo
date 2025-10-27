@@ -140,10 +140,56 @@ export interface OffersQuery {
   type?: string;
 }
 
+export interface WithdrawQuery {
+  search?: string;
+  limit?: number;
+  page?: number;
+}
+
 export interface OffersResponse {
   data: Offer[];
   page: number;
   limit: number;
   total: number;
   totalPages: number;
+}
+
+
+
+export interface ResponseWithdraws {
+    data:       DataWithdrawsList[];
+    pagination: Pagination;
+}
+
+export interface UserID {
+    _id:      string;
+    address:  string;
+    email:    string;
+    username: string;
+}
+export interface DataWithdrawsList {
+    user_id: UserID;
+    _id:            string;
+    address:        string;
+    account_number: string;
+    account_name:   string;
+    bank_name:      string;
+    amount_total:   number;
+    amount_net:     number;
+    percent_fee:    number;
+    status:         string;
+    method:         string;
+    tx_hash:        string;
+    conversion_id:  number[];
+    currency:       string;
+    createdAt:      Date;
+    updatedAt:      Date;
+    __v:            number;
+}
+
+export interface Pagination {
+    page:       number;
+    limit:      number;
+    total:      number;
+    totalPages: number;
 }

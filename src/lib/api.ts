@@ -1,4 +1,4 @@
-import { LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ApiError, AdminUsersQuery, AdminUsersResponse, RegularUser, UsersQuery, UsersResponse, Offer, OffersQuery, OffersResponse } from '@/types/api';
+import { LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ApiError, AdminUsersQuery, AdminUsersResponse, RegularUser, UsersQuery, UsersResponse, Offer, OffersQuery, OffersResponse, WithdrawQuery, ResponseWithdraws } from '@/types/api';
 
 class ApiClient {
   private baseURL: string;
@@ -12,7 +12,6 @@ class ApiClient {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
-    
     const config: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
@@ -395,9 +394,39 @@ class ApiClient {
     });
   }
 
+  async getWithdraws(
+    query: WithdrawQuery = {},
+    token: string
+  ): Promise<ResponseWithdraws> {
+    // Build query parameters
+    const params = new URLSearchParams();
+    if (query.search) params.append('search', query.search);
+    if (query.limit) params.append('limit', query.limit.toString());
+    if (query.page) params.append('page', query.page.toString());
+
+    const queryString = params.toString();
+    const endpoint = queryString ? `/admin/withdraw-all?${queryString}` : '/admin/withdraw-all';
+
+    return this.request<ResponseWithdraws>(endpoint, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  }
+
   async getOffer(offerId: string): Promise<Offer> {
     return this.request<Offer>(`/offer/${offerId}`, {
       method: 'GET',
+    });
+  }
+
+    async updateListOffer(token: string): Promise<Offer[]> {
+    return this.request<Offer[]>(`/involve`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     });
   }
 

@@ -1,24 +1,16 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import Image from "next/image";
 import { useApi } from "@/hooks/useApi";
-import { Offer, OffersQuery } from "@/types/api";
+import { ResponseWithdraws, WithdrawQuery } from "@/types/api";
 import { useSession } from "next-auth/react";
 
-export default function OffersTable() {
-  const { data: session } = useSession();
-  const {
-    loading,
-    error,
-    getOffers,
-    deleteOffer,
-    clearError,
-    updateListOffer,
-    setLoading,
-  } = useApi();
+export default function WithdrawTable() {
+  const { data } = useSession();
+  const session = data as { accessToken?: string };
+  const { loading, error, getWithdraws, deleteOffer, clearError } = useApi();
 
-  const [offers, setOffers] = useState<Offer[]>([]);
+  const [lists, setLists] = useState<ResponseWithdraws>();
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -26,23 +18,26 @@ export default function OffersTable() {
     totalPages: 1,
   });
 
-  const [query, setQuery] = useState<OffersQuery>({
+  const [query, setQuery] = useState<WithdrawQuery>({
     search: "",
     limit: 10,
     page: 1,
   });
 
   // Fetch offers
-  const fetchOffers = async (newQuery?: OffersQuery) => {
+  const fetchOffers = async (newQuery?: WithdrawQuery) => {
     try {
       const queryToUse = newQuery || query;
-      const response = await getOffers(queryToUse);
-      setOffers(response.data);
+      const response = await getWithdraws(
+        queryToUse,
+        session?.accessToken || "",
+      );
+      setLists(response);
       setPagination({
-        page: response.page,
-        limit: response.limit,
-        total: response.total,
-        totalPages: response.totalPages,
+        page: response.pagination.page,
+        limit: response.pagination.limit,
+        total: response.pagination.total,
+        totalPages: response.pagination.totalPages,
       });
     } catch (err) {
       console.error("Failed to fetch offers:", err);
@@ -69,6 +64,7 @@ export default function OffersTable() {
   };
 
   // Handle offer deletion
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleDeleteOffer = async (offerId: string) => {
     if (!confirm("Are you sure you want to delete this offer?")) return;
 
@@ -81,18 +77,16 @@ export default function OffersTable() {
   };
 
   // Format date
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
+    return new Date(dateString).toLocaleString();
   };
 
   // Format price
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const formatPrice = (price?: number) => {
+  const formatPrice = (price?: number, currency?: string) => {
     if (!price) return "N/A";
     return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "USD",
+      currency: currency || "USD",
     }).format(price);
   };
 
@@ -105,26 +99,13 @@ export default function OffersTable() {
       <div className="flex items-center justify-between px-6 py-5">
         <div>
           <h3 className="text-base font-medium text-gray-800 dark:text-white/90">
-            Offers
+            Lists
           </h3>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Total: {pagination.total} offers
+            Total: {pagination.total}
           </p>
         </div>
         <div className="flex items-center gap-4">
-          <button
-            onClick={() => {
-              setLoading(true);
-              updateListOffer(
-                (session as { accessToken?: string })?.accessToken || "",
-              )
-                .then(() => fetchOffers())
-                .finally(() => setLoading(false));
-            }}
-            className="shadow-theme-xs flex w-full items-center justify-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-800 lg:inline-flex lg:w-auto dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] dark:hover:text-gray-200"
-          >
-            Update Offer
-          </button>
           <input
             type="text"
             placeholder="Search offers..."
@@ -166,13 +147,13 @@ export default function OffersTable() {
                       #
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
-                      Offer
+                      Details
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
-                      Category
+                      Amount
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
-                      Status
+                      User
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                       Actions
@@ -180,83 +161,89 @@ export default function OffersTable() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
-                  {offers.map((offer, index) => (
+                  {lists?.data?.map((list, index) => (
                     <tr
-                      key={offer._id}
+                      key={list._id}
                       className="hover:bg-gray-50 dark:hover:bg-gray-800"
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
                         {index + 1}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="h-12 w-12 flex-shrink-0">
-                            {offer.logo ? (
-                              <Image
-                                className="h-12 w-12 rounded-lg object-cover"
-                                src={offer.logo}
-                                alt={offer.offer_name}
-                                width={48}
-                                height={48}
-                              />
-                            ) : (
-                              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gray-300">
-                                <span className="text-xs font-medium text-gray-700">
-                                  {offer.offer_name.charAt(0).toUpperCase()}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                              {offer.offer_name}
-                            </div>
-                            <div className="text-sm text-gray-500 dark:text-gray-400">
-                              {offer.description
-                                ? offer.description.substring(0, 50) +
-                                  (offer.description.length > 50 ? "..." : "")
-                                : "No description"}
-                            </div>
-                            {offer.categories && (
-                              <div className="text-xs text-gray-400 dark:text-gray-500">
-                                {offer.categories}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900 dark:text-gray-100">
-                          {offer.categories || "Uncategorized"}
+                          Method: {list.method || "N/A"}
                         </div>
-                        {offer.currency && (
+                        {list.method === "web3" ? (
+                          <>
+                            <p className="text-sm text-gray-900 dark:text-gray-100">
+                              Address: {list.address || "N/A"}
+                            </p>
+                            <p className="text-sm text-gray-900 dark:text-gray-100">
+                              Transaction Hash: {list.tx_hash || "N/A"}
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-sm text-gray-900 dark:text-gray-100">
+                              Bank Name: {list.bank_name || "N/A"}
+                            </p>
+                            <p className="text-sm text-gray-900 dark:text-gray-100">
+                              Acc No: {list.account_number || "N/A"}
+                            </p>
+                            <p className="text-sm text-gray-900 dark:text-gray-100">
+                              Acc Name: {list.account_name || "N/A"}
+                            </p>
+                          </>
+                        )}
+
+                        {list.currency && (
                           <div className="text-xs text-gray-500 dark:text-gray-400">
-                            Currency: {offer.currency}
+                            Currency: {list.currency}
                           </div>
                         )}
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          Status: {list.status}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          Created At: {formatDate(list.createdAt.toString())}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          {list.conversion_id.length > 0
+                            ? `Conversion IDs: ${list.conversion_id.join(", ")}`
+                            : "No Conversion IDs"}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                            offer.tracking_type === "active"
-                              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                              : offer.tracking_type === "expired"
-                                ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-                                : "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200"
-                          }`}
-                        >
-                          {offer.tracking_type || "Active"}
-                        </span>
+                        <p className="text-sm text-gray-900 dark:text-gray-100">
+                          (Fee): {list.percent_fee}%
+                        </p>
+                        <p className="text-sm text-gray-900 dark:text-gray-100">
+                          Total: {formatPrice(list.amount_total)}
+                        </p>
+                        <p className="text-sm text-gray-900 dark:text-gray-100">
+                          (Net): {formatPrice(list.amount_net)}
+                        </p>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          User: {list.user_id?.username || "N/A"}
+                        </div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          {list.user_id?.email || "N/A"}
+                        </div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          ID: {list.user_id?._id || "N/A"}
+                        </div>
                       </td>
                       <td className="space-x-2 px-6 py-4 text-sm font-medium whitespace-nowrap">
                         <button
-                          onClick={() => console.log("Edit offer:", offer._id)}
+                          onClick={() => console.log("Edit offer:", list._id)}
                           className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
                         >
                           Edit
                         </button>
                         <button
-                          onClick={() => handleDeleteOffer(offer._id)}
+                          // onClick={() => handleDeleteOffer(list._id)}
                           className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
                         >
                           Delete
@@ -269,7 +256,7 @@ export default function OffersTable() {
             </div>
 
             {/* Tags display for debugging */}
-            {offers.length > 0 && offers && (
+            {Number(lists?.pagination.total) > 0 && lists && (
               <div className="mt-4 rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
                 <div className="text-xs text-gray-600 dark:text-gray-400">
                   {/* Sample tags: {offers.} */}
@@ -310,7 +297,7 @@ export default function OffersTable() {
               </div>
             )}
 
-            {offers.length === 0 && !loading && (
+            {Number(lists?.pagination.total) === 0 && !loading && (
               <div className="py-8 text-center text-gray-500 dark:text-gray-400">
                 No offers found
               </div>
