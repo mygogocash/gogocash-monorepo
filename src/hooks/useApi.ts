@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { apiClient } from '@/lib/api';
-import { ApiError, RegisterRequest, AdminUsersQuery, AdminUsersResponse, UsersQuery, UsersResponse, RegularUser, OffersQuery, OffersResponse, Offer } from '@/types/api';
+import { ApiError, RegisterRequest, AdminUsersQuery, AdminUsersResponse, UsersQuery, UsersResponse, RegularUser, OffersQuery, OffersResponse, Offer, WithdrawQuery, ResponseWithdraws } from '@/types/api';
 
 // Hook for authentication operations
 export function useAuth() {
@@ -216,6 +216,10 @@ export function useApi() {
     return apiCall(() => apiClient.getOffers(query));
   };
 
+  const updateListOffer = async (token: string): Promise<Offer[]> => {
+    return apiCall(() => apiClient.updateListOffer(token));
+  };
+
   const getOffer = async (offerId: string): Promise<Offer> => {
     return apiCall(() => apiClient.getOffer(offerId));
   };
@@ -238,8 +242,13 @@ export function useApi() {
     return apiCall(() => apiClient.deleteOffer(offerId, token));
   };
 
+
+  const getWithdraws = async (query: WithdrawQuery = {}, token: string): Promise<ResponseWithdraws> => {
+    return apiCall(() => apiClient.getWithdraws(query, token));
+  };
   return {
     loading,
+    setLoading,
     error,
     get,
     post,
@@ -267,5 +276,9 @@ export function useApi() {
     updateOffer,
     deleteOffer,
     clearError: () => setError(null),
+    updateListOffer,
+
+    // Withdraw methods
+    getWithdraws,
   };
 }
