@@ -9,6 +9,7 @@ import {
   GridIcon,
   HorizontaLDots,
   ListIcon,
+  PieChartIcon,
   UserCircleIcon,
 } from "../icons/index";
 // import SidebarWidget from "./SidebarWidget";
@@ -81,14 +82,11 @@ const navItems: NavItem[] = [
 ];
 
 const othersItems: NavItem[] = [
-  // {
-  //   icon: <PieChartIcon />,
-  //   name: "Charts",
-  //   subItems: [
-  //     { name: "Line Chart", path: "/line-chart", pro: false },
-  //     { name: "Bar Chart", path: "/bar-chart", pro: false },
-  //   ],
-  // },
+  {
+    icon: <PieChartIcon />,
+    name: "Fee",
+    subItems: [{ name: "Fee rate", path: "/fee", pro: false }],
+  },
   // {
   //   icon: <BoxCubeIcon />,
   //   name: "UI Elements",
@@ -384,7 +382,7 @@ const AppSidebar: React.FC = () => {
                   <HorizontaLDots />
                 )}
               </h2>
-              {/* {renderMenuItems(othersItems, "others")} */}
+              {renderMenuItems(othersItems, "others")}
             </div>
           </div>
         </nav>
