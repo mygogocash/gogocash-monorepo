@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { CreateAdminDto } from './dto/create-admin.dto';
-import { UpdateAdminDto } from './dto/update-admin.dto';
+import { UpdateAdminDto, UpdateFeeRateDto } from './dto/update-admin.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { UserAdmin } from './user-admin/schemas/user-admin.schema';
 import { Model, Types } from 'mongoose';
 import { Withdraw } from 'src/withdraw/schemas/withdraw.schema';
 import { InvolveService } from 'src/involve/involve.service';
 import { User } from 'src/user/schemas/user.schema';
+import { FeeRate } from 'src/withdraw/schemas/feeRate.schema';
 
 @Injectable()
 export class AdminService {
@@ -14,6 +15,8 @@ export class AdminService {
     @InjectModel(UserAdmin.name) private userAdminModel: Model<UserAdmin>,
     @InjectModel(Withdraw.name) private withdrawModel: Model<Withdraw>,
     @InjectModel(User.name) private userModel: Model<User>,
+    @InjectModel(FeeRate.name) private feeRateModel: Model<FeeRate>,
+
     private involveService: InvolveService,
   ) {}
   create(createAdminDto: CreateAdminDto) {
@@ -138,5 +141,23 @@ export class AdminService {
     );
     conversions.data.data = data;
     return conversions;
+  }
+
+  async getFeeRate() {
+    return this.feeRateModel.find().exec();
+  }
+
+  async updateFeeRate(updateFeeRateDto: UpdateFeeRateDto, id: string) {
+    const feeRate = await this.feeRateModel.findOne({ _id: id }).exec();
+    if (feeRate) {
+      return this.feeRateModel
+        .findOneAndUpdate({ _id: feeRate._id }, updateFeeRateDto, {
+          upsert: true,
+          new: true,
+        })
+        .exec();
+    }
+    const newFeeRate = new this.feeRateModel(updateFeeRateDto);
+    return newFeeRate.save();
   }
 }
