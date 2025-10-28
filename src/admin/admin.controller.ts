@@ -77,11 +77,12 @@ export class AdminController {
   @ApiBearerAuth() // This directly applies Bearer authentication
   @Get('conversion-all')
   getConversionAll(
-    @Query('page') page: string,
-    @Query('limit') limit: string,
-    @Query('search') search: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('status') status?: string,
   ) {
-    return this.adminService.getConversionAll(page, limit, search);
+    return this.adminService.getConversionAll(page, limit, search, status);
   }
 
   // @Get(':id')
