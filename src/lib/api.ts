@@ -1,4 +1,4 @@
-import { LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ApiError, AdminUsersQuery, AdminUsersResponse, RegularUser, UsersQuery, UsersResponse, Offer, OffersQuery, OffersResponse, WithdrawQuery, ResponseWithdraws } from '@/types/api';
+import { LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ApiError, AdminUsersQuery, AdminUsersResponse, RegularUser, UsersQuery, UsersResponse, Offer, OffersQuery, OffersResponse, WithdrawQuery, ResponseWithdraws, ConversionQuery, ResponseConversion } from '@/types/api';
 
 class ApiClient {
   private baseURL: string;
@@ -408,6 +408,28 @@ class ApiClient {
     const endpoint = queryString ? `/admin/withdraw-all?${queryString}` : '/admin/withdraw-all';
 
     return this.request<ResponseWithdraws>(endpoint, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  }
+
+  async getConversion(
+    query: ConversionQuery = {},
+    token: string
+  ): Promise<ResponseConversion> {
+    // Build query parameters
+    const params = new URLSearchParams();
+    if (query.search) params.append('search', query.search);
+    if (query.limit) params.append('limit', query.limit.toString());
+    if (query.page) params.append('page', query.page.toString());
+    if (query.status) params.append('status', query.status);
+
+    const queryString = params.toString();
+    const endpoint = queryString ? `/admin/conversion-all?${queryString}` : '/admin/conversion-all';
+
+    return this.request<ResponseConversion>(endpoint, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,

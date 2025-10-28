@@ -50,7 +50,11 @@ const navItems: NavItem[] = [
     name: "Withdraw Management",
     subItems: [{ name: "Withdraw", path: "/withdraw", pro: false }],
   },
-
+  {
+    icon: <ListIcon />,
+    name: "Conversion Management",
+    subItems: [{ name: "Conversion", path: "/conversion", pro: false }],
+  },
   {
     icon: <CalenderIcon />,
     name: "Calendar",
