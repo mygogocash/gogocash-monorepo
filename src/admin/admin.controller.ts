@@ -15,7 +15,7 @@ import {
   LoginAdminDto,
   RegisterAdminDto,
 } from './dto/create-admin.dto';
-import { UpdateAdminDto } from './dto/update-admin.dto';
+import { UpdateAdminDto, UpdateFeeRateDto } from './dto/update-admin.dto';
 import { UserAdminService } from './user-admin/user-admin-service';
 import { ApiBearerAuth, ApiBody, ApiSecurity } from '@nestjs/swagger';
 import { AuthAdminGuard } from './jwt-auth-admin.guard';
@@ -85,6 +85,25 @@ export class AdminController {
     return this.adminService.getConversionAll(page, limit, search, status);
   }
 
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
+  @Get('get-fee-rate')
+  getFeeRate() {
+    return this.adminService.getFeeRate();
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiBody({ type: UpdateFeeRateDto })
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
+  @Patch('update-fee-rate/:id')
+  updateFeeRate(
+    @Param('id') id: string,
+    @Body() updateAdminDto: UpdateFeeRateDto,
+  ) {
+    return this.adminService.updateFeeRate(updateAdminDto, id);
+  }
   // @Get(':id')
   // findOne(@Param('id') id: string) {
   //   return this.adminService.findOne(id);

@@ -15,6 +15,7 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { Offer, OfferSchema } from 'src/offer/schemas/offer.schema';
 import { Deeplink, DeeplinkSchema } from 'src/involve/schemas/deeplink.schema';
 import { User, UserSchema } from 'src/user/schemas/user.schema';
+import { FeeRate, FeeRateSchema } from 'src/withdraw/schemas/feeRate.schema';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { User, UserSchema } from 'src/user/schemas/user.schema';
       { name: Offer.name, schema: OfferSchema },
       { name: Deeplink.name, schema: DeeplinkSchema },
       { name: User.name, schema: UserSchema },
+      { name: FeeRate.name, schema: FeeRateSchema },
     ]),
   ],
   controllers: [AdminController],
