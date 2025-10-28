@@ -3,15 +3,17 @@ import { CreateAdminDto } from './dto/create-admin.dto';
 import { UpdateAdminDto } from './dto/update-admin.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { UserAdmin } from './user-admin/schemas/user-admin.schema';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Withdraw } from 'src/withdraw/schemas/withdraw.schema';
 import { InvolveService } from 'src/involve/involve.service';
+import { User } from 'src/user/schemas/user.schema';
 
 @Injectable()
 export class AdminService {
   constructor(
     @InjectModel(UserAdmin.name) private userAdminModel: Model<UserAdmin>,
     @InjectModel(Withdraw.name) private withdrawModel: Model<Withdraw>,
+    @InjectModel(User.name) private userModel: Model<User>,
     private involveService: InvolveService,
   ) {}
   create(createAdminDto: CreateAdminDto) {
@@ -101,13 +103,40 @@ export class AdminService {
   async getConversionAll(
     page: string = '1',
     limit: string = '10',
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     search?: string,
+    status?: string,
   ) {
-    const conversions = await this.involveService.getConversionAll({
-      page: page,
-      limit: limit,
-    });
+    const conversions = await this.involveService.getConversionAll(
+      {
+        page: page,
+        limit: limit,
+      },
+      search || status
+        ? { offer_name: search, conversion_status: status }
+        : null,
+    );
+    const data = await Promise.all(
+      conversions?.data?.data?.map(async (conversion) => {
+        if (conversion.aff_sub1?.includes('user_id:')) {
+          conversion.aff_sub1 = conversion.aff_sub1.replace('user_id:', '');
+        }
+        const user = await this.userModel.findById(
+          new Types.ObjectId(conversion.aff_sub1),
+        );
+        if (user) {
+          return {
+            ...conversion,
+            user: { username: user.username, email: user.email, _id: user._id },
+          };
+        } else {
+          return {
+            ...conversion,
+            user: null,
+          };
+        }
+      }),
+    );
+    conversions.data.data = data;
     return conversions;
   }
 }

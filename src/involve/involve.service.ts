@@ -243,18 +243,24 @@ export class InvolveService {
     // return this.deeplinkModel.countDocuments({ offer_id: Number(offer_id) });
   }
 
-  async getConversionAll(payload: RequestGetConversion) {
+  async getConversionAll(payload: RequestGetConversion, filter: any = null) {
     let token = await this.cacheManager.get('access_token_involve');
     if (!token) {
       await this.signIn();
       token = await this.cacheManager.get('access_token_involve');
     }
     try {
+      const filters = {
+        page: payload.page || 1,
+        limit: payload.limit || 100,
+      };
+      if (filter) {
+        filters['filters'] = filter;
+      }
       const res = await axios.post(
         `${this.endpoint}/conversions/all`,
         {
-          page: payload.page || 1,
-          limit: payload.limit || 100,
+          ...filters,
           // filters: {
           //   offer_id: Number(offer_id),
           // },
