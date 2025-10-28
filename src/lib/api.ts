@@ -1,66 +1,83 @@
-import { LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ApiError, AdminUsersQuery, AdminUsersResponse, RegularUser, UsersQuery, UsersResponse, Offer, OffersQuery, OffersResponse, WithdrawQuery, ResponseWithdraws, ConversionQuery, ResponseConversion } from '@/types/api';
+import {
+  LoginRequest,
+  LoginResponse,
+  RegisterRequest,
+  RegisterResponse,
+  ApiError,
+  AdminUsersQuery,
+  AdminUsersResponse,
+  RegularUser,
+  UsersQuery,
+  UsersResponse,
+  Offer,
+  OffersQuery,
+  OffersResponse,
+  WithdrawQuery,
+  ResponseWithdraws,
+  ConversionQuery,
+  ResponseConversion,
+  ResponseFee,
+  FeeSettingsForm,
+} from "@/types/api";
+import { AxiosRequestConfig } from "axios";
 
 class ApiClient {
   private baseURL: string;
 
   constructor() {
-    this.baseURL = process.env.NEXT_PUBLIC_API_URL || 'https://api.gogocash.co';
+    this.baseURL = process.env.NEXT_PUBLIC_API_URL || "https://api.gogocash.co";
   }
 
-  private async request<T>(
+   private async request<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
+    const axios = await import('axios');
     const url = `${this.baseURL}${endpoint}`;
-    const config: RequestInit = {
+    
+    const config = {
+      url,
+      method: options.method || 'GET',
       headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        ...options.headers,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      ...options.headers,
       },
-      ...options,
+      data: options.body ? JSON.parse(options.body as string) : undefined,
     };
 
     try {
-      const response = await fetch(url, config);
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        
-        const apiError: ApiError = {
-          message: errorData.message || `HTTP Error ${response.status}`,
-          status: response.status,
-          errors: errorData.errors,
-        };
-        
-        throw apiError;
-      }
-
-      return await response.json();
+      const response = await axios.default(config as AxiosRequestConfig);
+      return response.data;
     } catch (error) {
-      if (error instanceof Error && 'status' in error) {
-        throw error; // Re-throw API errors
+      if (axios.default.isAxiosError(error) && error.response) {
+      const apiError: ApiError = {
+        message: error.response.data?.message || `HTTP Error ${error.response.status}`,
+        status: error.response.status,
+        errors: error.response.data?.errors,
+      };
+      throw apiError;
       }
       
       // Handle network or other errors
       throw {
-        message: error instanceof Error ? error.message : 'Network error',
-        status: 0,
+      message: error instanceof Error ? error.message : 'Network error',
+      status: 0,
       } as ApiError;
     }
   }
 
   // Authentication endpoints
   async login(credentials: LoginRequest): Promise<LoginResponse> {
-    return this.request<LoginResponse>('/admin/login', {
-      method: 'POST',
+    return this.request<LoginResponse>("/admin/login", {
+      method: "POST",
       body: JSON.stringify(credentials),
     });
   }
 
   async register(userData: RegisterRequest): Promise<RegisterResponse> {
-    return this.request<RegisterResponse>('/admin/register', {
-      method: 'POST',
+    return this.request<RegisterResponse>("/admin/register", {
+      method: "POST",
       body: JSON.stringify(userData),
     });
   }
@@ -71,15 +88,15 @@ class ApiClient {
       headers.Authorization = `Bearer ${token}`;
     }
 
-    return this.request<{ message: string }>('/auth/logout', {
-      method: 'POST',
+    return this.request<{ message: string }>("/auth/logout", {
+      method: "POST",
       headers,
     });
   }
 
   async getProfile(token: string): Promise<LoginResponse> {
-    return this.request<LoginResponse>('/auth/profile', {
-      method: 'GET',
+    return this.request<LoginResponse>("/auth/profile", {
+      method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -87,8 +104,8 @@ class ApiClient {
   }
 
   async refreshToken(token: string): Promise<{ token: string }> {
-    return this.request<{ token: string }>('/auth/refresh', {
-      method: 'POST',
+    return this.request<{ token: string }>("/auth/refresh", {
+      method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -97,8 +114,8 @@ class ApiClient {
 
   // Password reset endpoints
   async requestPasswordReset(email: string): Promise<{ message: string }> {
-    return this.request<{ message: string }>('/auth/forgot-password', {
-      method: 'POST',
+    return this.request<{ message: string }>("/auth/forgot-password", {
+      method: "POST",
       body: JSON.stringify({ email }),
     });
   }
@@ -109,8 +126,8 @@ class ApiClient {
     password: string;
     password_confirmation: string;
   }): Promise<{ message: string }> {
-    return this.request<{ message: string }>('/auth/reset-password', {
-      method: 'POST',
+    return this.request<{ message: string }>("/auth/reset-password", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
@@ -118,10 +135,10 @@ class ApiClient {
   // User management endpoints
   async updateProfile(
     token: string,
-    userData: Partial<{ name: string; email: string; avatar: string }>
+    userData: Partial<{ name: string; email: string; avatar: string }>,
   ): Promise<LoginResponse> {
-    return this.request<LoginResponse>('/user/profile', {
-      method: 'PUT',
+    return this.request<LoginResponse>("/user/profile", {
+      method: "PUT",
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -135,10 +152,10 @@ class ApiClient {
       current_password: string;
       password: string;
       password_confirmation: string;
-    }
+    },
   ): Promise<{ message: string }> {
-    return this.request<{ message: string }>('/user/change-password', {
-      method: 'POST',
+    return this.request<{ message: string }>("/user/change-password", {
+      method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -154,7 +171,7 @@ class ApiClient {
     }
 
     return this.request<T>(endpoint, {
-      method: 'GET',
+      method: "GET",
       headers,
     });
   }
@@ -162,7 +179,7 @@ class ApiClient {
   async post<T>(
     endpoint: string,
     data: Record<string, unknown>,
-    token?: string
+    token?: string,
   ): Promise<T> {
     const headers: Record<string, string> = {};
     if (token) {
@@ -170,7 +187,7 @@ class ApiClient {
     }
 
     return this.request<T>(endpoint, {
-      method: 'POST',
+      method: "POST",
       headers,
       body: JSON.stringify(data),
     });
@@ -179,7 +196,7 @@ class ApiClient {
   async put<T>(
     endpoint: string,
     data: Record<string, unknown>,
-    token?: string
+    token?: string,
   ): Promise<T> {
     const headers: Record<string, string> = {};
     if (token) {
@@ -187,7 +204,7 @@ class ApiClient {
     }
 
     return this.request<T>(endpoint, {
-      method: 'PUT',
+      method: "PUT",
       headers,
       body: JSON.stringify(data),
     });
@@ -200,7 +217,7 @@ class ApiClient {
     }
 
     return this.request<T>(endpoint, {
-      method: 'DELETE',
+      method: "DELETE",
       headers,
     });
   }
@@ -208,7 +225,7 @@ class ApiClient {
   // Admin User Management
   async getAdminUsers(
     query: AdminUsersQuery = {},
-    token?: string
+    token?: string,
   ): Promise<AdminUsersResponse> {
     const headers: Record<string, string> = {};
     if (token) {
@@ -217,44 +234,50 @@ class ApiClient {
 
     // Build query parameters
     const params = new URLSearchParams();
-    if (query.limit) params.append('limit', query.limit.toString());
-    if (query.page) params.append('page', query.page.toString());
-    if (query.search) params.append('search', query.search);
-    if (query.role) params.append('role', query.role);
-    if (query.status) params.append('status', query.status);
+    if (query.limit) params.append("limit", query.limit.toString());
+    if (query.page) params.append("page", query.page.toString());
+    if (query.search) params.append("search", query.search);
+    if (query.role) params.append("role", query.role);
+    if (query.status) params.append("status", query.status);
 
     const queryString = params.toString();
-    const endpoint = queryString ? `/admin?${queryString}` : '/admin';
+    const endpoint = queryString ? `/admin?${queryString}` : "/admin";
 
     return this.request<AdminUsersResponse>(endpoint, {
-      method: 'GET',
+      method: "GET",
       headers,
     });
   }
 
-  async getAdminUser(userId: string, token?: string): Promise<AdminUsersResponse> {
-    const headers: Record<string, string> = {};
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-
-    return this.request<AdminUsersResponse>(`/admin/${userId}`, {
-      method: 'GET',
-      headers,
-    });
-  }
-
-  async createAdminUser(
-    userData: Omit<AdminUsersResponse, '_id' | 'createdAt' | 'updatedAt' | '__v'>,
-    token?: string
+  async getAdminUser(
+    userId: string,
+    token?: string,
   ): Promise<AdminUsersResponse> {
     const headers: Record<string, string> = {};
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
 
-    return this.request<AdminUsersResponse>('/admin', {
-      method: 'POST',
+    return this.request<AdminUsersResponse>(`/admin/${userId}`, {
+      method: "GET",
+      headers,
+    });
+  }
+
+  async createAdminUser(
+    userData: Omit<
+      AdminUsersResponse,
+      "_id" | "createdAt" | "updatedAt" | "__v"
+    >,
+    token?: string,
+  ): Promise<AdminUsersResponse> {
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    return this.request<AdminUsersResponse>("/admin", {
+      method: "POST",
       headers,
       body: JSON.stringify(userData),
     });
@@ -262,8 +285,10 @@ class ApiClient {
 
   async updateAdminUser(
     userId: string,
-    userData: Partial<Omit<AdminUsersResponse, '_id' | 'createdAt' | 'updatedAt' | '__v'>>,
-    token?: string
+    userData: Partial<
+      Omit<AdminUsersResponse, "_id" | "createdAt" | "updatedAt" | "__v">
+    >,
+    token?: string,
   ): Promise<AdminUsersResponse> {
     const headers: Record<string, string> = {};
     if (token) {
@@ -271,20 +296,23 @@ class ApiClient {
     }
 
     return this.request<AdminUsersResponse>(`/admin/${userId}`, {
-      method: 'PUT',
+      method: "PUT",
       headers,
       body: JSON.stringify(userData),
     });
   }
 
-  async deleteAdminUser(userId: string, token?: string): Promise<{ message: string }> {
+  async deleteAdminUser(
+    userId: string,
+    token?: string,
+  ): Promise<{ message: string }> {
     const headers: Record<string, string> = {};
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
 
     return this.request<{ message: string }>(`/admin/${userId}`, {
-      method: 'DELETE',
+      method: "DELETE",
       headers,
     });
   }
@@ -292,7 +320,7 @@ class ApiClient {
   // Regular User Management (from /user endpoint)
   async getUsers(
     query: UsersQuery = {},
-    token?: string
+    token?: string,
   ): Promise<UsersResponse> {
     const headers: Record<string, string> = {};
     if (token) {
@@ -301,17 +329,17 @@ class ApiClient {
 
     // Build query parameters
     const params = new URLSearchParams();
-    if (query.limit) params.append('limit', query.limit.toString());
-    if (query.page) params.append('page', query.page.toString());
-    if (query.search) params.append('search', query.search);
-    if (query.role) params.append('role', query.role);
-    if (query.status) params.append('status', query.status);
+    if (query.limit) params.append("limit", query.limit.toString());
+    if (query.page) params.append("page", query.page.toString());
+    if (query.search) params.append("search", query.search);
+    if (query.role) params.append("role", query.role);
+    if (query.status) params.append("status", query.status);
 
     const queryString = params.toString();
-    const endpoint = queryString ? `/user?${queryString}` : '/user';
+    const endpoint = queryString ? `/user?${queryString}` : "/user";
 
     return this.request<UsersResponse>(endpoint, {
-      method: 'GET',
+      method: "GET",
       headers,
     });
   }
@@ -323,22 +351,22 @@ class ApiClient {
     }
 
     return this.request<RegularUser>(`/user/${userId}`, {
-      method: 'GET',
+      method: "GET",
       headers,
     });
   }
 
   async createUser(
-    userData: Omit<RegularUser, '_id' | 'createdAt' | 'updatedAt' | '__v'>,
-    token?: string
+    userData: Omit<RegularUser, "_id" | "createdAt" | "updatedAt" | "__v">,
+    token?: string,
   ): Promise<RegularUser> {
     const headers: Record<string, string> = {};
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
 
-    return this.request<RegularUser>('/user', {
-      method: 'POST',
+    return this.request<RegularUser>("/user", {
+      method: "POST",
       headers,
       body: JSON.stringify(userData),
     });
@@ -346,8 +374,10 @@ class ApiClient {
 
   async updateUser(
     userId: string,
-    userData: Partial<Omit<RegularUser, '_id' | 'createdAt' | 'updatedAt' | '__v'>>,
-    token?: string
+    userData: Partial<
+      Omit<RegularUser, "_id" | "createdAt" | "updatedAt" | "__v">
+    >,
+    token?: string,
   ): Promise<RegularUser> {
     const headers: Record<string, string> = {};
     if (token) {
@@ -355,60 +385,63 @@ class ApiClient {
     }
 
     return this.request<RegularUser>(`/user/${userId}`, {
-      method: 'PUT',
+      method: "PUT",
       headers,
       body: JSON.stringify(userData),
     });
   }
 
-  async deleteUser(userId: string, token?: string): Promise<{ message: string }> {
+  async deleteUser(
+    userId: string,
+    token?: string,
+  ): Promise<{ message: string }> {
     const headers: Record<string, string> = {};
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
 
     return this.request<{ message: string }>(`/user/${userId}`, {
-      method: 'DELETE',
+      method: "DELETE",
       headers,
     });
   }
 
   // Offer Management (from /offer endpoint)
-  async getOffers(
-    query: OffersQuery = {}
-  ): Promise<OffersResponse> {
+  async getOffers(query: OffersQuery = {}): Promise<OffersResponse> {
     // Build query parameters
     const params = new URLSearchParams();
-    if (query.search) params.append('search', query.search);
-    if (query.limit) params.append('limit', query.limit.toString());
-    if (query.page) params.append('page', query.page.toString());
-    if (query.category) params.append('category', query.category);
-    if (query.status) params.append('status', query.status);
-    if (query.type) params.append('type', query.type);
+    if (query.search) params.append("search", query.search);
+    if (query.limit) params.append("limit", query.limit.toString());
+    if (query.page) params.append("page", query.page.toString());
+    if (query.category) params.append("category", query.category);
+    if (query.status) params.append("status", query.status);
+    if (query.type) params.append("type", query.type);
 
     const queryString = params.toString();
-    const endpoint = queryString ? `/offer?${queryString}` : '/offer';
+    const endpoint = queryString ? `/offer?${queryString}` : "/offer";
 
     return this.request<OffersResponse>(endpoint, {
-      method: 'GET',
+      method: "GET",
     });
   }
 
   async getWithdraws(
     query: WithdrawQuery = {},
-    token: string
+    token: string,
   ): Promise<ResponseWithdraws> {
     // Build query parameters
     const params = new URLSearchParams();
-    if (query.search) params.append('search', query.search);
-    if (query.limit) params.append('limit', query.limit.toString());
-    if (query.page) params.append('page', query.page.toString());
+    if (query.search) params.append("search", query.search);
+    if (query.limit) params.append("limit", query.limit.toString());
+    if (query.page) params.append("page", query.page.toString());
 
     const queryString = params.toString();
-    const endpoint = queryString ? `/admin/withdraw-all?${queryString}` : '/admin/withdraw-all';
+    const endpoint = queryString
+      ? `/admin/withdraw-all?${queryString}`
+      : "/admin/withdraw-all";
 
     return this.request<ResponseWithdraws>(endpoint, {
-      method: 'GET',
+      method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -417,35 +450,66 @@ class ApiClient {
 
   async getConversion(
     query: ConversionQuery = {},
-    token: string
+    token: string,
   ): Promise<ResponseConversion> {
     // Build query parameters
     const params = new URLSearchParams();
-    if (query.search) params.append('search', query.search);
-    if (query.limit) params.append('limit', query.limit.toString());
-    if (query.page) params.append('page', query.page.toString());
-    if (query.status) params.append('status', query.status);
+    if (query.search) params.append("search", query.search);
+    if (query.limit) params.append("limit", query.limit.toString());
+    if (query.page) params.append("page", query.page.toString());
+    if (query.status) params.append("status", query.status);
 
     const queryString = params.toString();
-    const endpoint = queryString ? `/admin/conversion-all?${queryString}` : '/admin/conversion-all';
+    const endpoint = queryString
+      ? `/admin/conversion-all?${queryString}`
+      : "/admin/conversion-all";
 
     return this.request<ResponseConversion>(endpoint, {
-      method: 'GET',
+      method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
       },
     });
   }
 
-  async getOffer(offerId: string): Promise<Offer> {
-    return this.request<Offer>(`/offer/${offerId}`, {
-      method: 'GET',
+  async getFee(token: string): Promise<ResponseFee[]> {
+    return this.request(`/admin/get-fee-rate`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     });
   }
 
-    async updateListOffer(token: string): Promise<Offer[]> {
+  async updateFee(query: FeeSettingsForm, token: string): Promise<ResponseFee> {
+    // Build query parameters
+    // const form = new FormData();
+    // if (query.system) form.append('system', query.system.toString());
+    // if (query.store) form.append('store', query.store.toString());
+    // if (query.minimum_withdraw) form.append('minimum_withdraw', query.minimum_withdraw.toString());
+    const dt = {
+      system: query.system,
+      store: query.store,
+      minimum_withdraw: query.minimum_withdraw,
+    };
+    return this.request<ResponseFee>(`/admin/update-fee-rate/${query.id}`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(dt),
+    });
+  }
+
+  async getOffer(offerId: string): Promise<Offer> {
+    return this.request<Offer>(`/offer/${offerId}`, {
+      method: "GET",
+    });
+  }
+
+  async updateListOffer(token: string): Promise<Offer[]> {
     return this.request<Offer[]>(`/involve`, {
-      method: 'GET',
+      method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -453,16 +517,16 @@ class ApiClient {
   }
 
   async createOffer(
-    offerData: Omit<Offer, '_id' | 'createdAt' | 'updatedAt' | '__v'>,
-    token?: string
+    offerData: Omit<Offer, "_id" | "createdAt" | "updatedAt" | "__v">,
+    token?: string,
   ): Promise<Offer> {
     const headers: Record<string, string> = {};
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
 
-    return this.request<Offer>('/offer', {
-      method: 'POST',
+    return this.request<Offer>("/offer", {
+      method: "POST",
       headers,
       body: JSON.stringify(offerData),
     });
@@ -470,8 +534,8 @@ class ApiClient {
 
   async updateOffer(
     offerId: string,
-    offerData: Partial<Omit<Offer, '_id' | 'createdAt' | 'updatedAt' | '__v'>>,
-    token?: string
+    offerData: Partial<Omit<Offer, "_id" | "createdAt" | "updatedAt" | "__v">>,
+    token?: string,
   ): Promise<Offer> {
     const headers: Record<string, string> = {};
     if (token) {
@@ -479,20 +543,23 @@ class ApiClient {
     }
 
     return this.request<Offer>(`/offer/${offerId}`, {
-      method: 'PUT',
+      method: "PUT",
       headers,
       body: JSON.stringify(offerData),
     });
   }
 
-  async deleteOffer(offerId: string, token?: string): Promise<{ message: string }> {
+  async deleteOffer(
+    offerId: string,
+    token?: string,
+  ): Promise<{ message: string }> {
     const headers: Record<string, string> = {};
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
 
     return this.request<{ message: string }>(`/offer/${offerId}`, {
-      method: 'DELETE',
+      method: "DELETE",
       headers,
     });
   }

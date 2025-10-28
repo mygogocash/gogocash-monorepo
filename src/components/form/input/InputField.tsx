@@ -8,6 +8,7 @@ interface InputProps {
   name?: string;
   placeholder?: string;
   defaultValue?: string | number;
+  value?: string | number;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   className?: string;
   min?: string;
@@ -33,6 +34,7 @@ const Input: FC<InputProps> = ({
   disabled = false,
   success = false,
   error = false,
+  value,
   hint,
 }) => {
   // Determine input styles based on state (disabled, success, error)
@@ -57,6 +59,7 @@ const Input: FC<InputProps> = ({
         name={name}
         placeholder={placeholder}
         defaultValue={defaultValue}
+        value={value}
         onChange={onChange}
         min={min}
         max={max}

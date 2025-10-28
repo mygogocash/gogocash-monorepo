@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { apiClient } from '@/lib/api';
-import { ApiError, RegisterRequest, AdminUsersQuery, AdminUsersResponse, UsersQuery, UsersResponse, RegularUser, OffersQuery, OffersResponse, Offer, WithdrawQuery, ResponseWithdraws, ResponseConversion, ConversionQuery } from '@/types/api';
+import { ApiError, RegisterRequest, AdminUsersQuery, AdminUsersResponse, UsersQuery, UsersResponse, RegularUser, OffersQuery, OffersResponse, Offer, WithdrawQuery, ResponseWithdraws, ResponseConversion, ConversionQuery, ResponseFee, FeeSettingsForm } from '@/types/api';
 
 // Hook for authentication operations
 export function useAuth() {
@@ -122,6 +122,8 @@ export function useApi() {
   ): Promise<T> => {
     return apiCall((token) => apiClient.put<T>(endpoint, data, token));
   };
+
+
 
   const del = async <T>(endpoint: string): Promise<T> => {
     return apiCall((token) => apiClient.delete<T>(endpoint, token));
@@ -250,6 +252,14 @@ export function useApi() {
   const getConversion = async (query: ConversionQuery = {}, token: string): Promise<ResponseConversion> => {
     return apiCall(() => apiClient.getConversion(query, token));
   };
+
+  const getFee = async (token: string): Promise<ResponseFee[]> => {
+    return apiCall(() => apiClient.getFee(token));
+  };
+
+  const updateFee = async (form : FeeSettingsForm, token: string): Promise<ResponseFee> => {
+    return apiCall(() => apiClient.updateFee(form, token));
+  };
   return {
     loading,
     setLoading,
@@ -287,5 +297,9 @@ export function useApi() {
 
     // Conversion methods
     getConversion,
+
+    // Fee methods
+    getFee,
+    updateFee,
   };
 }

@@ -238,3 +238,21 @@ export interface DataConversion {
   offer_name: string;
   user: UserID;
 }
+
+
+export interface ResponseFee {
+    _id:              string;
+    system:           number;
+    store:            number;
+    createdAt:        Date;
+    updatedAt:        Date;
+    __v:              number;
+    minimum_withdraw: number;
+}
+
+export interface FeeSettingsForm {
+    system:           number;
+    store:            number;
+    minimum_withdraw: number;
+    id: string;
+}
