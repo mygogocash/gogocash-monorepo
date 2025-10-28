@@ -104,31 +104,31 @@ export interface UsersResponse {
 
 // Offer Types (from /offer endpoint)
 export interface Offer {
-      _id:                     string;
-    offer_id:                number;
-    __v:                     number;
-    categories:              string;
-    commission_tracking:     string;
-    commissions:             string[];
-    countries:               string;
-    currency:                string;
-    datetime_created:        Date;
-    datetime_updated:        Date;
-    description:             string;
-    directory_page:          string;
-    is_require_approval:     number;
-    logo:                    string;
-    lookup_value:            string;
-    marketplace_store_offer: boolean;
-    merchant_id:             number;
-    offer_name:              string;
-    payment_terms:           number;
-    preview_url:             string;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    special_commissions:     any[];
-    tracking_link:           string;
-    tracking_type:           string;
-    validation_terms:        number;
+  _id: string;
+  offer_id: number;
+  __v: number;
+  categories: string;
+  commission_tracking: string;
+  commissions: string[];
+  countries: string;
+  currency: string;
+  datetime_created: Date;
+  datetime_updated: Date;
+  description: string;
+  directory_page: string;
+  is_require_approval: number;
+  logo: string;
+  lookup_value: string;
+  marketplace_store_offer: boolean;
+  merchant_id: number;
+  offer_name: string;
+  payment_terms: number;
+  preview_url: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  special_commissions: any[];
+  tracking_link: string;
+  tracking_type: string;
+  validation_terms: number;
 }
 
 export interface OffersQuery {
@@ -146,6 +146,13 @@ export interface WithdrawQuery {
   page?: number;
 }
 
+export interface ConversionQuery {
+  search?: string;
+  limit?: number;
+  page?: number;
+  status?: string;
+}
+
 export interface OffersResponse {
   data: Offer[];
   page: number;
@@ -154,42 +161,80 @@ export interface OffersResponse {
   totalPages: number;
 }
 
-
-
 export interface ResponseWithdraws {
-    data:       DataWithdrawsList[];
-    pagination: Pagination;
+  data: DataWithdrawsList[];
+  pagination: Pagination;
 }
 
 export interface UserID {
-    _id:      string;
-    address:  string;
-    email:    string;
-    username: string;
+  _id: string;
+  address: string;
+  email: string;
+  username: string;
 }
 export interface DataWithdrawsList {
-    user_id: UserID;
-    _id:            string;
-    address:        string;
-    account_number: string;
-    account_name:   string;
-    bank_name:      string;
-    amount_total:   number;
-    amount_net:     number;
-    percent_fee:    number;
-    status:         string;
-    method:         string;
-    tx_hash:        string;
-    conversion_id:  number[];
-    currency:       string;
-    createdAt:      Date;
-    updatedAt:      Date;
-    __v:            number;
+  user_id: UserID;
+  _id: string;
+  address: string;
+  account_number: string;
+  account_name: string;
+  bank_name: string;
+  amount_total: number;
+  amount_net: number;
+  percent_fee: number;
+  status: string;
+  method: string;
+  tx_hash: string;
+  conversion_id: number[];
+  currency: string;
+  createdAt: Date;
+  updatedAt: Date;
+  __v: number;
 }
 
 export interface Pagination {
-    page:       number;
-    limit:      number;
-    total:      number;
-    totalPages: number;
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface ResponseConversion {
+  status: string;
+  message: string;
+  data: DataConversionAll;
+}
+
+export interface DataConversionAll {
+  page: number;
+  limit: number;
+  count: number;
+  nextPage: null;
+  data: DataConversion[];
+}
+
+export interface DataConversion {
+  conversion_id: number;
+  offer_id: number;
+  aff_sub1: null | string;
+  aff_sub2: null;
+  aff_sub3: null;
+  aff_sub4: null;
+  aff_sub5: null;
+  adv_sub1: string;
+  adv_sub2: string;
+  adv_sub3: string;
+  adv_sub4: null | string;
+  adv_sub5: string;
+  datetime_conversion: Date;
+  conversion_status: string;
+  affiliate_remarks: null;
+  currency: string;
+  sale_amount: string;
+  payout: string;
+  base_payout: string;
+  bonus_payout: string;
+  merchant_id: number;
+  offer_name: string;
+  user: UserID;
 }

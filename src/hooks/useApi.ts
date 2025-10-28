@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { apiClient } from '@/lib/api';
-import { ApiError, RegisterRequest, AdminUsersQuery, AdminUsersResponse, UsersQuery, UsersResponse, RegularUser, OffersQuery, OffersResponse, Offer, WithdrawQuery, ResponseWithdraws } from '@/types/api';
+import { ApiError, RegisterRequest, AdminUsersQuery, AdminUsersResponse, UsersQuery, UsersResponse, RegularUser, OffersQuery, OffersResponse, Offer, WithdrawQuery, ResponseWithdraws, ResponseConversion, ConversionQuery } from '@/types/api';
 
 // Hook for authentication operations
 export function useAuth() {
@@ -246,6 +246,10 @@ export function useApi() {
   const getWithdraws = async (query: WithdrawQuery = {}, token: string): Promise<ResponseWithdraws> => {
     return apiCall(() => apiClient.getWithdraws(query, token));
   };
+
+  const getConversion = async (query: ConversionQuery = {}, token: string): Promise<ResponseConversion> => {
+    return apiCall(() => apiClient.getConversion(query, token));
+  };
   return {
     loading,
     setLoading,
@@ -280,5 +284,8 @@ export function useApi() {
 
     // Withdraw methods
     getWithdraws,
+
+    // Conversion methods
+    getConversion,
   };
 }
