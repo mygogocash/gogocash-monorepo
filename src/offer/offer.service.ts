@@ -37,7 +37,20 @@ export class OfferService {
     return { page, limit, total, totalPages, data };
   }
 
-  findOne(id: string) {
+  async findOne(id: string) {
+    const categoriesAll = await this.offerModel
+      .find({})
+      .select('categories')
+      .exec();
+    const uniqueCategories = new Set();
+    categoriesAll.forEach((offer) => {
+      if (offer.categories) {
+        const categoriesArray = offer.categories;
+        uniqueCategories.add(categoriesArray);
+      }
+    });
+    console.log('uniqueCategories', uniqueCategories);
+
     return this.offerModel.findById(id);
   }
 

@@ -10,6 +10,7 @@ export class CreateWithdrawDto {
   amount_net?: number;
   method?: string;
   currency?: string;
+  chain?: number;
 }
 
 export class GETSignDTO {
@@ -18,6 +19,7 @@ export class GETSignDTO {
   totalCashbackAmount: string;
   conversionIdHashes: string[];
   expireAt: string;
+  chain: number;
 }
 
 export class GetWithdrawTransactionsDTO {
