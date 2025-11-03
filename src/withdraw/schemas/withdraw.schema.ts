@@ -35,6 +35,9 @@ export class Withdraw {
   @Prop()
   tx_hash: string;
 
+  @Prop()
+  tx_hash_record: string;
+
   @Prop({ required: true, ref: 'User', type: Types.ObjectId })
   user_id: Types.ObjectId;
 

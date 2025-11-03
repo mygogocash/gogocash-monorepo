@@ -9,13 +9,14 @@ import {
   GetWithdrawTransactionsDTO,
 } from './dto/create-withdraw.dto';
 import { UpdateWithdrawDto } from './dto/update-withdraw.dto';
-import { ethers, keccak256, toUtf8Bytes } from 'ethers';
+import { ethers, keccak256, solidityPacked } from 'ethers';
 import { InjectModel } from '@nestjs/mongoose';
 import { User } from 'src/user/schemas/user.schema';
 import { Model, Types } from 'mongoose';
 import { InvolveService } from 'src/involve/involve.service';
 import { Withdraw } from './schemas/withdraw.schema';
 import { FeeRate } from './schemas/feeRate.schema';
+import { Offer } from 'src/offer/schemas/offer.schema';
 
 @Injectable()
 export class WithdrawService {
@@ -23,37 +24,64 @@ export class WithdrawService {
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(Withdraw.name) private withdrawModel: Model<Withdraw>,
     @InjectModel(FeeRate.name) private feeRateModel: Model<FeeRate>,
+    @InjectModel(Offer.name) private offerModel: Model<Offer>,
     private readonly involveService: InvolveService,
   ) {}
   async getSign(msg: GETSignDTO): Promise<string> {
+    // console.log('Generating EIP-712 signature for message:', msg);
+    const chainId =
+      msg.chain === Number(process.env.CHAIN_ID_WITHDRAW_POLYGON)
+        ? Number(process.env.CHAIN_ID_WITHDRAW_POLYGON)
+        : msg.chain === Number(process.env.CHAIN_ID_WITHDRAW_BNB)
+          ? Number(process.env.CHAIN_ID_WITHDRAW_BNB)
+          : Number(process.env.CHAIN_ID_WITHDRAW_SONIC);
+
+    const contract =
+      msg.chain === Number(process.env.CHAIN_ID_WITHDRAW_POLYGON)
+        ? process.env.CONTRACT_WITHDRAW_ADDRESS_POLYGON!
+        : msg.chain === Number(process.env.CHAIN_ID_WITHDRAW_BNB)
+          ? process.env.CONTRACT_WITHDRAW_ADDRESS_BNB!
+          : process.env.CONTRACT_WITHDRAW_ADDRESS_SONIC!;
+    // console.log(msg.chain, Number(process.env.CHAIN_ID_WITHDRAW_BNB));
+    // console.log(msg.chain === Number(process.env.CHAIN_ID_WITHDRAW_BNB));
+
+    // console.log('Using contract address for signing:', contract);
+    // console.log('Using chainId address for signing:', chainId);
+
     const domain = {
       name: 'CashbackLedger',
       version: '1',
-      chainId: Number(process.env.CHAIN_ID_WITHDRAW)!,
-      verifyingContract: process.env.CONTRACT_WITHDRAW_ADDRESS!,
+      chainId: chainId,
+      verifyingContract: contract,
     };
 
+    // ---------- 2) Batch Withdraw ----------
     const types = {
-      WithdrawCashbackMessage: [
+      WithdrawAuthBatch: [
         { name: 'userid', type: 'string' },
         { name: 'userAddress', type: 'address' },
-        { name: 'totalCashbackAmount', type: 'uint256' },
-        { name: 'conversionIdHashes', type: 'bytes32[]' },
+        { name: 'amount', type: 'uint256' },
         { name: 'expireAt', type: 'uint64' },
+        { name: 'conversionIdsHash', type: 'bytes32' },
       ],
     };
 
-    const conversionIdHashes: `0x${string}`[] = msg.conversionIdHashes.map(
-      (id) => keccak256(toUtf8Bytes(id)) as `0x${string}`,
-    );
+    let rolling = ethers.ZeroHash;
+    for (const id of msg.conversionIdHashes) {
+      rolling = keccak256(
+        solidityPacked(['bytes32', 'uint256'], [rolling, id]),
+      );
+    }
+
+    const decimal =
+      msg.chain === Number(process.env.CHAIN_ID_WITHDRAW_BNB) ? 18 : 6;
+    const conversionIdsHash = rolling;
     const value = {
       userid: msg.userid,
       userAddress: msg.userAddress,
-      totalCashbackAmount: ethers
-        .parseUnits(msg.totalCashbackAmount, 6)
-        .toString(),
-      conversionIdHashes: conversionIdHashes,
+      amount: ethers.parseUnits(msg.totalCashbackAmount, decimal).toString(),
       expireAt: BigInt(msg.expireAt),
+      conversionIdsHash: conversionIdsHash,
     };
 
     // console.log('value:', value);
@@ -63,23 +91,39 @@ export class WithdrawService {
     return signature;
   }
 
-  async getConversionIdsWithdrawedByUserId(userId: string): Promise<string[]> {
+  async getConversionIdsWithdrawedByUserId(
+    userId: string,
+    chainId: number,
+  ): Promise<string[]> {
     const abi = [
       {
         inputs: [{ internalType: 'string', name: 'userid', type: 'string' }],
-        name: 'getConversionIdStringsByUserId',
-        outputs: [{ internalType: 'string[]', name: '', type: 'string[]' }],
+        name: 'getConversionIdsByUserId',
+        outputs: [{ internalType: 'uint256[]', name: '', type: 'uint256[]' }],
         stateMutability: 'view',
         type: 'function',
       },
     ];
-    const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
-    const contract = new ethers.Contract(
-      process.env.CONTRACT_WITHDRAW_ADDRESS!,
-      abi,
-      provider,
-    );
-    const conversionIds = await contract.getConversionIdStringsByUserId(userId);
+    const rpc =
+      chainId === Number(process.env.CHAIN_ID_WITHDRAW_POLYGON)
+        ? process.env.RPC_URL_POLYGON
+        : chainId === Number(process.env.CHAIN_ID_WITHDRAW_BNB)
+          ? process.env.RPC_URL_BNB
+          : process.env.RPC_URL_BNB;
+    const contractAddress =
+      chainId === Number(process.env.CHAIN_ID_WITHDRAW_POLYGON)
+        ? process.env.CONTRACT_WITHDRAW_ADDRESS_POLYGON!
+        : chainId === Number(process.env.CHAIN_ID_WITHDRAW_BNB)
+          ? process.env.CONTRACT_WITHDRAW_ADDRESS_BNB!
+          : process.env.CONTRACT_WITHDRAW_ADDRESS_BNB!;
+
+    // console.log('Using contract address:', contractAddress);
+    // console.log('Using contract address:', rpc);
+
+    const provider = new ethers.JsonRpcProvider(rpc);
+    // const provider = new ethers.JsonRpcProvider(process.env.RPC_URL_POLYGON);
+    const contract = new ethers.Contract(contractAddress!, abi, provider);
+    const conversionIds = await contract.getConversionIdsByUserId(userId);
     const conversionIdsStringArray: string[] = conversionIds.map((id) =>
       Number(id),
     );
@@ -96,10 +140,32 @@ export class WithdrawService {
     if (!fee) {
       throw new HttpException({ message: 'Fee rate not found' }, 400);
     }
-    const conversionIdsWithdrawed =
-      await this.getConversionIdsWithdrawedByUserId(user._id.toString());
-    // console.log('conversionIdsWithdrawed:', conversionIdsWithdrawed);
+    // console.log('Checking withdraw for user:', user._id.toString());
+    const conversionIdsWithdrawedPolygon =
+      await this.getConversionIdsWithdrawedByUserId(
+        user._id.toString(),
+        Number(process.env.CHAIN_ID_WITHDRAW_POLYGON),
+      );
 
+    const conversionIdsWithdrawedBNB =
+      await this.getConversionIdsWithdrawedByUserId(
+        user._id.toString(),
+        Number(process.env.CHAIN_ID_WITHDRAW_BNB),
+      );
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    // const conversionIdsWithdrawedSonic =
+    //   await this.getConversionIdsWithdrawedByUserId(
+    //     user._id.toString(),
+    //     Number(process.env.CHAIN_ID_WITHDRAW_SONIC),
+    //   );
+    // console.log('conversionIdsWithdrawed:', conversionIdsWithdrawed);
+    const conversionIdsWithdrawed = [
+      ...conversionIdsWithdrawedPolygon,
+      ...conversionIdsWithdrawedBNB,
+      // ...conversionIdsWithdrawedSonic,
+    ];
+    // console.log('conversionIdsWithdrawed total:', conversionIdsWithdrawed);
     const conversions = await this.involveService.getConversionAll({
       page: '1',
       limit: '10',
@@ -125,6 +191,7 @@ export class WithdrawService {
     const withdrawnConversionIds = withdrawList.flatMap(
       (withdraw) => withdraw.conversion_id,
     );
+    // console.log('withdrawnConversionIds', withdrawnConversionIds);
 
     const approvedList = allConversions.filter(
       (item) =>
@@ -236,11 +303,61 @@ export class WithdrawService {
     }
   }
 
-  async createFeeRate() {
-    return await this.feeRateModel.create({
-      system: 5,
-      store: 5,
-    });
+  // async createFeeRate() {
+  //   return await this.feeRateModel.create({
+  //     system: 5,
+  //     store: 5,
+  //   });
+  // }
+
+  async createRecordOnChain(
+    userId: string,
+    chainId: number,
+    conversionIds: number[],
+  ): Promise<string> {
+    const abi = [
+      {
+        inputs: [
+          { internalType: 'string', name: 'userid', type: 'string' },
+          {
+            internalType: 'uint256[]',
+            name: 'conversionIds',
+            type: 'uint256[]',
+          },
+        ],
+        name: 'recordConversionId',
+        outputs: [],
+        stateMutability: 'nonpayable',
+        type: 'function',
+      },
+    ];
+    const rpc =
+      chainId === Number(process.env.CHAIN_ID_WITHDRAW_POLYGON)
+        ? process.env.RPC_URL_POLYGON
+        : chainId === Number(process.env.CHAIN_ID_WITHDRAW_BNB)
+          ? process.env.RPC_URL_BNB
+          : process.env.RPC_URL_SONIC;
+    const contractAddress =
+      chainId === Number(process.env.CHAIN_ID_WITHDRAW_POLYGON)
+        ? process.env.CONTRACT_WITHDRAW_ADDRESS_POLYGON!
+        : chainId === Number(process.env.CHAIN_ID_WITHDRAW_BNB)
+          ? process.env.CONTRACT_WITHDRAW_ADDRESS_BNB!
+          : process.env.CONTRACT_WITHDRAW_ADDRESS_SONIC!;
+
+    // console.log('Using contract address:', contractAddress);
+    // console.log('Using contract address:', rpc);
+
+    const provider = new ethers.JsonRpcProvider(rpc);
+    // const provider = new ethers.JsonRpcProvider(process.env.RPC_URL_POLYGON);
+    const wallet = new ethers.Wallet(
+      process.env.PRIVATE_KEY_WITHDRAW,
+      provider,
+    );
+    const contract = new ethers.Contract(contractAddress!, abi, wallet);
+    const receipt = await contract.recordConversionId(userId, conversionIds);
+    // console.log('receipt:', receipt);
+
+    return receipt.hash;
   }
   async create(createWithdrawDto: CreateWithdrawDto, id_crossmint: string) {
     // console.log(createWithdrawDto);
@@ -250,6 +367,12 @@ export class WithdrawService {
     if (!user) {
       throw new UnauthorizedException({ message: 'User not found' });
     }
+    //TODO create record shop on contract
+    const hash_record = await this.createRecordOnChain(
+      user._id.toString(),
+      createWithdrawDto.chain,
+      createWithdrawDto.conversion_ids || [],
+    );
     const dt = await this.withdrawModel.create({
       user_id: new Types.ObjectId(user._id),
       status: createWithdrawDto.tx_hash ? 'approved' : 'pending',
@@ -258,6 +381,7 @@ export class WithdrawService {
       bank_name: createWithdrawDto.bank_name || '',
       account_number: createWithdrawDto.account_number || '',
       tx_hash: createWithdrawDto.tx_hash || '',
+      tx_hash_record: hash_record || '',
       percent_fee: createWithdrawDto.percent_fee || 0,
       amount_total: createWithdrawDto.amount_total || 0,
       amount_net: createWithdrawDto.amount_net || 0,
