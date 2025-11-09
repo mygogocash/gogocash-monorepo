@@ -38,6 +38,10 @@ export class OfferService {
   }
 
   async findOne(id: string) {
+    return this.offerModel.findById(id);
+  }
+
+  async getCategoryList() {
     const categoriesAll = await this.offerModel
       .find({})
       .select('categories')
@@ -49,9 +53,7 @@ export class OfferService {
         uniqueCategories.add(categoriesArray);
       }
     });
-    console.log('uniqueCategories', uniqueCategories);
-
-    return this.offerModel.findById(id);
+    return Array.from(uniqueCategories);
   }
 
   async findMyOffer(user_id: string, payload: GetMyOfferDto) {

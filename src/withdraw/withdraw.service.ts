@@ -256,6 +256,7 @@ export class WithdrawService {
       throw new HttpException(
         {
           message: `Minimum withdrawal amount is $${minimumWithdrawal}. Current net amount: $${netAmount.toFixed(2)}`,
+          fee,
         },
         400,
       );
@@ -267,6 +268,7 @@ export class WithdrawService {
       totalUSDAmount: totalUSDAmount.toFixed(2),
       feePercentage,
       data: approvedList,
+      fee,
     };
   }
 
@@ -386,6 +388,50 @@ export class WithdrawService {
       amount_total: createWithdrawDto.amount_total || 0,
       amount_net: createWithdrawDto.amount_net || 0,
       method: createWithdrawDto.method || '',
+      currency: createWithdrawDto.currency || '',
+      conversion_id: createWithdrawDto.conversion_ids || [],
+    });
+    return { message: 'Withdraw request created', data: dt, status: 'success' };
+  }
+
+  async createBankTransfer(
+    createWithdrawDto: CreateWithdrawDto,
+    id_crossmint: string,
+  ) {
+    // console.log(createWithdrawDto);
+    const user = await this.userModel.findOne({
+      id_crossmint,
+    });
+    if (!user) {
+      throw new UnauthorizedException({ message: 'User not found' });
+    }
+    const conversionIdsWithdrawed = await this.withdrawModel
+      .find({
+        user_id: new Types.ObjectId(user._id),
+        conversion_id: createWithdrawDto.conversion_ids,
+      })
+      .lean();
+    if (conversionIdsWithdrawed.length > 0) {
+      throw new HttpException(
+        {
+          message: `Some conversion IDs have already been withdrawn.`,
+        },
+        400,
+      );
+    }
+    const dt = await this.withdrawModel.create({
+      user_id: new Types.ObjectId(user._id),
+      status: 'pending',
+      address: '',
+      account_name: createWithdrawDto.account_name || '',
+      bank_name: createWithdrawDto.bank_name || '',
+      account_number: createWithdrawDto.account_number || '',
+      tx_hash: '',
+      tx_hash_record: '',
+      percent_fee: createWithdrawDto.percent_fee || 0,
+      amount_total: createWithdrawDto.amount_total || 0,
+      amount_net: createWithdrawDto.amount_net || 0,
+      method: 'bank_transfer',
       currency: createWithdrawDto.currency || '',
       conversion_id: createWithdrawDto.conversion_ids || [],
     });
