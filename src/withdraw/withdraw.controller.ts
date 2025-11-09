@@ -54,6 +54,23 @@ export class WithdrawController {
   }
 
   @UseGuards(CrossmintAuthGuard)
+  @ApiBody({ type: GETSignDTO })
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
+  @Post('bank-transfer')
+  createBankTransfer(
+    @Req() req: Request,
+    @Body() createWithdrawDto: CreateWithdrawDto,
+  ) {
+    const user = req['user'] as any;
+    const id_crossmint = user?.sub;
+    return this.withdrawService.createBankTransfer(
+      createWithdrawDto,
+      id_crossmint,
+    );
+  }
+
+  @UseGuards(CrossmintAuthGuard)
   // @ApiBody({ type: GetWithdrawTransactionsDTO })
   @ApiQuery({ type: GetWithdrawTransactionsDTO })
   @ApiQuery({

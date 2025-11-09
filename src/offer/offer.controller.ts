@@ -57,6 +57,11 @@ export class OfferController {
     return this.offerService.findOne(id);
   }
 
+  @Get('get-category/list')
+  getCategoryList() {
+    return this.offerService.getCategoryList();
+  }
+
   @ApiQuery({
     name: 'page',
     required: false,
