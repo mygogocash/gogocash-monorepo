@@ -114,3 +114,6 @@ export class RequestGetConversion {
   @IsNumber()
   limit: string;
 }
+export class ConversionData {
+  data: RequestGetConversion;
+}

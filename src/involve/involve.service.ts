@@ -12,6 +12,7 @@ import { Model, Types } from 'mongoose';
 import { Deeplink } from './schemas/deeplink.schema';
 import { User } from 'src/user/schemas/user.schema';
 import { ResponseGenerateDeeplink } from './dto/deeplink.dto';
+import { convertToUSD } from 'src/utils/helper';
 
 @Injectable()
 export class InvolveService {
@@ -283,5 +284,92 @@ export class InvolveService {
       }
       throw new Error(error.message || 'Failed to get conversion');
     }
+  }
+
+  async getConversationAllPage(
+    payload: RequestGetConversion,
+    id_crossmint: string,
+  ) {
+    const conversions = await this.getConversionAll({
+      page: payload.page || '1',
+      limit: payload.limit || '10',
+    });
+
+    let allConversions = conversions.data.data;
+    let currentPage = 1;
+
+    while (conversions.data.nextPage) {
+      currentPage++;
+      const nextConversions = await this.getConversionAll({
+        page: currentPage.toString(),
+        limit: payload.limit || '10',
+      });
+      allConversions = allConversions.concat(nextConversions.data.data);
+      conversions.data.nextPage = nextConversions.data.nextPage;
+    }
+    const user = await this.userModel.findOne({ id_crossmint });
+    if (!user) {
+      throw new Error('User not found');
+    }
+    const id_user = user._id.toString();
+    const conversationByUser = allConversions.filter((item) =>
+      item.aff_sub1?.includes(`user_id:${id_user}`),
+    );
+    const totalUSDApproved = await conversationByUser
+      ?.filter((ele) => ele.conversion_status === 'approved')
+      .reduce(async (accPromise, item) => {
+        const acc = await accPromise;
+        if (item.currency === 'USD') {
+          return acc + Number(item.payout_amount);
+        } else {
+          // For non-USD currencies, you'll need to handle conversion separately
+          // This assumes you have the USD equivalent stored or calculated elsewhere
+          const { usdAmount } = await convertToUSD(
+            item.currency,
+            Number(item.payout),
+          );
+          if (usdAmount) {
+            return acc + usdAmount;
+          } else {
+            return acc;
+          }
+          // return acc + Number(item.payout_amount);
+        }
+      }, 0);
+
+    const totalUSDPending = await conversationByUser
+      ?.filter((ele) => ele.conversion_status === 'pending')
+      .reduce(async (accPromise, item) => {
+        const acc = await accPromise;
+        if (item.currency === 'USD') {
+          return acc + Number(item.payout_amount);
+        } else {
+          // For non-USD currencies, you'll need to handle conversion separately
+          // This assumes you have the USD equivalent stored or calculated elsewhere
+          const { usdAmount } = await convertToUSD(
+            item.currency,
+            Number(item.payout),
+          );
+          if (usdAmount) {
+            return acc + usdAmount;
+          } else {
+            return acc;
+          }
+          // return acc + Number(item.payout_amount);
+        }
+      }, 0);
+
+    return {
+      data: conversationByUser,
+      totalUSD: { pending: totalUSDPending, approved: totalUSDApproved },
+      pagination: {
+        total: conversationByUser.length,
+        limit: payload.limit || 10,
+        page: payload.page || 1,
+        totalPages: Math.ceil(
+          conversationByUser.length / Number(payload.limit || 10),
+        ),
+      },
+    };
   }
 }
