@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { InvolveService } from './involve.service';
 import {
+  ConversionData,
   CreateAffiliateDto,
   RequestGetConversion,
 } from './dto/create-involve.dto';
@@ -84,5 +85,17 @@ export class InvolveController {
     const user = req['user'] as any;
     const id_crossmint = user?.sub;
     return this.involveService.getConversion(offer_id, body, id_crossmint);
+  }
+
+  @UseGuards(CrossmintAuthGuard)
+  @ApiBody({ type: RequestGetConversion })
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
+  @ApiResponse({ status: 201, description: 'User login successfully' })
+  @Post('conversion-all')
+  async getConversionAll(@Body() body: ConversionData, @Req() req: Request) {
+    const user = req['user'] as any;
+    const id_crossmint = user?.sub;
+    return this.involveService.getConversationAllPage(body.data, id_crossmint);
   }
 }

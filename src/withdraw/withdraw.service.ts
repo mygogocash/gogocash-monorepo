@@ -467,9 +467,11 @@ export class WithdrawService {
         .lean(),
       this.withdrawModel.countDocuments(query),
     ]);
+    const totalAmount = data.reduce((acc, item) => acc + item.amount_net, 0);
     return {
       data,
       pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
+      totalAmount,
     };
   }
 
