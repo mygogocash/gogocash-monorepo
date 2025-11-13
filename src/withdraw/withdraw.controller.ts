@@ -15,7 +15,10 @@ import {
   GETSignDTO,
   GetWithdrawTransactionsDTO,
 } from './dto/create-withdraw.dto';
-import { UpdateWithdrawDto } from './dto/update-withdraw.dto';
+import {
+  CreateWithdrawMethod,
+  UpdateWithdrawDto,
+} from './dto/update-withdraw.dto';
 import { CrossmintAuthGuard } from 'src/auth/jwt-auth.guard';
 import { ApiBearerAuth, ApiBody, ApiQuery, ApiSecurity } from '@nestjs/swagger';
 import { Request } from 'express';
@@ -100,11 +103,6 @@ export class WithdrawController {
     return this.withdrawService.findAll(params, id_crossmint);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.withdrawService.findOne(+id);
-  }
-
   @UseGuards(CrossmintAuthGuard)
   @ApiBody({ type: GETSignDTO })
   @ApiSecurity('access-token') // Apply the security scheme defined globally
@@ -117,8 +115,80 @@ export class WithdrawController {
     return this.withdrawService.update(id, updateWithdrawDto);
   }
 
+  @UseGuards(CrossmintAuthGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth()
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.withdrawService.remove(+id);
   }
+
+  @UseGuards(CrossmintAuthGuard)
+  @ApiBody({ type: CreateWithdrawMethod })
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth()
+  @Post('methods')
+  createWithdrawMethod(
+    @Body() createWithdrawMethod: CreateWithdrawMethod,
+    @Req() req: Request,
+  ) {
+    const user = req['user'] as any;
+    const id_crossmint = user?.sub;
+    return this.withdrawService.createWithdrawMethod(
+      createWithdrawMethod,
+      id_crossmint,
+    );
+  }
+
+  @UseGuards(CrossmintAuthGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth()
+  @Get('banks')
+  getBankList() {
+    return this.withdrawService.getBankList();
+  }
+
+  @UseGuards(CrossmintAuthGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth()
+  @Get('methods/:id')
+  getMethodId(@Param('id') id: string) {
+    return this.withdrawService.getMethodId(id);
+  }
+
+  @UseGuards(CrossmintAuthGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth()
+  @Get('methods-list')
+  getMethodList(@Req() req: Request) {
+    const user = req['user'] as any;
+    const id_crossmint = user?.sub;
+    return this.withdrawService.getMethodList(id_crossmint);
+  }
+
+  @UseGuards(CrossmintAuthGuard)
+  @ApiBody({ type: CreateWithdrawMethod })
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth()
+  @Delete('methods/:id')
+  deleteMethodData(@Param('id') id: string) {
+    return this.withdrawService.deleteMethodData(id);
+  }
+
+  @UseGuards(CrossmintAuthGuard)
+  @ApiBody({ type: CreateWithdrawMethod })
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth()
+  @Patch('methods/:id')
+  updateMethodData(
+    @Param('id') id: string,
+    @Body() body: CreateWithdrawMethod,
+  ) {
+    return this.withdrawService.updateMethodData(id, body);
+  }
+
+  // @Get(':id')
+  // findOne(@Param('id') id: string) {
+  //   return this.withdrawService.findOne(+id);
+  // }
 }

@@ -10,6 +10,10 @@ import { Offer, OfferSchema } from 'src/offer/schemas/offer.schema';
 import { Deeplink, DeeplinkSchema } from 'src/involve/schemas/deeplink.schema';
 import { Withdraw, WithdrawSchema } from './schemas/withdraw.schema';
 import { FeeRate, FeeRateSchema } from './schemas/feeRate.schema';
+import {
+  WithdrawMethod,
+  WithdrawMethodSchema,
+} from './schemas/withdrawMethod.schema';
 
 @Module({
   imports: [
@@ -20,6 +24,7 @@ import { FeeRate, FeeRateSchema } from './schemas/feeRate.schema';
       { name: User.name, schema: UserSchema },
       { name: Withdraw.name, schema: WithdrawSchema },
       { name: FeeRate.name, schema: FeeRateSchema },
+      { name: WithdrawMethod.name, schema: WithdrawMethodSchema },
     ]),
   ],
   controllers: [WithdrawController],
