@@ -8,7 +8,10 @@ import {
   GETSignDTO,
   GetWithdrawTransactionsDTO,
 } from './dto/create-withdraw.dto';
-import { UpdateWithdrawDto } from './dto/update-withdraw.dto';
+import {
+  CreateWithdrawMethod,
+  UpdateWithdrawDto,
+} from './dto/update-withdraw.dto';
 import { ethers, keccak256, solidityPacked } from 'ethers';
 import { InjectModel } from '@nestjs/mongoose';
 import { User } from 'src/user/schemas/user.schema';
@@ -17,6 +20,8 @@ import { InvolveService } from 'src/involve/involve.service';
 import { Withdraw } from './schemas/withdraw.schema';
 import { FeeRate } from './schemas/feeRate.schema';
 import { Offer } from 'src/offer/schemas/offer.schema';
+import { WithdrawMethod } from './schemas/withdrawMethod.schema';
+import { thaiBanks } from 'src/utils/helper';
 
 @Injectable()
 export class WithdrawService {
@@ -25,6 +30,8 @@ export class WithdrawService {
     @InjectModel(Withdraw.name) private withdrawModel: Model<Withdraw>,
     @InjectModel(FeeRate.name) private feeRateModel: Model<FeeRate>,
     @InjectModel(Offer.name) private offerModel: Model<Offer>,
+    @InjectModel(WithdrawMethod.name)
+    private withdrawMethodModel: Model<WithdrawMethod>,
     private readonly involveService: InvolveService,
   ) {}
   async getSign(msg: GETSignDTO): Promise<string> {
@@ -411,6 +418,18 @@ export class WithdrawService {
         conversion_id: createWithdrawDto.conversion_ids,
       })
       .lean();
+    const fee = await this.feeRateModel.findOne().exec();
+    if (!fee) {
+      throw new HttpException({ message: 'Fee rate not found' }, 400);
+    }
+    if (createWithdrawDto.amount_net <= fee.minimum_withdraw) {
+      throw new HttpException(
+        {
+          message: `Minimum withdrawal amount for bank transfer is $${fee.minimum_withdraw}.`,
+        },
+        400,
+      );
+    }
     if (conversionIdsWithdrawed.length > 0) {
       throw new HttpException(
         {
@@ -469,7 +488,11 @@ export class WithdrawService {
     ]);
     const totalAmount = data.reduce((acc, item) => acc + item.amount_net, 0);
     return {
-      data,
+      data: data.sort(
+        (a, b) =>
+          new Date((b as any).createdAt).getTime() -
+          new Date((a as any).createdAt).getTime(),
+      ),
       pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
       totalAmount,
     };
@@ -495,5 +518,64 @@ export class WithdrawService {
 
   remove(id: number) {
     return `This action removes a #${id} withdraw`;
+  }
+
+  async createWithdrawMethod(
+    createWithdrawMethod: CreateWithdrawMethod,
+    id_crossmint: string,
+  ) {
+    const user = await this.userModel.findOne({
+      id_crossmint,
+    });
+    if (!user) {
+      throw new UnauthorizedException({ message: 'User not found' });
+    }
+    const checkDup = await this.withdrawMethodModel.findOne({
+      account_no: createWithdrawMethod.account_no,
+      user_id: new Types.ObjectId(user._id),
+    });
+    if (checkDup) {
+      throw new HttpException(
+        { message: 'Account number already exists' },
+        400,
+      );
+    }
+    createWithdrawMethod['user_id'] = new Types.ObjectId(user._id);
+    const dt = await this.withdrawMethodModel.create(createWithdrawMethod);
+    return {
+      message: 'Withdraw method created',
+      data: dt,
+      status: 'success',
+    };
+  }
+
+  getBankList() {
+    return thaiBanks;
+  }
+
+  getMethodId(id: string) {
+    return this.withdrawMethodModel.findById(id);
+  }
+
+  async getMethodList(id_crossmint: string) {
+    const user = await this.userModel.findOne({
+      id_crossmint: id_crossmint,
+    });
+    if (!user) {
+      throw new UnauthorizedException({ message: 'User not found' });
+    }
+    return this.withdrawMethodModel.find({
+      user_id: new Types.ObjectId(user._id),
+    });
+  }
+
+  deleteMethodData(id: string) {
+    return this.withdrawMethodModel.findByIdAndDelete(id);
+  }
+
+  updateMethodData(id: string, updateData: Partial<CreateWithdrawMethod>) {
+    return this.withdrawMethodModel.findByIdAndUpdate(id, updateData, {
+      new: true,
+    });
   }
 }

@@ -360,7 +360,12 @@ export class InvolveService {
       }, 0);
 
     return {
-      data: conversationByUser,
+      data: conversationByUser.sort((a, b) => {
+        return (
+          new Date(b.conversion_date).getTime() -
+          new Date(a.conversion_date).getTime()
+        );
+      }),
       totalUSD: { pending: totalUSDPending, approved: totalUSDApproved },
       pagination: {
         total: conversationByUser.length,
