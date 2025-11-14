@@ -3,8 +3,31 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { apiClient } from "@/lib/api";
 import { ApiError } from "@/types/api";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const authOptions: any = {
+export interface User {
+  name: string;
+  email: string;
+}
+
+export interface DataSession {
+  user: User;
+  expires: Date;
+  accessToken?: string;
+}
+declare module "next-auth" {
+  interface JWT {
+    accessToken?: string;
+  }
+  interface User {
+    user: User;
+    expires: string;
+    accessToken?: string;
+  }
+  interface Session {
+    expires: string;
+    accessToken?: string;
+  }
+}
+const authOptions = {
   // Configure one or more authentication providers
   providers: [
     CredentialsProvider({
@@ -41,7 +64,7 @@ const authOptions: any = {
   ],
   callbacks: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async jwt({ token, account, user }: any) {
+    async jwt({ token, account, user }: { token: any; account: any; user: any }) {
       // Persist the OAuth access_token to the token right after signin
       if (account) {
         token.accessToken = user.accessToken;
@@ -65,6 +88,7 @@ const authOptions: any = {
   },
 };
 
-const handler = NextAuth(authOptions);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const handler = NextAuth(authOptions as any);
 
 export { handler as GET, handler as POST };

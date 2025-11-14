@@ -190,6 +190,7 @@ export interface DataWithdrawsList {
   createdAt: Date;
   updatedAt: Date;
   __v: number;
+  slip_file: string
 }
 
 export interface Pagination {
