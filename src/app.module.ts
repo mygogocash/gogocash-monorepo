@@ -9,6 +9,7 @@ import { UserModule } from './user/user.module';
 import { AdminModule } from './admin/admin.module';
 import { OfferModule } from './offer/offer.module';
 import { WithdrawModule } from './withdraw/withdraw.module';
+import { GoogleDriveModule } from './google-drive/google-drive.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -20,6 +21,7 @@ import { WithdrawModule } from './withdraw/withdraw.module';
     AdminModule,
     OfferModule,
     WithdrawModule,
+    GoogleDriveModule,
   ],
   controllers: [AppController],
   providers: [AppService],

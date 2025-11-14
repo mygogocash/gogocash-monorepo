@@ -8,6 +8,8 @@ import {
   Delete,
   UseGuards,
   Query,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import {
@@ -15,10 +17,15 @@ import {
   LoginAdminDto,
   RegisterAdminDto,
 } from './dto/create-admin.dto';
-import { UpdateAdminDto, UpdateFeeRateDto } from './dto/update-admin.dto';
+import {
+  UpdateAdminDto,
+  UpdateFeeRateDto,
+  UpdateRequestWithdrawDto,
+} from './dto/update-admin.dto';
 import { UserAdminService } from './user-admin/user-admin-service';
 import { ApiBearerAuth, ApiBody, ApiSecurity } from '@nestjs/swagger';
 import { AuthAdminGuard } from './jwt-auth-admin.guard';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @Controller('admin')
 export class AdminController {
@@ -108,6 +115,17 @@ export class AdminController {
   // findOne(@Param('id') id: string) {
   //   return this.adminService.findOne(id);
   // }
+  @UseInterceptors(FileInterceptor('file'))
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
+  @Patch('update-request-withdraw')
+  updateRequestWithdraw(
+    @UploadedFile() file: Express.Multer.File,
+    @Body() updateAdminDto: UpdateRequestWithdrawDto,
+  ) {
+    return this.adminService.updateRequestWithdraw(updateAdminDto, file);
+  }
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateAdminDto: UpdateAdminDto) {
