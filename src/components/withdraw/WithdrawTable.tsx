@@ -1,15 +1,38 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useState, useEffect } from "react";
 import { useApi } from "@/hooks/useApi";
-import { ResponseWithdraws, WithdrawQuery } from "@/types/api";
+import {
+  DataWithdrawsList,
+  ResponseWithdraws,
+  WithdrawQuery,
+} from "@/types/api";
 import { useSession } from "next-auth/react";
-
+import { Modal } from "../ui/modal";
+import Input from "../form/input/InputField";
+import Button from "../ui/button/Button";
+import Select from "../form/Select";
+import client from "@/lib/axios/client";
+interface WithdrawRequestForm {
+  file: File | null;
+  id: string;
+  status: string;
+}
 export default function WithdrawTable() {
   const { data } = useSession();
   const session = data as { accessToken?: string };
   const { loading, error, getWithdraws, deleteOffer, clearError } = useApi();
+  const [openModal, setOpenModal] = useState<DataWithdrawsList | boolean>(
+    false,
+  );
+  const [isLoading, setIsLoading] = useState(false);
 
+  const [form, setForm] = useState<WithdrawRequestForm>({
+    file: null,
+    id: "",
+    status: "",
+  });
   const [lists, setLists] = useState<ResponseWithdraws>();
   const [pagination, setPagination] = useState({
     page: 1,
@@ -76,6 +99,12 @@ export default function WithdrawTable() {
     }
   };
 
+  // Handle file change
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setForm((prev) => ({ ...prev, file }));
+  };
+
   // Format date
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString();
@@ -93,6 +122,33 @@ export default function WithdrawTable() {
   const hasNextPage = pagination.page < pagination.totalPages;
   const hasPrevPage = pagination.page > 1;
 
+  const handleSave = () => {
+    console.log("Save changes", form);
+    const formData = new FormData();
+    formData.append("id", form.id);
+    formData.append("status", form.status);
+    if (form.file) {
+      formData.append("file", form.file);
+    }
+    console.log(">>>");
+    setIsLoading(true);
+    client
+      .patch(`/admin/update-request-withdraw`, formData, {
+        headers: {
+          Authorization: `Bearer ${session?.accessToken}`,
+          "Content-Type": "multipart/form-data",
+        },
+      })
+      .then(() => {
+        setOpenModal(false);
+        fetchOffers();
+        setIsLoading(false);
+      })
+      .catch((err) => {
+        setIsLoading(false);
+        console.error("Failed to update withdraw request:", err);
+      });
+  };
   return (
     <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
       {/* Header */}
@@ -201,7 +257,9 @@ export default function WithdrawTable() {
                             Currency: {list.currency}
                           </div>
                         )}
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                        <div
+                          className={`text-xs ${list.status === "approved" ? "text-green-500" : list.status === "pending" ? "text-yellow-500" : "text-red-500"} dark:text-gray-400`}
+                        >
                           Status: {list.status}
                         </div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">
@@ -215,13 +273,13 @@ export default function WithdrawTable() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <p className="text-sm text-gray-900 dark:text-gray-100">
-                          (Fee): {list.percent_fee}%
+                          (Net): {formatPrice(list.amount_net)}
                         </p>
                         <p className="text-sm text-gray-900 dark:text-gray-100">
                           Total: {formatPrice(list.amount_total)}
                         </p>
                         <p className="text-sm text-gray-900 dark:text-gray-100">
-                          (Net): {formatPrice(list.amount_net)}
+                          (Fee): {list.percent_fee}%
                         </p>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -237,16 +295,17 @@ export default function WithdrawTable() {
                       </td>
                       <td className="space-x-2 px-6 py-4 text-sm font-medium whitespace-nowrap">
                         <button
-                          onClick={() => console.log("Edit offer:", list._id)}
+                          onClick={() => {
+                            setOpenModal(list);
+                            setForm({
+                              id: list._id,
+                              file: null,
+                              status: list.status,
+                            });
+                          }}
                           className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
                         >
-                          Edit
-                        </button>
-                        <button
-                          // onClick={() => handleDeleteOffer(list._id)}
-                          className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-                        >
-                          Delete
+                          {list.status === "pending" ? "Update" : "View"}
                         </button>
                       </td>
                     </tr>
@@ -304,6 +363,81 @@ export default function WithdrawTable() {
             )}
           </>
         )}
+
+        <Modal
+          isOpen={Boolean(openModal)}
+          onClose={function (): void {
+            setOpenModal(false);
+          }}
+          className="max-w-[600px] p-5 lg:p-10"
+        >
+          <div className="space-y-6">
+            <h4 className="text-title-sm mb-7 font-semibold text-gray-800 dark:text-white/90">
+              Check Request Withdraw
+            </h4>
+            <Input type="file" name="file" onChange={handleFileChange} />
+            {(form.file || (openModal as DataWithdrawsList).slip_file) && (
+              <div className="mt-4 mb-4">
+                <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Preview:
+                </p>
+                <img
+                  src={
+                    form.file
+                      ? URL.createObjectURL(form.file)
+                      : `${process.env.NEXT_PUBLIC_API_URL}/google-drive/file/${(openModal as DataWithdrawsList).slip_file}`
+                  }
+                  alt="Preview"
+                  className="h-auto max-h-64 max-w-full rounded-lg border border-gray-200 dark:border-gray-600"
+                />
+              </div>
+            )}
+            <Select
+              options={[
+                { label: "Approve", value: "approved" },
+                { label: "Reject", value: "rejected" },
+                { label: "Pending", value: "pending" },
+              ]}
+              onChange={(e) => {
+                setForm((prev) => ({
+                  ...prev,
+                  status: e,
+                }));
+              }}
+              defaultValue={
+                form.status ||
+                ((openModal &&
+                  (openModal as DataWithdrawsList).status) as string)
+              }
+              placeholder="Select Status"
+            />
+          </div>
+
+          <div className="mt-8 flex w-full items-center justify-end gap-3">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setOpenModal(false)}
+              disabled={isLoading}
+            >
+              Close
+            </Button>
+            <Button
+              size="sm"
+              disabled={isLoading}
+              onClick={() => {
+                handleSave();
+              }}
+              startIcon={
+                isLoading ? (
+                  <div className="h-3 w-3 animate-spin rounded-full border-b-2 border-blue-600"></div>
+                ) : null
+              }
+            >
+              Save Changes
+            </Button>
+          </div>
+        </Modal>
       </div>
     </div>
   );
