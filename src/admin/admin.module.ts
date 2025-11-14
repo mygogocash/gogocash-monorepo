@@ -16,6 +16,7 @@ import { Offer, OfferSchema } from 'src/offer/schemas/offer.schema';
 import { Deeplink, DeeplinkSchema } from 'src/involve/schemas/deeplink.schema';
 import { User, UserSchema } from 'src/user/schemas/user.schema';
 import { FeeRate, FeeRateSchema } from 'src/withdraw/schemas/feeRate.schema';
+import { GoogleDriveService } from 'src/google-drive/google-drive.service';
 
 @Module({
   imports: [
@@ -31,6 +32,12 @@ import { FeeRate, FeeRateSchema } from 'src/withdraw/schemas/feeRate.schema';
     ]),
   ],
   controllers: [AdminController],
-  providers: [AdminService, UserAdminService, JwtService, InvolveService],
+  providers: [
+    AdminService,
+    UserAdminService,
+    JwtService,
+    InvolveService,
+    GoogleDriveService,
+  ],
 })
 export class AdminModule {}

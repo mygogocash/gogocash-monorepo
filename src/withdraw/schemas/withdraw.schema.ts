@@ -46,6 +46,9 @@ export class Withdraw {
 
   @Prop({ required: true })
   currency: string; // USDC, ETH, BTC etc.
+
+  @Prop({ required: true })
+  slip_file: string;
 }
 
 export const WithdrawSchema = SchemaFactory.createForClass(Withdraw);

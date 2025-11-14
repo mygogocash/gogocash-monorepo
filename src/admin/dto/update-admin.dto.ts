@@ -20,3 +20,15 @@ export class UpdateFeeRateDto {
   @IsString()
   minimum_withdraw: number;
 }
+
+export class UpdateRequestWithdrawDto {
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsString()
+  status: string;
+
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsString()
+  id: string;
+}

@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { CreateAdminDto } from './dto/create-admin.dto';
-import { UpdateAdminDto, UpdateFeeRateDto } from './dto/update-admin.dto';
+import {
+  UpdateAdminDto,
+  UpdateFeeRateDto,
+  UpdateRequestWithdrawDto,
+} from './dto/update-admin.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { UserAdmin } from './user-admin/schemas/user-admin.schema';
 import { Model, Types } from 'mongoose';
@@ -8,6 +12,7 @@ import { Withdraw } from 'src/withdraw/schemas/withdraw.schema';
 import { InvolveService } from 'src/involve/involve.service';
 import { User } from 'src/user/schemas/user.schema';
 import { FeeRate } from 'src/withdraw/schemas/feeRate.schema';
+import { GoogleDriveService } from 'src/google-drive/google-drive.service';
 
 @Injectable()
 export class AdminService {
@@ -16,7 +21,7 @@ export class AdminService {
     @InjectModel(Withdraw.name) private withdrawModel: Model<Withdraw>,
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(FeeRate.name) private feeRateModel: Model<FeeRate>,
-
+    private readonly googleDriveService: GoogleDriveService,
     private involveService: InvolveService,
   ) {}
   create(createAdminDto: CreateAdminDto) {
@@ -62,6 +67,26 @@ export class AdminService {
     return this.userAdminModel.findByIdAndUpdate(id, updateAdminDto).exec();
   }
 
+  async updateRequestWithdraw(
+    updateRequestWithdrawDto: UpdateRequestWithdrawDto,
+    file: Express.Multer.File,
+  ) {
+    if (file) {
+      const res = await this.googleDriveService.uploadFile(file);
+      return this.withdrawModel
+        .findByIdAndUpdate(new Types.ObjectId(updateRequestWithdrawDto.id), {
+          status: updateRequestWithdrawDto.status,
+          slip_file: res.id,
+        })
+        .exec();
+    }
+    return this.withdrawModel
+      .findByIdAndUpdate(new Types.ObjectId(updateRequestWithdrawDto.id), {
+        status: updateRequestWithdrawDto.status,
+      })
+      .exec();
+  }
+
   remove(id: string) {
     console.log('remove admin id:', id);
     // this.userAdminModel.findByIdAndDelete(id).exec();
@@ -86,6 +111,7 @@ export class AdminService {
         .populate('user_id', 'username email address _id')
         .skip(skip)
         .limit(limit)
+        .sort({ createdAt: -1 })
         .exec(),
       this.withdrawModel.countDocuments(query).exec(),
     ]);
@@ -139,7 +165,11 @@ export class AdminService {
         }
       }),
     );
-    conversions.data.data = data;
+    conversions.data.data = data?.sort(
+      (a, b) =>
+        new Date(b.datetime_conversion).getTime() -
+        new Date(a.datetime_conversion).getTime(),
+    );
     return conversions;
   }
 

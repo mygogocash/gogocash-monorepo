@@ -54,3 +54,8 @@ pids
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# config files
+src/config/service-account-key.json
+src/config/wif-credentials.json
+src/config/secret.json
