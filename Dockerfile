@@ -8,6 +8,7 @@ RUN yarn install
 
 # คัดลอก source code
 COPY .env* ./
+COPY uploads/ ./
 COPY . .
 # build project
 RUN yarn build

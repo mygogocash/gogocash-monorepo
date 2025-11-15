@@ -83,4 +83,13 @@ export class OfferController {
     const id = user.sub;
     return this.offerService.findMyOffer(id, body);
   }
+
+  @UseGuards(CrossmintAuthGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
+  @Post('write-json')
+  async writeJJsonToFile() {
+    const allOffers = await this.offerService.findAll(1, 1000, '', '');
+    return this.offerService.writeJJsonToFile(allOffers.data);
+  }
 }
