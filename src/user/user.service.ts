@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto';
+import { CreateUserDto, UpdateCountryDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { User } from './schemas/user.schema';
@@ -53,9 +53,15 @@ export class UserService {
   findOne(data: { [key: string]: string }) {
     return this.userModel.findOne(data);
   }
-
   update(id: Types.ObjectId, updateUserDto: UpdateUserDto) {
-    console.log(updateUserDto);
     return this.userModel.findByIdAndUpdate(id, updateUserDto, { new: true });
+  }
+
+  updateCountry(updateCountryDto: UpdateCountryDto, id_crossmint: string) {
+    return this.userModel.findOneAndUpdate(
+      { id_crossmint },
+      { country: updateCountryDto.country },
+      { new: true },
+    );
   }
 }

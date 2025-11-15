@@ -10,8 +10,11 @@ import { AdminModule } from './admin/admin.module';
 import { OfferModule } from './offer/offer.module';
 import { WithdrawModule } from './withdraw/withdraw.module';
 import { GoogleDriveModule } from './google-drive/google-drive.module';
+import { PointModule } from './point/point.module';
+import { ScheduleModule } from '@nestjs/schedule';
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     ConfigModule.forRoot({
       load: [envConfig],
     }),
@@ -22,6 +25,7 @@ import { GoogleDriveModule } from './google-drive/google-drive.module';
     OfferModule,
     WithdrawModule,
     GoogleDriveModule,
+    PointModule,
   ],
   controllers: [AppController],
   providers: [AppService],
