@@ -2,7 +2,7 @@ import { DataSession } from "@/app/api/auth/[...nextauth]/route";
 import axios, { AxiosRequestConfig } from "axios";
 import { getSession } from "next-auth/react";
 
-const baseURL = `${process.env.NEXT_PUBLIC_API_URL}`;
+const baseURL = process.env.NEXT_PUBLIC_API_URL || "https://api.gogocash.co";
 
 const client = axios.create({
   baseURL,
@@ -25,7 +25,6 @@ client.interceptors.request.use(
 client.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.log('API error interceptor:', error);
     if (error.response) {
       // console.log('API response error:', error.response);
       //   throw new Error(error.response.data.message || 'API request failed');

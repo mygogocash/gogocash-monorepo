@@ -123,14 +123,12 @@ export default function WithdrawTable() {
   const hasPrevPage = pagination.page > 1;
 
   const handleSave = () => {
-    console.log("Save changes", form);
     const formData = new FormData();
     formData.append("id", form.id);
     formData.append("status", form.status);
     if (form.file) {
       formData.append("file", form.file);
     }
-    console.log(">>>");
     setIsLoading(true);
     client
       .patch(`/admin/update-request-withdraw`, formData, {
