@@ -84,6 +84,7 @@ export class OfferService {
 
   async writeJJsonToFile(payload: any): Promise<any> {
     const json = JSON.stringify(payload, null, 2);
+    await fs.mkdir(join(process.cwd(), 'uploads', 'data'), { recursive: true });
     await fs.writeFile(this.filePath, json, 'utf8');
     return payload;
   }
