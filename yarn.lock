@@ -1789,6 +1789,40 @@
     postcss "^8.4.41"
     tailwindcss "4.1.14"
 
+"@tanstack/query-core@5.90.9":
+  version "5.90.9"
+  resolved "https://registry.yarnpkg.com/@tanstack/query-core/-/query-core-5.90.9.tgz#ce3ad3045a168683d15322598e95a9146c73f84c"
+  integrity sha512-UFOCQzi6pRGeVTVlPNwNdnAvT35zugcIydqjvFUzG62dvz2iVjElmNp/hJkUoM5eqbUPfSU/GJIr/wbvD8bTUw==
+
+"@tanstack/query-persist-client-core@5.91.8":
+  version "5.91.8"
+  resolved "https://registry.yarnpkg.com/@tanstack/query-persist-client-core/-/query-persist-client-core-5.91.8.tgz#d6c8d430419da5b41710e5c44dac97cc6d7a9e1c"
+  integrity sha512-aee4w+piU37e9Xe3VIoyE/T1ovKPJurRPTgZrNLnP8ExIM6EgmfLgDIYIdz69EUgVlaXOIwJH70dX2wo/TgKTQ==
+  dependencies:
+    "@tanstack/query-core" "5.90.9"
+
+"@tanstack/query-sync-storage-persister@^5.90.11":
+  version "5.90.11"
+  resolved "https://registry.yarnpkg.com/@tanstack/query-sync-storage-persister/-/query-sync-storage-persister-5.90.11.tgz#5e4f9d44685d1eca768a9eeb84b8939ff62d6d00"
+  integrity sha512-P1yGv/3cxAIHh6+Nle1tvkFkyvKtcRKKJi/Vw95u15p+V0GBLAw0lSppSkGCw9kEHPLaMmWmdZwUnj5pSmOoTw==
+  dependencies:
+    "@tanstack/query-core" "5.90.9"
+    "@tanstack/query-persist-client-core" "5.91.8"
+
+"@tanstack/react-query-persist-client@^5.90.11":
+  version "5.90.11"
+  resolved "https://registry.yarnpkg.com/@tanstack/react-query-persist-client/-/react-query-persist-client-5.90.11.tgz#ccf4a82cdaf5b6679fbc703c281008b5b676a54d"
+  integrity sha512-AI4QWvzuxNG8akMTxvVyYY61NqfA45PCmyiER0pNyuHH5l/3TwudSzN00I25kjMcu9ZpD8OIlYfsmg36L8Olwg==
+  dependencies:
+    "@tanstack/query-persist-client-core" "5.91.8"
+
+"@tanstack/react-query@^5.90.9":
+  version "5.90.9"
+  resolved "https://registry.yarnpkg.com/@tanstack/react-query/-/react-query-5.90.9.tgz#798915eddb6a32c0702e1f6b88e7b7578d0182a9"
+  integrity sha512-Zke2AaXiaSfnG8jqPZR52m8SsclKT2d9//AgE/QIzyNvbpj/Q2ln+FsZjb1j69bJZUouBvX2tg9PHirkTm8arw==
+  dependencies:
+    "@tanstack/query-core" "5.90.9"
+
 "@trysound/sax@0.2.0":
   version "0.2.0"
   resolved "https://registry.yarnpkg.com/@trysound/sax/-/sax-0.2.0.tgz#cccaab758af56761eb7bf37af6f03f326dd798ad"
