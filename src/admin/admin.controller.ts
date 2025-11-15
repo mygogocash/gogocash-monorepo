@@ -95,6 +95,14 @@ export class AdminController {
   @UseGuards(AuthAdminGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
+  @Post('getConversionInWithdraw')
+  getConversionInWithdraw(@Body() body: { data: number[] }) {
+    return this.adminService.getConversionInWithdraw(body.data);
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
   @Get('get-fee-rate')
   getFeeRate() {
     return this.adminService.getFeeRate();
