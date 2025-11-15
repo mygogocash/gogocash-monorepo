@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PointService } from './point.service';
 import { InvolveService } from 'src/involve/involve.service';
+import { delay } from 'rxjs';
 
 @Injectable()
 export class TasksService {
@@ -33,6 +34,7 @@ export class TasksService {
       });
       allConversions = allConversions.concat(nextConversions.data.data);
       conversions.data.nextPage = nextConversions.data.nextPage;
+      await delay(1000);
     }
     const filterAff = allConversions.filter((item) => {
       return item.aff_sub1 && item.aff_sub1.startsWith('user_id:');
@@ -51,6 +53,7 @@ export class TasksService {
         calculatedPoints,
         conversion.conversion_id,
       );
+      await delay(1000);
     }
   }
 }

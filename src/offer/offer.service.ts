@@ -5,9 +5,12 @@ import { Deeplink } from 'src/involve/schemas/deeplink.schema';
 import { Offer } from 'src/offer/schemas/offer.schema';
 import { User } from 'src/user/schemas/user.schema';
 import { GetMyOfferDto } from './dto/create-offer.dto';
-
+import { join } from 'path';
+import { promises as fs } from 'fs';
 @Injectable()
 export class OfferService {
+  private filePath = join(process.cwd(), 'uploads', 'data', 'offers.json');
+
   constructor(
     @InjectModel(Offer.name) private offerModel: Model<Offer>,
     @InjectModel(Deeplink.name) private readonly deeplinkModel: Model<Deeplink>,
@@ -77,5 +80,11 @@ export class OfferService {
       }),
     );
     return dt;
+  }
+
+  async writeJJsonToFile(payload: any): Promise<any> {
+    const json = JSON.stringify(payload, null, 2);
+    await fs.writeFile(this.filePath, json, 'utf8');
+    return payload;
   }
 }
