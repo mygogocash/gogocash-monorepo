@@ -173,6 +173,13 @@ export class AdminService {
     return conversions;
   }
 
+  async getConversionInWithdraw(body: number[]) {
+    return this.involveService.getConversionAll(
+      { page: '1', limit: '1000' },
+      { conversion_id: body?.join('|') },
+    );
+  }
+
   async getFeeRate() {
     return this.feeRateModel.find().exec();
   }
