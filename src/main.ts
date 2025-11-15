@@ -1,10 +1,12 @@
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import * as cookieParser from 'cookie-parser';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import * as path from 'path';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.use(cookieParser());
   app.enableCors({
     origin: '*', // Adjust this to your needs
@@ -35,6 +37,8 @@ async function bootstrap() {
     // .addCookieAuth('access_token') // ✅ ให้ Swagger รู้ว่าใช้ cookie
     // .addCookieAuth('refresh_token') // ✅ เพิ่ม refresh token ด้วย
     .build();
+
+  app.useStaticAssets(path.join(__dirname, '../uploads'));
 
   const document = SwaggerModule.createDocument(app, config);
 

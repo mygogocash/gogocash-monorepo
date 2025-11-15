@@ -6,6 +6,7 @@ import { Offer, OfferSchema } from 'src/offer/schemas/offer.schema';
 import { Deeplink, DeeplinkSchema } from 'src/involve/schemas/deeplink.schema';
 import { JwtService } from '@nestjs/jwt';
 import { User, UserSchema } from 'src/user/schemas/user.schema';
+import { TasksService } from './tasksService';
 
 @Module({
   imports: [
@@ -19,6 +20,6 @@ import { User, UserSchema } from 'src/user/schemas/user.schema';
     ]),
   ],
   controllers: [OfferController],
-  providers: [OfferService, JwtService],
+  providers: [OfferService, JwtService, TasksService],
 })
 export class OfferModule {}
