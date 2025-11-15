@@ -5,3 +5,7 @@ export class CreateUserDto {
   username?: string;
   id_twitter?: string;
 }
+
+export class UpdateCountryDto {
+  country: string;
+}

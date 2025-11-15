@@ -19,6 +19,9 @@ export class User {
 
   @Prop()
   id_twitter: string;
+
+  @Prop()
+  country: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

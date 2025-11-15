@@ -1,0 +1,27 @@
+import { Module } from '@nestjs/common';
+import { PointService } from './point.service';
+import { PointController } from './point.controller';
+import { TasksService } from './tasksService';
+import { MongooseModule } from '@nestjs/mongoose';
+import { User, UserSchema } from 'src/user/schemas/user.schema';
+import { Point, PointSchema } from './schemas/point.schema';
+import { InvolveService } from 'src/involve/involve.service';
+import { CacheModule } from '@nestjs/cache-manager';
+import { Offer, OfferSchema } from 'src/offer/schemas/offer.schema';
+import { Deeplink, DeeplinkSchema } from 'src/involve/schemas/deeplink.schema';
+import { JwtService } from '@nestjs/jwt';
+
+@Module({
+  imports: [
+    CacheModule.register(),
+    MongooseModule.forFeature([
+      { name: User.name, schema: UserSchema },
+      { name: Point.name, schema: PointSchema },
+      { name: Offer.name, schema: OfferSchema },
+      { name: Deeplink.name, schema: DeeplinkSchema },
+    ]),
+  ],
+  controllers: [PointController],
+  providers: [PointService, TasksService, InvolveService, JwtService],
+})
+export class PointModule {}
