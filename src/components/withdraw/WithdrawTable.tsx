@@ -13,7 +13,9 @@ import { Modal } from "../ui/modal";
 import Input from "../form/input/InputField";
 import Button from "../ui/button/Button";
 import Select from "../form/Select";
-import client from "@/lib/axios/client";
+import client, { fetcherPost } from "@/lib/axios/client";
+import { useQuery } from "@tanstack/react-query";
+import { ResGetConversionInWithdraw } from "@/types/withdraw";
 interface WithdrawRequestForm {
   file: File | null;
   id: string;
@@ -46,6 +48,19 @@ export default function WithdrawTable() {
     limit: 10,
     page: 1,
   });
+
+  const { data: getDetailConversionWithdraw } =
+    useQuery<ResGetConversionInWithdraw>({
+      queryKey: ["getDetailConversionWithdraw", openModal],
+      queryFn: () =>
+        fetcherPost([
+          `/admin/getConversionInWithdraw`,
+          { data: (openModal as DataWithdrawsList).conversion_id as number[] },
+        ]),
+    });
+  console.log("bidy", openModal);
+
+  console.log("getDetailConversionWithdraw", getDetailConversionWithdraw);
 
   // Fetch offers
   const fetchOffers = async (newQuery?: WithdrawQuery) => {
@@ -373,6 +388,73 @@ export default function WithdrawTable() {
             <h4 className="text-title-sm mb-7 font-semibold text-gray-800 dark:text-white/90">
               Check Request Withdraw
             </h4>
+            <div className="overflow-auto">
+              <table>
+                <thead>
+                  <tr>
+                    <th className="border px-4 py-2 text-left">
+                      Conversion ID
+                    </th>
+                    <th className="border px-4 py-2 text-left">Detail</th>
+                    <th className="border px-4 py-2 text-left">Sale Amount</th>
+                    <th className="border px-4 py-2 text-left">Payout</th>
+                    <th className="border px-4 py-2 text-left">Status</th>
+                    <th className="border px-4 py-2 text-left">Currency</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {getDetailConversionWithdraw?.data?.data?.map(
+                    (item: {
+                      conversion_id: number;
+                      sale_amount: string;
+                      currency: string;
+                      payout: string;
+                      adv_sub2: string;
+                      conversion_status: string;
+                    }) => (
+                      <tr key={item.conversion_id}>
+                        <td className="border px-4 py-2">
+                          {item.conversion_id}
+                        </td>
+                        <td className="max-w-[200px] overflow-auto border px-4 py-2">
+                          <p className="text-nowrap">{item.adv_sub2}</p>
+                        </td>
+
+                        <td className="border px-4 py-2">
+                          {item.currency !== "USDC" && item.currency !== "USDT"
+                            ? formatPrice(
+                                Number(item.sale_amount),
+                                item.currency,
+                              )
+                            : item.payout + " " + item.currency}
+                        </td>
+                        <td className="border px-4 py-2">
+                          {item.currency !== "USDC" && item.currency !== "USDT"
+                            ? formatPrice(Number(item.payout), item.currency)
+                            : item.payout + " " + item.currency}
+                        </td>
+                        <td className="border px-4 py-2">
+                          {item.conversion_status}
+                        </td>
+                        <td className="border px-4 py-2">{item.currency}</td>
+                      </tr>
+                    ),
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <h1 className="text-title-sm mb-7 font-semibold text-gray-800 dark:text-white/90">
+              Total Payout:{" "}
+              {(openModal as DataWithdrawsList).currency !== "USDC" &&
+              (openModal as DataWithdrawsList).currency !== "USDT"
+                ? formatPrice(
+                    (openModal as DataWithdrawsList)?.amount_net,
+                    (openModal as DataWithdrawsList)?.currency,
+                  )
+                : (openModal as DataWithdrawsList)?.amount_net +
+                  " " +
+                  (openModal as DataWithdrawsList)?.currency}
+            </h1>
             <Input type="file" name="file" onChange={handleFileChange} />
             {(form.file || (openModal as DataWithdrawsList).slip_file) && (
               <div className="mt-4 mb-4">
