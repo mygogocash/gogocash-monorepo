@@ -16,6 +16,7 @@ import Select from "../form/Select";
 import client, { fetcherPost } from "@/lib/axios/client";
 import { useQuery } from "@tanstack/react-query";
 import { ResGetConversionInWithdraw } from "@/types/withdraw";
+import toast from "react-hot-toast";
 interface WithdrawRequestForm {
   file: File | null;
   id: string;
@@ -58,9 +59,6 @@ export default function WithdrawTable() {
           { data: (openModal as DataWithdrawsList).conversion_id as number[] },
         ]),
     });
-  console.log("bidy", openModal);
-
-  console.log("getDetailConversionWithdraw", getDetailConversionWithdraw);
 
   // Fetch offers
   const fetchOffers = async (newQuery?: WithdrawQuery) => {
@@ -506,7 +504,14 @@ export default function WithdrawTable() {
               size="sm"
               disabled={isLoading}
               onClick={() => {
-                handleSave();
+                if (
+                  (openModal && (openModal as DataWithdrawsList).method) ===
+                  "bank_transfer"
+                ) {
+                  handleSave();
+                } else {
+                  toast.error("Only bank transfer method can be updated.");
+                }
               }}
               startIcon={
                 isLoading ? (
