@@ -50,7 +50,7 @@ export class UserService {
     };
   }
 
-  findOne(data: { [key: string]: string }) {
+  findOne(data: { [key: string]: string | Types.ObjectId }) {
     return this.userModel.findOne(data);
   }
   update(id: Types.ObjectId, updateUserDto: UpdateUserDto) {

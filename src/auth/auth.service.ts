@@ -5,6 +5,9 @@ import * as https from 'https';
 import { createCrossmint, CrossmintAuth } from '@crossmint/server-sdk';
 import { UserService } from 'src/user/user.service';
 import { SignInDto } from './dto/auth.dto';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
+import { Point, PointDocument } from 'src/point/schemas/point.schema';
 
 @Injectable()
 export class AuthService {
@@ -18,6 +21,7 @@ export class AuthService {
   constructor(
     private readonly config: ConfigService,
     private readonly userService: UserService,
+    @InjectModel(Point.name) private pointModel: Model<PointDocument>,
   ) {
     this.baseUrl = this.config.get<string>('env.CROSSMINT_BASE_URL')!;
     this.projectId = this.config.get<string>('env.CROSSMINT_PROJECT_ID')!;
@@ -54,7 +58,6 @@ export class AuthService {
       id_crossmint: data.id,
     });
     // console.log('userExist', userExist);
-
     if (userExist) {
       if (userExist.address) {
         const user = await this.userService.update(userExist._id, {
@@ -78,7 +81,34 @@ export class AuthService {
         : data?.email?.split('@')[0],
       id_twitter: data?.twitter ? data.twitter.id : '',
     });
+    await this.updatePoint({
+      user_id: user._id.toString(),
+      referral_id: payload.referral_id,
+    });
+    // Update points for referral if referral_id is provided
     return user; // { accessToken, refreshToken, user }
+  }
+
+  async updatePoint(payload: { referral_id?: string; user_id: string }) {
+    if (payload?.referral_id && payload.referral_id != 'null') {
+      const point = await this.pointModel.findOne({
+        user_id: new Types.ObjectId(payload.referral_id),
+        referral_id: new Types.ObjectId(payload.user_id),
+        type: 'add',
+        action: 'referral',
+      });
+      if (!point) {
+        const pointEntry = new this.pointModel({
+          user_id: new Types.ObjectId(payload.referral_id),
+          referral_id: new Types.ObjectId(payload.user_id),
+          conversion_id: 0,
+          point: 100,
+          type: 'add',
+          action: 'referral',
+        });
+        await pointEntry.save();
+      }
+    }
   }
 
   async getProfile(accessToken: string) {

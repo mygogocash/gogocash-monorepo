@@ -37,6 +37,16 @@ export class PointController {
     return this.pointService.getPoint(id_crossmint);
   }
 
+  @UseGuards(CrossmintAuthGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
+  @Get('referral-list')
+  getListReferral(@Req() req: Request) {
+    const user = req['user'] as any;
+    const id_crossmint = user?.sub;
+    return this.pointService.getListReferral(id_crossmint);
+  }
+
   @Patch(':id')
   update(@Param('id') id: string, @Body() updatePointDto: UpdatePointDto) {
     return this.pointService.update(+id, updatePointDto);
