@@ -23,6 +23,7 @@ export class PointService {
         user_id: new Types.ObjectId(userId),
         conversion_id,
         type: 'add',
+        action: 'purchase',
       })
       .exec();
     console.log('pointDup', pointDup);
@@ -33,6 +34,7 @@ export class PointService {
         point: points,
         conversion_id,
         type: 'add',
+        action: 'purchase',
       });
       return pointEntry.save();
     }
@@ -97,5 +99,25 @@ export class PointService {
 
   remove(id: number) {
     return `This action removes a #${id} point`;
+  }
+
+  async getListReferral(id_crossmint: string) {
+    const user = await this.userModel.findOne({ id_crossmint });
+    if (!user) {
+      return [];
+    }
+    return this.pointModel
+      .find({ user_id: user._id, action: 'referral' })
+      .populate({
+        path: 'user_id',
+        model: 'User',
+        // select: 'id_crossmint',
+      })
+      .populate({
+        path: 'referral_id',
+        model: 'User',
+        // select: 'id_crossmint',
+      })
+      .exec();
   }
 }
