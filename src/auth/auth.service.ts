@@ -81,10 +81,15 @@ export class AuthService {
         : data?.email?.split('@')[0],
       id_twitter: data?.twitter ? data.twitter.id : '',
     });
-    await this.updatePoint({
-      user_id: user._id.toString(),
-      referral_id: payload.referral_id,
+    const refData = await this.userService.findOne({
+      _id: new Types.ObjectId(payload.referral_id),
     });
+    if (refData && user._id?.toString() !== payload.referral_id?.toString()) {
+      await this.updatePoint({
+        user_id: user._id.toString(),
+        referral_id: payload.referral_id,
+      });
+    }
     // Update points for referral if referral_id is provided
     return user; // { accessToken, refreshToken, user }
   }
