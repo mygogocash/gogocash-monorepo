@@ -22,6 +22,9 @@ export class User {
 
   @Prop()
   country: string;
+
+  @Prop()
+  privilege: string; // e.g. standard, premium
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
