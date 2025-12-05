@@ -1,13 +1,29 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { useApi } from "@/hooks/useApi";
-import { Offer, OffersQuery } from "@/types/api";
+import { Offer, OfferRequestForm, OffersQuery } from "@/types/api";
 import { useSession } from "next-auth/react";
+import { Modal } from "../ui/modal";
+import Input from "../form/input/InputField";
+import client from "@/lib/axios/client";
+import toast from "react-hot-toast";
+import Button from "../ui/button/Button";
 
 export default function OffersTable() {
-  const { data: session } = useSession();
+  const [openModal, setOpenModal] = useState<Offer | boolean>(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const [form, setForm] = useState<OfferRequestForm>({
+    logo_desktop: null,
+    logo_mobile: null,
+    id: "",
+  });
+  const { data } = useSession();
+  const session = data as { accessToken?: string };
+
   const {
     loading,
     error,
@@ -99,9 +115,131 @@ export default function OffersTable() {
   const hasNextPage = pagination.page < pagination.totalPages;
   const hasPrevPage = pagination.page > 1;
 
+  // Handle file change
+  const handleFileChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    key: string,
+  ) => {
+    const file = e.target.files?.[0] || null;
+    setForm((prev) => ({ ...prev, [key]: file }));
+  };
+
+  const handleSave = () => {
+    const formData = new FormData();
+    if (form.logo_desktop) {
+      formData.append("logo_desktop", form.logo_desktop);
+    }
+    if (form.logo_mobile) {
+      formData.append("logo_mobile", form.logo_mobile);
+    }
+    setIsLoading(true);
+    client
+      .patch(`/admin/update-offer/${form.id}`, formData, {
+        headers: {
+          Authorization: `Bearer ${session?.accessToken}`,
+          "Content-Type": "multipart/form-data",
+        },
+      })
+      .then(() => {
+        setOpenModal(false);
+        fetchOffers();
+        setIsLoading(false);
+        toast.success("Offer updated successfully");
+      })
+      .catch((err) => {
+        setIsLoading(false);
+        console.error("Failed to update withdraw request:", err);
+        toast.error("Offer updated error");
+      });
+  };
   return (
     <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
       {/* Header */}
+      <Modal
+        isOpen={Boolean(openModal)}
+        onClose={function (): void {
+          setOpenModal(false);
+        }}
+        className="max-w-[600px] p-5 lg:p-10"
+      >
+        <h4 className="text-title-sm mb-7 font-semibold text-gray-800 dark:text-white/90">
+          Upload Logo
+        </h4>
+        <div className="max-h-[500px] space-y-6 overflow-y-auto">
+          <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+            Upload logo_desktop:
+          </p>
+          <Input
+            type="file"
+            name="logo_desktop"
+            onChange={(event) => handleFileChange(event, "logo_desktop")}
+          />
+          {(form.logo_desktop || (openModal as Offer).logo_desktop) && (
+            <div className="mt-4 mb-4">
+              <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                Preview logo_desktop:
+              </p>
+              <img
+                src={
+                  form.logo_desktop
+                    ? URL.createObjectURL(form.logo_desktop)
+                    : `${process.env.NEXT_PUBLIC_API_URL}/google-drive/file/${(openModal as Offer).logo_desktop}`
+                }
+                alt="Preview"
+                className="h-auto max-h-64 max-w-full rounded-lg border border-gray-200 dark:border-gray-600"
+              />
+            </div>
+          )}
+          <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+            Upload logo_mobile:
+          </p>
+          <Input
+            type="file"
+            name="logo_mobile"
+            onChange={(event) => handleFileChange(event, "logo_mobile")}
+          />
+          {(form.logo_mobile || (openModal as Offer).logo_mobile) && (
+            <div className="mt-4 mb-4">
+              <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                Preview logo_mobile:
+              </p>
+              <img
+                src={
+                  form.logo_mobile
+                    ? URL.createObjectURL(form.logo_mobile)
+                    : `${process.env.NEXT_PUBLIC_API_URL}/google-drive/file/${(openModal as Offer).logo_mobile}`
+                }
+                alt="Preview"
+                className="h-auto max-h-64 max-w-full rounded-lg border border-gray-200 dark:border-gray-600"
+              />
+            </div>
+          )}
+        </div>
+        <div className="mt-8 flex w-full items-center justify-end gap-3">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setOpenModal(false)}
+            disabled={isLoading}
+          >
+            Close
+          </Button>
+          <Button
+            size="sm"
+            disabled={isLoading}
+            onClick={() => {
+              handleSave();
+            }}
+            startIcon={
+              isLoading ? (
+                <div className="h-3 w-3 animate-spin rounded-full border-b-2 border-blue-600"></div>
+              ) : null
+            }
+          >
+            Save Changes
+          </Button>
+        </div>
+      </Modal>
       <div className="flex items-center justify-between px-6 py-5">
         <div>
           <h3 className="text-base font-medium text-gray-800 dark:text-white/90">
@@ -169,6 +307,12 @@ export default function OffersTable() {
                       Offer
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Logo desktop
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Logo mobile
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                       Category
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
@@ -225,6 +369,35 @@ export default function OffersTable() {
                           </div>
                         </div>
                       </td>
+
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="h-12 w-12 flex-shrink-0">
+                            <img
+                              className="h-12 w-12 rounded-lg object-cover"
+                              src={`${process.env.NEXT_PUBLIC_API_URL}/google-drive/file/${offer.logo_desktop}`}
+                              alt={offer.offer_name}
+                              width={48}
+                              height={48}
+                            />
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="h-12 w-12 flex-shrink-0">
+                            <img
+                              className="h-12 w-12 rounded-lg object-cover"
+                              src={`${process.env.NEXT_PUBLIC_API_URL}/google-drive/file/${offer.logo_mobile}`}
+                              alt={offer.offer_name}
+                              width={48}
+                              height={48}
+                            />
+                          </div>
+                        </div>
+                      </td>
+
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900 dark:text-gray-100">
                           {offer.categories || "Uncategorized"}
@@ -250,7 +423,14 @@ export default function OffersTable() {
                       </td>
                       <td className="space-x-2 px-6 py-4 text-sm font-medium whitespace-nowrap">
                         <button
-                          onClick={() => console.log("Edit offer:", offer._id)}
+                          onClick={() => {
+                            setOpenModal(offer);
+                            setForm({
+                              logo_desktop: null,
+                              logo_mobile: null,
+                              id: offer._id,
+                            });
+                          }}
                           className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
                         >
                           Edit

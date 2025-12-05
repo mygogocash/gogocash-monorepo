@@ -129,6 +129,14 @@ export interface Offer {
   tracking_link: string;
   tracking_type: string;
   validation_terms: number;
+  logo_desktop: string;
+  logo_mobile: string;
+}
+
+export interface OfferRequestForm {
+  logo_desktop: File | null;
+  logo_mobile: File | null;
+  id: string;
 }
 
 export interface OffersQuery {
