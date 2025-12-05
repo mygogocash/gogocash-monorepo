@@ -32,3 +32,15 @@ export class UpdateRequestWithdrawDto {
   @IsString()
   id: string;
 }
+
+export class UpdateOfferAdminDto {
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsString()
+  logo_desktop: string;
+
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsString()
+  logo_mobile: string;
+}

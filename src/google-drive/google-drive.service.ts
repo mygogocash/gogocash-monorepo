@@ -69,6 +69,17 @@ export class GoogleDriveService {
     }
   }
 
+  async deleteFile(fileId: string) {
+    try {
+      await this.driveClient.files.delete({
+        fileId,
+      });
+      console.log(`File with ID: ${fileId} deleted successfully.`);
+    } catch (error) {
+      console.error('Error deleting file from Google Drive:', error);
+      return error;
+    }
+  }
   // Get file stream from Drive
   async getFileStream(fileId: string) {
     return this.driveClient.files.get(

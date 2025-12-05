@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import { Injectable } from '@nestjs/common';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import {
@@ -13,6 +14,7 @@ import { InvolveService } from 'src/involve/involve.service';
 import { User } from 'src/user/schemas/user.schema';
 import { FeeRate } from 'src/withdraw/schemas/feeRate.schema';
 import { GoogleDriveService } from 'src/google-drive/google-drive.service';
+import { Offer } from 'src/offer/schemas/offer.schema';
 
 @Injectable()
 export class AdminService {
@@ -21,6 +23,8 @@ export class AdminService {
     @InjectModel(Withdraw.name) private withdrawModel: Model<Withdraw>,
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(FeeRate.name) private feeRateModel: Model<FeeRate>,
+    @InjectModel(Offer.name) private offerModel: Model<Offer>,
+
     private readonly googleDriveService: GoogleDriveService,
     private involveService: InvolveService,
   ) {}
@@ -196,5 +200,50 @@ export class AdminService {
     }
     const newFeeRate = new this.feeRateModel(updateFeeRateDto);
     return newFeeRate.save();
+  }
+
+  async updateOffer(
+    id: string,
+    updateData: {
+      logo_desktop?: Express.Multer.File;
+      logo_mobile?: Express.Multer.File;
+    },
+  ) {
+    const offer = await this.offerModel.findById(id).exec();
+    if (!offer) {
+      throw new Error('Offer not found');
+    }
+    const folderId = '1CliPCEtpvH8e8--EflAZ6NdCMuBSddpR';
+    let file1;
+    if (updateData.logo_desktop) {
+      file1 = await this.googleDriveService.uploadFile(
+        updateData.logo_desktop,
+        folderId,
+      );
+      if (offer.logo_desktop) {
+        await this.googleDriveService.deleteFile(offer.logo_desktop);
+      }
+    }
+    let file2;
+    if (updateData.logo_mobile) {
+      file2 = await this.googleDriveService.uploadFile(
+        updateData.logo_mobile,
+        folderId,
+      );
+      if (offer.logo_mobile) {
+        await this.googleDriveService.deleteFile(offer.logo_mobile);
+      }
+    }
+    return this.offerModel
+      .findByIdAndUpdate(
+        id,
+        {
+          ...updateData,
+          logo_desktop: file1 ? file1.id : offer.logo_desktop,
+          logo_mobile: file2 ? file2.id : offer.logo_mobile,
+        },
+        { new: true },
+      )
+      .exec();
   }
 }
