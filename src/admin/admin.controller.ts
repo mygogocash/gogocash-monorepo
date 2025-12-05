@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import {
   Controller,
   Get,
@@ -10,6 +11,7 @@ import {
   Query,
   UseInterceptors,
   UploadedFile,
+  UploadedFiles,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import {
@@ -25,7 +27,10 @@ import {
 import { UserAdminService } from './user-admin/user-admin-service';
 import { ApiBearerAuth, ApiBody, ApiSecurity } from '@nestjs/swagger';
 import { AuthAdminGuard } from './jwt-auth-admin.guard';
-import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  FileFieldsInterceptor,
+  FileInterceptor,
+} from '@nestjs/platform-express';
 
 @Controller('admin')
 export class AdminController {
@@ -155,5 +160,29 @@ export class AdminController {
     @Query('search') search?: string,
   ) {
     return this.adminService.findAll(page, limit, search);
+  }
+
+  // @UseInterceptors(
+  //   FileInterceptor('logo_desktop'),
+  //   // FileInterceptor('logo_mobile'),
+  // )
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'logo_desktop', maxCount: 1 },
+      { name: 'logo_mobile', maxCount: 1 },
+    ]),
+  )
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Patch('update-offer/:id')
+  updateOffer(
+    @Param('id') id: string,
+    @UploadedFiles() files: { logo_desktop?: Express.Multer.File[], logo_mobile?: Express.Multer.File[] }
+  ) {
+    return this.adminService.updateOffer(id, {
+      logo_desktop: files?.logo_desktop ? files?.logo_desktop?.[0] : null,
+      logo_mobile: files?.logo_mobile ? files?.logo_mobile?.[0] : null,
+    });
   }
 }

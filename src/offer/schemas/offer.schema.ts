@@ -70,6 +70,12 @@ export class Offer {
 
   @Prop()
   directory_page: string;
+
+  @Prop()
+  logo_desktop: string;
+
+  @Prop()
+  logo_mobile: string;
 }
 
 export const OfferSchema = SchemaFactory.createForClass(Offer);
