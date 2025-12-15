@@ -161,16 +161,16 @@ export class WithdrawService {
       );
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    // const conversionIdsWithdrawedSonic =
-    //   await this.getConversionIdsWithdrawedByUserId(
-    //     user._id.toString(),
-    //     Number(process.env.CHAIN_ID_WITHDRAW_SONIC),
-    //   );
+    const conversionIdsWithdrawedSonic =
+      await this.getConversionIdsWithdrawedByUserId(
+        user._id.toString(),
+        Number(process.env.CHAIN_ID_WITHDRAW_SONIC),
+      );
     // console.log('conversionIdsWithdrawed:', conversionIdsWithdrawed);
     const conversionIdsWithdrawed = [
       ...conversionIdsWithdrawedPolygon,
       ...conversionIdsWithdrawedBNB,
-      // ...conversionIdsWithdrawedSonic,
+      ...conversionIdsWithdrawedSonic,
     ];
     // console.log('conversionIdsWithdrawed total:', conversionIdsWithdrawed);
     const conversions = await this.involveService.getConversionAll({
@@ -237,7 +237,7 @@ export class WithdrawService {
           return { currency, amount, usdAmount: amount };
         }
         // You'll need to implement currency conversion logic here
-        const usdAmount = await this.convertToUSD(currency, amount);
+        const usdAmount = await this.convertCurrencyUsd(currency, amount);
         // const usdAmount = amount; // Placeholder - implement actual conversion
         return {
           currency,
@@ -248,14 +248,40 @@ export class WithdrawService {
       }),
     );
 
+    // Convert to THB
+    const totalPayoutInTHB = await Promise.all(
+      Object.entries(totalPayoutByCurrency).map(async ([currency, amount]) => {
+        if (currency === 'THB') {
+          return { currency, amount, thbAmount: amount };
+        }
+        // You'll need to implement currency conversion logic here
+        const thbAmount = await this.convertCurrencyThb(currency, amount);
+        // const usdAmount = amount; // Placeholder - implement actual conversion
+        return {
+          currency,
+          amount,
+          thbAmount: thbAmount.amount,
+          exchangeRate: thbAmount.exchangeRate,
+        };
+      }),
+    );
+
     const totalUSDAmount = totalPayoutInUSD.reduce(
       (sum, item) => sum + (item.usdAmount || 0),
+      0,
+    );
+
+    const totalTHBAmount = totalPayoutInTHB.reduce(
+      (sum, item) => sum + (item.thbAmount || 0),
       0,
     );
     // Calculate total amount after fee deduction
     const feePercentage = fee.system + fee.store; // Using system fee rate
     const feeAmount = (totalUSDAmount * feePercentage) / 100;
     const netAmount = totalUSDAmount - feeAmount;
+
+    const feeAmountTHB = (totalTHBAmount * feePercentage) / 100;
+    const netAmountTHB = totalTHBAmount - feeAmountTHB;
 
     // Check if net amount meets minimum withdrawal threshold
     const minimumWithdrawal = fee.minimum_withdraw; // You can make this configurable
@@ -274,12 +300,16 @@ export class WithdrawService {
       feeAmount: feeAmount.toFixed(2),
       totalUSDAmount: totalUSDAmount.toFixed(2),
       feePercentage,
+
+      totalTHBAmount: totalTHBAmount.toFixed(2),
+      feeAmountTHB: feeAmountTHB.toFixed(2),
+      netAmountTHB: netAmountTHB.toFixed(2),
       data: approvedList,
       fee,
     };
   }
 
-  async convertToUSD(
+  async convertCurrencyUsd(
     currency: string,
     amount: number,
   ): Promise<{ usdAmount: number | null; exchangeRate: number | null }> {
@@ -309,6 +339,39 @@ export class WithdrawService {
       console.error(`Error converting ${currency} to USD:`, error);
       // Return original amount as fallback
       return { usdAmount: null, exchangeRate: null };
+    }
+  }
+
+  async convertCurrencyThb(
+    currency: string,
+    amount: number,
+  ): Promise<{ amount: number | null; exchangeRate: number | null }> {
+    if (currency === 'THB') {
+      return { amount: amount, exchangeRate: 1 };
+    }
+
+    try {
+      // Using a free currency conversion API (you can replace with your preferred service)
+      const response = await fetch(
+        `https://api.exchangerate-api.com/v4/latest/${currency}`,
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch exchange rate for ${currency}`);
+      }
+
+      const data = await response.json();
+      const exchangeRate = data.rates.THB;
+
+      if (!exchangeRate) {
+        throw new Error(`THB exchange rate not found for ${currency}`);
+      }
+
+      return { amount: amount * exchangeRate, exchangeRate }; // Return the converted amount * exchangeRate;
+    } catch (error) {
+      console.error(`Error converting ${currency} to THB:`, error);
+      // Return original amount as fallback
+      return { amount: null, exchangeRate: null };
     }
   }
 

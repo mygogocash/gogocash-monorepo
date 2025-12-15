@@ -3,7 +3,7 @@ import { HydratedDocument } from 'mongoose';
 
 export type UserDocument = HydratedDocument<User>;
 
-@Schema()
+@Schema({ timestamps: true })
 export class User {
   @Prop({ required: true, unique: false })
   address: string;
@@ -20,7 +20,7 @@ export class User {
   @Prop()
   id_twitter: string;
 
-  @Prop()
+  @Prop({ default: 'Thailand' })
   country: string;
 
   @Prop()

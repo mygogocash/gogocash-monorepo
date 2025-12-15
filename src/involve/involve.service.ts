@@ -12,7 +12,7 @@ import { Model, Types } from 'mongoose';
 import { Deeplink } from './schemas/deeplink.schema';
 import { User } from 'src/user/schemas/user.schema';
 import { ResponseGenerateDeeplink } from './dto/deeplink.dto';
-import { convertToUSD } from 'src/utils/helper';
+import { convertToTHB, convertToUSD } from 'src/utils/helper';
 
 @Injectable()
 export class InvolveService {
@@ -320,7 +320,7 @@ export class InvolveService {
       .reduce(async (accPromise, item) => {
         const acc = await accPromise;
         if (item.currency === 'USD') {
-          return acc + Number(item.payout_amount);
+          return acc + Number(item.payout);
         } else {
           // For non-USD currencies, you'll need to handle conversion separately
           // This assumes you have the USD equivalent stored or calculated elsewhere
@@ -342,7 +342,7 @@ export class InvolveService {
       .reduce(async (accPromise, item) => {
         const acc = await accPromise;
         if (item.currency === 'USD') {
-          return acc + Number(item.payout_amount);
+          return acc + Number(item.payout);
         } else {
           // For non-USD currencies, you'll need to handle conversion separately
           // This assumes you have the USD equivalent stored or calculated elsewhere
@@ -359,6 +359,50 @@ export class InvolveService {
         }
       }, 0);
 
+    const totalTHBPending = await conversationByUser
+      ?.filter((ele) => ele.conversion_status === 'pending')
+      .reduce(async (accPromise, item) => {
+        const acc = await accPromise;
+        if (item.currency === 'THB') {
+          return acc + Number(item.payout);
+        } else {
+          // For non-USD currencies, you'll need to handle conversion separately
+          // This assumes you have the USD equivalent stored or calculated elsewhere
+          const { amount } = await convertToTHB(
+            item.currency,
+            Number(item.payout),
+          );
+          if (amount) {
+            return acc + amount;
+          } else {
+            return acc;
+          }
+          // return acc + Number(item.payout_amount);
+        }
+      }, 0);
+
+    const totalTHBApproved = await conversationByUser
+      ?.filter((ele) => ele.conversion_status === 'approved')
+      .reduce(async (accPromise, item) => {
+        const acc = await accPromise;
+        if (item.currency === 'THB') {
+          return acc + Number(item.payout);
+        } else {
+          // For non-USD currencies, you'll need to handle conversion separately
+          // This assumes you have the USD equivalent stored or calculated elsewhere
+          const { amount } = await convertToTHB(
+            item.currency,
+            Number(item.payout),
+          );
+          if (amount) {
+            return acc + amount;
+          } else {
+            return acc;
+          }
+          // return acc + Number(item.payout_amount);
+        }
+      }, 0);
+
     return {
       data: conversationByUser.sort((a, b) => {
         return (
@@ -367,6 +411,7 @@ export class InvolveService {
         );
       }),
       totalUSD: { pending: totalUSDPending, approved: totalUSDApproved },
+      totalTHB: { pending: totalTHBPending, approved: totalTHBApproved },
       pagination: {
         total: conversationByUser.length,
         limit: payload.limit || 10,
