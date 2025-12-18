@@ -45,7 +45,6 @@ export class UserController {
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
   @Get('profile')
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   findOne(@Req() req: Request) {
     const user = req['user'] as any;
     const id_crossmint = user?.sub;
@@ -68,5 +67,15 @@ export class UserController {
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
     return this.userService.update(new Types.ObjectId(id), updateUserDto);
+  }
+
+  @UseGuards(CrossmintAuthGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
+  @Get('balance/me/mycashback')
+  balanceMyCashback(@Req() req: Request) {
+    const user = req['user'] as any;
+    const id_crossmint = user?.sub;
+    return this.userService.getBalanceMyCashback(id_crossmint);
   }
 }

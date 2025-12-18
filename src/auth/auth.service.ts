@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import * as https from 'https';
@@ -8,6 +8,8 @@ import { SignInDto } from './dto/auth.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Point, PointDocument } from 'src/point/schemas/point.schema';
+import { getAdminAuth } from './firebase-admin.provider';
+import * as admin from 'firebase-admin';
 
 @Injectable()
 export class AuthService {
@@ -139,5 +141,30 @@ export class AuthService {
       { headers: this.headers() },
     );
     return res.data; // { accessToken, refreshToken }
+  }
+
+  async verifyPhone(token: string, id_crossmint: string) {
+    try {
+      const user = await this.userService.findOne({ id_crossmint });
+      if (!user) {
+        throw new UnauthorizedException('user not found');
+      }
+      console.log('token', token);
+      // const admin = getAdminAuth();
+      getAdminAuth();
+      const decoded = await admin.auth().verifyIdToken(token); // const decoded = verifyIdToken(token);
+      console.log('decode', decoded);
+      console.log('user', user);
+      const userUpdate = await this.userService.update(user._id, {
+        mobile: decoded.phone_number,
+      });
+      console.log('userUpdate', userUpdate);
+
+      return { uid: decoded.uid, phone_number: decoded.phone_number };
+    } catch (error: any) {
+      // แนะนำ log error.message/error.code เพื่อ debug
+      console.log('verifyIdToken error:', error);
+      throw new UnauthorizedException('Invalid Firebase token');
+    }
   }
 }

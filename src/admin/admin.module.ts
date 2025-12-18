@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import { Module } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { AdminController } from './admin.controller';
@@ -17,6 +18,7 @@ import { Deeplink, DeeplinkSchema } from 'src/involve/schemas/deeplink.schema';
 import { User, UserSchema } from 'src/user/schemas/user.schema';
 import { FeeRate, FeeRateSchema } from 'src/withdraw/schemas/feeRate.schema';
 import { GoogleDriveService } from 'src/google-drive/google-drive.service';
+import { UserMyCashback, UserMyCashbackSchema } from 'src/user/schemas/user-my-cashback.schema';
 
 @Module({
   imports: [
@@ -29,6 +31,8 @@ import { GoogleDriveService } from 'src/google-drive/google-drive.service';
       { name: Deeplink.name, schema: DeeplinkSchema },
       { name: User.name, schema: UserSchema },
       { name: FeeRate.name, schema: FeeRateSchema },
+      { name: UserMyCashback.name, schema: UserMyCashbackSchema },
+      
     ]),
   ],
   controllers: [AdminController],

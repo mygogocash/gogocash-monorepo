@@ -251,9 +251,6 @@ export class WithdrawService {
     // Convert to THB
     const totalPayoutInTHB = await Promise.all(
       Object.entries(totalPayoutByCurrency).map(async ([currency, amount]) => {
-        if (currency === 'THB') {
-          return { currency, amount, thbAmount: amount };
-        }
         // You'll need to implement currency conversion logic here
         const thbAmount = await this.convertCurrencyThb(currency, amount);
         // const usdAmount = amount; // Placeholder - implement actual conversion

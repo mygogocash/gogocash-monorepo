@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import { Module } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
@@ -8,6 +9,7 @@ import { User, UserSchema } from 'src/user/schemas/user.schema';
 import { JwtModule, JwtService } from '@nestjs/jwt';
 import { Point } from 'src/point/entities/point.entity';
 import { PointSchema } from 'src/point/schemas/point.schema';
+import { UserMyCashback, UserMyCashbackSchema } from 'src/user/schemas/user-my-cashback.schema';
 
 @Module({
   imports: [
@@ -15,6 +17,7 @@ import { PointSchema } from 'src/point/schemas/point.schema';
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: Point.name, schema: PointSchema },
+      { name: UserMyCashback.name, schema: UserMyCashbackSchema  },
     ]),
     JwtModule.register({
       // This is for signing tokens your backend generates.
