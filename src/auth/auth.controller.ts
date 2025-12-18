@@ -1,4 +1,5 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+/* eslint-disable prettier/prettier */
+import { Body, Controller, Post, Req, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import {
   ApiBearerAuth,
@@ -9,6 +10,8 @@ import {
 } from '@nestjs/swagger';
 import { SignInDto } from './dto/auth.dto';
 import { CrossmintAuthGuard } from './jwt-auth.guard';
+import { Request } from 'express';
+
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
@@ -24,6 +27,20 @@ export class AuthController {
     // The guard has already validated the token and added the user payload to the request
     const user = await this.auth.signIn(body);
     return { message: 'Login successful!', user };
+  }
+
+  @Post("firebase")
+  @UseGuards(CrossmintAuthGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
+  async authWithFirebase(@Req() req: Request, @Body() body: {idToken: string}) {
+        const user = req['user'] as any;
+    const id_crossmint = user?.sub;
+    // const authHeader = req.headers.authorization ?? "";
+    // const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    const token = body.idToken? body.idToken : null;
+    if (!token) throw new UnauthorizedException("Missing token");
+    return this.auth.verifyPhone(token, id_crossmint);
   }
 
   // @Get('me')
