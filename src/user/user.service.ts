@@ -91,8 +91,8 @@ export class UserService {
       });
     }
     if (
-      userMyCashback.email === user.email ||
-      userMyCashback.phoneNumber === user.mobile
+      userMyCashback?.email === user.email ||
+      userMyCashback?.phoneNumber === user.mobile
     ) {
       return { userMyCashback, user };
     }
