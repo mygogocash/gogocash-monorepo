@@ -28,6 +28,12 @@ export class User {
 
   @Prop()
   mobile: string;
+
+  @Prop()
+  birthdate: string;
+
+  @Prop()
+  gender: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

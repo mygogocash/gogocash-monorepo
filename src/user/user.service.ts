@@ -60,6 +60,7 @@ export class UserService {
     return this.userModel.findOne(data);
   }
   update(id: Types.ObjectId, updateUserDto: UpdateUserDto) {
+    delete updateUserDto.mobile; // prevent updating mobile directly;
     return this.userModel.findByIdAndUpdate(id, updateUserDto, { new: true });
   }
 

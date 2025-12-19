@@ -51,6 +51,20 @@ export class UserController {
     return this.userService.findOne({ id_crossmint });
   }
 
+  @UseGuards(CrossmintAuthGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
+  @Put('profile')
+  async updateProfile(
+    @Req() req: Request,
+    @Body() updateUserDto: { data: UpdateUserDto },
+  ) {
+    const user = req['user'] as any;
+    const id_crossmint = user?.sub;
+    const userData = await this.userService.findOne({ id_crossmint });
+    return this.userService.update(userData._id, updateUserDto.data);
+  }
+
   @UseGuards(AuthAdminGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
