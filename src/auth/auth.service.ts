@@ -149,18 +149,18 @@ export class AuthService {
       if (!user) {
         throw new UnauthorizedException('user not found');
       }
-      console.log('token', token);
+      // console.log('token', token);
       // const admin = getAdminAuth();
       getAdminAuth();
       const decoded = await admin.auth().verifyIdToken(token); // const decoded = verifyIdToken(token);
-      console.log('decode', decoded);
-      console.log('user', user);
+      // console.log('decode', decoded);
+      // console.log('user', user);
       const userUpdate = await this.userService.update(user._id, {
         mobile: decoded.phone_number,
       });
-      console.log('userUpdate', userUpdate);
+      // console.log('userUpdate', userUpdate);
 
-      return { uid: decoded.uid, phone_number: decoded.phone_number };
+      return { uid: decoded.uid, user: userUpdate };
     } catch (error: any) {
       // แนะนำ log error.message/error.code เพื่อ debug
       console.log('verifyIdToken error:', error);
