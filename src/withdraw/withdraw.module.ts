@@ -14,6 +14,10 @@ import {
   WithdrawMethod,
   WithdrawMethodSchema,
 } from './schemas/withdrawMethod.schema';
+import {
+  UserMyCashback,
+  UserMyCashbackSchema,
+} from 'src/user/schemas/user-my-cashback.schema';
 
 @Module({
   imports: [
@@ -25,6 +29,7 @@ import {
       { name: Withdraw.name, schema: WithdrawSchema },
       { name: FeeRate.name, schema: FeeRateSchema },
       { name: WithdrawMethod.name, schema: WithdrawMethodSchema },
+      { name: UserMyCashback.name, schema: UserMyCashbackSchema },
     ]),
   ],
   controllers: [WithdrawController],

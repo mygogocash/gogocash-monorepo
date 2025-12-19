@@ -21,7 +21,8 @@ import { Withdraw } from './schemas/withdraw.schema';
 import { FeeRate } from './schemas/feeRate.schema';
 import { Offer } from 'src/offer/schemas/offer.schema';
 import { WithdrawMethod } from './schemas/withdrawMethod.schema';
-import { thaiBanks } from 'src/utils/helper';
+import { rateCurrencyUSD, thaiBanks } from 'src/utils/helper';
+import { UserMyCashback } from 'src/user/schemas/user-my-cashback.schema';
 
 @Injectable()
 export class WithdrawService {
@@ -32,6 +33,8 @@ export class WithdrawService {
     @InjectModel(Offer.name) private offerModel: Model<Offer>,
     @InjectModel(WithdrawMethod.name)
     private withdrawMethodModel: Model<WithdrawMethod>,
+    @InjectModel(UserMyCashback.name)
+    private userMyCashbackModel: Model<UserMyCashback>,
     private readonly involveService: InvolveService,
   ) {}
   async getSign(msg: GETSignDTO): Promise<string> {
@@ -306,6 +309,164 @@ export class WithdrawService {
     };
   }
 
+  async getConversionByUser(id_crossmint: string) {
+    const conversions = await this.involveService.getConversionAll({
+      page: '1',
+      limit: '10',
+    });
+
+    let allConversions = conversions.data.data;
+    let currentPage = 1;
+
+    while (conversions.data.nextPage) {
+      currentPage++;
+      const nextConversions = await this.involveService.getConversionAll({
+        page: currentPage.toString(),
+        limit: '10',
+      });
+      allConversions = allConversions.concat(nextConversions.data.data);
+      conversions.data.nextPage = nextConversions.data.nextPage;
+    }
+    const user = await this.userModel.findOne({ id_crossmint });
+    if (!user) {
+      throw new Error('User not found');
+    }
+    const id_user = user._id.toString();
+    const conversationByUser = allConversions.filter((item) =>
+      item.aff_sub1?.includes(`user_id:${id_user}`),
+    );
+    return conversationByUser;
+  }
+
+  async getListCashbackByCurrency(id_crossmint: string) {
+    const allConversions = await this.getConversionByUser(id_crossmint);
+
+    const filteredConversions = allConversions.filter((item) => {
+      return item.conversion_status === 'approved';
+    });
+    const groupedByCurrency = filteredConversions.reduce(
+      (
+        acc: Record<string, { items: any[]; totalPayout: number }>,
+        item: any,
+      ) => {
+        const currency = item.currency || 'unknown';
+        if (!acc[currency]) {
+          acc[currency] = { items: [], totalPayout: 0 };
+        }
+        acc[currency].items.push({ ...item });
+        acc[currency].totalPayout += Number(item.payout || 0);
+        return acc;
+      },
+      {} as Record<string, { items: any[]; totalPayout: number }>,
+    );
+
+    return groupedByCurrency;
+  }
+  async checkWithdrawMyCashback(id_crossmint: string) {
+    const user = await this.userModel.findOne({
+      id_crossmint,
+    });
+    if (!user) {
+      throw new UnauthorizedException({ message: 'User not found' });
+    }
+    const fee = await this.feeRateModel.findOne().exec();
+    if (!fee) {
+      throw new HttpException({ message: 'Fee rate not found' }, 400);
+    }
+
+    const myCashbackData = await this.userMyCashbackModel.findOne({
+      $or: [{ email: user.email }, { phoneNumber: user.mobile }],
+    });
+    if (!myCashbackData) {
+      throw new UnauthorizedException({ message: 'User not found' });
+    }
+
+    const usdRate = await rateCurrencyUSD();
+
+    const totalMyCashbackUSD = myCashbackData.balance.reduce(
+      (sum, b) => sum + b.amount / usdRate[b.currency],
+      0,
+    );
+    const totalMyCashbackTHB = myCashbackData.balance.reduce((sum, b) => {
+      const usd = b.amount / usdRate[b.currency];
+      return sum + usd * usdRate['THB'];
+    }, 0);
+
+    const groupedByCurrencyInvolve =
+      await this.getListCashbackByCurrency(id_crossmint);
+    const listInvolve = Object.keys(groupedByCurrencyInvolve).map((key) => {
+      return {
+        currency: key,
+        items: groupedByCurrencyInvolve[key].items,
+        totalPayout: groupedByCurrencyInvolve[key].totalPayout,
+      };
+    });
+    const totalInvolveUSD = listInvolve.reduce(
+      (sum, b) => sum + b.totalPayout / usdRate[b.currency],
+      0,
+    );
+    const totalInvolveTHB = listInvolve.reduce((sum, b) => {
+      const usd = b.totalPayout / usdRate[b.currency];
+      return sum + usd * usdRate['THB'];
+    }, 0);
+
+    const feePercentage = fee.system + fee.store; // Using system fee rate
+    const feeAmountInvolveUSD = (totalInvolveUSD * feePercentage) / 100;
+    const netAmountInvolveUSD = totalInvolveUSD - feeAmountInvolveUSD;
+
+    const feeAmountInvolveTHB = (totalInvolveTHB * feePercentage) / 100;
+    const netAmountInvolveTHB = totalInvolveTHB - feeAmountInvolveTHB;
+
+    const feeMyCashbackUSD = (totalMyCashbackUSD * feePercentage) / 100;
+    const netMyCashbackUSD = totalMyCashbackUSD - feeMyCashbackUSD;
+
+    const feeMyCashbackTHB = (totalMyCashbackTHB * feePercentage) / 100;
+    const netMyCashbackTHB = totalMyCashbackTHB - feeMyCashbackTHB;
+    const withdrawListApproved = await this.withdrawModel
+      .find({
+        user_id: new Types.ObjectId(user._id),
+        mycashback_id: new Types.ObjectId(myCashbackData._id),
+        $or: [{ status: 'approved' }, { status: 'pending' }],
+      })
+      .lean();
+    const data = {
+      totalInvolveUSD,
+      totalInvolveTHB,
+      totalMyCashbackTHB,
+      totalMyCashbackUSD,
+      feePercentage,
+
+      netMyCashbackUSD,
+      feeMyCashbackUSD,
+      netMyCashbackTHB,
+      feeMyCashbackTHB,
+      netAmountInvolveUSD,
+      feeAmountInvolveUSD,
+      netAmountInvolveTHB,
+      feeAmountInvolveTHB,
+      conversionIdMyCashback: myCashbackData._id,
+    };
+    if (withdrawListApproved.length < 1) {
+      return data;
+    }
+    return {
+      totalInvolveUSD: 0,
+      totalInvolveTHB: 0,
+      totalMyCashbackTHB: 0,
+      totalMyCashbackUSD: 0,
+      feePercentage: 0,
+      netAmountInvolveUSD: 0,
+      feeAmountInvolveUSD: 0,
+      netAmountInvolveTHB: 0,
+      feeAmountInvolveTHB: 0,
+      netMyCashbackUSD: 0,
+      feeMyCashbackUS: 0,
+      netMyCashbackTHB: 0,
+      feeMyCashbackTHB: 0,
+      conversionIdMyCashback: '',
+    };
+  }
+
   async convertCurrencyUsd(
     currency: string,
     amount: number,
@@ -429,7 +590,6 @@ export class WithdrawService {
     return receipt.hash;
   }
   async create(createWithdrawDto: CreateWithdrawDto, id_crossmint: string) {
-    // console.log(createWithdrawDto);
     const user = await this.userModel.findOne({
       id_crossmint,
     });
@@ -457,6 +617,9 @@ export class WithdrawService {
       method: createWithdrawDto.method || '',
       currency: createWithdrawDto.currency || '',
       conversion_id: createWithdrawDto.conversion_ids || [],
+      mycashback_id: createWithdrawDto.mycashback_id
+        ? new Types.ObjectId(createWithdrawDto.mycashback_id)
+        : undefined,
     });
     return { message: 'Withdraw request created', data: dt, status: 'success' };
   }
@@ -472,10 +635,15 @@ export class WithdrawService {
     if (!user) {
       throw new UnauthorizedException({ message: 'User not found' });
     }
+    const chek = createWithdrawDto?.mycashback_id
+      ? {
+          mycashback_id: new Types.ObjectId(createWithdrawDto.mycashback_id),
+        }
+      : { conversion_id: createWithdrawDto.conversion_ids };
     const conversionIdsWithdrawed = await this.withdrawModel
       .find({
         user_id: new Types.ObjectId(user._id),
-        conversion_id: createWithdrawDto.conversion_ids,
+        ...chek,
       })
       .lean();
     const fee = await this.feeRateModel.findOne().exec();
@@ -513,6 +681,9 @@ export class WithdrawService {
       method: 'bank_transfer',
       currency: createWithdrawDto.currency || '',
       conversion_id: createWithdrawDto.conversion_ids || [],
+      mycashback_id: createWithdrawDto.mycashback_id
+        ? new Types.ObjectId(createWithdrawDto.mycashback_id)
+        : undefined,
     });
     return { message: 'Withdraw request created', data: dt, status: 'success' };
   }
@@ -547,6 +718,21 @@ export class WithdrawService {
       this.withdrawModel.countDocuments(query),
     ]);
     const totalAmount = data.reduce((acc, item) => acc + item.amount_net, 0);
+    const dataall = {
+      pending: await this.withdrawModel.countDocuments({
+        user_id: new Types.ObjectId(user._id),
+        status: 'pending',
+      }),
+      approved: await this.withdrawModel.countDocuments({
+        user_id: new Types.ObjectId(user._id),
+        status: 'approved',
+      }),
+      rejected: await this.withdrawModel.countDocuments({
+        user_id: new Types.ObjectId(user._id),
+        status: 'rejected',
+      }),
+    };
+
     return {
       data: data.sort(
         (a, b) =>
@@ -555,6 +741,7 @@ export class WithdrawService {
       ),
       pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
       totalAmount,
+      ...dataall,
     };
   }
 
