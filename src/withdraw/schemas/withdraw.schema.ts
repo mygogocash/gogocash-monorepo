@@ -47,8 +47,11 @@ export class Withdraw {
   @Prop({ required: true })
   currency: string; // USDC, ETH, BTC etc.
 
-  @Prop({ required: true })
+  @Prop({ required: false })
   slip_file: string;
+
+  @Prop({ required: false, ref: 'UserMyCashback', type: Types.ObjectId })
+  mycashback_id: Types.ObjectId;
 }
 
 export const WithdrawSchema = SchemaFactory.createForClass(Withdraw);

@@ -62,6 +62,32 @@ async function convertToTHB(
   }
 }
 
+async function rateCurrencyUSD(): Promise<{ [key: string]: number }[]> {
+  const currency = 'USD';
+  try {
+    // Using a free currency conversion API (you can replace with your preferred service)
+    const response = await fetch(
+      `https://api.exchangerate-api.com/v4/latest/${currency}`,
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch exchange rate for ${currency}`);
+    }
+
+    const data = await response.json();
+    const exchangeRate = data.rates;
+
+    if (!exchangeRate) {
+      throw new Error(`USD exchange rate not found for ${currency}`);
+    }
+
+    return exchangeRate;
+  } catch (error) {
+    console.error(`Error converting ${currency} to USD:`, error);
+    return [];
+  }
+}
+
 const thaiBanks = [
   {
     code: '002',
@@ -154,4 +180,4 @@ const thaiBanks = [
     nameTh: 'ธนาคารเกียรตินาคินภัทร',
   },
 ];
-export { convertToUSD, thaiBanks, convertToTHB };
+export { convertToUSD, thaiBanks, convertToTHB, rateCurrencyUSD };
