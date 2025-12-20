@@ -10,6 +10,7 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { Offer, OfferSchema } from 'src/offer/schemas/offer.schema';
 import { Deeplink, DeeplinkSchema } from 'src/involve/schemas/deeplink.schema';
 import { JwtService } from '@nestjs/jwt';
+import { Category, CategorySchema } from 'src/offer/schemas/category.schema';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { JwtService } from '@nestjs/jwt';
       { name: Point.name, schema: PointSchema },
       { name: Offer.name, schema: OfferSchema },
       { name: Deeplink.name, schema: DeeplinkSchema },
+      { name: Category.name, schema: CategorySchema },
     ]),
   ],
   controllers: [PointController],

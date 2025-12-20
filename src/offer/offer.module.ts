@@ -7,6 +7,7 @@ import { Deeplink, DeeplinkSchema } from 'src/involve/schemas/deeplink.schema';
 import { JwtService } from '@nestjs/jwt';
 import { User, UserSchema } from 'src/user/schemas/user.schema';
 import { TasksService } from './tasksService';
+import { Category, CategorySchema } from './schemas/category.schema';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { TasksService } from './tasksService';
         schema: DeeplinkSchema,
       },
       { name: User.name, schema: UserSchema },
+      { name: Category.name, schema: CategorySchema },
     ]),
   ],
   controllers: [OfferController],

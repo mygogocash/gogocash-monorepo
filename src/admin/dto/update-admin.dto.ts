@@ -1,6 +1,6 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { CreateAdminDto } from './create-admin.dto';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class UpdateAdminDto extends PartialType(CreateAdminDto) {}
 
@@ -35,12 +35,32 @@ export class UpdateRequestWithdrawDto {
 
 export class UpdateOfferAdminDto {
   @ApiProperty()
-  @IsNotEmpty()
   @IsString()
+  @IsOptional()
   logo_desktop: string;
 
   @ApiProperty()
-  @IsNotEmpty()
   @IsString()
+  @IsOptional()
   logo_mobile: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsOptional()
+  banner: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsOptional()
+  logo_circle: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsOptional()
+  offer_name_display: string;
+
+  @ApiProperty()
+  @IsBoolean()
+  @IsOptional()
+  disabled: boolean;
 }
