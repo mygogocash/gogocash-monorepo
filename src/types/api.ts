@@ -131,11 +131,19 @@ export interface Offer {
   validation_terms: number;
   logo_desktop: string;
   logo_mobile: string;
+  banner: string;
+  logo_circle: string;
+  disabled: boolean;
+  offer_name_display: string;
 }
 
 export interface OfferRequestForm {
   logo_desktop: File | null;
   logo_mobile: File | null;
+  banner: File | null;
+  logo_circle: File | null;
+  offer_name_display: string;
+  disabled: boolean;
   id: string;
 }
 
