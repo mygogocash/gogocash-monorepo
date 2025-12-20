@@ -13,6 +13,7 @@ import { Deeplink } from './schemas/deeplink.schema';
 import { User } from 'src/user/schemas/user.schema';
 import { ResponseGenerateDeeplink } from './dto/deeplink.dto';
 import { convertToTHB, convertToUSD } from 'src/utils/helper';
+import { Category } from 'src/offer/schemas/category.schema';
 
 @Injectable()
 export class InvolveService {
@@ -22,6 +23,7 @@ export class InvolveService {
     @InjectModel(Offer.name) private offerModel: Model<Offer>,
     @InjectModel(Deeplink.name) private readonly deeplinkModel: Model<Deeplink>,
     @InjectModel(User.name) private userModel: Model<User>,
+    @InjectModel(Category.name) private categoryModel: Model<Category>,
   ) {
     this.endpoint = `https://api.involve.asia/api`;
   }
@@ -166,7 +168,31 @@ export class InvolveService {
       );
     }
 
+    await this.getCategoryList();
     return offers;
+  }
+
+  async getCategoryList() {
+    const categoriesAll = await this.offerModel
+      .find({})
+      .select('categories')
+      .exec();
+    const uniqueCategories = new Set();
+    categoriesAll.forEach((offer) => {
+      if (offer.categories) {
+        const categoriesArray = offer.categories;
+        uniqueCategories.add(categoriesArray);
+      }
+    });
+    for (const cate of uniqueCategories) {
+      await this.categoryModel.updateOne(
+        { name: cate }, // Assuming offer_id is unique
+        { $set: { name: cate } },
+        { upsert: true },
+      );
+    }
+
+    return Array.from(uniqueCategories);
   }
 
   async checkOfferDuplicate() {

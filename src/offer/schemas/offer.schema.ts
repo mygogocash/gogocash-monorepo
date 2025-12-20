@@ -76,6 +76,18 @@ export class Offer {
 
   @Prop()
   logo_mobile: string;
+
+  @Prop()
+  offer_name_display: string;
+
+  @Prop()
+  banner: string;
+
+  @Prop()
+  logo_circle: string;
+
+  @Prop()
+  disabled: boolean;
 }
 
 export const OfferSchema = SchemaFactory.createForClass(Offer);

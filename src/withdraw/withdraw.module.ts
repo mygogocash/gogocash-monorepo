@@ -18,6 +18,7 @@ import {
   UserMyCashback,
   UserMyCashbackSchema,
 } from 'src/user/schemas/user-my-cashback.schema';
+import { Category, CategorySchema } from 'src/offer/schemas/category.schema';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import {
       { name: FeeRate.name, schema: FeeRateSchema },
       { name: WithdrawMethod.name, schema: WithdrawMethodSchema },
       { name: UserMyCashback.name, schema: UserMyCashbackSchema },
+      { name: Category.name, schema: CategorySchema },
     ]),
   ],
   controllers: [WithdrawController],

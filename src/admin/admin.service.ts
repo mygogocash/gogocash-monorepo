@@ -207,6 +207,10 @@ export class AdminService {
     updateData: {
       logo_desktop?: Express.Multer.File;
       logo_mobile?: Express.Multer.File;
+      banner?: Express.Multer.File;
+      logo_circle?: Express.Multer.File;
+      offer_name_display?: string;
+      disabled?: boolean;
     },
   ) {
     const offer = await this.offerModel.findById(id).exec();
@@ -234,6 +238,28 @@ export class AdminService {
         await this.googleDriveService.deleteFile(offer.logo_mobile);
       }
     }
+
+    let bannerFile;
+    if (updateData.banner) {
+      bannerFile = await this.googleDriveService.uploadFile(
+        updateData.banner,
+        folderId,
+      );
+      if (offer.banner) {
+        await this.googleDriveService.deleteFile(offer.banner);
+      }
+    }
+
+    let logoCircleFile;
+    if (updateData.logo_circle) {
+      logoCircleFile = await this.googleDriveService.uploadFile(
+        updateData.logo_circle,
+        folderId,
+      );
+      if (offer.logo_circle) {
+        await this.googleDriveService.deleteFile(offer.logo_circle);
+      }
+    }
     return this.offerModel
       .findByIdAndUpdate(
         id,
@@ -241,6 +267,12 @@ export class AdminService {
           ...updateData,
           logo_desktop: file1 ? file1.id : offer.logo_desktop,
           logo_mobile: file2 ? file2.id : offer.logo_mobile,
+          banner: bannerFile ? bannerFile.id : offer.banner,
+          logo_circle: logoCircleFile
+            ? logoCircleFile.id
+            : offer.logo_circle,
+          offer_name_display: updateData.offer_name_display ?? offer.offer_name_display,
+          disabled: Boolean(updateData.disabled ?? offer.disabled),
         },
         { new: true },
       )

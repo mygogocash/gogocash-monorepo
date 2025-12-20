@@ -22,6 +22,7 @@ import {
 import {
   UpdateAdminDto,
   UpdateFeeRateDto,
+  UpdateOfferAdminDto,
   UpdateRequestWithdrawDto,
 } from './dto/update-admin.dto';
 import { UserAdminService } from './user-admin/user-admin-service';
@@ -170,6 +171,8 @@ export class AdminController {
     FileFieldsInterceptor([
       { name: 'logo_desktop', maxCount: 1 },
       { name: 'logo_mobile', maxCount: 1 },
+      { name: 'banner', maxCount: 1 },
+      { name: 'logo_circle', maxCount: 1 },
     ]),
   )
   @UseGuards(AuthAdminGuard)
@@ -178,11 +181,16 @@ export class AdminController {
   @Patch('update-offer/:id')
   updateOffer(
     @Param('id') id: string,
-    @UploadedFiles() files: { logo_desktop?: Express.Multer.File[], logo_mobile?: Express.Multer.File[] }
+    @Body() updateAdminDto: UpdateOfferAdminDto,
+    @UploadedFiles() files: { logo_desktop?: Express.Multer.File[], logo_mobile?: Express.Multer.File[], banner?: Express.Multer.File[], logo_circle?: Express.Multer.File[] }
   ) {
     return this.adminService.updateOffer(id, {
       logo_desktop: files?.logo_desktop ? files?.logo_desktop?.[0] : null,
       logo_mobile: files?.logo_mobile ? files?.logo_mobile?.[0] : null,
+      banner: files?.banner ? files?.banner?.[0] : null,
+      logo_circle: files?.logo_circle ? files?.logo_circle?.[0] : null,
+      offer_name_display: updateAdminDto.offer_name_display,
+      disabled: updateAdminDto.disabled,
     });
   }
 }

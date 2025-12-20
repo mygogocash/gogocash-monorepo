@@ -7,6 +7,7 @@ import { User } from 'src/user/schemas/user.schema';
 import { GetMyOfferDto } from './dto/create-offer.dto';
 import { join } from 'path';
 import { promises as fs } from 'fs';
+import { Category } from './schemas/category.schema';
 @Injectable()
 export class OfferService {
   private filePath = join(process.cwd(), 'uploads', 'data', 'offers.json');
@@ -15,6 +16,7 @@ export class OfferService {
     @InjectModel(Offer.name) private offerModel: Model<Offer>,
     @InjectModel(Deeplink.name) private readonly deeplinkModel: Model<Deeplink>,
     @InjectModel(User.name) private readonly userModel: Model<User>,
+    @InjectModel(Category.name) private categoryModel: Model<Category>,
   ) {}
   async findAll(
     page: number,
@@ -30,6 +32,7 @@ export class OfferService {
       // const categoriesArray = categories.split(',').map((cat) => cat.trim());
       filter['categories'] = { $regex: categories, $options: 'i' };
     }
+    filter.disabled = { $ne: true };
     const data = await this.offerModel
       .find(filter)
       .skip((page - 1) * limit)
@@ -45,18 +48,8 @@ export class OfferService {
   }
 
   async getCategoryList() {
-    const categoriesAll = await this.offerModel
-      .find({})
-      .select('categories')
-      .exec();
-    const uniqueCategories = new Set();
-    categoriesAll.forEach((offer) => {
-      if (offer.categories) {
-        const categoriesArray = offer.categories;
-        uniqueCategories.add(categoriesArray);
-      }
-    });
-    return Array.from(uniqueCategories);
+    const categoriesAll = await this.categoryModel.find().lean();
+    return categoriesAll;
   }
 
   async findMyOffer(user_id: string, payload: GetMyOfferDto) {
