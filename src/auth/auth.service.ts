@@ -207,6 +207,15 @@ export class AuthService {
       const decoded = await admin.auth().verifyIdToken(token); // const decoded = verifyIdToken(token);
       // console.log('decode', decoded);
       // console.log('user', user);
+      const checkMobileDup = await this.userService.findOne({
+        mobile: decoded.phone_number,
+      });
+      if (
+        checkMobileDup &&
+        checkMobileDup._id.toString() !== user._id.toString()
+      ) {
+        throw new UnauthorizedException('Mobile number already in use');
+      }
       const userUpdate = await this.userService.update(user._id, {
         mobile: decoded.phone_number,
       });
