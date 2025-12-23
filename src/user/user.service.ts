@@ -61,10 +61,6 @@ export class UserService {
   }
   async update(id: Types.ObjectId, updateUserDto: UpdateUserDto) {
     // delete updateUserDto.mobile; // prevent updating mobile directly;
-    const checkMobileDup = await this.userModel.findOne({ mobile: updateUserDto.mobile });
-    if (checkMobileDup && checkMobileDup._id.toString() !== id.toString()) {
-      throw new UnauthorizedException('Mobile number already in use');
-    }
     return this.userModel.findByIdAndUpdate(id, updateUserDto, { new: true });
   }
 
