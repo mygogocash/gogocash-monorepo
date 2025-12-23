@@ -59,8 +59,12 @@ export class UserService {
   findOne(data: { [key: string]: string | Types.ObjectId }) {
     return this.userModel.findOne(data);
   }
-  update(id: Types.ObjectId, updateUserDto: UpdateUserDto) {
-    delete updateUserDto.mobile; // prevent updating mobile directly;
+  async update(id: Types.ObjectId, updateUserDto: UpdateUserDto) {
+    // delete updateUserDto.mobile; // prevent updating mobile directly;
+    const checkMobileDup = await this.userModel.findOne({ mobile: updateUserDto.mobile });
+    if (checkMobileDup && checkMobileDup._id.toString() !== id.toString()) {
+      throw new UnauthorizedException('Mobile number already in use');
+    }
     return this.userModel.findByIdAndUpdate(id, updateUserDto, { new: true });
   }
 
