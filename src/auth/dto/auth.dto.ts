@@ -40,3 +40,20 @@ export class SignUpDto {
   @IsNotEmpty()
   password: string;
 }
+
+export class SignInFirebaseDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  address: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  referral_id: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsOptional()
+  provider?: string;
+}
