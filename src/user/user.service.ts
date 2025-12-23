@@ -74,10 +74,11 @@ export class UserService {
 
   async getBalanceMyCashback(id_crossmint: string) {
     const user = await this.userModel.findOne({ id_crossmint });
+
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
-    if (!user.email && !user?.mobile) {
+    if (!user.email || !user?.mobile) {
       throw new Error('User email or mobile not found');
     }
     let userMyCashback = null;
@@ -91,12 +92,23 @@ export class UserService {
         email: user.email,
       });
     }
+    const mobileData = user?.mobile?.includes('+66')
+      ? user?.mobile?.slice(3)
+      : user?.mobile;
+    const mobile = '0' + mobileData;
+    if (!userMyCashback) {
+      userMyCashback = await this.userMyCashbacksModel.findOne({
+        phoneNumber: mobile,
+      });
+    }
+
     if (
       userMyCashback?.email === user.email ||
-      userMyCashback?.phoneNumber === user.mobile
+      userMyCashback?.phoneNumber === user.mobile ||
+      userMyCashback?.phoneNumber === mobile
     ) {
       return { userMyCashback, user };
     }
-    return null;
+    return { userMyCashback: null, user };
   }
 }
