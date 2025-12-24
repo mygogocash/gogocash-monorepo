@@ -193,4 +193,23 @@ export class AdminController {
       disabled: updateAdminDto.disabled,
     });
   }
+
+
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'image', maxCount: 1 },
+    ]),
+  )
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Patch('update-category/:id')
+  updateCategory(
+    @Param('id') id: string,
+    @UploadedFiles() files: { image?: Express.Multer.File[] }
+  ) {
+    return this.adminService.updateCategory(id, {
+      image: files?.image ? files?.image?.[0] : null,
+    });
+  }
 }
