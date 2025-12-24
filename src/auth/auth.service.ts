@@ -97,55 +97,73 @@ export class AuthService {
   }
 
   async signInFirebase(token: string, payload: SignInFirebaseDto) {
-    getAdminAuth();
-    const data = await admin.auth().verifyIdToken(token);
-    // console.log('data', data);
-    if (!data.id) {
-      throw new Error('User not found in Crossmint');
-    }
-    // console.log('payload', data.id);
-    let userExist = null;
-    if (payload.provider && payload.provider === 'google.com') {
-      userExist = await this.userService.findOne({
-        email: data.email,
-      });
-    }
+    try {
+      console.log('payload', payload);
+      getAdminAuth();
+      const data = await admin.auth().verifyIdToken(token);
+      console.log('data', data);
+      if (!data) {
+        throw new Error('User not found in Gogocash');
+      }
+      // console.log('payload', data.id);
+      let userExist = null;
+      if (data.email) {
+        userExist = await this.userService.findOne({
+          email: data.email,
+        });
+      }
 
-    // console.log('userExist', userExist);
-    if (userExist) {
-      if (userExist.address) {
+      // console.log('userExist', userExist);
+      if (userExist) {
         const user = await this.userService.update(userExist._id, {
           email: data.email,
           username: data?.twitter
             ? data.twitter.username
-            : data?.email?.split('@')[0],
+            : data?.name || data?.email?.split('@')[0],
           id_twitter: data?.twitter ? data.twitter.id : '',
-          address: payload.address || '',
+          address:
+            payload?.address && payload?.address !== 'undefined'
+              ? payload?.address
+              : '',
+          id_firebase: data.uid,
         });
         return user;
       }
-      return userExist;
-    }
-    const user = await this.userService.create({
-      address: payload.address || '',
-      id_crossmint: data.id,
-      email: data.email,
-      username: data?.twitter
-        ? data.twitter.username
-        : data?.email?.split('@')[0],
-      id_twitter: data?.twitter ? data.twitter.id : '',
-    });
-    const refData = await this.userService.findOne({
-      _id: new Types.ObjectId(payload.referral_id),
-    });
-    if (refData && user._id?.toString() !== payload.referral_id?.toString()) {
-      await this.updatePoint({
-        user_id: user._id.toString(),
-        referral_id: payload.referral_id,
+      const user = await this.userService.create({
+        address:
+          payload?.address && payload?.address !== 'undefined'
+            ? payload?.address
+            : '',
+        id_crossmint: '',
+        email: data.email,
+        username: data?.twitter
+          ? data.twitter.username
+          : data?.name || data?.email?.split('@')[0],
+        id_twitter: data?.twitter ? data.twitter?.id : '',
+        id_firebase: data.uid,
       });
+      if (payload?.referral_id && payload.referral_id !== 'undefined') {
+        const refData = await this.userService.findOne({
+          _id: new Types.ObjectId(payload?.referral_id),
+        });
+        if (
+          refData &&
+          user._id?.toString() !== payload.referral_id?.toString()
+        ) {
+          await this.updatePoint({
+            user_id: user._id.toString(),
+            referral_id: payload.referral_id,
+          });
+        }
+      }
+
+      console.log('user', user);
+      // Update points for referral if referral_id is provided
+      return user; // { accessToken, refreshToken, user }
+    } catch (error) {
+      console.log('err', error);
+      throw new Error(error?.message || 'Invalid Firebase token');
     }
-    // Update points for referral if referral_id is provided
-    return user; // { accessToken, refreshToken, user }
   }
 
   async updatePoint(payload: { referral_id?: string; user_id: string }) {
@@ -195,9 +213,11 @@ export class AuthService {
     return res.data; // { accessToken, refreshToken }
   }
 
-  async verifyPhone(token: string, id_crossmint: string) {
+  async verifyPhone(token: string, id: string) {
     try {
-      const user = await this.userService.findOne({ id_crossmint });
+      const user = await this.userService.findOne({
+        _id: new Types.ObjectId(id),
+      });
       if (!user) {
         throw new UnauthorizedException('user not found');
       }

@@ -10,8 +10,8 @@ import {
 import { OfferService } from './offer.service';
 import { ApiBearerAuth, ApiQuery, ApiSecurity } from '@nestjs/swagger';
 import { Request } from 'express';
-import { CrossmintAuthGuard } from 'src/auth/jwt-auth.guard';
 import { GetMyOfferDto } from './dto/create-offer.dto';
+import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
 @Controller('offer')
 export class OfferController {
   constructor(private readonly offerService: OfferService) {}
@@ -74,7 +74,7 @@ export class OfferController {
     type: Number,
     description: 'Number of items per page',
   })
-  @UseGuards(CrossmintAuthGuard)
+  @UseGuards(FirebaseAuthGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
   @Post('my-offers')
@@ -84,7 +84,7 @@ export class OfferController {
     return this.offerService.findMyOffer(id, body);
   }
 
-  @UseGuards(CrossmintAuthGuard)
+  @UseGuards(FirebaseAuthGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
   @Post('write-json')

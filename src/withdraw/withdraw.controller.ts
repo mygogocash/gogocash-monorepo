@@ -19,14 +19,14 @@ import {
   CreateWithdrawMethod,
   UpdateWithdrawDto,
 } from './dto/update-withdraw.dto';
-import { CrossmintAuthGuard } from 'src/auth/jwt-auth.guard';
 import { ApiBearerAuth, ApiBody, ApiQuery, ApiSecurity } from '@nestjs/swagger';
 import { Request } from 'express';
+import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
 @Controller('withdraw')
 export class WithdrawController {
   constructor(private readonly withdrawService: WithdrawService) {}
 
-  @UseGuards(CrossmintAuthGuard)
+  @UseGuards(FirebaseAuthGuard)
   @ApiBody({ type: GETSignDTO })
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
@@ -35,38 +35,38 @@ export class WithdrawController {
     return this.withdrawService.getSign(createWithdrawDto);
   }
 
-  @UseGuards(CrossmintAuthGuard)
+  @UseGuards(FirebaseAuthGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
   @Post('check')
   checkWithdraw(@Req() req: Request) {
     const user = req['user'] as any;
-    const id_crossmint = user?.sub;
-    return this.withdrawService.checkWithdraw(id_crossmint);
+    const id = user?.sub;
+    return this.withdrawService.checkWithdraw(id);
   }
 
-  @UseGuards(CrossmintAuthGuard)
+  @UseGuards(FirebaseAuthGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
   @Post('check-my-cashback')
   checkWithdrawMyCashback(@Req() req: Request) {
     const user = req['user'] as any;
-    const id_crossmint = user?.sub;
-    return this.withdrawService.checkWithdrawMyCashback(id_crossmint);
+    const id = user?.sub;
+    return this.withdrawService.checkWithdrawMyCashback(id);
   }
 
-  @UseGuards(CrossmintAuthGuard)
+  @UseGuards(FirebaseAuthGuard)
   @ApiBody({ type: CreateWithdrawDto })
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
   @Post()
   create(@Req() req: Request, @Body() createWithdrawDto: CreateWithdrawDto) {
     const user = req['user'] as any;
-    const id_crossmint = user?.sub;
-    return this.withdrawService.create(createWithdrawDto, id_crossmint);
+    const id = user?.sub;
+    return this.withdrawService.create(createWithdrawDto, id);
   }
 
-  @UseGuards(CrossmintAuthGuard)
+  @UseGuards(FirebaseAuthGuard)
   @ApiBody({ type: CreateWithdrawMethod })
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
@@ -76,14 +76,11 @@ export class WithdrawController {
     @Body() createWithdrawDto: CreateWithdrawMethod,
   ) {
     const user = req['user'] as any;
-    const id_crossmint = user?.sub;
-    return this.withdrawService.createBankTransfer(
-      createWithdrawDto,
-      id_crossmint,
-    );
+    const id = user?.sub;
+    return this.withdrawService.createBankTransfer(createWithdrawDto, id);
   }
 
-  @UseGuards(CrossmintAuthGuard)
+  @UseGuards(FirebaseAuthGuard)
   // @ApiBody({ type: GetWithdrawTransactionsDTO })
   @ApiQuery({ type: GetWithdrawTransactionsDTO })
   @ApiQuery({
@@ -109,11 +106,11 @@ export class WithdrawController {
   @Get()
   findAll(@Param() params: GetWithdrawTransactionsDTO, @Req() req: Request) {
     const user = req['user'] as any;
-    const id_crossmint = user?.sub;
-    return this.withdrawService.findAll(params, id_crossmint);
+    const id = user?.sub;
+    return this.withdrawService.findAll(params, id);
   }
 
-  @UseGuards(CrossmintAuthGuard)
+  @UseGuards(FirebaseAuthGuard)
   @ApiBody({ type: GETSignDTO })
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth()
@@ -125,7 +122,7 @@ export class WithdrawController {
     return this.withdrawService.update(id, updateWithdrawDto);
   }
 
-  @UseGuards(CrossmintAuthGuard)
+  @UseGuards(FirebaseAuthGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth()
   @Delete(':id')
@@ -133,7 +130,7 @@ export class WithdrawController {
     return this.withdrawService.remove(+id);
   }
 
-  @UseGuards(CrossmintAuthGuard)
+  @UseGuards(FirebaseAuthGuard)
   @ApiBody({ type: CreateWithdrawMethod })
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth()
@@ -143,14 +140,11 @@ export class WithdrawController {
     @Req() req: Request,
   ) {
     const user = req['user'] as any;
-    const id_crossmint = user?.sub;
-    return this.withdrawService.createWithdrawMethod(
-      createWithdrawMethod,
-      id_crossmint,
-    );
+    const id = user?.sub;
+    return this.withdrawService.createWithdrawMethod(createWithdrawMethod, id);
   }
 
-  @UseGuards(CrossmintAuthGuard)
+  @UseGuards(FirebaseAuthGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth()
   @Get('banks')
@@ -158,7 +152,7 @@ export class WithdrawController {
     return this.withdrawService.getBankList();
   }
 
-  @UseGuards(CrossmintAuthGuard)
+  @UseGuards(FirebaseAuthGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth()
   @Get('methods/:id')
@@ -166,17 +160,17 @@ export class WithdrawController {
     return this.withdrawService.getMethodId(id);
   }
 
-  @UseGuards(CrossmintAuthGuard)
+  @UseGuards(FirebaseAuthGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth()
   @Get('methods-list')
   getMethodList(@Req() req: Request) {
     const user = req['user'] as any;
-    const id_crossmint = user?.sub;
-    return this.withdrawService.getMethodList(id_crossmint);
+    const id = user?.sub;
+    return this.withdrawService.getMethodList(id);
   }
 
-  @UseGuards(CrossmintAuthGuard)
+  @UseGuards(FirebaseAuthGuard)
   @ApiBody({ type: CreateWithdrawMethod })
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth()
@@ -185,7 +179,7 @@ export class WithdrawController {
     return this.withdrawService.deleteMethodData(id);
   }
 
-  @UseGuards(CrossmintAuthGuard)
+  @UseGuards(FirebaseAuthGuard)
   @ApiBody({ type: CreateWithdrawMethod })
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth()

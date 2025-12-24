@@ -1,12 +1,13 @@
 export class CreateUserDto {
   address: string;
-  id_crossmint: number;
+  id_crossmint: string;
   email?: string;
   username?: string;
   id_twitter?: string;
   mobile?: string;
   gender?: string;
   birthdate?: string;
+  id_firebase?: string;
 }
 
 export class UpdateCountryDto {

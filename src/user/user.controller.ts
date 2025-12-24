@@ -16,19 +16,19 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { Types } from 'mongoose';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
 import { ApiBearerAuth, ApiSecurity } from '@nestjs/swagger';
-import { CrossmintAuthGuard } from 'src/auth/jwt-auth.guard';
 import { Request } from 'express';
+import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  @UseGuards(CrossmintAuthGuard)
+  @UseGuards(FirebaseAuthGuard)
   @Post()
   create(@Body() createUserDto: CreateUserDto) {
     return this.userService.create(createUserDto);
   }
 
-  @UseGuards(CrossmintAuthGuard)
+  @UseGuards(FirebaseAuthGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
   @Put('update-country')
@@ -37,21 +37,21 @@ export class UserController {
     @Req() req: Request,
   ) {
     const user = req['user'] as any;
-    const id_crossmint = user?.sub;
-    return this.userService.updateCountry(updateCountryDto, id_crossmint);
+    const id = user?.sub;
+    return this.userService.updateCountry(updateCountryDto, id);
   }
 
-  @UseGuards(CrossmintAuthGuard)
+  @UseGuards(FirebaseAuthGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
   @Get('profile')
   findOne(@Req() req: Request) {
     const user = req['user'] as any;
-    const id_crossmint = user?.sub;
-    return this.userService.findOne({ id_crossmint });
+    const id = user?.sub;
+    return this.userService.findOne({ _id: new Types.ObjectId(id) });
   }
 
-  @UseGuards(CrossmintAuthGuard)
+  @UseGuards(FirebaseAuthGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
   @Put('profile')
@@ -60,8 +60,10 @@ export class UserController {
     @Body() updateUserDto: { data: UpdateUserDto },
   ) {
     const user = req['user'] as any;
-    const id_crossmint = user?.sub;
-    const userData = await this.userService.findOne({ id_crossmint });
+    const id = user?.sub;
+    const userData = await this.userService.findOne({
+      _id: new Types.ObjectId(id),
+    });
     return this.userService.update(userData._id, updateUserDto.data);
   }
 
@@ -77,19 +79,19 @@ export class UserController {
     return this.userService.findAll(page, limit, search);
   }
 
-  @UseGuards(CrossmintAuthGuard)
+  @UseGuards(FirebaseAuthGuard)
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
     return this.userService.update(new Types.ObjectId(id), updateUserDto);
   }
 
-  @UseGuards(CrossmintAuthGuard)
+  @UseGuards(FirebaseAuthGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
   @Get('balance/me/mycashback')
   balanceMyCashback(@Req() req: Request) {
     const user = req['user'] as any;
-    const id_crossmint = user?.sub;
-    return this.userService.getBalanceMyCashback(id_crossmint);
+    const id = user?.sub;
+    return this.userService.getBalanceMyCashback(id);
   }
 }

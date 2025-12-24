@@ -44,12 +44,12 @@ export class SignUpDto {
 export class SignInFirebaseDto {
   @ApiProperty()
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   address: string;
 
   @ApiProperty()
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   referral_id: string;
 
   @ApiProperty()
