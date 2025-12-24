@@ -42,6 +42,11 @@ const navItems: NavItem[] = [
   },
   {
     icon: <ListIcon />,
+    name: "Category Management",
+    subItems: [{ name: "Category", path: "/category", pro: false }],
+  },
+  {
+    icon: <ListIcon />,
     name: "Withdraw Management",
     subItems: [{ name: "Withdraw", path: "/withdraw", pro: false }],
   },

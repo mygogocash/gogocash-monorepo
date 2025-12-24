@@ -1,8 +1,8 @@
 'use client'
 
 import { QueryClient } from '@tanstack/react-query'
-import { persistQueryClient } from '@tanstack/react-query-persist-client'
-import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister'
+// import { persistQueryClient } from '@tanstack/react-query-persist-client'
+// import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister'
 
 let client: QueryClient | null = null
 
@@ -14,22 +14,22 @@ export function getQueryClient() {
           refetchOnWindowFocus: false,
           refetchOnMount: false,
           refetchOnReconnect: false,
-          staleTime: Infinity, // cache ไม่มีวันหมดอายุ
+          staleTime: 0, // cache ไม่มีวันหมดอายุ
           gcTime: 1000 * 60 * 60 * 24, // เก็บไว้ 24 ชม.
         },
       },
     })
 
-    if (typeof window !== 'undefined') {
-      const persister = createSyncStoragePersister({
-        storage: window.localStorage,
-      })
+    // if (typeof window !== 'undefined') {
+    //   const persister = createSyncStoragePersister({
+    //     storage: window.localStorage,
+    //   })
 
-      persistQueryClient({
-        queryClient: client,
-        persister,
-      })
-    }
+    //   persistQueryClient({
+    //     queryClient: client,
+    //     persister,
+    //   })
+    // }
   }
 
   return client
