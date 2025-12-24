@@ -50,8 +50,12 @@ export class OfferService {
     return this.offerModel.findById(id);
   }
 
-  async getCategoryList() {
-    const categoriesAll = await this.categoryModel.find().lean();
+  async getCategoryList(search: string) {
+    const filter = {};
+    if (search) {
+      filter['name'] = { $regex: search, $options: 'i' };
+    }
+    const categoriesAll = await this.categoryModel.find(filter).lean();
     return categoriesAll;
   }
 

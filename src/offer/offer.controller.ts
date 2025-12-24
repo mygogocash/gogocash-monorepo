@@ -93,9 +93,16 @@ export class OfferController {
     return this.offerService.findOne(id);
   }
 
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Search Category name',
+  })
   @Get('get-category/list')
-  getCategoryList() {
-    return this.offerService.getCategoryList();
+  getCategoryList(@Req() request: Request) {
+    const search = request.query.search ? request.query.search?.toString() : '';
+    return this.offerService.getCategoryList(search);
   }
 
   @ApiQuery({
