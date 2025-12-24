@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
 import { Offer } from 'src/offer/schemas/offer.schema';
 import { User } from 'src/user/schemas/user.schema';
@@ -53,7 +53,9 @@ export class OfferService {
   }
 
   async findMyOffer(user_id: string, payload: GetMyOfferDto) {
-    const user = await this.userModel.findOne({ id_crossmint: user_id });
+    const user = await this.userModel.findOne({
+      _id: new Types.ObjectId(user_id),
+    });
     if (!user) {
       throw new Error('User not found');
     }

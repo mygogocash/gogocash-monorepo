@@ -6,9 +6,14 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import * as admin from 'firebase-admin';
+import { getAdminAuth } from './firebase-admin.provider';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { User } from 'src/user/schemas/user.schema';
 
 @Injectable()
 export class FirebaseAuthGuard implements CanActivate {
+  constructor(@InjectModel(User.name) private userModel: Model<User>) {}
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const [type, token] = request.headers.authorization?.split(' ') ?? [];
@@ -19,8 +24,15 @@ export class FirebaseAuthGuard implements CanActivate {
 
     try {
       // Verify the ID Token
+      getAdminAuth();
       const decodedToken = await admin.auth().verifyIdToken(token);
-      request['user'] = decodedToken; // Attach user info (uid, email, name) to request
+      const user = await this.userModel.findOne({
+        id_firebase: decodedToken.uid,
+      });
+      if (!user) {
+        throw new UnauthorizedException('User not found');
+      }
+      request['user'] = { ...decodedToken, sub: user._id.toString() }; // Attach user info (uid, email, name) to request
       return true;
     } catch (error) {
       throw new UnauthorizedException(error?.message || 'Invalid token');

@@ -139,9 +139,9 @@ export class WithdrawService {
     );
     return conversionIdsStringArray;
   }
-  async checkWithdraw(id_crossmint: string) {
+  async checkWithdraw(id: string) {
     const user = await this.userModel.findOne({
-      id_crossmint,
+      _id: new Types.ObjectId(id),
     });
     if (!user) {
       throw new UnauthorizedException({ message: 'User not found' });
@@ -309,7 +309,7 @@ export class WithdrawService {
     };
   }
 
-  async getConversionByUser(id_crossmint: string) {
+  async getConversionByUser(id: string) {
     const conversions = await this.involveService.getConversionAll({
       page: '1',
       limit: '10',
@@ -327,7 +327,7 @@ export class WithdrawService {
       allConversions = allConversions.concat(nextConversions.data.data);
       conversions.data.nextPage = nextConversions.data.nextPage;
     }
-    const user = await this.userModel.findOne({ id_crossmint });
+    const user = await this.userModel.findOne({ _id: new Types.ObjectId(id) });
     if (!user) {
       throw new Error('User not found');
     }
@@ -338,8 +338,8 @@ export class WithdrawService {
     return conversationByUser;
   }
 
-  async getListCashbackByCurrency(id_crossmint: string) {
-    const allConversions = await this.getConversionByUser(id_crossmint);
+  async getListCashbackByCurrency(id: string) {
+    const allConversions = await this.getConversionByUser(id);
 
     const filteredConversions = allConversions.filter((item) => {
       return item.conversion_status === 'approved';
@@ -362,9 +362,9 @@ export class WithdrawService {
 
     return groupedByCurrency;
   }
-  async checkWithdrawMyCashback(id_crossmint: string) {
+  async checkWithdrawMyCashback(id: string) {
     const user = await this.userModel.findOne({
-      id_crossmint,
+      _id: new Types.ObjectId(id),
     });
     if (!user) {
       throw new UnauthorizedException({ message: 'User not found' });
@@ -392,8 +392,7 @@ export class WithdrawService {
       return sum + usd * usdRate['THB'];
     }, 0);
 
-    const groupedByCurrencyInvolve =
-      await this.getListCashbackByCurrency(id_crossmint);
+    const groupedByCurrencyInvolve = await this.getListCashbackByCurrency(id);
     const listInvolve = Object.keys(groupedByCurrencyInvolve).map((key) => {
       return {
         currency: key,
@@ -589,9 +588,9 @@ export class WithdrawService {
 
     return receipt.hash;
   }
-  async create(createWithdrawDto: CreateWithdrawDto, id_crossmint: string) {
+  async create(createWithdrawDto: CreateWithdrawDto, id: string) {
     const user = await this.userModel.findOne({
-      id_crossmint,
+      _id: new Types.ObjectId(id),
     });
     if (!user) {
       throw new UnauthorizedException({ message: 'User not found' });
@@ -624,13 +623,10 @@ export class WithdrawService {
     return { message: 'Withdraw request created', data: dt, status: 'success' };
   }
 
-  async createBankTransfer(
-    createWithdrawDto: CreateWithdrawDto,
-    id_crossmint: string,
-  ) {
+  async createBankTransfer(createWithdrawDto: CreateWithdrawDto, id: string) {
     // console.log(createWithdrawDto);
     const user = await this.userModel.findOne({
-      id_crossmint,
+      _id: new Types.ObjectId(id),
     });
     if (!user) {
       throw new UnauthorizedException({ message: 'User not found' });
@@ -688,8 +684,8 @@ export class WithdrawService {
     return { message: 'Withdraw request created', data: dt, status: 'success' };
   }
 
-  async findAll(params: GetWithdrawTransactionsDTO, id_crossmint: string) {
-    const user = await this.userModel.findOne({ id_crossmint });
+  async findAll(params: GetWithdrawTransactionsDTO, id: string) {
+    const user = await this.userModel.findOne({ _id: new Types.ObjectId(id) });
     if (!user) {
       throw new UnauthorizedException({ message: 'User not found' });
     }
@@ -769,10 +765,10 @@ export class WithdrawService {
 
   async createWithdrawMethod(
     createWithdrawMethod: CreateWithdrawMethod,
-    id_crossmint: string,
+    id: string,
   ) {
     const user = await this.userModel.findOne({
-      id_crossmint,
+      _id: new Types.ObjectId(id),
     });
     if (!user) {
       throw new UnauthorizedException({ message: 'User not found' });
@@ -804,9 +800,9 @@ export class WithdrawService {
     return this.withdrawMethodModel.findById(id);
   }
 
-  async getMethodList(id_crossmint: string) {
+  async getMethodList(id: string) {
     const user = await this.userModel.findOne({
-      id_crossmint: id_crossmint,
+      _id: new Types.ObjectId(id),
     });
     if (!user) {
       throw new UnauthorizedException({ message: 'User not found' });

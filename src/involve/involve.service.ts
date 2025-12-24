@@ -46,11 +46,8 @@ export class InvolveService {
     });
     return createLink;
   }
-  async createAffiliate(
-    createInvolveDto: CreateAffiliateDto,
-    id_crossmint: string,
-  ) {
-    const user = await this.userModel.findOne({ id_crossmint });
+  async createAffiliate(createInvolveDto: CreateAffiliateDto, id: string) {
+    const user = await this.userModel.findOne({ _id: new Types.ObjectId(id) });
     if (!user) {
       throw new Error('User not found');
     }
@@ -216,9 +213,9 @@ export class InvolveService {
   async getConversion(
     offer_id: string,
     payload: RequestGetConversion,
-    id_crossmint: string,
+    id: string,
   ) {
-    const user = await this.userModel.findOne({ id_crossmint });
+    const user = await this.userModel.findOne({ _id: new Types.ObjectId(id) });
     if (!user) {
       throw new Error('User not found');
     }
@@ -263,7 +260,7 @@ export class InvolveService {
       );
       if (error.response?.data?.status_code === 401) {
         await this.signIn();
-        return this.getConversion(offer_id, payload, id_crossmint);
+        return this.getConversion(offer_id, payload, id);
       }
       throw new Error(error.message || 'Failed to get conversion');
     }
@@ -312,10 +309,7 @@ export class InvolveService {
     }
   }
 
-  async getConversationAllPage(
-    payload: RequestGetConversion,
-    id_crossmint: string,
-  ) {
+  async getConversationAllPage(payload: RequestGetConversion, id: string) {
     const conversions = await this.getConversionAll({
       page: payload.page || '1',
       limit: payload.limit || '10',
@@ -333,7 +327,7 @@ export class InvolveService {
       allConversions = allConversions.concat(nextConversions.data.data);
       conversions.data.nextPage = nextConversions.data.nextPage;
     }
-    const user = await this.userModel.findOne({ id_crossmint });
+    const user = await this.userModel.findOne({ _id: new Types.ObjectId(id) });
     if (!user) {
       throw new Error('User not found');
     }

@@ -45,17 +45,17 @@ export class AuthController {
   }
 
   @Post("firebase")
-  @UseGuards(CrossmintAuthGuard)
+  @UseGuards(FirebaseAuthGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
   async authWithFirebase(@Req() req: Request, @Body() body: {idToken: string}) {
     const user = req['user'] as any;
-    const id_crossmint = user?.sub;
+    const id = user?.sub;
     // const authHeader = req.headers.authorization ?? "";
     // const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
     const token = body.idToken ? body.idToken : null;
     if (!token) throw new UnauthorizedException("Missing token");
-    return this.auth.verifyPhone(token, id_crossmint);
+    return this.auth.verifyPhone(token, id);
   }
 
   // @Get('me')

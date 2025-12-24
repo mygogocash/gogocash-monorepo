@@ -64,16 +64,16 @@ export class UserService {
     return this.userModel.findByIdAndUpdate(id, updateUserDto, { new: true });
   }
 
-  updateCountry(updateCountryDto: UpdateCountryDto, id_crossmint: string) {
+  updateCountry(updateCountryDto: UpdateCountryDto, id: string) {
     return this.userModel.findOneAndUpdate(
-      { id_crossmint },
+      { _id: new Types.ObjectId(id) },
       { country: updateCountryDto.country },
       { new: true },
     );
   }
 
-  async getBalanceMyCashback(id_crossmint: string) {
-    const user = await this.userModel.findOne({ id_crossmint });
+  async getBalanceMyCashback(userId: string) {
+    const user = await this.userModel.findOne({ _id: new Types.ObjectId(userId) });
 
     if (!user) {
       throw new UnauthorizedException('User not found');

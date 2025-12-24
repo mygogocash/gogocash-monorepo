@@ -24,8 +24,8 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
-import { CrossmintAuthGuard } from 'src/auth/jwt-auth.guard';
 import { Request } from 'express';
+import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
 
 @ApiTags('Involve')
 @Controller('involve')
@@ -56,7 +56,7 @@ export class InvolveController {
     return this.involveService.remove(+id);
   }
 
-  @UseGuards(CrossmintAuthGuard)
+  @UseGuards(FirebaseAuthGuard)
   @ApiBody({ type: CreateAffiliateDto })
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
@@ -67,11 +67,11 @@ export class InvolveController {
     @Req() req: Request,
   ) {
     const user = req['user'] as any;
-    const id_crossmint = user?.sub;
-    return this.involveService.createAffiliate(createInvolveDto, id_crossmint);
+    const id = user?.sub;
+    return this.involveService.createAffiliate(createInvolveDto, id);
   }
 
-  @UseGuards(CrossmintAuthGuard)
+  @UseGuards(FirebaseAuthGuard)
   @ApiBody({ type: RequestGetConversion })
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
@@ -83,11 +83,11 @@ export class InvolveController {
     @Req() req: Request,
   ) {
     const user = req['user'] as any;
-    const id_crossmint = user?.sub;
-    return this.involveService.getConversion(offer_id, body, id_crossmint);
+    const id = user?.sub;
+    return this.involveService.getConversion(offer_id, body, id);
   }
 
-  @UseGuards(CrossmintAuthGuard)
+  @UseGuards(FirebaseAuthGuard)
   @ApiBody({ type: RequestGetConversion })
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
@@ -95,7 +95,7 @@ export class InvolveController {
   @Post('conversion-all')
   async getConversionAll(@Body() body: ConversionData, @Req() req: Request) {
     const user = req['user'] as any;
-    const id_crossmint = user?.sub;
-    return this.involveService.getConversationAllPage(body.data, id_crossmint);
+    const id = user?.sub;
+    return this.involveService.getConversationAllPage(body.data, id);
   }
 }

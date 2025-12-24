@@ -12,9 +12,9 @@ import {
 import { PointService } from './point.service';
 import { CreatePointDto } from './dto/create-point.dto';
 import { UpdatePointDto } from './dto/update-point.dto';
-import { CrossmintAuthGuard } from 'src/auth/jwt-auth.guard';
 import { ApiBearerAuth, ApiSecurity } from '@nestjs/swagger';
 import { Request } from 'express';
+import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
 @Controller('point')
 export class PointController {
   constructor(private readonly pointService: PointService) {}
@@ -27,24 +27,24 @@ export class PointController {
     return this.pointService.findAll();
   }
 
-  @UseGuards(CrossmintAuthGuard)
+  @UseGuards(FirebaseAuthGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
   @Get()
   findOne(@Req() req: Request) {
     const user = req['user'] as any;
-    const id_crossmint = user?.sub;
-    return this.pointService.getPoint(id_crossmint);
+    const id = user?.sub;
+    return this.pointService.getPoint(id);
   }
 
-  @UseGuards(CrossmintAuthGuard)
+  @UseGuards(FirebaseAuthGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
   @Get('referral-list')
   getListReferral(@Req() req: Request) {
     const user = req['user'] as any;
-    const id_crossmint = user?.sub;
-    return this.pointService.getListReferral(id_crossmint);
+    const id = user?.sub;
+    return this.pointService.getListReferral(id);
   }
 
   @Patch(':id')

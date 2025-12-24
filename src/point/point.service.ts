@@ -48,8 +48,8 @@ export class PointService {
     return `This action returns all point`;
   }
 
-  async getPoint(id_crossmint: string) {
-    const user = await this.userModel.findOne({ id_crossmint });
+  async getPoint(id: string) {
+    const user = await this.userModel.findOne({ _id: new Types.ObjectId(id) });
     if (!user) {
       return { point: 0 };
     }
@@ -101,8 +101,8 @@ export class PointService {
     return `This action removes a #${id} point`;
   }
 
-  async getListReferral(id_crossmint: string) {
-    const user = await this.userModel.findOne({ id_crossmint });
+  async getListReferral(id: string) {
+    const user = await this.userModel.findOne({ _id: new Types.ObjectId(id) });
     if (!user) {
       return [];
     }
