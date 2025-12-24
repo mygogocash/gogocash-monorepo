@@ -23,6 +23,7 @@ export class OfferService {
     limit: number,
     search: string,
     categories: string,
+    admin = false,
   ) {
     const filter: any = {};
     if (search) {
@@ -32,7 +33,9 @@ export class OfferService {
       // const categoriesArray = categories.split(',').map((cat) => cat.trim());
       filter['categories'] = { $regex: categories, $options: 'i' };
     }
-    filter.disabled = { $ne: true };
+    if (!admin) {
+      filter.disabled = { $ne: true };
+    }
     const data = await this.offerModel
       .find(filter)
       .skip((page - 1) * limit)
