@@ -15,6 +15,7 @@ import { User } from 'src/user/schemas/user.schema';
 import { FeeRate } from 'src/withdraw/schemas/feeRate.schema';
 import { GoogleDriveService } from 'src/google-drive/google-drive.service';
 import { Offer } from 'src/offer/schemas/offer.schema';
+import { Category } from 'src/offer/schemas/category.schema';
 
 @Injectable()
 export class AdminService {
@@ -24,6 +25,7 @@ export class AdminService {
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(FeeRate.name) private feeRateModel: Model<FeeRate>,
     @InjectModel(Offer.name) private offerModel: Model<Offer>,
+    @InjectModel(Category.name) private categoryModel: Model<Category>,
 
     private readonly googleDriveService: GoogleDriveService,
     private involveService: InvolveService,
@@ -268,11 +270,43 @@ export class AdminService {
           logo_desktop: file1 ? file1.id : offer.logo_desktop,
           logo_mobile: file2 ? file2.id : offer.logo_mobile,
           banner: bannerFile ? bannerFile.id : offer.banner,
-          logo_circle: logoCircleFile
-            ? logoCircleFile.id
-            : offer.logo_circle,
-          offer_name_display: updateData.offer_name_display ?? offer.offer_name_display,
+          logo_circle: logoCircleFile ? logoCircleFile.id : offer.logo_circle,
+          offer_name_display:
+            updateData.offer_name_display ?? offer.offer_name_display,
           disabled: Boolean(updateData.disabled ?? offer.disabled),
+        },
+        { new: true },
+      )
+      .exec();
+  }
+
+  async updateCategory(
+    id: string,
+    updateData: {
+      image?: Express.Multer.File;
+    },
+  ) {
+    const data = await this.categoryModel.findById(id).exec();
+    if (!data) {
+      throw new Error('data not found');
+    }
+    const folderId = '1Liu0dk5mo5cnGnFKJWOpnvV6eBHV_sii';
+    let file1;
+    if (updateData.image) {
+      file1 = await this.googleDriveService.uploadFile(
+        updateData.image,
+        folderId,
+      );
+      if (data.image) {
+        await this.googleDriveService.deleteFile(data.image);
+      }
+    }
+    return this.categoryModel
+      .findByIdAndUpdate(
+        id,
+        {
+          ...updateData,
+          image: file1 ? file1.id : data.image,
         },
         { new: true },
       )
