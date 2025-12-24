@@ -418,7 +418,7 @@ class ApiClient {
     if (query.type) params.append("type", query.type);
 
     const queryString = params.toString();
-    const endpoint = queryString ? `/offer?${queryString}` : "/offer";
+    const endpoint = queryString ? `/offer/admin?${queryString}` : "/offer/admin";
 
     return this.request<OffersResponse>(endpoint, {
       method: "GET",
