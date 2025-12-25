@@ -17,7 +17,7 @@ export class UserService {
   async create(createUserDto: CreateUserDto) {
     // Find or create the user in the database
     const user = await this.userModel.findOneAndUpdate(
-      { address: createUserDto.address },
+      { id_crossmint: createUserDto.id_crossmint },
       createUserDto,
       { upsert: true, new: true },
     );
