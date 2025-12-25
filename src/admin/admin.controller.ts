@@ -190,7 +190,7 @@ export class AdminController {
       banner: files?.banner ? files?.banner?.[0] : null,
       logo_circle: files?.logo_circle ? files?.logo_circle?.[0] : null,
       offer_name_display: updateAdminDto.offer_name_display,
-      disabled: updateAdminDto.disabled,
+      disabled: updateAdminDto?.disabled?.toString() == "true" ? true : false,
     });
   }
 
