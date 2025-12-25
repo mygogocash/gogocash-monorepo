@@ -8,6 +8,8 @@ export class CreateUserDto {
   gender?: string;
   birthdate?: string;
   id_firebase?: string;
+  country?: string;
+  provider?: string;
 }
 
 export class UpdateCountryDto {

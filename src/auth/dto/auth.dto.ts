@@ -55,5 +55,10 @@ export class SignInFirebaseDto {
   @ApiProperty()
   @IsString()
   @IsOptional()
+  country?: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsOptional()
   provider?: string;
 }

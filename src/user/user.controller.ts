@@ -1,7 +1,6 @@
 import {
   Controller,
   Get,
-  Post,
   Body,
   Patch,
   Param,
@@ -11,7 +10,7 @@ import {
   Req,
 } from '@nestjs/common';
 import { UserService } from './user.service';
-import { CreateUserDto, UpdateCountryDto } from './dto/create-user.dto';
+import { UpdateCountryDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Types } from 'mongoose';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
@@ -22,11 +21,11 @@ import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  @UseGuards(FirebaseAuthGuard)
-  @Post()
-  create(@Body() createUserDto: CreateUserDto) {
-    return this.userService.create(createUserDto);
-  }
+  // @UseGuards(FirebaseAuthGuard)
+  // @Post()
+  // create(@Body() createUserDto: CreateUserDto) {
+  //   return this.userService.createFromCrossmint(createUserDto);
+  // }
 
   @UseGuards(FirebaseAuthGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally

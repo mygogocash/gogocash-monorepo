@@ -74,7 +74,7 @@ export class AuthService {
       }
       return userExist;
     }
-    const user = await this.userService.create({
+    const user = await this.userService.createFromCrossmint({
       address: payload.address,
       id_crossmint: data.id,
       email: data.email,
@@ -113,8 +113,8 @@ export class AuthService {
         });
       }
 
-      // console.log('userExist', userExist);
-      if (userExist) {
+      console.log('userExist', userExist);
+      if (userExist && userExist?.id_firebase) {
         const user = await this.userService.update(userExist._id, {
           email: data.email,
           username: data?.twitter
@@ -126,10 +126,12 @@ export class AuthService {
               ? payload?.address
               : '',
           id_firebase: data.uid,
+          country: payload?.country ? payload?.country : '',
+          provider: data?.firebase?.sign_in_provider,
         });
         return user;
       }
-      const user = await this.userService.create({
+      const user = await this.userService.createFromFirebase({
         address:
           payload?.address && payload?.address !== 'undefined'
             ? payload?.address
@@ -141,6 +143,8 @@ export class AuthService {
           : data?.name || data?.email?.split('@')[0],
         id_twitter: data?.twitter ? data.twitter?.id : '',
         id_firebase: data.uid,
+        country: payload?.country ? payload?.country : '',
+        provider: data?.firebase?.sign_in_provider,
       });
       if (payload?.referral_id && payload.referral_id !== 'undefined') {
         const refData = await this.userService.findOne({

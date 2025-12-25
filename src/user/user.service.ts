@@ -14,10 +14,21 @@ export class UserService {
     @InjectModel(UserMyCashback.name)
     private userMyCashbacksModel: Model<UserMyCashback>,
   ) {}
-  async create(createUserDto: CreateUserDto) {
+
+  async createFromCrossmint(createUserDto: CreateUserDto) {
     // Find or create the user in the database
     const user = await this.userModel.findOneAndUpdate(
-      { address: createUserDto.address },
+      { id_crossmint: createUserDto.id_crossmint },
+      createUserDto,
+      { upsert: true, new: true },
+    );
+
+    return user;
+  }
+  async createFromFirebase(createUserDto: CreateUserDto) {
+    // Find or create the user in the database
+    const user = await this.userModel.findOneAndUpdate(
+      { id_firebase: createUserDto.id_firebase },
       createUserDto,
       { upsert: true, new: true },
     );

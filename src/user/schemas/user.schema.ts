@@ -5,10 +5,10 @@ export type UserDocument = HydratedDocument<User>;
 
 @Schema({ timestamps: true })
 export class User {
-  @Prop({ required: false, unique: false })
+  @Prop({ required: false, unique: false, default: '' })
   address: string;
 
-  @Prop({ required: false, unique: true })
+  @Prop({ required: false, unique: false, default: '' })
   id_crossmint: string;
 
   @Prop({ required: true, unique: true })

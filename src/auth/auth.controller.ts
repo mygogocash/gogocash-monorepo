@@ -44,6 +44,20 @@ export class AuthController {
     return { message: 'Login successful!', user };
   }
 
+
+  @Post('register')
+  @ApiBody({ type: SignInFirebaseDto })
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
+  @ApiResponse({ status: 201, description: 'User login successfully' })
+  async register(@Req() req: Request, @Body() body: SignInFirebaseDto) {
+    const authHeader = req.headers.authorization ?? "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    // The guard has already validated the token and added the user payload to the request
+    const user = await this.auth.signInFirebase(token, body);
+    return { message: 'Login successful!', user };
+  }
+
   @Post("firebase")
   @UseGuards(FirebaseAuthGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
