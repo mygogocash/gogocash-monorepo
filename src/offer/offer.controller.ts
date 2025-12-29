@@ -135,4 +135,31 @@ export class OfferController {
     const allOffers = await this.offerService.findAll(1, 1000, '', '');
     return this.offerService.writeJJsonToFile(allOffers.data);
   }
+
+  @UseGuards(FirebaseAuthGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
+  @Post('favorite/:offerId')
+  async favoriteOffer(
+    @Req() request: Request,
+    @Param('offerId') offerId: string,
+  ) {
+    const user = request.user as any;
+    const id = user.sub;
+    return this.offerService.favoriteOfferByUser(id, offerId);
+  }
+
+  @UseGuards(FirebaseAuthGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
+  @Get('favorite/:page/:limit')
+  async getFavoriteOffer(
+    @Req() request: Request,
+    @Param('page') page: number,
+    @Param('limit') limit: number,
+  ) {
+    const user = request.user as any;
+    const id = user.sub;
+    return this.offerService.getFavoriteOfferByUser(id, page, limit);
+  }
 }

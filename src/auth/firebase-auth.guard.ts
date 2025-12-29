@@ -25,6 +25,7 @@ export class FirebaseAuthGuard implements CanActivate {
     try {
       // Verify the ID Token
       getAdminAuth();
+      // forceRefresh: true จะช่วยให้ได้ Token ใหม่ที่ยังไม่หมดอายุ
       const decodedToken = await admin.auth().verifyIdToken(token);
       const user = await this.userModel.findOne({
         id_firebase: decodedToken.uid,
@@ -34,8 +35,8 @@ export class FirebaseAuthGuard implements CanActivate {
       }
       request['user'] = { ...decodedToken, sub: user._id.toString() }; // Attach user info (uid, email, name) to request
       return true;
-    } catch (error) {
-      throw new UnauthorizedException(error?.message || 'Invalid token');
+    } catch (errorData) {
+      throw new UnauthorizedException(errorData?.message || 'Invalid token');
     }
   }
 }

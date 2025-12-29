@@ -8,6 +8,7 @@ import { GetMyOfferDto } from './dto/create-offer.dto';
 import { join } from 'path';
 import { promises as fs } from 'fs';
 import { Category } from './schemas/category.schema';
+import { FavoriteOffer } from './schemas/favorite-offer.schema';
 @Injectable()
 export class OfferService {
   private filePath = join(process.cwd(), 'uploads', 'data', 'offers.json');
@@ -17,6 +18,8 @@ export class OfferService {
     @InjectModel(Deeplink.name) private readonly deeplinkModel: Model<Deeplink>,
     @InjectModel(User.name) private readonly userModel: Model<User>,
     @InjectModel(Category.name) private categoryModel: Model<Category>,
+    @InjectModel(FavoriteOffer.name)
+    private favoriteOfferModel: Model<FavoriteOffer>,
   ) {}
   async findAll(
     page: number,
@@ -89,5 +92,62 @@ export class OfferService {
     await fs.mkdir(join(process.cwd(), 'uploads', 'data'), { recursive: true });
     await fs.writeFile(this.filePath, json, 'utf8');
     return payload;
+  }
+
+  async favoriteOfferByUser(
+    idUser: string,
+    idOffer: string,
+  ): Promise<FavoriteOffer | null> {
+    const existing = await this.favoriteOfferModel.findOne({
+      user_id: new Types.ObjectId(idUser),
+      offer_id: new Types.ObjectId(idOffer),
+    });
+    if (existing) {
+      await this.favoriteOfferModel.deleteOne({
+        user_id: new Types.ObjectId(idUser),
+        offer_id: new Types.ObjectId(idOffer),
+      });
+      return null;
+    }
+    const favoriteOffer = new this.favoriteOfferModel({
+      user_id: new Types.ObjectId(idUser),
+      offer_id: new Types.ObjectId(idOffer),
+    });
+    const data = await favoriteOffer.save();
+    return data;
+  }
+
+  async getFavoriteOfferByUser(
+    idUser: string,
+    page: number,
+    limit: number,
+  ): Promise<{
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    data: FavoriteOffer[];
+  }> {
+    const filter = { user_id: new Types.ObjectId(idUser) };
+
+    const data = await this.favoriteOfferModel
+      .find(filter)
+      .populate('offer_id', [
+        'offer_name',
+        'offer_id',
+        'logo_desktop',
+        'logo',
+        'logo_mobile',
+        'commissions',
+        'offer_name_display',
+      ])
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean();
+
+    const total = await this.favoriteOfferModel.countDocuments(filter);
+    const totalPages = Math.ceil(total / limit);
+
+    return { page, limit, total, totalPages, data };
   }
 }

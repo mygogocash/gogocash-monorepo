@@ -44,14 +44,18 @@ export class WithdrawService {
         ? Number(process.env.CHAIN_ID_WITHDRAW_POLYGON)
         : msg.chain === Number(process.env.CHAIN_ID_WITHDRAW_BNB)
           ? Number(process.env.CHAIN_ID_WITHDRAW_BNB)
-          : Number(process.env.CHAIN_ID_WITHDRAW_SONIC);
+          : msg.chain === Number(process.env.CHAIN_ID_WITHDRAW_SONIC)
+            ? Number(process.env.CHAIN_ID_WITHDRAW_SONIC)
+            : Number(process.env.CHAIN_ID_WITHDRAW_CELO);
 
     const contract =
       msg.chain === Number(process.env.CHAIN_ID_WITHDRAW_POLYGON)
         ? process.env.CONTRACT_WITHDRAW_ADDRESS_POLYGON!
         : msg.chain === Number(process.env.CHAIN_ID_WITHDRAW_BNB)
           ? process.env.CONTRACT_WITHDRAW_ADDRESS_BNB!
-          : process.env.CONTRACT_WITHDRAW_ADDRESS_SONIC!;
+          : msg.chain === Number(process.env.CHAIN_ID_WITHDRAW_SONIC)
+            ? process.env.CONTRACT_WITHDRAW_ADDRESS_SONIC!
+            : process.env.CONTRACT_WITHDRAW_ADDRESS_CELO!;
     // console.log(msg.chain, Number(process.env.CHAIN_ID_WITHDRAW_BNB));
     // console.log(msg.chain === Number(process.env.CHAIN_ID_WITHDRAW_BNB));
 
@@ -119,13 +123,17 @@ export class WithdrawService {
         ? process.env.RPC_URL_POLYGON
         : chainId === Number(process.env.CHAIN_ID_WITHDRAW_BNB)
           ? process.env.RPC_URL_BNB
-          : process.env.RPC_URL_BNB;
+          : chainId === Number(process.env.CHAIN_ID_WITHDRAW_CELO)
+            ? process.env.RPC_URL_CELO
+            : process.env.RPC_URL_SONIC;
     const contractAddress =
       chainId === Number(process.env.CHAIN_ID_WITHDRAW_POLYGON)
         ? process.env.CONTRACT_WITHDRAW_ADDRESS_POLYGON!
         : chainId === Number(process.env.CHAIN_ID_WITHDRAW_BNB)
           ? process.env.CONTRACT_WITHDRAW_ADDRESS_BNB!
-          : process.env.CONTRACT_WITHDRAW_ADDRESS_BNB!;
+          : chainId === Number(process.env.CHAIN_ID_WITHDRAW_CELO)
+            ? process.env.CONTRACT_WITHDRAW_ADDRESS_CELO!
+            : process.env.CONTRACT_WITHDRAW_ADDRESS_SONIC!;
 
     // console.log('Using contract address:', contractAddress);
     // console.log('Using contract address:', rpc);
@@ -169,11 +177,18 @@ export class WithdrawService {
         user._id.toString(),
         Number(process.env.CHAIN_ID_WITHDRAW_SONIC),
       );
+
+    const conversionIdsWithdrawedCelo =
+      await this.getConversionIdsWithdrawedByUserId(
+        user._id.toString(),
+        Number(process.env.CHAIN_ID_WITHDRAW_CELO),
+      );
     // console.log('conversionIdsWithdrawed:', conversionIdsWithdrawed);
     const conversionIdsWithdrawed = [
       ...conversionIdsWithdrawedPolygon,
       ...conversionIdsWithdrawedBNB,
       ...conversionIdsWithdrawedSonic,
+      ...conversionIdsWithdrawedCelo,
     ];
     // console.log('conversionIdsWithdrawed total:', conversionIdsWithdrawed);
     const conversions = await this.involveService.getConversionAll({
