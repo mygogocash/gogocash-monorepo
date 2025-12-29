@@ -8,6 +8,10 @@ import { JwtService } from '@nestjs/jwt';
 import { User, UserSchema } from 'src/user/schemas/user.schema';
 import { TasksService } from './tasksService';
 import { Category, CategorySchema } from './schemas/category.schema';
+import {
+  FavoriteOffer,
+  FavoriteOfferSchema,
+} from './schemas/favorite-offer.schema';
 
 @Module({
   imports: [
@@ -19,6 +23,7 @@ import { Category, CategorySchema } from './schemas/category.schema';
       },
       { name: User.name, schema: UserSchema },
       { name: Category.name, schema: CategorySchema },
+      { name: FavoriteOffer.name, schema: FavoriteOfferSchema },
     ]),
   ],
   controllers: [OfferController],
