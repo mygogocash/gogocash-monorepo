@@ -191,6 +191,8 @@ export class AdminController {
       logo_circle: files?.logo_circle ? files?.logo_circle?.[0] : null,
       offer_name_display: updateAdminDto.offer_name_display,
       disabled: updateAdminDto?.disabled?.toString() == "true" ? true : false,
+      commission_store: updateAdminDto.commission_store,
+      max_cap: updateAdminDto.max_cap,
     });
   }
 
