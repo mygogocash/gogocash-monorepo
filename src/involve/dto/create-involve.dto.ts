@@ -107,6 +107,23 @@ export class CreateAffiliateDto {
   deeplink: string;
 }
 
+export class CreateAffiliateAiDto {
+  @IsString()
+  @IsNotEmpty()
+  @ApiProperty()
+  email: string;
+
+  @IsNumber()
+  @IsNotEmpty()
+  @ApiProperty()
+  offer_id: number;
+
+  @IsNumber()
+  @IsNotEmpty()
+  @ApiProperty()
+  merchant_id: number;
+}
+
 export class RequestGetConversion {
   @IsNumber()
   page: string;

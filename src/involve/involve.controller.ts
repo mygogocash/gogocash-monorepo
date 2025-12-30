@@ -12,6 +12,7 @@ import {
 import { InvolveService } from './involve.service';
 import {
   ConversionData,
+  CreateAffiliateAiDto,
   CreateAffiliateDto,
   RequestGetConversion,
 } from './dto/create-involve.dto';
@@ -69,6 +70,14 @@ export class InvolveController {
     const user = req['user'] as any;
     const id = user?.sub;
     return this.involveService.createAffiliate(createInvolveDto, id);
+  }
+
+  @Post('create-affiliate-ai/:email')
+  createAffiliateAi(
+    @Body() createInvolveDto: CreateAffiliateAiDto,
+    @Param('email') email: string,
+  ) {
+    return this.involveService.createAffiliateAi(createInvolveDto, email);
   }
 
   @UseGuards(FirebaseAuthGuard)
