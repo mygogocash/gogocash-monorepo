@@ -54,6 +54,9 @@ const FormOffer = ({
     }
     formData.append("offer_name_display", form.offer_name_display);
     formData.append("disabled", String(form.disabled));
+    formData.append("commission_store", String(form.commission_store));
+    formData.append("max_cap", String(form.max_cap));
+
     setIsLoading(true);
     client
       .patch(`/admin/update-offer/${form.id}`, formData, {
@@ -96,6 +99,30 @@ const FormOffer = ({
             setForm({ ...form, offer_name_display: event.target.value })
           }
           defaultValue={form.offer_name_display}
+        />
+
+        <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+          Commission:
+        </p>
+        <Input
+          type="text"
+          name="commission_store"
+          onChange={(event) =>
+            setForm({ ...form, commission_store: Number(event.target.value) })
+          }
+          defaultValue={form.commission_store || ""}
+        />
+
+        <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+          Max Cap:
+        </p>
+        <Input
+          type="text"
+          name="max_cap"
+          onChange={(event) =>
+            setForm({ ...form, max_cap: Number(event.target.value) })
+          }
+          defaultValue={form.max_cap || ""}
         />
 
         <Switch
