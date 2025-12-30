@@ -121,7 +121,7 @@ export class AuthService {
       }
 
       console.log('userExist', userExist);
-      if (userExist && userExist?.id_firebase) {
+      if (userExist) {
         const user = await this.userService.update(userExist._id, {
           email: data.email,
           username: data?.twitter
