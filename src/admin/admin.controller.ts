@@ -173,6 +173,7 @@ export class AdminController {
       { name: 'logo_mobile', maxCount: 1 },
       { name: 'banner', maxCount: 1 },
       { name: 'logo_circle', maxCount: 1 },
+      { name: 'banner_mobile', maxCount: 1 },
     ]),
   )
   @UseGuards(AuthAdminGuard)
