@@ -63,4 +63,12 @@ export class UpdateOfferAdminDto {
   @IsBoolean()
   @IsOptional()
   disabled: boolean;
+
+  @ApiProperty()
+  @IsOptional()
+  commission_store: number;
+
+  @ApiProperty()
+  @IsOptional()
+  max_cap: number;
 }
