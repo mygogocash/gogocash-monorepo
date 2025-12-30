@@ -182,12 +182,13 @@ export class AdminController {
   updateOffer(
     @Param('id') id: string,
     @Body() updateAdminDto: UpdateOfferAdminDto,
-    @UploadedFiles() files: { logo_desktop?: Express.Multer.File[], logo_mobile?: Express.Multer.File[], banner?: Express.Multer.File[], logo_circle?: Express.Multer.File[] }
+    @UploadedFiles() files: { banner_mobile?: Express.Multer.File[], logo_desktop?: Express.Multer.File[], logo_mobile?: Express.Multer.File[], banner?: Express.Multer.File[], logo_circle?: Express.Multer.File[] }
   ) {
     return this.adminService.updateOffer(id, {
       logo_desktop: files?.logo_desktop ? files?.logo_desktop?.[0] : null,
       logo_mobile: files?.logo_mobile ? files?.logo_mobile?.[0] : null,
       banner: files?.banner ? files?.banner?.[0] : null,
+      banner_mobile: files?.banner_mobile ? files?.banner_mobile?.[0] : null,
       logo_circle: files?.logo_circle ? files?.logo_circle?.[0] : null,
       offer_name_display: updateAdminDto.offer_name_display,
       disabled: updateAdminDto?.disabled?.toString() == "true" ? true : false,

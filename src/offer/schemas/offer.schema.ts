@@ -94,6 +94,9 @@ export class Offer {
 
   @Prop()
   max_cap: number;
+
+  @Prop()
+  banner_mobile: string;
 }
 
 export const OfferSchema = SchemaFactory.createForClass(Offer);
