@@ -37,6 +37,9 @@ export class User {
 
   @Prop()
   gender: string;
+
+  @Prop()
+  provider: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
