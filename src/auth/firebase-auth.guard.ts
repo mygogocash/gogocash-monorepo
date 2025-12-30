@@ -28,12 +28,15 @@ export class FirebaseAuthGuard implements CanActivate {
       // forceRefresh: true จะช่วยให้ได้ Token ใหม่ที่ยังไม่หมดอายุ
       const decodedToken = await admin.auth().verifyIdToken(token);
       const user = await this.userModel.findOne({
-        id_firebase: decodedToken.uid,
+        $or: [{ id_firebase: decodedToken.uid }, { email: decodedToken.email }],
       });
       if (!user) {
-        throw new UnauthorizedException('User not found');
+        throw new UnauthorizedException('User not found guard');
       }
-      request['user'] = { ...decodedToken, sub: user._id.toString() }; // Attach user info (uid, email, name) to request
+      request['user'] = {
+        ...decodedToken,
+        sub: user._id,
+      }; // Attach user info (uid, email, name) to request
       return true;
     } catch (errorData) {
       throw new UnauthorizedException(errorData?.message || 'Invalid token');
