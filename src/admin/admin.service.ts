@@ -213,6 +213,8 @@ export class AdminService {
       logo_circle?: Express.Multer.File;
       offer_name_display?: string;
       disabled?: boolean;
+      commission_store?: number;
+      max_cap?: number;
     },
   ) {
     const offer = await this.offerModel.findById(id).exec();
@@ -274,6 +276,9 @@ export class AdminService {
           offer_name_display:
             updateData.offer_name_display ?? offer.offer_name_display,
           disabled: Boolean(updateData.disabled ?? offer.disabled),
+          commission_store:
+            updateData.commission_store ?? offer.commission_store,
+          max_cap: updateData.max_cap ?? offer.max_cap,
         },
         { new: true },
       )

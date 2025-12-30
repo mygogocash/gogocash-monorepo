@@ -88,6 +88,12 @@ export class Offer {
 
   @Prop()
   disabled: boolean;
+
+  @Prop()
+  commission_store: number;
+
+  @Prop()
+  max_cap: number;
 }
 
 export const OfferSchema = SchemaFactory.createForClass(Offer);
