@@ -52,6 +52,11 @@ export class UpdateOfferAdminDto {
   @ApiProperty()
   @IsString()
   @IsOptional()
+  banner_mobile: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsOptional()
   logo_circle: string;
 
   @ApiProperty()

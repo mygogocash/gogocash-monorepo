@@ -210,6 +210,7 @@ export class AdminService {
       logo_desktop?: Express.Multer.File;
       logo_mobile?: Express.Multer.File;
       banner?: Express.Multer.File;
+      banner_mobile?: Express.Multer.File;
       logo_circle?: Express.Multer.File;
       offer_name_display?: string;
       disabled?: boolean;
@@ -254,6 +255,17 @@ export class AdminService {
       }
     }
 
+    let bannerMobileFile;
+    if (updateData.banner_mobile) {
+      bannerMobileFile = await this.googleDriveService.uploadFile(
+        updateData.banner_mobile,
+        folderId,
+      );
+      if (offer.banner_mobile) {
+        await this.googleDriveService.deleteFile(offer.banner_mobile);
+      }
+    }
+
     let logoCircleFile;
     if (updateData.logo_circle) {
       logoCircleFile = await this.googleDriveService.uploadFile(
@@ -272,6 +284,7 @@ export class AdminService {
           logo_desktop: file1 ? file1.id : offer.logo_desktop,
           logo_mobile: file2 ? file2.id : offer.logo_mobile,
           banner: bannerFile ? bannerFile.id : offer.banner,
+          banner_mobile: bannerMobileFile ? bannerMobileFile.id : offer.banner_mobile,
           logo_circle: logoCircleFile ? logoCircleFile.id : offer.logo_circle,
           offer_name_display:
             updateData.offer_name_display ?? offer.offer_name_display,
