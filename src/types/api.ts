@@ -135,6 +135,8 @@ export interface Offer {
   logo_circle: string;
   disabled: boolean;
   offer_name_display: string;
+  commission_store: number | null;
+  max_cap: number | null;
 }
 
 export interface OfferRequestForm {
@@ -144,6 +146,8 @@ export interface OfferRequestForm {
   logo_circle: File | null;
   offer_name_display: string;
   disabled: boolean;
+  max_cap: number | null;
+  commission_store: number | null;
   id: string;
 }
 

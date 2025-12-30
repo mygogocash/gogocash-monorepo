@@ -18,6 +18,8 @@ export default function OffersTable() {
     logo_circle: null,
     offer_name_display: "",
     disabled: false,
+    max_cap: null,
+    commission_store: null,
     id: "",
   });
   const { data } = useSession();
@@ -365,7 +367,9 @@ export default function OffersTable() {
                                 offer.offer_name_display || offer.offer_name,
                               banner: null,
                               logo_circle: null,
-                              disabled: false,
+                              disabled: offer.disabled,
+                              max_cap: offer.max_cap,
+                              commission_store: offer.commission_store,
                             });
                           }}
                           className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
