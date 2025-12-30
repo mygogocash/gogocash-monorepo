@@ -8,7 +8,7 @@ import {
   ApiSecurity,
   ApiTags,
 } from '@nestjs/swagger';
-import { SignInDto, SignInFirebaseDto } from './dto/auth.dto';
+import { SignInAiDto, SignInDto, SignInFirebaseDto } from './dto/auth.dto';
 import { CrossmintAuthGuard } from './jwt-auth.guard';
 import { Request } from 'express';
 import { FirebaseAuthGuard } from './firebase-auth.guard';
@@ -72,12 +72,14 @@ export class AuthController {
     return this.auth.verifyPhone(token, id);
   }
 
-  // @Get('me')
-  // @ApiResponse({ status: 200, description: 'Return current user profile' })
-  // async me(@Headers('cookie') cookie: string) {
-  //   const token = this.extractTokenFromCookie(cookie, 'access_token');
-  //   return this.auth.getProfile(token);
-  // }
+  @Post('log-in/ai')
+  @ApiBody({ type: SignInAiDto })
+  @ApiResponse({ status: 201, description: 'User login successfully' })
+  async loginAi(@Req() req: Request, @Body() body: SignInAiDto) {
+    // The guard has already validated the token and added the user payload to the request
+    const user = await this.auth.signInAi(body.email);
+    return { message: 'Login successful!', user };
+  }
 
   // @Post('sign-out')
   // @ApiResponse({

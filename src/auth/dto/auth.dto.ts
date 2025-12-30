@@ -62,3 +62,10 @@ export class SignInFirebaseDto {
   @IsOptional()
   provider?: string;
 }
+
+export class SignInAiDto {
+  // @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  email: string;
+}

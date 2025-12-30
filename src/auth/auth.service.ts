@@ -177,6 +177,24 @@ export class AuthService {
     }
   }
 
+  async signInAi(email: string) {
+    try {
+      // console.log('payload', data.id);
+      let user = null;
+      if (email) {
+        user = await this.userService.findOne({
+          email: email,
+        });
+      }
+      console.log('user', user);
+      // Update points for referral if referral_id is provided
+      return user; // { accessToken, refreshToken, user }
+    } catch (error) {
+      console.log('err', error);
+      throw new Error(error?.message || 'Invalid Firebase token');
+    }
+  }
+
   async updatePoint(payload: { referral_id?: string; user_id: string }) {
     if (payload?.referral_id && payload.referral_id != 'null') {
       const point = await this.pointModel.findOne({

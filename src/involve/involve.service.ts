@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
+  CreateAffiliateAiDto,
   CreateAffiliateDto,
   RequestGetConversion,
 } from './dto/create-involve.dto';
@@ -64,6 +65,39 @@ export class InvolveService {
       const deep = await this.createDeeplinkInvolve({
         ...createInvolveDto,
         user_id: user._id.toString(),
+      });
+      const deeplink = await this.createDeeplinkMongo({
+        ...createInvolveDto,
+        user_id: user._id.toString(),
+        deeplink: deep.data.tracking_link as string,
+      });
+      return deeplink;
+    }
+  }
+
+  async createAffiliateAi(
+    createInvolveDto: CreateAffiliateAiDto,
+    email: string,
+  ) {
+    const user = await this.userModel.findOne({ email: email });
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    const deeplink = await this.deeplinkModel.findOne({
+      offer_id: Number(createInvolveDto.offer_id),
+      merchant_id: Number(createInvolveDto.merchant_id),
+      user_id: new Types.ObjectId(user._id), // user._id,
+    });
+    if (deeplink && deeplink?.deeplink) {
+      return deeplink;
+    } else {
+      // create deeplink on Involve Asia
+      const deep = await this.createDeeplinkInvolve({
+        user_id: user._id.toString(),
+        offer_id: createInvolveDto.offer_id,
+        merchant_id: createInvolveDto.merchant_id,
+        deeplink: '',
       });
       const deeplink = await this.createDeeplinkMongo({
         ...createInvolveDto,
