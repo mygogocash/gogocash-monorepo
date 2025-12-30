@@ -52,6 +52,10 @@ const FormOffer = ({
     if (form.banner) {
       formData.append("banner", form.banner);
     }
+
+    if (form.banner_mobile) {
+      formData.append("banner_mobile", form.banner_mobile);
+    }
     formData.append("offer_name_display", form.offer_name_display);
     formData.append("disabled", String(form.disabled));
     formData.append("commission_store", String(form.commission_store));
@@ -181,7 +185,7 @@ const FormOffer = ({
           </div>
         )}
         <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-          Upload banner:
+          Upload banner desktop:
         </p>
         <Input
           type="file"
@@ -191,7 +195,7 @@ const FormOffer = ({
         {(form.banner || (openModal as Offer).banner) && (
           <div className="mt-4 mb-4">
             <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-              Preview banner:
+              Preview banner desktop:
             </p>
             <img
               src={
@@ -204,6 +208,32 @@ const FormOffer = ({
             />
           </div>
         )}
+
+        <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+          Upload banner mobile:
+        </p>
+        <Input
+          type="file"
+          name="banner_mobile"
+          onChange={(event) => handleFileChange(event, "banner_mobile")}
+        />
+        {(form.banner_mobile || (openModal as Offer).banner_mobile) && (
+          <div className="mt-4 mb-4">
+            <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+              Preview banner mobile:
+            </p>
+            <img
+              src={
+                form.banner_mobile
+                  ? URL.createObjectURL(form.banner_mobile)
+                  : `${process.env.NEXT_PUBLIC_API_URL}/google-drive/file/${(openModal as Offer).banner_mobile}`
+              }
+              alt="Preview"
+              className="h-auto max-h-64 max-w-full rounded-lg border border-gray-200 dark:border-gray-600"
+            />
+          </div>
+        )}
+
         <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
           Upload logo_circle:
         </p>
