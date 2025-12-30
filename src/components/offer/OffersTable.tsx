@@ -21,6 +21,7 @@ export default function OffersTable() {
     max_cap: null,
     commission_store: null,
     id: "",
+    banner_mobile: null,
   });
   const { data } = useSession();
   const session = data as { accessToken?: string };
@@ -370,6 +371,7 @@ export default function OffersTable() {
                               disabled: offer.disabled,
                               max_cap: offer.max_cap,
                               commission_store: offer.commission_store,
+                              banner_mobile: null,
                             });
                           }}
                           className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
