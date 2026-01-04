@@ -290,8 +290,8 @@ export class AdminService {
             updateData.offer_name_display ?? offer.offer_name_display,
           disabled: Boolean(updateData.disabled ?? offer.disabled),
           commission_store:
-            updateData.commission_store ?? offer.commission_store,
-          max_cap: updateData.max_cap ?? offer.max_cap,
+            updateData.commission_store ?? offer.commission_store ?? 0,
+          max_cap: updateData.max_cap ?? offer.max_cap ?? 0,
         },
         { new: true },
       )
