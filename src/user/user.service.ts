@@ -92,33 +92,44 @@ export class UserService {
     if (!user.email || !user?.mobile) {
       throw new Error('User email or mobile not found');
     }
-    let userMyCashback = null;
+    let userMyCashback: UserMyCashback[] = null;
     if (user?.mobile) {
-      userMyCashback = await this.userMyCashbacksModel.findOne({
+      userMyCashback = await this.userMyCashbacksModel.find({
         phoneNumber: user.mobile,
-      });
+      }).lean();
     }
     if (user?.email) {
-      userMyCashback = await this.userMyCashbacksModel.findOne({
+      userMyCashback = await this.userMyCashbacksModel.find({
         email: user.email,
-      });
+      }).lean();
     }
     const mobileData = user?.mobile?.includes('+66')
       ? user?.mobile?.slice(3)
       : user?.mobile;
     const mobile = '0' + mobileData;
     if (!userMyCashback) {
-      userMyCashback = await this.userMyCashbacksModel.findOne({
+      userMyCashback = await this.userMyCashbacksModel.find({
         phoneNumber: mobile,
-      });
+      }).lean();
     }
+    
 
     if (
-      userMyCashback?.email === user.email ||
-      userMyCashback?.phoneNumber === user.mobile ||
-      userMyCashback?.phoneNumber === mobile
+      userMyCashback[0]?.email === user.email ||
+      userMyCashback[0]?.phoneNumber === user.mobile ||
+      userMyCashback[0]?.phoneNumber === mobile
     ) {
-      return { userMyCashback, user };
+
+      const balanceByCurrency = userMyCashback?.reduce((acc, cashback) => {
+        cashback.balance?.forEach((balance) => {
+          const currency = balance.currency || 'THB'; // Default to THB if no currency specified
+          acc[currency] = { ...balance, amount: (acc[currency]?.amount || 0) + (balance.amount || 0) };
+        });
+        return acc;
+      }, {});
+      // console.log('balanceByCurrency', balanceByCurrency);
+      
+      return { userMyCashback, sumBalance: balanceByCurrency, user };
     }
     return { userMyCashback: null, user };
   }

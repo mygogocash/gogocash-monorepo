@@ -20,6 +20,7 @@ import { FeeRate, FeeRateSchema } from 'src/withdraw/schemas/feeRate.schema';
 import { GoogleDriveService } from 'src/google-drive/google-drive.service';
 import { UserMyCashback, UserMyCashbackSchema } from 'src/user/schemas/user-my-cashback.schema';
 import { Category, CategorySchema } from 'src/offer/schemas/category.schema';
+import { Conversion, ConversionSchema } from 'src/withdraw/schemas/conversion.schema';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { Category, CategorySchema } from 'src/offer/schemas/category.schema';
       { name: FeeRate.name, schema: FeeRateSchema },
       { name: UserMyCashback.name, schema: UserMyCashbackSchema },
       { name: Category.name, schema: CategorySchema },
+      { name: Conversion.name, schema: ConversionSchema },
     ]),
   ],
   controllers: [AdminController],

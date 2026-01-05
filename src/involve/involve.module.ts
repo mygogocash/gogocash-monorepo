@@ -8,6 +8,10 @@ import { JwtService } from '@nestjs/jwt';
 import { Deeplink, DeeplinkSchema } from './schemas/deeplink.schema';
 import { User, UserSchema } from 'src/user/schemas/user.schema';
 import { Category, CategorySchema } from 'src/offer/schemas/category.schema';
+import {
+  Conversion,
+  ConversionSchema,
+} from 'src/withdraw/schemas/conversion.schema';
 
 @Module({
   imports: [
@@ -17,6 +21,7 @@ import { Category, CategorySchema } from 'src/offer/schemas/category.schema';
       { name: Deeplink.name, schema: DeeplinkSchema },
       { name: User.name, schema: UserSchema },
       { name: Category.name, schema: CategorySchema },
+      { name: Conversion.name, schema: ConversionSchema },
     ]),
   ],
   controllers: [InvolveController],

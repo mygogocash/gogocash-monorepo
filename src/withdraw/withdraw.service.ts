@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import {
   HttpException,
   Injectable,
@@ -23,6 +24,7 @@ import { Offer } from 'src/offer/schemas/offer.schema';
 import { WithdrawMethod } from './schemas/withdrawMethod.schema';
 import { rateCurrencyUSD, thaiBanks } from 'src/utils/helper';
 import { UserMyCashback } from 'src/user/schemas/user-my-cashback.schema';
+import { Conversion } from './schemas/conversion.schema';
 
 @Injectable()
 export class WithdrawService {
@@ -31,6 +33,7 @@ export class WithdrawService {
     @InjectModel(Withdraw.name) private withdrawModel: Model<Withdraw>,
     @InjectModel(FeeRate.name) private feeRateModel: Model<FeeRate>,
     @InjectModel(Offer.name) private offerModel: Model<Offer>,
+    @InjectModel(Conversion.name) private conversionModel: Model<Conversion>,
     @InjectModel(WithdrawMethod.name)
     private withdrawMethodModel: Model<WithdrawMethod>,
     @InjectModel(UserMyCashback.name)
@@ -109,43 +112,48 @@ export class WithdrawService {
     userId: string,
     chainId: number,
   ): Promise<string[]> {
-    const abi = [
-      {
-        inputs: [{ internalType: 'string', name: 'userid', type: 'string' }],
-        name: 'getConversionIdsByUserId',
-        outputs: [{ internalType: 'uint256[]', name: '', type: 'uint256[]' }],
-        stateMutability: 'view',
-        type: 'function',
-      },
-    ];
-    const rpc =
-      chainId === Number(process.env.CHAIN_ID_WITHDRAW_POLYGON)
-        ? process.env.RPC_URL_POLYGON
-        : chainId === Number(process.env.CHAIN_ID_WITHDRAW_BNB)
-          ? process.env.RPC_URL_BNB
-          : chainId === Number(process.env.CHAIN_ID_WITHDRAW_CELO)
-            ? process.env.RPC_URL_CELO
-            : process.env.RPC_URL_SONIC;
-    const contractAddress =
-      chainId === Number(process.env.CHAIN_ID_WITHDRAW_POLYGON)
-        ? process.env.CONTRACT_WITHDRAW_ADDRESS_POLYGON!
-        : chainId === Number(process.env.CHAIN_ID_WITHDRAW_BNB)
-          ? process.env.CONTRACT_WITHDRAW_ADDRESS_BNB!
-          : chainId === Number(process.env.CHAIN_ID_WITHDRAW_CELO)
-            ? process.env.CONTRACT_WITHDRAW_ADDRESS_CELO!
-            : process.env.CONTRACT_WITHDRAW_ADDRESS_SONIC!;
+    try {
+      const abi = [
+        {
+          inputs: [{ internalType: 'string', name: 'userid', type: 'string' }],
+          name: 'getConversionIdsByUserId',
+          outputs: [{ internalType: 'uint256[]', name: '', type: 'uint256[]' }],
+          stateMutability: 'view',
+          type: 'function',
+        },
+      ];
+      const rpc =
+        chainId === Number(process.env.CHAIN_ID_WITHDRAW_POLYGON)
+          ? process.env.RPC_URL_POLYGON
+          : chainId === Number(process.env.CHAIN_ID_WITHDRAW_BNB)
+            ? process.env.RPC_URL_BNB
+            : chainId === Number(process.env.CHAIN_ID_WITHDRAW_CELO)
+              ? process.env.RPC_URL_CELO
+              : process.env.RPC_URL_SONIC;
+      const contractAddress =
+        chainId === Number(process.env.CHAIN_ID_WITHDRAW_POLYGON)
+          ? process.env.CONTRACT_WITHDRAW_ADDRESS_POLYGON!
+          : chainId === Number(process.env.CHAIN_ID_WITHDRAW_BNB)
+            ? process.env.CONTRACT_WITHDRAW_ADDRESS_BNB!
+            : chainId === Number(process.env.CHAIN_ID_WITHDRAW_CELO)
+              ? process.env.CONTRACT_WITHDRAW_ADDRESS_CELO!
+              : process.env.CONTRACT_WITHDRAW_ADDRESS_SONIC!;
 
-    // console.log('Using contract address:', contractAddress);
-    // console.log('Using contract address:', rpc);
+      // console.log('Using contract address:', contractAddress);
+      // console.log('Using contract address:', rpc);
 
-    const provider = new ethers.JsonRpcProvider(rpc);
-    // const provider = new ethers.JsonRpcProvider(process.env.RPC_URL_POLYGON);
-    const contract = new ethers.Contract(contractAddress!, abi, provider);
-    const conversionIds = await contract.getConversionIdsByUserId(userId);
-    const conversionIdsStringArray: string[] = conversionIds.map((id) =>
-      Number(id),
-    );
-    return conversionIdsStringArray;
+      const provider = new ethers.JsonRpcProvider(rpc);
+      // const provider = new ethers.JsonRpcProvider(process.env.RPC_URL_POLYGON);
+      const contract = new ethers.Contract(contractAddress!, abi, provider);
+      const conversionIds = await contract.getConversionIdsByUserId(userId);
+      const conversionIdsStringArray: string[] = conversionIds.map((id) =>
+        Number(id),
+      );
+      return conversionIdsStringArray;
+    } catch (error) {
+      console.log('Error getting conversion IDs by user ID:', error);
+      return [];
+    }
   }
   async checkWithdraw(id: string) {
     const user = await this.userModel.findOne({
@@ -191,24 +199,28 @@ export class WithdrawService {
       ...conversionIdsWithdrawedCelo,
     ];
     // console.log('conversionIdsWithdrawed total:', conversionIdsWithdrawed);
-    const conversions = await this.involveService.getConversionAll({
-      page: '1',
-      limit: '10',
-    });
+    // const conversions = await this.involveService.getConversionAll({
+    //   page: 1,
+    //   limit: 10,
+    // });
 
-    let allConversions = conversions.data.data;
-    let currentPage = 1;
+    // let allConversions = conversions.data.data;
+    // let currentPage = 1;
 
-    while (conversions.data.nextPage) {
-      currentPage++;
-      const nextConversions = await this.involveService.getConversionAll({
-        page: currentPage.toString(),
-        limit: '10',
-      });
-      allConversions = allConversions.concat(nextConversions.data.data);
-      conversions.data.nextPage = nextConversions.data.nextPage;
-    }
-
+    // while (conversions.data.nextPage) {
+    //   currentPage++;
+    //   const nextConversions = await this.involveService.getConversionAll({
+    //     page: currentPage,
+    //     limit: 10,
+    //   });
+    //   allConversions = allConversions.concat(nextConversions.data.data);
+    //   conversions.data.nextPage = nextConversions.data.nextPage;
+    // }
+    const allConversions = await this.conversionModel
+      .find({
+        conversion_status: 'approved',
+      })
+      .lean();
     const withdrawList = await this.withdrawModel
       .find({ user_id: new Types.ObjectId(user._id) })
       .lean();
@@ -220,11 +232,11 @@ export class WithdrawService {
 
     const approvedList = allConversions.filter(
       (item) =>
-        item.conversion_status === 'approved' &&
         item.aff_sub1?.includes(`user_id:${user._id.toString()}`) &&
         !withdrawnConversionIds.includes(item.conversion_id) &&
-        !conversionIdsWithdrawed.includes(item.conversion_id),
+        !conversionIdsWithdrawed.includes(item.conversion_id?.toString()),
     );
+
     const groupedByCurrency = approvedList.reduce(
       (acc, item) => {
         const currency = item.currency || 'unknown';
@@ -325,32 +337,39 @@ export class WithdrawService {
   }
 
   async getConversionByUser(id: string) {
-    const conversions = await this.involveService.getConversionAll({
-      page: '1',
-      limit: '10',
-    });
+    // const conversions = await this.involveService.getConversionAll({
+    //   page: 1,
+    //   limit: 10,
+    // });
 
-    let allConversions = conversions.data.data;
-    let currentPage = 1;
+    // let allConversions = conversions.data.data;
+    // let currentPage = 1;
 
-    while (conversions.data.nextPage) {
-      currentPage++;
-      const nextConversions = await this.involveService.getConversionAll({
-        page: currentPage.toString(),
-        limit: '10',
-      });
-      allConversions = allConversions.concat(nextConversions.data.data);
-      conversions.data.nextPage = nextConversions.data.nextPage;
-    }
-    const user = await this.userModel.findOne({ _id: new Types.ObjectId(id) });
-    if (!user) {
-      throw new Error('User not found');
-    }
-    const id_user = user._id.toString();
-    const conversationByUser = allConversions.filter((item) =>
-      item.aff_sub1?.includes(`user_id:${id_user}`),
-    );
-    return conversationByUser;
+    // while (conversions.data.nextPage) {
+    //   currentPage++;
+    //   const nextConversions = await this.involveService.getConversionAll({
+    //     page: currentPage,
+    //     limit: 10,
+    //   });
+    //   allConversions = allConversions.concat(nextConversions.data.data);
+    //   conversions.data.nextPage = nextConversions.data.nextPage;
+    // }
+    // const user = await this.userModel.findOne({ _id: new Types.ObjectId(id) });
+    // if (!user) {
+    //   throw new Error('User not found');
+    // }
+    // const id_user = user._id.toString();
+    // const conversationByUser = allConversions.filter((item) =>
+    //   item.aff_sub1?.includes(`user_id:${id_user}`),
+    // );
+    // return conversationByUser;
+    const allConversions = await this.conversionModel
+      .find({
+        conversion_status: 'approved',
+        aff_sub1: { $regex: `user_id:${id}` },
+      })
+      .lean();
+    return allConversions;
   }
 
   async getListCashbackByCurrency(id: string) {
@@ -389,22 +408,51 @@ export class WithdrawService {
       throw new HttpException({ message: 'Fee rate not found' }, 400);
     }
 
-    const myCashbackData = await this.userMyCashbackModel.findOne({
-      $or: [{ email: user.email }, { phoneNumber: user.mobile }],
-    });
-    if (!myCashbackData) {
+    const myCashbackDataList = await this.userMyCashbackModel
+      .find({
+        $or: [{ email: user.email }, { phoneNumber: user.mobile }],
+      })
+      .lean();
+    if (!myCashbackDataList) {
       throw new UnauthorizedException({ message: 'User not found' });
     }
-
-    const usdRate = await rateCurrencyUSD();
-
-    const totalMyCashbackUSD = myCashbackData.balance.reduce(
-      (sum, b) => sum + b.amount / usdRate[b.currency],
-      0,
+    const myCashbackDataGroupCurrency = myCashbackDataList?.reduce(
+      (acc, cashback) => {
+        cashback.balance?.forEach((balance) => {
+          const currency = balance.currency || 'THB'; // Default to THB if no currency specified
+          acc[currency] = {
+            ...balance,
+            amount: (acc[currency]?.amount || 0) + (balance.amount || 0),
+          };
+        });
+        return acc;
+      },
+      {},
     );
-    const totalMyCashbackTHB = myCashbackData.balance.reduce((sum, b) => {
-      const usd = b.amount / usdRate[b.currency];
-      return sum + usd * usdRate['THB'];
+
+    const myCashbackData = Object.values(myCashbackDataGroupCurrency)?.map(
+      ({ amount, currency }) => ({ amount, currency }),
+    );
+
+
+    const rate = await rateCurrencyUSD();
+    const rateTHBtoUSD = rate['THB'];
+
+    const totalMyCashbackUSD = myCashbackData.reduce((sum, b) => {
+      if (b.currency === 'USD') {
+        return sum + b.amount;
+      } else {
+        return (sum + b.amount) / rateTHBtoUSD;
+      }
+    }, 0);
+
+    const totalMyCashbackTHB = myCashbackData.reduce((sum, b) => {
+      if (b.currency === 'THB') {
+        return sum + b.amount;
+      } else {
+        const usd = b.amount * rateTHBtoUSD;
+        return (sum + usd);
+      }
     }, 0);
 
     const groupedByCurrencyInvolve = await this.getListCashbackByCurrency(id);
@@ -416,12 +464,23 @@ export class WithdrawService {
       };
     });
     const totalInvolveUSD = listInvolve.reduce(
-      (sum, b) => sum + b.totalPayout / usdRate[b.currency],
+      (sum, b) => {
+        if( b.currency === 'USD') {
+          return sum + b.totalPayout;
+        } else {
+          const usdAmount = b.totalPayout / rateTHBtoUSD;
+          return sum + usdAmount;
+        }
+      },
       0,
     );
     const totalInvolveTHB = listInvolve.reduce((sum, b) => {
-      const usd = b.totalPayout / usdRate[b.currency];
-      return sum + usd * usdRate['THB'];
+      if (b.currency === 'THB') {
+        return sum + b.totalPayout;
+      } else {
+        // const usd = b.totalPayout / usdRate[b.currency];
+        return sum + b.totalPayout * rateTHBtoUSD;
+      }
     }, 0);
 
     const feePercentage = fee.system + fee.store; // Using system fee rate
@@ -439,10 +498,13 @@ export class WithdrawService {
     const withdrawListApproved = await this.withdrawModel
       .find({
         user_id: new Types.ObjectId(user._id),
-        mycashback_id: new Types.ObjectId(myCashbackData._id),
-        $or: [{ status: 'approved' }, { status: 'pending' }],
+        mycashback_id: {
+          $in: myCashbackDataList.map((item) => new Types.ObjectId(item?._id)),
+        }, //,
+        status: { $in: ['approved', 'pending'] },
       })
       .lean();
+
     const data = {
       totalInvolveUSD,
       totalInvolveTHB,
@@ -458,7 +520,7 @@ export class WithdrawService {
       feeAmountInvolveUSD,
       netAmountInvolveTHB,
       feeAmountInvolveTHB,
-      conversionIdMyCashback: myCashbackData._id,
+      conversionIdMyCashback: myCashbackDataList.map((item) => item?._id),
     };
     if (withdrawListApproved.length < 1) {
       return data;
@@ -477,7 +539,7 @@ export class WithdrawService {
       feeMyCashbackUS: 0,
       netMyCashbackTHB: 0,
       feeMyCashbackTHB: 0,
-      conversionIdMyCashback: '',
+      conversionIdMyCashback: myCashbackDataList.map((item) => item?._id),
     };
   }
 
@@ -632,7 +694,7 @@ export class WithdrawService {
       currency: createWithdrawDto.currency || '',
       conversion_id: createWithdrawDto.conversion_ids || [],
       mycashback_id: createWithdrawDto.mycashback_id
-        ? new Types.ObjectId(createWithdrawDto.mycashback_id)
+        ? createWithdrawDto.mycashback_id.map((id) => new Types.ObjectId(id))
         : undefined,
     });
     return { message: 'Withdraw request created', data: dt, status: 'success' };
@@ -648,7 +710,7 @@ export class WithdrawService {
     }
     const chek = createWithdrawDto?.mycashback_id
       ? {
-          mycashback_id: new Types.ObjectId(createWithdrawDto.mycashback_id),
+          mycashback_id: {$in: createWithdrawDto.mycashback_id?.map((id) => new Types.ObjectId(id))  },
         }
       : { conversion_id: createWithdrawDto.conversion_ids };
     const conversionIdsWithdrawed = await this.withdrawModel
@@ -692,9 +754,7 @@ export class WithdrawService {
       method: 'bank_transfer',
       currency: createWithdrawDto.currency || '',
       conversion_id: createWithdrawDto.conversion_ids || [],
-      mycashback_id: createWithdrawDto.mycashback_id
-        ? new Types.ObjectId(createWithdrawDto.mycashback_id)
-        : undefined,
+      mycashback_id: createWithdrawDto.mycashback_id?.map((id) => new Types.ObjectId(id)),
     });
     return { message: 'Withdraw request created', data: dt, status: 'success' };
   }

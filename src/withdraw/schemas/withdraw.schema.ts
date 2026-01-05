@@ -50,8 +50,8 @@ export class Withdraw {
   @Prop({ required: false })
   slip_file: string;
 
-  @Prop({ required: false, ref: 'UserMyCashback', type: Types.ObjectId })
-  mycashback_id: Types.ObjectId;
+  @Prop({ required: false, ref: 'UserMyCashback', type: [Types.ObjectId] })
+  mycashback_id: Types.ObjectId[];
 }
 
 export const WithdrawSchema = SchemaFactory.createForClass(Withdraw);

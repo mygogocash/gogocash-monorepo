@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import { Inject, Injectable } from '@nestjs/common';
 import {
   CreateAffiliateAiDto,
@@ -15,6 +16,7 @@ import { User } from 'src/user/schemas/user.schema';
 import { ResponseGenerateDeeplink } from './dto/deeplink.dto';
 import { convertToTHB, convertToUSD } from 'src/utils/helper';
 import { Category } from 'src/offer/schemas/category.schema';
+import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 
 @Injectable()
 export class InvolveService {
@@ -25,6 +27,7 @@ export class InvolveService {
     @InjectModel(Deeplink.name) private readonly deeplinkModel: Model<Deeplink>,
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(Category.name) private categoryModel: Model<Category>,
+    @InjectModel(Conversion.name) private conversionModel: Model<Conversion>,
   ) {
     this.endpoint = `https://api.involve.asia/api`;
   }
@@ -344,34 +347,42 @@ export class InvolveService {
   }
 
   async getConversationAllPage(payload: RequestGetConversion, id: string) {
-    const conversions = await this.getConversionAll({
-      page: payload.page || '1',
-      limit: payload.limit || '10',
-    });
+    // const conversions = await this.getConversionAll({
+    //   page: payload.page || '1',
+    //   limit: payload.limit || '10',
+    // });
 
-    let allConversions = conversions.data.data;
-    let currentPage = 1;
+    // let allConversions = conversions.data.data;
+    // let currentPage = 1;
 
-    while (conversions.data.nextPage) {
-      currentPage++;
-      const nextConversions = await this.getConversionAll({
-        page: currentPage.toString(),
-        limit: payload.limit || '10',
-      });
-      allConversions = allConversions.concat(nextConversions.data.data);
-      conversions.data.nextPage = nextConversions.data.nextPage;
-    }
+    // while (conversions.data.nextPage) {
+    //   currentPage++;
+    //   const nextConversions = await this.getConversionAll({
+    //     page: currentPage.toString(),
+    //     limit: payload.limit || '10',
+    //   });
+    //   allConversions = allConversions.concat(nextConversions.data.data);
+    //   conversions.data.nextPage = nextConversions.data.nextPage;
+    // }
+
     const user = await this.userModel.findOne({ _id: new Types.ObjectId(id) });
     if (!user) {
       throw new Error('User not found');
     }
-    const id_user = user._id.toString();
-    const conversationByUser = allConversions.filter((item) =>
-      item.aff_sub1?.includes(`user_id:${id_user}`),
-    );
+    const allConversions = await this.conversionModel
+      .find({
+        aff_sub1: { $regex: `user_id:${id}` },
+      })
+      .sort({ conversion_date: -1 })
+      .lean();
+    const conversationByUser = []
+    for (const conversion of allConversions) {
+        conversationByUser.push(conversion);
+    }
     const totalUSDApproved = await conversationByUser
       ?.filter((ele) => ele.conversion_status === 'approved')
-      .reduce(async (accPromise, item) => {
+      ?.reduce(
+      async (accPromise, item) => {
         const acc = await accPromise;
         if (item.currency === 'USD') {
           return acc + Number(item.payout);
@@ -458,12 +469,7 @@ export class InvolveService {
       }, 0);
 
     return {
-      data: conversationByUser.sort((a, b) => {
-        return (
-          new Date(b.conversion_date).getTime() -
-          new Date(a.conversion_date).getTime()
-        );
-      }),
+      data: conversationByUser,
       totalUSD: { pending: totalUSDPending, approved: totalUSDApproved },
       totalTHB: { pending: totalTHBPending, approved: totalTHBApproved },
       pagination: {

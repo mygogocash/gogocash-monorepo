@@ -19,6 +19,8 @@ import {
   UserMyCashbackSchema,
 } from 'src/user/schemas/user-my-cashback.schema';
 import { Category, CategorySchema } from 'src/offer/schemas/category.schema';
+import { Conversion, ConversionSchema } from './schemas/conversion.schema';
+import { TasksService } from './tasksService';
 
 @Module({
   imports: [
@@ -32,9 +34,10 @@ import { Category, CategorySchema } from 'src/offer/schemas/category.schema';
       { name: WithdrawMethod.name, schema: WithdrawMethodSchema },
       { name: UserMyCashback.name, schema: UserMyCashbackSchema },
       { name: Category.name, schema: CategorySchema },
+      { name: Conversion.name, schema: ConversionSchema },
     ]),
   ],
   controllers: [WithdrawController],
-  providers: [WithdrawService, JwtService, InvolveService],
+  providers: [WithdrawService, JwtService, InvolveService, TasksService],
 })
 export class WithdrawModule {}
