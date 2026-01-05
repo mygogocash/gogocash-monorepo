@@ -11,7 +11,7 @@ export class CreateWithdrawDto {
   method?: string;
   currency?: string;
   chain?: number;
-  mycashback_id?: string;
+  mycashback_id?: string[];
 }
 
 export class GETSignDTO {

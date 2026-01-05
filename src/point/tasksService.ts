@@ -19,8 +19,8 @@ export class TasksService {
     this.logger.debug('Called when the current time is 00.00');
 
     const conversions = await this.involveService.getConversionAll({
-      page: '1',
-      limit: '10',
+      page: 1,
+      limit: 10,
     });
 
     let allConversions = conversions.data.data;
@@ -29,8 +29,8 @@ export class TasksService {
     while (conversions.data.nextPage) {
       currentPage++;
       const nextConversions = await this.involveService.getConversionAll({
-        page: currentPage.toString(),
-        limit: '10',
+        page: currentPage,
+        limit: 10,
       });
       allConversions = allConversions.concat(nextConversions.data.data);
       conversions.data.nextPage = nextConversions.data.nextPage;

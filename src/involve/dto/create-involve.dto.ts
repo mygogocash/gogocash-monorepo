@@ -126,10 +126,10 @@ export class CreateAffiliateAiDto {
 
 export class RequestGetConversion {
   @IsNumber()
-  page: string;
+  page: number;
 
   @IsNumber()
-  limit: string;
+  limit: number;
 }
 export class ConversionData {
   data: RequestGetConversion;

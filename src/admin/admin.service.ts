@@ -16,6 +16,7 @@ import { FeeRate } from 'src/withdraw/schemas/feeRate.schema';
 import { GoogleDriveService } from 'src/google-drive/google-drive.service';
 import { Offer } from 'src/offer/schemas/offer.schema';
 import { Category } from 'src/offer/schemas/category.schema';
+import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 
 @Injectable()
 export class AdminService {
@@ -26,7 +27,7 @@ export class AdminService {
     @InjectModel(FeeRate.name) private feeRateModel: Model<FeeRate>,
     @InjectModel(Offer.name) private offerModel: Model<Offer>,
     @InjectModel(Category.name) private categoryModel: Model<Category>,
-
+    @InjectModel(Conversion.name) private conversionModel: Model<Conversion>,
     private readonly googleDriveService: GoogleDriveService,
     private involveService: InvolveService,
   ) {}
@@ -135,9 +136,9 @@ export class AdminService {
     };
   }
 
-  async getConversionAll(
-    page: string = '1',
-    limit: string = '10',
+  async getConversionInvolveAll(
+    page: number = 1,
+    limit: number = 10,
     search?: string,
     status?: string,
   ) {
@@ -179,11 +180,50 @@ export class AdminService {
     return conversions;
   }
 
+  async getConversionAll(
+    page: number = 1,
+    limit: number = 10,
+    search?: string,
+    status?: string,
+  ) {
+    const filter =
+      search || status
+        ? { offer_name: search, conversion_status: status }
+        : null;
+
+    const skip = (page - 1) * limit;
+    const [data, total] = await Promise.all([
+      this.conversionModel
+        .find(filter)
+        .skip(skip)
+        .limit(limit)
+        .sort({ datetime_conversion: -1 })
+        .exec(),
+      this.conversionModel.countDocuments(filter).exec(),
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+      },
+    };
+  }
+
   async getConversionInWithdraw(body: number[]) {
-    return this.involveService.getConversionAll(
-      { page: '1', limit: '1000' },
-      { conversion_id: body?.join('|') },
-    );
+    // return this.involveService.getConversionAll(
+    //   { page: 1, limit: 10 },
+    //   { conversion_id: body?.join('|') },
+    // );
+    return this.conversionModel
+      .find({ conversion_id: { $in: body } })
+      .sort({ datetime_conversion: -1 })
+      .lean();
   }
 
   async getFeeRate() {
@@ -284,7 +324,9 @@ export class AdminService {
           logo_desktop: file1 ? file1.id : offer.logo_desktop,
           logo_mobile: file2 ? file2.id : offer.logo_mobile,
           banner: bannerFile ? bannerFile.id : offer.banner,
-          banner_mobile: bannerMobileFile ? bannerMobileFile.id : offer.banner_mobile,
+          banner_mobile: bannerMobileFile
+            ? bannerMobileFile.id
+            : offer.banner_mobile,
           logo_circle: logoCircleFile ? logoCircleFile.id : offer.logo_circle,
           offer_name_display:
             updateData.offer_name_display ?? offer.offer_name_display,
