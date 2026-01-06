@@ -1,5 +1,5 @@
 /* eslint-disable prettier/prettier */
-import { Injectable } from '@nestjs/common';
+import { HttpException, Injectable } from '@nestjs/common';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import {
   UpdateAdminDto,
@@ -17,6 +17,7 @@ import { GoogleDriveService } from 'src/google-drive/google-drive.service';
 import { Offer } from 'src/offer/schemas/offer.schema';
 import { Category } from 'src/offer/schemas/category.schema';
 import { Conversion } from 'src/withdraw/schemas/conversion.schema';
+import { UserMyCashback } from 'src/user/schemas/user-my-cashback.schema';
 
 @Injectable()
 export class AdminService {
@@ -28,6 +29,7 @@ export class AdminService {
     @InjectModel(Offer.name) private offerModel: Model<Offer>,
     @InjectModel(Category.name) private categoryModel: Model<Category>,
     @InjectModel(Conversion.name) private conversionModel: Model<Conversion>,
+    @InjectModel(UserMyCashback.name) private userMyCashbackModel: Model<UserMyCashback>,
     private readonly googleDriveService: GoogleDriveService,
     private involveService: InvolveService,
   ) {}
@@ -372,4 +374,35 @@ export class AdminService {
       )
       .exec();
   }
+
+  async updateUser(id: string, mobile: string) {
+    const userMobile = await this.userModel.findOne({ mobile }).lean();
+    if (userMobile && userMobile._id.toString() !== id.toString()) {
+      throw new HttpException({ message: 'Mobile number already in use' }, 400);
+    }
+    return this.userModel.findByIdAndUpdate(id, { mobile }, { new: true }).exec();
+  }
+
+  async getMyCashBackUser(id: string) { 
+    const user = await this.userModel.findById(id).lean();
+    if (!user) {
+      throw new HttpException({ message: 'User not found' }, 404);
+    }
+    let myCashBack = null;
+    if (user?.mobile) {
+      myCashBack = await this.userMyCashbackModel.find({ phoneNumber: user.mobile }).lean();
+    }
+    if (user?.email) {
+      myCashBack = await this.userMyCashbackModel.find({ email: user.email }).lean();
+    }
+    const mobileData = user?.mobile?.includes('+66')
+      ? user?.mobile?.slice(3)
+      : user?.mobile;
+    const mobile = '0' + mobileData;
+    if (myCashBack?.length < 1) {
+      myCashBack = await this.userMyCashbackModel.find({ phoneNumber: mobile }).lean();
+    }
+    return myCashBack;
+  }
+
 }

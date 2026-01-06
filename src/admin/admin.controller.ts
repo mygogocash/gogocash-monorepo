@@ -24,6 +24,7 @@ import {
   UpdateFeeRateDto,
   UpdateOfferAdminDto,
   UpdateRequestWithdrawDto,
+  UpdateUserDto,
 } from './dto/update-admin.dto';
 import { UserAdminService } from './user-admin/user-admin-service';
 import { ApiBearerAuth, ApiBody, ApiSecurity } from '@nestjs/swagger';
@@ -215,5 +216,28 @@ export class AdminController {
     return this.adminService.updateCategory(id, {
       image: files?.image ? files?.image?.[0] : null,
     });
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
+  @ApiBody({ type: UpdateUserDto })
+  @Post('update-user/:id')
+  updateUser(
+    @Param('id') id: string,
+    @Body() updateUserDto: UpdateUserDto,
+  ) {
+    return this.adminService.updateUser(id, updateUserDto?.mobile);
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
+  @ApiBody({ type: UpdateUserDto })
+  @Get('get-mycashback-user/:id')
+  viewMyCahsback(
+    @Param('id') id: string,
+  ) {
+    return this.adminService.getMyCashBackUser(id);
   }
 }
