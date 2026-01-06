@@ -93,4 +93,9 @@ export class UserController {
     const id = user?.sub;
     return this.userService.getBalanceMyCashback(id);
   }
+
+  @Get('balance/me/mycashback/admin/:id')
+  balanceMyCashbackAdmin(@Param('id') id: string) {
+    return this.userService.getBalanceMyCashback(id);
+  }
 }

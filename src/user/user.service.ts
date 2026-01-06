@@ -45,6 +45,7 @@ export class UserService {
             { username: { $regex: search, $options: 'i' } },
             { email: { $regex: search, $options: 'i' } },
             { address: { $regex: search, $options: 'i' } },
+            { mobile: { $regex: search, $options: 'i' } },
           ],
         }
       : {};
@@ -107,12 +108,11 @@ export class UserService {
       ? user?.mobile?.slice(3)
       : user?.mobile;
     const mobile = '0' + mobileData;
-    if (!userMyCashback) {
+    if (userMyCashback?.length < 1) {
       userMyCashback = await this.userMyCashbacksModel.find({
         phoneNumber: mobile,
       }).lean();
     }
-    
 
     if (
       userMyCashback[0]?.email === user.email ||
