@@ -407,13 +407,18 @@ export class WithdrawService {
     if (!fee) {
       throw new HttpException({ message: 'Fee rate not found' }, 400);
     }
+    const mobileData = user?.mobile?.includes('+66')
+      ? user?.mobile?.slice(3)
+      : user?.mobile;
+    const mobile = '0' + mobileData;
 
     const myCashbackDataList = await this.userMyCashbackModel
       .find({
-        $or: [{ email: user.email }, { phoneNumber: user.mobile }],
+        $or: [{ email: user.email }, { phoneNumber: user.mobile }, { phoneNumber: mobile }],
       })
       .lean();
-    if (!myCashbackDataList) {
+      
+    if (myCashbackDataList?.length < 1) {
       throw new UnauthorizedException({ message: 'User not found' });
     }
     const myCashbackDataGroupCurrency = myCashbackDataList?.reduce(
