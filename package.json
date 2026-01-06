@@ -30,6 +30,7 @@
     "autoprefixer": "^10.4.20",
     "axios": "^1.13.1",
     "flatpickr": "^4.6.13",
+    "libphonenumber-js": "^1.12.33",
     "next": "15.2.3",
     "next-auth": "^4.24.13",
     "prettier-plugin-tailwindcss": "^0.7.0",

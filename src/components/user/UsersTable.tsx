@@ -2,10 +2,17 @@
 
 import React, { useState, useEffect } from "react";
 import { useApi } from "@/hooks/useApi";
-import { RegularUser, UsersQuery } from "@/types/api";
+import { Offer, RegularUser, UsersQuery } from "@/types/api";
+import FormUpdate from "./FormUpdate";
+import { UserForm } from "@/types/user";
+import ViewMyCashback from "./ViewMyCashback";
 
 export default function UsersTable() {
   const { loading, error, getUsers, deleteUser, clearError } = useApi();
+  const [isLoading, setIsLoading] = useState(false);
+  const [form, setForm] = useState<UserForm>({ mobile: "", id: "" });
+  const [openModal, setOpenModal] = useState<Offer | boolean>(false);
+  const [openModalView, setOpenModalView] = useState<boolean>(false);
 
   const [users, setUsers] = useState<RegularUser[]>([]);
   const [pagination, setPagination] = useState({
@@ -71,6 +78,20 @@ export default function UsersTable() {
   return (
     <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
       {/* Header */}
+      <FormUpdate
+        fetchData={fetchUsers}
+        openModal={openModal}
+        setOpenModal={setOpenModal}
+        form={form}
+        setForm={setForm}
+        isLoading={isLoading}
+        setIsLoading={setIsLoading}
+      />
+      <ViewMyCashback
+        id={form.id}
+        openModal={Boolean(openModalView)}
+        setOpenModal={setOpenModalView}
+      />
       <div className="flex items-center justify-between px-6 py-5">
         <div>
           <h3 className="text-base font-medium text-gray-800 dark:text-white/90">
@@ -159,6 +180,18 @@ export default function UsersTable() {
                                   ? `Address: ${user.address}`
                                   : `Address: -`}
                               </div>
+                              <div className="text-sm text-gray-500 dark:text-gray-400">
+                                Mobile: {user.mobile ? user.mobile : "-"}
+                              </div>
+                              <div className="text-sm text-gray-500 dark:text-gray-400">
+                                birthdate:{" "}
+                                {user.birthdate
+                                  ? user.birthdate.toString()
+                                  : "-"}
+                              </div>
+                              <div className="text-sm text-gray-500 dark:text-gray-400">
+                                gender: {user.gender ? user.gender : "-"}
+                              </div>
                             </div>
                           </div>
                         </td>
@@ -174,10 +207,29 @@ export default function UsersTable() {
                         </td>
                         <td className="space-x-2 px-6 py-4 text-sm font-medium whitespace-nowrap">
                           <button
-                            onClick={() => console.log("Edit user:", user._id)}
+                            onClick={() => {
+                              setOpenModal(true);
+                              setForm({
+                                id: user._id,
+                                mobile: user.mobile || "",
+                              });
+                            }}
                             className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
                           >
                             Edit
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setOpenModalView(true);
+                              setForm({
+                                id: user._id,
+                                mobile: user.mobile || "",
+                              });
+                            }}
+                            className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                          >
+                            View
                           </button>
                           {/* <button
                             onClick={() => handleDeleteUser(user._id)}

@@ -83,6 +83,13 @@ export interface RegularUser {
   id_crossmint: string;
   id_twitter: string;
   username: string;
+  mobile?: string;
+  id_firebase: string;
+  createdAt: Date;
+  updatedAt: Date;
+  birthdate: Date | null;
+  country: string | null;
+  gender: string | null;
 }
 export interface UsersQuery {
   limit?: number;
