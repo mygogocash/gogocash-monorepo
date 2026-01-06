@@ -274,7 +274,9 @@ export class AuthService {
     } catch (error: any) {
       // แนะนำ log error.message/error.code เพื่อ debug
       console.log('verifyIdToken error:', error);
-      throw new UnauthorizedException('Invalid Firebase token');
+      throw new UnauthorizedException(
+        error?.message || 'Invalid Firebase token',
+      );
     }
   }
 }
