@@ -77,3 +77,10 @@ export class UpdateOfferAdminDto {
   @IsOptional()
   max_cap: number;
 }
+
+export class UpdateUserDto {
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsString()
+  mobile: string;
+}
