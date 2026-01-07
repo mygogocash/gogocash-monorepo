@@ -19,6 +19,7 @@ import { Offer } from 'src/offer/schemas/offer.schema';
 import { Category } from 'src/offer/schemas/category.schema';
 import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 import { UserMyCashback } from 'src/user/schemas/user-my-cashback.schema';
+import { Banner } from 'src/offer/schemas/banner.schema';
 
 @Injectable()
 export class AdminService {
@@ -32,6 +33,7 @@ export class AdminService {
     @InjectModel(Conversion.name) private conversionModel: Model<Conversion>,
     @InjectModel(UserMyCashback.name)
     private userMyCashbackModel: Model<UserMyCashback>,
+    @InjectModel(Banner.name) private bannerModel: Model<Banner>,
     private readonly googleDriveService: GoogleDriveService,
     private involveService: InvolveService,
   ) {}
@@ -422,10 +424,87 @@ export class AdminService {
     return myCashBack;
   }
 
-  async updateBannerHome(files: UpdateBannerHomeDto) {
+  async updateBannerHome(updateData: UpdateBannerHomeDto) {
     // logic update banner home
-    console.log('files', files);
+    const data = await this.bannerModel.findOne().exec();
 
+    const folderId = '16AmK8RlgEYa16LbPYEgtGBL4U1ouDhiS';
+    let file1;
+    if (updateData.image_1) {
+      file1 = await this.googleDriveService.uploadFile(
+        updateData.image_1 as unknown as Express.Multer.File,
+        folderId,
+      );
+      if (data && data.image_1) {
+        await this.googleDriveService.deleteFile(data.image_1);
+      }
+    }
+    let file2;
+    if (updateData.image_2) {
+      file2 = await this.googleDriveService.uploadFile(
+        updateData.image_2 as unknown as Express.Multer.File,
+        folderId,
+      );
+      if (data && data.image_2) {
+        await this.googleDriveService.deleteFile(data.image_2);
+      }
+    }
+
+    let file3;
+    if (updateData.image_3) {
+      file3 = await this.googleDriveService.uploadFile(
+        updateData.image_3 as unknown as Express.Multer.File,
+        folderId,
+      );
+      if (data && data.image_3) {
+        await this.googleDriveService.deleteFile(data.image_3);
+      }
+    }
+    let file4;
+    if (updateData.image_4) {
+      file4 = await this.googleDriveService.uploadFile(
+        updateData.image_4 as unknown as Express.Multer.File,
+        folderId,
+      );
+      if (data && data.image_4) {
+        await this.googleDriveService.deleteFile(data.image_4);
+      }
+    }
+
+    let file5;
+    if (updateData.image_5) {
+      file5 = await this.googleDriveService.uploadFile(
+        updateData.image_5 as unknown as Express.Multer.File,
+        folderId,
+      );
+      if (data && data.image_5) {
+        await this.googleDriveService.deleteFile(data.image_5);
+      }
+    }
+
+    await this.bannerModel
+      .findOneAndUpdate(
+        {},
+        {
+          image_1: file1 ? file1.id : data.image_1,
+          image_2: file2 ? file2.id : data.image_2,
+          image_3: file3 ? file3.id : data.image_3,
+          image_4: file4 ? file4.id : data.image_4,
+          image_5: file5 ? file5.id : data.image_5,
+          link_1: updateData.link_1 || "",
+          link_2: updateData.link_2 || "",
+          link_3: updateData.link_3 || "",
+          link_4: updateData.link_4 || "",
+          link_5: updateData.link_5 || "",
+        },
+        { upsert: true, new: true },
+      )
+      .exec();
     return { message: 'Update banner home success' };
+  }
+
+  async getBannerHome() {
+    // logic get banner home
+    return this.bannerModel.findOne().exec();
   }
 }

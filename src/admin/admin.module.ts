@@ -21,6 +21,7 @@ import { GoogleDriveService } from 'src/google-drive/google-drive.service';
 import { UserMyCashback, UserMyCashbackSchema } from 'src/user/schemas/user-my-cashback.schema';
 import { Category, CategorySchema } from 'src/offer/schemas/category.schema';
 import { Conversion, ConversionSchema } from 'src/withdraw/schemas/conversion.schema';
+import { Banner, BannerSchema } from 'src/offer/schemas/banner.schema';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { Conversion, ConversionSchema } from 'src/withdraw/schemas/conversion.sc
       { name: UserMyCashback.name, schema: UserMyCashbackSchema },
       { name: Category.name, schema: CategorySchema },
       { name: Conversion.name, schema: ConversionSchema },
+      { name: Banner.name, schema: BannerSchema },
     ]),
   ],
   controllers: [AdminController],
