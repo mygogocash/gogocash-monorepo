@@ -3,6 +3,7 @@ import { HttpException, Injectable } from '@nestjs/common';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import {
   UpdateAdminDto,
+  UpdateBannerHomeDto,
   UpdateFeeRateDto,
   UpdateRequestWithdrawDto,
 } from './dto/update-admin.dto';
@@ -29,7 +30,8 @@ export class AdminService {
     @InjectModel(Offer.name) private offerModel: Model<Offer>,
     @InjectModel(Category.name) private categoryModel: Model<Category>,
     @InjectModel(Conversion.name) private conversionModel: Model<Conversion>,
-    @InjectModel(UserMyCashback.name) private userMyCashbackModel: Model<UserMyCashback>,
+    @InjectModel(UserMyCashback.name)
+    private userMyCashbackModel: Model<UserMyCashback>,
     private readonly googleDriveService: GoogleDriveService,
     private involveService: InvolveService,
   ) {}
@@ -188,10 +190,17 @@ export class AdminService {
     search?: string,
     status?: string,
   ) {
-    const filter =
-      search || status
-        ? { offer_name: search, conversion_status: status }
-        : null;
+    const filter = {};
+    if (search) {
+      filter['$or'] = [
+        { aff_sub1: { $regex: search, $options: 'i' } },
+        { offer_name: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    if (status) {
+      filter['conversion_status'] = { $regex: status, $options: 'i' };
+    }
 
     const skip = (page - 1) * limit;
     const [data, total] = await Promise.all([
@@ -380,29 +389,43 @@ export class AdminService {
     if (userMobile && userMobile._id.toString() !== id.toString()) {
       throw new HttpException({ message: 'Mobile number already in use' }, 400);
     }
-    return this.userModel.findByIdAndUpdate(id, { mobile }, { new: true }).exec();
+    return this.userModel
+      .findByIdAndUpdate(id, { mobile }, { new: true })
+      .exec();
   }
 
-  async getMyCashBackUser(id: string) { 
+  async getMyCashBackUser(id: string) {
     const user = await this.userModel.findById(id).lean();
     if (!user) {
       throw new HttpException({ message: 'User not found' }, 404);
     }
     let myCashBack = null;
     if (user?.mobile) {
-      myCashBack = await this.userMyCashbackModel.find({ phoneNumber: user.mobile }).lean();
+      myCashBack = await this.userMyCashbackModel
+        .find({ phoneNumber: user.mobile })
+        .lean();
     }
     if (user?.email) {
-      myCashBack = await this.userMyCashbackModel.find({ email: user.email }).lean();
+      myCashBack = await this.userMyCashbackModel
+        .find({ email: user.email })
+        .lean();
     }
     const mobileData = user?.mobile?.includes('+66')
       ? user?.mobile?.slice(3)
       : user?.mobile;
     const mobile = '0' + mobileData;
     if (myCashBack?.length < 1) {
-      myCashBack = await this.userMyCashbackModel.find({ phoneNumber: mobile }).lean();
+      myCashBack = await this.userMyCashbackModel
+        .find({ phoneNumber: mobile })
+        .lean();
     }
     return myCashBack;
   }
 
+  async updateBannerHome(files: UpdateBannerHomeDto) {
+    // logic update banner home
+    console.log('files', files);
+
+    return { message: 'Update banner home success' };
+  }
 }

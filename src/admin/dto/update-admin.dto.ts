@@ -84,3 +84,45 @@ export class UpdateUserDto {
   @IsString()
   mobile: string;
 }
+
+export class UpdateBannerHomeDto {
+  @ApiProperty()
+  @IsString()
+  link_1: string;
+
+  @ApiProperty()
+  @IsString()
+  image_1: string | File | null;
+
+  @ApiProperty()
+  @IsString()
+  link_2: string;
+
+  @ApiProperty()
+  @IsString()
+  image_2: string | File | null;
+
+  @ApiProperty()
+  @IsString()
+  link_3: string;
+
+  @ApiProperty()
+  @IsString()
+  image_3: string | File | null;
+
+  @ApiProperty()
+  @IsString()
+  link_4: string;
+
+  @ApiProperty()
+  @IsString()
+  image_4: string | File | null;
+
+  @ApiProperty()
+  @IsString()
+  link_5: string;
+
+  @ApiProperty()
+  @IsString()
+  image_5: string | File | null;
+}
