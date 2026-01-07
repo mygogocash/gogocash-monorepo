@@ -15,8 +15,12 @@ export default function FeeForm() {
 
   const [forms, setForms] = useState<FeeSettingsForm>({
     system: 0,
-    store: 0,
-    minimum_withdraw: 0,
+    // store: 0,
+    // minimum_withdraw: 0,
+    fee_withdraw_usd: 0,
+    fee_withdraw_thb: 0,
+    minimum_withdraw_thb: 0,
+    minimum_withdraw_usd: 0,
     id: "",
   });
 
@@ -27,8 +31,12 @@ export default function FeeForm() {
         const res = response?.[0];
         setForms({
           system: res.system,
-          store: res.store,
-          minimum_withdraw: res.minimum_withdraw,
+          // store: res.store,
+          // minimum_withdraw: res.minimum_withdraw,
+          fee_withdraw_usd: res.fee_withdraw_usd,
+          fee_withdraw_thb: res.fee_withdraw_thb,
+          minimum_withdraw_thb: res.minimum_withdraw_thb,
+          minimum_withdraw_usd: res.minimum_withdraw_usd,
           id: res._id,
         });
       });
@@ -84,12 +92,17 @@ export default function FeeForm() {
               <div className="flex items-center gap-3">
                 <Input
                   placeholder="0.00"
-                  type="string"
+                  type="text"
                   value={forms.system}
                   min="0"
                   defaultValue={forms.system}
                   onChange={(e) =>
-                    setForms({ ...forms, system: parseFloat(e.target.value) })
+                    setForms({
+                      ...forms,
+                      system: isNaN(parseFloat(e.target.value))
+                        ? 0
+                        : parseFloat(e.target.value),
+                    })
                   }
                 />
                 <span className="text-xs text-gray-500">%</span>
@@ -97,37 +110,93 @@ export default function FeeForm() {
             </div>
             <div>
               <Label>
-                Store <span className="text-error-500">*</span>{" "}
+                Fee Withdraw THB <span className="text-error-500">*</span>{" "}
               </Label>
               <div className="flex items-center gap-3">
                 <Input
                   placeholder="0.00"
-                  type="string"
-                  value={forms.store}
-                  defaultValue={forms.store}
-                  min="0"
-                  onChange={(e) =>
-                    setForms({ ...forms, store: parseFloat(e.target.value) })
-                  }
-                />
-                <span className="text-xs text-gray-500">%</span>
-              </div>
-            </div>
-            <div>
-              <Label>
-                Minimum Withdraw <span className="text-error-500">*</span>{" "}
-              </Label>
-              <div className="flex items-center gap-3">
-                <Input
-                  placeholder="0.00"
-                  type="string"
-                  value={forms.minimum_withdraw}
-                  defaultValue={forms.minimum_withdraw}
+                  type="text"
+                  value={forms.fee_withdraw_thb}
+                  defaultValue={forms.fee_withdraw_thb}
                   min="0"
                   onChange={(e) =>
                     setForms({
                       ...forms,
-                      minimum_withdraw: parseFloat(e.target.value),
+                      fee_withdraw_thb: isNaN(parseFloat(e.target.value))
+                        ? 0
+                        : parseFloat(e.target.value),
+                    })
+                  }
+                />
+                <span className="text-xs text-gray-500">THB</span>
+              </div>
+            </div>
+
+            <div>
+              <Label>
+                Fee Withdraw USD <span className="text-error-500">*</span>{" "}
+              </Label>
+              <div className="flex items-center gap-3">
+                <Input
+                  placeholder="0.00"
+                  type="text"
+                  value={forms.fee_withdraw_usd}
+                  defaultValue={forms.fee_withdraw_usd}
+                  min="0"
+                  onChange={(e) =>
+                    setForms({
+                      ...forms,
+                      fee_withdraw_usd: isNaN(parseFloat(e.target.value))
+                        ? 0
+                        : parseFloat(e.target.value),
+                    })
+                  }
+                />
+                <span className="text-xs text-gray-500">USD</span>
+              </div>
+            </div>
+            <div>
+              <Label>
+                Minimum Withdraw THB{" "}
+                <span className="text-error-500">*</span>{" "}
+              </Label>
+              <div className="flex items-center gap-3">
+                <Input
+                  placeholder="0.00"
+                  type="text"
+                  value={forms.minimum_withdraw_thb}
+                  defaultValue={forms.minimum_withdraw_thb}
+                  min="0"
+                  onChange={(e) =>
+                    setForms({
+                      ...forms,
+                      minimum_withdraw_thb: isNaN(parseFloat(e.target.value))
+                        ? 0
+                        : parseFloat(e.target.value),
+                    })
+                  }
+                />
+                <span className="text-xs text-gray-500">THB</span>
+              </div>
+            </div>
+            <div>
+              <Label>
+                Minimum Withdraw USD{" "}
+                <span className="text-error-500">*</span>{" "}
+              </Label>
+              <div className="flex items-center gap-3">
+                <Input
+                  placeholder="0.00"
+                  type="text"
+                  value={forms.minimum_withdraw_usd}
+                  defaultValue={forms.minimum_withdraw_usd}
+                  min="0"
+                  onChange={(e) =>
+                    setForms({
+                      ...forms,
+                      minimum_withdraw_usd: isNaN(parseFloat(e.target.value))
+                        ? 0
+                        : parseFloat(e.target.value),
                     })
                   }
                 />
