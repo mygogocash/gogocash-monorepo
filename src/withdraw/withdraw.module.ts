@@ -21,6 +21,7 @@ import {
 import { Category, CategorySchema } from 'src/offer/schemas/category.schema';
 import { Conversion, ConversionSchema } from './schemas/conversion.schema';
 import { TasksService } from './tasksService';
+import { JobService } from './cronjob/job.service';
 
 @Module({
   imports: [
@@ -38,6 +39,12 @@ import { TasksService } from './tasksService';
     ]),
   ],
   controllers: [WithdrawController],
-  providers: [WithdrawService, JwtService, InvolveService, TasksService],
+  providers: [
+    WithdrawService,
+    JwtService,
+    InvolveService,
+    TasksService,
+    JobService,
+  ],
 })
 export class WithdrawModule {}
