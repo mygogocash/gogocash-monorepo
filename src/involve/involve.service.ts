@@ -41,6 +41,20 @@ export class InvolveService {
 
     return res.data;
   }
+
+  async signInOld() {
+    const res = await axios.post(`${this.endpoint}/authenticate`, {
+      secret: process.env.INVOVLE_SECRET_OLD,
+      key: 'general',
+    });
+
+    await this.cacheManager.set(
+      'access_token_involve_old',
+      res.data.data.token,
+    );
+
+    return res.data;
+  }
   createDeeplinkMongo(
     createInvolveDto: CreateAffiliateDto & { user_id: string },
   ) {
@@ -346,6 +360,133 @@ export class InvolveService {
     }
   }
 
+  async getConversionRange(payload: RequestGetConversion, filter: any = null) {
+    let token = await this.cacheManager.get('access_token_involve');
+    if (!token) {
+      await this.signIn();
+      token = await this.cacheManager.get('access_token_involve');
+    }
+    try {
+      let filters = {
+        page: payload.page?.toString() || '1',
+        limit: payload.limit?.toString() || '100',
+      };
+      if (filter) {
+        filters = { ...filters, ...filter };
+      }
+      console.log('filter', filters);
+
+      const res = await axios.post(
+        `${this.endpoint}/conversions/range`,
+        {
+          ...filters,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      return res.data;
+    } catch (error) {
+      console.error(
+        'Error get conversion:',
+        error.response?.data || error.message,
+      );
+      if (error.response?.data?.status_code === 401) {
+        await this.signIn();
+        return this.getConversionAll(payload);
+      }
+      throw new Error(error.message || 'Failed to get conversion');
+    }
+  }
+
+  async getConversionRangeOld(
+    payload: RequestGetConversion,
+    filter: any = null,
+  ) {
+    let token = await this.cacheManager.get('access_token_involve_old');
+    if (!token) {
+      await this.signInOld();
+      token = await this.cacheManager.get('access_token_involve_old');
+    }
+    try {
+      let filters = {
+        page: payload.page?.toString() || '1',
+        limit: payload.limit?.toString() || '100',
+      };
+      if (filter) {
+        filters = { ...filters, ...filter };
+      }
+      console.log('filter', filters);
+
+      const res = await axios.post(
+        `${this.endpoint}/conversions/range`,
+        {
+          ...filters,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      return res.data;
+    } catch (error) {
+      console.error(
+        'Error get conversion:',
+        error.response?.data || error.message,
+      );
+      if (error.response?.data?.status_code === 401) {
+        await this.signInOld();
+        return this.getConversionAllOld(payload);
+      }
+      throw new Error(error.message || 'Failed to get conversion');
+    }
+  }
+
+  async getConversionAllOld(payload: RequestGetConversion, filter: any = null) {
+    let token = await this.cacheManager.get('access_token_involve_old');
+    if (!token) {
+      await this.signInOld();
+      token = await this.cacheManager.get('access_token_involve_old');
+    }
+    try {
+      const filters = {
+        page: payload.page || 1,
+        limit: payload.limit || 100,
+      };
+      if (filter) {
+        filters['filters'] = filter;
+      }
+      const res = await axios.post(
+        `${this.endpoint}/conversions/all`,
+        {
+          ...filters,
+          // filters: {
+          //   offer_id: Number(offer_id),
+          // },
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      return res.data;
+    } catch (error) {
+      console.error(
+        'Error get conversion:',
+        error.response?.data || error.message,
+      );
+      if (error.response?.data?.status_code === 401) {
+        await this.signInOld();
+        return this.getConversionAllOld(payload);
+      }
+      throw new Error(error.message || 'Failed to get conversion');
+    }
+  }
+
   async getConversationAllPage(payload: RequestGetConversion, id: string) {
     // const conversions = await this.getConversionAll({
     //   page: payload.page || '1',
@@ -375,14 +516,13 @@ export class InvolveService {
       })
       .sort({ conversion_date: -1 })
       .lean();
-    const conversationByUser = []
+    const conversationByUser = [];
     for (const conversion of allConversions) {
-        conversationByUser.push(conversion);
+      conversationByUser.push(conversion);
     }
     const totalUSDApproved = await conversationByUser
       ?.filter((ele) => ele.conversion_status === 'approved')
-      ?.reduce(
-      async (accPromise, item) => {
+      ?.reduce(async (accPromise, item) => {
         const acc = await accPromise;
         if (item.currency === 'USD') {
           return acc + Number(item.payout);

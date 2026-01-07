@@ -3,6 +3,9 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PointService } from './point.service';
 import { InvolveService } from 'src/involve/involve.service';
 import { delay } from 'rxjs';
+import { Conversion } from 'src/withdraw/schemas/conversion.schema';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 
 @Injectable()
 export class TasksService {
@@ -11,6 +14,7 @@ export class TasksService {
   constructor(
     private readonly pointService: PointService,
     private readonly involveService: InvolveService,
+    @InjectModel(Conversion.name) private conversionModel: Model<Conversion>,
   ) {}
   // @Cron('45 * * * * *')
   // @Cron(CronExpression.EVERY_10_SECONDS)
@@ -18,30 +22,36 @@ export class TasksService {
   async handleCron() {
     this.logger.debug('Called when the current time is 00.00');
 
-    const conversions = await this.involveService.getConversionAll({
-      page: 1,
-      limit: 10,
-    });
+    // const conversions = await this.involveService.getConversionAll({
+    //   page: 1,
+    //   limit: 10,
+    // });
 
-    let allConversions = conversions.data.data;
-    let currentPage = 1;
+    // let allConversions = conversions.data.data;
+    // let currentPage = 1;
 
-    while (conversions.data.nextPage) {
-      currentPage++;
-      const nextConversions = await this.involveService.getConversionAll({
-        page: currentPage,
-        limit: 10,
-      });
-      allConversions = allConversions.concat(nextConversions.data.data);
-      conversions.data.nextPage = nextConversions.data.nextPage;
-      await delay(1000);
-    }
-    const filterAff = allConversions.filter((item) => {
-      return item.aff_sub1 && item.aff_sub1.startsWith('user_id:');
-    });
-    const filterApproved = filterAff.filter((item) => {
-      return item.conversion_status === 'approved';
-    });
+    // while (conversions.data.nextPage) {
+    //   currentPage++;
+    //   const nextConversions = await this.involveService.getConversionAll({
+    //     page: currentPage,
+    //     limit: 10,
+    //   });
+    //   allConversions = allConversions.concat(nextConversions.data.data);
+    //   conversions.data.nextPage = nextConversions.data.nextPage;
+    //   await delay(1000);
+    // }
+    // const filterAff = allConversions.filter((item) => {
+    //   return item.aff_sub1 && item.aff_sub1.startsWith('user_id:');
+    // });
+    // const filterApproved = filterAff.filter((item) => {
+    //   return item.conversion_status === 'approved';
+    // });
+    const filterApproved = await this.conversionModel
+      .find({
+        aff_sub1: { $regex: '^user_id:' },
+        conversion_status: 'approved',
+      })
+      .lean();
     for (const conversion of filterApproved) {
       const userId = conversion.aff_sub1.split('user_id:')[1];
       const calculatedPoints = Math.floor(conversion.sale_amount / 100);
