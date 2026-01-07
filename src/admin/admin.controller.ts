@@ -21,6 +21,7 @@ import {
 } from './dto/create-admin.dto';
 import {
   UpdateAdminDto,
+  UpdateBannerHomeDto,
   UpdateFeeRateDto,
   UpdateOfferAdminDto,
   UpdateRequestWithdrawDto,
@@ -239,5 +240,38 @@ export class AdminController {
     @Param('id') id: string,
   ) {
     return this.adminService.getMyCashBackUser(id);
+  }
+
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'image_1', maxCount: 1 },
+      { name: 'image_2', maxCount: 1 },
+      { name: 'image_3', maxCount: 1 },
+      { name: 'image_4', maxCount: 1 },
+      { name: 'image_5', maxCount: 1 },
+    ]),
+  )
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
+  @ApiBody({ type: UpdateBannerHomeDto })
+  @Post('banner-home')
+  updateBannerHome(
+    @UploadedFiles() files: { image_1?: Express.Multer.File[], image_2?: Express.Multer.File[], image_3?: Express.Multer.File[], image_4?: Express.Multer.File[], image_5 ?: Express.Multer.File[] },
+    @Body() body: UpdateBannerHomeDto,
+  ) {
+    const filesDto: UpdateBannerHomeDto = {
+      image_1: files?.image_1 ? files?.image_1?.[0] as any : null,
+      image_2: files?.image_2 ? files?.image_2?.[0] as any : null,
+      image_3: files?.image_3 ? files?.image_3?.[0] as any : null,
+      image_4: files?.image_4 ? files?.image_4?.[0] as any : null,
+      image_5: files?.image_5 ? files?.image_5?.[0] as any : null,
+      link_1: body.link_1 ? body.link_1 : null,
+      link_2: body.link_2 ? body.link_2 : null,
+      link_3: body.link_3 ? body.link_3 : null,
+      link_4: body.link_4 ? body.link_4 : null,
+      link_5: body.link_5 ? body.link_5 : null,
+    };
+    return this.adminService.updateBannerHome(filesDto);
   }
 }
