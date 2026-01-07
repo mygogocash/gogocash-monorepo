@@ -13,6 +13,18 @@ export class FeeRate {
 
   @Prop({ required: false })
   minimum_withdraw: number;
+
+  @Prop({ required: false })
+  minimum_withdraw_thb: number;
+
+  @Prop({ required: false })
+  minimum_withdraw_usd: number;
+
+  @Prop({ required: false })
+  fee_withdraw_thb: number;
+
+  @Prop({ required: false })
+  fee_withdraw_usd: number;
 }
 
 export const FeeRateSchema = SchemaFactory.createForClass(FeeRate);

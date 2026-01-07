@@ -303,16 +303,18 @@ export class WithdrawService {
       0,
     );
     // Calculate total amount after fee deduction
-    const feePercentage = fee.system + fee.store; // Using system fee rate
+    const feePercentage = fee.system; // Using system fee rate
+    const fee_withdraw_thb = fee.fee_withdraw_thb;
+    const fee_withdraw_usd = fee.fee_withdraw_usd;
     const feeAmount = (totalUSDAmount * feePercentage) / 100;
-    const netAmount = totalUSDAmount - feeAmount;
+    const netAmount = totalUSDAmount - feeAmount - fee_withdraw_usd;
 
     const feeAmountTHB = (totalTHBAmount * feePercentage) / 100;
-    const netAmountTHB = totalTHBAmount - feeAmountTHB;
+    const netAmountTHB = totalTHBAmount - feeAmountTHB - fee_withdraw_thb;
 
     // Check if net amount meets minimum withdrawal threshold
-    const minimumWithdrawal = fee.minimum_withdraw; // You can make this configurable
-    if (netAmount < minimumWithdrawal) {
+    const minimumWithdrawal = fee.minimum_withdraw_thb; // You can make this configurable
+    if (netAmountTHB < minimumWithdrawal) {
       throw new HttpException(
         {
           message: `Minimum withdrawal amount is $${minimumWithdrawal}. Current net amount: $${netAmount.toFixed(2)}`,
@@ -327,7 +329,6 @@ export class WithdrawService {
       feeAmount: feeAmount.toFixed(2),
       totalUSDAmount: totalUSDAmount.toFixed(2),
       feePercentage,
-
       totalTHBAmount: totalTHBAmount.toFixed(2),
       feeAmountTHB: feeAmountTHB.toFixed(2),
       netAmountTHB: netAmountTHB.toFixed(2),
@@ -488,18 +489,20 @@ export class WithdrawService {
       }
     }, 0);
 
-    const feePercentage = fee.system + fee.store; // Using system fee rate
+    const feePercentage = fee.system; // Using system fee rate
+    const fee_withdraw_thb = fee.fee_withdraw_thb;
+    const fee_withdraw_usd = fee.fee_withdraw_usd;
     const feeAmountInvolveUSD = (totalInvolveUSD * feePercentage) / 100;
-    const netAmountInvolveUSD = totalInvolveUSD - feeAmountInvolveUSD;
+    const netAmountInvolveUSD = totalInvolveUSD - feeAmountInvolveUSD - fee_withdraw_usd;
 
     const feeAmountInvolveTHB = (totalInvolveTHB * feePercentage) / 100;
-    const netAmountInvolveTHB = totalInvolveTHB - feeAmountInvolveTHB;
+    const netAmountInvolveTHB = totalInvolveTHB - feeAmountInvolveTHB - fee_withdraw_thb;
 
     const feeMyCashbackUSD = (totalMyCashbackUSD * feePercentage) / 100;
-    const netMyCashbackUSD = totalMyCashbackUSD - feeMyCashbackUSD;
+    const netMyCashbackUSD = totalMyCashbackUSD - feeMyCashbackUSD - fee_withdraw_usd;
 
     const feeMyCashbackTHB = (totalMyCashbackTHB * feePercentage) / 100;
-    const netMyCashbackTHB = totalMyCashbackTHB - feeMyCashbackTHB;
+    const netMyCashbackTHB = totalMyCashbackTHB - feeMyCashbackTHB - fee_withdraw_thb;
     const withdrawListApproved = await this.withdrawModel
       .find({
         user_id: new Types.ObjectId(user._id),
@@ -728,10 +731,11 @@ export class WithdrawService {
     if (!fee) {
       throw new HttpException({ message: 'Fee rate not found' }, 400);
     }
-    if (createWithdrawDto.amount_net <= fee.minimum_withdraw) {
+    const feeRateMinimum = createWithdrawDto.currency === 'THB' ? fee.minimum_withdraw_thb : fee.minimum_withdraw_usd;
+    if (createWithdrawDto.amount_net <= feeRateMinimum) {
       throw new HttpException(
         {
-          message: `Minimum withdrawal amount for bank transfer is $${fee.minimum_withdraw}.`,
+          message: `Minimum withdrawal amount for bank transfer is $${feeRateMinimum}.`,
         },
         400,
       );

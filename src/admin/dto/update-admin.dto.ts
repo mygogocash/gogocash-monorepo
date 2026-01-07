@@ -11,14 +11,32 @@ export class UpdateFeeRateDto {
   system: number;
 
   @ApiProperty()
-  @IsNotEmpty()
   @IsString()
   store: number;
 
   @ApiProperty()
-  @IsNotEmpty()
   @IsString()
   minimum_withdraw: number;
+
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsString()
+  minimum_withdraw_thb: number;
+
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsString()
+  minimum_withdraw_usd: number;
+
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsString()
+  fee_withdraw_thb: number;
+
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsString()
+  fee_withdraw_usd: number;
 }
 
 export class UpdateRequestWithdrawDto {
