@@ -232,7 +232,8 @@ export interface Pagination {
 export interface ResponseConversion {
   status: string;
   message: string;
-  data: DataConversionAll;
+  data: DataConversion[];
+  pagination: Pagination;
 }
 
 export interface DataConversionAll {

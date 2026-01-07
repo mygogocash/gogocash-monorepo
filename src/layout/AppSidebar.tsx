@@ -55,6 +55,11 @@ const navItems: NavItem[] = [
     name: "Conversion Management",
     subItems: [{ name: "Conversion", path: "/conversion", pro: false }],
   },
+  {
+    icon: <ListIcon />,
+    name: "Banner Homepage",
+    subItems: [{ name: "Banner", path: "/banner", pro: false }],
+  },
   // {
   //   icon: <CalenderIcon />,
   //   name: "Calendar",

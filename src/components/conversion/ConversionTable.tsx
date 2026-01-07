@@ -39,10 +39,10 @@ export default function ConversionTable() {
       );
       setLists(response);
       setPagination({
-        page: response.data.page,
-        limit: response.data.limit,
-        total: response.data.count,
-        totalPages: Math.ceil(response.data.count / response.data.limit),
+        page: response.pagination.page,
+        limit: response.pagination.limit,
+        total: response.pagination.total,
+        totalPages: response.pagination.totalPages,
       });
     } catch (err) {
       console.error("Failed to fetch offers:", err);
@@ -185,7 +185,7 @@ export default function ConversionTable() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
-                  {lists?.data?.data?.map((list, index) => (
+                  {lists?.data?.map((list, index) => (
                     <tr
                       key={list.conversion_id}
                       className="hover:bg-gray-50 dark:hover:bg-gray-800"
@@ -256,7 +256,7 @@ export default function ConversionTable() {
             </div>
 
             {/* Tags display for debugging */}
-            {Number(lists?.data.count) > 0 && lists && (
+            {Number(lists?.pagination.total) > 0 && lists && (
               <div className="mt-4 rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
                 <div className="text-xs text-gray-600 dark:text-gray-400">
                   {/* Sample tags: {offers.} */}
@@ -297,7 +297,7 @@ export default function ConversionTable() {
               </div>
             )}
 
-            {Number(lists?.data.count) === 0 && !loading && (
+            {Number(lists?.pagination.total) === 0 && !loading && (
               <div className="py-8 text-center text-gray-500 dark:text-gray-400">
                 No offers found
               </div>

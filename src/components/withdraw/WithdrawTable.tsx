@@ -15,7 +15,7 @@ import Button from "../ui/button/Button";
 import Select from "../form/Select";
 import client, { fetcherPost } from "@/lib/axios/client";
 import { useQuery } from "@tanstack/react-query";
-import { ResGetConversionInWithdraw } from "@/types/withdraw";
+import { ConversionInWithdraw } from "@/types/withdraw";
 import toast from "react-hot-toast";
 interface WithdrawRequestForm {
   file: File | null;
@@ -50,15 +50,16 @@ export default function WithdrawTable() {
     page: 1,
   });
 
-  const { data: getDetailConversionWithdraw } =
-    useQuery<ResGetConversionInWithdraw>({
-      queryKey: ["getDetailConversionWithdraw", openModal],
-      queryFn: () =>
-        fetcherPost([
-          `/admin/getConversionInWithdraw`,
-          { data: (openModal as DataWithdrawsList).conversion_id as number[] },
-        ]),
-    });
+  const { data: getDetailConversionWithdraw } = useQuery<
+    ConversionInWithdraw[]
+  >({
+    queryKey: ["getDetailConversionWithdraw", openModal],
+    queryFn: () =>
+      fetcherPost([
+        `/admin/getConversionInWithdraw`,
+        { data: (openModal as DataWithdrawsList).conversion_id as number[] },
+      ]),
+  });
 
   // Fetch offers
   const fetchOffers = async (newQuery?: WithdrawQuery) => {
@@ -160,6 +161,7 @@ export default function WithdrawTable() {
         console.error("Failed to update withdraw request:", err);
       });
   };
+
   return (
     <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
       {/* Header */}
@@ -401,7 +403,7 @@ export default function WithdrawTable() {
                   </tr>
                 </thead>
                 <tbody>
-                  {getDetailConversionWithdraw?.data?.data?.map(
+                  {getDetailConversionWithdraw?.map(
                     (item: {
                       conversion_id: number;
                       sale_amount: string;
