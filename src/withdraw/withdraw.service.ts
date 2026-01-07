@@ -528,6 +528,7 @@ export class WithdrawService {
       feeAmountInvolveUSD,
       netAmountInvolveTHB,
       feeAmountInvolveTHB,
+      fee,
       conversionIdMyCashback: myCashbackDataList.map((item) => item?._id),
     };
     if (withdrawListApproved.length < 1) {
@@ -547,6 +548,7 @@ export class WithdrawService {
       feeMyCashbackUS: 0,
       netMyCashbackTHB: 0,
       feeMyCashbackTHB: 0,
+      fee,
       conversionIdMyCashback: myCashbackDataList.map((item) => item?._id),
     };
   }
