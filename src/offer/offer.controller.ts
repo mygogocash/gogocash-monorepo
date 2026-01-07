@@ -16,6 +16,11 @@ import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
 export class OfferController {
   constructor(private readonly offerService: OfferService) {}
 
+  @Get('banner-home')
+  getBannerHome() {
+    return this.offerService.getBannerHome();
+  }
+
   @Get()
   @ApiQuery({
     name: 'page',
@@ -161,10 +166,5 @@ export class OfferController {
     const user = request.user as any;
     const id = user.sub;
     return this.offerService.getFavoriteOfferByUser(id, page, limit);
-  }
-
-  @Get('banner-home')
-  getBannerHome() {
-    return this.offerService.getBannerHome();
   }
 }
