@@ -487,12 +487,10 @@ class ApiClient {
     // if (query.system) form.append('system', query.system.toString());
     // if (query.store) form.append('store', query.store.toString());
     // if (query.minimum_withdraw) form.append('minimum_withdraw', query.minimum_withdraw.toString());
-    const dt = {
-      system: query.system,
-      store: query.store,
-      minimum_withdraw: query.minimum_withdraw,
-    };
-    return this.request<ResponseFee>(`/admin/update-fee-rate/${query.id}`, {
+    const id = query.id
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id: _, ...dt } = query;
+    return this.request<ResponseFee>(`/admin/update-fee-rate/${id}`, {
       method: "PATCH",
       headers: {
         Authorization: `Bearer ${token}`,
