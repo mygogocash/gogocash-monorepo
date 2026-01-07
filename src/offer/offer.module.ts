@@ -12,6 +12,7 @@ import {
   FavoriteOffer,
   FavoriteOfferSchema,
 } from './schemas/favorite-offer.schema';
+import { Banner, BannerSchema } from './schemas/banner.schema';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import {
       { name: User.name, schema: UserSchema },
       { name: Category.name, schema: CategorySchema },
       { name: FavoriteOffer.name, schema: FavoriteOfferSchema },
+      { name: Banner.name, schema: BannerSchema },
     ]),
   ],
   controllers: [OfferController],

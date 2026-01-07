@@ -162,4 +162,9 @@ export class OfferController {
     const id = user.sub;
     return this.offerService.getFavoriteOfferByUser(id, page, limit);
   }
+
+  @Get('banner-home')
+  getBannerHome() {
+    return this.offerService.getBannerHome();
+  }
 }

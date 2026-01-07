@@ -9,6 +9,7 @@ import { join } from 'path';
 import { promises as fs } from 'fs';
 import { Category } from './schemas/category.schema';
 import { FavoriteOffer } from './schemas/favorite-offer.schema';
+import { Banner } from './schemas/banner.schema';
 @Injectable()
 export class OfferService {
   private filePath = join(process.cwd(), 'uploads', 'data', 'offers.json');
@@ -20,6 +21,8 @@ export class OfferService {
     @InjectModel(Category.name) private categoryModel: Model<Category>,
     @InjectModel(FavoriteOffer.name)
     private favoriteOfferModel: Model<FavoriteOffer>,
+    @InjectModel(Banner.name)
+    private bannerModel: Model<Banner>,
   ) {}
   async findAll(
     page: number,
@@ -149,5 +152,10 @@ export class OfferService {
     const totalPages = Math.ceil(total / limit);
 
     return { page, limit, total, totalPages, data };
+  }
+
+  async getBannerHome() {
+    // logic get banner home
+    return this.bannerModel.findOne().exec();
   }
 }

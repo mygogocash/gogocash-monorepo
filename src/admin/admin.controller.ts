@@ -274,4 +274,12 @@ export class AdminController {
     };
     return this.adminService.updateBannerHome(filesDto);
   }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth()
+  @Get('banner-home')
+  getBannerHome() {
+    return this.adminService.getBannerHome();
+  }
 }
