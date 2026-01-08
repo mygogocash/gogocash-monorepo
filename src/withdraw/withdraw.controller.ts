@@ -55,6 +55,14 @@ export class WithdrawController {
     return this.withdrawService.checkWithdrawMyCashback(id);
   }
 
+  @Post('check-my-cashback-admin/:userId')
+  checkWithdrawMyCashbackAdmin(
+    @Req() req: Request,
+    @Param('userId') userId: string,
+  ) {
+    return this.withdrawService.checkWithdrawMyCashback(userId);
+  }
+
   @UseGuards(FirebaseAuthGuard)
   @ApiBody({ type: CreateWithdrawDto })
   @ApiSecurity('access-token') // Apply the security scheme defined globally
