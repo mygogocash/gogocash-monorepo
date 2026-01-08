@@ -22,6 +22,7 @@ import { UserMyCashback, UserMyCashbackSchema } from 'src/user/schemas/user-my-c
 import { Category, CategorySchema } from 'src/offer/schemas/category.schema';
 import { Conversion, ConversionSchema } from 'src/withdraw/schemas/conversion.schema';
 import { Banner, BannerSchema } from 'src/offer/schemas/banner.schema';
+import { UserService } from 'src/user/user.service';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { Banner, BannerSchema } from 'src/offer/schemas/banner.schema';
     JwtService,
     InvolveService,
     GoogleDriveService,
+    UserService,
   ],
 })
 export class AdminModule {}
