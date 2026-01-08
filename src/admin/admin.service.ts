@@ -20,6 +20,7 @@ import { Category } from 'src/offer/schemas/category.schema';
 import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 import { UserMyCashback } from 'src/user/schemas/user-my-cashback.schema';
 import { Banner } from 'src/offer/schemas/banner.schema';
+import { UserService } from 'src/user/user.service';
 
 @Injectable()
 export class AdminService {
@@ -36,6 +37,7 @@ export class AdminService {
     @InjectModel(Banner.name) private bannerModel: Model<Banner>,
     private readonly googleDriveService: GoogleDriveService,
     private involveService: InvolveService,
+    private userService: UserService,
   ) {}
   create(createAdminDto: CreateAdminDto) {
     console.log(createAdminDto);
@@ -397,31 +399,8 @@ export class AdminService {
   }
 
   async getMyCashBackUser(id: string) {
-    const user = await this.userModel.findById(id).lean();
-    if (!user) {
-      throw new HttpException({ message: 'User not found' }, 404);
-    }
-    let myCashBack = null;
-    if (user?.mobile) {
-      myCashBack = await this.userMyCashbackModel
-        .find({ phoneNumber: user.mobile })
-        .lean();
-    }
-    if (user?.email) {
-      myCashBack = await this.userMyCashbackModel
-        .find({ email: user.email })
-        .lean();
-    }
-    const mobileData = user?.mobile?.includes('+66')
-      ? user?.mobile?.slice(3)
-      : user?.mobile;
-    const mobile = '0' + mobileData;
-    if (myCashBack?.length < 1) {
-      myCashBack = await this.userMyCashbackModel
-        .find({ phoneNumber: mobile })
-        .lean();
-    }
-    return myCashBack;
+    const myCashBack = await this.userService.getBalanceMyCashback(id);
+    return myCashBack?.userMyCashback;
   }
 
   async updateBannerHome(updateData: UpdateBannerHomeDto) {
@@ -491,11 +470,11 @@ export class AdminService {
           image_3: file3 ? file3.id : data.image_3,
           image_4: file4 ? file4.id : data.image_4,
           image_5: file5 ? file5.id : data.image_5,
-          link_1: updateData.link_1 || "",
-          link_2: updateData.link_2 || "",
-          link_3: updateData.link_3 || "",
-          link_4: updateData.link_4 || "",
-          link_5: updateData.link_5 || "",
+          link_1: updateData.link_1 || '',
+          link_2: updateData.link_2 || '',
+          link_3: updateData.link_3 || '',
+          link_4: updateData.link_4 || '',
+          link_5: updateData.link_5 || '',
         },
         { upsert: true, new: true },
       )
