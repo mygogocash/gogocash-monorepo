@@ -248,6 +248,7 @@ export class WithdrawService {
       },
       {} as Record<string, any[]>,
     );
+    
     const totalPayoutByCurrency = Object.entries(groupedByCurrency).reduce(
       (acc, [currency, items]) => {
         const totalPayout = (items as any[]).reduce(
@@ -307,10 +308,12 @@ export class WithdrawService {
     const fee_withdraw_thb = fee.fee_withdraw_thb;
     const fee_withdraw_usd = fee.fee_withdraw_usd;
     const feeAmount = (totalUSDAmount * feePercentage) / 100;
-    const netAmount = totalUSDAmount - feeAmount - fee_withdraw_usd;
+    const netTotalUsd = totalUSDAmount - feeAmount - fee_withdraw_usd;
+    const netAmount = isNaN(netTotalUsd) ? 0 : netTotalUsd;
 
     const feeAmountTHB = (totalTHBAmount * feePercentage) / 100;
-    const netAmountTHB = totalTHBAmount - feeAmountTHB - fee_withdraw_thb;
+    const netTotalThb = totalTHBAmount - feeAmountTHB - fee_withdraw_thb
+    const netAmountTHB = isNaN(netTotalThb) ? 0 : netTotalThb;
 
     // Check if net amount meets minimum withdrawal threshold
     const minimumWithdrawal = fee.minimum_withdraw_thb; // You can make this configurable
@@ -401,6 +404,7 @@ export class WithdrawService {
     const user = await this.userModel.findOne({
       _id: new Types.ObjectId(id),
     });
+
     if (!user) {
       throw new UnauthorizedException({ message: 'User not found' });
     }
@@ -420,7 +424,7 @@ export class WithdrawService {
       .lean();
       
     if (myCashbackDataList?.length < 1) {
-      throw new UnauthorizedException({ message: 'User not found' });
+      throw new UnauthorizedException({ message: 'User My cashback not found' });
     }
     const myCashbackDataGroupCurrency = myCashbackDataList?.reduce(
       (acc, cashback) => {

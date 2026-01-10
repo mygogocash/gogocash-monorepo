@@ -3,7 +3,7 @@ import { HydratedDocument } from 'mongoose';
 
 export type OfferDocument = HydratedDocument<Offer>;
 
-@Schema()
+@Schema({ timestamps: true })
 export class Offer {
   @Prop({ required: true, unique: true })
   offer_id: number;
@@ -97,6 +97,9 @@ export class Offer {
 
   @Prop()
   banner_mobile: string;
+
+  @Prop()
+  type: string; // old / new
 }
 
 export const OfferSchema = SchemaFactory.createForClass(Offer);

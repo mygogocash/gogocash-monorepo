@@ -10,6 +10,8 @@ import { promises as fs } from 'fs';
 import { Category } from './schemas/category.schema';
 import { FavoriteOffer } from './schemas/favorite-offer.schema';
 import { Banner } from './schemas/banner.schema';
+import { Coupon } from './schemas/coupon.schema';
+import { UpdateCouponDto } from './dto/update-offer.dto';
 @Injectable()
 export class OfferService {
   private filePath = join(process.cwd(), 'uploads', 'data', 'offers.json');
@@ -19,6 +21,7 @@ export class OfferService {
     @InjectModel(Deeplink.name) private readonly deeplinkModel: Model<Deeplink>,
     @InjectModel(User.name) private readonly userModel: Model<User>,
     @InjectModel(Category.name) private categoryModel: Model<Category>,
+    @InjectModel(Coupon.name) private couponModel: Model<Coupon>,
     @InjectModel(FavoriteOffer.name)
     private favoriteOfferModel: Model<FavoriteOffer>,
     @InjectModel(Banner.name)
@@ -157,5 +160,50 @@ export class OfferService {
   async getBannerHome() {
     // logic get banner home
     return this.bannerModel.findOne().exec();
+  }
+
+  async updateCoupon(body: UpdateCouponDto) {
+    console.log('body', body);
+    body.offer_id = new Types.ObjectId(body.offer_id);
+    body.discount = body.discount ? Number(body.discount) : 0;
+    body.quantity = body.quantity ? Number(body.quantity) : 0;
+    body.disabled = body.disabled == 'true' ? true : false;
+    if (body?.id) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      // const { id, ...updateData } = body;
+      return this.couponModel.findByIdAndUpdate(body.id, body, {
+        new: true,
+      });
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      delete body.id;
+      return this.couponModel.create(body);
+    }
+  }
+
+  async getCoupon(page: number, limit: number, search: string) {
+    const filter = {
+      $or: [
+        { name: { $regex: search, $options: 'i' } },
+        { code: { $regex: search, $options: 'i' } },
+      ],
+    };
+    const data = await this.couponModel
+      .find(filter)
+      .populate('offer_id', ['offer_name'])
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec();
+
+    const total = await this.couponModel.countDocuments(filter);
+    const totalPages = Math.ceil(total / limit);
+
+    return { page, limit, total, totalPages, data };
+  }
+
+  async getCouponId(id: string) {
+    return this.couponModel
+      .find({ offer_id: new Types.ObjectId(id) })
+      .populate('offer_id', ['offer_name']);
   }
 }

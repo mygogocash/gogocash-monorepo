@@ -208,11 +208,19 @@ export class InvolveService {
     }
     // Save or update many offers in MongoDB
     const offers = Array.isArray(allOffers) ? allOffers : [];
+    const ids = [];
     for (const offer of offers) {
+      ids.push(offer.offer_id);
       await this.offerModel.updateOne(
         { offer_id: offer.offer_id }, // Assuming offer_id is unique
-        { $set: offer },
+        { $set: { ...offer, type: 'new', disabled: false } },
         { upsert: true },
+      );
+    }
+    for (const offerId of ids) {
+      await this.offerModel.updateOne(
+        { offer_id: { $ne: offerId } },
+        { $set: { type: 'old', disabled: true } },
       );
     }
 
