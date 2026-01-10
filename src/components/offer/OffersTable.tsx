@@ -7,10 +7,12 @@ import { useApi } from "@/hooks/useApi";
 import { Offer, OfferRequestForm, OffersQuery } from "@/types/api";
 import { useSession } from "next-auth/react";
 import FormOffer from "./FormOffer";
+import { useRouter } from "next/navigation";
 
 export default function OffersTable() {
   const [openModal, setOpenModal] = useState<Offer | boolean>(false);
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
   const [form, setForm] = useState<OfferRequestForm>({
     logo_desktop: null,
     logo_mobile: null,
@@ -223,6 +225,10 @@ export default function OffersTable() {
                     <tr
                       key={offer._id}
                       className="hover:bg-gray-50 dark:hover:bg-gray-800"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        router.push(`/offers/${offer._id}`);
+                      }}
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
                         {index + 1}
@@ -358,7 +364,8 @@ export default function OffersTable() {
                       </td>
                       <td className="space-x-2 px-6 py-4 text-sm font-medium whitespace-nowrap">
                         <button
-                          onClick={() => {
+                          onClick={(event) => {
+                            event.stopPropagation();
                             setOpenModal(offer);
                             setForm({
                               logo_desktop: null,
@@ -379,7 +386,10 @@ export default function OffersTable() {
                           Edit
                         </button>
                         <button
-                          onClick={() => handleDeleteOffer(offer._id)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleDeleteOffer(offer._id);
+                          }}
                           className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
                         >
                           Delete
