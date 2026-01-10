@@ -4,14 +4,17 @@ import {
   Get,
   Param,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
 import { OfferService } from './offer.service';
-import { ApiBearerAuth, ApiQuery, ApiSecurity } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiQuery, ApiSecurity } from '@nestjs/swagger';
 import { Request } from 'express';
 import { GetMyOfferDto } from './dto/create-offer.dto';
 import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
+import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
+import { UpdateCouponDto } from './dto/update-offer.dto';
 @Controller('offer')
 export class OfferController {
   constructor(private readonly offerService: OfferService) {}
@@ -19,6 +22,43 @@ export class OfferController {
   @Get('banner-home')
   getBannerHome() {
     return this.offerService.getBannerHome();
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
+  @Get('get-coupon')
+  async getCoupon(
+    @Req() request: Request,
+    @Query('page') page: number,
+    @Query('limit') limit: number,
+    @Query('search') search: string,
+  ) {
+    // const user = request['user'] as any;
+    // const id = user?.sub;
+    return this.offerService.getCoupon(page, limit, search);
+  }
+
+  @Get('get-coupon-id/:offerId')
+  async getCouponId(
+    @Req() request: Request,
+    @Param('offerId') offerId: string,
+  ) {
+    // const user = request['user'] as any;
+    // const id = user?.sub;
+    return this.offerService.getCouponId(offerId);
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @ApiBody({ type: UpdateCouponDto })
+  @Post('update-coupon')
+  async updateCoupon(@Req() request: Request, @Body() body: UpdateCouponDto) {
+    // const user = request.user as any;
+    // console.log('user', request);
+    // const id = user.sub;
+    return this.offerService.updateCoupon(body);
   }
 
   @Get()

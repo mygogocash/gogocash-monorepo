@@ -3,7 +3,7 @@ import { HydratedDocument } from 'mongoose';
 
 export type CategoryDocument = HydratedDocument<Category>;
 
-@Schema()
+@Schema({ timestamps: true })
 export class Category {
   @Prop({ required: true, unique: true })
   name: string;
