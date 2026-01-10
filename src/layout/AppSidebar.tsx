@@ -60,6 +60,11 @@ const navItems: NavItem[] = [
     name: "Banner Homepage",
     subItems: [{ name: "Banner", path: "/banner", pro: false }],
   },
+  {
+    icon: <ListIcon />,
+    name: "Coupon",
+    subItems: [{ name: "Coupon", path: "/coupon", pro: false }],
+  },
   // {
   //   icon: <CalenderIcon />,
   //   name: "Calendar",
