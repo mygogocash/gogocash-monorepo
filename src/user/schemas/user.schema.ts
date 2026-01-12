@@ -40,6 +40,9 @@ export class User {
 
   @Prop()
   provider: string;
+
+  @Prop({ default: false })
+  disabled: boolean;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

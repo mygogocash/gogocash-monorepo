@@ -169,6 +169,9 @@ export class AuthService {
       }
 
       console.log('user', user);
+      if (user?.disabled) {
+        throw new Error('Your account has been disabled');
+      }
       // Update points for referral if referral_id is provided
       return user; // { accessToken, refreshToken, user }
     } catch (error) {
