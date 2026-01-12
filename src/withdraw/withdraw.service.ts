@@ -503,10 +503,13 @@ export class WithdrawService {
     const netAmountInvolveTHB = totalInvolveTHB - feeAmountInvolveTHB - fee_withdraw_thb;
 
     const feeMyCashbackUSD = (totalMyCashbackUSD * feePercentage) / 100;
-    const netMyCashbackUSD = totalMyCashbackUSD - feeMyCashbackUSD - fee_withdraw_usd;
+    // const netMyCashbackUSD = totalMyCashbackUSD - feeMyCashbackUSD - fee_withdraw_usd;
+    const netMyCashbackUSD = totalMyCashbackUSD - fee_withdraw_usd;
 
     const feeMyCashbackTHB = (totalMyCashbackTHB * feePercentage) / 100;
-    const netMyCashbackTHB = totalMyCashbackTHB - feeMyCashbackTHB - fee_withdraw_thb;
+    // const netMyCashbackTHB = totalMyCashbackTHB - feeMyCashbackTHB - fee_withdraw_thb;
+    const netMyCashbackTHB = totalMyCashbackTHB - fee_withdraw_thb;
+
     const withdrawListApproved = await this.withdrawModel
       .find({
         user_id: new Types.ObjectId(user._id),
