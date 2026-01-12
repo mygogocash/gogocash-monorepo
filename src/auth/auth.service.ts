@@ -136,6 +136,9 @@ export class AuthService {
           country: payload?.country ? payload?.country : '',
           provider: data?.firebase?.sign_in_provider,
         });
+        if (user?.disabled) {
+          throw new Error('Your account has been disabled');
+        }
         return user;
       }
       const user = await this.userService.createFromFirebase({
