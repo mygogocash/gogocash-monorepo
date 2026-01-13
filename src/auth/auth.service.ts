@@ -10,6 +10,7 @@ import { Model, Types } from 'mongoose';
 import { Point, PointDocument } from 'src/point/schemas/point.schema';
 import { getAdminAuth } from './firebase-admin.provider';
 import * as admin from 'firebase-admin';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class AuthService {
@@ -23,6 +24,7 @@ export class AuthService {
   constructor(
     private readonly config: ConfigService,
     private readonly userService: UserService,
+    private readonly jwtService: JwtService,
     @InjectModel(Point.name) private pointModel: Model<PointDocument>,
   ) {
     this.baseUrl = this.config.get<string>('env.CROSSMINT_BASE_URL')!;
@@ -139,7 +141,11 @@ export class AuthService {
         if (user?.disabled) {
           throw new Error('Your account has been disabled');
         }
-        return user;
+        const accessToken = await this.generateToken({
+          userId: user._id.toString(),
+          firebaseId: user.id_firebase,
+        });
+        return { user, token: accessToken };
       }
       const user = await this.userService.createFromFirebase({
         address:
@@ -176,7 +182,12 @@ export class AuthService {
         throw new Error('Your account has been disabled');
       }
       // Update points for referral if referral_id is provided
-      return user; // { accessToken, refreshToken, user }
+      // return user; // { accessToken, refreshToken, user }
+      const accessToken = await this.generateToken({
+        userId: user._id.toString(),
+        firebaseId: user.id_firebase,
+      });
+      return { user, token: accessToken };
     } catch (error) {
       console.log('err', error);
       throw new Error(error?.message || 'Invalid Firebase token');
@@ -284,5 +295,15 @@ export class AuthService {
         error?.message || 'Invalid Firebase token',
       );
     }
+  }
+
+  async generateToken(payload: { userId: string; firebaseId: string }) {
+    const jwtSecret = process.env.JWT_SECRET;
+    const token = this.jwtService.sign(payload, {
+      secret: jwtSecret,
+      expiresIn: '1d',
+    });
+
+    return token;
   }
 }

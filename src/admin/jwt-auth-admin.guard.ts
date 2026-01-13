@@ -27,6 +27,7 @@ export class AuthAdminGuard implements CanActivate {
       const decoded = this.jwtService.verify(token, {
         secret: process.env.JWT_ADMIN_SECRET,
       });
+      request['user'] = decoded;
       return decoded;
     } catch (error) {
       console.log('error', error);
