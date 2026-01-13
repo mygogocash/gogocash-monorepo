@@ -408,6 +408,11 @@ export class WithdrawService {
     if (!user) {
       throw new UnauthorizedException({ message: 'User not found' });
     }
+
+    // if(!user?.mobile) {
+    //   throw new UnauthorizedException({ message: 'User mobile not found' });
+    // }
+
     const fee = await this.feeRateModel.findOne().exec();
     if (!fee) {
       throw new HttpException({ message: 'Fee rate not found' }, 400);
@@ -417,11 +422,29 @@ export class WithdrawService {
       : user?.mobile;
     const mobile = '0' + mobileData;
 
-    const myCashbackDataList = await this.userMyCashbackModel
-      .find({
-        $or: [{ email: user.email }, { phoneNumber: user.mobile }, { phoneNumber: mobile }],
-      })
-      .lean();
+    // const myCashbackDataList = await this.userMyCashbackModel
+    //   .find({
+    //     $or: [{ email: user.email }, { phoneNumber: user.mobile }, { phoneNumber: mobile }],
+    //   })
+    //   .lean();
+
+    let myCashbackDataList = [];
+    if (user?.mobile) {
+      myCashbackDataList = await this.userMyCashbackModel
+        .find({
+          $or: [{ phoneNumber: user.mobile }, { phoneNumber: mobile }]
+        }).lean();
+    }
+
+
+    if (myCashbackDataList?.length < 1) {
+      myCashbackDataList = await this.userMyCashbackModel
+        .find({
+          email: { $regex: user.email, $options: 'i' }, // Use $regex for case-insensitive search on user.email
+          // $or: [{ email: user.email }, { phoneNumber: user.mobile }, { phoneNumber: mobile }],
+        }).lean();
+    }
+    // console.log('2myCashbackDataList', myCashbackDataList?.length);
       
     if (myCashbackDataList?.length < 1) {
       throw new UnauthorizedException({ message: 'User My cashback not found' });
