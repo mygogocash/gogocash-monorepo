@@ -7,8 +7,8 @@ import { delay } from 'rxjs';
 
 @Injectable()
 export class JobService {
-  private start_date = new Date().setDate(new Date().getDate() - 90);
-  private end_date = new Date().setDate(new Date().getDate() - 1);
+  private start_date = new Date().setDate(new Date().getDate() - 10);
+  private end_date = new Date().setDate(new Date().getDate());
   private start: string;
   private end: string;
 

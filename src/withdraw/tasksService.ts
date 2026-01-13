@@ -7,6 +7,7 @@ export class TasksService {
   private readonly logger = new Logger(TasksService.name);
   constructor(private readonly jobService: JobService) {}
 
+  // @Cron(CronExpression.EVERY_MINUTE)
   @Cron(CronExpression.EVERY_12_HOURS)
   async handleCron() {
     this.logger.debug('Called when the current time is every 12 hours');
