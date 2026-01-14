@@ -37,6 +37,9 @@ export class Coupon {
 
   @Prop({ type: Boolean, default: false })
   disabled: boolean;
+
+  @Prop({ type: String, default: false })
+  link: string;
 }
 
 export const CouponSchema = SchemaFactory.createForClass(Coupon);

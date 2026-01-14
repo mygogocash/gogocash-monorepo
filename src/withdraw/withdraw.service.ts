@@ -340,6 +340,90 @@ export class WithdrawService {
     };
   }
 
+  async listCheckWithdraw(id: string) {
+    const user = await this.userModel.findOne({
+      _id: new Types.ObjectId(id),
+    });
+    if (!user) {
+      throw new UnauthorizedException({ message: 'User not found' });
+    }
+     const fee = await this.feeRateModel.findOne().exec();
+    if (!fee) {
+      throw new HttpException({ message: 'Fee rate not found' }, 400);
+    }
+    const allConversions = await this.conversionModel
+      .find({
+        aff_sub1: { $regex: `user_id:${user._id.toString()}` },
+      })
+      .lean();
+  
+
+    const groupedByStatus = allConversions.reduce(
+      (acc, item) => {
+        const status = item.conversion_status || 'unknown';
+        if (!acc[status]) {
+          acc[status] = {
+            count: 0,
+            totalPayout: 0,
+            items: [],
+          };
+        }
+        acc[status].count += 1;
+        const payout = Number(item.payout || 0);
+        acc[status].totalPayout += payout > 0 ? payout : 0;
+        acc[status].items.push(item);
+        return acc;
+      },
+      {} as Record<string, { count: number; totalPayout: number; items: any[] }>,
+    );
+
+    const totalsByStatusAndCurrency = await Promise.all(
+      Object.entries(groupedByStatus).map(async ([status, statusData]) => {
+        const currencyTotals = statusData.items.reduce((acc, item) => {
+          const currency = item.currency || 'USD';
+          const feeAmount = (Number(item.payout || 0) * (fee.system / 100));
+          const payout = Number(item.payout || 0) - feeAmount;
+          
+          if (!acc[currency]) {
+            acc[currency] = 0;
+          }
+          acc[currency] += payout > 0 ? payout : 0;
+          return acc;
+        }, {} as Record<string, number>);
+
+        const convertedTotals = await Promise.all(
+          Object.entries(currencyTotals).map(async ([currency, amount]) => {
+            const toUSD = await this.convertCurrencyUsd(currency, Number(amount));
+            const toTHB = await this.convertCurrencyThb(currency, Number(amount));
+            return {
+              currency,
+              amount,
+              usdAmount: toUSD.usdAmount,
+              thbAmount: toTHB.amount,
+            };
+          })
+        );
+
+        const totalUSD = convertedTotals.reduce((sum, item) => sum + (item.usdAmount || 0), 0);
+        const totalTHB = convertedTotals.reduce((sum, item) => sum + (item.thbAmount || 0), 0);
+
+        return {
+          status,
+          count: statusData.count,
+          totalPayout: statusData.totalPayout,
+          currencyBreakdown: convertedTotals,
+          totalUSD,
+          totalTHB,
+        };
+      })
+    );
+
+    return {
+      totalsByStatusAndCurrency,
+      data: groupedByStatus,
+      fee
+    };
+  }
   async getConversionByUser(id: string) {
     // const conversions = await this.involveService.getConversionAll({
     //   page: 1,
