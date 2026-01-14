@@ -60,7 +60,7 @@ const FormOffer = ({
     formData.append("disabled", String(form.disabled));
     formData.append("commission_store", String(form.commission_store));
     formData.append("max_cap", String(form.max_cap));
-
+    formData.append("extra_store", String(form.extra_store));
     setIsLoading(true);
     client
       .patch(`/admin/update-offer/${form.id}`, formData, {
@@ -136,6 +136,15 @@ const FormOffer = ({
           }}
           defaultChecked={form.disabled}
         />
+
+        <Switch
+          label={"Extra Store"}
+          onChange={(e) => {
+            setForm({ ...form, extra_store: e });
+          }}
+          defaultChecked={form.extra_store}
+        />
+
         <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
           Upload logo_desktop:
         </p>

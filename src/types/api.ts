@@ -145,6 +145,7 @@ export interface Offer {
   commission_store: number | null;
   max_cap: number | null;
   banner_mobile: string;
+  extra_store: boolean;
 }
 
 export interface OfferRequestForm {
@@ -158,6 +159,7 @@ export interface OfferRequestForm {
   commission_store: number | null;
   id: string;
   banner_mobile: File | null;
+  extra_store: boolean;
 }
 
 export interface OffersQuery {
