@@ -55,6 +55,23 @@ export class OfferService {
     return { page, limit, total, totalPages, data };
   }
 
+  async findAllExtra() {
+    const dataNotExtra = await this.offerModel
+      .find({
+        disabled: { $ne: true },
+        extra_store: { $ne: true },
+      })
+      .sort({ offer_name_display: 1 })
+      .lean();
+
+    const filter: any = {};
+    filter.disabled = { $ne: true };
+    filter.extra_store = true;
+    const dataExtra = await this.offerModel.find(filter).lean();
+
+    return dataExtra.concat(dataNotExtra);
+  }
+
   async findOne(id: string) {
     return this.offerModel.findById(id);
   }

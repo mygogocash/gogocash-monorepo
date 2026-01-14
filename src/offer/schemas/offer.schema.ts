@@ -100,6 +100,9 @@ export class Offer {
 
   @Prop()
   type: string; // old / new
+
+  @Prop()
+  extra_store: boolean;
 }
 
 export const OfferSchema = SchemaFactory.createForClass(Offer);
