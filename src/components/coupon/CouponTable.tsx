@@ -190,11 +190,15 @@ export default function CouponTable() {
                           Name: {list.name}
                         </div>
                         <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                          Descriptiom: {list.description}
+                          Link: {list.link}
                         </div>
                         <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                           Code: {list.code}
                         </div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          Descriptiom: {list.description}
+                        </div>
+
                         <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                           Date: {list.start_date} - {list.end_date}
                         </div>
@@ -222,6 +226,7 @@ export default function CouponTable() {
                               min_spend: list.min_spend,
                               discount: list.discount,
                               id: list._id,
+                              link: list.link,
                             };
                             setOpenModal(dt);
                             setForm(dt);

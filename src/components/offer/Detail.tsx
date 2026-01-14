@@ -52,6 +52,16 @@ const Detail = () => {
       width: 100,
     },
     {
+      field: "code",
+      headerName: "Code",
+      width: 100,
+    },
+    {
+      field: "link",
+      headerName: "Link",
+      width: 100,
+    },
+    {
       field: "description",
       headerName: "Description",
       width: 100,
@@ -67,11 +77,6 @@ const Detail = () => {
       width: 100,
     },
 
-    {
-      field: "code",
-      headerName: "Code",
-      width: 100,
-    },
     {
       field: "min_spend",
       headerName: "Min Spend",
@@ -94,7 +99,6 @@ const Detail = () => {
       renderCell: (params) => (
         <button
           onClick={() => {
-            // console.log(params);
             const list = params.row;
             const dt = {
               name: list.name,
@@ -106,7 +110,8 @@ const Detail = () => {
               eligibility: list.eligibility,
               min_spend: list.min_spend,
               discount: list.discount,
-              id: list._id,
+              id: list.id,
+              link: list.link || "",
             };
             setOpenModal(dt);
             setForm(dt);
@@ -168,6 +173,7 @@ const Detail = () => {
             min_spend: coupon.min_spend,
             discount: coupon.discount,
             disabled: coupon.disabled,
+            link: coupon.link,
           })) || []
         }
         columns={column2}

@@ -68,6 +68,8 @@ const FormCoupon = ({
 
   // Handle file change
   const handleSave = () => {
+    console.log("form", form);
+
     const formData = new FormData();
     formData.append("name", form.name);
     formData.append("description", form.description);
@@ -81,6 +83,8 @@ const FormCoupon = ({
     formData.append("discount", form.discount?.toString());
     formData.append("id", form.id || "");
     formData.append("disabled", form.disabled?.toString() || "false");
+    formData.append("link", form.link || "");
+
     setIsLoading(true);
     client
       .post(`/offer/update-coupon`, formData, {
@@ -108,12 +112,16 @@ const FormCoupon = ({
       type: "text",
     },
     {
-      filedName: "description",
-      type: "textarea",
-    },
-    {
       filedName: "code",
       type: "text",
+    },
+    {
+      filedName: "link",
+      type: "text",
+    },
+    {
+      filedName: "description",
+      type: "textarea",
     },
     {
       filedName: "offer_id",
