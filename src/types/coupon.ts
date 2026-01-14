@@ -11,6 +11,7 @@ export interface CouponRequestForm {
   id?: string;
   disabled?: boolean;
   quantity?: number;
+  link?: string;
 }
 
 
@@ -37,6 +38,7 @@ export interface CouponData {
     updatedAt:   Date;
     disabled:    boolean;
     __v:         number;
+    link:        string;
 }
 
 export interface OfferID {
