@@ -163,7 +163,7 @@ export class OfferService {
   }
 
   async updateCoupon(body: UpdateCouponDto) {
-    console.log('body', body);
+    // console.log('body', body);
     body.offer_id = new Types.ObjectId(body.offer_id);
     body.discount = body.discount ? Number(body.discount) : 0;
     body.quantity = body.quantity ? Number(body.quantity) : 0;
@@ -171,9 +171,13 @@ export class OfferService {
     if (body?.id) {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       // const { id, ...updateData } = body;
-      return this.couponModel.findByIdAndUpdate(body.id, body, {
-        new: true,
-      });
+      return this.couponModel.findByIdAndUpdate(
+        new Types.ObjectId(body.id),
+        body,
+        {
+          new: true,
+        },
+      );
     } else {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       delete body.id;

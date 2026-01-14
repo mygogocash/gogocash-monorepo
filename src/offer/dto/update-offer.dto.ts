@@ -46,4 +46,7 @@ export class UpdateCouponDto {
 
   @IsNumber()
   quantity: number;
+
+  @IsString()
+  link: string;
 }
