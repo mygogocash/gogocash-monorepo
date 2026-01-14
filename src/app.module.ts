@@ -11,6 +11,7 @@ import { OfferModule } from './offer/offer.module';
 import { WithdrawModule } from './withdraw/withdraw.module';
 import { GoogleDriveModule } from './google-drive/google-drive.module';
 import { PointModule } from './point/point.module';
+import { TelegramBotModule } from './telegram-bot/telegram-bot.module';
 import { ScheduleModule } from '@nestjs/schedule';
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     WithdrawModule,
     GoogleDriveModule,
     PointModule,
+    TelegramBotModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -48,6 +48,21 @@ export class WithdrawController {
   @UseGuards(FirebaseAuthGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
+  @Post('list-check')
+  listCheckWithdraw(@Req() req: Request) {
+    const user = req['user'] as any;
+    const id = user?.sub;
+    return this.withdrawService.listCheckWithdraw(id);
+  }
+
+  @Post('list-check-admin/:userId')
+  listCheckWithdrawAdmin(@Req() req: Request, @Param('userId') userId: string) {
+    return this.withdrawService.listCheckWithdraw(userId);
+  }
+
+  @UseGuards(FirebaseAuthGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
   @Post('check-my-cashback')
   checkWithdrawMyCashback(@Req() req: Request) {
     const user = req['user'] as any;
