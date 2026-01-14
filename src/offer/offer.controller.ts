@@ -97,6 +97,11 @@ export class OfferController {
     return this.offerService.findAll(page, limit, search, category);
   }
 
+  @Get('extra')
+  findAllExtra() {
+    return this.offerService.findAllExtra();
+  }
+
   @Get('admin')
   @ApiQuery({
     name: 'page',

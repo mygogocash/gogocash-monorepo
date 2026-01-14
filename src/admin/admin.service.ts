@@ -271,6 +271,7 @@ export class AdminService {
       disabled?: boolean;
       commission_store?: number;
       max_cap?: number;
+      extra_store?: boolean;
     },
   ) {
     const offer = await this.offerModel.findById(id).exec();
@@ -349,6 +350,7 @@ export class AdminService {
           commission_store:
             updateData.commission_store ?? offer.commission_store ?? 0,
           max_cap: updateData.max_cap ?? offer.max_cap ?? 0,
+          extra_store: Boolean(updateData.extra_store ?? offer.extra_store),
         },
         { new: true },
       )

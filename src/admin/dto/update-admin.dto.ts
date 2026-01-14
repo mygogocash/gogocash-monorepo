@@ -94,6 +94,10 @@ export class UpdateOfferAdminDto {
   @ApiProperty()
   @IsOptional()
   max_cap: number;
+
+  @ApiProperty()
+  @IsOptional()
+  extra_store: boolean | string;
 }
 
 export class UpdateUserDto {
