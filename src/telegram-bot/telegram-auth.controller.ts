@@ -281,7 +281,7 @@ export class TelegramAuthController {
     try {
       console.log('sessionId', sessionId);
       //   const data = this.verificationData.get(sessionId);
-      const data = this.telegramBotService.getLoginSession(12345);
+      const data = await this.telegramBotService.getLoginSession(12345);
       if (!data) {
         return res.status(HttpStatus.NOT_FOUND).send('Session not found');
       }

@@ -18,6 +18,7 @@ interface LoginSession {
   awaitingInput?: LoginType;
   email?: string;
   mobile?: string;
+  isRegistration?: boolean;
 }
 //   private loginSessions: Map<number, LoginSession> = new Map();
 @Injectable()
@@ -66,10 +67,13 @@ export class TelegramBotService {
   /**
    * Get login session data
    */
-  getLoginSession(telegramUserId: number): LoginSession | undefined {
-    const session = this.cacheManager.get(
+  async getLoginSession(
+    telegramUserId: number,
+  ): Promise<LoginSession | undefined> {
+    const session = await this.cacheManager.get(
       `telegram_login_session_${telegramUserId}`,
     );
+    console.log('session >>', session);
     if (!session) {
       return undefined;
     }
@@ -112,11 +116,35 @@ export class TelegramBotService {
 
     await this.bot.telegram.sendMessage(
       chatId,
-      '🔐 *Welcome to GogoCash Authentication*\n\n' +
+      '🔐 *Login to GogoCash*\n\n' +
         'Please select your preferred login method:\n\n' +
         '• Email - Login with your email address\n' +
         '• Mobile - Login with your phone number\n\n' +
-        '_Session expires in 15 minutes_',
+        '_Session expires in 1 hour_',
+      {
+        parse_mode: 'Markdown',
+        ...keyboard,
+      },
+    );
+  }
+
+  /**
+   * Send register method selection
+   */
+  async sendRegisterOptions(chatId: number): Promise<void> {
+    const keyboard = Markup.inlineKeyboard([
+      [Markup.button.callback('📧 Register with Email', 'register_email')],
+      [Markup.button.callback('📱 Register with Mobile', 'register_mobile')],
+    ]);
+
+    await this.bot.telegram.sendMessage(
+      chatId,
+      '🎉 *Create GogoCash Account*\n\n' +
+        'Please select your preferred registration method:\n\n' +
+        '• Email - Register with your email address\n' +
+        '• Mobile - Register with your phone number\n\n' +
+        "You'll be able to start earning cashback immediately!\n\n" +
+        '_Session expires in 1 hour_',
       {
         parse_mode: 'Markdown',
         ...keyboard,
@@ -135,6 +163,41 @@ export class TelegramBotService {
         'Example: `user@example.com`\n\n' +
         '_Send /cancel to go back_',
       { parse_mode: 'Markdown' },
+    );
+  }
+
+  /**
+   * Send prompt for registration email
+   */
+  async promptForRegisterEmail(chatId: number): Promise<void> {
+    await this.bot.telegram.sendMessage(
+      chatId,
+      '📧 *Register with Email*\n\n' +
+        'Please enter your email address:\n\n' +
+        'Example: `user@example.com`\n\n' +
+        '_This will be your account identifier_\n' +
+        '_Send /cancel to go back_',
+      { parse_mode: 'Markdown' },
+    );
+  }
+
+  /**
+   * Send prompt for registration mobile
+   */
+  async promptForRegisterMobile(chatId: number): Promise<void> {
+    await this.bot.telegram.sendMessage(
+      chatId,
+      '📱 *Register with Mobile*\n\n' +
+        'Please enter your mobile number:\n\n' +
+        'Example: `+1234567890` or click the button below\n\n' +
+        '_This will be your account identifier_\n' +
+        '_Send /cancel to go back_',
+      {
+        parse_mode: 'Markdown',
+        ...Markup.keyboard([
+          Markup.button.contactRequest('📱 Share My Phone Number'),
+        ]).resize(),
+      },
     );
   }
 
@@ -174,9 +237,13 @@ export class TelegramBotService {
   /**
    * Generate authentication URL with session
    */
-  generateAuthUrl(sessionId: string, loginType: string): string {
+  generateAuthUrl(
+    sessionId: string,
+    loginType: string,
+    telegramId: number,
+  ): string {
     const baseUrl = process.env.API_BASE_URL || 'http://localhost:8080';
-    return `${baseUrl}/telegram-auth/verify?sessionId=${sessionId}&type=${loginType}`;
+    return `${baseUrl}/telegram-auth/verify?sessionId=${sessionId}&type=${loginType}&telegramId=${telegramId}`;
   }
 
   /**
@@ -188,7 +255,7 @@ export class TelegramBotService {
     loginType: string,
     identifier: string,
   ): Promise<void> {
-    const authUrl = this.generateAuthUrl(sessionId, loginType);
+    const authUrl = this.generateAuthUrl(sessionId, loginType, chatId);
 
     const keyboard = Markup.inlineKeyboard([
       [Markup.button.url('✅ Verify & Login', authUrl)],
@@ -210,7 +277,7 @@ export class TelegramBotService {
 
   async openWebApp(chatId: number, url: string): Promise<void> {
     const keyboard = Markup.inlineKeyboard([
-      [Markup.button.url('🚀 Open GogoCash App', url)],
+      [Markup.button.webApp('🚀 Open GogoCash App', url)],
     ]);
 
     await this.bot.telegram.sendMessage(
@@ -237,7 +304,7 @@ export class TelegramBotService {
     const loginUrl = `${webAppUrl}/auth/callback?token=${token}`;
 
     const keyboard = Markup.inlineKeyboard([
-      [Markup.button.url('🚀 Open GogoCash App', loginUrl)],
+      [Markup.button.webApp('🚀 Open GogoCash App', loginUrl)],
     ]);
 
     const message =
@@ -312,6 +379,98 @@ export class TelegramBotService {
   async removeKeyboard(chatId: number): Promise<void> {
     await this.bot.telegram.sendMessage(chatId, '✓', {
       reply_markup: { remove_keyboard: true },
+    });
+  }
+
+  /**
+   * Register new user via Telegram
+   */
+  async registerUser(
+    email: string,
+    mobile: string,
+    telegramId: number,
+    username?: string,
+  ): Promise<any> {
+    try {
+      // Check if user already exists
+      const existingUser = await this.userModel.findOne({
+        $or: [{ email }, { mobile }],
+      });
+
+      if (existingUser) {
+        throw new Error('User with this email or mobile already exists');
+      }
+
+      // Create user with Telegram ID as Firebase ID
+      const firebaseId = `telegram_${telegramId}`;
+
+      const newUser = await this.userModel.create({
+        id_firebase: firebaseId,
+        email: email || undefined,
+        mobile: mobile || undefined,
+        username: username || `user_${telegramId}`,
+        provider: 'telegram',
+        country: 'Thailand', // Default
+      });
+
+      this.logger.log(`User registered via Telegram: ${newUser._id}`);
+      return newUser;
+    } catch (error) {
+      this.logger.error('Error registering user:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Login user via Telegram
+   */
+  async loginUser(identifier: string, isEmail: boolean): Promise<any> {
+    try {
+      const query = isEmail ? { email: identifier } : { mobile: identifier };
+      const user = await this.userModel.findOne(query);
+
+      if (!user) {
+        throw new Error('User not found. Please register first.');
+      }
+
+      this.logger.log(`User logged in via Telegram: ${user._id}`);
+      return user;
+    } catch (error) {
+      this.logger.error('Error logging in user:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send registration success message with token
+   */
+  async sendRegistrationSuccess(
+    chatId: number,
+    token: string,
+    email?: string,
+    mobile?: string,
+  ): Promise<void> {
+    const webAppUrl = process.env.WEB_APP_URL || 'https://app.gogocash.co';
+    const loginUrl = `${webAppUrl}/auth/callback?token=${token}`;
+
+    const keyboard = Markup.inlineKeyboard([
+      [Markup.button.webApp('🚀 Open GogoCash App', loginUrl)],
+    ]);
+
+    const identifier = email || mobile || '';
+    const type = email ? '📧 Email' : '📱 Mobile';
+
+    const message =
+      '🎉 *Registration Successful!*\n\n' +
+      `Your GogoCash account has been created!\n\n` +
+      `${type}: \`${identifier}\`\n\n` +
+      '🎁 *Your Login Token:*\n' +
+      `\`${token}\`\n\n` +
+      '👇 Click the button below to start earning cashback:';
+
+    await this.bot.telegram.sendMessage(chatId, message, {
+      parse_mode: 'Markdown',
+      ...keyboard,
     });
   }
 }

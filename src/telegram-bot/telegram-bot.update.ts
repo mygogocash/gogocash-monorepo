@@ -15,9 +15,10 @@ export class TelegramBotUpdate {
     const userName = ctx.from?.first_name || 'there';
     await ctx.reply(
       `👋 Hello ${userName}! Welcome to GogoCash Bot!\n\n` +
-        'Use /login to authenticate with your email or mobile number.\n' +
-        'Use /help to see all available commands. \n' +
-        'Use /openapp to open the GogoCash web application.',
+        'Use /register to create a new account\n' +
+        'Use /login to authenticate with your account\n' +
+        'Use /help to see all available commands\n' +
+        'Use /openapp to open the GogoCash web application',
     );
   }
 
@@ -26,17 +27,56 @@ export class TelegramBotUpdate {
     await ctx.reply(
       '📋 *Available Commands:*\n\n' +
         '/start - Start the bot\n' +
-        '/login - Authenticate with email or mobile\n' +
+        '/register - Create a new account\n' +
+        '/login - Login to your account\n' +
+        '/openapp - Open the web app\n' +
         '/cancel - Cancel current operation\n' +
         '/help - Show this help message\n\n' +
-        '🔐 Authentication Flow:\n' +
+        '🔐 Registration Flow:\n' +
+        '1. Use /register command\n' +
+        '2. Enter your email and details\n' +
+        '3. Account created automatically\n' +
+        '4. Receive your login token\n\n' +
+        '🔑 Login Flow:\n' +
         '1. Use /login command\n' +
-        '2. Choose Email or Mobile login\n' +
-        '3. Enter your credentials\n' +
-        '4. Receive your login token\n' +
-        '5. Click the link to open the app',
+        '2. Enter your email or mobile\n' +
+        '3. Receive your login token\n' +
+        '4. Click link to open the app',
       { parse_mode: 'Markdown' },
     );
+  }
+
+  @Command('register')
+  async onRegister(@Ctx() ctx: Context): Promise<void> {
+    try {
+      if (!ctx.from) {
+        await ctx.reply('❌ Unable to identify user. Please try again.');
+        return;
+      }
+
+      // Initialize registration session
+      this.telegramBotService.storeLoginSession(ctx.from.id, {
+        telegramUserId: ctx.from.id,
+        username: ctx.from.username,
+        firstName: ctx.from.first_name,
+        lastName: ctx.from.last_name,
+        timestamp: Date.now(),
+        awaitingInput: null,
+        isRegistration: true,
+      });
+
+      this.logger.log(
+        `Registration initiated for user ${ctx.from.id} (${ctx.from.username})`,
+      );
+
+      // Send registration options
+      await this.telegramBotService.sendRegisterOptions(ctx.chat.id);
+    } catch (error) {
+      this.logger.error('Error in register command:', error);
+      await ctx.reply(
+        '❌ An error occurred while processing your registration. Please try again.',
+      );
+    }
   }
 
   @Command('login')
@@ -47,7 +87,7 @@ export class TelegramBotUpdate {
         return;
       }
 
-      // Initialize session
+      // Initialize login session
       this.telegramBotService.storeLoginSession(ctx.from.id, {
         telegramUserId: ctx.from.id,
         username: ctx.from.username,
@@ -55,6 +95,7 @@ export class TelegramBotUpdate {
         lastName: ctx.from.last_name,
         timestamp: Date.now(),
         awaitingInput: null,
+        isRegistration: false,
       });
 
       this.logger.log(
@@ -99,6 +140,44 @@ export class TelegramBotUpdate {
     }
   }
 
+  @Action('register_email')
+  async onEmailRegister(@Ctx() ctx: Context): Promise<void> {
+    try {
+      if (!ctx.from) return;
+
+      await ctx.answerCbQuery();
+
+      this.telegramBotService.updateLoginSession(ctx.from.id, {
+        awaitingInput: 'email',
+        isRegistration: true,
+      });
+
+      await this.telegramBotService.promptForRegisterEmail(ctx.chat.id);
+    } catch (error) {
+      this.logger.error('Error in email registration:', error);
+      await ctx.reply('❌ An error occurred. Please try again.');
+    }
+  }
+
+  @Action('register_mobile')
+  async onMobileRegister(@Ctx() ctx: Context): Promise<void> {
+    try {
+      if (!ctx.from) return;
+
+      await ctx.answerCbQuery();
+
+      this.telegramBotService.updateLoginSession(ctx.from.id, {
+        awaitingInput: 'mobile',
+        isRegistration: true,
+      });
+
+      await this.telegramBotService.promptForRegisterMobile(ctx.chat.id);
+    } catch (error) {
+      this.logger.error('Error in mobile registration:', error);
+      await ctx.reply('❌ An error occurred. Please try again.');
+    }
+  }
+
   @Action('login_email')
   async onEmailLogin(@Ctx() ctx: Context): Promise<void> {
     try {
@@ -108,6 +187,7 @@ export class TelegramBotUpdate {
 
       this.telegramBotService.updateLoginSession(ctx.from.id, {
         awaitingInput: 'email',
+        isRegistration: false,
       });
 
       await this.telegramBotService.promptForEmail(ctx.chat.id);
@@ -126,6 +206,7 @@ export class TelegramBotUpdate {
 
       this.telegramBotService.updateLoginSession(ctx.from.id, {
         awaitingInput: 'mobile',
+        isRegistration: false,
       });
 
       await this.telegramBotService.promptForMobile(ctx.chat.id);
@@ -140,7 +221,9 @@ export class TelegramBotUpdate {
     try {
       if (!ctx.from || !('contact' in ctx.message)) return;
 
-      const session = this.telegramBotService.getLoginSession(ctx.from.id);
+      const session = await this.telegramBotService.getLoginSession(
+        ctx.from.id,
+      );
       if (!session || session.awaitingInput !== 'mobile') {
         return;
       }
@@ -151,17 +234,84 @@ export class TelegramBotUpdate {
       // Remove keyboard
       await this.telegramBotService.removeKeyboard(ctx.chat.id);
 
-      // Update session
-      this.telegramBotService.updateLoginSession(ctx.from.id, {
-        mobile: phoneNumber,
-        awaitingInput: 'password',
-      });
+      // Check if this is registration or login
+      if (session.isRegistration) {
+        // Register new user
+        try {
+          const user = await this.telegramBotService.registerUser(
+            '',
+            phoneNumber,
+            ctx.from.id,
+            ctx.from.username,
+          );
 
-      await ctx.reply(`✓ Mobile number received: ${phoneNumber}`);
-      await this.telegramBotService.promptForPassword(ctx.chat.id);
+          // Generate token
+          const token = this.telegramBotService.generateJwtToken(
+            {
+              userId: user._id.toString(),
+              mobile: user.mobile,
+              telegramId: ctx.from.id,
+            },
+            'mobile',
+          );
+
+          // Send success message with token
+          await this.telegramBotService.sendRegistrationSuccess(
+            ctx.chat.id,
+            token,
+            undefined,
+            phoneNumber,
+          );
+
+          // Clean up session
+          this.telegramBotService.deleteLoginSession(ctx.from.id);
+        } catch (error) {
+          this.logger.error('Error registering user:', error);
+          await ctx.reply(
+            `❌ Registration failed: ${error.message}\n\nPlease try again or use /login if you already have an account.`,
+          );
+        }
+      } else {
+        // Login existing user
+        try {
+          const user = await this.telegramBotService.loginUser(
+            phoneNumber,
+            false,
+          );
+
+          // Generate token
+          const token = this.telegramBotService.generateJwtToken(
+            {
+              userId: user._id.toString(),
+              email: user.email,
+              mobile: user.mobile,
+              telegramId: ctx.from.id,
+            },
+            'mobile',
+          );
+
+          // Send login token
+          await this.telegramBotService.sendLoginToken(
+            ctx.chat.id,
+            token,
+            'mobile',
+            phoneNumber,
+          );
+
+          // Clean up session
+          this.telegramBotService.deleteLoginSession(ctx.from.id);
+        } catch (error) {
+          this.logger.error('Error logging in user:', error);
+          await ctx.reply(
+            `❌ Login failed: ${error.message}\n\nPlease use /register if you don't have an account.`,
+          );
+        }
+      }
     } catch (error) {
       this.logger.error('Error handling contact:', error);
-      await ctx.reply('❌ An error occurred. Please try again with /login');
+      await ctx.reply(
+        '❌ An error occurred. Please try again with /login or /register',
+      );
     }
   }
 
@@ -175,7 +325,10 @@ export class TelegramBotUpdate {
       // Ignore commands
       if (text.startsWith('/')) return;
 
-      const session = this.telegramBotService.getLoginSession(ctx.from.id);
+      const session = await this.telegramBotService.getLoginSession(
+        ctx.from.id,
+      );
+      console.log('session', session);
       if (!session) return;
 
       if (session.awaitingInput === 'email') {
@@ -187,14 +340,75 @@ export class TelegramBotUpdate {
           return;
         }
 
-        // Update session
-        this.telegramBotService.updateLoginSession(ctx.from.id, {
-          email: text,
-          awaitingInput: 'password',
-        });
+        // Check if this is registration or login
+        if (session.isRegistration) {
+          // Register new user
+          try {
+            const user = await this.telegramBotService.registerUser(
+              text,
+              '',
+              ctx.from.id,
+              ctx.from.username,
+            );
 
-        await ctx.reply(`✓ Email received: ${text}`);
-        await this.telegramBotService.promptForPassword(ctx.chat.id);
+            // Generate token
+            const token = this.telegramBotService.generateJwtToken(
+              {
+                userId: user._id.toString(),
+                email: user.email,
+                telegramId: ctx.from.id,
+              },
+              'email',
+            );
+
+            // Send success message with token
+            await this.telegramBotService.sendRegistrationSuccess(
+              ctx.chat.id,
+              token,
+              text,
+            );
+
+            // Clean up session
+            this.telegramBotService.deleteLoginSession(ctx.from.id);
+          } catch (error) {
+            this.logger.error('Error registering user:', error);
+            await ctx.reply(
+              `❌ Registration failed: ${error.message}\n\nPlease try again or use /login if you already have an account.`,
+            );
+          }
+        } else {
+          // Login existing user
+          try {
+            const user = await this.telegramBotService.loginUser(text, true);
+
+            // Generate token
+            const token = this.telegramBotService.generateJwtToken(
+              {
+                userId: user._id.toString(),
+                email: user.email,
+                mobile: user.mobile,
+                telegramId: ctx.from.id,
+              },
+              'email',
+            );
+
+            // Send login token
+            await this.telegramBotService.sendLoginToken(
+              ctx.chat.id,
+              token,
+              'email',
+              text,
+            );
+
+            // Clean up session
+            this.telegramBotService.deleteLoginSession(ctx.from.id);
+          } catch (error) {
+            this.logger.error('Error logging in user:', error);
+            await ctx.reply(
+              `❌ Login failed: ${error.message}\n\nPlease use /register if you don't have an account.`,
+            );
+          }
+        }
       } else if (session.awaitingInput === 'mobile') {
         // Validate mobile
         const cleanMobile = text.replace(/[\s-]/g, '');
@@ -205,14 +419,79 @@ export class TelegramBotUpdate {
           return;
         }
 
-        // Update session
-        this.telegramBotService.updateLoginSession(ctx.from.id, {
-          mobile: cleanMobile,
-          awaitingInput: 'password',
-        });
+        // Check if this is registration or login
+        if (session.isRegistration) {
+          // Register new user
+          try {
+            const user = await this.telegramBotService.registerUser(
+              '',
+              cleanMobile,
+              ctx.from.id,
+              ctx.from.username,
+            );
 
-        await ctx.reply(`✓ Mobile number received: ${cleanMobile}`);
-        await this.telegramBotService.promptForPassword(ctx.chat.id);
+            // Generate token
+            const token = this.telegramBotService.generateJwtToken(
+              {
+                userId: user._id.toString(),
+                mobile: user.mobile,
+                telegramId: ctx.from.id,
+              },
+              'mobile',
+            );
+
+            // Send success message with token
+            await this.telegramBotService.sendRegistrationSuccess(
+              ctx.chat.id,
+              token,
+              undefined,
+              cleanMobile,
+            );
+
+            // Clean up session
+            this.telegramBotService.deleteLoginSession(ctx.from.id);
+          } catch (error) {
+            this.logger.error('Error registering user:', error);
+            await ctx.reply(
+              `❌ Registration failed: ${error.message}\n\nPlease try again or use /login if you already have an account.`,
+            );
+          }
+        } else {
+          // Login existing user
+          try {
+            const user = await this.telegramBotService.loginUser(
+              cleanMobile,
+              false,
+            );
+
+            // Generate token
+            const token = this.telegramBotService.generateJwtToken(
+              {
+                userId: user._id.toString(),
+                email: user.email,
+                mobile: user.mobile,
+                telegramId: ctx.from.id,
+              },
+              'mobile',
+            );
+
+            // Send login token
+            await this.telegramBotService.sendLoginToken(
+              ctx.chat.id,
+              token,
+              'mobile',
+              cleanMobile,
+            );
+
+            // Clean up session
+            this.telegramBotService.deleteLoginSession(ctx.from.id);
+          } catch (error) {
+            this.logger.error('Error logging in user:', error);
+            await ctx.reply(
+              `❌ Login failed: ${error.message}\n\nPlease use /register if you don't have an account.`,
+            );
+          }
+        }
       } else if (session.awaitingInput === 'password') {
         // Delete the password message for security
         try {
