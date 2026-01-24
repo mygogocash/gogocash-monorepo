@@ -10,6 +10,7 @@ export class CreateUserDto {
   id_firebase?: string;
   country?: string;
   provider?: string;
+  id_telegram?: string;
 }
 
 export class UpdateCountryDto {

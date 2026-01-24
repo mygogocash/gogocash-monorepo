@@ -43,6 +43,9 @@ export class User {
 
   @Prop({ default: false })
   disabled: boolean;
+
+  @Prop()
+  id_telegram: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

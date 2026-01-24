@@ -120,7 +120,8 @@ export class TelegramBotUpdate {
     }
     this.telegramBotService.openWebApp(
       ctx.chat.id,
-      process.env.WEB_APP_URL || 'https://app.gogocash.co',
+      'https://f86c21bc4bdf.ngrok-free.app/login',
+      // process.env.WEB_APP_URL || 'https://app.gogocash.co',
     );
   }
 

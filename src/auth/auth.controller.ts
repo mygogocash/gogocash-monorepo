@@ -8,7 +8,7 @@ import {
   ApiSecurity,
   ApiTags,
 } from '@nestjs/swagger';
-import { SignInAiDto, SignInDto, SignInFirebaseDto } from './dto/auth.dto';
+import { SignInAiDto, SignInDto, SignInFirebaseDto, TelegramAuthDto } from './dto/auth.dto';
 import { CrossmintAuthGuard } from './jwt-auth.guard';
 import { Request } from 'express';
 import { FirebaseAuthGuard } from './firebase-auth.guard';
@@ -55,6 +55,15 @@ export class AuthController {
     const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
     // The guard has already validated the token and added the user payload to the request
     const user = await this.auth.signInFirebase(token, body);
+    return { message: 'Login successful!', ...user };
+  }
+
+  @Post('log-in/telegram')
+  @ApiBody({ type: TelegramAuthDto })
+  @ApiResponse({ status: 201, description: 'User login successfully' })
+  async loginTelegram(@Req() req: Request, @Body() body: TelegramAuthDto) {
+    // The guard has already validated the token and added the user payload to the request
+    const user = await this.auth.signInTelegram(body);
     return { message: 'Login successful!', ...user };
   }
 
