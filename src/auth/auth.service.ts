@@ -115,8 +115,10 @@ export class AuthService {
         throw new Error('User not found in Gogocash');
       }
       // console.log('payload', data.id);
-      let userExist = null;
-      if (data.email) {
+      let userExist = await this.userService.findOne({
+        id_firebase: data.uid,
+      });
+      if (!userExist && data.email) {
         userExist = await this.userService.findOne({
           email: data.email,
         });
@@ -218,8 +220,8 @@ export class AuthService {
       console.log('userExist', userExist);
       if (userExist) {
         const user = await this.userService.update(userExist._id, {
-          email: data.email,
-          username: data?.username || '',
+          email: userExist.email || data.email,
+          username: userExist.username || data?.username || '',
           id_twitter: userExist.id_twitter || '',
           id_telegram: data.id.toString(),
           address: userExist.address || '',
