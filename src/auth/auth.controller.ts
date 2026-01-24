@@ -1,5 +1,5 @@
 /* eslint-disable prettier/prettier */
-import { Body, Controller, Post, Req, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import {
   ApiBearerAuth,
@@ -65,6 +65,15 @@ export class AuthController {
     // The guard has already validated the token and added the user payload to the request
     const user = await this.auth.signInTelegram(body);
     return { message: 'Login successful!', ...user };
+  }
+
+  @Get('check-account-telegram/:id')
+  @ApiResponse({ status: 201, description: 'Check account successfully' })
+  async checkAccountTelegram(@Req() req: Request) {
+    const id = req.params.id;
+    // The guard has already validated the token and added the user payload to the request
+    const user = await this.auth.getProfileByTelegramId(id);
+    return user ? true : false;
   }
 
   @Post("firebase")
