@@ -68,7 +68,6 @@ export class AuthController {
   }
 
   @Get('check-account-telegram/:id')
-  @ApiResponse({ status: 201, description: 'Check account successfully' })
   async checkAccountTelegram(@Req() req: Request) {
     const id = req.params.id;
     // The guard has already validated the token and added the user payload to the request
