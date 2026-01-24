@@ -71,7 +71,7 @@ export class AuthController {
   async checkAccountTelegram(@Req() req: Request) {
     const id = req.params.id;
     // The guard has already validated the token and added the user payload to the request
-    const user = await this.auth.getProfileByTelegramId(id);
+    const user = await this.auth.getProfileByTelegramId(id?.toString());
     return user ? true : false;
   }
 
