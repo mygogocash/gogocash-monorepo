@@ -204,8 +204,12 @@ export class AuthService {
       // }
       // console.log('payload', data.id);
       const data = payload;
-      let userExist = null;
-      if (data) {
+
+      let userExist = await this.userService.findOne({
+        id_telegram: data.id.toString(),
+      });
+
+      if (!userExist && data.email) {
         userExist = await this.userService.findOne({
           email: data.email,
         });
@@ -216,12 +220,12 @@ export class AuthService {
         const user = await this.userService.update(userExist._id, {
           email: data.email,
           username: data?.username || '',
-          id_twitter: '',
+          id_twitter: userExist.id_twitter || '',
           id_telegram: data.id.toString(),
-          address: '',
+          address: userExist.address || '',
           id_firebase: userExist.id_firebase || `telegram_${data.id}`,
-          country: data?.country ? data?.country : '',
-          provider: 'telegram',
+          country: userExist.country || data?.country || '',
+          provider: userExist.provider || 'telegram',
         });
         if (user?.disabled) {
           throw new Error('Your account has been disabled');
@@ -236,13 +240,13 @@ export class AuthService {
       const user = await this.userService.createFromFirebase({
         email: data.email,
         username: data?.username || '',
-        id_twitter: '',
+        id_twitter: userExist.id_twitter || '',
         id_telegram: data.id.toString(),
         address: '',
-        id_firebase: `telegram_${data.id}`,
-        country: data?.country ? data?.country : '',
-        provider: 'telegram',
-        id_crossmint: '',
+        id_firebase: userExist.id_firebase || `telegram_${data.id}`,
+        country: userExist.country || data?.country || '',
+        provider: userExist.provider || 'telegram',
+        id_crossmint: userExist.id_crossmint || '',
       });
       if (payload?.referral_id && payload.referral_id !== 'undefined') {
         const refData = await this.userService.findOne({
