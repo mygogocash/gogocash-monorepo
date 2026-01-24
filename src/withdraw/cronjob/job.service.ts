@@ -7,7 +7,7 @@ import { delay } from 'rxjs';
 
 @Injectable()
 export class JobService {
-  private start_date = new Date().setDate(new Date().getDate() - 10);
+  private start_date = new Date().setDate(new Date().getDate() - 20);
   private end_date = new Date().setDate(new Date().getDate());
   private start: string;
   private end: string;
@@ -62,6 +62,7 @@ export class JobService {
       );
       delay(1000);
     }
+    console.log('done', allConversions?.length);
   }
 
   async syncConversionOld() {
