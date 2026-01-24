@@ -4,14 +4,14 @@ import axios from 'axios';
 import * as https from 'https';
 import { createCrossmint, CrossmintAuth } from '@crossmint/server-sdk';
 import { UserService } from 'src/user/user.service';
-import { SignInDto, SignInFirebaseDto } from './dto/auth.dto';
+import { SignInDto, SignInFirebaseDto, TelegramAuthDto } from './dto/auth.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Point, PointDocument } from 'src/point/schemas/point.schema';
 import { getAdminAuth } from './firebase-admin.provider';
 import * as admin from 'firebase-admin';
 import { JwtService } from '@nestjs/jwt';
-
+import * as crypto from 'crypto';
 @Injectable()
 export class AuthService {
   private baseUrl: string;
@@ -194,6 +194,110 @@ export class AuthService {
     }
   }
 
+  async signInTelegram(payload: TelegramAuthDto) {
+    try {
+      console.log('payload', payload);
+      // const check = await this.verifyTelegramAuth(payload);
+      // console.log('data', check);
+      // if (!check) {
+      //   throw new Error('User not found in Telegram');
+      // }
+      // console.log('payload', data.id);
+      const data = payload;
+      let userExist = null;
+      if (data) {
+        userExist = await this.userService.findOne({
+          email: data.email,
+        });
+      }
+
+      console.log('userExist', userExist);
+      if (userExist) {
+        const user = await this.userService.update(userExist._id, {
+          email: data.email,
+          username: data?.username || '',
+          id_twitter: '',
+          id_telegram: data.id.toString(),
+          address: '',
+          id_firebase: userExist.id_firebase || `telegram_${data.id}`,
+          country: data?.country ? data?.country : '',
+          provider: 'telegram',
+        });
+        if (user?.disabled) {
+          throw new Error('Your account has been disabled');
+        }
+        const accessToken = await this.generateToken({
+          userId: user._id.toString(),
+          firebaseId: user.id_firebase,
+        });
+        console.log('accessToken', accessToken);
+        return { user, token: accessToken };
+      }
+      const user = await this.userService.createFromFirebase({
+        email: data.email,
+        username: data?.username || '',
+        id_twitter: '',
+        id_telegram: data.id.toString(),
+        address: '',
+        id_firebase: `telegram_${data.id}`,
+        country: data?.country ? data?.country : '',
+        provider: 'telegram',
+        id_crossmint: '',
+      });
+      if (payload?.referral_id && payload.referral_id !== 'undefined') {
+        const refData = await this.userService.findOne({
+          _id: new Types.ObjectId(payload?.referral_id),
+        });
+        if (
+          refData &&
+          user._id?.toString() !== payload.referral_id?.toString()
+        ) {
+          await this.updatePoint({
+            user_id: user._id.toString(),
+            referral_id: payload.referral_id,
+          });
+        }
+      }
+
+      console.log('user bb', user);
+      if (user?.disabled) {
+        throw new Error('Your account has been disabled');
+      }
+      // Update points for referral if referral_id is provided
+      // return user; // { accessToken, refreshToken, user }
+      const accessToken = await this.generateToken({
+        userId: user._id.toString(),
+        firebaseId: user.id_firebase,
+      });
+      return { user, token: accessToken };
+    } catch (error) {
+      console.log('err', error);
+      throw new Error(error?.message || 'Invalid Firebase token');
+    }
+  }
+
+  async verifyTelegramAuth(data: any): Promise<boolean> {
+    const { hash, ...payload } = data;
+
+    const dataCheckString = Object.keys(payload)
+      .sort()
+      .map((key) => `${key}=${payload[key]}`)
+      .join('\n');
+
+    const secretKey = crypto
+      .createHash('sha256')
+      .update(process.env.TELEGRAM_BOT_TOKEN)
+      .digest();
+
+    const computedHash = crypto
+      .createHmac('sha256', secretKey)
+      .update(dataCheckString)
+      .digest('hex');
+
+    console.log('hmac', computedHash, 'hash', hash);
+
+    return computedHash === hash;
+  }
   async signInAi(email: string) {
     try {
       // console.log('payload', data.id);
