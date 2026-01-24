@@ -344,13 +344,12 @@ export class AuthService {
     }
   }
 
-  async getProfile(accessToken: string) {
-    const res = await axios.get(`${this.baseUrl}/me`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
+  async getProfileByTelegramId(telegramId: string) {
+    const res = await this.userService.findOne({
+      id_telegram: telegramId,
     });
-    return res.data;
+    return res;
   }
-
   async signOut(refreshToken: string) {
     const res = await axios.post(
       `${this.baseUrl}/signout`,
