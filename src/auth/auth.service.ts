@@ -220,14 +220,14 @@ export class AuthService {
       console.log('userExist', userExist);
       if (userExist) {
         const user = await this.userService.update(userExist._id, {
-          email: userExist.email || data.email,
+          email: userExist?.email || data.email,
           username: userExist.username || data?.username || '',
-          id_twitter: userExist.id_twitter || '',
+          id_twitter: userExist?.id_twitter || '',
           id_telegram: data.id.toString(),
-          address: userExist.address || '',
-          id_firebase: userExist.id_firebase || `telegram_${data.id}`,
-          country: userExist.country || data?.country || '',
-          provider: userExist.provider || 'telegram',
+          address: userExist?.address || '',
+          id_firebase: userExist?.id_firebase || `telegram_${data.id}`,
+          country: userExist?.country || data?.country || '',
+          provider: userExist?.provider || 'telegram',
         });
         if (user?.disabled) {
           throw new Error('Your account has been disabled');
@@ -240,15 +240,15 @@ export class AuthService {
         return { user, token: accessToken };
       }
       const user = await this.userService.createFromFirebase({
-        email: data.email,
+        email: data?.email,
         username: data?.username || '',
-        id_twitter: userExist.id_twitter || '',
+        id_twitter: userExist?.id_twitter || '',
         id_telegram: data.id.toString(),
         address: '',
-        id_firebase: userExist.id_firebase || `telegram_${data.id}`,
-        country: userExist.country || data?.country || '',
-        provider: userExist.provider || 'telegram',
-        id_crossmint: userExist.id_crossmint || '',
+        id_firebase: userExist?.id_firebase || `telegram_${data.id}`,
+        country: userExist?.country || data?.country || '',
+        provider: userExist?.provider || 'telegram',
+        id_crossmint: userExist?.id_crossmint || '',
       });
       if (payload?.referral_id && payload.referral_id !== 'undefined') {
         const refData = await this.userService.findOne({
