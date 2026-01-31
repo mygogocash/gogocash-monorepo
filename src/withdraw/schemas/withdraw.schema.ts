@@ -52,6 +52,9 @@ export class Withdraw {
 
   @Prop({ required: false, ref: 'UserMyCashback', type: [Types.ObjectId] })
   mycashback_id: Types.ObjectId[];
+
+  @Prop({ required: false })
+  rate: number;
 }
 
 export const WithdrawSchema = SchemaFactory.createForClass(Withdraw);
