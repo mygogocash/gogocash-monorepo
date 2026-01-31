@@ -340,8 +340,6 @@ export class WithdrawService {
     };
   }
 
-  
-
   async checkWithdraw(id: string) {
     const user = await this.userModel.findOne({
       _id: new Types.ObjectId(id),
@@ -367,14 +365,14 @@ export class WithdrawService {
         if (!acc[currency]) {
           acc[currency] = 0;
         }
-        const feePercentage = fee.system; 
+        const feePercentage = fee.system;
         const feeAmount = (Number(item.payout || 0) * feePercentage) / 100;
         acc[currency] += Number(item.payout || 0) - feeAmount;
         return acc;
       },
       {} as Record<string, number>,
     );
-    
+
     // get withdrawn ---------------------
 
     const withdrawList = await this.withdrawModel
@@ -384,10 +382,14 @@ export class WithdrawService {
         status: { $in: ['pending', 'approved'] },
       })
       .lean();
+    console.log('user._id', user._id);
 
     const withdrawnAmountByCurrency = withdrawList.reduce(
       (acc, withdraw) => {
-        const currency = withdraw.currency || 'USD';
+        const currency =
+          withdraw.currency == 'USDT' || withdraw.currency == 'USDC'
+            ? 'USD'
+            : withdraw.currency;
         if (!acc[currency]) {
           acc[currency] = 0;
         }
@@ -396,16 +398,54 @@ export class WithdrawService {
       },
       {} as Record<string, number>,
     );
-    const availablePayoutByCurrency = Object.entries(payoutConversionGroupCurrency).reduce(
+
+    const sumWithdrawInUSD = await Promise.all(
+      Object.entries(withdrawnAmountByCurrency).map(
+        async ([currency, amount]) => {
+          if (currency === 'USD') {
+            return { currency, amount, usdAmount: amount };
+          }
+          const converted = await this.convertCurrencyUsd(currency, amount);
+          return {
+            currency,
+            amount,
+            usdAmount: converted.usdAmount,
+            exchangeRate: converted.exchangeRate,
+          };
+        },
+      ),
+    );
+
+    const sumWithdrawInTHB = await Promise.all(
+      Object.entries(withdrawnAmountByCurrency).map(
+        async ([currency, amount]) => {
+          if (currency === 'THB') {
+            return { currency, amount, thbAmount: amount };
+          }
+          const converted = await this.convertCurrencyThb(currency, amount);
+          return {
+            currency,
+            amount,
+            thbAmount: converted.amount,
+            exchangeRate: converted.exchangeRate,
+          };
+        },
+      ),
+    );
+
+    const availablePayoutByCurrency = Object.entries(
+      payoutConversionGroupCurrency,
+    ).reduce(
       (acc, [currency, amount]) => {
-        const withdrawn = withdrawnAmountByCurrency[currency] || 0;
-        acc[currency] = amount - withdrawn;
-        // acc[currency] = amount;
+        // const withdrawn = withdrawnAmountByCurrency[currency] || 0;
+        // console.log('withdrawn', withdrawn);
+        // acc[currency] = amount - withdrawn;
+        acc[currency] = amount;
         return acc;
       },
       {} as Record<string, number>,
     );
-    
+
     const payoutInUSD = await Promise.all(
       Object.entries(availablePayoutByCurrency).map(
         async ([currency, amount]) => {
@@ -440,15 +480,32 @@ export class WithdrawService {
       ),
     );
 
-    const totalPayoutUSD = payoutInUSD.reduce(
+    const _totalPayoutUSD = payoutInUSD.reduce(
       (sum, item) => sum + (item.usdAmount || 0),
       0,
     );
 
-    const totalPayoutTHB = payoutInTHB.reduce(
+    const _totalPayoutTHB = payoutInTHB.reduce(
       (sum, item) => sum + (item.thbAmount || 0),
       0,
     );
+
+    const _sumWithdrawInUSD = sumWithdrawInUSD.reduce(
+      (sum, item) => sum + (item.usdAmount || 0),
+      0,
+    );
+
+    const _sumWithdrawInTHB = sumWithdrawInTHB.reduce(
+      (sum, item) => sum + (item.thbAmount || 0),
+      0,
+    );
+
+    const totalPayoutUSD = isNaN(_totalPayoutUSD)
+      ? 0
+      : _totalPayoutUSD - _sumWithdrawInUSD;
+    const totalPayoutTHB = isNaN(_totalPayoutTHB)
+      ? 0
+      : _totalPayoutTHB - _sumWithdrawInTHB;
 
     const MCBCashback = await this.checkWithdrawMyCashback(id);
 
@@ -457,7 +514,7 @@ export class WithdrawService {
     // const fee_withdraw_usd = fee.fee_withdraw_usd;
     // const payoutTotalCutFeeUSD = totalPayoutUSD;
     // const netTotalUsd = payoutTotalCutFeeUSD - fee_withdraw_usd;
-    const netTotalUsd = totalPayoutUSD
+    const netTotalUsd = totalPayoutUSD;
 
     const availableWithdrawMCBUSD =
       netTotalUsd <= MCBCashback.availableUSD
@@ -1053,7 +1110,7 @@ export class WithdrawService {
       method: 'bank_transfer',
       currency: createWithdrawDto.currency || '',
       conversion_id: createWithdrawDto.conversion_ids || [],
-      mycashback_id: []
+      mycashback_id: [],
     });
 
     const MCBCashback = await this.checkWithdrawMyCashback(id);
