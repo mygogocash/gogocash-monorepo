@@ -44,6 +44,7 @@ export class OfferService {
     }
     if (!admin) {
       filter.disabled = { $ne: true };
+      // filter.countries = { $regex: 'Thailand', $options: 'i' };
     }
     const data = await this.offerModel
       .find(filter)
@@ -59,6 +60,8 @@ export class OfferService {
     const filter: any = {};
     filter.disabled = { $ne: true };
     filter.extra_store = true;
+    // filter.countries = { $regex: 'Thailand', $options: 'i' };
+
     const dataExtra = await this.offerModel.find(filter).lean();
 
     return dataExtra;
