@@ -1004,6 +1004,7 @@ export class WithdrawService {
       method: createWithdrawDto.method || '',
       currency: createWithdrawDto.currency || '',
       conversion_id: createWithdrawDto.conversion_ids || [],
+      rate: createWithdrawDto?.rate || 0,
       mycashback_id: [],
     });
     const MCBCashback = await this.checkWithdrawMyCashback(id);
@@ -1039,6 +1040,7 @@ export class WithdrawService {
         amount_net: availableMCB,
         method: createWithdrawDto.method || '',
         currency: createWithdrawDto.currency || '',
+        rate: createWithdrawDto?.rate || 0,
         conversion_id: [],
         mycashback_id: createWithdrawDto.mycashback_id
           ? createWithdrawDto.mycashback_id.map((id) => new Types.ObjectId(id))
