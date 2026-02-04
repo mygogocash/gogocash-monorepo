@@ -15,3 +15,15 @@ export function normalizeE164(phone: string, country?: CountryCode) {
   const parsed = parsePhoneNumberFromString(phone, country as CountryCode);
   return parsed?.format("E.164") ?? null;
 }
+
+export const pathImage = (path: string) => {
+  return `${process.env.NEXT_PUBLIC_API_URL}/google-drive/file/${path}`;
+}
+
+export const formatPrice = (price?: number) => {
+  if (!price) return "N/A";
+  return price.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
