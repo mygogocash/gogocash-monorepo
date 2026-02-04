@@ -45,6 +45,11 @@ export class WithdrawController {
     return this.withdrawService.checkWithdraw(id);
   }
 
+  @Post('check-admin/:userId')
+  checkWithdrawGGCAdmin(@Req() req: Request, @Param('userId') userId: string) {
+    return this.withdrawService.checkWithdraw(userId);
+  }
+
   @UseGuards(FirebaseAuthGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication

@@ -379,7 +379,7 @@ export class WithdrawService {
       .find({
         user_id: new Types.ObjectId(user._id),
         mycashback_id: [],
-        status: { $in: ['pending', 'approved'] },
+        // status: { $in: ['pending', 'approved', 'rejected'] },
       })
       .lean();
     console.log('user._id', user._id);
@@ -577,10 +577,18 @@ export class WithdrawService {
     if (!fee) {
       throw new HttpException({ message: 'Fee rate not found' }, 400);
     }
+
+    const withdrawList = await this.withdrawModel
+      .find({
+        user_id: user._id, // user._id.toString(),
+      })
+      .sort({ createdAt: -1 })
+      .lean();
     const allConversions = await this.conversionModel
       .find({
         aff_sub1: { $regex: `user_id:${user._id.toString()}` },
       })
+      .sort({ createdAt: -1 })
       .lean();
 
     const groupedByStatus = allConversions.reduce(
@@ -660,11 +668,50 @@ export class WithdrawService {
         };
       }),
     );
-
+    const withdrawSumByCurrencyApproved = withdrawList?.filter((item) => item.status === 'approved').reduce(
+      (acc, withdraw) => {
+        const currency = withdraw.currency || 'unknown';
+        if (!acc[currency]) {
+          acc[currency] = {
+            netAmount: 0,
+            count: 0,
+          };
+        }
+        acc[currency].netAmount += withdraw.amount_net || 0;
+        acc[currency].count += 1;
+        return acc;
+      },
+      {} as Record<string, { netAmount: number; count: number }>,
+    );
+     const withdrawSumByCurrencyPending = withdrawList.filter((item) => item.status === 'pending').reduce(
+      (acc, withdraw) => {
+        const currency = withdraw.currency || 'unknown';
+        if (!acc[currency]) {
+          acc[currency] = {
+            netAmount: 0,
+            count: 0,
+          };
+        }
+        acc[currency].netAmount += withdraw.amount_net || 0;
+        acc[currency].count += 1;
+        return acc;
+      },
+      {} as Record<string, { netAmount: number; count: number }>,
+    );
     return {
       totalsByStatusAndCurrency,
       data: groupedByStatus,
       fee,
+      withdrawList,
+      withdrawSumByCurrency: {
+        pending: withdrawSumByCurrencyPending,
+        approved: withdrawSumByCurrencyApproved,
+      },
+      allConversions,
+      user: {
+        email: user.email,
+        mobile: user.mobile,
+      }
     };
   }
   async getConversionByUser(id: string) {
