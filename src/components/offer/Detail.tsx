@@ -8,7 +8,7 @@ import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import { CouponData, CouponRequestForm } from "@/types/coupon";
 import FormCoupon from "../coupon/FormCoupon";
 import { useState } from "react";
-const paginationModel = { page: 0, pageSize: 5 };
+export const paginationModel = { page: 0, pageSize: 5 };
 
 const Detail = () => {
   const [openModal, setOpenModal] = useState<boolean | CouponRequestForm>(

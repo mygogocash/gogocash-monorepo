@@ -6,6 +6,7 @@ import { Offer, RegularUser, UsersQuery } from "@/types/api";
 import FormUpdate from "./FormUpdate";
 import { UserForm } from "@/types/user";
 import ViewMyCashback from "./ViewMyCashback";
+import { useRouter } from "next/navigation";
 
 export default function UsersTable() {
   const { loading, error, getUsers, deleteUser, clearError } = useApi();
@@ -13,7 +14,7 @@ export default function UsersTable() {
   const [form, setForm] = useState<UserForm>({ mobile: "", id: "" });
   const [openModal, setOpenModal] = useState<Offer | boolean>(false);
   const [openModalView, setOpenModalView] = useState<boolean>(false);
-
+  const router = useRouter();
   const [users, setUsers] = useState<RegularUser[]>([]);
   const [pagination, setPagination] = useState({
     page: 1,
@@ -55,6 +56,8 @@ export default function UsersTable() {
   // Handle pagination
   const handlePageChange = (newPage: number) => {
     const newQuery = { ...query, page: newPage };
+    console.log("newQuery", newQuery);
+
     setQuery(newQuery);
     fetchUsers(newQuery);
   };
@@ -155,6 +158,10 @@ export default function UsersTable() {
                   {users &&
                     users?.map((user) => (
                       <tr
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`withdraw/${user._id}`);
+                        }}
                         key={user._id}
                         className="hover:bg-gray-50 dark:hover:bg-gray-800"
                       >
@@ -191,6 +198,18 @@ export default function UsersTable() {
                               </div>
                               <div className="text-sm text-gray-500 dark:text-gray-400">
                                 gender: {user.gender ? user.gender : "-"}
+                              </div>
+                              <div className="text-sm text-gray-500 dark:text-gray-400">
+                                Date Login:{" "}
+                                {user.updatedAt
+                                  ? new Date(
+                                      user.updatedAt,
+                                    ).toLocaleDateString() +
+                                    " " +
+                                    new Date(
+                                      user.updatedAt,
+                                    ).toLocaleTimeString()
+                                  : "-"}
                               </div>
                             </div>
                           </div>
@@ -257,7 +276,9 @@ export default function UsersTable() {
                 </div>
                 <div className="flex space-x-2">
                   <button
-                    onClick={() => handlePageChange(pagination.page - 1)}
+                    onClick={() =>
+                      handlePageChange(Number(pagination.page) - 1)
+                    }
                     disabled={!hasPrevPage}
                     className="rounded border px-3 py-1 text-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:hover:bg-gray-800"
                   >
@@ -267,7 +288,13 @@ export default function UsersTable() {
                     Page {pagination.page} of {pagination.totalPages}
                   </span>
                   <button
-                    onClick={() => handlePageChange(pagination.page + 1)}
+                    onClick={() => {
+                      handlePageChange(
+                        Number(pagination.page) + 1 > pagination.totalPages
+                          ? pagination.totalPages
+                          : Number(pagination.page) + 1,
+                      );
+                    }}
                     disabled={!hasNextPage}
                     className="rounded border px-3 py-1 text-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:hover:bg-gray-800"
                   >

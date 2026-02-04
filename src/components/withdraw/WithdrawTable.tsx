@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -9,15 +8,9 @@ import {
   WithdrawQuery,
 } from "@/types/api";
 import { useSession } from "next-auth/react";
-import { Modal } from "../ui/modal";
-import Input from "../form/input/InputField";
-import Button from "../ui/button/Button";
-import Select from "../form/Select";
-import client, { fetcherPost } from "@/lib/axios/client";
-import { useQuery } from "@tanstack/react-query";
-import { ConversionInWithdraw } from "@/types/withdraw";
-import toast from "react-hot-toast";
-interface WithdrawRequestForm {
+import ModalWithdraw from "./ModalWithdraw";
+import { useRouter } from "next/navigation";
+export interface WithdrawRequestForm {
   file: File | null;
   id: string;
   status: string;
@@ -29,8 +22,7 @@ export default function WithdrawTable() {
   const [openModal, setOpenModal] = useState<DataWithdrawsList | boolean>(
     false,
   );
-  const [isLoading, setIsLoading] = useState(false);
-
+  const router = useRouter();
   const [form, setForm] = useState<WithdrawRequestForm>({
     file: null,
     id: "",
@@ -50,16 +42,16 @@ export default function WithdrawTable() {
     page: 1,
   });
 
-  const { data: getDetailConversionWithdraw } = useQuery<
-    ConversionInWithdraw[]
-  >({
-    queryKey: ["getDetailConversionWithdraw", openModal],
-    queryFn: () =>
-      fetcherPost([
-        `/admin/getConversionInWithdraw`,
-        { data: (openModal as DataWithdrawsList).conversion_id as number[] },
-      ]),
-  });
+  // const { data: getDetailConversionWithdraw } = useQuery<
+  //   ConversionInWithdraw[]
+  // >({
+  //   queryKey: ["getDetailConversionWithdraw", openModal],
+  //   queryFn: () =>
+  //     fetcherPost([
+  //       `/admin/getConversionInWithdraw`,
+  //       { data: (openModal as DataWithdrawsList).conversion_id as number[] },
+  //     ]),
+  // });
 
   // Fetch offers
   const fetchOffers = async (newQuery?: WithdrawQuery) => {
@@ -113,54 +105,22 @@ export default function WithdrawTable() {
     }
   };
 
-  // Handle file change
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null;
-    setForm((prev) => ({ ...prev, file }));
-  };
-
   // Format date
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString();
   };
 
   // Format price
-  const formatPrice = (price?: number, currency?: string) => {
+  const formatPrice = (price?: number) => {
     if (!price) return "N/A";
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currency || "USD",
-    }).format(price);
+    return price.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
   };
 
   const hasNextPage = pagination.page < pagination.totalPages;
   const hasPrevPage = pagination.page > 1;
-
-  const handleSave = () => {
-    const formData = new FormData();
-    formData.append("id", form.id);
-    formData.append("status", form.status);
-    if (form.file) {
-      formData.append("file", form.file);
-    }
-    setIsLoading(true);
-    client
-      .patch(`/admin/update-request-withdraw`, formData, {
-        headers: {
-          Authorization: `Bearer ${session?.accessToken}`,
-          "Content-Type": "multipart/form-data",
-        },
-      })
-      .then(() => {
-        setOpenModal(false);
-        fetchOffers();
-        setIsLoading(false);
-      })
-      .catch((err) => {
-        setIsLoading(false);
-        console.error("Failed to update withdraw request:", err);
-      });
-  };
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
@@ -232,6 +192,10 @@ export default function WithdrawTable() {
                 <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
                   {lists?.data?.map((list, index) => (
                     <tr
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`withdraw/${list.user_id._id}`);
+                      }}
                       key={list._id}
                       className="hover:bg-gray-50 dark:hover:bg-gray-800"
                     >
@@ -279,6 +243,10 @@ export default function WithdrawTable() {
                           Created At: {formatDate(list.createdAt.toString())}
                         </div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">
+                          ORDER:{" "}
+                          {list?.conversion_id?.length > 0 ? "GGC" : "MCB"}
+                        </div>
+                        <div className="max-w-[300px] overflow-auto text-xs text-gray-500 dark:text-gray-400">
                           {list.conversion_id.length > 0
                             ? `Conversion IDs: ${list.conversion_id.join(", ")}`
                             : "No Conversion IDs"}
@@ -286,10 +254,11 @@ export default function WithdrawTable() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <p className="text-sm text-gray-900 dark:text-gray-100">
-                          (Net): {formatPrice(list.amount_net)}
+                          (Net): {formatPrice(list.amount_net)} {list.currency}
                         </p>
                         <p className="text-sm text-gray-900 dark:text-gray-100">
-                          Total: {formatPrice(list.amount_total)}
+                          Total: {formatPrice(list.amount_total)}{" "}
+                          {list.currency}
                         </p>
                         <p className="text-sm text-gray-900 dark:text-gray-100">
                           (Fee): {list.percent_fee}%
@@ -308,7 +277,8 @@ export default function WithdrawTable() {
                       </td>
                       <td className="space-x-2 px-6 py-4 text-sm font-medium whitespace-nowrap">
                         <button
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setOpenModal(list);
                             setForm({
                               id: list._id,
@@ -377,154 +347,13 @@ export default function WithdrawTable() {
           </>
         )}
 
-        <Modal
-          isOpen={Boolean(openModal)}
-          onClose={function (): void {
-            setOpenModal(false);
-          }}
-          className="max-w-[600px] p-5 lg:p-10"
-        >
-          <div className="space-y-6">
-            <h4 className="text-title-sm mb-7 font-semibold text-gray-800 dark:text-white/90">
-              Check Request Withdraw
-            </h4>
-            <div className="overflow-auto">
-              <table>
-                <thead>
-                  <tr>
-                    <th className="border px-4 py-2 text-left">
-                      Conversion ID
-                    </th>
-                    <th className="border px-4 py-2 text-left">Detail</th>
-                    <th className="border px-4 py-2 text-left">Sale Amount</th>
-                    <th className="border px-4 py-2 text-left">Payout</th>
-                    <th className="border px-4 py-2 text-left">Status</th>
-                    <th className="border px-4 py-2 text-left">Currency</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {getDetailConversionWithdraw?.map(
-                    (item: {
-                      conversion_id: number;
-                      sale_amount: string;
-                      currency: string;
-                      payout: string;
-                      adv_sub2: string;
-                      conversion_status: string;
-                    }) => (
-                      <tr key={item.conversion_id}>
-                        <td className="border px-4 py-2">
-                          {item.conversion_id}
-                        </td>
-                        <td className="max-w-[200px] overflow-auto border px-4 py-2">
-                          <p className="text-nowrap">{item.adv_sub2}</p>
-                        </td>
-
-                        <td className="border px-4 py-2">
-                          {item.currency !== "USDC" && item.currency !== "USDT"
-                            ? formatPrice(
-                                Number(item.sale_amount),
-                                item.currency,
-                              )
-                            : item.payout + " " + item.currency}
-                        </td>
-                        <td className="border px-4 py-2">
-                          {item.currency !== "USDC" && item.currency !== "USDT"
-                            ? formatPrice(Number(item.payout), item.currency)
-                            : item.payout + " " + item.currency}
-                        </td>
-                        <td className="border px-4 py-2">
-                          {item.conversion_status}
-                        </td>
-                        <td className="border px-4 py-2">{item.currency}</td>
-                      </tr>
-                    ),
-                  )}
-                </tbody>
-              </table>
-            </div>
-            <h1 className="text-title-sm mb-7 font-semibold text-gray-800 dark:text-white/90">
-              Total Payout:{" "}
-              {(openModal as DataWithdrawsList).currency !== "USDC" &&
-              (openModal as DataWithdrawsList).currency !== "USDT"
-                ? formatPrice(
-                    (openModal as DataWithdrawsList)?.amount_net,
-                    (openModal as DataWithdrawsList)?.currency,
-                  )
-                : (openModal as DataWithdrawsList)?.amount_net +
-                  " " +
-                  (openModal as DataWithdrawsList)?.currency}
-            </h1>
-            <Input type="file" name="file" onChange={handleFileChange} />
-            {(form.file || (openModal as DataWithdrawsList).slip_file) && (
-              <div className="mt-4 mb-4">
-                <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Preview:
-                </p>
-                <img
-                  src={
-                    form.file
-                      ? URL.createObjectURL(form.file)
-                      : `${process.env.NEXT_PUBLIC_API_URL}/google-drive/file/${(openModal as DataWithdrawsList).slip_file}`
-                  }
-                  alt="Preview"
-                  className="h-auto max-h-64 max-w-full rounded-lg border border-gray-200 dark:border-gray-600"
-                />
-              </div>
-            )}
-            <Select
-              options={[
-                { label: "Approve", value: "approved" },
-                { label: "Reject", value: "rejected" },
-                { label: "Pending", value: "pending" },
-              ]}
-              onChange={(e) => {
-                setForm((prev) => ({
-                  ...prev,
-                  status: e,
-                }));
-              }}
-              defaultValue={
-                form.status ||
-                ((openModal &&
-                  (openModal as DataWithdrawsList).status) as string)
-              }
-              placeholder="Select Status"
-            />
-          </div>
-
-          <div className="mt-8 flex w-full items-center justify-end gap-3">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setOpenModal(false)}
-              disabled={isLoading}
-            >
-              Close
-            </Button>
-            <Button
-              size="sm"
-              disabled={isLoading}
-              onClick={() => {
-                if (
-                  (openModal && (openModal as DataWithdrawsList).method) ===
-                  "bank_transfer"
-                ) {
-                  handleSave();
-                } else {
-                  toast.error("Only bank transfer method can be updated.");
-                }
-              }}
-              startIcon={
-                isLoading ? (
-                  <div className="h-3 w-3 animate-spin rounded-full border-b-2 border-blue-600"></div>
-                ) : null
-              }
-            >
-              Save Changes
-            </Button>
-          </div>
-        </Modal>
+        <ModalWithdraw
+          openModal={openModal}
+          setOpenModal={setOpenModal}
+          form={form}
+          setForm={setForm}
+          fetchData={fetchOffers}
+        />
       </div>
     </div>
   );
