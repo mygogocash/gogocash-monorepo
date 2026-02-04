@@ -4,7 +4,7 @@ import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import { paginationModel } from "../offer/Detail";
-import { ResDataWithdrawsListByUser } from "@/types/withdraw";
+import { ResDataWithdrawsListByUser, ResMCBDetail } from "@/types/withdraw";
 import Divider from "@mui/material/Divider";
 import { pathImage } from "@/utils/helper";
 import ModalWithdraw from "./ModalWithdraw";
@@ -12,6 +12,7 @@ import { useState } from "react";
 import { WithdrawRequestForm } from "./WithdrawTable";
 import { DataWithdrawsList } from "@/types/api";
 export const CSSTable = {
+  maxWidth: "1100px",
   border: 0,
   "& .MuiSvgIcon-root": { fill: "#00B14F" },
   "& .MuiDataGrid-columnHeader": {
@@ -37,6 +38,11 @@ const WithdrawDetail = () => {
       queryKey: ["getWithdrawDetail", id],
       queryFn: () => fetcherPost(`/withdraw/list-check-admin/${id}`),
     });
+
+  const { data: MCBDetail, refetch: fetchMCBDetail } = useQuery<ResMCBDetail>({
+    queryKey: ["MCBDetail", id],
+    queryFn: () => fetcherPost(`/withdraw/check-my-cashback-admin/${id}`),
+  });
   const column: GridColDef[] = [
     { field: "id", headerName: "ID", width: 40 },
     { field: "conversion_id", headerName: "ID", width: 100 },
@@ -302,6 +308,10 @@ const WithdrawDetail = () => {
           THB
         </p>
         <Divider className="!border-amber-700 !py-5" />
+        <h1 className="mt-3 mb-2"> MCB Detail</h1>
+        <p>Total {MCBDetail?.totalMyCashbackTHB?.toFixed(2)} THB</p>
+        <p>Availiable {MCBDetail?.availableTHB?.toFixed(2)} THB</p>
+        <Divider className="!border-amber-700 !py-5" />
         <h1 className="mt-3 mb-2"> Withdraw All</h1>
         <DataGrid
           rows={rowsDataWithdraw}
@@ -335,7 +345,10 @@ const WithdrawDetail = () => {
         setOpenModal={setOpenModal}
         form={form}
         setForm={setForm}
-        fetchData={fetchWithdrawDetail}
+        fetchData={() => {
+          fetchWithdrawDetail();
+          fetchMCBDetail();
+        }}
       />
     </>
   );

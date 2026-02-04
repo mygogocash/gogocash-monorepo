@@ -168,3 +168,12 @@ export interface CurrencyBreakdown {
   usdAmount: number;
   thbAmount: number;
 }
+
+
+export interface ResMCBDetail {
+    totalMyCashbackTHB:     number;
+    totalMyCashbackUSD:     number;
+    availableUSD:           number;
+    availableTHB:           number;
+    conversionIdMyCashback: string[];
+}
