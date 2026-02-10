@@ -148,7 +148,8 @@ export class UserService {
     if (myCashbackDataList?.length < 1) {
       myCashbackDataList = await this.userMyCashbacksModel
         .find({
-          email: { $regex: user.email, $options: 'i' }, // Use $regex for case-insensitive search on user.email
+            email: { $regex: user.email }, 
+          // email: { $regex: user.email, $options: 'i' }, // Use $regex for case-insensitive search on user.email
           // $or: [{ email: user.email }, { phoneNumber: user.mobile }, { phoneNumber: mobile }],
         })
         .lean();

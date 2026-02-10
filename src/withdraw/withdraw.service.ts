@@ -806,17 +806,18 @@ export class WithdrawService {
         })
         .lean();
     }
+console.log('user.email', user.email);
 
     if (myCashbackDataList?.length < 1) {
       myCashbackDataList = await this.userMyCashbackModel
         .find({
-          email: user.email,
-          // email: { $regex: user.email, $options: 'i' }, // Use $regex for case-insensitive search on user.email
+          // email: user.email,
+          email: { $regex: user.email }, // Use $regex for case-insensitive search on user.email
           // $or: [{ email: user.email }, { phoneNumber: user.mobile }, { phoneNumber: mobile }],
         })
         .lean();
     }
-    // console.log('2myCashbackDataList', myCashbackDataList?.length);
+    console.log('2myCashbackDataList', myCashbackDataList);
 
     if (myCashbackDataList?.length < 1) {
       return {
