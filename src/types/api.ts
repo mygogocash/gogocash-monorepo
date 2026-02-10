@@ -169,6 +169,7 @@ export interface OffersQuery {
   category?: string;
   status?: string;
   type?: string;
+  country?: string;
 }
 
 export interface WithdrawQuery {

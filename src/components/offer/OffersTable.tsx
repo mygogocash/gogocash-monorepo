@@ -8,6 +8,7 @@ import { Offer, OfferRequestForm, OffersQuery } from "@/types/api";
 import { useSession } from "next-auth/react";
 import FormOffer from "./FormOffer";
 import { useRouter } from "next/navigation";
+import Select from "../form/Select";
 
 export default function OffersTable() {
   const [openModal, setOpenModal] = useState<Offer | boolean>(false);
@@ -51,6 +52,7 @@ export default function OffersTable() {
     search: "",
     limit: 10,
     page: 1,
+    country: "",
   });
 
   // Fetch offers
@@ -151,7 +153,7 @@ export default function OffersTable() {
                 .then(() => fetchOffers())
                 .finally(() => setLoading(false));
             }}
-            className="shadow-theme-xs flex w-full items-center justify-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-800 lg:inline-flex lg:w-auto dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] dark:hover:text-gray-200"
+            className="shadow-theme-xs flex w-full min-w-[130px] items-center justify-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-800 lg:inline-flex lg:w-auto dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] dark:hover:text-gray-200"
           >
             Update Offer
           </button>
@@ -160,6 +162,32 @@ export default function OffersTable() {
             placeholder="Search offers..."
             onChange={(e) => handleSearch(e.target.value)}
             className="h-11 w-full rounded-lg border border-gray-200 bg-transparent px-5 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden xl:w-[300px] dark:border-gray-800 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"
+          />
+          <Select
+            options={[
+              { label: "All", value: "" },
+              { label: "Thailand", value: "Thailand" },
+              { label: "Indonesia", value: "Indonesia" },
+              { label: "Vietnam", value: "Vietnam" },
+              { label: "Philippines", value: "Philippines" },
+              { label: "India", value: "India" },
+              { label: "Malaysia", value: "Malaysia" },
+              { label: "Brazil", value: "Brazil" },
+              { label: "India", value: "India" },
+              {
+                label: "United States of America",
+                value: "United States of America",
+              },
+              { label: "United Kingdom", value: "United Kingdom" },
+              { label: "Singapore", value: "Singapore" },
+              { label: "Myanmar", value: "Myanmar" },
+            ]}
+            placeholder="Select country"
+            onChange={(e) => {
+              const newQuery = { ...query, country: e, page: 1 };
+              setQuery(newQuery);
+              fetchOffers(newQuery);
+            }}
           />
         </div>
       </div>
@@ -188,8 +216,8 @@ export default function OffersTable() {
         {!loading && (
           <>
             {/* Offers Table */}
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <div className="max-w-[1100px] overflow-x-auto">
+              <table className="w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-800">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
@@ -278,6 +306,16 @@ export default function OffersTable() {
                             {offer.categories && (
                               <div className="text-xs text-gray-400 dark:text-gray-500">
                                 {offer.categories}
+                              </div>
+                            )}
+                            {offer.countries && (
+                              <div className="">
+                                countries:{" "}
+                                <div className="max-h-[100px] overflow-auto text-xs text-gray-400 dark:text-gray-500">
+                                  {offer.countries?.split(",")?.map((c) => (
+                                    <p key={c.trim()}>{c.trim()}</p>
+                                  ))}
+                                </div>
                               </div>
                             )}
                           </div>
