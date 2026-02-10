@@ -32,6 +32,7 @@ export class OfferService {
     limit: number,
     search: string,
     categories: string,
+    country?: string,
     admin = false,
   ) {
     const filter: any = {};
@@ -41,6 +42,10 @@ export class OfferService {
     if (categories) {
       // const categoriesArray = categories.split(',').map((cat) => cat.trim());
       filter['categories'] = { $regex: categories, $options: 'i' };
+    }
+    if (country) {
+      // const countryArray = country.split(',').map((c) => c.trim());
+      filter['countries'] = { $regex: country, $options: 'i' };
     }
     if (!admin) {
       filter.disabled = { $ne: true };
