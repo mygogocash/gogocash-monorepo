@@ -810,7 +810,8 @@ export class WithdrawService {
     if (myCashbackDataList?.length < 1) {
       myCashbackDataList = await this.userMyCashbackModel
         .find({
-          email: { $regex: user.email, $options: 'i' }, // Use $regex for case-insensitive search on user.email
+          email: user.email,
+          // email: { $regex: user.email, $options: 'i' }, // Use $regex for case-insensitive search on user.email
           // $or: [{ email: user.email }, { phoneNumber: user.mobile }, { phoneNumber: mobile }],
         })
         .lean();
