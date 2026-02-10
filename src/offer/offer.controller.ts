@@ -86,15 +86,24 @@ export class OfferController {
     type: String,
     description: 'Category offer',
   })
+  @ApiQuery({
+    name: 'country',
+    required: false,
+    type: String,
+    description: 'Country offer',
+  })
   findAll(@Req() request: Request) {
     const page = request.query.page ? Number(request.query.page) : 1;
     const limit = request.query.limit ? Number(request.query.limit) : 10;
     const search = request.query.search ? request.query.search?.toString() : '';
+    const country = request.query.country
+      ? request.query.country?.toString()
+      : '';
     const category = request.query.category
       ? request.query.category?.toString()
       : '';
 
-    return this.offerService.findAll(page, limit, search, category);
+    return this.offerService.findAll(page, limit, search, category, country);
   }
 
   @Get('extra')
@@ -127,6 +136,12 @@ export class OfferController {
     type: String,
     description: 'Category offer',
   })
+  @ApiQuery({
+    name: 'country',
+    required: false,
+    type: String,
+    description: 'Country offer',
+  })
   findAllAdmin(@Req() request: Request) {
     const page = request.query.page ? Number(request.query.page) : 1;
     const limit = request.query.limit ? Number(request.query.limit) : 10;
@@ -134,8 +149,18 @@ export class OfferController {
     const category = request.query.category
       ? request.query.category?.toString()
       : '';
+    const country = request.query.country
+      ? request.query.country?.toString()
+      : '';
 
-    return this.offerService.findAll(page, limit, search, category, true);
+    return this.offerService.findAll(
+      page,
+      limit,
+      search,
+      category,
+      country,
+      true,
+    );
   }
 
   @Get(':id')
