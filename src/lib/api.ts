@@ -416,6 +416,7 @@ class ApiClient {
     if (query.category) params.append("category", query.category);
     if (query.status) params.append("status", query.status);
     if (query.type) params.append("type", query.type);
+    if (query.country) params.append("country", query.country);
 
     const queryString = params.toString();
     const endpoint = queryString ? `/offer/admin?${queryString}` : "/offer/admin";
