@@ -365,9 +365,10 @@ export class WithdrawService {
         if (!acc[currency]) {
           acc[currency] = 0;
         }
+        const payout: number = Number(item.payout || 0) >= fee.max_cap ? Number(fee.max_cap) : Number(item.payout || 0);
         const feePercentage = fee.system;
-        const feeAmount = (Number(item.payout || 0) * feePercentage) / 100;
-        acc[currency] += Number(item.payout || 0) - feeAmount;
+        const feeAmount = (payout * feePercentage) / 100;
+        acc[currency] += payout - feeAmount;
         return acc;
       },
       {} as Record<string, number>,
@@ -602,7 +603,7 @@ export class WithdrawService {
           };
         }
         acc[status].count += 1;
-        const payout = Number(item.payout || 0);
+        const payout = Number(item.payout || 0) >= fee.max_cap ? Number(fee.max_cap) : Number(item.payout || 0);
         acc[status].totalPayout += payout > 0 ? payout : 0;
         acc[status].items.push(item);
         return acc;
@@ -618,8 +619,9 @@ export class WithdrawService {
         const currencyTotals = statusData.items.reduce(
           (acc, item) => {
             const currency = item.currency || 'USD';
-            const feeAmount = Number(item.payout || 0) * (fee.system / 100);
-            const payout = Number(item.payout || 0) - feeAmount;
+            const payoutData: number = Number(item.payout || 0) >= fee.max_cap ? Number(fee.max_cap) : Number(item.payout || 0);
+            const feeAmount = payoutData * (fee.system / 100);
+            const payout = payoutData - feeAmount;
 
             if (!acc[currency]) {
               acc[currency] = 0;
@@ -668,36 +670,40 @@ export class WithdrawService {
         };
       }),
     );
-    const withdrawSumByCurrencyApproved = withdrawList?.filter((item) => item.status === 'approved').reduce(
-      (acc, withdraw) => {
-        const currency = withdraw.currency || 'unknown';
-        if (!acc[currency]) {
-          acc[currency] = {
-            netAmount: 0,
-            count: 0,
-          };
-        }
-        acc[currency].netAmount += withdraw.amount_net || 0;
-        acc[currency].count += 1;
-        return acc;
-      },
-      {} as Record<string, { netAmount: number; count: number }>,
-    );
-     const withdrawSumByCurrencyPending = withdrawList.filter((item) => item.status === 'pending').reduce(
-      (acc, withdraw) => {
-        const currency = withdraw.currency || 'unknown';
-        if (!acc[currency]) {
-          acc[currency] = {
-            netAmount: 0,
-            count: 0,
-          };
-        }
-        acc[currency].netAmount += withdraw.amount_net || 0;
-        acc[currency].count += 1;
-        return acc;
-      },
-      {} as Record<string, { netAmount: number; count: number }>,
-    );
+    const withdrawSumByCurrencyApproved = withdrawList
+      ?.filter((item) => item.status === 'approved')
+      .reduce(
+        (acc, withdraw) => {
+          const currency = withdraw.currency || 'unknown';
+          if (!acc[currency]) {
+            acc[currency] = {
+              netAmount: 0,
+              count: 0,
+            };
+          }
+          acc[currency].netAmount += withdraw.amount_net || 0;
+          acc[currency].count += 1;
+          return acc;
+        },
+        {} as Record<string, { netAmount: number; count: number }>,
+      );
+    const withdrawSumByCurrencyPending = withdrawList
+      .filter((item) => item.status === 'pending')
+      .reduce(
+        (acc, withdraw) => {
+          const currency = withdraw.currency || 'unknown';
+          if (!acc[currency]) {
+            acc[currency] = {
+              netAmount: 0,
+              count: 0,
+            };
+          }
+          acc[currency].netAmount += withdraw.amount_net || 0;
+          acc[currency].count += 1;
+          return acc;
+        },
+        {} as Record<string, { netAmount: number; count: number }>,
+      );
     return {
       totalsByStatusAndCurrency,
       data: groupedByStatus,
@@ -711,7 +717,7 @@ export class WithdrawService {
       user: {
         email: user.email,
         mobile: user.mobile,
-      }
+      },
     };
   }
   async getConversionByUser(id: string) {
@@ -806,7 +812,6 @@ export class WithdrawService {
         })
         .lean();
     }
-console.log('user.email', user.email);
 
     if (myCashbackDataList?.length < 1) {
       myCashbackDataList = await this.userMyCashbackModel
@@ -817,7 +822,6 @@ console.log('user.email', user.email);
         })
         .lean();
     }
-    console.log('2myCashbackDataList', myCashbackDataList);
 
     if (myCashbackDataList?.length < 1) {
       return {
@@ -839,12 +843,15 @@ console.log('user.email', user.email);
         });
         return acc;
       },
-      {},
+      {} as Record<string, { amount: number; currency: string }>,
     );
 
-    const myCashbackData = Object.values(myCashbackDataGroupCurrency)?.map(
-      ({ amount, currency }) => ({ amount, currency }),
-    );
+    const myCashbackData: { amount: number; currency: string }[] = (
+      Object.values(myCashbackDataGroupCurrency) as {
+        amount: number;
+        currency: string;
+      }[]
+    )?.map((item) => ({ amount: item.amount, currency: item.currency }));
 
     const rate = await rateCurrencyUSD();
     const rateTHBtoUSD = rate['THB'];

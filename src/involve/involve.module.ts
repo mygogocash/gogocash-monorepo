@@ -12,6 +12,7 @@ import {
   Conversion,
   ConversionSchema,
 } from 'src/withdraw/schemas/conversion.schema';
+import { FeeRate, FeeRateSchema } from 'src/withdraw/schemas/feeRate.schema';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import {
       { name: User.name, schema: UserSchema },
       { name: Category.name, schema: CategorySchema },
       { name: Conversion.name, schema: ConversionSchema },
+      { name: FeeRate.name, schema: FeeRateSchema },
     ]),
   ],
   controllers: [InvolveController],

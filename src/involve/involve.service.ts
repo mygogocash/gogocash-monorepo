@@ -17,6 +17,7 @@ import { ResponseGenerateDeeplink } from './dto/deeplink.dto';
 import { convertToTHB, convertToUSD } from 'src/utils/helper';
 import { Category } from 'src/offer/schemas/category.schema';
 import { Conversion } from 'src/withdraw/schemas/conversion.schema';
+import { FeeRate } from 'src/withdraw/schemas/feeRate.schema';
 
 @Injectable()
 export class InvolveService {
@@ -28,6 +29,7 @@ export class InvolveService {
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(Category.name) private categoryModel: Model<Category>,
     @InjectModel(Conversion.name) private conversionModel: Model<Conversion>,
+    @InjectModel(FeeRate.name) private feeRateModel: Model<FeeRate>,
   ) {
     this.endpoint = `https://api.involve.asia/api`;
   }
@@ -148,7 +150,7 @@ export class InvolveService {
         },
       );
       return res.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error(
         'Error creating deeplink:',
         error.response?.data || error.message,
@@ -186,7 +188,7 @@ export class InvolveService {
       );
 
       return res.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error get offers:', error.response?.data || error.message);
       if (error.response?.data?.status_code === 401) {
         await this.signIn();
@@ -312,7 +314,7 @@ export class InvolveService {
         },
       };
       return obj;
-    } catch (error) {
+    } catch (error: any) {
       console.error(
         'Error get conversion:',
         error.response?.data || error.message,
@@ -355,7 +357,7 @@ export class InvolveService {
         },
       );
       return res.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error(
         'Error get conversion:',
         error.response?.data || error.message,
@@ -396,7 +398,7 @@ export class InvolveService {
         },
       );
       return res.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error(
         'Error get conversion:',
         error.response?.data || error.message,
@@ -440,7 +442,7 @@ export class InvolveService {
         },
       );
       return res.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error(
         'Error get conversion:',
         error.response?.data || error.message,
@@ -482,7 +484,7 @@ export class InvolveService {
         },
       );
       return res.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error(
         'Error get conversion:',
         error.response?.data || error.message,
@@ -524,22 +526,27 @@ export class InvolveService {
       })
       .sort({ conversion_date: -1 })
       .lean();
+    const fee = await this.feeRateModel.findOne().exec();
+
     const conversationByUser = [];
     for (const conversion of allConversions) {
-      conversationByUser.push(conversion);
+      const payout = conversion.payout >= fee.max_cap ? fee.max_cap : conversion.payout;
+      // @TODO ลบ feePercent ออก 30%
+      conversationByUser.push({ ...conversion, payout: payout });
     }
     const totalUSDApproved = await conversationByUser
       ?.filter((ele) => ele.conversion_status === 'approved')
       ?.reduce(async (accPromise, item) => {
         const acc = await accPromise;
+        const payout = Number(item.payout || 0) >= fee.max_cap ? Number(fee.max_cap) : Number(item.payout || 0);
         if (item.currency === 'USD') {
-          return acc + Number(item.payout);
+          return acc + payout;
         } else {
           // For non-USD currencies, you'll need to handle conversion separately
           // This assumes you have the USD equivalent stored or calculated elsewhere
           const { usdAmount } = await convertToUSD(
             item.currency,
-            Number(item.payout),
+            payout,
           );
           if (usdAmount) {
             return acc + usdAmount;
@@ -554,14 +561,15 @@ export class InvolveService {
       ?.filter((ele) => ele.conversion_status === 'pending')
       .reduce(async (accPromise, item) => {
         const acc = await accPromise;
+        const payout = Number(item.payout || 0) >= fee.max_cap ? Number(fee.max_cap) : Number(item.payout || 0);
         if (item.currency === 'USD') {
-          return acc + Number(item.payout);
+          return acc + payout;
         } else {
           // For non-USD currencies, you'll need to handle conversion separately
           // This assumes you have the USD equivalent stored or calculated elsewhere
           const { usdAmount } = await convertToUSD(
             item.currency,
-            Number(item.payout),
+            payout,
           );
           if (usdAmount) {
             return acc + usdAmount;
@@ -576,14 +584,15 @@ export class InvolveService {
       ?.filter((ele) => ele.conversion_status === 'pending')
       .reduce(async (accPromise, item) => {
         const acc = await accPromise;
+        const payout = Number(item.payout || 0) >= fee.max_cap ? Number(fee.max_cap) : Number(item.payout || 0);
         if (item.currency === 'THB') {
-          return acc + Number(item.payout);
+          return acc + payout;
         } else {
           // For non-USD currencies, you'll need to handle conversion separately
           // This assumes you have the USD equivalent stored or calculated elsewhere
           const { amount } = await convertToTHB(
             item.currency,
-            Number(item.payout),
+            payout,
           );
           if (amount) {
             return acc + amount;
@@ -598,14 +607,15 @@ export class InvolveService {
       ?.filter((ele) => ele.conversion_status === 'approved')
       .reduce(async (accPromise, item) => {
         const acc = await accPromise;
+          const payout = Number(item.payout || 0) >= fee.max_cap ? Number(fee.max_cap) : Number(item.payout || 0);
         if (item.currency === 'THB') {
-          return acc + Number(item.payout);
+          return acc + payout;
         } else {
           // For non-USD currencies, you'll need to handle conversion separately
           // This assumes you have the USD equivalent stored or calculated elsewhere
           const { amount } = await convertToTHB(
             item.currency,
-            Number(item.payout),
+            payout,
           );
           if (amount) {
             return acc + amount;

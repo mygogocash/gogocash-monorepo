@@ -25,6 +25,9 @@ export class FeeRate {
 
   @Prop({ required: false })
   fee_withdraw_usd: number;
+
+  @Prop({ required: false })
+  max_cap: number;
 }
 
 export const FeeRateSchema = SchemaFactory.createForClass(FeeRate);
