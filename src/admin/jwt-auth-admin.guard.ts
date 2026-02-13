@@ -29,7 +29,7 @@ export class AuthAdminGuard implements CanActivate {
       });
       request['user'] = decoded;
       return decoded;
-    } catch (error) {
+    } catch (error: any) {
       console.log('error', error);
       throw new UnauthorizedException(error.message || 'Invalid token');
     }

@@ -15,6 +15,7 @@ import {
   Conversion,
   ConversionSchema,
 } from 'src/withdraw/schemas/conversion.schema';
+import { FeeRate, FeeRateSchema } from 'src/withdraw/schemas/feeRate.schema';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import {
       { name: Deeplink.name, schema: DeeplinkSchema },
       { name: Category.name, schema: CategorySchema },
       { name: Conversion.name, schema: ConversionSchema },
+      { name: FeeRate.name, schema: FeeRateSchema },
     ]),
   ],
   controllers: [PointController],

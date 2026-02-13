@@ -20,6 +20,7 @@ import {
   ConversionSchema,
 } from 'src/withdraw/schemas/conversion.schema';
 import { Coupon, CouponSchema } from './schemas/coupon.schema';
+import { FeeRate, FeeRateSchema } from 'src/withdraw/schemas/feeRate.schema';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { Coupon, CouponSchema } from './schemas/coupon.schema';
       { name: Banner.name, schema: BannerSchema },
       { name: Conversion.name, schema: ConversionSchema },
       { name: Coupon.name, schema: CouponSchema },
+      { name: FeeRate.name, schema: FeeRateSchema },
     ]),
   ],
   controllers: [OfferController],

@@ -199,6 +199,11 @@ export class AdminService {
       filter['$or'] = [
         { aff_sub1: { $regex: search, $options: 'i' } },
         { offer_name: { $regex: search, $options: 'i' } },
+        { adv_sub1: { $regex: search, $options: 'i' } },
+        { adv_sub2: { $regex: search, $options: 'i' } },
+        { adv_sub3: { $regex: search, $options: 'i' } },
+        { adv_sub4: { $regex: search, $options: 'i' } },
+        { adv_sub5: { $regex: search, $options: 'i' } },
       ];
     }
 
