@@ -56,4 +56,19 @@ export class PointController {
   remove(@Param('id') id: string) {
     return this.pointService.remove(+id);
   }
+
+  @Get('quest-list')
+  getQuestRankList() {
+    return this.pointService.getQuestRankList();
+  }
+
+  @UseGuards(FirebaseAuthGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
+  @Get('my-quest-list')
+  getMyQuestRank(@Req() req: Request) {
+    const user = req['user'] as any;
+    const id = user?.sub;
+    return this.pointService.getMyQuestRankList(id);
+  }
 }

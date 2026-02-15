@@ -19,6 +19,11 @@ import { UpdateCouponDto } from './dto/update-offer.dto';
 export class OfferController {
   constructor(private readonly offerService: OfferService) {}
 
+  @Get('extra-point')
+  getOfferExtraPoint() {
+    return this.offerService.getOfferExtraPoint();
+  }
+
   @Get('banner-home')
   getBannerHome() {
     return this.offerService.getBannerHome();
@@ -196,7 +201,7 @@ export class OfferController {
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
   @Post('my-offers')
-  myOffers(@Req() request: Request, @Body() body: GetMyOfferDto) {
+  myOffers(@Req() request: any, @Body() body: GetMyOfferDto) {
     const user = request.user as any;
     const id = user.sub;
     return this.offerService.findMyOffer(id, body);
@@ -215,10 +220,7 @@ export class OfferController {
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
   @Post('favorite/:offerId')
-  async favoriteOffer(
-    @Req() request: Request,
-    @Param('offerId') offerId: string,
-  ) {
+  async favoriteOffer(@Req() request: any, @Param('offerId') offerId: string) {
     const user = request.user as any;
     const id = user.sub;
     return this.offerService.favoriteOfferByUser(id, offerId);
@@ -229,7 +231,7 @@ export class OfferController {
   @ApiBearerAuth() // This directly applies Bearer authentication
   @Get('favorite/:page/:limit')
   async getFavoriteOffer(
-    @Req() request: Request,
+    @Req() request: any,
     @Param('page') page: number,
     @Param('limit') limit: number,
   ) {

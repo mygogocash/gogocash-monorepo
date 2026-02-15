@@ -50,7 +50,7 @@ export class FirebaseAuthGuard implements CanActivate {
       request['user'] = { ...decoded, sub: decoded.userId };
       // return decoded;
       return true;
-    } catch (errorData) {
+    } catch (errorData: any) {
       throw new UnauthorizedException(errorData?.message || 'Invalid token');
     }
   }
