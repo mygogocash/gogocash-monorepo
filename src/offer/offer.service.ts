@@ -227,4 +227,8 @@ export class OfferService {
       .find({ offer_id: new Types.ObjectId(id) })
       .populate('offer_id', ['offer_name']);
   }
+
+  async getOfferExtraPoint() {
+    return this.offerModel.find({ extra_point: { $gt: 1 } }).lean();
+  }
 }
