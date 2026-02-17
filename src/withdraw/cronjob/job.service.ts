@@ -7,7 +7,7 @@ import { delay } from 'rxjs';
 
 @Injectable()
 export class JobService {
-  private start_date = new Date().setDate(new Date().getDate() - 20);
+  private start_date = new Date().setDate(new Date().getDate() - 1);
   private end_date = new Date().setDate(new Date().getDate());
   private start: string;
   private end: string;
@@ -20,7 +20,7 @@ export class JobService {
     this.end = new Date(this.end_date).toISOString().split('T')[0];
   }
 
-  async syncConversion() {
+  async syncConversion(conversion_ids?: string) {
     const allOffers = await this.involveService.getConversionRange(
       {
         page: 1,
@@ -30,6 +30,7 @@ export class JobService {
         start_date: this.start,
         end_date: this.end,
       },
+      conversion_ids ? { conversion_id: conversion_ids } : undefined,
     );
 
     let allConversions = allOffers.data.data;
@@ -46,12 +47,15 @@ export class JobService {
           start_date: this.start,
           end_date: this.end,
         },
+        conversion_ids ? { conversion_id: conversion_ids } : undefined,
       );
       allConversions = allConversions.concat(nextConversions.data.data);
       allOffers.data.nextPage = nextConversions.data.nextPage;
     }
+    // console.log('allConversions new', allConversions);
     console.log('allConversions new', allConversions?.length);
 
+    if (allConversions?.length === 0) return;
     for (const conversion of allConversions) {
       await this.conversionModel.findOneAndUpdate(
         {
@@ -60,7 +64,7 @@ export class JobService {
         conversion,
         { upsert: true, new: true },
       );
-      delay(1000);
+      await delay(1000);
     }
     console.log('done', allConversions?.length);
   }
