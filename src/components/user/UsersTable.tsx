@@ -158,10 +158,6 @@ export default function UsersTable() {
                   {users &&
                     users?.map((user) => (
                       <tr
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          router.push(`/withdraw/${user._id}`);
-                        }}
                         key={user._id}
                         className="hover:bg-gray-50 dark:hover:bg-gray-800"
                       >
@@ -252,12 +248,15 @@ export default function UsersTable() {
                           >
                             View
                           </button> */}
-                          {/* <button
-                            onClick={() => handleDeleteUser(user._id)}
-                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/withdraw/${user._id}`);
+                            }}
+                            className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
                           >
-                            Delete
-                          </button> */}
+                            View
+                          </button>
                         </td>
                       </tr>
                     ))}
