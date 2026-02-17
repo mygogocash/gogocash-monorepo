@@ -8,6 +8,7 @@ import {
   WithdrawQuery,
 } from "@/types/api";
 import { useSession } from "next-auth/react";
+import client from "@/lib/axios/client";
 
 export default function ConversionTable() {
   const { data } = useSession();
@@ -15,6 +16,8 @@ export default function ConversionTable() {
   const { loading, error, getConversion, deleteOffer, clearError } = useApi();
 
   const [lists, setLists] = useState<ResponseConversion>();
+  const [conversionId, setConversionId] = useState<string>("");
+
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -27,6 +30,7 @@ export default function ConversionTable() {
     limit: 10,
     page: 1,
     status: "",
+    key: "",
   });
 
   // Fetch offers
@@ -63,6 +67,12 @@ export default function ConversionTable() {
 
   const handleFilterStatus = (status: string) => {
     const newQuery = { ...query, status, page: 1 };
+    setQuery(newQuery);
+    fetchOffers(newQuery);
+  };
+
+  const handleFilterKey = (key: string) => {
+    const newQuery = { ...query, key, page: 1 };
     setQuery(newQuery);
     fetchOffers(newQuery);
   };
@@ -104,6 +114,31 @@ export default function ConversionTable() {
   const hasNextPage = pagination.page < pagination.totalPages;
   const hasPrevPage = pagination.page > 1;
 
+  const handleUpdateConversion = async () => {
+    if (!conversionId) {
+      alert("Please enter a conversion ID");
+      return;
+    }
+    try {
+      const response = await client.patch(
+        `/admin/update-conversion/${conversionId}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${session?.accessToken}`,
+          },
+        },
+      );
+      // console.log("response", response);
+
+      if (response.status === 200) {
+        alert("Conversion updated successfully");
+        fetchOffers(); // Refresh the list after update
+      }
+    } catch (err) {
+      console.error("Failed to update conversion:", err);
+    }
+  };
   return (
     <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
       {/* Header */}
@@ -117,6 +152,17 @@ export default function ConversionTable() {
           </p>
         </div>
         <div className="flex items-center gap-4">
+          <select
+            onChange={(e) => handleFilterKey(e.target.value)}
+            value={query.key}
+          >
+            <option value="aff_sub1">User Id</option>
+            <option value="conversion_id">Conversion Id</option>
+            <option value="adv_sub1">Order Id 1</option>
+            <option value="adv_sub2">Order Id 2</option>
+            <option value="adv_sub3">Order Id 3</option>
+            <option value="adv_sub4">Order Id 4</option>
+          </select>
           <input
             type="text"
             placeholder="Search offers..."
@@ -134,7 +180,24 @@ export default function ConversionTable() {
           </select>
         </div>
       </div>
-
+      <div className="flex items-center gap-3 px-6 py-5">
+        Update Conversion <br />
+        (Ex. 670041412|671101377)
+        <input
+          type="text"
+          placeholder="conversion id"
+          onChange={(e) => {
+            setConversionId(e.target.value);
+          }}
+          className="h-11 w-full max-w-[400px] rounded-lg border border-gray-200 bg-transparent px-5 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden xl:w-[300px] dark:border-gray-800 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"
+        />
+        <button
+          onClick={handleUpdateConversion}
+          className="ml-2 text-blue-800 hover:text-blue-900"
+        >
+          Update
+        </button>
+      </div>
       {/* Content */}
       <div className="border-t border-gray-100 p-4 sm:p-6 dark:border-gray-800">
         {error && (
@@ -198,7 +261,16 @@ export default function ConversionTable() {
                           {list.offer_name} ({list.conversion_id})
                         </div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {formatDate(list.datetime_conversion?.toString())}
+                          <p>
+                            date:{" "}
+                            {formatDate(list.datetime_conversion?.toString())}
+                          </p>
+                          <p>
+                            created: {formatDate(list.createdAt?.toString())}
+                          </p>
+                          <p>
+                            updated: {formatDate(list.updatedAt?.toString())}
+                          </p>
                         </div>
                         <div
                           className={`text-xs ${list.conversion_status === "approved" ? "text-green-500" : "text-red-500"} dark:text-gray-400`}
@@ -221,7 +293,10 @@ export default function ConversionTable() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                          {list?.user?.username || list?.user?.email || "N/A"}
+                          {list?.aff_sub1 ||
+                            list?.user?.username ||
+                            list?.user?.email ||
+                            "N/A"}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

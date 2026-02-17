@@ -183,6 +183,7 @@ export interface ConversionQuery {
   limit?: number;
   page?: number;
   status?: string;
+  key?: string;
 }
 
 export interface OffersResponse {
@@ -271,6 +272,8 @@ export interface DataConversion {
   merchant_id: number;
   offer_name: string;
   user: UserID;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 
