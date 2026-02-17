@@ -160,7 +160,7 @@ export default function UsersTable() {
                       <tr
                         onClick={(e) => {
                           e.stopPropagation();
-                          router.push(`withdraw/${user._id}`);
+                          router.push(`/withdraw/${user._id}`);
                         }}
                         key={user._id}
                         className="hover:bg-gray-50 dark:hover:bg-gray-800"
@@ -226,7 +226,8 @@ export default function UsersTable() {
                         </td>
                         <td className="space-x-2 px-6 py-4 text-sm font-medium whitespace-nowrap">
                           <button
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setOpenModal(true);
                               setForm({
                                 id: user._id,
@@ -238,8 +239,9 @@ export default function UsersTable() {
                             Edit
                           </button>
 
-                          <button
-                            onClick={() => {
+                          {/* <button
+                            onClick={(e) => {
+                              e.preventDefault();
                               setOpenModalView(true);
                               setForm({
                                 id: user._id,
@@ -249,7 +251,7 @@ export default function UsersTable() {
                             className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
                           >
                             View
-                          </button>
+                          </button> */}
                           {/* <button
                             onClick={() => handleDeleteUser(user._id)}
                             className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
