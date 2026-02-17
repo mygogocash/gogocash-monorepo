@@ -194,18 +194,33 @@ export class AdminService {
     page: number = 1,
     limit: number = 10,
     search?: string,
+    key?: string,
     status?: string,
   ) {
     const filter = {};
-    if (search) {
+    if (key === 'conversion_id') {
       filter['$or'] = [
-        { aff_sub1: { $regex: search, $options: 'i' } },
-        { offer_name: { $regex: search, $options: 'i' } },
-        { adv_sub1: { $regex: search, $options: 'i' } },
-        { adv_sub2: { $regex: search, $options: 'i' } },
-        { adv_sub3: { $regex: search, $options: 'i' } },
-        { adv_sub4: { $regex: search, $options: 'i' } },
-        { adv_sub5: { $regex: search, $options: 'i' } },
+        { conversion_id: search },
+        // { aff_sub1: { $regex: search, $options: 'i' } },
+        // { offer_name: { $regex: search, $options: 'i' } },
+        // { adv_sub1: { $regex: search, $options: 'i' } },
+        // { adv_sub2: { $regex: search, $options: 'i' } },
+        // { adv_sub3: { $regex: search, $options: 'i' } },
+        // { adv_sub4: { $regex: search, $options: 'i' } },
+        // { adv_sub5: { $regex: search, $options: 'i' } },
+        // { conversion_id: { $regex: search, $options: 'i' } },
+      ];
+    } else {
+      filter['$or'] = [
+        { [key]: { $regex: search, $options: 'i' } },
+        // { aff_sub1: { $regex: search, $options: 'i' } },
+        // { offer_name: { $regex: search, $options: 'i' } },
+        // { adv_sub1: { $regex: search, $options: 'i' } },
+        // { adv_sub2: { $regex: search, $options: 'i' } },
+        // { adv_sub3: { $regex: search, $options: 'i' } },
+        // { adv_sub4: { $regex: search, $options: 'i' } },
+        // { adv_sub5: { $regex: search, $options: 'i' } },
+        // { conversion_id: { $regex: search, $options: 'i' } },
       ];
     }
 

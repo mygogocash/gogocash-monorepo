@@ -96,8 +96,9 @@ export class AdminController {
     @Query('limit') limit?: string,
     @Query('search') search?: string,
     @Query('status') status?: string,
+    @Query('key') key?: string,
   ) {
-    return this.adminService.getConversionAll(Number(page), Number(limit), search, status);
+    return this.adminService.getConversionAll(Number(page), Number(limit), search, key, status);
   }
 
   @UseGuards(AuthAdminGuard)
