@@ -459,6 +459,7 @@ class ApiClient {
     if (query.limit) params.append("limit", query.limit.toString());
     if (query.page) params.append("page", query.page.toString());
     if (query.status) params.append("status", query.status);
+    if (query.key) params.append("key", query.key);
 
     const queryString = params.toString();
     const endpoint = queryString
