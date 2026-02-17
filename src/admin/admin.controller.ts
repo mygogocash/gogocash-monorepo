@@ -283,4 +283,13 @@ export class AdminController {
   getBannerHome() {
     return this.adminService.getBannerHome();
   }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth()
+  @Patch('update-conversion/:id')
+  updateConversionDataByConversionId(@Param('id') id: string) {
+    // console.log('Updating conversion data for ID:', id);
+    return this.adminService.updateConversionDataByConversionId(id);
+  }
 }

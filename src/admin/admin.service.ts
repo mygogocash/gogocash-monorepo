@@ -21,6 +21,7 @@ import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 import { UserMyCashback } from 'src/user/schemas/user-my-cashback.schema';
 import { Banner } from 'src/offer/schemas/banner.schema';
 import { UserService } from 'src/user/user.service';
+import { JobService } from 'src/withdraw/cronjob/job.service';
 
 @Injectable()
 export class AdminService {
@@ -38,6 +39,7 @@ export class AdminService {
     private readonly googleDriveService: GoogleDriveService,
     private involveService: InvolveService,
     private userService: UserService,
+    private readonly jobService: JobService,
   ) {}
   create(createAdminDto: CreateAdminDto) {
     console.log(createAdminDto);
@@ -492,5 +494,9 @@ export class AdminService {
   async getBannerHome() {
     // logic get banner home
     return this.bannerModel.findOne().exec();
+  }
+
+  async updateConversionDataByConversionId(id: string) {
+    return this.jobService.syncConversion(id);
   }
 }

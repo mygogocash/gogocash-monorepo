@@ -370,26 +370,32 @@ export class InvolveService {
     }
   }
 
-  async getConversionRange(payload: RequestGetConversion, filter: any = null) {
+  async getConversionRange(
+    payload: RequestGetConversion,
+    range: { start_date: string; end_date: string },
+    filters: any = null,
+  ) {
     let token = await this.cacheManager.get('access_token_involve');
     if (!token) {
       await this.signIn();
       token = await this.cacheManager.get('access_token_involve');
     }
     try {
-      let filters = {
+      const page = {
         page: payload.page?.toString() || '1',
         limit: payload.limit?.toString() || '100',
       };
-      if (filter) {
-        filters = { ...filters, ...filter };
-      }
-      console.log('filter', filters);
+      // if (filter) {
+      //   // filters = { ...filters };
+      // }
+      // console.log('filter', filters);
 
       const res = await axios.post(
         `${this.endpoint}/conversions/range`,
         {
-          ...filters,
+          ...page,
+          ...range,
+          filters: { ...filters },
         },
         {
           headers: {
@@ -530,7 +536,8 @@ export class InvolveService {
 
     const conversationByUser = [];
     for (const conversion of allConversions) {
-      const payout = conversion.payout >= fee.max_cap ? fee.max_cap : conversion.payout;
+      const payout =
+        conversion.payout >= fee.max_cap ? fee.max_cap : conversion.payout;
       // @TODO ลบ feePercent ออก 30%
       conversationByUser.push({ ...conversion, payout: payout });
     }
@@ -538,16 +545,16 @@ export class InvolveService {
       ?.filter((ele) => ele.conversion_status === 'approved')
       ?.reduce(async (accPromise, item) => {
         const acc = await accPromise;
-        const payout = Number(item.payout || 0) >= fee.max_cap ? Number(fee.max_cap) : Number(item.payout || 0);
+        const payout =
+          Number(item.payout || 0) >= fee.max_cap
+            ? Number(fee.max_cap)
+            : Number(item.payout || 0);
         if (item.currency === 'USD') {
           return acc + payout;
         } else {
           // For non-USD currencies, you'll need to handle conversion separately
           // This assumes you have the USD equivalent stored or calculated elsewhere
-          const { usdAmount } = await convertToUSD(
-            item.currency,
-            payout,
-          );
+          const { usdAmount } = await convertToUSD(item.currency, payout);
           if (usdAmount) {
             return acc + usdAmount;
           } else {
@@ -561,16 +568,16 @@ export class InvolveService {
       ?.filter((ele) => ele.conversion_status === 'pending')
       .reduce(async (accPromise, item) => {
         const acc = await accPromise;
-        const payout = Number(item.payout || 0) >= fee.max_cap ? Number(fee.max_cap) : Number(item.payout || 0);
+        const payout =
+          Number(item.payout || 0) >= fee.max_cap
+            ? Number(fee.max_cap)
+            : Number(item.payout || 0);
         if (item.currency === 'USD') {
           return acc + payout;
         } else {
           // For non-USD currencies, you'll need to handle conversion separately
           // This assumes you have the USD equivalent stored or calculated elsewhere
-          const { usdAmount } = await convertToUSD(
-            item.currency,
-            payout,
-          );
+          const { usdAmount } = await convertToUSD(item.currency, payout);
           if (usdAmount) {
             return acc + usdAmount;
           } else {
@@ -584,16 +591,16 @@ export class InvolveService {
       ?.filter((ele) => ele.conversion_status === 'pending')
       .reduce(async (accPromise, item) => {
         const acc = await accPromise;
-        const payout = Number(item.payout || 0) >= fee.max_cap ? Number(fee.max_cap) : Number(item.payout || 0);
+        const payout =
+          Number(item.payout || 0) >= fee.max_cap
+            ? Number(fee.max_cap)
+            : Number(item.payout || 0);
         if (item.currency === 'THB') {
           return acc + payout;
         } else {
           // For non-USD currencies, you'll need to handle conversion separately
           // This assumes you have the USD equivalent stored or calculated elsewhere
-          const { amount } = await convertToTHB(
-            item.currency,
-            payout,
-          );
+          const { amount } = await convertToTHB(item.currency, payout);
           if (amount) {
             return acc + amount;
           } else {
@@ -607,16 +614,16 @@ export class InvolveService {
       ?.filter((ele) => ele.conversion_status === 'approved')
       .reduce(async (accPromise, item) => {
         const acc = await accPromise;
-          const payout = Number(item.payout || 0) >= fee.max_cap ? Number(fee.max_cap) : Number(item.payout || 0);
+        const payout =
+          Number(item.payout || 0) >= fee.max_cap
+            ? Number(fee.max_cap)
+            : Number(item.payout || 0);
         if (item.currency === 'THB') {
           return acc + payout;
         } else {
           // For non-USD currencies, you'll need to handle conversion separately
           // This assumes you have the USD equivalent stored or calculated elsewhere
-          const { amount } = await convertToTHB(
-            item.currency,
-            payout,
-          );
+          const { amount } = await convertToTHB(item.currency, payout);
           if (amount) {
             return acc + amount;
           } else {
