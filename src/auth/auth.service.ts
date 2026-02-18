@@ -190,7 +190,7 @@ export class AuthService {
         firebaseId: user.id_firebase,
       });
       return { user, token: accessToken };
-    } catch (error) {
+    } catch (error: any) {
       console.log('err', error);
       throw new Error(error?.message || 'Invalid Firebase token');
     }
@@ -276,7 +276,7 @@ export class AuthService {
         firebaseId: user.id_firebase,
       });
       return { user, token: accessToken };
-    } catch (error) {
+    } catch (error: any) {
       console.log('err', error);
       throw new Error(error?.message || 'Invalid Firebase token');
     }
@@ -316,7 +316,7 @@ export class AuthService {
       console.log('user', user);
       // Update points for referral if referral_id is provided
       return user; // { accessToken, refreshToken, user }
-    } catch (error) {
+    } catch (error: any) {
       console.log('err', error);
       throw new Error(error?.message || 'Invalid Firebase token');
     }
@@ -335,7 +335,7 @@ export class AuthService {
           user_id: new Types.ObjectId(payload.referral_id),
           referral_id: new Types.ObjectId(payload.user_id),
           conversion_id: 0,
-          point: 100,
+          point: 50,
           type: 'add',
           action: 'referral',
         });

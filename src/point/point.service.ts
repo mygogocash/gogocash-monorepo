@@ -8,6 +8,7 @@ import { Point } from './schemas/point.schema';
 import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 import { convertToTHB } from 'src/utils/helper';
 import { GroupedConversion } from './interface/point.interface';
+import { Offer } from 'src/offer/schemas/offer.schema';
 
 @Injectable()
 export class PointService {
@@ -15,6 +16,7 @@ export class PointService {
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(Point.name) private pointModel: Model<Point>,
     @InjectModel(Conversion.name) private conversionModel: Model<Conversion>,
+    @InjectModel(Offer.name) private offerModel: Model<Offer>,
   ) {}
 
   async addPointsToUser(
@@ -30,7 +32,7 @@ export class PointService {
         action: 'purchase',
       })
       .exec();
-    console.log('pointDup', pointDup);
+    // console.log('pointDup', pointDup);
 
     if (!pointDup) {
       const pointEntry = new this.pointModel({
@@ -125,19 +127,29 @@ export class PointService {
       .exec();
   }
 
-  async getQuestRankList(userId?: string) {
-    const filter = {};
+  async getQuestRankList(startDate: string, endDate: string, userId?: string) {
+    let filter = {};
     if (userId) {
-      filter['aff_sub1'] = { $regex: `user_id:${userId}` };
+      filter = {
+        aff_sub1: { $regex: `user_id:${userId}` },
+        conversion_status: 'approved',
+      };
     } else {
-      filter['aff_sub1'] = { $regex: '^user_id:' };
+      filter = {
+        conversion_status: 'approved',
+        aff_sub1: { $regex: '^user_id' },
+      };
+    }
+
+    if (startDate && endDate) {
+      filter['datetime_conversion'] = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate),
+      };
     }
     const groupedConversion = await this.conversionModel.aggregate([
       {
-        $match: {
-          aff_sub1: filter['aff_sub1'],
-          conversion_status: 'approved',
-        },
+        $match: filter,
       },
       {
         $group: {
@@ -154,68 +166,81 @@ export class PointService {
       //   $sort: { sale_amount: -1 },
       // },
     ]);
-    // console.log('groupedConversion', groupedConversion.length);
+    // console.log('groupedConversion', groupedConversion);
 
     const listsUserConversion = await Promise.all(
       groupedConversion.map(async (item) => {
+        const userId = item.user_id;
         const user = await this.userModel.findOne({
-          _id: new Types.ObjectId(item.user_id),
+          _id: new Types.ObjectId(userId),
         });
         const conversion = await this.conversionModel
           .find({
-            aff_sub1: `user_id:${item.user_id}`,
+            aff_sub1: `user_id:${userId}`,
             conversion_status: 'approved',
+            datetime_conversion: {
+              $gte: new Date(startDate),
+              $lte: new Date(endDate),
+            },
           })
           .lean();
         return {
-          user_id: item.user_id,
+          user_id: userId,
           username: user?.username || '',
           email: user?.email || '',
           conversion: conversion || [],
         };
       }),
     );
-    const groupedByCurrency = listsUserConversion.map(async (item) => {
-      const group = await item.conversion.reduce(async (acc, conv) => {
-        const currency = conv.currency;
-        if (!acc[currency]) {
-          acc[currency] = {
-            currencyOld: currency,
-            currency: currency,
-            totalSaleAmount: 0,
-            items: [],
-            rate: 0,
-            saleAmount: 0,
-          };
-        }
-        if (currency === 'THB') {
-          acc[currency].totalSaleAmount += conv.sale_amount || 0;
-          acc[currency].rate += 1;
-          acc[currency].saleAmount += conv.sale_amount || 0;
-          acc[currency].currencyOld = 'THB';
-          acc[currency].currency = 'THB';
-        } else if (currency === 'USD') {
-          const converted = await convertToTHB(currency, conv.sale_amount || 0);
-          acc[currency].saleAmount += conv.sale_amount || 0;
+    // console.log('listsUserConversion', listsUserConversion);
 
-          acc[currency].totalSaleAmount += converted.amount || 0;
-          acc[currency].rate += converted.exchangeRate || 0;
-          acc[currency].currencyOld = 'USD';
-          acc[currency].currency = 'THB';
+    const groupedByCurrency: GroupedConversion[] = await Promise.all(
+      listsUserConversion.map(async (item) => {
+        const group: Record<string, any> = {};
+
+        for (const conv of item.conversion) {
+          const currency = conv.currency;
+          if (!group[currency]) {
+            group[currency] = {
+              currencyOld: currency,
+              currency: currency,
+              totalSaleAmount: 0,
+              items: [],
+              rate: 0,
+              saleAmount: 0,
+            };
+          }
+          if (currency === 'THB') {
+            group[currency].totalSaleAmount += conv.sale_amount || 0;
+            group[currency].rate = 1;
+            group[currency].saleAmount += conv.sale_amount || 0;
+            group[currency].currencyOld = 'THB';
+            group[currency].currency = 'THB';
+          } else if (currency === 'USD') {
+            const converted = await convertToTHB(
+              currency,
+              conv.sale_amount || 0,
+            );
+            group[currency].saleAmount += conv.sale_amount || 0;
+            group[currency].totalSaleAmount += converted.amount || 0;
+            group[currency].rate = converted.exchangeRate || 0;
+            group[currency].currencyOld = 'USD';
+            group[currency].currency = 'THB';
+          }
+          // group[currency].items.push(conv);
         }
-        // acc[currency].items.push(conv);
-        return acc;
-      }, {});
-      const data = await Promise.all(Object.values(group));
-      return {
-        ...item,
-        conversion: data,
-      };
-    });
-    const dataAll = (await Promise.all(
-      Object.values(groupedByCurrency),
-    )) as GroupedConversion[];
-    const sortedData = dataAll.sort((a, b) => {
+        return {
+          ...item,
+          point: Object.values(group).reduce(
+            (sum, conv) => sum + (conv.totalSaleAmount || 0),
+            0,
+          ),
+          conversion: Object.values(group),
+        };
+      }),
+    );
+    // console.log('groupedByCurrency', groupedByCurrency);
+    const sortedData = groupedByCurrency.sort((a, b) => {
       const totalA = a.conversion.reduce(
         (sum, conv) => sum + (conv.totalSaleAmount || 0),
         0,
@@ -229,18 +254,239 @@ export class PointService {
     return sortedData;
   }
 
-  async getMyQuestRankList(userId: string) {
+  async getMyQuestRankList(
+    userId: string,
+    startDate?: string,
+    endDate?: string,
+  ) {
     const user = await this.userModel.findOne({
       _id: new Types.ObjectId(userId),
     });
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
-    const conversion = await this.getQuestRankList();
+    const conversion = await this.getQuestRankList(startDate, endDate, userId);
     const myConversion = conversion.find((item) => item.user_id === userId);
     return {
       ...myConversion,
       rank: conversion.findIndex((item) => item.user_id === userId) + 1,
+    };
+  }
+
+  async getQuestRankListOfPoint(
+    startDate: string,
+    endDate: string,
+    userId?: string,
+  ) {
+    let filter = {};
+    if (userId) {
+      filter = {
+        user_id: new Types.ObjectId(userId),
+        type: 'add',
+        conversion_id: { $ne: null },
+      };
+    } else {
+      filter = {
+        type: 'add',
+        conversion_id: { $ne: null },
+      };
+    }
+    const extraOffer = await this.offerModel
+      .find({ extra_point: { $gt: 1 } })
+      .select('merchant_id extra_point')
+      .lean();
+
+    const extraPointReference = await this.pointModel.aggregate([
+      {
+        $match: {
+          action: 'referral',
+          type: 'add',
+          createdAt: {
+            $gte: new Date(startDate),
+            $lte: new Date(endDate),
+          },
+        },
+      },
+      {
+        $group: {
+          _id: '$user_id',
+          totalExtraPoints: { $sum: '$point' },
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      { $unwind: '$user' }, // แตก array user ออกมา
+    ]);
+    // console.log('extraPointReference', extraPointReference);
+    const extraPointsLogic =
+      extraOffer.length > 0
+        ? {
+            $sum: extraOffer.map((offer) => ({
+              $cond: [
+                { $in: [offer.merchant_id, '$unique_merchants'] }, // ถ้า User เคยซื้อร้านนี้
+                offer.extra_point, // ให้แต้มพิเศษ (ครั้งเดียว)
+                0, // ถ้าไม่เคย ให้ 0
+              ],
+            })),
+          }
+        : 0;
+    const pointsList = await this.pointModel.aggregate([
+      {
+        $match: filter,
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'user_id',
+          foreignField: '_id',
+          as: 'user_id',
+        },
+      },
+      {
+        $unwind: '$user_id',
+      },
+      {
+        $lookup: {
+          from: 'conversions',
+          localField: 'conversion_id',
+          foreignField: 'conversion_id',
+          as: 'conversion_id',
+        },
+      },
+      {
+        $unwind: '$conversion_id',
+      },
+      {
+        $match: {
+          'conversion_id.datetime_conversion': {
+            $gte: new Date(startDate),
+            $lte: new Date(endDate),
+          },
+        },
+      },
+      {
+        $group: {
+          _id: '$user_id._id',
+          user_id: { $first: '$user_id._id' },
+          username: { $first: '$user_id.username' },
+          email: { $first: '$user_id.email' },
+          point: { $sum: '$point' },
+          // 🟢 พระเอกอยู่ตรงนี้: เก็บ merchant_id ทั้งหมดที่ User เคยซื้อแบบไม่ซ้ำลง Array
+          unique_merchants: { $addToSet: '$conversion_id.merchant_id' },
+          conversion: {
+            $addToSet: {
+              currencyOld: '$conversion_id.currency',
+              currency: 'THB',
+              totalSaleAmount: '$point',
+              items: [],
+              rate: 1,
+              saleAmount: '$point',
+              merchant_id: '$conversion_id.merchant_id',
+            },
+          },
+          // conversion: { $push: '$conversion_id' },
+        },
+      },
+      {
+        $addFields: {
+          // ใช้ logic ที่เราสร้างไว้ข้างบน มาเช็คกับ array $unique_merchants
+          extra_point_received: extraPointsLogic,
+
+          // เอาแต้มพื้นฐาน + แต้มพิเศษ
+          point: { $add: ['$point', extraPointsLogic] },
+        },
+      },
+      // -------------------------------------------------------------------
+      // 🟢 2. เพิ่ม $addFields รอบสองตรงนี้ (เช็คว่าถ้ายอดเกิน 300 ให้บวกอีก 50)
+      // -------------------------------------------------------------------
+      {
+        $addFields: {
+          point: {
+            $cond: {
+              if: { $gte: ['$point', 300] }, // เงื่อนไข: ถ้าแต้มรวมปัจจุบัน มากกว่าหรือเท่ากับ (>=) 300
+              then: { $add: ['$point', 50] }, // ถ้าจริง: เอาแต้มปัจจุบัน + 50
+              else: '$point', // ถ้าไม่จริง: ใช้แต้มเท่าเดิม ไม่ต้องบวก
+            },
+          },
+          // แถม: สร้างฟิลด์ไว้บอกว่ารายการนี้ได้โบนัส 50 ด้วยไหม (เผื่อใช้ตรวจสอบหรือโชว์ในหน้าเว็บ)
+          bonus_over_300_received: {
+            $cond: {
+              if: { $gte: ['$point', 300] },
+              then: 50,
+              else: 0,
+            },
+          },
+        },
+      },
+    ]);
+
+    // แปลง pointsList เป็น Map เพื่อให้ค้นหา User ได้ไวขึ้น (O(1))
+    const pointsMap = new Map();
+    pointsList.forEach((p) => pointsMap.set(p._id.toString(), p));
+
+    // วนลูปรายชื่อคนที่ได้แต้ม Referral
+    extraPointReference.forEach((ref) => {
+      const userIdStr = ref._id.toString();
+
+      if (pointsMap.has(userIdStr)) {
+        // กรณีที่ 1: User มีอยู่ใน pointsList อยู่แล้ว -> เอาแต้มบวกเพิ่มเข้าไป
+        const existingUser = pointsMap.get(userIdStr);
+        existingUser.point += ref.totalExtraPoints;
+        existingUser.extra_point_referral = ref.totalExtraPoints; // เก็บ record ไว้ว่าได้แต้ม referral เท่าไหร่
+      } else {
+        // กรณีที่ 2: User ไม่เคยมีใน pointsList เลย (ได้แต่แต้ม Referral อย่างเดียว) -> เพิ่มข้อมูลใหม่เข้าไปเลย
+        const newUserObj = {
+          _id: ref._id,
+          user_id: ref._id,
+          username: ref.user.username, // ได้มาจาก $lookup ใน extraPointReference
+          email: ref.user.email,
+          point: ref.totalExtraPoints, // คะแนนรวมมีแค่จาก referral
+          extra_point_referral: ref.totalExtraPoints,
+          conversion: [], // ไม่มีประวัติการซื้อ
+          extra_point_received: 0,
+          bonus_over_300_received: 0,
+        };
+
+        pointsList.push(newUserObj); // ดันใส่ Array หลัก
+      }
+    });
+
+    // 4. 🟢 จัดเรียงคะแนน (Sort) ใหม่ทั้งหมด จากมากไปน้อย
+    pointsList.sort((a, b) => b.point - a.point);
+
+    return pointsList;
+  }
+
+  async getMyQuestRankListOfPoint(
+    userId: string,
+    startDate: string,
+    endDate: string,
+  ) {
+    const user = await this.userModel.findOne({
+      _id: new Types.ObjectId(userId),
+    });
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+    const conversion = await this.getQuestRankListOfPoint(
+      startDate,
+      endDate,
+      // userId,
+    );
+    const rank =
+      conversion.findIndex((item) => item.user_id?.toString() === userId) + 1;
+    const myConversion = conversion.find((item) => {
+      return item.user_id?.toString() === userId;
+    });
+    return {
+      ...myConversion,
+      rank,
     };
   }
 }

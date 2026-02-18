@@ -15,9 +15,13 @@ import { UpdatePointDto } from './dto/update-point.dto';
 import { ApiBearerAuth, ApiSecurity } from '@nestjs/swagger';
 import { Request } from 'express';
 import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
+import { TasksService } from './tasksService';
 @Controller('point')
 export class PointController {
-  constructor(private readonly pointService: PointService) {}
+  constructor(
+    private readonly pointService: PointService,
+    private readonly tasksService: TasksService,
+  ) {}
 
   @Post()
   create(@Body() createPointDto: CreatePointDto) {
@@ -57,18 +61,36 @@ export class PointController {
     return this.pointService.remove(+id);
   }
 
-  @Get('quest-list')
-  getQuestRankList() {
-    return this.pointService.getQuestRankList();
+  @Get('quest-list/:startDate/:endDate')
+  getQuestRankList(
+    @Param('startDate') startDate: string,
+    @Param('endDate') endDate: string,
+  ) {
+    return this.pointService.getQuestRankList(startDate, endDate);
+    // return this.pointService.getQuestRankListOfPoint(startDate, endDate);
   }
 
   @UseGuards(FirebaseAuthGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
-  @Get('my-quest-list')
-  getMyQuestRank(@Req() req: Request) {
+  @Get('my-quest-list/:startDate/:endDate')
+  getMyQuestRank(
+    @Req() req: Request,
+    @Param('startDate') startDate: string,
+    @Param('endDate') endDate: string,
+  ) {
     const user = req['user'] as any;
     const id = user?.sub;
-    return this.pointService.getMyQuestRankList(id);
+    // return this.pointService.getMyQuestRankList(id);
+    return this.pointService.getMyQuestRankListOfPoint(id, startDate, endDate);
+  }
+
+  @Get('check-points/:startDate/:endDate')
+  addPoint(
+    @Param('startDate') startDate: string,
+    @Param('endDate') endDate: string,
+  ) {
+    // return this.tasksService.handleCron();
+    return this.pointService.getQuestRankListOfPoint(startDate, endDate);
   }
 }
