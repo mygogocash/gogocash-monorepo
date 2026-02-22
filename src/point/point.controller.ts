@@ -93,4 +93,9 @@ export class PointController {
     // return this.tasksService.handleCron();
     return this.pointService.getQuestRankListOfPoint(startDate, endDate);
   }
+
+  @Get('save-points')
+  savePoint() {
+    return this.tasksService.handleCron();
+  }
 }
