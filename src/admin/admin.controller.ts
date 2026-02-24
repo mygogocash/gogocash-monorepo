@@ -293,4 +293,13 @@ export class AdminController {
     // console.log('Updating conversion data for ID:', id);
     return this.adminService.updateConversionDataByConversionId(id);
   }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth()
+  @Get('get-deep-link-list')
+  getDeepLinkList() {
+    // console.log('Updating conversion data for ID:', id);
+    return this.adminService.getDeepLinkList();
+  }
 }
