@@ -22,6 +22,7 @@ import { UserMyCashback } from 'src/user/schemas/user-my-cashback.schema';
 import { Banner } from 'src/offer/schemas/banner.schema';
 import { UserService } from 'src/user/user.service';
 import { JobService } from 'src/withdraw/cronjob/job.service';
+import { Deeplink } from 'src/involve/schemas/deeplink.schema';
 
 @Injectable()
 export class AdminService {
@@ -36,6 +37,8 @@ export class AdminService {
     @InjectModel(UserMyCashback.name)
     private userMyCashbackModel: Model<UserMyCashback>,
     @InjectModel(Banner.name) private bannerModel: Model<Banner>,
+    @InjectModel(Deeplink.name) private deeplinkModel: Model<Deeplink>,
+
     private readonly googleDriveService: GoogleDriveService,
     private involveService: InvolveService,
     private userService: UserService,
@@ -212,17 +215,17 @@ export class AdminService {
           // { conversion_id: { $regex: search, $options: 'i' } },
         ];
       } else {
-          filter['$or'] = [
-            { [key]: { $regex: search, $options: 'i' } },
-            // { aff_sub1: { $regex: search, $options: 'i' } },
-            // { offer_name: { $regex: search, $options: 'i' } },
-            // { adv_sub1: { $regex: search, $options: 'i' } },
-            // { adv_sub2: { $regex: search, $options: 'i' } },
-            // { adv_sub3: { $regex: search, $options: 'i' } },
-            // { adv_sub4: { $regex: search, $options: 'i' } },
-            // { adv_sub5: { $regex: search, $options: 'i' } },
-            // { conversion_id: { $regex: search, $options: 'i' } },
-          ];
+        filter['$or'] = [
+          { [key]: { $regex: search, $options: 'i' } },
+          // { aff_sub1: { $regex: search, $options: 'i' } },
+          // { offer_name: { $regex: search, $options: 'i' } },
+          // { adv_sub1: { $regex: search, $options: 'i' } },
+          // { adv_sub2: { $regex: search, $options: 'i' } },
+          // { adv_sub3: { $regex: search, $options: 'i' } },
+          // { adv_sub4: { $regex: search, $options: 'i' } },
+          // { adv_sub5: { $regex: search, $options: 'i' } },
+          // { conversion_id: { $regex: search, $options: 'i' } },
+        ];
       }
     }
 
@@ -515,5 +518,28 @@ export class AdminService {
 
   async updateConversionDataByConversionId(id: string) {
     return this.jobService.syncConversion(id);
+  }
+
+  async getDeepLinkList() {
+    return this.deeplinkModel.aggregate([
+      {
+        $lookup: {
+          from: 'offers',
+          localField: 'offer_id',
+          foreignField: 'offer_id',
+          as: 'offer',
+        },
+      },
+      { $unwind: '$offer' },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'user_id',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      { $unwind: '$user' },
+    ]);
   }
 }
