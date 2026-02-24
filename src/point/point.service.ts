@@ -9,6 +9,8 @@ import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 import { convertToTHB } from 'src/utils/helper';
 import { GroupedConversion } from './interface/point.interface';
 import { Offer } from 'src/offer/schemas/offer.schema';
+import { Quest } from './schemas/quest.schema';
+import { CloseQuestDto, CreateQuestDto } from './dto/create-quest.dto';
 
 @Injectable()
 export class PointService {
@@ -17,6 +19,7 @@ export class PointService {
     @InjectModel(Point.name) private pointModel: Model<Point>,
     @InjectModel(Conversion.name) private conversionModel: Model<Conversion>,
     @InjectModel(Offer.name) private offerModel: Model<Offer>,
+    @InjectModel(Quest.name) private questModel: Model<Quest>,
   ) {}
 
   async addPointsToUser(
@@ -488,5 +491,48 @@ export class PointService {
       ...myConversion,
       rank,
     };
+  }
+
+  async createQuest(createQuestDto: CreateQuestDto) {
+    return this.questModel.findOneAndUpdate(
+      { status: 'open' },
+      { ...createQuestDto },
+      {
+        upsert: true,
+        new: true,
+      },
+    );
+  }
+
+  async closeQuest(closeQuestDto: CloseQuestDto) {
+    return this.questModel.updateOne(
+      { status: 'open' },
+      { ...closeQuestDto },
+      {
+        upsert: true,
+      },
+    );
+  }
+
+  async getQuestOpen() {
+    const filter = {
+      status: 'open',
+      // start_date: {
+      //   $gte: new Date(startDate),
+      //   $lte: new Date(endDate),
+      // },
+    };
+    return this.questModel.findOne(filter).lean();
+  }
+
+  async getQuestAdmin() {
+    const filter = {
+      // status: 'open',
+      // start_date: {
+      //   $gte: new Date(startDate),
+      //   $lte: new Date(endDate),
+      // },
+    };
+    return this.questModel.find(filter).lean();
   }
 }
