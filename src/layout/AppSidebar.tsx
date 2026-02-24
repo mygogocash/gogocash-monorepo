@@ -65,6 +65,11 @@ const navItems: NavItem[] = [
     name: "Coupon",
     subItems: [{ name: "Coupon", path: "/coupon", pro: false }],
   },
+  {
+    icon: <ListIcon />,
+    name: "Quest Management",
+    subItems: [{ name: "Quest", path: "/quest", pro: false }],
+  },
   // {
   //   icon: <CalenderIcon />,
   //   name: "Calendar",
