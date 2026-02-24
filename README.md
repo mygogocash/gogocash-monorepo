@@ -1,173 +1,569 @@
-# TailAdmin Next.js - Free Next.js Tailwind Admin Dashboard Template
+# GoGoCash Admin Architecture Guide
 
-TailAdmin is a free and open-source admin dashboard template built on **Next.js and Tailwind CSS** providing developers with everything they need to create a feature-rich and data-driven: back-end, dashboard, or admin panel solution for any sort of web project.
+This repository is a **Next.js 15 + React 19** admin panel for GoGoCash operations.
 
-![TailAdmin - Next.js Dashboard Preview](./banner.png)
+This README is intentionally architecture-first so new developers can:
+- understand data flow quickly,
+- know where to change code safely,
+- add new modules with less trial-and-error.
 
-With TailAdmin Next.js, you get access to all the necessary dashboard UI components, elements, and pages required to build a high-quality and complete dashboard or admin panel. Whether you're building a dashboard or admin panel for a complex web application or a simple website. 
+## 1) Project Purpose
 
-TailAdmin utilizes the powerful features of **Next.js 15** and common features of Next.js such as server-side rendering (SSR), static site generation (SSG), and seamless API route integration. Combined with the advancements of **React 19** and the robustness of **TypeScript**, TailAdmin is the perfect solution to help get your project up and running quickly.
+The app is an operations dashboard for:
+- admin users
+- regular users
+- offers
+- offer coupons
+- withdraw requests
+- conversion records
+- fee settings
+- categories
+- homepage banners
 
-## Overview
+Most business actions are management CRUD or status update workflows against a backend API.
 
-TailAdmin provides essential UI components and layouts for building feature-rich, data-driven admin dashboards and control panels. It's built on:
+---
 
-- Next.js 15.x
-- React 19
-- TypeScript
-- Tailwind CSS V4
+## 2) Stack and Runtime
 
-### Quick Links
-- [✨ Visit Website](https://tailadmin.com)
-- [📄 Documentation](https://tailadmin.com/docs)
-- [⬇️ Download](https://tailadmin.com/download)
-- [🖌️ Figma Design File (Community Edition)](https://www.figma.com/community/file/1463141366275764364)
-- [⚡ Get PRO Version](https://tailadmin.com/pricing)
+### Frontend runtime
+- Next.js `15.2.3` (App Router)
+- React `19`
+- TypeScript `strict`
+- Tailwind CSS `v4`
 
-### Demos
-- [Free Version](https://nextjs-free-demo.tailadmin.com)
-- [Pro Version](https://nextjs-demo.tailadmin.com)
+### State/data/auth
+- NextAuth (credentials provider, JWT session strategy)
+- TanStack React Query (read-heavy areas)
+- Local component state (`useState`, `useEffect`) for table/list management in many modules
 
-### Other Versions
-- [HTML Version](https://github.com/TailAdmin/tailadmin-free-tailwind-dashboard-template)
-- [React Version](https://github.com/TailAdmin/free-react-tailwind-admin-dashboard)
-- [Vue.js Version](https://github.com/TailAdmin/vue-tailwind-admin-dashboard)
+### UI libraries
+- Tailwind utility styling + project utility classes in `src/app/globals.css`
+- MUI (`@mui/x-data-grid`) for tabular detail views
+- ApexCharts for analytics charts
+- FullCalendar for calendar demo page
 
-## Installation
+### Network
+- Axios via two patterns:
+  1. `src/lib/api.ts` (typed API client wrapper)
+  2. `src/lib/axios/client.ts` (shared Axios instance + interceptor)
 
-### Prerequisites
-To get started with TailAdmin, ensure you have the following prerequisites installed and set up:
+---
 
-- Node.js 18.x or later (recommended to use Node.js 20.x or later)
+## 3) Top-Level Folder Map
 
-### Cloning the Repository
-Clone the repository using the following command:
-
-```bash
-git clone https://github.com/TailAdmin/free-nextjs-admin-dashboard.git
+```text
+.
+├── src/
+│   ├── app/                     # Next.js App Router pages/layouts/api routes
+│   ├── components/              # Feature modules + shared UI primitives
+│   ├── context/                 # Sidebar/theme context providers
+│   ├── hooks/                   # Reusable hooks (api, modal, go-back)
+│   ├── lib/                     # API clients + query client
+│   ├── types/                   # Domain model/type contracts
+│   └── utils/                   # Formatting/helper utilities
+├── public/                      # Static assets
+├── k8s/                         # Kubernetes deployment manifests
+├── Dockerfile                   # Container build
+├── cloudbuild.yaml              # GCP Cloud Build pipeline
+├── app.yaml                     # App Engine deployment config
+└── deploy.sh                    # Manual GCP deployment helper
 ```
 
-> Windows Users: place the repository near the root of your drive if you face issues while cloning.
+---
 
-1. Install dependencies:
-    ```bash
-    npm install
-    # or
-    yarn install
-    ```
-    > Use `--legacy-peer-deps` flag if you face peer-dependency error during installation.
+## 4) Routing Architecture (App Router)
 
-2. Start the development server:
-    ```bash
-    npm run dev
-    # or
-    yarn dev
-    ```
+### Route groups
 
-## Components
+- `src/app/(admin)`
+  - authenticated dashboard shell
+  - includes header/sidebar/backdrop layout
+  - includes all business pages
 
-TailAdmin is a pre-designed starting point for building a web-based dashboard using Next.js and Tailwind CSS. The template includes:
+- `src/app/(full-width-pages)`
+  - auth and error pages with separate full-width layout
 
-- Sophisticated and accessible sidebar
-- Data visualization components
-- Profile management and custom 404 page
-- Tables and Charts(Line and Bar)
-- Authentication forms and input elements
-- Alerts, Dropdowns, Modals, Buttons and more
-- Can't forget Dark Mode 🕶️
+- `src/app/api/auth/[...nextauth]/route.ts`
+  - NextAuth credentials entrypoint
 
-All components are built with React and styled using Tailwind CSS for easy customization.
+### Primary business routes
 
-## Feature Comparison
+- `/` dashboard (template analytics widgets)
+- `/admin-users`
+- `/users`
+- `/offers`
+- `/offers/[id]` (offer detail + coupon grid)
+- `/withdraw`
+- `/withdraw/[id]` (per-user withdraw/conversion detail)
+- `/conversion`
+- `/fee`
+- `/category`
+- `/banner`
+- `/coupon`
 
-### Free Version
-- 1 Unique Dashboard
-- 30+ dashboard components
-- 50+ UI elements
-- Basic Figma design files
-- Community support
+Most page files are thin wrappers that render:
+1. `PageBreadcrumb`
+2. one feature table/form component
 
-### Pro Version
-- 5 Unique Dashboards: Analytics, Ecommerce, Marketing, CRM, Stocks (more coming soon)
-- 400+ dashboard components and UI elements
-- Complete Figma design file
-- Email support
+This keeps page-level files simple and moves real logic into feature components.
 
-To learn more about pro version features and pricing, visit our [pricing page](https://tailadmin.com/pricing).
+---
 
-## Changelog
+## 5) Layout and Provider Composition
 
-### Version 2.0.2 - [March 25, 2025]
+### Root layout
+File: `src/app/layout.tsx`
 
-- Upgraded to Next v15.2.3 for [CVE-2025-29927](https://nextjs.org/blog/cve-2025-29927) concerns
-- Included overrides vectormap for packages to prevent peer dependency errors during installation.
-- Migrated from react-flatpickr to flatpickr package for React 19 support
+- loads global CSS and Outfit font
+- wraps app with `ClientProviders`
 
-### Version 2.0.1 - [February 27, 2025]
+### Client provider order
+File: `src/components/providers/ClientProviders.tsx`
 
-#### Update Overview
+Provider nesting:
+1. `QueryClientProvider`
+2. `SessionProvider`
+3. `ThemeProvider`
+4. `Toaster`
+5. `SidebarProvider`
 
-- Upgraded to Tailwind CSS v4 for better performance and efficiency.
-- Updated class usage to match the latest syntax and features.
-- Replaced deprecated class and optimized styles.
+This means any component can use:
+- React Query
+- NextAuth session
+- theme toggling
+- sidebar state
+- toast notifications
 
-#### Next Steps
+### Admin shell
+File: `src/app/(admin)/layout.tsx`
 
-- Run npm install or yarn install to update dependencies.
-- Check for any style changes or compatibility issues.
-- Refer to the Tailwind CSS v4 [Migration Guide](https://tailwindcss.com/docs/upgrade-guide) on this release. if needed.
-- This update keeps the project up to date with the latest Tailwind improvements. 🚀
+- wraps all admin pages with `AuthGuard`
+- renders `AppSidebar`, `AppHeader`, `Backdrop`
+- dynamically changes left margin based on sidebar expanded/hover/mobile state
 
-### v2.0.0 (February 2025)
-A major update focused on Next.js 15 implementation and comprehensive redesign.
+---
 
-#### Major Improvements
-- Complete redesign using Next.js 15 App Router and React Server Components
-- Enhanced user interface with Next.js-optimized components
-- Improved responsiveness and accessibility
-- New features including collapsible sidebar, chat screens, and calendar
-- Redesigned authentication using Next.js App Router and server actions
-- Updated data visualization using ApexCharts for React
+## 6) Authentication and Session Flow
 
-#### Breaking Changes
+### NextAuth strategy
+File: `src/app/api/auth/[...nextauth]/route.ts`
 
-- Migrated from Next.js 14 to Next.js 15
-- Chart components now use ApexCharts for React
-- Authentication flow updated to use Server Actions and middleware
+- Credentials provider calls backend login: `apiClient.login(...)`
+- login endpoint used: `/admin/login`
+- backend token is attached to NextAuth JWT (`token.accessToken`)
+- session callback exposes `session.accessToken`
+- session strategy = JWT, max age 24h
+- custom sign-in page = `/signin`
 
-[Read more](https://tailadmin.com/docs/update-logs/nextjs) on this release.
+### Route protection
+File: `src/components/auth/AuthGuard.tsx`
 
-#### Breaking Changes
-- Migrated from Next.js 14 to Next.js 15
-- Chart components now use ApexCharts for React
-- Authentication flow updated to use Server Actions and middleware
+- uses `useSession()`
+- while loading: spinner
+- unauthenticated: redirects to `/signin`
+- authenticated: renders children
 
-### v1.3.4 (July 01, 2024)
-- Fixed JSvectormap rendering issues
+### Logout
+File: `src/components/header/UserDropdown.tsx`
 
-### v1.3.3 (June 20, 2024)
-- Fixed build error related to Loader component
+- `signOut({ callbackUrl: "/signin" })`
 
-### v1.3.2 (June 19, 2024)
-- Added ClickOutside component for dropdown menus
-- Refactored sidebar components
-- Updated Jsvectormap package
+---
 
-### v1.3.1 (Feb 12, 2024)
-- Fixed layout naming consistency
-- Updated styles
+## 7) Data Layer and API Client Architecture
 
-### v1.3.0 (Feb 05, 2024)
-- Upgraded to Next.js 14
-- Added Flatpickr integration
-- Improved form elements
-- Enhanced multiselect functionality
-- Added default layout component
+There are **two parallel API patterns** in current codebase.
 
-## License
+## 7.1 Typed API wrapper (`src/lib/api.ts`)
 
-TailAdmin Next.js Free Version is released under the MIT License.
+This class wraps endpoints with typed methods and central error normalization.
 
-## Support
+Key characteristics:
+- Base URL: `process.env.NEXT_PUBLIC_API_URL || "https://api.gogocash.co"`
+- Uses Axios internally via dynamic import inside `request<T>()`
+- Converts Axios errors to `ApiError` shape
 
-If you find this project helpful, please consider giving it a star on GitHub. Your support helps us continue developing and maintaining this template.
+Main methods include:
+- auth: `login`, `register`, `logout`, `getProfile`, `refreshToken`
+- admin users: `getAdminUsers`, `getAdminUser`, `createAdminUser`, ...
+- users: `getUsers`, `getUser`, `updateUser`, ...
+- offers: `getOffers`, `getOffer`, `createOffer`, `updateOffer`, ...
+- operations: `getWithdraws`, `getConversion`, `getFee`, `updateFee`, `updateListOffer`
+
+## 7.2 Axios singleton (`src/lib/axios/client.ts`)
+
+This client is used directly in many feature forms and React Query fetchers.
+
+Key characteristics:
+- request interceptor pulls `getSession()` and sets `Authorization: Bearer <token>`
+- exported helpers: `fetcher`, `fetcherPost`, `fetcherPut`
+
+Used heavily for:
+- multipart form uploads (offer/category/banner/withdraw updates)
+- direct React Query endpoint fetches
+
+## 7.3 Hook abstraction (`src/hooks/useApi.ts`)
+
+`useApi` wraps `apiClient` methods and centralizes:
+- `loading`
+- `error`
+- `clearError`
+- token extraction from session
+
+Modules using `useApi` get a uniform interface and consistent error handling.
+
+---
+
+## 8) React Query Strategy
+
+Query client config: `src/lib/query/queryClient.ts`
+
+Defaults:
+- `refetchOnWindowFocus: false`
+- `refetchOnMount: false`
+- `refetchOnReconnect: false`
+- `staleTime: 0`
+
+Implication:
+- data is always considered stale immediately,
+- but auto-refetch triggers are mostly disabled,
+- so manual refetch/query-key changes drive updates.
+
+Current pattern in modules:
+- Some modules use `useQuery` (coupon/banner/category/detail pages)
+- Other modules use manual `useEffect + fetchX` (users/offers/withdraw/conversion)
+
+---
+
+## 9) Domain Modules (Deep Dive)
+
+## 9.1 Admin Users
+Files:
+- `src/components/admin/AdminUsersTable.tsx`
+- `src/app/(admin)/(others-pages)/admin-users/page.tsx`
+
+Flow:
+- query state stored locally (`limit/page/search`)
+- fetch via `useApi().getAdminUsers`
+- delete via `useApi().deleteAdminUser`
+- simple table rendering + manual pagination controls
+
+Notes:
+- pagination flags `hasNextPage/hasPrevPage` are currently hardcoded false in component state update.
+
+## 9.2 Users
+Files:
+- `src/components/user/UsersTable.tsx`
+- `src/components/user/FormUpdate.tsx`
+- `src/components/user/ViewMyCashback.tsx`
+- `src/app/(admin)/(others-pages)/users/page.tsx`
+
+Flow:
+- list users from `/user` via `getUsers`
+- edit mobile in modal via `POST /admin/update-user/:id` (multipart)
+- “View” navigates to `/withdraw/:userId` for user-centered finance view
+- `ViewMyCashback` modal uses React Query + `fetcher` (`/admin/get-mycashback-user/:id`)
+
+Phone handling:
+- formatting + validation via `libphonenumber-js` wrappers in `src/utils/helper.ts`
+
+## 9.3 Offers
+Files:
+- `src/components/offer/OffersTable.tsx`
+- `src/components/offer/FormOffer.tsx`
+- `src/app/(admin)/(others-pages)/offers/page.tsx`
+
+Flow:
+- list via `getOffers` hitting `/offer/admin`
+- search, pagination, country filter
+- sync external offers via `updateListOffer` (`/involve`)
+- edit modal updates offer assets/settings via `PATCH /admin/update-offer/:id` multipart
+- row click navigates to `/offers/[id]`
+
+Image source pattern:
+- backend file path rendered as `${NEXT_PUBLIC_API_URL}/google-drive/file/<path>`
+
+## 9.4 Offer Detail + Coupons
+Files:
+- `src/components/offer/Detail.tsx`
+- `src/components/coupon/FormCoupon.tsx`
+- `src/app/(admin)/(others-pages)/offers/[id]/page.tsx`
+
+Flow:
+- offer detail query: `/offer/:id`
+- coupon query by offer: `/offer/get-coupon-id/:id`
+- coupon CRUD-like update endpoint: `POST /offer/update-coupon`
+- MUI DataGrid is used for coupon table/actions
+
+`FormCoupon` supports:
+- optional offer picker (autocomplete from offers)
+- date/code/link/discount/min spend fields
+- create and edit via same endpoint payload
+
+## 9.5 Coupon Listing (global)
+Files:
+- `src/components/coupon/CouponTable.tsx`
+- `src/app/(admin)/(others-pages)/coupon/page.tsx`
+
+Flow:
+- fetches `/offer/get-coupon` with query params
+- renders full coupon list across offers
+- open modal for create/edit
+
+## 9.6 Category
+Files:
+- `src/components/category/CategoryTable.tsx`
+- `src/components/category/FormCategory.tsx`
+- `src/app/(admin)/(others-pages)/category/page.tsx`
+
+Flow:
+- fetch categories: `/offer/get-category/list` (+ search)
+- update category image: `PATCH /admin/update-category/:categoryId`
+
+## 9.7 Banner Homepage
+Files:
+- `src/components/banner/BannerTable.tsx`
+- `src/components/banner/FormUpdate.tsx`
+- `src/app/(admin)/(others-pages)/banner/page.tsx`
+
+Flow:
+- fetch current banner set: `/admin/banner-home`
+- manage five slots (`image_1..5`, `link_1..5`)
+- submit updates: `POST /admin/banner-home` multipart
+
+## 9.8 Withdraw
+Files:
+- `src/components/withdraw/WithdrawTable.tsx`
+- `src/components/withdraw/ModalWithdraw.tsx`
+- `src/components/withdraw/WithdrawDetail.tsx`
+- `src/app/(admin)/(others-pages)/withdraw/page.tsx`
+- `src/app/(admin)/(others-pages)/withdraw/[id]/page.tsx`
+
+Flow (list page):
+- fetch all requests: `/admin/withdraw-all`
+- search/paginate
+- open modal to approve/reject pending records
+
+Update flow:
+- modal submits `PATCH /admin/update-request-withdraw` multipart
+- status + optional slip file upload
+- business guard: only `bank_transfer` method can be updated in modal action
+
+Flow (detail page by user):
+- conversion+withdraw aggregate: `/withdraw/list-check-admin/:id`
+- mycashback summary: `/withdraw/check-my-cashback-admin/:id`
+- DataGrid views for conversions and withdraw records
+
+## 9.9 Conversion
+Files:
+- `src/components/conversion/ConversionTable.tsx`
+- `src/app/(admin)/(others-pages)/conversion/page.tsx`
+
+Flow:
+- fetch conversions: `/admin/conversion-all` with key/status/search
+- manual conversion refresh/update: `PATCH /admin/update-conversion/:conversionId`
+
+Search model supports key-based search (`aff_sub1`, `conversion_id`, `adv_sub*`).
+
+## 9.10 Fee
+Files:
+- `src/components/fee/FeeForm.tsx`
+- `src/app/(admin)/(others-pages)/fee/page.tsx`
+
+Flow:
+- fetch fee settings: `/admin/get-fee-rate`
+- update fee settings: `/admin/update-fee-rate/:id` via `apiClient.updateFee`
+
+Fields include:
+- system percent
+- withdrawal fees (THB/USD)
+- minimum withdrawal (THB/USD)
+
+---
+
+## 10) Shared UI Architecture
+
+Reusable primitives exist under `src/components/ui` and `src/components/form`.
+
+Important shared building blocks:
+- `Modal` (`src/components/ui/modal/index.tsx`)
+- `Dropdown` (`src/components/ui/dropdown/Dropdown.tsx`)
+- `Input` (`src/components/form/input/InputField.tsx`)
+- `Select` (`src/components/form/Select.tsx`)
+- `Switch` (`src/components/form/switch/Switch.tsx`)
+- `PageBreadcrumb`, `Card`
+
+Most business modals/forms rely on these primitives for visual consistency.
+
+---
+
+## 11) Styling and Theme System
+
+File: `src/app/globals.css`
+
+Highlights:
+- Tailwind v4 theme tokens (`@theme`) for color scales, spacing, breakpoints
+- custom utilities for menu states and scrollbars
+- dark mode variant powered by `.dark` class
+- third-party style overrides for ApexCharts, Flatpickr, FullCalendar
+
+Theme state:
+- `ThemeContext` reads/writes localStorage key `theme`
+- toggles `document.documentElement.classList` for dark mode
+
+---
+
+## 12) Sidebar/Header Interaction Model
+
+Sidebar state context (`src/context/SidebarContext.tsx`) controls:
+- expanded/collapsed desktop mode
+- mobile open/close mode
+- hover expansion behavior
+
+Header (`src/layout/AppHeader.tsx`) uses this context to:
+- toggle sidebar by viewport rules
+- support command search focus shortcut (`Cmd/Ctrl + K`)
+
+Sidebar nav config is static in `src/layout/AppSidebar.tsx` and should be updated when adding new modules.
+
+---
+
+## 13) Type System and Contracts
+
+Types are grouped by domain in `src/types`:
+- `api.ts` (core transport/domain types)
+- `user.ts`
+- `withdraw.ts`
+- `coupon.ts`
+- `banner.ts`
+- `category.ts`
+
+Guideline when extending:
+1. Add/adjust types first
+2. Update `apiClient` method signatures
+3. Wire through `useApi`
+4. Consume in UI
+
+This sequence minimizes runtime mismatch and improves IDE guidance.
+
+---
+
+## 14) Request Lifecycle (Typical)
+
+```mermaid
+flowchart LR
+A[User Action in Table/Form] --> B[Feature Component]
+B --> C{Data Path}
+C -->|Read| D[React Query useQuery / fetcher]
+C -->|Write| E[Axios client or useApi method]
+D --> F[Backend API]
+E --> F
+F --> G[Component State / Query Cache Update]
+G --> H[UI Re-render + Toast/Error]
+```
+
+Auth-aware calls usually depend on:
+- `session.accessToken` from NextAuth
+- `Authorization: Bearer <token>` header
+
+---
+
+## 15) Environment Variables
+
+Required:
+- `NEXT_PUBLIC_API_URL` (backend base URL)
+- `NEXTAUTH_SECRET`
+- `NEXTAUTH_URL`
+
+Used in code:
+- API base URL in `src/lib/api.ts` and `src/lib/axios/client.ts`
+- NextAuth secret in `src/app/api/auth/[...nextauth]/route.ts`
+- image file URL composition in multiple modules
+
+---
+
+## 16) Local Development
+
+```bash
+npm install
+npm run dev
+```
+
+or
+
+```bash
+yarn install
+yarn dev
+```
+
+Default app URL: `http://localhost:3000`
+
+No automated test suite is configured in this repository at the moment.
+
+---
+
+## 17) Deployment Architecture
+
+Deployment assets included:
+- Docker multi-stage build: `Dockerfile`
+- Cloud Run pipeline: `cloudbuild.yaml`
+- App Engine config: `app.yaml`
+- Kubernetes manifests: `k8s/*.yaml`
+- helper script: `deploy.sh`
+
+Targets supported:
+- Cloud Run (recommended in docs)
+- App Engine
+- GKE
+
+Note: ensure environment variables are supplied at deployment time (especially auth + API URL).
+
+---
+
+## 18) Fast Extension Playbook (How to Add a New Module)
+
+1. Add route page under:
+   - `src/app/(admin)/(others-pages)/<module>/page.tsx`
+2. Create feature component folder/file under:
+   - `src/components/<module>/...`
+3. Define DTO/types in `src/types/...`
+4. Add API method(s) in `src/lib/api.ts`
+5. Expose method(s) via `src/hooks/useApi.ts`
+6. Add nav entry in `src/layout/AppSidebar.tsx`
+7. Reuse existing primitives (`Modal`, `Input`, `Select`, `Card`, `PageBreadcrumb`)
+8. For read-heavy data, prefer `useQuery` with stable `queryKey`
+9. For writes, keep success/error UX consistent (toast + refetch/update)
+
+If you follow this pattern, new modules stay consistent with existing architecture.
+
+---
+
+## 19) Current Architecture Notes (Important for New Devs)
+
+These are not blockers, but they are useful to know before making larger changes:
+
+- API integration is split across two styles (`apiClient` + direct `client` usage).
+- Some docs in repository still reflect template/default or old endpoint examples.
+- Several pages/components are still template/demo oriented (dashboard widgets, signup form social buttons).
+- Pagination metadata handling is inconsistent across modules.
+
+When refactoring, a high-impact improvement is to unify all modules on one API calling style plus standardized query/mutation hooks.
+
+---
+
+## 20) Quick File Index (Most Important Files)
+
+- Root app layout: `src/app/layout.tsx`
+- Admin shell: `src/app/(admin)/layout.tsx`
+- NextAuth route: `src/app/api/auth/[...nextauth]/route.ts`
+- Provider composition: `src/components/providers/ClientProviders.tsx`
+- API client (typed): `src/lib/api.ts`
+- Axios client (interceptor): `src/lib/axios/client.ts`
+- API hook facade: `src/hooks/useApi.ts`
+- Sidebar navigation map: `src/layout/AppSidebar.tsx`
+- Global styles/tokens: `src/app/globals.css`
+
+---
+
+If you need, the next step can be a second document (`ARCHITECTURE_DECISIONS.md`) that tracks conventions and refactor roadmap (API unification, module scaffolding template, and test strategy).
