@@ -122,7 +122,7 @@ export class PointController {
   @ApiBearerAuth() // This directly applies Bearer authentication
   @Get('admin-get-quest')
   getAdminQuestOpen() {
-    return this.pointService.getQuestOpen();
+    return this.pointService.getQuestAdmin();
   }
 
   @Get('get-quest-open')
