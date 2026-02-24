@@ -70,6 +70,11 @@ const navItems: NavItem[] = [
     name: "Quest Management",
     subItems: [{ name: "Quest", path: "/quest", pro: false }],
   },
+  {
+    icon: <ListIcon />,
+    name: "Deeplink Management",
+    subItems: [{ name: "Deeplink", path: "/deeplink", pro: false }],
+  },
   // {
   //   icon: <CalenderIcon />,
   //   name: "Calendar",
@@ -368,7 +373,7 @@ const AppSidebar: React.FC = () => {
           )}
         </Link>
       </div>
-      <div className="no-scrollbar flex flex-col overflow-y-auto duration-300 ease-linear">
+      <div className="no-scrollbar flex h-[500px] flex-col overflow-y-auto duration-300 ease-linear md:h-screen">
         <nav className="mb-6">
           <div className="flex flex-col gap-4">
             <div>
