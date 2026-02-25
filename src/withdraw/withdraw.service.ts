@@ -380,10 +380,10 @@ export class WithdrawService {
       .find({
         user_id: new Types.ObjectId(user._id),
         mycashback_id: [],
-        // status: { $in: ['pending', 'approved', 'rejected'] },
+        reward: { $ne: true },
+        status: { $in: ['pending', 'approved'] }, //, 'rejected'
       })
       .lean();
-    console.log('user._id', user._id);
 
     const withdrawnAmountByCurrency = withdrawList.reduce(
       (acc, withdraw) => {
