@@ -8,6 +8,7 @@ import {
   CreateWithdrawDto,
   GETSignDTO,
   GetWithdrawTransactionsDTO,
+  RequestCreateRewardList,
 } from './dto/create-withdraw.dto';
 import {
   CreateWithdrawMethod,
@@ -25,6 +26,9 @@ import { WithdrawMethod } from './schemas/withdrawMethod.schema';
 import { rateCurrencyUSD, thaiBanks } from 'src/utils/helper';
 import { UserMyCashback } from 'src/user/schemas/user-my-cashback.schema';
 import { Conversion } from './schemas/conversion.schema';
+import { RewardList } from './schemas/rewardList.schema';
+import { PointService } from 'src/point/point.service';
+import { Quest } from 'src/point/schemas/quest.schema';
 
 @Injectable()
 export class WithdrawService {
@@ -34,11 +38,14 @@ export class WithdrawService {
     @InjectModel(FeeRate.name) private feeRateModel: Model<FeeRate>,
     @InjectModel(Offer.name) private offerModel: Model<Offer>,
     @InjectModel(Conversion.name) private conversionModel: Model<Conversion>,
+    @InjectModel(RewardList.name) private rewardListModel: Model<RewardList>,
+    @InjectModel(Quest.name) private questModel: Model<Quest>,
     @InjectModel(WithdrawMethod.name)
     private withdrawMethodModel: Model<WithdrawMethod>,
     @InjectModel(UserMyCashback.name)
     private userMyCashbackModel: Model<UserMyCashback>,
     private readonly involveService: InvolveService,
+    private readonly pointService: PointService,
   ) {}
   async getSign(msg: GETSignDTO): Promise<string> {
     // console.log('Generating EIP-712 signature for message:', msg);
@@ -365,10 +372,20 @@ export class WithdrawService {
         if (!acc[currency]) {
           acc[currency] = 0;
         }
-        const payout: number = Number(item.payout || 0) >= fee.max_cap ? Number(fee.max_cap) : Number(item.payout || 0);
+
+        const payout =
+          item.offer_name === 'reward_conversion_quest'
+            ? item.payout
+            : item.payout >= fee.max_cap
+              ? fee.max_cap
+              : item.payout;
         const feePercentage = fee.system;
         const feeAmount = (payout * feePercentage) / 100;
-        acc[currency] += payout - feeAmount;
+        if (item.offer_name === 'reward_conversion_quest') {
+          acc[currency] += payout;
+        } else {
+          acc[currency] += payout - feeAmount;
+        }
         return acc;
       },
       {} as Record<string, number>,
@@ -602,7 +619,14 @@ export class WithdrawService {
           };
         }
         acc[status].count += 1;
-        const payout = Number(item.payout || 0) >= fee.max_cap ? Number(fee.max_cap) : Number(item.payout || 0);
+     
+        const payout =
+          item.offer_name === 'reward_conversion_quest'
+            ? item.payout
+            : item.payout >= fee.max_cap
+              ? fee.max_cap
+              : item.payout;
+              
         acc[status].totalPayout += payout > 0 ? payout : 0;
         acc[status].items.push(item);
         return acc;
@@ -618,9 +642,15 @@ export class WithdrawService {
         const currencyTotals = statusData.items.reduce(
           (acc, item) => {
             const currency = item.currency || 'USD';
-            const payoutData: number = Number(item.payout || 0) >= fee.max_cap ? Number(fee.max_cap) : Number(item.payout || 0);
+            const payoutData =
+              item.offer_name === 'reward_conversion_quest'
+                ? item.payout
+                : item.payout >= fee.max_cap
+                  ? fee.max_cap
+                  : item.payout;
             const feeAmount = payoutData * (fee.system / 100);
-            const payout = payoutData - feeAmount;
+            
+            const payout = item.offer_name === 'reward_conversion_quest' ? payoutData : payoutData - feeAmount;
 
             if (!acc[currency]) {
               acc[currency] = 0;
@@ -1348,5 +1378,76 @@ export class WithdrawService {
     return this.withdrawMethodModel.findByIdAndUpdate(id, updateData, {
       new: true,
     });
+  }
+
+  async adminAddRewardConversionForQuest() {
+    const questDate = await this.questModel.findOne({ status: 'open' });
+
+    if (!questDate) {
+      throw new HttpException({ message: 'Quest date not found' }, 400);
+    }
+    const userReceivedReward = await this.pointService.getQuestRankListOfPoint(
+      new Date(questDate.start_date).toLocaleDateString('en-CA'),
+      new Date(questDate.end_date).toLocaleDateString('en-CA'),
+    );
+
+    const rewardList = await this.rewardListModel.findOne({ name: 'quest' });
+
+    if (!rewardList) {
+      throw new HttpException({ message: 'Reward list not found' }, 400);
+    }
+
+    const list = [];
+    for (let i = 0; i < userReceivedReward.length; i++) {
+      if (rewardList?.data?.length <= i) {
+        break;
+      }
+      const user = userReceivedReward[i];
+      const data = {
+        conversion_id: new Date().getTime() + i, // Use timestamp as unique ID for simplicity
+        offer_id: 0,
+        offer_name: 'reward_conversion_quest',
+        merchant_id: 0,
+        aff_sub2: '',
+        aff_sub3: '',
+        aff_sub4: '',
+        aff_sub5: '',
+        adv_sub1: `${questDate.start_date.toLocaleDateString('en-CA')} - ${questDate.end_date.toLocaleDateString('en-CA')}`, // "Reward Quest 2024-01-01 - 2024-01-31"
+        adv_sub2: `Reward Quest ${questDate.start_date.toLocaleDateString('en-CA')} - ${questDate.end_date.toLocaleDateString('en-CA')}`,
+        adv_sub3: '',
+        adv_sub4: '',
+        adv_sub5: '',
+        conversion_status: 'approved',
+        datetime_conversion: new Date(),
+        affiliate_remarks: '',
+        base_payout: 0,
+        bonus_payout: 0,
+        // change data
+        aff_sub1: `user_id:${user.user_id}`, // "user_id:68bf99fed9667685c1637607"
+        currency: rewardList?.data?.[i]?.currency || 'THB',
+        payout: rewardList?.data?.[i]?.reward || 0,
+        sale_amount: 0,
+      };
+      const payoutData = rewardList?.data?.[i]?.reward;
+
+      data.payout = payoutData;
+
+      // console.log('data', data);
+      await this.conversionModel.create(data);
+      list.push(data);
+    }
+    return rewardList;
+  }
+
+  async createRewardList(payload: RequestCreateRewardList) {
+    const has = await this.rewardListModel.findOne({ name: 'quest' });
+    if (has) {
+      await this.rewardListModel.deleteOne({ name: 'quest' });
+    }
+    const data = await this.rewardListModel.create({
+      name: 'quest',
+      data: payload.list,
+    });
+    return data;
   }
 }
