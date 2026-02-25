@@ -14,6 +14,7 @@ import {
   CreateWithdrawDto,
   GETSignDTO,
   GetWithdrawTransactionsDTO,
+  RequestCreateRewardList,
 } from './dto/create-withdraw.dto';
 import {
   CreateWithdrawMethod,
@@ -22,6 +23,7 @@ import {
 import { ApiBearerAuth, ApiBody, ApiQuery, ApiSecurity } from '@nestjs/swagger';
 import { Request } from 'express';
 import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
+import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
 @Controller('withdraw')
 export class WithdrawController {
   constructor(private readonly withdrawService: WithdrawService) {}
@@ -219,8 +221,16 @@ export class WithdrawController {
     return this.withdrawService.updateMethodData(id, body);
   }
 
-  // @Get(':id')
-  // findOne(@Param('id') id: string) {
-  //   return this.withdrawService.findOne(+id);
-  // }
+  @UseGuards(AuthAdminGuard)
+  @Patch('admin/add-reward-conversion')
+  async adminAddRewardConversion() {
+    return this.withdrawService.adminAddRewardConversionForQuest();
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiBody({ type: RequestCreateRewardList })
+  @Post('create-reward-list')
+  async createRewardList(@Body() body: RequestCreateRewardList) {
+    return this.withdrawService.createRewardList(body);
+  }
 }

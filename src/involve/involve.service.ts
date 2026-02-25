@@ -530,14 +530,18 @@ export class InvolveService {
       .find({
         aff_sub1: { $regex: `user_id:${id}` },
       })
-      .sort({ conversion_date: -1 })
+      .sort({ datetime_conversion: -1 })
       .lean();
     const fee = await this.feeRateModel.findOne().exec();
 
     const conversationByUser = [];
     for (const conversion of allConversions) {
       const payout =
-        conversion.payout >= fee.max_cap ? fee.max_cap : conversion.payout;
+        conversion.offer_name === 'reward_conversion_quest'
+          ? conversion.payout
+          : conversion.payout >= fee.max_cap
+            ? fee.max_cap
+            : conversion.payout;
       // @TODO ลบ feePercent ออก 30%
       conversationByUser.push({ ...conversion, payout: payout });
     }
