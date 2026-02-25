@@ -380,7 +380,6 @@ export class WithdrawService {
       .find({
         user_id: new Types.ObjectId(user._id),
         mycashback_id: [],
-        reward: { $ne: true },
         status: { $in: ['pending', 'approved'] }, //, 'rejected'
       })
       .lean();
