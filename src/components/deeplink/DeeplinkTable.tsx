@@ -49,6 +49,11 @@ export default function DeeplinkTable() {
       },
     },
     {
+      field: "deeplink",
+      headerName: "Deeplink",
+      width: 200,
+    },
+    {
       field: "createdAt",
       headerName: "Create Date",
       width: 150,
