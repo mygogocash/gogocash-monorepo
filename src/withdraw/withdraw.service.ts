@@ -1416,7 +1416,7 @@ export class WithdrawService {
         aff_sub5: '',
         adv_sub1: `${questDate.start_date.toLocaleDateString('en-CA')} - ${questDate.end_date.toLocaleDateString('en-CA')}`, // "Reward Quest 2024-01-01 - 2024-01-31"
         adv_sub2: `Reward Quest ${questDate.start_date.toLocaleDateString('en-CA')} - ${questDate.end_date.toLocaleDateString('en-CA')}`,
-        adv_sub3: '',
+        adv_sub3: questDate?._id.toString() || '', // quest ID
         adv_sub4: '',
         adv_sub5: '',
         conversion_status: 'approved',
