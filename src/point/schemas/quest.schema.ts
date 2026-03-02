@@ -13,6 +13,9 @@ export class Quest {
 
   @Prop({ required: true })
   status: string; // open, closed
+
+  @Prop({ required: true, default: false })
+  reward_status: boolean;
 }
 
 export const QuestSchema = SchemaFactory.createForClass(Quest);
