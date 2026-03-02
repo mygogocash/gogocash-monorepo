@@ -1381,10 +1381,12 @@ export class WithdrawService {
   }
 
   async adminAddRewardConversionForQuest() {
-    const questDate = await this.questModel.findOne({ status: 'open' });
+    const questDate = await this.questModel.findOne({ status: 'close', reward_status: { $ne: true } });
 
     if (!questDate) {
-      throw new HttpException({ message: 'Quest date not found' }, 400);
+      // throw new HttpException({ message: 'Quest date not found' }, 400);
+      console.log('Quest date not found for adminAddRewardConversionForQuest');
+      return;
     }
     const userReceivedReward = await this.pointService.getQuestRankListOfPoint(
       new Date(questDate.start_date).toLocaleDateString('en-CA'),
@@ -1436,6 +1438,7 @@ export class WithdrawService {
       await this.conversionModel.create(data);
       list.push(data);
     }
+    await this.questModel.findByIdAndUpdate(questDate._id, { reward_status: true }).exec();
     return rewardList;
   }
 
