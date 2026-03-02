@@ -3,11 +3,12 @@
 import React from "react";
 
 import { useSession } from "next-auth/react";
-import { fetcher } from "@/lib/axios/client";
+import client, { fetcher } from "@/lib/axios/client";
 import { useQuery } from "@tanstack/react-query";
 import { ResponseQuestCreateForm, ResponseQuestDate } from "@/types/quest";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import FormQuest from "./FormQuest";
+import toast from "react-hot-toast";
 
 export default function QuestTable() {
   const { data } = useSession();
@@ -23,7 +24,27 @@ export default function QuestTable() {
     queryFn: () => fetcher(`/point/admin-get-quest`),
     enabled: !!session?.accessToken,
   });
-  console.log("listQuest", listQuest);
+
+  const closeQuest = () => {
+    client
+      .patch(
+        `/point/close-quest`,
+        { status: "close" },
+        {
+          headers: {
+            Authorization: `Bearer ${session?.accessToken}`,
+          },
+        },
+      )
+      .then(() => {
+        toast.success("Close quest successfully");
+        refetch();
+      })
+      .catch((err) => {
+        console.log("err", err);
+        toast.error("Failed to close quest");
+      });
+  };
 
   const column2: GridColDef[] = [
     { field: "id", headerName: "ID", width: 250 },
@@ -55,18 +76,25 @@ export default function QuestTable() {
       renderCell: (params) => {
         const isActive = params.row.status === "open";
         return (
-          <button
-            className={`rounded px-2 py-1 text-sm font-medium ${
-              isActive ? "bg-red-500 text-white" : "bg-green-500 text-white"
-            }`}
-            onClick={() => {
-              // Handle status toggle logic here
-              // You can make an API call to update the status and then refetch the data
-              console.log("Toggle status for ID:", params.row.id);
-            }}
-          >
-            close
-          </button>
+          <>
+            {params.row.status === "open" ? (
+              <button
+                className={`rounded px-2 py-1 text-sm font-medium ${
+                  isActive ? "bg-red-500 text-white" : "bg-green-500 text-white"
+                }`}
+                onClick={() => {
+                  // Handle status toggle logic here
+                  // You can make an API call to update the status and then refetch the data
+                  console.log("Toggle status for ID:", params.row.id);
+                  closeQuest();
+                }}
+              >
+                close
+              </button>
+            ) : (
+              "Close"
+            )}
+          </>
         );
       },
     },
