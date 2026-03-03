@@ -158,6 +158,7 @@ export default function ConversionTable() {
           >
             <option value="aff_sub1">User Id</option>
             <option value="conversion_id">Conversion Id</option>
+            <option value="offer_name">Offer name</option>
             <option value="adv_sub1">Order Id 1</option>
             <option value="adv_sub2">Order Id 2</option>
             <option value="adv_sub3">Order Id 3</option>

@@ -75,6 +75,11 @@ const navItems: NavItem[] = [
     name: "Deeplink Management",
     subItems: [{ name: "Deeplink", path: "/deeplink", pro: false }],
   },
+  {
+    icon: <ListIcon />,
+    name: "Reward Management",
+    subItems: [{ name: "Create Reward", path: "/create-reward", pro: false }],
+  },
   // {
   //   icon: <CalenderIcon />,
   //   name: "Calendar",
