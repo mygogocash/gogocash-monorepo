@@ -24,6 +24,7 @@ import { ApiBearerAuth, ApiBody, ApiQuery, ApiSecurity } from '@nestjs/swagger';
 import { Request } from 'express';
 import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
+import { RequestCreateConversionReward } from './dto/create-conversion-reward.dto';
 @Controller('withdraw')
 export class WithdrawController {
   constructor(private readonly withdrawService: WithdrawService) {}
@@ -232,5 +233,12 @@ export class WithdrawController {
   @Post('create-reward-list')
   async createRewardList(@Body() body: RequestCreateRewardList) {
     return this.withdrawService.createRewardList(body);
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @Post('create-conversion-reward')
+  @ApiBody({ type: RequestCreateConversionReward })
+  async createConversionReward(@Body() body: RequestCreateConversionReward) {
+    return this.withdrawService.createConversionReward(body);
   }
 }
