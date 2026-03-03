@@ -29,6 +29,7 @@ import { Conversion } from './schemas/conversion.schema';
 import { RewardList } from './schemas/rewardList.schema';
 import { PointService } from 'src/point/point.service';
 import { Quest } from 'src/point/schemas/quest.schema';
+import { RequestCreateConversionReward } from './dto/create-conversion-reward.dto';
 
 @Injectable()
 export class WithdrawService {
@@ -619,14 +620,14 @@ export class WithdrawService {
           };
         }
         acc[status].count += 1;
-     
+
         const payout =
           item.offer_name === 'reward_conversion_quest'
             ? item.payout
             : item.payout >= fee.max_cap
               ? fee.max_cap
               : item.payout;
-              
+
         acc[status].totalPayout += payout > 0 ? payout : 0;
         acc[status].items.push(item);
         return acc;
@@ -649,8 +650,11 @@ export class WithdrawService {
                   ? fee.max_cap
                   : item.payout;
             const feeAmount = payoutData * (fee.system / 100);
-            
-            const payout = item.offer_name === 'reward_conversion_quest' ? payoutData : payoutData - feeAmount;
+
+            const payout =
+              item.offer_name === 'reward_conversion_quest'
+                ? payoutData
+                : payoutData - feeAmount;
 
             if (!acc[currency]) {
               acc[currency] = 0;
@@ -1381,7 +1385,10 @@ export class WithdrawService {
   }
 
   async adminAddRewardConversionForQuest() {
-    const questDate = await this.questModel.findOne({ status: 'close', reward_status: { $ne: true } });
+    const questDate = await this.questModel.findOne({
+      status: 'close',
+      reward_status: { $ne: true },
+    });
 
     if (!questDate) {
       // throw new HttpException({ message: 'Quest date not found' }, 400);
@@ -1438,7 +1445,9 @@ export class WithdrawService {
       await this.conversionModel.create(data);
       list.push(data);
     }
-    await this.questModel.findByIdAndUpdate(questDate._id, { reward_status: true }).exec();
+    await this.questModel
+      .findByIdAndUpdate(questDate._id, { reward_status: true })
+      .exec();
     return rewardList;
   }
 
@@ -1452,5 +1461,53 @@ export class WithdrawService {
       data: payload.list,
     });
     return data;
+  }
+
+  async createConversionReward({
+    reward_type,
+    reward_amount,
+    reward_currency,
+    user
+  }: RequestCreateConversionReward) {
+    const filterUSer = {}
+    if(user?.includes('@')) {
+      filterUSer['email'] = user
+    } else {
+      if (user?.startsWith('0')) {
+        user = "+66" + user.slice(1);
+      }
+      filterUSer['mobile'] = user
+    }
+    const userData = await this.userModel.findOne({ ...filterUSer });
+    if (!userData) {
+      throw new HttpException({ message: 'User not found' }, 400);
+    }
+    const user_id = userData._id.toString();
+    const data = {
+      conversion_id: new Date().getTime(), // Use timestamp as unique ID for simplicity
+      offer_id: 0,
+      offer_name: 'reward_conversion_quest',
+      merchant_id: 0,
+      aff_sub2: '',
+      aff_sub3: '',
+      aff_sub4: '',
+      aff_sub5: '',
+      adv_sub1: reward_type, // "Reward Quest 2024-01-01 - 2024-01-31"
+      adv_sub2: reward_type,
+      adv_sub3: '', // quest ID
+      adv_sub4: '',
+      adv_sub5: '',
+      conversion_status: 'approved',
+      datetime_conversion: new Date(),
+      affiliate_remarks: '',
+      base_payout: 0,
+      bonus_payout: 0,
+      aff_sub1: user_id?.startsWith('user_id:') ? user_id : `user_id:${user_id}`, // "user_id:68bf99fed9667685c1637607"
+      currency: reward_currency || 'THB',
+      payout: Number(reward_amount) || 0,
+      sale_amount: 0,
+    };
+
+    return await this.conversionModel.create(data);
   }
 }
