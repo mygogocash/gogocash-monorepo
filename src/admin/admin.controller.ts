@@ -199,6 +199,7 @@ export class AdminController {
       commission_store: updateAdminDto.commission_store && updateAdminDto.commission_store.toString() !== "undefined" ? updateAdminDto.commission_store : null,
       max_cap: updateAdminDto.max_cap && updateAdminDto.max_cap.toString() !== "undefined" ? updateAdminDto.max_cap : null,
       extra_store: updateAdminDto.extra_store === "true" ? true : false,
+      product_type: updateAdminDto.product_type,
     });
   }
 
