@@ -146,6 +146,7 @@ export interface Offer {
   max_cap: number | null;
   banner_mobile: string;
   extra_store: boolean;
+  product_type: ProductTypeList[];
 }
 
 export interface OfferRequestForm {
@@ -160,6 +161,12 @@ export interface OfferRequestForm {
   id: string;
   banner_mobile: File | null;
   extra_store: boolean;
+  product_type: ProductTypeList[];
+}
+
+export interface ProductTypeList {
+  name: string;
+  minimum: string;
 }
 
 export interface OffersQuery {

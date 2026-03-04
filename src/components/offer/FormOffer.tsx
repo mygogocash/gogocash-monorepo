@@ -7,6 +7,8 @@ import Button from "../ui/button/Button";
 import Switch from "../form/switch/Switch";
 import { Offer, OfferRequestForm } from "@/types/api";
 import { useSession } from "next-auth/react";
+import { GridAddIcon } from "@mui/x-data-grid";
+import { TrashBinIcon } from "@/icons";
 interface IProp {
   fetchOffers: () => void;
   openModal: boolean | Offer;
@@ -61,6 +63,7 @@ const FormOffer = ({
     formData.append("commission_store", String(form.commission_store));
     formData.append("max_cap", String(form.max_cap));
     formData.append("extra_store", String(form.extra_store));
+    formData.append("product_type", JSON.stringify(form.product_type));
     setIsLoading(true);
     client
       .patch(`/admin/update-offer/${form.id}`, formData, {
@@ -87,12 +90,12 @@ const FormOffer = ({
       onClose={function (): void {
         setOpenModal(false);
       }}
-      className="max-w-[600px] p-5 lg:p-10"
+      className="max-w-full p-5 lg:p-10"
     >
       <h4 className="text-title-sm mb-7 font-semibold text-gray-800 dark:text-white/90">
         Upload Logo
       </h4>
-      <div className="max-h-[500px] space-y-6 overflow-y-auto">
+      <div className="max-h-[calc(100vh-200px)] space-y-6 overflow-y-auto">
         <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
           Name of Offer:
         </p>
@@ -144,7 +147,80 @@ const FormOffer = ({
           }}
           defaultChecked={form.extra_store}
         />
+        <div className="mb-2 flex w-full items-center gap-5">
+          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            Product Type
+          </p>
+          <button
+            onClick={() => {
+              const defaultProductType = { name: "", minimum: "0" };
+              setForm({
+                ...form,
+                product_type: [...form.product_type, defaultProductType],
+              });
+            }}
+            className="cursor-pointer p-2 hover:rounded-full hover:bg-gray-100"
+          >
+            <GridAddIcon className="" />
+            Add
+          </button>
+        </div>
+        {form?.product_type &&
+          form?.product_type?.map((item, index) => {
+            return (
+              <div key={index} className="flex items-center gap-4">
+                <Input
+                  type="text"
+                  name={`product_type[${index}].name`}
+                  placeholder="name"
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      product_type: form.product_type.map((pt, i) =>
+                        i === index ? { ...pt, name: event.target.value } : pt,
+                      ),
+                    })
+                  }
+                  defaultValue={item.name || ""}
+                  value={item.name || ""}
+                />
+                <Input
+                  type="text"
+                  name={`product_type[${index}].minimum`}
+                  placeholder="minimum"
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      product_type: form.product_type.map((pt, i) =>
+                        i === index
+                          ? { ...pt, minimum: event.target.value }
+                          : pt,
+                      ),
+                    })
+                  }
+                  defaultValue={item.minimum || ""}
+                  value={item.minimum || ""}
+                />
+                <TrashBinIcon
+                  className="cursor-pointer"
+                  onClick={() => {
+                    console.log(index);
 
+                    const newProductType = form.product_type.filter(
+                      (_, i) => i !== index,
+                    );
+                    console.log(newProductType);
+
+                    setForm({
+                      ...form,
+                      product_type: newProductType,
+                    });
+                    console.log(form.product_type);
+                  }}
+                />
+              </div>
+            );
+          })}
         <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
           Upload logo_desktop:
         </p>
