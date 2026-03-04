@@ -70,6 +70,11 @@ export default function QuestTable() {
       width: 100,
     },
     {
+      field: "reward_status",
+      headerName: "Reward Status",
+      width: 100,
+    },
+    {
       field: "_id",
       headerName: "Action",
       width: 100,

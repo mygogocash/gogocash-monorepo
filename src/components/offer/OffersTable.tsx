@@ -26,6 +26,7 @@ export default function OffersTable() {
     id: "",
     banner_mobile: null,
     extra_store: false,
+    product_type: [],
   });
   const { data } = useSession();
   const session = data as { accessToken?: string };
@@ -419,6 +420,7 @@ export default function OffersTable() {
                               commission_store: offer.commission_store,
                               banner_mobile: null,
                               extra_store: offer.extra_store || false,
+                              product_type: offer.product_type || [],
                             });
                           }}
                           className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
