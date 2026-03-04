@@ -18,8 +18,8 @@ export class TasksService {
     @InjectModel(Conversion.name) private conversionModel: Model<Conversion>,
   ) {}
   // @Cron('45 * * * * *')
-  // @Cron(CronExpression.EVERY_MINUTE)
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  @Cron(CronExpression.EVERY_MINUTE)
+  // @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async handleCron() {
     this.logger.debug('Called when the current time is 00.00');
 
@@ -50,8 +50,12 @@ export class TasksService {
     const filterApproved = await this.conversionModel
       .find({
         aff_sub1: { $regex: '^user_id:' },
+        datetime_conversion: {
+          $gte: new Date(new Date().setDate(new Date().getDate() - 10)),
+          $lt: new Date(),
+        },
         // conversion_status: 'approved',
-        add_point: { $exists: false },
+        // add_point: { $exists: false },
       })
       .lean();
     console.log('filterApproved', filterApproved?.length);
@@ -59,6 +63,7 @@ export class TasksService {
 
     for (const conversion of filterApproved) {
       const userId = conversion.aff_sub1.split('user_id:')[1];
+      // console.log('conversion', conversion.datetime_conversion);
       // const calculatedPoints = Math.floor(conversion.sale_amount / 100);
       let calculatedPoints = 0;
       if (conversion.currency === 'USD') {
@@ -78,10 +83,10 @@ export class TasksService {
       );
       await delay(1000);
     }
-    await this.conversionModel.updateMany(
-      { _id: { $in: filterApproved.map((c) => new Types.ObjectId(c._id)) } },
-      { $set: { add_point: true } },
-    );
+    // await this.conversionModel.updateMany(
+    //   { _id: { $in: filterApproved.map((c) => new Types.ObjectId(c._id)) } },
+    //   { $set: { add_point: true } },
+    // );
     console.log('add point done', filterApproved?.length);
   }
 }
