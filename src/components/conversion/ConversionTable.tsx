@@ -262,7 +262,10 @@ export default function ConversionTable() {
                           {list.offer_name} ({list.conversion_id})
                         </div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">
-                          <p>date: {list.datetime_conversion?.toString()}</p>
+                          <p>
+                            date:{" "}
+                            {formatDate(list.datetime_conversion?.toString())}
+                          </p>
                           <p>
                             created: {formatDate(list.createdAt?.toString())}
                           </p>
