@@ -18,8 +18,8 @@ export class TasksService {
     @InjectModel(Conversion.name) private conversionModel: Model<Conversion>,
   ) {}
   // @Cron('45 * * * * *')
-  @Cron(CronExpression.EVERY_MINUTE)
-  // @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  // @Cron(CronExpression.EVERY_MINUTE)
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async handleCron() {
     this.logger.debug('Called when the current time is 00.00');
 
