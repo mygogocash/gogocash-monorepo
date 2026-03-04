@@ -2,6 +2,7 @@
 import { HttpException, Injectable } from '@nestjs/common';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import {
+  ProductTypeDto,
   UpdateAdminDto,
   UpdateBannerHomeDto,
   UpdateFeeRateDto,
@@ -299,6 +300,7 @@ export class AdminService {
       commission_store?: number;
       max_cap?: number;
       extra_store?: boolean;
+      product_type: ProductTypeDto[];
     },
   ) {
     const offer = await this.offerModel.findById(id).exec();
@@ -378,6 +380,7 @@ export class AdminService {
             updateData.commission_store ?? offer.commission_store ?? 0,
           max_cap: updateData.max_cap ?? offer.max_cap ?? 0,
           extra_store: Boolean(updateData.extra_store ?? offer.extra_store),
+          product_type: typeof updateData.product_type === 'string' ? JSON.parse(updateData.product_type) : updateData.product_type,
         },
         { new: true },
       )
