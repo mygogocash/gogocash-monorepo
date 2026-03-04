@@ -262,9 +262,13 @@ export default function ConversionTable() {
                           {list.offer_name} ({list.conversion_id})
                         </div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">
+                          {/* return <span>{date.toLocaleString()}</span>; */}
                           <p>
                             date:{" "}
-                            {formatDate(list.datetime_conversion?.toString())}
+                            {new Date(
+                              new Date(list.datetime_conversion).getTime() -
+                                7 * 60 * 60 * 1000,
+                            )?.toLocaleString()}
                           </p>
                           <p>
                             created: {formatDate(list.createdAt?.toString())}
