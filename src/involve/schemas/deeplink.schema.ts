@@ -12,6 +12,8 @@ export class Deeplink {
   user_id: Types.ObjectId;
   @Prop({ type: String, required: true })
   deeplink: string;
+  @Prop({ type: [Date], required: false })
+  click_date: Date[];
 }
 
 export const DeeplinkSchema = SchemaFactory.createForClass(Deeplink);
