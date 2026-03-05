@@ -63,6 +63,7 @@ export class InvolveService {
     const createLink = this.deeplinkModel.create({
       ...createInvolveDto,
       user_id: new Types.ObjectId(createInvolveDto.user_id),
+      click_date: [new Date()],
     });
     return createLink;
   }
@@ -77,8 +78,20 @@ export class InvolveService {
       merchant_id: Number(createInvolveDto.merchant_id),
       user_id: new Types.ObjectId(user._id), // user._id,
     });
+
     if (deeplink && deeplink?.deeplink) {
-      return deeplink;
+      return this.deeplinkModel.findOneAndUpdate(
+        {
+          offer_id: Number(createInvolveDto.offer_id),
+          merchant_id: Number(createInvolveDto.merchant_id),
+          user_id: new Types.ObjectId(user._id), // user._id,
+        },
+        {
+          $push: { click_date: new Date() },
+        },
+        { upsert: true },
+      );
+      // return deeplink;
     } else {
       // create deeplink on Involve Asia
       const deep = await this.createDeeplinkInvolve({
