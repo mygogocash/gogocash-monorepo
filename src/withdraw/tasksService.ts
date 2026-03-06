@@ -27,10 +27,10 @@ export class TasksService {
   // add conversion reward every 7th day of every month
   // @Cron('0 0 0 7 * *')
   // @Cron(CronExpression.EVERY_30_SECONDS)
-  @Cron('0 20 0 7 * *')
+  @Cron('0 1 0 7 * *')
   async addConversionReward() {
     this.logger.debug(
-      'Called when the current time is 00.05 on the 7th day of every month',
+      'Called when the current time is 1:00 AM on the 7th day of every month',
     );
     this.withdrawService.adminAddRewardConversionForQuest();
   }
