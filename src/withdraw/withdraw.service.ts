@@ -1448,6 +1448,8 @@ export class WithdrawService {
     await this.questModel
       .findByIdAndUpdate(questDate._id, { reward_status: true })
       .exec();
+    console.log(`done reward conversion for quest ${questDate._id} with ${list.length} users`);
+      
     return rewardList;
   }
 
