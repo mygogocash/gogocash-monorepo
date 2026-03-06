@@ -19,6 +19,7 @@ export class TasksService {
   ) {}
   // @Cron('45 * * * * *')
   // @Cron(CronExpression.EVERY_MINUTE)
+  // @Cron('0 31 0 7 * *')
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async handleCron() {
     this.logger.debug('Called when the current time is 00.00');
