@@ -26,7 +26,7 @@ export class TasksService {
 
   // add conversion reward every 7th day of every month
   // @Cron('0 0 0 7 * *')
-  // @Cron(CronExpression.EVERY_30_SECONDS)
+  // @Cron(CronExpression.EVERY_MINUTE)
   @Cron('0 1 0 7 * *')
   async addConversionReward() {
     this.logger.debug(
