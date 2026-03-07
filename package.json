@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@crossmint/server-sdk": "^1.2.41",
+    "@nestjs-modules/mailer": "^2.0.2",
     "@nestjs/cache-manager": "^3.0.1",
     "@nestjs/common": "^10.0.0",
     "@nestjs/core": "^10.0.0",
@@ -49,6 +50,7 @@
     "mongoose": "^8.18.0",
     "multer": "^2.0.2",
     "nestjs-telegraf": "^2.9.1",
+    "nodemailer": "^8.0.1",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.0",
