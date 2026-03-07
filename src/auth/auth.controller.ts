@@ -12,11 +12,13 @@ import { SignInAiDto, SignInDto, SignInFirebaseDto, TelegramAuthDto } from './dt
 import { CrossmintAuthGuard } from './jwt-auth.guard';
 import { Request } from 'express';
 import { FirebaseAuthGuard } from './firebase-auth.guard';
+import { OtpService } from './otp.service';
+import { SendOtpDto, VerifyOtpDto } from './dto/otp.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(private readonly auth: AuthService, private readonly otpService: OtpService) {}
 
   @Post('sign-in')
   @UseGuards(CrossmintAuthGuard)
@@ -129,4 +131,16 @@ export class AuthController {
   //   );
   //   return cookies[key] || null;
   // }
+
+  @Post('send-otp')
+  @ApiBody({ type: SendOtpDto })
+  async sendOtp(@Body('email') email: string) {
+    return this.otpService.sendOtpToEmail(email);
+  }
+
+  @Post('verify-otp')
+  @ApiBody({ type: VerifyOtpDto })
+  async verifyOtp(@Body('email') email: string, @Body('otp') otp: string) {
+    return this.otpService.verifyOtpAndCreateToken(email, otp);
+  }
 }
