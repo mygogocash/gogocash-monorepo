@@ -1,569 +1,728 @@
-# GoGoCash Admin Architecture Guide
+# GoGoCash Admin Dashboard
 
-This repository is a **Next.js 15 + React 19** admin panel for GoGoCash operations.
+> **Framework**: Next.js 15.2.3 · React 19 · TypeScript  
+> **UI**: Tailwind CSS 4 + Material-UI 7 · ApexCharts · FullCalendar  
+> **Auth**: NextAuth v4 (Credentials → JWT)  
+> **Deployment**: Docker → Google Cloud Run / GKE / App Engine  
 
-This README is intentionally architecture-first so new developers can:
-- understand data flow quickly,
-- know where to change code safely,
-- add new modules with less trial-and-error.
-
-## 1) Project Purpose
-
-The app is an operations dashboard for:
-- admin users
-- regular users
-- offers
-- offer coupons
-- withdraw requests
-- conversion records
-- fee settings
-- categories
-- homepage banners
-
-Most business actions are management CRUD or status update workflows against a backend API.
+Admin dashboard for managing GoGoCash operations — users, offers, withdrawals, conversions, fee settings, banners, coupons, and KPI monitoring.
 
 ---
 
-## 2) Stack and Runtime
+## Table of Contents
 
-### Frontend runtime
-- Next.js `15.2.3` (App Router)
-- React `19`
-- TypeScript `strict`
-- Tailwind CSS `v4`
-
-### State/data/auth
-- NextAuth (credentials provider, JWT session strategy)
-- TanStack React Query (read-heavy areas)
-- Local component state (`useState`, `useEffect`) for table/list management in many modules
-
-### UI libraries
-- Tailwind utility styling + project utility classes in `src/app/globals.css`
-- MUI (`@mui/x-data-grid`) for tabular detail views
-- ApexCharts for analytics charts
-- FullCalendar for calendar demo page
-
-### Network
-- Axios via two patterns:
-  1. `src/lib/api.ts` (typed API client wrapper)
-  2. `src/lib/axios/client.ts` (shared Axios instance + interceptor)
+- [Architecture Overview](#architecture-overview)
+- [Directory Structure](#directory-structure)
+- [Getting Started](#getting-started)
+- [Environment Variables](#environment-variables)
+- [Authentication](#authentication)
+- [Routes & Pages](#routes--pages)
+- [Provider Hierarchy](#provider-hierarchy)
+- [API Integration](#api-integration)
+- [Component Library](#component-library)
+- [Dashboard Features](#dashboard-features)
+- [State Management](#state-management)
+- [Styling](#styling)
+- [Type Definitions](#type-definitions)
+- [Deployment](#deployment)
+- [Key Libraries](#key-libraries)
 
 ---
 
-## 3) Top-Level Folder Map
+## Architecture Overview
 
-```text
-.
-├── src/
-│   ├── app/                     # Next.js App Router pages/layouts/api routes
-│   ├── components/              # Feature modules + shared UI primitives
-│   ├── context/                 # Sidebar/theme context providers
-│   ├── hooks/                   # Reusable hooks (api, modal, go-back)
-│   ├── lib/                     # API clients + query client
-│   ├── types/                   # Domain model/type contracts
-│   └── utils/                   # Formatting/helper utilities
-├── public/                      # Static assets
-├── k8s/                         # Kubernetes deployment manifests
-├── Dockerfile                   # Container build
-├── cloudbuild.yaml              # GCP Cloud Build pipeline
-├── app.yaml                     # App Engine deployment config
-└── deploy.sh                    # Manual GCP deployment helper
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Next.js 15 App Router                 │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│   (full-width-pages)/        (admin)/                   │
+│   ┌───────────────┐         ┌──────────────────────┐    │
+│   │ /signin       │         │ AuthGuard            │    │
+│   │ /signup       │         │   ┌──────────────┐   │    │
+│   │ /error-404    │         │   │ AppSidebar   │   │    │
+│   └───────────────┘         │   │ AppHeader    │   │    │
+│                             │   │ ┌──────────┐ │   │    │
+│                             │   │ │  Page    │ │   │    │
+│                             │   │ │ Content  │ │   │    │
+│                             │   │ └──────────┘ │   │    │
+│                             │   └──────────────┘   │    │
+│                             └──────────────────────┘    │
+│                                                         │
+│   api/auth/[...nextauth]    ← NextAuth API route        │
+│                                                         │
+├─────────────────────────────────────────────────────────┤
+│                Provider Stack                            │
+│  QueryClientProvider → SessionProvider → ThemeProvider   │
+│    → Toaster → SidebarProvider → {children}             │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│   lib/api.ts (ApiClient)  →  GoGoCash Backend API       │
+│   hooks/useApi.ts         →  https://api.gogocash.co    │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 4) Routing Architecture (App Router)
-
-### Route groups
-
-- `src/app/(admin)`
-  - authenticated dashboard shell
-  - includes header/sidebar/backdrop layout
-  - includes all business pages
-
-- `src/app/(full-width-pages)`
-  - auth and error pages with separate full-width layout
-
-- `src/app/api/auth/[...nextauth]/route.ts`
-  - NextAuth credentials entrypoint
-
-### Primary business routes
-
-- `/` dashboard (template analytics widgets)
-- `/admin-users`
-- `/users`
-- `/offers`
-- `/offers/[id]` (offer detail + coupon grid)
-- `/withdraw`
-- `/withdraw/[id]` (per-user withdraw/conversion detail)
-- `/conversion`
-- `/fee`
-- `/category`
-- `/banner`
-- `/coupon`
-
-Most page files are thin wrappers that render:
-1. `PageBreadcrumb`
-2. one feature table/form component
-
-This keeps page-level files simple and moves real logic into feature components.
-
----
-
-## 5) Layout and Provider Composition
-
-### Root layout
-File: `src/app/layout.tsx`
-
-- loads global CSS and Outfit font
-- wraps app with `ClientProviders`
-
-### Client provider order
-File: `src/components/providers/ClientProviders.tsx`
-
-Provider nesting:
-1. `QueryClientProvider`
-2. `SessionProvider`
-3. `ThemeProvider`
-4. `Toaster`
-5. `SidebarProvider`
-
-This means any component can use:
-- React Query
-- NextAuth session
-- theme toggling
-- sidebar state
-- toast notifications
-
-### Admin shell
-File: `src/app/(admin)/layout.tsx`
-
-- wraps all admin pages with `AuthGuard`
-- renders `AppSidebar`, `AppHeader`, `Backdrop`
-- dynamically changes left margin based on sidebar expanded/hover/mobile state
-
----
-
-## 6) Authentication and Session Flow
-
-### NextAuth strategy
-File: `src/app/api/auth/[...nextauth]/route.ts`
-
-- Credentials provider calls backend login: `apiClient.login(...)`
-- login endpoint used: `/admin/login`
-- backend token is attached to NextAuth JWT (`token.accessToken`)
-- session callback exposes `session.accessToken`
-- session strategy = JWT, max age 24h
-- custom sign-in page = `/signin`
-
-### Route protection
-File: `src/components/auth/AuthGuard.tsx`
-
-- uses `useSession()`
-- while loading: spinner
-- unauthenticated: redirects to `/signin`
-- authenticated: renders children
-
-### Logout
-File: `src/components/header/UserDropdown.tsx`
-
-- `signOut({ callbackUrl: "/signin" })`
-
----
-
-## 7) Data Layer and API Client Architecture
-
-There are **two parallel API patterns** in current codebase.
-
-## 7.1 Typed API wrapper (`src/lib/api.ts`)
-
-This class wraps endpoints with typed methods and central error normalization.
-
-Key characteristics:
-- Base URL: `process.env.NEXT_PUBLIC_API_URL || "https://api.gogocash.co"`
-- Uses Axios internally via dynamic import inside `request<T>()`
-- Converts Axios errors to `ApiError` shape
-
-Main methods include:
-- auth: `login`, `register`, `logout`, `getProfile`, `refreshToken`
-- admin users: `getAdminUsers`, `getAdminUser`, `createAdminUser`, ...
-- users: `getUsers`, `getUser`, `updateUser`, ...
-- offers: `getOffers`, `getOffer`, `createOffer`, `updateOffer`, ...
-- operations: `getWithdraws`, `getConversion`, `getFee`, `updateFee`, `updateListOffer`
-
-## 7.2 Axios singleton (`src/lib/axios/client.ts`)
-
-This client is used directly in many feature forms and React Query fetchers.
-
-Key characteristics:
-- request interceptor pulls `getSession()` and sets `Authorization: Bearer <token>`
-- exported helpers: `fetcher`, `fetcherPost`, `fetcherPut`
-
-Used heavily for:
-- multipart form uploads (offer/category/banner/withdraw updates)
-- direct React Query endpoint fetches
-
-## 7.3 Hook abstraction (`src/hooks/useApi.ts`)
-
-`useApi` wraps `apiClient` methods and centralizes:
-- `loading`
-- `error`
-- `clearError`
-- token extraction from session
-
-Modules using `useApi` get a uniform interface and consistent error handling.
-
----
-
-## 8) React Query Strategy
-
-Query client config: `src/lib/query/queryClient.ts`
-
-Defaults:
-- `refetchOnWindowFocus: false`
-- `refetchOnMount: false`
-- `refetchOnReconnect: false`
-- `staleTime: 0`
-
-Implication:
-- data is always considered stale immediately,
-- but auto-refetch triggers are mostly disabled,
-- so manual refetch/query-key changes drive updates.
-
-Current pattern in modules:
-- Some modules use `useQuery` (coupon/banner/category/detail pages)
-- Other modules use manual `useEffect + fetchX` (users/offers/withdraw/conversion)
-
----
-
-## 9) Domain Modules (Deep Dive)
-
-## 9.1 Admin Users
-Files:
-- `src/components/admin/AdminUsersTable.tsx`
-- `src/app/(admin)/(others-pages)/admin-users/page.tsx`
-
-Flow:
-- query state stored locally (`limit/page/search`)
-- fetch via `useApi().getAdminUsers`
-- delete via `useApi().deleteAdminUser`
-- simple table rendering + manual pagination controls
-
-Notes:
-- pagination flags `hasNextPage/hasPrevPage` are currently hardcoded false in component state update.
-
-## 9.2 Users
-Files:
-- `src/components/user/UsersTable.tsx`
-- `src/components/user/FormUpdate.tsx`
-- `src/components/user/ViewMyCashback.tsx`
-- `src/app/(admin)/(others-pages)/users/page.tsx`
-
-Flow:
-- list users from `/user` via `getUsers`
-- edit mobile in modal via `POST /admin/update-user/:id` (multipart)
-- “View” navigates to `/withdraw/:userId` for user-centered finance view
-- `ViewMyCashback` modal uses React Query + `fetcher` (`/admin/get-mycashback-user/:id`)
-
-Phone handling:
-- formatting + validation via `libphonenumber-js` wrappers in `src/utils/helper.ts`
-
-## 9.3 Offers
-Files:
-- `src/components/offer/OffersTable.tsx`
-- `src/components/offer/FormOffer.tsx`
-- `src/app/(admin)/(others-pages)/offers/page.tsx`
-
-Flow:
-- list via `getOffers` hitting `/offer/admin`
-- search, pagination, country filter
-- sync external offers via `updateListOffer` (`/involve`)
-- edit modal updates offer assets/settings via `PATCH /admin/update-offer/:id` multipart
-- row click navigates to `/offers/[id]`
-
-Image source pattern:
-- backend file path rendered as `${NEXT_PUBLIC_API_URL}/google-drive/file/<path>`
-
-## 9.4 Offer Detail + Coupons
-Files:
-- `src/components/offer/Detail.tsx`
-- `src/components/coupon/FormCoupon.tsx`
-- `src/app/(admin)/(others-pages)/offers/[id]/page.tsx`
-
-Flow:
-- offer detail query: `/offer/:id`
-- coupon query by offer: `/offer/get-coupon-id/:id`
-- coupon CRUD-like update endpoint: `POST /offer/update-coupon`
-- MUI DataGrid is used for coupon table/actions
-
-`FormCoupon` supports:
-- optional offer picker (autocomplete from offers)
-- date/code/link/discount/min spend fields
-- create and edit via same endpoint payload
-
-## 9.5 Coupon Listing (global)
-Files:
-- `src/components/coupon/CouponTable.tsx`
-- `src/app/(admin)/(others-pages)/coupon/page.tsx`
-
-Flow:
-- fetches `/offer/get-coupon` with query params
-- renders full coupon list across offers
-- open modal for create/edit
-
-## 9.6 Category
-Files:
-- `src/components/category/CategoryTable.tsx`
-- `src/components/category/FormCategory.tsx`
-- `src/app/(admin)/(others-pages)/category/page.tsx`
-
-Flow:
-- fetch categories: `/offer/get-category/list` (+ search)
-- update category image: `PATCH /admin/update-category/:categoryId`
-
-## 9.7 Banner Homepage
-Files:
-- `src/components/banner/BannerTable.tsx`
-- `src/components/banner/FormUpdate.tsx`
-- `src/app/(admin)/(others-pages)/banner/page.tsx`
-
-Flow:
-- fetch current banner set: `/admin/banner-home`
-- manage five slots (`image_1..5`, `link_1..5`)
-- submit updates: `POST /admin/banner-home` multipart
-
-## 9.8 Withdraw
-Files:
-- `src/components/withdraw/WithdrawTable.tsx`
-- `src/components/withdraw/ModalWithdraw.tsx`
-- `src/components/withdraw/WithdrawDetail.tsx`
-- `src/app/(admin)/(others-pages)/withdraw/page.tsx`
-- `src/app/(admin)/(others-pages)/withdraw/[id]/page.tsx`
-
-Flow (list page):
-- fetch all requests: `/admin/withdraw-all`
-- search/paginate
-- open modal to approve/reject pending records
-
-Update flow:
-- modal submits `PATCH /admin/update-request-withdraw` multipart
-- status + optional slip file upload
-- business guard: only `bank_transfer` method can be updated in modal action
-
-Flow (detail page by user):
-- conversion+withdraw aggregate: `/withdraw/list-check-admin/:id`
-- mycashback summary: `/withdraw/check-my-cashback-admin/:id`
-- DataGrid views for conversions and withdraw records
-
-## 9.9 Conversion
-Files:
-- `src/components/conversion/ConversionTable.tsx`
-- `src/app/(admin)/(others-pages)/conversion/page.tsx`
-
-Flow:
-- fetch conversions: `/admin/conversion-all` with key/status/search
-- manual conversion refresh/update: `PATCH /admin/update-conversion/:conversionId`
-
-Search model supports key-based search (`aff_sub1`, `conversion_id`, `adv_sub*`).
-
-## 9.10 Fee
-Files:
-- `src/components/fee/FeeForm.tsx`
-- `src/app/(admin)/(others-pages)/fee/page.tsx`
-
-Flow:
-- fetch fee settings: `/admin/get-fee-rate`
-- update fee settings: `/admin/update-fee-rate/:id` via `apiClient.updateFee`
-
-Fields include:
-- system percent
-- withdrawal fees (THB/USD)
-- minimum withdrawal (THB/USD)
-
----
-
-## 10) Shared UI Architecture
-
-Reusable primitives exist under `src/components/ui` and `src/components/form`.
-
-Important shared building blocks:
-- `Modal` (`src/components/ui/modal/index.tsx`)
-- `Dropdown` (`src/components/ui/dropdown/Dropdown.tsx`)
-- `Input` (`src/components/form/input/InputField.tsx`)
-- `Select` (`src/components/form/Select.tsx`)
-- `Switch` (`src/components/form/switch/Switch.tsx`)
-- `PageBreadcrumb`, `Card`
-
-Most business modals/forms rely on these primitives for visual consistency.
-
----
-
-## 11) Styling and Theme System
-
-File: `src/app/globals.css`
-
-Highlights:
-- Tailwind v4 theme tokens (`@theme`) for color scales, spacing, breakpoints
-- custom utilities for menu states and scrollbars
-- dark mode variant powered by `.dark` class
-- third-party style overrides for ApexCharts, Flatpickr, FullCalendar
-
-Theme state:
-- `ThemeContext` reads/writes localStorage key `theme`
-- toggles `document.documentElement.classList` for dark mode
-
----
-
-## 12) Sidebar/Header Interaction Model
-
-Sidebar state context (`src/context/SidebarContext.tsx`) controls:
-- expanded/collapsed desktop mode
-- mobile open/close mode
-- hover expansion behavior
-
-Header (`src/layout/AppHeader.tsx`) uses this context to:
-- toggle sidebar by viewport rules
-- support command search focus shortcut (`Cmd/Ctrl + K`)
-
-Sidebar nav config is static in `src/layout/AppSidebar.tsx` and should be updated when adding new modules.
-
----
-
-## 13) Type System and Contracts
-
-Types are grouped by domain in `src/types`:
-- `api.ts` (core transport/domain types)
-- `user.ts`
-- `withdraw.ts`
-- `coupon.ts`
-- `banner.ts`
-- `category.ts`
-
-Guideline when extending:
-1. Add/adjust types first
-2. Update `apiClient` method signatures
-3. Wire through `useApi`
-4. Consume in UI
-
-This sequence minimizes runtime mismatch and improves IDE guidance.
-
----
-
-## 14) Request Lifecycle (Typical)
-
-```mermaid
-flowchart LR
-A[User Action in Table/Form] --> B[Feature Component]
-B --> C{Data Path}
-C -->|Read| D[React Query useQuery / fetcher]
-C -->|Write| E[Axios client or useApi method]
-D --> F[Backend API]
-E --> F
-F --> G[Component State / Query Cache Update]
-G --> H[UI Re-render + Toast/Error]
+## Directory Structure
+
+```
+src/
+├── app/
+│   ├── globals.css                       # Tailwind CSS global styles
+│   ├── layout.tsx                        # Root layout (Outfit font, providers)
+│   ├── not-found.tsx                     # 404 page
+│   │
+│   ├── (admin)/                          # 🔒 Protected admin area
+│   │   ├── layout.tsx                    # Admin shell (AuthGuard + Sidebar + Header)
+│   │   ├── page.tsx                      # Dashboard (KPI metrics, charts)
+│   │   └── (others-pages)/
+│   │       ├── admin-users/page.tsx      # Admin user management
+│   │       ├── users/page.tsx            # Regular user management
+│   │       ├── offers/page.tsx           # Offer listing
+│   │       ├── offers/[id]/page.tsx      # Offer detail/edit
+│   │       ├── withdraw/page.tsx         # Withdrawal requests
+│   │       ├── withdraw/[id]/page.tsx    # Withdrawal detail/approval
+│   │       ├── conversion/page.tsx       # Conversion tracking
+│   │       ├── banner/page.tsx           # Banner management
+│   │       ├── category/page.tsx         # Category management
+│   │       ├── coupon/page.tsx           # Coupon management
+│   │       ├── fee/page.tsx              # Fee rate settings
+│   │       ├── profile/page.tsx          # Admin profile
+│   │       └── calendar/page.tsx         # Calendar view
+│   │
+│   ├── (full-width-pages)/               # 🔓 Public pages (no sidebar)
+│   │   ├── layout.tsx                    # Minimal layout
+│   │   ├── (auth)/
+│   │   │   ├── signin/page.tsx           # Login page
+│   │   │   └── signup/page.tsx           # Registration page
+│   │   └── (error-pages)/
+│   │       └── error-404/page.tsx        # Error page
+│   │
+│   └── api/
+│       └── auth/[...nextauth]/route.ts   # NextAuth API handler
+│
+├── components/
+│   ├── admin/
+│   │   └── AdminUsersTable.tsx           # Admin user CRUD table
+│   ├── auth/
+│   │   ├── AuthGuard.tsx                 # Auth protection wrapper
+│   │   ├── SignInForm.tsx                # Login form
+│   │   └── SignUpForm.tsx                # Registration form
+│   ├── banner/                           # Banner management components
+│   ├── category/                         # Category management components
+│   ├── charts/
+│   │   ├── bar/                          # Bar chart components
+│   │   └── line/                         # Line chart components
+│   ├── common/
+│   │   ├── PageBreadCrumb.tsx            # Breadcrumb navigation
+│   │   ├── SearchTable.tsx               # Table search input
+│   │   ├── Card.tsx                      # Generic card
+│   │   ├── ComponentCard.tsx             # Component showcase wrapper
+│   │   └── ThemeToggleButton.tsx         # Light/dark mode toggle
+│   ├── conversion/
+│   │   └── ConversionTable.tsx           # Conversion tracking table
+│   ├── coupon/                           # Coupon CRUD components
+│   ├── ecommerce/
+│   │   ├── EcommerceMetrics.tsx           # KPI metric cards
+│   │   ├── MonthlySalesChart.tsx          # Sales trend chart
+│   │   ├── StatisticsChart.tsx            # Statistics visualization
+│   │   ├── MonthlyTarget.tsx              # Target progress ring
+│   │   ├── DemographicCard.tsx            # User demographics
+│   │   ├── RecentOrders.tsx               # Latest orders table
+│   │   └── CountryMap.tsx                 # World map (jvectormap)
+│   ├── fee/
+│   │   └── FeeForm.tsx                   # Fee rate settings form
+│   ├── form/
+│   │   ├── Form.tsx, Label.tsx           # Form primitives
+│   │   ├── Input/                        # Input components
+│   │   ├── Select.tsx, MultiSelect.tsx   # Select components
+│   │   ├── Switch/                       # Toggle switches
+│   │   └── date-picker.tsx               # Flatpickr date picker
+│   ├── header/
+│   │   ├── NotificationDropdown.tsx      # Notification bell
+│   │   └── UserDropdown.tsx              # User menu (profile, logout)
+│   ├── offer/
+│   │   ├── OffersTable.tsx               # Offer listing with search
+│   │   ├── Detail.tsx                    # Offer detail view
+│   │   └── FormOffer.tsx                 # Offer edit form
+│   ├── providers/
+│   │   └── ClientProviders.tsx           # Provider composition
+│   ├── tables/
+│   │   ├── BasicTableOne.tsx             # Generic table
+│   │   └── Pagination.tsx                # Pagination controls
+│   ├── ui/
+│   │   ├── alert/, badge/, button/       # UI primitives
+│   │   ├── dropdown/, modal/             # Interactive components
+│   │   ├── table/                        # Table components
+│   │   └── avatar/, images/, video/      # Media components
+│   ├── user/
+│   │   ├── UsersTable.tsx                # User listing table
+│   │   ├── FormUpdate.tsx                # User edit form
+│   │   └── ViewMyCashback.tsx            # User cashback details
+│   └── withdraw/
+│       ├── WithdrawTable.tsx             # Withdrawal requests table
+│       ├── WithdrawDetail.tsx            # Approval/rejection view
+│       └── ModalWithdraw.tsx             # Withdrawal modal
+│
+├── context/
+│   ├── SidebarContext.tsx                # Sidebar expand/collapse state
+│   └── ThemeContext.tsx                  # Light/dark theme state
+│
+├── hooks/
+│   ├── useApi.ts                        # API client hook (CRUD methods)
+│   ├── useGoBack.ts                     # Navigation back helper
+│   └── useModal.ts                      # Modal open/close state
+│
+├── layout/
+│   ├── AppSidebar.tsx                   # Sidebar navigation
+│   └── AppHeader.tsx                    # Top header bar
+│
+├── lib/
+│   ├── api.ts                           # ApiClient singleton (Axios)
+│   └── query/
+│       └── queryClient.ts              # TanStack Query config
+│
+├── types/
+│   ├── api.ts                           # API request/response types
+│   └── user.ts                          # User-related types
+│
+└── utils/                               # Utility functions
 ```
 
-Auth-aware calls usually depend on:
-- `session.accessToken` from NextAuth
-- `Authorization: Bearer <token>` header
-
 ---
 
-## 15) Environment Variables
+## Getting Started
 
-Required:
-- `NEXT_PUBLIC_API_URL` (backend base URL)
-- `NEXTAUTH_SECRET`
-- `NEXTAUTH_URL`
+### Prerequisites
+- Node.js 20+
+- Yarn (recommended) or npm
 
-Used in code:
-- API base URL in `src/lib/api.ts` and `src/lib/axios/client.ts`
-- NextAuth secret in `src/app/api/auth/[...nextauth]/route.ts`
-- image file URL composition in multiple modules
-
----
-
-## 16) Local Development
+### Install & Run
 
 ```bash
-npm install
-npm run dev
-```
-
-or
-
-```bash
+# Install dependencies
 yarn install
-yarn dev
+
+# Development
+yarn dev          # → http://localhost:3000
+
+# Production build
+yarn build
+yarn start
 ```
 
-Default app URL: `http://localhost:3000`
+---
 
-No automated test suite is configured in this repository at the moment.
+## Environment Variables
+
+```bash
+# ─── Required ───
+NEXT_PUBLIC_API_URL=https://api.gogocash.co    # Backend API base URL
+NEXTAUTH_SECRET=<random-secret-string>          # NextAuth encryption key
+NEXTAUTH_URL=https://your-domain.com            # Canonical URL for auth callbacks
+NODE_ENV=production
+NEXT_TELEMETRY_DISABLED=1
+```
 
 ---
 
-## 17) Deployment Architecture
+## Authentication
 
-Deployment assets included:
-- Docker multi-stage build: `Dockerfile`
-- Cloud Run pipeline: `cloudbuild.yaml`
-- App Engine config: `app.yaml`
-- Kubernetes manifests: `k8s/*.yaml`
-- helper script: `deploy.sh`
+### NextAuth Configuration
 
-Targets supported:
-- Cloud Run (recommended in docs)
-- App Engine
-- GKE
+```
+Provider:   Credentials (email + password)
+Strategy:   JWT (no database sessions)
+Max Age:    24 hours
+Login API:  POST /admin/login → { _id, username, email, token }
+```
 
-Note: ensure environment variables are supplied at deployment time (especially auth + API URL).
+### Auth Flow
 
----
+```
+┌──────────────┐    email/password    ┌────────────────┐
+│  SignInForm   │ ──────────────────→  │  NextAuth API   │
+│  /signin     │                      │  /api/auth/...  │
+└──────────────┘                      └────────┬───────┘
+                                               │
+                        POST /admin/login      │
+                                               ▼
+                                      ┌────────────────┐
+                                      │  GoGoCash API  │
+                                      │  (Backend)     │
+                                      └────────┬───────┘
+                                               │
+                        { token, user data }   │
+                                               ▼
+                                      ┌────────────────┐
+                                      │  JWT Session   │
+                                      │  (24h expiry)  │
+                                      └────────┬───────┘
+                                               │
+          accessToken stored in session        │
+                                               ▼
+                                      ┌────────────────┐
+                                      │  AuthGuard     │
+                                      │  (protects     │
+                                      │   all /admin)  │
+                                      └────────────────┘
+```
 
-## 18) Fast Extension Playbook (How to Add a New Module)
+### AuthGuard Component
 
-1. Add route page under:
-   - `src/app/(admin)/(others-pages)/<module>/page.tsx`
-2. Create feature component folder/file under:
-   - `src/components/<module>/...`
-3. Define DTO/types in `src/types/...`
-4. Add API method(s) in `src/lib/api.ts`
-5. Expose method(s) via `src/hooks/useApi.ts`
-6. Add nav entry in `src/layout/AppSidebar.tsx`
-7. Reuse existing primitives (`Modal`, `Input`, `Select`, `Card`, `PageBreadcrumb`)
-8. For read-heavy data, prefer `useQuery` with stable `queryKey`
-9. For writes, keep success/error UX consistent (toast + refetch/update)
+Wraps all admin routes in `(admin)/layout.tsx`:
+- Checks `useSession()` status
+- Redirects unauthenticated users to `/signin`
+- Shows loading spinner during session check
+- Prevents page render until authenticated
 
-If you follow this pattern, new modules stay consistent with existing architecture.
+### Session Shape
 
----
-
-## 19) Current Architecture Notes (Important for New Devs)
-
-These are not blockers, but they are useful to know before making larger changes:
-
-- API integration is split across two styles (`apiClient` + direct `client` usage).
-- Some docs in repository still reflect template/default or old endpoint examples.
-- Several pages/components are still template/demo oriented (dashboard widgets, signup form social buttons).
-- Pagination metadata handling is inconsistent across modules.
-
-When refactoring, a high-impact improvement is to unify all modules on one API calling style plus standardized query/mutation hooks.
-
----
-
-## 20) Quick File Index (Most Important Files)
-
-- Root app layout: `src/app/layout.tsx`
-- Admin shell: `src/app/(admin)/layout.tsx`
-- NextAuth route: `src/app/api/auth/[...nextauth]/route.ts`
-- Provider composition: `src/components/providers/ClientProviders.tsx`
-- API client (typed): `src/lib/api.ts`
-- Axios client (interceptor): `src/lib/axios/client.ts`
-- API hook facade: `src/hooks/useApi.ts`
-- Sidebar navigation map: `src/layout/AppSidebar.tsx`
-- Global styles/tokens: `src/app/globals.css`
+```typescript
+interface Session {
+  expires: string;
+  accessToken?: string;    // JWT from GoGoCash API
+}
+```
 
 ---
 
-If you need, the next step can be a second document (`ARCHITECTURE_DECISIONS.md`) that tracks conventions and refactor roadmap (API unification, module scaffolding template, and test strategy).
+## Routes & Pages
+
+### Protected Admin Routes (`/`)
+
+| Path | Component | Description |
+|------|-----------|-------------|
+| `/` | `EcommerceMetrics` + Charts | Dashboard with KPIs, sales charts, demographics |
+| `/admin-users` | `AdminUsersTable` | Manage admin user accounts (CRUD) |
+| `/users` | `UsersTable` | View & manage regular users |
+| `/offers` | `OffersTable` | Browse & manage merchant offers |
+| `/offers/[id]` | `Detail` + `FormOffer` | Individual offer detail & editing |
+| `/withdraw` | `WithdrawTable` | View withdrawal requests |
+| `/withdraw/[id]` | `WithdrawDetail` | Approve/reject withdrawals |
+| `/conversion` | `ConversionTable` | Track affiliate conversions |
+| `/banner` | Banner components | Homepage banner management |
+| `/category` | Category components | Offer category management |
+| `/coupon` | Coupon components | Coupon code management |
+| `/fee` | `FeeForm` | System fee rate configuration |
+| `/profile` | Profile page | Admin profile settings |
+| `/calendar` | FullCalendar | Calendar view |
+
+### Public Routes
+
+| Path | Component | Description |
+|------|-----------|-------------|
+| `/signin` | `SignInForm` | Admin login |
+| `/signup` | `SignUpForm` | Admin registration |
+| `/error-404` | Error page | Not found |
+
+---
+
+## Provider Hierarchy
+
+```tsx
+// src/components/providers/ClientProviders.tsx
+
+<QueryClientProvider client={queryClient}>     // TanStack React Query
+  <SessionProvider>                             // NextAuth session
+    <ThemeProvider>                              // Light/dark mode
+      <Toaster />                               // react-hot-toast notifications
+      <SidebarProvider>                          // Sidebar expand/collapse
+        {children}                               // App content
+      </SidebarProvider>
+    </ThemeProvider>
+  </SessionProvider>
+</QueryClientProvider>
+```
+
+---
+
+## API Integration
+
+### ApiClient Singleton (`src/lib/api.ts`)
+
+Base URL: `NEXT_PUBLIC_API_URL` (defaults to `https://api.gogocash.co`)
+
+All requests include `Authorization: Bearer {token}` from the NextAuth session.
+
+### Available API Methods (via `useApi` hook)
+
+```typescript
+// src/hooks/useApi.ts
+
+const api = useApi();
+
+// ─── Auth ───
+api.login(email, password)         // POST /admin/login
+api.register(data)                 // POST /admin/register
+api.getProfile()                   // GET /auth/profile
+api.updateProfile(data)            // PUT /user/profile
+
+// ─── Admin Users ───
+api.getAdminUsers(query?)          // GET /admin?limit=12&page=1&search=
+api.createAdminUser(data)          // POST /admin
+api.updateAdminUser(id, data)      // PUT /admin/:id
+api.deleteAdminUser(id)            // DELETE /admin/:id
+
+// ─── Regular Users ───
+api.getUsers(query?)               // GET /user?limit=12&page=1&search=
+api.createUser(data)               // POST /user
+api.updateUser(id, data)           // PUT /user/:id
+api.deleteUser(id)                 // DELETE /user/:id
+
+// ─── Offers ───
+api.getOffers(query?)              // GET /offer/admin?search=&limit=&page=
+api.createOffer(data)              // POST /offer
+api.updateOffer(id, data)          // PUT /offer/:id
+api.deleteOffer(id)                // DELETE /offer/:id
+api.updateListOffer(token)         // Sync offers from Involve Asia
+
+// ─── Withdrawals & Conversions ───
+api.getWithdraws(query, token)     // GET /admin/withdraw-all?limit=&page=
+api.getConversion(query, token)    // GET /admin/conversion-all?limit=&page=
+
+// ─── Fee Settings ───
+api.getFee(token)                  // GET /admin/get-fee-rate
+api.updateFee(form, token)         // PATCH /admin/update-fee-rate/:id
+
+// ─── State ───
+api.loading                        // boolean
+api.error                          // string | null
+api.clearError()
+```
+
+### TanStack Query Configuration
+
+```typescript
+// src/lib/query/queryClient.ts
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
+      staleTime: 0,
+    },
+  },
+});
+```
+
+---
+
+## Component Library
+
+### Table Components
+
+All management pages follow a consistent pattern:
+
+```
+┌──────────────────────────────────────────┐
+│  PageBreadCrumb (navigation trail)       │
+├──────────────────────────────────────────┤
+│  SearchTable (search input + actions)    │
+├──────────────────────────────────────────┤
+│  DataTable/BasicTableOne                 │
+│  ┌─────┬──────────┬──────────┬────────┐  │
+│  │ #   │ Name     │ Status   │ Action │  │
+│  ├─────┼──────────┼──────────┼────────┤  │
+│  │ 1   │ ...      │ ...      │ ✏️ 🗑️ │  │
+│  │ 2   │ ...      │ ...      │ ✏️ 🗑️ │  │
+│  └─────┴──────────┴──────────┴────────┘  │
+├──────────────────────────────────────────┤
+│  Pagination (prev/next, page numbers)    │
+└──────────────────────────────────────────┘
+```
+
+### Form Components
+
+| Component | File | Description |
+|-----------|------|-------------|
+| `Input` | `form/Input/` | Text, number, email inputs |
+| `Select` | `form/Select.tsx` | Single select dropdown |
+| `MultiSelect` | `form/MultiSelect.tsx` | Multi-select with tags |
+| `Switch` | `form/Switch/` | Toggle switches |
+| `DatePicker` | `form/date-picker.tsx` | Flatpickr date input |
+| `Label` | `form/Label.tsx` | Form field labels |
+
+### UI Components
+
+| Component | Path | Description |
+|-----------|------|-------------|
+| `Alert` | `ui/alert/` | Info/success/warning/error banners |
+| `Badge` | `ui/badge/` | Status badges with variants |
+| `Button` | `ui/button/` | Primary/secondary/ghost buttons |
+| `Dropdown` | `ui/dropdown/` | Dropdown menus |
+| `Modal` | `ui/modal/` | Dialog overlays |
+| `Table` | `ui/table/` | Styled table components |
+
+---
+
+## Dashboard Features
+
+The main dashboard (`/`) displays:
+
+```
+┌──────────────────────────────────────────────────┐
+│              EcommerceMetrics                      │
+│  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐            │
+│  │Users │ │Sales │ │Orders│ │Growth│             │
+│  │ 1.2K │ │ $24K │ │ 580  │ │ +12% │            │
+│  └──────┘ └──────┘ └──────┘ └──────┘            │
+├──────────────────────────────────────────────────┤
+│                                                   │
+│  ┌─────────────────────┐ ┌──────────────────────┐│
+│  │ MonthlySalesChart   │ │ StatisticsChart      ││
+│  │ (ApexCharts Line)   │ │ (ApexCharts Bar)     ││
+│  └─────────────────────┘ └──────────────────────┘│
+│                                                   │
+│  ┌─────────────────────┐ ┌──────────────────────┐│
+│  │ MonthlyTarget       │ │ DemographicCard      ││
+│  │ (Progress ring)     │ │ (User breakdown)     ││
+│  └─────────────────────┘ └──────────────────────┘│
+│                                                   │
+│  ┌─────────────────────┐ ┌──────────────────────┐│
+│  │ RecentOrders        │ │ CountryMap           ││
+│  │ (Latest activity)   │ │ (jvectormap world)   ││
+│  └─────────────────────┘ └──────────────────────┘│
+└──────────────────────────────────────────────────┘
+```
+
+---
+
+## State Management
+
+### React Context
+
+| Context | File | State |
+|---------|------|-------|
+| `SidebarContext` | `context/SidebarContext.tsx` | `isExpanded`, `isMobileOpen`, `isHovered`, `activeItem`, `openSubmenu` |
+| `ThemeContext` | `context/ThemeContext.tsx` | `theme` ("light" / "dark"), persisted to localStorage |
+
+### TanStack React Query
+
+Used for server state caching. Configured with no auto-refetching to give admin users full control over data freshness.
+
+### NextAuth Session
+
+JWT-based session with `accessToken` for API authorization. 24-hour expiry.
+
+---
+
+## Styling
+
+### Tailwind CSS 4 + Dark Mode
+
+- **PostCSS plugin**: `@tailwindcss/postcss`
+- **Dark mode**: Class-based (`dark:` prefix), toggled via `ThemeContext`
+- **Auto-sort**: Prettier plugin `prettier-plugin-tailwindcss`
+
+### Material-UI 7
+
+- `@mui/material` for DataGrid and complex components
+- `@emotion/react` + `@emotion/styled` for CSS-in-JS
+
+### Path Aliases
+
+```json
+// tsconfig.json
+{ "@/*": "./src/*" }
+```
+
+---
+
+## Type Definitions
+
+### Key Types (`src/types/api.ts`)
+
+```typescript
+// Auth
+interface LoginRequest { email: string; password: string }
+interface LoginResponse { _id, username, email, token, createdAt, updatedAt }
+
+// Admin Users
+interface DataAdminUsers { _id, username, password, email, createdAt, updatedAt }
+interface AdminUsersResponse { data: DataAdminUsers[], pagination: Pagination }
+
+// Regular Users
+interface RegularUser {
+  _id, address, email, username, mobile?, id_firebase, id_crossmint,
+  id_twitter, country?, gender?, birthdate?, createdAt, updatedAt
+}
+
+// Offers
+interface Offer {
+  _id, offer_id, offer_name, categories, countries, currency,
+  logo, logo_desktop, logo_mobile, banner, tracking_link, ...
+}
+
+// Withdrawals
+interface DataWithdrawsList {
+  user_id, amount_total, amount_net, percent_fee, status,
+  method, tx_hash, conversion_id[], slip_file, ...
+}
+
+// Conversions
+interface DataConversion {
+  conversion_id, offer_id, aff_sub1, conversion_status,
+  currency, sale_amount, payout, user, ...
+}
+
+// Fee Settings
+interface ResponseFee {
+  _id, system, minimum_withdraw_thb, minimum_withdraw_usd,
+  fee_withdraw_thb, fee_withdraw_usd
+}
+
+// Pagination
+interface Pagination { page, limit, total, totalPages }
+```
+
+---
+
+## Deployment
+
+### Option 1: Google Cloud Run (Recommended)
+
+```bash
+# Build & deploy via Cloud Build
+gcloud builds submit --config=cloudbuild.yaml
+
+# Or manually:
+docker build -t gcr.io/PROJECT_ID/gogocash-admin .
+docker push gcr.io/PROJECT_ID/gogocash-admin
+gcloud run deploy gogocash-admin \
+  --image gcr.io/PROJECT_ID/gogocash-admin \
+  --region us-central1 \
+  --port 3000 \
+  --allow-unauthenticated
+```
+
+### Option 2: Google Kubernetes Engine (GKE)
+
+```bash
+# Apply k8s manifests
+kubectl apply -f k8s/secrets.yaml
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/service.yaml
+kubectl apply -f k8s/managed-cert.yaml
+kubectl apply -f k8s/ingress.yaml
+```
+
+**K8s Configuration:**
+- **Replicas**: 2
+- **Resources**: 256Mi–512Mi RAM, 250m–500m CPU
+- **Health checks**: Liveness (30s) + Readiness (5s)
+- **SSL**: Google-managed certificate
+- **Ingress**: Global static IP with HTTPS
+
+### Option 3: App Engine
+
+```bash
+gcloud app deploy app.yaml
+```
+
+**App Engine Config** (`app.yaml`):
+- Runtime: Node.js 18
+- Auto-scaling: 0–10 instances
+- CPU target: 60%
+- Resources: 1 CPU, 0.5GB RAM
+
+### Docker Build
+
+Multi-stage Dockerfile:
+1. **deps**: Install with `yarn --frozen-lockfile`
+2. **builder**: `yarn build` (Next.js standalone output)
+3. **runner**: Production image, non-root user (`nextjs:nodejs`)
+
+```bash
+# Build locally
+docker build -t gogocash-admin .
+docker run -p 3000:3000 --env-file .env gogocash-admin
+```
+
+### CI/CD Pipeline (`cloudbuild.yaml`)
+
+```
+1. Build Docker image  →  gcr.io/$PROJECT_ID/gogocash-admin:$COMMIT_SHA
+2. Push to GCR         →  Both :$COMMIT_SHA and :latest tags
+3. Deploy Cloud Run    →  us-central1, port 3000, unauthenticated
+```
+
+---
+
+## Sidebar Navigation Structure
+
+```
+Dashboard
+├── Ecommerce (/)
+
+Users Management
+├── Users Admin (/admin-users)
+└── Users (/users)
+
+Offers Management
+└── Offers (/offers)
+
+Category Management
+└── Category (/category)
+
+Withdraw Management
+└── Withdraw (/withdraw)
+
+Conversion Management
+└── Conversion (/conversion)
+
+Banner Homepage
+└── Banner (/banner)
+
+Coupon
+└── Coupon (/coupon)
+
+Others
+└── Fee rate (/fee)
+```
+
+---
+
+## Key Libraries
+
+| Library | Version | Purpose |
+|---------|---------|---------|
+| `next` | 15.2.3 | React framework (App Router, SSR) |
+| `react` | 19.0.0 | UI library |
+| `next-auth` | 4.24.13 | Authentication (JWT + Credentials) |
+| `@tanstack/react-query` | 5.90.9 | Server state management |
+| `axios` | 1.13.1 | HTTP client |
+| `tailwindcss` | 4.0.0 | Utility-first CSS |
+| `@mui/material` | 7.3.5 | Component library |
+| `apexcharts` | 4.3.0 | Interactive charts |
+| `@fullcalendar/react` | 6.1.15 | Calendar component |
+| `@react-jvectormap/world` | - | World map visualization |
+| `react-hot-toast` | 2.6.0 | Toast notifications |
+| `flatpickr` | - | Date/time picker |
+| `react-dropzone` | 14.3.5 | File upload drag & drop |
+| `react-dnd` | 16.0.1 | Drag and drop |
+| `libphonenumber-js` | 1.12.33 | Phone number formatting |
+| `swiper` | 11.2.0 | Touch slider/carousel |
+| `tailwind-merge` | 2.6.0 | Merge Tailwind classes |
+
+---
+
+## Developer Onboarding
+
+1. **Start here**: Read [Authentication](#authentication) and [Routes & Pages](#routes--pages) to understand the app structure.
+2. **Run locally**: `yarn dev` → open `http://localhost:3000` → sign in with admin credentials.
+3. **Key files to read first**:
+   - `src/app/(admin)/layout.tsx` — Admin shell layout
+   - `src/lib/api.ts` — API client (all endpoints)
+   - `src/hooks/useApi.ts` — React hook wrapping the API client
+   - `src/components/auth/AuthGuard.tsx` — Route protection
+4. **Adding a new management page**:
+   - Create route: `src/app/(admin)/(others-pages)/your-page/page.tsx`
+   - Create component: `src/components/your-feature/YourTable.tsx`
+   - Add API methods to `lib/api.ts` and `hooks/useApi.ts`
+   - Add sidebar entry in `layout/AppSidebar.tsx`
+5. **Follow the pattern**: Every management page uses `SearchTable` + data table + `Pagination`.
