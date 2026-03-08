@@ -65,21 +65,6 @@ const navItems: NavItem[] = [
     name: "Coupon",
     subItems: [{ name: "Coupon", path: "/coupon", pro: false }],
   },
-  {
-    icon: <ListIcon />,
-    name: "Quest Management",
-    subItems: [{ name: "Quest", path: "/quest", pro: false }],
-  },
-  {
-    icon: <ListIcon />,
-    name: "Deeplink Management",
-    subItems: [{ name: "Deeplink", path: "/deeplink", pro: false }],
-  },
-  {
-    icon: <ListIcon />,
-    name: "Reward Management",
-    subItems: [{ name: "Create Reward", path: "/create-reward", pro: false }],
-  },
   // {
   //   icon: <CalenderIcon />,
   //   name: "Calendar",
@@ -378,7 +363,7 @@ const AppSidebar: React.FC = () => {
           )}
         </Link>
       </div>
-      <div className="no-scrollbar flex h-[500px] flex-col overflow-y-auto duration-300 ease-linear md:h-screen">
+      <div className="no-scrollbar flex flex-col overflow-y-auto duration-300 ease-linear">
         <nav className="mb-6">
           <div className="flex flex-col gap-4">
             <div>

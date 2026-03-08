@@ -79,23 +79,11 @@ const WithdrawDetail = () => {
       headerName: "Affiliate Remarks",
     },
     {
-      field: "offer_name",
-      headerName: "Offer Name",
-      width: 180,
-      renderCell: (params) => {
-        return <span>{params.value}</span>;
-      },
-    },
-    {
       field: "datetime_conversion",
       headerName: "Date",
       width: 180,
       renderCell: (params) => {
-        const date = new Date(
-          new Date(params.row.datetime_conversion).getTime() -
-            7 * 60 * 60 * 1000,
-        );
-        return <span>{date.toLocaleString()}</span>;
+        return <span>{new Date(params.value).toLocaleString()}</span>;
       },
     },
 
