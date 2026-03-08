@@ -106,9 +106,6 @@ export class Offer {
 
   @Prop({ default: 1 })
   extra_point: number;
-
-  @Prop()
-  product_type: { [key: string]: string }[];
 }
 
 export const OfferSchema = SchemaFactory.createForClass(Offer);

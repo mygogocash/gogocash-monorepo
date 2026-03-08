@@ -25,7 +25,7 @@ export class TasksService {
   // }
 
   // @Cron(CronExpression.EVERY_30_SECONDS)
-  @Cron(CronExpression.EVERY_1ST_DAY_OF_MONTH_AT_NOON)
+  @Cron(CronExpression.EVERY_1ST_DAY_OF_MONTH_AT_MIDNIGHT)
   async handleCron() {
     this.logger.debug(
       'Called when the current time is 12:00 PM on the 1st day of the month',

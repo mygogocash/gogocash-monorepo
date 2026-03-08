@@ -5,8 +5,7 @@ import { InvolveService } from 'src/involve/involve.service';
 import { delay } from 'rxjs';
 import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import { rateCurrencyUSD } from 'src/utils/helper';
+import { Model } from 'mongoose';
 
 @Injectable()
 export class TasksService {
@@ -19,7 +18,6 @@ export class TasksService {
   ) {}
   // @Cron('45 * * * * *')
   // @Cron(CronExpression.EVERY_MINUTE)
-  // @Cron('0 31 0 7 * *')
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async handleCron() {
     this.logger.debug('Called when the current time is 00.00');
@@ -51,29 +49,15 @@ export class TasksService {
     const filterApproved = await this.conversionModel
       .find({
         aff_sub1: { $regex: '^user_id:' },
-        datetime_conversion: {
-          $gte: new Date(new Date().setDate(new Date().getDate() - 10)),
-          $lt: new Date(),
-        },
-        // conversion_status: 'approved',
-        // add_point: { $exists: false },
+        conversion_status: 'approved',
       })
       .lean();
     console.log('filterApproved', filterApproved?.length);
-    const rate = await rateCurrencyUSD();
-
     for (const conversion of filterApproved) {
       const userId = conversion.aff_sub1.split('user_id:')[1];
-      // console.log('conversion', conversion.datetime_conversion);
       // const calculatedPoints = Math.floor(conversion.sale_amount / 100);
-      let calculatedPoints = 0;
-      if (conversion.currency === 'USD') {
-        // console.log('rate', rate['THB']);
-        calculatedPoints = Math.floor(conversion.sale_amount * rate['THB']);
-      } else {
-        calculatedPoints = Math.floor(conversion.sale_amount);
-      }
-      // console.log('calculatedPoints', calculatedPoints);
+      const calculatedPoints = Math.floor(conversion.sale_amount);
+
       // console.log(
       //   `User ID: ${userId}, ${conversion.conversion_id} Payout Amount: ${conversion.payout}, Calculated Points: ${calculatedPoints}`,
       // );
@@ -84,10 +68,6 @@ export class TasksService {
       );
       await delay(1000);
     }
-    // await this.conversionModel.updateMany(
-    //   { _id: { $in: filterApproved.map((c) => new Types.ObjectId(c._id)) } },
-    //   { $set: { add_point: true } },
-    // );
     console.log('add point done', filterApproved?.length);
   }
 }

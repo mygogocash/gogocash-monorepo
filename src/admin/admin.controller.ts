@@ -199,7 +199,6 @@ export class AdminController {
       commission_store: updateAdminDto.commission_store && updateAdminDto.commission_store.toString() !== "undefined" ? updateAdminDto.commission_store : null,
       max_cap: updateAdminDto.max_cap && updateAdminDto.max_cap.toString() !== "undefined" ? updateAdminDto.max_cap : null,
       extra_store: updateAdminDto.extra_store === "true" ? true : false,
-      product_type: updateAdminDto.product_type,
     });
   }
 
@@ -293,14 +292,5 @@ export class AdminController {
   updateConversionDataByConversionId(@Param('id') id: string) {
     // console.log('Updating conversion data for ID:', id);
     return this.adminService.updateConversionDataByConversionId(id);
-  }
-
-  @UseGuards(AuthAdminGuard)
-  @ApiSecurity('access-token') // Apply the security scheme defined globally
-  @ApiBearerAuth()
-  @Get('get-deep-link-list')
-  getDeepLinkList() {
-    // console.log('Updating conversion data for ID:', id);
-    return this.adminService.getDeepLinkList();
   }
 }
