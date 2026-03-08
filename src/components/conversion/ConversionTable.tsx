@@ -158,7 +158,6 @@ export default function ConversionTable() {
           >
             <option value="aff_sub1">User Id</option>
             <option value="conversion_id">Conversion Id</option>
-            <option value="offer_name">Offer name</option>
             <option value="adv_sub1">Order Id 1</option>
             <option value="adv_sub2">Order Id 2</option>
             <option value="adv_sub3">Order Id 3</option>
@@ -262,13 +261,9 @@ export default function ConversionTable() {
                           {list.offer_name} ({list.conversion_id})
                         </div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {/* return <span>{date.toLocaleString()}</span>; */}
                           <p>
                             date:{" "}
-                            {new Date(
-                              new Date(list.datetime_conversion).getTime() -
-                                7 * 60 * 60 * 1000,
-                            )?.toLocaleString()}
+                            {formatDate(list.datetime_conversion?.toString())}
                           </p>
                           <p>
                             created: {formatDate(list.createdAt?.toString())}
