@@ -51,17 +51,6 @@ export class UpdateRequestWithdrawDto {
   id: string;
 }
 
-export class ProductTypeDto {
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  name: string;
-
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  minimum: string;
-}
 export class UpdateOfferAdminDto {
   @ApiProperty()
   @IsString()
@@ -109,10 +98,6 @@ export class UpdateOfferAdminDto {
   @ApiProperty()
   @IsOptional()
   extra_store: boolean | string;
-
-  @ApiProperty({ type: [ProductTypeDto] })
-  @IsOptional()
-  product_type: ProductTypeDto[];
 }
 
 export class UpdateUserDto {

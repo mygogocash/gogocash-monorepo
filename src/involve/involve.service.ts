@@ -63,7 +63,6 @@ export class InvolveService {
     const createLink = this.deeplinkModel.create({
       ...createInvolveDto,
       user_id: new Types.ObjectId(createInvolveDto.user_id),
-      click_date: [new Date()],
     });
     return createLink;
   }
@@ -78,20 +77,8 @@ export class InvolveService {
       merchant_id: Number(createInvolveDto.merchant_id),
       user_id: new Types.ObjectId(user._id), // user._id,
     });
-
     if (deeplink && deeplink?.deeplink) {
-      return this.deeplinkModel.findOneAndUpdate(
-        {
-          offer_id: Number(createInvolveDto.offer_id),
-          merchant_id: Number(createInvolveDto.merchant_id),
-          user_id: new Types.ObjectId(user._id), // user._id,
-        },
-        {
-          $push: { click_date: new Date() },
-        },
-        { upsert: true },
-      );
-      // return deeplink;
+      return deeplink;
     } else {
       // create deeplink on Involve Asia
       const deep = await this.createDeeplinkInvolve({
@@ -543,18 +530,14 @@ export class InvolveService {
       .find({
         aff_sub1: { $regex: `user_id:${id}` },
       })
-      .sort({ datetime_conversion: -1 })
+      .sort({ conversion_date: -1 })
       .lean();
     const fee = await this.feeRateModel.findOne().exec();
 
     const conversationByUser = [];
     for (const conversion of allConversions) {
       const payout =
-        conversion.offer_name === 'reward_conversion_quest'
-          ? conversion.payout
-          : conversion.payout >= fee.max_cap
-            ? fee.max_cap
-            : conversion.payout;
+        conversion.payout >= fee.max_cap ? fee.max_cap : conversion.payout;
       // @TODO ลบ feePercent ออก 30%
       conversationByUser.push({ ...conversion, payout: payout });
     }

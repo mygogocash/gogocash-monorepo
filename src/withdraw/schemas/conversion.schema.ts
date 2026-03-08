@@ -83,9 +83,6 @@ export class Conversion {
   // Optional: keep original payload for audit/debug
   @Prop({ type: Object, required: false })
   raw: Record<string, any>;
-
-  @Prop({ type: Boolean, required: false })
-  add_point: boolean;
 }
 
 export const ConversionSchema = SchemaFactory.createForClass(Conversion);
