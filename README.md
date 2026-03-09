@@ -9,8 +9,32 @@ Admin dashboard for managing GoGoCash operations — users, offers, withdrawals,
 
 ---
 
+## Quick Start
+
+1. Copy `.env.example` to `.env.local`.
+2. Install dependencies with `yarn install`.
+3. Run the dashboard with `yarn dev:3001`.
+4. Sign in with an admin account served by the API pointed to by `NEXT_PUBLIC_API_URL`.
+
+## Related Repositories
+
+- `../gogocash_api-feature-login-firebase`: backend contract source of truth for admin auth, metrics, offers, users, withdrawals, and configuration data.
+- `../gogocash_app-feature-login-firebase`: customer-facing app that consumes many of the same API payloads but has a separate UX and auth flow.
+
+## AI Handoff
+
+- Read these files first: `src/app/(admin)/layout.tsx`, `src/lib/api.ts`, `src/hooks/useApi.ts`, `src/components/auth/AuthGuard.tsx`.
+- Most pages are thin wrappers around API payloads. If a backend field changes, update both the table view and the matching form/detail component.
+- Admin login issues usually start at `POST /admin/login` in the API repo, not in this UI layer.
+- When you add, rename, or remove an admin capability, update this README and the matching API documentation in the backend repo in the same task.
+
+---
+
 ## Table of Contents
 
+- [Quick Start](#quick-start)
+- [Related Repositories](#related-repositories)
+- [AI Handoff](#ai-handoff)
 - [Architecture Overview](#architecture-overview)
 - [Directory Structure](#directory-structure)
 - [Getting Started](#getting-started)
@@ -201,12 +225,14 @@ src/
 
 ### Install & Run
 
+Copy `.env.example` to `.env.local` before starting the app.
+
 ```bash
 # Install dependencies
 yarn install
 
 # Development
-yarn dev          # → http://localhost:3000
+yarn dev:3001     # → http://localhost:3001
 
 # Production build
 yarn build
@@ -217,12 +243,14 @@ yarn start
 
 ## Environment Variables
 
+Create `.env.local` from `.env.example` and fill in the values below.
+
 ```bash
 # ─── Required ───
-NEXT_PUBLIC_API_URL=https://api.gogocash.co    # Backend API base URL
+NEXT_PUBLIC_API_URL=http://localhost:8080       # Backend API base URL
 NEXTAUTH_SECRET=<random-secret-string>          # NextAuth encryption key
-NEXTAUTH_URL=https://your-domain.com            # Canonical URL for auth callbacks
-NODE_ENV=production
+NEXTAUTH_URL=http://localhost:3001              # Canonical URL for auth callbacks
+NODE_ENV=development
 NEXT_TELEMETRY_DISABLED=1
 ```
 
