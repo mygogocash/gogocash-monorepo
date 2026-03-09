@@ -22,6 +22,7 @@ import {
 import { ApiBearerAuth, ApiBody, ApiQuery, ApiSecurity } from '@nestjs/swagger';
 import { Request } from 'express';
 import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
+import { extractAnalyticsContext } from 'src/analytics/analytics-context';
 @Controller('withdraw')
 export class WithdrawController {
   constructor(private readonly withdrawService: WithdrawService) {}
@@ -91,7 +92,10 @@ export class WithdrawController {
   create(@Req() req: Request, @Body() createWithdrawDto: CreateWithdrawDto) {
     const user = req['user'] as any;
     const id = user?.sub;
-    return this.withdrawService.create(createWithdrawDto, id);
+    const analyticsContext = extractAnalyticsContext(req, {
+      userId: id,
+    });
+    return this.withdrawService.create(createWithdrawDto, id, analyticsContext);
   }
 
   @UseGuards(FirebaseAuthGuard)
@@ -105,7 +109,14 @@ export class WithdrawController {
   ) {
     const user = req['user'] as any;
     const id = user?.sub;
-    return this.withdrawService.createBankTransfer(createWithdrawDto, id);
+    const analyticsContext = extractAnalyticsContext(req, {
+      userId: id,
+    });
+    return this.withdrawService.createBankTransfer(
+      createWithdrawDto,
+      id,
+      analyticsContext,
+    );
   }
 
   @UseGuards(FirebaseAuthGuard)
@@ -169,7 +180,14 @@ export class WithdrawController {
   ) {
     const user = req['user'] as any;
     const id = user?.sub;
-    return this.withdrawService.createWithdrawMethod(createWithdrawMethod, id);
+    const analyticsContext = extractAnalyticsContext(req, {
+      userId: id,
+    });
+    return this.withdrawService.createWithdrawMethod(
+      createWithdrawMethod,
+      id,
+      analyticsContext,
+    );
   }
 
   @UseGuards(FirebaseAuthGuard)

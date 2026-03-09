@@ -2,6 +2,36 @@
 
 Backend API for GoGoCash affiliate cashback, points, withdrawals, admin operations, Google Drive media storage, and Telegram bot authentication.
 
+## Quick Start
+
+1. Copy `.env.example` to `.env`.
+2. Install dependencies with `yarn install`.
+3. Run the API with `yarn start:dev`.
+4. Confirm the server at `http://localhost:8080` and Swagger at `http://localhost:8080/doc_68bf99fed9667685c1637607`.
+
+## Connected Repositories
+
+- `../gogocash_app-feature-login-firebase`: customer-facing Next.js app consuming auth, offer, profile, wallet, and quest APIs.
+- `../gogocash_admin-main`: internal dashboard consuming admin auth, moderation, reporting, and operational endpoints.
+
+## AI Handoff
+
+- Read these files first: `src/app.module.ts`, `src/auth/auth.service.ts`, `src/involve/involve.service.ts`, `src/withdraw/withdraw.service.ts`.
+- This repo is the contract source of truth. If you change controller response shapes, update both Next.js repos in the same task.
+- Legacy env names still exist, especially `INVOLVE_SECRET` and `INVOVLE_SECRET`. Keep both wired until the code is normalized.
+- Withdrawal, point, and conversion logic cross module boundaries. Search both controllers and services before changing finance behavior.
+- Product analytics now live in this repo too. Read `src/analytics/*`, `src/auth/auth.controller.ts`, `src/withdraw/cronjob/job.service.ts`, and `../POSTHOG_PRODUCT_OS.md` before touching PostHog events, headers, or flags.
+
+## Change Map
+
+| If you need to change... | Start here | Then check |
+| --- | --- | --- |
+| User login/register response fields or JWT/session contract | `src/auth/auth.service.ts`, `src/auth/auth.controller.ts` | customer web app NextAuth wiring and admin login only if admin payload changed |
+| Customer PostHog truth events or feature-flag evaluation | `src/analytics/*` plus the owning business service | `../POSTHOG_PRODUCT_OS.md` and the web app analytics runtime |
+| Deeplink generation, conversions, points, withdrawals | owning domain service first (`involve`, `withdraw`, `point`) | both Next.js repos if DTOs or UI labels changed |
+| CORS or request correlation headers | `src/main.ts`, `src/analytics/analytics-context.ts` | customer web app Axios/auth callers |
+| Admin-only operational behavior | `src/admin/*` | `gogocash_admin-main` tables/forms |
+
 ## 1. What This Service Does
 
 This service is a **modular NestJS monolith** that handles:
@@ -15,6 +45,13 @@ This service is a **modular NestJS monolith** that handles:
 - Withdrawal flows (on-chain + bank transfer)
 - Admin dashboard operations (fees, conversion, banners, offer assets)
 - Telegram bot and web verification handoff
+
+## Current Implementation Status
+
+- Customer auth success responses include `is_new_user` and `auth_flow`.
+- The API accepts `X-PostHog-Distinct-Id`, `X-PostHog-Anonymous-Id`, and `X-App-Locale` from the customer web app.
+- PostHog truth events are currently wired for auth, deeplink generation, conversion sync/status, points, withdraw creation/completion/rejection, and withdraw method creation.
+- The admin dashboard consumes this API but is not part of the customer PostHog project.
 
 ## 2. Tech Stack
 
@@ -34,6 +71,7 @@ This service is a **modular NestJS monolith** that handles:
 src/
   main.ts                 # app bootstrap, CORS, Swagger, static files
   app.module.ts           # module wiring + Mongo + schedule
+  analytics/              # PostHog service, request context extractor, flag wrapper
   config/env.config.ts    # env mapping
 
   auth/                   # user auth flows + guards
@@ -87,6 +125,8 @@ flowchart LR
 
 ## 5. Environment Variables
 
+Copy `.env.example` to `.env` and use it as the baseline for local or staging setup.
+
 These are referenced in code and should be defined in `.env` for local/prod:
 
 ### 5.1 Core
@@ -106,20 +146,27 @@ These are referenced in code and should be defined in `.env` for local/prod:
 - `WEB_APP_URL`
 - `API_BASE_URL`
 
-### 5.3 Involve Asia
+### 5.3 Product Analytics
+
+- `POSTHOG_KEY`
+- `POSTHOG_HOST`
+- `POSTHOG_ENABLED`
+- `POSTHOG_DEBUG`
+
+### 5.4 Involve Asia
 
 - `INVOLVE_SECRET`
 - `INVOVLE_SECRET` (legacy/misspelled key used in code)
 - `INVOVLE_SECRET_OLD`
 
-### 5.4 Google Drive
+### 5.5 Google Drive
 
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
 - `GOOGLE_REDIRECT_URI`
 - `GOOGLE_REFRESH_TOKEN`
 
-### 5.5 Withdrawal / On-chain
+### 5.6 Withdrawal / On-chain
 
 - `PRIVATE_KEY_WITHDRAW`
 - `CHAIN_ID_WITHDRAW_POLYGON`
@@ -136,6 +183,15 @@ These are referenced in code and should be defined in `.env` for local/prod:
 - `CONTRACT_WITHDRAW_ADDRESS_CELO`
 
 ## 6. Security Architecture
+
+## 6.1 Product Analytics Contract
+
+- The web app forwards `X-PostHog-Distinct-Id`, `X-PostHog-Anonymous-Id`, and `X-App-Locale`.
+- Auth success responses now include:
+  - `is_new_user`
+  - `auth_flow`
+- Backend truth events are emitted only after successful business outcomes through `src/analytics/analytics.service.ts`.
+- The shared event and flag contract lives in `../POSTHOG_PRODUCT_OS.md`.
 
 ### 6.1 Guard Types
 
@@ -494,6 +550,7 @@ flowchart LR
 ### 12.1 Install
 
 ```bash
+cp .env.example .env
 yarn install
 ```
 

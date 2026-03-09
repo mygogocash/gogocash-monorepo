@@ -9,6 +9,7 @@ import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 import { convertToTHB } from 'src/utils/helper';
 import { GroupedConversion } from './interface/point.interface';
 import { Offer } from 'src/offer/schemas/offer.schema';
+import { AnalyticsService } from 'src/analytics/analytics.service';
 
 @Injectable()
 export class PointService {
@@ -17,6 +18,7 @@ export class PointService {
     @InjectModel(Point.name) private pointModel: Model<Point>,
     @InjectModel(Conversion.name) private conversionModel: Model<Conversion>,
     @InjectModel(Offer.name) private offerModel: Model<Offer>,
+    private readonly analytics: AnalyticsService,
   ) {}
 
   async addPointsToUser(
@@ -42,7 +44,24 @@ export class PointService {
         type: 'add',
         action: 'purchase',
       });
-      return pointEntry.save();
+      const savedPoint = await pointEntry.save();
+
+      await this.analytics.capture(
+        'points_granted',
+        {
+          userId,
+          distinctId: userId,
+          platform: 'api',
+        },
+        {
+          points,
+          conversion_id,
+          action: 'purchase',
+          source_flow: 'conversion_approval',
+        },
+      );
+
+      return savedPoint;
     }
   }
   create(createPointDto: CreatePointDto) {
