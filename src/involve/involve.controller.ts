@@ -27,11 +27,16 @@ import {
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
 import { Request } from 'express';
 import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
+import { AnalyticsService } from 'src/analytics/analytics.service';
+import { extractAnalyticsContext } from 'src/analytics/analytics-context';
 
 @ApiTags('Involve')
 @Controller('involve')
 export class InvolveController {
-  constructor(private readonly involveService: InvolveService) {}
+  constructor(
+    private readonly involveService: InvolveService,
+    private readonly analytics: AnalyticsService,
+  ) {}
 
   @UseGuards(AuthAdminGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
@@ -69,7 +74,25 @@ export class InvolveController {
   ) {
     const user = req['user'] as any;
     const id = user?.sub;
-    return this.involveService.createAffiliate(createInvolveDto, id);
+    const analyticsContext = extractAnalyticsContext(req, {
+      userId: id,
+    });
+
+    return this.involveService.createAffiliate(createInvolveDto, id).then(
+      async (deeplink) => {
+        await this.analytics.capture(
+          'affiliate_deeplink_generated',
+          analyticsContext,
+          {
+            offer_id: createInvolveDto.offer_id,
+            merchant_id: createInvolveDto.merchant_id,
+            source_flow: 'web_app',
+          },
+        );
+
+        return deeplink;
+      },
+    );
   }
 
   @Post('create-affiliate-ai/:email')

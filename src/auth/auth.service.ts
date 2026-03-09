@@ -147,7 +147,12 @@ export class AuthService {
           userId: user._id.toString(),
           firebaseId: user.id_firebase,
         });
-        return { user, token: accessToken };
+        return {
+          user,
+          token: accessToken,
+          is_new_user: false,
+          auth_flow: 'login' as const,
+        };
       }
       const user = await this.userService.createFromFirebase({
         address:
@@ -189,7 +194,12 @@ export class AuthService {
         userId: user._id.toString(),
         firebaseId: user.id_firebase,
       });
-      return { user, token: accessToken };
+      return {
+        user,
+        token: accessToken,
+        is_new_user: true,
+        auth_flow: 'register' as const,
+      };
     } catch (error: any) {
       console.log('err', error);
       throw new Error(error?.message || 'Invalid Firebase token');
@@ -237,7 +247,12 @@ export class AuthService {
           firebaseId: user.id_firebase,
         });
         console.log('accessToken', accessToken);
-        return { user, token: accessToken };
+        return {
+          user,
+          token: accessToken,
+          is_new_user: false,
+          auth_flow: 'login' as const,
+        };
       }
       const user = await this.userService.createFromFirebase({
         email: data?.email,
@@ -275,7 +290,12 @@ export class AuthService {
         userId: user._id.toString(),
         firebaseId: user.id_firebase,
       });
-      return { user, token: accessToken };
+      return {
+        user,
+        token: accessToken,
+        is_new_user: true,
+        auth_flow: 'register' as const,
+      };
     } catch (error: any) {
       console.log('err', error);
       throw new Error(error?.message || 'Invalid Firebase token');

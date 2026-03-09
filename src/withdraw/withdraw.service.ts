@@ -25,6 +25,8 @@ import { WithdrawMethod } from './schemas/withdrawMethod.schema';
 import { rateCurrencyUSD, thaiBanks } from 'src/utils/helper';
 import { UserMyCashback } from 'src/user/schemas/user-my-cashback.schema';
 import { Conversion } from './schemas/conversion.schema';
+import { AnalyticsService } from 'src/analytics/analytics.service';
+import { AnalyticsContext } from 'src/analytics/analytics-context';
 
 @Injectable()
 export class WithdrawService {
@@ -39,6 +41,7 @@ export class WithdrawService {
     @InjectModel(UserMyCashback.name)
     private userMyCashbackModel: Model<UserMyCashback>,
     private readonly involveService: InvolveService,
+    private readonly analytics: AnalyticsService,
   ) {}
   async getSign(msg: GETSignDTO): Promise<string> {
     // console.log('Generating EIP-712 signature for message:', msg);
@@ -1032,7 +1035,11 @@ export class WithdrawService {
 
     return receipt.hash;
   }
-  async create(createWithdrawDto: CreateWithdrawDto, id: string) {
+  async create(
+    createWithdrawDto: CreateWithdrawDto,
+    id: string,
+    analyticsContext?: AnalyticsContext,
+  ) {
     const user = await this.userModel.findOne({
       _id: new Types.ObjectId(id),
     });
@@ -1103,10 +1110,54 @@ export class WithdrawService {
           : undefined,
       });
     }
+
+    const resolvedAnalyticsContext = analyticsContext || {
+      userId: user._id.toString(),
+      distinctId: user._id.toString(),
+      region: user.country,
+      platform: 'api' as const,
+    };
+
+    await this.analytics.capture(
+      'withdraw_request_created',
+      resolvedAnalyticsContext,
+      {
+        withdraw_id: dt._id?.toString(),
+        withdraw_type: 'crypto',
+        method: createWithdrawDto.method || '',
+        status: dt.status,
+        currency: createWithdrawDto.currency || '',
+        amount_total: createWithdrawDto.amount_total || 0,
+        amount_net: createWithdrawDto.amount_net || 0,
+        conversion_count: createWithdrawDto.conversion_ids?.length || 0,
+        source_flow: 'wallet_withdraw',
+      },
+    );
+
+    if (dt.status === 'approved') {
+      await this.analytics.capture(
+        'withdraw_request_completed',
+        resolvedAnalyticsContext,
+        {
+          withdraw_id: dt._id?.toString(),
+          withdraw_type: 'crypto',
+          method: createWithdrawDto.method || '',
+          currency: createWithdrawDto.currency || '',
+          amount_total: createWithdrawDto.amount_total || 0,
+          amount_net: createWithdrawDto.amount_net || 0,
+          source_flow: 'wallet_withdraw',
+        },
+      );
+    }
+
     return { message: 'Withdraw request created', data: dt, status: 'success' };
   }
 
-  async createBankTransfer(createWithdrawDto: CreateWithdrawDto, id: string) {
+  async createBankTransfer(
+    createWithdrawDto: CreateWithdrawDto,
+    id: string,
+    analyticsContext?: AnalyticsContext,
+  ) {
     // console.log(createWithdrawDto);
     const user = await this.userModel.findOne({
       _id: new Types.ObjectId(id),
@@ -1210,6 +1261,30 @@ export class WithdrawService {
           : undefined,
       });
     }
+
+    const resolvedAnalyticsContext = analyticsContext || {
+      userId: user._id.toString(),
+      distinctId: user._id.toString(),
+      region: user.country,
+      platform: 'api' as const,
+    };
+
+    await this.analytics.capture(
+      'withdraw_request_created',
+      resolvedAnalyticsContext,
+      {
+        withdraw_id: dt._id?.toString(),
+        withdraw_type: 'bank_transfer',
+        method: 'bank_transfer',
+        status: dt.status,
+        currency: createWithdrawDto.currency || '',
+        amount_total: createWithdrawDto.amount_total || 0,
+        amount_net: createWithdrawDto.amount_net || 0,
+        conversion_count: createWithdrawDto.conversion_ids?.length || 0,
+        source_flow: 'wallet_withdraw',
+      },
+    );
+
     return { message: 'Withdraw request created', data: dt, status: 'success' };
   }
 
@@ -1295,6 +1370,7 @@ export class WithdrawService {
   async createWithdrawMethod(
     createWithdrawMethod: CreateWithdrawMethod,
     id: string,
+    analyticsContext?: AnalyticsContext,
   ) {
     const user = await this.userModel.findOne({
       _id: new Types.ObjectId(id),
@@ -1314,6 +1390,25 @@ export class WithdrawService {
     }
     createWithdrawMethod['user_id'] = new Types.ObjectId(user._id);
     const dt = await this.withdrawMethodModel.create(createWithdrawMethod);
+
+    const resolvedAnalyticsContext = analyticsContext || {
+      userId: user._id.toString(),
+      distinctId: user._id.toString(),
+      region: user.country,
+      platform: 'api' as const,
+    };
+
+    await this.analytics.capture(
+      'withdraw_method_added',
+      resolvedAnalyticsContext,
+      {
+        withdraw_method_id: dt._id?.toString(),
+        bank_name: dt.bank_name,
+        method_type: 'bank_transfer',
+        source_flow: 'withdraw_profile',
+      },
+    );
+
     return {
       message: 'Withdraw method created',
       data: dt,

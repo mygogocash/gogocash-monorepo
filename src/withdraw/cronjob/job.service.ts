@@ -4,6 +4,7 @@ import { Conversion } from '../schemas/conversion.schema';
 import { InvolveService } from 'src/involve/involve.service';
 import { Model } from 'mongoose';
 import { delay } from 'rxjs';
+import { AnalyticsService } from 'src/analytics/analytics.service';
 
 @Injectable()
 export class JobService {
@@ -15,6 +16,7 @@ export class JobService {
   constructor(
     private readonly involveService: InvolveService,
     @InjectModel(Conversion.name) private conversionModel: Model<Conversion>,
+    private readonly analytics: AnalyticsService,
   ) {
     this.start = new Date(this.start_date).toISOString().split('T')[0];
     this.end = new Date(this.end_date).toISOString().split('T')[0];
@@ -57,6 +59,12 @@ export class JobService {
 
     if (allConversions?.length === 0) return;
     for (const conversion of allConversions) {
+      const existingConversion = await this.conversionModel
+        .findOne({
+          conversion_id: conversion.conversion_id,
+        })
+        .lean();
+
       await this.conversionModel.findOneAndUpdate(
         {
           conversion_id: conversion.conversion_id,
@@ -64,6 +72,47 @@ export class JobService {
         conversion,
         { upsert: true, new: true },
       );
+
+      const userId = conversion.aff_sub1?.startsWith('user_id:')
+        ? conversion.aff_sub1.split('user_id:')[1]
+        : undefined;
+      const analyticsContext = {
+        userId,
+        distinctId: userId || `conversion:${conversion.conversion_id}`,
+        platform: 'api' as const,
+      };
+
+      await this.analytics.capture('conversion_synced', analyticsContext, {
+        conversion_id: conversion.conversion_id,
+        merchant_id: conversion.merchant_id,
+        offer_id: conversion.offer_id,
+        status: conversion.conversion_status,
+        payout: conversion.payout,
+        currency: conversion.currency,
+        source_flow: 'involve_sync',
+        is_new_conversion: !existingConversion,
+      });
+
+      if (
+        existingConversion &&
+        existingConversion.conversion_status !== conversion.conversion_status
+      ) {
+        await this.analytics.capture(
+          'conversion_status_changed',
+          analyticsContext,
+          {
+            conversion_id: conversion.conversion_id,
+            merchant_id: conversion.merchant_id,
+            offer_id: conversion.offer_id,
+            previous_status: existingConversion.conversion_status,
+            next_status: conversion.conversion_status,
+            payout: conversion.payout,
+            currency: conversion.currency,
+            source_flow: 'involve_sync',
+          },
+        );
+      }
+
       await delay(1000);
     }
     console.log('done', allConversions?.length);
