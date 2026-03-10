@@ -17,6 +17,10 @@ import {
 } from 'src/withdraw/schemas/conversion.schema';
 import { FeeRate, FeeRateSchema } from 'src/withdraw/schemas/feeRate.schema';
 import { Quest, QuestSchema } from './schemas/quest.schema';
+import {
+  SocialReward,
+  SocialRewardSchema,
+} from './schemas/social-reward.schema';
 
 @Module({
   imports: [
@@ -30,6 +34,7 @@ import { Quest, QuestSchema } from './schemas/quest.schema';
       { name: Conversion.name, schema: ConversionSchema },
       { name: FeeRate.name, schema: FeeRateSchema },
       { name: Quest.name, schema: QuestSchema },
+      { name: SocialReward.name, schema: SocialRewardSchema },
     ]),
   ],
   controllers: [PointController],
