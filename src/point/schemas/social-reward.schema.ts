@@ -1,10 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 
-export type FacebookRewardDocument = HydratedDocument<FacebookReward>;
+export type SocialRewardDocument = HydratedDocument<SocialReward>;
 
 @Schema({ timestamps: true })
-export class FacebookReward {
+export class SocialReward {
   @Prop({ type: Types.ObjectId, required: true, ref: 'User' })
   user_id: Types.ObjectId;
 
@@ -13,7 +13,12 @@ export class FacebookReward {
 
   @Prop({ required: true, default: false })
   reward_status: boolean;
+
+  @Prop({ required: false })
+  type: string;
+
+  @Prop({ required: false })
+  action: string;
 }
 
-export const FacebookRewardSchema =
-  SchemaFactory.createForClass(FacebookReward);
+export const SocialRewardSchema = SchemaFactory.createForClass(SocialReward);

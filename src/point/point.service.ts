@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  HttpException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { CreatePointDto } from './dto/create-point.dto';
 import { UpdatePointDto } from './dto/update-point.dto';
 import { InjectModel } from '@nestjs/mongoose';
@@ -11,6 +15,7 @@ import { GroupedConversion } from './interface/point.interface';
 import { Offer } from 'src/offer/schemas/offer.schema';
 import { Quest } from './schemas/quest.schema';
 import { CloseQuestDto, CreateQuestDto } from './dto/create-quest.dto';
+import { SocialReward } from './schemas/social-reward.schema';
 
 @Injectable()
 export class PointService {
@@ -20,19 +25,22 @@ export class PointService {
     @InjectModel(Conversion.name) private conversionModel: Model<Conversion>,
     @InjectModel(Offer.name) private offerModel: Model<Offer>,
     @InjectModel(Quest.name) private questModel: Model<Quest>,
+    @InjectModel(SocialReward.name)
+    private socialRewardModel: Model<SocialReward>,
   ) {}
 
   async addPointsToUser(
     userId: string,
     points: number,
     conversion_id: number,
+    action?: string,
   ): Promise<Point> {
     const pointDup = await this.pointModel
       .findOne({
         user_id: new Types.ObjectId(userId),
         conversion_id,
         type: 'add',
-        action: 'purchase',
+        action: action || 'purchase',
       })
       .exec();
     // console.log('pointDup', pointDup);
@@ -43,7 +51,7 @@ export class PointService {
         point: points,
         conversion_id,
         type: 'add',
-        action: 'purchase',
+        action: action || 'purchase',
       });
       return pointEntry.save();
     }
@@ -339,6 +347,7 @@ export class PointService {
             })),
           }
         : 0;
+
     const pointsList = await this.pointModel.aggregate([
       {
         $match: filter,
@@ -429,8 +438,41 @@ export class PointService {
       },
     ]);
 
+    const addPointSocial = await this.pointModel.aggregate([
+      {
+        $match: {
+          action: { $regex: '^reward_quest_social' }, // ตัวอย่าง: 'reward_quest_social',
+          type: 'add',
+          updatedAt: {
+            $gte: new Date(startDate),
+            $lte: new Date(endDate),
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'user_id',
+          foreignField: '_id',
+          as: 'user_id',
+        },
+      },
+      {
+        $unwind: '$user_id',
+      },
+      {
+        $group: {
+          _id: '$user_id._id',
+          user_id: { $first: '$user_id._id' },
+          username: { $first: '$user_id.username' },
+          email: { $first: '$user_id.email' },
+          totalAddPointSocial: { $sum: '$point' },
+        },
+      },
+    ]);
     // แปลง pointsList เป็น Map เพื่อให้ค้นหา User ได้ไวขึ้น (O(1))
     const pointsMap = new Map();
+    console.log('point', addPointSocial);
     pointsList.forEach((p) => pointsMap.set(p._id.toString(), p));
 
     // วนลูปรายชื่อคนที่ได้แต้ม Referral
@@ -454,9 +496,37 @@ export class PointService {
           conversion: [], // ไม่มีประวัติการซื้อ
           extra_point_received: 0,
           bonus_over_300_received: 0,
+          point_social_reward:
+            addPointSocial.find(
+              (item) => item._id.toString() === ref._id.toString(),
+            )?.totalAddPointSocial || 0, // เพิ่มแต้มจาก Social Reward ถ้ามี
         };
 
         pointsList.push(newUserObj); // ดันใส่ Array หลัก
+      }
+    });
+
+    addPointSocial.forEach((social) => {
+      const userIdStr = social._id.toString();
+      if (pointsMap.has(userIdStr)) {
+        const existingUser = pointsMap.get(userIdStr);
+        existingUser.point += social.totalAddPointSocial;
+        existingUser.point_social_reward = social.totalAddPointSocial; // เก็บ record ไว้ว่าได้แต้มจาก Social Reward เท่าไหร่
+      } else {
+        const newUserObj = {
+          _id: social._id,
+          user_id: social._id,
+          username: social.username,
+          email: social.email,
+          point: social.totalAddPointSocial, // คะแนนรวมมีแค่จาก Social Reward
+          extra_point_referral: 0,
+          conversion: [], // ไม่มีประวัติการซื้อ
+          extra_point_received: 0,
+          bonus_over_300_received: 0,
+          point_social_reward: social.totalAddPointSocial,
+        };
+
+        pointsList.push(newUserObj);
       }
     });
 
@@ -534,5 +604,72 @@ export class PointService {
       // },
     };
     return this.questModel.find(filter).lean();
+  }
+
+  async getQuestSocial(userId: string) {
+    const quest = await this.questModel.findOne({ status: 'open' }).lean();
+    if (!quest) {
+      throw new HttpException('No open quest available', 400);
+    }
+    const socialRewards = await this.socialRewardModel
+      .find({
+        user_id: new Types.ObjectId(userId),
+      })
+      .lean();
+    return {
+      quest,
+      socialRewards,
+    };
+  }
+  async questSocial(userId: string, type: string, action: string) {
+    const quest = await this.questModel.findOne({ status: 'open' }).lean();
+    if (!quest) {
+      throw new HttpException('No open quest available', 400);
+    }
+    const filter = {
+      user_id: new Types.ObjectId(userId),
+      type,
+      action,
+    };
+    if (action != 'follow' && action != 'add_friend') {
+      filter['quest_id'] = quest?._id;
+    }
+    const socialReward = await this.socialRewardModel.findOne(filter).lean();
+    if (socialReward) {
+      return {
+        ...socialReward,
+      };
+    } else {
+      const newSocialReward = await this.socialRewardModel.create({
+        user_id: new Types.ObjectId(userId),
+        quest_id: new Types.ObjectId(quest?._id),
+        reward_status: false,
+        type,
+        action,
+      });
+      return {
+        ...newSocialReward.toObject(),
+      };
+    }
+  }
+
+  async updateQuestSocial(userId: string, id: string) {
+    const socialReward = await this.socialRewardModel.findOne({
+      _id: new Types.ObjectId(id),
+      user_id: new Types.ObjectId(userId),
+    });
+    if (!socialReward) {
+      throw new HttpException('Social reward not found', 404);
+    }
+    await this.addPointsToUser(
+      userId,
+      50,
+      0,
+      `reward_quest_social:${socialReward.type}:${socialReward.action}:${socialReward._id.toString()}`,
+    );
+    socialReward.reward_status = true;
+    const result = await socialReward.save();
+    // console.log('re', result);
+    return result;
   }
 }

@@ -16,6 +16,15 @@ export class Quest {
 
   @Prop({ required: true, default: false })
   reward_status: boolean;
+
+  @Prop({ required: false })
+  facebook_post: string;
+
+  @Prop({ required: false })
+  facebook_page: string;
+
+  @Prop({ required: false })
+  line: string;
 }
 
 export const QuestSchema = SchemaFactory.createForClass(Quest);

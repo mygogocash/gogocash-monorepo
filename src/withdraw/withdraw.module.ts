@@ -26,6 +26,10 @@ import { RewardList, RewardListSchema } from './schemas/rewardList.schema';
 import { Quest, QuestSchema } from 'src/point/schemas/quest.schema';
 import { PointService } from 'src/point/point.service';
 import { Point, PointSchema } from 'src/point/schemas/point.schema';
+import {
+  SocialReward,
+  SocialRewardSchema,
+} from 'src/point/schemas/social-reward.schema';
 
 @Module({
   imports: [
@@ -43,6 +47,7 @@ import { Point, PointSchema } from 'src/point/schemas/point.schema';
       { name: RewardList.name, schema: RewardListSchema },
       { name: Quest.name, schema: QuestSchema },
       { name: Point.name, schema: PointSchema },
+      { name: SocialReward.name, schema: SocialRewardSchema },
     ]),
   ],
   controllers: [WithdrawController],
