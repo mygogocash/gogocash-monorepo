@@ -17,6 +17,7 @@ import { AnalyticsService } from 'src/analytics/analytics.service';
 import { Quest } from './schemas/quest.schema';
 import { CloseQuestDto, CreateQuestDto } from './dto/create-quest.dto';
 import { SocialReward } from './schemas/social-reward.schema';
+import { GoogleDriveService } from 'src/google-drive/google-drive.service';
 
 @Injectable()
 export class PointService {
@@ -29,6 +30,7 @@ export class PointService {
     @InjectModel(Quest.name) private questModel: Model<Quest>,
     @InjectModel(SocialReward.name)
     private socialRewardModel: Model<SocialReward>,
+    private readonly googleDriveService: GoogleDriveService,
   ) {}
 
   async addPointsToUser(
@@ -594,14 +596,67 @@ export class PointService {
     const filter = createQuestDto._id
       ? { _id: new Types.ObjectId(createQuestDto._id) }
       : { status: 'open' };
+
+    const existingOpenQuest = await this.questModel.findOne(filter);
+
+    const folderId = '1YQtWms0kVZOs-1W2AA3m8rGnxO5EJoQX';
+    let banner_en;
+    if (files.banner_en?.length > 0) {
+      banner_en = await this.googleDriveService.uploadFile(
+        files.banner_en[0],
+        folderId,
+      );
+      if (existingOpenQuest?.banner_en) {
+        await this.googleDriveService.deleteFile(existingOpenQuest.banner_en);
+      }
+    }
+
+    let banner_th;
+    if (files.banner_th?.length > 0) {
+      banner_th = await this.googleDriveService.uploadFile(
+        files.banner_th[0],
+        folderId,
+      );
+      if (existingOpenQuest?.banner_th) {
+        await this.googleDriveService.deleteFile(existingOpenQuest.banner_th);
+      }
+    }
+
+    let sub_banner_en;
+    if (files.sub_banner_en?.length > 0) {
+      sub_banner_en = await this.googleDriveService.uploadFile(
+        files.sub_banner_en[0],
+        folderId,
+      );
+      if (existingOpenQuest?.sub_banner_en) {
+        await this.googleDriveService.deleteFile(
+          existingOpenQuest.sub_banner_en,
+        );
+      }
+    }
+
+    let sub_banner_th;
+    if (files.sub_banner_th?.length > 0) {
+      sub_banner_th = await this.googleDriveService.uploadFile(
+        files.sub_banner_th[0],
+        folderId,
+      );
+      if (existingOpenQuest?.sub_banner_th) {
+        await this.googleDriveService.deleteFile(
+          existingOpenQuest.sub_banner_th,
+        );
+      }
+    }
     return this.questModel.findOneAndUpdate(
       filter,
       {
         ...createQuestDto,
-        banner_en: files?.banner_en ? files?.banner_en?.[0] : null,
-        banner_th: files?.banner_th ? files?.banner_th?.[0] : null,
-        sub_banner_en: files?.sub_banner_en ? files?.sub_banner_en?.[0] : null,
-        sub_banner_th: files?.sub_banner_th ? files?.sub_banner_th?.[0] : null,
+        banner_en: banner_en || existingOpenQuest?.banner_en || null,
+        banner_th: banner_th || existingOpenQuest?.banner_th || null,
+        sub_banner_en:
+          sub_banner_en || existingOpenQuest?.sub_banner_en || null,
+        sub_banner_th:
+          sub_banner_th || existingOpenQuest?.sub_banner_th || null,
       },
       {
         upsert: true,
