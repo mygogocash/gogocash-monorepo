@@ -472,7 +472,7 @@ export class PointService {
     ]);
     // แปลง pointsList เป็น Map เพื่อให้ค้นหา User ได้ไวขึ้น (O(1))
     const pointsMap = new Map();
-    console.log('point', addPointSocial);
+    // console.log('point', addPointSocial);
     pointsList.forEach((p) => pointsMap.set(p._id.toString(), p));
 
     // วนลูปรายชื่อคนที่ได้แต้ม Referral
