@@ -46,6 +46,12 @@ export class User {
 
   @Prop()
   id_telegram: string;
+
+  @Prop()
+  id_line: string;
+
+  @Prop({ default: false })
+  email_verified: boolean;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

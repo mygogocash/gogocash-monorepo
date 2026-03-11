@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import {
+  IsBoolean,
+  IsEmail,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class SignInDto {
   @ApiProperty()
@@ -81,4 +87,87 @@ export class TelegramAuthDto {
   email?: string;
   referral_id?: string;
   country?: string;
+}
+
+export class LineAuthDto {
+  @ApiProperty({ description: 'LINE User ID from LIFF' })
+  @IsString()
+  @IsNotEmpty()
+  id_line: string;
+
+  @ApiProperty({ description: 'LINE Display Name' })
+  @IsString()
+  @IsOptional()
+  username?: string;
+
+  @ApiProperty({ description: 'LINE Profile Picture URL', required: false })
+  @IsString()
+  @IsOptional()
+  picture_url?: string;
+
+  @ApiProperty({
+    description: 'User email for account pairing',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @ApiProperty({ description: 'Referral ID', required: false })
+  @IsString()
+  @IsOptional()
+  referral_id?: string;
+
+  @ApiProperty({ description: 'Country', required: false })
+  @IsString()
+  @IsOptional()
+  country?: string;
+
+  @ApiProperty({
+    description: 'Whether email was verified via OTP',
+    example: true,
+    required: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  email_verified?: boolean;
+}
+
+/**
+ * DTO for requesting OTP code
+ * Used in POST /auth/email/request-otp
+ */
+export class RequestOtpDto {
+  @ApiProperty({
+    description: 'User email address',
+    example: 'user@example.com',
+  })
+  @IsEmail({}, { message: 'Please provide a valid email address' })
+  @IsNotEmpty({ message: 'Email is required' })
+  email: string;
+}
+
+/**
+ * DTO for verifying OTP code
+ * Used in POST /auth/email/verify-otp
+ */
+export class VerifyOtpDto {
+  @ApiProperty({
+    description: 'User email address',
+    example: 'user@example.com',
+  })
+  @IsEmail({}, { message: 'Please provide a valid email address' })
+  @IsNotEmpty({ message: 'Email is required' })
+  email: string;
+
+  @ApiProperty({
+    description: '6-digit OTP code',
+    example: '123456',
+    minLength: 6,
+    maxLength: 6,
+  })
+  @IsString()
+  @IsNotEmpty({ message: 'OTP code is required' })
+  otp: string;
 }

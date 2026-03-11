@@ -10,14 +10,19 @@ import { JwtModule, JwtService } from '@nestjs/jwt';
 import { Point } from 'src/point/entities/point.entity';
 import { PointSchema } from 'src/point/schemas/point.schema';
 import { UserMyCashback, UserMyCashbackSchema } from 'src/user/schemas/user-my-cashback.schema';
+import { EmailModule } from 'src/email/email.module';
+import { OtpService } from './otp.service';
+import { EmailOtpVerification, EmailOtpVerificationSchema } from './schemas/email-otp.schema';
 
 @Module({
   imports: [
     ConfigModule,
+    EmailModule, // Provides EmailService
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: Point.name, schema: PointSchema },
-      { name: UserMyCashback.name, schema: UserMyCashbackSchema  },
+      { name: UserMyCashback.name, schema: UserMyCashbackSchema },
+      { name: EmailOtpVerification.name, schema: EmailOtpVerificationSchema }, // OTP schema
     ]),
     JwtModule.register({
       // This is for signing tokens your backend generates.
@@ -27,6 +32,6 @@ import { UserMyCashback, UserMyCashbackSchema } from 'src/user/schemas/user-my-c
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, UserService, JwtService],
+  providers: [AuthService, UserService, JwtService, OtpService], // Add OtpService
 })
 export class AuthModule {}

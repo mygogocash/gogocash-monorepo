@@ -11,6 +11,8 @@ export class CreateUserDto {
   country?: string;
   provider?: string;
   id_telegram?: string;
+  id_line?: string;
+  email_verified?: boolean;
 }
 
 export class UpdateCountryDto {
