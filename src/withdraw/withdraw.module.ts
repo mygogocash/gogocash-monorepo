@@ -31,6 +31,7 @@ import {
 import { RewardList, RewardListSchema } from './schemas/rewardList.schema';
 import { PointService } from 'src/point/point.service';
 import { GoogleDriveService } from 'src/google-drive/google-drive.service';
+import { AnalyticsService } from 'src/analytics/analytics.service';
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { GoogleDriveService } from 'src/google-drive/google-drive.service';
     JobService,
     PointService,
     GoogleDriveService,
+    AnalyticsService,
   ],
 })
 export class WithdrawModule {}

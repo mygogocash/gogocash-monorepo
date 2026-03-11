@@ -13,6 +13,7 @@ import {
   ConversionSchema,
 } from 'src/withdraw/schemas/conversion.schema';
 import { FeeRate, FeeRateSchema } from 'src/withdraw/schemas/feeRate.schema';
+import { AnalyticsService } from 'src/analytics/analytics.service';
 
 @Module({
   imports: [
@@ -27,6 +28,6 @@ import { FeeRate, FeeRateSchema } from 'src/withdraw/schemas/feeRate.schema';
     ]),
   ],
   controllers: [InvolveController],
-  providers: [InvolveService, JwtService],
+  providers: [InvolveService, JwtService, AnalyticsService],
 })
 export class InvolveModule {}

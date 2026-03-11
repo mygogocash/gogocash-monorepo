@@ -24,6 +24,7 @@ import { Conversion, ConversionSchema } from 'src/withdraw/schemas/conversion.sc
 import { Banner, BannerSchema } from 'src/offer/schemas/banner.schema';
 import { UserService } from 'src/user/user.service';
 import { JobService } from 'src/withdraw/cronjob/job.service';
+import { AnalyticsService } from 'src/analytics/analytics.service';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { JobService } from 'src/withdraw/cronjob/job.service';
     GoogleDriveService,
     UserService,
     JobService,
+    AnalyticsService,
   ],
 })
 export class AdminModule {}
