@@ -8,6 +8,8 @@ import {
   Delete,
   UseGuards,
   Req,
+  UseInterceptors,
+  UploadedFiles,
 } from '@nestjs/common';
 import { PointService } from './point.service';
 import { CreatePointDto } from './dto/create-point.dto';
@@ -18,6 +20,7 @@ import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
 import { TasksService } from './tasksService';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
 import { CloseQuestDto, CreateQuestDto } from './dto/create-quest.dto';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
 @Controller('point')
 export class PointController {
   constructor(
@@ -101,13 +104,30 @@ export class PointController {
     return this.tasksService.handleCron();
   }
 
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'banner_en', maxCount: 1 },
+      { name: 'banner_th', maxCount: 1 },
+      { name: 'sub_banner_en', maxCount: 1 },
+      { name: 'sub_banner_th', maxCount: 1 },
+    ]),
+  )
   @UseGuards(AuthAdminGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
   @Post('create-quest')
   @ApiBody({ type: CreateQuestDto })
-  createQuest(@Body() createQuestDto: CreateQuestDto) {
-    return this.pointService.createQuest(createQuestDto);
+  createQuest(
+    @Body() createQuestDto: CreateQuestDto,
+    @UploadedFiles()
+    files: {
+      banner_en?: Express.Multer.File[];
+      banner_th?: Express.Multer.File[];
+      sub_banner_en?: Express.Multer.File[];
+      sub_banner_th?: Express.Multer.File[];
+    },
+  ) {
+    return this.pointService.createQuest(createQuestDto, files);
   }
 
   @UseGuards(AuthAdminGuard)
