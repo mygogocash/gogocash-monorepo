@@ -2,6 +2,7 @@
 import { HttpException, Injectable } from '@nestjs/common';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import {
+  ProductTypeDto,
   UpdateAdminDto,
   UpdateBannerHomeDto,
   UpdateFeeRateDto,
@@ -22,7 +23,7 @@ import { UserMyCashback } from 'src/user/schemas/user-my-cashback.schema';
 import { Banner } from 'src/offer/schemas/banner.schema';
 import { UserService } from 'src/user/user.service';
 import { JobService } from 'src/withdraw/cronjob/job.service';
-import { AnalyticsService } from 'src/analytics/analytics.service';
+import { Deeplink } from 'src/involve/schemas/deeplink.schema';
 
 @Injectable()
 export class AdminService {
@@ -37,11 +38,12 @@ export class AdminService {
     @InjectModel(UserMyCashback.name)
     private userMyCashbackModel: Model<UserMyCashback>,
     @InjectModel(Banner.name) private bannerModel: Model<Banner>,
+    @InjectModel(Deeplink.name) private deeplinkModel: Model<Deeplink>,
+
     private readonly googleDriveService: GoogleDriveService,
     private involveService: InvolveService,
     private userService: UserService,
     private readonly jobService: JobService,
-    private readonly analytics: AnalyticsService,
   ) {}
   create(createAdminDto: CreateAdminDto) {
     console.log(createAdminDto);
@@ -90,78 +92,20 @@ export class AdminService {
     updateRequestWithdrawDto: UpdateRequestWithdrawDto,
     file: Express.Multer.File,
   ) {
-    const currentWithdraw = await this.withdrawModel
-      .findById(new Types.ObjectId(updateRequestWithdrawDto.id))
-      .lean();
-
-    const updatedWithdraw = file
-      ? await (async () => {
-          const res = await this.googleDriveService.uploadFile(file);
-          return this.withdrawModel
-            .findByIdAndUpdate(new Types.ObjectId(updateRequestWithdrawDto.id), {
-              status: updateRequestWithdrawDto.status,
-              slip_file: res.id,
-            })
-            .exec();
-        })()
-      : await this.withdrawModel
-          .findByIdAndUpdate(new Types.ObjectId(updateRequestWithdrawDto.id), {
-            status: updateRequestWithdrawDto.status,
-          })
-          .exec();
-
-    if (currentWithdraw && updatedWithdraw) {
-      const user = await this.userModel
-        .findById(new Types.ObjectId(currentWithdraw.user_id))
-        .lean();
-
-      const analyticsContext = {
-        userId: currentWithdraw.user_id?.toString(),
-        distinctId: currentWithdraw.user_id?.toString(),
-        region: user?.country,
-        platform: 'api' as const,
-      };
-
-      if (
-        currentWithdraw.status !== updateRequestWithdrawDto.status &&
-        updateRequestWithdrawDto.status === 'approved'
-      ) {
-        await this.analytics.capture(
-          'withdraw_request_completed',
-          analyticsContext,
-          {
-            withdraw_id: currentWithdraw._id?.toString(),
-            withdraw_type: currentWithdraw.method,
-            method: currentWithdraw.method,
-            currency: currentWithdraw.currency,
-            amount_total: currentWithdraw.amount_total,
-            amount_net: currentWithdraw.amount_net,
-            source_flow: 'admin_review',
-          },
-        );
-      }
-
-      if (
-        currentWithdraw.status !== updateRequestWithdrawDto.status &&
-        updateRequestWithdrawDto.status === 'rejected'
-      ) {
-        await this.analytics.capture(
-          'withdraw_request_rejected',
-          analyticsContext,
-          {
-            withdraw_id: currentWithdraw._id?.toString(),
-            withdraw_type: currentWithdraw.method,
-            method: currentWithdraw.method,
-            currency: currentWithdraw.currency,
-            amount_total: currentWithdraw.amount_total,
-            amount_net: currentWithdraw.amount_net,
-            source_flow: 'admin_review',
-          },
-        );
-      }
+    if (file) {
+      const res = await this.googleDriveService.uploadFile(file);
+      return this.withdrawModel
+        .findByIdAndUpdate(new Types.ObjectId(updateRequestWithdrawDto.id), {
+          status: updateRequestWithdrawDto.status,
+          slip_file: res.id,
+        })
+        .exec();
     }
-
-    return updatedWithdraw;
+    return this.withdrawModel
+      .findByIdAndUpdate(new Types.ObjectId(updateRequestWithdrawDto.id), {
+        status: updateRequestWithdrawDto.status,
+      })
+      .exec();
   }
 
   remove(id: string) {
@@ -272,17 +216,17 @@ export class AdminService {
           // { conversion_id: { $regex: search, $options: 'i' } },
         ];
       } else {
-          filter['$or'] = [
-            { [key]: { $regex: search, $options: 'i' } },
-            // { aff_sub1: { $regex: search, $options: 'i' } },
-            // { offer_name: { $regex: search, $options: 'i' } },
-            // { adv_sub1: { $regex: search, $options: 'i' } },
-            // { adv_sub2: { $regex: search, $options: 'i' } },
-            // { adv_sub3: { $regex: search, $options: 'i' } },
-            // { adv_sub4: { $regex: search, $options: 'i' } },
-            // { adv_sub5: { $regex: search, $options: 'i' } },
-            // { conversion_id: { $regex: search, $options: 'i' } },
-          ];
+        filter['$or'] = [
+          { [key]: { $regex: search, $options: 'i' } },
+          // { aff_sub1: { $regex: search, $options: 'i' } },
+          // { offer_name: { $regex: search, $options: 'i' } },
+          // { adv_sub1: { $regex: search, $options: 'i' } },
+          // { adv_sub2: { $regex: search, $options: 'i' } },
+          // { adv_sub3: { $regex: search, $options: 'i' } },
+          // { adv_sub4: { $regex: search, $options: 'i' } },
+          // { adv_sub5: { $regex: search, $options: 'i' } },
+          // { conversion_id: { $regex: search, $options: 'i' } },
+        ];
       }
     }
 
@@ -356,6 +300,7 @@ export class AdminService {
       commission_store?: number;
       max_cap?: number;
       extra_store?: boolean;
+      product_type: ProductTypeDto[];
     },
   ) {
     const offer = await this.offerModel.findById(id).exec();
@@ -435,6 +380,7 @@ export class AdminService {
             updateData.commission_store ?? offer.commission_store ?? 0,
           max_cap: updateData.max_cap ?? offer.max_cap ?? 0,
           extra_store: Boolean(updateData.extra_store ?? offer.extra_store),
+          product_type: typeof updateData.product_type === 'string' ? JSON.parse(updateData.product_type) : updateData.product_type,
         },
         { new: true },
       )
@@ -575,5 +521,28 @@ export class AdminService {
 
   async updateConversionDataByConversionId(id: string) {
     return this.jobService.syncConversion(id);
+  }
+
+  async getDeepLinkList() {
+    return this.deeplinkModel.aggregate([
+      {
+        $lookup: {
+          from: 'offers',
+          localField: 'offer_id',
+          foreignField: 'offer_id',
+          as: 'offer',
+        },
+      },
+      { $unwind: '$offer' },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'user_id',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      { $unwind: '$user' },
+    ]);
   }
 }
