@@ -96,8 +96,9 @@ export class AdminController {
     @Query('limit') limit?: string,
     @Query('search') search?: string,
     @Query('status') status?: string,
+    @Query('key') key?: string,
   ) {
-    return this.adminService.getConversionAll(Number(page), Number(limit), search, status);
+    return this.adminService.getConversionAll(Number(page), Number(limit), search, key, status);
   }
 
   @UseGuards(AuthAdminGuard)
@@ -282,5 +283,14 @@ export class AdminController {
   @Get('banner-home')
   getBannerHome() {
     return this.adminService.getBannerHome();
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth()
+  @Patch('update-conversion/:id')
+  updateConversionDataByConversionId(@Param('id') id: string) {
+    // console.log('Updating conversion data for ID:', id);
+    return this.adminService.updateConversionDataByConversionId(id);
   }
 }

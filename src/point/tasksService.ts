@@ -17,7 +17,7 @@ export class TasksService {
     @InjectModel(Conversion.name) private conversionModel: Model<Conversion>,
   ) {}
   // @Cron('45 * * * * *')
-  // @Cron(CronExpression.EVERY_10_SECONDS)
+  // @Cron(CronExpression.EVERY_MINUTE)
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async handleCron() {
     this.logger.debug('Called when the current time is 00.00');
@@ -52,9 +52,12 @@ export class TasksService {
         conversion_status: 'approved',
       })
       .lean();
+    console.log('filterApproved', filterApproved?.length);
     for (const conversion of filterApproved) {
       const userId = conversion.aff_sub1.split('user_id:')[1];
-      const calculatedPoints = Math.floor(conversion.sale_amount / 100);
+      // const calculatedPoints = Math.floor(conversion.sale_amount / 100);
+      const calculatedPoints = Math.floor(conversion.sale_amount);
+
       // console.log(
       //   `User ID: ${userId}, ${conversion.conversion_id} Payout Amount: ${conversion.payout}, Calculated Points: ${calculatedPoints}`,
       // );
@@ -65,5 +68,6 @@ export class TasksService {
       );
       await delay(1000);
     }
+    console.log('add point done', filterApproved?.length);
   }
 }

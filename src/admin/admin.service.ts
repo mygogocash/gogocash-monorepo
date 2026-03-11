@@ -21,6 +21,8 @@ import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 import { UserMyCashback } from 'src/user/schemas/user-my-cashback.schema';
 import { Banner } from 'src/offer/schemas/banner.schema';
 import { UserService } from 'src/user/user.service';
+import { JobService } from 'src/withdraw/cronjob/job.service';
+import { AnalyticsService } from 'src/analytics/analytics.service';
 
 @Injectable()
 export class AdminService {
@@ -38,6 +40,8 @@ export class AdminService {
     private readonly googleDriveService: GoogleDriveService,
     private involveService: InvolveService,
     private userService: UserService,
+    private readonly jobService: JobService,
+    private readonly analytics: AnalyticsService,
   ) {}
   create(createAdminDto: CreateAdminDto) {
     console.log(createAdminDto);
@@ -86,20 +90,78 @@ export class AdminService {
     updateRequestWithdrawDto: UpdateRequestWithdrawDto,
     file: Express.Multer.File,
   ) {
-    if (file) {
-      const res = await this.googleDriveService.uploadFile(file);
-      return this.withdrawModel
-        .findByIdAndUpdate(new Types.ObjectId(updateRequestWithdrawDto.id), {
-          status: updateRequestWithdrawDto.status,
-          slip_file: res.id,
-        })
-        .exec();
+    const currentWithdraw = await this.withdrawModel
+      .findById(new Types.ObjectId(updateRequestWithdrawDto.id))
+      .lean();
+
+    const updatedWithdraw = file
+      ? await (async () => {
+          const res = await this.googleDriveService.uploadFile(file);
+          return this.withdrawModel
+            .findByIdAndUpdate(new Types.ObjectId(updateRequestWithdrawDto.id), {
+              status: updateRequestWithdrawDto.status,
+              slip_file: res.id,
+            })
+            .exec();
+        })()
+      : await this.withdrawModel
+          .findByIdAndUpdate(new Types.ObjectId(updateRequestWithdrawDto.id), {
+            status: updateRequestWithdrawDto.status,
+          })
+          .exec();
+
+    if (currentWithdraw && updatedWithdraw) {
+      const user = await this.userModel
+        .findById(new Types.ObjectId(currentWithdraw.user_id))
+        .lean();
+
+      const analyticsContext = {
+        userId: currentWithdraw.user_id?.toString(),
+        distinctId: currentWithdraw.user_id?.toString(),
+        region: user?.country,
+        platform: 'api' as const,
+      };
+
+      if (
+        currentWithdraw.status !== updateRequestWithdrawDto.status &&
+        updateRequestWithdrawDto.status === 'approved'
+      ) {
+        await this.analytics.capture(
+          'withdraw_request_completed',
+          analyticsContext,
+          {
+            withdraw_id: currentWithdraw._id?.toString(),
+            withdraw_type: currentWithdraw.method,
+            method: currentWithdraw.method,
+            currency: currentWithdraw.currency,
+            amount_total: currentWithdraw.amount_total,
+            amount_net: currentWithdraw.amount_net,
+            source_flow: 'admin_review',
+          },
+        );
+      }
+
+      if (
+        currentWithdraw.status !== updateRequestWithdrawDto.status &&
+        updateRequestWithdrawDto.status === 'rejected'
+      ) {
+        await this.analytics.capture(
+          'withdraw_request_rejected',
+          analyticsContext,
+          {
+            withdraw_id: currentWithdraw._id?.toString(),
+            withdraw_type: currentWithdraw.method,
+            method: currentWithdraw.method,
+            currency: currentWithdraw.currency,
+            amount_total: currentWithdraw.amount_total,
+            amount_net: currentWithdraw.amount_net,
+            source_flow: 'admin_review',
+          },
+        );
+      }
     }
-    return this.withdrawModel
-      .findByIdAndUpdate(new Types.ObjectId(updateRequestWithdrawDto.id), {
-        status: updateRequestWithdrawDto.status,
-      })
-      .exec();
+
+    return updatedWithdraw;
   }
 
   remove(id: string) {
@@ -192,14 +254,36 @@ export class AdminService {
     page: number = 1,
     limit: number = 10,
     search?: string,
+    key?: string,
     status?: string,
   ) {
     const filter = {};
-    if (search) {
-      filter['$or'] = [
-        { aff_sub1: { $regex: search, $options: 'i' } },
-        { offer_name: { $regex: search, $options: 'i' } },
-      ];
+    if (search && key) {
+      if (key === 'conversion_id') {
+        filter['$or'] = [
+          { conversion_id: search },
+          // { aff_sub1: { $regex: search, $options: 'i' } },
+          // { offer_name: { $regex: search, $options: 'i' } },
+          // { adv_sub1: { $regex: search, $options: 'i' } },
+          // { adv_sub2: { $regex: search, $options: 'i' } },
+          // { adv_sub3: { $regex: search, $options: 'i' } },
+          // { adv_sub4: { $regex: search, $options: 'i' } },
+          // { adv_sub5: { $regex: search, $options: 'i' } },
+          // { conversion_id: { $regex: search, $options: 'i' } },
+        ];
+      } else {
+          filter['$or'] = [
+            { [key]: { $regex: search, $options: 'i' } },
+            // { aff_sub1: { $regex: search, $options: 'i' } },
+            // { offer_name: { $regex: search, $options: 'i' } },
+            // { adv_sub1: { $regex: search, $options: 'i' } },
+            // { adv_sub2: { $regex: search, $options: 'i' } },
+            // { adv_sub3: { $regex: search, $options: 'i' } },
+            // { adv_sub4: { $regex: search, $options: 'i' } },
+            // { adv_sub5: { $regex: search, $options: 'i' } },
+            // { conversion_id: { $regex: search, $options: 'i' } },
+          ];
+      }
     }
 
     if (status) {
@@ -487,5 +571,9 @@ export class AdminService {
   async getBannerHome() {
     // logic get banner home
     return this.bannerModel.findOne().exec();
+  }
+
+  async updateConversionDataByConversionId(id: string) {
+    return this.jobService.syncConversion(id);
   }
 }

@@ -15,6 +15,13 @@ import {
   Conversion,
   ConversionSchema,
 } from 'src/withdraw/schemas/conversion.schema';
+import { FeeRate, FeeRateSchema } from 'src/withdraw/schemas/feeRate.schema';
+import { Quest, QuestSchema } from './schemas/quest.schema';
+import {
+  SocialReward,
+  SocialRewardSchema,
+} from './schemas/social-reward.schema';
+import { GoogleDriveService } from 'src/google-drive/google-drive.service';
 
 @Module({
   imports: [
@@ -26,9 +33,18 @@ import {
       { name: Deeplink.name, schema: DeeplinkSchema },
       { name: Category.name, schema: CategorySchema },
       { name: Conversion.name, schema: ConversionSchema },
+      { name: FeeRate.name, schema: FeeRateSchema },
+      { name: Quest.name, schema: QuestSchema },
+      { name: SocialReward.name, schema: SocialRewardSchema },
     ]),
   ],
   controllers: [PointController],
-  providers: [PointService, TasksService, InvolveService, JwtService],
+  providers: [
+    PointService,
+    TasksService,
+    InvolveService,
+    JwtService,
+    GoogleDriveService,
+  ],
 })
 export class PointModule {}

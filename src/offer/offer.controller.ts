@@ -19,6 +19,11 @@ import { UpdateCouponDto } from './dto/update-offer.dto';
 export class OfferController {
   constructor(private readonly offerService: OfferService) {}
 
+  @Get('extra-point')
+  getOfferExtraPoint() {
+    return this.offerService.getOfferExtraPoint();
+  }
+
   @Get('banner-home')
   getBannerHome() {
     return this.offerService.getBannerHome();
@@ -86,15 +91,24 @@ export class OfferController {
     type: String,
     description: 'Category offer',
   })
+  @ApiQuery({
+    name: 'country',
+    required: false,
+    type: String,
+    description: 'Country offer',
+  })
   findAll(@Req() request: Request) {
     const page = request.query.page ? Number(request.query.page) : 1;
     const limit = request.query.limit ? Number(request.query.limit) : 10;
     const search = request.query.search ? request.query.search?.toString() : '';
+    const country = request.query.country
+      ? request.query.country?.toString()
+      : '';
     const category = request.query.category
       ? request.query.category?.toString()
       : '';
 
-    return this.offerService.findAll(page, limit, search, category);
+    return this.offerService.findAll(page, limit, search, category, country);
   }
 
   @Get('extra')
@@ -127,6 +141,12 @@ export class OfferController {
     type: String,
     description: 'Category offer',
   })
+  @ApiQuery({
+    name: 'country',
+    required: false,
+    type: String,
+    description: 'Country offer',
+  })
   findAllAdmin(@Req() request: Request) {
     const page = request.query.page ? Number(request.query.page) : 1;
     const limit = request.query.limit ? Number(request.query.limit) : 10;
@@ -134,8 +154,18 @@ export class OfferController {
     const category = request.query.category
       ? request.query.category?.toString()
       : '';
+    const country = request.query.country
+      ? request.query.country?.toString()
+      : '';
 
-    return this.offerService.findAll(page, limit, search, category, true);
+    return this.offerService.findAll(
+      page,
+      limit,
+      search,
+      category,
+      country,
+      true,
+    );
   }
 
   @Get(':id')
@@ -171,7 +201,7 @@ export class OfferController {
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
   @Post('my-offers')
-  myOffers(@Req() request: Request, @Body() body: GetMyOfferDto) {
+  myOffers(@Req() request: any, @Body() body: GetMyOfferDto) {
     const user = request.user as any;
     const id = user.sub;
     return this.offerService.findMyOffer(id, body);
@@ -190,10 +220,7 @@ export class OfferController {
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
   @Post('favorite/:offerId')
-  async favoriteOffer(
-    @Req() request: Request,
-    @Param('offerId') offerId: string,
-  ) {
+  async favoriteOffer(@Req() request: any, @Param('offerId') offerId: string) {
     const user = request.user as any;
     const id = user.sub;
     return this.offerService.favoriteOfferByUser(id, offerId);
@@ -204,7 +231,7 @@ export class OfferController {
   @ApiBearerAuth() // This directly applies Bearer authentication
   @Get('favorite/:page/:limit')
   async getFavoriteOffer(
-    @Req() request: Request,
+    @Req() request: any,
     @Param('page') page: number,
     @Param('limit') limit: number,
   ) {

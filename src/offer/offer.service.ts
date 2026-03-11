@@ -32,6 +32,7 @@ export class OfferService {
     limit: number,
     search: string,
     categories: string,
+    country?: string,
     admin = false,
   ) {
     const filter: any = {};
@@ -42,8 +43,13 @@ export class OfferService {
       // const categoriesArray = categories.split(',').map((cat) => cat.trim());
       filter['categories'] = { $regex: categories, $options: 'i' };
     }
+    if (country) {
+      // const countryArray = country.split(',').map((c) => c.trim());
+      filter['countries'] = { $regex: country, $options: 'i' };
+    }
     if (!admin) {
       filter.disabled = { $ne: true };
+      // filter.countries = { $regex: 'Thailand', $options: 'i' };
     }
     const data = await this.offerModel
       .find(filter)
@@ -59,6 +65,8 @@ export class OfferService {
     const filter: any = {};
     filter.disabled = { $ne: true };
     filter.extra_store = true;
+    // filter.countries = { $regex: 'Thailand', $options: 'i' };
+
     const dataExtra = await this.offerModel.find(filter).lean();
 
     return dataExtra;
@@ -218,5 +226,9 @@ export class OfferService {
     return this.couponModel
       .find({ offer_id: new Types.ObjectId(id) })
       .populate('offer_id', ['offer_name']);
+  }
+
+  async getOfferExtraPoint() {
+    return this.offerModel.find({ extra_point: { $gt: 1 } }).lean();
   }
 }

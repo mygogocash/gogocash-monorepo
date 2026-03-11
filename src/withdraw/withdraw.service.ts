@@ -25,6 +25,8 @@ import { WithdrawMethod } from './schemas/withdrawMethod.schema';
 import { rateCurrencyUSD, thaiBanks } from 'src/utils/helper';
 import { UserMyCashback } from 'src/user/schemas/user-my-cashback.schema';
 import { Conversion } from './schemas/conversion.schema';
+import { AnalyticsService } from 'src/analytics/analytics.service';
+import { AnalyticsContext } from 'src/analytics/analytics-context';
 
 @Injectable()
 export class WithdrawService {
@@ -39,6 +41,7 @@ export class WithdrawService {
     @InjectModel(UserMyCashback.name)
     private userMyCashbackModel: Model<UserMyCashback>,
     private readonly involveService: InvolveService,
+    private readonly analytics: AnalyticsService,
   ) {}
   async getSign(msg: GETSignDTO): Promise<string> {
     // console.log('Generating EIP-712 signature for message:', msg);
@@ -155,7 +158,7 @@ export class WithdrawService {
       return [];
     }
   }
-  async checkWithdraw(id: string) {
+  async checkWithdraw2(id: string) {
     const user = await this.userModel.findOne({
       _id: new Types.ObjectId(id),
     });
@@ -248,7 +251,7 @@ export class WithdrawService {
       },
       {} as Record<string, any[]>,
     );
-    
+
     const totalPayoutByCurrency = Object.entries(groupedByCurrency).reduce(
       (acc, [currency, items]) => {
         const totalPayout = (items as any[]).reduce(
@@ -312,7 +315,7 @@ export class WithdrawService {
     const netAmount = isNaN(netTotalUsd) ? 0 : netTotalUsd;
 
     const feeAmountTHB = (totalTHBAmount * feePercentage) / 100;
-    const netTotalThb = totalTHBAmount - feeAmountTHB - fee_withdraw_thb
+    const netTotalThb = totalTHBAmount - feeAmountTHB - fee_withdraw_thb;
     const netAmountTHB = isNaN(netTotalThb) ? 0 : netTotalThb;
 
     // Check if net amount meets minimum withdrawal threshold
@@ -340,6 +343,233 @@ export class WithdrawService {
     };
   }
 
+  async checkWithdraw(id: string) {
+    const user = await this.userModel.findOne({
+      _id: new Types.ObjectId(id),
+    });
+    if (!user) {
+      throw new UnauthorizedException({ message: 'User not found' });
+    }
+    const fee = await this.feeRateModel.findOne().exec();
+    if (!fee) {
+      throw new HttpException({ message: 'Fee rate not found' }, 400);
+    }
+
+    const allConversions = await this.conversionModel
+      .find({
+        conversion_status: 'approved',
+        aff_sub1: { $regex: `user_id:${user._id.toString()}` },
+      })
+      .lean();
+
+    const payoutConversionGroupCurrency = allConversions.reduce(
+      (acc, item) => {
+        const currency = item.currency || 'USD';
+        if (!acc[currency]) {
+          acc[currency] = 0;
+        }
+        const payout: number = Number(item.payout || 0) >= fee.max_cap ? Number(fee.max_cap) : Number(item.payout || 0);
+        const feePercentage = fee.system;
+        const feeAmount = (payout * feePercentage) / 100;
+        acc[currency] += payout - feeAmount;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+
+    // get withdrawn ---------------------
+
+    const withdrawList = await this.withdrawModel
+      .find({
+        user_id: new Types.ObjectId(user._id),
+        mycashback_id: [],
+        // status: { $in: ['pending', 'approved', 'rejected'] },
+      })
+      .lean();
+    console.log('user._id', user._id);
+
+    const withdrawnAmountByCurrency = withdrawList.reduce(
+      (acc, withdraw) => {
+        const currency =
+          withdraw.currency == 'USDT' || withdraw.currency == 'USDC'
+            ? 'USD'
+            : withdraw.currency;
+        if (!acc[currency]) {
+          acc[currency] = 0;
+        }
+        acc[currency] += withdraw.amount_total || 0;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+
+    const sumWithdrawInUSD = await Promise.all(
+      Object.entries(withdrawnAmountByCurrency).map(
+        async ([currency, amount]) => {
+          if (currency === 'USD') {
+            return { currency, amount, usdAmount: amount };
+          }
+          const converted = await this.convertCurrencyUsd(currency, amount);
+          return {
+            currency,
+            amount,
+            usdAmount: converted.usdAmount,
+            exchangeRate: converted.exchangeRate,
+          };
+        },
+      ),
+    );
+
+    const sumWithdrawInTHB = await Promise.all(
+      Object.entries(withdrawnAmountByCurrency).map(
+        async ([currency, amount]) => {
+          if (currency === 'THB') {
+            return { currency, amount, thbAmount: amount };
+          }
+          const converted = await this.convertCurrencyThb(currency, amount);
+          return {
+            currency,
+            amount,
+            thbAmount: converted.amount,
+            exchangeRate: converted.exchangeRate,
+          };
+        },
+      ),
+    );
+
+    const availablePayoutByCurrency = Object.entries(
+      payoutConversionGroupCurrency,
+    ).reduce(
+      (acc, [currency, amount]) => {
+        // const withdrawn = withdrawnAmountByCurrency[currency] || 0;
+        // console.log('withdrawn', withdrawn);
+        // acc[currency] = amount - withdrawn;
+        acc[currency] = amount;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+
+    const payoutInUSD = await Promise.all(
+      Object.entries(availablePayoutByCurrency).map(
+        async ([currency, amount]) => {
+          if (currency === 'USD') {
+            return { currency, amount, usdAmount: amount };
+          }
+          const converted = await this.convertCurrencyUsd(currency, amount);
+          return {
+            currency,
+            amount,
+            usdAmount: converted.usdAmount,
+            exchangeRate: converted.exchangeRate,
+          };
+        },
+      ),
+    );
+
+    const payoutInTHB = await Promise.all(
+      Object.entries(availablePayoutByCurrency).map(
+        async ([currency, amount]) => {
+          if (currency === 'THB') {
+            return { currency, amount, thbAmount: amount };
+          }
+          const converted = await this.convertCurrencyThb(currency, amount);
+          return {
+            currency,
+            amount,
+            thbAmount: converted.amount,
+            exchangeRate: converted.exchangeRate,
+          };
+        },
+      ),
+    );
+
+    const _totalPayoutUSD = payoutInUSD.reduce(
+      (sum, item) => sum + (item.usdAmount || 0),
+      0,
+    );
+
+    const _totalPayoutTHB = payoutInTHB.reduce(
+      (sum, item) => sum + (item.thbAmount || 0),
+      0,
+    );
+
+    const _sumWithdrawInUSD = sumWithdrawInUSD.reduce(
+      (sum, item) => sum + (item.usdAmount || 0),
+      0,
+    );
+
+    const _sumWithdrawInTHB = sumWithdrawInTHB.reduce(
+      (sum, item) => sum + (item.thbAmount || 0),
+      0,
+    );
+
+    const totalPayoutUSD = isNaN(_totalPayoutUSD)
+      ? 0
+      : _totalPayoutUSD - _sumWithdrawInUSD;
+    const totalPayoutTHB = isNaN(_totalPayoutTHB)
+      ? 0
+      : _totalPayoutTHB - _sumWithdrawInTHB;
+
+    const MCBCashback = await this.checkWithdrawMyCashback(id);
+
+    // Calculate total amount after fee deduction
+    // const fee_withdraw_thb = fee.fee_withdraw_thb;
+    // const fee_withdraw_usd = fee.fee_withdraw_usd;
+    // const payoutTotalCutFeeUSD = totalPayoutUSD;
+    // const netTotalUsd = payoutTotalCutFeeUSD - fee_withdraw_usd;
+    const netTotalUsd = totalPayoutUSD;
+
+    const availableWithdrawMCBUSD =
+      netTotalUsd <= MCBCashback.availableUSD
+        ? netTotalUsd
+        : MCBCashback && MCBCashback.availableUSD > 0
+          ? MCBCashback.availableUSD
+          : 0;
+    // const netTotalUsdIncludeMVC = netTotalUsd + availableWithdrawMCBUSD;
+
+    const netAmount = isNaN(netTotalUsd)
+      ? 0
+      : netTotalUsd > 0
+        ? netTotalUsd
+        : 0;
+
+    // const payoutTotalCutFeeTHB = totalPayoutTHB;
+    // const netTotalThb = payoutTotalCutFeeTHB - fee_withdraw_thb;
+    const netTotalThb = totalPayoutTHB;
+
+    const availableWithdrawMCBTHB =
+      netTotalThb <= MCBCashback.availableTHB
+        ? netTotalThb
+        : MCBCashback && MCBCashback.availableTHB > 0
+          ? MCBCashback.availableTHB
+          : 0;
+    // const netTotalTHBIncludeMVC = netTotalThb + availableWithdrawMCBTHB;
+
+    const netAmountTHB = isNaN(netTotalThb)
+      ? 0
+      : netTotalThb > 0
+        ? netTotalThb
+        : 0;
+
+    return {
+      MCBCashback,
+      availableWithdrawMCBTHB,
+      availableWithdrawMCBUSD,
+      // payoutTotalCutFeeUSD,
+      // payoutTotalCutFeeTHB,
+      totalPayoutTHB,
+      totalPayoutUSD,
+      netAmountTHB,
+      netAmount,
+      feeAmountTHB: fee.fee_withdraw_thb,
+      feeAmount: fee.fee_withdraw_usd,
+      feePercentage: fee.system,
+      data: allConversions,
+      fee,
+    };
+  }
+
   async listCheckWithdraw(id: string) {
     const user = await this.userModel.findOne({
       _id: new Types.ObjectId(id),
@@ -347,16 +577,23 @@ export class WithdrawService {
     if (!user) {
       throw new UnauthorizedException({ message: 'User not found' });
     }
-     const fee = await this.feeRateModel.findOne().exec();
+    const fee = await this.feeRateModel.findOne().exec();
     if (!fee) {
       throw new HttpException({ message: 'Fee rate not found' }, 400);
     }
+
+    const withdrawList = await this.withdrawModel
+      .find({
+        user_id: user._id, // user._id.toString(),
+      })
+      .sort({ createdAt: -1 })
+      .lean();
     const allConversions = await this.conversionModel
       .find({
         aff_sub1: { $regex: `user_id:${user._id.toString()}` },
       })
+      .sort({ createdAt: -1 })
       .lean();
-  
 
     const groupedByStatus = allConversions.reduce(
       (acc, item) => {
@@ -369,43 +606,62 @@ export class WithdrawService {
           };
         }
         acc[status].count += 1;
-        const payout = Number(item.payout || 0);
+        const payout = Number(item.payout || 0) >= fee.max_cap ? Number(fee.max_cap) : Number(item.payout || 0);
         acc[status].totalPayout += payout > 0 ? payout : 0;
         acc[status].items.push(item);
         return acc;
       },
-      {} as Record<string, { count: number; totalPayout: number; items: any[] }>,
+      {} as Record<
+        string,
+        { count: number; totalPayout: number; items: any[] }
+      >,
     );
 
     const totalsByStatusAndCurrency = await Promise.all(
       Object.entries(groupedByStatus).map(async ([status, statusData]) => {
-        const currencyTotals = statusData.items.reduce((acc, item) => {
-          const currency = item.currency || 'USD';
-          const feeAmount = (Number(item.payout || 0) * (fee.system / 100));
-          const payout = Number(item.payout || 0) - feeAmount;
-          
-          if (!acc[currency]) {
-            acc[currency] = 0;
-          }
-          acc[currency] += payout > 0 ? payout : 0;
-          return acc;
-        }, {} as Record<string, number>);
+        const currencyTotals = statusData.items.reduce(
+          (acc, item) => {
+            const currency = item.currency || 'USD';
+            const payoutData: number = Number(item.payout || 0) >= fee.max_cap ? Number(fee.max_cap) : Number(item.payout || 0);
+            const feeAmount = payoutData * (fee.system / 100);
+            const payout = payoutData - feeAmount;
+
+            if (!acc[currency]) {
+              acc[currency] = 0;
+            }
+            acc[currency] += payout > 0 ? payout : 0;
+            return acc;
+          },
+          {} as Record<string, number>,
+        );
 
         const convertedTotals = await Promise.all(
           Object.entries(currencyTotals).map(async ([currency, amount]) => {
-            const toUSD = await this.convertCurrencyUsd(currency, Number(amount));
-            const toTHB = await this.convertCurrencyThb(currency, Number(amount));
+            const toUSD = await this.convertCurrencyUsd(
+              currency,
+              Number(amount),
+            );
+            const toTHB = await this.convertCurrencyThb(
+              currency,
+              Number(amount),
+            );
             return {
               currency,
               amount,
               usdAmount: toUSD.usdAmount,
               thbAmount: toTHB.amount,
             };
-          })
+          }),
         );
 
-        const totalUSD = convertedTotals.reduce((sum, item) => sum + (item.usdAmount || 0), 0);
-        const totalTHB = convertedTotals.reduce((sum, item) => sum + (item.thbAmount || 0), 0);
+        const totalUSD = convertedTotals.reduce(
+          (sum, item) => sum + (item.usdAmount || 0),
+          0,
+        );
+        const totalTHB = convertedTotals.reduce(
+          (sum, item) => sum + (item.thbAmount || 0),
+          0,
+        );
 
         return {
           status,
@@ -415,13 +671,56 @@ export class WithdrawService {
           totalUSD,
           totalTHB,
         };
-      })
+      }),
     );
-
+    const withdrawSumByCurrencyApproved = withdrawList
+      ?.filter((item) => item.status === 'approved')
+      .reduce(
+        (acc, withdraw) => {
+          const currency = withdraw.currency || 'unknown';
+          if (!acc[currency]) {
+            acc[currency] = {
+              netAmount: 0,
+              count: 0,
+            };
+          }
+          acc[currency].netAmount += withdraw.amount_net || 0;
+          acc[currency].count += 1;
+          return acc;
+        },
+        {} as Record<string, { netAmount: number; count: number }>,
+      );
+    const withdrawSumByCurrencyPending = withdrawList
+      .filter((item) => item.status === 'pending')
+      .reduce(
+        (acc, withdraw) => {
+          const currency = withdraw.currency || 'unknown';
+          if (!acc[currency]) {
+            acc[currency] = {
+              netAmount: 0,
+              count: 0,
+            };
+          }
+          acc[currency].netAmount += withdraw.amount_net || 0;
+          acc[currency].count += 1;
+          return acc;
+        },
+        {} as Record<string, { netAmount: number; count: number }>,
+      );
     return {
       totalsByStatusAndCurrency,
       data: groupedByStatus,
-      fee
+      fee,
+      withdrawList,
+      withdrawSumByCurrency: {
+        pending: withdrawSumByCurrencyPending,
+        approved: withdrawSumByCurrencyApproved,
+      },
+      allConversions,
+      user: {
+        email: user.email,
+        mobile: user.mobile,
+      },
     };
   }
   async getConversionByUser(id: string) {
@@ -497,10 +796,6 @@ export class WithdrawService {
     //   throw new UnauthorizedException({ message: 'User mobile not found' });
     // }
 
-    const fee = await this.feeRateModel.findOne().exec();
-    if (!fee) {
-      throw new HttpException({ message: 'Fee rate not found' }, 400);
-    }
     const mobileData = user?.mobile?.includes('+66')
       ? user?.mobile?.slice(3)
       : user?.mobile;
@@ -516,22 +811,29 @@ export class WithdrawService {
     if (user?.mobile) {
       myCashbackDataList = await this.userMyCashbackModel
         .find({
-          $or: [{ phoneNumber: user.mobile }, { phoneNumber: mobile }]
-        }).lean();
+          $or: [{ phoneNumber: user.mobile }, { phoneNumber: mobile }],
+        })
+        .lean();
     }
-
 
     if (myCashbackDataList?.length < 1) {
       myCashbackDataList = await this.userMyCashbackModel
         .find({
-          email: { $regex: user.email, $options: 'i' }, // Use $regex for case-insensitive search on user.email
+          // email: user.email,
+          email: { $regex: user.email }, // Use $regex for case-insensitive search on user.email
           // $or: [{ email: user.email }, { phoneNumber: user.mobile }, { phoneNumber: mobile }],
-        }).lean();
+        })
+        .lean();
     }
-    // console.log('2myCashbackDataList', myCashbackDataList?.length);
-      
+
     if (myCashbackDataList?.length < 1) {
-      throw new UnauthorizedException({ message: 'User My cashback not found' });
+      return {
+        totalMyCashbackTHB: 0,
+        totalMyCashbackUSD: 0,
+        availableUSD: 0,
+        availableTHB: 0,
+        conversionIdMyCashback: [],
+      };
     }
     const myCashbackDataGroupCurrency = myCashbackDataList?.reduce(
       (acc, cashback) => {
@@ -544,13 +846,15 @@ export class WithdrawService {
         });
         return acc;
       },
-      {},
+      {} as Record<string, { amount: number; currency: string }>,
     );
 
-    const myCashbackData = Object.values(myCashbackDataGroupCurrency)?.map(
-      ({ amount, currency }) => ({ amount, currency }),
-    );
-
+    const myCashbackData: { amount: number; currency: string }[] = (
+      Object.values(myCashbackDataGroupCurrency) as {
+        amount: number;
+        currency: string;
+      }[]
+    )?.map((item) => ({ amount: item.amount, currency: item.currency }));
 
     const rate = await rateCurrencyUSD();
     const rateTHBtoUSD = rate['THB'];
@@ -568,54 +872,9 @@ export class WithdrawService {
         return sum + b.amount;
       } else {
         const usd = b.amount * rateTHBtoUSD;
-        return (sum + usd);
+        return sum + usd;
       }
     }, 0);
-
-    const groupedByCurrencyInvolve = await this.getListCashbackByCurrency(id);
-    const listInvolve = Object.keys(groupedByCurrencyInvolve).map((key) => {
-      return {
-        currency: key,
-        items: groupedByCurrencyInvolve[key].items,
-        totalPayout: groupedByCurrencyInvolve[key].totalPayout,
-      };
-    });
-    const totalInvolveUSD = listInvolve.reduce(
-      (sum, b) => {
-        if( b.currency === 'USD') {
-          return sum + b.totalPayout;
-        } else {
-          const usdAmount = b.totalPayout / rateTHBtoUSD;
-          return sum + usdAmount;
-        }
-      },
-      0,
-    );
-    const totalInvolveTHB = listInvolve.reduce((sum, b) => {
-      if (b.currency === 'THB') {
-        return sum + b.totalPayout;
-      } else {
-        // const usd = b.totalPayout / usdRate[b.currency];
-        return sum + b.totalPayout * rateTHBtoUSD;
-      }
-    }, 0);
-
-    const feePercentage = fee.system; // Using system fee rate
-    const fee_withdraw_thb = fee.fee_withdraw_thb;
-    const fee_withdraw_usd = fee.fee_withdraw_usd;
-    const feeAmountInvolveUSD = (totalInvolveUSD * feePercentage) / 100;
-    const netAmountInvolveUSD = totalInvolveUSD - feeAmountInvolveUSD - fee_withdraw_usd;
-
-    const feeAmountInvolveTHB = (totalInvolveTHB * feePercentage) / 100;
-    const netAmountInvolveTHB = totalInvolveTHB - feeAmountInvolveTHB - fee_withdraw_thb;
-
-    const feeMyCashbackUSD = (totalMyCashbackUSD * feePercentage) / 100;
-    // const netMyCashbackUSD = totalMyCashbackUSD - feeMyCashbackUSD - fee_withdraw_usd;
-    const netMyCashbackUSD = totalMyCashbackUSD - fee_withdraw_usd;
-
-    const feeMyCashbackTHB = (totalMyCashbackTHB * feePercentage) / 100;
-    // const netMyCashbackTHB = totalMyCashbackTHB - feeMyCashbackTHB - fee_withdraw_thb;
-    const netMyCashbackTHB = totalMyCashbackTHB - fee_withdraw_thb;
 
     const withdrawListApproved = await this.withdrawModel
       .find({
@@ -626,45 +885,32 @@ export class WithdrawService {
         status: { $in: ['approved', 'pending'] },
       })
       .lean();
+    const totalWithdrawnUSD = withdrawListApproved.reduce((sum, w) => {
+      if (w.currency === 'USD') {
+        return sum + (w.amount_net || 0);
+      } else {
+        return sum + (w.amount_net || 0) / rateTHBtoUSD;
+      }
+    }, 0);
 
+    const totalWithdrawnTHB = withdrawListApproved.reduce((sum, w) => {
+      if (w.currency === 'THB') {
+        return sum + (w.amount_net || 0);
+      } else {
+        return sum + (w.amount_net || 0) * rateTHBtoUSD;
+      }
+    }, 0);
+
+    const availableUSD = totalMyCashbackUSD - totalWithdrawnUSD;
+    const availableTHB = totalMyCashbackTHB - totalWithdrawnTHB;
     const data = {
-      totalInvolveUSD,
-      totalInvolveTHB,
       totalMyCashbackTHB,
       totalMyCashbackUSD,
-      feePercentage,
-
-      netMyCashbackUSD,
-      feeMyCashbackUSD,
-      netMyCashbackTHB,
-      feeMyCashbackTHB,
-      netAmountInvolveUSD,
-      feeAmountInvolveUSD,
-      netAmountInvolveTHB,
-      feeAmountInvolveTHB,
-      fee,
+      availableUSD,
+      availableTHB,
       conversionIdMyCashback: myCashbackDataList.map((item) => item?._id),
     };
-    if (withdrawListApproved.length < 1) {
-      return data;
-    }
-    return {
-      totalInvolveUSD: 0,
-      totalInvolveTHB: 0,
-      totalMyCashbackTHB: 0,
-      totalMyCashbackUSD: 0,
-      feePercentage: 0,
-      netAmountInvolveUSD: 0,
-      feeAmountInvolveUSD: 0,
-      netAmountInvolveTHB: 0,
-      feeAmountInvolveTHB: 0,
-      netMyCashbackUSD: 0,
-      feeMyCashbackUS: 0,
-      netMyCashbackTHB: 0,
-      feeMyCashbackTHB: 0,
-      fee,
-      conversionIdMyCashback: myCashbackDataList.map((item) => item?._id),
-    };
+    return data;
   }
 
   async convertCurrencyUsd(
@@ -789,7 +1035,11 @@ export class WithdrawService {
 
     return receipt.hash;
   }
-  async create(createWithdrawDto: CreateWithdrawDto, id: string) {
+  async create(
+    createWithdrawDto: CreateWithdrawDto,
+    id: string,
+    analyticsContext?: AnalyticsContext,
+  ) {
     const user = await this.userModel.findOne({
       _id: new Types.ObjectId(id),
     });
@@ -812,19 +1062,102 @@ export class WithdrawService {
       tx_hash: createWithdrawDto.tx_hash || '',
       tx_hash_record: hash_record || '',
       percent_fee: createWithdrawDto.percent_fee || 0,
-      amount_total: createWithdrawDto.amount_total || 0,
+      amount_total: createWithdrawDto.amount_net || 0,
       amount_net: createWithdrawDto.amount_net || 0,
       method: createWithdrawDto.method || '',
       currency: createWithdrawDto.currency || '',
       conversion_id: createWithdrawDto.conversion_ids || [],
-      mycashback_id: createWithdrawDto.mycashback_id
-        ? createWithdrawDto.mycashback_id.map((id) => new Types.ObjectId(id))
-        : undefined,
+      rate: createWithdrawDto?.rate || 0,
+      mycashback_id: [],
     });
+    const MCBCashback = await this.checkWithdrawMyCashback(id);
+    let availableMCB = 0;
+
+    if (createWithdrawDto.currency === 'THB') {
+      availableMCB =
+        createWithdrawDto.amount_total <= MCBCashback.availableTHB
+          ? createWithdrawDto.amount_total
+          : MCBCashback && MCBCashback.availableTHB > 0
+            ? MCBCashback.availableTHB
+            : 0;
+    } else {
+      availableMCB =
+        createWithdrawDto.amount_total <= MCBCashback.availableUSD
+          ? createWithdrawDto.amount_total
+          : MCBCashback && MCBCashback.availableUSD > 0
+            ? MCBCashback.availableUSD
+            : 0;
+    }
+    if (availableMCB > 0) {
+      await this.withdrawModel.create({
+        user_id: new Types.ObjectId(user._id),
+        status: 'pending',
+        address: createWithdrawDto.address || '',
+        account_name: createWithdrawDto.account_name || '',
+        bank_name: createWithdrawDto.bank_name || '',
+        account_number: createWithdrawDto.account_number || '',
+        tx_hash: createWithdrawDto.tx_hash || '',
+        tx_hash_record: '',
+        percent_fee: 0,
+        amount_total: availableMCB,
+        amount_net: availableMCB,
+        method: createWithdrawDto.method || '',
+        currency: createWithdrawDto.currency || '',
+        rate: createWithdrawDto?.rate || 0,
+        conversion_id: [],
+        mycashback_id: createWithdrawDto.mycashback_id
+          ? createWithdrawDto.mycashback_id.map((id) => new Types.ObjectId(id))
+          : undefined,
+      });
+    }
+
+    const resolvedAnalyticsContext = analyticsContext || {
+      userId: user._id.toString(),
+      distinctId: user._id.toString(),
+      region: user.country,
+      platform: 'api' as const,
+    };
+
+    await this.analytics.capture(
+      'withdraw_request_created',
+      resolvedAnalyticsContext,
+      {
+        withdraw_id: dt._id?.toString(),
+        withdraw_type: 'crypto',
+        method: createWithdrawDto.method || '',
+        status: dt.status,
+        currency: createWithdrawDto.currency || '',
+        amount_total: createWithdrawDto.amount_total || 0,
+        amount_net: createWithdrawDto.amount_net || 0,
+        conversion_count: createWithdrawDto.conversion_ids?.length || 0,
+        source_flow: 'wallet_withdraw',
+      },
+    );
+
+    if (dt.status === 'approved') {
+      await this.analytics.capture(
+        'withdraw_request_completed',
+        resolvedAnalyticsContext,
+        {
+          withdraw_id: dt._id?.toString(),
+          withdraw_type: 'crypto',
+          method: createWithdrawDto.method || '',
+          currency: createWithdrawDto.currency || '',
+          amount_total: createWithdrawDto.amount_total || 0,
+          amount_net: createWithdrawDto.amount_net || 0,
+          source_flow: 'wallet_withdraw',
+        },
+      );
+    }
+
     return { message: 'Withdraw request created', data: dt, status: 'success' };
   }
 
-  async createBankTransfer(createWithdrawDto: CreateWithdrawDto, id: string) {
+  async createBankTransfer(
+    createWithdrawDto: CreateWithdrawDto,
+    id: string,
+    analyticsContext?: AnalyticsContext,
+  ) {
     // console.log(createWithdrawDto);
     const user = await this.userModel.findOne({
       _id: new Types.ObjectId(id),
@@ -832,38 +1165,45 @@ export class WithdrawService {
     if (!user) {
       throw new UnauthorizedException({ message: 'User not found' });
     }
-    const chek = createWithdrawDto?.mycashback_id
-      ? {
-          mycashback_id: {$in: createWithdrawDto.mycashback_id?.map((id) => new Types.ObjectId(id))  },
-        }
-      : { conversion_id: createWithdrawDto.conversion_ids };
-    const conversionIdsWithdrawed = await this.withdrawModel
-      .find({
-        user_id: new Types.ObjectId(user._id),
-        ...chek,
-      })
-      .lean();
+    // const chek = createWithdrawDto?.mycashback_id
+    //   ? {
+    //       mycashback_id: {
+    //         $in: createWithdrawDto.mycashback_id?.map(
+    //           (id) => new Types.ObjectId(id),
+    //         ),
+    //       },
+    //     }
+    //   : { conversion_id: createWithdrawDto.conversion_ids };
+    // const conversionIdsWithdrawed = await this.withdrawModel
+    //   .find({
+    //     user_id: new Types.ObjectId(user._id),
+    //     ...chek,
+    //   })
+    //   .lean();
     const fee = await this.feeRateModel.findOne().exec();
     if (!fee) {
       throw new HttpException({ message: 'Fee rate not found' }, 400);
     }
-    const feeRateMinimum = createWithdrawDto.currency === 'THB' ? fee.minimum_withdraw_thb : fee.minimum_withdraw_usd;
-    if (createWithdrawDto.amount_net <= feeRateMinimum) {
+    const feeRateMinimum =
+      createWithdrawDto.currency === 'THB'
+        ? fee.minimum_withdraw_thb
+        : fee.minimum_withdraw_usd;
+    if (createWithdrawDto.amount_net < feeRateMinimum) {
       throw new HttpException(
         {
-          message: `Minimum withdrawal amount for bank transfer is $${feeRateMinimum}.`,
+          message: `Minimum withdrawal amount for bank transfer is ${feeRateMinimum}.`,
         },
         400,
       );
     }
-    if (conversionIdsWithdrawed.length > 0) {
-      throw new HttpException(
-        {
-          message: `Some conversion IDs have already been withdrawn.`,
-        },
-        400,
-      );
-    }
+    // if (conversionIdsWithdrawed.length > 0) {
+    //   throw new HttpException(
+    //     {
+    //       message: `Some conversion IDs have already been withdrawn.`,
+    //     },
+    //     400,
+    //   );
+    // }
     const dt = await this.withdrawModel.create({
       user_id: new Types.ObjectId(user._id),
       status: 'pending',
@@ -879,8 +1219,72 @@ export class WithdrawService {
       method: 'bank_transfer',
       currency: createWithdrawDto.currency || '',
       conversion_id: createWithdrawDto.conversion_ids || [],
-      mycashback_id: createWithdrawDto.mycashback_id?.map((id) => new Types.ObjectId(id)),
+      mycashback_id: [],
     });
+
+    const MCBCashback = await this.checkWithdrawMyCashback(id);
+    let availableMCB = 0;
+
+    if (createWithdrawDto.currency === 'THB') {
+      availableMCB =
+        createWithdrawDto.amount_total <= MCBCashback.availableTHB
+          ? createWithdrawDto.amount_total
+          : MCBCashback && MCBCashback.availableTHB > 0
+            ? MCBCashback.availableTHB
+            : 0;
+    } else {
+      availableMCB =
+        createWithdrawDto.amount_total <= MCBCashback.availableUSD
+          ? createWithdrawDto.amount_total
+          : MCBCashback && MCBCashback.availableUSD > 0
+            ? MCBCashback.availableUSD
+            : 0;
+    }
+    if (availableMCB > 0) {
+      await this.withdrawModel.create({
+        user_id: new Types.ObjectId(user._id),
+        status: 'pending',
+        address: createWithdrawDto.address || '',
+        account_name: createWithdrawDto.account_name || '',
+        bank_name: createWithdrawDto.bank_name || '',
+        account_number: createWithdrawDto.account_number || '',
+        tx_hash: createWithdrawDto.tx_hash || '',
+        tx_hash_record: '',
+        percent_fee: 0,
+        amount_total: availableMCB,
+        amount_net: availableMCB,
+        method: createWithdrawDto.method || '',
+        currency: createWithdrawDto.currency || '',
+        conversion_id: [],
+        mycashback_id: createWithdrawDto.mycashback_id
+          ? createWithdrawDto.mycashback_id.map((id) => new Types.ObjectId(id))
+          : undefined,
+      });
+    }
+
+    const resolvedAnalyticsContext = analyticsContext || {
+      userId: user._id.toString(),
+      distinctId: user._id.toString(),
+      region: user.country,
+      platform: 'api' as const,
+    };
+
+    await this.analytics.capture(
+      'withdraw_request_created',
+      resolvedAnalyticsContext,
+      {
+        withdraw_id: dt._id?.toString(),
+        withdraw_type: 'bank_transfer',
+        method: 'bank_transfer',
+        status: dt.status,
+        currency: createWithdrawDto.currency || '',
+        amount_total: createWithdrawDto.amount_total || 0,
+        amount_net: createWithdrawDto.amount_net || 0,
+        conversion_count: createWithdrawDto.conversion_ids?.length || 0,
+        source_flow: 'wallet_withdraw',
+      },
+    );
+
     return { message: 'Withdraw request created', data: dt, status: 'success' };
   }
 
@@ -966,6 +1370,7 @@ export class WithdrawService {
   async createWithdrawMethod(
     createWithdrawMethod: CreateWithdrawMethod,
     id: string,
+    analyticsContext?: AnalyticsContext,
   ) {
     const user = await this.userModel.findOne({
       _id: new Types.ObjectId(id),
@@ -985,6 +1390,25 @@ export class WithdrawService {
     }
     createWithdrawMethod['user_id'] = new Types.ObjectId(user._id);
     const dt = await this.withdrawMethodModel.create(createWithdrawMethod);
+
+    const resolvedAnalyticsContext = analyticsContext || {
+      userId: user._id.toString(),
+      distinctId: user._id.toString(),
+      region: user.country,
+      platform: 'api' as const,
+    };
+
+    await this.analytics.capture(
+      'withdraw_method_added',
+      resolvedAnalyticsContext,
+      {
+        withdraw_method_id: dt._id?.toString(),
+        bank_name: dt.bank_name,
+        method_type: 'bank_transfer',
+        source_flow: 'withdraw_profile',
+      },
+    );
+
     return {
       message: 'Withdraw method created',
       data: dt,
