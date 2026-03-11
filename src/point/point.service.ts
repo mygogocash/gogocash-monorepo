@@ -582,10 +582,27 @@ export class PointService {
     };
   }
 
-  async createQuest(createQuestDto: CreateQuestDto) {
+  async createQuest(
+    createQuestDto: CreateQuestDto,
+    files: {
+      banner_en?: Express.Multer.File[];
+      banner_th?: Express.Multer.File[];
+      sub_banner_en?: Express.Multer.File[];
+      sub_banner_th?: Express.Multer.File[];
+    },
+  ) {
+    const filter = createQuestDto._id
+      ? { _id: new Types.ObjectId(createQuestDto._id) }
+      : { status: 'open' };
     return this.questModel.findOneAndUpdate(
-      { status: 'open' },
-      { ...createQuestDto },
+      filter,
+      {
+        ...createQuestDto,
+        banner_en: files?.banner_en ? files?.banner_en?.[0] : null,
+        banner_th: files?.banner_th ? files?.banner_th?.[0] : null,
+        sub_banner_en: files?.sub_banner_en ? files?.sub_banner_en?.[0] : null,
+        sub_banner_th: files?.sub_banner_th ? files?.sub_banner_th?.[0] : null,
+      },
       {
         upsert: true,
         new: true,

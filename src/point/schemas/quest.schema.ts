@@ -25,6 +25,18 @@ export class Quest {
 
   @Prop({ required: false })
   line: string;
+
+  @Prop({ required: false })
+  banner_en: string;
+
+  @Prop({ required: false })
+  banner_th: string;
+
+  @Prop({ required: false })
+  sub_banner_en: string;
+
+  @Prop({ required: false })
+  sub_banner_th: string;
 }
 
 export const QuestSchema = SchemaFactory.createForClass(Quest);
