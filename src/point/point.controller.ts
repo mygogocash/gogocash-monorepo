@@ -12,10 +12,12 @@ import {
 import { PointService } from './point.service';
 import { CreatePointDto } from './dto/create-point.dto';
 import { UpdatePointDto } from './dto/update-point.dto';
-import { ApiBearerAuth, ApiSecurity } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiSecurity } from '@nestjs/swagger';
 import { Request } from 'express';
 import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
 import { TasksService } from './tasksService';
+import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
+import { CloseQuestDto, CreateQuestDto } from './dto/create-quest.dto';
 @Controller('point')
 export class PointController {
   constructor(
@@ -92,5 +94,75 @@ export class PointController {
   ) {
     // return this.tasksService.handleCron();
     return this.pointService.getQuestRankListOfPoint(startDate, endDate);
+  }
+
+  @Get('save-points')
+  savePoint() {
+    return this.tasksService.handleCron();
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
+  @Post('create-quest')
+  @ApiBody({ type: CreateQuestDto })
+  createQuest(@Body() createQuestDto: CreateQuestDto) {
+    return this.pointService.createQuest(createQuestDto);
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
+  @Patch('close-quest')
+  @ApiBody({ type: CloseQuestDto })
+  closeQuest(@Body() closeQuestDto: CloseQuestDto) {
+    return this.pointService.closeQuest(closeQuestDto);
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
+  @Get('admin-get-quest')
+  getAdminQuestOpen() {
+    return this.pointService.getQuestAdmin();
+  }
+
+  @Get('get-quest-open')
+  getQuestOpen() {
+    return this.pointService.getQuestOpen();
+  }
+
+  @UseGuards(FirebaseAuthGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
+  @Get('get-quest-social')
+  getQuestSocial(@Req() req: Request) {
+    const user = req['user'] as any;
+    const id = user?.sub;
+    return this.pointService.getQuestSocial(id);
+  }
+
+  @UseGuards(FirebaseAuthGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
+  @Patch('quest-social/:type/:action')
+  questSocial(
+    @Req() req: Request,
+    @Param('type') type: string,
+    @Param('action') action: string,
+  ) {
+    const user = req['user'] as any;
+    const id = user?.sub;
+    return this.pointService.questSocial(id, type, action);
+  }
+
+  @UseGuards(FirebaseAuthGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
+  @Patch('update-quest-social/:id')
+  updateQuestSocial(@Req() req: Request, @Param('id') id: string) {
+    const user = req['user'] as any;
+    const userId = user?.sub;
+    return this.pointService.updateQuestSocial(userId, id);
   }
 }
