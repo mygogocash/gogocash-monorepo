@@ -9,4 +9,7 @@ export default registerAs('env', () => ({
   JWT_SECRET: process.env.JWT_SECRET,
   JWT_ADMIN_SECRET: process.env.JWT_ADMIN_SECRET,
   INVOLVE_SECRET: process.env.INVOLVE_SECRET,
+  // Email OTP Configuration
+  GMAIL_USER: process.env.GMAIL_USER,
+  GMAIL_APP_PASSWORD: process.env.GMAIL_APP_PASSWORD,
 }));
