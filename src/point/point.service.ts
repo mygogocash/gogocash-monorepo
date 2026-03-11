@@ -651,12 +651,18 @@ export class PointService {
       filter,
       {
         ...createQuestDto,
-        banner_en: banner_en || existingOpenQuest?.banner_en || null,
-        banner_th: banner_th || existingOpenQuest?.banner_th || null,
-        sub_banner_en:
-          sub_banner_en || existingOpenQuest?.sub_banner_en || null,
-        sub_banner_th:
-          sub_banner_th || existingOpenQuest?.sub_banner_th || null,
+        banner_en: banner_en
+          ? banner_en?.id
+          : existingOpenQuest?.banner_en || null,
+        banner_th: banner_th
+          ? banner_th?.id
+          : existingOpenQuest?.banner_th || null,
+        sub_banner_en: sub_banner_en
+          ? sub_banner_en?.id
+          : existingOpenQuest?.sub_banner_en || null,
+        sub_banner_th: sub_banner_th
+          ? sub_banner_th?.id
+          : existingOpenQuest?.sub_banner_th || null,
       },
       {
         upsert: true,
