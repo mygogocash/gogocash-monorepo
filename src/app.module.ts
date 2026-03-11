@@ -6,7 +6,6 @@ import { AuthModule } from './auth/auth.module';
 import envConfig from './config/env.config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { UserModule } from './user/user.module';
-import { AdminModule } from './admin/admin.module';
 import { OfferModule } from './offer/offer.module';
 import { WithdrawModule } from './withdraw/withdraw.module';
 import { GoogleDriveModule } from './google-drive/google-drive.module';
@@ -24,7 +23,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
     MongooseModule.forRoot(process.env.MONGO_URI!),
     AuthModule,
     UserModule,
-    AdminModule,
+    AuthModule,
     OfferModule,
     WithdrawModule,
     GoogleDriveModule,

@@ -8,6 +8,7 @@ import {
   CreateWithdrawDto,
   GETSignDTO,
   GetWithdrawTransactionsDTO,
+  RequestCreateRewardList,
 } from './dto/create-withdraw.dto';
 import {
   CreateWithdrawMethod,
@@ -25,8 +26,10 @@ import { WithdrawMethod } from './schemas/withdrawMethod.schema';
 import { rateCurrencyUSD, thaiBanks } from 'src/utils/helper';
 import { UserMyCashback } from 'src/user/schemas/user-my-cashback.schema';
 import { Conversion } from './schemas/conversion.schema';
-import { AnalyticsService } from 'src/analytics/analytics.service';
-import { AnalyticsContext } from 'src/analytics/analytics-context';
+import { RewardList } from './schemas/rewardList.schema';
+import { PointService } from 'src/point/point.service';
+import { Quest } from 'src/point/schemas/quest.schema';
+import { RequestCreateConversionReward } from 'src/user/dto/create-conversion-reward.dto';
 
 @Injectable()
 export class WithdrawService {
@@ -36,12 +39,14 @@ export class WithdrawService {
     @InjectModel(FeeRate.name) private feeRateModel: Model<FeeRate>,
     @InjectModel(Offer.name) private offerModel: Model<Offer>,
     @InjectModel(Conversion.name) private conversionModel: Model<Conversion>,
+    @InjectModel(RewardList.name) private rewardListModel: Model<RewardList>,
+    @InjectModel(Quest.name) private questModel: Model<Quest>,
     @InjectModel(WithdrawMethod.name)
     private withdrawMethodModel: Model<WithdrawMethod>,
     @InjectModel(UserMyCashback.name)
     private userMyCashbackModel: Model<UserMyCashback>,
     private readonly involveService: InvolveService,
-    private readonly analytics: AnalyticsService,
+    private readonly pointService: PointService,
   ) {}
   async getSign(msg: GETSignDTO): Promise<string> {
     // console.log('Generating EIP-712 signature for message:', msg);
@@ -368,10 +373,20 @@ export class WithdrawService {
         if (!acc[currency]) {
           acc[currency] = 0;
         }
-        const payout: number = Number(item.payout || 0) >= fee.max_cap ? Number(fee.max_cap) : Number(item.payout || 0);
+
+        const payout =
+          item.offer_name === 'reward_conversion_quest'
+            ? item.payout
+            : item.payout >= fee.max_cap
+              ? fee.max_cap
+              : item.payout;
         const feePercentage = fee.system;
         const feeAmount = (payout * feePercentage) / 100;
-        acc[currency] += payout - feeAmount;
+        if (item.offer_name === 'reward_conversion_quest') {
+          acc[currency] += payout;
+        } else {
+          acc[currency] += payout - feeAmount;
+        }
         return acc;
       },
       {} as Record<string, number>,
@@ -383,10 +398,9 @@ export class WithdrawService {
       .find({
         user_id: new Types.ObjectId(user._id),
         mycashback_id: [],
-        // status: { $in: ['pending', 'approved', 'rejected'] },
+        status: { $in: ['pending', 'approved'] }, //, 'rejected'
       })
       .lean();
-    console.log('user._id', user._id);
 
     const withdrawnAmountByCurrency = withdrawList.reduce(
       (acc, withdraw) => {
@@ -606,7 +620,14 @@ export class WithdrawService {
           };
         }
         acc[status].count += 1;
-        const payout = Number(item.payout || 0) >= fee.max_cap ? Number(fee.max_cap) : Number(item.payout || 0);
+
+        const payout =
+          item.offer_name === 'reward_conversion_quest'
+            ? item.payout
+            : item.payout >= fee.max_cap
+              ? fee.max_cap
+              : item.payout;
+
         acc[status].totalPayout += payout > 0 ? payout : 0;
         acc[status].items.push(item);
         return acc;
@@ -622,9 +643,18 @@ export class WithdrawService {
         const currencyTotals = statusData.items.reduce(
           (acc, item) => {
             const currency = item.currency || 'USD';
-            const payoutData: number = Number(item.payout || 0) >= fee.max_cap ? Number(fee.max_cap) : Number(item.payout || 0);
+            const payoutData =
+              item.offer_name === 'reward_conversion_quest'
+                ? item.payout
+                : item.payout >= fee.max_cap
+                  ? fee.max_cap
+                  : item.payout;
             const feeAmount = payoutData * (fee.system / 100);
-            const payout = payoutData - feeAmount;
+
+            const payout =
+              item.offer_name === 'reward_conversion_quest'
+                ? payoutData
+                : payoutData - feeAmount;
 
             if (!acc[currency]) {
               acc[currency] = 0;
@@ -1035,11 +1065,7 @@ export class WithdrawService {
 
     return receipt.hash;
   }
-  async create(
-    createWithdrawDto: CreateWithdrawDto,
-    id: string,
-    analyticsContext?: AnalyticsContext,
-  ) {
+  async create(createWithdrawDto: CreateWithdrawDto, id: string) {
     const user = await this.userModel.findOne({
       _id: new Types.ObjectId(id),
     });
@@ -1110,54 +1136,10 @@ export class WithdrawService {
           : undefined,
       });
     }
-
-    const resolvedAnalyticsContext = analyticsContext || {
-      userId: user._id.toString(),
-      distinctId: user._id.toString(),
-      region: user.country,
-      platform: 'api' as const,
-    };
-
-    await this.analytics.capture(
-      'withdraw_request_created',
-      resolvedAnalyticsContext,
-      {
-        withdraw_id: dt._id?.toString(),
-        withdraw_type: 'crypto',
-        method: createWithdrawDto.method || '',
-        status: dt.status,
-        currency: createWithdrawDto.currency || '',
-        amount_total: createWithdrawDto.amount_total || 0,
-        amount_net: createWithdrawDto.amount_net || 0,
-        conversion_count: createWithdrawDto.conversion_ids?.length || 0,
-        source_flow: 'wallet_withdraw',
-      },
-    );
-
-    if (dt.status === 'approved') {
-      await this.analytics.capture(
-        'withdraw_request_completed',
-        resolvedAnalyticsContext,
-        {
-          withdraw_id: dt._id?.toString(),
-          withdraw_type: 'crypto',
-          method: createWithdrawDto.method || '',
-          currency: createWithdrawDto.currency || '',
-          amount_total: createWithdrawDto.amount_total || 0,
-          amount_net: createWithdrawDto.amount_net || 0,
-          source_flow: 'wallet_withdraw',
-        },
-      );
-    }
-
     return { message: 'Withdraw request created', data: dt, status: 'success' };
   }
 
-  async createBankTransfer(
-    createWithdrawDto: CreateWithdrawDto,
-    id: string,
-    analyticsContext?: AnalyticsContext,
-  ) {
+  async createBankTransfer(createWithdrawDto: CreateWithdrawDto, id: string) {
     // console.log(createWithdrawDto);
     const user = await this.userModel.findOne({
       _id: new Types.ObjectId(id),
@@ -1261,30 +1243,6 @@ export class WithdrawService {
           : undefined,
       });
     }
-
-    const resolvedAnalyticsContext = analyticsContext || {
-      userId: user._id.toString(),
-      distinctId: user._id.toString(),
-      region: user.country,
-      platform: 'api' as const,
-    };
-
-    await this.analytics.capture(
-      'withdraw_request_created',
-      resolvedAnalyticsContext,
-      {
-        withdraw_id: dt._id?.toString(),
-        withdraw_type: 'bank_transfer',
-        method: 'bank_transfer',
-        status: dt.status,
-        currency: createWithdrawDto.currency || '',
-        amount_total: createWithdrawDto.amount_total || 0,
-        amount_net: createWithdrawDto.amount_net || 0,
-        conversion_count: createWithdrawDto.conversion_ids?.length || 0,
-        source_flow: 'wallet_withdraw',
-      },
-    );
-
     return { message: 'Withdraw request created', data: dt, status: 'success' };
   }
 
@@ -1370,7 +1328,6 @@ export class WithdrawService {
   async createWithdrawMethod(
     createWithdrawMethod: CreateWithdrawMethod,
     id: string,
-    analyticsContext?: AnalyticsContext,
   ) {
     const user = await this.userModel.findOne({
       _id: new Types.ObjectId(id),
@@ -1390,25 +1347,6 @@ export class WithdrawService {
     }
     createWithdrawMethod['user_id'] = new Types.ObjectId(user._id);
     const dt = await this.withdrawMethodModel.create(createWithdrawMethod);
-
-    const resolvedAnalyticsContext = analyticsContext || {
-      userId: user._id.toString(),
-      distinctId: user._id.toString(),
-      region: user.country,
-      platform: 'api' as const,
-    };
-
-    await this.analytics.capture(
-      'withdraw_method_added',
-      resolvedAnalyticsContext,
-      {
-        withdraw_method_id: dt._id?.toString(),
-        bank_name: dt.bank_name,
-        method_type: 'bank_transfer',
-        source_flow: 'withdraw_profile',
-      },
-    );
-
     return {
       message: 'Withdraw method created',
       data: dt,
@@ -1444,5 +1382,134 @@ export class WithdrawService {
     return this.withdrawMethodModel.findByIdAndUpdate(id, updateData, {
       new: true,
     });
+  }
+
+  async adminAddRewardConversionForQuest() {
+    const questDate = await this.questModel.findOne({
+      status: 'close',
+      reward_status: { $ne: true },
+    });
+
+    if (!questDate) {
+      // throw new HttpException({ message: 'Quest date not found' }, 400);
+      console.log('Quest date not found for adminAddRewardConversionForQuest');
+      return;
+    }
+    const userReceivedReward = await this.pointService.getQuestRankListOfPoint(
+      new Date(questDate.start_date).toLocaleDateString('en-CA'),
+      new Date(questDate.end_date).toLocaleDateString('en-CA'),
+    );
+
+    const rewardList = await this.rewardListModel.findOne({ name: 'quest' });
+
+    if (!rewardList) {
+      throw new HttpException({ message: 'Reward list not found' }, 400);
+    }
+
+    const list = [];
+    for (let i = 0; i < userReceivedReward.length; i++) {
+      if (rewardList?.data?.length <= i) {
+        break;
+      }
+      const user = userReceivedReward[i];
+      const data = {
+        conversion_id: new Date().getTime() + i, // Use timestamp as unique ID for simplicity
+        offer_id: 0,
+        offer_name: 'reward_conversion_quest',
+        merchant_id: 0,
+        aff_sub2: user?.email || "",
+        aff_sub3: user?.username || "",
+        aff_sub4: '',
+        aff_sub5: '',
+        adv_sub1: `${questDate.start_date.toLocaleDateString('en-CA')} - ${questDate.end_date.toLocaleDateString('en-CA')}`, // "Reward Quest 2024-01-01 - 2024-01-31"
+        adv_sub2: `Reward Quest ${questDate.start_date.toLocaleDateString('en-CA')} - ${questDate.end_date.toLocaleDateString('en-CA')}`,
+        adv_sub3: questDate?._id.toString() || '', // quest ID
+        adv_sub4: user?.point || 0,
+        adv_sub5: '',
+        conversion_status: 'approved',
+        datetime_conversion: new Date(),
+        affiliate_remarks: '',
+        base_payout: 0,
+        bonus_payout: 0,
+        // change data
+        aff_sub1: `user_id:${user.user_id}`, // "user_id:68bf99fed9667685c1637607"
+        currency: rewardList?.data?.[i]?.currency || 'THB',
+        payout: rewardList?.data?.[i]?.reward || 0,
+        sale_amount: 0,
+      };
+      const payoutData = rewardList?.data?.[i]?.reward;
+
+      data.payout = payoutData;
+
+      // console.log('data', data);
+      await this.conversionModel.create(data);
+      list.push(data);
+    }
+    await this.questModel
+      .findByIdAndUpdate(questDate._id, { reward_status: true })
+      .exec();
+    console.log(`done reward conversion for quest ${questDate._id} with ${list.length} users`);
+      
+    return rewardList;
+  }
+
+  async createRewardList(payload: RequestCreateRewardList) {
+    const has = await this.rewardListModel.findOne({ name: 'quest' });
+    if (has) {
+      await this.rewardListModel.deleteOne({ name: 'quest' });
+    }
+    const data = await this.rewardListModel.create({
+      name: 'quest',
+      data: payload.list,
+    });
+    return data;
+  }
+
+  async createConversionReward({
+    reward_type,
+    reward_amount,
+    reward_currency,
+    user
+  }: RequestCreateConversionReward) {
+    const filterUSer = {}
+    if(user?.includes('@')) {
+      filterUSer['email'] = user
+    } else {
+      if (user?.startsWith('0')) {
+        user = "+66" + user.slice(1);
+      }
+      filterUSer['mobile'] = user
+    }
+    const userData = await this.userModel.findOne({ ...filterUSer });
+    if (!userData) {
+      throw new HttpException({ message: 'User not found' }, 400);
+    }
+    const user_id = userData._id.toString();
+    const data = {
+      conversion_id: new Date().getTime(), // Use timestamp as unique ID for simplicity
+      offer_id: 0,
+      offer_name: 'reward_conversion_quest',
+      merchant_id: 0,
+      aff_sub2: '',
+      aff_sub3: '',
+      aff_sub4: '',
+      aff_sub5: '',
+      adv_sub1: reward_type, // "Reward Quest 2024-01-01 - 2024-01-31"
+      adv_sub2: reward_type,
+      adv_sub3: '', // quest ID
+      adv_sub4: '',
+      adv_sub5: '',
+      conversion_status: 'approved',
+      datetime_conversion: new Date(),
+      affiliate_remarks: '',
+      base_payout: 0,
+      bonus_payout: 0,
+      aff_sub1: user_id?.startsWith('user_id:') ? user_id : `user_id:${user_id}`, // "user_id:68bf99fed9667685c1637607"
+      currency: reward_currency || 'THB',
+      payout: Number(reward_amount) || 0,
+      sale_amount: 0,
+    };
+
+    return await this.conversionModel.create(data);
   }
 }
