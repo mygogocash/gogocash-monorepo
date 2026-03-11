@@ -26,6 +26,13 @@ async function bootstrap() {
     origin: '*', // Adjust this to your needs
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
+    allowedHeaders: [
+      'Authorization',
+      'Content-Type',
+      'X-PostHog-Distinct-Id',
+      'X-PostHog-Anonymous-Id',
+      'X-App-Locale',
+    ],
   });
   const config = new DocumentBuilder()
     .setTitle('Crossmint Auth API')

@@ -23,6 +23,7 @@ import { Category, CategorySchema } from 'src/offer/schemas/category.schema';
 import { Conversion, ConversionSchema } from 'src/withdraw/schemas/conversion.schema';
 import { Banner, BannerSchema } from 'src/offer/schemas/banner.schema';
 import { UserService } from 'src/user/user.service';
+import { JobService } from 'src/withdraw/cronjob/job.service';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { UserService } from 'src/user/user.service';
     InvolveService,
     GoogleDriveService,
     UserService,
+    JobService,
   ],
 })
 export class AdminModule {}

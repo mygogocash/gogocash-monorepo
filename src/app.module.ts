@@ -14,9 +14,11 @@ import { PointModule } from './point/point.module';
 // TODO: Re-enable when Telegram bot conflict is resolved (409: only one bot instance allowed)
 // import { TelegramBotModule } from './telegram-bot/telegram-bot.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { AnalyticsModule } from './analytics/analytics.module';
 @Module({
   imports: [
     ScheduleModule.forRoot(),
+    AnalyticsModule,
     ConfigModule.forRoot({
       load: [envConfig],
     }),

@@ -103,6 +103,9 @@ export class Offer {
 
   @Prop()
   extra_store: boolean;
+
+  @Prop({ default: 1 })
+  extra_point: number;
 }
 
 export const OfferSchema = SchemaFactory.createForClass(Offer);

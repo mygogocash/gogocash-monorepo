@@ -22,6 +22,12 @@ import { Category, CategorySchema } from 'src/offer/schemas/category.schema';
 import { Conversion, ConversionSchema } from './schemas/conversion.schema';
 import { TasksService } from './tasksService';
 import { JobService } from './cronjob/job.service';
+import { Quest, QuestSchema } from 'src/point/schemas/quest.schema';
+import { Point, PointSchema } from 'src/point/schemas/point.schema';
+import {
+  SocialReward,
+  SocialRewardSchema,
+} from 'src/point/schemas/social-reward.schema';
 
 @Module({
   imports: [
@@ -36,6 +42,10 @@ import { JobService } from './cronjob/job.service';
       { name: UserMyCashback.name, schema: UserMyCashbackSchema },
       { name: Category.name, schema: CategorySchema },
       { name: Conversion.name, schema: ConversionSchema },
+      // { name: RewardList.name, schema: RewardListSchema },
+      { name: Quest.name, schema: QuestSchema },
+      { name: Point.name, schema: PointSchema },
+      { name: SocialReward.name, schema: SocialRewardSchema },
     ]),
   ],
   controllers: [WithdrawController],
