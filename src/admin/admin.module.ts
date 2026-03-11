@@ -13,9 +13,9 @@ import {
 } from 'src/user/schemas/user-my-cashback.schema';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { UserOtp, UserOtpSchema } from 'src/user/schemas/user-otp.schema';
-import { AuthController } from 'src/auth/auth.controller';
 import { AuthService } from 'src/auth/auth.service';
 import { OtpService } from 'src/auth/otp.service';
+import { AdminController } from './admin.controller';
 
 @Module({
   imports: [
@@ -46,7 +46,7 @@ import { OtpService } from 'src/auth/otp.service';
       },
     }),
   ],
-  controllers: [AuthController],
+  controllers: [AdminController],
   providers: [AuthService, UserService, JwtService, OtpService],
 })
 export class AuthModule {}
