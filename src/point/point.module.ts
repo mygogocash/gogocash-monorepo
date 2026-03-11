@@ -21,6 +21,7 @@ import {
   SocialReward,
   SocialRewardSchema,
 } from './schemas/social-reward.schema';
+import { GoogleDriveService } from 'src/google-drive/google-drive.service';
 
 @Module({
   imports: [
@@ -38,6 +39,12 @@ import {
     ]),
   ],
   controllers: [PointController],
-  providers: [PointService, TasksService, InvolveService, JwtService],
+  providers: [
+    PointService,
+    TasksService,
+    InvolveService,
+    JwtService,
+    GoogleDriveService,
+  ],
 })
 export class PointModule {}
