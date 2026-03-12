@@ -67,6 +67,34 @@ export class SignInFirebaseDto {
   @IsString()
   @IsOptional()
   provider?: string;
+
+  // Analytics & metadata (optional, will be stripped by whitelist)
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  locale?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  pathname?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  posthog_distinct_id?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  posthog_anonymous_id?: string;
+
+  // Token should NOT be in body - it should be in Authorization header
+  // But we accept it here and ignore it for compatibility
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  token?: string;
 }
 
 export class SignInAiDto {

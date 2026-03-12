@@ -55,9 +55,41 @@ export class AuthController {
   @ApiResponse({ status: 201, description: 'User login successfully' })
   async loginFirebase(@Req() req: Request, @Body() body: SignInFirebaseDto) {
     const authHeader = req.headers.authorization ?? "";
-    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-    // The guard has already validated the token and added the user payload to the request
+    // Prefer token from Authorization header, fallback to body.token for compatibility
+    const token = authHeader.startsWith("Bearer ")
+      ? authHeader.slice(7)
+      : body.token || null;
+
+    if (!token) {
+      throw new UnauthorizedException('Firebase token is required in Authorization header or body');
+    }
+
+    // Sign in the user
     const user = await this.auth.signInFirebase(token, body);
+
+    // Track login event
+    if (user.user?._id) {
+      const analyticsCtx = extractAnalyticsContext(req, {
+        userId: user.user._id.toString(),
+        region: body.country,
+      });
+
+      await this.analytics.capture(
+        'user_login',
+        analyticsCtx,
+        {
+          method: 'firebase',
+          provider: user.user.provider || 'unknown',
+          is_new_user: user.is_new_user || false,
+          pathname: body.pathname,
+          $set: {
+            email: user.user.email,
+            username: user.user.username,
+          },
+        },
+      );
+    }
+
     return { message: 'Login successful!', ...user };
   }
 
@@ -66,13 +98,45 @@ export class AuthController {
   @ApiBody({ type: SignInFirebaseDto })
   // @ApiSecurity('access-token') // Apply the security scheme defined globally
   // @ApiBearerAuth() // This directly applies Bearer authentication
-  @ApiResponse({ status: 201, description: 'User login successfully' })
+  @ApiResponse({ status: 201, description: 'User registered successfully' })
   async register(@Req() req: Request, @Body() body: SignInFirebaseDto) {
     const authHeader = req.headers.authorization ?? "";
-    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-    // The guard has already validated the token and added the user payload to the request
+    // Prefer token from Authorization header, fallback to body.token for compatibility
+    const token = authHeader.startsWith("Bearer ")
+      ? authHeader.slice(7)
+      : body.token || null;
+
+    if (!token) {
+      throw new UnauthorizedException('Firebase token is required in Authorization header or body');
+    }
+
+    // Register/sign in the user
     const user = await this.auth.signInFirebase(token, body);
-    return { message: 'Login successful!', ...user };
+
+    // Track registration event
+    if (user.user?._id) {
+      const analyticsCtx = extractAnalyticsContext(req, {
+        userId: user.user._id.toString(),
+        region: body.country,
+      });
+
+      await this.analytics.capture(
+        'user_registered',
+        analyticsCtx,
+        {
+          method: 'firebase',
+          provider: user.user.provider || 'unknown',
+          pathname: body.pathname,
+          referral_id: body.referral_id,
+          $set: {
+            email: user.user.email,
+            username: user.user.username,
+          },
+        },
+      );
+    }
+
+    return { message: 'Registration successful!', ...user };
   }
 
   @Post('log-in/telegram')
