@@ -14,6 +14,7 @@ import {
   CreateWithdrawDto,
   GETSignDTO,
   GetWithdrawTransactionsDTO,
+  RequestCreateRewardList,
 } from './dto/create-withdraw.dto';
 import {
   CreateWithdrawMethod,
@@ -23,6 +24,8 @@ import { ApiBearerAuth, ApiBody, ApiQuery, ApiSecurity } from '@nestjs/swagger';
 import { Request } from 'express';
 import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
 import { extractAnalyticsContext } from 'src/analytics/analytics-context';
+import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
+import { RequestCreateConversionReward } from 'src/user/dto/create-conversion-reward.dto';
 @Controller('withdraw')
 export class WithdrawController {
   constructor(private readonly withdrawService: WithdrawService) {}
@@ -95,7 +98,7 @@ export class WithdrawController {
     const analyticsContext = extractAnalyticsContext(req, {
       userId: id,
     });
-    return this.withdrawService.create(createWithdrawDto, id, analyticsContext);
+    return this.withdrawService.create(createWithdrawDto, id);
   }
 
   @UseGuards(FirebaseAuthGuard)
@@ -112,11 +115,7 @@ export class WithdrawController {
     const analyticsContext = extractAnalyticsContext(req, {
       userId: id,
     });
-    return this.withdrawService.createBankTransfer(
-      createWithdrawDto,
-      id,
-      analyticsContext,
-    );
+    return this.withdrawService.createBankTransfer(createWithdrawDto, id);
   }
 
   @UseGuards(FirebaseAuthGuard)
@@ -183,11 +182,7 @@ export class WithdrawController {
     const analyticsContext = extractAnalyticsContext(req, {
       userId: id,
     });
-    return this.withdrawService.createWithdrawMethod(
-      createWithdrawMethod,
-      id,
-      analyticsContext,
-    );
+    return this.withdrawService.createWithdrawMethod(createWithdrawMethod, id);
   }
 
   @UseGuards(FirebaseAuthGuard)
@@ -241,4 +236,24 @@ export class WithdrawController {
   // findOne(@Param('id') id: string) {
   //   return this.withdrawService.findOne(+id);
   // }
+
+  @UseGuards(AuthAdminGuard)
+  @Patch('admin/add-reward-conversion')
+  async adminAddRewardConversion() {
+    return this.withdrawService.adminAddRewardConversionForQuest();
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiBody({ type: RequestCreateRewardList })
+  @Post('create-reward-list')
+  async createRewardList(@Body() body: RequestCreateRewardList) {
+    return this.withdrawService.createRewardList(body);
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @Post('create-conversion-reward')
+  @ApiBody({ type: RequestCreateConversionReward })
+  async createConversionReward(@Body() body: RequestCreateConversionReward) {
+    return this.withdrawService.createConversionReward(body);
+  }
 }

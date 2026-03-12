@@ -1,3 +1,5 @@
+import { ApiProperty } from '@nestjs/swagger';
+
 export class CreateWithdrawDto {
   tx_hash?: string;
   address?: string;
@@ -28,4 +30,19 @@ export class GetWithdrawTransactionsDTO {
   page: number;
   limit: number;
   search?: string;
+}
+
+export class DataCreateRewardList {
+  @ApiProperty({ example: 1 })
+  rank: number;
+
+  @ApiProperty({ example: 1000 })
+  reward: number;
+
+  @ApiProperty({ example: 'THB' })
+  currency: string;
+}
+export class RequestCreateRewardList {
+  @ApiProperty({ example: [{ rank: 1, reward: 1000, currency: 'THB' }] })
+  list: DataCreateRewardList[];
 }

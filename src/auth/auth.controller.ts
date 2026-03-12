@@ -21,19 +21,27 @@ import { CrossmintAuthGuard } from './jwt-auth.guard';
 import { Request } from 'express';
 import { FirebaseAuthGuard } from './firebase-auth.guard';
 import { OtpService } from './otp.service';
+<<<<<<< feat/line-miniapp
 import { EmailService } from '../email/email.service';
 import { AnalyticsService } from 'src/analytics/analytics.service';
 import { extractAnalyticsContext } from 'src/analytics/analytics-context';
+=======
+import { SendOtpDto, VerifyOtpDto } from './dto/otp.dto';
+>>>>>>> feature/login-firebase
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
+<<<<<<< feat/line-miniapp
   constructor(
     private readonly auth: AuthService,
     private readonly otpService: OtpService,
     private readonly emailService: EmailService,
     private readonly analytics: AnalyticsService,
   ) {}
+=======
+  constructor(private readonly auth: AuthService, private readonly otpService: OtpService) {}
+>>>>>>> feature/login-firebase
 
   @Post('sign-in')
   @UseGuards(CrossmintAuthGuard)
@@ -58,28 +66,6 @@ export class AuthController {
     const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
     // The guard has already validated the token and added the user payload to the request
     const user = await this.auth.signInFirebase(token, body);
-    const analyticsContext = extractAnalyticsContext(req, {
-      userId: user.user._id?.toString(),
-      region: user.user.country,
-    });
-
-    await this.analytics.identify(analyticsContext, {
-      auth_provider: user.user.provider || 'firebase',
-      login_state: 'authenticated',
-    });
-    await this.analytics.capture(
-      user.auth_flow === 'register'
-        ? 'auth_register_success'
-        : 'auth_login_success',
-      analyticsContext,
-      {
-        auth_provider: user.user.provider || 'firebase',
-        country: user.user.country,
-        requested_flow: 'login',
-        is_new_user: user.is_new_user,
-        has_referral: Boolean(body.referral_id),
-      },
-    );
     return { message: 'Login successful!', ...user };
   }
 
@@ -94,28 +80,6 @@ export class AuthController {
     const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
     // The guard has already validated the token and added the user payload to the request
     const user = await this.auth.signInFirebase(token, body);
-    const analyticsContext = extractAnalyticsContext(req, {
-      userId: user.user._id?.toString(),
-      region: user.user.country,
-    });
-
-    await this.analytics.identify(analyticsContext, {
-      auth_provider: user.user.provider || 'firebase',
-      login_state: 'authenticated',
-    });
-    await this.analytics.capture(
-      user.auth_flow === 'register'
-        ? 'auth_register_success'
-        : 'auth_login_success',
-      analyticsContext,
-      {
-        auth_provider: user.user.provider || 'firebase',
-        country: user.user.country,
-        requested_flow: 'register',
-        is_new_user: user.is_new_user,
-        has_referral: Boolean(body.referral_id),
-      },
-    );
     return { message: 'Login successful!', ...user };
   }
 
@@ -125,28 +89,6 @@ export class AuthController {
   async loginTelegram(@Req() req: Request, @Body() body: TelegramAuthDto) {
     // The guard has already validated the token and added the user payload to the request
     const user = await this.auth.signInTelegram(body);
-    const analyticsContext = extractAnalyticsContext(req, {
-      userId: user.user._id?.toString(),
-      region: user.user.country,
-    });
-
-    await this.analytics.identify(analyticsContext, {
-      auth_provider: user.user.provider || 'telegram',
-      login_state: 'authenticated',
-    });
-    await this.analytics.capture(
-      user.auth_flow === 'register'
-        ? 'auth_register_success'
-        : 'auth_login_success',
-      analyticsContext,
-      {
-        auth_provider: user.user.provider || 'telegram',
-        country: user.user.country,
-        requested_flow: 'telegram',
-        is_new_user: user.is_new_user,
-        has_referral: Boolean(body.referral_id),
-      },
-    );
     return { message: 'Login successful!', ...user };
   }
 
@@ -281,4 +223,16 @@ export class AuthController {
   //   );
   //   return cookies[key] || null;
   // }
+
+  @Post('send-otp')
+  @ApiBody({ type: SendOtpDto })
+  async sendOtp(@Body('email') email: string) {
+    return this.otpService.sendOtpToEmail(email);
+  }
+
+  @Post('verify-otp')
+  @ApiBody({ type: VerifyOtpDto })
+  async verifyOtp(@Body('email') email: string, @Body('otp') otp: string) {
+    return this.otpService.verifyOtpAndCreateToken(email, otp);
+  }
 }
