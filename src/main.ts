@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
-import * as cookieParser from 'cookie-parser';
+import cookieParser from 'cookie-parser';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
 import * as path from 'path';
@@ -24,7 +24,7 @@ async function bootstrap() {
   app.use(cookieParser());
 
   // CORS configuration - use ALLOWED_ORIGINS env var for production
-  const allowedOrigins = process.env.WEB_APP_URL
+  const allowedOrigins = process.env.WEB_APP_URL;
   app.enableCors({
     origin: allowedOrigins,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
