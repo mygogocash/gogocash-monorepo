@@ -43,26 +43,25 @@ export class OtpService {
     expiresAt: Date;
   }): Promise<EmailOtpVerificationDocument> {
     try {
-      const saved = await this.otpModel.findOneAndUpdate(
-        { email: data.email }, // Find by email
-        {
-          $set: {
-            otpHash: data.otpHash,
-            expiresAt: data.expiresAt,
-            attempts: 0,        // Reset attempts on new OTP
-            verified: false,    // Reset verified status
+      const saved = await this.otpModel
+        .findOneAndUpdate(
+          { email: data.email }, // Find by email
+          {
+            $set: {
+              otpHash: data.otpHash,
+              expiresAt: data.expiresAt,
+              attempts: 0, // Reset attempts on new OTP
+              verified: false, // Reset verified status
+            },
           },
-        },
-        {
-          upsert: true,         // Create if doesn't exist
-          new: true,            // Return updated document
-          setDefaultsOnInsert: true,
-        },
-      ).exec();
+          {
+            upsert: true, // Create if doesn't exist
+            new: true, // Return updated document
+            setDefaultsOnInsert: true,
+          },
+        )
+        .exec();
 
-      console.log(
-        `[OtpService] ✅ OTP upserted for ${data.email} (ID: ${saved._id})`,
-      );
       return saved;
     } catch (error) {
       console.error(
@@ -70,7 +69,7 @@ export class OtpService {
         error,
       );
       throw new Error(
-        `Database upsert failed: ${error?.message || 'Unknown error'}`,
+        `Database upsert failed: ${(error as Error)?.message || 'Unknown error'}`,
       );
     }
   }
@@ -156,7 +155,9 @@ export class OtpService {
     // Repository call: Upsert to database (one email = one record)
     await this.upsertOtp({ email, otpHash, expiresAt });
 
-    console.log(`[OtpService] OTP created for ${email}: ${otp} (expires in 5 minutes)`);
+    console.log(
+      `[OtpService] OTP created for ${email}: ${otp} (expires in 5 minutes)`,
+    );
 
     // Return plaintext OTP (will be sent via email)
     return otp;

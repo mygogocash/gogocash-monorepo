@@ -41,7 +41,7 @@ export class AuthService {
     this.baseUrl = this.config.get<string>('env.CROSSMINT_BASE_URL')!;
     this.projectId = this.config.get<string>('env.CROSSMINT_PROJECT_ID')!;
     this.secret = this.config.get<string>('env.CROSSMINT_SECRET')!;
-    this.httpsAgent = new https.Agent({ rejectUnauthorized: false });
+    this.httpsAgent = new https.Agent({ rejectUnauthorized: true });
     this.crossmint = createCrossmint({
       apiKey: this.secret!,
     });
@@ -53,7 +53,6 @@ export class AuthService {
   }
 
   async signUp(email: string, password: string) {
-    console.log('this.baseUrl', this.baseUrl);
     const res = await axios.post(
       `${this.baseUrl}/signup`,
       { email, password, projectId: this.projectId },
@@ -118,10 +117,8 @@ export class AuthService {
 
   async signInFirebase(token: string, payload: SignInFirebaseDto) {
     try {
-      console.log('payload', payload);
       getAdminAuth();
       const data = await admin.auth().verifyIdToken(token);
-      console.log('data', data);
       if (!data) {
         throw new Error('User not found in Gogocash');
       }
@@ -135,7 +132,6 @@ export class AuthService {
         });
       }
 
-      console.log('userExist', userExist);
       if (userExist) {
         const user = await this.userService.update(userExist._id, {
           email: data.email,
@@ -195,31 +191,21 @@ export class AuthService {
         }
       }
 
-      console.log('user', user);
       if (user?.disabled) {
         throw new Error('Your account has been disabled');
       }
-      // Update points for referral if referral_id is provided
-      // return user; // { accessToken, refreshToken, user }
       const accessToken = await this.generateToken({
         userId: user._id.toString(),
         firebaseId: user.id_firebase,
       });
-      return {
-        user,
-        token: accessToken,
-        is_new_user: true,
-        auth_flow: 'register' as const,
-      };
-    } catch (error: any) {
-      console.log('err', error);
+      return { user, token: accessToken };
+    } catch (error) {
       throw new Error(error?.message || 'Invalid Firebase token');
     }
   }
 
   async signInTelegram(payload: TelegramAuthDto) {
     try {
-      console.log('payload', payload);
       // const check = await this.verifyTelegramAuth(payload);
       // console.log('data', check);
       // if (!check) {
@@ -238,7 +224,6 @@ export class AuthService {
         });
       }
 
-      console.log('userExist', userExist);
       if (userExist) {
         const user = await this.userService.update(userExist._id, {
           email: userExist?.email || data.email,
@@ -257,13 +242,7 @@ export class AuthService {
           userId: user._id.toString(),
           firebaseId: user.id_firebase,
         });
-        console.log('accessToken', accessToken);
-        return {
-          user,
-          token: accessToken,
-          is_new_user: false,
-          auth_flow: 'login' as const,
-        };
+        return { user, token: accessToken };
       }
       const user = await this.userService.createFromFirebase({
         email: data?.email,
@@ -291,24 +270,15 @@ export class AuthService {
         }
       }
 
-      console.log('user bb', user);
       if (user?.disabled) {
         throw new Error('Your account has been disabled');
       }
-      // Update points for referral if referral_id is provided
-      // return user; // { accessToken, refreshToken, user }
       const accessToken = await this.generateToken({
         userId: user._id.toString(),
         firebaseId: user.id_firebase,
       });
-      return {
-        user,
-        token: accessToken,
-        is_new_user: true,
-        auth_flow: 'register' as const,
-      };
-    } catch (error: any) {
-      console.log('err', error);
+      return { user, token: accessToken };
+    } catch (error) {
       throw new Error(error?.message || 'Invalid Firebase token');
     }
   }
@@ -331,8 +301,6 @@ export class AuthService {
       .update(dataCheckString)
       .digest('hex');
 
-    console.log('hmac', computedHash, 'hash', hash);
-
     return computedHash === hash;
   }
   async signInAi(email: string) {
@@ -344,11 +312,8 @@ export class AuthService {
           email: email,
         });
       }
-      console.log('user', user);
-      // Update points for referral if referral_id is provided
-      return user; // { accessToken, refreshToken, user }
-    } catch (error: any) {
-      console.log('err', error);
+      return user;
+    } catch (error) {
       throw new Error(error?.message || 'Invalid Firebase token');
     }
   }
@@ -436,8 +401,6 @@ export class AuthService {
 
       return { uid: decoded.uid, user: userUpdate };
     } catch (error: any) {
-      // แนะนำ log error.message/error.code เพื่อ debug
-      console.log('verifyIdToken error:', error);
       throw new UnauthorizedException(
         error?.message || 'Invalid Firebase token',
       );
@@ -469,9 +432,6 @@ export class AuthService {
       expiresIn: '5m',
     });
 
-    console.log(
-      `[AuthService] Generated temp token for ${email} (5min expiry)`,
-    );
     return token;
   }
 
@@ -508,47 +468,26 @@ export class AuthService {
     tempToken?: string,
   ) {
     try {
-      console.log('LINE Login payload:', payload);
-
       // STEP 0: Verify LINE access token and user identity
       // CRITICAL: Must verify token belongs to the claimed user ID
       if (accessToken) {
         try {
           // First, verify the token is valid
-          const verified = await this.verifyLineAccessToken(accessToken);
-          console.log('LINE token verified:', {
-            client_id: verified.client_id,
-            expires_in: verified.expires_in,
-          });
+          await this.verifyLineAccessToken(accessToken);
 
           // CRITICAL: Verify the token belongs to the claimed LINE user ID
           // This prevents attackers from using their valid token with someone else's LINE ID
           const lineProfile = await this.getLineProfile(accessToken);
           if (lineProfile.userId !== payload.id_line) {
-            console.error('LINE Login: User ID mismatch!', {
-              tokenUserId: lineProfile.userId,
-              claimedUserId: payload.id_line,
-            });
             throw new Error(
               'LINE User ID mismatch - token does not belong to claimed user',
             );
           }
-          console.log('LINE Login: User ID verified:', lineProfile.userId);
 
-          // Optional: Verify client_id matches your LINE channel
-          // const lineChannelId = this.config.get<string>('env.LINE_CHANNEL_ID');
-          // if (lineChannelId && verified.client_id !== lineChannelId) {
-          //   throw new Error('Invalid LINE channel');
-          // }
         } catch (verifyError) {
-          console.error('LINE token verification failed:', verifyError);
           throw new Error(verifyError?.message || 'Invalid LINE access token');
         }
       } else {
-        // In production, token should be required
-        console.error(
-          'LINE Login: No access token provided - rejecting request',
-        );
         throw new Error('LINE access token is required for authentication');
       }
 
@@ -571,7 +510,6 @@ export class AuthService {
             );
           }
 
-          console.log('LINE Login: Temp token verified for', payload.email);
         } catch (error) {
           if (error instanceof BadRequestException) {
             throw error;
@@ -594,15 +532,7 @@ export class AuthService {
         userExist = await this.userService.findOne({
           email: payload.email,
         });
-        if (userExist) {
-          console.log(
-            'LINE Login: Found existing user by email, will link LINE ID:',
-            userExist._id,
-          );
-        }
       }
-
-      console.log('LINE userExist:', userExist);
 
       if (userExist) {
         // Update existing user - link LINE ID to account if not already linked
@@ -622,7 +552,6 @@ export class AuthService {
           firebaseId: user.id_firebase || `line_${payload.id_line}`,
         });
 
-        console.log('LINE Login: Existing user updated (linked LINE ID)');
         return { user, token: jwtToken };
       }
 
@@ -656,8 +585,6 @@ export class AuthService {
         }
       }
 
-      console.log('LINE Login: New user created', user);
-
       if (user?.disabled) {
         throw new Error('Your account has been disabled');
       }
@@ -669,7 +596,6 @@ export class AuthService {
 
       return { user, token: jwtToken };
     } catch (error) {
-      console.log('LINE Login error:', error);
       throw new Error(error?.message || 'LINE login failed');
     }
   }
@@ -688,7 +614,6 @@ export class AuthService {
       );
       return response.data;
     } catch (error) {
-      console.error('LINE token verification failed:', error);
       throw new Error('Invalid LINE access token');
     }
   }
@@ -705,7 +630,6 @@ export class AuthService {
       });
       return response.data;
     } catch (error) {
-      console.error('LINE profile fetch failed:', error);
       throw new Error('Failed to verify LINE user identity');
     }
   }
@@ -720,14 +644,10 @@ export class AuthService {
     email: string,
   ): Promise<{ user: any; token: string }> {
     try {
-      console.log('Email OTP Login:', email);
-
       // Find existing user by email
       const userExist = await this.userService.findOne({
         email: email,
       });
-
-      console.log('userExist:', userExist);
 
       if (userExist) {
         // Update existing user - mark email as verified
@@ -745,7 +665,6 @@ export class AuthService {
           firebaseId: user.id_firebase || `email_${email}`,
         });
 
-        console.log('Email OTP Login: Existing user updated');
         return { user, token: accessToken };
       }
 
@@ -761,8 +680,6 @@ export class AuthService {
         id_twitter: '',
       });
 
-      console.log('Email OTP Login: New user created', user);
-
       if (user?.disabled) {
         throw new Error('Your account has been disabled');
       }
@@ -774,7 +691,6 @@ export class AuthService {
 
       return { user, token: accessToken };
     } catch (error) {
-      console.log('Email OTP Login error:', error);
       throw new Error(error?.message || 'Email OTP login failed');
     }
   }

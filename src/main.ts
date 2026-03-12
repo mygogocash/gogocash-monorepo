@@ -22,8 +22,11 @@ async function bootstrap() {
   );
 
   app.use(cookieParser());
+
+  // CORS configuration - use ALLOWED_ORIGINS env var for production
+  const allowedOrigins = process.env.WEB_APP_URL
   app.enableCors({
-    origin: '*', // Adjust this to your needs
+    origin: allowedOrigins,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
     allowedHeaders: [
