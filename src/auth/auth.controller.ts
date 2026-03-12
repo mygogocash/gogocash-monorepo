@@ -21,27 +21,19 @@ import { CrossmintAuthGuard } from './jwt-auth.guard';
 import { Request } from 'express';
 import { FirebaseAuthGuard } from './firebase-auth.guard';
 import { OtpService } from './otp.service';
-<<<<<<< feat/line-miniapp
 import { EmailService } from '../email/email.service';
 import { AnalyticsService } from 'src/analytics/analytics.service';
 import { extractAnalyticsContext } from 'src/analytics/analytics-context';
-=======
-import { SendOtpDto, VerifyOtpDto } from './dto/otp.dto';
->>>>>>> feature/login-firebase
 
 @ApiTags('Auth')
-@Controller('auth')
+@Controller('Auth')
 export class AuthController {
-<<<<<<< feat/line-miniapp
   constructor(
     private readonly auth: AuthService,
     private readonly otpService: OtpService,
     private readonly emailService: EmailService,
     private readonly analytics: AnalyticsService,
   ) {}
-=======
-  constructor(private readonly auth: AuthService, private readonly otpService: OtpService) {}
->>>>>>> feature/login-firebase
 
   @Post('sign-in')
   @UseGuards(CrossmintAuthGuard)
@@ -223,16 +215,4 @@ export class AuthController {
   //   );
   //   return cookies[key] || null;
   // }
-
-  @Post('send-otp')
-  @ApiBody({ type: SendOtpDto })
-  async sendOtp(@Body('email') email: string) {
-    return this.otpService.sendOtpToEmail(email);
-  }
-
-  @Post('verify-otp')
-  @ApiBody({ type: VerifyOtpDto })
-  async verifyOtp(@Body('email') email: string, @Body('otp') otp: string) {
-    return this.otpService.verifyOtpAndCreateToken(email, otp);
-  }
 }
