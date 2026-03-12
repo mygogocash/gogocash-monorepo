@@ -22,6 +22,7 @@ import {
   SocialRewardSchema,
 } from './schemas/social-reward.schema';
 import { GoogleDriveService } from 'src/google-drive/google-drive.service';
+import { AnalyticsService } from 'src/analytics/analytics.service';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { GoogleDriveService } from 'src/google-drive/google-drive.service';
     InvolveService,
     JwtService,
     GoogleDriveService,
+    AnalyticsService,
   ],
 })
 export class PointModule {}
