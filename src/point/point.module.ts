@@ -36,6 +36,7 @@ import { GoogleDriveService } from 'src/google-drive/google-drive.service';
       { name: FeeRate.name, schema: FeeRateSchema },
       { name: Quest.name, schema: QuestSchema },
       { name: SocialReward.name, schema: SocialRewardSchema },
+      { name: Quest.name, schema: QuestSchema },
     ]),
   ],
   controllers: [PointController],

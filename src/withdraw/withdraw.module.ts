@@ -28,6 +28,9 @@ import {
   SocialReward,
   SocialRewardSchema,
 } from 'src/point/schemas/social-reward.schema';
+import { RewardList, RewardListSchema } from './schemas/rewardList.schema';
+import { PointService } from 'src/point/point.service';
+import { GoogleDriveService } from 'src/google-drive/google-drive.service';
 
 @Module({
   imports: [
@@ -42,10 +45,10 @@ import {
       { name: UserMyCashback.name, schema: UserMyCashbackSchema },
       { name: Category.name, schema: CategorySchema },
       { name: Conversion.name, schema: ConversionSchema },
-      // { name: RewardList.name, schema: RewardListSchema },
       { name: Quest.name, schema: QuestSchema },
       { name: Point.name, schema: PointSchema },
       { name: SocialReward.name, schema: SocialRewardSchema },
+      { name: RewardList.name, schema: RewardListSchema },
     ]),
   ],
   controllers: [WithdrawController],
@@ -55,6 +58,8 @@ import {
     InvolveService,
     TasksService,
     JobService,
+    PointService,
+    GoogleDriveService,
   ],
 })
 export class WithdrawModule {}
