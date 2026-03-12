@@ -12,4 +12,5 @@ export default registerAs('env', () => ({
   // Email OTP Configuration
   GMAIL_USER: process.env.GMAIL_USER,
   GMAIL_APP_PASSWORD: process.env.GMAIL_APP_PASSWORD,
+  WEB_URL: process.env.WEB_APP_URL,
 }));

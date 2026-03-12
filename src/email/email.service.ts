@@ -24,8 +24,6 @@ export class EmailService {
    * @throws Error if email sending fails (propagates to controller)
    */
   async sendOtp(email: string, otp: string): Promise<void> {
-    console.log(`[EmailService] Sending OTP to ${email}`);
-
     try {
       await this.transporter.sendMail({
         from: this.config.get<string>('env.GMAIL_USER'),
@@ -45,14 +43,7 @@ export class EmailService {
           </div>
         `,
       });
-
-      console.log(`[EmailService] ✅ OTP email sent successfully to ${email}`);
     } catch (error) {
-      console.error(
-        `[EmailService] ❌ Failed to send OTP email to ${email}:`,
-        error,
-      );
-      // Re-throw with context for upper layers
       throw new Error(
         `Email delivery failed: ${error?.message || 'SMTP connection error'}`,
       );
