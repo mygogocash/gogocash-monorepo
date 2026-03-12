@@ -10,8 +10,7 @@ import { OfferModule } from './offer/offer.module';
 import { WithdrawModule } from './withdraw/withdraw.module';
 import { GoogleDriveModule } from './google-drive/google-drive.module';
 import { PointModule } from './point/point.module';
-// TODO: Re-enable when Telegram bot conflict is resolved (409: only one bot instance allowed)
-// import { TelegramBotModule } from './telegram-bot/telegram-bot.module';
+import { TelegramBotModule } from './telegram-bot/telegram-bot.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AnalyticsModule } from './analytics/analytics.module';
 @Module({
@@ -29,7 +28,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
     WithdrawModule,
     GoogleDriveModule,
     PointModule,
-    // TelegramBotModule, // Disabled: avoids 409 conflict during local dev
+    TelegramBotModule,
   ],
   controllers: [AppController],
   providers: [AppService],
