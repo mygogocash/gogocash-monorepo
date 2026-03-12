@@ -14,6 +14,7 @@ import { PointModule } from './point/point.module';
 import { TelegramBotModule } from './telegram-bot/telegram-bot.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { InvolveModule } from './involve/involve.module';
 
 @Module({
   imports: [
