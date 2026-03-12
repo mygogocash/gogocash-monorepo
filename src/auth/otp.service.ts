@@ -80,9 +80,6 @@ export class OtpService {
   private async updateOtpAttempts(id: string, attempts: number): Promise<void> {
     try {
       await this.otpModel.findByIdAndUpdate(id, { attempts }).exec();
-      console.log(
-        `[OtpService] Updated OTP attempts to ${attempts} for ID: ${id}`,
-      );
     } catch (error) {
       console.error(
         `[OtpService] ❌ Failed to update OTP attempts for ID ${id}:`,
@@ -98,7 +95,6 @@ export class OtpService {
   private async markAsVerified(id: string): Promise<void> {
     try {
       await this.otpModel.findByIdAndUpdate(id, { verified: true }).exec();
-      console.log(`[OtpService] ✅ OTP marked as verified for ID: ${id}`);
     } catch (error) {
       console.error(
         `[OtpService] ❌ Failed to mark OTP as verified for ID ${id}:`,
@@ -154,11 +150,6 @@ export class OtpService {
 
     // Repository call: Upsert to database (one email = one record)
     await this.upsertOtp({ email, otpHash, expiresAt });
-
-    console.log(
-      `[OtpService] OTP created for ${email}: ${otp} (expires in 5 minutes)`,
-    );
-
     // Return plaintext OTP (will be sent via email)
     return otp;
   }
@@ -201,15 +192,11 @@ export class OtpService {
     if (!isValid) {
       // Increment failed attempts counter
       await this.updateOtpAttempts(record._id.toString(), record.attempts + 1);
-      console.log(
-        `Invalid OTP attempt for ${email}. Attempts: ${record.attempts + 1}/5`,
-      );
       return false;
     }
 
     // Business Rule 4: Mark as verified on success
     await this.markAsVerified(record._id.toString());
-    console.log(`OTP verified successfully for ${email}`);
 
     return true;
   }
