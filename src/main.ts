@@ -3,23 +3,22 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import * as cookieParser from 'cookie-parser';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { ValidationPipe } from '@nestjs/common';
 import * as path from 'path';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // Enable global validation pipe for DTO validation
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true, // Strip properties that don't have decorators
-      forbidNonWhitelisted: true, // Throw error if non-whitelisted properties exist
-      transform: true, // Auto-transform payloads to DTO instances
-      transformOptions: {
-        enableImplicitConversion: true, // Auto-convert string to number, etc.
-      },
-    }),
-  );
+  // app.useGlobalPipes(
+  //   new ValidationPipe({
+  //     whitelist: true, // Strip properties that don't have decorators
+  //     forbidNonWhitelisted: true, // Throw error if non-whitelisted properties exist
+  //     transform: true, // Auto-transform payloads to DTO instances
+  //     transformOptions: {
+  //       enableImplicitConversion: true, // Auto-convert string to number, etc.
+  //     },
+  //   }),
+  // );
 
   app.use(cookieParser());
   app.enableCors({
