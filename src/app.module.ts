@@ -18,7 +18,7 @@ import { InvolveModule } from './involve/involve.module';
 
 @Module({
   imports: [
-    ScheduleModule.forRoot(),
+    // ScheduleModule.forRoot(),
     ConfigModule.forRoot({
       load: [envConfig],
     }),
