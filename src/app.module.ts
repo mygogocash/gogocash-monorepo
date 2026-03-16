@@ -15,7 +15,7 @@ import { TelegramBotModule } from './telegram-bot/telegram-bot.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { InvolveModule } from './involve/involve.module';
-
+import { TasksModule } from './tasks/tasks.module';
 @Module({
   imports: [
     // ScheduleModule.forRoot(),
@@ -32,6 +32,7 @@ import { InvolveModule } from './involve/involve.module';
     PointModule,
     TelegramBotModule,
     InvolveModule,
+    TasksModule,
   ],
   controllers: [AppController],
   providers: [AppService],
