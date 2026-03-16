@@ -1408,6 +1408,9 @@ export class WithdrawService {
 
     const list = [];
     for (let i = 0; i < userReceivedReward.length; i++) {
+      if (userReceivedReward[i]?.point <= 0) {
+        continue; // Skip users with 0 or negative points
+      }
       if (rewardList?.data?.length <= i) {
         break;
       }
