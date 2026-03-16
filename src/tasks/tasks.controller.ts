@@ -20,50 +20,62 @@ export class TasksController {
     @InjectModel(Conversion.name) private conversionModel: Model<Conversion>,
   ) {}
 
-  @Get('update-offers')
-  async updateOffers() {
-    const allOffers = await this.involveService.findAll();
-    console.log('allOffers', allOffers?.length);
-  }
-
-  @Get('update-points')
-  async updatePoints() {
-    const filterApproved = await this.conversionModel
-      .find({
-        aff_sub1: { $regex: '^user_id:' },
-        datetime_conversion: {
-          $gte: new Date(new Date().setDate(new Date().getDate() - 10)),
-          $lt: new Date(),
-        },
-        // conversion_status: 'approved',
-        // add_point: { $exists: false },
-      })
-      .lean();
-    console.log('filterApproved', filterApproved?.length);
-    const rate = await rateCurrencyUSD();
-
-    for (const conversion of filterApproved) {
-      const userId = conversion.aff_sub1.split('user_id:')[1];
-      let calculatedPoints = 0;
-      if (conversion.currency === 'USD') {
-        calculatedPoints = Math.floor(conversion.sale_amount * rate['THB']);
-      } else {
-        calculatedPoints = Math.floor(conversion.sale_amount);
-      }
-      await this.pointService.addPointsToUser(
-        userId,
-        calculatedPoints,
-        conversion.conversion_id,
-      );
-      // await delay(1000);
+  @Get('update-offers/:id')
+  async updateOffers(@Param('id') id: string) {
+    if (id == process.env.FIREBASE_API_KEY) {
+      const allOffers = await this.involveService.findAll();
+      console.log('allOffers', allOffers?.length);
+    } else {
+      return { message: 'error' };
     }
-
-    console.log('add point done', filterApproved?.length);
   }
 
-  @Get('update-conversions')
-  async updateConversions() {
-    await this.jobService.syncConversion();
+  @Get('update-points/:id')
+  async updatePoints(@Param('id') id: string) {
+    if (id == process.env.FIREBASE_API_KEY) {
+      const filterApproved = await this.conversionModel
+        .find({
+          aff_sub1: { $regex: '^user_id:' },
+          datetime_conversion: {
+            $gte: new Date(new Date().setDate(new Date().getDate() - 10)),
+            $lt: new Date(),
+          },
+          // conversion_status: 'approved',
+          // add_point: { $exists: false },
+        })
+        .lean();
+      console.log('filterApproved', filterApproved?.length);
+      const rate = await rateCurrencyUSD();
+
+      for (const conversion of filterApproved) {
+        const userId = conversion.aff_sub1.split('user_id:')[1];
+        let calculatedPoints = 0;
+        if (conversion.currency === 'USD') {
+          calculatedPoints = Math.floor(conversion.sale_amount * rate['THB']);
+        } else {
+          calculatedPoints = Math.floor(conversion.sale_amount);
+        }
+        await this.pointService.addPointsToUser(
+          userId,
+          calculatedPoints,
+          conversion.conversion_id,
+        );
+        // await delay(1000);
+      }
+
+      console.log('add point done', filterApproved?.length);
+    } else {
+      return { message: 'error' };
+    }
+  }
+
+  @Get('update-conversions/:id')
+  async updateConversions(@Param('id') id: string) {
+    if (id == process.env.FIREBASE_API_KEY) {
+      await this.jobService.syncConversion();
+    } else {
+      return { message: 'error' };
+    }
   }
 
   @Get('update-conversions-reward/:id')
