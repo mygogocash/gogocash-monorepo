@@ -339,6 +339,12 @@ export default function OffersTable() {
                       Category
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400 sm:px-6">
+                      Country
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400 sm:px-6">
+                      Description
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400 sm:px-6">
                       Active policy
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400 sm:px-6">
@@ -403,12 +409,6 @@ export default function OffersTable() {
                                 ? offer.offer_name_display
                                 : "N/A"}
                             </div>
-                            <div className="text-sm text-gray-500 dark:text-gray-400">
-                              {offer.description
-                                ? offer.description.substring(0, 50) +
-                                  (offer.description.length > 50 ? "..." : "")
-                                : "No description"}
-                            </div>
                             {offer.disabled && (
                               <div className="text-xs text-gray-400 dark:text-gray-500">
                                 Disabled:{" "}
@@ -418,16 +418,6 @@ export default function OffersTable() {
                             {offer.categories && (
                               <div className="text-xs text-gray-400 dark:text-gray-500">
                                 {offer.categories}
-                              </div>
-                            )}
-                            {offer.countries && (
-                              <div className="">
-                                countries:{" "}
-                                <div className="max-h-[100px] overflow-auto text-xs text-gray-400 dark:text-gray-500">
-                                  {offer.countries?.split(",")?.map((c) => (
-                                    <p key={c.trim()}>{c.trim()}</p>
-                                  ))}
-                                </div>
                               </div>
                             )}
                           </div>
@@ -515,6 +505,25 @@ export default function OffersTable() {
                             Currency: {offer.currency}
                           </div>
                         )}
+                      </td>
+                      <td className="min-w-0 px-4 py-3 sm:px-6 sm:py-4">
+                        <div className="max-w-[140px] text-sm text-gray-900 dark:text-gray-100 break-words">
+                          {offer.countries
+                            ? offer.countries.split(",").map((c) => c.trim()).filter(Boolean).join(", ")
+                            : "—"}
+                        </div>
+                      </td>
+                      <td className="min-w-0 max-w-[200px] px-4 py-3 sm:px-6 sm:py-4">
+                        <div
+                          className="text-sm text-gray-900 dark:text-gray-100 break-words line-clamp-2"
+                          title={offer.description || undefined}
+                        >
+                          {offer.description
+                            ? offer.description.length > 100
+                              ? `${offer.description.slice(0, 100)}...`
+                              : offer.description
+                            : "—"}
+                        </div>
                       </td>
                       <td className="min-w-0 px-4 py-3 sm:px-6 sm:py-4">
                         <div className="text-sm text-gray-900 dark:text-gray-100 break-words">
