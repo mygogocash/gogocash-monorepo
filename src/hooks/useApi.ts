@@ -83,7 +83,9 @@ export function useApi() {
   const [error, setError] = useState<string | null>(null);
 
   const getToken = useCallback(() => {
-    return (session as { accessToken?: string })?.accessToken;
+    const token = (session as { accessToken?: string })?.accessToken;
+    // When auth is disabled, session is null; use mock token so mock API still returns data
+    return token ?? "mock-jwt-token-for-development";
   }, [session]);
 
   const apiCall = useCallback(async <T>(

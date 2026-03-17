@@ -44,15 +44,11 @@ export default function RecentActivity() {
   const apiRef = React.useRef(api);
   apiRef.current = api;
   const { data: session } = useSession();
-  const token = (session as { accessToken?: string } | undefined)?.accessToken ?? "";
+  const token = (session as { accessToken?: string } | undefined)?.accessToken ?? "mock-jwt-token-for-development";
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!token) {
-      setLoading(false);
-      return;
-    }
     let cancelled = false;
     setLoading(true);
     const { getConversion, getWithdraws } = apiRef.current;

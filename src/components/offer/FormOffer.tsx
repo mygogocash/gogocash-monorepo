@@ -74,6 +74,9 @@ const FormOffer = ({
     if (form.upsize_max_cap != null && form.upsize_max_cap !== "") {
       formData.append("upsize_max_cap", String(form.upsize_max_cap));
     }
+    if (form.product_types?.length) {
+      formData.append("product_types", JSON.stringify(form.product_types));
+    }
     setIsLoading(true);
     client
       .patch(`/admin/update-offer/${form.id}`, formData, {
@@ -206,6 +209,64 @@ const FormOffer = ({
               </p>
             </div>
           </div>
+        </section>
+
+        {/* Product Type */}
+        <section className="space-y-4">
+          <div className="mb-2 flex w-full items-center gap-5">
+            <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              Product Type
+            </h4>
+            <Button
+              size="sm"
+              variant="outline"
+              type="button"
+              onClick={() =>
+                setForm({
+                  ...form,
+                  product_types: [...(form.product_types ?? []), ""],
+                })
+              }
+              disabled={isLoading}
+            >
+              Add
+            </Button>
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Add product types or categories for this offer. Leave empty to keep current.
+          </p>
+          {(form.product_types ?? []).length > 0 && (
+            <ul className="space-y-2">
+              {(form.product_types ?? []).map((value, i) => (
+                <li key={i} className="flex w-full items-center gap-3">
+                  <Input
+                    type="text"
+                    placeholder="Product type name"
+                    value={value}
+                    onChange={(e) => {
+                      const next = [...(form.product_types ?? [])];
+                      next[i] = e.target.value;
+                      setForm({ ...form, product_types: next });
+                    }}
+                    className="min-w-0 flex-1"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    type="button"
+                    onClick={() => {
+                      const next = (form.product_types ?? []).filter((_, j) => j !== i);
+                      setForm({ ...form, product_types: next.length ? next : undefined });
+                    }}
+                    disabled={isLoading}
+                    className="shrink-0 text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/20"
+                  >
+                    Remove
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
 
         {/* Upsize event */}

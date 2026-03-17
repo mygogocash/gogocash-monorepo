@@ -24,24 +24,21 @@ import {
 import { AxiosRequestConfig } from "axios";
 
 class ApiClient {
-  private baseURL: string;
-
-  constructor() {
-    // Internal-only: always use mock API. All data is from /api/mock.
-    let base = "/api/mock";
-    if (typeof window === "undefined") {
-      const appOrigin = (process.env.NEXTAUTH_URL || "http://localhost:3000").replace(/\/$/, "");
-      base = appOrigin + base;
+  private getBaseURL(): string {
+    if (typeof window !== "undefined") {
+      return `${window.location.origin}/api/mock`;
     }
-    this.baseURL = base;
+    const appOrigin = (process.env.NEXTAUTH_URL || "http://localhost:3000").replace(/\/$/, "");
+    return `${appOrigin}/api/mock`;
   }
 
-   private async request<T>(
+  private async request<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
     const axios = await import('axios');
-    const url = `${this.baseURL}${endpoint}`;
+    const baseURL = this.getBaseURL();
+    const url = `${baseURL}${endpoint}`;
     
     const config = {
       url,
