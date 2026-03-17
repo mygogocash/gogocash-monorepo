@@ -33,25 +33,36 @@ export default function SignInForm() {
       if (result?.error) {
         setError("Invalid email or password");
       } else if (result?.ok) {
-        router.push("/dashboard");
+        window.location.href = "/dashboard";
+        return;
       }
-    } catch (error) {
+    } catch (err) {
       setError("An error occurred during sign in");
-      console.error("Sign in error:", error);
+      console.error("Sign in error:", err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleMockSignIn = () => {
+    setError("");
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("mock_authenticated", "true");
+      window.location.href = "/dashboard";
     }
   };
   return (
     <div className="flex w-full flex-1 flex-col items-center justify-center px-4 py-8 sm:px-6">
       <div className="mx-auto w-full max-w-md">
-        <Link
-          href="/dashboard"
-          className="inline-flex items-center text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+        <button
+          type="button"
+          onClick={handleMockSignIn}
+          disabled={isLoading}
+          className="inline-flex items-center gap-1 text-sm text-gray-500 transition-colors hover:text-gray-700 disabled:opacity-50 dark:text-gray-400 dark:hover:text-gray-300"
         >
           <ChevronLeftIcon />
           Back to dashboard
-        </Link>
+        </button>
       </div>
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center pt-6 sm:pt-8">
         <div className="w-full text-center">
@@ -73,6 +84,31 @@ export default function SignInForm() {
               Enter your email and password to sign in!
             </p>
           </div>
+
+          {/* Quick access for internal use */}
+          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-700 dark:bg-amber-900/20">
+            <p className="mb-3 text-center text-xs font-medium uppercase tracking-wide text-amber-700 dark:text-amber-400">
+              Quick access (internal use)
+            </p>
+            <button
+              type="button"
+              onClick={handleMockSignIn}
+              disabled={isLoading}
+              className="w-full rounded-lg border border-amber-400 bg-amber-100 px-4 py-3 text-sm font-semibold text-amber-900 transition-colors hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-600 dark:bg-amber-800/50 dark:text-amber-100 dark:hover:bg-amber-800/70"
+            >
+              Sign in with mock account
+            </button>
+            <p className="mt-2 text-center text-xs text-amber-600 dark:text-amber-500">
+              admin@gogocash.co / 1234
+            </p>
+          </div>
+
+          <div className="border-t border-gray-200 pt-6 dark:border-gray-700">
+            <p className="mb-4 text-center text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              Or sign in with credentials
+            </p>
+          </div>
+
           <div className="text-left">
             <form onSubmit={handleSignIn}>
               {error && (
@@ -138,7 +174,7 @@ export default function SignInForm() {
                   <button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {isLoading ? "Signing in..." : "Sign in"}
                   </button>

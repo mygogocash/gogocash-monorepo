@@ -8,6 +8,11 @@ import dynamic from "next/dynamic";
 // Dynamically import the ReactApexChart component
 const ReactApexChart = dynamic(() => import("react-apexcharts"), {
   ssr: false,
+  loading: () => (
+    <div className="flex h-[310px] w-full items-center justify-center rounded-lg bg-gray-50 dark:bg-gray-800/50">
+      <p className="text-sm text-gray-500 dark:text-gray-400">Loading chart…</p>
+    </div>
+  ),
 });
 
 export default function StatisticsChart() {

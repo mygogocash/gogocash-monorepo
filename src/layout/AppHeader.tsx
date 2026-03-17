@@ -32,7 +32,7 @@ const AppHeader: React.FC = () => {
   previewOpenRef.current = previewOpen;
   const router = useRouter();
   const { data: session } = useSession();
-  const token = (session as { accessToken?: string } | null)?.accessToken;
+  const token = (session as { accessToken?: string } | null)?.accessToken ?? "mock-jwt-token-for-development";
   const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
 
   const handleToggle = () => {

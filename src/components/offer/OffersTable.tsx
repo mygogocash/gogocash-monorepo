@@ -194,6 +194,7 @@ export default function OffersTable() {
                     upsize_end_date: selectedOfferForMenu.upsize_end_date ?? null,
                     upsize_special_commission: selectedOfferForMenu.upsize_special_commission ?? null,
                     upsize_max_cap: selectedOfferForMenu.upsize_max_cap ?? null,
+                    product_types: selectedOfferForMenu.product_types ?? [],
                   });
                   setSelectedOfferForMenu(null);
                 }
@@ -336,6 +337,9 @@ export default function OffersTable() {
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400 sm:px-6">
                       Category
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400 sm:px-6">
+                      Active policy
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400 sm:px-6">
                       Max Cap
@@ -512,6 +516,11 @@ export default function OffersTable() {
                           </div>
                         )}
                       </td>
+                      <td className="min-w-0 px-4 py-3 sm:px-6 sm:py-4">
+                        <div className="text-sm text-gray-900 dark:text-gray-100 break-words">
+                          {offer.active_policy ?? offer.categories ?? "—"}
+                        </div>
+                      </td>
                       <td className="whitespace-nowrap px-4 py-3 sm:px-6 sm:py-4 text-sm text-gray-900 dark:text-gray-100">
                         {offer.max_cap != null ? offer.max_cap.toLocaleString() : "—"}
                       </td>
@@ -579,6 +588,7 @@ export default function OffersTable() {
                                     upsize_end_date: offer.upsize_end_date ?? null,
                                     upsize_special_commission: offer.upsize_special_commission ?? null,
                                     upsize_max_cap: offer.upsize_max_cap ?? null,
+                                    product_types: offer.product_types ?? [],
                                   });
                                   setOpenActionsId(null);
                                 }}
