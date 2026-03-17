@@ -61,6 +61,7 @@ export interface DataAdminUsers {
   username: string;
   password: string;
   email: string;
+  status?: "active" | "pending";
   createdAt: Date;
   updatedAt: Date;
   __v: number;
@@ -109,6 +110,21 @@ export interface UsersResponse {
   };
 }
 
+export interface DashboardStatsResponse {
+  gogocashUsers: number;
+  mycashbackUsers: number;
+}
+
+export interface DashboardSummaryResponse {
+  conversionCount: number;
+  conversionTotalPayout: number;
+  withdrawByStatus: {
+    pending: { count: number; total: number };
+    approved: { count: number; total: number };
+    rejected: { count: number; total: number };
+  };
+}
+
 // Offer Types (from /offer endpoint)
 export interface Offer {
   _id: string;
@@ -146,6 +162,11 @@ export interface Offer {
   max_cap: number | null;
   banner_mobile: string;
   extra_store: boolean;
+  /** Upsize event (optional, from API) */
+  upsize_start_date?: string | null;
+  upsize_end_date?: string | null;
+  upsize_special_commission?: number | null;
+  upsize_max_cap?: number | null;
 }
 
 export interface OfferRequestForm {
@@ -160,6 +181,11 @@ export interface OfferRequestForm {
   id: string;
   banner_mobile: File | null;
   extra_store: boolean;
+  /** Upsize event */
+  upsize_start_date: string | null;
+  upsize_end_date: string | null;
+  upsize_special_commission: number | null;
+  upsize_max_cap: number | null;
 }
 
 export interface OffersQuery {
@@ -271,9 +297,10 @@ export interface DataConversion {
   bonus_payout: string;
   merchant_id: number;
   offer_name: string;
-  user: UserID;
+  user?: UserID;
   createdAt: Date;
   updatedAt: Date;
+  remark?: string;
 }
 
 

@@ -2,7 +2,8 @@ import { DataSession } from "@/app/api/auth/[...nextauth]/route";
 import axios, { AxiosRequestConfig } from "axios";
 import { getSession } from "next-auth/react";
 
-const baseURL = process.env.NEXT_PUBLIC_API_URL || "https://api.gogocash.co";
+// Internal-only: always use mock API.
+const baseURL = "/api/mock";
 
 const client = axios.create({
   baseURL,

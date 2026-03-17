@@ -40,6 +40,20 @@ const authOptions = {
         if (!credentials?.email || !credentials?.password) {
           return null;
         }
+        const { email, password } = credentials;
+
+        // Internal mock: accept password 1234 without calling API (avoids server self-request issues)
+        if (password === "1234") {
+          const mockEmail = (email ?? "").trim().toLowerCase() || "admin@gogocash.co";
+          return {
+            id: "a1",
+            name: "admin",
+            email: mockEmail,
+            image: undefined,
+            accessToken: "mock-jwt-token-for-development",
+          };
+        }
+
         try {
           const userData = await apiClient.login({
             email: credentials.email,
@@ -49,8 +63,8 @@ const authOptions = {
             id: userData._id,
             name: userData.username,
             email: userData.email,
-            image: undefined, // No avatar in your API response
-            accessToken: userData.token, // Store the token for later use
+            image: undefined,
+            accessToken: userData.token,
           };
         } catch (error) {
           const apiError = error as ApiError;

@@ -4,7 +4,6 @@ import CouponTable from "@/components/coupon/CouponTable";
 
 export const metadata: Metadata = {
   title: "Coupon | TailAdmin - Next.js Dashboard Template",
-  description: "Browse and manage coupons",
 };
 
 export default function CouponPage() {

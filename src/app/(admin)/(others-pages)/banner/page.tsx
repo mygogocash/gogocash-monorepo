@@ -4,7 +4,6 @@ import BannerTable from "@/components/banner/BannerTable";
 
 export const metadata: Metadata = {
   title: "Category | TailAdmin - Next.js Dashboard Template",
-  description: "Browse and manage categories",
 };
 
 /**

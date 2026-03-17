@@ -89,7 +89,10 @@ export default function FeeForm() {
               <Label>
                 System <span className="text-error-500">*</span>{" "}
               </Label>
-              <div className="flex items-center gap-3">
+              <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                Platform fee percentage applied to transactions (e.g. 2.5 for 2.5%).
+              </p>
+              <div className="mt-2 flex items-center gap-3">
                 <Input
                   placeholder="0.00"
                   type="text"
@@ -112,7 +115,10 @@ export default function FeeForm() {
               <Label>
                 Fee Withdraw THB <span className="text-error-500">*</span>{" "}
               </Label>
-              <div className="flex items-center gap-3">
+              <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                Fixed fee charged per withdrawal in Thai Baht.
+              </p>
+              <div className="mt-2 flex items-center gap-3">
                 <Input
                   placeholder="0.00"
                   type="text"
@@ -136,7 +142,10 @@ export default function FeeForm() {
               <Label>
                 Fee Withdraw USD <span className="text-error-500">*</span>{" "}
               </Label>
-              <div className="flex items-center gap-3">
+              <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                Fixed fee charged per withdrawal in US Dollars.
+              </p>
+              <div className="mt-2 flex items-center gap-3">
                 <Input
                   placeholder="0.00"
                   type="text"
@@ -160,7 +169,10 @@ export default function FeeForm() {
                 Minimum Withdraw THB{" "}
                 <span className="text-error-500">*</span>{" "}
               </Label>
-              <div className="flex items-center gap-3">
+              <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                Minimum amount users can withdraw in Thai Baht.
+              </p>
+              <div className="mt-2 flex items-center gap-3">
                 <Input
                   placeholder="0.00"
                   type="text"
@@ -184,7 +196,10 @@ export default function FeeForm() {
                 Minimum Withdraw USD{" "}
                 <span className="text-error-500">*</span>{" "}
               </Label>
-              <div className="flex items-center gap-3">
+              <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                Minimum amount users can withdraw in US Dollars.
+              </p>
+              <div className="mt-2 flex items-center gap-3">
                 <Input
                   placeholder="0.00"
                   type="text"

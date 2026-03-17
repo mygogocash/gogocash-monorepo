@@ -16,9 +16,11 @@ export function normalizeE164(phone: string, country?: CountryCode) {
   return parsed?.format("E.164") ?? null;
 }
 
-export const pathImage = (path: string) => {
-  return `${process.env.NEXT_PUBLIC_API_URL}/google-drive/file/${path}`;
-}
+/** Internal mock only: no external asset server. Returns placeholder or empty. */
+export const pathImage = (path?: string | null) => {
+  if (!path) return "";
+  return "https://placehold.co/96x96/e2e8f0/64748b?text=Image";
+};
 
 export const formatPrice = (price?: number) => {
   if (!price) return "N/A";

@@ -25,11 +25,21 @@ export default function FormInModal() {
         className="max-w-[584px] p-5 lg:p-10"
       >
         <form className="">
-          <h4 className="mb-6 text-lg font-medium text-gray-800 dark:text-white/90">
-            Personal Information
-          </h4>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-4 dark:border-gray-700">
+            <h4 className="text-lg font-medium text-gray-800 dark:text-white/90">
+              Personal Information
+            </h4>
+            <div className="flex shrink-0 items-center gap-3">
+              <Button size="sm" variant="outline" onClick={closeModal}>
+                Close
+              </Button>
+              <Button size="sm" onClick={handleSave}>
+                Save Changes
+              </Button>
+            </div>
+          </div>
 
-          <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2 mt-4">
             <div className="col-span-1">
               <Label>First Name</Label>
               <Input type="text" placeholder="Emirhan" />
@@ -54,15 +64,6 @@ export default function FormInModal() {
               <Label>Bio</Label>
               <Input type="text" placeholder="Team Manager" />
             </div>
-          </div>
-
-          <div className="flex items-center justify-end w-full gap-3 mt-6">
-            <Button size="sm" variant="outline" onClick={closeModal}>
-              Close
-            </Button>
-            <Button size="sm" onClick={handleSave}>
-              Save Changes
-            </Button>
           </div>
         </form>
       </Modal>

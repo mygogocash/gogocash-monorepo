@@ -727,6 +727,35 @@ span.flatpickr-weekday,
   @apply border-brand-500 bg-brand-500 dark:border-brand-500;
 }
 
+/* Page transition animations */
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes page-enter-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.page-transition-enter {
+  animation: page-enter 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.page-transition-enter-fade {
+  animation: page-enter-fade 0.25s ease-out forwards;
+}
+
 .task {
   transition: all 0.2s ease; /* Smooth transition for visual effects */
 }

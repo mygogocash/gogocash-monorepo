@@ -4,7 +4,7 @@ import Button from "../ui/button/Button";
 import { Modal } from "../ui/modal";
 import Select from "../form/Select";
 import Input from "../form/input/InputField";
-import { formatPrice } from "@/utils/helper";
+import { formatPrice, pathImage } from "@/utils/helper";
 import { WithdrawRequestForm } from "./WithdrawTable";
 import { DataWithdrawsList } from "@/types/api";
 import { useSession } from "next-auth/react";
@@ -63,15 +63,54 @@ const ModalWithdraw = ({
   return (
     <Modal
       isOpen={Boolean(openModal)}
-      onClose={function (): void {
-        setOpenModal(false);
-      }}
-      className="max-h-[400px] max-w-[600px] overflow-auto p-5 lg:p-10"
+      onClose={() => setOpenModal(false)}
+      isFullscreen
+      showCloseButton={false}
+      className="p-0"
     >
-      <div className="space-y-6">
-        <h4 className="text-title-sm mb-7 font-semibold text-gray-800 dark:text-white/90">
-          Check Request Withdraw
-        </h4>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-5 sm:p-6 md:p-8 lg:p-10">
+        <div className="mb-4 flex w-full shrink-0 flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-4 dark:border-gray-700">
+          <div className="min-w-0">
+            <h4 className="text-title-sm mb-1 font-semibold text-gray-800 dark:text-white/90">
+              Check Request Withdraw
+            </h4>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Review this withdrawal request, set the status, and optionally attach a payment slip. Save to update the request.
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-3">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setOpenModal(false)}
+              disabled={isLoading}
+            >
+              Close
+            </Button>
+            <Button
+              size="sm"
+              disabled={isLoading}
+              onClick={() => {
+                if (
+                  (openModal && (openModal as DataWithdrawsList).method) ===
+                  "bank_transfer"
+                ) {
+                  handleSave();
+                } else {
+                  toast.error("Only bank transfer method can be updated.");
+                }
+              }}
+              startIcon={
+                isLoading ? (
+                  <div className="h-3 w-3 animate-spin rounded-full border-b-2 border-blue-600"></div>
+                ) : null
+              }
+            >
+              Save Changes
+            </Button>
+          </div>
+        </div>
+        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto pb-4">
         {/* <div className="overflow-auto">
               <table>
                 <thead>
@@ -124,82 +163,77 @@ const ModalWithdraw = ({
                 </tbody>
               </table>
             </div> */}
-        <h1 className="text-title-sm mb-7 font-semibold text-gray-800 dark:text-white/90">
-          Total Payout:{" "}
-          {(openModal as DataWithdrawsList).currency !== "USDC" &&
-          (openModal as DataWithdrawsList).currency !== "USDT"
-            ? formatPrice((openModal as DataWithdrawsList)?.amount_net)
-            : (openModal as DataWithdrawsList)?.amount_net +
-              " " +
-              (openModal as DataWithdrawsList)?.currency}
-        </h1>
-        <Input type="file" name="file" onChange={handleFileChange} />
+        <div>
+          <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+            Total Payout
+          </p>
+          <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+            Amount to be paid for this withdrawal request.
+          </p>
+          <p className="text-lg font-semibold text-gray-800 dark:text-white/90">
+            {(openModal as DataWithdrawsList).currency !== "USDC" &&
+            (openModal as DataWithdrawsList).currency !== "USDT"
+              ? formatPrice((openModal as DataWithdrawsList)?.amount_net)
+              : (openModal as DataWithdrawsList)?.amount_net +
+                " " +
+                (openModal as DataWithdrawsList)?.currency}
+          </p>
+        </div>
+        <div>
+          <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+            Payment slip (optional)
+          </p>
+          <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+            Upload proof of payment if you have already processed this withdrawal.
+          </p>
+          <Input type="file" name="file" onChange={handleFileChange} />
+        </div>
         {(form.file || (openModal as DataWithdrawsList).slip_file) && (
           <div className="mt-4 mb-4">
-            <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-              Preview:
+            <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+              Preview
+            </p>
+            <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+              Uploaded or existing slip image.
             </p>
             <img
               src={
                 form.file
                   ? URL.createObjectURL(form.file)
-                  : `${process.env.NEXT_PUBLIC_API_URL}/google-drive/file/${(openModal as DataWithdrawsList).slip_file}`
+                  : pathImage((openModal as DataWithdrawsList).slip_file)
               }
               alt="Preview"
               className="h-auto max-h-64 max-w-full rounded-lg border border-gray-200 dark:border-gray-600"
             />
           </div>
         )}
-        <Select
-          options={[
-            { label: "Approve", value: "approved" },
-            { label: "Reject", value: "rejected" },
-            { label: "Pending", value: "pending" },
-          ]}
-          onChange={(e) => {
-            setForm((prev) => ({
-              ...prev,
-              status: e,
-            }));
-          }}
-          defaultValue={
-            form.status ||
-            ((openModal && (openModal as DataWithdrawsList).status) as string)
-          }
-          placeholder="Select Status"
-        />
-      </div>
-
-      <div className="mt-8 flex w-full items-center justify-end gap-3">
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => setOpenModal(false)}
-          disabled={isLoading}
-        >
-          Close
-        </Button>
-        <Button
-          size="sm"
-          disabled={isLoading}
-          onClick={() => {
-            if (
-              (openModal && (openModal as DataWithdrawsList).method) ===
-              "bank_transfer"
-            ) {
-              handleSave();
-            } else {
-              toast.error("Only bank transfer method can be updated.");
+        <div>
+          <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+            Status
+          </p>
+          <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+            Set the request status: Approve when paid, Reject to decline, or leave Pending.
+          </p>
+          <Select
+            options={[
+              { label: "Approve", value: "approved" },
+              { label: "Reject", value: "rejected" },
+              { label: "Pending", value: "pending" },
+            ]}
+            onChange={(e) => {
+              setForm((prev) => ({
+                ...prev,
+                status: e,
+              }));
+            }}
+            defaultValue={
+              form.status ||
+              ((openModal && (openModal as DataWithdrawsList).status) as string)
             }
-          }}
-          startIcon={
-            isLoading ? (
-              <div className="h-3 w-3 animate-spin rounded-full border-b-2 border-blue-600"></div>
-            ) : null
-          }
-        >
-          Save Changes
-        </Button>
+            placeholder="Select Status"
+          />
+        </div>
+        </div>
       </div>
     </Modal>
   );

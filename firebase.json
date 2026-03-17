@@ -1,0 +1,11 @@
+{
+  "hosting": {
+    "site": "gogocash-staging-637d5",
+    "public": "out",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  }
+}

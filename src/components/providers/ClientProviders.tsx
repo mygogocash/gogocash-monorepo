@@ -17,7 +17,13 @@ export default function ClientProviders({
     <QueryClientProvider client={queryClient}>
       <SessionProvider>
         <ThemeProvider>
-          <Toaster />
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              className:
+                "!bg-white !text-gray-900 !border !border-gray-200 dark:!bg-gray-800 dark:!text-gray-100 dark:!border-gray-700",
+            }}
+          />
           <SidebarProvider>{children}</SidebarProvider>
         </ThemeProvider>
       </SessionProvider>

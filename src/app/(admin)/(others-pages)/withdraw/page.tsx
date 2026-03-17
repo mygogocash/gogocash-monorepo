@@ -4,7 +4,6 @@ import WithdrawTable from "@/components/withdraw/WithdrawTable";
 
 export const metadata: Metadata = {
   title: "Offers | TailAdmin - Next.js Dashboard Template",
-  description: "Browse and manage offers",
 };
 
 export default function WithdrawPage() {

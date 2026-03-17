@@ -93,7 +93,7 @@ export default function MonthlySalesChart() {
   };
   const series = [
     {
-      name: "Sales",
+      name: "Conversion",
       data: [168, 385, 201, 298, 187, 195, 291, 110, 215, 390, 280, 112],
     },
   ];
@@ -109,10 +109,15 @@ export default function MonthlySalesChart() {
 
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-5 pt-5 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6 sm:pt-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-          Monthly Sales
-        </h3>
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
+            Monthly Conversion
+          </h3>
+          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+            {new Date().getFullYear()}
+          </p>
+        </div>
 
         <div className="relative inline-block">
           <button onClick={toggleDropdown} className="dropdown-toggle">

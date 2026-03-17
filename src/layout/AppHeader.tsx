@@ -3,13 +3,36 @@ import { ThemeToggleButton } from "@/components/common/ThemeToggleButton";
 import NotificationDropdown from "@/components/header/NotificationDropdown";
 import UserDropdown from "@/components/header/UserDropdown";
 import { useSidebar } from "@/context/SidebarContext";
+import { useApi } from "@/hooks/useApi";
+import type { DataWithdrawsList, RegularUser, Offer } from "@/types/api";
 import Image from "next/image";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import React, { useState, useEffect, useRef } from "react";
+
+const SEARCH_DEBOUNCE_MS = 300;
+const PREVIEW_LIMIT = 5;
 
 const AppHeader: React.FC = () => {
   const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false);
-
+  const [searchQuery, setSearchQuery] = useState("");
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [previewResults, setPreviewResults] = useState<{
+    users: RegularUser[];
+    offers: Offer[];
+    withdraws: DataWithdrawsList[];
+  }>({ users: [], offers: [], withdraws: [] });
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+  const previewOpenRef = useRef(previewOpen);
+  const { getUsers, getOffers, getWithdraws } = useApi();
+  const apiRef = useRef({ getUsers, getOffers, getWithdraws });
+  apiRef.current = { getUsers, getOffers, getWithdraws };
+  previewOpenRef.current = previewOpen;
+  const router = useRouter();
+  const { data: session } = useSession();
+  const token = (session as { accessToken?: string } | null)?.accessToken;
   const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
 
   const handleToggle = () => {
@@ -39,6 +62,72 @@ const AppHeader: React.FC = () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
+
+  const searchCancelledRef = useRef(false);
+
+  // Debounced search and fetch preview results (use apiRef to avoid effect re-running on every render)
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setPreviewResults({ users: [], offers: [], withdraws: [] });
+      setPreviewOpen(false);
+      return;
+    }
+
+    searchCancelledRef.current = false;
+    const t = setTimeout(() => {
+      const { getUsers: gU, getOffers: gO, getWithdraws: gW } = apiRef.current;
+      setSearchLoading(true);
+      setPreviewOpen(true);
+
+      Promise.all([
+        gU({ search: searchQuery.trim(), limit: PREVIEW_LIMIT, page: 1 }).then((r) =>
+          searchCancelledRef.current ? [] : r.data ?? []
+        ),
+        gO({ search: searchQuery.trim(), limit: PREVIEW_LIMIT, page: 1 }).then((r) =>
+          searchCancelledRef.current ? [] : r.data ?? []
+        ),
+        token
+          ? gW({ search: searchQuery.trim(), limit: PREVIEW_LIMIT, page: 1 }, token).then(
+              (r) => (searchCancelledRef.current ? [] : r.data ?? [])
+            )
+          : Promise.resolve([]),
+      ])
+        .then(([users, offers, withdraws]) => {
+          if (!searchCancelledRef.current) {
+            setPreviewResults({ users, offers, withdraws });
+          }
+        })
+        .catch(() => {
+          if (!searchCancelledRef.current) {
+            setPreviewResults({ users: [], offers: [], withdraws: [] });
+          }
+        })
+        .finally(() => {
+          if (!searchCancelledRef.current) setSearchLoading(false);
+        });
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => {
+      clearTimeout(t);
+      searchCancelledRef.current = true;
+    };
+  }, [searchQuery, token]);
+
+  // Close preview on click outside (use ref to avoid stale closure and only set when open)
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (!searchContainerRef.current?.contains(e.target as Node) && previewOpenRef.current) {
+        setPreviewOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const hasResults =
+    previewResults.users.length > 0 ||
+    previewResults.offers.length > 0 ||
+    previewResults.withdraws.length > 0;
 
   return (
     <header className="sticky top-0 z-99 flex w-full border-gray-200 bg-white lg:border-b dark:border-gray-800 dark:bg-gray-900">
@@ -83,7 +172,7 @@ const AppHeader: React.FC = () => {
             {/* Cross Icon */}
           </button>
 
-          <Link href="/" className="lg:hidden">
+          <Link href="/dashboard" className="lg:hidden">
             <Image
               width={154}
               height={32}
@@ -120,8 +209,17 @@ const AppHeader: React.FC = () => {
             </svg>
           </button>
 
-          <div className="hidden lg:block">
-            <form>
+          <div className="hidden lg:block" ref={searchContainerRef}>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (previewResults.users[0]) router.push(`/users?highlight=${previewResults.users[0]._id}`);
+                else if (previewResults.offers[0]) router.push(`/offers/${previewResults.offers[0]._id}`);
+                else if (previewResults.withdraws[0]) router.push(`/withdraw/${previewResults.withdraws[0]._id}`);
+                else if (searchQuery.trim()) router.push(`/users?search=${encodeURIComponent(searchQuery.trim())}`);
+                setPreviewOpen(false);
+              }}
+            >
               <div className="relative">
                 <span className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2">
                   <svg
@@ -143,14 +241,106 @@ const AppHeader: React.FC = () => {
                 <input
                   ref={inputRef}
                   type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => searchQuery.trim() && setPreviewOpen(true)}
                   placeholder="Search or type command..."
-                  className="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full rounded-lg border border-gray-200 bg-transparent py-2.5 pr-14 pl-12 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden xl:w-[430px] dark:border-gray-800 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"
+                  className="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full rounded-lg border border-gray-200 bg-transparent py-2.5 pr-14 pl-12 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden min-w-[280px] xl:w-[600px] 2xl:w-[720px] dark:border-gray-800 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"
                 />
 
-                <button className="absolute top-1/2 right-2.5 inline-flex -translate-y-1/2 items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 px-[7px] py-[4.5px] text-xs -tracking-[0.2px] text-gray-500 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-400">
+                <button
+                  type="button"
+                  className="absolute top-1/2 right-2.5 inline-flex -translate-y-1/2 items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 px-[7px] py-[4.5px] text-xs -tracking-[0.2px] text-gray-500 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-400"
+                >
                   <span> ⌘ </span>
                   <span> K </span>
                 </button>
+
+                {/* Preview results dropdown */}
+                {previewOpen && searchQuery.trim() && (
+                  <div className="absolute top-full left-0 z-[100] mt-1 w-full min-w-[380px] max-w-[600px] 2xl:max-w-[720px] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg dark:border-gray-800 dark:bg-gray-900">
+                    {searchLoading ? (
+                      <div className="flex items-center gap-2 px-4 py-6 text-sm text-gray-500 dark:text-gray-400">
+                        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
+                        Searching...
+                      </div>
+                    ) : (
+                      <div className="max-h-[320px] overflow-y-auto py-2">
+                        {previewResults.users.length > 0 && (
+                          <div className="px-2 pb-2">
+                            <div className="mb-1 px-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                              Users
+                            </div>
+                            <ul className="space-y-0.5">
+                              {previewResults.users.map((u) => (
+                                <li key={u._id}>
+                                  <Link
+                                    href={`/users?search=${encodeURIComponent(searchQuery)}`}
+                                    onClick={() => setPreviewOpen(false)}
+                                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-800 hover:bg-gray-100 dark:text-white/90 dark:hover:bg-gray-800"
+                                  >
+                                    <span className="truncate font-medium">{u.username ?? u.email}</span>
+                                    <span className="truncate text-gray-500 dark:text-gray-400">{u.email}</span>
+                                  </Link>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {previewResults.offers.length > 0 && (
+                          <div className="px-2 pb-2">
+                            <div className="mb-1 px-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                              Offers
+                            </div>
+                            <ul className="space-y-0.5">
+                              {previewResults.offers.map((o) => (
+                                <li key={o._id}>
+                                  <Link
+                                    href={`/offers/${o._id}`}
+                                    onClick={() => setPreviewOpen(false)}
+                                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-800 hover:bg-gray-100 dark:text-white/90 dark:hover:bg-gray-800"
+                                  >
+                                    <span className="truncate font-medium">{o.name}</span>
+                                  </Link>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {previewResults.withdraws.length > 0 && (
+                          <div className="px-2 pb-2">
+                            <div className="mb-1 px-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                              Withdrawals
+                            </div>
+                            <ul className="space-y-0.5">
+                              {previewResults.withdraws.map((w) => (
+                                <li key={w._id}>
+                                  <Link
+                                    href={`/withdraw/${w._id}`}
+                                    onClick={() => setPreviewOpen(false)}
+                                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-800 hover:bg-gray-100 dark:text-white/90 dark:hover:bg-gray-800"
+                                  >
+                                    <span className="truncate font-medium">
+                                      {w.user_id?.username ?? w.account_name ?? w._id}
+                                    </span>
+                                    <span className="text-gray-500 dark:text-gray-400">
+                                      {w.amount_net} {w.currency}
+                                    </span>
+                                  </Link>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {!searchLoading && !hasResults && (
+                          <div className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                            No results for &quot;{searchQuery}&quot;
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </form>
           </div>
@@ -161,10 +351,7 @@ const AppHeader: React.FC = () => {
           } shadow-theme-md w-full items-center justify-between gap-4 px-5 py-4 lg:flex lg:justify-end lg:px-0 lg:shadow-none`}
         >
           <div className="2xsm:gap-3 flex items-center gap-2">
-            {/* <!-- Dark Mode Toggler --> */}
             <ThemeToggleButton />
-            {/* <!-- Dark Mode Toggler --> */}
-
             <NotificationDropdown />
             {/* <!-- Notification Menu Area --> */}
           </div>

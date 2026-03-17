@@ -51,21 +51,28 @@ export const Modal: React.FC<ModalProps> = ({
   if (!isOpen) return null;
 
   const contentClasses = isFullscreen
-    ? "w-full h-full"
-    : "relative w-full rounded-3xl bg-white  dark:bg-gray-900";
+    ? "fixed inset-0 z-[1000] flex h-screen min-h-screen w-full flex-col overflow-hidden rounded-none bg-white dark:bg-gray-900"
+    : "relative z-[1000] m-auto my-4 mx-4 w-full max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)] overflow-y-auto rounded-3xl bg-white dark:bg-gray-900 sm:mx-6 sm:my-6 sm:max-w-2xl";
+
+  const wrapperClasses = isFullscreen
+    ? "modal fixed inset-0 z-[999] flex min-h-screen w-full items-stretch justify-center overflow-hidden p-0"
+    : "modal fixed inset-0 z-[999] flex min-h-full items-center justify-center overflow-y-auto p-4 sm:p-6";
 
   return (
-    <div className="modal fixed inset-0 z-999 flex items-center justify-center overflow-y-auto">
+    <div className={wrapperClasses}>
       {!isFullscreen && (
         <div
-          className="fixed inset-0 h-full w-full bg-gray-400/50 backdrop-blur-[32px]"
+          className="fixed inset-0 z-[999] h-full w-full bg-black/30 backdrop-blur-sm"
           onClick={onClose}
-        ></div>
+          aria-hidden
+        />
       )}
       <div
         ref={modalRef}
-        className={`${contentClasses} ${className}`}
+        className={`${contentClasses} ${className ?? ""}`}
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
       >
         {showCloseButton && (
           <button
@@ -88,7 +95,7 @@ export const Modal: React.FC<ModalProps> = ({
             </svg>
           </button>
         )}
-        <div>{children}</div>
+        <div className={isFullscreen ? "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden" : "min-w-0"}>{children}</div>
       </div>
     </div>
   );

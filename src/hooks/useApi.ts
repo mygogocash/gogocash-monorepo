@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { apiClient } from '@/lib/api';
-import { ApiError, RegisterRequest, AdminUsersQuery, AdminUsersResponse, UsersQuery, UsersResponse, RegularUser, OffersQuery, OffersResponse, Offer, WithdrawQuery, ResponseWithdraws, ResponseConversion, ConversionQuery, ResponseFee, FeeSettingsForm } from '@/types/api';
+import { ApiError, RegisterRequest, AdminUsersQuery, AdminUsersResponse, UsersQuery, UsersResponse, RegularUser, DashboardStatsResponse, DashboardSummaryResponse, OffersQuery, OffersResponse, Offer, WithdrawQuery, ResponseWithdraws, ResponseConversion, ConversionQuery, ResponseFee, FeeSettingsForm } from '@/types/api';
 
 // Hook for authentication operations
 export function useAuth() {
@@ -82,11 +82,11 @@ export function useApi() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const getToken = () => {
+  const getToken = useCallback(() => {
     return (session as { accessToken?: string })?.accessToken;
-  };
+  }, [session]);
 
-  const apiCall = async <T>(
+  const apiCall = useCallback(async <T>(
     operation: (token?: string) => Promise<T>
   ): Promise<T> => {
     setLoading(true);
@@ -103,7 +103,7 @@ export function useApi() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getToken]);
 
   const get = async <T>(endpoint: string): Promise<T> => {
     return apiCall((token) => apiClient.get<T>(endpoint, token));
@@ -184,11 +184,26 @@ export function useApi() {
     return apiCall(() => apiClient.deleteAdminUser(userId, token));
   };
 
-  // Regular user management methods
-  const getUsers = async (query: UsersQuery = {}): Promise<UsersResponse> => {
+  const inviteAdminUser = async (email: string): Promise<{ message: string }> => {
+    const token = getToken();
+    return apiCall(() => apiClient.inviteAdminUser(email, token));
+  };
+
+  // Regular user management methods (memoized for stable refs in useEffect deps)
+  const getUsers = useCallback(async (query: UsersQuery = {}): Promise<UsersResponse> => {
     const token = getToken();
     return apiCall(() => apiClient.getUsers(query, token));
-  };
+  }, [apiCall, getToken]);
+
+  const getDashboardStats = useCallback(async (): Promise<DashboardStatsResponse> => {
+    const token = getToken();
+    return apiCall(() => apiClient.getDashboardStats(token));
+  }, [apiCall, getToken]);
+
+  const getDashboardSummary = useCallback(async (): Promise<DashboardSummaryResponse> => {
+    const token = getToken();
+    return apiCall(() => apiClient.getDashboardSummary(token));
+  }, [apiCall, getToken]);
 
   const getUser = async (userId: string): Promise<RegularUser> => {
     const token = getToken();
@@ -213,10 +228,10 @@ export function useApi() {
     return apiCall(() => apiClient.deleteUser(userId, token));
   };
 
-  // Offer management methods
-  const getOffers = async (query: OffersQuery = {}): Promise<OffersResponse> => {
+  // Offer management methods (memoized for stable refs in useEffect deps)
+  const getOffers = useCallback(async (query: OffersQuery = {}): Promise<OffersResponse> => {
     return apiCall(() => apiClient.getOffers(query));
-  };
+  }, [apiCall]);
 
   const updateListOffer = async (token: string): Promise<Offer[]> => {
     return apiCall(() => apiClient.updateListOffer(token));
@@ -245,17 +260,21 @@ export function useApi() {
   };
 
 
-  const getWithdraws = async (query: WithdrawQuery = {}, token: string): Promise<ResponseWithdraws> => {
+  const getWithdraws = useCallback(async (query: WithdrawQuery = {}, token: string): Promise<ResponseWithdraws> => {
     return apiCall(() => apiClient.getWithdraws(query, token));
-  };
+  }, [apiCall]);
 
-  const getConversion = async (query: ConversionQuery = {}, token: string): Promise<ResponseConversion> => {
+  const getConversion = useCallback(async (query: ConversionQuery = {}, token: string): Promise<ResponseConversion> => {
     return apiCall(() => apiClient.getConversion(query, token));
-  };
+  }, [apiCall]);
 
-  const getFee = async (token: string): Promise<ResponseFee[]> => {
+  const getCreatedConversions = useCallback(async (query: ConversionQuery = {}, token: string): Promise<ResponseConversion> => {
+    return apiCall(() => apiClient.getCreatedConversions(query, token));
+  }, [apiCall]);
+
+  const getFee = useCallback(async (token: string): Promise<ResponseFee[]> => {
     return apiCall(() => apiClient.getFee(token));
-  };
+  }, [apiCall]);
 
   const updateFee = async (form : FeeSettingsForm, token: string): Promise<ResponseFee> => {
     return apiCall(() => apiClient.updateFee(form, token));
@@ -277,6 +296,10 @@ export function useApi() {
     createAdminUser,
     updateAdminUser,
     deleteAdminUser,
+    inviteAdminUser,
+    // Dashboard
+    getDashboardStats,
+    getDashboardSummary,
     // Regular user methods
     getUsers,
     getUser,
@@ -297,6 +320,7 @@ export function useApi() {
 
     // Conversion methods
     getConversion,
+    getCreatedConversions,
 
     // Fee methods
     getFee,

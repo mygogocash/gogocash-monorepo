@@ -1,8 +1,12 @@
 import type { NextConfig } from "next";
 
+// Standalone for Node/Docker; static export for Firebase Hosting; default for Cloudflare etc.
 const nextConfig: NextConfig = {
-  /* config options here */
-  output: 'standalone',
+  ...(process.env.BUILD_FOR_FIREBASE === "1"
+    ? { output: "export" as const, eslint: { ignoreDuringBuilds: true } }
+    : process.env.STANDALONE === "1"
+      ? { output: "standalone" as const }
+      : {}),
   webpack(config) {
     config.module.rules.push({
       test: /\.svg$/,

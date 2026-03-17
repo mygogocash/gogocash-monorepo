@@ -1,19 +1,32 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { OffersQuery } from "@/types/api";
 import Form from "./FormCategory";
 import { fetcher } from "@/lib/axios/client";
 import { useQuery } from "@tanstack/react-query";
+import { pathImage } from "@/utils/helper";
 import { CategoryRequestForm, ResCategoryList } from "@/types/category";
 
 export default function CategoryTable() {
   const [openModal, setOpenModal] = useState<ResCategoryList | boolean>(false);
+  const [openActionsId, setOpenActionsId] = useState<string | null>(null);
+  const actionsDropdownRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [form, setForm] = useState<CategoryRequestForm>({
     image: null,
   });
+
+  useEffect(() => {
+    if (!openActionsId) return;
+    const handleClick = (e: MouseEvent) => {
+      if (actionsDropdownRef.current && !actionsDropdownRef.current.contains(e.target as Node))
+        setOpenActionsId(null);
+    };
+    document.addEventListener("click", handleClick, true);
+    return () => document.removeEventListener("click", handleClick, true);
+  }, [openActionsId]);
 
   const [query, setQuery] = useState<OffersQuery>({
     search: "",
@@ -69,17 +82,17 @@ export default function CategoryTable() {
             type="text"
             placeholder="Search"
             onChange={(e) => handleSearch(e.target.value)}
-            className="h-11 w-full rounded-lg border border-gray-200 bg-transparent px-5 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden xl:w-[300px] dark:border-gray-800 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"
+            className="h-11 w-full rounded-lg border border-gray-200 bg-transparent px-5 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:ring-brand-500/20 focus:outline-hidden xl:w-[300px] dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400 dark:focus:ring-brand-400/30"
           />
         </div>
       </div>
 
       {/* Content */}
-      <div className="border-t border-gray-100 p-4 sm:p-6 dark:border-gray-800">
+      <div className="border-t border-gray-100 p-4 sm:p-6 dark:border-gray-700 dark:bg-white/[0.02]">
         {isLoadingCategory ? (
           <div className="flex items-center justify-center py-8">
-            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
-            <span className="ml-2">Loading Categories...</span>
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-brand-500 dark:border-gray-700 dark:border-t-brand-400"></div>
+            <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Loading...</span>
           </div>
         ) : (
           <>
@@ -114,14 +127,14 @@ export default function CategoryTable() {
                             {offer.image ? (
                               <img
                                 className="h-12 w-12 rounded-lg object-cover"
-                                src={`${process.env.NEXT_PUBLIC_API_URL}/google-drive/file/${offer.image}`}
+                                src={pathImage(offer.image)}
                                 alt={offer.name}
                                 width={48}
                                 height={48}
                               />
                             ) : (
-                              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gray-300">
-                                <span className="text-xs font-medium text-gray-700">
+                              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gray-300 dark:bg-gray-600">
+                                <span className="text-xs font-medium text-gray-700 dark:text-gray-200">
                                   {offer.name.charAt(0).toUpperCase()}
                                 </span>
                               </div>
@@ -134,24 +147,52 @@ export default function CategoryTable() {
                           </div>
                         </div>
                       </td>
-                      <td className="space-x-2 px-6 py-4 text-sm font-medium whitespace-nowrap">
-                        <button
-                          onClick={() => {
-                            setOpenModal(offer);
-                            setForm({
-                              image: null,
-                            });
-                          }}
-                          className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                      <td className="relative px-6 py-4 text-sm font-medium whitespace-nowrap">
+                        <div
+                          ref={openActionsId === offer._id ? actionsDropdownRef : undefined}
+                          className="relative inline-block"
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          Edit
-                        </button>
-                        <button
-                          // onClick={() => handleDeleteOffer(offer._id)}
-                          className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-                        >
-                          Delete
-                        </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenActionsId((id) => (id === offer._id ? null : offer._id));
+                            }}
+                            className="inline-flex min-h-[2rem] items-center justify-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                            aria-expanded={openActionsId === offer._id}
+                            aria-haspopup="true"
+                          >
+                            Actions
+                            <svg className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+                          {openActionsId === offer._id && (
+                            <div className="absolute right-0 top-full z-50 mt-1 min-w-[10rem] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800" role="menu">
+                              <button
+                                type="button"
+                                role="menuitem"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenModal(offer);
+                                  setForm({ image: null });
+                                  setOpenActionsId(null);
+                                }}
+                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

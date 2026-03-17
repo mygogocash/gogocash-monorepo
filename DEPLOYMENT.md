@@ -35,7 +35,7 @@ Cloud Run is serverless and automatically scales based on demand.
 ```bash
 # Connect your GitHub repository
 gcloud builds triggers create github \
-  --repo-name=gogocash_admin \
+  --repo-name=gogocash-admin-demo \
   --repo-owner=mygogocash \
   --branch-pattern="^main$" \
   --build-config=cloudbuild.yaml
