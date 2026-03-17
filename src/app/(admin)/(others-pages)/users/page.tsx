@@ -4,7 +4,6 @@ import { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Users | TailAdmin - Next.js Dashboard Template",
-  description: "Manage users in your dashboard",
 };
 
 export default function UsersPage() {

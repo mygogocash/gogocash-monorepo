@@ -111,7 +111,7 @@ export default function StatisticsChart() {
 
   const series = [
     {
-      name: "Sales",
+      name: "Conversion",
       data: [180, 190, 170, 160, 175, 165, 170, 205, 230, 210, 240, 235],
     },
     {
@@ -127,7 +127,10 @@ export default function StatisticsChart() {
             Statistics
           </h3>
           <p className="mt-1 text-gray-500 text-theme-sm dark:text-gray-400">
-            Target you’ve set for each month
+            Conversion & Revenue by month
+            <span className="ml-1 text-gray-400 dark:text-gray-500">
+              (Jan–Dec {new Date().getFullYear()})
+            </span>
           </p>
         </div>
         <div className="flex items-start w-full gap-3 sm:justify-end">

@@ -1,6 +1,20 @@
 export interface UserForm {
-  mobile: string;
   id: string;
+  mobile: string;
+  username: string;
+  email: string;
+  address: string;
+  birthdate: string;
+  country: string;
+  gender: string;
+  /** Bank account holder name */
+  bank_account_name?: string;
+  /** Bank name */
+  bank_name?: string;
+  /** Bank account number */
+  bank_account_number?: string;
+  /** Wallet address or wallet type (e.g. PromptPay, crypto address) */
+  wallet_info?: string;
 }
 
 export interface MyCashbackResponse {

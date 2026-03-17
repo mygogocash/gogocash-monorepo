@@ -1,15 +1,21 @@
 "use client";
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSidebar } from "../context/SidebarContext";
 import {
+  ArrowRightIcon,
+  CheckCircleIcon,
   ChevronDownIcon,
+  CopyIcon,
+  DollarLineIcon,
+  FolderIcon,
   GridIcon,
   HorizontaLDots,
-  ListIcon,
+  PageIcon,
   PieChartIcon,
+  ShootingStarIcon,
+  TaskIcon,
   UserCircleIcon,
 } from "../icons/index";
 // import SidebarWidget from "./SidebarWidget";
@@ -25,7 +31,7 @@ const navItems: NavItem[] = [
   {
     icon: <GridIcon />,
     name: "Dashboard",
-    subItems: [{ name: "Ecommerce", path: "/", pro: false }],
+    subItems: [{ name: "Platform", path: "/dashboard", pro: false }],
   },
   {
     icon: <UserCircleIcon />,
@@ -36,34 +42,53 @@ const navItems: NavItem[] = [
     ],
   },
   {
-    icon: <ListIcon />,
+    icon: <ShootingStarIcon />,
     name: "Offers Management",
     subItems: [{ name: "Offers", path: "/offers", pro: false }],
   },
   {
-    icon: <ListIcon />,
+    icon: <FolderIcon />,
     name: "Category Management",
     subItems: [{ name: "Category", path: "/category", pro: false }],
   },
   {
-    icon: <ListIcon />,
+    icon: <DollarLineIcon />,
     name: "Withdraw Management",
     subItems: [{ name: "Withdraw", path: "/withdraw", pro: false }],
   },
   {
-    icon: <ListIcon />,
+    icon: <CheckCircleIcon />,
     name: "Conversion Management",
-    subItems: [{ name: "Conversion", path: "/conversion", pro: false }],
+    subItems: [
+      { name: "Conversion", path: "/conversion", pro: false },
+      { name: "Add conversion", path: "/conversion/add", pro: false },
+    ],
   },
   {
-    icon: <ListIcon />,
+    icon: <PageIcon />,
     name: "Banner Homepage",
     subItems: [{ name: "Banner", path: "/banner", pro: false }],
   },
   {
-    icon: <ListIcon />,
+    icon: <CopyIcon />,
     name: "Coupon",
-    subItems: [{ name: "Coupon", path: "/coupon", pro: false }],
+    subItems: [
+      { name: "Coupon", path: "/coupon", pro: false },
+      { name: "Coupon History", path: "/coupon/history", pro: false },
+    ],
+  },
+  {
+    icon: <TaskIcon />,
+    name: "Quest Management",
+    subItems: [
+      { name: "Quest", path: "/quest", pro: false },
+      { name: "Create Reward", path: "/reward", pro: false },
+    ],
+  },
+  {
+    icon: <ArrowRightIcon />,
+    name: "Deeplink Management",
+    subItems: [{ name: "Deeplink", path: "/deeplink", pro: false }],
   },
   // {
   //   icon: <CalenderIcon />,
@@ -125,8 +150,12 @@ const othersItems: NavItem[] = [
 ];
 
 const AppSidebar: React.FC = () => {
-  const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
+  const { isExpanded, isMobileOpen, isHovered, setIsHovered, toggleMobileSidebar } = useSidebar();
   const pathname = usePathname();
+
+  const closeMobileSidebar = useCallback(() => {
+    if (isMobileOpen) toggleMobileSidebar();
+  }, [isMobileOpen, toggleMobileSidebar]);
 
   const renderMenuItems = (
     navItems: NavItem[],
@@ -175,6 +204,7 @@ const AppSidebar: React.FC = () => {
             nav.path && (
               <Link
                 href={nav.path}
+                onClick={closeMobileSidebar}
                 className={`menu-item group ${
                   isActive(nav.path) ? "menu-item-active" : "menu-item-inactive"
                 }`}
@@ -212,6 +242,7 @@ const AppSidebar: React.FC = () => {
                   <li key={subItem.name}>
                     <Link
                       href={subItem.path}
+                      onClick={closeMobileSidebar}
                       className={`menu-dropdown-item ${
                         isActive(subItem.path)
                           ? "menu-dropdown-item-active"
@@ -335,31 +366,15 @@ const AppSidebar: React.FC = () => {
           !isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
         }`}
       >
-        <Link href="/">
+        <Link href="/dashboard" className="flex items-center" onClick={closeMobileSidebar}>
           {isExpanded || isHovered || isMobileOpen ? (
-            <>
-              <Image
-                className="dark:hidden"
-                src="/images/logo/logo.svg"
-                alt="Logo"
-                width={150}
-                height={40}
-              />
-              <Image
-                className="hidden dark:block"
-                src="/images/logo/logo-dark.svg"
-                alt="Logo"
-                width={150}
-                height={40}
-              />
-            </>
+            <span className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
+              GoGoCash Admin
+            </span>
           ) : (
-            <Image
-              src="/images/logo/logo-icon.svg"
-              alt="Logo"
-              width={32}
-              height={32}
-            />
+            <span className="text-center text-sm font-semibold text-gray-900 dark:text-white">
+              GoGoCash
+            </span>
           )}
         </Link>
       </div>

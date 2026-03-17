@@ -1,9 +1,9 @@
-# GoGoCash Admin Dashboard
+# GoGoCash Admin Dashboard (Internal — Mock only)
 
+> **Internal use only.** This build uses **mock data only**. All data is from `/api/mock` (550+ users, offers, withdrawals, conversions, coupons). No real API is used.  
 > **Framework**: Next.js 15.2.3 · React 19 · TypeScript  
 > **UI**: Tailwind CSS 4 + Material-UI 7 · ApexCharts · FullCalendar  
-> **Auth**: NextAuth v4 (Credentials → JWT)  
-> **Deployment**: Docker → Google Cloud Run / GKE / App Engine  
+> **Auth**: NextAuth v4 (Credentials → JWT); mock sign-in: **admin@gogocash.co** / **1234**
 
 Admin dashboard for managing GoGoCash operations — users, offers, withdrawals, conversions, fee settings, banners, coupons, and KPI monitoring.
 
@@ -12,9 +12,9 @@ Admin dashboard for managing GoGoCash operations — users, offers, withdrawals,
 ## Quick Start
 
 1. Copy `.env.example` to `.env.local`.
-2. Install dependencies with `yarn install`.
-3. Run the dashboard with `yarn dev:3001`.
-4. Sign in with an admin account served by the API pointed to by `NEXT_PUBLIC_API_URL`.
+2. Install dependencies with `yarn install` (or `npm install`).
+3. Run the dashboard with `yarn dev:3001` (or `npm run dev`).
+4. Sign in with **`admin@gogocash.co`** / **`1234`**. All data is mock (internal use only).
 
 ## Related Repositories
 
@@ -245,9 +245,10 @@ yarn start
 
 Create `.env.local` from `.env.example` and fill in the values below.
 
+This build is **internal-only** and uses **mock data only**. The app always calls `/api/mock`; no real backend or `NEXT_PUBLIC_API_URL` is used.
+
 ```bash
 # ─── Required ───
-NEXT_PUBLIC_API_URL=http://localhost:8080       # Backend API base URL
 NEXTAUTH_SECRET=<random-secret-string>          # NextAuth encryption key
 NEXTAUTH_URL=http://localhost:3001              # Canonical URL for auth callbacks
 NODE_ENV=development
@@ -371,7 +372,7 @@ interface Session {
 
 ### ApiClient Singleton (`src/lib/api.ts`)
 
-Base URL: `NEXT_PUBLIC_API_URL` (defaults to `https://api.gogocash.co`)
+Base URL: **`/api/mock`** only (internal build; all data is mock).
 
 All requests include `Authorization: Bearer {token}` from the NextAuth session.
 

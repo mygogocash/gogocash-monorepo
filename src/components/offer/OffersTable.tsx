@@ -1,17 +1,22 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useApi } from "@/hooks/useApi";
 import { Offer, OfferRequestForm, OffersQuery } from "@/types/api";
+import { pathImage } from "@/utils/helper";
 import { useSession } from "next-auth/react";
 import FormOffer from "./FormOffer";
 import { useRouter } from "next/navigation";
 import Select from "../form/Select";
+import { Modal } from "../ui/modal";
 
 export default function OffersTable() {
   const [openModal, setOpenModal] = useState<Offer | boolean>(false);
+  const [selectedOfferForMenu, setSelectedOfferForMenu] = useState<Offer | null>(null);
+  const [openActionsId, setOpenActionsId] = useState<string | null>(null);
+  const actionsDropdownRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const [form, setForm] = useState<OfferRequestForm>({
@@ -26,6 +31,10 @@ export default function OffersTable() {
     id: "",
     banner_mobile: null,
     extra_store: false,
+    upsize_start_date: null,
+    upsize_end_date: null,
+    upsize_special_commission: null,
+    upsize_max_cap: null,
   });
   const { data } = useSession();
   const session = data as { accessToken?: string };
@@ -76,6 +85,19 @@ export default function OffersTable() {
   useEffect(() => {
     fetchOffers();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Close actions dropdown when clicking outside
+  useEffect(() => {
+    if (!openActionsId) return;
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (actionsDropdownRef.current && !actionsDropdownRef.current.contains(target)) {
+        setOpenActionsId(null);
+      }
+    };
+    document.addEventListener("click", handleClick, true);
+    return () => document.removeEventListener("click", handleClick, true);
+  }, [openActionsId]);
 
   // Handle search
   const handleSearch = (searchValue: string) => {
@@ -134,6 +156,81 @@ export default function OffersTable() {
         isLoading={isLoading}
         setIsLoading={setIsLoading}
       />
+
+      {/* Row-click menu: Edit, View detail, View conversions */}
+      <Modal
+        isOpen={!!selectedOfferForMenu}
+        onClose={() => setSelectedOfferForMenu(null)}
+        className="max-w-sm p-0"
+        showCloseButton={true}
+      >
+        <div className="p-5">
+          <h4 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+            {selectedOfferForMenu?.offer_name ?? "Offer"}
+          </h4>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Choose an action
+          </p>
+          <div className="mt-4 flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (selectedOfferForMenu) {
+                  setOpenModal(selectedOfferForMenu);
+                  setForm({
+                    logo_desktop: null,
+                    logo_mobile: null,
+                    id: selectedOfferForMenu._id,
+                    offer_name_display:
+                      selectedOfferForMenu.offer_name_display || selectedOfferForMenu.offer_name,
+                    banner: null,
+                    logo_circle: null,
+                    disabled: selectedOfferForMenu.disabled,
+                    max_cap: selectedOfferForMenu.max_cap,
+                    commission_store: selectedOfferForMenu.commission_store,
+                    banner_mobile: null,
+                    extra_store: selectedOfferForMenu.extra_store || false,
+                    upsize_start_date: selectedOfferForMenu.upsize_start_date ?? null,
+                    upsize_end_date: selectedOfferForMenu.upsize_end_date ?? null,
+                    upsize_special_commission: selectedOfferForMenu.upsize_special_commission ?? null,
+                    upsize_max_cap: selectedOfferForMenu.upsize_max_cap ?? null,
+                  });
+                  setSelectedOfferForMenu(null);
+                }
+              }}
+              className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2.5 text-sm font-medium text-gray-800 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+            >
+              Edit offer
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (selectedOfferForMenu) {
+                  router.push(`/offers/${selectedOfferForMenu._id}`);
+                  setSelectedOfferForMenu(null);
+                }
+              }}
+              className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2.5 text-sm font-medium text-gray-800 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+            >
+              View offer detail
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (selectedOfferForMenu) {
+                  const q = encodeURIComponent(selectedOfferForMenu.offer_name || String(selectedOfferForMenu.offer_id ?? selectedOfferForMenu._id));
+                  router.push(`/conversion?search=${q}`);
+                  setSelectedOfferForMenu(null);
+                }
+              }}
+              className="w-full rounded-lg border border-brand-500 bg-brand-500 py-2.5 text-sm font-medium text-white hover:bg-brand-600 dark:border-brand-500 dark:bg-brand-500 dark:hover:bg-brand-600"
+            >
+              View conversions
+            </button>
+          </div>
+        </div>
+      </Modal>
+
       <div className="flex items-center justify-between px-6 py-5">
         <div>
           <h3 className="text-base font-medium text-gray-800 dark:text-white/90">
@@ -161,26 +258,25 @@ export default function OffersTable() {
             type="text"
             placeholder="Search offers..."
             onChange={(e) => handleSearch(e.target.value)}
-            className="h-11 w-full rounded-lg border border-gray-200 bg-transparent px-5 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden xl:w-[300px] dark:border-gray-800 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"
+            className="h-11 w-full rounded-lg border border-gray-200 bg-transparent px-5 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:ring-brand-500/20 focus:outline-hidden xl:w-[300px] dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400 dark:focus:ring-brand-400/30"
           />
           <Select
             options={[
               { label: "All", value: "" },
-              { label: "Thailand", value: "Thailand" },
-              { label: "Indonesia", value: "Indonesia" },
-              { label: "Vietnam", value: "Vietnam" },
-              { label: "Philippines", value: "Philippines" },
-              { label: "India", value: "India" },
-              { label: "Malaysia", value: "Malaysia" },
-              { label: "Brazil", value: "Brazil" },
-              { label: "India", value: "India" },
+              { label: "🇹🇭 Thailand", value: "Thailand" },
+              { label: "🇮🇩 Indonesia", value: "Indonesia" },
+              { label: "🇻🇳 Vietnam", value: "Vietnam" },
+              { label: "🇵🇭 Philippines", value: "Philippines" },
+              { label: "🇮🇳 India", value: "India" },
+              { label: "🇲🇾 Malaysia", value: "Malaysia" },
+              { label: "🇧🇷 Brazil", value: "Brazil" },
               {
-                label: "United States of America",
+                label: "🇺🇸 United States of America",
                 value: "United States of America",
               },
-              { label: "United Kingdom", value: "United Kingdom" },
-              { label: "Singapore", value: "Singapore" },
-              { label: "Myanmar", value: "Myanmar" },
+              { label: "🇬🇧 United Kingdom", value: "United Kingdom" },
+              { label: "🇸🇬 Singapore", value: "Singapore" },
+              { label: "🇲🇲 Myanmar", value: "Myanmar" },
             ]}
             placeholder="Select country"
             onChange={(e) => {
@@ -193,13 +289,13 @@ export default function OffersTable() {
       </div>
 
       {/* Content */}
-      <div className="border-t border-gray-100 p-4 sm:p-6 dark:border-gray-800">
+      <div className="border-t border-gray-100 p-4 sm:p-6 dark:border-gray-700 dark:bg-white/[0.02]">
         {error && (
           <div className="mb-4 rounded-lg border border-red-300 bg-red-100 p-3 text-red-700 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400">
             {error}
             <button
               onClick={clearError}
-              className="ml-2 text-red-800 hover:text-red-900"
+              className="ml-2 text-red-800 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
             >
               ×
             </button>
@@ -208,80 +304,92 @@ export default function OffersTable() {
 
         {loading && (
           <div className="flex items-center justify-center py-8">
-            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
-            <span className="ml-2">Loading offers...</span>
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-brand-500 dark:border-gray-700 dark:border-t-brand-400"></div>
+            <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Loading offers...</span>
           </div>
         )}
 
         {!loading && (
           <>
             {/* Offers Table */}
-            <div className="max-w-[1100px] overflow-x-auto">
-              <table className="w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <div className="w-full overflow-x-auto -mx-4 sm:mx-0">
+              <table className="w-full min-w-[800px] divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-800">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400 sm:px-6">
                       #
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400 sm:px-6">
                       Offer
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400 sm:px-6">
                       Logo desktop
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400 sm:px-6">
                       Logo mobile
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400 sm:px-6">
                       Bannner
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400 sm:px-6">
                       Logo circle
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400 sm:px-6">
                       Category
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400 sm:px-6">
+                      Max Cap
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400 sm:px-6">
+                      Max Commission
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400 sm:px-6">
                       Status
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400 sm:px-6">
                       Actions
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
-                  {offers.map((offer, index) => (
+                  {offers.map((offer, index) => {
+                    const logoDesktopSrc = pathImage(offer.logo_desktop);
+                    const logoMobileSrc = pathImage(offer.logo_mobile);
+                    const bannerSrc = pathImage(offer.banner);
+                    const logoCircleSrc = pathImage(offer.logo_circle);
+                    const has = (s: string) => typeof s === "string" && s.length > 0;
+                    return (
                     <tr
                       key={offer._id}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-800"
+                      className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
                       onClick={(event) => {
                         event.stopPropagation();
-                        router.push(`/offers/${offer._id}`);
+                        setSelectedOfferForMenu(offer);
                       }}
                     >
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="whitespace-nowrap px-4 py-3 sm:px-6 sm:py-4">
                         {index + 1}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="min-w-0 px-4 py-3 sm:px-6 sm:py-4">
                         <div className="flex items-center">
                           <div className="h-12 w-12 flex-shrink-0">
                             {offer.logo ? (
                               <Image
-                                className="h-12 w-12 rounded-lg object-cover"
+                                className="h-10 w-10 rounded-lg object-cover sm:h-12 sm:w-12"
                                 src={offer.logo}
                                 alt={offer.offer_name}
                                 width={48}
                                 height={48}
                               />
                             ) : (
-                              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gray-300">
-                                <span className="text-xs font-medium text-gray-700">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-300 dark:bg-gray-600 sm:h-12 sm:w-12">
+                                <span className="text-xs font-medium text-gray-700 dark:text-gray-200">
                                   {offer.offer_name.charAt(0).toUpperCase()}
                                 </span>
                               </div>
                             )}
                           </div>
-                          <div className="ml-4">
+                          <div className="ml-2 min-w-0 sm:ml-4">
                             <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                               {offer.offer_name}
                             </div>
@@ -322,64 +430,80 @@ export default function OffersTable() {
                         </div>
                       </td>
 
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="whitespace-nowrap px-4 py-3 sm:px-6 sm:py-4">
                         <div className="flex items-center">
-                          <div className="h-12 w-12 flex-shrink-0">
-                            <img
-                              className="h-12 w-12 rounded-lg object-cover"
-                              src={`${process.env.NEXT_PUBLIC_API_URL}/google-drive/file/${offer.logo_desktop}`}
-                              alt={offer.offer_name}
-                              width={48}
-                              height={48}
-                            />
+                          <div className="h-10 w-10 flex-shrink-0 sm:h-12 sm:w-12">
+                            {has(logoDesktopSrc) ? (
+                              <img
+                                className="h-10 w-10 rounded-lg object-cover sm:h-12 sm:w-12"
+                                src={logoDesktopSrc}
+                                alt={offer.offer_name}
+                                width={48}
+                                height={48}
+                              />
+                            ) : (
+                              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-200 dark:bg-gray-600 sm:h-12 sm:w-12 text-xs text-gray-500 dark:text-gray-400">—</div>
+                            )}
                           </div>
                         </div>
                       </td>
 
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="whitespace-nowrap px-4 py-3 sm:px-6 sm:py-4">
                         <div className="flex items-center">
-                          <div className="h-12 w-12 flex-shrink-0">
-                            <img
-                              className="h-12 w-12 rounded-lg object-cover"
-                              src={`${process.env.NEXT_PUBLIC_API_URL}/google-drive/file/${offer.logo_mobile}`}
-                              alt={offer.offer_name}
-                              width={48}
-                              height={48}
-                            />
+                          <div className="h-10 w-10 flex-shrink-0 sm:h-12 sm:w-12">
+                            {has(logoMobileSrc) ? (
+                              <img
+                                className="h-10 w-10 rounded-lg object-cover sm:h-12 sm:w-12"
+                                src={logoMobileSrc}
+                                alt={offer.offer_name}
+                                width={48}
+                                height={48}
+                              />
+                            ) : (
+                              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-200 dark:bg-gray-600 sm:h-12 sm:w-12 text-xs text-gray-500 dark:text-gray-400">—</div>
+                            )}
                           </div>
                         </div>
                       </td>
 
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="whitespace-nowrap px-4 py-3 sm:px-6 sm:py-4">
                         <div className="flex items-center">
-                          <div className="h-12 w-12 flex-shrink-0">
-                            <img
-                              className="h-12 w-12 rounded-lg object-cover"
-                              src={`${process.env.NEXT_PUBLIC_API_URL}/google-drive/file/${offer.banner}`}
-                              alt={offer.offer_name}
-                              width={48}
-                              height={48}
-                            />
+                          <div className="h-10 w-10 flex-shrink-0 sm:h-12 sm:w-12">
+                            {has(bannerSrc) ? (
+                              <img
+                                className="h-10 w-10 rounded-lg object-cover sm:h-12 sm:w-12"
+                                src={bannerSrc}
+                                alt={offer.offer_name}
+                                width={48}
+                                height={48}
+                              />
+                            ) : (
+                              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-200 dark:bg-gray-600 sm:h-12 sm:w-12 text-xs text-gray-500 dark:text-gray-400">—</div>
+                            )}
                           </div>
                         </div>
                       </td>
 
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="whitespace-nowrap px-4 py-3 sm:px-6 sm:py-4">
                         <div className="flex items-center">
-                          <div className="h-12 w-12 flex-shrink-0">
-                            <img
-                              className="h-12 w-12 rounded-lg object-cover"
-                              src={`${process.env.NEXT_PUBLIC_API_URL}/google-drive/file/${offer.logo_circle}`}
-                              alt={offer.offer_name}
-                              width={48}
-                              height={48}
-                            />
+                          <div className="h-10 w-10 flex-shrink-0 sm:h-12 sm:w-12">
+                            {has(logoCircleSrc) ? (
+                              <img
+                                className="h-10 w-10 rounded-lg object-cover sm:h-12 sm:w-12"
+                                src={logoCircleSrc}
+                                alt={offer.offer_name}
+                                width={48}
+                                height={48}
+                              />
+                            ) : (
+                              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-200 dark:bg-gray-600 sm:h-12 sm:w-12 text-xs text-gray-500 dark:text-gray-400">—</div>
+                            )}
                           </div>
                         </div>
                       </td>
 
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 dark:text-gray-100">
+                      <td className="min-w-0 px-4 py-3 sm:px-6 sm:py-4">
+                        <div className="text-sm text-gray-900 dark:text-gray-100 break-words">
                           {offer.categories || "Uncategorized"}
                         </div>
                         {offer.currency && (
@@ -388,9 +512,15 @@ export default function OffersTable() {
                           </div>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="whitespace-nowrap px-4 py-3 sm:px-6 sm:py-4 text-sm text-gray-900 dark:text-gray-100">
+                        {offer.max_cap != null ? offer.max_cap.toLocaleString() : "—"}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 sm:px-6 sm:py-4 text-sm text-gray-900 dark:text-gray-100">
+                        {offer.commission_store != null ? `${offer.commission_store}%` : "—"}
+                      </td>
+                      <td className="min-w-0 px-4 py-3 sm:px-6 sm:py-4">
                         <span
-                          className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
+                          className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold break-words ${
                             offer.tracking_type === "active"
                               ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
                               : offer.tracking_type === "expired"
@@ -401,42 +531,93 @@ export default function OffersTable() {
                           {offer.tracking_type || "Active"}
                         </span>
                       </td>
-                      <td className="space-x-2 px-6 py-4 text-sm font-medium whitespace-nowrap">
-                        <button
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setOpenModal(offer);
-                            setForm({
-                              logo_desktop: null,
-                              logo_mobile: null,
-                              id: offer._id,
-                              offer_name_display:
-                                offer.offer_name_display || offer.offer_name,
-                              banner: null,
-                              logo_circle: null,
-                              disabled: offer.disabled,
-                              max_cap: offer.max_cap,
-                              commission_store: offer.commission_store,
-                              banner_mobile: null,
-                              extra_store: offer.extra_store || false,
-                            });
-                          }}
-                          className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                      <td className="relative whitespace-nowrap px-4 py-3 text-sm font-medium sm:px-6 sm:py-4">
+                        <div
+                          ref={openActionsId === offer._id ? actionsDropdownRef : undefined}
+                          className="relative inline-block"
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          Edit
-                        </button>
-                        <button
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            handleDeleteOffer(offer._id);
-                          }}
-                          className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-                        >
-                          Delete
-                        </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenActionsId((id) => (id === offer._id ? null : offer._id));
+                            }}
+                            className="inline-flex min-h-[2rem] items-center justify-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                            aria-expanded={openActionsId === offer._id}
+                            aria-haspopup="true"
+                          >
+                            Actions
+                            <svg className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+                          {openActionsId === offer._id && (
+                            <div
+                              className="absolute right-0 top-full z-50 mt-1 min-w-[10rem] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800"
+                              role="menu"
+                            >
+                              <button
+                                type="button"
+                                role="menuitem"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenModal(offer);
+                                  setForm({
+                                    logo_desktop: null,
+                                    logo_mobile: null,
+                                    id: offer._id,
+                                    offer_name_display: offer.offer_name_display || offer.offer_name,
+                                    banner: null,
+                                    logo_circle: null,
+                                    disabled: offer.disabled,
+                                    max_cap: offer.max_cap,
+                                    commission_store: offer.commission_store,
+                                    banner_mobile: null,
+                                    extra_store: offer.extra_store || false,
+                                    upsize_start_date: offer.upsize_start_date ?? null,
+                                    upsize_end_date: offer.upsize_end_date ?? null,
+                                    upsize_special_commission: offer.upsize_special_commission ?? null,
+                                    upsize_max_cap: offer.upsize_max_cap ?? null,
+                                  });
+                                  setOpenActionsId(null);
+                                }}
+                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                role="menuitem"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const q = encodeURIComponent(offer.offer_name || String(offer.offer_id ?? offer._id));
+                                  router.push(`/conversion?search=${q}`);
+                                  setOpenActionsId(null);
+                                }}
+                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+                              >
+                                View conversions
+                              </button>
+                              <button
+                                type="button"
+                                role="menuitem"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteOffer(offer._id);
+                                  setOpenActionsId(null);
+                                }}
+                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </td>
                     </tr>
-                  ))}
+                  );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -461,21 +642,53 @@ export default function OffersTable() {
                   )}{" "}
                   of {pagination.total} results
                 </div>
-                <div className="flex space-x-2">
+                <div className="flex flex-wrap items-center justify-center gap-1 sm:gap-2">
                   <button
                     onClick={() => handlePageChange(pagination.page - 1)}
                     disabled={!hasPrevPage}
-                    className="rounded border px-3 py-1 text-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:hover:bg-gray-800"
+                    className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800/50 dark:text-gray-300 dark:hover:bg-gray-700 dark:disabled:opacity-40"
                   >
                     Previous
                   </button>
-                  <span className="px-3 py-1 text-sm">
-                    Page {pagination.page} of {pagination.totalPages}
-                  </span>
+                  {(() => {
+                    const total = pagination.totalPages;
+                    const current = pagination.page;
+                    const pages: (number | "ellipsis")[] = [];
+                    if (total <= 20) {
+                      for (let i = 1; i <= total; i++) pages.push(i);
+                    } else {
+                      pages.push(1);
+                      if (current > 3) pages.push("ellipsis");
+                      for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) {
+                        if (!pages.includes(i)) pages.push(i);
+                      }
+                      if (current < total - 2) pages.push("ellipsis");
+                      if (total > 1) pages.push(total);
+                    }
+                    return pages.map((p, idx) =>
+                      p === "ellipsis" ? (
+                        <span key={`ellipsis-${idx}`} className="px-1.5 py-1 text-sm text-gray-500 dark:text-gray-400">
+                          …
+                        </span>
+                      ) : (
+                        <button
+                          key={p}
+                          onClick={() => handlePageChange(p)}
+                          className={`min-w-[2rem] rounded border px-2.5 py-1.5 text-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800/50 dark:text-gray-300 dark:hover:bg-gray-700 ${
+                            p === current
+                              ? "border-brand-500 bg-brand-50 font-medium text-brand-600 dark:border-brand-500 dark:bg-brand-500/20 dark:text-brand-400"
+                              : "border-gray-300 dark:border-gray-600"
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      )
+                    );
+                  })()}
                   <button
                     onClick={() => handlePageChange(pagination.page + 1)}
                     disabled={!hasNextPage}
-                    className="rounded border px-3 py-1 text-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:hover:bg-gray-800"
+                    className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800/50 dark:text-gray-300 dark:hover:bg-gray-700 dark:disabled:opacity-40"
                   >
                     Next
                   </button>

@@ -9,6 +9,8 @@ import {
   RegularUser,
   UsersQuery,
   UsersResponse,
+  DashboardStatsResponse,
+  DashboardSummaryResponse,
   Offer,
   OffersQuery,
   OffersResponse,
@@ -25,7 +27,13 @@ class ApiClient {
   private baseURL: string;
 
   constructor() {
-    this.baseURL = process.env.NEXT_PUBLIC_API_URL || "https://api.gogocash.co";
+    // Internal-only: always use mock API. All data is from /api/mock.
+    let base = "/api/mock";
+    if (typeof window === "undefined") {
+      const appOrigin = (process.env.NEXTAUTH_URL || "http://localhost:3000").replace(/\/$/, "");
+      base = appOrigin + base;
+    }
+    this.baseURL = base;
   }
 
    private async request<T>(
@@ -317,6 +325,22 @@ class ApiClient {
     });
   }
 
+  async inviteAdminUser(
+    email: string,
+    token?: string,
+  ): Promise<{ message: string }> {
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    return this.request<{ message: string }>("/admin/invite", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ email }),
+    });
+  }
+
   // Regular User Management (from /user endpoint)
   async getUsers(
     query: UsersQuery = {},
@@ -406,6 +430,30 @@ class ApiClient {
     });
   }
 
+  // Dashboard stats (user counts for homepage)
+  async getDashboardStats(token?: string): Promise<DashboardStatsResponse> {
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    return this.request<DashboardStatsResponse>("/dashboard/stats", {
+      method: "GET",
+      headers,
+    });
+  }
+
+  // Dashboard summary (management insights: conversion + withdraw aggregates)
+  async getDashboardSummary(token?: string): Promise<DashboardSummaryResponse> {
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    return this.request<DashboardSummaryResponse>("/dashboard/summary", {
+      method: "GET",
+      headers,
+    });
+  }
+
   // Offer Management (from /offer endpoint)
   async getOffers(query: OffersQuery = {}): Promise<OffersResponse> {
     // Build query parameters
@@ -466,6 +514,25 @@ class ApiClient {
       ? `/admin/conversion-all?${queryString}`
       : "/admin/conversion-all";
 
+    return this.request<ResponseConversion>(endpoint, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  }
+
+  async getCreatedConversions(
+    query: ConversionQuery = {},
+    token: string,
+  ): Promise<ResponseConversion> {
+    const params = new URLSearchParams();
+    if (query.limit) params.append("limit", query.limit.toString());
+    if (query.page) params.append("page", query.page.toString());
+    const queryString = params.toString();
+    const endpoint = queryString
+      ? `/admin/created-conversions?${queryString}`
+      : "/admin/created-conversions";
     return this.request<ResponseConversion>(endpoint, {
       method: "GET",
       headers: {

@@ -27,11 +27,21 @@ export default function FullScreenModal() {
         isFullscreen={true}
         showCloseButton={true}
       >
-        <div className="fixed top-0 left-0 flex flex-col justify-between w-full h-screen p-6 overflow-x-hidden overflow-y-auto bg-white dark:bg-gray-900 lg:p-10">
-          <div>
-            <h4 className="font-semibold text-gray-800 mb-7 text-title-sm dark:text-white/90">
+        <div className="fixed top-0 left-0 flex flex-col w-full h-screen p-6 overflow-x-hidden overflow-y-auto bg-white dark:bg-gray-900 lg:p-10">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-4 dark:border-gray-700 shrink-0">
+            <h4 className="font-semibold text-gray-800 text-title-sm dark:text-white/90">
               Modal Heading
             </h4>
+            <div className="flex shrink-0 items-center gap-3">
+              <Button size="sm" variant="outline" onClick={closeFullscreenModal}>
+                Close
+              </Button>
+              <Button size="sm" onClick={handleSave}>
+                Save Changes
+              </Button>
+            </div>
+          </div>
+          <div className="mt-4">
             <p className="text-sm leading-6 text-gray-500 dark:text-gray-400">
               Lorem ipsum dolor sit amet, consectetur adipiscing elit.
               Pellentesque euismod est quis mauris lacinia pharetra. Sed a
@@ -50,14 +60,6 @@ export default function FullScreenModal() {
               Lorem ipsum dolor sit amet, consectetur adipiscing elit.
               Pellentesque euismod est quis mauris lacinia pharetra.
             </p>
-          </div>
-          <div className="flex items-center justify-end w-full gap-3 mt-8">
-            <Button size="sm" variant="outline" onClick={closeFullscreenModal}>
-              Close
-            </Button>
-            <Button size="sm" onClick={handleSave}>
-              Save Changes
-            </Button>
           </div>
         </div>
       </Modal>

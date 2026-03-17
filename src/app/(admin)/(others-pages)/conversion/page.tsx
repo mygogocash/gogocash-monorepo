@@ -1,18 +1,24 @@
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import { Metadata } from "next";
-import ConversionTable from "@/components/conversion/ConversionTable";
+import ConversionPageClient from "./ConversionPageClient";
 
 export const metadata: Metadata = {
-  title: "Offers | TailAdmin - Next.js Dashboard Template",
-  description: "Browse and manage offers",
+  title: "Conversion | GoGoCash Admin",
 };
 
 export default function ConversionPage() {
   return (
-    <div>
-      <PageBreadcrumb pageTitle="Conversion" />
+    <div className="min-w-0">
+      <PageBreadcrumb
+        pageTitle="Conversion"
+        items={[
+          { label: "Home", href: "/dashboard" },
+          { label: "Conversion Management" },
+          { label: "Conversion" },
+        ]}
+      />
       <div className="space-y-6">
-        <ConversionTable />
+        <ConversionPageClient />
       </div>
     </div>
   );

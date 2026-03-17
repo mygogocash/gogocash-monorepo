@@ -4,7 +4,6 @@ import CategoryTable from "@/components/category/CategoryTable";
 
 export const metadata: Metadata = {
   title: "Category | TailAdmin - Next.js Dashboard Template",
-  description: "Browse and manage categories",
 };
 
 export default function CategoryPage() {

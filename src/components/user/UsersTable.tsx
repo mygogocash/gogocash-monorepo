@@ -1,19 +1,31 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useApi } from "@/hooks/useApi";
 import { Offer, RegularUser, UsersQuery } from "@/types/api";
 import FormUpdate from "./FormUpdate";
 import { UserForm } from "@/types/user";
 import ViewMyCashback from "./ViewMyCashback";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function UsersTable() {
+  const searchParams = useSearchParams();
   const { loading, error, getUsers, deleteUser, clearError } = useApi();
   const [isLoading, setIsLoading] = useState(false);
-  const [form, setForm] = useState<UserForm>({ mobile: "", id: "" });
+  const [form, setForm] = useState<UserForm>({
+    id: "",
+    mobile: "",
+    username: "",
+    email: "",
+    address: "",
+    birthdate: "",
+    country: "",
+    gender: "",
+  });
   const [openModal, setOpenModal] = useState<Offer | boolean>(false);
   const [openModalView, setOpenModalView] = useState<boolean>(false);
+  const [openActionsId, setOpenActionsId] = useState<string | null>(null);
+  const actionsDropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const [users, setUsers] = useState<RegularUser[]>([]);
   const [pagination, setPagination] = useState({
@@ -29,10 +41,22 @@ export default function UsersTable() {
     search: "",
   });
 
+  // Apply ?search= from URL on mount (e.g. from Conversion "View user info")
+  useEffect(() => {
+    const initialSearch = searchParams.get("search") ?? "";
+    if (initialSearch) {
+      const q = { ...query, search: initialSearch, page: 1 };
+      setQuery(q);
+      fetchUsersWithQuery(q);
+    } else {
+      fetchUsersWithQuery(query);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Fetch users
-  const fetchUsers = async (newQuery?: UsersQuery) => {
+  const fetchUsersWithQuery = async (queryToUse: UsersQuery) => {
     try {
-      const queryToUse = newQuery || query;
       const response = await getUsers(queryToUse);
       setUsers(response.data);
       setPagination(response.pagination);
@@ -41,10 +65,23 @@ export default function UsersTable() {
     }
   };
 
-  // Initial load
+  const fetchUsers = async (newQuery?: UsersQuery) => {
+    const queryToUse = newQuery ?? query;
+    await fetchUsersWithQuery(queryToUse);
+  };
+
+  // Close actions dropdown when clicking outside
   useEffect(() => {
-    fetchUsers();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!openActionsId) return;
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (actionsDropdownRef.current && !actionsDropdownRef.current.contains(target)) {
+        setOpenActionsId(null);
+      }
+    };
+    document.addEventListener("click", handleClick, true);
+    return () => document.removeEventListener("click", handleClick, true);
+  }, [openActionsId]);
 
   // Handle search
   const handleSearch = (searchValue: string) => {
@@ -107,13 +144,14 @@ export default function UsersTable() {
         <input
           type="text"
           placeholder="Search users..."
+          value={query.search}
           onChange={(e) => handleSearch(e.target.value)}
-          className="h-11 w-full rounded-lg border border-gray-200 bg-transparent px-5 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden xl:w-[300px] dark:border-gray-800 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"
+          className="h-11 w-full rounded-lg border border-gray-200 bg-transparent px-5 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:ring-brand-500/20 focus:outline-hidden xl:w-[300px] dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400 dark:focus:ring-brand-400/30"
         />
       </div>
 
       {/* Content */}
-      <div className="border-t border-gray-100 p-4 sm:p-6 dark:border-gray-800">
+      <div className="border-t border-gray-100 p-4 sm:p-6 dark:border-gray-700 dark:bg-white/[0.02]">
         {error && (
           <div className="mb-4 rounded-lg border border-red-300 bg-red-100 p-3 text-red-700 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400">
             {error}
@@ -220,43 +258,79 @@ export default function UsersTable() {
                             {"User"}
                           </span>
                         </td>
-                        <td className="space-x-2 px-6 py-4 text-sm font-medium whitespace-nowrap">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setOpenModal(true);
-                              setForm({
-                                id: user._id,
-                                mobile: user.mobile || "",
-                              });
-                            }}
-                            className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                        <td className="relative px-6 py-4 text-sm font-medium whitespace-nowrap">
+                          <div
+                            ref={openActionsId === user._id ? actionsDropdownRef : undefined}
+                            className="relative inline-block"
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            Edit
-                          </button>
-
-                          {/* <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              setOpenModalView(true);
-                              setForm({
-                                id: user._id,
-                                mobile: user.mobile || "",
-                              });
-                            }}
-                            className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
-                          >
-                            View
-                          </button> */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              router.push(`/withdraw/${user._id}`);
-                            }}
-                            className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
-                          >
-                            View
-                          </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenActionsId((id) => (id === user._id ? null : user._id));
+                              }}
+                              className="inline-flex min-h-[2rem] items-center justify-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                              aria-expanded={openActionsId === user._id}
+                              aria-haspopup="true"
+                            >
+                              Actions
+                              <svg className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </button>
+                            {openActionsId === user._id && (
+                              <div
+                                className="absolute right-0 top-full z-50 mt-1 min-w-[10rem] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800"
+                                role="menu"
+                              >
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenModal(true);
+                                    setForm({
+                                      id: user._id,
+                                      mobile: user.mobile ?? "",
+                                      username: user.username ?? "",
+                                      email: user.email ?? "",
+                                      address: user.address ?? "",
+                                      birthdate: user.birthdate
+                                        ? new Date(user.birthdate).toISOString().slice(0, 10)
+                                        : "",
+                                      country: user.country ?? "",
+                                      gender: user.gender ?? "",
+                                      bank_account_name: (user as { bank_account_name?: string }).bank_account_name ?? "",
+                                      bank_name: (user as { bank_name?: string }).bank_name ?? "",
+                                      bank_account_number: (user as { bank_account_number?: string }).bank_account_number ?? "",
+                                      wallet_info: (user as { wallet_info?: string }).wallet_info ?? "",
+                                    });
+                                    setOpenActionsId(null);
+                                  }}
+                                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    router.push(
+                                      `/withdraw/${user._id}?from=users&name=${encodeURIComponent(
+                                        user.username || user.email || "User"
+                                      )}`
+                                    );
+                                    setOpenActionsId(null);
+                                  }}
+                                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+                                >
+                                  View withdrawals
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -275,17 +349,17 @@ export default function UsersTable() {
                   )}{" "}
                   of {pagination.total} results
                 </div>
-                <div className="flex space-x-2">
+                <div className="flex flex-wrap items-center justify-center gap-2">
                   <button
                     onClick={() =>
                       handlePageChange(Number(pagination.page) - 1)
                     }
                     disabled={!hasPrevPage}
-                    className="rounded border px-3 py-1 text-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:hover:bg-gray-800"
+                    className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800/50 dark:text-gray-300 dark:hover:bg-gray-700 dark:disabled:opacity-40"
                   >
                     Previous
                   </button>
-                  <span className="px-3 py-1 text-sm">
+                  <span className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400">
                     Page {pagination.page} of {pagination.totalPages}
                   </span>
                   <button
@@ -297,7 +371,7 @@ export default function UsersTable() {
                       );
                     }}
                     disabled={!hasNextPage}
-                    className="rounded border px-3 py-1 text-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:hover:bg-gray-800"
+                    className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800/50 dark:text-gray-300 dark:hover:bg-gray-700 dark:disabled:opacity-40"
                   >
                     Next
                   </button>

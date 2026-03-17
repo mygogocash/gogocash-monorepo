@@ -9,7 +9,9 @@ export interface BannerRequestForm {
   link_3: string;
   link_4: string;
   link_5: string;
-  id: string;   
+  start_date: string;
+  end_date: string;
+  id: string;
 }
 
 export type BannerData = Omit<BannerRequestForm, 'id' >

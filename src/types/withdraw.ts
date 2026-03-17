@@ -58,9 +58,23 @@ export interface DataSumByCurrency {
   count: number;
 }
 
+export interface UserLogEntry {
+  action?: string;
+  at?: string;
+  ip?: string;
+}
+
 export interface User {
+  _id?: string;
   email: string;
   mobile: string;
+  fullName?: string;
+  gender?: string;
+  birthdate?: string;
+  wallet?: string;
+  userLog?: UserLogEntry[];
+  totalCashback?: number;
+  totalCashbackCurrency?: string;
 }
 export interface WithdrawList {
   _id: string;

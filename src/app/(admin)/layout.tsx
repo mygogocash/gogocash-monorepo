@@ -5,6 +5,7 @@ import AppHeader from "@/layout/AppHeader";
 import AppSidebar from "@/layout/AppSidebar";
 import Backdrop from "@/layout/Backdrop";
 import AuthGuard from "@/components/auth/AuthGuard";
+import PageTransition from "@/components/PageTransition";
 import React from "react";
 
 export default function AdminLayout({
@@ -29,13 +30,13 @@ export default function AdminLayout({
         <Backdrop />
         {/* Main Content Area */}
         <div
-          className={`flex-1 transition-all duration-300 ease-in-out ${mainContentMargin}`}
+          className={`relative z-10 min-w-0 flex-1 overflow-x-hidden transition-all duration-300 ease-in-out ${mainContentMargin}`}
         >
           {/* Header */}
           <AppHeader />
           {/* Page Content */}
-          <div className="mx-auto max-w-(--breakpoint-2xl) p-4 md:p-6">
-            {children}
+          <div className="mx-auto min-w-0 w-full max-w-screen-2xl px-3 py-4 sm:px-4 md:px-6 md:py-6">
+            <PageTransition>{children}</PageTransition>
           </div>
         </div>
       </div>

@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useModal } from "../../hooks/useModal";
 import { Modal } from "../ui/modal";
 import Button from "../ui/button/Button";
@@ -7,25 +7,67 @@ import Input from "../form/input/InputField";
 import Label from "../form/Label";
 import Image from "next/image";
 
+const DEFAULT_AVATAR = "/images/user/owner.jpg";
 
 export default function UserMetaCard() {
   const { isOpen, openModal, closeModal } = useModal();
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!pendingFile) {
+      setPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(pendingFile);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [pendingFile]);
+
+  const displayAvatar = profileImage ?? DEFAULT_AVATAR;
+  const modalPreviewUrl = previewUrl ?? profileImage ?? DEFAULT_AVATAR;
+
+  const handleCloseModal = () => {
+    setPendingFile(null);
+    closeModal();
+  };
+
   const handleSave = () => {
-    // Handle save logic here
+    if (pendingFile) {
+      const url = URL.createObjectURL(pendingFile);
+      if (profileImage?.startsWith("blob:")) {
+        URL.revokeObjectURL(profileImage);
+      }
+      setProfileImage(url);
+      setPendingFile(null);
+    }
     console.log("Saving changes...");
     closeModal();
   };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith("image/")) {
+      setPendingFile(file);
+    }
+    e.target.value = "";
+  };
+
   return (
     <>
       <div className="p-5 border border-gray-200 rounded-2xl dark:border-gray-800 lg:p-6">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex flex-col items-center w-full gap-6 xl:flex-row">
-            <div className="w-20 h-20 overflow-hidden border border-gray-200 rounded-full dark:border-gray-800">
+            <div className="relative w-20 h-20 overflow-hidden border border-gray-200 rounded-full dark:border-gray-800 shrink-0">
               <Image
                 width={80}
                 height={80}
-                src="/images/user/owner.jpg"
-                alt="user"
+                src={displayAvatar}
+                alt="Profile"
+                className="object-cover w-full h-full"
+                unoptimized={displayAvatar.startsWith("blob:")}
               />
             </div>
             <div className="order-3 xl:order-2">
@@ -136,18 +178,68 @@ export default function UserMetaCard() {
           </button>
         </div>
       </div>
-      <Modal isOpen={isOpen} onClose={closeModal} className="max-w-[700px] m-4">
+      <Modal isOpen={isOpen} onClose={handleCloseModal} className="max-w-[700px] m-4">
         <div className="no-scrollbar relative w-full max-w-[700px] overflow-y-auto rounded-3xl bg-white p-4 dark:bg-gray-900 lg:p-11">
-          <div className="px-2 pr-14">
-            <h4 className="mb-2 text-2xl font-semibold text-gray-800 dark:text-white/90">
-              Edit Personal Information
-            </h4>
-            <p className="mb-6 text-sm text-gray-500 dark:text-gray-400 lg:mb-7">
-              Update your details to keep your profile up-to-date.
-            </p>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-4 dark:border-gray-700">
+            <div className="px-2 min-w-0">
+              <h4 className="mb-1 text-2xl font-semibold text-gray-800 dark:text-white/90">
+                Edit Personal Information
+              </h4>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Update your details to keep your profile up-to-date.
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-3">
+              <Button size="sm" variant="outline" onClick={handleCloseModal}>
+                Close
+              </Button>
+              <Button size="sm" onClick={handleSave}>
+                Save Changes
+              </Button>
+            </div>
           </div>
-          <form className="flex flex-col">
+          <form className="flex flex-col" onSubmit={(e) => e.preventDefault()}>
             <div className="custom-scrollbar h-[450px] overflow-y-auto px-2 pb-3">
+              <div className="mb-7">
+                <h5 className="mb-4 text-lg font-medium text-gray-800 dark:text-white/90 lg:mb-5">
+                  Profile Picture
+                </h5>
+                <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+                  <div className="relative w-24 h-24 overflow-hidden rounded-full border-2 border-gray-200 dark:border-gray-700 shrink-0">
+                    <Image
+                      width={96}
+                      height={96}
+                      src={modalPreviewUrl}
+                      alt="Profile preview"
+                      className="object-cover w-full h-full"
+                      unoptimized={modalPreviewUrl.startsWith("blob:")}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      className="hidden"
+                      aria-label="Choose profile picture"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      Choose image
+                    </Button>
+                    {pendingFile && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {pendingFile.name}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
               <div>
                 <h5 className="mb-5 text-lg font-medium text-gray-800 dark:text-white/90 lg:mb-6">
                   Social Links
@@ -216,14 +308,6 @@ export default function UserMetaCard() {
                   </div>
                 </div>
               </div>
-            </div>
-            <div className="flex items-center gap-3 px-2 mt-6 lg:justify-end">
-              <Button size="sm" variant="outline" onClick={closeModal}>
-                Close
-              </Button>
-              <Button size="sm" onClick={handleSave}>
-                Save Changes
-              </Button>
             </div>
           </form>
         </div>
