@@ -3,7 +3,8 @@
 > **Internal use only.** This build uses **mock data only**. All data is from `/api/mock` (550+ users, offers, withdrawals, conversions, coupons). No real API is used.  
 > **Framework**: Next.js 15.2.3 · React 19 · TypeScript  
 > **UI**: Tailwind CSS 4 + Material-UI 7 · ApexCharts · FullCalendar  
-> **Auth**: NextAuth v4 (Credentials → JWT); mock sign-in: **admin@gogocash.co** / **1234**
+> **Auth**: NextAuth v4 (Credentials → JWT); mock sign-in: **admin@gogocash.co** / **1234**  
+> **Branch:** Push to **staging** only: `git push origin main:staging` (or your branch → `origin/staging`).
 
 Admin dashboard for managing GoGoCash operations — users, offers, withdrawals, conversions, fee settings, banners, coupons, and KPI monitoring.
 
