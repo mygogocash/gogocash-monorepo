@@ -17,7 +17,12 @@ const nextConfig: NextConfig = {
   ...(basePath ? { basePath } : {}),
   ...(assetPrefix ? { assetPrefix } : {}),
   ...(process.env.BUILD_FOR_FIREBASE === "1"
-    ? { output: "export" as const }
+    ? {
+        output: "export" as const,
+        env: {
+          NEXT_PUBLIC_FIREBASE_STATIC: "1",
+        },
+      }
     : process.env.STANDALONE === "1"
       ? { output: "standalone" as const }
       : {}),

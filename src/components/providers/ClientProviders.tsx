@@ -1,5 +1,6 @@
 "use client";
 
+import "@/lib/installFirebaseStaticShims";
 import { SidebarProvider } from "@/context/SidebarContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { SessionProvider } from "next-auth/react";
