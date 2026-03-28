@@ -1,0 +1,56 @@
+# Deploy static export to Firebase Hosting (gogocash-staging) for internal review.
+#
+# Required GitHub repository secrets:
+#   FIREBASE_SERVICE_ACCOUNT_STAGING — JSON key for a GCP service account with
+#     "Firebase Hosting Admin" (or Editor) on project gogocash-staging.
+#   NEXTAUTH_SECRET_STAGING — long random string (same role as NEXTAUTH_SECRET).
+#   NEXTAUTH_URL_STAGING — exact public site URL, no trailing slash, e.g.
+#     https://gogocash-staging-637d5.web.app
+#
+# Optional: run manually via Actions → "Deploy Firebase Hosting (staging)" → Run workflow.
+
+name: Deploy Firebase Hosting (staging)
+
+on:
+  push:
+    branches:
+      - staging
+  workflow_dispatch:
+
+concurrency:
+  group: firebase-staging-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_STAGING }}
+
+      - name: Build static export (Firebase)
+        run: npm run build:firebase
+        env:
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET_STAGING }}
+          NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL_STAGING }}
+          NEXT_TELEMETRY_DISABLED: "1"
+
+      - name: Deploy to Firebase Hosting
+        run: npx firebase deploy --only hosting --project gogocash-staging --non-interactive
