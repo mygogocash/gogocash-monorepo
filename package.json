@@ -20,7 +20,7 @@
     "build:cf": "opennextjs-cloudflare build",
     "preview:cf": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy:cf": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
-    "build:firebase": "cross-env BUILD_FOR_FIREBASE=1 next build",
+    "build:firebase": "cross-env BUILD_FOR_FIREBASE=1 NEXT_PUBLIC_FIREBASE_STATIC=1 next build",
     "deploy:firebase": "npm run build:firebase && firebase deploy",
     "deploy:firebase:staging": "node scripts/deploy-firebase-staging.mjs"
   },

@@ -40,16 +40,53 @@ class ApiClient {
     const baseURL = this.getBaseURL();
     const url = `${baseURL}${endpoint}`;
     
+    const method = (options.method || "GET").toUpperCase();
+    let parsedBody: unknown = undefined;
+    if (options.body) {
+      try {
+        parsedBody = JSON.parse(options.body as string);
+      } catch {
+        parsedBody = undefined;
+      }
+    }
+
     const config = {
       url,
-      method: options.method || 'GET',
+      method,
       headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      ...options.headers,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        ...options.headers,
       },
-      data: options.body ? JSON.parse(options.body as string) : undefined,
+      data: parsedBody,
     };
+
+    if (process.env.NEXT_PUBLIC_FIREBASE_STATIC === "1" && typeof window !== "undefined") {
+      const { handleMockApiRequest } = await import("@/lib/mockApiCore");
+      const u = new URL(url);
+      const prefix = "/api/mock";
+      const pathname = u.pathname;
+      const rest = pathname.startsWith(prefix)
+        ? pathname.slice(prefix.length).replace(/^\/+/, "")
+        : pathname.replace(/^\/+/, "");
+      const pathSegments = rest ? rest.split("/").filter(Boolean) : [];
+      const result = await handleMockApiRequest({
+        method,
+        path: pathSegments,
+        searchParams: u.searchParams,
+        body: parsedBody,
+      });
+      if (result.status >= 400) {
+        const data = result.body as { message?: string; errors?: unknown };
+        const apiError: ApiError = {
+          message: data?.message || `HTTP Error ${result.status}`,
+          status: result.status,
+          errors: data?.errors as ApiError["errors"],
+        };
+        throw apiError;
+      }
+      return result.body as T;
+    }
 
     try {
       const response = await axios.default(config as AxiosRequestConfig);
