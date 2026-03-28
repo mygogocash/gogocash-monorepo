@@ -21,6 +21,7 @@ import {
   ResponseFee,
   FeeSettingsForm,
 } from "@/types/api";
+import { isStaticHostingClient } from "@/lib/isStaticHostingClient";
 import { AxiosRequestConfig } from "axios";
 
 class ApiClient {
@@ -61,7 +62,7 @@ class ApiClient {
       data: parsedBody,
     };
 
-    if (process.env.NEXT_PUBLIC_FIREBASE_STATIC === "1" && typeof window !== "undefined") {
+    if (typeof window !== "undefined" && isStaticHostingClient()) {
       const { handleMockApiRequest } = await import("@/lib/mockApiCore");
       const u = new URL(url);
       const prefix = "/api/mock";

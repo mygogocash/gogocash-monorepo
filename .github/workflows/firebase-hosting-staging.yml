@@ -1,13 +1,23 @@
 # Deploy static export to Firebase Hosting (gogocash-staging) for internal review.
 #
-# Required GitHub repository secrets:
-#   FIREBASE_SERVICE_ACCOUNT_STAGING — JSON key for a GCP service account with
-#     "Firebase Hosting Admin" (or Editor) on project gogocash-staging.
-#   NEXTAUTH_SECRET_STAGING — long random string (same role as NEXTAUTH_SECRET).
-#   NEXTAUTH_URL_STAGING — exact public site URL, no trailing slash, e.g.
-#     https://gogocash-staging-637d5.web.app
+# ─── Authentication (exactly one path) ───
 #
-# Optional: run manually via Actions → "Deploy Firebase Hosting (staging)" → Run workflow.
+# Option A — Service account JSON (default)
+#   Repository secret: FIREBASE_SERVICE_ACCOUNT_STAGING
+#   Paste the full JSON key from GCP (IAM → Service accounts → Keys → JSON).
+#   Do not wrap in quotes. Secret must be non-empty or the auth step will fail.
+#
+# Option B — Workload Identity Federation
+#   Repository variables (Settings → Secrets and variables → Actions → Variables):
+#     FIREBASE_WORKLOAD_IDENTITY_PROVIDER = projects/.../locations/.../providers/...
+#     FIREBASE_WIF_SERVICE_ACCOUNT = name@gcp-project.iam.gserviceaccount.com
+#   When FIREBASE_WORKLOAD_IDENTITY_PROVIDER is set (non-empty), the workflow
+#   uses WIF and ignores FIREBASE_SERVICE_ACCOUNT_STAGING for the auth step.
+#
+# Other secrets:
+#   NEXTAUTH_SECRET_STAGING, NEXTAUTH_URL_STAGING (see Build step env).
+#
+# Optional: Actions → "Deploy Firebase Hosting (staging)" → Run workflow.
 
 name: Deploy Firebase Hosting (staging)
 
@@ -23,6 +33,7 @@ concurrency:
 
 permissions:
   contents: read
+  id-token: write # required for Workload Identity Federation (Option B); harmless for JSON key
 
 jobs:
   deploy:
@@ -30,6 +41,27 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Verify Google Cloud auth configuration
+        env:
+          JSON_CREDS: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_STAGING }}
+          WIF_PROVIDER: ${{ vars.FIREBASE_WORKLOAD_IDENTITY_PROVIDER }}
+          WIF_SA: ${{ vars.FIREBASE_WIF_SERVICE_ACCOUNT }}
+        run: |
+          set -e
+          if [ -n "$WIF_PROVIDER" ] && [ -n "$WIF_SA" ]; then
+            echo "Auth: Workload Identity Federation (repository variables)."
+            exit 0
+          fi
+          if [ -n "$JSON_CREDS" ]; then
+            echo "Auth: FIREBASE_SERVICE_ACCOUNT_STAGING (JSON key secret)."
+            exit 0
+          fi
+          echo "::error::No valid Google Cloud authentication configured."
+          echo "Set repository secret FIREBASE_SERVICE_ACCOUNT_STAGING to the full service account JSON, OR"
+          echo "set variables FIREBASE_WORKLOAD_IDENTITY_PROVIDER and FIREBASE_WIF_SERVICE_ACCOUNT for WIF."
+          echo "Repo → Settings → Secrets and variables → Actions."
+          exit 1
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -40,10 +72,18 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Authenticate to Google Cloud
+      - name: Authenticate to Google Cloud (service account JSON)
+        if: ${{ vars.FIREBASE_WORKLOAD_IDENTITY_PROVIDER == '' }}
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_STAGING }}
+
+      - name: Authenticate to Google Cloud (Workload Identity Federation)
+        if: ${{ vars.FIREBASE_WORKLOAD_IDENTITY_PROVIDER != '' }}
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.FIREBASE_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.FIREBASE_WIF_SERVICE_ACCOUNT }}
 
       - name: Build static export (Firebase)
         run: npm run build:firebase

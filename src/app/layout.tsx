@@ -23,6 +23,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="min-h-full" suppressHydrationWarning>
       <head>
+        {process.env.BUILD_FOR_FIREBASE === "1" ? (
+          <meta name="gogocash-static-export" content="1" />
+        ) : null}
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className={`${outfit.className} min-h-screen pt-8 bg-white dark:bg-gray-900`} suppressHydrationWarning>
