@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Outfit } from "next/font/google";
 import "./globals.css";
 import ClientProviders from "@/components/providers/ClientProviders";
@@ -6,6 +7,11 @@ import InternalMockBanner from "@/components/InternalMockBanner";
 const outfit = Outfit({
   subsets: ["latin"],
 });
+
+export const metadata: Metadata = {
+  applicationName: "GoGoCash Admin",
+  manifest: "/site.webmanifest",
+};
 
 const themeInitScript = `(function(){var t=localStorage.getItem('theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme:dark)').matches)){document.documentElement.classList.add('dark');}else{document.documentElement.classList.remove('dark');}})();`;
 
