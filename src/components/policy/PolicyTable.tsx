@@ -52,9 +52,10 @@ export default function PolicyTable() {
     const content = editContent.slice(0, POLICY_MAX_LENGTH).trim();
     setSaving(true);
     try {
-      await fetcherPut("/policy", {
-        data: { categoryId: selectedCategory._id, content },
-      });
+      await fetcherPut([
+        "/policy",
+        { data: { categoryId: selectedCategory._id, content } },
+      ]);
       await queryClient.invalidateQueries({ queryKey: ["policyList"] });
       toast.success("Terms & conditions saved.");
       closeModal();
@@ -80,9 +81,10 @@ export default function PolicyTable() {
     if (!selectedCategory) return;
     setSaving(true);
     try {
-      await fetcherPut("/policy", {
-        data: { categoryId: selectedCategory._id, content: "" },
-      });
+      await fetcherPut([
+        "/policy",
+        { data: { categoryId: selectedCategory._id, content: "" } },
+      ]);
       await queryClient.invalidateQueries({ queryKey: ["policyList"] });
       toast.success("Terms & conditions cleared.");
       closeModal();

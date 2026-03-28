@@ -1,5 +1,6 @@
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import { Metadata } from "next";
+import { Suspense } from "react";
 import ConversionPageClient from "./ConversionPageClient";
 
 export const metadata: Metadata = {
@@ -18,7 +19,9 @@ export default function ConversionPage() {
         ]}
       />
       <div className="space-y-6">
-        <ConversionPageClient />
+        <Suspense fallback={<div className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">Loading…</div>}>
+          <ConversionPageClient />
+        </Suspense>
       </div>
     </div>
   );

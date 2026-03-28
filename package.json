@@ -8,6 +8,8 @@
     "dev": "next dev",
     "dev:3001": "next dev -p 3001",
     "setup:local": "node scripts/setup-local-env.mjs",
+    "check:conflicts": "node scripts/check-merge-conflicts.mjs",
+    "prebuild": "node scripts/check-merge-conflicts.mjs",
     "build": "next build",
     "build:standalone": "cross-env STANDALONE=1 next build",
     "start": "next start",
