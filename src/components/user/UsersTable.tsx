@@ -10,7 +10,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 export default function UsersTable() {
   const searchParams = useSearchParams();
-  const { loading, error, getUsers, deleteUser, clearError } = useApi();
+  const { loading, error, getUsers, clearError } = useApi();
   const [isLoading, setIsLoading] = useState(false);
   const [form, setForm] = useState<UserForm>({
     id: "",
@@ -93,23 +93,8 @@ export default function UsersTable() {
   // Handle pagination
   const handlePageChange = (newPage: number) => {
     const newQuery = { ...query, page: newPage };
-    console.log("newQuery", newQuery);
-
     setQuery(newQuery);
     fetchUsers(newQuery);
-  };
-
-  // Handle user deletion
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleDeleteUser = async (userId: string) => {
-    if (!confirm("Are you sure you want to delete this user?")) return;
-
-    try {
-      await deleteUser(userId);
-      fetchUsers(); // Refresh the list
-    } catch (err) {
-      console.error("Failed to delete user:", err);
-    }
   };
 
   const hasNextPage = pagination.page < pagination.totalPages;

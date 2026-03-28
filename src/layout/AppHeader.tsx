@@ -9,7 +9,7 @@ import Image from "next/image";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, startTransition } from "react";
 
 const SEARCH_DEBOUNCE_MS = 300;
 const PREVIEW_LIMIT = 5;
@@ -28,9 +28,15 @@ const AppHeader: React.FC = () => {
   const previewOpenRef = useRef(previewOpen);
   const { getUsers, getOffers, getWithdraws } = useApi();
   const apiRef = useRef({ getUsers, getOffers, getWithdraws });
-  apiRef.current = { getUsers, getOffers, getWithdraws };
-  previewOpenRef.current = previewOpen;
   const router = useRouter();
+
+  useEffect(() => {
+    apiRef.current = { getUsers, getOffers, getWithdraws };
+  }, [getUsers, getOffers, getWithdraws]);
+
+  useEffect(() => {
+    previewOpenRef.current = previewOpen;
+  }, [previewOpen]);
   const { data: session } = useSession();
   const token = (session as { accessToken?: string } | null)?.accessToken;
   const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
@@ -68,8 +74,10 @@ const AppHeader: React.FC = () => {
   // Debounced search and fetch preview results (use apiRef to avoid effect re-running on every render)
   useEffect(() => {
     if (!searchQuery.trim()) {
-      setPreviewResults({ users: [], offers: [], withdraws: [] });
-      setPreviewOpen(false);
+      startTransition(() => {
+        setPreviewResults({ users: [], offers: [], withdraws: [] });
+        setPreviewOpen(false);
+      });
       return;
     }
 
@@ -300,7 +308,9 @@ const AppHeader: React.FC = () => {
                                     onClick={() => setPreviewOpen(false)}
                                     className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-800 hover:bg-gray-100 dark:text-white/90 dark:hover:bg-gray-800"
                                   >
-                                    <span className="truncate font-medium">{o.name}</span>
+                                    <span className="truncate font-medium">
+                                      {o.offer_name_display || o.offer_name}
+                                    </span>
                                   </Link>
                                 </li>
                               ))}

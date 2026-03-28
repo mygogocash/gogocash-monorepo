@@ -18,7 +18,7 @@ export default function ConversionTable() {
   const searchParams = useSearchParams();
   const { data } = useSession();
   const session = data as { accessToken?: string };
-  const { loading, error, getConversion, deleteOffer, clearError } = useApi();
+  const { loading, error, getConversion, clearError } = useApi();
 
   const [lists, setLists] = useState<ResponseConversion>();
   const [conversionId, setConversionId] = useState<string>("");
@@ -117,19 +117,6 @@ export default function ConversionTable() {
     const newQuery = { ...query, page: newPage };
     setQuery(newQuery);
     fetchOffers(newQuery);
-  };
-
-  // Handle offer deletion
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleDeleteOffer = async (offerId: string) => {
-    if (!confirm("Are you sure you want to delete this offer?")) return;
-
-    try {
-      await deleteOffer(offerId);
-      fetchOffers(); // Refresh the list
-    } catch (err) {
-      console.error("Failed to delete offer:", err);
-    }
   };
 
   // Format date

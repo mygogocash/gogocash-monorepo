@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
-import QuestTable from "@/components/quest/QuestTable";
+import QuestPageClient from "./QuestPageClient";
 
 export const metadata: Metadata = {
   title: "Quest | GoGoCash Admin",
@@ -18,7 +18,7 @@ export default function QuestPage() {
         ]}
       />
       <div className="space-y-6">
-        <QuestTable />
+        <QuestPageClient />
       </div>
     </div>
   );

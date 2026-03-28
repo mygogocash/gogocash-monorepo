@@ -40,12 +40,17 @@ export default function CouponTable() {
     error,
     isError,
   } = useQuery<ResponseCoupon>({
-    queryKey: ["get-coupon", openModal, query],
+    queryKey: [
+      "get-coupon",
+      query.page,
+      query.limit,
+      query.search ?? "",
+      query.status ?? "",
+    ],
     queryFn: () =>
       client
         .get(`/offer/get-coupon`, { params: query })
         .then((res) => res.data),
-    staleTime: 0,
   });
 
   const err = error as unknown as { data?: { message?: string }; status?: number; statusText?: string } | null | undefined;
@@ -77,19 +82,6 @@ export default function CouponTable() {
   const handlePageChange = (newPage: number) => {
     const newQuery = { ...query, page: newPage };
     setQuery(newQuery);
-  };
-
-  // Handle offer deletion
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleDeleteOffer = async (offerId: string) => {
-    if (!confirm("Are you sure you want to delete this offer?")) return;
-
-    try {
-      //   await deleteOffer(offerId);
-      //   fetchOffers(); // Refresh the list
-    } catch (err) {
-      console.error("Failed to delete offer:", err);
-    }
   };
 
   // Format date

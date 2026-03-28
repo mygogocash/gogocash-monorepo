@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useModal } from "../../hooks/useModal";
 import { Modal } from "../ui/modal";
 import Button from "../ui/button/Button";
@@ -13,21 +13,20 @@ export default function UserMetaCard() {
   const { isOpen, openModal, closeModal } = useModal();
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (!pendingFile) {
-      setPreviewUrl(null);
-      return;
-    }
-    const url = URL.createObjectURL(pendingFile);
-    setPreviewUrl(url);
-    return () => URL.revokeObjectURL(url);
+  const pendingPreviewUrl = useMemo(() => {
+    if (!pendingFile) return null;
+    return URL.createObjectURL(pendingFile);
   }, [pendingFile]);
 
+  useEffect(() => {
+    if (!pendingPreviewUrl) return;
+    return () => URL.revokeObjectURL(pendingPreviewUrl);
+  }, [pendingPreviewUrl]);
+
   const displayAvatar = profileImage ?? DEFAULT_AVATAR;
-  const modalPreviewUrl = previewUrl ?? profileImage ?? DEFAULT_AVATAR;
+  const modalPreviewUrl = pendingPreviewUrl ?? profileImage ?? DEFAULT_AVATAR;
 
   const handleCloseModal = () => {
     setPendingFile(null);
@@ -43,7 +42,6 @@ export default function UserMetaCard() {
       setProfileImage(url);
       setPendingFile(null);
     }
-    console.log("Saving changes...");
     closeModal();
   };
 

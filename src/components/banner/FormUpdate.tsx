@@ -1,4 +1,4 @@
-/* eslint-disable @next/next/no-img-element */
+import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import { Modal } from "../ui/modal";
 import Input from "../form/input/InputField";
 import client from "@/lib/axios/client";
@@ -67,17 +67,13 @@ const FormUpdate = ({
         setIsLoading(false);
         toast.success("updated successfully");
       })
-      .catch((err) => {
-        console.log("err", err);
+      .catch(() => {
         setIsLoading(false);
         // console.error("Failed to update withdraw request:", err);
         // toast.error(err?.data?.message || "updated error");
       });
   };
-  console.log(
-    "form[`image_${form.id}` as keyof BannerRequestForm] ",
-    form[`image_${form.id}` as keyof BannerRequestForm],
-  );
+  const slotImage = form[`image_${form.id}` as keyof BannerRequestForm];
 
   return (
     <Modal
@@ -144,19 +140,17 @@ const FormUpdate = ({
                 <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
                   How the banner will look after saving.
                 </p>
-                <img
+                <RemoteOrBlobImage
                   src={
-                    form[
-                      `image_${form.id}` as keyof BannerRequestForm
-                    ] instanceof File
-                      ? URL.createObjectURL(
-                          form[
-                            `image_${form.id}` as keyof BannerRequestForm
-                          ] as File,
+                    slotImage instanceof File
+                      ? URL.createObjectURL(slotImage)
+                      : pathImage(
+                          typeof slotImage === "string" ? slotImage : null,
                         )
-                      : pathImage(form[`image_${form.id}` as keyof BannerRequestForm])
                   }
                   alt="Preview"
+                  width={800}
+                  height={512}
                   className="h-auto max-h-64 max-w-full rounded-lg border border-gray-200 dark:border-gray-600"
                 />
               </div>

@@ -14,8 +14,9 @@ export function getQueryClient() {
           refetchOnWindowFocus: false,
           refetchOnMount: false,
           refetchOnReconnect: false,
-          staleTime: 0, // cache ไม่มีวันหมดอายุ
-          // gcTime: 1000 * 60 * 60 * 24, // เก็บไว้ 24 ชม.
+          // List/read queries: avoid refetch churn; override per-query for live data.
+          staleTime: 1000 * 60 * 2,
+          gcTime: 1000 * 60 * 30,
         },
       },
     })

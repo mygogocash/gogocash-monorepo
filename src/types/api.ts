@@ -147,8 +147,7 @@ export interface Offer {
   offer_name: string;
   payment_terms: number;
   preview_url: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  special_commissions: any[];
+  special_commissions: unknown[];
   tracking_link: string;
   tracking_type: string;
   validation_terms: number;

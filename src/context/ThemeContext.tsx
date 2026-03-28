@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { createContext, useState, useContext, useEffect } from "react";
+import { createContext, useState, useContext, useEffect, startTransition } from "react";
 
 type Theme = "light" | "dark";
 
@@ -19,7 +19,6 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    // Sync with inline script: prefer localStorage, then system preference, then light
     const savedTheme = localStorage.getItem("theme") as Theme | null;
     const systemDark =
       typeof window !== "undefined" &&
@@ -30,8 +29,10 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
         : systemDark
           ? "dark"
           : "light";
-    setTheme(initialTheme);
-    setIsInitialized(true);
+    startTransition(() => {
+      setTheme(initialTheme);
+      setIsInitialized(true);
+    });
   }, []);
 
   useEffect(() => {

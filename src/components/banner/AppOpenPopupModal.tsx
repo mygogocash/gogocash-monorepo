@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, startTransition } from "react";
 import { Modal } from "@/components/ui/modal";
 import Button from "@/components/ui/button/Button";
 
@@ -72,8 +72,9 @@ export default function AppOpenPopupModal({ isOpen, onClose }: AppOpenPopupModal
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
-      const stored = loadStored();
+    if (!isOpen) return;
+    const stored = loadStored();
+    startTransition(() => {
       if (stored.length > 0) {
         setBanners(
           stored.map((b) => ({
@@ -87,7 +88,7 @@ export default function AppOpenPopupModal({ isOpen, onClose }: AppOpenPopupModal
       } else {
         setBanners([defaultBanner()]);
       }
-    }
+    });
   }, [isOpen]);
 
   const updateBanner = useCallback((id: string, patch: Partial<AppOpenPopupBannerItem>) => {

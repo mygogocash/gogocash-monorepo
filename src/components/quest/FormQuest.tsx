@@ -1,4 +1,4 @@
-/* eslint-disable @next/next/no-img-element */
+import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import { Modal } from "../ui/modal";
 import Input from "../form/input/InputField";
 import client from "@/lib/axios/client";
@@ -76,9 +76,8 @@ const FormQuest = ({
         toast.success("updated successfully");
       })
       .catch((err) => {
-        console.log("err", err);
         setIsLoading(false);
-        console.error("Failed to update withdraw request:", err);
+        console.error("Failed to save quest:", err);
         toast.error(err?.data?.message || "updated error");
       });
   };
@@ -135,13 +134,15 @@ const FormQuest = ({
                 <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                   Preview banner en:
                 </p>
-                <img
+                <RemoteOrBlobImage
                   src={
                     typeof form.banner_en === "object"
                       ? URL.createObjectURL(form.banner_en as File)
                       : `${process.env.NEXT_PUBLIC_API_URL}/google-drive/file/${(openModal as ResponseQuestDate).banner_en}`
                   }
                   alt="Preview"
+                  width={800}
+                  height={512}
                   className="h-auto max-h-64 max-w-full rounded-lg border border-gray-200 dark:border-gray-600"
                 />
               </div>
@@ -161,13 +162,15 @@ const FormQuest = ({
                 <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                   Preview banner th:
                 </p>
-                <img
+                <RemoteOrBlobImage
                   src={
                     typeof form.banner_th === "object"
                       ? URL.createObjectURL(form.banner_th as File)
                       : `${process.env.NEXT_PUBLIC_API_URL}/google-drive/file/${(openModal as ResponseQuestDate).banner_th}`
                   }
                   alt="Preview"
+                  width={800}
+                  height={512}
                   className="h-auto max-h-64 max-w-full rounded-lg border border-gray-200 dark:border-gray-600"
                 />
               </div>
@@ -189,13 +192,15 @@ const FormQuest = ({
                 <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                   Preview sub banner en:
                 </p>
-                <img
+                <RemoteOrBlobImage
                   src={
                     typeof form.sub_banner_en === "object"
                       ? URL.createObjectURL(form.sub_banner_en as File)
                       : `${process.env.NEXT_PUBLIC_API_URL}/google-drive/file/${(openModal as ResponseQuestDate).sub_banner_en}`
                   }
                   alt="Preview"
+                  width={800}
+                  height={512}
                   className="h-auto max-h-64 max-w-full rounded-lg border border-gray-200 dark:border-gray-600"
                 />
               </div>
@@ -217,13 +222,15 @@ const FormQuest = ({
                 <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                   Preview sub banner th:
                 </p>
-                <img
+                <RemoteOrBlobImage
                   src={
                     typeof form.sub_banner_th === "object"
                       ? URL.createObjectURL(form.sub_banner_th as File)
                       : `${process.env.NEXT_PUBLIC_API_URL}/google-drive/file/${(openModal as ResponseQuestDate).sub_banner_th}`
                   }
                   alt="Preview"
+                  width={800}
+                  height={512}
                   className="h-auto max-h-64 max-w-full rounded-lg border border-gray-200 dark:border-gray-600"
                 />
               </div>

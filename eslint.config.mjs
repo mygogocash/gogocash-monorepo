@@ -1,16 +1,20 @@
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
+import eslintConfig from "eslint-config-next/core-web-vitals";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
-
-const eslintConfig = [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+/** @type {import("eslint").Linter.Config[]} */
+const config = [
+  ...eslintConfig,
+  {
+    ignores: [".open-next/**"],
+  },
+  {
+    rules: {
+      // Stricter in eslint-plugin-react-hooks v7; codebase predates these patterns.
+      "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/refs": "warn",
+      "react-hooks/static-components": "warn",
+      "react-hooks/purity": "warn",
+    },
+  },
 ];
 
-export default eslintConfig;
+export default config;

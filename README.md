@@ -11,9 +11,9 @@ Admin dashboard for managing GoGoCash operations — users, offers, withdrawals,
 
 ## Quick Start
 
-1. Copy `.env.example` to `.env.local`.
-2. Install dependencies with `yarn install` (or `npm install`).
-3. Run the dashboard with `yarn dev:3001` (or `npm run dev`).
+1. Install dependencies: `npm install` (or `yarn install`).
+2. Create local env: `npm run setup:local` (generates `.env.local` from `.env.example` with a random `NEXTAUTH_SECRET`; skipped if `.env.local` already exists).
+3. Run the dashboard: `npm run dev` → [http://localhost:3000](http://localhost:3000) (or `npm run dev:3001` and set `NEXTAUTH_URL=http://localhost:3001` in `.env.local`).
 4. Sign in with **`admin@gogocash.co`** / **`1234`**. All data is mock (internal use only).
 
 ## Related Repositories
@@ -225,32 +225,33 @@ src/
 
 ### Install & Run
 
-Copy `.env.example` to `.env.local` before starting the app.
-
 ```bash
-# Install dependencies
-yarn install
+npm install
+npm run setup:local   # creates .env.local once (see .env.example)
 
-# Development
-yarn dev:3001     # → http://localhost:3001
+# Development (default port 3000 — must match NEXTAUTH_URL in .env.local)
+npm run dev
+
+# Alternative port
+npm run dev:3001      # then set NEXTAUTH_URL=http://localhost:3001 in .env.local
 
 # Production build
-yarn build
-yarn start
+npm run build
+npm start
 ```
 
 ---
 
 ## Environment Variables
 
-Create `.env.local` from `.env.example` and fill in the values below.
+Run `npm run setup:local` to create `.env.local` with a generated `NEXTAUTH_SECRET`, or copy `.env.example` manually.
 
 This build is **internal-only** and uses **mock data only**. The app always calls `/api/mock`; no real backend or `NEXT_PUBLIC_API_URL` is used.
 
 ```bash
 # ─── Required ───
-NEXTAUTH_SECRET=<random-secret-string>          # NextAuth encryption key
-NEXTAUTH_URL=http://localhost:3001              # Canonical URL for auth callbacks
+NEXTAUTH_SECRET=<random-secret-string>          # NextAuth encryption key (auto-filled by setup:local)
+NEXTAUTH_URL=http://localhost:3000              # Must match dev server URL (port)
 NODE_ENV=development
 NEXT_TELEMETRY_DISABLED=1
 ```
