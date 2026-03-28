@@ -44,7 +44,10 @@ const navItems: NavItem[] = [
   {
     icon: <ShootingStarIcon />,
     name: "Offers Management",
-    subItems: [{ name: "Offers", path: "/offers", pro: false }],
+    subItems: [
+      { name: "Offers", path: "/offers", pro: false },
+      { name: "Policy Management", path: "/policy", pro: false },
+    ],
   },
   {
     icon: <FolderIcon />,

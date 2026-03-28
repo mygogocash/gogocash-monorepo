@@ -149,6 +149,9 @@ export default function UserDropdown() {
         </ul>
         <div
           onClick={() => {
+            if (typeof window !== "undefined") {
+              window.localStorage.removeItem("mock_authenticated");
+            }
             signOut({ callbackUrl: "/signin" });
           }}
           className="group text-theme-sm mt-3 flex items-center gap-3 rounded-lg px-3 py-2 font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300"

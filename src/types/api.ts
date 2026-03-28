@@ -161,11 +161,15 @@ export interface Offer {
   max_cap: number | null;
   banner_mobile: string;
   extra_store: boolean;
+  /** Active policy (from category; optional if API provides it) */
+  active_policy?: string | null;
   /** Upsize event (optional, from API) */
   upsize_start_date?: string | null;
   upsize_end_date?: string | null;
   upsize_special_commission?: number | null;
   upsize_max_cap?: number | null;
+  /** Product types for this offer (optional, from API) */
+  product_types?: string[];
 }
 
 export interface OfferRequestForm {
@@ -185,6 +189,8 @@ export interface OfferRequestForm {
   upsize_end_date: string | null;
   upsize_special_commission: number | null;
   upsize_max_cap: number | null;
+  /** Product types (e.g. categories or SKU types) for this offer */
+  product_types?: string[];
 }
 
 export interface OffersQuery {

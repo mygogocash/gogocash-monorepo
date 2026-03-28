@@ -152,6 +152,9 @@ function buildMockCreatedConversions(): CreatedConversionItem[] {
 
 const createdConversionsList: CreatedConversionItem[] = buildMockCreatedConversions();
 
+// In-memory store for category policy (terms & conditions) per categoryId
+const policyStore = new Map<string, string>();
+
 function paginate<T>(items: T[], page = 1, limit = 10) {
   const start = (page - 1) * limit;
   return {
@@ -298,6 +301,24 @@ export async function GET(
       filtered = filtered.filter((c) => c.name.toLowerCase().includes(s));
     }
     return NextResponse.json(filtered);
+  }
+
+  // GET /policy?categoryId=xxx — terms & conditions for a category
+  // GET /policy/list — all policies as { [categoryId]: content }
+  if (path[0] === "policy") {
+    if (path[1] === "list") {
+      const all = Object.fromEntries(policyStore);
+      return NextResponse.json(all);
+    }
+    const categoryId = url.searchParams.get("categoryId");
+    if (!categoryId) {
+      return NextResponse.json(
+        { message: "categoryId is required" },
+        { status: 400 }
+      );
+    }
+    const content = policyStore.get(categoryId) ?? "";
+    return NextResponse.json({ content });
   }
 
   // GET /offer/get-coupon-id/:id
@@ -622,6 +643,24 @@ export async function PUT(
   if (path[0] === "user" && path.length === 2) {
     const user = mockUsers.find((u) => u._id === path[1]);
     return NextResponse.json({ ...user, ...body });
+  }
+
+  // PUT /policy — save terms & conditions for a category
+  if (joined === "policy") {
+    const categoryId = body?.categoryId;
+    const content = typeof body?.content === "string" ? body.content : "";
+    if (!categoryId) {
+      return NextResponse.json(
+        { message: "categoryId is required" },
+        { status: 400 }
+      );
+    }
+    policyStore.set(categoryId, content);
+    return NextResponse.json({
+      success: true,
+      message: "Policy saved",
+      categoryId,
+    });
   }
 
   return NextResponse.json(

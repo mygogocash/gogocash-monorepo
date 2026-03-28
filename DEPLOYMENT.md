@@ -1,5 +1,7 @@
 # Google Cloud Deployment Guide
 
+> **Branch policy:** This project pushes to the **staging** branch only. Use `git push origin main:staging` (or push from your local branch to `origin/staging`) for deployments. Do not push to `main` on the remote.
+
 This guide covers deploying the GoGoCash Admin Dashboard to Google Cloud using multiple deployment options.
 
 ## Prerequisites
