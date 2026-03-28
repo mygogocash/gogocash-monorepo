@@ -2,11 +2,12 @@ import { Outfit } from "next/font/google";
 import "./globals.css";
 import ClientProviders from "@/components/providers/ClientProviders";
 import InternalMockBanner from "@/components/InternalMockBanner";
-import { ThemeScript } from "@/components/ThemeScript";
 
 const outfit = Outfit({
   subsets: ["latin"],
 });
+
+const themeInitScript = `(function(){var t=localStorage.getItem('theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme:dark)').matches)){document.documentElement.classList.add('dark');}else{document.documentElement.classList.remove('dark');}})();`;
 
 export default function RootLayout({
   children,
@@ -15,8 +16,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="min-h-full" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body className={`${outfit.className} min-h-screen pt-8 bg-white dark:bg-gray-900`} suppressHydrationWarning>
-        <ThemeScript />
         <InternalMockBanner />
         <ClientProviders>{children}</ClientProviders>
       </body>

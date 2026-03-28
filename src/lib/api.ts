@@ -556,9 +556,7 @@ class ApiClient {
     // if (query.system) form.append('system', query.system.toString());
     // if (query.store) form.append('store', query.store.toString());
     // if (query.minimum_withdraw) form.append('minimum_withdraw', query.minimum_withdraw.toString());
-    const id = query.id
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { id: _, ...dt } = query;
+    const { id, ...dt } = query;
     return this.request<ResponseFee>(`/admin/update-fee-rate/${id}`, {
       method: "PATCH",
       headers: {

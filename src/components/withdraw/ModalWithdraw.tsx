@@ -1,4 +1,4 @@
-/* eslint-disable @next/next/no-img-element */
+import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import toast from "react-hot-toast";
 import Button from "../ui/button/Button";
 import { Modal } from "../ui/modal";
@@ -196,13 +196,15 @@ const ModalWithdraw = ({
             <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
               Uploaded or existing slip image.
             </p>
-            <img
+            <RemoteOrBlobImage
               src={
                 form.file
                   ? URL.createObjectURL(form.file)
                   : pathImage((openModal as DataWithdrawsList).slip_file)
               }
               alt="Preview"
+              width={800}
+              height={512}
               className="h-auto max-h-64 max-w-full rounded-lg border border-gray-200 dark:border-gray-600"
             />
           </div>

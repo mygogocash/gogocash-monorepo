@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback, startTransition } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSidebar } from "../context/SidebarContext";
@@ -298,29 +298,29 @@ const AppSidebar: React.FC = () => {
   const isActive = useCallback((path: string) => path === pathname, [pathname]);
 
   useEffect(() => {
-    // Check if the current path matches any submenu item
-    let submenuMatched = false;
-    ["main", "others"].forEach((menuType) => {
-      const items = menuType === "main" ? navItems : othersItems;
-      items.forEach((nav, index) => {
-        if (nav.subItems) {
-          nav.subItems.forEach((subItem) => {
-            if (isActive(subItem.path)) {
-              setOpenSubmenu({
-                type: menuType as "main" | "others",
-                index,
-              });
-              submenuMatched = true;
-            }
-          });
-        }
+    startTransition(() => {
+      let submenuMatched = false;
+      ["main", "others"].forEach((menuType) => {
+        const items = menuType === "main" ? navItems : othersItems;
+        items.forEach((nav, index) => {
+          if (nav.subItems) {
+            nav.subItems.forEach((subItem) => {
+              if (isActive(subItem.path)) {
+                setOpenSubmenu({
+                  type: menuType as "main" | "others",
+                  index,
+                });
+                submenuMatched = true;
+              }
+            });
+          }
+        });
       });
-    });
 
-    // If no submenu item matches, close the open submenu
-    if (!submenuMatched) {
-      setOpenSubmenu(null);
-    }
+      if (!submenuMatched) {
+        setOpenSubmenu(null);
+      }
+    });
   }, [pathname, isActive]);
 
   useEffect(() => {

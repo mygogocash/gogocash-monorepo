@@ -15,6 +15,7 @@ import Label from "@/components/form/Label";
 import Input from "@/components/form/input/InputField";
 import { useApi } from "@/hooks/useApi";
 import type { Offer } from "@/types/api";
+import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 
 export type QuestTaskType = "offer" | "merchant";
 export type QuestCompletionLimit = "once" | "multiple";
@@ -277,19 +278,22 @@ export default function QuestTable() {
   const [tasks, setTasks] = useState<QuestTask[]>([]);
 
   const { data: offersData } = useQuery({
-    queryKey: ["quest-offers", createModalOpen],
+    queryKey: ["quest-offers"],
     queryFn: () => getOffers({ limit: 100, page: 1 }),
     enabled: createModalOpen,
   });
   const offers: Offer[] = offersData?.data ?? [];
 
-  useEffect(() => {
-    if (!pointsModalQuest) {
-      setExportOpen(false);
-    } else {
-      setPointsModalPageSize(10);
-    }
-  }, [pointsModalQuest]);
+  const openPointsModal = (q: QuestDetails) => {
+    setPointsModalPageSize(10);
+    setExportOpen(false);
+    setPointsModalQuest(q);
+  };
+
+  const closePointsModal = () => {
+    setExportOpen(false);
+    setPointsModalQuest(null);
+  };
 
   useEffect(() => {
     if (!exportOpen) return;
@@ -388,7 +392,7 @@ export default function QuestTable() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => setPointsModalQuest(q)}
+                          onClick={() => openPointsModal(q)}
                           className="shrink-0 rounded border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                         >
                           View points
@@ -401,7 +405,7 @@ export default function QuestTable() {
             </Table>
           </div>
 
-      <Modal isOpen={!!pointsModalQuest} onClose={() => setPointsModalQuest(null)} isFullscreen showCloseButton={false} className="p-0">
+      <Modal isOpen={!!pointsModalQuest} onClose={closePointsModal} isFullscreen showCloseButton={false} className="p-0">
         <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800 sm:p-6 md:p-8">
           {/* Title + Close in header row */}
           <div className="mb-4 flex w-full shrink-0 flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-4 dark:border-gray-700">
@@ -416,7 +420,7 @@ export default function QuestTable() {
             <div className="flex shrink-0 items-center gap-3">
               <button
                 type="button"
-                onClick={() => setPointsModalQuest(null)}
+                onClick={closePointsModal}
                 className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
               >
                 Close
@@ -990,9 +994,11 @@ export default function QuestTable() {
                             return (
                               <div className="flex items-center gap-3">
                                 {logoSrc || task.logoPreviewUrl ? (
-                                  <img
-                                    src={task.logoPreviewUrl || logoSrc}
+                                  <RemoteOrBlobImage
+                                    src={(task.logoPreviewUrl || logoSrc) as string}
                                     alt="Task logo"
+                                    width={56}
+                                    height={56}
                                     className="h-14 w-14 shrink-0 rounded-lg border border-gray-200 object-cover dark:border-gray-600"
                                   />
                                 ) : (
@@ -1104,7 +1110,7 @@ export default function QuestTable() {
                           <Label>Points</Label>
                           <Input
                             type="number"
-                            min={0}
+                            min="0"
                             value={task.points || ""}
                             onChange={(e) =>
                               setTasks((prev) =>
@@ -1202,7 +1208,7 @@ export default function QuestTable() {
                             <Label className="text-xs">Amount</Label>
                             <Input
                               type="number"
-                              min={0}
+                              min="0"
                               value={task.condition?.amount ?? ""}
                               onChange={(e) =>
                                 setTasks((prev) =>

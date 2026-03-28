@@ -51,8 +51,6 @@ export default function AdminUsersTable() {
     try {
       const queryToUse = newQuery || query;
       const response = await getAdminUsers(queryToUse);
-      console.log("response", response);
-
       setUsers(response.data);
       setPagination({
         currentPage: response.pagination.page,

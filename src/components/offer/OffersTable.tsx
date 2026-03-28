@@ -1,8 +1,7 @@
-/* eslint-disable @next/next/no-img-element */
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import Image from "next/image";
+import React, { useState, useEffect, useRef, startTransition } from "react";
+import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import { useApi } from "@/hooks/useApi";
 import { Offer, OfferRequestForm, OffersQuery } from "@/types/api";
 import { pathImage } from "@/utils/helper";
@@ -10,11 +9,29 @@ import { useSession } from "next-auth/react";
 import FormOffer from "./FormOffer";
 import { useRouter } from "next/navigation";
 import Select from "../form/Select";
-import { Modal } from "../ui/modal";
+
+function offerToEditForm(offer: Offer): OfferRequestForm {
+  return {
+    logo_desktop: null,
+    logo_mobile: null,
+    id: offer._id,
+    offer_name_display: offer.offer_name_display || offer.offer_name,
+    banner: null,
+    logo_circle: null,
+    disabled: offer.disabled,
+    max_cap: offer.max_cap,
+    commission_store: offer.commission_store,
+    banner_mobile: null,
+    extra_store: offer.extra_store || false,
+    upsize_start_date: offer.upsize_start_date ?? null,
+    upsize_end_date: offer.upsize_end_date ?? null,
+    upsize_special_commission: offer.upsize_special_commission ?? null,
+    upsize_max_cap: offer.upsize_max_cap ?? null,
+  };
+}
 
 export default function OffersTable() {
   const [openModal, setOpenModal] = useState<Offer | boolean>(false);
-  const [selectedOfferForMenu, setSelectedOfferForMenu] = useState<Offer | null>(null);
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
   const actionsDropdownRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -83,7 +100,9 @@ export default function OffersTable() {
 
   // Initial load
   useEffect(() => {
-    fetchOffers();
+    startTransition(() => {
+      void fetchOffers();
+    });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close actions dropdown when clicking outside
@@ -125,24 +144,13 @@ export default function OffersTable() {
     }
   };
 
-  // Format date
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
-  };
-
-  // Format price
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const formatPrice = (price?: number) => {
-    if (!price) return "N/A";
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(price);
-  };
-
   const hasNextPage = pagination.page < pagination.totalPages;
   const hasPrevPage = pagination.page > 1;
+
+  const openEditOfferModal = (offer: Offer) => {
+    setForm(offerToEditForm(offer));
+    setOpenModal(offer);
+  };
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
@@ -156,80 +164,6 @@ export default function OffersTable() {
         isLoading={isLoading}
         setIsLoading={setIsLoading}
       />
-
-      {/* Row-click menu: Edit, View detail, View conversions */}
-      <Modal
-        isOpen={!!selectedOfferForMenu}
-        onClose={() => setSelectedOfferForMenu(null)}
-        className="max-w-sm p-0"
-        showCloseButton={true}
-      >
-        <div className="p-5">
-          <h4 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-            {selectedOfferForMenu?.offer_name ?? "Offer"}
-          </h4>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Choose an action
-          </p>
-          <div className="mt-4 flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                if (selectedOfferForMenu) {
-                  setOpenModal(selectedOfferForMenu);
-                  setForm({
-                    logo_desktop: null,
-                    logo_mobile: null,
-                    id: selectedOfferForMenu._id,
-                    offer_name_display:
-                      selectedOfferForMenu.offer_name_display || selectedOfferForMenu.offer_name,
-                    banner: null,
-                    logo_circle: null,
-                    disabled: selectedOfferForMenu.disabled,
-                    max_cap: selectedOfferForMenu.max_cap,
-                    commission_store: selectedOfferForMenu.commission_store,
-                    banner_mobile: null,
-                    extra_store: selectedOfferForMenu.extra_store || false,
-                    upsize_start_date: selectedOfferForMenu.upsize_start_date ?? null,
-                    upsize_end_date: selectedOfferForMenu.upsize_end_date ?? null,
-                    upsize_special_commission: selectedOfferForMenu.upsize_special_commission ?? null,
-                    upsize_max_cap: selectedOfferForMenu.upsize_max_cap ?? null,
-                  });
-                  setSelectedOfferForMenu(null);
-                }
-              }}
-              className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2.5 text-sm font-medium text-gray-800 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-            >
-              Edit offer
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (selectedOfferForMenu) {
-                  router.push(`/offers/${selectedOfferForMenu._id}`);
-                  setSelectedOfferForMenu(null);
-                }
-              }}
-              className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2.5 text-sm font-medium text-gray-800 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-            >
-              View offer detail
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (selectedOfferForMenu) {
-                  const q = encodeURIComponent(selectedOfferForMenu.offer_name || String(selectedOfferForMenu.offer_id ?? selectedOfferForMenu._id));
-                  router.push(`/conversion?search=${q}`);
-                  setSelectedOfferForMenu(null);
-                }
-              }}
-              className="w-full rounded-lg border border-brand-500 bg-brand-500 py-2.5 text-sm font-medium text-white hover:bg-brand-600 dark:border-brand-500 dark:bg-brand-500 dark:hover:bg-brand-600"
-            >
-              View conversions
-            </button>
-          </div>
-        </div>
-      </Modal>
 
       <div className="flex items-center justify-between px-6 py-5">
         <div>
@@ -362,9 +296,8 @@ export default function OffersTable() {
                     <tr
                       key={offer._id}
                       className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setSelectedOfferForMenu(offer);
+                      onClick={() => {
+                        openEditOfferModal(offer);
                       }}
                     >
                       <td className="whitespace-nowrap px-4 py-3 sm:px-6 sm:py-4">
@@ -374,7 +307,7 @@ export default function OffersTable() {
                         <div className="flex items-center">
                           <div className="h-12 w-12 flex-shrink-0">
                             {offer.logo ? (
-                              <Image
+                              <RemoteOrBlobImage
                                 className="h-10 w-10 rounded-lg object-cover sm:h-12 sm:w-12"
                                 src={offer.logo}
                                 alt={offer.offer_name}
@@ -434,7 +367,7 @@ export default function OffersTable() {
                         <div className="flex items-center">
                           <div className="h-10 w-10 flex-shrink-0 sm:h-12 sm:w-12">
                             {has(logoDesktopSrc) ? (
-                              <img
+                              <RemoteOrBlobImage
                                 className="h-10 w-10 rounded-lg object-cover sm:h-12 sm:w-12"
                                 src={logoDesktopSrc}
                                 alt={offer.offer_name}
@@ -452,7 +385,7 @@ export default function OffersTable() {
                         <div className="flex items-center">
                           <div className="h-10 w-10 flex-shrink-0 sm:h-12 sm:w-12">
                             {has(logoMobileSrc) ? (
-                              <img
+                              <RemoteOrBlobImage
                                 className="h-10 w-10 rounded-lg object-cover sm:h-12 sm:w-12"
                                 src={logoMobileSrc}
                                 alt={offer.offer_name}
@@ -470,7 +403,7 @@ export default function OffersTable() {
                         <div className="flex items-center">
                           <div className="h-10 w-10 flex-shrink-0 sm:h-12 sm:w-12">
                             {has(bannerSrc) ? (
-                              <img
+                              <RemoteOrBlobImage
                                 className="h-10 w-10 rounded-lg object-cover sm:h-12 sm:w-12"
                                 src={bannerSrc}
                                 alt={offer.offer_name}
@@ -488,7 +421,7 @@ export default function OffersTable() {
                         <div className="flex items-center">
                           <div className="h-10 w-10 flex-shrink-0 sm:h-12 sm:w-12">
                             {has(logoCircleSrc) ? (
-                              <img
+                              <RemoteOrBlobImage
                                 className="h-10 w-10 rounded-lg object-cover sm:h-12 sm:w-12"
                                 src={logoCircleSrc}
                                 alt={offer.offer_name}
@@ -562,29 +495,24 @@ export default function OffersTable() {
                                 role="menuitem"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setOpenModal(offer);
-                                  setForm({
-                                    logo_desktop: null,
-                                    logo_mobile: null,
-                                    id: offer._id,
-                                    offer_name_display: offer.offer_name_display || offer.offer_name,
-                                    banner: null,
-                                    logo_circle: null,
-                                    disabled: offer.disabled,
-                                    max_cap: offer.max_cap,
-                                    commission_store: offer.commission_store,
-                                    banner_mobile: null,
-                                    extra_store: offer.extra_store || false,
-                                    upsize_start_date: offer.upsize_start_date ?? null,
-                                    upsize_end_date: offer.upsize_end_date ?? null,
-                                    upsize_special_commission: offer.upsize_special_commission ?? null,
-                                    upsize_max_cap: offer.upsize_max_cap ?? null,
-                                  });
+                                  openEditOfferModal(offer);
                                   setOpenActionsId(null);
                                 }}
                                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
                               >
                                 Edit
+                              </button>
+                              <button
+                                type="button"
+                                role="menuitem"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  router.push(`/offers/${offer._id}`);
+                                  setOpenActionsId(null);
+                                }}
+                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+                              >
+                                View detail
                               </button>
                               <button
                                 type="button"

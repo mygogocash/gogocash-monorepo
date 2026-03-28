@@ -12,7 +12,7 @@ import { useApi } from "@/hooks/useApi";
 import type { DataConversion, DataWithdrawsList } from "@/types/api";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, startTransition } from "react";
 
 const LIMIT = 5;
 
@@ -42,19 +42,22 @@ function statusColor(status: string): "success" | "warning" | "error" {
 export default function RecentActivity() {
   const api = useApi();
   const apiRef = React.useRef(api);
-  apiRef.current = api;
   const { data: session } = useSession();
+
+  React.useEffect(() => {
+    apiRef.current = api;
+  }, [api]);
   const token = (session as { accessToken?: string } | undefined)?.accessToken ?? "";
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!token) {
-      setLoading(false);
+      startTransition(() => setLoading(false));
       return;
     }
     let cancelled = false;
-    setLoading(true);
+    startTransition(() => setLoading(true));
     const { getConversion, getWithdraws } = apiRef.current;
     Promise.all([
       getConversion({ limit: LIMIT, page: 1 }, token).then((r) =>

@@ -1,33 +1,18 @@
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import WithdrawDetail from "@/components/withdraw/WithdrawDetail";
 import type { BreadcrumbItem } from "@/components/common/PageBreadCrumb";
+import { mockWithdraws } from "@/app/api/mock/data";
 
-type SearchParams = Promise<{ from?: string; name?: string }>;
+/** Pre-render withdraw detail paths for static export (Firebase Hosting). */
+export function generateStaticParams() {
+  if (process.env.BUILD_FOR_FIREBASE !== "1") {
+    return [];
+  }
+  return mockWithdraws.map((w) => ({ id: w._id }));
+}
 
-function buildBreadcrumbItems(searchParams: Awaited<SearchParams>): BreadcrumbItem[] {
-  const from = searchParams?.from;
-  const name = searchParams?.name ? decodeURIComponent(searchParams.name) : undefined;
-
+function defaultBreadcrumbItems(): BreadcrumbItem[] {
   const home = { label: "Home", href: "/" };
-
-  if (from === "users" && name) {
-    return [
-      home,
-      { label: "Users", href: "/users" },
-      { label: name },
-      { label: "Detail" },
-    ];
-  }
-
-  if (from === "withdraw") {
-    return [
-      home,
-      { label: "Withdraw", href: "/withdraw" },
-      { label: "Detail" },
-    ];
-  }
-
-  // Default: same as from withdraw list
   return [
     home,
     { label: "Withdraw", href: "/withdraw" },
@@ -35,13 +20,12 @@ function buildBreadcrumbItems(searchParams: Awaited<SearchParams>): BreadcrumbIt
   ];
 }
 
-export default async function WithdrawDetailPage({
-  searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
-  const resolved = await searchParams;
-  const items = buildBreadcrumbItems(resolved);
+/**
+ * Static export cannot use `searchParams` on the server. Breadcrumb uses the default
+ * withdraw trail; refine via a client child later if needed.
+ */
+export default function WithdrawDetailPage() {
+  const items = defaultBreadcrumbItems();
 
   return (
     <div>

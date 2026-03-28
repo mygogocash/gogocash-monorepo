@@ -64,6 +64,8 @@ export function useAuth() {
     }
   };
 
+  const clearError = useCallback(() => setError(null), []);
+
   return {
     session,
     status,
@@ -72,7 +74,7 @@ export function useAuth() {
     register,
     requestPasswordReset,
     resetPassword,
-    clearError: () => setError(null),
+    clearError,
   };
 }
 
@@ -279,6 +281,9 @@ export function useApi() {
   const updateFee = async (form : FeeSettingsForm, token: string): Promise<ResponseFee> => {
     return apiCall(() => apiClient.updateFee(form, token));
   };
+
+  const clearError = useCallback(() => setError(null), []);
+
   return {
     loading,
     setLoading,
@@ -312,7 +317,7 @@ export function useApi() {
     createOffer,
     updateOffer,
     deleteOffer,
-    clearError: () => setError(null),
+    clearError,
     updateListOffer,
 
     // Withdraw methods

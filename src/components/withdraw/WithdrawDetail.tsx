@@ -1,9 +1,9 @@
 "use client";
 import { fetcherPost } from "@/lib/axios/client";
-import { DataGrid, GridColDef } from "@mui/x-data-grid";
+import type { GridColDef } from "@mui/x-data-grid";
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
-import { paginationModel } from "../offer/Detail";
+import dynamic from "next/dynamic";
 import { ResDataWithdrawsListByUser, ResMCBDetail } from "@/types/withdraw";
 import Divider from "@mui/material/Divider";
 import { pathImage } from "@/utils/helper";
@@ -12,29 +12,16 @@ import { useState } from "react";
 import { WithdrawRequestForm } from "./WithdrawTable";
 import { DataWithdrawsList } from "@/types/api";
 import CopyButton from "@/components/ui/CopyButton";
-export const CSSTable = {
-  width: "100%",
-  minWidth: "700px",
-  border: 0,
-  "& .MuiSvgIcon-root": { fill: "#00B14F" },
-  "& .MuiDataGrid-columnHeader": {
-    backgroundColor: "#F6F6F6",
+
+const WithdrawDetailDataGrid = dynamic(
+  () => import("./WithdrawDetailLazyGrids"),
+  {
+    loading: () => (
+      <div className="h-64 w-full animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" />
+    ),
   },
-  "& .MuiDataGrid-filler": {
-    backgroundColor: "#F6F6F6 !important",
-  },
-  "& .MuiDataGrid-cell": {
-    minHeight: "52px !important",
-    maxHeight: "none !important",
-    overflow: "visible",
-    whiteSpace: "normal",
-    wordBreak: "break-word",
-  },
-  "& .MuiDataGrid-columnHeaderTitle": {
-    whiteSpace: "normal",
-    lineHeight: 1.2,
-  },
-};
+);
+
 type DetailTab = "user" | "conversion" | "withdraw" | "login";
 
 const TABS: { id: DetailTab; label: string }[] = [
@@ -504,15 +491,7 @@ const WithdrawDetail = () => {
               <h2 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
                 Conversion All
               </h2>
-              <div className="w-full overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-                <DataGrid
-                  rows={rowsData}
-                  columns={column}
-                  initialState={{ pagination: { paginationModel } }}
-                  pageSizeOptions={[5, 10]}
-                  sx={CSSTable}
-                />
-              </div>
+              <WithdrawDetailDataGrid rows={rowsData} columns={column} />
               <div className="mt-4 space-y-1 text-sm text-gray-700 dark:text-gray-300">
                 <p>
                   Approved:{" "}
@@ -554,15 +533,7 @@ const WithdrawDetail = () => {
               <h2 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
                 Withdraw All
               </h2>
-              <div className="w-full overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-                <DataGrid
-                  rows={rowsDataWithdraw}
-                  columns={columnWithdraw}
-                  initialState={{ pagination: { paginationModel } }}
-                  pageSizeOptions={[5, 10]}
-                  sx={CSSTable}
-                />
-              </div>
+              <WithdrawDetailDataGrid rows={rowsDataWithdraw} columns={columnWithdraw} />
               <div className="mt-4 space-y-1 text-sm text-gray-700 dark:text-gray-300">
                 {Object.keys(withdrawDetail?.withdrawSumByCurrency || {}).map(
                   (status) => (

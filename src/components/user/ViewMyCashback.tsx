@@ -11,10 +11,8 @@ const ViewMyCashback = ({ id, openModal, setOpenModal }: IProp) => {
   const { data: myCashback } = useQuery<MyCashbackResponse[]>({
     queryKey: ["getMyCashback", id],
     queryFn: () => fetcher(`/admin/get-mycashback-user/${id}`),
-    staleTime: 0,
     enabled: !!id,
   });
-  console.log("myCashback", myCashback);
 
   return (
     <Modal

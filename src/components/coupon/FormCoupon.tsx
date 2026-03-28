@@ -45,7 +45,7 @@ const FormCoupon = ({
 
   const { getOffers } = useApi();
   const { data: offer } = useQuery({
-    queryKey: ["get-offer", query],
+    queryKey: ["get-offer", query.page, query.limit, query.search ?? ""],
     queryFn: () => {
       return getOffers({
         search: query.search,
@@ -53,13 +53,11 @@ const FormCoupon = ({
         page: query.page,
       });
     },
-    staleTime: 0,
   });
 
   const { data: offerDetail } = useQuery<Offer>({
-    queryKey: ["getOffersDetailData", form],
+    queryKey: ["getOffersDetailData", form?.offer_id],
     queryFn: () => fetcher(`/offer/${form?.offer_id}`),
-    staleTime: 0,
     enabled: !!form?.offer_id,
     // refetchOnWindowFocus: true,
     // refetchOnMount: true,
@@ -68,8 +66,6 @@ const FormCoupon = ({
 
   // Handle file change
   const handleSave = () => {
-    console.log("form", form);
-
     const formData = new FormData();
     formData.append("name", form.name);
     formData.append("description", form.description);
@@ -220,7 +216,6 @@ const FormCoupon = ({
                   id={formItem.filedName}
                   mode="single"
                   onChange={(e) => {
-                    console.log("e", e);
                     setForm({
                       ...form,
                       [formItem.filedName]: e || "",

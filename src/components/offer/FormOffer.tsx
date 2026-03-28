@@ -1,4 +1,4 @@
-/* eslint-disable @next/next/no-img-element */
+import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import { Modal } from "../ui/modal";
 import Input from "../form/input/InputField";
 import client from "@/lib/axios/client";
@@ -8,6 +8,16 @@ import Switch from "../form/switch/Switch";
 import { Offer, OfferRequestForm } from "@/types/api";
 import { pathImage } from "@/utils/helper";
 import { useSession } from "next-auth/react";
+
+function FieldLabel({ label, description }: { label: string; description: string }) {
+  return (
+    <div className="mb-1.5">
+      <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{label}</p>
+      <p className="text-xs text-gray-500 dark:text-gray-400">{description}</p>
+    </div>
+  );
+}
+
 interface IProp {
   fetchOffers: () => void;
   openModal: boolean | Offer;
@@ -68,10 +78,10 @@ const FormOffer = ({
     if (form.upsize_end_date) {
       formData.append("upsize_end_date", form.upsize_end_date);
     }
-    if (form.upsize_special_commission != null && form.upsize_special_commission !== "") {
+    if (form.upsize_special_commission != null) {
       formData.append("upsize_special_commission", String(form.upsize_special_commission));
     }
-    if (form.upsize_max_cap != null && form.upsize_max_cap !== "") {
+    if (form.upsize_max_cap != null) {
       formData.append("upsize_max_cap", String(form.upsize_max_cap));
     }
     setIsLoading(true);
@@ -90,16 +100,10 @@ const FormOffer = ({
       })
       .catch((err) => {
         setIsLoading(false);
-        console.error("Failed to update withdraw request:", err);
+        console.error("Failed to update offer:", err);
         toast.error("Offer updated error");
       });
   };
-  const FieldLabel = ({ label, description }: { label: string; description: string }) => (
-    <div className="mb-1.5">
-      <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{label}</p>
-      <p className="text-xs text-gray-500 dark:text-gray-400">{description}</p>
-    </div>
-  );
 
   return (
     <Modal
@@ -285,13 +289,15 @@ const FormOffer = ({
               onChange={(e) => handleFileChange(e, "logo_desktop")}
             />
             {(form.logo_desktop || (openModal as Offer).logo_desktop) && (
-              <img
+              <RemoteOrBlobImage
                 src={
                   form.logo_desktop
                     ? URL.createObjectURL(form.logo_desktop)
                     : pathImage((openModal as Offer).logo_desktop)
                 }
                 alt="Preview"
+                width={256}
+                height={256}
                 className="mt-2 max-h-32 rounded-lg border border-gray-200 object-contain dark:border-gray-600"
               />
             )}
@@ -305,13 +311,15 @@ const FormOffer = ({
               onChange={(e) => handleFileChange(e, "logo_mobile")}
             />
             {(form.logo_mobile || (openModal as Offer).logo_mobile) && (
-              <img
+              <RemoteOrBlobImage
                 src={
                   form.logo_mobile
                     ? URL.createObjectURL(form.logo_mobile)
                     : pathImage((openModal as Offer).logo_mobile)
                 }
                 alt="Preview"
+                width={256}
+                height={256}
                 className="mt-2 max-h-32 rounded-lg border border-gray-200 object-contain dark:border-gray-600"
               />
             )}
@@ -325,13 +333,15 @@ const FormOffer = ({
               onChange={(e) => handleFileChange(e, "banner")}
             />
             {(form.banner || (openModal as Offer).banner) && (
-              <img
+              <RemoteOrBlobImage
                 src={
                   form.banner
                     ? URL.createObjectURL(form.banner)
                     : pathImage((openModal as Offer).banner)
                 }
                 alt="Preview"
+                width={256}
+                height={256}
                 className="mt-2 max-h-32 rounded-lg border border-gray-200 object-contain dark:border-gray-600"
               />
             )}
@@ -345,13 +355,15 @@ const FormOffer = ({
               onChange={(e) => handleFileChange(e, "banner_mobile")}
             />
             {(form.banner_mobile || (openModal as Offer).banner_mobile) && (
-              <img
+              <RemoteOrBlobImage
                 src={
                   form.banner_mobile
                     ? URL.createObjectURL(form.banner_mobile)
                     : pathImage((openModal as Offer).banner_mobile)
                 }
                 alt="Preview"
+                width={256}
+                height={256}
                 className="mt-2 max-h-32 rounded-lg border border-gray-200 object-contain dark:border-gray-600"
               />
             )}
@@ -365,13 +377,15 @@ const FormOffer = ({
               onChange={(e) => handleFileChange(e, "logo_circle")}
             />
             {(form.logo_circle || (openModal as Offer).logo_circle) && (
-              <img
+              <RemoteOrBlobImage
                 src={
                   form.logo_circle
                     ? URL.createObjectURL(form.logo_circle)
                     : pathImage((openModal as Offer).logo_circle)
                 }
                 alt="Preview"
+                width={256}
+                height={256}
                 className="mt-2 max-h-32 rounded-lg border border-gray-200 object-contain dark:border-gray-600"
               />
             )}

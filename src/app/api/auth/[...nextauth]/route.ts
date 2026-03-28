@@ -77,7 +77,6 @@ const authOptions = {
     // ...add more providers here
   ],
   callbacks: {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async jwt({ token, account, user }: { token: any; account: any; user: any }) {
       // Persist the OAuth access_token to the token right after signin
       if (account) {
@@ -85,7 +84,6 @@ const authOptions = {
       }
       return token;
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async session({ session, token }: any) {
       // Send properties to the client, like an access_token from a provider.
       session.accessToken = token.accessToken;
@@ -102,7 +100,26 @@ const authOptions = {
   },
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const isFirebaseStaticExport = process.env.BUILD_FOR_FIREBASE === "1";
+
+/** Pre-render NextAuth API segments for static export (Firebase Hosting). */
+export function generateStaticParams() {
+  if (!isFirebaseStaticExport) {
+    return [];
+  }
+  return [
+    { nextauth: ["signin"] },
+    { nextauth: ["signout"] },
+    { nextauth: ["session"] },
+    { nextauth: ["csrf"] },
+    { nextauth: ["providers"] },
+    { nextauth: ["callback", "credentials"] },
+    { nextauth: ["error"] },
+  ];
+}
+
+export const dynamic = "auto";
+
 const handler = NextAuth(authOptions as any);
 
 export { handler as GET, handler as POST };

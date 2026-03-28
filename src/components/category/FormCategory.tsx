@@ -1,4 +1,4 @@
-/* eslint-disable @next/next/no-img-element */
+import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import { Modal } from "../ui/modal";
 import Input from "../form/input/InputField";
 import client from "@/lib/axios/client";
@@ -126,13 +126,15 @@ const FormCategory = ({
               <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
                 How the image will look after saving.
               </p>
-              <img
+              <RemoteOrBlobImage
                 src={
                   form.image
                     ? URL.createObjectURL(form.image)
                     : pathImage((openModal as ResCategoryList).image)
                 }
                 alt="Preview"
+                width={800}
+                height={512}
                 className="h-auto max-h-64 max-w-full rounded-lg border border-gray-200 dark:border-gray-600"
               />
             </div>

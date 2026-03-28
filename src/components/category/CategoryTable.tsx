@@ -1,7 +1,7 @@
-/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import { OffersQuery } from "@/types/api";
 import Form from "./FormCategory";
 import { fetcher } from "@/lib/axios/client";
@@ -41,14 +41,13 @@ export default function CategoryTable() {
     refetch,
     isLoading: isLoadingCategory,
   } = useQuery<ResCategoryList[]>({
-    queryKey: ["getCategory", openModal, query],
+    queryKey: ["getCategory", query.search ?? ""],
     queryFn: () =>
       fetcher(
         query?.search
           ? `/offer/get-category/list?search=${query.search}`
           : `/offer/get-category/list`,
       ),
-    staleTime: 0,
   });
   // Handle search
   const handleSearch = (searchValue: string) => {
@@ -125,7 +124,7 @@ export default function CategoryTable() {
                         <div className="flex items-center">
                           <div className="h-12 w-12 flex-shrink-0">
                             {offer.image ? (
-                              <img
+                              <RemoteOrBlobImage
                                 className="h-12 w-12 rounded-lg object-cover"
                                 src={pathImage(offer.image)}
                                 alt={offer.name}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, startTransition } from "react";
 import { useApi } from "@/hooks/useApi";
 import {
   DataWithdrawsList,
@@ -20,7 +20,7 @@ export interface WithdrawRequestForm {
 export default function WithdrawTable() {
   const { data } = useSession();
   const session = data as { accessToken?: string };
-  const { loading, error, getWithdraws, deleteOffer, clearError } = useApi();
+  const { loading, error, getWithdraws, clearError } = useApi();
   const [openModal, setOpenModal] = useState<DataWithdrawsList | boolean>(
     false,
   );
@@ -79,7 +79,9 @@ export default function WithdrawTable() {
 
   // Initial load
   useEffect(() => {
-    fetchOffers();
+    startTransition(() => {
+      void fetchOffers();
+    });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -104,19 +106,6 @@ export default function WithdrawTable() {
     const newQuery = { ...query, page: newPage };
     setQuery(newQuery);
     fetchOffers(newQuery);
-  };
-
-  // Handle offer deletion
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleDeleteOffer = async (offerId: string) => {
-    if (!confirm("Are you sure you want to delete this offer?")) return;
-
-    try {
-      await deleteOffer(offerId);
-      fetchOffers(); // Refresh the list
-    } catch (err) {
-      console.error("Failed to delete offer:", err);
-    }
   };
 
   // Format date

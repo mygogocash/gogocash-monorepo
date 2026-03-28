@@ -1,7 +1,7 @@
-/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import { OffersQuery } from "@/types/api";
 import { fetcher } from "@/lib/axios/client";
 import { useQuery } from "@tanstack/react-query";
@@ -45,9 +45,8 @@ export default function BannerTable() {
     refetch,
     isLoading: isLoadingBanner,
   } = useQuery<BannerData>({
-    queryKey: ["getBannerHome", openModal, query],
+    queryKey: ["getBannerHome"],
     queryFn: () => fetcher(`/admin/banner-home`),
-    staleTime: 0,
   });
   // Handle search
   const handleSearch = (searchValue: string) => {
@@ -148,7 +147,7 @@ export default function BannerTable() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {imageSrc ? (
-                            <img
+                            <RemoteOrBlobImage
                               className="h-14 w-20 rounded-lg object-cover border border-gray-200 dark:border-gray-600"
                               src={imageSrc}
                               alt={link || `Banner ${item}`}
