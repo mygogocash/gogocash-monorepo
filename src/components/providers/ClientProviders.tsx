@@ -15,7 +15,7 @@ export default function ClientProviders({
 }) {
   return (
     <QueryClientProvider client={queryClient}>
-      <SessionProvider>
+      <SessionProvider refetchOnWindowFocus={false}>
         <ThemeProvider>
           <Toaster
             position="top-right"
