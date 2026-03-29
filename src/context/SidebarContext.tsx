@@ -30,26 +30,28 @@ export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isExpanded, setIsExpanded] = useState(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  /** False until after mount so SSR + first client render match (avoids sidebar submenu hydration mismatch). */
+  const [layoutReady, setLayoutReady] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [activeItem, setActiveItem] = useState<string | null>(null);
   const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
 
   useEffect(() => {
-    const handleResize = () => {
-      const mobile = window.innerWidth < 768;
-      setIsMobile(mobile);
-      if (!mobile) {
-        setIsMobileOpen(false);
-      }
+    const update = () => {
+      setIsMobile(window.innerWidth < 768);
     };
-
-    handleResize();
-    window.addEventListener("resize", handleResize);
-
-    return () => {
-      window.removeEventListener("resize", handleResize);
-    };
+    update();
+    setLayoutReady(true);
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
   }, []);
+
+  useEffect(() => {
+    if (!layoutReady) return;
+    if (!isMobile) {
+      setIsMobileOpen(false);
+    }
+  }, [isMobile, layoutReady]);
 
   const toggleSidebar = () => {
     setIsExpanded((prev) => !prev);
@@ -66,7 +68,7 @@ export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({
   return (
     <SidebarContext.Provider
       value={{
-        isExpanded: isMobile ? false : isExpanded,
+        isExpanded: layoutReady && isMobile ? false : isExpanded,
         isMobileOpen,
         isHovered,
         activeItem,

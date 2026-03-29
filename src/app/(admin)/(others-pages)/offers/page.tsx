@@ -1,18 +1,25 @@
-import OffersTable from "@/components/offer/OffersTable";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import OffersManagementPageContent from "@/components/offer/OffersManagementPageContent";
 import { Metadata } from "next";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
-  title: "Offers | TailAdmin - Next.js Dashboard Template",
+  title: "Offers Management | GoGoCash Admin",
 };
+
+function OffersManagementFallback() {
+  return (
+    <div className="space-y-6">
+      <div className="mb-6 h-8 w-48 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" />
+      <div className="h-10 w-full max-w-md animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" />
+      <div className="h-96 animate-pulse rounded-2xl bg-gray-100 dark:bg-gray-800" />
+    </div>
+  );
+}
 
 export default function OffersPage() {
   return (
-    <div>
-      <PageBreadcrumb pageTitle="Offers" />
-      <div className="space-y-6">
-        <OffersTable />
-      </div>
-    </div>
+    <Suspense fallback={<OffersManagementFallback />}>
+      <OffersManagementPageContent />
+    </Suspense>
   );
 }

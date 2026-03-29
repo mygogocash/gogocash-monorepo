@@ -17,6 +17,7 @@ import {
   mockWithdrawDetail,
   mockMCBDetail,
 } from "@/app/api/mock/data";
+import type { Offer } from "@/types/api";
 
 export type MockApiInput = {
   method: string;
@@ -571,6 +572,94 @@ async function handleMockPATCH(
 
   if (path[0] === "admin" && path[1] === "update-fee-rate") {
     return ok({ ...mockFee[0], ...b });
+  }
+
+  if (path[0] === "admin" && path[1] === "update-category" && path[2]) {
+    const categoryId = path[2];
+    const cat = mockCategories.find((c) => c._id === categoryId);
+    if (!cat) {
+      return jsonErr(404, { message: "Category not found" });
+    }
+    const body = b as { image?: string; banner?: string };
+    if (typeof body.image === "string" && body.image.length > 0) {
+      cat.image = body.image;
+    }
+    if (typeof body.banner === "string" && body.banner.length > 0) {
+      cat.banner = body.banner;
+    }
+    cat.updatedAt = new Date().toISOString();
+    return ok({
+      success: true,
+      message: "Category updated successfully",
+      data: cat,
+    });
+  }
+
+  if (path[0] === "admin" && path[1] === "update-offer" && path[2]) {
+    const offerId = path[2];
+    const offer = mockOffers.find((o) => o._id === offerId) as Offer | undefined;
+    if (!offer) {
+      return jsonErr(404, { message: "Offer not found" });
+    }
+    const b = body as Record<string, string | undefined>;
+    if (b.offer_name_display != null) {
+      offer.offer_name_display = b.offer_name_display;
+    }
+    if (b.disabled != null) {
+      offer.disabled = b.disabled === "true";
+    }
+    if (b.commission_store != null && b.commission_store !== "") {
+      offer.commission_store = Number(b.commission_store);
+    }
+    if (b.max_cap != null && b.max_cap !== "") {
+      offer.max_cap = Number(b.max_cap);
+    }
+    if (b.extra_store != null) {
+      offer.extra_store = b.extra_store === "true";
+    }
+    if (b.upsize_start_date !== undefined) {
+      offer.upsize_start_date = b.upsize_start_date || null;
+    }
+    if (b.upsize_end_date !== undefined) {
+      offer.upsize_end_date = b.upsize_end_date || null;
+    }
+    if (b.upsize_special_commission !== undefined) {
+      offer.upsize_special_commission =
+        b.upsize_special_commission === "" || b.upsize_special_commission == null
+          ? null
+          : Number(b.upsize_special_commission);
+    }
+    if (b.upsize_max_cap !== undefined) {
+      offer.upsize_max_cap =
+        b.upsize_max_cap === "" || b.upsize_max_cap == null ? null : Number(b.upsize_max_cap);
+    }
+    if (b.product_types != null) {
+      try {
+        const parsed = JSON.parse(b.product_types) as string[];
+        offer.product_types = Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+      } catch {
+        /* ignore invalid JSON */
+      }
+    }
+    if (b.logo_desktop) offer.logo_desktop = b.logo_desktop;
+    if (b.logo_mobile) offer.logo_mobile = b.logo_mobile;
+    if (b.banner) offer.banner = b.banner;
+    if (b.banner_mobile) offer.banner_mobile = b.banner_mobile;
+    if (b.logo_circle) offer.logo_circle = b.logo_circle;
+
+    if (b.policy_category_id !== undefined) {
+      const id = (b.policy_category_id ?? "").trim();
+      offer.policy_category_id = id || null;
+      if (id) {
+        const cat = mockCategories.find((c) => c._id === id);
+        offer.active_policy = cat?.name ?? id;
+      } else {
+        offer.active_policy = offer.categories;
+      }
+    }
+
+    offer.datetime_updated = new Date();
+    return ok({ success: true, message: "Offer updated", data: offer });
   }
 
   return jsonErr(404, { message: `Mock endpoint not found: PATCH /${joined}` });

@@ -179,11 +179,18 @@ export const mockBanner = {
 };
 
 export const mockCategories = [
-  { _id: "cat1", name: "Shopping", image: "", createdAt: lastWeek, updatedAt: now },
-  { _id: "cat2", name: "Travel", image: "", createdAt: lastWeek, updatedAt: now },
-  { _id: "cat3", name: "Food & Drink", image: "", createdAt: lastWeek, updatedAt: now },
-  { _id: "cat4", name: "Finance", image: "", createdAt: yesterday, updatedAt: now },
-  { _id: "cat5", name: "Entertainment", image: "", createdAt: yesterday, updatedAt: now },
+  {
+    _id: "cat1",
+    name: "Shopping",
+    image: "",
+    banner: "category-banner/cat1/sample-banner",
+    createdAt: lastWeek,
+    updatedAt: now,
+  },
+  { _id: "cat2", name: "Travel", image: "", banner: "", createdAt: lastWeek, updatedAt: now },
+  { _id: "cat3", name: "Food & Drink", image: "", banner: "", createdAt: lastWeek, updatedAt: now },
+  { _id: "cat4", name: "Finance", image: "", banner: "", createdAt: yesterday, updatedAt: now },
+  { _id: "cat5", name: "Entertainment", image: "", banner: "", createdAt: yesterday, updatedAt: now },
 ];
 
 const couponOfferRefs = [

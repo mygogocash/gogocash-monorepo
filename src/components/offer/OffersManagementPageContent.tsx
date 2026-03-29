@@ -1,0 +1,98 @@
+"use client";
+
+import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import PolicyTable from "@/components/policy/PolicyTable";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo } from "react";
+import OffersTable from "./OffersTable";
+
+const TABS = [
+  { id: "offers" as const, label: "Offers", breadcrumb: "Offers" },
+  {
+    id: "policy" as const,
+    label: "Policy Management",
+    breadcrumb: "Policy Management",
+  },
+] as const;
+
+type TabId = (typeof TABS)[number]["id"];
+
+function tabFromSearch(tabParam: string | null): TabId {
+  if (tabParam === "policy") return "policy";
+  return "offers";
+}
+
+export default function OffersManagementPageContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const activeTab = tabFromSearch(searchParams.get("tab"));
+
+  useEffect(() => {
+    if (searchParams.get("tab") === "category") {
+      router.replace("/category");
+    }
+  }, [router, searchParams]);
+
+  const setTab = useCallback(
+    (id: TabId) => {
+      const next = new URLSearchParams(searchParams.toString());
+      if (id === "offers") next.delete("tab");
+      else next.set("tab", id);
+      const qs = next.toString();
+      router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [pathname, router, searchParams],
+  );
+
+  const breadcrumbMeta = useMemo(() => {
+    const tab = TABS.find((t) => t.id === activeTab)!;
+    return {
+      pageTitle: tab.breadcrumb,
+      items: [
+        { label: "Home", href: "/" },
+        { label: "Offers Management", href: "/offers" },
+        { label: tab.breadcrumb },
+      ],
+    };
+  }, [activeTab]);
+
+  return (
+    <div>
+      <PageBreadcrumb
+        pageTitle={breadcrumbMeta.pageTitle}
+        items={breadcrumbMeta.items}
+      />
+      <div className="space-y-6">
+        <div
+          className="flex flex-wrap gap-2 border-b border-gray-200 dark:border-gray-800"
+          role="tablist"
+          aria-label="Offers management sections"
+        >
+          {TABS.map((t) => {
+            const selected = activeTab === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                onClick={() => setTab(t.id)}
+                className={`-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+                  selected
+                    ? "border-brand-500 text-brand-600 dark:border-brand-400 dark:text-brand-400"
+                    : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:border-gray-600 dark:hover:text-gray-200"
+                }`}
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {activeTab === "offers" && <OffersTable />}
+        {activeTab === "policy" && <PolicyTable />}
+      </div>
+    </div>
+  );
+}

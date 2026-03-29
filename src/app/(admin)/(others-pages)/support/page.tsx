@@ -28,7 +28,7 @@ export default function SupportPage() {
               1. Getting started
             </h2>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              After signing in, you land on the Dashboard. The left sidebar lists all main areas: Users, Offers, Category, Withdraw, Conversion, Banner, Coupon, Quest, and Deeplink. Use the header to open your profile, account settings, this Support page, or sign out.
+              After signing in, you land on the Dashboard. The left sidebar lists all main areas: Users, Offers, Category (including policy), Withdraw, Conversion, Banner, Coupon, Quest, and Deeplink. Use the header to open your profile, account settings, this Support page, or sign out.
             </p>
           </section>
 
@@ -72,9 +72,14 @@ export default function SupportPage() {
             <h2 className="mb-3 text-lg font-semibold text-gray-800 dark:text-white">
               5. Category Management
             </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Organize content with categories. Upload or update category images and keep the structure used by the app for browsing offers and content.
-            </p>
+            <ul className="list-inside list-disc space-y-2 text-sm text-gray-600 dark:text-gray-400">
+              <li>
+                <strong>Category</strong> — Upload or update category images and keep the structure used by the app for browsing offers and content.
+              </li>
+              <li>
+                <strong>Policy Management</strong> — Edit terms and conditions per category.
+              </li>
+            </ul>
           </section>
 
           {/* Withdraw Management */}

@@ -1,13 +1,15 @@
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import { Modal } from "../ui/modal";
 import Input from "../form/input/InputField";
-import client from "@/lib/axios/client";
+import client, { fetcher } from "@/lib/axios/client";
 import toast from "react-hot-toast";
 import Button from "../ui/button/Button";
 import Switch from "../form/switch/Switch";
 import { Offer, OfferRequestForm } from "@/types/api";
 import { pathImage } from "@/utils/helper";
 import { useSession } from "next-auth/react";
+import { useQuery } from "@tanstack/react-query";
+import type { ResCategoryList } from "@/types/category";
 
 function FieldLabel({ label, description }: { label: string; description: string }) {
   return (
@@ -38,6 +40,20 @@ const FormOffer = ({
 }: IProp) => {
   const { data } = useSession();
   const session = data as { accessToken?: string };
+  const offer = openModal && typeof openModal === "object" ? openModal : null;
+
+  const { data: policyCategories = [] } = useQuery<ResCategoryList[]>({
+    queryKey: ["getCategory", "form-offer-policy"],
+    queryFn: () => fetcher("/offer/get-category/list"),
+    staleTime: 60_000,
+  });
+
+  const { data: policiesList = {} } = useQuery<Record<string, string>>({
+    queryKey: ["policyList"],
+    queryFn: () => fetcher("/policy/list"),
+    staleTime: 30_000,
+  });
+
   // Handle file change
   const handleFileChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -87,6 +103,7 @@ const FormOffer = ({
     if (form.product_types?.length) {
       formData.append("product_types", JSON.stringify(form.product_types));
     }
+    formData.append("policy_category_id", form.policy_category_id ?? "");
     setIsLoading(true);
     client
       .patch(`/admin/update-offer/${form.id}`, formData, {
@@ -123,7 +140,7 @@ const FormOffer = ({
               Edit offer
             </h3>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              Update basic info, promo period, and media.
+              Update basic info, policy source, promo period, and media.
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-3">
@@ -213,6 +230,46 @@ const FormOffer = ({
               </p>
             </div>
           </div>
+        </section>
+
+        {/* Policy (T&C source) */}
+        <section className="space-y-3 rounded-xl border border-gray-200 bg-gray-50/80 p-4 dark:border-gray-700 dark:bg-gray-800/40">
+          <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            Terms &amp; conditions (policy)
+          </h4>
+          <FieldLabel
+            label="Which category policy applies"
+            description="Pick the category whose terms you configured under Policy Management. “Automatic” uses this offer’s own category label to resolve T&C in the app."
+          />
+          <select
+            id="offer-policy-category"
+            className="w-full max-w-xl rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+            value={form.policy_category_id}
+            onChange={(e) => setForm({ ...form, policy_category_id: e.target.value })}
+          >
+            <option value="">
+              Automatic — use offer category ({offer?.categories ?? "—"})
+            </option>
+            {policyCategories.map((cat) => {
+              const policyText = policiesList[cat._id] ?? "";
+              const hasPolicy = policyText.trim().length > 0;
+              return (
+                <option key={cat._id} value={cat._id}>
+                  {cat.name}
+                  {hasPolicy ? " — T&C configured" : " — no T&C yet"}
+                </option>
+              );
+            })}
+          </select>
+          {form.policy_category_id ? (
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              Saving will pin this offer to the selected category’s policy text. Users should see that category’s terms when engaging with this offer (per your app implementation).
+            </p>
+          ) : (
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              No override: the app can match <span className="font-medium">{offer?.categories ?? "—"}</span> to a category and load its policy.
+            </p>
+          )}
         </section>
 
         {/* Product Type */}
