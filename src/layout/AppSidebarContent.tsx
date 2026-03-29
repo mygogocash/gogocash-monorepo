@@ -108,11 +108,6 @@ function SidebarSubmenuLink({
   active: boolean;
   closeMobileSidebar: () => void;
 }) {
-  const [linksReady, setLinksReady] = useState(false);
-  useEffect(() => {
-    setLinksReady(true);
-  }, []);
-
   const className = `menu-dropdown-item ${active ? "menu-dropdown-item-active" : "menu-dropdown-item-inactive"}`;
 
   const badges = (
@@ -129,15 +124,6 @@ function SidebarSubmenuLink({
       )}
     </span>
   );
-
-  if (!linksReady) {
-    return (
-      <span className={className}>
-        {subItem.name}
-        {badges}
-      </span>
-    );
-  }
 
   return (
     <Link href={subItem.path} onClick={closeMobileSidebar} className={className}>
