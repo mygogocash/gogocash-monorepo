@@ -117,7 +117,39 @@ export async function PATCH(
   { params }: { params: Promise<{ path: string[] }> },
 ) {
   const { path } = await params;
-  const body = await request.json().catch(() => ({}));
+  const contentType = request.headers.get("content-type") ?? "";
+  let body: unknown = {};
+
+  if (contentType.includes("multipart/form-data")) {
+    const formData = await request.formData();
+    const safeName = (name: string) => name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const resourceId = path[path.length - 1] ?? "x";
+    const bodyObj: Record<string, string | undefined> = {};
+    for (const [key, value] of formData.entries()) {
+      if (value instanceof File) {
+        if (value.size === 0) continue;
+        if (path[0] === "admin" && path[1] === "update-category") {
+          if (key === "image") {
+            bodyObj[key] = `category/${resourceId}/${Date.now()}-${safeName(value.name)}`;
+          } else if (key === "banner") {
+            bodyObj[key] = `category-banner/${resourceId}/${Date.now()}-${safeName(value.name)}`;
+          } else {
+            bodyObj[key] = `uploads/category/${resourceId}/${key}/${Date.now()}-${safeName(value.name)}`;
+          }
+        } else if (path[0] === "admin" && path[1] === "update-offer") {
+          bodyObj[key] = `uploads/offer/${resourceId}/${key}/${Date.now()}-${safeName(value.name)}`;
+        } else {
+          bodyObj[key] = `uploads/${path.join("/")}/${key}/${Date.now()}-${safeName(value.name)}`;
+        }
+      } else {
+        bodyObj[key] = String(value);
+      }
+    }
+    body = bodyObj;
+  } else {
+    body = await request.json().catch(() => ({}));
+  }
+
   const r = await handleMockApiRequest({
     method: "PATCH",
     path,

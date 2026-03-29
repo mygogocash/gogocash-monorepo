@@ -17,8 +17,14 @@ export function normalizeE164(phone: string, country?: CountryCode) {
 }
 
 /** Internal mock only: no external asset server. Returns placeholder or empty. */
-export const pathImage = (path?: string | null) => {
+export const pathImage = (
+  path?: string | null,
+  variant: "square" | "banner" = "square",
+) => {
   if (!path) return "";
+  if (variant === "banner") {
+    return "https://placehold.co/640x200/e2e8f0/64748b?text=Category+banner";
+  }
   return "https://placehold.co/96x96/e2e8f0/64748b?text=Image";
 };
 

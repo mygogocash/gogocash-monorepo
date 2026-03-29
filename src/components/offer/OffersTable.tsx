@@ -28,6 +28,7 @@ function offerToEditForm(offer: Offer): OfferRequestForm {
     upsize_special_commission: offer.upsize_special_commission ?? null,
     upsize_max_cap: offer.upsize_max_cap ?? null,
     product_types: offer.product_types ?? [],
+    policy_category_id: offer.policy_category_id ?? "",
   };
 }
 
@@ -54,6 +55,7 @@ export default function OffersTable() {
     upsize_special_commission: null,
     upsize_max_cap: null,
     product_types: [],
+    policy_category_id: "",
   });
   const { data } = useSession();
   const session = data as { accessToken?: string };

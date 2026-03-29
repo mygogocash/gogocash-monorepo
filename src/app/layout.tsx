@@ -26,7 +26,10 @@ export default function RootLayout({
         {process.env.BUILD_FOR_FIREBASE === "1" ? (
           <meta name="gogocash-static-export" content="1" />
         ) : null}
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script
+          // Inline in <head> runs before paint; avoids React treating <script> in <body> as non-executable during client render (Next 16 / React 19).
+          dangerouslySetInnerHTML={{ __html: themeInitScript }}
+        />
       </head>
       <body className={`${outfit.className} min-h-screen pt-8 bg-white dark:bg-gray-900`} suppressHydrationWarning>
         <InternalMockBanner />

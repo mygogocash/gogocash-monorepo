@@ -16,6 +16,7 @@ export default function CategoryTable() {
   const [isLoading, setIsLoading] = useState(false);
   const [form, setForm] = useState<CategoryRequestForm>({
     image: null,
+    banner: null,
   });
 
   useEffect(() => {
@@ -107,6 +108,9 @@ export default function CategoryTable() {
                       Category
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Banner
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                       Actions
                     </th>
                   </tr>
@@ -146,6 +150,19 @@ export default function CategoryTable() {
                           </div>
                         </div>
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {offer.banner ? (
+                          <RemoteOrBlobImage
+                            className="h-14 w-36 rounded-lg border border-gray-200 object-cover dark:border-gray-600"
+                            src={pathImage(offer.banner, "banner")}
+                            alt={`${offer.name} banner`}
+                            width={144}
+                            height={56}
+                          />
+                        ) : (
+                          <span className="text-sm text-gray-400 dark:text-gray-500">—</span>
+                        )}
+                      </td>
                       <td className="relative px-6 py-4 text-sm font-medium whitespace-nowrap">
                         <div
                           ref={openActionsId === offer._id ? actionsDropdownRef : undefined}
@@ -175,7 +192,7 @@ export default function CategoryTable() {
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setOpenModal(offer);
-                                  setForm({ image: null });
+                                  setForm({ image: null, banner: null });
                                   setOpenActionsId(null);
                                 }}
                                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"

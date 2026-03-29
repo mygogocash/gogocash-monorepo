@@ -163,6 +163,8 @@ export interface Offer {
   extra_store: boolean;
   /** Active policy (from category; optional if API provides it) */
   active_policy?: string | null;
+  /** When set, T&C for this offer come from this category’s policy (Policy Management). Empty = use offer category name to resolve. */
+  policy_category_id?: string | null;
   /** Upsize event (optional, from API) */
   upsize_start_date?: string | null;
   upsize_end_date?: string | null;
@@ -191,6 +193,8 @@ export interface OfferRequestForm {
   upsize_max_cap: number | null;
   /** Product types (e.g. categories or SKU types) for this offer */
   product_types?: string[];
+  /** Category whose terms & conditions apply; empty string = default (match offer category). */
+  policy_category_id: string;
 }
 
 export interface OffersQuery {

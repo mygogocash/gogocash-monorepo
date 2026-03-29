@@ -7,6 +7,8 @@ import Button from "../ui/button/Button";
 import { useSession } from "next-auth/react";
 import { pathImage } from "@/utils/helper";
 import { CategoryRequestForm, ResCategoryList } from "@/types/category";
+import { useLayoutEffect, useState } from "react";
+
 interface IProp {
   fetchOffers: () => void;
   openModal: boolean | ResCategoryList;
@@ -16,6 +18,7 @@ interface IProp {
   isLoading: boolean;
   setIsLoading: React.Dispatch<React.SetStateAction<boolean>>;
 }
+
 const FormCategory = ({
   fetchOffers,
   openModal,
@@ -27,25 +30,56 @@ const FormCategory = ({
 }: IProp) => {
   const { data } = useSession();
   const session = data as { accessToken?: string };
-  // Handle file change
+  const category = openModal && typeof openModal === "object" ? openModal : null;
+  const [iconObjectUrl, setIconObjectUrl] = useState<string | null>(null);
+  const [bannerObjectUrl, setBannerObjectUrl] = useState<string | null>(null);
+
+  useLayoutEffect(() => {
+    if (!form.image) {
+      setIconObjectUrl(null);
+      return undefined;
+    }
+    const url = URL.createObjectURL(form.image);
+    setIconObjectUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [form.image]);
+
+  useLayoutEffect(() => {
+    if (!form.banner) {
+      setBannerObjectUrl(null);
+      return undefined;
+    }
+    const url = URL.createObjectURL(form.banner);
+    setBannerObjectUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [form.banner]);
+
   const handleFileChange = (
     e: React.ChangeEvent<HTMLInputElement>,
-    key: string,
+    key: "image" | "banner",
   ) => {
     const file = e.target.files?.[0] || null;
     setForm((prev) => ({ ...prev, [key]: file }));
   };
 
   const handleSave = () => {
+    if (!category) return;
+    if (!form.image && !form.banner) {
+      toast.error("Select a new category icon and/or banner to upload.");
+      return;
+    }
+
     const formData = new FormData();
-    const categoryId = (openModal as ResCategoryList)?._id;
     if (form.image) {
       formData.append("image", form.image);
+    }
+    if (form.banner) {
+      formData.append("banner", form.banner);
     }
 
     setIsLoading(true);
     client
-      .patch(`/admin/update-category/${categoryId}`, formData, {
+      .patch(`/admin/update-category/${category._id}`, formData, {
         headers: {
           Authorization: `Bearer ${session?.accessToken}`,
           "Content-Type": "multipart/form-data",
@@ -60,9 +94,21 @@ const FormCategory = ({
       .catch((err) => {
         setIsLoading(false);
         console.error("Failed to update category:", err);
-        toast.error("Category updated error");
+        toast.error("Category update failed");
       });
   };
+
+  const iconPreviewSrc = form.image
+    ? (iconObjectUrl ?? "")
+    : category?.image
+      ? pathImage(category.image)
+      : "";
+  const bannerPreviewSrc = form.banner
+    ? (bannerObjectUrl ?? "")
+    : category?.banner
+      ? pathImage(category.banner, "banner")
+      : "";
+
   return (
     <Modal
       isOpen={Boolean(openModal)}
@@ -75,19 +121,14 @@ const FormCategory = ({
         <div className="mb-4 flex w-full shrink-0 flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-4 dark:border-gray-700">
           <div className="min-w-0">
             <h4 className="text-title-sm mb-1 font-semibold text-gray-800 dark:text-white/90">
-              Upload Category Image
+              Category icon &amp; banner
             </h4>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Upload or replace the image for this category. It will be shown to users in the app when they browse categories.
+              Upload or replace the category icon and optional wide banner. The banner can highlight this category in the app (e.g. category hub or listing header).
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-3">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setOpenModal(false)}
-              disabled={isLoading}
-            >
+            <Button size="sm" variant="outline" onClick={() => setOpenModal(false)} disabled={isLoading}>
               Close
             </Button>
             <Button
@@ -100,45 +141,65 @@ const FormCategory = ({
                 ) : null
               }
             >
-              Save Changes
+              Save changes
             </Button>
           </div>
         </div>
-        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto pb-4">
-          <div>
-            <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-              Upload Image
+        <div className="min-h-0 flex-1 space-y-8 overflow-y-auto pb-4">
+          <section>
+            <h5 className="text-sm font-semibold text-gray-800 dark:text-white/90">Category icon</h5>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Square or near-square image (e.g. PNG, JPG). Shown in category lists.
             </p>
-            <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-              Choose an image file (e.g. PNG, JPG). Use a clear, square or landscape image for best display.
-            </p>
-            <Input
-              type="file"
-              name="image"
-              onChange={(event) => handleFileChange(event, "image")}
-            />
-          </div>
-          {(form.image || (openModal as ResCategoryList).image) && (
-            <div className="mt-4 mb-4">
-              <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                Preview
-              </p>
-              <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-                How the image will look after saving.
-              </p>
-              <RemoteOrBlobImage
-                src={
-                  form.image
-                    ? URL.createObjectURL(form.image)
-                    : pathImage((openModal as ResCategoryList).image)
-                }
-                alt="Preview"
-                width={800}
-                height={512}
-                className="h-auto max-h-64 max-w-full rounded-lg border border-gray-200 dark:border-gray-600"
-              />
+            <div className="mt-3">
+              <Input type="file" name="image" onChange={(event) => handleFileChange(event, "image")} />
             </div>
-          )}
+            {iconPreviewSrc ? (
+              <div className="mt-4">
+                <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Icon preview</p>
+                <RemoteOrBlobImage
+                  src={iconPreviewSrc}
+                  alt="Category icon preview"
+                  width={160}
+                  height={160}
+                  className="h-40 w-40 rounded-lg border border-gray-200 object-cover dark:border-gray-600"
+                />
+              </div>
+            ) : (
+              <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">No icon set yet.</p>
+            )}
+          </section>
+
+          <section>
+            <h5 className="text-sm font-semibold text-gray-800 dark:text-white/90">Category banner</h5>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Wide image for this category (recommended ~3:1 or 16:9). Shown where the app promotes this category.
+            </p>
+            <div className="mt-3">
+              <Input type="file" name="banner" onChange={(event) => handleFileChange(event, "banner")} />
+            </div>
+            {category?.banner && !form.banner ? (
+              <p className="mt-2 text-xs font-medium text-gray-600 dark:text-gray-400">Current banner</p>
+            ) : null}
+            {bannerPreviewSrc ? (
+              <div className="mt-2">
+                {form.banner ? (
+                  <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">New banner preview</p>
+                ) : (
+                  <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Current banner</p>
+                )}
+                <RemoteOrBlobImage
+                  src={bannerPreviewSrc}
+                  alt="Category banner preview"
+                  width={640}
+                  height={200}
+                  className="max-h-48 w-full max-w-2xl rounded-lg border border-gray-200 object-cover dark:border-gray-600"
+                />
+              </div>
+            ) : (
+              <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">No banner set — upload one to show in the app.</p>
+            )}
+          </section>
         </div>
       </div>
     </Modal>
