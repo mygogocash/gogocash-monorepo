@@ -38,7 +38,12 @@ if (!existsSync(path.join(root, "firebase.json"))) {
 console.log("[deploy-firebase-staging] Building static export (BUILD_FOR_FIREBASE=1)…");
 execSync("npm run build:firebase", {
   stdio: "inherit",
-  env: { ...process.env, NEXT_TELEMETRY_DISABLED: "1" },
+  env: {
+    ...process.env,
+    // .env.local often sets NODE_ENV=development; Next production static export requires production.
+    NODE_ENV: "production",
+    NEXT_TELEMETRY_DISABLED: "1",
+  },
 });
 
 console.log("[deploy-firebase-staging] Deploying to Firebase (gogocash-staging)…");
