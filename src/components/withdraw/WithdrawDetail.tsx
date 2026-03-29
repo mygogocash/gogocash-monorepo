@@ -16,6 +16,7 @@ import CopyButton from "@/components/ui/CopyButton";
 const WithdrawDetailDataGrid = dynamic(
   () => import("./WithdrawDetailLazyGrids"),
   {
+    ssr: false,
     loading: () => (
       <div className="h-64 w-full animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" />
     ),
