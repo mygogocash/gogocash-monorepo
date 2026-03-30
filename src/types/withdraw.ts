@@ -1,0 +1,193 @@
+export interface ResGetConversionInWithdraw {
+  status: string;
+  message: string;
+  data: ConversionInWithdrawList;
+}
+
+export interface ConversionInWithdrawList {
+  page: number;
+  limit: number;
+  count: number;
+  nextPage: null;
+  data: ConversionInWithdraw[];
+}
+
+export interface ConversionInWithdraw {
+  conversion_id: number;
+  offer_id: number;
+  aff_sub1: string;
+  aff_sub2: null;
+  aff_sub3: null;
+  aff_sub4: null;
+  aff_sub5: null;
+  adv_sub1: string;
+  adv_sub2: string;
+  adv_sub3: string;
+  adv_sub4: string;
+  adv_sub5: string;
+  datetime_conversion: Date;
+  conversion_status: string;
+  affiliate_remarks: null;
+  currency: string;
+  sale_amount: string;
+  payout: string;
+  base_payout: string;
+  bonus_payout: string;
+  merchant_id: number;
+  offer_name: string;
+}
+
+export interface ResDataWithdrawsListByUser {
+  totalsByStatusAndCurrency: TotalsByStatusAndCurrency[];
+  data: Data;
+  fee: Fee;
+  withdrawList: WithdrawList[];
+  allConversions: AllConversion[];
+  user: User;
+  withdrawSumByCurrency: ResWithdrawSumByStatus;
+}
+export interface ResWithdrawSumByStatus {
+  [key: string]: WithdrawSumByCurrency;
+}
+export interface WithdrawSumByCurrency {
+  [key: string]: DataSumByCurrency;
+}
+
+export interface DataSumByCurrency {
+  netAmount: number;
+  count: number;
+}
+
+export interface UserLogEntry {
+  action?: string;
+  at?: string;
+  ip?: string;
+}
+
+export interface User {
+  _id?: string;
+  email: string;
+  mobile: string;
+  fullName?: string;
+  gender?: string;
+  birthdate?: string;
+  wallet?: string;
+  userLog?: UserLogEntry[];
+  totalCashback?: number;
+  totalCashbackCurrency?: string;
+}
+export interface WithdrawList {
+  _id: string;
+  address: string;
+  account_number: string;
+  account_name: string;
+  bank_name: string;
+  amount_total: number;
+  amount_net: number;
+  percent_fee: number;
+  status: Status;
+  method: string;
+  tx_hash: string;
+  tx_hash_record: string;
+  user_id: string;
+  conversion_id: number[];
+  currency: Currency;
+  mycashback_id: string[];
+  createdAt: Date;
+  updatedAt: Date;
+  __v: number;
+  slip_file: string;
+}
+export interface AllConversion {
+  _id: string;
+  conversion_id: number;
+  __v: number;
+  adv_sub1: string;
+  adv_sub2: string;
+  adv_sub3: string;
+  adv_sub4: string;
+  adv_sub5: string;
+  aff_sub1: string;
+  aff_sub2: null;
+  aff_sub3: null;
+  aff_sub4: null;
+  aff_sub5: null;
+  affiliate_remarks: string;
+  base_payout: number;
+  bonus_payout: number;
+  conversion_status: Status;
+  createdAt: Date;
+  currency: Currency;
+  datetime_conversion: Date;
+  merchant_id: number;
+  offer_id: number;
+  offer_name: OfferName;
+  payout: number;
+  sale_amount: number;
+  updatedAt: Date;
+}
+
+export enum Status {
+  Approved = "approved",
+  Pending = "pending",
+  Rejected = "rejected",
+}
+
+export enum Currency {
+  Thb = "THB",
+}
+
+export enum OfferName {
+  ShopeeTHCPS = "Shopee TH - CPS",
+}
+
+export interface Data {
+  approved: Approved;
+  pending: Approved;
+  rejected: Approved;
+}
+
+export interface Approved {
+  count: number;
+  totalPayout: number;
+  items: AllConversion[];
+}
+
+export interface Fee {
+  _id: string;
+  system: number;
+  store: number;
+  createdAt: Date;
+  updatedAt: Date;
+  __v: number;
+  fee_withdraw_usd: number;
+  fee_withdraw_thb: number;
+  minimum_withdraw_thb: number;
+  minimum_withdraw_usd: number;
+  minimum_withdraw: number;
+}
+
+export interface TotalsByStatusAndCurrency {
+  status: Status;
+  count: number;
+  totalPayout: number;
+  currencyBreakdown: CurrencyBreakdown[];
+  totalUSD: number;
+  totalTHB: number;
+}
+
+export interface CurrencyBreakdown {
+  currency: Currency;
+  amount: number;
+  usdAmount: number;
+  thbAmount: number;
+}
+
+
+export interface ResMCBDetail {
+    totalMyCashbackTHB:     number;
+    totalMyCashbackUSD:     number;
+    availableUSD:           number;
+    availableTHB:           number;
+    conversionIdMyCashback: string[];
+}
