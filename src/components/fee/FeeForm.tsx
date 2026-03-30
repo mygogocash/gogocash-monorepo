@@ -98,7 +98,6 @@ export default function FeeForm() {
                   type="text"
                   value={forms.system}
                   min="0"
-                  defaultValue={forms.system}
                   onChange={(e) =>
                     setForms({
                       ...forms,
@@ -123,7 +122,6 @@ export default function FeeForm() {
                   placeholder="0.00"
                   type="text"
                   value={forms.fee_withdraw_thb}
-                  defaultValue={forms.fee_withdraw_thb}
                   min="0"
                   onChange={(e) =>
                     setForms({
@@ -150,7 +148,6 @@ export default function FeeForm() {
                   placeholder="0.00"
                   type="text"
                   value={forms.fee_withdraw_usd}
-                  defaultValue={forms.fee_withdraw_usd}
                   min="0"
                   onChange={(e) =>
                     setForms({
@@ -177,7 +174,6 @@ export default function FeeForm() {
                   placeholder="0.00"
                   type="text"
                   value={forms.minimum_withdraw_thb}
-                  defaultValue={forms.minimum_withdraw_thb}
                   min="0"
                   onChange={(e) =>
                     setForms({
@@ -204,7 +200,6 @@ export default function FeeForm() {
                   placeholder="0.00"
                   type="text"
                   value={forms.minimum_withdraw_usd}
-                  defaultValue={forms.minimum_withdraw_usd}
                   min="0"
                   onChange={(e) =>
                     setForms({

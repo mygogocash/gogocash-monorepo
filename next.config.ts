@@ -19,6 +19,9 @@ const nextConfig: NextConfig = {
   ...(process.env.BUILD_FOR_FIREBASE === "1"
     ? {
         output: "export" as const,
+        // Without trailingSlash, export emits route.html plus route/ for nested SSG; Firebase
+        // resolves /route to the directory and 404s when route/index.html is missing.
+        trailingSlash: true,
         env: {
           NEXT_PUBLIC_FIREBASE_STATIC: "1",
         },

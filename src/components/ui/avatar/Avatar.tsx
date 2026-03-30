@@ -32,6 +32,15 @@ const statusColorClasses = {
   busy: "bg-warning-500",
 };
 
+const avatarSizesPx = {
+  xsmall: 24,
+  small: 32,
+  medium: 40,
+  large: 48,
+  xlarge: 56,
+  xxlarge: 64,
+} as const;
+
 const Avatar: React.FC<AvatarProps> = ({
   src,
   alt = "User Avatar",
@@ -39,15 +48,14 @@ const Avatar: React.FC<AvatarProps> = ({
   status = "none",
 }) => {
   return (
-    <div className={`relative  rounded-full ${sizeClasses[size]}`}>
+    <div className={`relative overflow-hidden rounded-full ${sizeClasses[size]}`}>
       {/* Avatar Image */}
       <Image
-        width="0"
-        height="0"
-        sizes="100vw"
+        fill
         src={src}
         alt={alt}
-        className="object-cover w-full rounded-full"
+        sizes={`${avatarSizesPx[size]}px`}
+        className="object-cover"
       />
 
       {/* Status Indicator */}

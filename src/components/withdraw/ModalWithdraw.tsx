@@ -206,6 +206,7 @@ const ModalWithdraw = ({
               width={800}
               height={512}
               className="h-auto max-h-64 max-w-full rounded-lg border border-gray-200 dark:border-gray-600"
+              style={{ width: "auto", height: "auto" }}
             />
           </div>
         )}

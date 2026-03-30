@@ -3,7 +3,7 @@
 > **Internal use only.** This build uses **mock data only**. All data is from `/api/mock` (550+ users, offers, withdrawals, conversions, coupons). No real API is used.  
 > **Framework**: Next.js 15.2.3 · React 19 · TypeScript  
 > **UI**: Tailwind CSS 4 + Material-UI 7 · ApexCharts · FullCalendar  
-> **Auth**: NextAuth v4 (Credentials → JWT); mock sign-in: **admin@gogocash.co** / **1234**  
+> **Auth**: NextAuth v4 (Credentials → JWT); mock sign-in: `admin@gogocash.co` / `1234`  
 > **Branch:** Push to **staging** only: `git push origin main:staging` (or your branch → `origin/staging`).
 
 Admin dashboard for managing GoGoCash operations — users, offers, withdrawals, conversions, fee settings, banners, coupons, and KPI monitoring.
@@ -56,7 +56,7 @@ Admin dashboard for managing GoGoCash operations — users, offers, withdrawals,
 
 ## Architecture Overview
 
-```
+```text
 ┌─────────────────────────────────────────────────────────┐
 │                    Next.js 15 App Router                 │
 ├─────────────────────────────────────────────────────────┤
@@ -83,7 +83,7 @@ Admin dashboard for managing GoGoCash operations — users, offers, withdrawals,
 ├─────────────────────────────────────────────────────────┤
 │                                                         │
 │   lib/api.ts (ApiClient)  →  GoGoCash Backend API       │
-│   hooks/useApi.ts         →  https://api.gogocash.co    │
+│   hooks/useApi.ts         →  `https://api.gogocash.co`  │
 │                                                         │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -92,7 +92,7 @@ Admin dashboard for managing GoGoCash operations — users, offers, withdrawals,
 
 ## Directory Structure
 
-```
+```text
 src/
 ├── app/
 │   ├── globals.css                       # Tailwind CSS global styles
@@ -221,6 +221,7 @@ src/
 ## Getting Started
 
 ### Prerequisites
+
 - Node.js 20+
 - Yarn (recommended) or npm
 
@@ -263,7 +264,7 @@ NEXT_TELEMETRY_DISABLED=1
 
 ### NextAuth Configuration
 
-```
+```text
 Provider:   Credentials (email + password)
 Strategy:   JWT (no database sessions)
 Max Age:    24 hours
@@ -272,7 +273,7 @@ Login API:  POST /admin/login → { _id, username, email, token }
 
 ### Auth Flow
 
-```
+```text
 ┌──────────────┐    email/password    ┌────────────────┐
 │  SignInForm   │ ──────────────────→  │  NextAuth API   │
 │  /signin     │                      │  /api/auth/...  │
@@ -304,6 +305,7 @@ Login API:  POST /admin/login → { _id, username, email, token }
 ### AuthGuard Component
 
 Wraps all admin routes in `(admin)/layout.tsx`:
+
 - Checks `useSession()` status
 - Redirects unauthenticated users to `/signin`
 - Shows loading spinner during session check
@@ -325,7 +327,7 @@ interface Session {
 ### Protected Admin Routes (`/`)
 
 | Path | Component | Description |
-|------|-----------|-------------|
+| --- | --- | --- |
 | `/` | `EcommerceMetrics` + Charts | Dashboard with KPIs, sales charts, demographics |
 | `/admin-users` | `AdminUsersTable` | Manage admin user accounts (CRUD) |
 | `/users` | `UsersTable` | View & manage regular users |
@@ -344,7 +346,7 @@ interface Session {
 ### Public Routes
 
 | Path | Component | Description |
-|------|-----------|-------------|
+| --- | --- | --- |
 | `/signin` | `SignInForm` | Admin login |
 | `/signup` | `SignUpForm` | Admin registration |
 | `/error-404` | Error page | Not found |
@@ -449,7 +451,7 @@ const queryClient = new QueryClient({
 
 All management pages follow a consistent pattern:
 
-```
+```text
 ┌──────────────────────────────────────────┐
 │  PageBreadCrumb (navigation trail)       │
 ├──────────────────────────────────────────┤
@@ -470,7 +472,7 @@ All management pages follow a consistent pattern:
 ### Form Components
 
 | Component | File | Description |
-|-----------|------|-------------|
+| --- | --- | --- |
 | `Input` | `form/Input/` | Text, number, email inputs |
 | `Select` | `form/Select.tsx` | Single select dropdown |
 | `MultiSelect` | `form/MultiSelect.tsx` | Multi-select with tags |
@@ -481,7 +483,7 @@ All management pages follow a consistent pattern:
 ### UI Components
 
 | Component | Path | Description |
-|-----------|------|-------------|
+| --- | --- | --- |
 | `Alert` | `ui/alert/` | Info/success/warning/error banners |
 | `Badge` | `ui/badge/` | Status badges with variants |
 | `Button` | `ui/button/` | Primary/secondary/ghost buttons |
@@ -495,7 +497,7 @@ All management pages follow a consistent pattern:
 
 The main dashboard (`/`) displays:
 
-```
+```text
 ┌──────────────────────────────────────────────────┐
 │              EcommerceMetrics                      │
 │  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐            │
@@ -527,14 +529,15 @@ The main dashboard (`/`) displays:
 
 ### React Context
 
-| Context | File | State |
-|---------|------|-------|
-| `SidebarContext` | `context/SidebarContext.tsx` | `isExpanded`, `isMobileOpen`, `isHovered`, `activeItem`, `openSubmenu` |
-| `ThemeContext` | `context/ThemeContext.tsx` | `theme` ("light" / "dark"), persisted to localStorage |
+- **`SidebarContext`** (`context/SidebarContext.tsx`):
+  `isExpanded`, `isMobileOpen`, `isHovered`, `activeItem`, `openSubmenu`
+- **`ThemeContext`** (`context/ThemeContext.tsx`):
+  `theme` ("light" / "dark"), persisted to `localStorage`
 
 ### TanStack React Query
 
-Used for server state caching. Configured with no auto-refetching to give admin users full control over data freshness.
+Used for server state caching. Configured with no auto-refetching to give admin users full control
+over data freshness.
 
 ### NextAuth Session
 
@@ -643,6 +646,7 @@ kubectl apply -f k8s/ingress.yaml
 ```
 
 **K8s Configuration:**
+
 - **Replicas**: 2
 - **Resources**: 256Mi–512Mi RAM, 250m–500m CPU
 - **Health checks**: Liveness (30s) + Readiness (5s)
@@ -656,6 +660,7 @@ gcloud app deploy app.yaml
 ```
 
 **App Engine Config** (`app.yaml`):
+
 - Runtime: Node.js 18
 - Auto-scaling: 0–10 instances
 - CPU target: 60%
@@ -664,6 +669,7 @@ gcloud app deploy app.yaml
 ### Docker Build
 
 Multi-stage Dockerfile:
+
 1. **deps**: Install with `yarn --frozen-lockfile`
 2. **builder**: `yarn build` (Next.js standalone output)
 3. **runner**: Production image, non-root user (`nextjs:nodejs`)
@@ -676,7 +682,7 @@ docker run -p 3000:3000 --env-file .env gogocash-admin
 
 ### CI/CD Pipeline (`cloudbuild.yaml`)
 
-```
+```text
 1. Build Docker image  →  gcr.io/$PROJECT_ID/gogocash-admin:$COMMIT_SHA
 2. Push to GCR         →  Both :$COMMIT_SHA and :latest tags
 3. Deploy Cloud Run    →  us-central1, port 3000, unauthenticated
@@ -686,7 +692,7 @@ docker run -p 3000:3000 --env-file .env gogocash-admin
 
 ## Sidebar Navigation Structure
 
-```
+```text
 Dashboard
 ├── Ecommerce (/)
 
@@ -721,7 +727,7 @@ Others
 ## Key Libraries
 
 | Library | Version | Purpose |
-|---------|---------|---------|
+| --- | --- | --- |
 | `next` | 15.2.3 | React framework (App Router, SSR) |
 | `react` | 19.0.0 | UI library |
 | `next-auth` | 4.24.13 | Authentication (JWT + Credentials) |
@@ -745,7 +751,7 @@ Others
 ## Developer Onboarding
 
 1. **Start here**: Read [Authentication](#authentication) and [Routes & Pages](#routes--pages) to understand the app structure.
-2. **Run locally**: `yarn dev` → open `http://localhost:3000` → sign in with admin credentials.
+2. **Run locally**: `yarn dev` → open [http://localhost:3000](http://localhost:3000) → sign in with admin credentials.
 3. **Key files to read first**:
    - `src/app/(admin)/layout.tsx` — Admin shell layout
    - `src/lib/api.ts` — API client (all endpoints)
