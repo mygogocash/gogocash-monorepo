@@ -1,0 +1,370 @@
+// API Types
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  _id: string;
+  username: string;
+  email: string;
+  password: string;
+  createdAt: string;
+  updatedAt: string;
+  __v: number;
+  token: string;
+}
+
+export interface ApiError {
+  message: string;
+  status: number;
+  errors?: Record<string, string[]>;
+}
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+}
+
+export interface RegisterRequest {
+  name: string;
+  email: string;
+  password: string;
+  password_confirmation: string;
+}
+
+export interface RegisterResponse {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+  message?: string;
+}
+
+export interface AdminUsersQuery {
+  limit?: number;
+  page?: number;
+  search?: string;
+  role?: string;
+  status?: string;
+}
+
+export interface AdminUsersResponse {
+  data: DataAdminUsers[];
+  pagination: Pagination;
+}
+
+export interface DataAdminUsers {
+  _id: string;
+  username: string;
+  password: string;
+  email: string;
+  status?: "active" | "pending";
+  createdAt: Date;
+  updatedAt: Date;
+  __v: number;
+}
+
+export interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+// Regular User Types (from /user endpoint)
+
+export interface RegularUser {
+  _id: string;
+  address: string;
+  __v: number;
+  email: string;
+  id_crossmint: string;
+  id_twitter: string;
+  username: string;
+  mobile?: string;
+  id_firebase: string;
+  createdAt: Date;
+  updatedAt: Date;
+  birthdate: Date | null;
+  country: string | null;
+  gender: string | null;
+}
+export interface UsersQuery {
+  limit?: number;
+  page?: number;
+  search?: string;
+  role?: string;
+  status?: string;
+}
+
+export interface UsersResponse {
+  data: RegularUser[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export interface DashboardStatsResponse {
+  gogocashUsers: number;
+  mycashbackUsers: number;
+}
+
+export interface DashboardSummaryResponse {
+  conversionCount: number;
+  conversionTotalPayout: number;
+  withdrawByStatus: {
+    pending: { count: number; total: number };
+    approved: { count: number; total: number };
+    rejected: { count: number; total: number };
+  };
+}
+
+/** One product-type row on an offer (display name + commission details for admins). */
+export interface OfferProductTypeEntry {
+  name: string;
+  commission_info: string;
+}
+
+/**
+ * Coerce API/mock payloads to typed rows. Older data may still use `string[]`.
+ */
+export function normalizeOfferProductTypes(value: unknown): OfferProductTypeEntry[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item): OfferProductTypeEntry => {
+    if (typeof item === "string") {
+      return { name: item.trim(), commission_info: "" };
+    }
+    if (item && typeof item === "object") {
+      const o = item as Record<string, unknown>;
+      return {
+        name: String(o.name ?? "").trim(),
+        commission_info: String(o.commission_info ?? "").trim(),
+      };
+    }
+    return { name: "", commission_info: "" };
+  });
+}
+
+// Offer Types (from /offer endpoint)
+export interface Offer {
+  _id: string;
+  offer_id: number;
+  __v: number;
+  categories: string;
+  commission_tracking: string;
+  commissions: string[];
+  countries: string;
+  currency: string;
+  datetime_created: Date;
+  datetime_updated: Date;
+  description: string;
+  directory_page: string;
+  is_require_approval: number;
+  logo: string;
+  lookup_value: string;
+  marketplace_store_offer: boolean;
+  merchant_id: number;
+  offer_name: string;
+  payment_terms: number;
+  preview_url: string;
+  special_commissions: unknown[];
+  tracking_link: string;
+  tracking_type: string;
+  validation_terms: number;
+  logo_desktop: string;
+  logo_mobile: string;
+  banner: string;
+  logo_circle: string;
+  disabled: boolean;
+  offer_name_display: string;
+  commission_store: number | null;
+  max_cap: number | null;
+  banner_mobile: string;
+  /** When true, treat as top-brand placement (API field name: extra_store). */
+  extra_store: boolean;
+  /** Active policy (from category; optional if API provides it) */
+  active_policy?: string | null;
+  /** When set, T&C for this offer come from this category’s policy (Policy Management). Empty = use offer category name to resolve. */
+  policy_category_id?: string | null;
+  /** Upsize event (optional, from API) */
+  upsize_start_date?: string | null;
+  upsize_end_date?: string | null;
+  upsize_special_commission?: number | null;
+  upsize_max_cap?: number | null;
+  /** Product types for this offer (optional, from API) */
+  product_types?: OfferProductTypeEntry[];
+  /** Admin-entered commission notes or tiers (e.g. internal deals); separate from partner feed. */
+  admin_commission_info?: string[];
+}
+
+export interface OfferRequestForm {
+  logo_desktop: File | null;
+  logo_mobile: File | null;
+  banner: File | null;
+  logo_circle: File | null;
+  offer_name_display: string;
+  disabled: boolean;
+  max_cap: number | null;
+  commission_store: number | null;
+  id: string;
+  banner_mobile: File | null;
+  /** Top brands toggle (persisted as extra_store). */
+  extra_store: boolean;
+  /** Upsize event */
+  upsize_start_date: string | null;
+  upsize_end_date: string | null;
+  upsize_special_commission: number | null;
+  upsize_max_cap: number | null;
+  /** Product types (name + commission info per row) for this offer */
+  product_types?: OfferProductTypeEntry[];
+  /** Admin commission lines (saved with offer; not from partner API). */
+  admin_commission_info?: string[];
+  /** Category whose terms & conditions apply; empty string = default (match offer category). */
+  policy_category_id: string;
+}
+
+export interface OffersQuery {
+  search?: string;
+  limit?: number;
+  page?: number;
+  category?: string;
+  status?: string;
+  type?: string;
+  country?: string;
+}
+
+export interface WithdrawQuery {
+  search?: string;
+  limit?: number;
+  page?: number;
+}
+
+export interface ConversionQuery {
+  search?: string;
+  limit?: number;
+  page?: number;
+  status?: string;
+  key?: string;
+}
+
+export interface OffersResponse {
+  data: Offer[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface ResponseWithdraws {
+  data: DataWithdrawsList[];
+  pagination: Pagination;
+}
+
+export interface UserID {
+  _id: string;
+  address: string;
+  email: string;
+  username: string;
+}
+export interface DataWithdrawsList {
+  user_id: UserID;
+  _id: string;
+  address: string;
+  account_number: string;
+  account_name: string;
+  bank_name: string;
+  amount_total: number;
+  amount_net: number;
+  percent_fee: number;
+  status: string;
+  method: string;
+  tx_hash: string;
+  conversion_id: number[];
+  currency: string;
+  createdAt: Date;
+  updatedAt: Date;
+  __v: number;
+  slip_file: string
+}
+
+export interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface ResponseConversion {
+  status: string;
+  message: string;
+  data: DataConversion[];
+  pagination: Pagination;
+}
+
+export interface DataConversionAll {
+  page: number;
+  limit: number;
+  count: number;
+  nextPage: null;
+  data: DataConversion[];
+}
+
+export interface DataConversion {
+  conversion_id: number;
+  offer_id: number;
+  aff_sub1: null | string;
+  aff_sub2: null;
+  aff_sub3: null;
+  aff_sub4: null;
+  aff_sub5: null;
+  adv_sub1: string;
+  adv_sub2: string;
+  adv_sub3: string;
+  adv_sub4: null | string;
+  adv_sub5: string;
+  datetime_conversion: Date;
+  conversion_status: string;
+  affiliate_remarks: null;
+  currency: string;
+  sale_amount: string;
+  payout: string;
+  base_payout: string;
+  bonus_payout: string;
+  merchant_id: number;
+  offer_name: string;
+  user?: UserID;
+  createdAt: Date;
+  updatedAt: Date;
+  remark?: string;
+}
+
+
+export interface ResponseFee {
+    _id:              string;
+    system:           number;
+    // store:            number;
+    createdAt:        Date;
+    updatedAt:        Date;
+    __v:              number;
+    minimum_withdraw_thb: number;
+    minimum_withdraw_usd: number;
+    fee_withdraw_usd: number;
+    fee_withdraw_thb: number;
+}
+
+export interface FeeSettingsForm {
+    system:           number;
+    // store:            number;
+    // minimum_withdraw: number;
+    id: string;
+    minimum_withdraw_thb: number;
+    minimum_withdraw_usd: number;
+    fee_withdraw_usd: number;
+    fee_withdraw_thb: number;
+}
