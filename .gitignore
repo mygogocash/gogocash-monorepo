@@ -37,4 +37,5 @@ next-env.d.ts
 
 # Firebase CLI
 .firebase/
+**/.firebase/
 firebase-debug.log
