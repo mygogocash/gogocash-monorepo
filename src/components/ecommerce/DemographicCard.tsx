@@ -73,6 +73,7 @@ export default function DemographicCard() {
                 src="/images/country/country-01.svg"
                 alt="usa"
                 className="w-full"
+                style={{ height: "auto" }}
               />
             </div>
             <div>
@@ -104,6 +105,7 @@ export default function DemographicCard() {
                 className="w-full"
                 src="/images/country/country-02.svg"
                 alt="france"
+                style={{ height: "auto" }}
               />
             </div>
             <div>

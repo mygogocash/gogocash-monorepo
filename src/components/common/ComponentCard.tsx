@@ -87,6 +87,7 @@ const ComponentCard = ({
                               src={teamImage}
                               alt={`Team member ${index + 1}`}
                               className="w-full"
+                              style={{ height: "auto" }}
                             />
                           </div>
                         ))}

@@ -8,9 +8,10 @@ export default function ThreeColumnImageGrid() {
         <Image
           src="/images/grid-image/image-04.png"
           alt=" grid"
-          className="w-full border border-gray-200 rounded-xl dark:border-gray-800"
+          className="w-full rounded-xl border border-gray-200 dark:border-gray-800"
           width={338}
           height={192}
+          style={{ height: "auto" }}
         />
       </div>
 
@@ -18,9 +19,10 @@ export default function ThreeColumnImageGrid() {
         <Image
           src="/images/grid-image/image-05.png"
           alt=" grid"
-          className="w-full border border-gray-200 rounded-xl dark:border-gray-800"
+          className="w-full rounded-xl border border-gray-200 dark:border-gray-800"
           width={338}
           height={192}
+          style={{ height: "auto" }}
         />
       </div>
 
@@ -28,9 +30,10 @@ export default function ThreeColumnImageGrid() {
         <Image
           src="/images/grid-image/image-06.png"
           alt=" grid"
-          className="w-full border border-gray-200 rounded-xl dark:border-gray-800"
+          className="w-full rounded-xl border border-gray-200 dark:border-gray-800"
           width={338}
           height={192}
+          style={{ height: "auto" }}
         />
       </div>
     </div>

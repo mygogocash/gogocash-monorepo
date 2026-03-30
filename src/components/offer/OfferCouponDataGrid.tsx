@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import type { CouponData } from "@/types/coupon";
+import { getOfferCouponDataGridSx } from "@/lib/muiAdminDataGridSx";
 import { paginationModel } from "./muiGridShared";
 
 /** Row shape passed to parent when editing (matches prior DataGrid `params.row`). */
@@ -84,16 +85,7 @@ export default function OfferCouponDataGrid({ couponDetail, onEditRow }: Props) 
       columns={columns}
       initialState={{ pagination: { paginationModel } }}
       pageSizeOptions={[5, 10]}
-      sx={{
-        border: 0,
-        "& .MuiSvgIcon-root": { fill: "#00B14F" },
-        "& .MuiDataGrid-columnHeader": {
-          backgroundColor: "#F6F6F6",
-        },
-        "& .MuiDataGrid-filler": {
-          backgroundColor: "#F6F6F6 !important",
-        },
-      }}
+      sx={(muiTheme) => getOfferCouponDataGridSx(muiTheme)}
     />
   );
 }

@@ -8,9 +8,10 @@ export default function TwoColumnImageGrid() {
         <Image
           src="/images/grid-image/image-02.png"
           alt=" grid"
-          className="w-full border border-gray-200 rounded-xl dark:border-gray-800"
+          className="w-full rounded-xl border border-gray-200 dark:border-gray-800"
           width={517}
           height={295}
+          style={{ height: "auto" }}
         />
       </div>
 
@@ -18,9 +19,10 @@ export default function TwoColumnImageGrid() {
         <Image
           src="/images/grid-image/image-03.png"
           alt=" grid"
-          className="w-full border border-gray-200 rounded-xl dark:border-gray-800"
+          className="w-full rounded-xl border border-gray-200 dark:border-gray-800"
           width={517}
           height={295}
+          style={{ height: "auto" }}
         />
       </div>
     </div>

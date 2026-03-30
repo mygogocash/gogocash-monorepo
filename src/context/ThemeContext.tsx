@@ -1,7 +1,8 @@
 "use client";
 
 import type React from "react";
-import { createContext, useState, useContext, useEffect, startTransition } from "react";
+import { createContext, useState, useContext, useEffect, useMemo, startTransition } from "react";
+import { ThemeProvider as MuiThemeProvider, createTheme } from "@mui/material/styles";
 
 type Theme = "light" | "dark";
 
@@ -38,12 +39,25 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     if (!isInitialized) return;
     localStorage.setItem("theme", theme);
+    const root = document.documentElement;
     if (theme === "dark") {
-      document.documentElement.classList.add("dark");
+      root.classList.add("dark");
+      root.style.colorScheme = "dark";
     } else {
-      document.documentElement.classList.remove("dark");
+      root.classList.remove("dark");
+      root.style.colorScheme = "light";
     }
   }, [theme, isInitialized]);
+
+  const muiTheme = useMemo(
+    () =>
+      createTheme({
+        palette: {
+          mode: theme,
+        },
+      }),
+    [theme],
+  );
 
   const toggleTheme = () => {
     setTheme((prevTheme) => (prevTheme === "light" ? "dark" : "light"));
@@ -51,7 +65,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      {children}
+      <MuiThemeProvider theme={muiTheme}>{children}</MuiThemeProvider>
     </ThemeContext.Provider>
   );
 };

@@ -3,7 +3,7 @@
 import { DataGrid } from "@mui/x-data-grid";
 import type { GridColDef } from "@mui/x-data-grid";
 import { paginationModel } from "@/components/offer/muiGridShared";
-import { withdrawDetailDataGridSx } from "./withdrawDataGridSx";
+import { getWithdrawDetailDataGridSx } from "./withdrawDataGridSx";
 
 export type WithdrawDetailGridProps = {
   rows: { id: number }[];
@@ -18,7 +18,7 @@ export default function WithdrawDetailDataGrid({ rows, columns }: WithdrawDetail
         columns={columns}
         initialState={{ pagination: { paginationModel } }}
         pageSizeOptions={[5, 10]}
-        sx={withdrawDetailDataGridSx}
+        sx={(muiTheme) => getWithdrawDetailDataGridSx(muiTheme)}
       />
     </div>
   );

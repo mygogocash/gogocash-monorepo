@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import type { CSSProperties } from "react";
 import { shouldUseUnoptimizedImageSrc } from "@/utils/imageOptimization";
 
 type RemoteOrBlobImageProps = {
@@ -11,6 +12,8 @@ type RemoteOrBlobImageProps = {
   height: number;
   sizes?: string;
   priority?: boolean;
+  /** Merged onto the underlying `Image` (e.g. `{ width: "auto", height: "auto" }` when CSS resizes). */
+  style?: CSSProperties;
 };
 
 export function RemoteOrBlobImage({
@@ -21,6 +24,7 @@ export function RemoteOrBlobImage({
   height,
   sizes,
   priority,
+  style,
 }: RemoteOrBlobImageProps) {
   return (
     <Image
@@ -31,6 +35,7 @@ export function RemoteOrBlobImage({
       className={className}
       sizes={sizes}
       priority={priority}
+      style={style}
       unoptimized={shouldUseUnoptimizedImageSrc(src)}
     />
   );
