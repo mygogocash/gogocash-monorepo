@@ -46,7 +46,7 @@ export default async function RootLayout({
 
   return (
     <AuthGuard>
-      <div className="flex min-h-0 w-full flex-1 flex-col">
+      <div className="flex h-full min-h-0 w-full flex-1 flex-col">
         <ProfileLayoutShell>{children}</ProfileLayoutShell>
       </div>
     </AuthGuard>

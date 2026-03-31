@@ -118,13 +118,11 @@ function isActive(pathname: string, item: MenuEntry): boolean {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);
 }
 
-export type SubProfileVariant = "sidebar" | "embedded" | "panel";
+export type SubProfileVariant = "sidebar" | "panel";
 
 const subProfileAsideClass: Record<SubProfileVariant, string> = {
   sidebar:
-    "hidden w-[320px] shrink-0 flex-col self-stretch rounded-br-[24px] rounded-tr-[24px] bg-white p-6 md:flex md:min-h-0",
-  embedded:
-    "flex h-full min-h-0 w-full min-w-0 shrink-0 flex-col rounded-br-[24px] rounded-tr-[24px] bg-white p-6",
+    "hidden h-full min-h-0 w-[320px] shrink-0 flex-col self-stretch rounded-br-[24px] rounded-tr-[24px] bg-white p-6 md:flex",
   /** Inside merged account card: no own surface; parent supplies border/padding. */
   panel: "flex min-h-0 w-full flex-1 flex-col",
 };
@@ -161,8 +159,9 @@ const SubProfile = ({ variant = "sidebar", className }: SubProfileProps) => {
     <aside className={cn(subProfileAsideClass[variant], className)}>
       <nav className="flex w-full flex-1 flex-col gap-2" aria-label={t("Profile")}>
         {menu.map((item) => {
+          const profileHubVariant = variant === "panel" || variant === "sidebar";
           const active =
-            variant === "panel" && item.href === "/profile" && !item.external
+            profileHubVariant && item.href === "/profile" && !item.external
               ? isProfileSectionHubActive(pathname)
               : isActive(pathname, item);
           const iconFill = active ? "#ffffff" : TEAL;
@@ -202,7 +201,7 @@ const SubProfile = ({ variant = "sidebar", className }: SubProfileProps) => {
             );
           }
 
-          if (variant === "panel" && item.href === "/profile") {
+          if (profileHubVariant && item.href === "/profile") {
             const chevronColor = active ? "#ffffff" : "#3B3B3B";
             return (
               <div key={item.translationKey} className="flex flex-col gap-1">

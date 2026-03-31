@@ -10,12 +10,22 @@ import Image from "next/image";
 import { useMemo } from "react";
 import toast from "react-hot-toast";
 
+/** Deterministic 9-digit display from any user id string (same input → same digits). */
+function nineDigitUserIdDisplay(rawId: string): string {
+  if (!rawId) return "000000000";
+  let h = 2166136261;
+  for (let i = 0; i < rawId.length; i += 1) {
+    h ^= rawId.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return String((h >>> 0) % 1_000_000_000).padStart(9, "0");
+}
+
 /**
- * Figma GoGoCash 1.1 — Profile invite row (node 8524:130818).
- * Solid mint chip, radius lg (16px), 24px label↔link gap, 16px link↔icon, 20px type, 24px duplicate icon.
+ * Profile invite row — compact mint chip (smaller than Figma 8524:130818 for density).
  */
 const inviteRowClass =
-  "group flex w-full max-w-full min-h-14 items-center gap-6 rounded-2xl bg-[#00CC99] px-3 py-3 text-left shadow-[inset_0_0_0_1px_rgba(255,255,255,0.22)] transition-[filter,background-color] duration-200 ease-out hover:brightness-[1.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#00CC99] motion-reduce:transition-none motion-reduce:hover:brightness-100 md:max-w-[649px] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:brightness-100";
+  "group flex w-full max-w-full min-h-10 items-center gap-2.5 rounded-xl bg-[#00CC99] px-2.5 py-2 text-left shadow-[inset_0_0_0_1px_rgba(255,255,255,0.22)] transition-[filter,background-color] duration-200 ease-out hover:brightness-[1.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#00CC99] motion-reduce:transition-none motion-reduce:hover:brightness-100 md:max-w-[520px] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:brightness-100 sm:gap-3 sm:px-3 sm:py-2.5";
 
 const CardProfile = () => {
   const { data: session } = useSession();
@@ -30,6 +40,8 @@ const CardProfile = () => {
   /** Visible snippet matches Figma (short id); clipboard still receives full URL. */
   const displaySnippet = referralUrl && userId ? userId : t("profileInviteLinkEmpty");
 
+  const displayUserIdDigits = useMemo(() => nineDigitUserIdDisplay(userId), [userId]);
+
   const copyInviteLink = async () => {
     if (!referralUrl) return;
     try {
@@ -37,6 +49,16 @@ const CardProfile = () => {
       toast.success(t("profileInviteCopiedToast"));
     } catch {
       toast.error(t("profileInviteCopyFailed"));
+    }
+  };
+
+  const copyUserId = async () => {
+    if (!userId) return;
+    try {
+      await navigator.clipboard.writeText(displayUserIdDigits);
+      toast.success(t("profileUserIdCopiedToast"));
+    } catch {
+      toast.error(t("profileUserIdCopyFailed"));
     }
   };
 
@@ -71,14 +93,26 @@ const CardProfile = () => {
           </button>
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col gap-6">
+        <div className="flex min-w-0 flex-1 flex-col gap-4">
           <div className="flex flex-col gap-2 text-center md:text-left">
             <h4 className="text-2xl font-semibold text-[#3b3b3b]">
               {session?.user?.username || t("profileFieldName")}
             </h4>
-            <p className="text-lg font-normal text-[#7f7f7f]">
-              {t("Status")}: <span className="text-[#3b3b3b]">{t("profileStatusAvailable")}</span>
-            </p>
+            <div className="flex flex-wrap items-center justify-center gap-2 md:justify-start">
+              <p className="text-base font-normal text-[#7f7f7f] md:text-lg">
+                {t("profileUserIdLabel")}:{" "}
+                <span className="font-mono tabular-nums text-[#3b3b3b]">{displayUserIdDigits}</span>
+              </p>
+              <button
+                type="button"
+                onClick={() => void copyUserId()}
+                disabled={!userId}
+                aria-label={t("profileUserIdCopyAria")}
+                className="inline-flex shrink-0 items-center justify-center rounded-lg p-1.5 text-[#3b3b3b] transition-colors hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b3b3b]/30 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <ContentCopyOutlined sx={{ fontSize: { xs: 18, sm: 20 } }} />
+              </button>
+            </div>
           </div>
 
           <button
@@ -89,18 +123,18 @@ const CardProfile = () => {
             title={referralUrl ?? undefined}
             aria-label={referralUrl ? t("profileInviteCopyAria") : t("profileInviteLinkEmpty")}
           >
-            <span className="shrink-0 whitespace-nowrap text-xl font-semibold leading-normal text-white">
+            <span className="shrink-0 whitespace-nowrap text-xs font-semibold leading-tight text-white sm:text-sm">
               {t("invite link")} :
             </span>
-            <div className="flex min-w-0 flex-1 items-center gap-4">
-              <span className="min-w-0 flex-1 truncate text-xl font-normal leading-normal text-white">
+            <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
+              <span className="min-w-0 flex-1 truncate text-xs font-normal leading-tight text-white sm:text-sm">
                 {displaySnippet}
               </span>
               <span
-                className="inline-flex size-6 shrink-0 items-center justify-center text-white"
+                className="inline-flex size-5 shrink-0 items-center justify-center text-white sm:size-6"
                 aria-hidden
               >
-                <ContentCopyOutlined sx={{ fontSize: 24, color: "#fff" }} />
+                <ContentCopyOutlined sx={{ fontSize: { xs: 18, sm: 20 }, color: "#fff" }} />
               </span>
             </div>
           </button>

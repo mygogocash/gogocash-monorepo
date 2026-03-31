@@ -136,21 +136,6 @@ export const mobileNavItems: NavigationItem[] = [
   { label: "Profile", href: "/profile", icon: "profile" },
 ];
 
-export const profileMenuItems: NavigationItem[] = [
-  { label: "My Profile", href: "/profile/info", icon: "profile" },
-  { label: "Favorites", href: "/favorite", icon: "favorite" },
-  { label: "Referral", href: "/referral", icon: "referral" },
-  { label: "My Wallet", href: "/wallet", icon: "wallet" },
-  { label: "Withdraw", href: "/withdraw", icon: "withdraw" },
-  { label: "Withdraw Method", href: "/method", icon: "method" },
-  { label: "Account Settings", href: "/language", icon: "language" },
-];
-
-export const profileSubMenuItems: NavigationItem[] = [
-  { label: "Profile Info", href: "/profile", icon: "profile" },
-  { label: "Withdraw Method", href: "/method", icon: "method" },
-];
-
 /** LINE Official Account — Help / support (desktop menu bar + regional fallback). */
 export const SUPPORT_LINE_OFFICIAL_HREF = "https://lin.ee/7om5sAr";
 

@@ -37,18 +37,18 @@ const MethodWithdrawList = () => {
 
   if (isLoading) {
     return (
-      <SubPage title="Withdraw Method" contentOnly>
+      <SubPage title="Withdraw Method" showSubMenu>
         <div className="flex w-full min-w-0 flex-col gap-10" aria-busy="true" aria-live="polite">
           <span className="sr-only">{t("pageLoading")}</span>
           <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-3">
             <div className="h-8 w-[min(280px,60%)] max-w-[320px] animate-pulse rounded-2xl bg-[#ebebeb]" />
             <div className="h-10 w-[140px] shrink-0 animate-pulse rounded-full bg-[#e8f5f0]" />
           </div>
-          <div className="flex flex-wrap gap-6">
+          <div className="grid w-full min-w-0 grid-cols-1 gap-6 sm:grid-cols-2">
             {[0, 1].map((key) => (
               <div
                 key={key}
-                className="h-[183px] w-full max-w-[336px] shrink-0 animate-pulse rounded-2xl bg-[#ebebeb]"
+                className="h-[183px] w-full min-w-0 animate-pulse rounded-2xl bg-[#ebebeb]"
               />
             ))}
           </div>
@@ -58,7 +58,7 @@ const MethodWithdrawList = () => {
   }
 
   return (
-    <SubPage title="Withdraw Method" contentOnly>
+    <SubPage title="Withdraw Method" showSubMenu>
       {methodsList && methodsList.length > 0 ? (
         <div className="flex w-full min-w-0 flex-col gap-10">
           <div className="flex w-full min-w-0 flex-wrap items-center gap-3">
@@ -67,7 +67,7 @@ const MethodWithdrawList = () => {
             </h2>
             <WithdrawMethodsAddMintButton onClick={() => router.push("/method/create")} />
           </div>
-          <div className="flex flex-wrap gap-6">
+          <div className="grid w-full min-w-0 grid-cols-1 gap-6 sm:grid-cols-2">
             {methodsList.map((method: DataMethodWithdraw) => (
               <WithdrawMethodBankCard
                 key={method._id}

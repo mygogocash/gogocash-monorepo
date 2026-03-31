@@ -57,7 +57,7 @@ export default function WithdrawMethodBankCard({ method, onSelect, className }: 
     <button
       type="button"
       onClick={onSelect}
-      className={`group relative flex h-[183px] w-full max-w-[336px] shrink-0 flex-col items-start justify-between overflow-visible rounded-2xl border border-[#d8ede4] bg-linear-to-br from-[#f6fdfb] via-white to-[#eefbf6] px-10 py-4 text-left shadow-[0_4px_24px_rgba(0,204,153,0.08)] transition-[box-shadow,transform,border-color] duration-200 hover:border-[#b8e6d8] hover:shadow-[0_8px_28px_rgba(0,204,153,0.12)] hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00CC99]/50 focus-visible:ring-offset-2 motion-reduce:hover:translate-y-0 ${className ?? ""}`}
+      className={`group relative flex h-[183px] w-full min-w-0 flex-col items-start justify-between overflow-visible rounded-2xl border border-[#d8ede4] bg-linear-to-br from-[#f6fdfb] via-white to-[#eefbf6] px-6 py-4 text-left shadow-[0_4px_24px_rgba(0,204,153,0.08)] transition-[box-shadow,transform,border-color] duration-200 hover:border-[#b8e6d8] hover:shadow-[0_8px_28px_rgba(0,204,153,0.12)] hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00CC99]/50 focus-visible:ring-offset-2 motion-reduce:hover:translate-y-0 sm:px-8 md:px-10 ${className ?? ""}`}
     >
       {method.is_default ? (
         <div className="pointer-events-none absolute right-0 top-[30px] flex items-center justify-center rounded-bl-[100px] rounded-tl-[100px] bg-[#00CC99] px-4 py-1 shadow-[0_2px_12px_rgba(0,204,153,0.35)]">

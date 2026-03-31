@@ -52,9 +52,17 @@ export function isProfileSectionHubActive(pathname: string): boolean {
 }
 
 /**
- * Only auto-open the Profile chevron submenu on personal-info routes — keeps `/method` and `/language`
- * calm (single “Profile” row + peers) until the user expands.
+ * Keep the Profile chevron submenu open whenever the user is in the profile hub sub-routes, so
+ * Personal Information / Withdraw Methods / Account Setting stay visible with the same active
+ * highlight behavior as clicking between them.
  */
 export function shouldAutoExpandProfileSubNav(pathname: string): boolean {
-  return pathname === "/profile" || pathname.startsWith("/profile/");
+  return (
+    pathname === "/profile" ||
+    pathname.startsWith("/profile/") ||
+    pathname === "/method" ||
+    pathname.startsWith("/method/") ||
+    pathname === "/language" ||
+    pathname.startsWith("/language/")
+  );
 }
