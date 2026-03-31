@@ -1,0 +1,163 @@
+export type AppIconKey =
+  | "home"
+  | "shop"
+  | "wallet"
+  | "quest"
+  | "profile"
+  | "travel"
+  | "electronic"
+  | "beauty"
+  | "category"
+  | "help"
+  | "referral"
+  | "favorite"
+  | "language"
+  | "withdraw"
+  | "method";
+
+export interface NavigationItem {
+  label: string;
+  translationKey?: string;
+  href: string;
+  icon?: AppIconKey;
+}
+
+export const desktopShortcutNav: NavigationItem[] = [
+  {
+    label: "Shop",
+    translationKey: "shop",
+    href: "/shop",
+    icon: "shop",
+  },
+  {
+    label: "Travel",
+    translationKey: "travel",
+    href: "/category/Travel",
+    icon: "travel",
+  },
+  {
+    label: "Electronics",
+    translationKey: "electronic",
+    href: "/category/Electronics",
+    icon: "electronic",
+  },
+  {
+    label: "Health & Beauty",
+    translationKey: "beauty",
+    href: "/category/Health & Beauty",
+    icon: "beauty",
+  },
+];
+
+/** Desktop secondary menu (Figma MenuBar 93:4121): flat tabs, underline active state */
+/** Leading icons: Figma Icon library (Streamline Core) node 6:30038 — https://www.figma.com/design/jFDx8MnbCtlCaTQxlhpJIp/GoGoCash-1.1?node-id=6-30038 */
+export type DesktopMenuBarIcon =
+  | "none"
+  | "promotion"
+  | "shop"
+  | "travel"
+  | "electronic"
+  | "beauty"
+  | "digital"
+  | "education"
+  | "help";
+
+export interface DesktopMenuBarItem {
+  id: string;
+  translationKey: string;
+  href: string;
+  icon: DesktopMenuBarIcon;
+  /** First tab shows fire emoji after label (Figma “Top Brands”) */
+  showFire?: boolean;
+  /** Figma 8270-82095: body-s 14px medium vs lead 16px regular */
+  menuTypography?: "body-sm" | "lead";
+  /** Figma Top Brands tab min width */
+  wideTab?: boolean;
+  external?: boolean;
+  /** Resolve URL via getSupportHref(region) */
+  supportOnly?: boolean;
+}
+
+export const desktopMenuBarNav: DesktopMenuBarItem[] = [
+  {
+    id: "top-brands",
+    translationKey: "navTopBrands",
+    href: "/",
+    icon: "none",
+    showFire: true,
+  },
+  {
+    id: "all-brands",
+    translationKey: "navAllBrands",
+    href: "/shop",
+    icon: "shop",
+  },
+  {
+    id: "travel",
+    translationKey: "travel",
+    href: "/category/Travel",
+    icon: "travel",
+  },
+  {
+    id: "electronics",
+    translationKey: "navElectronics",
+    href: "/category/Electronics",
+    icon: "electronic",
+    menuTypography: "lead",
+  },
+  {
+    id: "health-beauty",
+    translationKey: "navHealthBeauty",
+    href: "/category/Health & Beauty",
+    icon: "beauty",
+    menuTypography: "lead",
+  },
+  {
+    id: "digital-services",
+    translationKey: "navDigitalServices",
+    href: "/category/Digital Services",
+    icon: "digital",
+  },
+  {
+    id: "help",
+    translationKey: "help",
+    href: "",
+    icon: "help",
+    external: true,
+    supportOnly: true,
+  },
+];
+
+export const mobileNavItems: NavigationItem[] = [
+  { label: "Home", href: "/", icon: "home" },
+  { label: "Search", href: "/shop", icon: "shop" },
+  { label: "Wallet", href: "/wallet", icon: "wallet" },
+  { label: "Quest", href: "/quest", icon: "quest" },
+  { label: "Profile", href: "/profile", icon: "profile" },
+];
+
+export const profileMenuItems: NavigationItem[] = [
+  { label: "My Profile", href: "/profile/info", icon: "profile" },
+  { label: "Favorites", href: "/favorite", icon: "favorite" },
+  { label: "Referral", href: "/referral", icon: "referral" },
+  { label: "My Wallet", href: "/wallet", icon: "wallet" },
+  { label: "Withdraw", href: "/withdraw", icon: "withdraw" },
+  { label: "Withdraw Method", href: "/method", icon: "method" },
+  { label: "Account Settings", href: "/language", icon: "language" },
+];
+
+export const profileSubMenuItems: NavigationItem[] = [
+  { label: "Profile Info", href: "/profile", icon: "profile" },
+  { label: "Withdraw Method", href: "/method", icon: "method" },
+];
+
+/** LINE Official Account — Help / support (desktop menu bar + regional fallback). */
+export const SUPPORT_LINE_OFFICIAL_HREF = "https://lin.ee/7om5sAr";
+
+/** GoGoCash hub — social, events, QuestN, support links (profile sidebar “Connect with GoGoCash”). */
+export const GOGOCASH_LINKTREE_HREF = "https://linktr.ee/gogocash";
+
+export const getSupportHref = (region?: string) => {
+  void region;
+  return SUPPORT_LINE_OFFICIAL_HREF;
+};

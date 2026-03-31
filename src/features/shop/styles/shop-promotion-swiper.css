@@ -1,0 +1,60 @@
+/*
+ * Shop Promotion by Brands — Swiper pagination, nav disabled state, fade-preview slides.
+ * Imported only from `ShopPromotionHero.tsx` (not global).
+ */
+
+.shop-promo-swiper--paginated .swiper-pagination {
+  bottom: 18px !important;
+  left: 50% !important;
+  top: auto !important;
+  transform: translateX(-50%);
+  width: auto !important;
+  display: flex;
+  gap: 7px;
+  justify-content: center;
+}
+
+.shop-promo-swiper--paginated .swiper-pagination-bullet {
+  width: 8px !important;
+  height: 8px !important;
+  margin: 0 !important;
+  background: rgba(255, 255, 255, 0.45);
+  opacity: 1;
+}
+
+.shop-promo-swiper--paginated .swiper-pagination-bullet-active {
+  background: #ffffff !important;
+}
+
+.shop-promo-swiper .shop-promo-swiper-button-next.swiper-button-disabled {
+  opacity: 0.35;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+.shop-promo-swiper--fade-preview.swiper {
+  overflow: hidden;
+}
+
+.shop-promo-swiper--fade-preview .swiper-slide {
+  transition:
+    opacity 0.35s ease,
+    filter 0.35s ease;
+}
+
+.shop-promo-swiper--fade-preview .swiper-slide:not(.swiper-slide-active):not(.swiper-slide-next) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.shop-promo-swiper--fade-preview .swiper-slide-next {
+  opacity: 0.38;
+  pointer-events: none;
+  filter: brightness(0.92);
+}
+
+.shop-promo-swiper--fade-preview .swiper-slide-active {
+  opacity: 1;
+  pointer-events: auto;
+  filter: none;
+}

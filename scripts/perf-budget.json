@@ -1,0 +1,4 @@
+{
+  "$comment": "Total bytes of all files under .next/static/chunks after production build. Tighten when bundle improves.",
+  "maxTotalStaticChunksBytes": 16000000
+}

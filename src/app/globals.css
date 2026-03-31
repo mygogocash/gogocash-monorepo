@@ -1,0 +1,361 @@
+@import "tailwindcss";
+
+/*
+ * GoGoCash 1.1 design system (Figma node 373:30789).
+ * https://www.figma.com/design/jFDx8MnbCtlCaTQxlhpJIp/GoGoCash-1.1?node-id=373-30789
+ * Tokens mirror Figma variables; use `src/constants/design-system.ts` in TS.
+ */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-dm-sans), "DM Sans", system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1200px;
+  --breakpoint-2xl: 1200px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #f6f6f6;
+    --foreground: #3b3b3b;
+    --text-color: #3b3b3b;
+  }
+}
+
+:root {
+  /* Core surfaces — Figma Branding/support */
+  --background: #f6f6f6;
+  --foreground: #3b3b3b;
+  --text-color: #3b3b3b;
+  --gc-surface: #ffffff;
+  --gc-surface-muted: #f6f6f6;
+  --gc-surface-strong: #d8f8ef;
+  /* Brand — Figma Mint / Green 2 / Green 1 */
+  --gc-primary: #00cc99;
+  --gc-primary-strong: #00aa80;
+  --gc-primary-soft: #d8f8ef;
+  --gc-accent: #005d46;
+  --gc-accent-soft: #007d5e;
+  /* Text — Figma Gray 5 + support Gray 3 */
+  --gc-text: #3b3b3b;
+  --gc-text-muted: #7f7f7f;
+  --gc-text-soft: #989898;
+  /* Borders — Figma Gray 2 */
+  --gc-border: #e4e4e4;
+  --gc-border-strong: #d8e2d9;
+  --gc-danger: #cd0d0d;
+  --gc-warning: #ffd700;
+  --gc-success: #00a148;
+  /* Figma Shadow-1 / Shadow-2 */
+  --gc-shadow-soft: 0 4px 10px rgba(0, 0, 0, 0.1);
+  --gc-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+  /* Figma radius md / lg / xl */
+  --gc-radius-sm: 8px;
+  --gc-radius-md: 16px;
+  --gc-radius-lg: 24px;
+  --gc-radius-xl: 24px;
+  --ds-radius-sm: 4px;
+  --ds-radius-md: 8px;
+  --ds-radius-lg: 16px;
+  --ds-radius-xl: 24px;
+  --gc-content-max: 1200px;
+  /* Figma spacing/section-section 80px, responsive clamp for mobile */
+  --gc-section-space: clamp(2.5rem, 8vw, 5rem);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  background-color: var(--background);
+  color: var(--foreground);
+  text-rendering: optimizeLegibility;
+}
+
+/* Figma: EN = DM Sans, TH = Anuphan (next/font sets --font-* on body) */
+body.locale-en {
+  font-family: var(--font-dm-sans), "DM Sans", system-ui, sans-serif;
+}
+
+body.locale-th {
+  font-family:
+    var(--font-anuphan), "Anuphan", var(--font-dm-sans), "DM Sans", system-ui, sans-serif;
+}
+
+.bg-profile-bar {
+  border-radius: 16px;
+  background:
+    linear-gradient(146deg, #2493e3 -10.2%, rgba(34, 159, 14, 0) 58.93%),
+    radial-gradient(144.1% 143.07% at 98.64% 15.97%, #9ffd88 10%, #fff 47.09%),
+    linear-gradient(0deg, #00b14f 10%, #00b14f 200%), #f5f5f5;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  cursor: pointer;
+}
+
+.container {
+  width: min(var(--gc-content-max), calc(100% - 1.5rem));
+  margin-inline: auto;
+}
+
+@media (min-width: 768px) {
+  .container {
+    width: min(var(--gc-content-max), calc(100% - 3rem));
+  }
+}
+
+.gc-page-block {
+  padding-block: clamp(1.5rem, 3vw, 2.5rem);
+}
+
+.gc-section {
+  margin-top: var(--gc-section-space);
+}
+
+.gc-home-section {
+  margin-top: clamp(2.1rem, 4vw, 3.4rem);
+}
+
+/* Figma 9509:146306 — Homepage frame 1440px, px-[120px], py-[40px] per block */
+.gc-home-page {
+  background-color: #ffffff;
+}
+
+.gc-home-layout {
+  width: 100%;
+  max-width: 1440px;
+  margin-inline: auto;
+  padding-inline: clamp(1rem, 4vw, 120px);
+}
+
+.gc-home-section-y {
+  padding-block: 2.5rem;
+}
+
+/* Extra space below hero before the first browse rail (Top Brands). */
+.gc-home-hero-section {
+  padding-top: 2.5rem;
+  padding-bottom: clamp(3rem, 6vw, 4.25rem);
+}
+
+.gc-card-slide--paginated .swiper-pagination {
+  position: relative !important;
+  bottom: auto !important;
+  left: auto !important;
+  top: auto !important;
+  transform: none !important;
+  margin-top: 1rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.gc-card-slide--paginated .swiper-pagination-bullet {
+  width: 12px !important;
+  height: 12px !important;
+  margin: 0 !important;
+  background: #c3d1c4;
+  opacity: 1;
+}
+
+.gc-card-slide--paginated .swiper-pagination-bullet-active {
+  background: #00cc99;
+}
+
+.gc-shell-backdrop {
+  background: rgba(244, 246, 239, 0.82);
+  backdrop-filter: blur(20px);
+}
+
+.gc-surface-card {
+  border: 1px solid var(--gc-border);
+  border-radius: var(--gc-radius-lg);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--gc-shadow-soft);
+  backdrop-filter: blur(14px);
+}
+
+.gc-soft-panel {
+  border: 1px solid rgba(195, 209, 196, 0.75);
+  border-radius: var(--gc-radius-lg);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 250, 244, 0.92));
+  box-shadow: var(--gc-shadow-soft);
+}
+
+.gc-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--gc-border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 0.5rem 0.875rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--gc-accent);
+}
+
+.gc-kicker {
+  color: var(--gc-text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.gc-eyebrow {
+  color: var(--gc-text-soft);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.gc-section-title {
+  color: var(--gc-accent);
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.02;
+}
+
+.gc-inline-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  color: var(--gc-primary-strong);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+/* Native radio/checkbox selected tint = CI mint (Figma Branding/Mint → --gc-primary) */
+.gc-native-accent-mint {
+  accent-color: var(--gc-primary);
+  color-scheme: light;
+  border: 0;
+  outline: none;
+  box-shadow: none;
+}
+
+/* Remove default UA focus ring (often reads as black on click) */
+.gc-native-accent-mint:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Keyboard: mint outline only (must follow :focus so it wins when both match) */
+.gc-native-accent-mint:focus-visible {
+  outline: 2px solid var(--gc-primary);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+.gc-auth-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--gc-radius-xl);
+  background:
+    linear-gradient(150deg, rgba(16, 53, 34, 0.92), rgba(0, 177, 79, 0.8)),
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.28), transparent 35%);
+  color: white;
+}
+
+.gc-auth-hero::after {
+  content: "";
+  position: absolute;
+  inset: auto -10% -25% auto;
+  width: 18rem;
+  height: 18rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  filter: blur(4px);
+}
+
+.gc-auth-card {
+  border: 1px solid rgba(216, 226, 217, 0.88);
+  border-radius: var(--gc-radius-xl);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: var(--gc-shadow);
+  backdrop-filter: blur(18px);
+}
+
+.gc-bottom-safe {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
+}
+
+.gc-page-divider {
+  border-color: rgba(16, 34, 23, 0.12);
+}
+
+@keyframes scalePulse {
+  0% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(0.4);
+  }
+}
+
+/* Link MyCashback — connector row: staggered bubble pulse (left → right). */
+@keyframes gc-link-connector-bubble {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.65;
+  }
+  40% {
+    transform: scale(1.5);
+    opacity: 1;
+  }
+}
+
+.gc-link-connector-dot {
+  animation: gc-link-connector-bubble 1.25s ease-in-out infinite;
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gc-link-connector-dot {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/* Profile panel: main column enters smoothly when sidebar route changes. */
+@keyframes gc-profile-subpage-enter {
+  from {
+    opacity: 0;
+    transform: translateX(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.gc-profile-subpage-content {
+  animation: gc-profile-subpage-enter 0.28s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gc-profile-subpage-content {
+    animation: none;
+  }
+}
