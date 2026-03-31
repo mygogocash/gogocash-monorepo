@@ -20,6 +20,12 @@ export interface User {
   birthdate?: string;
   gender?: string;
   id_telegram?: string;
+  /** Data URL or HTTPS URL from API after profile image upload */
+  avatar_url?: string | null;
+  /** National ID or passport number for payouts / KYC (API may use snake_case). */
+  id_number?: string;
+  /** Residential or legal address — not the Web3 wallet `address` field. */
+  legal_address?: string;
 }
 
 export interface IDataSignIn {

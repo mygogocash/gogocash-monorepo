@@ -81,7 +81,7 @@ const ProfileBar = () => {
                 ? formatAddress(session?.user?.wallet || "")
                 : "USER")}
           </p>
-          <p className="text-[14px] font-semibold" style={{ color: designSystemColor.mint }}>
+          <p className="text-[14px] font-normal" style={{ color: designSystemColor.mint }}>
             {formatCashDisplay(combinedDisplay)} {thai ? "THB" : "USD"}
           </p>
         </div>

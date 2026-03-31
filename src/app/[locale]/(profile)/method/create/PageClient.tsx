@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { Suspense } from "react";
 
 const CreateMethodWithdraw = dynamic(
   () => import("@/features/profile/component/CreateMethodWithdraw"),
@@ -12,7 +13,9 @@ const CreateMethodWithdraw = dynamic(
 export default function PageClient() {
   return (
     <div className="h-full w-full">
-      <CreateMethodWithdraw />
+      <Suspense fallback={null}>
+        <CreateMethodWithdraw />
+      </Suspense>
     </div>
   );
 }

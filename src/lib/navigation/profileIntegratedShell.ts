@@ -3,6 +3,7 @@
  * outer `SubProfile` aside is hidden; `SubPage` uses `showSubMenu` with `SubProfile variant="panel"` in the white card.
  *
  * Keep in sync with `app/[locale]/(profile)/*` routes. When adding a new hub page, update this helper and tests.
+ * Integrated routes use one white card with inner `SubPage` + panel nav (no outer `SubProfile` sidebar).
  */
 export function isIntegratedProfileShellPath(pathname: string | null): boolean {
   if (!pathname) {
@@ -33,13 +34,22 @@ export function isIntegratedProfileShellPath(pathname: string | null): boolean {
   if (pathname === "/favorite") {
     return true;
   }
+  if (pathname === "/quest/history" || pathname.startsWith("/quest/history/")) {
+    return true;
+  }
   if (pathname === "/referral") {
+    return true;
+  }
+  if (pathname === "/missing-orders" || pathname.startsWith("/missing-orders/")) {
     return true;
   }
   if (pathname === "/subscription") {
     return true;
   }
   if (pathname === "/withdraw" || pathname.startsWith("/withdraw/")) {
+    return true;
+  }
+  if (pathname === "/privacy-center" || pathname.startsWith("/privacy-center/")) {
     return true;
   }
   return false;

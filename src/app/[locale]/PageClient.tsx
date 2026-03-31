@@ -12,6 +12,12 @@ const Banner = dynamic(() => import("@/features/home/component/Banner"), {
   ),
 });
 
+const GoLinkBanner = dynamic(() => import("@/features/home/component/GoLinkBanner"), {
+  loading: () => (
+    <div className="h-40 w-full animate-pulse rounded-[32px] bg-[#e8f7f2]" aria-hidden />
+  ),
+});
+
 const Extra = dynamic(() => import("@/features/home/component/Extra"), {
   loading: () => <div className="h-24 w-full animate-pulse rounded-2xl bg-[#f0f0f0]" aria-hidden />,
 });
@@ -36,6 +42,7 @@ export default function PageClient() {
       <div className="gc-home-layout">
         <ModalAfterLogin />
         <Banner />
+        <GoLinkBanner />
         <Extra />
         <Trending />
         <Special />

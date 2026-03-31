@@ -1,5 +1,8 @@
 import type { IntlError } from "use-intl";
 
+import en from "../messages/en.json";
+import th from "../messages/th.json";
+
 /**
  * Shared next-intl `getMessageFallback` for server (`request.ts`) and client (`NextIntlClientProvider`).
  * Keeps behavior identical so missing keys resolve the same way everywhere.
@@ -11,6 +14,13 @@ export function createGetMessageFallback(messageLocale: string) {
     namespace?: string;
   }): string {
     const { key, namespace } = info;
+    if (key === "profilePopperGogoquestHistory") {
+      return messageLocale === "th"
+        ? "ประวัติ GoGoQuest"
+        : messageLocale === "jp"
+          ? "GoGoQuest 履歴"
+          : "GoGoQuest History";
+    }
     if (key === "merchantSummaryTagsAria") {
       return messageLocale === "th"
         ? "จุดเด่นของข้อเสนอ"
@@ -241,6 +251,63 @@ export function createGetMessageFallback(messageLocale: string) {
     const hs = headerSearchFallbacks[key];
     if (hs) {
       return messageLocale === "th" ? hs.th : hs.en;
+    }
+
+    const pdpaConsentBannerFallbacks: Record<string, { en: string; th: string }> = {
+      pdpaConsentBannerTitle: {
+        en: "We use cookies in the delivery of our services.",
+        th: "เราใช้คุกกี้ในการให้บริการของเรา",
+      },
+      pdpaConsentBannerBodyPart1: {
+        en: "To learn about the cookies we use and your preferences, read our ",
+        th: "หากต้องการทราบเกี่ยวกับคุกกี้และการตั้งค่าของคุณ โปรดอ่าน ",
+      },
+      pdpaConsentBannerBodyMid: {
+        en: "",
+        th: "",
+      },
+      pdpaConsentBannerBodyPart2: {
+        en: ". By using GoGoCash you agree to our use of cookies for cashback and analytics.",
+        th: " เมื่อใช้ GoGoCash ถือว่าคุณยอมรับการใช้คุกกี้เพื่อแคชแบ็กและการวิเคราะห์",
+      },
+      pdpaConsentDecline: { en: "Cookie settings", th: "ตั้งค่าคุกกี้" },
+      pdpaConsentAllow: { en: "Accept all cookies", th: "ยอมรับคุกกี้ทั้งหมด" },
+    };
+    const pdpa = pdpaConsentBannerFallbacks[key];
+    if (pdpa) {
+      return messageLocale === "th" ? pdpa.th : pdpa.en;
+    }
+
+    if (key.startsWith("missingOrders")) {
+      const catalog = messageLocale === "th" ? th : en;
+      const v = (catalog as Record<string, unknown>)[key];
+      if (typeof v === "string" && v.length > 0) {
+        return v;
+      }
+    }
+
+    if (key.startsWith("gogoquestHistory")) {
+      const catalog = messageLocale === "th" ? th : en;
+      const v = (catalog as Record<string, unknown>)[key];
+      if (typeof v === "string" && v.length > 0) {
+        return v;
+      }
+    }
+
+    const withdrawCtaFallbacks: Record<string, { en: string; th: string }> = {
+      withdrawFormCtaTitle: { en: "Confirm", th: "ยืนยัน" },
+      withdrawFormCtaSubtitle: { en: "and withdraw", th: "และถอนเงิน" },
+      withdrawFormConfirmAndWithdraw: {
+        en: "Confirm and Withdraw",
+        th: "ยืนยันและถอนเงิน",
+      },
+      withdrawConfirmGoToWalletButton: { en: "Go to Wallet", th: "ไปที่กระเป๋าเงิน" },
+      withdrawConfirmContinueShopping: { en: "Continue Shopping", th: "ช้อปต่อ" },
+      withdrawConfirmReviewBadge: { en: "Pending", th: "รอดำเนินการ" },
+    };
+    const wCta = withdrawCtaFallbacks[key];
+    if (wCta) {
+      return messageLocale === "th" ? wCta.th : wCta.en;
     }
 
     return [namespace, key].filter(Boolean).join(".");

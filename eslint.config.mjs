@@ -28,6 +28,37 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  {
+    files: ["src/features/missing-orders/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "next-intl",
+              importNames: ["useTranslations"],
+              message:
+                "Do not use useTranslations/t() under features/missing-orders — use useLocale + missingOrdersStaticT (avoids MISSING_MESSAGE with Turbopack).",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/features/missing-orders/components/MissingOrdersFormBody.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "CallExpression[callee.type='Identifier'][callee.name='t']",
+          message:
+            "Do not call t() in MissingOrdersFormBody — use missingOrdersStaticT / mo() only (Turbopack drops next-intl flat keys).",
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;

@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { Suspense } from "react";
 
 const WalletTransaction = dynamic(
   () => import("@/features/transaction/component/WalletTransaction"),
@@ -9,5 +10,9 @@ const WalletTransaction = dynamic(
 
 /** Wallet page entry: code-split grid; Crossmint does not block paint (see ClientLayoutWrapper). */
 export default function ClientLayoutWallet() {
-  return <WalletTransaction />;
+  return (
+    <Suspense fallback={null}>
+      <WalletTransaction />
+    </Suspense>
+  );
 }

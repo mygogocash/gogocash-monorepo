@@ -10,6 +10,7 @@ import {
   Select,
   type SelectChangeEvent,
   TextField,
+  Tooltip,
 } from "@mui/material";
 import { LazyDataGrid, type GridColDef } from "@/components/perf/LazyMuiDataGrid";
 import ContentCopyOutlined from "@mui/icons-material/ContentCopyOutlined";
@@ -36,12 +37,20 @@ import { useLocale, useTranslations } from "next-intl";
 import { useSession } from "next-auth/react";
 import NoDataWallet from "./NoDataWallet";
 import { useSearchParams } from "next/navigation";
-import { SupportLineOfficialLink } from "@/components/common/SupportLineOfficialLink";
-import ProfilePopperCustomerSupportIcon from "@/components/icons/ProfilePopperCustomerSupportIcon";
+import { ProfileSupportHelpBanner } from "@/components/common/ProfileSupportHelpBanner";
+import {
+  getMissingOrderClaimAccountKey,
+  readMissingOrderClaimsFromLocalStorage,
+} from "@/lib/missingOrders/walletClaimSubmissions";
+import { useMissingOrderClaimRefresh } from "@/lib/missingOrders/useMissingOrderClaimRefresh";
+import {
+  PROFILE_TAB_STRIP_LIST_CLASS,
+  profileTabButtonClassName,
+} from "@/lib/ui/profileTabStripClasses";
 
 const paginationModel = { page: 0, pageSize: 5 };
 
-type TxRowType = "earn" | "withdraw";
+type TxRowType = "earn" | "withdraw" | "missingOrderClaim";
 
 type UnifiedTxRow = {
   id: string;
@@ -49,7 +58,7 @@ type UnifiedTxRow = {
   rowNumber: number;
   brand: string;
   conversionDate: string;
-  transactionLabel: "Earn" | "Withdraw";
+  transactionLabel: "Earn" | "Withdraw" | "Claim";
   currency: string;
   amount: string;
   info: string;
@@ -59,11 +68,20 @@ type UnifiedTxRow = {
 
 function chipSxForStatus(status: string) {
   const s = status.toLowerCase();
+  if (s === "submitted") {
+    return {
+      backgroundColor: "#ffb020",
+      color: "#3b3b3b",
+      fontWeight: 400,
+      fontSize: "11px",
+      height: 22,
+    } as const;
+  }
   if (s === "approved" || s === "paid") {
     return {
       background: "linear-gradient(90deg, #00b852 0%, #00a148 100%)",
       color: "#fff",
-      fontWeight: 500,
+      fontWeight: 400,
       fontSize: "11px",
       height: 22,
     } as const;
@@ -72,7 +90,7 @@ function chipSxForStatus(status: string) {
     return {
       backgroundColor: "#cd0d0d",
       color: "#fff",
-      fontWeight: 500,
+      fontWeight: 400,
       fontSize: "11px",
       height: 22,
     } as const;
@@ -80,7 +98,7 @@ function chipSxForStatus(status: string) {
   return {
     backgroundColor: "#ffb020",
     color: "#3b3b3b",
-    fontWeight: 500,
+    fontWeight: 400,
     fontSize: "11px",
     height: 22,
   } as const;
@@ -102,12 +120,12 @@ const walletDataGridSx = {
   "& .MuiDataGrid-columnHeader": {
     backgroundColor: "#f3f4f6",
     color: "#374151",
-    fontWeight: 600,
+    fontWeight: 400,
     fontSize: "12px",
     letterSpacing: "normal",
     textTransform: "none" as const,
   },
-  "& .MuiDataGrid-columnHeaderTitle": { fontWeight: 600 },
+  "& .MuiDataGrid-columnHeaderTitle": { fontWeight: 400 },
   "& .MuiDataGrid-row:nth-of-type(even)": { backgroundColor: "#fafafa" },
   "& .MuiDataGrid-row:hover": { backgroundColor: "#f0fdf9 !important" },
   "& .MuiDataGrid-cell": {
@@ -115,6 +133,7 @@ const walletDataGridSx = {
     alignItems: "center",
     display: "flex",
     py: "10px",
+    fontWeight: 400,
   },
   "& .MuiDataGrid-footerContainer": {
     borderTop: "1px solid #e8e8e8",
@@ -184,10 +203,17 @@ const WithdrawTransaction = () => {
   const t = useTranslations();
   const locale = useLocale();
 
+  const claimAccountKey = useMemo(
+    () => getMissingOrderClaimAccountKey(session?.user),
+    [session?.user]
+  );
+  const claimRefresh = useMissingOrderClaimRefresh(claimAccountKey);
+
   const walletStatusFilterOptions = useMemo(
     () => [
       { value: "", label: t("walletTransactionsStatusFilterAll") },
       { value: "pending", label: t("walletTransactionsStatusPending") },
+      { value: "submitted", label: t("walletTransactionsStatusSubmitted") },
       { value: "approved", label: t("walletTransactionsStatusApproved") },
       { value: "paid", label: t("walletTransactionsStatusPaid") },
       { value: "rejected", label: t("walletTransactionsStatusRejected") },
@@ -294,6 +320,22 @@ const WithdrawTransaction = () => {
     [searchText, statusFilter]
   );
 
+  const claimRowsUnified = useMemo((): Omit<UnifiedTxRow, "rowNumber">[] => {
+    void claimRefresh;
+    return readMissingOrderClaimsFromLocalStorage(claimAccountKey).map((r) => ({
+      id: r.id,
+      rowType: "missingOrderClaim" as const,
+      brand: r.shopLabel,
+      conversionDate: r.submittedAt,
+      transactionLabel: "Claim" as const,
+      currency: r.currency,
+      amount: r.amount,
+      info: t("walletTransactionsMissingOrderClaimInfo", { orderId: r.orderId }),
+      status: "submitted",
+      conversionId: r.orderId,
+    }));
+  }, [claimAccountKey, claimRefresh, t]);
+
   const earningRowsFromList = useMemo((): Omit<UnifiedTxRow, "rowNumber">[] => {
     return (list || []).map((item, index) => {
       const info = String(item.offer_name || item.adv_sub2 || "—");
@@ -352,6 +394,7 @@ const WithdrawTransaction = () => {
     const merged: Omit<UnifiedTxRow, "rowNumber">[] = [
       ...earningRowsFromList,
       ...withdrawRowsUnified,
+      ...claimRowsUnified,
     ];
     merged.sort((a, b) => {
       const ta = new Date(a.conversionDate).getTime();
@@ -359,7 +402,7 @@ const WithdrawTransaction = () => {
       return (Number.isNaN(tb) ? 0 : tb) - (Number.isNaN(ta) ? 0 : ta);
     });
     return merged.map((r, i) => ({ ...r, rowNumber: i + 1 }));
-  }, [earningRowsFromList, withdrawRowsUnified]);
+  }, [earningRowsFromList, withdrawRowsUnified, claimRowsUnified]);
 
   const unifiedRowsFiltered = useMemo(() => {
     const filtered = applyFilters(unifiedRows);
@@ -452,7 +495,7 @@ const WithdrawTransaction = () => {
           const text = String(params.value || "—");
           return (
             <p
-              className="line-clamp-2 w-full text-center text-sm font-medium text-[#1f2937]"
+              className="line-clamp-2 w-full text-center text-sm font-normal text-[#1f2937]"
               title={text}
             >
               {text}
@@ -474,14 +517,14 @@ const WithdrawTransaction = () => {
           const date = new Date(ms - 7 * 60 * 60 * 1000);
           return (
             <div className="flex w-full flex-col items-center gap-0.5 text-center leading-tight">
-              <span className="text-[13px] font-medium text-[#1f2937]">
+              <span className="text-[13px] font-normal text-[#1f2937]">
                 {date.toLocaleDateString(undefined, {
                   year: "numeric",
                   month: "short",
                   day: "numeric",
                 })}
               </span>
-              <span className="text-[11px] text-[#6b7280]">
+              <span className="text-[11px] font-normal text-[#6b7280]">
                 {date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
               </span>
             </div>
@@ -496,10 +539,17 @@ const WithdrawTransaction = () => {
         headerAlign: "center",
         renderCell: (params) => {
           const row = params.row;
+          if (row.transactionLabel === "Claim") {
+            return (
+              <p className="w-full text-center text-sm font-normal text-[#00AA80]">
+                {t("walletTransactionsClaim")}
+              </p>
+            );
+          }
           const isEarn = row.transactionLabel === "Earn";
           return (
             <p
-              className={`w-full text-center text-sm font-semibold ${
+              className={`w-full text-center text-sm font-normal ${
                 isEarn ? "text-[#00a148]" : "text-[#cd0d0d]"
               }`}
             >
@@ -528,7 +578,7 @@ const WithdrawTransaction = () => {
             return <p className="w-full text-center text-sm text-[#9ca3af]">—</p>;
           const n = Number(raw);
           return (
-            <p className="w-full text-center text-sm font-medium tabular-nums text-[#111827]">
+            <p className="w-full text-center text-sm font-normal tabular-nums text-[#111827]">
               {Number.isFinite(n) ? formatNumber(n) : raw}
             </p>
           );
@@ -544,7 +594,10 @@ const WithdrawTransaction = () => {
         renderCell: (params) => {
           const text = String(params.value || "—");
           return (
-            <p className="line-clamp-2 text-sm leading-snug text-[#374151]" title={text}>
+            <p
+              className="line-clamp-2 text-sm font-normal leading-snug text-[#374151]"
+              title={text}
+            >
               {text}
             </p>
           );
@@ -560,13 +613,26 @@ const WithdrawTransaction = () => {
         renderCell: (params) => {
           const row = params.row;
           const status = String(params.value || "");
+          const statusLower = status.toLowerCase();
+          const chipLabel =
+            statusLower === "submitted"
+              ? t("walletTransactionsStatusSubmitted")
+              : formatStatusLabel(status);
+          const statusChip = <Chip label={chipLabel} size="small" sx={chipSxForStatus(status)} />;
           return (
             <div className="flex w-full flex-col items-center justify-center gap-1.5 py-0.5">
-              <Chip label={formatStatusLabel(status)} size="small" sx={chipSxForStatus(status)} />
-              {row.rowType === "earn" && row.conversionId ? (
+              {row.rowType === "missingOrderClaim" && statusLower === "submitted" ? (
+                <Tooltip title={t("walletTransactionsClaimLocalDeviceHint")} arrow placement="top">
+                  <span className="inline-flex">{statusChip}</span>
+                </Tooltip>
+              ) : (
+                statusChip
+              )}
+              {(row.rowType === "earn" || row.rowType === "missingOrderClaim") &&
+              row.conversionId ? (
                 <button
                   type="button"
-                  className="inline-flex items-center justify-center gap-1 rounded-lg border border-[#d1fae5] bg-white px-2 py-1 text-xs font-medium text-[#047857] shadow-sm transition hover:bg-emerald-50"
+                  className="inline-flex items-center justify-center gap-1 rounded-lg border border-[#d1fae5] bg-white px-2 py-1 text-xs font-normal text-[#047857] shadow-sm transition hover:bg-emerald-50"
                   onClick={() => {
                     void navigator.clipboard.writeText(row.conversionId);
                     toast.success(t("walletTransactionsCopied"));
@@ -578,7 +644,7 @@ const WithdrawTransaction = () => {
               ) : row.rowType === "withdraw" ? (
                 <button
                   type="button"
-                  className="text-center text-xs font-medium text-[#2563eb] underline decoration-transparent underline-offset-2 hover:decoration-current"
+                  className="text-center text-xs font-normal text-[#2563eb] underline decoration-transparent underline-offset-2 hover:decoration-current"
                   onClick={() => router.push("/withdraw")}
                 >
                   {t("walletTransactionsViewDetail")}
@@ -610,7 +676,7 @@ const WithdrawTransaction = () => {
         renderCell: (props) => {
           const amount = Number(props.row.amount);
           return (
-            <div className="w-full text-center text-sm font-medium tabular-nums text-[#111827]">
+            <div className="w-full text-center text-sm font-normal tabular-nums text-[#111827]">
               {formatNumber(amount || 0)} {props.row.currency}{" "}
               {props.row.mycashback_id?.length > 0 && "(MCB)"}
             </div>
@@ -623,7 +689,9 @@ const WithdrawTransaction = () => {
         width: 100,
         align: "center",
         headerAlign: "center",
-        renderCell: (props) => <p className="w-full text-center">{props.row.method}</p>,
+        renderCell: (props) => (
+          <p className="w-full text-center text-sm font-normal">{props.row.method}</p>
+        ),
       },
       {
         field: "address",
@@ -634,7 +702,7 @@ const WithdrawTransaction = () => {
         renderCell: (props) => {
           const address = props.row.address;
           return (
-            <p className="text-left">
+            <p className="text-left text-sm font-normal">
               {address
                 ? formatAddress(address || "")
                 : `${props.row.bank_name} - ${props.row.account_name} - ${props.row.account_number}`}
@@ -669,14 +737,14 @@ const WithdrawTransaction = () => {
             return <p className="w-full text-center text-sm text-[#9ca3af]">—</p>;
           return (
             <div className="flex w-full flex-col items-center gap-0.5 text-center leading-tight">
-              <span className="text-[13px] font-medium text-[#1f2937]">
+              <span className="text-[13px] font-normal text-[#1f2937]">
                 {date.toLocaleDateString(undefined, {
                   year: "numeric",
                   month: "short",
                   day: "numeric",
                 })}
               </span>
-              <span className="text-[11px] text-[#6b7280]">
+              <span className="text-[11px] font-normal text-[#6b7280]">
                 {date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
               </span>
             </div>
@@ -741,20 +809,7 @@ const WithdrawTransaction = () => {
                 ?.totalUSD?.toFixed(2) || 0}
           .
         </p>
-        <div className="flex w-full max-w-[874px] flex-col gap-4 rounded-2xl bg-[#eaf4ff] p-6 md:max-w-[916px] md:flex-row md:items-center">
-          <ProfilePopperCustomerSupportIcon
-            width={32}
-            height={32}
-            fill="#3b3b3b"
-            className="shrink-0"
-            aria-hidden
-          />
-          <div className="flex flex-1 flex-col gap-1 text-base leading-normal text-[#3b3b3b]">
-            <p>{t("withdrawSupportBannerLine1")}</p>
-            <p>{t("withdrawSupportBannerLine2")}</p>
-          </div>
-          <SupportLineOfficialLink />
-        </div>
+        <ProfileSupportHelpBanner className="max-w-[874px] md:max-w-[916px]" />
         <div className="mx-auto w-full max-w-[916px]">
           <CashbackSummaryBreakdownCard
             layout="stacked"
@@ -765,7 +820,7 @@ const WithdrawTransaction = () => {
         </div>
       </section>
       <div className="my-6 flex w-full flex-col gap-4">
-        <div className="flex w-full items-stretch gap-2 border-b border-[#e4e4e4] sm:gap-2.5 md:gap-4">
+        <div className={PROFILE_TAB_STRIP_LIST_CLASS}>
           {(
             [
               { key: 1 as const, label: t("walletTransactionsTabAll") },
@@ -779,11 +834,7 @@ const WithdrawTransaction = () => {
                 key={tab.key}
                 type="button"
                 onClick={() => setActive(tab.key)}
-                className={`relative flex min-h-[44px] min-w-0 flex-1 items-center justify-center px-3 py-3 text-center text-xs font-semibold leading-snug transition-colors sm:min-h-[48px] sm:px-4 sm:text-sm md:px-6 md:py-3.5 ${
-                  on
-                    ? "rounded-t-2xl bg-white text-[#00b89d] after:absolute after:bottom-0 after:left-4 after:right-4 after:h-0.5 after:rounded-full after:bg-[#00cc99] sm:after:left-5 sm:after:right-5 md:after:left-6 md:after:right-6"
-                    : "rounded-t-2xl bg-[#f0f0f0] text-[#7f7f7f] hover:bg-[#eaeaea]"
-                }`}
+                className={profileTabButtonClassName(on)}
               >
                 {tab.label}
               </button>

@@ -72,7 +72,7 @@ const useWithdrawWeb3 = () => {
     refetchOnWindowFocus: false,
     refetchOnMount: false,
   });
-  const [withdrawAmount, setWithdrawAmount] = useState<string>();
+  const [withdrawAmount, setWithdrawAmount] = useState<string>("");
   const wihdrawFee = checkThai
     ? Number(getCheckWallet?.fee?.fee_withdraw_thb)
     : Number(getCheckWallet?.fee?.fee_withdraw_usd);

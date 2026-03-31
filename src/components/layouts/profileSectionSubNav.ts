@@ -45,9 +45,7 @@ export function isProfileSectionHubActive(pathname: string): boolean {
     pathname === "/method" ||
     pathname.startsWith("/method/") ||
     pathname === "/language" ||
-    pathname.startsWith("/language/") ||
-    pathname === "/privacy-center" ||
-    pathname.startsWith("/privacy-center/")
+    pathname.startsWith("/language/")
   );
 }
 

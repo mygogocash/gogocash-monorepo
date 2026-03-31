@@ -11,6 +11,8 @@ export const SUB_PAGE_TITLE_KEYS = [
   "Profile",
   "My Offer",
   "Favorite Brands",
+  "profilePopperGogoquestHistory",
+  "missingOrdersPageTitle",
   "pdpaPrivacyCenterTitle",
 ] as const;
 

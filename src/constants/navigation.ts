@@ -142,6 +142,21 @@ export const SUPPORT_LINE_OFFICIAL_HREF = "https://lin.ee/7om5sAr";
 /** GoGoCash hub — social, events, QuestN, support links (profile sidebar “Connect with GoGoCash”). */
 export const GOGOCASH_LINKTREE_HREF = "https://linktr.ee/gogocash";
 
+/** GitBook — Learn center “How to register?” (Missing Orders User Guide quick card). */
+export const GOGOCASH_GITBOOK_LEARN_REGISTER_HREF =
+  "https://gogocash.gitbook.io/doc/learn-center/how-to-register";
+
+/** GitBook — Learn center “How to Shopping?” (Missing Orders Cashback quick card). */
+export const GOGOCASH_GITBOOK_LEARN_SHOPPING_HREF =
+  "https://gogocash.gitbook.io/doc/learn-center/how-to-shopping";
+
+/**
+ * Figma — Missing Orders (profile sidebar). Opens design spec in a new tab.
+ * @see https://www.figma.com/design/jFDx8MnbCtlCaTQxlhpJIp/GoGoCash-1.1?node-id=9621-207632
+ */
+export const MISSING_ORDERS_FIGMA_HREF =
+  "https://www.figma.com/design/jFDx8MnbCtlCaTQxlhpJIp/GoGoCash-1.1?node-id=9621-207632&t=CAdomPs4ttKWtkdI-4";
+
 export const getSupportHref = (region?: string) => {
   void region;
   return SUPPORT_LINE_OFFICIAL_HREF;

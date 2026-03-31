@@ -7,6 +7,7 @@ import ProfilePopperFaqBubbleIcon from "@/components/icons/ProfilePopperFaqBubbl
 import ProfilePopperMissingOrdersIcon from "@/components/icons/ProfilePopperMissingOrdersIcon";
 import ProfileAddIcon from "@/components/icons/ProfileAddIcon";
 import ProfileIcon from "@/components/icons/ProfileIcon";
+import QuestIcon from "@/components/icons/QuestIcon";
 import WalletIcon from "@/components/icons/WalletIcon";
 import { WalletSummaryHeroCard } from "@/components/common/WalletSummaryHeroCard";
 import { getSupportHref } from "@/constants/navigation";
@@ -125,6 +126,12 @@ export default function ProfileHeaderPopperContent({ onNavigate }: { onNavigate?
             label={t("profilePopperMyFavoriteStores")}
           />
           <MenuRowLink
+            href="/quest/history"
+            onNavigate={onNavigate}
+            icon={<QuestIcon width={24} height={24} fill={ICON_TEAL} />}
+            label={t("profilePopperGogoquestHistory")}
+          />
+          <MenuRowLink
             href="/referral"
             onNavigate={onNavigate}
             icon={<ProfileAddIcon width={24} height={24} fill={ICON_TEAL} />}
@@ -146,15 +153,15 @@ export default function ProfileHeaderPopperContent({ onNavigate }: { onNavigate?
             href={supportHref}
             external
             onNavigate={onNavigate}
-            icon={<ProfilePopperFaqBubbleIcon width={24} height={24} fill={ICON_TEAL} />}
-            label={t("profilePopperFaqs")}
+            icon={<ProfilePopperMissingOrdersIcon width={24} height={24} stroke={ICON_TEAL} />}
+            label={t("profilePopperMissingOrders")}
           />
           <MenuRowLink
             href={supportHref}
             external
             onNavigate={onNavigate}
-            icon={<ProfilePopperMissingOrdersIcon width={24} height={24} stroke={ICON_TEAL} />}
-            label={t("profilePopperMissingOrders")}
+            icon={<ProfilePopperFaqBubbleIcon width={24} height={24} fill={ICON_TEAL} />}
+            label={t("profilePopperFaqs")}
           />
         </div>
 

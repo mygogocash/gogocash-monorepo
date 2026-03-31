@@ -7,8 +7,7 @@ import { SOCIAL_ICONS } from "@/constants/footer-social";
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 
-const linkClass =
-  "text-sm text-[#6b7280] transition-colors hover:text-[#1f2937]";
+const linkClass = "text-sm text-[#6b7280] transition-colors hover:text-[#1f2937]";
 
 const Footer = () => {
   const t = useTranslations();
@@ -37,17 +36,13 @@ const Footer = () => {
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-3 lg:gap-16">
             {FOOTER_SECTIONS.map((section) => (
               <div key={section.titleKey}>
-                <h4 className="text-sm font-semibold text-[#1f2937]">
-                  {t(section.titleKey)}
-                </h4>
+                <h4 className="text-sm font-semibold text-[#1f2937]">{t(section.titleKey)}</h4>
                 <ul className="mt-4 flex flex-col gap-3">
                   {section.items.map((item) => {
                     const external = item.href.startsWith("http");
                     const label = t(item.labelKey);
                     return (
-                      <li
-                        key={`${section.titleKey}-${item.labelKey}-${item.href}`}
-                      >
+                      <li key={`${section.titleKey}-${item.labelKey}-${item.href}`}>
                         {external ? (
                           <a
                             href={item.href}
@@ -72,9 +67,7 @@ const Footer = () => {
         </div>
 
         <div className="mt-16 flex flex-col items-center gap-6 border-t border-gray-100 pt-8 sm:flex-row sm:justify-between">
-          <p className="text-sm text-[#6b7280]">
-            {t("footerCopyright", { year })}
-          </p>
+          <p className="text-sm text-[#6b7280]">{t("footerCopyright", { year })}</p>
           <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
             {SOCIAL_ICONS.map((social) => (
               <a
@@ -89,9 +82,7 @@ const Footer = () => {
           </div>
         </div>
 
-        <p className="mt-8 text-xs leading-relaxed text-[#9ca3af]">
-          {t("footerRiskDisclaimer")}
-        </p>
+        <p className="mt-8 text-xs leading-relaxed text-[#9ca3af]">{t("footerRiskDisclaimer")}</p>
       </div>
     </footer>
   );

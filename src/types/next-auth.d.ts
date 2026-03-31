@@ -6,6 +6,8 @@ import type { DefaultSession } from "next-auth";
  */
 declare module "next-auth" {
   interface User {
+    /** NextAuth / JWT subject; use with `_id` from API when present. */
+    id?: string;
     access_token?: string;
     refresh_token?: string;
     expires?: string;
@@ -23,10 +25,12 @@ declare module "next-auth" {
     is_new_user?: boolean;
     auth_flow?: "register" | "login";
     id_twitter?: string;
+    avatar_url?: string | null;
   }
 
   interface Session {
     user: {
+      id?: string;
       access_token?: string;
       refresh_token?: string;
       wallet?: string;
@@ -43,6 +47,7 @@ declare module "next-auth" {
       auth_flow?: "register" | "login";
       id_telegram?: string;
       id_twitter?: string;
+      avatar_url?: string | null;
     } & DefaultSession["user"];
   }
 }
@@ -66,5 +71,6 @@ declare module "next-auth/jwt" {
     is_new_user?: boolean;
     auth_flow?: "register" | "login";
     id_telegram?: string;
+    avatar_url?: string | null;
   }
 }

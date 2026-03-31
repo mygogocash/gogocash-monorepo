@@ -30,6 +30,8 @@ import {
   ResponseWithdrawCheck,
   ResponseWithdrawHistory,
 } from "@/interfaces/withdraw";
+import type { QuestRankResponse, ResponseQuestDate, ResSocialReward } from "@/interfaces/quest";
+import type { QuestHistorySummary, QuestUserPeriodSummary } from "@/interfaces/questHistory";
 import { ResGetBalanceMyCashback } from "@/interfaces/userMyCashback";
 import {
   devEmailMockTelegramLoginResponse,
@@ -643,7 +645,7 @@ const mockFee: FeeData = {
   minimum_withdraw_usd: 10,
   minimum_withdraw_thb: 300,
   fee_withdraw_usd: 2.5,
-  fee_withdraw_thb: 75,
+  fee_withdraw_thb: 20,
 };
 
 let withdrawMethodSequence = 1;
@@ -753,6 +755,8 @@ const mockUsers: MockUserSeed[] = [
       birthdate: "1996-10-21",
       gender: "Female",
       id_telegram: "gogocash_demo",
+      id_number: "1103700412345",
+      legal_address: "1 Demo Road, Pathum Wan, Bangkok 10330",
     },
     firstName: "Demo",
     lastName: "Shopper",
@@ -2125,6 +2129,143 @@ const MOCK_WITHDRAW_SIGNATURE = `0x${"11".repeat(65)}` as const;
 const getActiveUserProfile = () => getActiveMockUserSeed().user;
 const getActiveUserMethods = () => getActiveMockUserSeed().paymentMethods;
 
+const MOCK_QUEST_OPEN_DATE: ResponseQuestDate = {
+  _id: "mock-quest-open-1",
+  status: "open",
+  __v: 0,
+  createdAt: mockNow,
+  updatedAt: mockNow,
+  start_date: new Date("2026-03-01T00:00:00.000Z"),
+  end_date: new Date("2026-03-31T23:59:59.000Z"),
+  facebook_page: "",
+  line: "",
+  facebook_post: "",
+  banner_en: "",
+  banner_th: "",
+  sub_banner_en: "",
+  sub_banner_th: "",
+};
+
+function baseQuestRank(
+  partial: Partial<QuestRankResponse> &
+    Pick<QuestRankResponse, "username" | "point" | "rank" | "user_id">
+): QuestRankResponse {
+  return {
+    _id: `quest-rank-${partial.rank}-${partial.username.replace(/\s+/g, "-")}`,
+    email: "",
+    conversion: [],
+    extra_point_received: 0,
+    bonus_over_300_received: 0,
+    extra_point_referral: 0,
+    point_social_reward: 0,
+    unique_merchants: [],
+    ...partial,
+  };
+}
+
+function getMockQuestLeaderboard(): QuestRankResponse[] {
+  const u = getActiveMockUserSeed().user;
+  return [
+    baseQuestRank({ user_id: "mock-user-rank-1", username: "StarHunter", point: 2100, rank: 1 }),
+    baseQuestRank({ user_id: "mock-user-rank-2", username: "LunaMint", point: 1840, rank: 2 }),
+    baseQuestRank({ user_id: "mock-user-rank-3", username: "QuestKid", point: 1590, rank: 3 }),
+    baseQuestRank({
+      user_id: u._id,
+      username: u.username,
+      point: 940,
+      rank: 4,
+      extra_point_received: 120,
+      extra_point_referral: 40,
+      bonus_over_300_received: 30,
+      point_social_reward: 25,
+    }),
+    baseQuestRank({ user_id: "mock-user-rank-5", username: "NeoShop", point: 720, rank: 5 }),
+  ];
+}
+
+function getMockMyQuestList(): QuestRankResponse {
+  const u = getActiveMockUserSeed().user;
+  const row = getMockQuestLeaderboard().find((x) => x.user_id === u._id);
+  return row ?? getMockQuestLeaderboard()[3]!;
+}
+
+function getMockQuestHistorySummary(): QuestHistorySummary {
+  return {
+    monthly: [
+      { month: "2026-03", points: 520 },
+      { month: "2026-02", points: 380 },
+      { month: "2026-01", points: 210 },
+    ],
+    rewards: [
+      {
+        _id: "reward-1",
+        title: "March top-10 bonus",
+        description: "Campaign leaderboard reward",
+        points: 80,
+        grantedAt: "2026-03-20T12:00:00.000Z",
+        type: "tier",
+      },
+      {
+        _id: "reward-2",
+        title: "Social share milestone",
+        points: 25,
+        grantedAt: "2026-03-12T09:30:00.000Z",
+        type: "social",
+      },
+      {
+        _id: "reward-3",
+        title: "Spend bonus over 300",
+        points: 30,
+        grantedAt: "2026-02-28T18:00:00.000Z",
+        type: "bonus",
+      },
+    ],
+  };
+}
+
+function getMockQuestSocial(): ResSocialReward {
+  return {
+    quest: {
+      _id: MOCK_QUEST_OPEN_DATE._id,
+      status: MOCK_QUEST_OPEN_DATE.status,
+      __v: MOCK_QUEST_OPEN_DATE.__v,
+      createdAt: MOCK_QUEST_OPEN_DATE.createdAt,
+      updatedAt: MOCK_QUEST_OPEN_DATE.updatedAt,
+      start_date: MOCK_QUEST_OPEN_DATE.start_date,
+      end_date: MOCK_QUEST_OPEN_DATE.end_date,
+      reward_status: false,
+      facebook_page: MOCK_QUEST_OPEN_DATE.facebook_page,
+      line: MOCK_QUEST_OPEN_DATE.line,
+      facebook_post: MOCK_QUEST_OPEN_DATE.facebook_post,
+    },
+    socialRewards: [],
+  };
+}
+
+function getMockQuestUserPeriodSummary(
+  userId: string,
+  start: string,
+  end: string
+): QuestUserPeriodSummary {
+  const row =
+    getMockQuestLeaderboard().find((x) => x.user_id === userId) ?? getMockQuestLeaderboard()[0]!;
+  const summary = getMockQuestHistorySummary();
+  const startT = new Date(`${start}T00:00:00.000Z`).getTime();
+  const endT = new Date(`${end}T23:59:59.999Z`).getTime();
+  const rewards = summary.rewards.filter((r) => {
+    const t = new Date(r.grantedAt).getTime();
+    return t >= startT && t <= endT;
+  });
+  const rankInList = getMockQuestLeaderboard().findIndex((x) => x.user_id === userId);
+  return {
+    user_id: userId,
+    username: row.username,
+    point: row.point,
+    rank: rankInList >= 0 ? rankInList + 1 : (row.rank ?? 1),
+    rewards,
+  };
+}
+
 /** HTTP status for axios mock adapter (e.g. POST /withdraw expects 201). */
 export const getMockHttpStatus = (pathname: string, method: string): number => {
   const uppercaseMethod = method.toUpperCase();
@@ -2167,6 +2308,38 @@ export const getMockApiResponse = (
 
     if (pathname === "/user/balance/me/mycashback") {
       return buildMyCashbackBalance();
+    }
+
+    if (pathname === "/point/get-quest-open") {
+      return MOCK_QUEST_OPEN_DATE;
+    }
+
+    if (pathname === "/point/quest-history-summary") {
+      return getMockQuestHistorySummary();
+    }
+
+    if (/^\/point\/check-points\/[^/]+\/[^/]+$/.test(pathname)) {
+      return getMockQuestLeaderboard();
+    }
+
+    if (/^\/point\/my-quest-list\/[^/]+\/[^/]+$/.test(pathname)) {
+      return getMockMyQuestList();
+    }
+
+    if (pathname === "/point/get-quest-social") {
+      return getMockQuestSocial();
+    }
+
+    {
+      const periodUserMatch = pathname.match(
+        /^\/point\/quest-user-period-summary\/([^/]+)\/([^/]+)\/([^/]+)$/
+      );
+      if (periodUserMatch) {
+        const [, encUser, start, end] = periodUserMatch;
+        if (encUser && start && end) {
+          return getMockQuestUserPeriodSummary(decodeURIComponent(encUser), start, end);
+        }
+      }
     }
 
     if (pathname === "/withdraw") {

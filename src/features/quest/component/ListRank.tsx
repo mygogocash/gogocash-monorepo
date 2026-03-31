@@ -7,19 +7,32 @@ import { Link } from "@/i18n/navigation";
 interface ListRankProps {
   list: QuestRankResponse[] | undefined;
   myQuest?: QuestRankResponse | undefined;
+  /** Hide the promo banner above the rank card (e.g. embedded profile history page). */
+  hidePromoBanner?: boolean;
+  /** When set, each row shows a control to open details (e.g. history page). */
+  onViewPlayer?: (item: QuestRankResponse) => void;
+  viewPlayerLabel?: string;
 }
-const ListRank = ({ list, myQuest }: ListRankProps) => {
+const ListRank = ({
+  list,
+  myQuest,
+  hidePromoBanner,
+  onViewPlayer,
+  viewPlayerLabel,
+}: ListRankProps) => {
   return (
     <div className="flex flex-col">
-      <Link href="/shop">
-        <Image
-          src="/quest/banner2.png"
-          alt="Quest Image 2"
-          width={484}
-          height={320}
-          className="rounded-lg w-full h-auto"
-        />
-      </Link>
+      {!hidePromoBanner ? (
+        <Link href="/shop">
+          <Image
+            src="/quest/banner2.png"
+            alt="Quest Image 2"
+            width={484}
+            height={320}
+            className="rounded-lg w-full h-auto"
+          />
+        </Link>
+      ) : null}
       {myQuest && <MyRank myQuest={myQuest} />}
       <div className="flex items-center gap-2 my-5">
         <Image
@@ -37,10 +50,10 @@ const ListRank = ({ list, myQuest }: ListRankProps) => {
           list?.map((item, index) => {
             return (
               <div
-                key={index}
-                className="flex items-center justify-between border-b border-gray-300 pb-4 mb-4"
+                key={`${item.user_id}-${index}`}
+                className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-300 pb-4 mb-4"
               >
-                <div className="flex items-center gap-3">
+                <div className="flex min-w-0 items-center gap-3">
                   <Image
                     src={`/profile_quest.png`}
                     alt="shop"
@@ -49,13 +62,13 @@ const ListRank = ({ list, myQuest }: ListRankProps) => {
                     className="rounded-full w-9 h-9 lg:w-12 lg:h-12"
                   />
 
-                  <p className="text-[12px] lg:text-[18px] text-black">
+                  <p className="min-w-0 truncate text-[12px] text-black lg:text-[18px]">
                     {item.username?.length <= 11
                       ? item.username?.trim().slice(0, 3) + "..." + item.username?.trim().slice(-3)
                       : formatAddress(item.username?.trim() || "", 6, 6)}
                   </p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex shrink-0 items-center gap-2 sm:gap-3">
                   {index === 0 ? (
                     <Image
                       src={`/quest/rank1.png`}
@@ -102,6 +115,15 @@ const ListRank = ({ list, myQuest }: ListRankProps) => {
                     }
                     theme="bg-[#F6F6F6] text-[#00CC99] text-[12px] lg:text-[24px] font-bold flex-row-reverse !pl-1 !py-1 !pr-3"
                   />
+                  {onViewPlayer && viewPlayerLabel ? (
+                    <button
+                      type="button"
+                      onClick={() => onViewPlayer(item)}
+                      className="rounded-xl border border-[#00aa80]/40 bg-white px-3 py-1.5 text-[12px] font-semibold text-[#00aa80] transition-colors hover:bg-[#00aa80]/10 lg:px-4 lg:py-2 lg:text-[14px]"
+                    >
+                      {viewPlayerLabel}
+                    </button>
+                  ) : null}
                 </div>
               </div>
             );

@@ -11,8 +11,11 @@ import GlobeIcon from "@/components/icons/GlobeIcon";
 import HelpIcon from "@/components/icons/HelpIcon";
 import ProfileAddIcon from "@/components/icons/ProfileAddIcon";
 import ProfileIcon from "@/components/icons/ProfileIcon";
+import QuestIcon from "@/components/icons/QuestIcon";
 import WalletIcon from "@/components/icons/WalletIcon";
-import LockIcon from "@/components/icons/LockIcon";
+import ProfilePopperMissingOrdersIcon from "@/components/icons/ProfilePopperMissingOrdersIcon";
+import LogoutIcon from "@/components/icons/LogoutIcon";
+import CookiesIcon from "@/components/icons/CookiesIcon";
 import LogoutConfirmDialog from "@/components/layouts/LogoutConfirmDialog";
 import { Link, usePathname } from "@/i18n/navigation";
 import { useCrossmintLoginContext } from "@/providers/CrossmintLoginContext";
@@ -50,9 +53,11 @@ type MenuEntry = {
   external?: boolean;
   /** When set, active if pathname matches this prefix (e.g. profile section). */
   activePrefix?: string;
+  /** Stroke-based SVG (e.g. `ProfilePopperMissingOrdersIcon`) — default is fill-based icons. */
+  iconStroke?: boolean;
 };
 
-const baseMenu: MenuEntry[] = [
+const baseMenuHead: MenuEntry[] = [
   {
     translationKey: "Profile",
     href: "/profile",
@@ -65,11 +70,34 @@ const baseMenu: MenuEntry[] = [
     icon: WalletIcon,
     activePrefix: "/wallet",
   },
+];
+
+const missingOrderMenuItem: MenuEntry = {
+  translationKey: "profilePopperMissingOrders",
+  href: "/missing-orders",
+  icon: ProfilePopperMissingOrdersIcon,
+  activePrefix: "/missing-orders",
+  iconStroke: true,
+};
+
+const baseMenuTail: MenuEntry[] = [
   {
     translationKey: "Favorite Brands",
     href: "/favorite",
     icon: FavoriteIcon,
     activePrefix: "/favorite",
+  },
+  {
+    translationKey: "profilePopperGogoquestHistory",
+    href: "/quest/history",
+    icon: QuestIcon,
+    activePrefix: "/quest/history",
+  },
+  {
+    translationKey: "navCookiesPolicy",
+    href: "/privacy-center",
+    icon: CookiesIcon,
+    activePrefix: "/privacy-center",
   },
   {
     translationKey: "profilePopperReferYourFriends",
@@ -100,13 +128,6 @@ const subscriptionItem: MenuEntry = {
   activePrefix: "/subscription",
 };
 
-const privacyCenterItem: MenuEntry = {
-  translationKey: "navPrivacyCenter",
-  href: "/privacy-center",
-  icon: LockIcon,
-  activePrefix: "/privacy-center",
-};
-
 function isActive(pathname: string, item: MenuEntry): boolean {
   if (item.external) {
     return false;
@@ -121,8 +142,9 @@ function isActive(pathname: string, item: MenuEntry): boolean {
 export type SubProfileVariant = "sidebar" | "panel";
 
 const subProfileAsideClass: Record<SubProfileVariant, string> = {
+  /** Padding matches `SubPage` shell (`pt-6 md:pt-10`, `pb-20`) so the nav column lines up with the main column. */
   sidebar:
-    "hidden h-full min-h-0 w-[320px] shrink-0 flex-col self-stretch rounded-br-[24px] rounded-tr-[24px] bg-white p-6 md:flex",
+    "hidden h-full min-h-0 w-[320px] shrink-0 flex-col self-stretch rounded-br-[24px] rounded-tr-[24px] bg-white px-6 pb-20 pt-6 md:flex md:pt-10",
   /** Inside merged account card: no own surface; parent supplies border/padding. */
   panel: "flex min-h-0 w-full flex-1 flex-col",
 };
@@ -148,8 +170,9 @@ const SubProfile = ({ variant = "sidebar", className }: SubProfileProps) => {
   }, [pathname]);
 
   const menu: MenuEntry[] = [
-    ...baseMenu,
-    privacyCenterItem,
+    ...baseMenuHead,
+    missingOrderMenuItem,
+    ...baseMenuTail,
     { ...helpItem, href: supportHref },
     connectItem,
     ...(FEATURE_FLAGS.subscription ? [subscriptionItem] : []),
@@ -170,15 +193,24 @@ const SubProfile = ({ variant = "sidebar", className }: SubProfileProps) => {
           const row = (
             <div
               className={cn(
-                "flex h-[52px] max-h-[52px] w-full items-center gap-4 rounded-2xl px-4",
+                "flex h-[52px] max-h-[52px] w-full min-w-0 items-center gap-4 rounded-2xl px-4",
                 navRowTransition,
                 active ? navRowActive : navRowInactive
               )}
             >
-              <Icon width={24} height={24} fill={iconFill} />
+              <span
+                className="inline-flex size-6 shrink-0 items-center justify-center [&>svg]:block"
+                aria-hidden
+              >
+                <Icon
+                  width={24}
+                  height={24}
+                  {...(item.iconStroke ? { stroke: iconFill } : { fill: iconFill })}
+                />
+              </span>
               <span
                 className={cn(
-                  "text-base leading-normal transition-colors duration-200 ease-out",
+                  "min-w-0 flex-1 truncate text-base leading-normal transition-colors duration-200 ease-out",
                   active ? "font-medium text-white" : "font-normal text-[#3B3B3B]"
                 )}
               >
@@ -216,10 +248,15 @@ const SubProfile = ({ variant = "sidebar", className }: SubProfileProps) => {
                     href={item.href}
                     className="flex min-w-0 flex-1 items-center gap-4 px-4 no-underline"
                   >
-                    <Icon width={24} height={24} fill={iconFill} />
+                    <span
+                      className="inline-flex size-6 shrink-0 items-center justify-center [&>svg]:block"
+                      aria-hidden
+                    >
+                      <Icon width={24} height={24} fill={iconFill} />
+                    </span>
                     <span
                       className={cn(
-                        "text-base leading-normal transition-colors duration-200 ease-out",
+                        "min-w-0 flex-1 truncate text-base leading-normal transition-colors duration-200 ease-out",
                         active ? "font-medium text-white" : "font-normal text-[#3B3B3B]"
                       )}
                     >
@@ -300,10 +337,15 @@ const SubProfile = ({ variant = "sidebar", className }: SubProfileProps) => {
       <button
         type="button"
         onClick={() => setLogoutDialogOpen(true)}
-        className="mt-4 flex h-[52px] w-full cursor-pointer items-center gap-4 rounded-2xl border-0 bg-transparent px-4 text-left transition-[background-color,transform] duration-200 ease-out hover:bg-black/[0.03] active:scale-[0.99] motion-reduce:transition-colors motion-reduce:active:scale-100"
+        className="mt-4 flex h-[52px] w-full min-w-0 cursor-pointer items-center gap-4 rounded-2xl border-0 bg-transparent px-4 text-left transition-[background-color,transform] duration-200 ease-out hover:bg-black/[0.03] active:scale-[0.99] motion-reduce:transition-colors motion-reduce:active:scale-100"
       >
-        <LockIcon width={24} height={24} fill={TEAL} />
-        <span className="text-base font-normal leading-normal text-[#3B3B3B]">
+        <span
+          className="inline-flex size-6 shrink-0 items-center justify-center [&>svg]:block"
+          aria-hidden
+        >
+          <LogoutIcon width={24} height={24} fill={TEAL} />
+        </span>
+        <span className="min-w-0 flex-1 truncate text-base font-normal leading-normal text-[#3B3B3B]">
           {t("profilePopperLogOut")}
         </span>
       </button>

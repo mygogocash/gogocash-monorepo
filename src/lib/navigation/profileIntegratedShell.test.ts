@@ -16,14 +16,17 @@ describe("isIntegratedProfileShellPath", () => {
     expect(isIntegratedProfileShellPath("/language")).toBe(true);
     expect(isIntegratedProfileShellPath("/wallet")).toBe(true);
     expect(isIntegratedProfileShellPath("/favorite")).toBe(true);
+    expect(isIntegratedProfileShellPath("/quest/history")).toBe(true);
     expect(isIntegratedProfileShellPath("/referral")).toBe(true);
+    expect(isIntegratedProfileShellPath("/missing-orders")).toBe(true);
     expect(isIntegratedProfileShellPath("/subscription")).toBe(true);
     expect(isIntegratedProfileShellPath("/withdraw")).toBe(true);
     expect(isIntegratedProfileShellPath("/withdraw/my-cashback")).toBe(true);
+    expect(isIntegratedProfileShellPath("/privacy-center")).toBe(true);
+    expect(isIntegratedProfileShellPath("/privacy-center/x")).toBe(true);
   });
 
-  it("returns false for split-shell routes (e.g. privacy center, shop)", () => {
-    expect(isIntegratedProfileShellPath("/privacy-center")).toBe(false);
+  it("returns false for non-hub routes (e.g. shop)", () => {
     expect(isIntegratedProfileShellPath("/shop")).toBe(false);
     expect(isIntegratedProfileShellPath("/")).toBe(false);
     expect(isIntegratedProfileShellPath("/quest")).toBe(false);

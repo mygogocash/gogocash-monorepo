@@ -1,3 +1,6 @@
+/** When API provides this, invitation tabs filter by it instead of client heuristics on `type`/`action`. */
+export type ReferralListCategory = "account" | "shop";
+
 export interface ResponseReferralList {
   _id: string;
   user_id: ReferralID;
@@ -6,6 +9,8 @@ export interface ResponseReferralList {
   point: number;
   type: string;
   action: string;
+  /** Optional server-side bucket for `/point/referral-list` rows. */
+  referral_category?: ReferralListCategory;
   createdAt: Date;
   updatedAt: Date;
   __v: number;

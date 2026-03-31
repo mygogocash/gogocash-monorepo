@@ -172,15 +172,19 @@ export const authOptions: AuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user, session }) {
+    async jwt({ token, user, session, trigger }) {
       try {
-        // console.log("user", user);
-        // console.log("token", token);
+        if (trigger === "update" && session?.user && typeof session.user === "object") {
+          const u = session.user as { avatar_url?: string | null };
+          if (Object.prototype.hasOwnProperty.call(session.user, "avatar_url")) {
+            return {
+              ...token,
+              avatar_url: u.avatar_url ?? null,
+            };
+          }
+        }
 
         if (user || session) {
-          // console.log('session', session);
-          // console.log('user', user);
-
           // Store user data in token on first sign in
           return {
             ...token,
@@ -241,6 +245,10 @@ export const authOptions: AuthOptions = {
               typeof token.auth_flow === "string"
                 ? (token.auth_flow as "register" | "login")
                 : session.user?.auth_flow,
+            avatar_url:
+              typeof token.avatar_url === "string" || token.avatar_url === null
+                ? token.avatar_url
+                : (session.user as { avatar_url?: string | null }).avatar_url,
           },
         };
       } catch {

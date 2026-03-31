@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { LoginState, TrackableMerchant, trackMerchantListView } from "@/lib/analytics";
@@ -13,13 +13,13 @@ interface MerchantListTrackerProps {
   source?: string;
 }
 
-const MerchantListTracker = ({
+function MerchantListTrackerInner({
   items,
   listId,
   listName,
   category,
   source,
-}: MerchantListTrackerProps) => {
+}: MerchantListTrackerProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { status } = useSession();
@@ -56,6 +56,12 @@ const MerchantListTracker = ({
   }, [category, items, listId, listName, pathname, searchParams, source, status]);
 
   return null;
-};
+}
+
+const MerchantListTracker = (props: MerchantListTrackerProps) => (
+  <Suspense fallback={null}>
+    <MerchantListTrackerInner {...props} />
+  </Suspense>
+);
 
 export default MerchantListTracker;

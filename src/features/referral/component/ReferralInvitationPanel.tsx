@@ -1,7 +1,14 @@
 "use client";
 
 import { ResponseReferralList } from "@/interfaces/referral";
-import { cn } from "@/lib/utils";
+import {
+  referralRowMatchesTab,
+  type ReferralInviteTab,
+} from "@/lib/referral/referralInvitationFilter";
+import {
+  PROFILE_TAB_STRIP_LIST_CLASS,
+  profileTabButtonClassName,
+} from "@/lib/ui/profileTabStripClasses";
 import { fetcher } from "@/lib/axios/client";
 import {
   Paper,
@@ -14,12 +21,11 @@ import {
 } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
-import Image from "next/image";
 import { useTranslations } from "next-intl";
-import { useCallback, useMemo, useState, type KeyboardEvent } from "react";
+import { useCallback, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import ReferralEmptyInvitationIllustration from "./ReferralEmptyInvitationIllustration";
 
-export type ReferralInviteTab = "all" | "account" | "shop";
+export type { ReferralInviteTab };
 
 const TAB_DEFS: { id: ReferralInviteTab; labelKey: string }[] = [
   { id: "all", labelKey: "referralTabAllInvitations" },
@@ -27,23 +33,14 @@ const TAB_DEFS: { id: ReferralInviteTab; labelKey: string }[] = [
   { id: "shop", labelKey: "referralTabShoppedWithUs" },
 ];
 
-function rowMatchesTab(row: ResponseReferralList, tab: ReferralInviteTab): boolean {
-  if (tab === "all") return true;
-  const hay = `${row.type ?? ""} ${row.action ?? ""}`.toLowerCase();
-  if (tab === "account") {
-    return /account|signup|sign_?up|register|created|join|verify|email|profile|welcome/i.test(hay);
-  }
-  return /shop|purchase|order|transaction|cashback|spent|buy|sale|merchant|checkout/i.test(hay);
-}
-
 /**
- * Invitation list with Figma-style segmented tabs and empty state.
- * @see https://www.figma.com/design/jFDx8MnbCtlCaTQxlhpJIp/GoGoCash-1.1?node-id=8514-132148
+ * Invitation list with wallet-aligned tab strip (shared classes with `WalletTransaction`).
  */
 export default function ReferralInvitationPanel() {
   const t = useTranslations();
   const { data: session } = useSession();
   const [tab, setTab] = useState<ReferralInviteTab>("all");
+  const tabButtonRefs = useRef<Partial<Record<ReferralInviteTab, HTMLButtonElement | null>>>({});
 
   const { data: rows } = useQuery<ResponseReferralList[]>({
     queryKey: ["getListReferral"],
@@ -53,7 +50,7 @@ export default function ReferralInvitationPanel() {
 
   const filtered = useMemo(() => {
     const list = rows ?? [];
-    return list.filter((r) => rowMatchesTab(r, tab));
+    return list.filter((r) => referralRowMatchesTab(r, tab));
   }, [rows, tab]);
 
   const showEmpty = filtered.length === 0;
@@ -62,7 +59,9 @@ export default function ReferralInvitationPanel() {
     const next = TAB_DEFS[index];
     if (!next) return;
     setTab(next.id);
-    document.getElementById(`referral-tab-${next.id}`)?.focus();
+    queueMicrotask(() => {
+      tabButtonRefs.current[next.id]?.focus();
+    });
   }, []);
 
   const onTabListKeyDown = useCallback(
@@ -91,51 +90,31 @@ export default function ReferralInvitationPanel() {
         {t("referralInvitationTitle")}
       </h2>
 
-      <div className="flex w-full flex-col gap-6">
+      <div className="flex w-full flex-col gap-4">
         <div
           role="tablist"
           aria-label={t("referralInvitationTitle")}
-          className="flex w-full gap-4 border-b border-[#e4e4e4]"
+          className={PROFILE_TAB_STRIP_LIST_CLASS}
           onKeyDown={onTabListKeyDown}
         >
           {TAB_DEFS.map(({ id, labelKey }) => {
             const selected = tab === id;
             return (
-              <div
+              <button
                 key={id}
-                className="flex min-w-0 flex-1 flex-col items-center sm:max-w-[240px] sm:flex-none"
+                ref={(el) => {
+                  tabButtonRefs.current[id] = el;
+                }}
+                type="button"
+                role="tab"
+                id={`referral-tab-${id}`}
+                aria-selected={selected}
+                tabIndex={selected ? 0 : -1}
+                onClick={() => setTab(id)}
+                className={profileTabButtonClassName(selected)}
               >
-                <button
-                  type="button"
-                  role="tab"
-                  id={`referral-tab-${id}`}
-                  aria-selected={selected}
-                  tabIndex={selected ? 0 : -1}
-                  onClick={() => setTab(id)}
-                  className="flex w-full flex-col items-center outline-none focus-visible:ring-2 focus-visible:ring-[#00cc99] focus-visible:ring-offset-2"
-                >
-                  <div
-                    className={cn(
-                      "flex h-12 w-full items-center justify-center px-6 py-3 text-base font-medium",
-                      selected ? "text-[#00cc99]" : "rounded-t-2xl bg-[#f6f6f6] text-[#3b3b3b]"
-                    )}
-                  >
-                    {t(labelKey)}
-                  </div>
-                  <div className="relative h-0.5 w-32 shrink-0" aria-hidden>
-                    {selected ? (
-                      <Image
-                        alt=""
-                        src="/referral/invitation-empty/moving-line.svg"
-                        fill
-                        sizes="128px"
-                        unoptimized
-                        className="pointer-events-none object-fill"
-                      />
-                    ) : null}
-                  </div>
-                </button>
-              </div>
+                {t(labelKey)}
+              </button>
             );
           })}
         </div>

@@ -3,7 +3,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { SessionProvider } from "next-auth/react";
 import { Toaster } from "react-hot-toast";
 import { getQueryClient } from "@/lib/query/queryClient";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { CrossmintReadyProvider } from "./CrossmintReadyContext";
 import RouteAnalyticsTracker from "@/components/analytics/RouteAnalyticsTracker";
@@ -72,7 +72,9 @@ const ProviderDefault = ({ children }: { children: React.ReactNode }) => {
                       <WebVitalsReporter />
                       <PostHogAuthSync />
                       <PostHogReplayController />
-                      <RouteAnalyticsTracker />
+                      <Suspense fallback={null}>
+                        <RouteAnalyticsTracker />
+                      </Suspense>
                       {children}
                       <Toaster />
                     </CrossmintLoginContextWrapper>

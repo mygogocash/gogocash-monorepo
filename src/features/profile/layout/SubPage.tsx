@@ -9,6 +9,11 @@ import type { SubPageSubtitleKey, SubPageTitleKey } from "./subPageMessageKeys";
 
 interface IProp {
   title: SubPageTitleKey;
+  /**
+   * When set, used for the page `<h1>` instead of `t(title)` so Turbopack cannot drop flat keys
+   * from `messages` (same pattern as missing-orders form copy).
+   */
+  resolvedTitle?: string;
   children?: React.ReactNode;
   subTitle?: SubPageSubtitleKey;
   showSubMenu?: boolean;
@@ -18,8 +23,9 @@ interface IProp {
    */
   contentOnly?: boolean;
 }
-const SubPage = ({ title, children, subTitle, showSubMenu, contentOnly }: IProp) => {
+const SubPage = ({ title, resolvedTitle, children, subTitle, showSubMenu, contentOnly }: IProp) => {
   const t = useTranslations();
+  const heading = resolvedTitle ?? t(title);
   const router = useRouter();
   const pathname = usePathname();
   const mainScrollRef = useRef<HTMLDivElement>(null);
@@ -36,18 +42,19 @@ const SubPage = ({ title, children, subTitle, showSubMenu, contentOnly }: IProp)
   if (showSubMenu) {
     return (
       <div className="flex h-full min-h-0 min-w-0 w-full flex-1 flex-col px-0 pb-20 pt-6 md:pt-10 md:pb-20">
+        <h1 className="sr-only">{heading}</h1>
         <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-3xl border border-[#e4e4e4] bg-white">
-          <div className="flex min-h-0 flex-1 flex-col md:flex-row md:items-start">
-            <div className="flex min-h-0 flex-col border-b border-[#e4e4e4] p-5 md:sticky md:top-6 md:z-10 md:max-h-[calc(100vh-7rem)] md:w-[min(320px,34%)] md:max-w-[320px] md:shrink-0 md:overflow-y-auto md:overscroll-contain md:border-b-0 md:border-r md:p-6">
+          <div className="flex min-h-0 flex-1 flex-col md:flex-row md:items-stretch">
+            <div className="flex min-h-0 flex-col border-b border-[#e4e4e4] p-5 md:z-10 md:w-[min(320px,34%)] md:max-w-[320px] md:shrink-0 md:overflow-y-auto md:overscroll-contain md:border-b-0 md:border-r md:p-6">
               <SubProfile variant="panel" />
             </div>
             <div
               ref={mainScrollRef}
-              className="flex min-h-0 min-w-0 flex-1 flex-col gap-6 overflow-auto overscroll-contain p-5 md:min-h-0 md:p-6"
+              className="flex min-h-0 min-w-0 flex-1 flex-col gap-8 overflow-auto overscroll-contain px-5 py-7 md:min-h-0 md:px-8 md:py-8"
             >
               <div
                 key={pathname}
-                className="gc-profile-subpage-content flex min-h-0 min-w-0 flex-1 flex-col gap-6"
+                className="gc-profile-subpage-content flex min-h-0 min-w-0 flex-1 flex-col gap-8"
               >
                 {subTitle && (
                   <h2 className="text-[20px] font-semibold tracking-tight text-[#3b3b3b] md:text-[22px]">
@@ -66,15 +73,15 @@ const SubPage = ({ title, children, subTitle, showSubMenu, contentOnly }: IProp)
   if (contentOnly) {
     return (
       <div className="flex h-full min-h-0 min-w-0 w-full flex-1 flex-col px-0 pb-20 pt-6 md:pt-10 md:pb-20">
-        <h1 className="sr-only">{t(title)}</h1>
+        <h1 className="sr-only">{heading}</h1>
         <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-3xl border border-[#e4e4e4] bg-white">
           <div
             ref={mainScrollRef}
-            className="flex min-h-0 min-w-0 flex-1 flex-col gap-6 overflow-auto overscroll-contain p-5 md:p-6"
+            className="flex min-h-0 min-w-0 flex-1 flex-col gap-8 overflow-auto overscroll-contain px-5 py-7 md:px-8 md:py-8"
           >
             <div
               key={pathname}
-              className="gc-profile-subpage-content flex min-h-0 min-w-0 flex-1 flex-col gap-6"
+              className="gc-profile-subpage-content flex min-h-0 min-w-0 flex-1 flex-col gap-8"
             >
               {subTitle && (
                 <h2 className="text-[20px] font-semibold tracking-tight text-[#3b3b3b] md:text-[22px]">
@@ -100,7 +107,7 @@ const SubPage = ({ title, children, subTitle, showSubMenu, contentOnly }: IProp)
           <ArrowBackIosIcon />
         </IconButton>
         <h1 className="text-[24px] font-semibold tracking-[-0.03em] text-[#103522] md:text-[34px]">
-          {t(title)}
+          {heading}
         </h1>
       </div>
       <div className="gc-surface-card flex h-full w-full gap-2 p-2 md:p-3">

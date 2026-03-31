@@ -4,8 +4,7 @@ import { SUPPORT_LINE_OFFICIAL_HREF } from "@/constants/navigation";
 export const WEB_APP_PUBLIC_HREF = "https://app.gogocash.co";
 
 /** LINE Mini App (in-chat app) — matches landing */
-export const LINE_MINI_APP_HREF =
-  "https://miniapp.line.me/2008237918-mpplkp5Q";
+export const LINE_MINI_APP_HREF = "https://miniapp.line.me/2008237918-mpplkp5Q";
 
 export const SOCIAL_ICONS = [
   { label: "X", href: "https://x.com/mygogocash", icon: "X" },

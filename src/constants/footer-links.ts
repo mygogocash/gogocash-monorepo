@@ -1,8 +1,5 @@
 import { SUPPORT_LINE_OFFICIAL_HREF } from "@/constants/navigation";
-import {
-  LINE_MINI_APP_HREF,
-  WEB_APP_PUBLIC_HREF,
-} from "@/constants/footer-social";
+import { LINE_MINI_APP_HREF, WEB_APP_PUBLIC_HREF } from "@/constants/footer-social";
 
 const MARKETING_ORIGIN = "https://gogocash.co";
 
