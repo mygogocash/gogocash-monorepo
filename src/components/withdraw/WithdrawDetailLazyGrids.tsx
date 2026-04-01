@@ -6,9 +6,20 @@ import { paginationModel } from "@/components/offer/muiGridShared";
 import { getWithdrawDetailDataGridSx } from "./withdrawDataGridSx";
 
 export type WithdrawDetailGridProps = {
-  rows: { id: number }[];
+  rows: Record<string, unknown>[];
   columns: GridColDef[];
 };
+
+function rowIdFromWithdrawGridRow(row: Record<string, unknown>): string {
+  const id = row._id;
+  if (typeof id === "string" && id.length > 0) return id;
+  const conv = row.conversion_id;
+  const offer = row.offer_id;
+  if (typeof conv === "number") {
+    return `conversion-${conv}-${typeof offer === "number" ? offer : "na"}`;
+  }
+  return "withdraw-detail-row";
+}
 
 export default function WithdrawDetailDataGrid({ rows, columns }: WithdrawDetailGridProps) {
   return (
@@ -16,6 +27,7 @@ export default function WithdrawDetailDataGrid({ rows, columns }: WithdrawDetail
       <DataGrid
         rows={rows}
         columns={columns}
+        getRowId={(row) => rowIdFromWithdrawGridRow(row as Record<string, unknown>)}
         initialState={{ pagination: { paginationModel } }}
         pageSizeOptions={[5, 10]}
         sx={(muiTheme) => getWithdrawDetailDataGridSx(muiTheme)}

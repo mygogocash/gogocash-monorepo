@@ -19,6 +19,10 @@ import {
   OffersQuery,
   normalizeOfferProductTypes,
 } from "@/types/api";
+import {
+  affiliateNetworkIdForOfferId,
+  affiliateNetworkName,
+} from "@/data/affiliateNetworks";
 import { pathImage } from "@/utils/helper";
 import { devError } from "@/lib/devConsole";
 import { useDataSession } from "@/hooks/useDataSession";
@@ -28,6 +32,12 @@ import Select from "../form/Select";
 
 /** Responsive hint for Next/Image in dense table thumbnails (~40–48px). */
 const OFFER_THUMB_SIZES = "(max-width: 640px) 40px, 48px";
+
+function displayAffiliatePartner(offer: Offer): string {
+  const raw = offer.affiliate_partner?.trim();
+  if (raw) return raw;
+  return affiliateNetworkName(affiliateNetworkIdForOfferId(offer._id));
+}
 
 function offerToEditForm(offer: Offer): OfferRequestForm {
   return {
@@ -264,7 +274,7 @@ export default function OffersTable() {
           <>
             {/* Offers Table */}
             <div className="w-full overflow-x-auto -mx-4 sm:mx-0">
-              <table className="w-full min-w-[800px] divide-y divide-gray-200 dark:divide-gray-700">
+              <table className="w-full min-w-[920px] divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-800">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400 sm:px-6">
@@ -272,6 +282,9 @@ export default function OffersTable() {
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400 sm:px-6">
                       Offer
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400 sm:px-6">
+                      Affiliate partner
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400 sm:px-6">
                       Logo desktop
@@ -372,6 +385,12 @@ export default function OffersTable() {
                               </div>
                             )}
                           </div>
+                        </div>
+                      </td>
+
+                      <td className="min-w-0 max-w-[160px] px-4 py-3 sm:px-6 sm:py-4">
+                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100 break-words">
+                          {displayAffiliatePartner(offer)}
                         </div>
                       </td>
 

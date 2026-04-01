@@ -530,7 +530,7 @@ const FormOffer = ({
                       </label>
                       <TextArea
                         id={`${baseId}-commission`}
-                        rows={3}
+                        rows={1}
                         placeholder="e.g. 5% on new customers"
                         value={row.commission_info}
                         onChange={(v) => {
@@ -539,7 +539,7 @@ const FormOffer = ({
                           setForm({ ...form, product_types: next });
                         }}
                         disabled={isLoading}
-                        className="min-h-[5.5rem] resize-y touch-manipulation !text-base !text-gray-800 placeholder:text-gray-400 dark:!text-white/90 sm:!text-sm"
+                        className="h-11 min-h-11 max-h-11 resize-none overflow-y-auto touch-manipulation !text-base !text-gray-800 placeholder:text-gray-400 dark:!text-white/90 sm:!text-sm"
                       />
                     </div>
                     <div className="flex shrink-0 sm:items-end sm:pb-0.5">

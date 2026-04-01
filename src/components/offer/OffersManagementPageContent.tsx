@@ -48,7 +48,11 @@ const TABS = [
     label: "Policy Management",
     breadcrumb: "Policy Management",
   },
-  { id: "deeplink" as const, label: "Deeplink", breadcrumb: "Deeplink" },
+  {
+    id: "deeplink" as const,
+    label: "User Deeplink",
+    breadcrumb: "User Deeplink",
+  },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];

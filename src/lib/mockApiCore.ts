@@ -133,18 +133,116 @@ type WithdrawDetailUserPatch = Partial<{
 }>;
 const withdrawDetailUserEdits: Record<string, WithdrawDetailUserPatch> = {};
 
-/** Merges saved profile edits for the mock withdraw-detail user (edits keyed by user _id, not withdraw id in URL). */
-function mockWithdrawDetailWithUserEdits() {
-  const baseUser = mockWithdrawDetail.user;
-  const uid = (baseUser._id || "u1").trim();
-  const edits = withdrawDetailUserEdits[uid];
+function fullNameFromUsername(username: string): string {
+  const parts = username.split("_");
+  const last = parts[parts.length - 1];
+  const core = last && /^\d+$/.test(last) ? parts.slice(0, -1) : parts;
+  return core
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase())
+    .join(" ");
+}
+
+/** URL may be `/withdraw/u3` (user) or `/withdraw/w5` (withdraw doc); API path uses the same segment. */
+function resolveWithdrawRouteSegmentToUserId(routeSegment: string): string {
+  const raw = routeSegment.trim();
+  if (raw.startsWith("w")) {
+    const row = mockWithdraws.find((x) => x._id === raw);
+    const uid = row?.user_id && typeof row.user_id === "object" && "_id" in row.user_id
+      ? String((row.user_id as { _id: string })._id)
+      : "";
+    if (uid) return uid;
+  }
+  return raw || "u1";
+}
+
+function buildWithdrawDetailUser(userId: string) {
+  const base = mockWithdrawDetail.user;
+  const edits = withdrawDetailUserEdits[userId];
+  const u = mockUsers.find((x) => x._id === userId);
+  if (!u) {
+    return { ...base, _id: userId, ...(edits ?? {}) };
+  }
+  const genderLabel =
+    u.gender === "female" ? "Female" : u.gender === "male" ? "Male" : "";
+  const next = {
+    ...base,
+    _id: u._id,
+    email: u.email,
+    mobile: u.mobile,
+    emails: [u.email],
+    mobiles: u.mobile ? [u.mobile] : [],
+    fullName: fullNameFromUsername(u.username),
+    gender: genderLabel,
+    birthdate: u.birthdate ?? "",
+    wallet: u.address,
+  };
+  return { ...next, ...(edits ?? {}) };
+}
+
+function mockWithdrawDetailForUser(userId: string) {
+  const withdrawList = mockWithdraws
+    .filter((w) => w.user_id._id === userId)
+    .slice(0, 40)
+    .map((w) => ({
+      _id: w._id,
+      address: w.address,
+      account_number: w.account_number,
+      account_name: w.account_name,
+      bank_name: w.bank_name,
+      amount_total: w.amount_total,
+      amount_net: w.amount_net,
+      percent_fee: w.percent_fee,
+      status: w.status,
+      method: w.method,
+      tx_hash: w.tx_hash,
+      tx_hash_record: "",
+      user_id: w.user_id._id,
+      conversion_id: w.conversion_id,
+      currency: w.currency,
+      mycashback_id: [] as string[],
+      createdAt: w.createdAt,
+      updatedAt: w.updatedAt,
+      __v: w.__v,
+      slip_file: w.slip_file,
+    }));
+
+  const allConversions = mockConversions
+    .filter((c) => c.aff_sub1 === userId)
+    .slice(0, 60)
+    .map((c) => ({
+      _id: `ac${c.conversion_id}`,
+      conversion_id: c.conversion_id,
+      __v: 0,
+      adv_sub1: c.adv_sub1,
+      adv_sub2: c.adv_sub2 ?? "",
+      adv_sub3: c.adv_sub3 ?? "",
+      adv_sub4: c.adv_sub4 ?? "",
+      adv_sub5: c.adv_sub5 ?? "",
+      aff_sub1: c.aff_sub1,
+      aff_sub2: c.aff_sub2,
+      aff_sub3: c.aff_sub3,
+      aff_sub4: c.aff_sub4,
+      aff_sub5: c.aff_sub5,
+      affiliate_remarks: c.affiliate_remarks ?? "",
+      base_payout: Number(c.base_payout),
+      bonus_payout: Number(c.bonus_payout),
+      conversion_status: c.conversion_status,
+      createdAt: c.createdAt,
+      currency: c.currency,
+      datetime_conversion: c.datetime_conversion,
+      merchant_id: c.merchant_id,
+      offer_id: c.offer_id,
+      offer_name: c.offer_name,
+      payout: Number(c.payout),
+      sale_amount: Number(c.sale_amount),
+      updatedAt: c.updatedAt,
+    }));
+
   return {
     ...mockWithdrawDetail,
-    user: {
-      ...mockWithdrawDetail.user,
-      _id: uid,
-      ...(edits ?? {}),
-    },
+    withdrawList,
+    allConversions,
+    user: buildWithdrawDetailUser(userId),
   };
 }
 
@@ -295,11 +393,16 @@ function handleMockGET(
     let filtered = mockOffers;
     if (search) {
       const s = search.toLowerCase();
-      filtered = filtered.filter(
-        (o) =>
+      filtered = filtered.filter((o) => {
+        const partner =
+          o.affiliate_partner?.trim() ||
+          affiliateNetworkName(affiliateNetworkIdForOfferId(o._id));
+        return (
           o.offer_name.toLowerCase().includes(s) ||
-          o.offer_name_display.toLowerCase().includes(s),
-      );
+          o.offer_name_display.toLowerCase().includes(s) ||
+          partner.toLowerCase().includes(s)
+        );
+      });
     }
     return ok(paginateFlat(filtered, page, limit));
   }
@@ -564,7 +667,9 @@ async function handleMockPOST(
   }
 
   if (path[0] === "withdraw" && path[1] === "list-check-admin") {
-    return ok(mockWithdrawDetailWithUserEdits());
+    const segment = path[2]?.trim() || "u1";
+    const userId = resolveWithdrawRouteSegmentToUserId(segment);
+    return ok(mockWithdrawDetailForUser(userId));
   }
 
   if (path[0] === "withdraw" && path[1] === "update-withdraw-user") {
@@ -605,7 +710,7 @@ async function handleMockPOST(
     return ok({
       success: true,
       message: "User profile updated",
-      user: mockWithdrawDetailWithUserEdits().user,
+      user: buildWithdrawDetailUser(userId),
     });
   }
 
