@@ -39,6 +39,7 @@ const Trending = () => {
       <HomeSectionHeader variant="sectionRow" title={section.title} link={section.link} />
       <CardSlideCategory
         list={offers?.data}
+        showPagination
         trackingListId={section.trackingListId}
         trackingListName={section.trackingListName}
       />

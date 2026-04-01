@@ -37,3 +37,15 @@ export const getApiBaseUrl = () => {
 };
 
 export const hasApiBaseUrl = () => getApiBaseUrl().length > 0;
+
+const truthyPublicFlag = (value: string | undefined): boolean => {
+  const v = value?.trim().toLowerCase() ?? "";
+  return v === "1" || v === "true" || v === "yes";
+};
+
+/**
+ * Use in-memory API mocks (`src/mocks/homeApi.ts`) instead of calling `NEXT_PUBLIC_API_URL`.
+ * True when the API URL is unset, or when `NEXT_PUBLIC_MOCK_API` is enabled.
+ */
+export const shouldUseMockApi = () =>
+  !hasApiBaseUrl() || truthyPublicFlag(env.NEXT_PUBLIC_MOCK_API);

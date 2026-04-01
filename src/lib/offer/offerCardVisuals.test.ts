@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { DataOffer } from "@/interfaces/offer";
-import { getOfferBannerSrc, getOfferCashbackPercentLabel } from "./offerCardVisuals";
+import {
+  getOfferBannerSrc,
+  getOfferCashbackPercentLabel,
+  getOfferCategoryRowVisual,
+} from "./offerCardVisuals";
 
 /** Minimal stub; tests only touch banner / commission fields. */
 function stubOffer(partial: Partial<DataOffer>): DataOffer {
@@ -35,5 +39,42 @@ describe("getOfferCashbackPercentLabel", () => {
         })
       )
     ).toBe("8.0%");
+  });
+});
+
+describe("getOfferCategoryRowVisual", () => {
+  it("maps electronic to Electronics tap", () => {
+    expect(getOfferCategoryRowVisual("electronic")).toEqual({
+      label: "Electronics",
+      iconIndex: 2,
+    });
+  });
+
+  it("maps others to Others tap", () => {
+    expect(getOfferCategoryRowVisual("others")).toEqual({
+      label: "Others",
+      iconIndex: 12,
+    });
+  });
+
+  it("uses first comma-separated segment", () => {
+    expect(getOfferCategoryRowVisual("Travel, Marketplace")).toEqual({
+      label: "Travel",
+      iconIndex: 10,
+    });
+  });
+
+  it("falls back to Others label when categories empty", () => {
+    expect(getOfferCategoryRowVisual("")).toEqual({
+      label: "Others",
+      iconIndex: 12,
+    });
+  });
+
+  it("uses raw label with Others icon for unknown API names", () => {
+    expect(getOfferCategoryRowVisual("Custom Vendor Category")).toEqual({
+      label: "Custom Vendor Category",
+      iconIndex: 12,
+    });
   });
 });

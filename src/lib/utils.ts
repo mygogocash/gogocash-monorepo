@@ -2,7 +2,7 @@ import { TypeCommissions } from "@/interfaces/offer";
 import { ResRate } from "@/interfaces/rate";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { getApiBaseUrl } from "./env";
+import { getApiBaseUrl, shouldUseMockApi } from "./env";
 
 export { dmSans } from "./fonts";
 
@@ -44,7 +44,8 @@ const resolveAssetPath = (path?: string) => {
     return path;
   }
 
-  const apiBaseUrl = getApiBaseUrl();
+  /** In mock mode, never prefix API host for relative asset keys (avoids 404s when URL points at prod). */
+  const apiBaseUrl = shouldUseMockApi() ? "" : getApiBaseUrl();
 
   if (!apiBaseUrl) {
     return path;

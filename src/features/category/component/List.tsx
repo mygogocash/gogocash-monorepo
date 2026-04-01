@@ -211,26 +211,30 @@ const List = () => {
                     : "/home/banner.webp";
 
                 return (
-                  <Link
-                    key={offer._id}
-                    href={`/shop/${offer._id}`}
-                    className="block w-full max-w-[280px]"
-                    onClick={() =>
-                      trackMerchantSelect({
-                        merchant: offer,
-                        listId,
-                        listName,
-                        position: index + 1,
-                        source: "category_results",
-                      })
-                    }
-                  >
-                    <CardSpecial
-                      banner={bannerSrc}
-                      offer_name={offer.offer_name_display || offer.offer_name}
-                      percent={percentLabel(offer)}
+                  <div key={offer._id} className="relative block w-full max-w-[280px]">
+                    <Link
+                      href={`/shop/${offer._id}`}
+                      className="absolute inset-0 z-0"
+                      aria-label={offer.offer_name_display || offer.offer_name}
+                      onClick={() =>
+                        trackMerchantSelect({
+                          merchant: offer,
+                          listId,
+                          listName,
+                          position: index + 1,
+                          source: "category_results",
+                        })
+                      }
                     />
-                  </Link>
+                    <div className="relative z-[1]">
+                      <CardSpecial
+                        banner={bannerSrc}
+                        offer_name={offer.offer_name_display || offer.offer_name}
+                        percent={percentLabel(offer)}
+                        categories={offer.categories}
+                      />
+                    </div>
+                  </div>
                 );
               })}
             </div>

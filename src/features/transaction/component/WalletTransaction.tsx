@@ -61,6 +61,7 @@ type UnifiedTxRow = {
   currency: string;
   amount: string;
   info: string;
+  note: string;
   status: string;
   conversionId: string;
 };
@@ -307,7 +308,7 @@ const WithdrawTransaction = () => {
         if (searchText.trim()) {
           const q = searchText.toLowerCase();
           const blob =
-            `${row.brand} ${row.info} ${row.status} ${row.amount} ${row.currency} ${row.conversionId}`.toLowerCase();
+            `${row.brand} ${row.info} ${row.note} ${row.status} ${row.amount} ${row.currency} ${row.conversionId}`.toLowerCase();
           if (!blob.includes(q)) return false;
         }
         if (statusFilter.trim()) {
@@ -330,6 +331,7 @@ const WithdrawTransaction = () => {
       currency: r.currency,
       amount: r.amount,
       info: t("walletTransactionsMissingOrderClaimInfo", { orderId: r.orderId }),
+      note: "—",
       status: "submitted",
       conversionId: r.orderId,
     }));
@@ -345,6 +347,9 @@ const WithdrawTransaction = () => {
           .trim() ||
         String(item.offer_name || "").trim() ||
         "—";
+      const remark =
+        typeof item.affiliate_remarks === "string" ? item.affiliate_remarks.trim() : "";
+      const note = remark || "—";
       return {
         id: `earn-${item.conversion_id}-${index}`,
         rowType: "earn",
@@ -354,6 +359,7 @@ const WithdrawTransaction = () => {
         currency: String(item.currency || ""),
         amount: String(item.payout ?? ""),
         info,
+        note,
         status: String(item.conversion_status || ""),
         conversionId: String(item.conversion_id || ""),
       };
@@ -383,6 +389,7 @@ const WithdrawTransaction = () => {
         currency: String(item.currency || ""),
         amount: String(item.amount_net ?? ""),
         info: bankLine,
+        note: "—",
         status: String(item.status || ""),
         conversionId: "",
       };
@@ -598,6 +605,28 @@ const WithdrawTransaction = () => {
               title={text}
             >
               {text}
+            </p>
+          );
+        },
+      },
+      {
+        field: "note",
+        headerName: t("walletTransactionsColNote"),
+        minWidth: 140,
+        flex: 0.55,
+        align: "left",
+        headerAlign: "left",
+        renderCell: (params) => {
+          const text = String(params.value || "—");
+          const empty = text === "—" || text === "";
+          return (
+            <p
+              className={`line-clamp-3 text-sm font-normal leading-snug ${
+                empty ? "text-[#9ca3af]" : "text-[#374151]"
+              }`}
+              title={empty ? undefined : text}
+            >
+              {empty ? "—" : text}
             </p>
           );
         },

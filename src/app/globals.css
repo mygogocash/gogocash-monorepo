@@ -185,6 +185,11 @@ button {
   background: #00cc99;
 }
 
+/* Featured Top Brands: 2-row Swiper grid — stretch slides to row height so CardSpecial cards align. */
+.gc-card-slide--paginated .mySwiper.swiper-grid > .swiper-wrapper {
+  align-items: stretch;
+}
+
 .gc-shell-backdrop {
   background: rgba(244, 246, 239, 0.82);
   backdrop-filter: blur(20px);

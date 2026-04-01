@@ -52,7 +52,7 @@ const CategoryHome = () => {
           />
           <CardSlideCategory
             cardVariant="featured"
-            slideLayout="cover"
+            showPagination
             list={travel?.data}
             trackingListId={travelSection.trackingListId}
             trackingListName={travelSection.trackingListName}
@@ -70,7 +70,7 @@ const CategoryHome = () => {
           />
           <CardSlideCategory
             cardVariant="featured"
-            slideLayout="cover"
+            showPagination
             list={cosmetic?.data}
             trackingListId={makeupSection.trackingListId}
             trackingListName={makeupSection.trackingListName}

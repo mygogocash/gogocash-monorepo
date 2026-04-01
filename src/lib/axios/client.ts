@@ -7,7 +7,7 @@ import axios, {
 import { getSession, signOut } from "next-auth/react";
 import { devEmailMockVerifyOtpHttpStatus } from "@/lib/dev/emailOtpMock";
 import { getMockApiResponse, getMockHttpStatus } from "@/mocks/homeApi";
-import { getApiBaseUrl, hasApiBaseUrl } from "@/lib/env";
+import { getApiBaseUrl, shouldUseMockApi } from "@/lib/env";
 import { getPostHogRequestHeaders } from "@/lib/posthog";
 
 const parseConfigData = (data: unknown): unknown => {
@@ -39,7 +39,7 @@ const resolveRequestPath = (config: InternalAxiosRequestConfig): string => {
 };
 
 const mockAwareAdapter = (config: InternalAxiosRequestConfig) => {
-  if (!hasApiBaseUrl()) {
+  if (shouldUseMockApi()) {
     const pathWithQuery = resolveRequestPath(config);
     const methodRaw = (config.method || "get").toUpperCase();
     const apiMethod = methodRaw === "PUT" ? "PUT" : methodRaw === "POST" ? "POST" : "GET";
@@ -120,13 +120,15 @@ client.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response) {
+      const authMsg = error.response?.data?.message;
+      const m = typeof authMsg === "string" ? authMsg : "";
       if (
-        error.response?.data.message?.includes("Firebase ID token") ||
-        error.response?.data?.message?.includes("invalid algorithm") ||
-        error.response?.data?.message?.includes("jwt expired")
+        m.includes("Firebase ID token") ||
+        m.includes("invalid algorithm") ||
+        m.includes("jwt expired")
       ) {
-        signOut({ redirect: false });
-        return;
+        void signOut({ redirect: false });
+        return Promise.reject(error.response);
       }
       return Promise.reject(error.response);
       // throw new Error('No response from server');
@@ -157,7 +159,7 @@ export const fetcher = async (args: string | [string, AxiosRequestConfig]) => {
   const [url, config] = Array.isArray(args) ? args : [args];
   const mockResponse = getMockApiResponse(url, "GET");
 
-  if (!hasApiBaseUrl() && mockResponse !== null) {
+  if (shouldUseMockApi() && mockResponse !== null) {
     return mockResponse;
   }
 
@@ -179,7 +181,7 @@ export const fetcherPost = async (args: string | [string, AxiosRequestConfig]) =
   const requestBody = extractRequestBody(config);
   const mockResponse = getMockApiResponse(url, "POST", requestBody);
 
-  if (!hasApiBaseUrl() && mockResponse !== null) {
+  if (shouldUseMockApi() && mockResponse !== null) {
     return mockResponse;
   }
 
@@ -201,7 +203,7 @@ export const fetcherPut = async (args: string | [string, AxiosRequestConfig]) =>
   const requestBody = extractRequestBody(config);
   const mockResponse = getMockApiResponse(url, "PUT", requestBody);
 
-  if (!hasApiBaseUrl() && mockResponse !== null) {
+  if (shouldUseMockApi() && mockResponse !== null) {
     return mockResponse;
   }
 

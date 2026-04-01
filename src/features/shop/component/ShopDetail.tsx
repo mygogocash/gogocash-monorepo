@@ -19,7 +19,7 @@ import toast from "react-hot-toast";
 import { ResponseGenerateDeeplink } from "@/interfaces/shop";
 import { AxiosError } from "axios";
 import { useSession } from "next-auth/react";
-import { hasApiBaseUrl } from "@/lib/env";
+import { shouldUseMockApi } from "@/lib/env";
 import { getPercent } from "@/lib/utils";
 import LoadingShop from "./LoadingShop";
 import { useLocale, useMessages, useTranslations } from "next-intl";
@@ -243,7 +243,7 @@ const ShopDetail = () => {
   }, [offer]);
 
   const activeCoupons = useMemo(() => {
-    if (!couponDetail || !(session || !hasApiBaseUrl())) return [];
+    if (!couponDetail || !(session || shouldUseMockApi())) return [];
     return couponDetail.filter(
       (coupon) => !coupon.disabled && new Date(coupon.end_date) >= new Date()
     );

@@ -147,7 +147,8 @@ export interface ConversionHistory {
   adv_sub5: string;
   datetime_conversion: Date;
   conversion_status: string;
-  affiliate_remarks: null;
+  /** Optional merchant/affiliate note when provided by the conversion API. */
+  affiliate_remarks: string | null;
   currency: string;
   sale_amount: string;
   payout: string;

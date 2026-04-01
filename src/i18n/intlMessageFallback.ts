@@ -154,6 +154,9 @@ export function createGetMessageFallback(messageLocale: string) {
     if (key === "walletTransactionsColTransactionInfo") {
       return messageLocale === "th" ? "ข้อมูลธุรกรรม" : "Transaction Information";
     }
+    if (key === "walletTransactionsColNote") {
+      return messageLocale === "th" ? "หมายเหตุ" : messageLocale === "jp" ? "メモ" : "Note";
+    }
 
     const walletTransactionsStatusFallbacks: Record<
       string,

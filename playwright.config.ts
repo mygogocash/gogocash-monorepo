@@ -25,6 +25,8 @@ export default defineConfig({
             SKIP_ENV_VALIDATION: "1",
             NEXTAUTH_SECRET:
               process.env.NEXTAUTH_SECRET ?? "playwright-test-secret-min-32-characters!!",
+            // Must match Playwright baseURL so NextAuth session fetch succeeds (otherwise useSession can stay "loading").
+            NEXTAUTH_URL: process.env.NEXTAUTH_URL ?? "http://127.0.0.1:3000",
           },
         },
       }),

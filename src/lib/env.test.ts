@@ -30,6 +30,39 @@ describe("getApiBaseUrl", () => {
   });
 });
 
+describe("shouldUseMockApi", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    process.env.SKIP_ENV_VALIDATION = "1";
+  });
+
+  afterEach(() => {
+    delete process.env.SKIP_ENV_VALIDATION;
+    delete process.env.NEXT_PUBLIC_API_URL;
+    delete process.env.NEXT_PUBLIC_MOCK_API;
+  });
+
+  it("is true when NEXT_PUBLIC_API_URL is unset", async () => {
+    delete process.env.NEXT_PUBLIC_API_URL;
+    const { shouldUseMockApi } = await import("./env");
+    expect(shouldUseMockApi()).toBe(true);
+  });
+
+  it("is false when API URL is set and NEXT_PUBLIC_MOCK_API is off", async () => {
+    process.env.NEXT_PUBLIC_API_URL = "https://api.example.com";
+    delete process.env.NEXT_PUBLIC_MOCK_API;
+    const { shouldUseMockApi } = await import("./env");
+    expect(shouldUseMockApi()).toBe(false);
+  });
+
+  it("is true when NEXT_PUBLIC_MOCK_API is 1 even if API URL is set", async () => {
+    process.env.NEXT_PUBLIC_API_URL = "https://api.example.com";
+    process.env.NEXT_PUBLIC_MOCK_API = "1";
+    const { shouldUseMockApi } = await import("./env");
+    expect(shouldUseMockApi()).toBe(true);
+  });
+});
+
 describe("getTelegramOAuthBotId", () => {
   beforeEach(() => {
     vi.resetModules();

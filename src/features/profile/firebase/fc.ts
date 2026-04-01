@@ -1,7 +1,7 @@
 import { RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
-import { getApiBaseUrl } from "@/lib/env";
-import { getClientAuth } from "@/lib/firebaseClient";
 import { User } from "@/interfaces/auth";
+import client from "@/lib/axios/client";
+import { getClientAuth } from "@/lib/firebaseClient";
 
 declare global {
   interface Window {
@@ -49,16 +49,22 @@ export async function loginWithFirebase(
   idToken: string,
   tokenUser: string
 ): Promise<{ uid: string; user: User }> {
-  const res = await fetch(`${getApiBaseUrl()}/auth/firebase`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${tokenUser}`,
-    },
-    body: JSON.stringify({ idToken }),
-  });
-  const data = await res.json();
-
-  if (!res.ok) throw new Error(data?.message || "Server auth failed");
-  return data; // e.g. { accessToken, user }
+  try {
+    const res = await client.post<{ uid: string; user: User }>(
+      "/auth/firebase",
+      { idToken },
+      {
+        headers: {
+          Authorization: `Bearer ${tokenUser}`,
+        },
+      }
+    );
+    return res.data;
+  } catch (err: unknown) {
+    const data =
+      err && typeof err === "object" && "data" in err
+        ? (err as { data?: { message?: string } }).data
+        : undefined;
+    throw new Error(data?.message || "Server auth failed");
+  }
 }

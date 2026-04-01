@@ -21,6 +21,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
 import toast from "react-hot-toast";
+import Button from "@mui/material/Button";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 function formatMonthYear(monthKey: string, locale: string): string {
@@ -328,19 +329,25 @@ export default function GogoquestHistory() {
               <li>{t("gogoquestHistoryPlanStep2")}</li>
               <li>{t("gogoquestHistoryPlanStep3")}</li>
             </ol>
-            <div className="mt-1 flex flex-col gap-2 sm:flex-row">
-              <Link
+            <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+              <Button
+                variant="outlined"
+                color="primary"
+                component={Link}
                 href="/quest"
-                className="inline-flex items-center justify-center rounded-xl bg-[#00aa80] px-4 py-3 text-center text-[14px] font-semibold text-white transition-opacity hover:opacity-90"
+                className="w-full normal-case sm:w-auto"
               >
                 {t("gogoquestHistoryViewQuestHub")}
-              </Link>
-              <Link
+              </Button>
+              <Button
+                variant="contained"
+                component={Link}
                 href="/shop"
-                className="inline-flex items-center justify-center rounded-xl border border-[#00aa80] bg-white px-4 py-3 text-center text-[14px] font-semibold text-[#00aa80] transition-colors hover:bg-[#00aa80]/5"
+                className="w-full normal-case sm:w-auto"
+                sx={{ bgcolor: "#00AA80", "&:hover": { bgcolor: "#009970" } }}
               >
                 {t("gogoquestHistoryPlanCtaBrowse")}
-              </Link>
+              </Button>
             </div>
           </div>
         </header>

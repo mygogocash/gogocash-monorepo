@@ -56,6 +56,13 @@ export const env = createEnv({
   client: {
     NEXT_PUBLIC_API_URL: optionalString,
     /**
+     * When `1` or `true`, all Axios/API traffic uses in-repo mock handlers (`src/mocks/homeApi.ts`)
+     * even if `NEXT_PUBLIC_API_URL` is set. For internal demos and App Hosting without a real API.
+     */
+    NEXT_PUBLIC_MOCK_API: optionalString,
+    /** When using mock API, optional profile id: mock-user-001 … mock-user-005 (see `src/mocks/homeApi.ts`). */
+    NEXT_PUBLIC_MOCK_ACTIVE_USER_ID: optionalString,
+    /**
      * Crossmint client API key used by `@crossmint/client-sdk-react-ui` in the browser.
      * Use a Crossmint **client / publishable** key scoped for frontend use; never put server admin keys here.
      */
@@ -106,6 +113,8 @@ export const env = createEnv({
   },
   experimental__runtimeEnv: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+    NEXT_PUBLIC_MOCK_API: process.env.NEXT_PUBLIC_MOCK_API,
+    NEXT_PUBLIC_MOCK_ACTIVE_USER_ID: process.env.NEXT_PUBLIC_MOCK_ACTIVE_USER_ID,
     NEXT_PUBLIC_CROSSMINT_API_KEY: process.env.NEXT_PUBLIC_CROSSMINT_API_KEY,
     NEXT_PUBLIC_CROSSMINT_COLLECTION_ID: process.env.NEXT_PUBLIC_CROSSMINT_COLLECTION_ID,
     NEXT_PUBLIC_TELEGRAM_BOT_USERNAME: process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME,

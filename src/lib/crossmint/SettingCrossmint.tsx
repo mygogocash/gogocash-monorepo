@@ -2,7 +2,7 @@
 import { CrossmintAuthProvider, CrossmintProvider } from "@crossmint/client-sdk-react-ui";
 import { ReactNode, memo, useEffect } from "react";
 import { env } from "@/env";
-import { hasApiBaseUrl } from "@/lib/env";
+import { shouldUseMockApi } from "@/lib/env";
 import { useCrossmintReady } from "@/providers/CrossmintReadyContext";
 
 const SettingCrossmint = ({ children }: { children: ReactNode }) => {
@@ -12,7 +12,7 @@ const SettingCrossmint = ({ children }: { children: ReactNode }) => {
   const hasValidApiKey =
     clientSecret && (clientSecret.startsWith("ck_") || clientSecret.startsWith("sk_"));
 
-  const demoModeWithoutBackend = !hasApiBaseUrl();
+  const demoModeWithoutBackend = shouldUseMockApi();
 
   useEffect(() => {
     if (!hasValidApiKey) {

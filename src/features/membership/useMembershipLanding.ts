@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
 
 import { MEMBERSHIP_QUEST_END } from "./landing/constants";
@@ -16,35 +16,18 @@ import type { MembershipLandingI18n } from "./landing/types";
 
 export type { MembershipLandingI18n } from "./landing/types";
 
-function subscribePrefersDark(cb: () => void) {
-  const mq = window.matchMedia("(prefers-color-scheme: dark)");
-  mq.addEventListener("change", cb);
-  return () => mq.removeEventListener("change", cb);
-}
-
-function getPrefersDarkSnapshot() {
-  return window.matchMedia("(prefers-color-scheme: dark)").matches;
-}
-
-/** Server snapshot must be stable; client may differ until after paint — root uses suppressHydrationWarning. */
-function getServerPrefersDarkSnapshot() {
-  return false;
-}
-
 /**
  * Imperative behaviors for the membership landing (theme, calculators, observers).
  * Scoped to `rootRef` so we do not touch `document.documentElement` or global DOM.
+ *
+ * Theme is fixed to **light (day)** so the page matches the profile shell (`SubPage` on `#f6f6f6`)
+ * and stays readable regardless of OS dark mode.
  */
 export function useMembershipLanding(
   rootRef: RefObject<HTMLElement | null>,
   i18n?: MembershipLandingI18n
 ) {
-  const systemPrefersDark = useSyncExternalStore(
-    subscribePrefersDark,
-    getPrefersDarkSnapshot,
-    getServerPrefersDarkSnapshot
-  );
-  const theme = systemPrefersDark ? "dark" : "light";
+  const theme = "light" as const;
   const [countdownText, setCountdownText] = useState("");
   const questCompletedRef = useRef(0);
 

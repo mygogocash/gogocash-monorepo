@@ -1,0 +1,37 @@
+# Firebase App Hosting (Next.js SSR + API routes)
+# Docs: https://firebase.google.com/docs/app-hosting/get-started
+#
+# Prerequisites:
+# - Blaze billing on the Firebase/GCP project
+# - Backend id must match `backendId` in firebase.json (default: gogocash-web)
+#
+# Environment: copy keys from .env.example into the Firebase console
+# (App Hosting → your backend → Settings → Environment), or use `env:` below.
+# Secrets: https://firebase.google.com/docs/app-hosting/configure#secret-parameters
+#   firebase apphosting:secrets:set NEXTAUTH_SECRET
+#
+# Set NEXTAUTH_URL and NEXT_PUBLIC_FRONTEND_URL to your live App Hosting URL
+# (format: https://BACKEND_ID--PROJECT_ID.REGION.hosted.app) after the first deploy.
+
+runConfig:
+  minInstances: 0
+  maxInstances: 20
+  concurrency: 80
+  cpu: 1
+  memoryMiB: 1024
+
+# Internal demo without real API: set in console (BUILD + RUNTIME):
+#   NEXT_PUBLIC_MOCK_API=1
+# Optionally unset NEXT_PUBLIC_API_URL or keep it — mocks win when MOCK_API is on.
+#
+# Example (prefer console or Secret Manager for real values):
+# env:
+#   - variable: NEXTAUTH_URL
+#     value: https://gogocash-web--your-project.us-central1.hosted.app
+#     availability: [BUILD, RUNTIME]
+#   - variable: NEXT_PUBLIC_FRONTEND_URL
+#     value: https://gogocash-web--your-project.us-central1.hosted.app
+#     availability: [BUILD, RUNTIME]
+#   - variable: NEXTAUTH_SECRET
+#     secret: nextauth-secret
+#     availability: [RUNTIME]

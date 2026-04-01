@@ -269,7 +269,7 @@ export default function MissingOrdersFormBody() {
     (shop !== "other" || otherShop.trim().length > 0) &&
     (shop === "other" || PRESET_SHOPS.some((p) => p.id === shop));
 
-  const canSubmit = Boolean(shopOk && orderId.trim());
+  const canSubmit = Boolean(shopOk && orderId.trim() && attachments.length > 0);
 
   const attachmentsRef = useRef<AttachmentItem[]>([]);
 
@@ -320,10 +320,12 @@ export default function MissingOrdersFormBody() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canSubmit) return;
-    if (attachments.length > 0) {
-      toast(mo("missingOrdersAttachmentRememberLine"), { duration: 6000 });
+    if (!shopOk || !orderId.trim()) return;
+    if (attachments.length === 0) {
+      toast.error(mo("missingOrdersAttachmentRequired"));
+      return;
     }
+    toast(mo("missingOrdersAttachmentRememberLine"), { duration: 6000 });
     appendMissingOrderClaimToLocalStorage(claimAccountKey, {
       submittedAt: new Date().toISOString(),
       shopLabel: shopLabel.trim() || "—",
@@ -574,11 +576,28 @@ export default function MissingOrdersFormBody() {
               sx={inputSx}
             />
 
-            <Box className="flex flex-col gap-2 rounded-xl border border-dashed border-[#d4d4d4] bg-white p-3 md:p-4">
-              <Typography className="text-[15px] font-medium text-[#3b3b3b]">
+            <Box
+              className="flex flex-col gap-2 rounded-xl border border-dashed border-[#d4d4d4] bg-white p-3 md:p-4"
+              role="group"
+              aria-labelledby={`${attachmentInputId}-label`}
+            >
+              <Typography
+                id={`${attachmentInputId}-label`}
+                component="label"
+                htmlFor={attachmentInputId}
+                className="text-[15px] font-medium text-[#3b3b3b]"
+              >
                 {mo("missingOrdersAttachmentLabel")}
+                <Box component="span" sx={{ color: "error.main", ml: 0.25 }} aria-hidden="true">
+                  *
+                </Box>
               </Typography>
-              <Typography variant="caption" className="text-xs leading-relaxed text-[#7f7f7f]">
+              <Typography
+                id={`${attachmentInputId}-hint`}
+                variant="caption"
+                component="p"
+                className="m-0 text-xs leading-relaxed text-[#7f7f7f]"
+              >
                 {mo("missingOrdersAttachmentHint")}
               </Typography>
               <input
@@ -587,6 +606,8 @@ export default function MissingOrdersFormBody() {
                 type="file"
                 accept="image/*"
                 multiple
+                aria-required="true"
+                aria-describedby={`${attachmentInputId}-hint`}
                 className="sr-only"
                 onChange={(e) => {
                   addAttachmentFiles(e.target.files);
@@ -600,6 +621,7 @@ export default function MissingOrdersFormBody() {
                   startIcon={<AddPhotoAlternateOutlinedIcon sx={{ fontSize: 22 }} />}
                   onClick={() => fileInputRef.current?.click()}
                   className="normal-case"
+                  aria-describedby={`${attachmentInputId}-hint`}
                   sx={missingOrdersAttachmentButtonSx}
                 >
                   {mo("missingOrdersAttachmentButton")}

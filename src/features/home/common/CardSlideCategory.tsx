@@ -22,7 +22,7 @@ interface IProp {
   trackingListName: string;
   /**
    * `mini` — Figma 8290:133549 ShopCards Mini (184×156, 6×2 grid desktop).
-   * `featured` — CardSpecial (Figma GoGoCash 1.1 node 8285:91051 Shop Cards with Cover).
+   * `featured` — CardSpecial (Figma GoGoCash 1.1 node 9711:194922 Shop Cards).
    */
   cardVariant?: "mini" | "featured";
   /** Figma 9509:146306 Top Brands — dot pagination under carousel */
@@ -148,26 +148,50 @@ const CardSlideCategory = ({
     const bannerSrc = getOfferBannerSrc(offer, lg);
     const percentStr = getOfferCashbackPercentLabel(offer);
 
-    return (
-      <Link
-        href={`/shop/${offer._id}`}
-        className={isCover ? "block h-full w-full max-w-[280px]" : "block h-full"}
-        onClick={() => {
-          trackMerchantSelect({
-            merchant: offer,
-            listId: trackingListId,
-            listName: trackingListName,
-            position: index + 1,
-            source: "home_category_carousel",
-          });
-        }}
-      >
-        {isMini ? (
+    const trackClick = () => {
+      trackMerchantSelect({
+        merchant: offer,
+        listId: trackingListId,
+        listName: trackingListName,
+        position: index + 1,
+        source: "home_category_carousel",
+      });
+    };
+
+    if (isMini) {
+      return (
+        <Link
+          href={`/shop/${offer._id}`}
+          className={isCover ? "block h-full w-full max-w-[280px]" : "block h-full"}
+          onClick={trackClick}
+        >
           <CardShopMini banner={bannerSrc} offer_name={offer.offer_name} percent={percentStr} />
-        ) : (
-          <CardSpecial banner={bannerSrc} offer_name={offer.offer_name} percent={percentStr} />
-        )}
-      </Link>
+        </Link>
+      );
+    }
+
+    /** CardSpecial contains a favorite `<button>` — avoid nesting interactive content inside `<a>` (stretch-link pattern). */
+    const featuredOuterClass = isCover
+      ? "relative block h-full w-full max-w-[280px]"
+      : "relative flex h-full min-h-0 w-full max-w-[280px] flex-col";
+
+    return (
+      <div className={featuredOuterClass}>
+        <Link
+          href={`/shop/${offer._id}`}
+          className="absolute inset-0 z-0"
+          aria-label={offer.offer_name}
+          onClick={trackClick}
+        />
+        <div className="relative z-[1] min-h-0 flex flex-1 flex-col">
+          <CardSpecial
+            banner={bannerSrc}
+            offer_name={offer.offer_name}
+            percent={percentStr}
+            categories={offer.categories}
+          />
+        </div>
+      </div>
     );
   };
 
@@ -245,7 +269,13 @@ const CardSlideCategory = ({
             {displayList?.map((offer, index) => (
               <SwiperSlide
                 key={offer._id}
-                className={isCover ? "h-auto! box-border flex justify-center" : "h-auto!"}
+                className={
+                  isCover
+                    ? "h-auto! box-border flex justify-center"
+                    : isMini
+                      ? "h-auto!"
+                      : "h-auto! box-border flex justify-center self-stretch"
+                }
               >
                 {renderOfferCard(offer, index)}
               </SwiperSlide>

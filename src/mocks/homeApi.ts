@@ -1,4 +1,5 @@
 import { ResponseWithdrawCheckMyCashback, User } from "@/interfaces/auth";
+import type { ReferralID, ResponseReferralList } from "@/interfaces/referral";
 import {
   BannerHome,
   CommissionTracking,
@@ -21,6 +22,7 @@ import {
 } from "@/interfaces/shop";
 import {
   DataMethodWithdraw,
+  ResponseBankList,
   DataWithdrawCheck,
   DataWithdrawHistory,
   FeeData,
@@ -45,6 +47,7 @@ import {
   parseStringArray,
   toNumber,
 } from "@/mocks/homeApi/helpers";
+import { env } from "@/env";
 
 const mockNow = new Date("2026-03-28T00:00:00.000Z");
 const DEFAULT_ACTIVE_MOCK_USER_ID = "mock-user-001";
@@ -596,6 +599,7 @@ export const MOCK_USER_COUNT = 5;
 
 const brandsById = new Map(mockBrands.map((brand) => [brand._id, brand]));
 
+/** IDs surfaced by `GET /offer/extra` and `/offer/extra-point` (home Top Brands carousel mock). */
 const topBrandIds = new Set([
   "brand-grocery-galaxy-1001",
   "brand-pocket-pantry-1002",
@@ -609,6 +613,10 @@ const topBrandIds = new Set([
   "brand-urban-checkout-1007",
   "brand-circuit-nest-1009",
   "brand-cloudnine-travel-1018",
+  "brand-mint-mirror-1010",
+  "brand-daily-harvest-box-1011",
+  "brand-silk-society-1013",
+  "brand-horizon-escapes-1014",
 ]);
 
 const mockBannerHome: BannerHome = {
@@ -1069,7 +1077,7 @@ const mockUsers: MockUserSeed[] = [
 ];
 
 const mockUsersById = new Map(mockUsers.map((seed) => [seed.user._id, seed]));
-const configuredActiveMockUserId = process.env.NEXT_PUBLIC_MOCK_ACTIVE_USER_ID?.trim();
+const configuredActiveMockUserId = env.NEXT_PUBLIC_MOCK_ACTIVE_USER_ID?.trim();
 let activeMockUserId =
   configuredActiveMockUserId && mockUsersById.has(configuredActiveMockUserId)
     ? configuredActiveMockUserId
@@ -2266,6 +2274,63 @@ function getMockQuestUserPeriodSummary(
   };
 }
 
+const MOCK_BANK_LIST: ResponseBankList[] = [
+  { code: "KBANK", shortName: "KBANK", nameEn: "Kasikorn Bank", nameTh: "ธนาคารกสิกรไทย" },
+  { code: "BBL", shortName: "BBL", nameEn: "Bangkok Bank", nameTh: "ธนาคารกรุงเทพ" },
+  { code: "SCB", shortName: "SCB", nameEn: "Siam Commercial Bank", nameTh: "ธนาคารไทยพาณิชย์" },
+  { code: "KTB", shortName: "KTB", nameEn: "Krungthai Bank", nameTh: "ธนาคารกรุงไทย" },
+];
+
+function userToReferralId(
+  u: User,
+  overrides?: Partial<Pick<User, "_id" | "username">>
+): ReferralID {
+  return {
+    _id: overrides?._id ?? u._id,
+    address: u.address,
+    __v: u.__v,
+    email: u.email,
+    id_crossmint: u.id_crossmint,
+    id_twitter: u.id_twitter,
+    username: overrides?.username ?? u.username,
+    country: u.country,
+  };
+}
+
+function buildMockReferralList(): ResponseReferralList[] {
+  const u = getActiveUserProfile();
+  const self = userToReferralId(u);
+  const invitee = userToReferralId(u, { _id: "mock-invitee-user", username: "FriendInvite" });
+  return [
+    {
+      _id: "mock-referral-row-1",
+      user_id: self,
+      conversion_id: 88001,
+      referral_id: invitee,
+      point: 120,
+      type: "referral",
+      action: "signup_complete",
+      referral_category: "account",
+      createdAt: mockNow,
+      updatedAt: mockNow,
+      __v: 0,
+    },
+    {
+      _id: "mock-referral-row-2",
+      user_id: self,
+      conversion_id: 88002,
+      referral_id: invitee,
+      point: 45,
+      type: "purchase",
+      action: "first_order",
+      referral_category: "shop",
+      createdAt: addDays(mockNow, -3),
+      updatedAt: addDays(mockNow, -2),
+      __v: 0,
+    },
+  ];
+}
+
 /** HTTP status for axios mock adapter (e.g. POST /withdraw expects 201). */
 export const getMockHttpStatus = (pathname: string, method: string): number => {
   const uppercaseMethod = method.toUpperCase();
@@ -2294,12 +2359,37 @@ export const getMockApiResponse = (
       return mockBrands.filter((brand) => topBrandIds.has(brand._id));
     }
 
+    if (pathname === "/offer/extra-point") {
+      return mockBrands.filter((brand) => topBrandIds.has(brand._id));
+    }
+
     if (pathname === "/offer/get-category/list") {
       return mockCategories;
     }
 
     if (pathname === "/withdraw/methods-list") {
       return getActiveUserMethods();
+    }
+
+    if (pathname === "/withdraw/banks") {
+      return MOCK_BANK_LIST;
+    }
+
+    if (pathname.startsWith("/withdraw/methods/")) {
+      const methodId = pathname.slice("/withdraw/methods/".length);
+      const list = getActiveUserMethods();
+      return list.find((m) => m._id === methodId) ?? list[0] ?? null;
+    }
+
+    if (pathname === "/point/referral-list") {
+      return buildMockReferralList();
+    }
+
+    {
+      const m = pathname.match(/^\/auth\/check-account-telegram\/([^/]+)$/);
+      if (m) {
+        return { email: getActiveUserProfile().email };
+      }
     }
 
     if (pathname === "/user/profile") {
@@ -2439,6 +2529,14 @@ export const getMockApiResponse = (
       const email = String(payload.email ?? "");
       const telegramMock = devEmailMockTelegramLoginResponse(email);
       return telegramMock ?? null;
+    }
+
+    if (pathname === "/auth/firebase") {
+      const user = getActiveUserProfile();
+      return {
+        uid: `firebase-mock-${user._id}`,
+        user,
+      };
     }
   }
 
