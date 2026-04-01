@@ -63,14 +63,17 @@ export const MOCK_DEEPLINKS: MockDeeplinkRow[] = [
 export function filterDeeplinksForUser(
   rows: MockDeeplinkRow[],
   userId: string | undefined,
-  email: string | undefined,
+  userEmails: string[] | undefined,
 ): MockDeeplinkRow[] {
   const uid = (userId ?? "").trim();
-  const em = (email ?? "").trim().toLowerCase();
-  if (!uid && !em) return [];
+  const emailSet = new Set(
+    (userEmails ?? []).map((e) => e.trim().toLowerCase()).filter(Boolean),
+  );
+  if (!uid && emailSet.size === 0) return [];
   return rows.filter((d) => {
-    const idMatch = uid && d.userId === uid;
-    const emailMatch = em && d.email.toLowerCase() === em;
+    const idMatch = Boolean(uid && d.userId === uid);
+    const emailMatch =
+      emailSet.size > 0 && emailSet.has(d.email.toLowerCase());
     return idMatch || emailMatch;
   });
 }

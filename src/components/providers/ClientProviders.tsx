@@ -17,7 +17,7 @@ export default function ClientProviders({
 }) {
   return (
     <QueryClientProvider client={queryClient}>
-      <SessionProvider refetchOnWindowFocus={false}>
+      <SessionProvider refetchOnWindowFocus={false} refetchInterval={0}>
         <ThemeProvider>
           <ThemeColorMeta />
           <Toaster

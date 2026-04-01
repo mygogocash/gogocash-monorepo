@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import QuestSubNav from "@/components/quest/QuestSubNav";
 import { awaitPageDynamicProps, type DefaultAppPageProps } from "@/lib/nextAppPageProps";
 import QuestPageClient from "./QuestPageClient";
 
@@ -20,6 +21,7 @@ export default async function QuestPage(props: DefaultAppPageProps) {
         ]}
       />
       <div className="space-y-6">
+        <QuestSubNav />
         <QuestPageClient />
       </div>
     </div>

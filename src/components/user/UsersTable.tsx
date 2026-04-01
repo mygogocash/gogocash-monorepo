@@ -101,12 +101,16 @@ export default function UsersTable() {
   const hasNextPage = pagination.page < pagination.totalPages;
   const hasPrevPage = pagination.page > 1;
 
-  const navigateToUserInfo = (user: RegularUser) => {
-    router.push(
-      `/withdraw/${user._id}?from=users&name=${encodeURIComponent(
-        user.username || user.email || "User",
-      )}`,
-    );
+  const navigateToUserInfo = (
+    user: RegularUser,
+    opts?: { editUser?: boolean },
+  ) => {
+    const params = new URLSearchParams({
+      from: "users",
+      name: user.username || user.email || "User",
+    });
+    if (opts?.editUser) params.set("editUser", "1");
+    router.push(`/withdraw/${user._id}?${params.toString()}`);
   };
 
   return (
@@ -286,23 +290,7 @@ export default function UsersTable() {
                                   role="menuitem"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setOpenModal(true);
-                                    setForm({
-                                      id: user._id,
-                                      mobile: user.mobile ?? "",
-                                      username: user.username ?? "",
-                                      email: user.email ?? "",
-                                      address: user.address ?? "",
-                                      birthdate: user.birthdate
-                                        ? new Date(user.birthdate).toISOString().slice(0, 10)
-                                        : "",
-                                      country: user.country ?? "",
-                                      gender: user.gender ?? "",
-                                      bank_account_name: (user as { bank_account_name?: string }).bank_account_name ?? "",
-                                      bank_name: (user as { bank_name?: string }).bank_name ?? "",
-                                      bank_account_number: (user as { bank_account_number?: string }).bank_account_number ?? "",
-                                      wallet_info: (user as { wallet_info?: string }).wallet_info ?? "",
-                                    });
+                                    navigateToUserInfo(user, { editUser: true });
                                     setOpenActionsId(null);
                                   }}
                                   className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"

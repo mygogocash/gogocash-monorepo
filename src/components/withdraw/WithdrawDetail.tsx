@@ -1,16 +1,22 @@
 "use client";
 import Link from "next/link";
-import { fetcherPost } from "@/lib/axios/client";
+import client, { fetcherPost } from "@/lib/axios/client";
 import type { GridColDef } from "@mui/x-data-grid";
 import { useQuery } from "@tanstack/react-query";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { ResDataWithdrawsListByUser, ResMCBDetail } from "@/types/withdraw";
 import Divider from "@mui/material/Divider";
 import { pathImage } from "@/utils/helper";
 import ModalWithdraw from "./ModalWithdraw";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Label from "@/components/form/Label";
+import Input from "@/components/form/input/InputField";
 import { MOCK_DEEPLINKS, filterDeeplinksForUser } from "@/data/mockDeeplinks";
+import {
+  normalizeUserEmails,
+  normalizeUserMobiles,
+} from "@/lib/userContact";
 import {
   Table,
   TableBody,
@@ -34,6 +40,99 @@ const WithdrawDetailDataGrid = dynamic(
 
 type DetailTab = "user" | "conversion" | "withdraw" | "deeplink" | "login";
 
+/** Max rows per contact type in the user editor (emails / phones). */
+const MAX_CONTACT_ROWS = 20;
+
+type UserContactRow = {
+  clientId: string;
+  value: string;
+  /** False until OTP verified for values not already on file when edit started */
+  otpVerified: boolean;
+  otpInput: string;
+  otpBusy: "idle" | "sending" | "verifying";
+  contactMsg: string | null;
+};
+
+function createContactRow(value: string): UserContactRow {
+  return {
+    clientId:
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `c-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+    value,
+    otpVerified: true,
+    otpInput: "",
+    otpBusy: "idle",
+    contactMsg: null,
+  };
+}
+
+function ensureUserContactRows(rows: unknown): UserContactRow[] {
+  if (
+    Array.isArray(rows) &&
+    rows.length > 0 &&
+    typeof rows[0] === "object" &&
+    rows[0] !== null &&
+    "clientId" in (rows[0] as object)
+  ) {
+    return rows as UserContactRow[];
+  }
+  return [createContactRow("")];
+}
+
+function mergeContactValue(
+  row: UserContactRow,
+  newValue: string,
+  initialSet: ReadonlySet<string>,
+  kind: "email" | "mobile",
+): UserContactRow {
+  const v = newValue.trim();
+  if (!v) {
+    return {
+      ...row,
+      value: newValue,
+      otpVerified: true,
+      otpInput: "",
+      otpBusy: "idle",
+      contactMsg: null,
+    };
+  }
+  const key = kind === "email" ? v.toLowerCase() : v;
+  const onFile = initialSet.has(key);
+  return {
+    ...row,
+    value: newValue,
+    otpVerified: onFile,
+    otpInput: onFile ? row.otpInput : "",
+    otpBusy: "idle",
+    contactMsg: onFile ? row.contactMsg : null,
+  };
+}
+
+function rowNeedsOtp(
+  row: UserContactRow,
+  initialSet: ReadonlySet<string>,
+  kind: "email" | "mobile",
+): boolean {
+  const v = row.value.trim();
+  if (!v) return false;
+  const key = kind === "email" ? v.toLowerCase() : v;
+  if (initialSet.has(key)) return false;
+  return !row.otpVerified;
+}
+
+function allContactsVerifiedForSave(
+  rows: UserContactRow[],
+  initialSet: ReadonlySet<string>,
+  kind: "email" | "mobile",
+): boolean {
+  return rows.every((row) => {
+    const v = row.value.trim();
+    if (!v) return true;
+    return !rowNeedsOtp(row, initialSet, kind);
+  });
+}
+
 const TABS: { id: DetailTab; label: string }[] = [
   { id: "user", label: "User Info" },
   { id: "conversion", label: "Conversion All" },
@@ -44,6 +143,9 @@ const TABS: { id: DetailTab; label: string }[] = [
 
 const WithdrawDetail = () => {
   const { id } = useParams();
+  const searchParams = useSearchParams();
+  const editUserFromQuery = searchParams.get("editUser") === "1";
+  const openedEditFromQueryRef = useRef(false);
   const [activeTab, setActiveTab] = useState<DetailTab>("user");
   const [openModal, setOpenModal] = useState<DataWithdrawsList | boolean>(
     false,
@@ -54,6 +156,46 @@ const WithdrawDetail = () => {
     id: "",
     status: "",
   });
+
+  const [editingUser, setEditingUser] = useState(false);
+  const [savingUser, setSavingUser] = useState(false);
+  const [userSaveError, setUserSaveError] = useState<string | null>(null);
+  const [userDraft, setUserDraft] = useState({
+    emailRows: [createContactRow("")] as UserContactRow[],
+    mobileRows: [createContactRow("")] as UserContactRow[],
+    fullName: "",
+    gender: "",
+    birthdate: "",
+    wallet: "",
+    gogopassActive: false,
+  });
+
+  const initialEmailsRef = useRef<Set<string>>(new Set());
+  const initialMobilesRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    setUserDraft((d) => {
+      const emailsOk =
+        Array.isArray(d.emailRows) &&
+        d.emailRows.length > 0 &&
+        typeof d.emailRows[0] === "object" &&
+        d.emailRows[0] !== null &&
+        "clientId" in d.emailRows[0];
+      const mobilesOk =
+        Array.isArray(d.mobileRows) &&
+        d.mobileRows.length > 0 &&
+        typeof d.mobileRows[0] === "object" &&
+        d.mobileRows[0] !== null &&
+        "clientId" in d.mobileRows[0];
+      if (emailsOk && mobilesOk) return d;
+      return {
+        ...d,
+        emailRows: emailsOk ? d.emailRows : [createContactRow("")],
+        mobileRows: mobilesOk ? d.mobileRows : [createContactRow("")],
+      };
+    });
+  }, []);
+
   const { data: withdrawDetail, refetch: fetchWithdrawDetail } =
     useQuery<ResDataWithdrawsListByUser>({
       queryKey: ["getWithdrawDetail", id],
@@ -64,7 +206,9 @@ const WithdrawDetail = () => {
     queryKey: ["MCBDetail", id],
     queryFn: () => fetcherPost(`/withdraw/check-my-cashback-admin/${id}`),
   });
-  const column: GridColDef[] = [
+
+  const column = useMemo<GridColDef[]>(
+    () => [
     { field: "id", headerName: "ID", width: 40 },
     { field: "conversion_id", headerName: "ID", width: 100 },
     {
@@ -141,9 +285,12 @@ const WithdrawDetail = () => {
         );
       },
     },
-  ];
+  ],
+    [],
+  );
 
-  const columnWithdraw: GridColDef[] = [
+  const columnWithdraw = useMemo<GridColDef[]>(
+    () => [
     {
       field: "id",
       headerName: "ID",
@@ -275,7 +422,9 @@ const WithdrawDetail = () => {
         </button>
       ),
     },
-  ];
+  ],
+    [],
+  );
 
   const rowsData =
     withdrawDetail?.allConversions?.map((item, index) => {
@@ -295,9 +444,218 @@ const WithdrawDetail = () => {
 
   const userDeeplinks = useMemo(() => {
     const uid = withdrawDetail?.user?._id ?? (typeof id === "string" ? id : "");
-    const em = withdrawDetail?.user?.email;
-    return filterDeeplinksForUser(MOCK_DEEPLINKS, uid, em);
-  }, [withdrawDetail?.user?._id, withdrawDetail?.user?.email, id]);
+    const emails = normalizeUserEmails(withdrawDetail?.user);
+    return filterDeeplinksForUser(MOCK_DEEPLINKS, uid, emails);
+  }, [withdrawDetail?.user, id]);
+
+  const viewEmails = useMemo(
+    () => normalizeUserEmails(withdrawDetail?.user),
+    [withdrawDetail?.user],
+  );
+  const viewMobiles = useMemo(
+    () => normalizeUserMobiles(withdrawDetail?.user),
+    [withdrawDetail?.user],
+  );
+
+  const withdrawUserId =
+    withdrawDetail?.user?._id ?? (typeof id === "string" ? id : "") ?? "";
+
+  const beginEditUser = useCallback(() => {
+    const u = withdrawDetail?.user;
+    if (!u) return;
+    const raw = u.birthdate ?? "";
+    let birthIso = "";
+    if (raw) {
+      birthIso = /^\d{4}-\d{2}-\d{2}/.test(raw)
+        ? raw.slice(0, 10)
+        : (() => {
+            try {
+              return new Date(raw).toISOString().slice(0, 10);
+            } catch {
+              return "";
+            }
+          })();
+    }
+    const emails = normalizeUserEmails(u);
+    const mobiles = normalizeUserMobiles(u);
+    initialEmailsRef.current = new Set(
+      emails.map((e) => e.trim().toLowerCase()).filter(Boolean),
+    );
+    initialMobilesRef.current = new Set(mobiles.map((m) => m.trim()).filter(Boolean));
+    const emailRows =
+      emails.length > 0 ? emails.map((value) => createContactRow(value)) : [createContactRow("")];
+    const mobileRows =
+      mobiles.length > 0 ? mobiles.map((value) => createContactRow(value)) : [createContactRow("")];
+    setUserDraft({
+      emailRows,
+      mobileRows,
+      fullName: u.fullName ?? "",
+      gender: u.gender ?? "",
+      birthdate: birthIso,
+      wallet: u.wallet ?? "",
+      gogopassActive: u.gogopassActive === true,
+    });
+    setUserSaveError(null);
+    setEditingUser(true);
+  }, [withdrawDetail?.user]);
+
+  useEffect(() => {
+    openedEditFromQueryRef.current = false;
+  }, [id]);
+
+  useEffect(() => {
+    if (!editUserFromQuery || !withdrawDetail?.user) return;
+    if (openedEditFromQueryRef.current) return;
+    openedEditFromQueryRef.current = true;
+    setActiveTab("user");
+    beginEditUser();
+  }, [
+    editUserFromQuery,
+    withdrawDetail?.user,
+    beginEditUser,
+  ]);
+
+  const cancelEditUser = () => {
+    setEditingUser(false);
+    setUserSaveError(null);
+  };
+
+  const sendContactOtp = useCallback(
+    async (kind: "email" | "mobile", index: number, rawTarget: string) => {
+      if (!withdrawUserId) return;
+      const rowKey = kind === "email" ? ("emailRows" as const) : ("mobileRows" as const);
+      const target = rawTarget.trim();
+      if (!target) return;
+      setUserDraft((d) => {
+        const rows = [...ensureUserContactRows(d[rowKey])];
+        if (!rows[index]) return d;
+        rows[index] = { ...rows[index], otpBusy: "sending", contactMsg: null };
+        return { ...d, [rowKey]: rows };
+      });
+      try {
+        const res = await client.post<{ demoCode?: string; message?: string }>(
+          "/withdraw/send-user-contact-otp",
+          { userId: withdrawUserId, channel: kind, target },
+        );
+        const body = res.data as { demoCode?: string; message?: string };
+        const hint = body?.demoCode
+          ? `Code sent. Enter OTP: ${body.demoCode} (mock)`
+          : (body?.message ?? "OTP sent");
+        setUserDraft((d) => {
+          const rows = [...ensureUserContactRows(d[rowKey])];
+          if (!rows[index]) return d;
+          rows[index] = { ...rows[index], otpBusy: "idle", contactMsg: hint };
+          return { ...d, [rowKey]: rows };
+        });
+      } catch (e: unknown) {
+        const ax = e as { data?: { message?: string } };
+        const msg = ax?.data?.message ?? "Failed to send OTP";
+        setUserDraft((d) => {
+          const rows = [...ensureUserContactRows(d[rowKey])];
+          if (!rows[index]) return d;
+          rows[index] = { ...rows[index], otpBusy: "idle", contactMsg: msg };
+          return { ...d, [rowKey]: rows };
+        });
+      }
+    },
+    [withdrawUserId],
+  );
+
+  const verifyContactOtp = useCallback(
+    async (kind: "email" | "mobile", index: number, rawTarget: string, otp: string) => {
+      if (!withdrawUserId) return;
+      const rowKey = kind === "email" ? ("emailRows" as const) : ("mobileRows" as const);
+      const target = rawTarget.trim();
+      const code = otp.trim();
+      if (!target || !code) return;
+      setUserDraft((d) => {
+        const rows = [...ensureUserContactRows(d[rowKey])];
+        if (!rows[index]) return d;
+        rows[index] = { ...rows[index], otpBusy: "verifying", contactMsg: null };
+        return { ...d, [rowKey]: rows };
+      });
+      try {
+        await client.post("/withdraw/verify-user-contact-otp", {
+          userId: withdrawUserId,
+          channel: kind,
+          target,
+          otp: code,
+        });
+        setUserDraft((d) => {
+          const rows = [...ensureUserContactRows(d[rowKey])];
+          if (!rows[index]) return d;
+          rows[index] = {
+            ...rows[index],
+            otpVerified: true,
+            otpInput: "",
+            otpBusy: "idle",
+            contactMsg: "Verified",
+          };
+          return { ...d, [rowKey]: rows };
+        });
+      } catch (e: unknown) {
+        const ax = e as { data?: { message?: string } };
+        const msg = ax?.data?.message ?? "Invalid OTP";
+        setUserDraft((d) => {
+          const rows = [...ensureUserContactRows(d[rowKey])];
+          if (!rows[index]) return d;
+          rows[index] = { ...rows[index], otpBusy: "idle", contactMsg: msg };
+          return { ...d, [rowKey]: rows };
+        });
+      }
+    },
+    [withdrawUserId],
+  );
+
+  const saveUserEdit = async () => {
+    if (!withdrawUserId) return;
+    setUserSaveError(null);
+    const emailRows = ensureUserContactRows(userDraft.emailRows);
+    const mobileRows = ensureUserContactRows(userDraft.mobileRows);
+    if (
+      !allContactsVerifiedForSave(emailRows, initialEmailsRef.current, "email") ||
+      !allContactsVerifiedForSave(mobileRows, initialMobilesRef.current, "mobile")
+    ) {
+      setUserSaveError(
+        "Send OTP and verify every new email and phone number before saving.",
+      );
+      return;
+    }
+    setSavingUser(true);
+    try {
+      const emailsPayload = emailRows.map((r) => r.value.trim()).filter(Boolean);
+      const mobilesPayload = mobileRows.map((r) => r.value.trim()).filter(Boolean);
+      await client.post("/withdraw/update-withdraw-user", {
+        userId: withdrawUserId,
+        emails: emailsPayload,
+        mobiles: mobilesPayload,
+        fullName: userDraft.fullName,
+        gender: userDraft.gender,
+        birthdate: userDraft.birthdate,
+        wallet: userDraft.wallet,
+        gogopassActive: userDraft.gogopassActive,
+      });
+      await fetchWithdrawDetail();
+      setEditingUser(false);
+    } catch (e: unknown) {
+      const ax = e as { data?: { message?: string } };
+      setUserSaveError(ax?.data?.message ?? "Failed to save changes");
+    } finally {
+      setSavingUser(false);
+    }
+  };
+
+  const userContactsReadyForSave =
+    allContactsVerifiedForSave(
+      ensureUserContactRows(userDraft.emailRows),
+      initialEmailsRef.current,
+      "email",
+    ) &&
+    allContactsVerifiedForSave(
+      ensureUserContactRows(userDraft.mobileRows),
+      initialMobilesRef.current,
+      "mobile",
+    );
 
   return (
     <>
@@ -333,45 +691,559 @@ const WithdrawDetail = () => {
           {activeTab === "user" && (
             <div className="space-y-6 rounded-lg bg-gray-50 p-4 dark:bg-gray-800/50">
               <div>
-                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  User Info
-                </h3>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <p className="flex items-center text-sm text-gray-800 dark:text-gray-200">
-                    <span className="min-w-[100px] font-medium">User ID:</span>{" "}
-                    {withdrawDetail?.user?._id ?? (id as string) ?? "—"}
-                    <CopyButton value={withdrawDetail?.user?._id ?? (id as string) ?? ""} />
-                  </p>
-                  <p className="flex items-center text-sm text-gray-800 dark:text-gray-200">
-                    <span className="min-w-[100px] font-medium">Email:</span>{" "}
-                    {withdrawDetail?.user?.email ?? "—"}
-                    <CopyButton value={withdrawDetail?.user?.email || ""} />
-                  </p>
-                  <p className="flex items-center text-sm text-gray-800 dark:text-gray-200">
-                    <span className="min-w-[100px] font-medium">Mobile:</span>{" "}
-                    {withdrawDetail?.user?.mobile ?? "—"}
-                    <CopyButton value={withdrawDetail?.user?.mobile || ""} />
-                  </p>
-                  <p className="flex items-center text-sm text-gray-800 dark:text-gray-200">
-                    <span className="min-w-[100px] font-medium">Full name:</span>{" "}
-                    {withdrawDetail?.user?.fullName ?? "—"}
-                  </p>
-                  <p className="flex items-center text-sm text-gray-800 dark:text-gray-200">
-                    <span className="min-w-[100px] font-medium">Gender:</span>{" "}
-                    {withdrawDetail?.user?.gender ?? "—"}
-                  </p>
-                  <p className="flex items-center text-sm text-gray-800 dark:text-gray-200">
-                    <span className="min-w-[100px] font-medium">Birth date:</span>{" "}
-                    {withdrawDetail?.user?.birthdate
-                      ? new Date(withdrawDetail.user.birthdate).toLocaleDateString()
-                      : "—"}
-                  </p>
-                  <p className="flex items-center text-sm text-gray-800 dark:text-gray-200">
-                    <span className="min-w-[100px] font-medium">Wallet:</span>{" "}
-                    {withdrawDetail?.user?.wallet ?? "—"}
-                    <CopyButton value={withdrawDetail?.user?.wallet || ""} />
-                  </p>
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    User Info
+                  </h3>
+                  {!editingUser ? (
+                    <button
+                      type="button"
+                      onClick={beginEditUser}
+                      disabled={!withdrawDetail?.user}
+                      className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-800 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+                    >
+                      Edit user
+                    </button>
+                  ) : (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={cancelEditUser}
+                        disabled={savingUser}
+                        className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void saveUserEdit()}
+                        disabled={
+                          savingUser ||
+                          !withdrawUserId ||
+                          !userContactsReadyForSave
+                        }
+                        className="rounded-lg border border-brand-600 bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500"
+                      >
+                        {savingUser ? "Saving…" : "Save changes"}
+                      </button>
+                    </div>
+                  )}
                 </div>
+
+                {userSaveError && (
+                  <p className="mb-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+                    {userSaveError}
+                  </p>
+                )}
+
+                {!editingUser ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                        <span className="min-w-[100px] font-medium">User ID:</span>{" "}
+                        {withdrawDetail?.user?._id ?? (id as string) ?? "—"}
+                        <CopyButton value={withdrawDetail?.user?._id ?? (id as string) ?? ""} />
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                      <div className="rounded-lg border border-gray-200 bg-white/80 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+                        <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                          Email addresses
+                        </h4>
+                        {viewEmails.length === 0 ? (
+                          <p className="text-sm text-gray-500 dark:text-gray-400">—</p>
+                        ) : (
+                          <ol className="list-none space-y-2.5 p-0">
+                            {viewEmails.map((em, i) => (
+                              <li
+                                key={`wd-email-${i}`}
+                                className="flex flex-wrap items-center gap-2 text-sm text-gray-800 dark:text-gray-200"
+                              >
+                                <span className="inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded bg-gray-100 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                                  {i + 1}
+                                </span>
+                                <span className="min-w-0 break-all">{em}</span>
+                                <CopyButton value={em} />
+                              </li>
+                            ))}
+                          </ol>
+                        )}
+                      </div>
+                      <div className="rounded-lg border border-gray-200 bg-white/80 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+                        <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                          Phone numbers
+                        </h4>
+                        {viewMobiles.length === 0 ? (
+                          <p className="text-sm text-gray-500 dark:text-gray-400">—</p>
+                        ) : (
+                          <ol className="list-none space-y-2.5 p-0">
+                            {viewMobiles.map((m, i) => (
+                              <li
+                                key={`wd-mobile-${i}`}
+                                className="flex flex-wrap items-center gap-2 text-sm text-gray-800 dark:text-gray-200"
+                              >
+                                <span className="inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded bg-gray-100 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                                  {i + 1}
+                                </span>
+                                <span className="min-w-0 break-all font-mono">{m}</span>
+                                <CopyButton value={m} />
+                              </li>
+                            ))}
+                          </ol>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <p className="flex items-center text-sm text-gray-800 dark:text-gray-200">
+                        <span className="min-w-[100px] font-medium">Full name:</span>{" "}
+                        {withdrawDetail?.user?.fullName ?? "—"}
+                      </p>
+                      <p className="flex items-center text-sm text-gray-800 dark:text-gray-200">
+                        <span className="min-w-[100px] font-medium">Gender:</span>{" "}
+                        {withdrawDetail?.user?.gender ?? "—"}
+                      </p>
+                      <p className="flex items-center text-sm text-gray-800 dark:text-gray-200">
+                        <span className="min-w-[100px] font-medium">Birth date:</span>{" "}
+                        {withdrawDetail?.user?.birthdate
+                          ? new Date(withdrawDetail.user.birthdate).toLocaleDateString()
+                          : "—"}
+                      </p>
+                      <p className="flex items-center text-sm text-gray-800 dark:text-gray-200">
+                        <span className="min-w-[130px] shrink-0 font-medium">GoGoPass status:</span>{" "}
+                        {withdrawDetail?.user?.gogopassActive === true ? (
+                          <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                            Active
+                          </span>
+                        ) : withdrawDetail?.user?.gogopassActive === false ? (
+                          <span className="text-gray-500 dark:text-gray-400">Not Active</span>
+                        ) : (
+                          "—"
+                        )}
+                      </p>
+                      <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200 sm:col-span-2">
+                        <span className="min-w-[100px] font-medium">Wallet:</span>{" "}
+                        {withdrawDetail?.user?.wallet ?? "—"}
+                        <CopyButton value={withdrawDetail?.user?.wallet || ""} />
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="sm:col-span-2">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        <span className="font-medium text-gray-800 dark:text-gray-200">User ID:</span>{" "}
+                        {withdrawUserId || "—"}
+                        <CopyButton value={withdrawUserId} />
+                      </p>
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-500">
+                        User ID cannot be changed from this screen.
+                      </p>
+                    </div>
+
+                    <div className="space-y-3 sm:col-span-2 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900/50">
+                      <div className="flex flex-wrap items-end justify-between gap-2">
+                        <Label className="mb-0">Email addresses</Label>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          Up to {MAX_CONTACT_ROWS} · empty rows ignored · new emails need OTP
+                        </span>
+                      </div>
+                      <div className="space-y-3">
+                        {ensureUserContactRows(userDraft.emailRows).map((row, i) => {
+                          const needsOtp = rowNeedsOtp(
+                            row,
+                            initialEmailsRef.current,
+                            "email",
+                          );
+                          const newVerified =
+                            row.value.trim().length > 0 &&
+                            !initialEmailsRef.current.has(
+                              row.value.trim().toLowerCase(),
+                            ) &&
+                            row.otpVerified;
+                          return (
+                            <div
+                              key={row.clientId}
+                              className="space-y-2 rounded-md border border-gray-100 p-2 dark:border-gray-700/60"
+                            >
+                              <div className="flex flex-wrap gap-2">
+                                <Input
+                                  id={i === 0 ? "wd-user-email-0" : undefined}
+                                  type="email"
+                                  autoComplete="email"
+                                  value={row.value}
+                                  onChange={(e) =>
+                                    setUserDraft((d) => ({
+                                      ...d,
+                                      emailRows: ensureUserContactRows(
+                                        d.emailRows,
+                                      ).map((r, j) =>
+                                        j === i
+                                          ? mergeContactValue(
+                                              r,
+                                              e.target.value,
+                                              initialEmailsRef.current,
+                                              "email",
+                                            )
+                                          : r,
+                                      ),
+                                    }))
+                                  }
+                                  placeholder="name@example.com"
+                                  className="h-11 min-w-0 flex-1"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setUserDraft((d) => {
+                                      const rows = ensureUserContactRows(
+                                        d.emailRows,
+                                      );
+                                      const next = rows.filter((_, j) => j !== i);
+                                      return {
+                                        ...d,
+                                        emailRows: next.length
+                                          ? next
+                                          : [createContactRow("")],
+                                      };
+                                    })
+                                  }
+                                  className="shrink-0 rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50 dark:border-gray-600 dark:text-red-400 dark:hover:bg-red-900/20"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                              {needsOtp && (
+                                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                                  <button
+                                    type="button"
+                                    disabled={
+                                      row.otpBusy !== "idle" ||
+                                      !row.value.trim()
+                                    }
+                                    onClick={() =>
+                                      void sendContactOtp("email", i, row.value)
+                                    }
+                                    className="rounded-lg border border-brand-600 bg-white px-3 py-1.5 text-xs font-medium text-brand-600 hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-brand-500 dark:bg-gray-900 dark:text-brand-400 dark:hover:bg-brand-950/40"
+                                  >
+                                    {row.otpBusy === "sending"
+                                      ? "Sending…"
+                                      : "Send OTP"}
+                                  </button>
+                                  <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                                    <Input
+                                      type="text"
+                                      autoComplete="one-time-code"
+                                      placeholder="OTP"
+                                      value={row.otpInput}
+                                      onChange={(e) =>
+                                        setUserDraft((d) => ({
+                                          ...d,
+                                          emailRows: ensureUserContactRows(
+                                            d.emailRows,
+                                          ).map((r, j) =>
+                                            j === i
+                                              ? { ...r, otpInput: e.target.value }
+                                              : r,
+                                          ),
+                                        }))
+                                      }
+                                      className="h-9 w-28 font-mono text-sm"
+                                    />
+                                    <button
+                                      type="button"
+                                      disabled={
+                                        row.otpBusy !== "idle" ||
+                                        !row.otpInput.trim() ||
+                                        !row.value.trim()
+                                      }
+                                      onClick={() =>
+                                        void verifyContactOtp(
+                                          "email",
+                                          i,
+                                          row.value,
+                                          row.otpInput,
+                                        )
+                                      }
+                                      className="rounded-lg border border-gray-300 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-800 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                                    >
+                                      {row.otpBusy === "verifying"
+                                        ? "Verifying…"
+                                        : "Verify"}
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                              {newVerified && !needsOtp && (
+                                <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                                  Verified
+                                </span>
+                              )}
+                              {row.contactMsg && (
+                                <p className="text-xs text-gray-600 dark:text-gray-400">
+                                  {row.contactMsg}
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <button
+                        type="button"
+                        disabled={
+                          ensureUserContactRows(userDraft.emailRows).length >=
+                          MAX_CONTACT_ROWS
+                        }
+                        onClick={() =>
+                          setUserDraft((d) => ({
+                            ...d,
+                            emailRows: [
+                              ...ensureUserContactRows(d.emailRows),
+                              createContactRow(""),
+                            ],
+                          }))
+                        }
+                        className="text-sm font-medium text-brand-600 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-40 dark:text-brand-400 dark:hover:text-brand-300"
+                      >
+                        + Add email
+                      </button>
+                    </div>
+
+                    <div className="space-y-3 sm:col-span-2 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900/50">
+                      <div className="flex flex-wrap items-end justify-between gap-2">
+                        <Label className="mb-0">Phone numbers</Label>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          Up to {MAX_CONTACT_ROWS} · empty rows ignored · new numbers need OTP
+                        </span>
+                      </div>
+                      <div className="space-y-3">
+                        {ensureUserContactRows(userDraft.mobileRows).map(
+                          (row, i) => {
+                            const needsOtp = rowNeedsOtp(
+                              row,
+                              initialMobilesRef.current,
+                              "mobile",
+                            );
+                            const newVerified =
+                              row.value.trim().length > 0 &&
+                              !initialMobilesRef.current.has(row.value.trim()) &&
+                              row.otpVerified;
+                            return (
+                              <div
+                                key={row.clientId}
+                                className="space-y-2 rounded-md border border-gray-100 p-2 dark:border-gray-700/60"
+                              >
+                                <div className="flex flex-wrap gap-2">
+                                  <Input
+                                    id={i === 0 ? "wd-user-mobile-0" : undefined}
+                                    type="tel"
+                                    autoComplete="tel"
+                                    value={row.value}
+                                    onChange={(e) =>
+                                      setUserDraft((d) => ({
+                                        ...d,
+                                        mobileRows: ensureUserContactRows(
+                                          d.mobileRows,
+                                        ).map((r, j) =>
+                                          j === i
+                                            ? mergeContactValue(
+                                                r,
+                                                e.target.value,
+                                                initialMobilesRef.current,
+                                                "mobile",
+                                              )
+                                            : r,
+                                        ),
+                                      }))
+                                    }
+                                    placeholder="+66…"
+                                    className="h-11 min-w-0 flex-1 font-mono text-sm"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setUserDraft((d) => {
+                                        const rows = ensureUserContactRows(
+                                          d.mobileRows,
+                                        );
+                                        const next = rows.filter(
+                                          (_, j) => j !== i,
+                                        );
+                                        return {
+                                          ...d,
+                                          mobileRows: next.length
+                                            ? next
+                                            : [createContactRow("")],
+                                        };
+                                      })
+                                    }
+                                    className="shrink-0 rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50 dark:border-gray-600 dark:text-red-400 dark:hover:bg-red-900/20"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                                {needsOtp && (
+                                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                                    <button
+                                      type="button"
+                                      disabled={
+                                        row.otpBusy !== "idle" ||
+                                        !row.value.trim()
+                                      }
+                                      onClick={() =>
+                                        void sendContactOtp(
+                                          "mobile",
+                                          i,
+                                          row.value,
+                                        )
+                                      }
+                                      className="rounded-lg border border-brand-600 bg-white px-3 py-1.5 text-xs font-medium text-brand-600 hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-brand-500 dark:bg-gray-900 dark:text-brand-400 dark:hover:bg-brand-950/40"
+                                    >
+                                      {row.otpBusy === "sending"
+                                        ? "Sending…"
+                                        : "Send OTP"}
+                                    </button>
+                                    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                                      <Input
+                                        type="text"
+                                        autoComplete="one-time-code"
+                                        placeholder="OTP"
+                                        value={row.otpInput}
+                                        onChange={(e) =>
+                                          setUserDraft((d) => ({
+                                            ...d,
+                                            mobileRows: ensureUserContactRows(
+                                              d.mobileRows,
+                                            ).map((r, j) =>
+                                              j === i
+                                                ? {
+                                                    ...r,
+                                                    otpInput: e.target.value,
+                                                  }
+                                                : r,
+                                            ),
+                                          }))
+                                        }
+                                        className="h-9 w-28 font-mono text-sm"
+                                      />
+                                      <button
+                                        type="button"
+                                        disabled={
+                                          row.otpBusy !== "idle" ||
+                                          !row.otpInput.trim() ||
+                                          !row.value.trim()
+                                        }
+                                        onClick={() =>
+                                          void verifyContactOtp(
+                                            "mobile",
+                                            i,
+                                            row.value,
+                                            row.otpInput,
+                                          )
+                                        }
+                                        className="rounded-lg border border-gray-300 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-800 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                                      >
+                                        {row.otpBusy === "verifying"
+                                          ? "Verifying…"
+                                          : "Verify"}
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                                {newVerified && !needsOtp && (
+                                  <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                                    Verified
+                                  </span>
+                                )}
+                                {row.contactMsg && (
+                                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                                    {row.contactMsg}
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          },
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        disabled={
+                          ensureUserContactRows(userDraft.mobileRows).length >=
+                          MAX_CONTACT_ROWS
+                        }
+                        onClick={() =>
+                          setUserDraft((d) => ({
+                            ...d,
+                            mobileRows: [
+                              ...ensureUserContactRows(d.mobileRows),
+                              createContactRow(""),
+                            ],
+                          }))
+                        }
+                        className="text-sm font-medium text-brand-600 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-40 dark:text-brand-400 dark:hover:text-brand-300"
+                      >
+                        + Add phone
+                      </button>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="wd-user-fullname">Full name</Label>
+                      <Input
+                        id="wd-user-fullname"
+                        value={userDraft.fullName}
+                        onChange={(e) => setUserDraft((d) => ({ ...d, fullName: e.target.value }))}
+                        className="h-11"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="wd-user-gender">Gender</Label>
+                      <Input
+                        id="wd-user-gender"
+                        value={userDraft.gender}
+                        onChange={(e) => setUserDraft((d) => ({ ...d, gender: e.target.value }))}
+                        placeholder="e.g. Female"
+                        className="h-11"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="wd-user-birthdate">Birth date</Label>
+                      <Input
+                        id="wd-user-birthdate"
+                        type="date"
+                        value={userDraft.birthdate}
+                        onChange={(e) => setUserDraft((d) => ({ ...d, birthdate: e.target.value }))}
+                        className="h-11"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="wd-user-wallet">Wallet</Label>
+                      <Input
+                        id="wd-user-wallet"
+                        value={userDraft.wallet}
+                        onChange={(e) => setUserDraft((d) => ({ ...d, wallet: e.target.value }))}
+                        className="h-11 font-mono text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="wd-user-gogopass">GoGoPass status</Label>
+                      <select
+                        id="wd-user-gogopass"
+                        value={userDraft.gogopassActive ? "active" : "inactive"}
+                        onChange={(e) =>
+                          setUserDraft((d) => ({
+                            ...d,
+                            gogopassActive: e.target.value === "active",
+                          }))
+                        }
+                        className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:focus:border-brand-400 dark:focus:ring-brand-400/25"
+                      >
+                        <option value="active">Active</option>
+                        <option value="inactive">Not Active</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>

@@ -1,7 +1,8 @@
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import BannerSubNav from "@/components/banner/BannerSubNav";
+import BannerTable from "@/components/banner/BannerTable";
 import { Metadata } from "next";
 import { awaitPageDynamicProps, type DefaultAppPageProps } from "@/lib/nextAppPageProps";
-import BannerTable from "@/components/banner/BannerTable";
 
 export const metadata: Metadata = {
   title: "Category | TailAdmin - Next.js Dashboard Template",
@@ -19,6 +20,7 @@ export default async function BannerPage(props: DefaultAppPageProps) {
     <div>
       <PageBreadcrumb pageTitle="Home Page Banner" />
       <div className="space-y-6">
+        <BannerSubNav />
         <BannerTable />
       </div>
     </div>

@@ -251,41 +251,6 @@ export default function CouponHistoryTable() {
       {activeTab === "redemptions" ? (
         <>
           <div className="space-y-5 border-b border-gray-100 px-4 py-5 sm:px-6 dark:border-gray-800">
-            <div className="flex flex-wrap items-center justify-end gap-2">
-                <div
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/80"
-                  title="Rows matching your filters"
-                >
-                  <span className="text-2xl font-semibold tabular-nums text-gray-900 dark:text-white">
-                    {filtered.length}
-                  </span>
-                  <span className="text-left text-xs leading-tight text-gray-500 dark:text-gray-400">
-                    {hasActiveFilters ? (
-                      <>
-                        match
-                        <br />
-                        <span className="text-[0.65rem]">of {totalDataset}</span>
-                      </>
-                    ) : (
-                      <>
-                        total
-                        <br />
-                        <span className="text-[0.65rem]">records</span>
-                      </>
-                    )}
-                  </span>
-                </div>
-                {hasActiveFilters ? (
-                  <button
-                    type="button"
-                    onClick={clearFilters}
-                    className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                  >
-                    Clear filters
-                  </button>
-                ) : null}
-            </div>
-
             <div>
               <p
                 id="coupon-history-status-label"
@@ -334,27 +299,66 @@ export default function CouponHistoryTable() {
             </div>
 
             <div>
-              <label htmlFor="coupon-history-search" className="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              <label
+                htmlFor="coupon-history-search"
+                className="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400"
+              >
                 Search
               </label>
-              <div className="relative max-w-xl">
-                <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-400 dark:text-gray-500" aria-hidden>
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </span>
-                <input
-                  id="coupon-history-search"
-                  type="search"
-                  autoComplete="off"
-                  placeholder="Code, coupon name, email, or offer…"
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
-                    setPage(1);
-                  }}
-                  className="h-12 w-full rounded-xl border border-gray-200 bg-gray-50/80 py-2.5 pr-4 pl-11 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-500/20 focus:outline-none dark:border-gray-600 dark:bg-gray-900/50 dark:text-white dark:placeholder:text-gray-500 dark:focus:border-brand-400 dark:focus:bg-gray-900 dark:focus:ring-brand-400/25"
-                />
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="relative min-w-0 flex-1 max-w-xl">
+                  <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-400 dark:text-gray-500" aria-hidden>
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </span>
+                  <input
+                    id="coupon-history-search"
+                    type="search"
+                    autoComplete="off"
+                    placeholder="Code, coupon name, email, or offer…"
+                    value={search}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      setPage(1);
+                    }}
+                    className="h-12 w-full rounded-xl border border-gray-200 bg-gray-50/80 py-2.5 pr-4 pl-11 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-500/20 focus:outline-none dark:border-gray-600 dark:bg-gray-900/50 dark:text-white dark:placeholder:text-gray-500 dark:focus:border-brand-400 dark:focus:bg-gray-900 dark:focus:ring-brand-400/25"
+                  />
+                </div>
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  <div
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/80"
+                    title="Rows matching your filters"
+                  >
+                    <span className="text-2xl font-semibold tabular-nums text-gray-900 dark:text-white">
+                      {filtered.length}
+                    </span>
+                    <span className="text-left text-xs leading-tight text-gray-500 dark:text-gray-400">
+                      {hasActiveFilters ? (
+                        <>
+                          match
+                          <br />
+                          <span className="text-[0.65rem]">of {totalDataset}</span>
+                        </>
+                      ) : (
+                        <>
+                          total
+                          <br />
+                          <span className="text-[0.65rem]">records</span>
+                        </>
+                      )}
+                    </span>
+                  </div>
+                  {hasActiveFilters ? (
+                    <button
+                      type="button"
+                      onClick={clearFilters}
+                      className="shrink-0 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                    >
+                      Clear filters
+                    </button>
+                  ) : null}
+                </div>
               </div>
             </div>
           </div>
