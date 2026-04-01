@@ -92,7 +92,7 @@ const useCrossmintLogin = () => {
         email: user?.email,
         address: wallet?.address,
         // username: userData?.username,
-        id_twitter: user?.twitter?.id,
+        id_twitter: user?.twitter,
         referral_id: referral_id,
         // _id: userData?._id,
         // userId: userData.id_crossmint,

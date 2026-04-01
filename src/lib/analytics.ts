@@ -98,6 +98,7 @@ export const getPageTypeFromPathname = (pathname: string) => {
   if (routeSegments[0] === "withdraw") return "withdraw";
   if (routeSegments[0] === "referral") return "referral";
   if (routeSegments[0] === "subscription") return "subscription";
+  if (routeSegments[0] === "membership") return "membership";
 
   return routeSegments[0];
 };

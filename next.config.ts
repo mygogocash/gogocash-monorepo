@@ -17,7 +17,12 @@ const nextConfig: NextConfig = {
     // เปิดใช้งานการคืนค่าตำแหน่งการเลื่อนเมื่อย้อนกลับ
     scrollRestoration: true,
     /** Tree-shake barrel imports for large UI packages (smaller dev + prod chunks). */
-    optimizePackageImports: ["@mui/material", "@mui/icons-material", "@mui/x-data-grid"],
+    optimizePackageImports: [
+      "@mui/material",
+      "@mui/icons-material",
+      "@mui/x-data-grid",
+      "lucide-react",
+    ],
   },
 
   // Compress response
@@ -170,6 +175,17 @@ const nextConfig: NextConfig = {
     }
 
     return config;
+  },
+
+  async redirects() {
+    return [
+      /** Legacy static file; App Router page lives at `/[locale]/membership`. */
+      {
+        source: "/membership.html",
+        destination: "/membership",
+        permanent: true,
+      },
+    ];
   },
 
   // Security headers

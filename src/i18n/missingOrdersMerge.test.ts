@@ -6,7 +6,7 @@ describe("mergeMissingOrdersMessages", () => {
   it("fills missing missingOrders* keys from en catalog", () => {
     const out = mergeMissingOrdersMessages({}, "en");
     expect(out.missingOrdersPageIntroSelfService).toBe(
-      (en as Record<string, string>).missingOrdersPageIntroSelfService
+      (en as unknown as Record<string, string>).missingOrdersPageIntroSelfService
     );
     expect(out.missingOrdersPageTitle).toBe("Missing Orders");
   });

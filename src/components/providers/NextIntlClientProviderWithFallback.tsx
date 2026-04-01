@@ -6,6 +6,7 @@ import type { AbstractIntlMessages } from "next-intl";
 import { IntlError, IntlErrorCode } from "use-intl";
 import { TRANSLATIONS_DISABLED } from "@/constants/translations";
 import { createGetMessageFallback } from "@/i18n/intlMessageFallback";
+import { devLogError, devLogWarn } from "@/lib/clientDevLog";
 
 type Props = {
   locale: string;
@@ -22,20 +23,18 @@ const missingKeyDevWarned = new Set<string>();
 
 function onIntlError(error: InstanceType<typeof IntlError>) {
   if (error.code === IntlErrorCode.MISSING_MESSAGE) {
-    if (process.env.NODE_ENV === "development") {
-      const dedupeId = `${error.message}|${error.originalMessage ?? ""}`;
-      if (!missingKeyDevWarned.has(dedupeId)) {
-        missingKeyDevWarned.add(dedupeId);
-        console.warn(
-          "[next-intl] MISSING_MESSAGE (dev only). UI uses getMessageFallback. Fix key or run `npm run i18n:check`.",
-          error.message,
-          error.originalMessage ?? ""
-        );
-      }
+    const dedupeId = `${error.message}|${error.originalMessage ?? ""}`;
+    if (!missingKeyDevWarned.has(dedupeId)) {
+      missingKeyDevWarned.add(dedupeId);
+      devLogWarn(
+        "[next-intl] MISSING_MESSAGE (dev only). UI uses getMessageFallback. Fix key or run `npm run i18n:check`.",
+        error.message,
+        error.originalMessage ?? ""
+      );
     }
     return;
   }
-  console.error(error);
+  devLogError(error);
 }
 
 /**

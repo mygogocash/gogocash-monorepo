@@ -1,7 +1,7 @@
 /**
  * @vitest-environment happy-dom
  */
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   appendMissingOrderClaimToLocalStorage,
   getMissingOrderClaimAccountKey,
@@ -10,6 +10,42 @@ import {
   MISSING_ORDER_CLAIM_LEGACY_STORAGE_KEY,
   readMissingOrderClaimsFromLocalStorage,
 } from "./walletClaimSubmissions";
+
+/** happy-dom v20+ can expose a Storage object without a working `clear`; use an in-memory mock. */
+function createMemoryStorage(): Storage {
+  const memory = new Map<string, string>();
+  return {
+    get length() {
+      return memory.size;
+    },
+    clear() {
+      memory.clear();
+    },
+    getItem(key: string) {
+      return memory.get(key) ?? null;
+    },
+    key(index: number) {
+      return [...memory.keys()][index] ?? null;
+    },
+    removeItem(key: string) {
+      memory.delete(key);
+    },
+    setItem(key: string, value: string) {
+      memory.set(key, value);
+    },
+  } as Storage;
+}
+
+beforeEach(() => {
+  const storage = createMemoryStorage();
+  vi.stubGlobal("localStorage", storage);
+  if (typeof window !== "undefined") {
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      value: storage,
+    });
+  }
+});
 
 afterEach(() => {
   localStorage.clear();

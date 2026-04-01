@@ -5,7 +5,11 @@ import { getMissingOrdersSectionHeadings } from "./missingOrdersSectionHeadings"
 describe("getMissingOrdersSectionHeadings", () => {
   it("resolves extra section from en.json for locale en", () => {
     const h = getMissingOrdersSectionHeadings("en");
-    expect(h.extraTitle).toBe((en as Record<string, string>).missingOrdersSectionExtraTitle);
-    expect(h.extraHelp).toBe((en as Record<string, string>).missingOrdersSectionExtraHelp);
+    expect(h.extraTitle).toBe(
+      (en as unknown as Record<string, string>).missingOrdersSectionExtraTitle
+    );
+    expect(h.extraHelp).toBe(
+      (en as unknown as Record<string, string>).missingOrdersSectionExtraHelp
+    );
   });
 });

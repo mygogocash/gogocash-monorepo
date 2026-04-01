@@ -34,6 +34,7 @@ const SettingCrossmint = ({ children }: { children: ReactNode }) => {
         embeddedWallets={{
           type: "evm-smart-wallet",
           createOnLogin: "all-users",
+          defaultChain: "polygon",
         }}
         onLoginSuccess={() => {
           window.sessionStorage.setItem("isAfterLogin", "true");

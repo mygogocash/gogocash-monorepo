@@ -51,6 +51,7 @@ const REPLAY_BLOCKED_PATHS = [
   "/wallet",
   "/withdraw",
   "/subscription",
+  "/membership",
 ];
 
 let posthogInitialised = false;

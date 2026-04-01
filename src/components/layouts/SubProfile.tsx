@@ -14,6 +14,7 @@ import ProfileIcon from "@/components/icons/ProfileIcon";
 import QuestIcon from "@/components/icons/QuestIcon";
 import WalletIcon from "@/components/icons/WalletIcon";
 import ProfilePopperMissingOrdersIcon from "@/components/icons/ProfilePopperMissingOrdersIcon";
+import MembershipNavIcon from "@/components/icons/MembershipNavIcon";
 import LogoutIcon from "@/components/icons/LogoutIcon";
 import CookiesIcon from "@/components/icons/CookiesIcon";
 import LogoutConfirmDialog from "@/components/layouts/LogoutConfirmDialog";
@@ -77,6 +78,14 @@ const missingOrderMenuItem: MenuEntry = {
   href: "/missing-orders",
   icon: ProfilePopperMissingOrdersIcon,
   activePrefix: "/missing-orders",
+  iconStroke: true,
+};
+
+const membershipMenuItem: MenuEntry = {
+  translationKey: "navMembership",
+  href: "/membership",
+  icon: MembershipNavIcon,
+  activePrefix: "/membership",
   iconStroke: true,
 };
 
@@ -172,6 +181,7 @@ const SubProfile = ({ variant = "sidebar", className }: SubProfileProps) => {
   const menu: MenuEntry[] = [
     ...baseMenuHead,
     missingOrderMenuItem,
+    membershipMenuItem,
     ...baseMenuTail,
     { ...helpItem, href: supportHref },
     connectItem,

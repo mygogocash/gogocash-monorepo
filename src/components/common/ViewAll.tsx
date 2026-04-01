@@ -5,7 +5,7 @@ import UnionIcon from "../icons/UnionIcon";
 
 interface IProp {
   link?: string;
-  /** Figma 8290:133549 — 24px medium mint + arrow */
+  /** Figma 8290:133549 — same type scale as CardSpecial title (text-xl) + arrow */
   variant?: "default" | "emphasized";
 }
 
@@ -23,7 +23,7 @@ const ViewAll = ({ link, variant = "default" }: IProp) => {
         className="hidden items-center gap-2 md:inline-flex"
         style={{ color: BRAND_MINT_HEX }}
       >
-        <span className="text-2xl font-medium leading-none">{t("View All")}</span>
+        <span className="text-xl font-normal leading-tight">{t("View All")}</span>
         <UnionIcon className="rotate-45 shrink-0" width={18} height={11} />
       </Link>
     );

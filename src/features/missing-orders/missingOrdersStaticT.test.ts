@@ -4,7 +4,7 @@ import { missingOrdersStaticT } from "./missingOrdersStaticT";
 
 describe("missingOrdersStaticT", () => {
   it("returns en copy for en and jp locales", () => {
-    const v = (en as Record<string, string>).missingOrdersSectionPurchaseHelp;
+    const v = (en as unknown as Record<string, string>).missingOrdersSectionPurchaseHelp;
     expect(missingOrdersStaticT("en", "missingOrdersSectionPurchaseHelp")).toBe(v);
     expect(missingOrdersStaticT("jp", "missingOrdersSectionPurchaseHelp")).toBe(v);
   });
@@ -18,7 +18,7 @@ describe("missingOrdersStaticT", () => {
   it("returns jp copy for profileUserIdLabel then falls back to en for keys missing in jp", () => {
     expect(missingOrdersStaticT("jp", "profileUserIdLabel")).toBe("ユーザーID");
     expect(missingOrdersStaticT("jp", "missingOrdersAmountHelper")).toBe(
-      (en as Record<string, string>).missingOrdersAmountHelper
+      (en as unknown as Record<string, string>).missingOrdersAmountHelper
     );
   });
 

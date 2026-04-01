@@ -39,6 +39,17 @@ export const env = createEnv({
     PDPA_STORE_PATH: optionalString,
     /** Secret for `POST /api/pdpa/jobs/retention` and other cron-style PDPA endpoints. */
     PDPA_CRON_SECRET: optionalString,
+    /** Stripe secret key (`sk_...`) — server-only. Enables `/api/stripe/*` routes. */
+    STRIPE_SECRET_KEY: optionalString,
+    /** Webhook signing secret (`whsec_...`) for `POST /api/stripe/webhook`. */
+    STRIPE_WEBHOOK_SECRET: optionalString,
+    /** Subscription Price IDs from Stripe Dashboard (Billing → Products). */
+    STRIPE_PRICE_STARTER_MONTHLY: optionalString,
+    STRIPE_PRICE_STARTER_YEARLY: optionalString,
+    STRIPE_PRICE_PLUS_MONTHLY: optionalString,
+    STRIPE_PRICE_PLUS_YEARLY: optionalString,
+    STRIPE_PRICE_PRO_MONTHLY: optionalString,
+    STRIPE_PRICE_PRO_YEARLY: optionalString,
   },
   client: {
     NEXT_PUBLIC_API_URL: optionalString,
@@ -84,6 +95,12 @@ export const env = createEnv({
     NEXT_PUBLIC_SENTRY_DSN: optionalString,
     /** When `1` or `true`, merchant hero prefers Brandfetch banner/logo when URLs exist. */
     NEXT_PUBLIC_BRANDFETCH_HERO: optionalString,
+    /**
+     * When `1`, show Stripe checkout actions on membership (requires `STRIPE_SECRET_KEY` + Price IDs server-side).
+     */
+    NEXT_PUBLIC_STRIPE_BILLING: optionalString,
+    /** Stripe publishable key (`pk_...`) — only if you add Stripe.js / Elements later; keep optional. */
+    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: optionalString,
   },
   experimental__runtimeEnv: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
@@ -119,6 +136,8 @@ export const env = createEnv({
     NEXT_PUBLIC_FIREBASE_APP_ID: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
     NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
     NEXT_PUBLIC_BRANDFETCH_HERO: process.env.NEXT_PUBLIC_BRANDFETCH_HERO,
+    NEXT_PUBLIC_STRIPE_BILLING: process.env.NEXT_PUBLIC_STRIPE_BILLING,
+    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
   },
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
   emptyStringAsUndefined: true,
