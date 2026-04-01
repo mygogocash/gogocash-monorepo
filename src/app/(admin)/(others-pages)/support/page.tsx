@@ -30,7 +30,7 @@ export default async function SupportPage(props: DefaultAppPageProps) {
               1. Getting started
             </h2>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              After signing in, you usually land on a dashboard. The left sidebar groups tools by area: <strong>Dashboard</strong> (platform and executive views), <strong>Users Management</strong>, <strong>Offers Management</strong> (offers, commission, policy, deeplink), <strong>Withdraw Management</strong>, <strong>Conversion Management</strong>, <strong>Banner Management</strong>, <strong>Coupon Management</strong>, and <strong>Quest Management</strong>. Below that, <strong>Fee</strong> holds fee and withdrawal settings. Use the header menu for your profile, account settings, this <strong>Support</strong> page, and <strong>Sign out</strong>.
+              After signing in, you usually land on a dashboard. The left sidebar groups tools by area: <strong>Dashboard</strong> (platform and executive views), <strong>Users Management</strong>, <strong>Offers Management</strong> (offers, commission, policy, user deeplink), <strong>Withdraw Management</strong>, <strong>Conversion Management</strong>, <strong>Banner Management</strong>, <strong>Coupon Management</strong>, and <strong>Quest Management</strong>. Below that, <strong>Fee</strong> holds fee and withdrawal settings. Use the header menu for your profile, account settings, this <strong>Support</strong> page, and <strong>Sign out</strong>.
             </p>
           </section>
 
@@ -86,7 +86,7 @@ export default async function SupportPage(props: DefaultAppPageProps) {
                 <strong>Policy Management</strong> — Terms and conditions per category (opens from the Offers section).
               </li>
               <li>
-                <strong>Deeplink</strong> — Manage deeplinks that open specific screens or offers in the app (campaigns, notifications, in-app navigation).
+                <strong>User Deeplink</strong> — Manage user-associated deeplinks that open specific screens or offers in the app (campaigns, notifications, in-app navigation).
               </li>
             </ul>
           </section>

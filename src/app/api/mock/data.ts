@@ -1,3 +1,8 @@
+import {
+  affiliateNetworkIdForOfferId,
+  affiliateNetworkName,
+} from "@/data/affiliateNetworks";
+
 const now = new Date().toISOString();
 const yesterday = new Date(Date.now() - 86400000).toISOString();
 const lastWeek = new Date(Date.now() - 7 * 86400000).toISOString();
@@ -61,8 +66,9 @@ export const mockOffers = Array.from({ length: 550 }, (_, i) => {
   const merchantId = 2001 + (i % 4);
   const names = ["Shopee TH - CPS", "Lazada TH - CPS", "Agoda - CPS", "GrabFood TH"];
   const lookups = ["shopee_th", "lazada_th", "agoda", "grab_food"];
+  const _id = `o${i + 1}`;
   return {
-    _id: `o${i + 1}`,
+    _id,
     offer_id: offerId,
     __v: 0,
     ...t,
@@ -72,6 +78,7 @@ export const mockOffers = Array.from({ length: 550 }, (_, i) => {
     merchant_id: merchantId,
     offer_name: `${names[i % 4]} #${i + 1}`,
     tracking_link: `https://track.example.com/${lookups[i % 4]}/${i}`,
+    affiliate_partner: affiliateNetworkName(affiliateNetworkIdForOfferId(_id)),
   };
 });
 

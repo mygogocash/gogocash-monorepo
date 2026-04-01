@@ -1,15 +1,17 @@
 import { Suspense } from "react";
 import WithdrawDetail from "@/components/withdraw/WithdrawDetail";
 import WithdrawDetailPageHeader from "@/components/withdraw/WithdrawDetailPageHeader";
-import { mockWithdraws } from "@/app/api/mock/data";
-import { awaitPageDynamicProps, type AppPageRouteParams } from "@/lib/nextAppPageProps";
+import { mockUsers, mockWithdraws } from "@/app/api/mock/data";
 
 /** Pre-render withdraw detail paths for static export (Firebase Hosting). */
 export function generateStaticParams() {
   if (process.env.BUILD_FOR_FIREBASE !== "1") {
     return [];
   }
-  return mockWithdraws.map((w) => ({ id: w._id }));
+  const ids = new Map<string, true>();
+  for (const w of mockWithdraws) ids.set(w._id, true);
+  for (const u of mockUsers) ids.set(u._id, true);
+  return [...ids.keys()].map((id) => ({ id }));
 }
 
 /**
@@ -18,12 +20,10 @@ export function generateStaticParams() {
  */
 export default async function WithdrawDetailPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<AppPageRouteParams>;
 }) {
-  await awaitPageDynamicProps({ params, searchParams });
+  await params;
   return (
     <div>
       <WithdrawDetailPageHeader />

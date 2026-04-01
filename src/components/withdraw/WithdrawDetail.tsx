@@ -124,8 +124,8 @@ const WithdrawDetail = () => {
 
   const column = useMemo<GridColDef[]>(
     () => [
-    { field: "id", headerName: "ID", width: 40 },
-    { field: "conversion_id", headerName: "ID", width: 100 },
+    { field: "rowIndex", headerName: "#", width: 44, sortable: false },
+    { field: "conversion_id", headerName: "Conversion ID", width: 120 },
     {
       field: "offer_name",
       headerName: "Offer name",
@@ -206,11 +206,7 @@ const WithdrawDetail = () => {
 
   const columnWithdraw = useMemo<GridColDef[]>(
     () => [
-    {
-      field: "id",
-      headerName: "ID",
-      width: 40,
-    },
+    { field: "rowIndex", headerName: "#", width: 44, sortable: false },
 
     {
       field: "mycashback_id",
@@ -342,20 +338,16 @@ const WithdrawDetail = () => {
   );
 
   const rowsData =
-    withdrawDetail?.allConversions?.map((item, index) => {
-      return {
-        ...item,
-        id: index + 1,
-      };
-    }) || [];
+    withdrawDetail?.allConversions?.map((item, index) => ({
+      ...item,
+      rowIndex: index + 1,
+    })) || [];
 
   const rowsDataWithdraw =
-    withdrawDetail?.withdrawList?.map((item, index) => {
-      return {
-        ...item,
-        id: index + 1,
-      };
-    }) || [];
+    withdrawDetail?.withdrawList?.map((item, index) => ({
+      ...item,
+      rowIndex: index + 1,
+    })) || [];
 
   const userDeeplinks = useMemo(() => {
     const uid = withdrawDetail?.user?._id ?? (typeof id === "string" ? id : "");
@@ -953,10 +945,12 @@ const WithdrawDetail = () => {
                       href="/offers?tab=deeplink"
                       className="text-brand-600 underline dark:text-brand-400"
                     >
-                      Deeplink
+                      User Deeplink
                     </Link>
                     {" "}
-                    <span className="text-gray-400 dark:text-gray-500">(Offers Management → Deeplink)</span>
+                    <span className="text-gray-400 dark:text-gray-500">
+                      (Offers Management → User Deeplink)
+                    </span>
                   </p>
                 </div>
               ) : (

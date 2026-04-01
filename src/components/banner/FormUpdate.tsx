@@ -9,6 +9,8 @@ import Button from "../ui/button/Button";
 import { useDataSession } from "@/hooks/useDataSession";
 import { pathImage } from "@/utils/helper";
 import { BannerRequestForm } from "@/types/banner";
+import { devError } from "@/lib/devConsole";
+import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 interface IProp {
   fetchData: () => void;
   openModal: boolean;
@@ -68,10 +70,10 @@ const FormUpdate = ({
         setIsLoading(false);
         toast.success("updated successfully");
       })
-      .catch(() => {
+      .catch((err: unknown) => {
         setIsLoading(false);
-        // console.error("Failed to update withdraw request:", err);
-        // toast.error(err?.data?.message || "updated error");
+        devError("Banner update failed:", err);
+        toast.error(getApiErrorMessage(err, "Update failed"));
       });
   };
   const slotImage = form[`image_${form.id}` as keyof BannerRequestForm];

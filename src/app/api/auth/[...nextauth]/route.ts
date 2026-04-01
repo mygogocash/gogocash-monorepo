@@ -3,6 +3,7 @@ import type { NextAuthOptions, User as NextAuthUser } from "next-auth";
 import type { JWT } from "next-auth/jwt";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { apiClient } from "@/lib/api";
+import { devError } from "@/lib/devConsole";
 import { isMockAdminPasswordAllowed } from "@/lib/mockAuthPolicy";
 
 const authOptions: NextAuthOptions = {
@@ -47,7 +48,7 @@ const authOptions: NextAuthOptions = {
             error instanceof Error ? error.message : typeof error === "object" && error && "message" in error
               ? String((error as { message: unknown }).message)
               : "Unknown error";
-          console.error("NextAuth authorize failed:", message);
+          devError("NextAuth authorize failed:", message);
           return null;
         }
       },

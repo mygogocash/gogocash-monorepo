@@ -206,6 +206,8 @@ export interface Offer {
   admin_commission_info?: string[];
   /** Short message from admin shown to end users for this offer (e.g. app offer detail). */
   note_to_user?: string | null;
+  /** Affiliate / performance network name (e.g. Involve Asia). Optional; UI may derive from offer id in mock. */
+  affiliate_partner?: string | null;
 }
 
 export interface OfferRequestForm {

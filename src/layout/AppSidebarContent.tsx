@@ -56,7 +56,7 @@ export const navItems: NavItem[] = [
       { name: "Offers", path: "/offers", pro: false },
       { name: "Commission Management", path: "/offers?tab=commission", pro: false },
       { name: "Policy Management", path: "/offers?tab=policy", pro: false },
-      { name: "Deeplink", path: "/offers?tab=deeplink", pro: false },
+      { name: "User Deeplink", path: "/offers?tab=deeplink", pro: false },
     ],
   },
   {
