@@ -198,28 +198,6 @@ button {
   backdrop-filter: blur(14px);
 }
 
-/* Profile hub: main pane eases in when route changes (SubPage uses key={pathname}). */
-@keyframes gc-profile-pane-enter {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 6px, 0);
-  }
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
-}
-
-.gc-profile-subpage-content {
-  animation: gc-profile-pane-enter 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .gc-profile-subpage-content {
-    animation: none;
-  }
-}
-
 .gc-soft-panel {
   border: 1px solid rgba(195, 209, 196, 0.75);
   border-radius: var(--gc-radius-lg);
@@ -410,4 +388,38 @@ button {
   .gq-score-pulse-on {
     animation: none;
   }
+}
+
+/* Subscription pricing / billing loading skeletons */
+@keyframes gc-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.gc-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--gc-border) 25%,
+    var(--gc-surface-strong) 50%,
+    var(--gc-border) 75%
+  );
+  background-size: 200% 100%;
+  animation: gc-shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--gc-radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gc-skeleton {
+    animation: none;
+    background: var(--gc-border);
+  }
+}
+
+.gc-subscription-focus:focus-visible {
+  outline: 2px solid var(--gc-primary);
+  outline-offset: 2px;
 }

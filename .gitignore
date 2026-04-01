@@ -12,6 +12,9 @@
 
 # testing
 /coverage
+/test-results/
+# Playwright saved session (see e2e/profile-subpage-scroll.spec.ts)
+/e2e/.auth/
 
 # next.js
 /.next/

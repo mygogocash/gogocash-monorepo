@@ -21,6 +21,8 @@ describe("isIntegratedProfileShellPath", () => {
     expect(isIntegratedProfileShellPath("/missing-orders")).toBe(true);
     expect(isIntegratedProfileShellPath("/subscription")).toBe(true);
     expect(isIntegratedProfileShellPath("/membership")).toBe(true);
+    expect(isIntegratedProfileShellPath("/pricing")).toBe(true);
+    expect(isIntegratedProfileShellPath("/billing")).toBe(true);
     expect(isIntegratedProfileShellPath("/withdraw")).toBe(true);
     expect(isIntegratedProfileShellPath("/withdraw/my-cashback")).toBe(true);
     expect(isIntegratedProfileShellPath("/privacy-center")).toBe(true);

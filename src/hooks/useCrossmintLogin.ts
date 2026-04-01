@@ -25,6 +25,8 @@ const useCrossmintLogin = () => {
 
   // Get referral_id safely without useSearchParams to avoid Suspense issues
   const [referral_id, setReferralId] = useState<string | undefined>(undefined);
+  const referralIdLatest = useRef(referral_id);
+  referralIdLatest.current = referral_id;
 
   useEffect(() => {
     // Access search params on client side only, after mount
@@ -93,7 +95,7 @@ const useCrossmintLogin = () => {
         address: wallet?.address,
         // username: userData?.username,
         id_twitter: user?.twitter,
-        referral_id: referral_id,
+        referral_id: referralIdLatest.current,
         // _id: userData?._id,
         // userId: userData.id_crossmint,
         // email: userData.email,
@@ -103,7 +105,6 @@ const useCrossmintLogin = () => {
         // _id: userData?._id,
         redirect: false, // Handle redirect manually
       }).catch(() => undefined);
-      // console.log("signIn result", result);
 
       if (result?.ok) {
         setLoginState((prev) => ({
@@ -123,18 +124,18 @@ const useCrossmintLogin = () => {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Login error occurred";
 
-      setLoginState((prev) => ({
-        ...prev,
-        error: errorMessage,
-        isLoggingIn: false,
-        retryCount: prev.retryCount + 1,
-        hasAttemptedLogin: prev.retryCount + 1 >= maxRetries,
-      }));
-
-      // Only show toast for first few errors to avoid spam
-      if (loginState.retryCount < 2) {
-        toast.error(errorMessage);
-      }
+      setLoginState((prev) => {
+        if (prev.retryCount < 2) {
+          toast.error(errorMessage);
+        }
+        return {
+          ...prev,
+          error: errorMessage,
+          isLoggingIn: false,
+          retryCount: prev.retryCount + 1,
+          hasAttemptedLogin: prev.retryCount + 1 >= maxRetries,
+        };
+      });
       crossmintAuth.logout();
     } finally {
       loginAttemptRef.current = false;
@@ -156,11 +157,6 @@ const useCrossmintLogin = () => {
       !loginAttemptRef.current &&
       loginState.retryCount < maxRetries
     ) {
-      // console.log('✅ Crossmint user authenticated, starting backend login:', {
-      //   user: { id: user.id, email: user.email },
-      //   wallet: { address: wallet?.address, status },
-      // });
-
       // Add a small delay to prevent rapid fire requests
       const timeoutId = setTimeout(() => {
         if (window.sessionStorage.getItem("isAfterLogin") === "true") {
@@ -192,15 +188,6 @@ const useCrossmintLogin = () => {
     });
     loginAttemptRef.current = false;
   }, [crossmintAuth]);
-
-  // Debug what we're returning
-  // console.log('🔍 useCrossmintLogin returning:', {
-  //   hasLogin: !!crossmintAuth.login,
-  //   loginType: typeof crossmintAuth.login,
-  //   statusAuth: crossmintAuth.status,
-  //   hasUser: !!crossmintAuth.user,
-  //   hasJwt: !!crossmintAuth.jwt,
-  // });
 
   const getCheckQuery = useQuery<ResponseWithdrawCheck>({
     queryKey: ["getCheck"],

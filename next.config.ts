@@ -84,6 +84,8 @@ const nextConfig: NextConfig = {
     ],
     formats: ["image/avif", "image/webp"],
     minimumCacheTTL: 60,
+    /** Allow `quality={92}` on local avatar images (ProfileBar, etc.); Next 16 requires explicit values. */
+    qualities: [75, 92],
   },
 
   /**

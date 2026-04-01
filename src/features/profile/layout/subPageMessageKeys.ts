@@ -15,6 +15,8 @@ export const SUB_PAGE_TITLE_KEYS = [
   "profilePopperGogoquestHistory",
   "missingOrdersPageTitle",
   "pdpaPrivacyCenterTitle",
+  "subscriptionPricingTitle",
+  "subscriptionBillingTitle",
 ] as const;
 
 export type SubPageTitleKey = (typeof SUB_PAGE_TITLE_KEYS)[number];

@@ -44,17 +44,19 @@ const SubPage = ({ title, resolvedTitle, children, subTitle, showSubMenu, conten
       <div className="flex h-full min-h-0 min-w-0 w-full flex-1 flex-col px-0 pb-20 pt-6 md:pt-10 md:pb-20">
         <h1 className="sr-only">{heading}</h1>
         <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-3xl border border-[#e4e4e4] bg-white">
-          <div className="flex min-h-0 flex-1 flex-col md:flex-row md:items-stretch">
-            <div className="flex min-h-0 flex-col border-b border-[#e4e4e4] p-5 md:z-10 md:w-[min(320px,34%)] md:max-w-[320px] md:shrink-0 md:overflow-y-auto md:overscroll-contain md:border-b-0 md:border-r md:p-6">
+          {/* md: min-h-0 + overflow-hidden so the row height follows the card (viewport), not the tallest child content */}
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:h-full md:min-h-0 md:flex-row md:items-stretch">
+            <div className="flex min-h-0 flex-col border-b border-[#e4e4e4] p-5 md:z-10 md:h-full md:max-h-full md:w-[min(320px,34%)] md:max-w-[320px] md:shrink-0 md:overflow-y-auto md:overscroll-contain md:border-b-0 md:border-r md:p-6">
               <SubProfile variant="panel" />
             </div>
             <div
               ref={mainScrollRef}
-              className="flex min-h-0 min-w-0 flex-1 flex-col gap-8 overflow-auto overscroll-contain px-5 py-7 md:min-h-0 md:px-8 md:py-8"
+              data-testid="profile-subpage-main-scroll"
+              className="flex min-h-0 min-w-0 flex-1 flex-col gap-0 overflow-y-auto overscroll-contain px-4 py-6 sm:px-5 sm:py-7 md:h-full md:min-h-0 md:px-8 md:py-9 lg:px-10"
             >
               <div
                 key={pathname}
-                className="gc-profile-subpage-content flex min-h-0 min-w-0 flex-1 flex-col gap-8"
+                className="gc-profile-subpage-content flex min-w-0 w-full flex-col gap-4 md:gap-6"
               >
                 {subTitle && (
                   <h2 className="text-[20px] font-semibold tracking-tight text-[#3b3b3b] md:text-[22px]">
@@ -77,11 +79,12 @@ const SubPage = ({ title, resolvedTitle, children, subTitle, showSubMenu, conten
         <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-3xl border border-[#e4e4e4] bg-white">
           <div
             ref={mainScrollRef}
-            className="flex min-h-0 min-w-0 flex-1 flex-col gap-8 overflow-auto overscroll-contain px-5 py-7 md:px-8 md:py-8"
+            data-testid="profile-subpage-main-scroll"
+            className="flex min-h-0 min-w-0 flex-1 flex-col gap-0 overflow-y-auto overscroll-contain px-4 py-6 sm:px-5 sm:py-7 md:h-full md:min-h-0 md:px-8 md:py-9 lg:px-10"
           >
             <div
               key={pathname}
-              className="gc-profile-subpage-content flex min-h-0 min-w-0 flex-1 flex-col gap-8"
+              className="gc-profile-subpage-content flex min-w-0 w-full flex-col gap-4 md:gap-6"
             >
               {subTitle && (
                 <h2 className="text-[20px] font-semibold tracking-tight text-[#3b3b3b] md:text-[22px]">

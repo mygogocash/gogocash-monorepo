@@ -9,16 +9,10 @@ import { getStripe } from "@/lib/stripe/getStripe";
 import { FEATURE_FLAGS } from "@/constants/featureFlags";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
-import { z } from "zod";
+import { parseStripeCheckoutBody } from "@/lib/stripe/checkoutRequestBody";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const bodySchema = z.object({
-  tier: z.enum(["starter", "plus", "pro"]),
-  interval: z.enum(["month", "year"]),
-  locale: z.enum(["en", "th"]).optional().default("en"),
-});
 
 function absoluteOrigin(request: Request): string {
   const fromEnv = env.NEXT_PUBLIC_FRONTEND_URL?.replace(/\/$/, "");
@@ -52,7 +46,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const parsed = bodySchema.safeParse(json);
+  const parsed = parseStripeCheckoutBody(json);
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }

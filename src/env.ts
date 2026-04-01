@@ -45,6 +45,8 @@ export const env = createEnv({
     STRIPE_WEBHOOK_SECRET: optionalString,
     /** Subscription Price IDs from Stripe Dashboard (Billing → Products). */
     STRIPE_PRICE_STARTER_MONTHLY: optionalString,
+    /** Annual Starter — alias for `STRIPE_PRICE_STARTER_YEARLY` if unset. */
+    STRIPE_PRICE_STARTER_ANNUAL: optionalString,
     STRIPE_PRICE_STARTER_YEARLY: optionalString,
     STRIPE_PRICE_PLUS_MONTHLY: optionalString,
     STRIPE_PRICE_PLUS_YEARLY: optionalString,

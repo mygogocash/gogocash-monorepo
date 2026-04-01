@@ -49,6 +49,9 @@ export function isIntegratedProfileShellPath(pathname: string | null): boolean {
   if (pathname === "/membership" || pathname.startsWith("/membership/")) {
     return true;
   }
+  if (pathname === "/pricing" || pathname === "/billing") {
+    return true;
+  }
   if (pathname === "/withdraw" || pathname.startsWith("/withdraw/")) {
     return true;
   }

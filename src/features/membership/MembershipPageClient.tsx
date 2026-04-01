@@ -3,12 +3,15 @@
 import "./membership.css";
 
 import Image from "next/image";
-import { Check, Minus, Plus } from "lucide-react";
+import { Check, Minus, Plus, RotateCcw } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useId, useMemo, useRef } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 
 import { useMembershipLanding, type MembershipLandingI18n } from "./useMembershipLanding";
 import { useStripeCheckout } from "./useStripeCheckout";
+
+const STARTER_PRICE_MONTHLY = 69;
+const STARTER_PRICE_ANNUAL_EFFECTIVE = 57;
 
 function FeatureIcon({ ok }: { ok: boolean }) {
   return ok ? (
@@ -44,13 +47,18 @@ export default function MembershipPageClient() {
     [t]
   );
 
-  const { startCheckout, openBillingPortal, pending, portalPending, stripeBillingEnabled } =
-    useStripeCheckout(rootRef, checkoutMessages);
+  const { startCheckout, pending, stripeBillingEnabled } = useStripeCheckout(
+    rootRef,
+    checkoutMessages
+  );
+
+  const [billingAnnual, setBillingAnnual] = useState(true);
+  const starterPriceLabel = billingAnnual
+    ? `฿${STARTER_PRICE_ANNUAL_EFFECTIVE}/mo`
+    : `฿${STARTER_PRICE_MONTHLY}/mo`;
 
   const freeFeatures = t.raw("freeFeatures") as string[];
   const starterFeatures = t.raw("starterFeatures") as string[];
-  const plusFeatures = t.raw("plusFeatures") as string[];
-  const proFeatures = t.raw("proFeatures") as string[];
   const questTasks = t.raw("questTasks") as string[];
   const faqItems = t.raw("faq") as { q: string; a: string }[];
 
@@ -62,60 +70,6 @@ export default function MembershipPageClient() {
       suppressHydrationWarning
     >
       <div className="mship-layout">
-        <header className="mship-sticky-head">
-          <div className="mship-toolbar" id="top">
-            <div className="mship-toolbar-inner">
-              <p className="mship-toolbar-title">{t("toolbarTitle")}</p>
-              <div className="mship-toolbar-actions">
-                {stripeBillingEnabled ? (
-                  <>
-                    <button
-                      type="button"
-                      className="rounded-full border border-[var(--gc-border,#e4e4e4)] bg-white px-3 py-2 text-sm font-semibold text-[#00aa80] hover:bg-[#f6f6f6] disabled:opacity-50"
-                      disabled={portalPending}
-                      onClick={() => void openBillingPortal()}
-                    >
-                      {t("stripeManageBilling")}
-                    </button>
-                    <button
-                      type="button"
-                      className="pill-cta btn-ripple"
-                      disabled={pending}
-                      aria-busy={pending}
-                      onClick={() => void startCheckout("plus")}
-                    >
-                      {t("getPlus")}
-                    </button>
-                  </>
-                ) : (
-                  <a className="pill-cta btn-ripple" href="#pricing">
-                    {t("getPlus")}
-                  </a>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <nav className="mship-page-nav" aria-label={t("pageNavLabel")}>
-            <span className="sr-only">{t("pageNavHint")}</span>
-            <a className="mship-nav-pill" href="#calculator">
-              {t("navCalculator")}
-            </a>
-            <a className="mship-nav-pill" href="#pricing">
-              {t("navPlans")}
-            </a>
-            <a className="mship-nav-pill" href="#songkran">
-              {t("navCompare")}
-            </a>
-            <a className="mship-nav-pill" href="#faq">
-              {t("navFaq")}
-            </a>
-            <a className="mship-nav-pill mship-nav-pill--accent" href="#footer-cta">
-              {t("navCta")}
-            </a>
-          </nav>
-        </header>
-
         <main className="mship-main">
           <section className="hero-section section" aria-labelledby="hero-title">
             <svg className="hero-noise" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -155,6 +109,30 @@ export default function MembershipPageClient() {
                   {t("heroH1")}
                 </h1>
                 <p className="hero-body">{t("heroBody")}</p>
+                <div className="hero-tiers-row">
+                  <div className="hero-tier-cell">
+                    <div className="hero-card hero-card-free">
+                      <h3>{t("tierFree")}</h3>
+                      <div className="mult-badge mb-free">1×</div>
+                      <div className="hero-pts">
+                        <span id="hero-pts-free" data-suffix={t("ptsSuffix")}>
+                          0
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="hero-tier-cell">
+                    <div className="hero-card hero-card-plus">
+                      <h3>{t("tierStarter")}</h3>
+                      <div className="mult-badge mb-plus badge-pulse">1.5×</div>
+                      <div className="hero-pts">
+                        <span id="hero-pts-starter" data-suffix={t("ptsSuffix")}>
+                          0
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
                 <div className="hero-actions">
                   {stripeBillingEnabled ? (
                     <button
@@ -177,40 +155,6 @@ export default function MembershipPageClient() {
                       ↓
                     </span>
                   </a>
-                </div>
-              </div>
-              <div className="hero-cards-wrap">
-                <div className="hero-cards">
-                  <div className="hero-card hero-card-free">
-                    <h3>{t("tierFree")}</h3>
-                    <div className="mult-badge mb-free">1×</div>
-                    <div className="hero-pts">
-                      <span id="hero-pts-free" data-suffix={t("ptsSuffix")}>
-                        0
-                      </span>
-                    </div>
-                  </div>
-                  <div className="hero-card hero-card-plus">
-                    <h3>{t("tierPlus")}</h3>
-                    <div className="mult-badge mb-plus badge-pulse">2×</div>
-                    <div className="hero-pts">
-                      <span id="hero-pts-plus" data-suffix={t("ptsSuffix")}>
-                        0
-                      </span>
-                    </div>
-                  </div>
-                  <div className="hero-card hero-card-pro">
-                    <h3>{t("tierPro")}</h3>
-                    <div className="mult-badge mb-pro">3×</div>
-                    <div className="hero-pts">
-                      <span id="hero-pts-pro" data-suffix={t("ptsSuffix")}>
-                        0
-                      </span>
-                    </div>
-                    <div id="hero-pro-bonus" className="pts-popup" aria-hidden="true">
-                      {t("bonusPopup")}
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
@@ -258,16 +202,6 @@ export default function MembershipPageClient() {
                     <div id="pts-starter" className="calc-pts" />
                     <div id="extra-starter" className="calc-extra" />
                   </div>
-                  <div className="calc-col">
-                    <div className="calc-tier">{t("calcPlus")}</div>
-                    <div id="pts-plus" className="calc-pts" />
-                    <div id="extra-plus" className="calc-extra" />
-                  </div>
-                  <div className="calc-col calc-col-pro">
-                    <div className="calc-tier">{t("calcPro")}</div>
-                    <div id="pts-pro" className="calc-pts" />
-                    <div id="extra-pro" className="calc-extra" />
-                  </div>
                 </div>
                 <p className="leaving-line">
                   {t("leavingPrefix")}
@@ -301,21 +235,42 @@ export default function MembershipPageClient() {
 
           <section className="section" id="pricing">
             <div className="container">
-              <div className="section-head">
-                <h2 className="section-title">{t("pickHeading")}</h2>
-              </div>
-              <div
-                id="billing-toggle"
-                data-annual="false"
-                role="group"
-                aria-label={t("billingAria")}
-              >
-                <button type="button" id="bill-monthly" className="active" data-billing="monthly">
-                  {t("monthly")}
-                </button>
-                <button type="button" id="bill-annual" data-billing="annual">
-                  {t("annual")} <span className="billing-save">{t("annualSave")}</span>
-                </button>
+              <div className="pricing-billing-header">
+                <div className="section-head section-head--pricing">
+                  <h2 className="section-title">{t("pickHeading")}</h2>
+                </div>
+                <p className="billing-nudge">{t("billingAnnualNudge")}</p>
+                <div
+                  id="billing-toggle"
+                  data-annual={billingAnnual ? "true" : "false"}
+                  role="group"
+                  aria-label={t("billingAria")}
+                >
+                  <button
+                    type="button"
+                    id="bill-monthly"
+                    data-billing="monthly"
+                    className={!billingAnnual ? "active" : undefined}
+                    onClick={() => setBillingAnnual(false)}
+                  >
+                    <span className="billing-choice-eyebrow">{t("monthly")}</span>
+                    <span className="billing-choice-hint">{t("billingMonthlyHint")}</span>
+                  </button>
+                  <button
+                    type="button"
+                    id="bill-annual"
+                    className={billingAnnual ? "active" : undefined}
+                    data-billing="annual"
+                    onClick={() => setBillingAnnual(true)}
+                  >
+                    <span className="billing-choice-badge">{t("popular")}</span>
+                    <span className="billing-choice-eyebrow billing-choice-eyebrow--lg">
+                      {t("annual")}
+                    </span>
+                    <span className="billing-choice-save">{t("annualSave")}</span>
+                    <span className="billing-choice-hint">{t("billingAnnualHint")}</span>
+                  </button>
+                </div>
               </div>
               <div className="pricing-grid">
                 <article className="pricing-card pc-free">
@@ -345,18 +300,18 @@ export default function MembershipPageClient() {
                     </span>
                   </div>
                   <div className="pc-price">
-                    <span id="price-starter">฿69/mo</span>{" "}
+                    <span id="price-starter">{starterPriceLabel}</span>{" "}
                     <span
                       id="price-orig-starter"
                       className="orig"
                       style={{
-                        display: "none",
+                        display: billingAnnual ? "inline" : "none",
                         textDecoration: "line-through",
                         color: "var(--text-muted)",
                         fontSize: "var(--text-sm)",
                       }}
                     >
-                      ฿69
+                      ฿{STARTER_PRICE_MONTHLY}
                     </span>
                   </div>
                   <ul className="pc-features">
@@ -375,85 +330,6 @@ export default function MembershipPageClient() {
                     onClick={stripeBillingEnabled ? () => void startCheckout("starter") : undefined}
                   >
                     {t("starterCta")}
-                  </button>
-                </article>
-                <article className="pricing-card pricing-card-featured">
-                  <div className="popular-badge">{t("popular")}</div>
-                  <div className="pc-head">
-                    <span className="mult-badge mb-plus badge-pulse">2×</span>
-                  </div>
-                  <div className="pc-price">
-                    <span id="price-plus">฿149/mo</span>{" "}
-                    <span
-                      id="price-orig-plus"
-                      style={{
-                        display: "none",
-                        textDecoration: "line-through",
-                        color: "var(--text-muted)",
-                        fontSize: "var(--text-sm)",
-                      }}
-                    >
-                      ฿149
-                    </span>
-                  </div>
-                  <ul className="pc-features">
-                    {plusFeatures.map((line, i) => (
-                      <li key={line} className="ok">
-                        <span className="feat-icon">
-                          <Check width={18} height={18} aria-hidden />
-                        </span>
-                        <span>
-                          {i === 0 || i === 3 || i === 4 ? <strong>{line}</strong> : line}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                  <button
-                    type="button"
-                    className="btn-solid btn-ripple"
-                    disabled={stripeBillingEnabled && pending}
-                    aria-busy={stripeBillingEnabled && pending}
-                    onClick={stripeBillingEnabled ? () => void startCheckout("plus") : undefined}
-                  >
-                    {t("plusCta")}
-                  </button>
-                </article>
-                <article className="pricing-card pro-card-bg">
-                  <div className="pc-head">
-                    <span className="mult-badge mb-pro">3×</span>
-                  </div>
-                  <div className="pc-price">
-                    <span id="price-pro">฿299/mo</span>{" "}
-                    <span
-                      id="price-orig-pro"
-                      style={{
-                        display: "none",
-                        textDecoration: "line-through",
-                        color: "var(--text-muted)",
-                        fontSize: "var(--text-sm)",
-                      }}
-                    >
-                      ฿299
-                    </span>
-                  </div>
-                  <ul className="pc-features">
-                    {proFeatures.map((line, i) => (
-                      <li key={line} className="ok">
-                        <span className="feat-icon" style={{ color: "var(--gold)" }}>
-                          <Check width={18} height={18} aria-hidden />
-                        </span>
-                        <span>{[0, 3, 4, 5].includes(i) ? <strong>{line}</strong> : line}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <button
-                    type="button"
-                    className="btn-pro-dark btn-ripple"
-                    disabled={stripeBillingEnabled && pending}
-                    aria-busy={stripeBillingEnabled && pending}
-                    onClick={stripeBillingEnabled ? () => void startCheckout("pro") : undefined}
-                  >
-                    {t("proCta")}
                   </button>
                 </article>
               </div>
@@ -538,22 +414,6 @@ export default function MembershipPageClient() {
                       <td>8,100 pts</td>
                       <td>฿81.00</td>
                     </tr>
-                    <tr>
-                      <td>Plus</td>
-                      <td>2×</td>
-                      <td>+150 pts</td>
-                      <td>10,750 pts</td>
-                      <td>฿107.50</td>
-                    </tr>
-                    <tr className="row-pro">
-                      <td>Pro</td>
-                      <td>3×</td>
-                      <td>+150 pts</td>
-                      <td>
-                        16,050 pts <span className="best-val">{t("bestValue")}</span>
-                      </td>
-                      <td>฿160.50</td>
-                    </tr>
                   </tbody>
                 </table>
               </div>
@@ -568,7 +428,7 @@ export default function MembershipPageClient() {
                     className="btn-primary btn-ripple"
                     disabled={pending}
                     aria-busy={pending}
-                    onClick={() => void startCheckout("plus")}
+                    onClick={() => void startCheckout("starter")}
                   >
                     {t("songkranUpgradeCta")}
                   </button>
@@ -581,54 +441,91 @@ export default function MembershipPageClient() {
             </div>
           </section>
 
-          <section className="section" id="gameboard">
+          <section className="section section-gameboard" id="gameboard">
             <div className="container">
-              <div className="section-head">
+              <div className="section-head gameboard-section-head">
                 <h2 className="section-title">{t("gameboardHeading")}</h2>
+                <p className="gameboard-intro">{t("gameboardIntro")}</p>
               </div>
-              <div className="game-grid">
-                <div className="streak-panel">
-                  <div className="streak-toggle">
-                    <label
-                      htmlFor="streak-plan"
-                      className="calc-label"
-                      style={{ margin: 0, alignSelf: "center" }}
-                    >
-                      {t("streakLabel")}
-                    </label>
-                    <select id="streak-plan" aria-label={t("streakAria")}>
-                      <option value="plus">{t("streakPlus")}</option>
-                      <option value="pro">{t("streakPro")}</option>
-                    </select>
-                    <button
-                      type="button"
-                      id="streak-reset"
-                      className="link-bounce"
-                      style={{ marginLeft: "auto", fontSize: "var(--text-sm)" }}
-                    >
-                      {t("streakReset")}
-                    </button>
-                  </div>
-                  <div id="streak-grid" className="sg7" />
-                  <p id="streak-total" className="streak-total">
-                    {t("streakZero")}
-                  </p>
-                </div>
-                <div>
-                  <p className="calc-label" style={{ marginBottom: "var(--s4)" }}>
-                    {t("questSection")}
-                  </p>
-                  <div className="quest-stack">
-                    {questTasks.map((label) => (
-                      <button key={label} type="button" className="quest-task reveal">
-                        <span>{label}</span>
-                        <span className="quest-pts">{t("questPts")}</span>
+              <div className="gameboard-card">
+                <div className="gameboard-panels">
+                  <div className="gameboard-panel gameboard-panel--streak">
+                    <div className="gameboard-panel-head">
+                      <div className="gameboard-panel-head-main">
+                        <h3 className="gameboard-panel-title">{t("streakLabel")}</h3>
+                        <p className="gameboard-panel-hint">{t("streakHelp")}</p>
+                      </div>
+                      <button type="button" id="streak-reset" className="gameboard-reset">
+                        <RotateCcw
+                          className="gameboard-reset-icon"
+                          width={18}
+                          height={18}
+                          aria-hidden
+                        />
+                        <span>{t("streakReset")}</span>
                       </button>
-                    ))}
+                    </div>
+                    <p className="gameboard-field-label" id="streak-plan-label">
+                      {t("streakPlanHelp")}
+                    </p>
+                    <div
+                      className="streak-plan-segment"
+                      role="radiogroup"
+                      aria-labelledby="streak-plan-label"
+                    >
+                      <label className="streak-plan-option">
+                        <input type="radio" name="mship-streak-plan" value="plus" defaultChecked />
+                        <span className="streak-plan-option-ui">{t("streakPlus")}</span>
+                      </label>
+                      <label className="streak-plan-option">
+                        <input type="radio" name="mship-streak-plan" value="pro" />
+                        <span className="streak-plan-option-ui">{t("streakPro")}</span>
+                      </label>
+                    </div>
+                    <p className="gameboard-field-label" id="streak-grid-label">
+                      {t("streakGridHelp")}
+                    </p>
+                    <div
+                      className="streak-grid-surface"
+                      role="group"
+                      aria-label={t("streakGridAria")}
+                      aria-describedby="streak-grid-label"
+                    >
+                      <div id="streak-grid" className="sg7" />
+                    </div>
+                    <p id="streak-total" className="gameboard-streak-total">
+                      {t("streakZero")}
+                    </p>
                   </div>
-                  <p id="quest-total" className="streak-total" style={{ marginTop: "var(--s4)" }}>
-                    {t("questFmt", { done: "0", pts: "0" })}
-                  </p>
+                  <div className="gameboard-panel gameboard-panel--quests">
+                    <div className="gameboard-panel-head gameboard-panel-head--quests">
+                      <div className="gameboard-panel-head-main">
+                        <h3 className="gameboard-panel-title">{t("questSection")}</h3>
+                        <p className="gameboard-panel-hint">{t("questHelp")}</p>
+                      </div>
+                    </div>
+                    <ul className="quest-list" role="list" aria-label={t("questSection")}>
+                      {questTasks.map((label) => (
+                        <li key={label}>
+                          <button type="button" className="quest-task reveal">
+                            <span className="quest-task-check" aria-hidden />
+                            <span className="quest-task-label">{label}</span>
+                            <span className="quest-pts">{t("questPts")}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="gameboard-progress-label" id="quest-progress-label">
+                      {t("questProgressLabel")}
+                    </p>
+                    <p
+                      id="quest-total"
+                      className="gameboard-quest-total"
+                      aria-labelledby="quest-progress-label"
+                    >
+                      {t("questFmt", { done: "0", pts: "0" })}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -728,7 +625,7 @@ export default function MembershipPageClient() {
                     className="btn-foot-primary btn-ripple"
                     disabled={pending}
                     aria-busy={pending}
-                    onClick={() => void startCheckout("plus")}
+                    onClick={() => void startCheckout("starter")}
                   >
                     {t("footerCta1")}
                   </button>

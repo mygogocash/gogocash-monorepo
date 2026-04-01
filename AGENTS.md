@@ -20,6 +20,7 @@ Concise guidance for AI coding agents and contributors. **Deep architecture and 
 | Login UI                 | `src/features/auth/component/LoginComponent.tsx`, `src/hooks/useFirebaseLogin.ts`                           |
 | Crossmint wrapper        | `src/lib/crossmint/SettingCrossmint.tsx`, `src/hooks/useSafeCrossmint.ts`, `src/hooks/useCrossmintLogin.ts` |
 | Feature UI               | `src/features/*`, shared pieces under `src/components/*`                                                    |
+| Membership landing       | `docs/membership.md`, `src/features/membership/landing/*`, `useMembershipLanding.ts`                        |
 | Env schema               | `src/env.ts`                                                                                                |
 
 ## Conventions agents should follow
@@ -46,5 +47,6 @@ Use `npm run lint:fix` and `npm run format` when appropriate.
 - Profile routes live under `src/app/[locale]/(profile)/` with `AuthGuard`.
 - `ClientLayoutWrapper` coordinates rendering with Crossmint readiness—avoid reordering providers without understanding `ProviderDefault.tsx`.
 - Backend contract: `NEXT_PUBLIC_API_URL` (see `.env.example`).
+- **npm CLI:** If every command prints `Unknown env config "devdir"`, your user-level config or environment references an invalid npm key. Run `npm config delete devdir` (add `-g` if it was set globally), remove any `devdir=…` line from `~/.npmrc`, and unset `NPM_CONFIG_DEVDIR` in your shell profile if present.
 
 When in doubt, search the codebase for an existing pattern before introducing a new abstraction.
