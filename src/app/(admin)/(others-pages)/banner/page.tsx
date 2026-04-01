@@ -1,5 +1,6 @@
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import { Metadata } from "next";
+import { awaitPageDynamicProps, type DefaultAppPageProps } from "@/lib/nextAppPageProps";
 import BannerTable from "@/components/banner/BannerTable";
 
 export const metadata: Metadata = {
@@ -12,7 +13,8 @@ export const metadata: Metadata = {
  *
  * @returns {JSX.Element} A JSX element representing the BannerPage.
  */
-export default function BannerPage() {
+export default async function BannerPage(props: DefaultAppPageProps) {
+  await awaitPageDynamicProps(props);
   return (
     <div>
       <PageBreadcrumb pageTitle="Home Page Banner" />

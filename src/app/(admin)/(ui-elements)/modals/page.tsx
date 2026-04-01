@@ -6,6 +6,7 @@ import ModalBasedAlerts from "@/components/example/ModalExample/ModalBasedAlerts
 import VerticallyCenteredModal from "@/components/example/ModalExample/VerticallyCenteredModal";
 import { Metadata } from "next";
 import React from "react";
+import { awaitPageDynamicProps, type DefaultAppPageProps } from "@/lib/nextAppPageProps";
 
 export const metadata: Metadata = {
   title: "Next.js Modals | TailAdmin - Next.js Dashboard Template",
@@ -14,7 +15,8 @@ export const metadata: Metadata = {
   // other metadata
 };
 
-export default function Modals() {
+export default async function Modals(props: DefaultAppPageProps) {
+  await awaitPageDynamicProps(props);
   return (
     <div>
       <PageBreadcrumb pageTitle="Modals" />

@@ -6,9 +6,15 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo } from "react";
 import OffersTable from "./OffersTable";
 import DeeplinkTable from "@/components/deeplink/DeeplinkTable";
+import CommissionManagementClient from "@/components/commission/CommissionManagementClient";
 
 const TABS = [
   { id: "offers" as const, label: "Offers", breadcrumb: "Offers" },
+  {
+    id: "commission" as const,
+    label: "Commission Management",
+    breadcrumb: "Commission Management",
+  },
   {
     id: "policy" as const,
     label: "Policy Management",
@@ -22,6 +28,7 @@ type TabId = (typeof TABS)[number]["id"];
 function tabFromSearch(tabParam: string | null): TabId {
   if (tabParam === "policy") return "policy";
   if (tabParam === "deeplink") return "deeplink";
+  if (tabParam === "commission") return "commission";
   return "offers";
 }
 
@@ -94,6 +101,7 @@ export default function OffersManagementPageContent() {
         </div>
 
         {activeTab === "offers" && <OffersTable />}
+        {activeTab === "commission" && <CommissionManagementClient embedded />}
         {activeTab === "policy" && <PolicyTable />}
         {activeTab === "deeplink" && <DeeplinkTable />}
       </div>

@@ -6,13 +6,18 @@ import AppSidebar from "@/layout/AppSidebar";
 import Backdrop from "@/layout/Backdrop";
 import AuthGuard from "@/components/auth/AuthGuard";
 import PageTransition from "@/components/PageTransition";
-import React from "react";
+import React, { use } from "react";
+
+type RouteParams = Record<string, string | string[] | undefined>;
 
 export default function AdminLayout({
   children,
+  params,
 }: {
   children: React.ReactNode;
+  params: Promise<RouteParams>;
 }) {
+  use(params);
   const { isExpanded, isHovered, isMobileOpen } = useSidebar();
 
   // Dynamic class for main content margin based on sidebar state

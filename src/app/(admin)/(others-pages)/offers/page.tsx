@@ -1,6 +1,7 @@
 import OffersManagementPageContent from "@/components/offer/OffersManagementPageContent";
 import { Metadata } from "next";
 import { Suspense } from "react";
+import { awaitPageDynamicProps, type DefaultAppPageProps } from "@/lib/nextAppPageProps";
 
 export const metadata: Metadata = {
   title: "Offers Management | GoGoCash Admin",
@@ -16,7 +17,8 @@ function OffersManagementFallback() {
   );
 }
 
-export default function OffersPage() {
+export default async function OffersPage(props: DefaultAppPageProps) {
+  await awaitPageDynamicProps(props);
   return (
     <Suspense fallback={<OffersManagementFallback />}>
       <OffersManagementPageContent />

@@ -1,5 +1,6 @@
 import GridShape from "@/components/common/GridShape";
 import { Metadata } from "next";
+import { awaitPageDynamicProps, type DefaultAppPageProps } from "@/lib/nextAppPageProps";
 import Image from "next/image";
 import Link from "next/link";
 import React from "react";
@@ -10,7 +11,8 @@ export const metadata: Metadata = {
     "This is Next.js Error 404 page for TailAdmin - Next.js Tailwind CSS Admin Dashboard Template",
 };
 
-export default function Error404() {
+export default async function Error404(props: DefaultAppPageProps) {
+  await awaitPageDynamicProps(props);
   return (
     <div className="relative flex flex-col items-center justify-center min-h-screen p-6 overflow-hidden z-1">
       <GridShape />

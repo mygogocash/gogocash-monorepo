@@ -36,6 +36,7 @@ function offerToEditForm(offer: Offer): OfferRequestForm {
     product_types: normalizeOfferProductTypes(offer.product_types),
     admin_commission_info: offer.admin_commission_info ?? [],
     policy_category_id: offer.policy_category_id ?? "",
+    note_to_user: offer.note_to_user ?? "",
   };
 }
 
@@ -64,6 +65,7 @@ export default function OffersTable() {
     product_types: [],
     admin_commission_info: [],
     policy_category_id: "",
+    note_to_user: "",
   });
   const session = useDataSession();
 

@@ -1,12 +1,14 @@
 import { Metadata } from "next";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import { awaitPageDynamicProps, type DefaultAppPageProps } from "@/lib/nextAppPageProps";
 import CreateRewardForm from "@/components/reward/CreateRewardForm";
 
 export const metadata: Metadata = {
   title: "Create Reward | GoGoCash Admin",
 };
 
-export default function RewardPage() {
+export default async function RewardPage(props: DefaultAppPageProps) {
+  await awaitPageDynamicProps(props);
   return (
     <div>
       <PageBreadcrumb

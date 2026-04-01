@@ -2,6 +2,7 @@ import ComponentCard from "@/components/common/ComponentCard";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import { Metadata } from "next";
 import React from "react";
+import { awaitPageDynamicProps, type DefaultAppPageProps } from "@/lib/nextAppPageProps";
 
 export const metadata: Metadata = {
   title: "Next.js Basic Table | TailAdmin - Next.js Dashboard Template",
@@ -10,7 +11,8 @@ export const metadata: Metadata = {
   // other metadata
 };
 
-const UsersAdmin = () => {
+export default async function UsersAdmin(props: DefaultAppPageProps) {
+  await awaitPageDynamicProps(props);
   return (
     <div>
       <PageBreadcrumb pageTitle="Users Admin" />
@@ -19,6 +21,4 @@ const UsersAdmin = () => {
       </div>
     </div>
   );
-};
-
-export default UsersAdmin;
+}

@@ -1,6 +1,7 @@
 import SignInForm from "@/components/auth/SignInForm";
 import { Suspense } from "react";
 import type { Metadata } from "next";
+import { awaitPageDynamicProps, type DefaultAppPageProps } from "@/lib/nextAppPageProps";
 
 export const metadata: Metadata = {
   title: "Sign In | GoGoCash Admin",
@@ -15,7 +16,8 @@ function SignInFallback() {
   );
 }
 
-export default function SignInPage() {
+export default async function SignInPage(props: DefaultAppPageProps) {
+  await awaitPageDynamicProps(props);
   return (
     <Suspense fallback={<SignInFallback />}>
       <SignInForm />

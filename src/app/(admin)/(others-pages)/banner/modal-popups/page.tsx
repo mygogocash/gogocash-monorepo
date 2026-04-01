@@ -2,6 +2,7 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import type { BreadcrumbItem } from "@/components/common/PageBreadCrumb";
 import AppOpenPopupSettingsForm from "@/components/banner/AppOpenPopupSettingsForm";
 import type { Metadata } from "next";
+import { awaitPageDynamicProps, type DefaultAppPageProps } from "@/lib/nextAppPageProps";
 
 export const metadata: Metadata = {
   title: "Modal popups | GoGoCash Admin",
@@ -14,7 +15,8 @@ const items: BreadcrumbItem[] = [
   { label: "Modal popups" },
 ];
 
-export default function BannerModalPopupsPage() {
+export default async function BannerModalPopupsPage(props: DefaultAppPageProps) {
+  await awaitPageDynamicProps(props);
   return (
     <div>
       <PageBreadcrumb pageTitle="Modal popups" items={items} />
