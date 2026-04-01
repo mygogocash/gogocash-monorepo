@@ -1,85 +1,65 @@
 "use client";
 
-import client from "@/lib/axios/client";
+import { listMyCashbackUsers } from "@/lib/api/myCashbackUsersApi";
+import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import { devError } from "@/lib/devConsole";
 import type { MyCashbackResponse } from "@/types/user";
-import { useCallback, useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import ViewMyCashback from "./ViewMyCashback";
-
-type ListResponse = {
-  status?: string;
-  data: MyCashbackResponse[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
-};
 
 const PAGE_SIZE = 12;
 
+type ListQuery = { page: number; search: string };
+
 export default function MyCashbackUsersTable() {
-  const [rows, setRows] = useState<MyCashbackResponse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [page, setPage] = useState(1);
-  const [pagination, setPagination] = useState({
-    limit: PAGE_SIZE,
-    total: 0,
-    totalPages: 1,
+  const [{ page, search: searchQuery }, setListQuery] = useState<ListQuery>({
+    page: 1,
+    search: "",
   });
   const [detailId, setDetailId] = useState("");
   const [detailOpen, setDetailOpen] = useState(false);
 
   useEffect(() => {
-    const q = searchInput.trim();
-    if (q === "") {
-      setSearchQuery("");
-      return;
-    }
-    const t = setTimeout(() => setSearchQuery(q), 300);
-    return () => clearTimeout(t);
+    const trimmed = searchInput.trim();
+    const delay = trimmed === "" ? 0 : 300;
+    const id = setTimeout(() => {
+      setListQuery((prev) => ({
+        search: trimmed,
+        page: prev.search === trimmed ? prev.page : 1,
+      }));
+    }, delay);
+    return () => clearTimeout(id);
   }, [searchInput]);
 
-  useEffect(() => {
-    setPage(1);
-  }, [searchQuery]);
-
-  const fetchList = useCallback(async (p: number, q: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await client.post<ListResponse>("/admin/list-mycashback-users", {
-        page: p,
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ["myCashbackUsers", page, searchQuery],
+    queryFn: () =>
+      listMyCashbackUsers({
+        page,
         limit: PAGE_SIZE,
-        search: q,
-      });
-      const body = res.data;
-      setRows(body.data ?? []);
-      setPagination({
-        limit: body.pagination?.limit ?? PAGE_SIZE,
-        total: body.pagination?.total ?? 0,
-        totalPages: body.pagination?.totalPages ?? 1,
-      });
-    } catch (e: unknown) {
-      devError("MyCashback list failed:", e);
-      const ax = e as { data?: { message?: string } };
-      setError(ax?.data?.message ?? "Failed to load MyCashBack users");
-      setRows([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+        search: searchQuery,
+      }),
+  });
 
-  useEffect(() => {
-    void fetchList(page, searchQuery);
-  }, [page, searchQuery, fetchList]);
+  const rows: MyCashbackResponse[] = data?.data ?? [];
+  const pagination = {
+    limit: data?.pagination?.limit ?? PAGE_SIZE,
+    total: data?.pagination?.total ?? 0,
+    totalPages: data?.pagination?.totalPages ?? 1,
+  };
+
+  if (isError) {
+    devError("MyCashback list failed:", error);
+  }
+
+  const listError = isError
+    ? getApiErrorMessage(error, "Failed to load MyCashBack users")
+    : null;
 
   const handlePageChange = (newPage: number) => {
-    setPage(newPage);
+    setListQuery((prev) => ({ ...prev, page: newPage }));
   };
 
   const hasNextPage = page < pagination.totalPages;
@@ -117,13 +97,13 @@ export default function MyCashbackUsersTable() {
       </div>
 
       <div className="border-t border-gray-100 p-4 sm:p-6 dark:border-gray-700 dark:bg-white/[0.02]">
-        {error && (
+        {listError && (
           <div className="mb-4 rounded-lg border border-red-300 bg-red-100 p-3 text-red-700 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400">
-            {error}
+            {listError}
           </div>
         )}
 
-        {loading && (
+        {isLoading && (
           <div className="flex items-center justify-center py-8">
             <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600" />
             <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
@@ -132,7 +112,7 @@ export default function MyCashbackUsersTable() {
           </div>
         )}
 
-        {!loading && (
+        {!isLoading && (
           <>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
