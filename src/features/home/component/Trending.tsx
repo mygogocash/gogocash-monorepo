@@ -38,6 +38,7 @@ const Trending = () => {
     <section className="gc-home-section-y flex w-full flex-col gap-6">
       <HomeSectionHeader variant="sectionRow" title={section.title} link={section.link} />
       <CardSlideCategory
+        cardVariant="featured"
         list={offers?.data}
         showPagination
         trackingListId={section.trackingListId}

@@ -15,6 +15,7 @@ import { Link } from "@/i18n/navigation";
 import { getOfferBannerSrc, getOfferCashbackPercentLabel } from "@/lib/offer/offerCardVisuals";
 import { useMediaQuery } from "@mui/material";
 import { trackMerchantSelect } from "@/lib/analytics";
+import { cn } from "@/lib/utils";
 
 interface IProp {
   list?: DataOffer[];
@@ -257,7 +258,8 @@ const CardSlideCategory = ({
             spaceBetween={16}
             watchOverflow
             centerInsufficientSlides={isCover}
-            className="mySwiper"
+            /* Swiper’s Grid module can omit `swiper-grid` on first paint; CSS needs it for `.swiper-wrapper { flex-wrap: wrap }` (2-row layout). */
+            className={cn("mySwiper", !isCover && "swiper-grid")}
             breakpoints={
               isCover
                 ? (FEATURED_BREAKPOINTS as typeof FEATURED_BREAKPOINTS)
