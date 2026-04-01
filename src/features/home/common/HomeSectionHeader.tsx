@@ -33,6 +33,12 @@ const HomeSectionHeader = ({
       return (
         <div className="flex h-14 w-full items-center justify-between gap-4">
           <div className="flex min-h-0 min-w-0 flex-1 items-center gap-4">
+            {badgeImage ? (
+              <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white shadow-[0_12px_30px_rgba(16,34,23,0.08)]">
+                <Image src={badgeImage} alt="" width={32} height={32} />
+              </span>
+            ) : null}
+            <h2 className={homeSectionTitleClass}>{title}</h2>
             {icon ? (
               <span
                 className="flex size-14 shrink-0 items-center justify-center text-[2rem] leading-none"
@@ -41,14 +47,8 @@ const HomeSectionHeader = ({
                 {icon}
               </span>
             ) : null}
-            {badgeImage ? (
-              <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white shadow-[0_12px_30px_rgba(16,34,23,0.08)]">
-                <Image src={badgeImage} alt="" width={32} height={32} />
-              </span>
-            ) : null}
-            <h2 className={homeSectionTitleClass}>{title}</h2>
           </div>
-          {link ? <ViewAll link={link} variant="emphasized" /> : null}
+          {link ? <ViewAll link={link} /> : null}
         </div>
       );
     case "sectionTitleOnly":

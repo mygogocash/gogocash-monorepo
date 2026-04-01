@@ -1,6 +1,5 @@
 "use client";
 import Image from "next/image";
-import UnionIcon from "../icons/UnionIcon";
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 
@@ -33,9 +32,12 @@ const Title = ({ title, titleValues, imageTitle, link, icon }: IProp) => {
         </h2>
       </div>
       {link && (
-        <Link href={link} className="gc-inline-link hidden shrink-0 md:inline-flex">
+        <Link
+          href={link}
+          className="gc-inline-link gc-inline-link--regular hidden shrink-0 md:inline-flex"
+        >
           {t("View all")}
-          <UnionIcon className="rotate-45" width={16} height={9} />
+          <span aria-hidden>→</span>
         </Link>
       )}
     </div>

@@ -5,6 +5,11 @@ import { useTranslations } from "next-intl";
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { useEffect, useRef } from "react";
+import {
+  PROFILE_SUBPAGE_CARD_CLASS,
+  PROFILE_SUBPAGE_MAIN_SCROLL_SOLO_CLASS,
+  PROFILE_SUBPAGE_MAIN_SCROLL_WITH_RAIL_CLASS,
+} from "./subPageShell";
 import type { SubPageSubtitleKey, SubPageTitleKey } from "./subPageMessageKeys";
 
 interface IProp {
@@ -43,16 +48,16 @@ const SubPage = ({ title, resolvedTitle, children, subTitle, showSubMenu, conten
     return (
       <div className="flex h-full min-h-0 min-w-0 w-full flex-1 flex-col px-0 pb-20 pt-6 md:pt-10 md:pb-20">
         <h1 className="sr-only">{heading}</h1>
-        <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-3xl border border-[#e4e4e4] bg-white">
+        <div className={PROFILE_SUBPAGE_CARD_CLASS}>
           {/* md: min-h-0 + overflow-hidden so the row height follows the card (viewport), not the tallest child content */}
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:h-full md:min-h-0 md:flex-row md:items-stretch">
-            <div className="flex min-h-0 flex-col border-b border-[#e4e4e4] p-5 md:z-10 md:h-full md:max-h-full md:w-[min(320px,34%)] md:max-w-[320px] md:shrink-0 md:overflow-y-auto md:overscroll-contain md:border-b-0 md:border-r md:p-6">
+            <div className="flex min-h-0 flex-col border-b border-[var(--gc-border)] p-5 md:z-10 md:h-full md:max-h-full md:w-[min(320px,34%)] md:max-w-[320px] md:shrink-0 md:overflow-y-auto md:overscroll-contain md:border-b-0 md:p-6">
               <SubProfile variant="panel" />
             </div>
             <div
               ref={mainScrollRef}
               data-testid="profile-subpage-main-scroll"
-              className="flex min-h-0 min-w-0 flex-1 flex-col gap-0 overflow-y-auto overscroll-contain px-4 py-6 sm:px-5 sm:py-7 md:h-full md:min-h-0 md:px-8 md:py-9 lg:px-10"
+              className={PROFILE_SUBPAGE_MAIN_SCROLL_WITH_RAIL_CLASS}
             >
               <div
                 key={pathname}
@@ -76,11 +81,11 @@ const SubPage = ({ title, resolvedTitle, children, subTitle, showSubMenu, conten
     return (
       <div className="flex h-full min-h-0 min-w-0 w-full flex-1 flex-col px-0 pb-20 pt-6 md:pt-10 md:pb-20">
         <h1 className="sr-only">{heading}</h1>
-        <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-3xl border border-[#e4e4e4] bg-white">
+        <div className={PROFILE_SUBPAGE_CARD_CLASS}>
           <div
             ref={mainScrollRef}
             data-testid="profile-subpage-main-scroll"
-            className="flex min-h-0 min-w-0 flex-1 flex-col gap-0 overflow-y-auto overscroll-contain px-4 py-6 sm:px-5 sm:py-7 md:h-full md:min-h-0 md:px-8 md:py-9 lg:px-10"
+            className={PROFILE_SUBPAGE_MAIN_SCROLL_SOLO_CLASS}
           >
             <div
               key={pathname}

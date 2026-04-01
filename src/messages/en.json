@@ -123,6 +123,7 @@
   "footerLinkTelegramMiniApp": "Telegram Mini App",
   "footerLinkLineMiniApp": "Line Mini App",
   "footerSectionProducts": "Products",
+  "footerSecuredBy": "Secured by",
   "footerLinkTermsOfUse": "Terms of Use",
   "footerLinkTermsOfService": "Terms of Service",
   "footerLinkHowGoGoCashMakesMoney": "How GoGoCash Makes Money",
@@ -681,6 +682,7 @@
   "Expires in": "Expires in",
   "Day(s)": "Day(s)",
   "merchantCashbackRatesDisclaimer": "The cashback rates shown above are the maximum possible amounts. Actual rates vary by merchant and specific order conditions. Final approval is at the sole discretion of the merchant; GoGoCash acts as a platform provider for your convenience.",
+  "merchantCashbackMaxThbPerTransaction": "Cashback maximum up to 50 THB per transaction.",
   "Extra Cashback": "Extra Cashback",
   "merchantTrackingPurchase": "Purchase",
   "merchantTrackingWithGoGoCash": "with GoGoCash",
@@ -882,11 +884,6 @@
     "stat2": "more points vs Free tier",
     "stat3": "avg monthly point value for Pro members",
     "faqHeading": "Quick answers",
-    "footerH2": "Start earning more. Right now.",
-    "footerBody": "Every purchase you make today without a multiplier is points you can't get back.",
-    "footerUrgent": "⏰ April GoGoQuest ends April 30 · Upgrade now and your next order counts immediately",
-    "footerCta1": "Get Plus — ฿149/mo",
-    "footerCta2": "Compare all plans ↑",
     "countdownEnded": "Ended",
     "tablePurchase": "Purchase",
     "tablePartner": "Partner",
@@ -914,18 +911,14 @@
       "1 pt per ฿1 spent",
       "Standard quest access",
       "12 tasks (+50 pts each)",
-      "No welcome bonus",
-      "No streak boosts",
-      "No flash quests"
+      "No welcome bonus"
     ],
     "starterFeatures": [
       "1.5× pts",
       "+500 welcome pts",
       "+100 pts ≥5 quests",
       "6hr early access",
-      "2 vouchers/mo",
-      "No streak",
-      "No flash quests"
+      "2 vouchers/mo"
     ],
     "plusFeatures": [
       "2× pts",

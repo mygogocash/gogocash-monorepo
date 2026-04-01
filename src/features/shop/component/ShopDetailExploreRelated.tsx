@@ -37,11 +37,12 @@ export default function ShopDetailExploreRelated({
         <h2 className="text-2xl font-semibold tracking-tight text-[#3b3b3b] md:text-[26px]">
           {t("Explore Other Shops")}
         </h2>
-        <LocaleLink href="/shop" className="gc-inline-link hidden shrink-0 md:inline-flex">
+        <LocaleLink
+          href="/shop"
+          className="gc-inline-link gc-inline-link--regular hidden shrink-0 md:inline-flex"
+        >
           {t("View all")}
-          <span aria-hidden className="font-semibold">
-            →
-          </span>
+          <span aria-hidden>→</span>
         </LocaleLink>
       </div>
       <MerchantListTracker

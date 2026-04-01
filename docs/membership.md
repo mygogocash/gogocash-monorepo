@@ -12,6 +12,11 @@
 - In-page links like `href="#pricing"` must scroll **that** container, not only the window. Logic lives in `src/lib/dom/scrollIntoScrollParent.ts` and `src/features/membership/landing/setupHashNavigation.ts`.
 - `.membership-root` uses `min-height: 0` when nested under `.gc-profile-subpage-content` so it does not break the flex scrollport (`membership.css`).
 
+## Layout: horizontal padding and bleed
+
+- **`--mship-inline`** on `.membership-root` is the shared horizontal inset (`clamp(1rem, 4vw, 3rem)`). The main `.container` and inner cards use `padding-inline: var(--mship-inline)` so content aligns with the hero.
+- **`.mship-bleed`** is for sections that should span edge-to-edge (pricing band, FAQ) while their inner content still respects the same inset. E2E can target `data-testid="membership-bleed-pricing"` and `membership-bleed-faq`.
+
 ## Tests
 
 - **Unit:** `npm run test` — includes `checkoutRequestBody` parsing and `resolveStripePriceId` (mocked env).

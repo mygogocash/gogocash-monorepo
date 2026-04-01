@@ -300,6 +300,11 @@ export interface RequestDataFav {
   offer_id: string;
 }
 
+export interface BannerHomeMainSlide {
+  image: string;
+  link?: string | null;
+}
+
 export interface BannerHome {
   image_1: string;
   image_2: string;
@@ -312,6 +317,8 @@ export interface BannerHome {
   link_4: string;
   link_5: string;
   _id?: string;
+  /** When set, drives the main hero Swiper instead of legacy `image_1`–`image_3` (variable length). */
+  main_slides?: BannerHomeMainSlide[];
 }
 
 export interface CouponData {

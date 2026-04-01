@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { RefObject } from "react";
 
 import { MEMBERSHIP_QUEST_END } from "./landing/constants";
-import { setupConfettiCta } from "./landing/setupConfettiCta";
 import { setupFaqAccordion } from "./landing/setupFaqAccordion";
 import { setupHashNavigation } from "./landing/setupHashNavigation";
 import { setupHeroCountUp } from "./landing/setupHeroCountUp";
@@ -52,11 +51,12 @@ export function useMembershipLanding(
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
+    const endedLabel = i18n?.countdownEnded ?? "Ended";
 
     const tick = () => {
       const diff = MEMBERSHIP_QUEST_END.getTime() - Date.now();
       if (diff <= 0) {
-        setCountdownText("Ended");
+        setCountdownText(endedLabel);
         return;
       }
       const d = Math.floor(diff / 86400000);
@@ -68,7 +68,7 @@ export function useMembershipLanding(
     tick();
     const id = window.setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [rootRef]);
+  }, [rootRef, i18n?.countdownEnded]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -110,12 +110,6 @@ export function useMembershipLanding(
     const root = rootRef.current;
     if (!root) return;
     return setupRippleButtons(root);
-  }, [rootRef]);
-
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
-    return setupConfettiCta(root);
   }, [rootRef]);
 
   useEffect(() => {

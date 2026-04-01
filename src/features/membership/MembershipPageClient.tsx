@@ -31,6 +31,7 @@ export default function MembershipPageClient() {
       streakZero: t("streakZero"),
       streakFmt: (done, ptsTotal) => t("streakFmt", { done, pts: ptsTotal.toLocaleString() }),
       questFmt: (done, ptsTotal) => t("questFmt", { done, pts: ptsTotal.toLocaleString() }),
+      countdownEnded: t("countdownEnded"),
     }),
     [t]
   );
@@ -165,80 +166,82 @@ export default function MembershipPageClient() {
               <div className="section-head">
                 <h2 className="section-title">{t("calcHeading")}</h2>
               </div>
-              <div className="calc-card">
-                <div className="calc-input-group">
-                  <label className="calc-label" htmlFor="spend-input">
-                    {t("spendLabel")}
-                  </label>
-                  <input
-                    id="spend-input"
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="off"
-                    defaultValue="3,000"
-                    aria-describedby="spend-help"
-                  />
-                  <p id="spend-help" className="calc-hint">
-                    {t("spendHelp")}
-                  </p>
-                  <input
-                    id="spend-slider"
-                    type="range"
-                    min={500}
-                    max={50000}
-                    step={500}
-                    defaultValue={3000}
-                    aria-label={t("spendHelp")}
-                  />
-                </div>
-                <div className="calc-results">
-                  <div className="calc-col">
-                    <div className="calc-tier">{t("calcFree")}</div>
-                    <div id="pts-free" className="calc-pts" />
-                    <div id="extra-free" className="calc-extra" />
-                  </div>
-                  <div className="calc-col">
-                    <div className="calc-tier">{t("calcStarter")}</div>
-                    <div id="pts-starter" className="calc-pts" />
-                    <div id="extra-starter" className="calc-extra" />
-                  </div>
-                </div>
-                <p className="leaving-line">
-                  {t("leavingPrefix")}
-                  <span id="leaving-behind">0</span>
-                  {t("leavingSuffix")}
+            </div>
+            <div className="calc-card">
+              <div className="calc-input-group">
+                <label className="calc-label" htmlFor="spend-input">
+                  {t("spendLabel")}
+                </label>
+                <input
+                  id="spend-input"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  defaultValue="3,000"
+                  aria-describedby="spend-help"
+                />
+                <p id="spend-help" className="calc-hint">
+                  {t("spendHelp")}
                 </p>
-                <div className="partners-row">
-                  <span className="partners-label">{t("partnersLabel")}</span>
-                  <Image
-                    src="https://cdn.simpleicons.org/shopee/EE4D2D"
-                    width={24}
-                    height={24}
-                    alt="Shopee"
-                    unoptimized
-                  />
-                  <Image
-                    src="https://cdn.simpleicons.org/lazada/0F146D"
-                    width={24}
-                    height={24}
-                    alt="Lazada"
-                    unoptimized
-                  />
-                  <span className="partner-pill badge-agoda">Agoda</span>
-                  <span className="partner-pill badge-klook">Klook</span>
-                  <span className="partner-pill badge-traveloka">Traveloka</span>
-                  <span className="partner-pill badge-lotus">Lotus&apos;s</span>
+                <input
+                  id="spend-slider"
+                  type="range"
+                  min={500}
+                  max={50000}
+                  step={500}
+                  defaultValue={3000}
+                  aria-label={t("spendHelp")}
+                />
+              </div>
+              <div className="calc-results">
+                <div className="calc-col">
+                  <div className="calc-tier">{t("calcFree")}</div>
+                  <div id="pts-free" className="calc-pts" />
+                  <div id="extra-free" className="calc-extra" />
                 </div>
+                <div className="calc-col">
+                  <div className="calc-tier">{t("calcStarter")}</div>
+                  <div id="pts-starter" className="calc-pts" />
+                  <div id="extra-starter" className="calc-extra" />
+                </div>
+              </div>
+              <p className="leaving-line">
+                {t("leavingPrefix")}
+                <span id="leaving-behind">0</span>
+                {t("leavingSuffix")}
+              </p>
+              <div className="partners-row">
+                <span className="partners-label">{t("partnersLabel")}</span>
+                <Image
+                  src="https://cdn.simpleicons.org/shopee/EE4D2D"
+                  width={24}
+                  height={24}
+                  alt="Shopee"
+                  unoptimized
+                />
+                <Image
+                  src="https://cdn.simpleicons.org/lazada/0F146D"
+                  width={24}
+                  height={24}
+                  alt="Lazada"
+                  unoptimized
+                />
+                <span className="partner-pill badge-agoda">Agoda</span>
+                <span className="partner-pill badge-klook">Klook</span>
+                <span className="partner-pill badge-traveloka">Traveloka</span>
+                <span className="partner-pill badge-lotus">Lotus&apos;s</span>
               </div>
             </div>
           </section>
 
           <section className="section" id="pricing">
             <div className="container">
+              <div className="section-head section-head--pricing">
+                <h2 className="section-title">{t("pickHeading")}</h2>
+              </div>
+            </div>
+            <div className="mship-bleed" data-testid="membership-bleed-pricing">
               <div className="pricing-billing-header">
-                <div className="section-head section-head--pricing">
-                  <h2 className="section-title">{t("pickHeading")}</h2>
-                </div>
                 <p className="billing-nudge">{t("billingAnnualNudge")}</p>
                 <div
                   id="billing-toggle"
@@ -447,85 +450,85 @@ export default function MembershipPageClient() {
                 <h2 className="section-title">{t("gameboardHeading")}</h2>
                 <p className="gameboard-intro">{t("gameboardIntro")}</p>
               </div>
-              <div className="gameboard-card">
-                <div className="gameboard-panels">
-                  <div className="gameboard-panel gameboard-panel--streak">
-                    <div className="gameboard-panel-head">
-                      <div className="gameboard-panel-head-main">
-                        <h3 className="gameboard-panel-title">{t("streakLabel")}</h3>
-                        <p className="gameboard-panel-hint">{t("streakHelp")}</p>
-                      </div>
-                      <button type="button" id="streak-reset" className="gameboard-reset">
-                        <RotateCcw
-                          className="gameboard-reset-icon"
-                          width={18}
-                          height={18}
-                          aria-hidden
-                        />
-                        <span>{t("streakReset")}</span>
-                      </button>
+            </div>
+            <div className="gameboard-card">
+              <div className="gameboard-panels">
+                <div className="gameboard-panel gameboard-panel--streak">
+                  <div className="gameboard-panel-head">
+                    <div className="gameboard-panel-head-main">
+                      <h3 className="gameboard-panel-title">{t("streakLabel")}</h3>
+                      <p className="gameboard-panel-hint">{t("streakHelp")}</p>
                     </div>
-                    <p className="gameboard-field-label" id="streak-plan-label">
-                      {t("streakPlanHelp")}
-                    </p>
-                    <div
-                      className="streak-plan-segment"
-                      role="radiogroup"
-                      aria-labelledby="streak-plan-label"
-                    >
-                      <label className="streak-plan-option">
-                        <input type="radio" name="mship-streak-plan" value="plus" defaultChecked />
-                        <span className="streak-plan-option-ui">{t("streakPlus")}</span>
-                      </label>
-                      <label className="streak-plan-option">
-                        <input type="radio" name="mship-streak-plan" value="pro" />
-                        <span className="streak-plan-option-ui">{t("streakPro")}</span>
-                      </label>
-                    </div>
-                    <p className="gameboard-field-label" id="streak-grid-label">
-                      {t("streakGridHelp")}
-                    </p>
-                    <div
-                      className="streak-grid-surface"
-                      role="group"
-                      aria-label={t("streakGridAria")}
-                      aria-describedby="streak-grid-label"
-                    >
-                      <div id="streak-grid" className="sg7" />
-                    </div>
-                    <p id="streak-total" className="gameboard-streak-total">
-                      {t("streakZero")}
-                    </p>
+                    <button type="button" id="streak-reset" className="gameboard-reset">
+                      <RotateCcw
+                        className="gameboard-reset-icon"
+                        width={18}
+                        height={18}
+                        aria-hidden
+                      />
+                      <span>{t("streakReset")}</span>
+                    </button>
                   </div>
-                  <div className="gameboard-panel gameboard-panel--quests">
-                    <div className="gameboard-panel-head gameboard-panel-head--quests">
-                      <div className="gameboard-panel-head-main">
-                        <h3 className="gameboard-panel-title">{t("questSection")}</h3>
-                        <p className="gameboard-panel-hint">{t("questHelp")}</p>
-                      </div>
-                    </div>
-                    <ul className="quest-list" role="list" aria-label={t("questSection")}>
-                      {questTasks.map((label) => (
-                        <li key={label}>
-                          <button type="button" className="quest-task reveal">
-                            <span className="quest-task-check" aria-hidden />
-                            <span className="quest-task-label">{label}</span>
-                            <span className="quest-pts">{t("questPts")}</span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                    <p className="gameboard-progress-label" id="quest-progress-label">
-                      {t("questProgressLabel")}
-                    </p>
-                    <p
-                      id="quest-total"
-                      className="gameboard-quest-total"
-                      aria-labelledby="quest-progress-label"
-                    >
-                      {t("questFmt", { done: "0", pts: "0" })}
-                    </p>
+                  <p className="gameboard-field-label" id="streak-plan-label">
+                    {t("streakPlanHelp")}
+                  </p>
+                  <div
+                    className="streak-plan-segment"
+                    role="radiogroup"
+                    aria-labelledby="streak-plan-label"
+                  >
+                    <label className="streak-plan-option">
+                      <input type="radio" name="mship-streak-plan" value="plus" defaultChecked />
+                      <span className="streak-plan-option-ui">{t("streakPlus")}</span>
+                    </label>
+                    <label className="streak-plan-option">
+                      <input type="radio" name="mship-streak-plan" value="pro" />
+                      <span className="streak-plan-option-ui">{t("streakPro")}</span>
+                    </label>
                   </div>
+                  <p className="gameboard-field-label" id="streak-grid-label">
+                    {t("streakGridHelp")}
+                  </p>
+                  <div
+                    className="streak-grid-surface"
+                    role="group"
+                    aria-label={t("streakGridAria")}
+                    aria-describedby="streak-grid-label"
+                  >
+                    <div id="streak-grid" className="sg7" />
+                  </div>
+                  <p id="streak-total" className="gameboard-streak-total">
+                    {t("streakZero")}
+                  </p>
+                </div>
+                <div className="gameboard-panel gameboard-panel--quests">
+                  <div className="gameboard-panel-head gameboard-panel-head--quests">
+                    <div className="gameboard-panel-head-main">
+                      <h3 className="gameboard-panel-title">{t("questSection")}</h3>
+                      <p className="gameboard-panel-hint">{t("questHelp")}</p>
+                    </div>
+                  </div>
+                  <ul className="quest-list" role="list" aria-label={t("questSection")}>
+                    {questTasks.map((label) => (
+                      <li key={label}>
+                        <button type="button" className="quest-task reveal">
+                          <span className="quest-task-check" aria-hidden />
+                          <span className="quest-task-label">{label}</span>
+                          <span className="quest-pts">{t("questPts")}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="gameboard-progress-label" id="quest-progress-label">
+                    {t("questProgressLabel")}
+                  </p>
+                  <p
+                    id="quest-total"
+                    className="gameboard-quest-total"
+                    aria-labelledby="quest-progress-label"
+                  >
+                    {t("questFmt", { done: "0", pts: "0" })}
+                  </p>
                 </div>
               </div>
             </div>
@@ -536,45 +539,45 @@ export default function MembershipPageClient() {
               <div className="section-head">
                 <h2 className="section-title">{t("socialHeading")}</h2>
               </div>
-              <div className="leaderboard" style={{ marginBottom: "var(--s10)" }}>
-                <div className="lb-row">
-                  <span className="lb-rank rank-gold">🥇</span>
-                  <span className="lb-name">{t("lbUser1")}</span>
-                  <span className="lb-pts">150,209 pts</span>
-                  <span className="tier-badge tb-pro">{t("badgePro")}</span>
-                </div>
-                <div className="lb-row">
-                  <span className="lb-rank rank-gold">🥈</span>
-                  <span className="lb-name">{t("lbUser2")}</span>
-                  <span className="lb-pts">102,450 pts</span>
-                  <span className="tier-badge tb-pro">{t("badgePro")}</span>
-                </div>
-                <div className="lb-row">
-                  <span className="lb-rank rank-gold">🥉</span>
-                  <span className="lb-name">{t("lbUser3")}</span>
-                  <span className="lb-pts">100,016 pts</span>
-                  <span className="tier-badge tb-plus">{t("badgePlus")}</span>
-                </div>
+            </div>
+            <div className="leaderboard" style={{ marginBottom: "var(--s10)" }}>
+              <div className="lb-row">
+                <span className="lb-rank rank-gold">🥇</span>
+                <span className="lb-name">{t("lbUser1")}</span>
+                <span className="lb-pts">150,209 pts</span>
+                <span className="tier-badge tb-pro">{t("badgePro")}</span>
               </div>
-              <div className="stats-row">
-                <div className="stat-card reveal">
-                  <span data-count-to="95" data-suffix="%">
-                    0%
-                  </span>
-                  <p>{t("stat1")}</p>
-                </div>
-                <div className="stat-card reveal">
-                  <span data-count-to="3.2" data-suffix="×">
-                    0×
-                  </span>
-                  <p>{t("stat2")}</p>
-                </div>
-                <div className="stat-card reveal">
-                  <span>
-                    ฿<span data-count-to="107">0</span>
-                  </span>
-                  <p>{t("stat3")}</p>
-                </div>
+              <div className="lb-row">
+                <span className="lb-rank rank-gold">🥈</span>
+                <span className="lb-name">{t("lbUser2")}</span>
+                <span className="lb-pts">102,450 pts</span>
+                <span className="tier-badge tb-pro">{t("badgePro")}</span>
+              </div>
+              <div className="lb-row">
+                <span className="lb-rank rank-gold">🥉</span>
+                <span className="lb-name">{t("lbUser3")}</span>
+                <span className="lb-pts">100,016 pts</span>
+                <span className="tier-badge tb-plus">{t("badgePlus")}</span>
+              </div>
+            </div>
+            <div className="stats-row">
+              <div className="stat-card reveal">
+                <span data-count-to="95" data-suffix="%">
+                  0%
+                </span>
+                <p>{t("stat1")}</p>
+              </div>
+              <div className="stat-card reveal">
+                <span data-count-to="3.2" data-suffix="×">
+                  0×
+                </span>
+                <p>{t("stat2")}</p>
+              </div>
+              <div className="stat-card reveal">
+                <span>
+                  ฿<span data-count-to="107">0</span>
+                </span>
+                <p>{t("stat3")}</p>
               </div>
             </div>
           </section>
@@ -584,6 +587,8 @@ export default function MembershipPageClient() {
               <div className="section-head">
                 <h2 className="section-title">{t("faqHeading")}</h2>
               </div>
+            </div>
+            <div className="mship-bleed" data-testid="membership-bleed-faq">
               <div className="faq-wrap">
                 {faqItems.map((item, i) => (
                   <div key={item.q} className="faq-item">
@@ -612,34 +617,6 @@ export default function MembershipPageClient() {
               </div>
             </div>
           </section>
-
-          <footer className="footer-cta" id="footer-cta">
-            <div className="container">
-              <h2>{t("footerH2")}</h2>
-              <p>{t("footerBody")}</p>
-              <p className="urgent">{t("footerUrgent")}</p>
-              <div className="footer-btns">
-                {stripeBillingEnabled ? (
-                  <button
-                    type="button"
-                    className="btn-foot-primary btn-ripple"
-                    disabled={pending}
-                    aria-busy={pending}
-                    onClick={() => void startCheckout("starter")}
-                  >
-                    {t("footerCta1")}
-                  </button>
-                ) : (
-                  <button type="button" className="btn-foot-primary btn-ripple" id="cta-confetti">
-                    {t("footerCta1")}
-                  </button>
-                )}
-                <a className="btn-foot-secondary btn-ripple" href="#pricing">
-                  {t("footerCta2")}
-                </a>
-              </div>
-            </div>
-          </footer>
         </main>
       </div>
     </div>

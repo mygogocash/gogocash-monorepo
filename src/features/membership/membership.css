@@ -16,6 +16,8 @@
   --surface: #ffffff;
   --surface-2: #f6f6f6;
   --surface-strong: #d8f8ef;
+  /* Matches `.container` / full-bleed sections — single source for horizontal inset */
+  --mship-inline: clamp(1rem, 4vw, 3rem);
   --border: #e4e4e4;
   --divider: rgba(0, 0, 0, 0.06);
   --text: #3b3b3b;
@@ -154,7 +156,19 @@
 .membership-root .container {
   max-width: 1200px;
   margin-inline: auto;
-  padding-inline: clamp(1rem, 4vw, 3rem);
+  padding-inline: var(--mship-inline);
+}
+/*
+  Horizontal layout (profile shell):
+  - Bordered full-bleed blocks: direct child of `section` (e.g. `#calculator > .calc-card`, `#gameboard > .gameboard-card`)
+    use `padding-inline: var(--mship-inline)` on the card so the border spans the full main column.
+  - Unbordered bodies: `.mship-bleed` under `section` after `.container` (title only) for pricing / FAQ.
+*/
+.membership-root .mship-bleed {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding-inline: var(--mship-inline);
 }
 /* Vertical rhythm: spacing comes from `.mship-main` gap — avoid stacking huge section padding */
 .membership-root .section {
@@ -608,13 +622,43 @@
   color: var(--text);
 }
 .membership-root .calc-card {
-  max-width: 680px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
   padding: var(--s8);
   background: var(--surface);
   border-radius: var(--r-2xl);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-md);
+}
+/* Full-bleed like `.hero-section`: card spans `mship-main` width, not only `.container` content box */
+.membership-root #calculator > .calc-card {
+  padding-inline: var(--mship-inline);
+  padding-block: var(--s8);
+}
+/* Same full-bleed band as `#calculator > .calc-card` (no extra `.mship-bleed` inset) */
+.membership-root #gameboard > .gameboard-card {
+  padding-inline: var(--mship-inline);
+  padding-top: var(--s6);
+  padding-bottom: var(--s7);
+}
+@media (min-width: 640px) {
+  .membership-root #gameboard > .gameboard-card {
+    padding-top: var(--s8);
+    padding-bottom: var(--s9);
+  }
+}
+/* Same horizontal band as `.gameboard-card` / `.calc-card` (no `.mship-bleed` inset) */
+.membership-root #social-proof > .leaderboard,
+.membership-root #social-proof > .stats-row {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding-inline: var(--mship-inline);
+}
+.membership-root #faq > .mship-bleed > .faq-wrap {
+  max-width: none;
+  margin-inline: 0;
 }
 .membership-root .calc-label {
   font-size: var(--text-xs);
@@ -732,10 +776,10 @@
   max-width: 100%;
   margin-bottom: var(--s8);
 }
-.membership-root .pricing-billing-header .section-head--pricing {
+.membership-root #pricing > .container .section-head--pricing {
   margin-bottom: var(--s4);
 }
-.membership-root .pricing-billing-header .section-head--pricing h2 {
+.membership-root #pricing > .container .section-head--pricing h2 {
   margin-bottom: 0;
 }
 .membership-root .billing-nudge {
@@ -1070,9 +1114,9 @@
   color: var(--text-muted);
 }
 .membership-root .gameboard-card {
-  max-width: 56rem;
-  margin: 0 auto;
-  padding: var(--s6) var(--s5) var(--s7);
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
   border-radius: var(--r-2xl);
   border: 1px solid var(--border);
   background: linear-gradient(
@@ -1083,26 +1127,10 @@
   );
   box-shadow: var(--shadow-md);
 }
-@media (min-width: 640px) {
-  .membership-root .gameboard-card {
-    padding: var(--s8) var(--s7) var(--s9);
-  }
-}
 .membership-root .gameboard-panels {
   display: grid;
   gap: var(--s8);
-}
-@media (min-width: 1024px) {
-  .membership-root .gameboard-panels {
-    grid-template-columns: 1fr 1fr;
-    gap: 0;
-    align-items: stretch;
-  }
-  .membership-root .gameboard-panel--quests {
-    padding-left: var(--s8);
-    margin-left: var(--s2);
-    border-left: 1px solid var(--divider);
-  }
+  grid-template-columns: 1fr;
 }
 .membership-root .gameboard-panel {
   padding: var(--s4);
@@ -1110,12 +1138,29 @@
   background: color-mix(in srgb, var(--surface) 92%, var(--surface-2));
   border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
 }
-@media (min-width: 1024px) {
+/* Streak + quests share one row inside the card from md up (profile shell is often < lg). */
+@media (min-width: 768px) {
+  .membership-root .gameboard-panels {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0;
+    align-items: stretch;
+  }
+  .membership-root .gameboard-panel--quests {
+    padding-left: var(--s6);
+    margin-left: var(--s2);
+    border-left: 1px solid var(--divider);
+  }
+  @media (min-width: 1024px) {
+    .membership-root .gameboard-panel--quests {
+      padding-left: var(--s8);
+    }
+  }
   .membership-root .gameboard-panel {
     padding: var(--s2);
     background: transparent;
     border: none;
     border-radius: 0;
+    min-width: 0;
   }
 }
 .membership-root .gameboard-panel-head {
@@ -1466,64 +1511,6 @@
 .membership-root .faq-wrap {
   max-width: 800px;
   margin: 0 auto;
-}
-.membership-root .footer-cta {
-  background: var(--surface);
-  color: var(--text);
-  text-align: center;
-  padding: var(--s10) var(--s6);
-  border-radius: var(--r-2xl);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-md);
-}
-.membership-root .footer-cta h2 {
-  color: var(--heading-green);
-  margin-bottom: var(--s4);
-  font-size: var(--text-xl);
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-.membership-root .footer-cta p {
-  color: var(--text-muted);
-  margin-bottom: var(--s4);
-  max-width: 52ch;
-  margin-inline: auto;
-}
-.membership-root .footer-cta .urgent {
-  margin-bottom: var(--s8);
-  font-size: var(--text-sm);
-  color: var(--text);
-}
-.membership-root .footer-btns {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: var(--s4);
-}
-.membership-root .btn-foot-primary {
-  min-height: 52px;
-  padding: 0 var(--s10);
-  border-radius: var(--r-full);
-  background: var(--brand);
-  color: var(--text-inv);
-  font-weight: 700;
-  font-size: var(--text-sm);
-}
-.membership-root .btn-foot-primary:hover {
-  background: var(--brand-hover);
-  transform: scale(1.02);
-}
-.membership-root .btn-foot-secondary {
-  min-height: 52px;
-  padding: 0 var(--s10);
-  border-radius: var(--r-full);
-  border: 2px solid var(--brand);
-  color: var(--brand);
-  font-weight: 700;
-  background: var(--surface);
-}
-.membership-root .btn-foot-secondary:hover {
-  background: var(--surface-2);
 }
 .membership-root .pro-card-bg {
   background: linear-gradient(

@@ -1,6 +1,7 @@
 "use client";
 
 import { LogoMark } from "@/components/brand/LogoMark";
+import FooterSecuredByCloudflare from "@/components/layouts/FooterSecuredByCloudflare";
 import FooterSocialIcon from "@/components/layouts/FooterSocialIcon";
 import { FOOTER_SECTIONS } from "@/constants/footer-links";
 import { SOCIAL_ICONS } from "@/constants/footer-social";
@@ -61,6 +62,9 @@ const Footer = () => {
                     );
                   })}
                 </ul>
+                {section.titleKey === "footerSectionProducts" ? (
+                  <FooterSecuredByCloudflare securedByLabel={t("footerSecuredBy")} />
+                ) : null}
               </div>
             ))}
           </div>

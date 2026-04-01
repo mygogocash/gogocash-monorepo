@@ -163,6 +163,9 @@ export function ShopDetailLeftRail({
             <p className="text-sm leading-relaxed text-[#7f7f7f]">
               {t("merchantCashbackRatesDisclaimer")}
             </p>
+            <p className="text-sm leading-relaxed text-[#7f7f7f]">
+              {t("merchantCashbackMaxThbPerTransaction")}
+            </p>
             {offer?.product_type && offer.product_type.length > 0 ? (
               <>
                 <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-base text-[#3b3b3b]">

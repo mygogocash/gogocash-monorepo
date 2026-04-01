@@ -250,6 +250,11 @@ button {
   font-weight: 700;
 }
 
+/* Override weight where a regular (400) label is preferred (e.g. shop “View all”). */
+.gc-inline-link.gc-inline-link--regular {
+  font-weight: 400;
+}
+
 /* Native radio/checkbox selected tint = CI mint (Figma Branding/Mint → --gc-primary) */
 .gc-native-accent-mint {
   accent-color: var(--gc-primary);
