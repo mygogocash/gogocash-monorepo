@@ -21,15 +21,11 @@ export function getQueryClient() {
       },
     })
 
+    // Optional: persist selected query keys to localStorage for faster repeat visits.
+    // Only enable after auditing keys for non-sensitive data; use `dehydrateOptions.shouldDehydrateQuery`.
     // if (typeof window !== 'undefined') {
-    //   const persister = createSyncStoragePersister({
-    //     storage: window.localStorage,
-    //   })
-
-    //   persistQueryClient({
-    //     queryClient: client,
-    //     persister,
-    //   })
+    //   const persister = createSyncStoragePersister({ storage: window.localStorage })
+    //   persistQueryClient({ queryClient: client, persister })
     // }
   }
 

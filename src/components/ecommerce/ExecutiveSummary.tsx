@@ -1,66 +1,24 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import { GroupIcon, UserCircleIcon, BoxIconLine, DollarLineIcon } from "@/icons";
-import { useApi } from "@/hooks/useApi";
-import type { DashboardStatsResponse, DashboardSummaryResponse } from "@/types/api";
-
-// Fallback mock data when API fails or times out so the dashboard always shows data
-const MOCK_STATS: DashboardStatsResponse = {
-  gogocashUsers: 550,
-  mycashbackUsers: 550,
-};
-const MOCK_SUMMARY: DashboardSummaryResponse = {
-  conversionCount: 550,
-  conversionTotalPayout: 124750.5,
-  withdrawByStatus: {
-    pending: { count: 12, total: 8450 },
-    approved: { count: 88, total: 52300.25 },
-    rejected: { count: 5, total: 1200 },
-  },
-};
+import {
+  MOCK_DASHBOARD_STATS,
+  MOCK_DASHBOARD_SUMMARY,
+  fetchExecutiveDashboard,
+} from "@/lib/query/dashboardQueries";
 
 export function ExecutiveSummary() {
-  const { getDashboardStats, getDashboardSummary, getUsers } = useApi();
-  const [stats, setStats] = useState<DashboardStatsResponse | null>(MOCK_STATS);
-  const [summary, setSummary] = useState<DashboardSummaryResponse | null>(MOCK_SUMMARY);
-  const [, setError] = useState<string | null>(null);
+  const { data, isLoading } = useQuery({
+    queryKey: ["dashboard", "executive-summary"],
+    queryFn: fetchExecutiveDashboard,
+    staleTime: 60_000,
+  });
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        const [statsRes, summaryRes] = await Promise.all([
-          getDashboardStats().catch(async () => {
-            const users = await getUsers({ limit: 1, page: 1 });
-            return {
-              gogocashUsers: users.pagination?.total ?? MOCK_STATS.gogocashUsers,
-              mycashbackUsers: MOCK_STATS.mycashbackUsers,
-            } as DashboardStatsResponse;
-          }),
-          getDashboardSummary(),
-        ]);
-        if (!cancelled) {
-          setStats(statsRes);
-          setSummary(summaryRes);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load");
-          setStats(MOCK_STATS);
-          setSummary(MOCK_SUMMARY);
-        }
-      }
-    }
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [getDashboardStats, getDashboardSummary, getUsers]);
-
-  const displayStats = stats ?? MOCK_STATS;
-  const displaySummary = summary ?? MOCK_SUMMARY;
+  const displayStats = data?.stats ?? MOCK_DASHBOARD_STATS;
+  const displaySummary = data?.summary ?? MOCK_DASHBOARD_SUMMARY;
 
   const cards = [
     {
@@ -94,23 +52,34 @@ export function ExecutiveSummary() {
     },
   ];
 
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-6 lg:grid-cols-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div
+            key={i}
+            className="animate-pulse rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6"
+          >
+            <div className="h-12 w-12 rounded-xl bg-gray-100 dark:bg-gray-800" />
+            <div className="mt-5 h-4 w-24 rounded bg-gray-200 dark:bg-gray-700" />
+            <div className="mt-2 h-8 w-20 rounded bg-gray-200 dark:bg-gray-700" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 md:gap-6">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-6 lg:grid-cols-4">
       {cards.map((card) => {
         const content = (
           <>
-            <div
-              className={`flex items-center justify-center w-12 h-12 rounded-xl ${card.bgIcon}`}
-            >
+            <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${card.bgIcon}`}>
               {card.icon}
             </div>
             <div className="mt-5 min-w-0">
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                {card.label}
-              </span>
-              <p className="mt-2 font-bold text-gray-800 text-title-sm dark:text-white/90 truncate">
-                {card.value}
-              </p>
+              <span className="text-sm text-gray-500 dark:text-gray-400">{card.label}</span>
+              <p className="mt-2 truncate font-bold text-gray-800 text-title-sm dark:text-white/90">{card.value}</p>
             </div>
           </>
         );

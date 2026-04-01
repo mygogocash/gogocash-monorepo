@@ -1,8 +1,18 @@
 "use client";
 
-import React, { useState, useEffect, useRef, startTransition } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
-import { useApi } from "@/hooks/useApi";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { apiClient } from "@/lib/api";
+import {
+  fetchOffersList,
+  offersListQueryKey,
+} from "@/lib/query/offersQueries";
 import {
   Offer,
   OfferRequestForm,
@@ -15,6 +25,9 @@ import { useDataSession } from "@/hooks/useDataSession";
 import FormOffer from "./FormOffer";
 import { useRouter } from "next/navigation";
 import Select from "../form/Select";
+
+/** Responsive hint for Next/Image in dense table thumbnails (~40–48px). */
+const OFFER_THUMB_SIZES = "(max-width: 640px) 40px, 48px";
 
 function offerToEditForm(offer: Offer): OfferRequestForm {
   return {
@@ -68,24 +81,8 @@ export default function OffersTable() {
     note_to_user: "",
   });
   const session = useDataSession();
-
-  const {
-    loading,
-    error,
-    getOffers,
-    deleteOffer,
-    clearError,
-    updateListOffer,
-    setLoading,
-  } = useApi();
-
-  const [offers, setOffers] = useState<Offer[]>([]);
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 10,
-    total: 0,
-    totalPages: 1,
-  });
+  const queryClient = useQueryClient();
+  const token = session.accessToken ?? "mock-jwt-token-for-development";
 
   const [query, setQuery] = useState<OffersQuery>({
     search: "",
@@ -94,29 +91,51 @@ export default function OffersTable() {
     country: "",
   });
 
-  // Fetch offers
-  const fetchOffers = async (newQuery?: OffersQuery) => {
-    try {
-      const queryToUse = newQuery || query;
-      const response = await getOffers(queryToUse);
-      setOffers(response.data);
-      setPagination({
-        page: response.page,
-        limit: response.limit,
-        total: response.total,
-        totalPages: response.totalPages,
-      });
-    } catch (err) {
-      devError("Failed to fetch offers:", err);
-    }
+  const listQueryKey = useMemo(() => offersListQueryKey(query), [query]);
+
+  const {
+    data: offersResponse,
+    isLoading: offersLoading,
+    error: offersError,
+  } = useQuery({
+    queryKey: listQueryKey,
+    queryFn: () => fetchOffersList(query),
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
+  });
+
+  const offers = offersResponse?.data ?? [];
+  const pagination = useMemo(
+    () =>
+      offersResponse
+        ? {
+            page: offersResponse.page,
+            limit: offersResponse.limit,
+            total: offersResponse.total,
+            totalPages: offersResponse.totalPages,
+          }
+        : { page: 1, limit: 10, total: 0, totalPages: 1 },
+    [offersResponse],
+  );
+
+  const invalidateOffersList = () => {
+    void queryClient.invalidateQueries({ queryKey: ["offers", "list"] });
   };
 
-  // Initial load
-  useEffect(() => {
-    startTransition(() => {
-      void fetchOffers();
-    });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const deleteOfferMutation = useMutation({
+    mutationFn: (offerId: string) => apiClient.deleteOffer(offerId, token),
+    onSuccess: invalidateOffersList,
+    onError: (err) => devError("Failed to delete offer:", err),
+  });
+
+  const updateListMutation = useMutation({
+    mutationFn: () => apiClient.updateListOffer(token),
+    onSuccess: invalidateOffersList,
+    onError: (err) => devError("Failed to update offer list:", err),
+  });
+
+  const listErrorMessage =
+    offersError instanceof Error ? offersError.message : offersError ? String(offersError) : null;
 
   // Close actions dropdown when clicking outside
   useEffect(() => {
@@ -131,29 +150,20 @@ export default function OffersTable() {
     return () => document.removeEventListener("click", handleClick, true);
   }, [openActionsId]);
 
-  // Handle search
   const handleSearch = (searchValue: string) => {
-    const newQuery = { ...query, search: searchValue, page: 1 };
-    setQuery(newQuery);
-    fetchOffers(newQuery);
+    setQuery((q) => ({ ...q, search: searchValue, page: 1 }));
   };
 
-  // Handle pagination
   const handlePageChange = (newPage: number) => {
-    const newQuery = { ...query, page: newPage };
-    setQuery(newQuery);
-    fetchOffers(newQuery);
+    setQuery((q) => ({ ...q, page: newPage }));
   };
 
-  // Handle offer deletion
   const handleDeleteOffer = async (offerId: string) => {
     if (!confirm("Are you sure you want to delete this offer?")) return;
-
     try {
-      await deleteOffer(offerId);
-      fetchOffers(); // Refresh the list
-    } catch (err) {
-      devError("Failed to delete offer:", err);
+      await deleteOfferMutation.mutateAsync(offerId);
+    } catch {
+      /* toast via devError in mutation */
     }
   };
 
@@ -169,7 +179,7 @@ export default function OffersTable() {
     <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
       {/* Header */}
       <FormOffer
-        fetchOffers={fetchOffers}
+        fetchOffers={invalidateOffersList}
         openModal={openModal}
         setOpenModal={setOpenModal}
         form={form}
@@ -189,14 +199,9 @@ export default function OffersTable() {
         </div>
         <div className="flex items-center gap-4">
           <button
-            onClick={() => {
-              setLoading(true);
-              updateListOffer(
-                session.accessToken ?? "",
-              )
-                .then(() => fetchOffers())
-                .finally(() => setLoading(false));
-            }}
+            type="button"
+            onClick={() => updateListMutation.mutate()}
+            disabled={updateListMutation.isPending}
             className="shadow-theme-xs flex w-full min-w-[130px] items-center justify-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-800 lg:inline-flex lg:w-auto dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] dark:hover:text-gray-200"
           >
             Update Offer
@@ -227,9 +232,7 @@ export default function OffersTable() {
             ]}
             placeholder="Select country"
             onChange={(e) => {
-              const newQuery = { ...query, country: e, page: 1 };
-              setQuery(newQuery);
-              fetchOffers(newQuery);
+              setQuery((q) => ({ ...q, country: e, page: 1 }));
             }}
           />
         </div>
@@ -237,26 +240,27 @@ export default function OffersTable() {
 
       {/* Content */}
       <div className="border-t border-gray-100 p-4 sm:p-6 dark:border-gray-700 dark:bg-white/[0.02]">
-        {error && (
+        {listErrorMessage ? (
           <div className="mb-4 rounded-lg border border-red-300 bg-red-100 p-3 text-red-700 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400">
-            {error}
+            {listErrorMessage}
             <button
-              onClick={clearError}
+              type="button"
+              onClick={() => queryClient.resetQueries({ queryKey: listQueryKey })}
               className="ml-2 text-red-800 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
             >
               ×
             </button>
           </div>
-        )}
+        ) : null}
 
-        {loading && (
+        {offersLoading && (
           <div className="flex items-center justify-center py-8">
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-brand-500 dark:border-gray-700 dark:border-t-brand-400"></div>
             <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Loading offers...</span>
           </div>
         )}
 
-        {!loading && (
+        {!offersLoading && (
           <>
             {/* Offers Table */}
             <div className="w-full overflow-x-auto -mx-4 sm:mx-0">
@@ -314,6 +318,7 @@ export default function OffersTable() {
                     const bannerSrc = pathImage(offer.banner);
                     const logoCircleSrc = pathImage(offer.logo_circle);
                     const has = (s: string) => typeof s === "string" && s.length > 0;
+                    const rowNumber = (pagination.page - 1) * pagination.limit + index + 1;
                     return (
                     <tr
                       key={offer._id}
@@ -323,7 +328,7 @@ export default function OffersTable() {
                       }}
                     >
                       <td className="whitespace-nowrap px-4 py-3 sm:px-6 sm:py-4">
-                        {index + 1}
+                        {rowNumber}
                       </td>
                       <td className="min-w-0 px-4 py-3 sm:px-6 sm:py-4">
                         <div className="flex items-center">
@@ -335,6 +340,7 @@ export default function OffersTable() {
                                 alt={offer.offer_name}
                                 width={48}
                                 height={48}
+                                sizes={OFFER_THUMB_SIZES}
                               />
                             ) : (
                               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-300 dark:bg-gray-600 sm:h-12 sm:w-12">
@@ -379,6 +385,7 @@ export default function OffersTable() {
                                 alt={offer.offer_name}
                                 width={48}
                                 height={48}
+                                sizes={OFFER_THUMB_SIZES}
                               />
                             ) : (
                               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-200 dark:bg-gray-600 sm:h-12 sm:w-12 text-xs text-gray-500 dark:text-gray-400">—</div>
@@ -397,6 +404,7 @@ export default function OffersTable() {
                                 alt={offer.offer_name}
                                 width={48}
                                 height={48}
+                                sizes={OFFER_THUMB_SIZES}
                               />
                             ) : (
                               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-200 dark:bg-gray-600 sm:h-12 sm:w-12 text-xs text-gray-500 dark:text-gray-400">—</div>
@@ -415,6 +423,7 @@ export default function OffersTable() {
                                 alt={offer.offer_name}
                                 width={48}
                                 height={48}
+                                sizes={OFFER_THUMB_SIZES}
                               />
                             ) : (
                               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-200 dark:bg-gray-600 sm:h-12 sm:w-12 text-xs text-gray-500 dark:text-gray-400">—</div>
@@ -433,6 +442,7 @@ export default function OffersTable() {
                                 alt={offer.offer_name}
                                 width={48}
                                 height={48}
+                                sizes={OFFER_THUMB_SIZES}
                               />
                             ) : (
                               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-200 dark:bg-gray-600 sm:h-12 sm:w-12 text-xs text-gray-500 dark:text-gray-400">—</div>
@@ -654,7 +664,7 @@ export default function OffersTable() {
               </div>
             )}
 
-            {offers.length === 0 && !loading && (
+            {offers.length === 0 && !offersLoading && (
               <div className="py-8 text-center text-gray-500 dark:text-gray-400">
                 No offers found
               </div>

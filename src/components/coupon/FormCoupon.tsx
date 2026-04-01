@@ -3,9 +3,9 @@ import { Modal } from "../ui/modal";
 import Input from "../form/input/InputField";
 import client, { fetcher } from "@/lib/axios/client";
 import { useDataSession } from "@/hooks/useDataSession";
+import { fetchOffersList, offersListQueryKey } from "@/lib/query/offersQueries";
 import toast from "react-hot-toast";
 import Button from "../ui/button/Button";
-import { useApi } from "@/hooks/useApi";
 import { useState } from "react";
 import { Offer, OffersQuery } from "@/types/api";
 import { useQuery } from "@tanstack/react-query";
@@ -41,18 +41,13 @@ const FormCoupon = ({
     search: "",
     limit: 10,
     page: 1,
+    country: "",
   });
 
-  const { getOffers } = useApi();
   const { data: offer } = useQuery({
-    queryKey: ["get-offer", query.page, query.limit, query.search ?? ""],
-    queryFn: () => {
-      return getOffers({
-        search: query.search,
-        limit: query.limit,
-        page: query.page,
-      });
-    },
+    queryKey: offersListQueryKey(query),
+    queryFn: () => fetchOffersList(query),
+    staleTime: 30_000,
   });
 
   const { data: offerDetail } = useQuery<Offer>({
