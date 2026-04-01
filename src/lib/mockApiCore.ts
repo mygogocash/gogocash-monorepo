@@ -18,6 +18,11 @@ import {
   mockMCBDetail,
 } from "@/app/api/mock/data";
 import { isMockAdminPasswordAllowed } from "@/lib/mockAuthPolicy";
+import {
+  AFFILIATE_NETWORKS,
+  affiliateNetworkIdForOfferId,
+  affiliateNetworkName,
+} from "@/data/affiliateNetworks";
 import { normalizeOfferProductTypes, type Offer } from "@/types/api";
 
 export type MockApiInput = {
@@ -104,6 +109,39 @@ function buildMockCreatedConversions(): CreatedConversionItem[] {
 
 const createdConversionsList: CreatedConversionItem[] = buildMockCreatedConversions();
 const policyStore = new Map<string, string>();
+
+/** Admin-set app deeplink per offer (commission management). */
+const commissionAppDeeplinkByOfferId = new Map<string, string>();
+
+function parseCommissionPercentString(s: string): number | null {
+  const m = s.trim().match(/([\d.]+)\s*%/);
+  if (m) return parseFloat(m[1]);
+  return null;
+}
+
+function bestPercentFromPartnerRates(commissions: string[]): number {
+  let max = 0;
+  for (const c of commissions) {
+    const p = parseCommissionPercentString(c);
+    if (p != null && p > max) max = p;
+  }
+  return max;
+}
+
+function buildCommissionSuggestedDeeplink(offer: {
+  _id: string;
+  lookup_value: string;
+  currency: string;
+  commissions?: string[];
+  commission_store: number | null;
+}): string {
+  const fromPartner = bestPercentFromPartnerRates(offer.commissions ?? []);
+  const rate =
+    fromPartner > 0 ? fromPartner : (offer.commission_store != null ? offer.commission_store : 0);
+  const safeLookup = encodeURIComponent(offer.lookup_value || offer._id);
+  const net = affiliateNetworkIdForOfferId(offer._id);
+  return `https://gogocash.app/open/offer/${safeLookup}?bestRate=${rate}&currency=${encodeURIComponent(offer.currency || "THB")}&affNetwork=${encodeURIComponent(net)}`;
+}
 
 function paginate<T>(items: T[], page = 1, limit = 10) {
   const start = (page - 1) * limit;
@@ -339,6 +377,48 @@ function handleMockGET(
     return ok(mockOffers);
   }
 
+  if (joined === "admin/commission-management/networks") {
+    return ok({ data: AFFILIATE_NETWORKS });
+  }
+
+  if (joined === "admin/commission-management/brands") {
+    const networkFilter = searchParams.get("networkId")?.trim() || null;
+    const seen = new Set<number>();
+    const data: Array<{
+      id: string;
+      name: string;
+      merchantId: number;
+      currency: string;
+      partnerRates: string[];
+      adminCommission: number | null;
+      trackingLink: string;
+      appDeeplink: string;
+      affiliateNetworkId: string;
+      affiliateNetworkName: string;
+    }> = [];
+    for (const o of mockOffers) {
+      if (seen.has(o.merchant_id)) continue;
+      const nwId = affiliateNetworkIdForOfferId(o._id);
+      if (networkFilter && networkFilter !== nwId) continue;
+      seen.add(o.merchant_id);
+      data.push({
+        id: o._id,
+        name: o.offer_name_display || o.offer_name,
+        merchantId: o.merchant_id,
+        currency: o.currency,
+        partnerRates: o.commissions ?? [],
+        adminCommission: o.commission_store,
+        trackingLink: o.tracking_link,
+        appDeeplink:
+          commissionAppDeeplinkByOfferId.get(o._id) ?? buildCommissionSuggestedDeeplink(o),
+        affiliateNetworkId: nwId,
+        affiliateNetworkName: affiliateNetworkName(nwId),
+      });
+      if (data.length >= 80) break;
+    }
+    return ok({ data });
+  }
+
   if (joined === "offer/get-coupon") {
     return ok(paginateFlat(mockCoupons, page, limit));
   }
@@ -495,6 +575,49 @@ async function handleMockPOST(
 
   if (joined === "user") {
     return ok({ _id: "u_new", ...(body as object) });
+  }
+
+  if (joined === "admin/commission-management/fetch-best") {
+    const b = body as { offerId?: string; affiliateNetworkId?: string };
+    const id = (b.offerId ?? "").trim();
+    const offer = mockOffers.find((o) => o._id === id);
+    if (!offer) {
+      return jsonErr(404, { message: "Offer not found" });
+    }
+    const expectedNw = affiliateNetworkIdForOfferId(offer._id);
+    const requestedNw = (b.affiliateNetworkId ?? "").trim();
+    if (requestedNw && requestedNw !== expectedNw) {
+      return jsonErr(400, {
+        message: `This merchant is on ${affiliateNetworkName(expectedNw)}. Select that network above, then fetch again.`,
+      });
+    }
+    const affiliateNetworkId = requestedNw || expectedNw;
+    const fromPartner = bestPercentFromPartnerRates(offer.commissions ?? []);
+    let base =
+      fromPartner > 0
+        ? fromPartner
+        : offer.commission_store != null
+          ? offer.commission_store
+          : 0;
+    /** Mock: slight variance by network feed (replace with real API merge). */
+    const networkBonus: Record<string, number> = {
+      involve_asia: 0.05,
+      optimise: 0.02,
+      accesstrade: 0.03,
+    };
+    base += networkBonus[affiliateNetworkId] ?? 0;
+    const bestRatePercent = Math.round(base * 100) / 100;
+    const suggestedDeeplink = buildCommissionSuggestedDeeplink(offer);
+    return ok({
+      bestRatePercent,
+      currency: offer.currency,
+      suggestedDeeplink,
+      trackingModel: offer.commission_tracking,
+      partnerRates: offer.commissions ?? [],
+      offerName: offer.offer_name_display || offer.offer_name,
+      affiliateNetworkId,
+      affiliateNetworkName: affiliateNetworkName(affiliateNetworkId),
+    });
   }
 
   return jsonErr(404, { message: `Mock endpoint not found: POST /${joined}` });
@@ -669,9 +792,28 @@ async function handleMockPATCH(
         offer.active_policy = offer.categories;
       }
     }
+    if (b.note_to_user !== undefined) {
+      const t = (b.note_to_user ?? "").trim();
+      offer.note_to_user = t.length > 0 ? t : null;
+    }
 
     offer.datetime_updated = new Date();
     return ok({ success: true, message: "Offer updated", data: offer });
+  }
+
+  if (path[0] === "admin" && path[1] === "commission-management" && path[2] === "deeplink") {
+    const raw = body as { offerId?: string; deeplink?: string };
+    const id = (raw.offerId ?? "").trim();
+    const deeplink = (raw.deeplink ?? "").trim();
+    if (!id || !deeplink) {
+      return jsonErr(400, { message: "offerId and deeplink are required" });
+    }
+    const offer = mockOffers.find((o) => o._id === id);
+    if (!offer) {
+      return jsonErr(404, { message: "Offer not found" });
+    }
+    commissionAppDeeplinkByOfferId.set(id, deeplink);
+    return ok({ success: true, data: { offerId: id, deeplink } });
   }
 
   return jsonErr(404, { message: `Mock endpoint not found: PATCH /${joined}` });

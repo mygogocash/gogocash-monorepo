@@ -184,7 +184,10 @@ export interface Offer {
   disabled: boolean;
   offer_name_display: string;
   commission_store: number | null;
+  /** Admin-configured cap (editable in this form). */
   max_cap: number | null;
+  /** Max cap as supplied by the partner / network feed (read-only). */
+  partner_max_cap?: number | string | null;
   banner_mobile: string;
   /** When true, treat as top-brand placement (API field name: extra_store). */
   extra_store: boolean;
@@ -201,6 +204,8 @@ export interface Offer {
   product_types?: OfferProductTypeEntry[];
   /** Admin-entered commission notes or tiers (e.g. internal deals); separate from partner feed. */
   admin_commission_info?: string[];
+  /** Short message from admin shown to end users for this offer (e.g. app offer detail). */
+  note_to_user?: string | null;
 }
 
 export interface OfferRequestForm {
@@ -227,6 +232,8 @@ export interface OfferRequestForm {
   admin_commission_info?: string[];
   /** Category whose terms & conditions apply; empty string = default (match offer category). */
   policy_category_id: string;
+  /** Shown to users in the app; empty = no message. */
+  note_to_user: string;
 }
 
 export interface OffersQuery {

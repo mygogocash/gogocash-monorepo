@@ -1,12 +1,14 @@
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import { Metadata } from "next";
+import { awaitPageDynamicProps, type DefaultAppPageProps } from "@/lib/nextAppPageProps";
 
 export const metadata: Metadata = {
   title: "Support | GoGoCash Admin",
   description: "How to use the GoGoCash admin panel. Guide for new administrators.",
 };
 
-export default function SupportPage() {
+export default async function SupportPage(props: DefaultAppPageProps) {
+  await awaitPageDynamicProps(props);
   return (
     <div className="min-w-0">
       <PageBreadcrumb

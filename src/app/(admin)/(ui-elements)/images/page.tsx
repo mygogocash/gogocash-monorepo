@@ -5,6 +5,7 @@ import ThreeColumnImageGrid from "@/components/ui/images/ThreeColumnImageGrid";
 import TwoColumnImageGrid from "@/components/ui/images/TwoColumnImageGrid";
 import { Metadata } from "next";
 import React from "react";
+import { awaitPageDynamicProps, type DefaultAppPageProps } from "@/lib/nextAppPageProps";
 
 export const metadata: Metadata = {
   title: "Next.js Images | TailAdmin - Next.js Dashboard Template",
@@ -13,7 +14,8 @@ export const metadata: Metadata = {
   // other metadata
 };
 
-export default function Images() {
+export default async function Images(props: DefaultAppPageProps) {
+  await awaitPageDynamicProps(props);
   return (
     <div>
       <PageBreadcrumb pageTitle="Images" />

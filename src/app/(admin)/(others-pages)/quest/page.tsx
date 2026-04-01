@@ -1,12 +1,14 @@
 import { Metadata } from "next";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import { awaitPageDynamicProps, type DefaultAppPageProps } from "@/lib/nextAppPageProps";
 import QuestPageClient from "./QuestPageClient";
 
 export const metadata: Metadata = {
   title: "Quest | GoGoCash Admin",
 };
 
-export default function QuestPage() {
+export default async function QuestPage(props: DefaultAppPageProps) {
+  await awaitPageDynamicProps(props);
   return (
     <div className="min-w-0">
       <PageBreadcrumb

@@ -3,6 +3,7 @@ import Badge from "@/components/ui/badge/Badge";
 import { PlusIcon } from "@/icons";
 import { Metadata } from "next";
 import React from "react";
+import { awaitPageDynamicProps, type DefaultAppPageProps } from "@/lib/nextAppPageProps";
 
 export const metadata: Metadata = {
   title: "Next.js Badge | TailAdmin - Next.js Dashboard Template",
@@ -11,7 +12,8 @@ export const metadata: Metadata = {
   // other metadata
 };
 
-export default function BadgePage() {
+export default async function BadgePage(props: DefaultAppPageProps) {
+  await awaitPageDynamicProps(props);
   return (
     <div>
       <PageBreadcrumb pageTitle="Badges" />

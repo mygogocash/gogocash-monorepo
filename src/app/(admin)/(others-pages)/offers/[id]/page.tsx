@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import Detail from "@/components/offer/Detail";
 import { mockOffers } from "@/app/api/mock/data";
+import { awaitPageDynamicProps, type AppPageRouteParams } from "@/lib/nextAppPageProps";
 
 export const metadata: Metadata = {
   title: "Offers | TailAdmin - Next.js Dashboard Template",
@@ -14,7 +15,14 @@ export function generateStaticParams() {
   return mockOffers.map((o) => ({ id: o._id }));
 }
 
-export default function OffersDetailPage() {
+export default async function OffersDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<AppPageRouteParams>;
+}) {
+  await awaitPageDynamicProps({ params, searchParams });
   return (
     <div className="space-y-6">
       <Detail />

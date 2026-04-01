@@ -2,6 +2,7 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import type { BreadcrumbItem } from "@/components/common/PageBreadCrumb";
 import PopupHistoryTable from "@/components/banner/PopupHistoryTable";
 import type { Metadata } from "next";
+import { awaitPageDynamicProps, type DefaultAppPageProps } from "@/lib/nextAppPageProps";
 
 export const metadata: Metadata = {
   title: "Popup history | GoGoCash Admin",
@@ -14,7 +15,8 @@ const items: BreadcrumbItem[] = [
   { label: "Popup history" },
 ];
 
-export default function BannerPopupHistoryPage() {
+export default async function BannerPopupHistoryPage(props: DefaultAppPageProps) {
+  await awaitPageDynamicProps(props);
   return (
     <div>
       <PageBreadcrumb pageTitle="Popup history" items={items} />

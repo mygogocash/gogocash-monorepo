@@ -1,13 +1,15 @@
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import { Metadata } from "next";
 import { Suspense } from "react";
+import { awaitPageDynamicProps, type DefaultAppPageProps } from "@/lib/nextAppPageProps";
 import ConversionPageClient from "./ConversionPageClient";
 
 export const metadata: Metadata = {
   title: "Conversion | GoGoCash Admin",
 };
 
-export default function ConversionPage() {
+export default async function ConversionPage(props: DefaultAppPageProps) {
+  await awaitPageDynamicProps(props);
   return (
     <div className="min-w-0">
       <PageBreadcrumb

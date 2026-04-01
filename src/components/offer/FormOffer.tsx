@@ -13,6 +13,15 @@ import { useDataSession } from "@/hooks/useDataSession";
 import { useQuery } from "@tanstack/react-query";
 import type { ResCategoryList } from "@/types/category";
 
+function formatPartnerMaxCap(offer: Offer | null): string {
+  const raw = offer?.partner_max_cap;
+  if (raw === undefined || raw === null || raw === "") return "—";
+  if (typeof raw === "string") return raw.trim() || "—";
+  const cur = offer?.currency?.trim();
+  const formatted = Number.isFinite(raw) ? raw.toLocaleString() : String(raw);
+  return cur ? `${formatted} ${cur}` : formatted;
+}
+
 function FieldLabel({ label, description }: { label: string; description: string }) {
   return (
     <div className="mb-1.5">
@@ -115,6 +124,7 @@ const FormOffer = ({
       ),
     );
     formData.append("policy_category_id", form.policy_category_id ?? "");
+    formData.append("note_to_user", form.note_to_user ?? "");
     setIsLoading(true);
     client
       .patch(`/admin/update-offer/${form.id}`, formData, {
@@ -242,13 +252,28 @@ const FormOffer = ({
             />
           </div>
 
+          <div>
+            <FieldLabel
+              label="Note to user"
+              description="Optional message shown to customers in the app for this offer (e.g. promo timing, eligibility). Leave empty to hide."
+            />
+            <TextArea
+              rows={4}
+              placeholder="e.g. Bonus cashback until 31 Dec · new users only"
+              value={form.note_to_user}
+              onChange={(v) => setForm({ ...form, note_to_user: v })}
+              disabled={isLoading}
+              className="min-h-[5.5rem] resize-y !text-base !text-gray-800 placeholder:text-gray-400 dark:!text-white/90 sm:!text-sm"
+            />
+          </div>
+
           {/* Read-only: from partner / network feed */}
           <div className="rounded-xl border border-dashed border-brand-200/80 bg-brand-50/50 p-4 dark:border-brand-800/60 dark:bg-brand-950/25">
             <h4 className="text-sm font-semibold text-brand-900 dark:text-brand-100">
               Commission info from partner
             </h4>
             <p className="mt-1 text-xs text-brand-800/80 dark:text-brand-200/80">
-              Structured terms as supplied by the partner or affiliate network. This does not change when you edit “Commission (%)” above.
+              Structured terms as supplied by the partner or affiliate network. This does not change when you edit “Commission (%)” or “Max cap” above — partner max cap is separate and read-only here.
             </p>
             <dl className="mt-4 grid gap-3 sm:grid-cols-2">
               <div>
@@ -267,6 +292,14 @@ const FormOffer = ({
                   {offer?.commissions?.length
                     ? offer.commissions.join(" · ")
                     : "—"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  Max cap (partner)
+                </dt>
+                <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                  {formatPartnerMaxCap(offer)}
                 </dd>
               </div>
               <div>

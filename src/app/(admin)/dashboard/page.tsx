@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { awaitPageDynamicProps, type DefaultAppPageProps } from "@/lib/nextAppPageProps";
 import { ExecutiveSummary } from "@/components/ecommerce/ExecutiveSummary";
 import { DashboardWithdrawSummary } from "@/components/ecommerce/DashboardWithdrawSummary";
 import React from "react";
@@ -13,7 +14,8 @@ export const metadata: Metadata = {
     "GoGoCash admin dashboard – users, conversions, payout, withdrawals, and activity",
 };
 
-export default function DashboardPage() {
+export default async function DashboardPage(props: DefaultAppPageProps) {
+  await awaitPageDynamicProps(props);
   return (
     <div className="min-w-0 space-y-8">
       {/* Executive summary: KPIs for management */}
