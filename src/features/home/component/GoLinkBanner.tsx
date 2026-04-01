@@ -54,29 +54,45 @@ export default function GoLinkBanner() {
 
   return (
     <section className="gc-home-golink-section w-full" aria-labelledby="golink-banner-heading">
-      <div
-        className="relative overflow-hidden rounded-[32px] px-5 py-7 shadow-[0px_4px_10px_rgba(4,16,34,0.06),0px_25px_75px_rgba(7,33,102,0.12)] md:px-8 md:py-8"
-        style={{
-          backgroundImage:
-            "radial-gradient(ellipse 90% 120% at 92% 100%, rgba(0,204,153,0.28), transparent 55%), linear-gradient(90deg, #D8F8EF 0%, #EAF4FF 52.58%), #F8FBFF",
-        }}
-      >
+      {/*
+        Single card box: padding + flex live in the same positioned element as the shell so
+        background-size 100% 100% always matches this DOM rect (Figma viewBox 1350×374).
+      */}
+      <div className="relative isolate flex w-full flex-col items-stretch gap-7 overflow-hidden rounded-[32px] px-5 py-8 shadow-[0px_4px_10px_rgba(4,16,34,0.06),0px_25px_75px_rgba(7,33,102,0.12)] md:px-8 md:py-9 lg:flex-row lg:items-center lg:gap-12 lg:pr-5">
+        {/*
+          Figma 9703:278496 — same fills as `GoLink Banner.svg`: #F8FBFF + linear #D8F8EF → #EAF4FF
+          + radial #00CC99 @ 30% (glow lower-right). CSS avoids an extra image fetch.
+        */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 -z-10"
+          style={{
+            backgroundColor: "#F8FBFF",
+            backgroundImage: [
+              "radial-gradient(ellipse 95% 165% at 78% 108%, rgba(0, 204, 153, 0.3) 0%, transparent 52%)",
+              "linear-gradient(90deg, #D8F8EF 0%, #EAF4FF 52%, #EAF4FF 100%)",
+            ].join(", "),
+          }}
+        />
         <IconButton
           type="button"
-          size="small"
           aria-label={t("golinkBannerInfoAria")}
           aria-haspopup="dialog"
           aria-expanded={guidelineOpen}
           onClick={() => setGuidelineOpen(true)}
-          className="z-10 text-[#3B3B3B]"
+          className="text-[#0a5c4a]/55 transition hover:bg-[#00CC99]/10 hover:text-[#00AA80]"
           sx={{
             position: "absolute",
             right: { xs: 12, md: 20 },
             top: { xs: 12, md: 20 },
-            opacity: 0.75,
+            zIndex: 10,
+            width: 24,
+            height: 24,
+            minWidth: 24,
+            padding: 0,
           }}
         >
-          <InfoOutlined fontSize="small" />
+          <InfoOutlined sx={{ fontSize: 18 }} />
         </IconButton>
         <GoLinkGuidelineDialog open={guidelineOpen} onClose={() => setGuidelineOpen(false)} />
         <GoLinkResultDialog
@@ -88,48 +104,46 @@ export default function GoLinkBanner() {
           }}
         />
 
-        <div className="flex flex-col items-stretch gap-8 lg:flex-row lg:items-center lg:gap-10 lg:pr-4">
-          <div className="mx-auto w-full max-w-[min(100%,380px)] shrink-0 lg:mx-0">
-            <GoLinkBannerIllustration className="h-auto w-full" />
-          </div>
+        <div className="relative z-1 mx-auto w-full max-w-[min(100%,420px)] shrink-0 lg:mx-0">
+          <GoLinkBannerIllustration className="h-auto w-full drop-shadow-[0_12px_32px_rgba(0,170,128,0.08)]" />
+        </div>
 
-          <div className="flex min-w-0 flex-1 flex-col gap-5 lg:gap-6">
-            <h2
-              id="golink-banner-heading"
-              className="pr-10 text-[22px] font-semibold leading-snug text-[#005D46] md:text-[28px] lg:pr-12 lg:text-[32px]"
-            >
-              {t("golinkBannerTitle")}
-            </h2>
+        <div className="relative z-1 flex min-w-0 flex-1 flex-col gap-5 lg:gap-6">
+          <h2
+            id="golink-banner-heading"
+            className="pr-10 text-[22px] font-semibold leading-tight tracking-[-0.02em] text-[#0a5c4a] md:text-[28px] lg:pr-12 lg:text-[32px]"
+          >
+            {t("golinkBannerTitle")}
+          </h2>
 
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
-              <div className="relative flex min-h-12 min-w-0 flex-1 items-center">
-                <InsertLinkOutlined
-                  className="pointer-events-none absolute left-4 text-[#3B3B3B]"
-                  sx={{ fontSize: 18, opacity: 0.38 }}
-                  aria-hidden
-                />
-                <input
-                  type="url"
-                  inputMode="url"
-                  autoComplete="off"
-                  placeholder={t("golinkBannerInputPlaceholder")}
-                  aria-label={t("golinkBannerInputAria")}
-                  value={value}
-                  onChange={(e) => setValue(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") void pasteAndGo();
-                  }}
-                  className="h-12 w-full min-w-0 rounded-2xl border border-[#0064D6] bg-white py-3 pl-11 pr-4 text-base text-[#3B3B3B] outline-none ring-[#0064D6]/25 placeholder:text-[#3B3B3B]/45 focus:ring-2"
-                />
-              </div>
-              <button
-                type="button"
-                onClick={() => void pasteAndGo()}
-                className="inline-flex h-12 shrink-0 items-center justify-center rounded-full bg-[#3B3B3B] px-8 text-base font-medium whitespace-nowrap text-white transition hover:bg-[#2c2c2c] sm:px-10"
-              >
-                {t("golinkBannerPasteAndGo")}
-              </button>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch sm:gap-3">
+            <div className="relative flex min-h-12 min-w-0 flex-1 items-center">
+              <InsertLinkOutlined
+                className="pointer-events-none absolute left-4 text-[#00AA80]"
+                sx={{ fontSize: 18, opacity: 0.45 }}
+                aria-hidden
+              />
+              <input
+                type="url"
+                inputMode="url"
+                autoComplete="off"
+                placeholder={t("golinkBannerInputPlaceholder")}
+                aria-label={t("golinkBannerInputAria")}
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void pasteAndGo();
+                }}
+                className="h-12 w-full min-w-0 rounded-2xl border border-[#00AA80]/35 bg-white/95 py-3 pl-11 pr-4 text-base text-[#2d3f3a] shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] outline-none ring-0 placeholder:text-[#5c726b]/55 transition-[box-shadow,border-color] focus:border-[#00CC99] focus:ring-2 focus:ring-[#00CC99]/25"
+              />
             </div>
+            <button
+              type="button"
+              onClick={() => void pasteAndGo()}
+              className="inline-flex h-12 shrink-0 items-center justify-center rounded-full bg-[#00CC99] px-8 text-base font-semibold whitespace-nowrap text-white shadow-[0_8px_28px_-6px_rgba(0,204,153,0.55)] transition hover:bg-[#00b889] hover:shadow-[0_10px_32px_-6px_rgba(0,204,153,0.58)] active:scale-[0.99] sm:px-10"
+            >
+              {t("golinkBannerPasteAndGo")}
+            </button>
           </div>
         </div>
       </div>

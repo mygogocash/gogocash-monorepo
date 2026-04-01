@@ -3,6 +3,13 @@ import type { IntlError } from "use-intl";
 import en from "../messages/en.json";
 import th from "../messages/th.json";
 
+/** String from bundled locale JSON when serialized `messages` omits a key (Turbopack / RSC). */
+function readCatalogString(messageLocale: string, key: string): string | undefined {
+  const catalog = messageLocale === "th" ? th : en;
+  const v = (catalog as Record<string, unknown>)[key];
+  return typeof v === "string" && v.length > 0 ? v : undefined;
+}
+
 /**
  * Shared next-intl `getMessageFallback` for server (`request.ts`) and client (`NextIntlClientProvider`).
  * Keeps behavior identical so missing keys resolve the same way everywhere.
@@ -27,6 +34,9 @@ export function createGetMessageFallback(messageLocale: string) {
         : messageLocale === "jp"
           ? "オファーのハイライト"
           : "Offer highlights";
+    }
+    if (key === "merchantCashbackTipsIllustrationAlt") {
+      return readCatalogString(messageLocale, key) ?? readCatalogString("en", key) ?? key;
     }
     if (key === "footerCopyright") {
       const year = new Date().getFullYear();
@@ -278,20 +288,9 @@ export function createGetMessageFallback(messageLocale: string) {
       return messageLocale === "th" ? pdpa.th : pdpa.en;
     }
 
-    if (key.startsWith("missingOrders")) {
-      const catalog = messageLocale === "th" ? th : en;
-      const v = (catalog as Record<string, unknown>)[key];
-      if (typeof v === "string" && v.length > 0) {
-        return v;
-      }
-    }
-
-    if (key.startsWith("gogoquestHistory")) {
-      const catalog = messageLocale === "th" ? th : en;
-      const v = (catalog as Record<string, unknown>)[key];
-      if (typeof v === "string" && v.length > 0) {
-        return v;
-      }
+    if (key.startsWith("missingOrders") || key.startsWith("gogoquestHistory")) {
+      const v = readCatalogString(messageLocale, key);
+      if (v) return v;
     }
 
     const withdrawCtaFallbacks: Record<string, { en: string; th: string }> = {

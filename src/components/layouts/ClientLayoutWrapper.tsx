@@ -7,9 +7,7 @@ import Footer from "@/components/layouts/Footer";
 import LineOfficialFab from "@/components/layouts/LineOfficialFab";
 import ConsentBanner from "@/components/pdpa/ConsentBanner";
 import { NavigationLoadingProvider } from "@/components/providers/NavigationLoadingOverlay";
-
-/** Routes where `<main>` should follow content height (`flex-none`) instead of stretching (`flex-1`). */
-const MAIN_CONTENT_HEIGHT_ROUTES = new Set<string>(["/link-mycashback"]);
+import { isMainFlexNonePath } from "@/lib/layout/mainFlexConfig";
 
 // Dynamic imports split layout chunks; SSR enabled for faster first paint (header HTML in document).
 const Header = dynamic(() => import("./Header"));
@@ -28,7 +26,7 @@ export default function ClientLayoutWrapper({ children }: ClientLayoutWrapperPro
   const pathname = usePathname();
   const isAuthPage =
     pathname === "/login" || pathname === "/register" || pathname.startsWith("/auth");
-  const isMainContentHeight = MAIN_CONTENT_HEIGHT_ROUTES.has(pathname);
+  const isMainContentHeight = isMainFlexNonePath(pathname);
 
   return (
     <NavigationLoadingProvider>

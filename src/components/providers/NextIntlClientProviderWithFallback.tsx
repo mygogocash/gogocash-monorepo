@@ -14,21 +14,26 @@ type Props = {
 };
 
 /**
- * Stale Turbopack HMR chunks can briefly run an old `ConsentBanner` that still calls `t("pdpaConsent…")`.
- * Those keys are intentionally not resolved via `next-intl` anymore — suppress the duplicate console noise.
+ * `getMessageFallback` supplies user-visible copy for missing keys. In development we still
+ * warn once per missing key so typos surface without spamming production. Turbopack HMR can
+ * briefly omit flat keys — use `npm run i18n:check` for en/th parity.
  */
+const missingKeyDevWarned = new Set<string>();
+
 function onIntlError(error: InstanceType<typeof IntlError>) {
   if (error.code === IntlErrorCode.MISSING_MESSAGE) {
-    const detail = `${error.message} ${error.originalMessage ?? ""}`;
-    if (detail.includes("pdpaConsent")) {
-      return;
+    if (process.env.NODE_ENV === "development") {
+      const dedupeId = `${error.message}|${error.originalMessage ?? ""}`;
+      if (!missingKeyDevWarned.has(dedupeId)) {
+        missingKeyDevWarned.add(dedupeId);
+        console.warn(
+          "[next-intl] MISSING_MESSAGE (dev only). UI uses getMessageFallback. Fix key or run `npm run i18n:check`.",
+          error.message,
+          error.originalMessage ?? ""
+        );
+      }
     }
-    if (detail.includes("withdrawFormCta")) {
-      return;
-    }
-    if (detail.includes("missingOrders")) {
-      return;
-    }
+    return;
   }
   console.error(error);
 }

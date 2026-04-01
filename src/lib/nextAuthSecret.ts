@@ -29,13 +29,8 @@ export function getNextAuthSecret(): string {
     return DEV_FALLBACK_SECRET;
   }
   if (shouldUseProductionBuildPlaceholder()) {
-    const g = globalThis as { __nextAuthLoggedBuildPlaceholder?: boolean };
-    if (!g.__nextAuthLoggedBuildPlaceholder) {
-      g.__nextAuthLoggedBuildPlaceholder = true;
-      process.stderr.write(
-        "[next-auth] NEXTAUTH_SECRET is unset during build; using a build-only placeholder. Set NEXTAUTH_SECRET for production runtime.\n"
-      );
-    }
+    // Intentionally no stderr here: `next build` runs many worker processes; each would log once and
+    // flood CI output. Set NEXTAUTH_SECRET for real production runtime.
     return DEV_FALLBACK_SECRET;
   }
   throw new Error("NEXTAUTH_SECRET is required. Set it in the server environment.");

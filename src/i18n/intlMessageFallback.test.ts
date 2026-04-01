@@ -160,4 +160,21 @@ describe("createGetMessageFallback", () => {
       })
     ).toBe("รอดำเนินการ");
   });
+
+  it("returns merchant cashback tips illustration alt from locale JSON", () => {
+    expect(
+      createGetMessageFallback("en")({
+        error: missingMessageError(),
+        key: "merchantCashbackTipsIllustrationAlt",
+        namespace: undefined,
+      })
+    ).toContain("Cashback tips");
+    expect(
+      createGetMessageFallback("th")({
+        error: missingMessageError(),
+        key: "merchantCashbackTipsIllustrationAlt",
+        namespace: undefined,
+      })
+    ).toBeTruthy();
+  });
 });

@@ -10,7 +10,6 @@ import {
   Select,
   type SelectChangeEvent,
   TextField,
-  Tooltip,
 } from "@mui/material";
 import { LazyDataGrid, type GridColDef } from "@/components/perf/LazyMuiDataGrid";
 import ContentCopyOutlined from "@mui/icons-material/ContentCopyOutlined";
@@ -619,12 +618,13 @@ const WithdrawTransaction = () => {
               ? t("walletTransactionsStatusSubmitted")
               : formatStatusLabel(status);
           const statusChip = <Chip label={chipLabel} size="small" sx={chipSxForStatus(status)} />;
+          const localDeviceHint = t("walletTransactionsClaimLocalDeviceHint");
           return (
             <div className="flex w-full flex-col items-center justify-center gap-1.5 py-0.5">
               {row.rowType === "missingOrderClaim" && statusLower === "submitted" ? (
-                <Tooltip title={t("walletTransactionsClaimLocalDeviceHint")} arrow placement="top">
-                  <span className="inline-flex">{statusChip}</span>
-                </Tooltip>
+                <span className="inline-flex max-w-full cursor-help" title={localDeviceHint}>
+                  {statusChip}
+                </span>
               ) : (
                 statusChip
               )}

@@ -3,13 +3,8 @@ import { getRequestConfig } from "next-intl/server";
 
 import en from "../messages/en.json";
 import th from "../messages/th.json";
+import { buildMessagesForLocale } from "./buildMessagesForLocale";
 import { createGetMessageFallback } from "./intlMessageFallback";
-import { mergeHeaderSearchMessages } from "./headerSearchMerge";
-import { mergePdpaConsentBannerMessages } from "./pdpaConsentBannerMerge";
-import { mergeProfilePopperMessages } from "./profilePopperMerge";
-import { mergeMissingOrdersMessages } from "./missingOrdersMerge";
-import { mergeWithdrawCtaMessages } from "./withdrawCtaMerge";
-import { mergeGogoquestHistoryMessages } from "./gogoquestHistoryMerge";
 
 export default getRequestConfig(async ({ requestLocale }) => {
   const locale = (await requestLocale) || "en";
@@ -18,23 +13,7 @@ export default getRequestConfig(async ({ requestLocale }) => {
 
   /** Static imports avoid Turbopack occasionally serving a stale/partial chunk for `import(\`../messages/${locale}.json\`)`. */
   const baseMessages = (messageLocale === "th" ? th : en) as Record<string, unknown>;
-  const withMissingOrders = mergeMissingOrdersMessages(baseMessages, catalog) as Record<
-    string,
-    unknown
-  >;
-  const messages = mergeGogoquestHistoryMessages(
-    mergePdpaConsentBannerMessages(
-      mergeHeaderSearchMessages(
-        mergeProfilePopperMessages(
-          mergeWithdrawCtaMessages(withMissingOrders, catalog) as Record<string, unknown>,
-          catalog
-        ) as Record<string, unknown>,
-        catalog
-      ) as Record<string, unknown>,
-      catalog
-    ) as Record<string, unknown>,
-    catalog
-  ) as Record<string, unknown>;
+  const messages = buildMessagesForLocale(baseMessages, catalog);
 
   return {
     locale,

@@ -12,7 +12,7 @@ export type GoLinkGuidelineDialogProps = {
 
 /**
  * GoGoCash 1.1 — Figma node 9669:184667 (Guideline Pop Up): Copy → Paste flow + 3 steps.
- * Raster assets under `/public/golink-guideline/` (exported from Figma MCP).
+ * Assets under `/public/golink-guideline/` (Figma exports).
  */
 export function GoLinkGuidelineDialog({ open, onClose }: GoLinkGuidelineDialogProps) {
   const t = useTranslations();
@@ -48,67 +48,16 @@ export function GoLinkGuidelineDialog({ open, onClose }: GoLinkGuidelineDialogPr
           <CloseIcon fontSize="small" />
         </IconButton>
 
-        <div className="relative mb-10 flex min-h-[100px] flex-col items-center justify-center sm:mb-12">
-          <div
-            className="pointer-events-none absolute left-1/2 top-0 z-0 w-[120px] -translate-x-[20%] sm:left-[28%] sm:translate-x-0"
-            aria-hidden
-          >
-            <Image
-              src="/golink-guideline/hand.png"
-              alt={t("golinkGuidelineHandAlt")}
-              width={102}
-              height={105}
-              className="h-auto w-full object-contain opacity-90"
-            />
-          </div>
-
-          <div className="relative z-[1] flex flex-wrap items-end justify-center gap-5 sm:gap-6">
-            <div className="flex flex-col items-center gap-1">
-              <div className="relative flex size-16 items-center justify-center overflow-hidden rounded-lg shadow-[inset_0_0_4px_rgba(255,255,255,0.9)]">
-                <div
-                  className="absolute inset-0 rounded-lg"
-                  style={{
-                    background: "linear-gradient(141deg, #f6f6f6 50.9%, #e4e4e4 84.7%)",
-                  }}
-                />
-                <Image
-                  src="/golink-guideline/link-icon.png"
-                  alt={t("golinkGuidelineLinkIconAlt")}
-                  width={28}
-                  height={28}
-                  className="relative z-[1]"
-                />
-              </div>
-              <span className="text-center text-base font-semibold text-[#3b3b3b]">
-                {t("golinkGuidelineCopyLabel")}
-              </span>
-            </div>
-
-            <div className="mb-8 flex items-center sm:mb-9">
-              <Image
-                src="/golink-guideline/arrow.png"
-                alt={t("golinkGuidelineArrowAlt")}
-                width={33}
-                height={16}
-                className="h-4 w-auto object-contain"
-              />
-            </div>
-
-            <div className="flex flex-col items-center gap-1">
-              <div className="relative flex size-16 items-center justify-center overflow-hidden rounded-lg bg-white shadow-sm">
-                <Image
-                  src="/golink-guideline/gogocash-icon.png"
-                  alt={t("golinkGuidelineGogocashIconAlt")}
-                  width={48}
-                  height={48}
-                  className="object-contain"
-                />
-              </div>
-              <span className="text-center text-base font-semibold text-[#3b3b3b]">
-                {t("golinkGuidelinePasteLabel")}
-              </span>
-            </div>
-          </div>
+        <div className="relative mb-10 flex w-full min-h-[90px] flex-col items-center justify-center sm:mb-12">
+          <Image
+            src="/golink-guideline/copy-paste-flow.svg"
+            alt={`${t("golinkGuidelineCopyLabel")} · ${t("golinkGuidelinePasteLabel")}`}
+            width={552}
+            height={90}
+            className="h-auto w-full max-w-full object-contain"
+            sizes="(max-width: 560px) 100vw, 520px"
+            unoptimized
+          />
         </div>
 
         <div className="flex flex-col gap-1 text-[#3b3b3b]">
@@ -153,19 +102,23 @@ export function GoLinkGuidelineDialog({ open, onClose }: GoLinkGuidelineDialogPr
   );
 }
 
+const GOLINK_STEP_THUMB_SRC: Record<1 | 2 | 3, string> = {
+  1: "/golink-guideline/step-preview-1.svg",
+  2: "/golink-guideline/step-preview-2.svg",
+  3: "/golink-guideline/step-preview-3.svg",
+};
+
 function GoLinkStepThumb({ step, illustrationAlt }: { step: 1 | 2 | 3; illustrationAlt: string }) {
   return (
     <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-[#f3f4f6]">
       <Image
-        src="/golink-guideline/step-1.png"
+        src={GOLINK_STEP_THUMB_SRC[step]}
         alt={illustrationAlt}
         width={96}
         height={96}
-        className="h-full w-full object-cover"
+        className="h-full w-full object-contain"
+        unoptimized
       />
-      <div className="absolute -left-0.5 -top-0.5 flex size-[22px] items-center justify-center rounded-full bg-[#00CC99] text-[13px] font-semibold leading-none text-white shadow-sm">
-        {step}
-      </div>
     </div>
   );
 }
