@@ -8,8 +8,9 @@ const Backdrop: React.FC = () => {
 
   return (
     <div
-      className="fixed inset-0 z-40 bg-gray-900/50 dark:bg-black/60 lg:hidden"
+      className="fixed inset-0 z-40 touch-none bg-gray-900/50 dark:bg-black/60 lg:hidden"
       onClick={toggleMobileSidebar}
+      role="presentation"
       aria-hidden
     />
   );

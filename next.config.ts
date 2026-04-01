@@ -14,6 +14,9 @@ const assetPrefix = (process.env.NEXT_PUBLIC_ASSET_PREFIX ?? basePath ?? "").rep
 
 // Standalone for Node/Docker; static export for Firebase Hosting.
 const nextConfig: NextConfig = {
+  experimental: {
+    optimizePackageImports: ["@mui/material", "@mui/x-data-grid"],
+  },
   ...(basePath ? { basePath } : {}),
   ...(assetPrefix ? { assetPrefix } : {}),
   ...(process.env.BUILD_FOR_FIREBASE === "1"

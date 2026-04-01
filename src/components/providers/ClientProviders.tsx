@@ -3,6 +3,7 @@
 import "@/lib/installFirebaseStaticShims";
 import { SidebarProvider } from "@/context/SidebarContext";
 import { ThemeProvider } from "@/context/ThemeContext";
+import ThemeColorMeta from "@/components/theme/ThemeColorMeta";
 import { SessionProvider } from "next-auth/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { getQueryClient } from "@/lib/query/queryClient";
@@ -18,8 +19,13 @@ export default function ClientProviders({
     <QueryClientProvider client={queryClient}>
       <SessionProvider refetchOnWindowFocus={false}>
         <ThemeProvider>
+          <ThemeColorMeta />
           <Toaster
             position="top-right"
+            containerStyle={{
+              top: "max(1rem, env(safe-area-inset-top, 0px))",
+              right: "max(1rem, env(safe-area-inset-right, 0px))",
+            }}
             toastOptions={{
               className:
                 "!bg-white !text-gray-900 !border !border-gray-200 dark:!bg-gray-800 dark:!text-gray-100 dark:!border-gray-700",

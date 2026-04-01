@@ -138,13 +138,14 @@ const AppHeader: React.FC = () => {
     previewResults.withdraws.length > 0;
 
   return (
-    <header className="sticky top-0 z-50 flex w-full shrink-0 border-b border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+    <header className="sticky top-0 z-50 flex w-full shrink-0 border-b border-gray-200 bg-white pt-[env(safe-area-inset-top,0px)] shadow-sm dark:border-gray-800 dark:bg-gray-900">
       <div className="flex grow flex-col items-center justify-between lg:flex-row lg:px-6">
         <div className="flex w-full items-center justify-between gap-2 px-3 py-3 sm:gap-4 lg:justify-normal lg:px-0 lg:py-4">
           <button
-            className="z-[99999] h-10 w-10 items-center justify-center rounded-lg border-gray-200 text-gray-500 lg:flex lg:h-11 lg:w-11 lg:border dark:border-gray-800 dark:text-gray-400"
+            type="button"
+            className="z-[99999] flex h-11 min-h-[44px] w-11 min-w-[44px] items-center justify-center rounded-lg border border-transparent text-gray-500 lg:h-11 lg:w-11 lg:border-gray-200 lg:dark:border-gray-800 dark:text-gray-400"
             onClick={handleToggle}
-            aria-label="Toggle Sidebar"
+            aria-label="Toggle navigation sidebar"
           >
             {isMobileOpen ? (
               <svg
@@ -200,8 +201,11 @@ const AppHeader: React.FC = () => {
           </Link>
 
           <button
+            type="button"
             onClick={toggleApplicationMenu}
-            className="z-[99999] flex h-10 w-10 items-center justify-center rounded-lg text-gray-700 hover:bg-gray-100 lg:hidden dark:text-gray-400 dark:hover:bg-gray-800"
+            aria-label={isApplicationMenuOpen ? "Close application menu" : "Open application menu"}
+            aria-expanded={isApplicationMenuOpen}
+            className="z-[99999] flex h-11 min-h-[44px] w-11 min-w-[44px] items-center justify-center rounded-lg text-gray-700 hover:bg-gray-100 lg:hidden dark:text-gray-400 dark:hover:bg-gray-800"
           >
             <svg
               width="24"

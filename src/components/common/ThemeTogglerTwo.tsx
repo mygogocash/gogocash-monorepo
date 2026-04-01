@@ -3,11 +3,15 @@ import { useTheme } from "@/context/ThemeContext";
 import React from "react";
 
 export default function ThemeTogglerTwo() {
-  const { toggleTheme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === "dark";
   return (
     <button
+      type="button"
       onClick={toggleTheme}
-      className="inline-flex size-14 items-center justify-center rounded-full bg-brand-500 text-white transition-colors hover:bg-brand-600"
+      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      aria-pressed={isDark}
+      className="inline-flex size-14 min-h-[44px] min-w-[44px] items-center justify-center rounded-full bg-brand-500 text-white transition-colors hover:bg-brand-600"
     >
       <svg
         className="hidden dark:block"

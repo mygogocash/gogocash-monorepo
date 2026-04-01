@@ -3,6 +3,12 @@
 import React, { useCallback, useEffect, useRef, useState, startTransition } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  DEFAULT_OFFERS_LIST_QUERY,
+  fetchOffersList,
+  offersListQueryKey,
+} from "@/lib/query/offersQueries";
 import { useSidebar } from "../context/SidebarContext";
 import {
   ArrowUpIcon,
@@ -111,6 +117,16 @@ function SidebarSubmenuLink({
   active: boolean;
   closeMobileSidebar: () => void;
 }) {
+  const queryClient = useQueryClient();
+  const prefetchOffersManagement = useCallback(() => {
+    if (!subItem.path.startsWith("/offers")) return;
+    void queryClient.prefetchQuery({
+      queryKey: offersListQueryKey(DEFAULT_OFFERS_LIST_QUERY),
+      queryFn: () => fetchOffersList(DEFAULT_OFFERS_LIST_QUERY),
+      staleTime: 60_000,
+    });
+  }, [queryClient, subItem.path]);
+
   const className = `menu-dropdown-item ${active ? "menu-dropdown-item-active" : "menu-dropdown-item-inactive"}`;
 
   const badges = (
@@ -124,7 +140,12 @@ function SidebarSubmenuLink({
   );
 
   return (
-    <Link href={subItem.path} onClick={closeMobileSidebar} className={className}>
+    <Link
+      href={subItem.path}
+      onClick={closeMobileSidebar}
+      onMouseEnter={prefetchOffersManagement}
+      className={className}
+    >
       {subItem.name}
       {badges}
     </Link>

@@ -55,6 +55,26 @@ export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [isMobile, layoutReady]);
 
+  /** Prevent background scroll when the mobile drawer is open (iOS / Android). */
+  useEffect(() => {
+    if (!layoutReady || !isMobileOpen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [isMobileOpen, layoutReady]);
+
+  /** Close drawer on Escape (accessibility). */
+  useEffect(() => {
+    if (!isMobileOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsMobileOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isMobileOpen]);
+
   const toggleSidebar = () => {
     setIsExpanded((prev) => !prev);
   };

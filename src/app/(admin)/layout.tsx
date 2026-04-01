@@ -29,7 +29,7 @@ export default function AdminLayout({
 
   return (
     <AuthGuard>
-      <div className="min-h-screen xl:flex">
+      <div className="min-h-screen min-h-[100dvh] xl:flex">
         {/* Sidebar and Backdrop */}
         <AppSidebar />
         <Backdrop />
@@ -40,7 +40,7 @@ export default function AdminLayout({
           {/* Header: must stay outside overflow-x-hidden so sticky positioning works */}
           <AppHeader />
           {/* Page Content — clip horizontal overflow here only */}
-          <div className="mx-auto min-w-0 w-full max-w-screen-2xl overflow-x-hidden px-3 py-4 sm:px-4 md:px-6 md:py-6">
+          <div className="mx-auto min-w-0 w-full max-w-screen-2xl overflow-x-hidden px-3 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-4 md:px-6 md:py-6">
             <PageTransition>{children}</PageTransition>
           </div>
         </div>

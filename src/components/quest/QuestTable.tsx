@@ -13,8 +13,8 @@ import Badge from "@/components/ui/badge/Badge";
 import { Modal } from "@/components/ui/modal";
 import Label from "@/components/form/Label";
 import Input from "@/components/form/input/InputField";
-import { useApi } from "@/hooks/useApi";
-import type { Offer } from "@/types/api";
+import { fetchOffersList, offersListQueryKey } from "@/lib/query/offersQueries";
+import type { Offer, OffersQuery } from "@/types/api";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 
 export type QuestTaskType = "offer" | "merchant";
@@ -255,8 +255,14 @@ function createEmptyTask(): QuestTask {
   };
 }
 
+const QUEST_MODAL_OFFERS_QUERY: OffersQuery = {
+  search: "",
+  limit: 100,
+  page: 1,
+  country: "",
+};
+
 export default function QuestTable() {
-  const { getOffers } = useApi();
   const [quests] = useState(MOCK_QUESTS);
   const [pointsModalQuest, setPointsModalQuest] = useState<typeof MOCK_QUESTS[0] | null>(null);
   const [detailsModalQuest, setDetailsModalQuest] = useState<QuestDetails | null>(null);
@@ -278,9 +284,10 @@ export default function QuestTable() {
   const [tasks, setTasks] = useState<QuestTask[]>([]);
 
   const { data: offersData } = useQuery({
-    queryKey: ["quest-offers"],
-    queryFn: () => getOffers({ limit: 100, page: 1 }),
+    queryKey: offersListQueryKey(QUEST_MODAL_OFFERS_QUERY),
+    queryFn: () => fetchOffersList(QUEST_MODAL_OFFERS_QUERY),
     enabled: createModalOpen,
+    staleTime: 30_000,
   });
   const offers: Offer[] = offersData?.data ?? [];
 

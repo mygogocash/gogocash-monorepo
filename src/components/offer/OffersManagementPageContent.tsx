@@ -1,12 +1,40 @@
 "use client";
 
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
-import PolicyTable from "@/components/policy/PolicyTable";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo } from "react";
-import OffersTable from "./OffersTable";
-import DeeplinkTable from "@/components/deeplink/DeeplinkTable";
-import CommissionManagementClient from "@/components/commission/CommissionManagementClient";
+
+const OffersTable = dynamic(() => import("./OffersTable").then((m) => m.default), {
+  loading: () => <TabPanelSkeleton />,
+});
+
+const CommissionManagementClient = dynamic(
+  () => import("@/components/commission/CommissionManagementClient").then((m) => m.default),
+  { loading: () => <TabPanelSkeleton /> },
+);
+
+const PolicyTable = dynamic(() => import("@/components/policy/PolicyTable").then((m) => m.default), {
+  loading: () => <TabPanelSkeleton />,
+});
+
+const DeeplinkTable = dynamic(
+  () => import("@/components/deeplink/DeeplinkTable").then((m) => m.default),
+  { loading: () => <TabPanelSkeleton /> },
+);
+
+function TabPanelSkeleton() {
+  return (
+    <div className="animate-pulse rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 dark:border-gray-800 dark:bg-white/[0.03]">
+      <div className="h-7 w-56 rounded-lg bg-gray-200 dark:bg-gray-700" />
+      <div className="mt-6 space-y-3">
+        <div className="h-10 w-full rounded-lg bg-gray-100 dark:bg-gray-800" />
+        <div className="h-32 w-full rounded-xl bg-gray-100 dark:bg-gray-800" />
+        <div className="h-32 w-full rounded-xl bg-gray-100 dark:bg-gray-800" />
+      </div>
+    </div>
+  );
+}
 
 const TABS = [
   { id: "offers" as const, label: "Offers", breadcrumb: "Offers" },
