@@ -12,6 +12,7 @@ import {
 import { useSidebar } from "../context/SidebarContext";
 import {
   ArrowUpIcon,
+  BoltIcon,
   ChevronDownIcon,
   DollarLineIcon,
   GridIcon,
@@ -46,6 +47,13 @@ export const navItems: NavItem[] = [
     subItems: [
       { name: "Users Admin", path: "/admin-users", pro: false },
       { name: "Users", path: "/users", pro: false },
+    ],
+  },
+  {
+    icon: <BoltIcon />,
+    name: "GoGoPass",
+    subItems: [
+      { name: "Membership program", path: "/gogopass", pro: false },
     ],
   },
   {
