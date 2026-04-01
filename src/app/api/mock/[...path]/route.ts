@@ -40,11 +40,16 @@ export function generateStaticParams() {
   add("admin", "get-fee-rate");
   add("admin", "banner-home");
   add("admin", "get-mycashback-user", "u1");
+  add("admin", "list-mycashback-users");
   add("auth", "profile");
   add("involve");
   add("offer", "get-coupon");
   add("admin", "register");
   add("withdraw", "list-check-admin");
+  add("withdraw", "list-check-admin", "u1");
+  add("withdraw", "update-withdraw-user");
+  add("withdraw", "send-user-contact-otp");
+  add("withdraw", "verify-user-contact-otp");
   add("withdraw", "check-my-cashback-admin");
   add("admin", "getConversionInWithdraw");
   add("offer");

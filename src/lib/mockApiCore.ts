@@ -110,6 +110,44 @@ function buildMockCreatedConversions(): CreatedConversionItem[] {
 const createdConversionsList: CreatedConversionItem[] = buildMockCreatedConversions();
 const policyStore = new Map<string, string>();
 
+/** Mock OTP for admin verification when adding emails / phones on withdraw user (internal demo). */
+const MOCK_USER_CONTACT_OTP = "123456";
+/** Session keys `userId|channel|target` → expiry ms */
+const userContactOtpSessions = new Map<string, number>();
+
+function userContactOtpKey(userId: string, channel: string, normalizedTarget: string) {
+  return `${userId}|${channel}|${normalizedTarget}`;
+}
+
+/** In-memory edits for withdraw detail user profile (mock only). */
+type WithdrawDetailUserPatch = Partial<{
+  email: string;
+  mobile: string;
+  emails: string[];
+  mobiles: string[];
+  fullName: string;
+  gender: string;
+  birthdate: string;
+  wallet: string;
+  gogopassActive: boolean;
+}>;
+const withdrawDetailUserEdits: Record<string, WithdrawDetailUserPatch> = {};
+
+/** Merges saved profile edits for the mock withdraw-detail user (edits keyed by user _id, not withdraw id in URL). */
+function mockWithdrawDetailWithUserEdits() {
+  const baseUser = mockWithdrawDetail.user;
+  const uid = (baseUser._id || "u1").trim();
+  const edits = withdrawDetailUserEdits[uid];
+  return {
+    ...mockWithdrawDetail,
+    user: {
+      ...mockWithdrawDetail.user,
+      _id: uid,
+      ...(edits ?? {}),
+    },
+  };
+}
+
 /** Admin-set app deeplink per offer (commission management). */
 const commissionAppDeeplinkByOfferId = new Map<string, string>();
 
@@ -293,6 +331,27 @@ function handleMockGET(
     return ok(coupons);
   }
 
+  if (joined === "offer/get-coupon") {
+    let filtered = [...mockCoupons];
+    if (search) {
+      const s = search.toLowerCase();
+      filtered = filtered.filter(
+        (c) =>
+          c.name.toLowerCase().includes(s) ||
+          c.code.toLowerCase().includes(s) ||
+          c.description.toLowerCase().includes(s) ||
+          c.offer_id.offer_name.toLowerCase().includes(s),
+      );
+    }
+    const status = searchParams.get("status") ?? "";
+    if (status === "active") {
+      filtered = filtered.filter((c) => !c.disabled);
+    } else if (status === "inactive") {
+      filtered = filtered.filter((c) => c.disabled);
+    }
+    return ok(paginateFlat(filtered, page, limit));
+  }
+
   if (path[0] === "offer" && path.length === 2) {
     const id = path[1];
     const offer = mockOffers.find((o) => o._id === id);
@@ -357,7 +416,21 @@ function handleMockGET(
   }
 
   if (path[0] === "admin" && path[1] === "get-mycashback-user") {
-    return ok(mockMyCashback);
+    const id = path[2]?.trim();
+    if (!id) {
+      return ok(mockMyCashback);
+    }
+    if (id.startsWith("mcb")) {
+      const row = mockMyCashback.find((u) => u._id === id);
+      return ok(row ? [row] : []);
+    }
+    const m = /^u(\d+)$/i.exec(id);
+    if (m) {
+      const n = parseInt(m[1], 10);
+      const idx = (n - 1) % mockMyCashback.length;
+      return ok([mockMyCashback[idx]]);
+    }
+    return ok([]);
   }
 
   if (joined === "auth/profile") {
@@ -419,10 +492,6 @@ function handleMockGET(
     return ok({ data });
   }
 
-  if (joined === "offer/get-coupon") {
-    return ok(paginateFlat(mockCoupons, page, limit));
-  }
-
   return jsonErr(404, { message: `Mock endpoint not found: GET /${joined}` });
 }
 
@@ -464,8 +533,127 @@ async function handleMockPOST(
     });
   }
 
+  if (joined === "admin/list-mycashback-users") {
+    const b = body as { page?: number; limit?: number; search?: string };
+    const page = Math.max(1, Number(b.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(b.limit) || 12));
+    const search = String(b.search ?? "").trim().toLowerCase();
+    let filtered = mockMyCashback;
+    if (search) {
+      filtered = mockMyCashback.filter((u) => {
+        const hay = [
+          u._id,
+          u.email,
+          u.phoneNumber,
+          u.buyerId,
+          u.publisherId,
+          u.firstName,
+          u.lastName,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return hay.includes(search);
+      });
+    }
+    return ok({
+      status: "success",
+      message: "ok",
+      ...paginate(filtered, page, limit),
+    });
+  }
+
   if (path[0] === "withdraw" && path[1] === "list-check-admin") {
-    return ok(mockWithdrawDetail);
+    return ok(mockWithdrawDetailWithUserEdits());
+  }
+
+  if (path[0] === "withdraw" && path[1] === "update-withdraw-user") {
+    const b = body as Record<string, unknown>;
+    const userId = String(b.userId ?? "").trim();
+    if (!userId) {
+      return jsonErr(400, { message: "userId is required" });
+    }
+    const patch: WithdrawDetailUserPatch = { ...withdrawDetailUserEdits[userId] };
+    if (Array.isArray(b.emails)) {
+      const list = (b.emails as unknown[])
+        .map((x) => String(x).trim())
+        .filter(Boolean);
+      patch.emails = list;
+      patch.email = list[0] ?? "";
+    } else if (typeof b.email === "string") {
+      const t = b.email.trim();
+      patch.email = t;
+      patch.emails = t ? [t] : [];
+    }
+    if (Array.isArray(b.mobiles)) {
+      const list = (b.mobiles as unknown[])
+        .map((x) => String(x).trim())
+        .filter(Boolean);
+      patch.mobiles = list;
+      patch.mobile = list[0] ?? "";
+    } else if (typeof b.mobile === "string") {
+      const t = b.mobile.trim();
+      patch.mobile = t;
+      patch.mobiles = t ? [t] : [];
+    }
+    if (typeof b.fullName === "string") patch.fullName = b.fullName.trim();
+    if (typeof b.gender === "string") patch.gender = b.gender.trim();
+    if (typeof b.birthdate === "string") patch.birthdate = b.birthdate.trim();
+    if (typeof b.wallet === "string") patch.wallet = b.wallet.trim();
+    if (typeof b.gogopassActive === "boolean") patch.gogopassActive = b.gogopassActive;
+    withdrawDetailUserEdits[userId] = patch;
+    return ok({
+      success: true,
+      message: "User profile updated",
+      user: mockWithdrawDetailWithUserEdits().user,
+    });
+  }
+
+  if (path[0] === "withdraw" && path[1] === "send-user-contact-otp") {
+    const b = body as Record<string, unknown>;
+    const userId = String(b.userId ?? "").trim();
+    const channel = b.channel === "mobile" ? "mobile" : "email";
+    const raw = String(b.target ?? "").trim();
+    if (!userId || !raw) {
+      return jsonErr(400, { message: "userId and target are required" });
+    }
+    const target = channel === "email" ? raw.toLowerCase() : raw;
+    if (channel === "email") {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(target)) {
+        return jsonErr(400, { message: "Invalid email address" });
+      }
+    } else if (raw.replace(/\D/g, "").length < 8) {
+      return jsonErr(400, { message: "Enter a valid phone number (at least 8 digits)" });
+    }
+    const key = userContactOtpKey(userId, channel, target);
+    userContactOtpSessions.set(key, Date.now() + 10 * 60 * 1000);
+    return ok({
+      success: true,
+      message: "OTP sent",
+      demoCode: MOCK_USER_CONTACT_OTP,
+    });
+  }
+
+  if (path[0] === "withdraw" && path[1] === "verify-user-contact-otp") {
+    const b = body as Record<string, unknown>;
+    const userId = String(b.userId ?? "").trim();
+    const channel = b.channel === "mobile" ? "mobile" : "email";
+    const raw = String(b.target ?? "").trim();
+    const otp = String(b.otp ?? "").trim();
+    if (!userId || !raw || !otp) {
+      return jsonErr(400, { message: "userId, target, and otp are required" });
+    }
+    const target = channel === "email" ? raw.toLowerCase() : raw;
+    const key = userContactOtpKey(userId, channel, target);
+    const exp = userContactOtpSessions.get(key);
+    if (!exp || exp < Date.now()) {
+      return jsonErr(400, { message: "No active OTP. Click Send OTP first." });
+    }
+    if (otp !== MOCK_USER_CONTACT_OTP) {
+      return jsonErr(400, { message: "Invalid OTP" });
+    }
+    userContactOtpSessions.delete(key);
+    return ok({ success: true, verified: true });
   }
 
   if (path[0] === "withdraw" && path[1] === "check-my-cashback-admin") {

@@ -20,7 +20,7 @@ export default async function SupportPage(props: DefaultAppPageProps) {
           Admin Panel Guide
         </h1>
         <p className="mb-8 text-gray-600 dark:text-gray-400">
-          Use this guide to learn how to manage the GoGoCash admin panel. It is intended for new administrators.
+          Use this guide to learn how to manage the GoGoCash admin panel. It is intended for new administrators. Menu labels match the left sidebar; some tools also have direct URLs (for example <code className="rounded bg-gray-100 px-1 dark:bg-gray-800">/category</code>).
         </p>
 
         <div className="prose prose-gray dark:prose-invert max-w-none space-y-10">
@@ -30,7 +30,7 @@ export default async function SupportPage(props: DefaultAppPageProps) {
               1. Getting started
             </h2>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              After signing in, you land on the Dashboard. The left sidebar lists all main areas: Users, Offers (including policy and deeplink), Withdraw, Conversion, Banner Management, Coupon Management, and Quest. Use the header to open your profile, account settings, this Support page, or sign out.
+              After signing in, you usually land on a dashboard. The left sidebar groups tools by area: <strong>Dashboard</strong> (platform and executive views), <strong>Users Management</strong>, <strong>Offers Management</strong> (offers, commission, policy, deeplink), <strong>Withdraw Management</strong>, <strong>Conversion Management</strong>, <strong>Banner Management</strong>, <strong>Coupon Management</strong>, and <strong>Quest Management</strong>. Below that, <strong>Fee</strong> holds fee and withdrawal settings. Use the header menu for your profile, account settings, this <strong>Support</strong> page, and <strong>Sign out</strong>.
             </p>
           </section>
 
@@ -39,8 +39,16 @@ export default async function SupportPage(props: DefaultAppPageProps) {
             <h2 className="mb-3 text-lg font-semibold text-gray-800 dark:text-white">
               2. Dashboard
             </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              The Dashboard gives an overview of platform metrics. Use it to monitor key numbers at a glance before diving into specific sections.
+            <ul className="list-inside list-disc space-y-2 text-sm text-gray-600 dark:text-gray-400">
+              <li>
+                <strong>Platform dashboard</strong> — Day-to-day operational metrics for the product.
+              </li>
+              <li>
+                <strong>Executive dashboard</strong> — Higher-level summary suitable for leadership review.
+              </li>
+            </ul>
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+              Pick the view that fits your role; both are under the Dashboard section in the sidebar.
             </p>
           </section>
 
@@ -56,6 +64,9 @@ export default async function SupportPage(props: DefaultAppPageProps) {
               <li>
                 <strong>Users</strong> — View and manage app users. Search, filter, and open user profiles. You can edit user info, metadata, and address from the user detail view. Use the search or URL parameter to jump to a specific user (e.g. from a conversion or quest view).
               </li>
+              <li>
+                <strong>MyCashBack Users</strong> — Directory of users enrolled in the MyCashBack program (separate from core GoGoCash users). Search, paginate, and open <strong>View cashback</strong> for balances and buyer details. Linked from Users Management in the sidebar.
+              </li>
             </ul>
           </section>
 
@@ -69,10 +80,13 @@ export default async function SupportPage(props: DefaultAppPageProps) {
                 <strong>Offers</strong> — Manage offers that users can complete for rewards. Create or edit offers, set logos and links, and control visibility. Offer details can be linked to quest tasks and coupons.
               </li>
               <li>
+                <strong>Commission Management</strong> — Configure commission rules and rates associated with offers (opens under the Offers area via the Commission tab).
+              </li>
+              <li>
                 <strong>Policy Management</strong> — Terms and conditions per category (opens from the Offers section).
               </li>
               <li>
-                <strong>Deeplink</strong> — Manage deeplinks that open specific screens or offers in the app (campaigns, notifications, in-app navigation). Listed under Offers Management in the sidebar.
+                <strong>Deeplink</strong> — Manage deeplinks that open specific screens or offers in the app (campaigns, notifications, in-app navigation).
               </li>
             </ul>
           </section>
@@ -80,16 +94,11 @@ export default async function SupportPage(props: DefaultAppPageProps) {
           {/* Category Management */}
           <section>
             <h2 className="mb-3 text-lg font-semibold text-gray-800 dark:text-white">
-              5. Category Management
+              5. Category
             </h2>
-            <ul className="list-inside list-disc space-y-2 text-sm text-gray-600 dark:text-gray-400">
-              <li>
-                <strong>Category</strong> — Upload or update category images and keep the structure used by the app for browsing offers and content.
-              </li>
-              <li>
-                <strong>Policy Management</strong> — Edit terms and conditions per category.
-              </li>
-            </ul>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Open <strong>/category</strong> to upload or update category images and maintain the structure the app uses when browsing offers and content. Policy text per category is edited from <strong>Policy Management</strong> under Offers, not on this page.
+            </p>
           </section>
 
           {/* Withdraw Management */}
@@ -97,9 +106,23 @@ export default async function SupportPage(props: DefaultAppPageProps) {
             <h2 className="mb-3 text-lg font-semibold text-gray-800 dark:text-white">
               6. Withdraw Management
             </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Review and process user withdrawal requests. Open a request to see details, then approve or reject. Ensure fees and minimums are set correctly under Fee before processing.
-            </p>
+            <ul className="list-inside list-disc space-y-2 text-sm text-gray-600 dark:text-gray-400">
+              <li>
+                Review withdrawal requests in the list; open a row for full detail, bank accounts, and history.
+              </li>
+              <li>
+                Approve or reject from the detail flow as your process requires. Confirm <strong>Fee</strong> settings (rates and minimums) before processing payouts.
+              </li>
+              <li>
+                On the user detail tab you can <strong>Edit user</strong> to change profile fields and multiple email addresses or phone numbers.
+              </li>
+              <li>
+                <strong>OTP for new contacts:</strong> Any email or phone that was not already on the user when you opened the editor must be verified. Click <strong>Send OTP</strong>, enter the code you receive (in demo/mock environments the UI may show a fixed test code), then <strong>Verify</strong>. <strong>Save changes</strong> stays disabled until every new address or number is verified. Existing contacts on file do not need OTP again unless you change them to a different value.
+              </li>
+              <li>
+                From some user-related screens you can jump straight into edit mode on the withdraw user view using the URL flag <code className="rounded bg-gray-100 px-1 dark:bg-gray-800">?editUser=1</code> on the withdraw detail page.
+              </li>
+            </ul>
           </section>
 
           {/* Conversion Management */}
@@ -149,10 +172,10 @@ export default async function SupportPage(props: DefaultAppPageProps) {
             </h2>
             <ul className="list-inside list-disc space-y-2 text-sm text-gray-600 dark:text-gray-400">
               <li>
-                <strong>Quest</strong> — View quests and their dates/status. Use “View points” to see participant rankings and export data (supports 1000+ rows). Use “View Quest details” to see full config: links (Facebook Page, Facebook Post, Line) and tasks (offer/merchant, points, completion, condition, link).
+                <strong>Quest</strong> — View quests and their dates/status. Create new quests from this area when available. Use “View points” to see participant rankings and export data (supports 1000+ rows). Use “View Quest details” to see full config: links (Facebook Page, Facebook Post, Line) and tasks (offer/merchant, points, completion, condition, link).
               </li>
               <li>
-                <strong>Create Quest</strong> — Create a new quest: set start/end dates, upload banners (EN/TH), enable Facebook Page, Facebook Post, and Line and add their URLs. Add tasks by selecting an offer or merchant, points, completion (once or multiple), optional condition (e.g. sale ≥ amount in a currency), and task link. You can upload a custom logo per task. Save the quest when done.
+                When creating a quest: set start/end dates, upload banners (EN/TH), enable Facebook Page, Facebook Post, and Line and add their URLs. Add tasks by selecting an offer or merchant, points, completion (once or multiple), optional condition (e.g. sale ≥ amount in a currency), and task link. You can upload a custom logo per task, then save.
               </li>
               <li>
                 <strong>Create Reward</strong> — Create rewards that users can claim (e.g. after completing a quest). Set reward name, amount, currency, and target user.
@@ -166,7 +189,7 @@ export default async function SupportPage(props: DefaultAppPageProps) {
               11. Fee
             </h2>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Configure system fee (%), withdrawal fees (THB / USD), and minimum withdrawal amounts. These apply when users request withdrawals; review them in Withdraw management.
+              Under the sidebar <strong>Fee</strong> section, open <strong>Fee rate</strong> to configure system fee (%), withdrawal fees (THB / USD), and minimum withdrawal amounts. These apply when users request withdrawals; keep them aligned with how you process requests in Withdraw management.
             </p>
           </section>
 
@@ -190,6 +213,8 @@ export default async function SupportPage(props: DefaultAppPageProps) {
               <li>When exporting quest user points, the file includes all participants (e.g. 1,500+). Use the “Show” dropdown to limit rows on screen; export always gets the full list.</li>
               <li>Quest tasks can have a condition (e.g. “Sale ≥ 100 THB”). Set the operator, metric (sale/conversion), amount, and currency when creating a task.</li>
               <li>If you need a specific user, go to Users and use the search box, or use “View user info” from a conversion or similar view to jump to that user with search pre-filled.</li>
+              <li>Editing a withdraw user’s emails or phones requires OTP verification for each new or changed value before Save is enabled—plan a moment to complete Send OTP → Verify when updating contacts.</li>
+              <li>Commission and policy for offers live under Offers Management (tabs), not on the Category page.</li>
             </ul>
           </section>
         </div>

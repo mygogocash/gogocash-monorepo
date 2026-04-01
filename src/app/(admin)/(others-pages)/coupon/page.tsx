@@ -1,6 +1,7 @@
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
-import { Metadata } from "next";
+import CouponSubNav from "@/components/coupon/CouponSubNav";
 import CouponTable from "@/components/coupon/CouponTable";
+import { Metadata } from "next";
 import { awaitPageDynamicProps, type DefaultAppPageProps } from "@/lib/nextAppPageProps";
 
 export const metadata: Metadata = {
@@ -13,6 +14,7 @@ export default async function CouponPage(props: DefaultAppPageProps) {
     <div>
       <PageBreadcrumb pageTitle="Coupon" />
       <div className="space-y-6">
+        <CouponSubNav />
         <CouponTable />
       </div>
     </div>

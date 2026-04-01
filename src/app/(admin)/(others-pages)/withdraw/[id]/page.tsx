@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import WithdrawDetail from "@/components/withdraw/WithdrawDetail";
 import WithdrawDetailPageHeader from "@/components/withdraw/WithdrawDetailPageHeader";
 import { mockWithdraws } from "@/app/api/mock/data";
@@ -27,7 +28,15 @@ export default async function WithdrawDetailPage({
     <div>
       <WithdrawDetailPageHeader />
       <div className="space-y-6">
-        <WithdrawDetail />
+        <Suspense
+          fallback={
+            <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-500 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-400">
+              Loading…
+            </div>
+          }
+        >
+          <WithdrawDetail />
+        </Suspense>
       </div>
     </div>
   );

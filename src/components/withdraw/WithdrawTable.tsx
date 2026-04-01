@@ -125,6 +125,17 @@ export default function WithdrawTable() {
   const hasNextPage = pagination.page < pagination.totalPages;
   const hasPrevPage = pagination.page > 1;
 
+  const statusBadgeClass = (status: string) => {
+    const s = (status || "").toLowerCase();
+    if (s === "approved")
+      return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200";
+    if (s === "pending")
+      return "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200";
+    if (s === "rejected")
+      return "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200";
+    return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200";
+  };
+
   return (
     <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
       {/* Header */}
@@ -188,6 +199,9 @@ export default function WithdrawTable() {
                       User
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                       Actions
                     </th>
                   </tr>
@@ -242,11 +256,6 @@ export default function WithdrawTable() {
                             Currency: {list.currency}
                           </div>
                         )}
-                        <div
-                          className={`text-xs ${list.status === "approved" ? "text-green-500" : list.status === "pending" ? "text-yellow-500" : "text-red-500"} dark:text-gray-400`}
-                        >
-                          Status: {list.status}
-                        </div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">
                           Created At: {formatDate(list.createdAt.toString())}
                         </div>
@@ -282,6 +291,13 @@ export default function WithdrawTable() {
                         <div className="text-sm text-gray-500 dark:text-gray-400">
                           ID: {list.user_id?._id || "N/A"}
                         </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span
+                          className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${statusBadgeClass(list.status)}`}
+                        >
+                          {list.status || "—"}
+                        </span>
                       </td>
                       <td className="relative px-6 py-4 text-sm font-medium whitespace-nowrap">
                         <div

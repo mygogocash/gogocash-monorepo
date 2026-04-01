@@ -66,12 +66,20 @@ export interface UserLogEntry {
 
 export interface User {
   _id?: string;
-  email: string;
-  mobile: string;
+  /** Legacy primary email; mirrors first entry of `emails` when present */
+  email?: string;
+  /** Legacy primary phone; mirrors first entry of `mobiles` when present */
+  mobile?: string;
+  /** All known emails for this user (2–3+ supported) */
+  emails?: string[];
+  /** All known phone numbers for this user */
+  mobiles?: string[];
   fullName?: string;
   gender?: string;
   birthdate?: string;
   wallet?: string;
+  /** GoGoPass membership; when omitted, UI shows an em dash until the API supplies it */
+  gogopassActive?: boolean;
   userLog?: UserLogEntry[];
   totalCashback?: number;
   totalCashbackCurrency?: string;
