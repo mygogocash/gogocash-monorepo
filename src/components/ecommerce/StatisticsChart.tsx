@@ -15,25 +15,50 @@ const ReactApexChart = dynamic(() => import("react-apexcharts"), {
   ),
 });
 
+const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+] as const;
+
+function formatThb(value: number): string {
+  return `฿${Number(value).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+}
+
 export default function StatisticsChart() {
   const options: ApexOptions = {
     legend: {
-      show: false, // Hide legend
+      show: true,
       position: "top",
       horizontalAlign: "left",
+      fontFamily: "Outfit, sans-serif",
+      fontSize: "12px",
+      markers: {
+        size: 4,
+        strokeWidth: 0,
+      },
     },
-    colors: ["#465FFF", "#9CB9FF"], // Define line colors
+    colors: ["#465FFF", "#10B981", "#F59E0B", "#9CB9FF"],
     chart: {
       fontFamily: "Outfit, sans-serif",
       height: 310,
-      type: "line", // Set the chart type to 'line'
+      type: "line",
       toolbar: {
-        show: false, // Hide chart toolbar
+        show: false,
       },
     },
     stroke: {
-      curve: "straight", // Define the line style (straight, smooth, or step)
-      width: [2, 2], // Line width for each dataset
+      curve: "straight",
+      width: [2, 2, 2, 2],
     },
 
     fill: {
@@ -67,27 +92,25 @@ export default function StatisticsChart() {
       enabled: false, // Disable data labels
     },
     tooltip: {
-      enabled: true, // Enable tooltip
+      enabled: true,
+      shared: true,
+      intersect: false,
       x: {
-        format: "dd MMM yyyy", // Format for x-axis tooltip
+        format: "dd MMM yyyy",
+      },
+      y: {
+        formatter: (val: number, opts) => {
+          const idx = opts.seriesIndex;
+          if (idx === 2 || idx === 3) {
+            return formatThb(val);
+          }
+          return Number(val).toLocaleString("en-US");
+        },
       },
     },
     xaxis: {
-      type: "category", // Category-based x-axis
-      categories: [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-      ],
+      type: "category",
+      categories: [...MONTHS],
       axisBorder: {
         show: false, // Hide x-axis border
       },
@@ -98,30 +121,63 @@ export default function StatisticsChart() {
         enabled: false, // Disable tooltip for x-axis points
       },
     },
-    yaxis: {
-      labels: {
-        style: {
-          fontSize: "12px", // Adjust font size for y-axis labels
-          colors: ["#6B7280"], // Color of the labels
+    yaxis: [
+      {
+        seriesName: "Clicks",
+        title: {
+          text: "Clicks / conversions",
+          style: { fontSize: "11px", color: "#6B7280" },
+        },
+        labels: {
+          style: {
+            fontSize: "12px",
+            colors: ["#6B7280"],
+          },
+          formatter: (v: number) => Number(v).toLocaleString("en-US"),
         },
       },
-      title: {
-        text: "", // Remove y-axis title
-        style: {
-          fontSize: "0px",
+      {
+        seriesName: "Conversions",
+        show: false,
+      },
+      {
+        seriesName: "Sale Amount",
+        opposite: true,
+        title: {
+          text: "Sale & earnings (THB)",
+          style: { fontSize: "11px", color: "#6B7280" },
+        },
+        labels: {
+          style: {
+            fontSize: "12px",
+            colors: ["#6B7280"],
+          },
+          formatter: (v: number) => formatThb(v),
         },
       },
-    },
+      {
+        seriesName: "Estimated Earnings",
+        show: false,
+      },
+    ],
   };
 
   const series = [
     {
-      name: "Conversion",
+      name: "Clicks",
+      data: [1240, 1420, 1180, 1310, 1280, 1195, 1340, 1620, 1920, 1780, 2050, 1880],
+    },
+    {
+      name: "Conversions",
       data: [180, 190, 170, 160, 175, 165, 170, 205, 230, 210, 240, 235],
     },
     {
-      name: "Revenue",
-      data: [40, 30, 50, 40, 55, 40, 70, 100, 110, 120, 150, 140],
+      name: "Sale Amount",
+      data: [45200, 52100, 38400, 41200, 47800, 44100, 49300, 61200, 72400, 68100, 75200, 70100],
+    },
+    {
+      name: "Estimated Earnings",
+      data: [2260, 2610, 1840, 2080, 2460, 2280, 2520, 3120, 3680, 3420, 3820, 3510],
     },
   ];
   return (
@@ -132,7 +188,7 @@ export default function StatisticsChart() {
             Statistics
           </h3>
           <p className="mt-1 text-gray-500 text-theme-sm dark:text-gray-400">
-            Conversion & Revenue by month
+            Clicks, conversions, sale amount & estimated earnings by month
             <span className="ml-1 text-gray-400 dark:text-gray-500">
               (Jan–Dec {new Date().getFullYear()})
             </span>
