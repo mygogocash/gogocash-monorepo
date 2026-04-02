@@ -2,7 +2,7 @@
  * Hostnames allowed for Next.js image optimization (must match `images.remotePatterns`).
  * Extend with comma-separated `NEXT_PUBLIC_IMAGE_OPT_HOSTS` (e.g. `cdn.example.com,api.example.com`).
  */
-const BASE_HOSTS = ["img.involve.asia", "placehold.co"] as const;
+const BASE_HOSTS = ["placehold.co"] as const;
 
 function hostnamesFromEnv(): string[] {
   const raw = process.env.NEXT_PUBLIC_IMAGE_OPT_HOSTS;

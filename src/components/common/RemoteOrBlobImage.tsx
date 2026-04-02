@@ -26,9 +26,20 @@ export function RemoteOrBlobImage({
   priority,
   style,
 }: RemoteOrBlobImageProps) {
+  const trimmed = typeof src === "string" ? src.trim() : "";
+  if (!trimmed) {
+    return (
+      <span
+        className={className}
+        style={{ width, height, display: "inline-block", verticalAlign: "middle", ...style }}
+        aria-hidden
+      />
+    );
+  }
+
   return (
     <Image
-      src={src}
+      src={trimmed}
       alt={alt}
       width={width}
       height={height}
@@ -36,7 +47,7 @@ export function RemoteOrBlobImage({
       sizes={sizes}
       priority={priority}
       style={style}
-      unoptimized={shouldUseUnoptimizedImageSrc(src)}
+      unoptimized={shouldUseUnoptimizedImageSrc(trimmed)}
     />
   );
 }

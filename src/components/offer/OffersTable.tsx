@@ -19,9 +19,10 @@ import {
   OffersQuery,
   normalizeOfferProductTypes,
 } from "@/types/api";
+import { resolveDeeplinkStoreId } from "@/data/deeplinkStores";
 import {
-  affiliateNetworkIdForOfferId,
   affiliateNetworkName,
+  resolveAffiliateNetworkIdForOffer,
 } from "@/data/affiliateNetworks";
 import { pathImage } from "@/utils/helper";
 import { devError } from "@/lib/devConsole";
@@ -29,14 +30,12 @@ import { useDataSession } from "@/hooks/useDataSession";
 import FormOffer from "./FormOffer";
 import { useRouter } from "next/navigation";
 import Select from "../form/Select";
-
-/** Responsive hint for Next/Image in dense table thumbnails (~40–48px). */
-const OFFER_THUMB_SIZES = "(max-width: 640px) 40px, 48px";
+import { OFFER_THUMB_SIZES } from "./offerMedia";
 
 function displayAffiliatePartner(offer: Offer): string {
   const raw = offer.affiliate_partner?.trim();
   if (raw) return raw;
-  return affiliateNetworkName(affiliateNetworkIdForOfferId(offer._id));
+  return affiliateNetworkName(resolveAffiliateNetworkIdForOffer(offer));
 }
 
 function offerToEditForm(offer: Offer): OfferRequestForm {
@@ -60,6 +59,8 @@ function offerToEditForm(offer: Offer): OfferRequestForm {
     admin_commission_info: offer.admin_commission_info ?? [],
     policy_category_id: offer.policy_category_id ?? "",
     note_to_user: offer.note_to_user ?? "",
+    affiliate_network_id: resolveAffiliateNetworkIdForOffer(offer),
+    deeplink_store_id: resolveDeeplinkStoreId(offer),
   };
 }
 
@@ -89,6 +90,8 @@ export default function OffersTable() {
     admin_commission_info: [],
     policy_category_id: "",
     note_to_user: "",
+    affiliate_network_id: "involve_asia",
+    deeplink_store_id: "global",
   });
   const session = useDataSession();
   const queryClient = useQueryClient();

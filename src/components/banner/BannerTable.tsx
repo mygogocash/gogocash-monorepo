@@ -135,7 +135,10 @@ export default function BannerTable() {
                   {[1, 2, 3, 4, 5].map((item, index) => {
                     const imageId = bannerData?.[`image_${item}` as keyof BannerData] as string | null | undefined;
                     const link = (bannerData?.[`link_${item}` as keyof BannerData] as string) || "";
-                    const imageSrc = imageId ? pathImage(imageId) || `https://placehold.co/96x96/e2e8f0/64748b?text=Banner+${item}` : null;
+                    const imageSrc = imageId
+                      ? pathImage(imageId) ||
+                        `https://placehold.co/96x96.png/e2e8f0/64748b?text=Banner+${item}`
+                      : null;
 
                     return (
                       <tr

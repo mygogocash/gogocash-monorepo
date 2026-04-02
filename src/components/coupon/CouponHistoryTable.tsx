@@ -16,14 +16,14 @@ export interface CouponHistoryEntry {
 
 // Mock data for coupon usage history
 const MOCK_HISTORY: CouponHistoryEntry[] = [
-  { id: "1", couponCode: "SHOPEE10", couponName: "Shopee 10% Off", userId: "u1", userEmail: "user1@example.com", usedAt: "2026-03-15T10:30:00Z", offerName: "Shopee TH - CPS", discount: "10%", status: "redeemed" },
-  { id: "2", couponCode: "LAZADA50", couponName: "Lazada 50 THB", userId: "u2", userEmail: "user2@example.com", usedAt: "2026-03-14T14:20:00Z", offerName: "Lazada Thailand", discount: "50 THB", status: "redeemed" },
-  { id: "3", couponCode: "SHOPEE10", couponName: "Shopee 10% Off", userId: "u3", userEmail: "user3@example.com", usedAt: "2026-03-13T09:15:00Z", offerName: "Shopee TH - CPS", discount: "10%", status: "redeemed" },
-  { id: "4", couponCode: "WELCOME5", couponName: "Welcome 5%", userId: "u4", userEmail: "user4@example.com", usedAt: "2026-03-12T16:45:00Z", offerName: "Agoda Hotels", discount: "5%", status: "redeemed" },
-  { id: "5", couponCode: "EXPIRED20", couponName: "Expired Promo", userId: "u5", userEmail: "user5@example.com", usedAt: "2026-03-10T11:00:00Z", offerName: "Shopee TH - CPS", discount: "20%", status: "expired" },
-  { id: "6", couponCode: "LAZADA50", couponName: "Lazada 50 THB", userId: "u1", userEmail: "user1@example.com", usedAt: "2026-03-11T08:30:00Z", offerName: "Lazada Thailand", discount: "50 THB", status: "redeemed" },
-  { id: "7", couponCode: "SHOPEE10", couponName: "Shopee 10% Off", userId: "u6", userEmail: "user6@example.com", usedAt: "2026-03-09T13:20:00Z", offerName: "Shopee TH - CPS", discount: "10%", status: "cancelled" },
-  { id: "8", couponCode: "WELCOME5", couponName: "Welcome 5%", userId: "u2", userEmail: "user2@example.com", usedAt: "2026-03-08T17:00:00Z", offerName: "Agoda Hotels", discount: "5%", status: "redeemed" },
+  { id: "1", couponCode: "BANANA10", couponName: "Banana IT 10% Off", userId: "u1", userEmail: "user1@example.com", usedAt: "2026-03-15T10:30:00Z", offerName: "Banana IT TH - CPS", discount: "10%", status: "redeemed" },
+  { id: "2", couponCode: "ADIDAS50", couponName: "Adidas 50 THB", userId: "u2", userEmail: "user2@example.com", usedAt: "2026-03-14T14:20:00Z", offerName: "Adidas TH - CPS", discount: "50 THB", status: "redeemed" },
+  { id: "3", couponCode: "BANANA10", couponName: "Banana IT 10% Off", userId: "u3", userEmail: "user3@example.com", usedAt: "2026-03-13T09:15:00Z", offerName: "Banana IT TH - CPS", discount: "10%", status: "redeemed" },
+  { id: "4", couponCode: "AIRASIA5", couponName: "AirAsia Welcome 5%", userId: "u4", userEmail: "user4@example.com", usedAt: "2026-03-12T16:45:00Z", offerName: "AirAsia Travel - CPS", discount: "5%", status: "redeemed" },
+  { id: "5", couponCode: "EXPIRED20", couponName: "Expired Promo", userId: "u5", userEmail: "user5@example.com", usedAt: "2026-03-10T11:00:00Z", offerName: "Banana IT TH - CPS", discount: "20%", status: "expired" },
+  { id: "6", couponCode: "ADIDAS50", couponName: "Adidas 50 THB", userId: "u1", userEmail: "user1@example.com", usedAt: "2026-03-11T08:30:00Z", offerName: "Adidas TH - CPS", discount: "50 THB", status: "redeemed" },
+  { id: "7", couponCode: "BANANA10", couponName: "Banana IT 10% Off", userId: "u6", userEmail: "user6@example.com", usedAt: "2026-03-09T13:20:00Z", offerName: "Banana IT TH - CPS", discount: "10%", status: "cancelled" },
+  { id: "8", couponCode: "AIRASIA5", couponName: "AirAsia Welcome 5%", userId: "u2", userEmail: "user2@example.com", usedAt: "2026-03-08T17:00:00Z", offerName: "AirAsia Travel - CPS", discount: "5%", status: "redeemed" },
 ];
 
 const PAGE_SIZE = 10;
@@ -43,30 +43,30 @@ export interface CouponEngagementRow {
 /** Mock engagement — replace with API when analytics are available */
 const MOCK_ENGAGEMENT: CouponEngagementRow[] = [
   {
-    couponCode: "SHOPEE10",
-    couponName: "Shopee 10% Off",
-    offerName: "Shopee TH - CPS",
+    couponCode: "BANANA10",
+    couponName: "Banana IT 10% Off",
+    offerName: "Banana IT TH - CPS",
     detailViews: 1842,
     copies: 526,
   },
   {
-    couponCode: "LAZADA50",
-    couponName: "Lazada 50 THB",
-    offerName: "Lazada Thailand",
+    couponCode: "ADIDAS50",
+    couponName: "Adidas 50 THB",
+    offerName: "Adidas TH - CPS",
     detailViews: 903,
     copies: 241,
   },
   {
-    couponCode: "WELCOME5",
-    couponName: "Welcome 5%",
-    offerName: "Agoda Hotels",
+    couponCode: "AIRASIA5",
+    couponName: "AirAsia Welcome 5%",
+    offerName: "AirAsia Travel - CPS",
     detailViews: 612,
     copies: 198,
   },
   {
     couponCode: "EXPIRED20",
     couponName: "Expired Promo",
-    offerName: "Shopee TH - CPS",
+    offerName: "Banana IT TH - CPS",
     detailViews: 310,
     copies: 44,
   },

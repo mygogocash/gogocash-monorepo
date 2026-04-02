@@ -100,7 +100,7 @@ const FormCoupon = ({
   const dataForm: { filedName: string; type: string; placeholder?: string; description?: string }[] = [
     { filedName: "name", type: "text", description: "Display name of the coupon shown to users in the app." },
     { filedName: "code", type: "text", description: "The code users enter to redeem (e.g. WELCOME10). Must be unique." },
-    { filedName: "link", type: "text", description: "Optional URL for the coupon or promo page (e.g. shopee.co.th/promo)." },
+    { filedName: "link", type: "text", description: "Optional URL for the coupon or promo page (e.g. adidas.co.th/promo)." },
     { filedName: "description", type: "textarea", description: "Short text explaining the coupon terms, conditions or offer details." },
     { filedName: "offer_id", type: "option", description: "The offer or platform this coupon applies to." },
     { filedName: "start_date", type: "text", placeholder: "YYYY-MM-DD", description: "When the coupon becomes valid. Use YYYY-MM-DD." },
