@@ -146,7 +146,7 @@ export enum Currency {
 }
 
 export enum OfferName {
-  ShopeeTHCPS = "Shopee TH - CPS",
+  BananaITTHCPS = "Banana IT TH - CPS",
 }
 
 export interface Data {

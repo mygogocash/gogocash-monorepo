@@ -53,19 +53,134 @@ export const mockUsers = Array.from({ length: 550 }, (_, i) => {
   };
 });
 
+/** Local assets under `public/images/merchant-logos/` (see Marketing / Merchant Logos). */
+const MERCHANT_GADGETHUB = {
+  logo: "/images/merchant-logos/gadgethub-th.png",
+  logo_desktop: "/images/merchant-logos/gadgethub-th.png",
+  logo_mobile: "/images/merchant-logos/gadgethub-th-mobile.png",
+  banner: "/images/merchant-logos/gadgethub-th.png",
+  logo_circle: "/images/merchant-logos/gadgethub-th-mobile.png",
+} as const;
+const MERCHANT_STYLEMART = {
+  logo: "/images/merchant-logos/stylemart-id.png",
+  logo_desktop: "/images/merchant-logos/stylemart-id.png",
+  logo_mobile: "/images/merchant-logos/stylemart-id-mobile.png",
+  banner: "/images/merchant-logos/stylemart-id.png",
+  logo_circle: "/images/merchant-logos/stylemart-id-mobile.png",
+} as const;
+const MERCHANT_STAYPLUS = {
+  logo: "/images/merchant-logos/stayplus-travel.png",
+  logo_desktop: "/images/merchant-logos/stayplus-travel.png",
+  logo_mobile: "/images/merchant-logos/stayplus-travel-mobile.png",
+  banner: "/images/merchant-logos/stayplus-travel.png",
+  logo_circle: "/images/merchant-logos/stayplus-travel-mobile.png",
+} as const;
+
 const offerTemplates = [
-  { categories: "Shopping", commission_tracking: "CPS", commissions: ["5%", "3%"], countries: "TH", currency: "THB", description: "Get cashback on all Shopee purchases in Thailand", directory_page: "https://shopee.co.th", is_require_approval: 0, logo: "https://img.involve.asia/iat/uploads/images/shopee-logo.png", marketplace_store_offer: true, payment_terms: 60, preview_url: "https://shopee.co.th", special_commissions: [], tracking_type: "pixel", validation_terms: 30, logo_desktop: "", logo_mobile: "", banner: "", logo_circle: "", disabled: false, commission_store: 5, max_cap: null as number | null, partner_max_cap: 100_000 as number | null, banner_mobile: "", extra_store: false, offer_name_display: "Shopee Thailand" },
-  { categories: "Shopping", commission_tracking: "CPS", commissions: ["4%", "2%"], countries: "TH", currency: "THB", description: "Earn cashback shopping at Lazada Thailand", directory_page: "https://lazada.co.th", is_require_approval: 0, logo: "https://img.involve.asia/iat/uploads/images/lazada-logo.png", marketplace_store_offer: true, payment_terms: 45, preview_url: "https://lazada.co.th", special_commissions: [], tracking_type: "pixel", validation_terms: 30, logo_desktop: "", logo_mobile: "", banner: "", logo_circle: "", disabled: false, commission_store: 4, max_cap: 500, partner_max_cap: null as number | null, banner_mobile: "", extra_store: false, offer_name_display: "Lazada Thailand" },
-  { categories: "Travel", commission_tracking: "CPS", commissions: ["6%"], countries: "TH,US", currency: "USD", description: "Book hotels and earn cashback", directory_page: "https://agoda.com", is_require_approval: 1, logo: "https://img.involve.asia/iat/uploads/images/agoda-logo.png", marketplace_store_offer: false, payment_terms: 90, preview_url: "https://agoda.com", special_commissions: [], tracking_type: "postback", validation_terms: 60, logo_desktop: "", logo_mobile: "", banner: "", logo_circle: "", disabled: false, commission_store: 6, max_cap: null as number | null, partner_max_cap: 500, banner_mobile: "", extra_store: false, offer_name_display: "Agoda Hotels" },
-  { categories: "Food & Drink", commission_tracking: "CPS", commissions: ["3%"], countries: "TH", currency: "THB", description: "Order food and earn cashback", directory_page: "https://grabfood.com", is_require_approval: 0, logo: "", marketplace_store_offer: false, payment_terms: 30, preview_url: "https://grabfood.com", special_commissions: [], tracking_type: "pixel", validation_terms: 14, logo_desktop: "", logo_mobile: "", banner: "", logo_circle: "", disabled: true, commission_store: 3, max_cap: 200, partner_max_cap: 50_000, banner_mobile: "", extra_store: false, offer_name_display: "GrabFood" },
+  {
+    categories: "Electronics",
+    commission_tracking: "CPS",
+    commissions: ["5%", "3%"],
+    countries: "TH",
+    currency: "THB",
+    description: "Cashback on gadgets, accessories, and IT retail at Banana IT (Thailand).",
+    directory_page: "https://www.banana.co.th",
+    is_require_approval: 0,
+    ...MERCHANT_GADGETHUB,
+    marketplace_store_offer: true,
+    payment_terms: 60,
+    preview_url: "https://www.banana.co.th",
+    special_commissions: [],
+    tracking_type: "pixel",
+    validation_terms: 30,
+    disabled: false,
+    commission_store: 5,
+    max_cap: null as number | null,
+    partner_max_cap: 100_000 as number | null,
+    banner_mobile: "",
+    extra_store: false,
+    offer_name_display: "Banana IT (TH)",
+  },
+  {
+    categories: "Fashion",
+    commission_tracking: "CPS",
+    commissions: ["4%", "2%"],
+    countries: "TH",
+    currency: "THB",
+    description: "Earn cashback on sportswear and footwear at Adidas Thailand.",
+    directory_page: "https://www.adidas.co.th",
+    is_require_approval: 0,
+    ...MERCHANT_STYLEMART,
+    marketplace_store_offer: true,
+    payment_terms: 45,
+    preview_url: "https://www.adidas.co.th",
+    special_commissions: [],
+    tracking_type: "pixel",
+    validation_terms: 30,
+    disabled: false,
+    commission_store: 4,
+    max_cap: 500,
+    partner_max_cap: null as number | null,
+    banner_mobile: "",
+    extra_store: false,
+    offer_name_display: "Adidas",
+  },
+  {
+    categories: "Travel",
+    commission_tracking: "CPS",
+    commissions: ["6%"],
+    countries: "TH,US",
+    currency: "USD",
+    description: "Cashback on flights and travel with AirAsia.",
+    directory_page: "https://www.airasia.com",
+    is_require_approval: 1,
+    ...MERCHANT_STAYPLUS,
+    marketplace_store_offer: false,
+    payment_terms: 90,
+    preview_url: "https://www.airasia.com",
+    special_commissions: [],
+    tracking_type: "postback",
+    validation_terms: 60,
+    disabled: false,
+    commission_store: 6,
+    max_cap: null as number | null,
+    partner_max_cap: 500,
+    banner_mobile: "",
+    extra_store: false,
+    offer_name_display: "AirAsia (Travel)",
+  },
+  {
+    categories: "Food & Drink",
+    commission_tracking: "CPS",
+    commissions: ["3%"],
+    countries: "TH",
+    currency: "THB",
+    description: "Mock inactive line — same merchant logo as Banana IT (TH) shopping.",
+    directory_page: "https://www.banana.co.th",
+    is_require_approval: 0,
+    ...MERCHANT_GADGETHUB,
+    marketplace_store_offer: false,
+    payment_terms: 30,
+    preview_url: "https://www.banana.co.th",
+    special_commissions: [],
+    tracking_type: "pixel",
+    validation_terms: 14,
+    disabled: true,
+    commission_store: 3,
+    max_cap: 200,
+    partner_max_cap: 50_000,
+    banner_mobile: "",
+    extra_store: false,
+    offer_name_display: "Banana IT (TH) — Food",
+  },
 ];
 
 export const mockOffers = Array.from({ length: 550 }, (_, i) => {
   const t = offerTemplates[i % 4];
   const offerId = 1001 + i;
   const merchantId = 2001 + (i % 4);
-  const names = ["Shopee TH - CPS", "Lazada TH - CPS", "Agoda - CPS", "GrabFood TH"];
-  const lookups = ["shopee_th", "lazada_th", "agoda", "grab_food"];
+  const names = ["Banana IT TH - CPS", "Adidas TH - CPS", "AirAsia Travel - CPS", "Banana IT TH Food - CPS"];
+  const lookups = ["banana_it_th", "adidas_th", "airasia_travel", "banana_it_food"];
   const _id = `o${i + 1}`;
   return {
     _id,
@@ -123,10 +238,10 @@ export const mockWithdraws = Array.from({ length: 550 }, (_, i) => {
   };
 });
 const conversionOffers = [
-  { offer_id: 1001, merchant_id: 2001, offer_name: "Shopee TH - CPS", currency: "THB", adv_sub1: "shopee" },
-  { offer_id: 1002, merchant_id: 2002, offer_name: "Lazada TH - CPS", currency: "THB", adv_sub1: "lazada" },
-  { offer_id: 1003, merchant_id: 2003, offer_name: "Agoda - CPS", currency: "USD", adv_sub1: "agoda" },
-  { offer_id: 1004, merchant_id: 2004, offer_name: "GrabFood TH", currency: "THB", adv_sub1: "grab" },
+  { offer_id: 1001, merchant_id: 2001, offer_name: "Banana IT TH - CPS", currency: "THB", adv_sub1: "banana_it" },
+  { offer_id: 1002, merchant_id: 2002, offer_name: "Adidas TH - CPS", currency: "THB", adv_sub1: "adidas" },
+  { offer_id: 1003, merchant_id: 2003, offer_name: "AirAsia Travel - CPS", currency: "USD", adv_sub1: "airasia" },
+  { offer_id: 1004, merchant_id: 2004, offer_name: "Banana IT TH Food - CPS", currency: "THB", adv_sub1: "banana_it_food" },
 ];
 
 export const mockConversions = Array.from({ length: 550 }, (_, i) => {
@@ -178,9 +293,9 @@ export const mockBanner = {
   image_3: "banner-3",
   image_4: null,
   image_5: null,
-  link_1: "https://shopee.co.th",
-  link_2: "https://lazada.co.th",
-  link_3: "https://agoda.com",
+  link_1: "https://www.bananastore.com/th",
+  link_2: "https://www.adidas.co.th",
+  link_3: "https://www.airasia.com",
   link_4: "",
   link_5: "",
 };
@@ -201,10 +316,10 @@ export const mockCategories = [
 ];
 
 const couponOfferRefs = [
-  { _id: "o1", offer_name: "Shopee TH - CPS" },
-  { _id: "o2", offer_name: "Lazada TH - CPS" },
-  { _id: "o3", offer_name: "Agoda - CPS" },
-  { _id: "o4", offer_name: "GrabFood TH" },
+  { _id: "o1", offer_name: "Banana IT TH - CPS" },
+  { _id: "o2", offer_name: "Adidas TH - CPS" },
+  { _id: "o3", offer_name: "AirAsia Travel - CPS" },
+  { _id: "o4", offer_name: "Banana IT TH Food - CPS" },
 ];
 
 const couponTemplates = [
@@ -216,7 +331,7 @@ const couponTemplates = [
   { name: "Member Exclusive", description: "Members only discount", codePrefix: "MEMBER", eligibility: "members", min_spend: "1500", discount: 8, linkPath: "member" },
 ];
 
-const couponDomains = ["shopee.co.th", "lazada.co.th", "agoda.com", "grabfood.com"];
+const couponDomains = ["www.bananastore.com", "www.adidas.co.th", "www.airasia.com", "www.bananastore.com"];
 
 export const mockCoupons = Array.from({ length: 550 }, (_, i) => {
   const t = couponTemplates[i % couponTemplates.length];
@@ -308,9 +423,9 @@ export const mockWithdrawDetail = {
     { _id: "w2", address: "0xABC123", account_number: "123-456-789", account_name: "Alice Smith", bank_name: "Bangkok Bank", amount_total: 800, amount_net: 760, percent_fee: 5, status: "pending", method: "bank_transfer", tx_hash: "", tx_hash_record: "", user_id: "u1", conversion_id: [5003], currency: "THB", mycashback_id: ["mcb1"], createdAt: now, updatedAt: now, __v: 0, slip_file: "" },
   ],
   allConversions: [
-    { _id: "ac1", conversion_id: 5001, __v: 0, adv_sub1: "shopee", adv_sub2: "order_001", adv_sub3: "TH", adv_sub4: "", adv_sub5: "mobile", aff_sub1: "u1", aff_sub2: null, aff_sub3: null, aff_sub4: null, aff_sub5: null, affiliate_remarks: "", base_payout: 125, bonus_payout: 0, conversion_status: "approved", createdAt: yesterday, currency: "THB", datetime_conversion: yesterday, merchant_id: 2001, offer_id: 1001, offer_name: "Shopee TH - CPS", payout: 125, sale_amount: 2500, updatedAt: now },
-    { _id: "ac2", conversion_id: 5002, __v: 0, adv_sub1: "shopee", adv_sub2: "order_002", adv_sub3: "TH", adv_sub4: "", adv_sub5: "desktop", aff_sub1: "u1", aff_sub2: null, aff_sub3: null, aff_sub4: null, aff_sub5: null, affiliate_remarks: "", base_payout: 40, bonus_payout: 0, conversion_status: "approved", createdAt: yesterday, currency: "THB", datetime_conversion: yesterday, merchant_id: 2001, offer_id: 1001, offer_name: "Shopee TH - CPS", payout: 40, sale_amount: 800, updatedAt: now },
-    { _id: "ac3", conversion_id: 5003, __v: 0, adv_sub1: "lazada", adv_sub2: "order_003", adv_sub3: "TH", adv_sub4: "flash_sale", adv_sub5: "mobile", aff_sub1: "u1", aff_sub2: null, aff_sub3: null, aff_sub4: null, aff_sub5: null, affiliate_remarks: "Pending validation", base_payout: 200, bonus_payout: 0, conversion_status: "pending", createdAt: now, currency: "THB", datetime_conversion: now, merchant_id: 2002, offer_id: 1002, offer_name: "Lazada TH - CPS", payout: 200, sale_amount: 5000, updatedAt: now },
+    { _id: "ac1", conversion_id: 5001, __v: 0, adv_sub1: "banana_it", adv_sub2: "order_001", adv_sub3: "TH", adv_sub4: "", adv_sub5: "mobile", aff_sub1: "u1", aff_sub2: null, aff_sub3: null, aff_sub4: null, aff_sub5: null, affiliate_remarks: "", base_payout: 125, bonus_payout: 0, conversion_status: "approved", createdAt: yesterday, currency: "THB", datetime_conversion: yesterday, merchant_id: 2001, offer_id: 1001, offer_name: "Banana IT TH - CPS", payout: 125, sale_amount: 2500, updatedAt: now },
+    { _id: "ac2", conversion_id: 5002, __v: 0, adv_sub1: "banana_it", adv_sub2: "order_002", adv_sub3: "TH", adv_sub4: "", adv_sub5: "desktop", aff_sub1: "u1", aff_sub2: null, aff_sub3: null, aff_sub4: null, aff_sub5: null, affiliate_remarks: "", base_payout: 40, bonus_payout: 0, conversion_status: "approved", createdAt: yesterday, currency: "THB", datetime_conversion: yesterday, merchant_id: 2001, offer_id: 1001, offer_name: "Banana IT TH - CPS", payout: 40, sale_amount: 800, updatedAt: now },
+    { _id: "ac3", conversion_id: 5003, __v: 0, adv_sub1: "adidas", adv_sub2: "order_003", adv_sub3: "TH", adv_sub4: "flash_sale", adv_sub5: "mobile", aff_sub1: "u1", aff_sub2: null, aff_sub3: null, aff_sub4: null, aff_sub5: null, affiliate_remarks: "Pending validation", base_payout: 200, bonus_payout: 0, conversion_status: "pending", createdAt: now, currency: "THB", datetime_conversion: now, merchant_id: 2002, offer_id: 1002, offer_name: "Adidas TH - CPS", payout: 200, sale_amount: 5000, updatedAt: now },
   ],
   user: {
     _id: "u1",

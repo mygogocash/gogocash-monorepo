@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import { Modal } from "../ui/modal";
 import Input from "../form/input/InputField";
@@ -10,8 +11,12 @@ import Switch from "../form/switch/Switch";
 import { Offer, OfferRequestForm } from "@/types/api";
 import { pathImage } from "@/utils/helper";
 import { useDataSession } from "@/hooks/useDataSession";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ResCategoryList } from "@/types/category";
+import { DEEPLINK_STORE_OPTIONS } from "@/data/deeplinkStores";
+import { AFFILIATE_NETWORKS, affiliateNetworkIdForOfferId } from "@/data/affiliateNetworks";
+import { buildSuggestedAppDeeplink } from "@/lib/offerDeeplink";
+import { OfferFullscreenCardShell } from "./OfferFullscreenCardShell";
 
 function formatPartnerMaxCap(offer: Offer | null): string {
   const raw = offer?.partner_max_cap;
@@ -20,6 +25,28 @@ function formatPartnerMaxCap(offer: Offer | null): string {
   const cur = offer?.currency?.trim();
   const formatted = Number.isFinite(raw) ? raw.toLocaleString() : String(raw);
   return cur ? `${formatted} ${cur}` : formatted;
+}
+
+/** Parse a percentage from partner rate lines like "5%" or "3% CPA". */
+function parsePercentFromPartnerRateString(s: string): number | null {
+  const m = s.trim().match(/([\d.]+)\s*%/);
+  if (m) return parseFloat(m[1]);
+  return null;
+}
+
+/** Min / max % across partner rate strings (read-only summary). */
+function formatPartnerRatesMinMax(offer: Offer | null): string {
+  const list = offer?.commissions ?? [];
+  const percents: number[] = [];
+  for (const c of list) {
+    const p = parsePercentFromPartnerRateString(c);
+    if (p != null && !Number.isNaN(p)) percents.push(p);
+  }
+  if (percents.length === 0) return "—";
+  const min = Math.min(...percents);
+  const max = Math.max(...percents);
+  if (min === max) return `${min}%`;
+  return `Min ${min}% · Max ${max}%`;
 }
 
 function FieldLabel({ label, description }: { label: string; description: string }) {
@@ -31,7 +58,7 @@ function FieldLabel({ label, description }: { label: string; description: string
   );
 }
 
-interface IProp {
+interface FormOfferProps {
   fetchOffers: () => void;
   openModal: boolean | Offer;
   setOpenModal: React.Dispatch<React.SetStateAction<boolean | Offer>>;
@@ -48,9 +75,72 @@ const FormOffer = ({
   setForm,
   isLoading,
   setIsLoading,
-}: IProp) => {
+}: FormOfferProps) => {
   const session = useDataSession();
+  const queryClient = useQueryClient();
   const offer = openModal && typeof openModal === "object" ? openModal : null;
+  const networkId = offer
+    ? form.affiliate_network_id.trim() || affiliateNetworkIdForOfferId(offer._id)
+    : "";
+
+  const { data: brandsRes } = useQuery({
+    queryKey: ["commission-management-brands", networkId],
+    queryFn: async () => {
+      const { data } = await client.get<{ data: { id: string; appDeeplink: string }[] }>(
+        "/admin/commission-management/brands",
+        { params: { networkId } },
+      );
+      return data;
+    },
+    enabled: Boolean(offer && networkId),
+    staleTime: 30_000,
+  });
+
+  const brandRowForOffer = useMemo(() => {
+    if (!offer) return null;
+    return brandsRes?.data?.find((b) => b.id === offer._id) ?? null;
+  }, [brandsRes?.data, offer]);
+
+  const partnerPreviewDeeplink = useMemo(() => {
+    if (!offer) return "";
+    const nw =
+      form.affiliate_network_id.trim() || affiliateNetworkIdForOfferId(offer._id);
+    return buildSuggestedAppDeeplink(offer, nw, form.commission_store, form.deeplink_store_id);
+  }, [offer, form.affiliate_network_id, form.commission_store, form.deeplink_store_id]);
+
+  /** When there are no product-type rows, deeplink is stored via commission API (same as Commission Management). */
+  const serverSuggestedDeeplink = useMemo(() => {
+    if (!offer) return null;
+    const saved = brandRowForOffer?.appDeeplink?.trim() ?? "";
+    if (!saved || saved === partnerPreviewDeeplink) return null;
+    return saved;
+  }, [offer, brandRowForOffer?.appDeeplink, partnerPreviewDeeplink]);
+
+  /** Scoped to `offer._id` so switching offers does not reuse a stale typed URL (no reset effect). */
+  const [deeplinkOverride, setDeeplinkOverride] = useState<{
+    offerId: string;
+    value: string;
+  } | null>(null);
+
+  const offerDeeplinkDraft = useMemo(() => {
+    if (deeplinkOverride && offer && deeplinkOverride.offerId === offer._id) {
+      return deeplinkOverride.value;
+    }
+    return serverSuggestedDeeplink ?? partnerPreviewDeeplink;
+  }, [deeplinkOverride, offer, serverSuggestedDeeplink, partnerPreviewDeeplink]);
+
+  const saveOfferDeeplink = useMutation({
+    mutationFn: async (payload: { offerId: string; deeplink: string }) => {
+      const { data } = await client.patch<{ success: boolean }>(
+        "/admin/commission-management/deeplink",
+        payload,
+      );
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["commission-management-brands"] });
+    },
+  });
 
   const { data: policyCategories = [] } = useQuery<ResCategoryList[]>({
     queryKey: ["getCategory", "form-offer-policy"],
@@ -114,8 +204,14 @@ const FormOffer = ({
       .map((row) => ({
         name: row.name.trim(),
         commission_info: row.commission_info.trim(),
+        deeplink: (row.deeplink ?? "").trim(),
       }))
-      .filter((row) => row.name.length > 0 || row.commission_info.length > 0);
+      .filter(
+        (row) =>
+          row.name.length > 0 ||
+          row.commission_info.length > 0 ||
+          row.deeplink.length > 0,
+      );
     formData.append("product_types", JSON.stringify(productTypeRows));
     formData.append(
       "admin_commission_info",
@@ -125,6 +221,10 @@ const FormOffer = ({
     );
     formData.append("policy_category_id", form.policy_category_id ?? "");
     formData.append("note_to_user", form.note_to_user ?? "");
+    formData.append("affiliate_network_id", form.affiliate_network_id.trim() || "involve_asia");
+    formData.append("deeplink_store_id", form.deeplink_store_id.trim() || "global");
+    const hasProductTypeRows = (form.product_types ?? []).length > 0;
+
     setIsLoading(true);
     client
       .patch(`/admin/update-offer/${form.id}`, formData, {
@@ -133,7 +233,17 @@ const FormOffer = ({
           "Content-Type": "multipart/form-data",
         },
       })
-      .then(() => {
+      .then(async () => {
+        if (!hasProductTypeRows && form.id) {
+          const d = offerDeeplinkDraft.trim();
+          if (d) {
+            try {
+              await saveOfferDeeplink.mutateAsync({ offerId: form.id, deeplink: d });
+            } catch {
+              toast.error("Offer saved, but deep link could not be synced.");
+            }
+          }
+        }
         setOpenModal(false);
         fetchOffers();
         setIsLoading(false);
@@ -142,7 +252,7 @@ const FormOffer = ({
       .catch((err) => {
         setIsLoading(false);
         devError("Failed to update offer:", err);
-        toast.error("Offer updated error");
+        toast.error("Could not update offer");
       });
   };
 
@@ -154,40 +264,44 @@ const FormOffer = ({
       showCloseButton={false}
       className="p-0"
     >
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-5 sm:p-6 md:p-8">
-        <div className="mb-4 flex w-full shrink-0 flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-4 dark:border-gray-700">
-          <div className="min-w-0">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Edit offer
-            </h3>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              Update basic info, policy source, promo period, and media. Partner commission details below are read-only (from the network).
-            </p>
+      <OfferFullscreenCardShell
+        header={
+          <div className="mb-4 flex w-full shrink-0 flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-4 dark:border-gray-700">
+            <div className="min-w-0">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Edit offer
+              </h3>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Update basic info, policy source, promo period, and media. Partner commission details below are read-only (from the network).
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-3">
+              <Button
+                size="sm"
+                variant="outline"
+                type="button"
+                onClick={() => setOpenModal(false)}
+                disabled={isLoading}
+              >
+                Close
+              </Button>
+              <Button
+                size="sm"
+                type="button"
+                disabled={isLoading}
+                onClick={handleSave}
+                startIcon={
+                  isLoading ? (
+                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-brand-500 dark:border-gray-600" />
+                  ) : null
+                }
+              >
+                Save changes
+              </Button>
+            </div>
           </div>
-          <div className="flex shrink-0 items-center gap-3">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setOpenModal(false)}
-              disabled={isLoading}
-            >
-              Close
-            </Button>
-            <Button
-              size="sm"
-              disabled={isLoading}
-              onClick={handleSave}
-              startIcon={
-                isLoading ? (
-                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-brand-500 dark:border-gray-600" />
-                ) : null
-              }
-            >
-              Save changes
-            </Button>
-          </div>
-        </div>
-        <div className="mt-6 min-h-0 flex-1 space-y-6 overflow-y-auto pb-4 pr-1">
+        }
+      >
         {/* Basic info */}
         <section className="space-y-4">
           <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
@@ -227,6 +341,105 @@ const FormOffer = ({
               </p>
             </div>
           </div>
+
+          {/* Deep links — one per product-type row (brand / line), or single offer row */}
+          <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 dark:border-gray-700 dark:bg-gray-800/30">
+            <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              Deep links
+            </h4>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              App deep link for each brand or product line. With{" "}
+              <span className="font-medium">Product Type</span> rows below, each line gets its own URL;
+              otherwise the default below uses the same store as Commission Management.
+            </p>
+            <div className="mt-4">
+              <FieldLabel
+                label="Affiliate partner"
+                description="Performance network for this offer (Involve Asia, Optimise, Accesstrade)."
+              />
+              <select
+                id="offer-affiliate-network"
+                className="w-full max-w-xl rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                value={form.affiliate_network_id}
+                onChange={(e) => setForm({ ...form, affiliate_network_id: e.target.value })}
+                disabled={isLoading}
+              >
+                {AFFILIATE_NETWORKS.map((n) => (
+                  <option key={n.id} value={n.id}>
+                    {n.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="mt-4">
+              <FieldLabel
+                label="Advertiser"
+                description="Campaign-style advertiser (e.g. Banana IT TH CPS). Adds store= to the deep link unless Default / other."
+              />
+              <select
+                id="offer-deeplink-advertiser"
+                className="w-full max-w-xl rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                value={form.deeplink_store_id}
+                onChange={(e) => setForm({ ...form, deeplink_store_id: e.target.value })}
+                disabled={isLoading}
+              >
+                {DEEPLINK_STORE_OPTIONS.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {(form.product_types ?? []).length > 0 ? (
+              <ul className="mt-4 space-y-4">
+                {(form.product_types ?? []).map((row, i) => {
+                  const label = row.name.trim() || `Brand / product line ${i + 1}`;
+                  return (
+                    <li key={i}>
+                      <FieldLabel
+                        label={`Deep link — ${label}`}
+                        description="URL opened in the app for this product type (e.g. gogocash.app/...)."
+                      />
+                      <Input
+                        type="url"
+                        name={`product_type_deeplink_${i}`}
+                        placeholder="https://gogocash.app/open/offer/..."
+                        value={row.deeplink ?? ""}
+                        onChange={(e) => {
+                          const next = [...(form.product_types ?? [])];
+                          next[i] = { ...next[i], deeplink: e.target.value };
+                          setForm({ ...form, product_types: next });
+                        }}
+                        disabled={isLoading}
+                        autoComplete="off"
+                      />
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <div className="mt-4">
+                <FieldLabel
+                  label={`Deep link — ${form.offer_name_display?.trim() || "This offer"}`}
+                  description="Prefilled from partner data (rate, currency, affiliate network); you can edit before save. If you previously saved a custom URL, that value is shown instead."
+                />
+                <Input
+                  type="url"
+                  name="offer_deeplink"
+                  placeholder="https://gogocash.app/open/offer/..."
+                  value={offerDeeplinkDraft}
+                  onChange={(e) =>
+                    setDeeplinkOverride(
+                      offer ? { offerId: offer._id, value: e.target.value } : null,
+                    )
+                  }
+                  disabled={isLoading || saveOfferDeeplink.isPending}
+                  autoComplete="off"
+                />
+              </div>
+            )}
+          </div>
+
           <div>
             <FieldLabel
               label="Commission (%)"
@@ -286,12 +499,10 @@ const FormOffer = ({
               </div>
               <div>
                 <dt className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                  Partner rates
+                  Min / Max
                 </dt>
                 <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
-                  {offer?.commissions?.length
-                    ? offer.commissions.join(" · ")
-                    : "—"}
+                  {formatPartnerRatesMinMax(offer)}
                 </dd>
               </div>
               <div>
@@ -324,25 +535,6 @@ const FormOffer = ({
                 </dt>
                 <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
                   {typeof offer?.validation_terms === "number" ? `${offer.validation_terms} days` : "—"}
-                </dd>
-              </div>
-              <div className="sm:col-span-2">
-                <dt className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                  Tracking link (partner)
-                </dt>
-                <dd className="mt-0.5 break-all text-sm text-gray-900 dark:text-gray-100">
-                  {offer?.tracking_link?.trim() ? (
-                    <a
-                      href={offer.tracking_link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-brand-600 underline hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
-                    >
-                      {offer.tracking_link}
-                    </a>
-                  ) : (
-                    "—"
-                  )}
                 </dd>
               </div>
             </dl>
@@ -470,12 +662,12 @@ const FormOffer = ({
               size="sm"
               variant="outline"
               type="button"
-              onClick={() =>
+                onClick={() =>
                 setForm({
                   ...form,
                   product_types: [
                     ...(form.product_types ?? []),
-                    { name: "", commission_info: "" },
+                    { name: "", commission_info: "", deeplink: "" },
                   ],
                 })
               }
@@ -743,8 +935,7 @@ const FormOffer = ({
             )}
           </div>
         </section>
-        </div>
-      </div>
+      </OfferFullscreenCardShell>
     </Modal>
   );
 };

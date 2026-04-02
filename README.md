@@ -107,6 +107,7 @@ src/
 │   │       ├── users/page.tsx            # Regular user management
 │   │       ├── offers/page.tsx           # Offer listing
 │   │       ├── offers/[id]/page.tsx      # Offer detail/edit
+│   │       ├── offers/pending/[id]/page.tsx # Pending offer review (full page)
 │   │       ├── withdraw/page.tsx         # Withdrawal requests
 │   │       ├── withdraw/[id]/page.tsx    # Withdrawal detail/approval
 │   │       ├── conversion/page.tsx       # Conversion tracking
@@ -333,6 +334,7 @@ interface Session {
 | `/users` | `UsersTable` | View & manage regular users |
 | `/offers` | `OffersTable` | Browse & manage merchant offers |
 | `/offers/[id]` | `Detail` + `FormOffer` | Individual offer detail & editing |
+| `/offers/pending/[id]` | `PendingOfferReviewRouteClient` | Full-page review for merchant-submitted (pending) offers |
 | `/withdraw` | `WithdrawTable` | View withdrawal requests |
 | `/withdraw/[id]` | `WithdrawDetail` | Approve/reject withdrawals |
 | `/conversion` | `ConversionTable` | Track affiliate conversions |
@@ -701,7 +703,11 @@ Users Management
 └── Users (/users)
 
 Offers Management
-└── Offers (/offers)
+├── New offer (/offers?tab=new-offer)
+├── Offers (/offers)
+├── Commission Management (/offers?tab=commission)
+├── Policy Management (/offers?tab=policy)
+└── User Deeplink (/offers?tab=deeplink)
 
 Category Management
 └── Category (/category)

@@ -16,16 +16,33 @@ export function normalizeE164(phone: string, country?: CountryCode) {
   return parsed?.format("E.164") ?? null;
 }
 
-/** Internal mock only: no external asset server. Returns placeholder or empty. */
+/**
+ * Resolves image URLs for admin previews.
+ * - `http(s)://`, `/public` paths, `blob:`, `data:` — returned as-is.
+ * - Other values fall back to placeholders (legacy mock asset ids).
+ */
 export const pathImage = (
   path?: string | null,
   variant: "square" | "banner" = "square",
 ) => {
-  if (!path) return "";
-  if (variant === "banner") {
-    return "https://placehold.co/640x200/e2e8f0/64748b?text=Category+banner";
+  if (path == null) return "";
+  const trimmed = String(path).trim();
+  if (!trimmed) return "";
+
+  if (
+    trimmed.startsWith("https://") ||
+    trimmed.startsWith("http://") ||
+    trimmed.startsWith("/") ||
+    trimmed.startsWith("blob:") ||
+    trimmed.startsWith("data:")
+  ) {
+    return trimmed;
   }
-  return "https://placehold.co/96x96/e2e8f0/64748b?text=Image";
+
+  if (variant === "banner") {
+    return "https://placehold.co/640x200.png/e2e8f0/64748b?text=Category+banner";
+  }
+  return "https://placehold.co/96x96.png/e2e8f0/64748b?text=Image";
 };
 
 export const formatPrice = (price?: number) => {

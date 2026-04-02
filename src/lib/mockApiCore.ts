@@ -19,10 +19,16 @@ import {
 } from "@/app/api/mock/data";
 import { isMockAdminPasswordAllowed } from "@/lib/mockAuthPolicy";
 import {
+  isValidDeeplinkStoreId,
+  resolveDeeplinkStoreId,
+} from "@/data/deeplinkStores";
+import {
   AFFILIATE_NETWORKS,
   affiliateNetworkIdForOfferId,
   affiliateNetworkName,
+  resolveAffiliateNetworkIdForOffer,
 } from "@/data/affiliateNetworks";
+import { bestPercentFromPartnerRates, buildSuggestedAppDeeplink } from "@/lib/offerDeeplink";
 import { normalizeOfferProductTypes, type Offer } from "@/types/api";
 
 export type MockApiInput = {
@@ -42,10 +48,10 @@ const jsonErr = (status: number, body: unknown): MockApiResult => ({
 });
 
 const OFFER_NAMES: Record<number, string> = {
-  1001: "Shopee TH - CPS",
-  1002: "Lazada TH - CPS",
-  1003: "Agoda - CPS",
-  1004: "GrabFood TH",
+  1001: "Banana IT TH - CPS",
+  1002: "Adidas TH - CPS",
+  1003: "AirAsia Travel - CPS",
+  1004: "Banana IT TH Food - CPS",
 };
 type CreatedConversionItem = {
   conversion_id: number;
@@ -69,12 +75,12 @@ type CreatedConversionItem = {
 };
 
 const MOCK_CREATED_CONVERSIONS_BASE = [
-  { offer_id: 1001, offer_name: "Shopee TH - CPS", aff_sub1: "u1", adv_sub2: "order_mock_001", sale_amount: "1500.00", payout: "75.00", currency: "THB", conversion_status: "approved" as const, remark: "Manual add - campaign" },
-  { offer_id: 1002, offer_name: "Lazada TH - CPS", aff_sub1: "u1", adv_sub2: "order_mock_002", sale_amount: "3200.50", payout: "128.02", currency: "THB", conversion_status: "pending" as const, remark: "" },
-  { offer_id: 1003, offer_name: "Agoda - CPS", aff_sub1: "u2", adv_sub2: "order_mock_003", sale_amount: "450.00", payout: "27.00", currency: "USD", conversion_status: "approved" as const, remark: "Hotel booking" },
-  { offer_id: 1004, offer_name: "GrabFood TH", aff_sub1: "u2", adv_sub2: "order_mock_004", sale_amount: "280.00", payout: "8.40", currency: "THB", conversion_status: "rejected" as const, remark: "" },
-  { offer_id: 1001, offer_name: "Shopee TH - CPS", aff_sub1: "68bf99fed9667685c1637607", adv_sub2: "order_mock_005", sale_amount: "890.00", payout: "44.50", currency: "THB", conversion_status: "approved" as const, remark: "Created via admin" },
-  { offer_id: 1002, offer_name: "Lazada TH - CPS", aff_sub1: "u3", adv_sub2: "order_mock_006", sale_amount: "2100.00", payout: "84.00", currency: "THB", conversion_status: "pending" as const, remark: "Flash sale" },
+  { offer_id: 1001, offer_name: "Banana IT TH - CPS", aff_sub1: "u1", adv_sub2: "order_mock_001", sale_amount: "1500.00", payout: "75.00", currency: "THB", conversion_status: "approved" as const, remark: "Manual add - campaign" },
+  { offer_id: 1002, offer_name: "Adidas TH - CPS", aff_sub1: "u1", adv_sub2: "order_mock_002", sale_amount: "3200.50", payout: "128.02", currency: "THB", conversion_status: "pending" as const, remark: "" },
+  { offer_id: 1003, offer_name: "AirAsia Travel - CPS", aff_sub1: "u2", adv_sub2: "order_mock_003", sale_amount: "450.00", payout: "27.00", currency: "USD", conversion_status: "approved" as const, remark: "Hotel booking" },
+  { offer_id: 1004, offer_name: "Banana IT TH Food - CPS", aff_sub1: "u2", adv_sub2: "order_mock_004", sale_amount: "280.00", payout: "8.40", currency: "THB", conversion_status: "rejected" as const, remark: "" },
+  { offer_id: 1001, offer_name: "Banana IT TH - CPS", aff_sub1: "68bf99fed9667685c1637607", adv_sub2: "order_mock_005", sale_amount: "890.00", payout: "44.50", currency: "THB", conversion_status: "approved" as const, remark: "Created via admin" },
+  { offer_id: 1002, offer_name: "Adidas TH - CPS", aff_sub1: "u3", adv_sub2: "order_mock_006", sale_amount: "2100.00", payout: "84.00", currency: "THB", conversion_status: "pending" as const, remark: "Flash sale" },
 ];
 
 function buildMockCreatedConversions(): CreatedConversionItem[] {
@@ -248,36 +254,6 @@ function mockWithdrawDetailForUser(userId: string) {
 
 /** Admin-set app deeplink per offer (commission management). */
 const commissionAppDeeplinkByOfferId = new Map<string, string>();
-
-function parseCommissionPercentString(s: string): number | null {
-  const m = s.trim().match(/([\d.]+)\s*%/);
-  if (m) return parseFloat(m[1]);
-  return null;
-}
-
-function bestPercentFromPartnerRates(commissions: string[]): number {
-  let max = 0;
-  for (const c of commissions) {
-    const p = parseCommissionPercentString(c);
-    if (p != null && p > max) max = p;
-  }
-  return max;
-}
-
-function buildCommissionSuggestedDeeplink(offer: {
-  _id: string;
-  lookup_value: string;
-  currency: string;
-  commissions?: string[];
-  commission_store: number | null;
-}): string {
-  const fromPartner = bestPercentFromPartnerRates(offer.commissions ?? []);
-  const rate =
-    fromPartner > 0 ? fromPartner : (offer.commission_store != null ? offer.commission_store : 0);
-  const safeLookup = encodeURIComponent(offer.lookup_value || offer._id);
-  const net = affiliateNetworkIdForOfferId(offer._id);
-  return `https://gogocash.app/open/offer/${safeLookup}?bestRate=${rate}&currency=${encodeURIComponent(offer.currency || "THB")}&affNetwork=${encodeURIComponent(net)}`;
-}
 
 function paginate<T>(items: T[], page = 1, limit = 10) {
   const start = (page - 1) * limit;
@@ -586,7 +562,13 @@ function handleMockGET(
         adminCommission: o.commission_store,
         trackingLink: o.tracking_link,
         appDeeplink:
-          commissionAppDeeplinkByOfferId.get(o._id) ?? buildCommissionSuggestedDeeplink(o),
+          commissionAppDeeplinkByOfferId.get(o._id) ??
+          buildSuggestedAppDeeplink(
+            o,
+            resolveAffiliateNetworkIdForOffer(o),
+            o.commission_store,
+            resolveDeeplinkStoreId(o),
+          ),
         affiliateNetworkId: nwId,
         affiliateNetworkName: affiliateNetworkName(nwId),
       });
@@ -900,7 +882,12 @@ async function handleMockPOST(
     };
     base += networkBonus[affiliateNetworkId] ?? 0;
     const bestRatePercent = Math.round(base * 100) / 100;
-    const suggestedDeeplink = buildCommissionSuggestedDeeplink(offer);
+    const suggestedDeeplink = buildSuggestedAppDeeplink(
+      offer,
+      affiliateNetworkId,
+      offer.commission_store,
+      resolveDeeplinkStoreId(offer),
+    );
     return ok({
       bestRatePercent,
       currency: offer.currency,
@@ -1088,6 +1075,18 @@ async function handleMockPATCH(
     if (b.note_to_user !== undefined) {
       const t = (b.note_to_user ?? "").trim();
       offer.note_to_user = t.length > 0 ? t : null;
+    }
+    if (b.affiliate_network_id !== undefined) {
+      const id = (b.affiliate_network_id ?? "").trim();
+      if (id && AFFILIATE_NETWORKS.some((n) => n.id === id)) {
+        offer.affiliate_partner = affiliateNetworkName(id);
+      }
+    }
+    if (b.deeplink_store_id !== undefined) {
+      const sid = (b.deeplink_store_id ?? "").trim();
+      if (sid && isValidDeeplinkStoreId(sid)) {
+        offer.deeplink_store_id = sid;
+      }
     }
 
     offer.datetime_updated = new Date();
