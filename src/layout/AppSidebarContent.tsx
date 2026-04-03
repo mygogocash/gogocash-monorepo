@@ -50,6 +50,7 @@ export const navItems: NavItem[] = [
     icon: <ShootingStarIcon />,
     name: "Offers Management",
     subItems: [
+      { name: "New offer", path: "/offers?tab=new-offer", pro: false },
       { name: "Offers", path: "/offers", pro: false },
       { name: "Commission Management", path: "/offers?tab=commission", pro: false },
       { name: "Policy Management", path: "/offers?tab=policy", pro: false },

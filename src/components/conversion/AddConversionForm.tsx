@@ -6,10 +6,10 @@ import Label from "@/components/form/Label";
 import Input from "@/components/form/input/InputField";
 
 const OFFER_OPTIONS = [
-  { value: "1001", label: "Shopee TH - CPS" },
-  { value: "1002", label: "Lazada TH - CPS" },
-  { value: "1003", label: "Agoda - CPS" },
-  { value: "1004", label: "GrabFood TH" },
+  { value: "1001", label: "Banana IT TH - CPS" },
+  { value: "1002", label: "Adidas TH - CPS" },
+  { value: "1003", label: "AirAsia Travel - CPS" },
+  { value: "1004", label: "Banana IT TH Food - CPS" },
 ];
 
 const STATUS_OPTIONS = [
