@@ -71,7 +71,7 @@ export function DashboardWithdrawSummary() {
       {showAttention && (
         <Link
           href="/withdraw"
-          className="flex items-center justify-between rounded-xl border border-warning-200 bg-warning-50 px-4 py-3 dark:border-warning-800 dark:bg-warning-500/10"
+          className="flex items-center justify-between rounded-xl border border-warning-200 bg-warning-50 px-4 py-3 transition-all duration-200 ease-out hover:border-warning-300 hover:shadow-sm dark:border-warning-800 dark:bg-warning-500/10 dark:hover:border-warning-700"
         >
           <span className="text-sm font-medium text-warning-800 dark:text-warning-200">
             {pendingCount} pending withdrawal{pendingCount !== 1 ? "s" : ""} need review
@@ -88,7 +88,7 @@ export function DashboardWithdrawSummary() {
           </div>
           <Link
             href="/withdraw"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-500 hover:text-brand-600 dark:text-brand-400 dark:hover:text-brand-300"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-500 transition-colors duration-200 ease-out hover:text-brand-600 dark:text-brand-400 dark:hover:text-brand-300"
           >
             View all
             <ArrowRightIcon className="size-4" />
@@ -99,7 +99,7 @@ export function DashboardWithdrawSummary() {
           {rows.map((row) => (
             <div
               key={row.status}
-              className={`rounded-xl border border-gray-100 p-4 dark:border-gray-800 ${row.bg}`}
+              className={`rounded-xl border border-gray-100 p-4 transition-all duration-200 ease-out hover:shadow-sm dark:border-gray-800 ${row.bg}`}
             >
               <p className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">{row.label}</p>
               <p className="mt-1 font-bold text-gray-800 dark:text-white/90">

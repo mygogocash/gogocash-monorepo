@@ -30,7 +30,7 @@ export default async function SupportPage(props: DefaultAppPageProps) {
               1. Getting started
             </h2>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              After signing in, you usually land on a dashboard. The left sidebar groups tools by area: <strong>Dashboard</strong> (platform and executive views), <strong>Users Management</strong>, <strong>Offers Management</strong> (offers, commission, policy, user deeplink), <strong>Withdraw Management</strong>, <strong>Conversion Management</strong>, <strong>Banner Management</strong>, <strong>Coupon Management</strong>, and <strong>Quest Management</strong>. Below that, <strong>Fee</strong> holds fee and withdrawal settings. Use the header menu for your profile, account settings, this <strong>Support</strong> page, and <strong>Sign out</strong>.
+              After signing in, you usually land on a dashboard. The left sidebar groups tools by area: <strong>Platform Dashboard</strong>, <strong>Users Management</strong>, <strong>Offers Management</strong> (offers, commission, policy, user deeplink), <strong>Withdraw Management</strong>, <strong>Conversion Management</strong>, <strong>Banner Management</strong>, <strong>Coupon Management</strong>, and <strong>Quest Management</strong>. Below that, <strong>Fee</strong> holds fee and withdrawal settings. Use the header menu for your profile, account settings, this <strong>Support</strong> page, and <strong>Sign out</strong>.
             </p>
           </section>
 
@@ -41,15 +41,9 @@ export default async function SupportPage(props: DefaultAppPageProps) {
             </h2>
             <ul className="list-inside list-disc space-y-2 text-sm text-gray-600 dark:text-gray-400">
               <li>
-                <strong>Platform dashboard</strong> — Day-to-day operational metrics for the product.
-              </li>
-              <li>
-                <strong>Executive dashboard</strong> — Higher-level summary suitable for leadership review.
+                <strong>Platform Dashboard</strong> — Day-to-day operational metrics for the product. Open it from the first item under Menu.
               </li>
             </ul>
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-              Pick the view that fits your role; both are under the Dashboard section in the sidebar.
-            </p>
           </section>
 
           {/* Users Management */}

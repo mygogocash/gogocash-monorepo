@@ -476,6 +476,20 @@ function handleMockGET(
               (w.user_id as { email?: string }).email?.toLowerCase().includes(s))),
       );
     }
+    const statusFilter = searchParams.get("status")?.trim().toLowerCase() ?? "";
+    if (statusFilter) {
+      filtered = filtered.filter(
+        (w) => (w.status || "").toLowerCase() === statusFilter,
+      );
+    }
+    const methodFilter = searchParams.get("method")?.trim() ?? "";
+    if (methodFilter) {
+      filtered = filtered.filter((w) => {
+        const m = w.method || "";
+        if (methodFilter === "web3") return m === "web3" || m === "crypto";
+        return m === methodFilter;
+      });
+    }
     return ok(paginate(filtered, page, limit));
   }
 
@@ -991,7 +1005,9 @@ async function handleMockPATCH(
   }
 
   if (path[0] === "admin" && path[1] === "update-fee-rate") {
-    return ok({ ...mockFee[0], ...b });
+    const patch = b as Record<string, unknown>;
+    Object.assign(mockFee[0], patch, { updatedAt: new Date().toISOString() });
+    return ok({ ...mockFee[0] });
   }
 
   if (path[0] === "admin" && path[1] === "update-category" && path[2]) {

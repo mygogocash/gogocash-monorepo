@@ -518,6 +518,8 @@ class ApiClient {
     if (query.search) params.append("search", query.search);
     if (query.limit) params.append("limit", query.limit.toString());
     if (query.page) params.append("page", query.page.toString());
+    if (query.status) params.append("status", query.status);
+    if (query.method) params.append("method", query.method);
 
     const queryString = params.toString();
     const endpoint = queryString

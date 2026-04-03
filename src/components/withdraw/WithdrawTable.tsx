@@ -44,7 +44,22 @@ export default function WithdrawTable() {
     search: "",
     limit: 10,
     page: 1,
+    status: undefined,
+    method: undefined,
   });
+
+  const STATUS_FILTER_OPTIONS = [
+    { value: "", label: "All statuses" },
+    { value: "pending", label: "Pending" },
+    { value: "approved", label: "Approved" },
+    { value: "rejected", label: "Rejected" },
+  ] as const;
+
+  const METHOD_FILTER_OPTIONS = [
+    { value: "", label: "All methods" },
+    { value: "bank_transfer", label: "Bank transfer" },
+    { value: "web3", label: "Web3 / Crypto" },
+  ] as const;
 
   // const { data: getDetailConversionWithdraw } = useQuery<
   //   ConversionInWithdraw[]
@@ -101,6 +116,26 @@ export default function WithdrawTable() {
     fetchOffers(newQuery);
   };
 
+  const handleStatusFilter = (value: string) => {
+    const newQuery: WithdrawQuery = {
+      ...query,
+      page: 1,
+      status: value ? value : undefined,
+    };
+    setQuery(newQuery);
+    fetchOffers(newQuery);
+  };
+
+  const handleMethodFilter = (value: string) => {
+    const newQuery: WithdrawQuery = {
+      ...query,
+      page: 1,
+      method: value ? value : undefined,
+    };
+    setQuery(newQuery);
+    fetchOffers(newQuery);
+  };
+
   // Handle pagination
   const handlePageChange = (newPage: number) => {
     const newQuery = { ...query, page: newPage };
@@ -139,8 +174,8 @@ export default function WithdrawTable() {
   return (
     <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-5">
-        <div>
+      <div className="flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        <div className="shrink-0">
           <h3 className="text-base font-medium text-gray-800 dark:text-white/90">
             Lists
           </h3>
@@ -148,10 +183,41 @@ export default function WithdrawTable() {
             Total: {pagination.total}
           </p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-3">
+          <label className="sr-only" htmlFor="withdraw-filter-status">
+            Filter by status
+          </label>
+          <select
+            id="withdraw-filter-status"
+            value={query.status ?? ""}
+            onChange={(e) => handleStatusFilter(e.target.value)}
+            className="h-11 w-full min-w-[9.5rem] shrink-0 rounded-lg border border-gray-200 bg-transparent px-3 py-2 pr-8 text-sm text-gray-800 focus:ring-3 focus:ring-brand-500/20 focus:outline-hidden xl:w-auto dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:focus:ring-brand-400/30"
+          >
+            {STATUS_FILTER_OPTIONS.map((opt) => (
+              <option key={opt.label} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          <label className="sr-only" htmlFor="withdraw-filter-method">
+            Filter by method
+          </label>
+          <select
+            id="withdraw-filter-method"
+            value={query.method ?? ""}
+            onChange={(e) => handleMethodFilter(e.target.value)}
+            className="h-11 w-full min-w-[10rem] shrink-0 rounded-lg border border-gray-200 bg-transparent px-3 py-2 pr-8 text-sm text-gray-800 focus:ring-3 focus:ring-brand-500/20 focus:outline-hidden xl:w-auto dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:focus:ring-brand-400/30"
+          >
+            {METHOD_FILTER_OPTIONS.map((opt) => (
+              <option key={opt.label} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
           <input
             type="text"
-            placeholder="Search offers..."
+            value={query.search ?? ""}
+            placeholder="Search withdrawals..."
             onChange={(e) => handleSearch(e.target.value)}
             className="h-11 w-full rounded-lg border border-gray-200 bg-transparent px-5 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:ring-brand-500/20 focus:outline-hidden xl:w-[300px] dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400 dark:focus:ring-brand-400/30"
           />
