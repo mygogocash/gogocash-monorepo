@@ -4,6 +4,7 @@
  * - `/api/mock/*` — same behavior as `mockApiCore` (used by `fetch()`)
  */
 import { handleMockApiRequest } from "@/lib/mockApiCore";
+import { DEFAULT_MOCK_ACCESS_TOKEN } from "@/lib/authTokens";
 import { isStaticHostingClient } from "@/lib/isStaticHostingClient";
 import { DEFAULT_POST_LOGIN_PATH, safeAppPathFromCallback } from "@/lib/safeCallbackUrl";
 
@@ -16,7 +17,7 @@ function syntheticNextAuthSession(): string {
       id: "a1",
     },
     expires,
-    accessToken: "mock-jwt-token-for-development",
+    accessToken: DEFAULT_MOCK_ACCESS_TOKEN,
   });
 }
 

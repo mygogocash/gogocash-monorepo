@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { apiClient } from '@/lib/api';
+import { DEFAULT_MOCK_ACCESS_TOKEN } from '@/lib/authTokens';
 import { ApiError, RegisterRequest, AdminUsersQuery, AdminUsersResponse, UsersQuery, UsersResponse, RegularUser, DashboardStatsResponse, DashboardSummaryResponse, OffersQuery, OffersResponse, Offer, WithdrawQuery, ResponseWithdraws, ResponseConversion, ConversionQuery, ResponseFee, FeeSettingsForm } from '@/types/api';
 
 // Hook for authentication operations
@@ -87,7 +88,7 @@ export function useApi() {
   const getToken = useCallback(() => {
     const token = (session as { accessToken?: string })?.accessToken;
     // When auth is disabled, session is null; use mock token so mock API still returns data
-    return token ?? "mock-jwt-token-for-development";
+    return token ?? DEFAULT_MOCK_ACCESS_TOKEN;
   }, [session]);
 
   const apiCall = useCallback(async <T>(

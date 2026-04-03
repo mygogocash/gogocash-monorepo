@@ -9,6 +9,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
+import { DEFAULT_MOCK_ACCESS_TOKEN } from "@/lib/authTokens";
 import {
   fetchOffersList,
   offersListQueryKey,
@@ -95,7 +96,7 @@ export default function OffersTable() {
   });
   const session = useDataSession();
   const queryClient = useQueryClient();
-  const token = session.accessToken ?? "mock-jwt-token-for-development";
+  const token = session.accessToken ?? DEFAULT_MOCK_ACCESS_TOKEN;
 
   const [query, setQuery] = useState<OffersQuery>({
     search: "",

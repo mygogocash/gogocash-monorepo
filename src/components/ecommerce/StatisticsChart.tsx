@@ -1,6 +1,5 @@
 "use client";
 import React, { useMemo, useState } from "react";
-// import Chart from "react-apexcharts";
 import { ApexOptions } from "apexcharts";
 import ChartTab, { type ChartTabId } from "../common/ChartTab";
 import dynamic from "next/dynamic";
@@ -8,12 +7,20 @@ import {
   getSummaryTotalsFromBundle,
   STATISTICS_MOCK_BY_TAB,
 } from "./statisticsChartMockData";
+import {
+  STATISTICS_CHART_HEIGHT,
+  STATISTICS_SERIES_COLORS,
+  STATISTICS_SUMMARY_CARD_ACCENTS,
+} from "@/constants/statisticsChartTheme";
+import { useHtmlDarkClass } from "@/hooks/useHtmlDarkClass";
 
-// Dynamically import the ReactApexChart component
 const ReactApexChart = dynamic(() => import("react-apexcharts"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-[310px] w-full items-center justify-center rounded-lg bg-gray-50 transition-opacity duration-300 dark:bg-gray-800/50">
+    <div
+      className="flex w-full items-center justify-center rounded-lg bg-gray-50 transition-opacity duration-300 dark:bg-gray-800/50"
+      style={{ height: STATISTICS_CHART_HEIGHT }}
+    >
       <p className="text-sm text-gray-500 dark:text-gray-400">Loading chart…</p>
     </div>
   ),
@@ -23,17 +30,17 @@ function formatThb(value: number): string {
   return `฿${Number(value).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 }
 
-type ChartKind = "column" | "stackedColumn" | "line";
+type ChartKind = "column" | "line";
 
 const CHART_KIND_LABELS: Record<ChartKind, string> = {
   column: "Column",
-  stackedColumn: "Stacked column",
   line: "Line",
 };
 
 export default function StatisticsChart() {
   const [timeRange, setTimeRange] = useState<ChartTabId>("month");
   const [chartKind, setChartKind] = useState<ChartKind>("line");
+  const isDarkChart = useHtmlDarkClass();
 
   const bundle = STATISTICS_MOCK_BY_TAB[timeRange];
 
@@ -42,60 +49,75 @@ export default function StatisticsChart() {
     [timeRange],
   );
 
-  const summaryCards = [
-    {
-      label: "Clicks",
-      value: summaryTotals.clicks.toLocaleString("en-US"),
-      accent: "border-l-[#465FFF] bg-[#465FFF]/[0.06] dark:bg-[#465FFF]/10",
-    },
-    {
-      label: "Conversions",
-      value: summaryTotals.conversions.toLocaleString("en-US"),
-      accent: "border-l-[#10B981] bg-[#10B981]/[0.06] dark:bg-[#10B981]/10",
-    },
-    {
-      label: "Sale amount",
-      value: formatThb(summaryTotals.saleAmount),
-      accent: "border-l-[#F59E0B] bg-[#F59E0B]/[0.06] dark:bg-[#F59E0B]/10",
-    },
-    {
-      label: "Estimated earnings",
-      value: formatThb(summaryTotals.estimatedEarnings),
-      accent: "border-l-[#9CB9FF] bg-[#9CB9FF]/[0.12] dark:bg-[#9CB9FF]/15",
-    },
-  ] as const;
+  const summaryCards = useMemo(
+    () =>
+      [
+        {
+          label: "Clicks",
+          value: summaryTotals.clicks.toLocaleString("en-US"),
+          accent: STATISTICS_SUMMARY_CARD_ACCENTS[0],
+        },
+        {
+          label: "Conversions",
+          value: summaryTotals.conversions.toLocaleString("en-US"),
+          accent: STATISTICS_SUMMARY_CARD_ACCENTS[1],
+        },
+        {
+          label: "Sale amount",
+          value: formatThb(summaryTotals.saleAmount),
+          accent: STATISTICS_SUMMARY_CARD_ACCENTS[2],
+        },
+        {
+          label: "Estimated earnings",
+          value: formatThb(summaryTotals.estimatedEarnings),
+          accent: STATISTICS_SUMMARY_CARD_ACCENTS[3],
+        },
+      ] as const,
+    [summaryTotals],
+  );
 
-  const isBar = chartKind === "column" || chartKind === "stackedColumn";
-  const isStackedBar = chartKind === "stackedColumn";
+  const isBar = chartKind === "column";
 
   const options: ApexOptions = useMemo(() => {
     const tab = STATISTICS_MOCK_BY_TAB[timeRange];
-    const seriesColors = ["#465FFF", "#10B981", "#F59E0B", "#9CB9FF"] as const;
+    const seriesColors = [...STATISTICS_SERIES_COLORS];
+    const legendLabelColor = isDarkChart ? "#D1D5DB" : "#374151";
+    const axisMuted = isDarkChart ? "#9CA3AF" : "#4B5563";
+    const gridColor = isDarkChart ? "#374151" : "#E5E7EB";
+
     /** Line strokes use Fill.fillPath() in ApexCharts; gradient fill becomes the stroke paint and reads nearly invisible. */
     const lineStroke = {
-      curve: "straight" as const,
+      curve: "smooth" as const,
       width: [3, 3, 3, 3],
       lineCap: "round" as const,
-      colors: [...seriesColors],
+      colors: seriesColors,
     };
     return {
+      theme: {
+        mode: isDarkChart ? "dark" : "light",
+      },
       legend: {
         show: true,
         position: "top",
         horizontalAlign: "left",
         fontFamily: "Outfit, sans-serif",
         fontSize: "12px",
+        labels: {
+          colors: legendLabelColor,
+        },
         markers: {
-          size: 4,
+          size: 5,
+          shape: "square" as const,
           strokeWidth: 0,
+          radius: 1,
         },
       },
-      colors: [...seriesColors],
+      colors: seriesColors,
       chart: {
         fontFamily: "Outfit, sans-serif",
-        height: 310,
+        height: STATISTICS_CHART_HEIGHT,
         type: isBar ? "bar" : "line",
-        stacked: isBar && isStackedBar,
+        stacked: false,
         toolbar: {
           show: false,
         },
@@ -104,19 +126,16 @@ export default function StatisticsChart() {
           easing: "easeinout",
           speed: 450,
         },
+        background: "transparent",
       },
-      // Never set `plotOptions: undefined` — it overwrites Apex defaults and breaks
-      // `config.plotOptions.line` (runtime: Cannot read properties of undefined (reading 'line')).
       ...(isBar
         ? {
             plotOptions: {
               bar: {
                 horizontal: false,
-                columnWidth: isStackedBar ? "62%" : "55%",
-                /** Rounded tops for each bar; stacked segments get rounded tops too */
-                borderRadius: 6,
-                borderRadiusApplication: "end",
-                ...(isStackedBar ? { borderRadiusWhenStacked: "all" as const } : {}),
+                columnWidth: "52%",
+                borderRadius: 10,
+                borderRadiusApplication: "around",
               },
             },
             stroke: { width: 0 },
@@ -129,11 +148,7 @@ export default function StatisticsChart() {
             },
             stroke: lineStroke,
           }),
-      // Line/area: do not use `fill: { type: "solid", opacity: 0 }` — v4 can drop strokes. For `chart.type:
-      // "line"`, Apex draws stroke from fillPath(); gradient fills make the stroke a faint gradient — use solid.
-      fill: isBar
-        ? { type: "solid", opacity: 1 }
-        : { type: "solid", opacity: 1 },
+      fill: { type: "solid", opacity: 1 },
       markers: isBar
         ? { size: 0 }
         : {
@@ -143,6 +158,8 @@ export default function StatisticsChart() {
             hover: { size: 6 },
           },
       grid: {
+        borderColor: gridColor,
+        strokeDashArray: 4,
         padding: {
           right: 12,
         },
@@ -164,8 +181,12 @@ export default function StatisticsChart() {
         enabled: true,
         shared: true,
         intersect: false,
+        theme: isDarkChart ? "dark" : "light",
         x: {
-          format: "dd MMM yyyy",
+          formatter: (_val: unknown, opts?: { dataPointIndex?: number }) => {
+            const i = opts?.dataPointIndex ?? 0;
+            return tab.categories[i] ?? "";
+          },
         },
         y: {
           formatter: (val: number, opts: { seriesIndex?: number }) => {
@@ -186,6 +207,7 @@ export default function StatisticsChart() {
           hideOverlappingLabels: true,
           style: {
             fontSize: "11px",
+            colors: axisMuted,
           },
         },
         axisBorder: {
@@ -203,12 +225,12 @@ export default function StatisticsChart() {
           seriesName: "Clicks",
           title: {
             text: "Clicks / conversions",
-            style: { fontSize: "11px", color: "#6B7280" },
+            style: { fontSize: "11px", color: isDarkChart ? "#9CA3AF" : "#6B7280" },
           },
           labels: {
             style: {
               fontSize: "12px",
-              colors: ["#6B7280"],
+              colors: [isDarkChart ? "#9CA3AF" : "#6B7280"],
             },
             formatter: (v: number) => Number(v).toLocaleString("en-US"),
           },
@@ -222,12 +244,12 @@ export default function StatisticsChart() {
           opposite: true,
           title: {
             text: "Sale & earnings (THB)",
-            style: { fontSize: "11px", color: "#6B7280" },
+            style: { fontSize: "11px", color: isDarkChart ? "#9CA3AF" : "#6B7280" },
           },
           labels: {
             style: {
               fontSize: "12px",
-              colors: ["#6B7280"],
+              colors: [isDarkChart ? "#9CA3AF" : "#6B7280"],
             },
             formatter: (v: number) => formatThb(v),
           },
@@ -238,12 +260,12 @@ export default function StatisticsChart() {
         },
       ],
     };
-  }, [isBar, isStackedBar, timeRange]);
+  }, [isBar, timeRange, isDarkChart]);
 
   const series = useMemo(() => STATISTICS_MOCK_BY_TAB[timeRange].series, [timeRange]);
   return (
     <div className="rounded-2xl border border-gray-200 bg-white px-5 pb-5 pt-5 transition-shadow duration-300 ease-out dark:border-gray-800 dark:bg-white/[0.03] sm:px-6 sm:pt-6">
-      <div className="flex flex-col gap-5 mb-6 sm:flex-row sm:justify-between">
+      <div className="mb-6 flex flex-col gap-5 sm:flex-row sm:justify-between">
         <div className="w-full">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
             Statistics
@@ -253,7 +275,7 @@ export default function StatisticsChart() {
             <span className="ml-1 text-gray-400 dark:text-gray-500">— {bundle.description}</span>
           </p>
         </div>
-        <div className="flex items-start w-full gap-3 sm:justify-end">
+        <div className="flex w-full items-start gap-3 sm:justify-end">
           <ChartTab value={timeRange} onChange={setTimeRange} />
         </div>
       </div>
@@ -291,10 +313,11 @@ export default function StatisticsChart() {
           role="group"
           aria-label="Statistics chart type"
         >
-          {(["column", "stackedColumn", "line"] as const).map((key) => (
+          {(["column", "line"] as const).map((key) => (
             <button
               key={key}
               type="button"
+              aria-pressed={chartKind === key}
               onClick={() => setChartKind(key)}
               className={`rounded-md px-2.5 py-2 text-left text-theme-sm font-medium transition-all duration-200 ease-out active:scale-[0.97] sm:px-3 ${
                 chartKind === key
@@ -316,13 +339,15 @@ export default function StatisticsChart() {
               : "min-w-[1000px] xl:min-w-full"
           }
         >
-          <ReactApexChart
-            key={`${chartKind}-${timeRange}-${isBar ? "bar" : "line"}`}
-            options={options}
-            series={series}
-            type={isBar ? "bar" : "line"}
-            height={310}
-          />
+          <div className="rounded-xl bg-slate-50/90 p-2 ring-1 ring-slate-200/80 dark:bg-gray-900/40 dark:ring-gray-700/80">
+            <ReactApexChart
+              key={`${chartKind}-${timeRange}-${isBar ? "bar" : "line"}`}
+              options={options}
+              series={series}
+              type={isBar ? "bar" : "line"}
+              height={STATISTICS_CHART_HEIGHT}
+            />
+          </div>
         </div>
       </div>
     </div>

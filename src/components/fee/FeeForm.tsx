@@ -17,8 +17,7 @@ import {
 import { COMMON_CURRENCIES, FEE_REGION_PRESETS } from "@/data/feeRegionPresets";
 import toast from "react-hot-toast";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
-
-const MOCK_TOKEN_FALLBACK = "mock-jwt-token-for-development";
+import { DEFAULT_MOCK_ACCESS_TOKEN } from "@/lib/authTokens";
 
 function isCommonCurrency(code: string): boolean {
   return (COMMON_CURRENCIES as readonly string[]).includes(code.toUpperCase());
@@ -64,7 +63,7 @@ export default function FeeForm() {
   const [fetching, setFetching] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const token = session?.accessToken ?? MOCK_TOKEN_FALLBACK;
+  const token = session?.accessToken ?? DEFAULT_MOCK_ACCESS_TOKEN;
 
   const applyFeeResponse = useCallback(
     (res: ResponseFee) => {
