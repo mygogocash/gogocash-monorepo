@@ -20,7 +20,7 @@ import {
   ListIcon,
   PieChartIcon,
   ShootingStarIcon,
-  TaskIcon,
+  TrophyIcon,
   VideoIcon,
 } from "../icons/index";
 
@@ -34,11 +34,8 @@ export type NavItem = {
 export const navItems: NavItem[] = [
   {
     icon: <GridIcon />,
-    name: "Dashboard",
-    subItems: [
-      { name: "Platform dashboard", path: "/dashboard", pro: false },
-      { name: "Executive dashboard", path: "/executive", pro: false },
-    ],
+    name: "Platform Dashboard",
+    path: "/dashboard",
   },
   {
     icon: <GroupIcon />,
@@ -68,7 +65,8 @@ export const navItems: NavItem[] = [
     icon: <ArrowUpIcon />,
     name: "Conversion Management",
     subItems: [
-      { name: "Conversion", path: "/conversion", pro: false },
+      { name: "Conversion Lists", path: "/conversion", pro: false },
+      { name: "Created Conversion", path: "/conversion?tab=created", pro: false },
       { name: "Add conversion", path: "/conversion/add", pro: false },
     ],
   },
@@ -90,7 +88,7 @@ export const navItems: NavItem[] = [
     ],
   },
   {
-    icon: <TaskIcon />,
+    icon: <TrophyIcon />,
     name: "Quest Management",
     subItems: [
       { name: "Quest", path: "/quest", pro: false },
@@ -333,7 +331,11 @@ export default function AppSidebarContent({ isSubItemActive }: Props) {
           !isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
         }`}
       >
-        <Link href="/dashboard" className="flex items-center" onClick={closeMobileSidebar}>
+        <Link
+          href="/dashboard"
+          className="flex items-center transition-opacity duration-200 ease-out hover:opacity-90"
+          onClick={closeMobileSidebar}
+        >
           {isExpanded || isHovered || isMobileOpen ? (
             <span className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
               GoGoCash Admin

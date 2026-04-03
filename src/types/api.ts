@@ -252,6 +252,10 @@ export interface WithdrawQuery {
   search?: string;
   limit?: number;
   page?: number;
+  /** Server-side filter: pending | approved | rejected */
+  status?: string;
+  /** Server-side filter: e.g. bank_transfer, web3, crypto */
+  method?: string;
 }
 
 export interface ConversionQuery {
@@ -354,6 +358,17 @@ export interface DataConversion {
 }
 
 
+/** Per-country (or territory) withdrawal fee rules; legacy THB/USD columns mirror common pairs. */
+export interface FeeWithdrawRegion {
+  id: string;
+  /** ISO 3166-1 alpha-2 */
+  countryCode: string;
+  /** ISO 4217 */
+  currency: string;
+  feeWithdraw: number;
+  minimumWithdraw: number;
+}
+
 export interface ResponseFee {
     _id:              string;
     system:           number;
@@ -365,6 +380,8 @@ export interface ResponseFee {
     minimum_withdraw_usd: number;
     fee_withdraw_usd: number;
     fee_withdraw_thb: number;
+    /** When present, preferred source for multi-country configuration. */
+    withdraw_regions?: FeeWithdrawRegion[];
 }
 
 export interface FeeSettingsForm {
@@ -376,4 +393,5 @@ export interface FeeSettingsForm {
     minimum_withdraw_usd: number;
     fee_withdraw_usd: number;
     fee_withdraw_thb: number;
+    withdraw_regions?: FeeWithdrawRegion[];
 }

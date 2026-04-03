@@ -1,36 +1,60 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { loadPopupHistory, type PopupHistoryEntry } from "@/lib/appOpenPopupStorage";
+import {
+  loadPopupHistory,
+  MOCK_POPUP_HISTORY_ENTRIES,
+  type AppOpenPopupStoredBanner,
+  type PopupHistoryEntry,
+} from "@/lib/appOpenPopupStorage";
+
+function scheduleSummary(b: AppOpenPopupStoredBanner): string {
+  const start = (b.startDate ?? "").trim();
+  const forever = b.endForever !== false;
+  const end = (b.endDate ?? "").trim();
+  const startPart = start ? `Starts ${start}` : "Start: not set";
+  if (forever) return `${startPart} · End: forever`;
+  return end ? `${startPart} · Ends ${end}` : `${startPart} · End: not set`;
+}
 
 export default function PopupHistoryTable() {
-  const [entries, setEntries] = useState<PopupHistoryEntry[]>([]);
+  const [liveEntries, setLiveEntries] = useState<PopupHistoryEntry[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
 
   useEffect(() => {
     // Cannot use useState initializer: client would read localStorage on hydrate and mismatch SSR ([]).
     // eslint-disable-next-line react-hooks/set-state-in-effect -- load browser-only storage after mount
-    setEntries(loadPopupHistory());
+    setLiveEntries(loadPopupHistory());
   }, []);
 
-  const refresh = () => setEntries(loadPopupHistory());
+  const refresh = () => setLiveEntries(loadPopupHistory());
 
-  if (entries.length === 0) {
-    return (
-      <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50/80 py-12 text-center dark:border-gray-600 dark:bg-gray-800/40">
-        <p className="text-sm text-gray-600 dark:text-gray-300">No saved configurations yet.</p>
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          Each time you save on <strong>Modal popups</strong>, a snapshot is stored here (browser only).
-        </p>
-      </div>
-    );
-  }
+  const showingMock = liveEntries.length === 0;
+  const entries: PopupHistoryEntry[] = showingMock ? MOCK_POPUP_HISTORY_ENTRIES : liveEntries;
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
+      {showingMock && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
+          <p className="font-medium">Example snapshots</p>
+          <p className="mt-1 text-amber-900/90 dark:text-amber-200/90">
+            No saves in this browser yet—the table below shows sample history so you can preview the layout. Go to{" "}
+            <strong>Modal popups</strong> and click <strong>Save configuration</strong> to store real snapshots here
+            (browser only).
+          </p>
+        </div>
+      )}
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-gray-600 dark:text-gray-400">
-          {entries.length} snapshot{entries.length !== 1 ? "s" : ""} — newest first.
+          {showingMock ? (
+            <>
+              {entries.length} example snapshot{entries.length !== 1 ? "s" : ""} — newest first
+            </>
+          ) : (
+            <>
+              {entries.length} snapshot{entries.length !== 1 ? "s" : ""} — newest first
+            </>
+          )}
         </p>
         <button
           type="button"
@@ -40,7 +64,11 @@ export default function PopupHistoryTable() {
           Refresh
         </button>
       </div>
-      <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+      <div
+        className={`overflow-x-auto rounded-xl border dark:border-gray-700 ${
+          showingMock ? "border-dashed border-gray-300 dark:border-gray-600" : "border-gray-200"
+        }`}
+      >
         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
           <thead className="bg-gray-50 dark:bg-gray-800">
             <tr>
@@ -88,6 +116,7 @@ export default function PopupHistoryTable() {
                             >
                               <span className="font-medium text-gray-800 dark:text-gray-100">Popup {i + 1}</span>
                               <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">({b.duration})</span>
+                              <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">{scheduleSummary(b)}</p>
                               <div className="mt-1 break-all text-brand-600 dark:text-brand-400">
                                 {b.link ? (
                                   <a href={b.link} target="_blank" rel="noopener noreferrer" className="hover:underline">

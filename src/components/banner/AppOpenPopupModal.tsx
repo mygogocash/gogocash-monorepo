@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, startTransition } from "react";
 import { Modal } from "@/components/ui/modal";
 import Button from "@/components/ui/button/Button";
+import toast from "react-hot-toast";
 
 const STORAGE_KEY = "gogocash_app_open_popup";
 
@@ -14,6 +15,9 @@ export interface AppOpenPopupBannerItem {
   imageMobile: File | null;
   duration: PopupDuration;
   link: string;
+  startDate: string;
+  endForever: boolean;
+  endDate: string;
 }
 
 const DURATION_OPTIONS: { value: PopupDuration; label: string }[] = [
@@ -26,7 +30,14 @@ function makeId() {
   return `banner-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-type StoredBanner = { id: string; duration: PopupDuration; link: string };
+type StoredBanner = {
+  id: string;
+  duration: PopupDuration;
+  link: string;
+  startDate?: string;
+  endForever?: boolean;
+  endDate?: string;
+};
 
 function loadStored(): StoredBanner[] {
   if (typeof window === "undefined") return [];
@@ -39,6 +50,9 @@ function loadStored(): StoredBanner[] {
       id: typeof b.id === "string" ? b.id : makeId(),
       duration: ["3", "5", "until_close"].includes(b.duration) ? (b.duration as PopupDuration) : "5",
       link: typeof b.link === "string" ? b.link : "",
+      startDate: typeof b.startDate === "string" ? b.startDate : "",
+      endForever: typeof b.endForever === "boolean" ? b.endForever : true,
+      endDate: typeof b.endDate === "string" ? b.endDate : "",
     }));
   } catch {
     return [];
@@ -47,11 +61,22 @@ function loadStored(): StoredBanner[] {
 
 function saveStored(banners: AppOpenPopupBannerItem[]) {
   try {
-    const toSave = banners.map((b) => ({ id: b.id, duration: b.duration, link: b.link }));
+    const toSave = banners.map((b) => ({
+      id: b.id,
+      duration: b.duration,
+      link: b.link.trim(),
+      startDate: b.startDate.trim(),
+      endForever: b.endForever,
+      endDate: b.endForever ? "" : b.endDate.trim(),
+    }));
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ banners: toSave }));
   } catch {
     // ignore
   }
+}
+
+function todayIsoDate(): string {
+  return new Date().toISOString().slice(0, 10);
 }
 
 interface AppOpenPopupModalProps {
@@ -65,6 +90,9 @@ const defaultBanner = (): AppOpenPopupBannerItem => ({
   imageMobile: null,
   duration: "5",
   link: "",
+  startDate: "",
+  endForever: true,
+  endDate: "",
 });
 
 export default function AppOpenPopupModal({ isOpen, onClose }: AppOpenPopupModalProps) {
@@ -77,13 +105,19 @@ export default function AppOpenPopupModal({ isOpen, onClose }: AppOpenPopupModal
     startTransition(() => {
       if (stored.length > 0) {
         setBanners(
-          stored.map((b) => ({
-            id: b.id,
-            imageDesktop: null,
-            imageMobile: null,
-            duration: b.duration,
-            link: b.link,
-          })),
+          stored.map((b) => {
+            const endForever = b.endForever !== false;
+            return {
+              id: b.id,
+              imageDesktop: null,
+              imageMobile: null,
+              duration: b.duration,
+              link: b.link,
+              startDate: b.startDate ?? "",
+              endForever,
+              endDate: endForever ? "" : (b.endDate ?? ""),
+            };
+          }),
         );
       } else {
         setBanners([defaultBanner()]);
@@ -106,6 +140,10 @@ export default function AppOpenPopupModal({ isOpen, onClose }: AppOpenPopupModal
   };
 
   const handleSave = () => {
+    if (banners.some((b) => !b.endForever && !b.endDate.trim())) {
+      toast.error("Set an end date or choose “No end (forever)” for each popup.");
+      return;
+    }
     setSaving(true);
     saveStored(banners);
     setSaving(false);
@@ -218,6 +256,50 @@ export default function AppOpenPopupModal({ isOpen, onClose }: AppOpenPopupModal
                         <span className="text-gray-700 dark:text-gray-200">{opt.label}</span>
                       </label>
                     ))}
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-0.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                      Start date
+                    </label>
+                    <input
+                      type="date"
+                      value={banner.startDate}
+                      onChange={(e) => updateBanner(banner.id, { startDate: e.target.value })}
+                      className="h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:focus:border-brand-400 dark:focus:ring-brand-400/20"
+                    />
+                    <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">Optional.</p>
+                  </div>
+                  <div>
+                    <span className="mb-0.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                      End date
+                    </span>
+                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-xs text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200">
+                      <input
+                        type="checkbox"
+                        checked={banner.endForever}
+                        onChange={(e) => {
+                          const forever = e.target.checked;
+                          updateBanner(banner.id, {
+                            endForever: forever,
+                            endDate: forever ? "" : banner.endDate || banner.startDate || todayIsoDate(),
+                          });
+                        }}
+                        className="h-3.5 w-3.5 rounded border-gray-300 text-brand-500 dark:border-gray-600 dark:bg-gray-800"
+                      />
+                      No end (forever)
+                    </label>
+                    {!banner.endForever && (
+                      <input
+                        type="date"
+                        value={banner.endDate}
+                        min={banner.startDate || undefined}
+                        onChange={(e) => updateBanner(banner.id, { endDate: e.target.value })}
+                        className="mt-1.5 h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:focus:border-brand-400 dark:focus:ring-brand-400/20"
+                      />
+                    )}
                   </div>
                 </div>
 

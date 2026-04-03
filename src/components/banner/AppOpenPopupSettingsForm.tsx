@@ -18,6 +18,12 @@ export interface AppOpenPopupBannerItem {
   duration: PopupDuration;
   /** Redirect URL when the user taps the popup */
   link: string;
+  /** YYYY-MM-DD; empty = no fixed start day */
+  startDate: string;
+  /** When true, ignore `endDate` (runs indefinitely). */
+  endForever: boolean;
+  /** YYYY-MM-DD inclusive end when `endForever` is false */
+  endDate: string;
 }
 
 const DURATION_OPTIONS: { value: PopupDuration; label: string }[] = [
@@ -31,13 +37,21 @@ function makeId() {
 }
 
 function storedToItem(s: AppOpenPopupStoredBanner): AppOpenPopupBannerItem {
+  const endForever = s.endForever !== false;
   return {
     id: s.id,
     imageDesktop: null,
     imageMobile: null,
     duration: s.duration,
     link: s.link,
+    startDate: typeof s.startDate === "string" ? s.startDate : "",
+    endForever,
+    endDate: endForever ? "" : typeof s.endDate === "string" ? s.endDate : "",
   };
+}
+
+function todayIsoDate(): string {
+  return new Date().toISOString().slice(0, 10);
 }
 
 function defaultBanner(): AppOpenPopupBannerItem {
@@ -47,6 +61,9 @@ function defaultBanner(): AppOpenPopupBannerItem {
     imageMobile: null,
     duration: "5",
     link: "",
+    startDate: "",
+    endForever: true,
+    endDate: "",
   };
 }
 
@@ -99,12 +116,20 @@ export default function AppOpenPopupSettingsForm({
   };
 
   const handleSave = () => {
+    const invalid = banners.find((b) => !b.endForever && !b.endDate.trim());
+    if (invalid) {
+      toast.error("Set an end date or choose “No end date (forever)” for each popup.");
+      return;
+    }
     setSaving(true);
     try {
       const toStore: AppOpenPopupStoredBanner[] = banners.map((b) => ({
         id: b.id,
         duration: b.duration,
         link: b.link.trim(),
+        startDate: b.startDate.trim(),
+        endForever: b.endForever,
+        endDate: b.endForever ? "" : b.endDate.trim(),
       }));
       savePopupConfig(toStore);
       toast.success(`Saved ${toStore.length} modal popup(s). History updated.`);
@@ -210,6 +235,62 @@ export default function AppOpenPopupSettingsForm({
                       <span className="text-gray-700 dark:text-gray-200">{opt.label}</span>
                     </label>
                   ))}
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label
+                    htmlFor={`popup-start-${banner.id}`}
+                    className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400"
+                  >
+                    Start date
+                  </label>
+                  <input
+                    id={`popup-start-${banner.id}`}
+                    type="date"
+                    value={banner.startDate}
+                    onChange={(e) => updateBanner(banner.id, { startDate: e.target.value })}
+                    className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:focus:border-brand-400"
+                  />
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Optional. First day this popup may show (inclusive). Leave empty for no fixed start.
+                  </p>
+                </div>
+                <div>
+                  <span className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                    End date
+                  </span>
+                  <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200">
+                    <input
+                      type="checkbox"
+                      checked={banner.endForever}
+                      onChange={(e) => {
+                        const forever = e.target.checked;
+                        updateBanner(banner.id, {
+                          endForever: forever,
+                          endDate: forever ? "" : banner.endDate || banner.startDate || todayIsoDate(),
+                        });
+                      }}
+                      className="h-4 w-4 rounded border-gray-300 text-brand-500 dark:border-gray-600 dark:bg-gray-800"
+                    />
+                    No end date (forever)
+                  </label>
+                  {!banner.endForever && (
+                    <>
+                      <input
+                        id={`popup-end-${banner.id}`}
+                        type="date"
+                        value={banner.endDate}
+                        min={banner.startDate || undefined}
+                        onChange={(e) => updateBanner(banner.id, { endDate: e.target.value })}
+                        className="mt-2 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:focus:border-brand-400"
+                      />
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        Last day this popup may show (inclusive).
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
 

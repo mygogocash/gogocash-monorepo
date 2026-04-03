@@ -28,6 +28,7 @@ export default function BannerTable() {
     link_5: "",
     start_date: "",
     end_date: "",
+    end_forever: true,
     id: "",
   });
 
@@ -204,20 +205,25 @@ export default function BannerTable() {
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setOpenModal(true);
-                                    setForm({
-                                      image_1: bannerData?.image_1 || null,
-                                      image_2: bannerData?.image_2 || null,
-                                      image_3: bannerData?.image_3 || null,
-                                      image_4: bannerData?.image_4 || null,
-                                      image_5: bannerData?.image_5 || null,
-                                      link_1: bannerData?.link_1 || "",
-                                      link_2: bannerData?.link_2 || "",
-                                      link_3: bannerData?.link_3 || "",
-                                      link_4: bannerData?.link_4 || "",
-                                      link_5: bannerData?.link_5 || "",
-                                      start_date: bannerData?.start_date ?? "",
-                                      end_date: bannerData?.end_date ?? "",
-                                      id: item.toString(),
+                                    setForm(() => {
+                                      const endRaw = bannerData?.end_date ?? "";
+                                      const hasEnd = Boolean(String(endRaw).trim());
+                                      return {
+                                        image_1: bannerData?.image_1 || null,
+                                        image_2: bannerData?.image_2 || null,
+                                        image_3: bannerData?.image_3 || null,
+                                        image_4: bannerData?.image_4 || null,
+                                        image_5: bannerData?.image_5 || null,
+                                        link_1: bannerData?.link_1 || "",
+                                        link_2: bannerData?.link_2 || "",
+                                        link_3: bannerData?.link_3 || "",
+                                        link_4: bannerData?.link_4 || "",
+                                        link_5: bannerData?.link_5 || "",
+                                        start_date: bannerData?.start_date ?? "",
+                                        end_date: hasEnd ? String(endRaw) : "",
+                                        end_forever: !hasEnd,
+                                        id: item.toString(),
+                                      };
                                     });
                                     setOpenActionsId(null);
                                   }}

@@ -10,6 +10,14 @@ import {
   fetchExecutiveDashboard,
 } from "@/lib/query/dashboardQueries";
 
+/** Show up to 2 decimal places only when the amount has a non-zero fractional part. */
+function formatPayoutAmount(value: number): string {
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
+}
+
 export function ExecutiveSummary() {
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard", "executive-summary"],
@@ -43,10 +51,7 @@ export function ExecutiveSummary() {
     },
     {
       label: "Total payout",
-      value: displaySummary.conversionTotalPayout.toLocaleString(undefined, {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }),
+      value: formatPayoutAmount(displaySummary.conversionTotalPayout),
       icon: <DollarLineIcon className="size-6 text-gray-800 dark:text-white/90" />,
       bgIcon: "bg-gray-100 dark:bg-gray-800",
     },
@@ -74,17 +79,19 @@ export function ExecutiveSummary() {
       {cards.map((card) => {
         const content = (
           <>
-            <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${card.bgIcon}`}>
+            <div
+              className={`flex h-12 w-12 items-center justify-center rounded-xl transition-transform duration-200 ease-out group-hover:scale-105 ${card.bgIcon}`}
+            >
               {card.icon}
             </div>
             <div className="mt-5 min-w-0">
               <span className="text-sm text-gray-500 dark:text-gray-400">{card.label}</span>
-              <p className="mt-2 truncate font-bold text-gray-800 text-title-sm dark:text-white/90">{card.value}</p>
+              <p className="mt-2 break-words font-bold text-gray-800 text-title-sm dark:text-white/90">{card.value}</p>
             </div>
           </>
         );
         const className =
-          "rounded-2xl border border-gray-200 bg-white p-5 transition-colors hover:border-brand-200 hover:bg-gray-50 dark:border-gray-800 dark:bg-white/[0.03] dark:hover:border-brand-800 dark:hover:bg-white/[0.06] md:p-6";
+          "group rounded-2xl border border-gray-200 bg-white p-5 transition-all duration-200 ease-out hover:border-brand-200 hover:bg-gray-50 hover:shadow-sm dark:border-gray-800 dark:bg-white/[0.03] dark:hover:border-brand-800 dark:hover:bg-white/[0.06] md:p-6";
         if (card.href) {
           return (
             <Link key={card.label} href={card.href} className={className}>

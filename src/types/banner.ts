@@ -11,7 +11,10 @@ export interface BannerRequestForm {
   link_5: string;
   start_date: string;
   end_date: string;
+  /** UI + save: when true, no `end_date` is sent (same as legacy blank = no end). */
+  end_forever: boolean;
   id: string;
 }
 
-export type BannerData = Omit<BannerRequestForm, 'id' >
+/** API payload for `/admin/banner-home` — no `end_forever` (derived from `end_date`). */
+export type BannerData = Omit<BannerRequestForm, "id" | "end_forever">;

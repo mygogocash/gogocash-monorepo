@@ -169,7 +169,33 @@ export const mockConversions = Array.from({ length: 550 }, (_, i) => {
 });
 
 export const mockFee = [
-  { _id: "f1", system: 5, createdAt: lastWeek, updatedAt: now, __v: 0, minimum_withdraw_thb: 100, minimum_withdraw_usd: 5, fee_withdraw_usd: 1, fee_withdraw_thb: 30 },
+  {
+    _id: "f1",
+    system: 5,
+    createdAt: lastWeek,
+    updatedAt: now,
+    __v: 0,
+    minimum_withdraw_thb: 100,
+    minimum_withdraw_usd: 5,
+    fee_withdraw_usd: 1,
+    fee_withdraw_thb: 30,
+    withdraw_regions: [
+      {
+        id: "r-th",
+        countryCode: "TH",
+        currency: "THB",
+        feeWithdraw: 30,
+        minimumWithdraw: 100,
+      },
+      {
+        id: "r-us",
+        countryCode: "US",
+        currency: "USD",
+        feeWithdraw: 1,
+        minimumWithdraw: 5,
+      },
+    ],
+  },
 ];
 
 export const mockBanner = {

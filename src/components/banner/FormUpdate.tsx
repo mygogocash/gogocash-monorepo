@@ -49,7 +49,7 @@ const FormUpdate = ({
     formData.append("link_4", String(form.link_4));
     formData.append("link_5", String(form.link_5));
     if (form.start_date) formData.append("start_date", form.start_date);
-    if (form.end_date) formData.append("end_date", form.end_date);
+    if (!form.end_forever && form.end_date) formData.append("end_date", form.end_date);
 
     if (form.image_1) formData.append("image_1", form.image_1);
     if (form.image_2) formData.append("image_2", form.image_2);
@@ -200,13 +200,35 @@ const FormUpdate = ({
               End date
             </p>
             <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-              Optional. When to stop showing this banner. Leave blank for no end limit.
+              Set a last day to show this banner, or choose <strong>Forever</strong> for no end.
             </p>
+            <label className="mb-3 flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200">
+              <input
+                type="checkbox"
+                checked={form.end_forever}
+                onChange={(e) => {
+                  const forever = e.target.checked;
+                  setForm({
+                    ...form,
+                    end_forever: forever,
+                    end_date: forever
+                      ? ""
+                      : form.end_date ||
+                        form.start_date ||
+                        new Date().toISOString().slice(0, 10),
+                  });
+                }}
+                className="h-4 w-4 rounded border-gray-300 text-brand-500 dark:border-gray-600 dark:bg-gray-800"
+              />
+              Forever (no end date)
+            </label>
             <Input
               type="date"
               name="end_date"
               value={form.end_date ?? ""}
-              onChange={(e) => setForm({ ...form, end_date: e.target.value })}
+              min={form.start_date || undefined}
+              disabled={form.end_forever}
+              onChange={(e) => setForm({ ...form, end_date: e.target.value, end_forever: false })}
             />
           </div>
         </div>
