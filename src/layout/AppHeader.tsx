@@ -7,6 +7,7 @@ import { useApi } from "@/hooks/useApi";
 import type { DataWithdrawsList, RegularUser, Offer } from "@/types/api";
 import Image from "next/image";
 import { useDataSession } from "@/hooks/useDataSession";
+import { DEFAULT_MOCK_ACCESS_TOKEN } from "@/lib/authTokens";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useState, useEffect, useRef, startTransition } from "react";
@@ -38,7 +39,7 @@ const AppHeader: React.FC = () => {
     previewOpenRef.current = previewOpen;
   }, [previewOpen]);
   const dataSession = useDataSession();
-  const token = dataSession.accessToken ?? "mock-jwt-token-for-development";
+  const token = dataSession.accessToken ?? DEFAULT_MOCK_ACCESS_TOKEN;
   const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
 
   const handleToggle = () => {

@@ -5,6 +5,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { apiClient } from "@/lib/api";
 import { devError } from "@/lib/devConsole";
 import { isMockAdminPasswordAllowed } from "@/lib/mockAuthPolicy";
+import { DEFAULT_MOCK_ACCESS_TOKEN } from "@/lib/authTokens";
 
 const authOptions: NextAuthOptions = {
   providers: [
@@ -27,7 +28,7 @@ const authOptions: NextAuthOptions = {
             name: "admin",
             email: mockEmail,
             image: undefined,
-            accessToken: "mock-jwt-token-for-development",
+            accessToken: DEFAULT_MOCK_ACCESS_TOKEN,
           };
         }
 

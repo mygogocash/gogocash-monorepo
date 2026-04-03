@@ -30,6 +30,7 @@ import {
 } from "@/data/affiliateNetworks";
 import { bestPercentFromPartnerRates, buildSuggestedAppDeeplink } from "@/lib/offerDeeplink";
 import { normalizeOfferProductTypes, type Offer } from "@/types/api";
+import { DEFAULT_MOCK_ACCESS_TOKEN } from "@/lib/authTokens";
 
 export type MockApiInput = {
   method: string;
@@ -297,7 +298,7 @@ function handleMockGET(
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       __v: 0,
-      token: "mock-jwt-token-for-development",
+      token: DEFAULT_MOCK_ACCESS_TOKEN,
     });
   }
 
@@ -535,7 +536,7 @@ function handleMockGET(
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       __v: 0,
-      token: "mock-jwt-token-for-development",
+      token: DEFAULT_MOCK_ACCESS_TOKEN,
     });
   }
 
@@ -618,7 +619,7 @@ async function handleMockPOST(
       createdAt: admin.createdAt,
       updatedAt: admin.updatedAt,
       __v: 0,
-      token: "mock-jwt-token-for-development",
+      token: DEFAULT_MOCK_ACCESS_TOKEN,
     });
   }
 
