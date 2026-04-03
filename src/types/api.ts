@@ -129,6 +129,8 @@ export interface DashboardSummaryResponse {
 export interface OfferProductTypeEntry {
   name: string;
   commission_info: string;
+  /** Optional app deep link for this brand / product line. */
+  deeplink?: string;
 }
 
 /**
@@ -138,16 +140,17 @@ export function normalizeOfferProductTypes(value: unknown): OfferProductTypeEntr
   if (!Array.isArray(value)) return [];
   return value.map((item): OfferProductTypeEntry => {
     if (typeof item === "string") {
-      return { name: item.trim(), commission_info: "" };
+      return { name: item.trim(), commission_info: "", deeplink: "" };
     }
     if (item && typeof item === "object") {
       const o = item as Record<string, unknown>;
       return {
         name: String(o.name ?? "").trim(),
         commission_info: String(o.commission_info ?? "").trim(),
+        deeplink: String(o.deeplink ?? "").trim(),
       };
     }
-    return { name: "", commission_info: "" };
+    return { name: "", commission_info: "", deeplink: "" };
   });
 }
 
@@ -208,6 +211,8 @@ export interface Offer {
   note_to_user?: string | null;
   /** Affiliate / performance network name (e.g. Involve Asia). Optional; UI may derive from offer id in mock. */
   affiliate_partner?: string | null;
+  /** Admin-selected advertiser line (e.g. `shopee_cps`, `shopee_cps_new`); sent as store= in URL. */
+  deeplink_store_id?: string | null;
 }
 
 export interface OfferRequestForm {
@@ -236,6 +241,10 @@ export interface OfferRequestForm {
   policy_category_id: string;
   /** Shown to users in the app; empty = no message. */
   note_to_user: string;
+  /** Affiliate network id (`involve_asia`, `optimise`, `accesstrade`, …). */
+  affiliate_network_id: string;
+  /** Advertiser / market for deep link targeting (see `DEEPLINK_STORE_OPTIONS`). */
+  deeplink_store_id: string;
 }
 
 export interface OffersQuery {

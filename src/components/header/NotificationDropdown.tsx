@@ -1,7 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import {
+  displayAffiliatePartner,
+  formatSubmitted,
+} from "@/components/offer/PendingOfferReviewContent";
+import { getMockPendingOffers, type PendingOfferRow } from "@/data/mockPendingOffers";
 import { Dropdown } from "../ui/dropdown/Dropdown";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
 
@@ -13,6 +18,23 @@ const MOCK_WITHDRAWAL_NOTIFICATIONS = [
   { id: "2", user: "Bob Johnson", amount: "3,200 THB", time: "15 min ago", status: "pending" },
   { id: "3", user: "Charlie Lee", amount: "50 USD", time: "1 hr ago", status: "pending" },
 ];
+
+function formatRelativeSubmitted(iso: string): string {
+  try {
+    const d = new Date(iso);
+    const now = Date.now();
+    const diffMs = Math.max(0, now - d.getTime());
+    const minutes = Math.floor(diffMs / 60_000);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    if (days > 0) return `${days} day${days === 1 ? "" : "s"} ago`;
+    if (hours > 0) return `${hours} hr${hours === 1 ? "" : "s"} ago`;
+    if (minutes > 0) return `${minutes} min ago`;
+    return "Just now";
+  } catch {
+    return formatSubmitted(iso);
+  }
+}
 
 function NotificationItem({
   user,
@@ -52,9 +74,62 @@ function NotificationItem({
   );
 }
 
+function PendingOfferNotificationItem({
+  offer,
+  onClose,
+}: {
+  offer: PendingOfferRow;
+  onClose: () => void;
+}) {
+  const title = offer.offer_name_display?.trim() || offer.offer_name;
+  const partner = displayAffiliatePartner(offer);
+  const when = formatRelativeSubmitted(offer.submitted_at);
+  return (
+    <DropdownItem
+      tag="a"
+      href={`/offers/pending/${offer._id}`}
+      onItemClick={onClose}
+      className="flex gap-3 rounded-lg border-b border-gray-100 p-3 px-4.5 py-3 hover:bg-gray-100 dark:border-gray-800 dark:hover:bg-white/5"
+    >
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-100 dark:bg-brand-900/40">
+        <svg className="h-5 w-5 text-brand-600 dark:text-brand-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+          />
+        </svg>
+      </span>
+      <span className="block min-w-0 flex-1">
+        <span className="mb-1.5 block text-theme-sm text-gray-700 dark:text-gray-300">
+          <span className="font-medium text-gray-800 dark:text-white/90">New offer pending review</span>
+          <span className="text-gray-500 dark:text-gray-400"> — </span>
+          <span className="font-medium text-gray-800 dark:text-white/90">{title}</span>
+        </span>
+        <span className="block text-theme-xs text-gray-500 dark:text-gray-400">{partner}</span>
+        <span className="mt-0.5 block text-theme-xs text-gray-400 dark:text-gray-500">{when}</span>
+      </span>
+    </DropdownItem>
+  );
+}
+
 export default function NotificationDropdown() {
   const [isOpen, setIsOpen] = useState(false);
   const [notifying, setNotifying] = useState(true);
+  /** Match SSR; sync session pending queue after mount (same pattern as New offer panel). */
+  const [pendingOffers, setPendingOffers] = useState<PendingOfferRow[]>([]);
+
+  useEffect(() => {
+    const load = () => setPendingOffers(getMockPendingOffers());
+    queueMicrotask(load);
+    window.addEventListener("focus", load);
+    return () => window.removeEventListener("focus", load);
+  }, []);
+
+  const hasPendingOffers = pendingOffers.length > 0;
+  const hasWithdrawalAlerts = MOCK_WITHDRAWAL_NOTIFICATIONS.length > 0;
+  const showDot = notifying && (hasWithdrawalAlerts || hasPendingOffers);
 
   function toggleDropdown() {
     setIsOpen(!isOpen);
@@ -65,6 +140,7 @@ export default function NotificationDropdown() {
   }
 
   const handleClick = () => {
+    setPendingOffers(getMockPendingOffers());
     toggleDropdown();
     setNotifying(false);
   };
@@ -77,7 +153,7 @@ export default function NotificationDropdown() {
       >
         <span
           className={`absolute right-0 top-0.5 z-10 h-2 w-2 rounded-full bg-orange-400 ${
-            !notifying ? "hidden" : "flex"
+            !showDot ? "hidden" : "flex"
           }`}
         >
           <span className="absolute inline-flex w-full h-full bg-orange-400 rounded-full opacity-75 animate-ping"></span>
@@ -100,9 +176,9 @@ export default function NotificationDropdown() {
       <Dropdown
         isOpen={isOpen}
         onClose={closeDropdown}
-        className="absolute -right-[240px] mt-[17px] flex h-[480px] w-[350px] flex-col rounded-2xl border border-gray-200 bg-white p-3 shadow-theme-lg dark:border-gray-800 dark:bg-gray-dark sm:w-[361px] lg:right-0"
+        className="absolute -right-[240px] mt-[17px] flex h-[480px] min-h-0 w-[350px] flex-col rounded-2xl border border-gray-200 bg-white p-3 shadow-theme-lg dark:border-gray-800 dark:bg-gray-dark sm:w-[361px] lg:right-0"
       >
-        <div className="flex items-center justify-between pb-3 mb-3 border-b border-gray-100 dark:border-gray-700">
+        <div className="flex shrink-0 items-center justify-between border-b border-gray-100 pb-3 mb-3 dark:border-gray-700">
           <h5 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
             Notification
           </h5>
@@ -126,29 +202,69 @@ export default function NotificationDropdown() {
             </svg>
           </button>
         </div>
-        <div className="mb-2 rounded-lg bg-gray-50 px-3 py-2 text-theme-xs text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-          Withdrawal management — new requests trigger an alert to{" "}
-          <span className="font-medium text-gray-800 dark:text-gray-200">{NOTIFICATION_EMAIL}</span>
+        <div className="mb-2 flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+          <div className="shrink-0 space-y-2">
+            <div className="rounded-lg bg-gray-50 px-3 py-2 text-theme-xs text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+              Withdrawal management — new requests trigger an alert to{" "}
+              <span className="font-medium text-gray-800 dark:text-gray-200">{NOTIFICATION_EMAIL}</span>
+            </div>
+            <div className="rounded-lg bg-gray-50 px-3 py-2 text-theme-xs text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+              New offers — merchant submissions waiting for review appear below. Alerts go to{" "}
+              <span className="font-medium text-gray-800 dark:text-gray-200">{NOTIFICATION_EMAIL}</span>
+            </div>
+          </div>
+          <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto">
+            <p className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+              Withdrawals
+            </p>
+            <ul className="flex flex-col">
+              {MOCK_WITHDRAWAL_NOTIFICATIONS.map((n) => (
+                <li key={n.id}>
+                  <NotificationItem
+                    user={n.user}
+                    amount={n.amount}
+                    time={n.time}
+                    onClose={closeDropdown}
+                  />
+                </li>
+              ))}
+            </ul>
+            {hasPendingOffers ? (
+              <>
+                <p className="mb-1 mt-3 px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                  Pending offer review
+                </p>
+                <ul className="flex flex-col">
+                  {pendingOffers.map((offer) => (
+                    <li key={offer._id}>
+                      <PendingOfferNotificationItem offer={offer} onClose={closeDropdown} />
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p className="mt-3 rounded-lg border border-dashed border-gray-200 px-3 py-2 text-center text-theme-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                No offers awaiting review.
+              </p>
+            )}
+          </div>
         </div>
-        <ul className="flex flex-col h-auto overflow-y-auto custom-scrollbar">
-          {MOCK_WITHDRAWAL_NOTIFICATIONS.map((n) => (
-            <li key={n.id}>
-              <NotificationItem
-                user={n.user}
-                amount={n.amount}
-                time={n.time}
-                onClose={closeDropdown}
-              />
-            </li>
-          ))}
-        </ul>
-        <Link
-          href="/withdraw"
-          className="block px-4 py-2 mt-3 text-sm font-medium text-center text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
-          onClick={closeDropdown}
-        >
-          View Withdrawal Management
-        </Link>
+        <div className="mt-3 flex shrink-0 flex-col gap-2">
+          <Link
+            href="/withdraw"
+            className="block rounded-lg border border-gray-300 bg-white px-4 py-2 text-center text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
+            onClick={closeDropdown}
+          >
+            View Withdrawal Management
+          </Link>
+          <Link
+            href="/offers?tab=new-offer"
+            className="block rounded-lg border border-gray-300 bg-white px-4 py-2 text-center text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
+            onClick={closeDropdown}
+          >
+            Open New offer queue
+          </Link>
+        </div>
       </Dropdown>
     </div>
   );

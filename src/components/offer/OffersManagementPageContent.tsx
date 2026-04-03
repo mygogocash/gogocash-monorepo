@@ -23,6 +23,10 @@ const DeeplinkTable = dynamic(
   { loading: () => <TabPanelSkeleton /> },
 );
 
+const NewOfferPanel = dynamic(() => import("./NewOfferPanel").then((m) => m.default), {
+  loading: () => <TabPanelSkeleton />,
+});
+
 function TabPanelSkeleton() {
   return (
     <div className="animate-pulse rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 dark:border-gray-800 dark:bg-white/[0.03]">
@@ -37,6 +41,7 @@ function TabPanelSkeleton() {
 }
 
 const TABS = [
+  { id: "new-offer" as const, label: "New offer", breadcrumb: "New offer" },
   { id: "offers" as const, label: "Offers", breadcrumb: "Offers" },
   {
     id: "commission" as const,
@@ -58,6 +63,7 @@ const TABS = [
 type TabId = (typeof TABS)[number]["id"];
 
 function tabFromSearch(tabParam: string | null): TabId {
+  if (tabParam === "new-offer") return "new-offer";
   if (tabParam === "policy") return "policy";
   if (tabParam === "deeplink") return "deeplink";
   if (tabParam === "commission") return "commission";
@@ -132,6 +138,7 @@ export default function OffersManagementPageContent() {
           })}
         </div>
 
+        {activeTab === "new-offer" && <NewOfferPanel />}
         {activeTab === "offers" && <OffersTable />}
         {activeTab === "commission" && <CommissionManagementClient embedded />}
         {activeTab === "policy" && <PolicyTable />}
