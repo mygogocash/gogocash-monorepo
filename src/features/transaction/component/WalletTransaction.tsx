@@ -788,6 +788,7 @@ const WithdrawTransaction = () => {
 
   const walletSummaryLastUpdatedA11y = useMemo(() => {
     const d = getWithdrawCheckLastUpdatedAt(getCheck);
+    if (!d) return "";
     const loc = locale === "th" ? "th-TH" : "en-GB";
     return `${d.toLocaleDateString(loc, {
       day: "numeric",
@@ -811,8 +812,11 @@ const WithdrawTransaction = () => {
         </h2>
         <p className="sr-only" aria-live="polite">
           {t("Total Cashback Available")}:{" "}
-          {formatNumber(combineAvailableBalance(getCheck, thaiForBalance))}. {t("Last Updated")}:{" "}
-          {walletSummaryLastUpdatedA11y}. {t("Cashback Summary")}: {t("Rejected Cashback")}{" "}
+          {formatNumber(combineAvailableBalance(getCheck, thaiForBalance))}.
+          {walletSummaryLastUpdatedA11y
+            ? ` ${t("Last Updated")}: ${walletSummaryLastUpdatedA11y}.`
+            : ""}{" "}
+          {t("Cashback Summary")}: {t("Rejected Cashback")}{" "}
           {thaiForBalance
             ? getListCheck?.totalsByStatusAndCurrency
                 ?.find((ele) => ele.status === "rejected")

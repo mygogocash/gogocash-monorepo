@@ -8,10 +8,12 @@ const withBundleAnalyzer = bundleAnalyzer({
 });
 
 const nextConfig: NextConfig = {
-  // Note: 'standalone' mode has issues with next-intl middleware in Next.js 16
-  // Use Docker multi-stage build or wait for Next.js fix
-  // Uncomment when deploying to production with Docker
-  // output: 'standalone',
+  /**
+   * Required for Firebase App Hosting: the adapter expects a self-contained Node server
+   * (see https://firebase.google.com/docs/app-hosting/frameworks-tooling).
+   * Verify locale routing on staging after enabling.
+   */
+  output: "standalone",
 
   experimental: {
     // เปิดใช้งานการคืนค่าตำแหน่งการเลื่อนเมื่อย้อนกลับ
@@ -31,7 +33,6 @@ const nextConfig: NextConfig = {
   // Enable React strict mode for better development experience
   reactStrictMode: true,
   // swcMinify: false,
-  // output: 'standalone', // Duplicate - removed
   // Development optimizations for hot reload
 
   // Support for external modules transpilation

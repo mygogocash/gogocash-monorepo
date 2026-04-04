@@ -3,7 +3,7 @@ import SubProfile from "@/components/layouts/SubProfile";
 import { IconButton } from "@mui/material";
 import { useTranslations } from "next-intl";
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos";
-import { usePathname, useRouter } from "@/i18n/navigation";
+import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { useEffect, useRef } from "react";
 import {
   PROFILE_SUBPAGE_CARD_CLASS,
@@ -47,28 +47,46 @@ const SubPage = ({ title, resolvedTitle, children, subTitle, showSubMenu, conten
   if (showSubMenu) {
     return (
       <div className="flex h-full min-h-0 min-w-0 w-full flex-1 flex-col px-0 pb-20 pt-6 md:pt-10 md:pb-20">
-        <h1 className="sr-only">{heading}</h1>
+        {/* Desktop: single sr-only title. Mobile: visible title lives in the top bar below. */}
+        <h1 className="hidden md:sr-only">{heading}</h1>
         <div className={PROFILE_SUBPAGE_CARD_CLASS}>
           {/* md: min-h-0 + overflow-hidden so the row height follows the card (viewport), not the tallest child content */}
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:h-full md:min-h-0 md:flex-row md:items-stretch">
-            <div className="flex min-h-0 flex-col border-b border-[var(--gc-border)] p-5 md:z-10 md:h-full md:max-h-full md:w-[min(320px,34%)] md:max-w-[320px] md:shrink-0 md:overflow-y-auto md:overscroll-contain md:border-b-0 md:p-6">
+            {/* Mobile: full-screen column uses top bar + scroll only; rail is profile hub only. */}
+            <div className="hidden min-h-0 flex-col border-b border-[var(--gc-border)] p-5 md:z-10 md:flex md:h-full md:max-h-full md:w-[min(320px,34%)] md:max-w-[320px] md:shrink-0 md:overflow-y-auto md:overscroll-contain md:border-b-0 md:p-6">
               <SubProfile variant="panel" />
             </div>
-            <div
-              ref={mainScrollRef}
-              data-testid="profile-subpage-main-scroll"
-              className={PROFILE_SUBPAGE_MAIN_SCROLL_WITH_RAIL_CLASS}
-            >
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+              <div className="flex shrink-0 items-center gap-2 border-b border-[var(--gc-border)] bg-white px-3 py-2.5 md:hidden">
+                <IconButton
+                  component={Link}
+                  href="/profile"
+                  aria-label={t("Back to Profile")}
+                  size="small"
+                  sx={{ color: "#103522" }}
+                >
+                  <ArrowBackIosIcon sx={{ fontSize: 20 }} />
+                </IconButton>
+                <h1 className="min-w-0 flex-1 truncate text-[18px] font-semibold leading-snug tracking-[-0.02em] text-[#103522]">
+                  {heading}
+                </h1>
+              </div>
               <div
-                key={pathname}
-                className="gc-profile-subpage-content flex min-w-0 w-full flex-col gap-4 md:gap-6"
+                ref={mainScrollRef}
+                data-testid="profile-subpage-main-scroll"
+                className={`${PROFILE_SUBPAGE_MAIN_SCROLL_WITH_RAIL_CLASS} min-h-0 flex-1`}
               >
-                {subTitle && (
-                  <h2 className="text-[20px] font-semibold tracking-tight text-[#3b3b3b] md:text-[22px]">
-                    {t(subTitle)}
-                  </h2>
-                )}
-                {children}
+                <div
+                  key={pathname}
+                  className="gc-profile-subpage-content flex min-w-0 w-full flex-col gap-4 md:gap-6"
+                >
+                  {subTitle && (
+                    <h2 className="text-[20px] font-semibold tracking-tight text-[#3b3b3b] md:text-[22px]">
+                      {t(subTitle)}
+                    </h2>
+                  )}
+                  {children}
+                </div>
               </div>
             </div>
           </div>
@@ -106,7 +124,9 @@ const SubPage = ({ title, resolvedTitle, children, subTitle, showSubMenu, conten
 
   return (
     <div className="mx-auto w-full max-w-[1080px] px-4 pb-12 md:px-0">
-      <div className="mb-4 flex w-full items-center gap-3 pt-5 md:mb-8 md:pt-10">
+      {/* Mobile: no back row (profile hub uses bottom nav); keep one sr-only h1 for a11y. md+: visible title bar. */}
+      <h1 className="sr-only md:hidden">{heading}</h1>
+      <div className="mb-4 hidden w-full items-center gap-3 pt-5 md:mb-8 md:flex md:pt-10">
         <IconButton
           onClick={() => {
             router.back();

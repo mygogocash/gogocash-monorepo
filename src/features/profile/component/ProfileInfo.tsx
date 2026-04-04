@@ -16,10 +16,11 @@ import toast from "react-hot-toast";
 import BoardProfile from "./BoardProfile";
 import ProfileCashbackSummaryCard from "./ProfileCashbackSummaryCard";
 import { ResponseWithdrawCheckMyCashback } from "@/interfaces/auth";
-import { ResponseWithdrawCheck } from "@/interfaces/withdraw";
+import { useCrossmintLoginContext } from "@/providers/CrossmintLoginContext";
 
 const ProfileInfo = () => {
   const { data: session, update } = useSession();
+  const { getCheck } = useCrossmintLoginContext();
   const t = useTranslations();
   const router = useRouter();
   const [loading, setLoading] = React.useState(false);
@@ -46,15 +47,6 @@ const ProfileInfo = () => {
     queryKey: ["myCashback"],
     queryFn: () => fetcherPost(`/withdraw/check-my-cashback`),
     enabled: session?.user !== null,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-  });
-
-  const { data: getCheck } = useQuery<ResponseWithdrawCheck>({
-    queryKey: ["getCheck"],
-    queryFn: () => fetcherPost("/withdraw/check"),
-    staleTime: Infinity,
-    enabled: session?.user != null,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
   });

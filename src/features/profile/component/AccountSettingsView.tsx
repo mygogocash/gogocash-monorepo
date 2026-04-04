@@ -58,14 +58,14 @@ function CommunityCard({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="relative block aspect-224/117 overflow-hidden rounded-3xl border border-[#3b3b3b] no-underline transition-opacity hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00cc99]"
+      className="relative block aspect-[224/117] overflow-hidden rounded-2xl border border-black/[0.12] no-underline shadow-sm transition-[opacity,box-shadow] hover:opacity-95 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00cc99] sm:rounded-3xl sm:border-[#3b3b3b]"
     >
       <Image
         src={bannerSrc}
         alt={alt}
         fill
         className="object-cover"
-        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+        sizes="(max-width: 640px) 45vw, (max-width: 1024px) 50vw, 33vw"
       />
     </a>
   );
@@ -210,7 +210,7 @@ export default function AccountSettingsView() {
           >
             {t("accountSettingsCommunityHeading")}
           </h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-3">
             {ACCOUNT_SETTINGS_COMMUNITY.map((entry) => (
               <CommunityCard
                 key={entry.id}

@@ -70,7 +70,7 @@ const Input = React.forwardRef<HTMLDivElement, InputProps>(function Input(
       variant={variant}
       fullWidth={fullWidth}
       {...props}
-      sx={{ ...variantStyles[uiVariant], ...sx }}
+      sx={[variantStyles[uiVariant], ...(sx ? (Array.isArray(sx) ? sx : [sx]) : [])]}
     />
   );
 });

@@ -33,12 +33,13 @@ import KeyboardArrowDown from "@mui/icons-material/KeyboardArrowDown";
 import { useEffect, useState } from "react";
 import type { ComponentType, SVGProps } from "react";
 
-const TEAL = "#00AA80";
+/** Inactive rail icons — matches `--gc-primary-strong` (Figma mint family). */
+const RAIL_ICON = "var(--gc-primary-strong)";
 
 /** Shared motion for sidebar rows (panel + default links). */
 const navRowTransition =
   "transition-[background-color,box-shadow,transform] duration-200 ease-out motion-reduce:transition-colors motion-reduce:duration-150";
-const navRowActive = "bg-[#00AA80] shadow-[0_1px_3px_rgba(0,0,0,0.06)]";
+const navRowActive = "bg-[var(--gc-primary)] shadow-[0_1px_3px_rgba(0,0,0,0.06)]";
 /** Leaf menu links: subtle press feedback. */
 const navRowInactive =
   "bg-transparent hover:bg-black/[0.03] active:scale-[0.99] active:bg-black/[0.05] motion-reduce:active:scale-100 motion-reduce:active:bg-transparent";
@@ -190,14 +191,17 @@ const SubProfile = ({ variant = "sidebar", className }: SubProfileProps) => {
 
   return (
     <aside className={cn(subProfileAsideClass[variant], className)}>
-      <nav className="flex w-full flex-1 flex-col gap-2" aria-label={t("Profile")}>
+      <nav
+        className="flex w-full flex-1 flex-col gap-3 md:gap-2"
+        aria-label={t("Profile")}
+      >
         {menu.map((item) => {
           const profileHubVariant = variant === "panel" || variant === "sidebar";
           const active =
             profileHubVariant && item.href === "/profile" && !item.external
               ? isProfileSectionHubActive(pathname)
               : isActive(pathname, item);
-          const iconFill = active ? "#ffffff" : TEAL;
+          const iconFill = active ? "#ffffff" : RAIL_ICON;
           const Icon = item.icon;
 
           const row = (
@@ -285,7 +289,7 @@ const SubProfile = ({ variant = "sidebar", className }: SubProfileProps) => {
                       "cursor-pointer bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-inset",
                       active
                         ? "text-white focus-visible:ring-white/80"
-                        : "text-[#3B3B3B] focus-visible:ring-[#00AA80]/50"
+                        : "text-[#3B3B3B] focus-visible:ring-[var(--gc-primary)]/50"
                     )}
                   >
                     <KeyboardArrowDown
@@ -310,7 +314,7 @@ const SubProfile = ({ variant = "sidebar", className }: SubProfileProps) => {
                   )}
                 >
                   <div className="min-h-0">
-                    <div className="ml-2 mt-0.5 flex flex-col gap-1 pl-2 pt-1">
+                    <div className="ml-1 mt-1 flex flex-col gap-2 pl-2 pt-0.5 md:ml-2 md:mt-0.5 md:gap-1 md:pt-1">
                       {profileSectionSubNavItems.map((sub) => {
                         const subActive = isProfileSubNavItemActive(pathname, sub.href);
                         return (
@@ -321,7 +325,7 @@ const SubProfile = ({ variant = "sidebar", className }: SubProfileProps) => {
                                 "transition-[background-color,color,transform,box-shadow] duration-200 ease-out motion-reduce:transition-colors",
                                 "active:scale-[0.99] motion-reduce:active:scale-100",
                                 subActive
-                                  ? "bg-[#00AA80] font-medium text-white shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
+                                  ? "bg-[var(--gc-primary)] font-medium text-white shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
                                   : "font-normal text-[#3B3B3B] hover:bg-black/[0.03] active:bg-black/[0.05] motion-reduce:active:bg-transparent"
                               )}
                             >
@@ -353,7 +357,7 @@ const SubProfile = ({ variant = "sidebar", className }: SubProfileProps) => {
           className="inline-flex size-6 shrink-0 items-center justify-center [&>svg]:block"
           aria-hidden
         >
-          <LogoutIcon width={24} height={24} fill={TEAL} />
+          <LogoutIcon width={24} height={24} fill="var(--gc-primary-strong)" />
         </span>
         <span className="min-w-0 flex-1 truncate text-base font-normal leading-normal text-[#3B3B3B]">
           {t("profilePopperLogOut")}

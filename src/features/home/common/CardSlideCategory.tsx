@@ -9,6 +9,7 @@ import { NavigationOptions } from "swiper/types";
 import { useEffect, useRef, useState } from "react";
 import CardSpecial from "@/components/common/card/CardSpecial";
 import CardShopMini from "@/components/common/card/CardShopMini";
+import CardShopMobileDefault from "@/components/common/card/CardShopMobileDefault";
 import MerchantListTracker from "@/components/analytics/MerchantListTracker";
 import { DataOffer } from "@/interfaces/offer";
 import { Link } from "@/i18n/navigation";
@@ -47,6 +48,8 @@ interface IProp {
   staticGridRows?: number;
   /** Cap how many offers are rendered (swiper or static grid). */
   maxItems?: number;
+  /** Mobile featured 2-col grid only: max rows (2 cards per row). E.g. `4` → 8 cards. Default 16 items. */
+  mobileFeaturedGridRows?: number;
 }
 
 const MINI_BREAKPOINTS = {
@@ -105,6 +108,9 @@ const FEATURED_BREAKPOINTS = {
   },
 } as const;
 
+/** Mobile featured: 2-column grid, 8px gap; cap list length. */
+const MOBILE_FEATURED_MAX = 16;
+
 const CardSlideCategory = ({
   list,
   trackingListId,
@@ -116,6 +122,7 @@ const CardSlideCategory = ({
   staticRowMax,
   staticGridRows,
   maxItems,
+  mobileFeaturedGridRows,
 }: IProp) => {
   const prevRef = useRef(null);
   const nextRef = useRef(null);
@@ -196,6 +203,38 @@ const CardSlideCategory = ({
     );
   };
 
+  const renderMobileFeaturedGridCard = (offer: DataOffer, index: number) => {
+    const bannerSrc = getOfferBannerSrc(offer, lg);
+    const percentStr = getOfferCashbackPercentLabel(offer);
+    const trackClick = () => {
+      trackMerchantSelect({
+        merchant: offer,
+        listId: trackingListId,
+        listName: trackingListName,
+        position: index + 1,
+        source: "home_category_carousel",
+      });
+    };
+    return (
+      <div className="relative flex w-full min-w-0 justify-center">
+        <Link
+          href={`/shop/${offer._id}`}
+          className="absolute inset-0 z-0"
+          aria-label={offer.offer_name}
+          onClick={trackClick}
+        />
+        <div className="relative z-[1] w-full min-w-0">
+          <CardShopMobileDefault
+            banner={bannerSrc}
+            offer_name={offer.offer_name}
+            percent={percentStr}
+            categories={offer.categories}
+          />
+        </div>
+      </div>
+    );
+  };
+
   if (isStaticCoverRow) {
     return (
       <div className={showPagination ? "gc-card-slide--paginated" : undefined}>
@@ -206,16 +245,51 @@ const CardSlideCategory = ({
           source="home_category_carousel"
         />
         <div className="pb-1 pt-0.5">
-          <div className="grid w-full grid-cols-2 justify-items-center gap-4 sm:gap-5 md:grid-cols-4 md:gap-6">
+          <div className="grid w-full grid-cols-2 gap-2 sm:gap-5 md:grid-cols-4 md:gap-6">
             {displayList?.map((offer, index) => (
               <div
                 key={offer._id}
-                className="box-border flex h-auto w-full max-w-[280px] justify-center"
+                className={cn(
+                  "box-border flex h-auto w-full min-w-0",
+                  lg ? "max-w-[280px] justify-center justify-self-center" : "justify-center"
+                )}
               >
-                {renderOfferCard(offer, index)}
+                {!lg && !isMini
+                  ? renderMobileFeaturedGridCard(offer, index)
+                  : renderOfferCard(offer, index)}
               </div>
             ))}
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  /**
+   * Mobile (<768px): 2-column CSS grid — Shop Card mobile default (Figma 8079:67033), 8px gap.
+   * Dot pagination applies to the desktop/tablet carousel only.
+   */
+  const mobileFeaturedTwoCol = !lg && !isMini && !isCover && displayList && displayList.length > 0;
+  if (mobileFeaturedTwoCol) {
+    const mobileCap =
+      mobileFeaturedGridRows != null
+        ? mobileFeaturedGridRows * 2
+        : MOBILE_FEATURED_MAX;
+    const mobileSlice = displayList.slice(0, mobileCap);
+    return (
+      <div>
+        <MerchantListTracker
+          items={mobileSlice}
+          listId={trackingListId}
+          listName={trackingListName}
+          source="home_category_carousel"
+        />
+        <div className="grid w-full grid-cols-2 gap-2 pb-1 pt-0.5">
+          {mobileSlice.map((offer, index) => (
+            <div key={offer._id} className="min-w-0">
+              {renderMobileFeaturedGridCard(offer, index)}
+            </div>
+          ))}
         </div>
       </div>
     );

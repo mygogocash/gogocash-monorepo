@@ -10,6 +10,13 @@ This repository contains the GoGoCash frontend built with Next.js App Router. It
 4. Make sure the backend repo is running at the URL in `NEXT_PUBLIC_API_URL`.
 5. Open `http://localhost:3000/en`.
 
+## Firebase App Hosting (staging)
+
+- **Full release (lint, test, production build, preflight, deploy):** `npm run deploy:firebase:release`
+- **Upload only** (after you already built): `npm run deploy:firebase`
+- **Console env template** (keys to paste in App Hosting): `firebase-console.staging.env.example`
+- **Details:** `AGENTS.md` → section _Firebase App Hosting (staging / UAT)_
+
 ## Related Repositories
 
 - `../gogocash_api-feature-login-firebase`: backend contract source of truth for auth, offers, profile, wallet, withdrawals, quests, and referrals.
@@ -257,7 +264,7 @@ Pattern: thin endpoint wrappers around the shared Axios client.
 
 Files:
 
-- `middleware.ts`
+- `proxy.ts` (root; Next.js 16 + next-intl — replaces former `middleware.ts`)
 - `src/i18n/routing.ts`
 - `src/i18n/navigation.ts`
 - `src/i18n/request.ts`
@@ -265,7 +272,7 @@ Files:
 
 Behavior:
 
-- Locale-prefixed routing enabled via `next-intl` middleware.
+- Locale-prefixed routing enabled via `next-intl` `createMiddleware` in `proxy.ts`.
 - Active locales in routing: `en`, `th` (default `en` in `src/i18n/routing.ts`).
 - Message bundles loaded dynamically from `src/messages/{locale}.json`.
 

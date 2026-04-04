@@ -71,9 +71,7 @@ const Footer = () => {
         </div>
 
         <div className="mt-16 flex flex-col items-center gap-6 border-t border-gray-100 pt-8 sm:flex-row sm:justify-between">
-          <p className="text-sm text-[#6b7280]" suppressHydrationWarning>
-            {t("footerCopyright", { year })}
-          </p>
+          <p className="text-sm text-[#6b7280]">{t("footerCopyright", { year })}</p>
           <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
             {SOCIAL_ICONS.map((social) => (
               <a

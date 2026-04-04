@@ -35,12 +35,13 @@ const Trending = () => {
   const section = homeSectionMeta.trendingBrands;
 
   return (
-    <section className="gc-home-section-y flex w-full flex-col gap-6">
+    <section className="gc-home-section-y flex w-full flex-col gap-4 md:gap-6">
       <HomeSectionHeader variant="sectionRow" title={section.title} link={section.link} />
       <CardSlideCategory
         cardVariant="featured"
         list={offers?.data}
         showPagination
+        mobileFeaturedGridRows={4}
         trackingListId={section.trackingListId}
         trackingListName={section.trackingListName}
       />

@@ -11,8 +11,9 @@ interface CardShopMiniProps {
 }
 
 /**
- * Figma GoGoCash 1.1 — ShopCards Mini (node 8290:133549 / 172:76852):
- * 184×156, 8px padding, 16px radius, image 168×94.5 / 8px radius, no coupon pill.
+ * Figma GoGoCash 1.1 — ShopCards Mini (ENG=True, Size=Desktop, Design=Mini)
+ * https://www.figma.com/design/jFDx8MnbCtlCaTQxlhpJIp/GoGoCash-1.1?node-id=172-76852
+ * 184×156, 8px padding, 16px radius, banner 168×94.5 / 8px radius, title 14px, cashback 12px + percent 24px.
  */
 const CardShopMini = ({ banner, offer_name, percent }: CardShopMiniProps) => {
   const t = useTranslations();

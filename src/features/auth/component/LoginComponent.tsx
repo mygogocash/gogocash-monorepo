@@ -532,7 +532,7 @@ const LoginComponent = () => {
       */}
       <div className="mx-auto w-full max-w-[1440px] px-6 pb-16 pt-10 md:px-10 md:pb-24 md:pt-20 lg:px-14 xl:max-2xl:px-20 2xl:px-28">
         <div className="flex flex-col gap-8 lg:flex-row lg:items-stretch lg:gap-[126px]">
-          <div className="relative mx-auto aspect-588/690 w-full max-w-[588px] shrink-0 overflow-hidden rounded-[24px] border-2 border-[#e4e4e4] lg:mx-0 lg:aspect-auto lg:h-[690px]">
+          <div className="relative mx-auto hidden aspect-588/690 w-full max-w-[588px] shrink-0 overflow-hidden rounded-[24px] border-2 border-[#e4e4e4] lg:mx-0 lg:block lg:aspect-auto lg:h-[690px]">
             <Image
               src="/images/auth-login-hero.png"
               alt={t("authHeroAlt")}
@@ -544,7 +544,7 @@ const LoginComponent = () => {
           </div>
 
           <div className="flex w-full max-w-[480px] flex-col lg:mx-0 lg:h-[690px] lg:max-w-[600px] lg:shrink-0">
-            <div className="flex min-h-0 flex-1 flex-col gap-8 overflow-hidden rounded-[24px] border-2 border-[#e4e4e4] bg-white p-6 lg:h-full lg:gap-3 lg:px-10 lg:py-8">
+            <div className="flex min-h-0 flex-1 flex-col gap-8 overflow-hidden rounded-[24px] border-2 border-[#e4e4e4] bg-white px-5 py-6 max-md:px-4 max-md:pb-7 md:px-6 lg:h-full lg:gap-3 lg:px-10 lg:py-8">
               <div className="flex shrink-0 flex-col items-center text-center">
                 <LogoMark className="mb-6 bg-[#fafafa] shadow-[0_4px_24px_rgba(0,0,0,0.06)] lg:mb-2 lg:bg-white lg:shadow-none" />
                 <h1 className="text-[clamp(1.75rem,4vw,2.5rem)] font-semibold leading-tight text-[#00cc99] lg:text-[1.625rem]">
@@ -557,154 +557,164 @@ const LoginComponent = () => {
               </div>
 
               <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch] lg:min-h-0 lg:gap-0 lg:pr-0.5">
-                <div className="flex flex-col gap-6 lg:gap-3">
+                <div className="flex flex-col gap-5 md:gap-6 lg:gap-3">
                   {phoneAuthPhase === "idle" ? (
                     <>
-                      <div className="flex flex-wrap items-center justify-between gap-2 gap-y-2 lg:gap-3">
-                        <span className="text-base font-medium text-[#3b3b3b] lg:text-sm">
+                      <div className="flex flex-col gap-2 lg:flex-row lg:flex-wrap lg:items-center lg:justify-between lg:gap-3">
+                        <span className="text-[15px] font-medium leading-snug text-[#3b3b3b] lg:text-sm">
                           {t("authSelectCountry")}
                         </span>
-                        <Autocomplete
-                          disablePortal
-                          disableClearable
-                          options={listCountries || []}
-                          getOptionLabel={(option) => option.label}
-                          isOptionEqualToValue={(a, b) => a.code === b.code}
-                          slots={{ paper: AuthCountryMenuPaper }}
-                          slotProps={{
-                            listbox: {
-                              sx: {
-                                maxHeight: 208,
-                                py: 0.5,
-                                px: 0,
-                                "& .MuiAutocomplete-option": {
-                                  minHeight: 40,
+                        <div className="w-full min-w-0 lg:w-[208px] lg:shrink-0">
+                          <Autocomplete
+                            disablePortal
+                            disableClearable
+                            options={listCountries || []}
+                            getOptionLabel={(option) => option.label}
+                            isOptionEqualToValue={(a, b) => a.code === b.code}
+                            slots={{ paper: AuthCountryMenuPaper }}
+                            slotProps={{
+                              listbox: {
+                                sx: {
+                                  maxHeight: 208,
+                                  py: 0.5,
+                                  px: 0,
+                                  "& .MuiAutocomplete-option": {
+                                    minHeight: 40,
+                                  },
                                 },
                               },
-                            },
-                            popper: {
-                              sx: { zIndex: (theme) => theme.zIndex.modal },
-                            },
-                          }}
-                          sx={{
-                            width: 208,
-                            "& .MuiOutlinedInput-root": {
-                              borderRadius: "16px",
-                              minHeight: 48,
-                              "@media (min-width: 1024px)": {
-                                minHeight: 44,
+                              popper: {
+                                sx: { zIndex: (theme) => theme.zIndex.modal },
                               },
-                            },
-                            "& .MuiOutlinedInput-notchedOutline": {
-                              borderColor: "#00cc99",
-                            },
-                            "&:hover .MuiOutlinedInput-notchedOutline": {
-                              borderColor: "#00aa80",
-                            },
-                          }}
-                          value={effectiveSelectCountry ?? undefined}
-                          onChange={(_event, newValue) => {
-                            setSelectCountry(newValue);
-                          }}
-                          renderOption={(props, option) => {
-                            const { key, ...optionProps } = props;
-                            const flag = countryCodeToFlagEmoji(option.code);
-                            return (
-                              <Box
-                                component="li"
-                                key={key}
-                                {...optionProps}
-                                sx={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 1,
-                                  px: 2,
-                                  py: 1,
-                                  fontSize: 14,
-                                  fontWeight: 500,
-                                  color: "#3B3B3B",
-                                  "&:hover": { bgcolor: "#f9f9f9" },
-                                  '&[aria-selected="true"]': {
-                                    bgcolor: "rgba(0, 170, 128, 0.08)",
-                                  },
-                                }}
-                              >
-                                {flag ? (
-                                  <Box
-                                    component="span"
-                                    aria-hidden
-                                    sx={{
-                                      fontSize: 18,
-                                      lineHeight: 1,
-                                      flexShrink: 0,
-                                      width: 24,
-                                      textAlign: "center",
-                                    }}
-                                  >
-                                    {flag}
-                                  </Box>
-                                ) : null}
-                                <span>{option.label}</span>
-                              </Box>
-                            );
-                          }}
-                          renderInput={(params) => {
-                            const inputFlag = effectiveSelectCountry
-                              ? countryCodeToFlagEmoji(effectiveSelectCountry.code)
-                              : "";
-                            return (
-                              <TextField
-                                {...params}
-                                placeholder={t("preferencesCountryPlaceholder")}
-                                InputLabelProps={{ shrink: true }}
-                                InputProps={{
-                                  ...params.InputProps,
-                                  startAdornment: (
-                                    <>
-                                      {inputFlag ? (
-                                        <Box
-                                          component="span"
-                                          aria-hidden
-                                          sx={{
-                                            fontSize: 20,
-                                            lineHeight: 1,
-                                            flexShrink: 0,
-                                            ml: 0.25,
-                                            mr: 0.5,
-                                          }}
-                                        >
-                                          {inputFlag}
-                                        </Box>
-                                      ) : null}
-                                      {params.InputProps.startAdornment}
-                                    </>
-                                  ),
-                                }}
-                              />
-                            );
-                          }}
-                        />
+                            }}
+                            sx={{
+                              width: "100%",
+                              "@media (min-width: 1024px)": {
+                                width: 208,
+                              },
+                              "& .MuiOutlinedInput-root": {
+                                borderRadius: "16px",
+                                minHeight: 52,
+                                "@media (min-width: 1024px)": {
+                                  minHeight: 44,
+                                },
+                              },
+                              "& .MuiOutlinedInput-notchedOutline": {
+                                borderColor: "#00cc99",
+                              },
+                              "&:hover .MuiOutlinedInput-notchedOutline": {
+                                borderColor: "#00aa80",
+                              },
+                            }}
+                            value={effectiveSelectCountry ?? undefined}
+                            onChange={(_event, newValue) => {
+                              setSelectCountry(newValue);
+                            }}
+                            renderOption={(props, option) => {
+                              const { key, ...optionProps } = props;
+                              const flag = countryCodeToFlagEmoji(option.code);
+                              return (
+                                <Box
+                                  component="li"
+                                  key={key}
+                                  {...optionProps}
+                                  sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 1,
+                                    px: 2,
+                                    py: 1,
+                                    fontSize: 14,
+                                    fontWeight: 500,
+                                    color: "#3B3B3B",
+                                    "&:hover": { bgcolor: "#f9f9f9" },
+                                    '&[aria-selected="true"]': {
+                                      bgcolor: "rgba(0, 170, 128, 0.08)",
+                                    },
+                                  }}
+                                >
+                                  {flag ? (
+                                    <Box
+                                      component="span"
+                                      aria-hidden
+                                      sx={{
+                                        fontSize: 18,
+                                        lineHeight: 1,
+                                        flexShrink: 0,
+                                        width: 24,
+                                        textAlign: "center",
+                                      }}
+                                    >
+                                      {flag}
+                                    </Box>
+                                  ) : null}
+                                  <span>{option.label}</span>
+                                </Box>
+                              );
+                            }}
+                            renderInput={(params) => {
+                              const inputFlag = effectiveSelectCountry
+                                ? countryCodeToFlagEmoji(effectiveSelectCountry.code)
+                                : "";
+                              return (
+                                <TextField
+                                  {...params}
+                                  placeholder={t("preferencesCountryPlaceholder")}
+                                  InputLabelProps={{ shrink: true }}
+                                  InputProps={{
+                                    ...params.InputProps,
+                                    startAdornment: (
+                                      <>
+                                        {inputFlag ? (
+                                          <Box
+                                            component="span"
+                                            aria-hidden
+                                            sx={{
+                                              fontSize: 20,
+                                              lineHeight: 1,
+                                              flexShrink: 0,
+                                              ml: 0.25,
+                                              mr: 0.5,
+                                            }}
+                                          >
+                                            {inputFlag}
+                                          </Box>
+                                        ) : null}
+                                        {params.InputProps.startAdornment}
+                                      </>
+                                    ),
+                                  }}
+                                />
+                              );
+                            }}
+                          />
+                        </div>
                       </div>
 
-                      <div className="flex flex-col gap-2 lg:gap-1.5">
-                        <p className="text-base font-medium text-[#3b3b3b] lg:text-sm">
+                      <div className="flex flex-col gap-2.5 lg:gap-1.5">
+                        <p className="text-[15px] font-medium leading-snug text-[#3b3b3b] lg:text-sm">
                           {pathname === "/login"
                             ? t("authPhoneLabelSignIn")
                             : t("authPhoneLabelSignUp")}
                         </p>
-                        <div className="flex gap-2">
+                        <div className="flex touch-manipulation gap-3 lg:gap-2">
                           <TextField
                             value={dialCode}
                             disabled
                             size="small"
                             sx={{
-                              width: 100,
+                              width: 96,
+                              flexShrink: 0,
+                              "@media (min-width: 1024px)": {
+                                width: 100,
+                              },
                               "& .MuiInputBase-root": {
                                 borderRadius: "16px",
-                                height: 56,
+                                minHeight: 52,
                                 backgroundColor: "#fafafa",
                                 "@media (min-width: 1024px)": {
                                   height: 48,
+                                  minHeight: 48,
                                 },
                               },
                             }}
@@ -721,11 +731,13 @@ const LoginComponent = () => {
                             inputProps={{ maxLength: 10 }}
                             sx={{
                               flex: 1,
+                              minWidth: 0,
                               "& .MuiInputBase-root": {
                                 borderRadius: "16px",
-                                height: 56,
+                                minHeight: 52,
                                 "@media (min-width: 1024px)": {
                                   height: 48,
+                                  minHeight: 48,
                                 },
                               },
                               "& .MuiOutlinedInput-notchedOutline": {
@@ -744,15 +756,15 @@ const LoginComponent = () => {
                         policyLabel={t("Privacy Policy")}
                       />
 
-                      <div className="flex justify-center pt-1 lg:pt-0">
+                      <div className="flex w-full justify-stretch pt-1 lg:justify-center lg:pt-0">
                         <button
                           type="button"
                           disabled={!canSubmitPhone}
                           onClick={onPhoneContinueClick}
-                          className={`h-12 min-w-[240px] rounded-full px-6 text-base font-medium transition lg:h-10 lg:min-w-[220px] lg:text-sm ${
+                          className={`min-h-[52px] w-full rounded-full px-6 text-base font-semibold transition touch-manipulation lg:h-10 lg:min-h-0 lg:min-w-[220px] lg:w-auto lg:text-sm lg:font-medium ${
                             canSubmitPhone
-                              ? "bg-[#00cc99] text-white hover:opacity-95"
-                              : "cursor-not-allowed bg-[#f6f6f6] text-[#989898]"
+                              ? "bg-[#00cc99] text-white hover:opacity-95 active:scale-[0.99]"
+                              : "cursor-not-allowed bg-[#f0f0f0] text-[#989898]"
                           }`}
                         >
                           {pathname === "/login" ? t("authSignInTitle") : t("authSignUpTitle")}
@@ -836,20 +848,36 @@ const LoginComponent = () => {
                   )}
                 </div>
 
-                <div className="mt-5 flex flex-col gap-5 lg:mt-4 lg:gap-3">
-                  <div className="flex items-center gap-3 lg:gap-2">
-                    <div className="h-px flex-1 bg-[#e4e4e4]" />
-                    <span className="shrink-0 text-sm text-[#989898] lg:text-xs">
+                <div className="mt-6 flex flex-col gap-4 lg:mt-4 lg:gap-3">
+                  <div className="flex items-center gap-2 sm:gap-3 lg:gap-2">
+                    <div className="h-px min-w-0 flex-1 bg-[#e4e4e4]" />
+                    <span className="max-w-[min(100%,14rem)] shrink-0 text-center text-[11px] font-semibold uppercase tracking-[0.06em] text-[#7f7f7f] sm:text-xs sm:normal-case sm:tracking-normal sm:font-normal lg:text-xs">
                       {pathname === "/login" ? t("authOrSocialSignIn") : t("authOrSocial")}
                     </span>
-                    <div className="h-px flex-1 bg-[#e4e4e4]" />
+                    <div className="h-px min-w-0 flex-1 bg-[#e4e4e4]" />
                   </div>
+                  {/* Mobile / tablet: one even grid, full-width tiles */}
                   <div
-                    className="mx-auto flex w-full max-w-126 flex-col items-center gap-2 lg:gap-2"
+                    className="grid w-full grid-cols-2 gap-3 sm:grid-cols-3 lg:hidden"
                     role="group"
                     aria-label={pathname === "/login" ? t("authOrSocialSignIn") : t("authOrSocial")}
                   >
-                    <div className="grid w-full grid-cols-2 gap-2 sm:grid-cols-4 lg:gap-2">
+                    {socialAuthTiles.map((tile) => (
+                      <SocialAuthTile
+                        key={tile.key}
+                        label={tile.label}
+                        iconSrc={tile.iconSrc}
+                        onClick={tile.onClick}
+                      />
+                    ))}
+                  </div>
+                  {/* Desktop: 4 + 3 row layout */}
+                  <div
+                    className="mx-auto hidden w-full max-w-126 flex-col items-center gap-2 lg:flex"
+                    role="group"
+                    aria-label={pathname === "/login" ? t("authOrSocialSignIn") : t("authOrSocial")}
+                  >
+                    <div className="grid w-full grid-cols-4 gap-2">
                       {socialAuthTiles.slice(0, 4).map((tile) => (
                         <div key={tile.key} className="flex justify-center">
                           <SocialAuthTile
@@ -860,7 +888,7 @@ const LoginComponent = () => {
                         </div>
                       ))}
                     </div>
-                    <div className="grid w-full max-w-90 grid-cols-3 gap-2 lg:gap-2">
+                    <div className="grid w-full max-w-90 grid-cols-3 gap-2">
                       {socialAuthTiles.slice(4).map((tile) => (
                         <div key={tile.key} className="flex justify-center">
                           <SocialAuthTile

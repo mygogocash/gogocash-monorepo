@@ -59,6 +59,13 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/lib/clientDevLog.ts"],
+    rules: {
+      "no-console": "error",
+    },
+  },
 ]);
 
 export default eslintConfig;

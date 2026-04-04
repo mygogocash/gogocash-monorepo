@@ -6,15 +6,27 @@ import ModalAfterLogin from "@/features/home/component/ModalAfterLogin";
 const Banner = dynamic(() => import("@/features/home/component/Banner"), {
   loading: () => (
     <div
-      className="h-[240px] w-full max-w-[800px] animate-pulse rounded-3xl bg-[#e8e8e8] sm:h-[320px] lg:h-[450px]"
+      className="aspect-[800/450] w-full max-w-[800px] animate-pulse rounded-[24px] bg-[#e8eaed] shadow-[0_12px_40px_rgba(12,20,18,0.08)] ring-1 ring-black/[0.06]"
       aria-hidden
     />
   ),
 });
 
+const HomeHeroSearch = dynamic(() => import("@/features/search/component/SearchShop"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full lg:hidden" aria-hidden>
+      <div className="h-[52px] w-full animate-pulse rounded-full bg-[#e8eaed]" />
+    </div>
+  ),
+});
+
 const GoLinkBanner = dynamic(() => import("@/features/home/component/GoLinkBanner"), {
   loading: () => (
-    <div className="h-40 w-full animate-pulse rounded-[32px] bg-[#e8f7f2]" aria-hidden />
+    <div
+      className="hidden h-40 w-full animate-pulse rounded-[32px] bg-[#e8f7f2] md:block"
+      aria-hidden
+    />
   ),
 });
 
@@ -39,8 +51,11 @@ const CategoryHome = dynamic(() => import("@/features/home/component/CategoryHom
 export default function PageClient() {
   return (
     <div className="gc-home-page">
-      <div className="gc-home-layout">
+      <div className="gc-home-layout gc-home-layout--stack">
         <ModalAfterLogin />
+        <div className="gc-home-hero-search w-full pt-4 max-md:pt-5 lg:hidden">
+          <HomeHeroSearch variant="homeMobile" />
+        </div>
         <Banner />
         <GoLinkBanner />
         <Extra />

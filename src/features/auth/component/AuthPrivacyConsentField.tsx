@@ -31,8 +31,8 @@ export function AuthPrivacyConsentField({
     <label
       htmlFor={id}
       className={cn(
-        "m-0 flex w-full min-h-12 cursor-pointer select-none items-center gap-3 rounded-[16px] border px-5 py-2.5 shadow-[0_1px_2px_rgba(16,34,23,0.06)] transition-[border-color,background-color,box-shadow,ring,transform] duration-200",
-        "hover:border-[#00cc99]/40 hover:shadow-[0_2px_14px_rgba(0,204,153,0.08)] active:scale-[0.995]",
+        "m-0 flex w-full min-h-[52px] cursor-pointer select-none items-center justify-center gap-3 rounded-[16px] border px-4 py-3.5 shadow-[0_1px_2px_rgba(16,34,23,0.06)] transition-[border-color,background-color,box-shadow,ring,transform] duration-200",
+        "max-md:touch-manipulation hover:border-[#00cc99]/40 hover:shadow-[0_2px_14px_rgba(0,204,153,0.08)] active:scale-[0.995]",
         "focus-within:ring-2 focus-within:ring-[#00cc99]/25 focus-within:ring-offset-2 focus-within:ring-offset-white",
         "lg:min-h-10 lg:gap-2.5 lg:px-5 lg:py-2",
         checked
@@ -50,7 +50,11 @@ export function AuthPrivacyConsentField({
           color: "#b0b0b0",
           p: 0.5,
           flexShrink: 0,
-          "& .MuiSvgIcon-root": { fontSize: 22 },
+          alignSelf: "center",
+          "& .MuiSvgIcon-root": {
+            fontSize: 22,
+            "@media (max-width: 1023px)": { fontSize: 24 },
+          },
           "&.Mui-checked": {
             color: "#00cc99",
           },
@@ -59,7 +63,7 @@ export function AuthPrivacyConsentField({
           },
         }}
       />
-      <span className="min-w-0 flex-1 text-left text-[14px] leading-snug text-[#3b3b3b] lg:text-[13px]">
+      <span className="min-w-0 max-w-full text-center text-[15px] leading-snug text-[#3b3b3b] lg:text-[13px]">
         {leadText}
         {needsSpaceBeforeLink ? " " : null}
         <a

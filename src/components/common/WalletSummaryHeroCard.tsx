@@ -4,21 +4,25 @@ import WithdrawIcon from "@/components/icons/WithdrawIcon";
 import type { ResponseWithdrawCheck } from "@/interfaces/withdraw";
 import { Link } from "@/i18n/navigation";
 import { combineAvailableBalance } from "@/lib/withdraw/combineAvailableBalance";
-import { checkThai, formatAddress, formatCashDisplay } from "@/lib/utils";
+import { checkThai, cn, formatAddress, formatCashDisplay } from "@/lib/utils";
 import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 import { useSession } from "next-auth/react";
 
-export function getWithdrawCheckLastUpdatedAt(getCheck: ResponseWithdrawCheck | undefined): Date {
+/** Latest fee timestamp when present; otherwise `null` (avoid misleading “now”). */
+export function getWithdrawCheckLastUpdatedAt(
+  getCheck: ResponseWithdrawCheck | undefined
+): Date | null {
   const feeUpdatedAtGogo = getCheck?.fee?.updatedAt
     ? new Date(getCheck.fee.updatedAt).getTime()
     : 0;
   const feeUpdatedAtMcb = getCheck?.MCBCashback?.fee?.updatedAt
     ? new Date(getCheck.MCBCashback.fee.updatedAt).getTime()
     : 0;
-  return feeUpdatedAtGogo > 0 || feeUpdatedAtMcb > 0
-    ? new Date(Math.max(feeUpdatedAtGogo, feeUpdatedAtMcb))
-    : new Date();
+  if (feeUpdatedAtGogo <= 0 && feeUpdatedAtMcb <= 0) {
+    return null;
+  }
+  return new Date(Math.max(feeUpdatedAtGogo, feeUpdatedAtMcb));
 }
 
 function formatPopperLastUpdated(
@@ -53,10 +57,13 @@ export function WalletSummaryHeroCard({
   variant = "popper",
   getCheck,
   onWithdrawNavigate,
+  className,
 }: {
   variant?: Variant;
   getCheck: ResponseWithdrawCheck | undefined;
   onWithdrawNavigate?: () => void;
+  /** Merged onto the outer shell (e.g. `max-w-none w-full` for profile hub). */
+  className?: string;
 }) {
   const { data: session } = useSession();
   const t = useTranslations();
@@ -79,17 +86,17 @@ export function WalletSummaryHeroCard({
   const totalAvailable = combineAvailableBalance(getCheck, thai);
 
   const feeUpdated = getWithdrawCheckLastUpdatedAt(getCheck);
-  const { dateLine, timeLine } = formatPopperLastUpdated(feeUpdated, locale);
+  const lastUpdatedFormatted =
+    feeUpdated != null ? formatPopperLastUpdated(feeUpdated, locale) : null;
 
-  const shellClass =
+  const shellClass = cn(
     variant === "page"
       ? "relative h-[257px] w-full max-w-[352px] shrink-0 overflow-hidden rounded-[13px] shadow-[0px_4px_24px_rgba(0,0,0,0.15)]"
-      : "relative h-[260px] w-full max-w-[352px] shrink-0 overflow-hidden rounded-[13px] shadow-[3px_-2px_4px_rgba(0,0,0,0.05)]";
+      : "relative h-[260px] w-full max-w-[352px] shrink-0 overflow-hidden rounded-[13px] shadow-[3px_-2px_4px_rgba(0,0,0,0.05)]",
+    className
+  );
 
-  const amountClass =
-    variant === "page"
-      ? "text-[40px] font-semibold leading-none tracking-tight"
-      : "text-[40px] font-semibold leading-none tracking-tight";
+  const amountClass = "text-[40px] font-semibold leading-none tracking-tight";
 
   return (
     <div className={shellClass}>
@@ -98,7 +105,11 @@ export function WalletSummaryHeroCard({
         alt=""
         fill
         className="pointer-events-none object-cover object-center"
-        sizes={variant === "page" ? "352px" : "352px"}
+        sizes={
+          variant === "page"
+            ? "352px"
+            : "(max-width: 768px) min(100vw, 480px), 352px"
+        }
         priority={false}
         aria-hidden
       />
@@ -168,18 +179,20 @@ export function WalletSummaryHeroCard({
                 <span className={amountClass}>{formatCashDisplay(totalAvailable)}</span>
                 <span className="text-lg font-semibold leading-none">{currency}</span>
               </div>
-              <div className="flex flex-wrap items-center justify-center gap-1 text-xs font-normal text-[#3B3B3B]">
-                <span>{t("profilePopperLastUpdatedPrefix")}</span>
-                <span>{dateLine}</span>
-                <span>{timeLine}</span>
-              </div>
+              {lastUpdatedFormatted ? (
+                <div className="flex flex-wrap items-center justify-center gap-1 text-xs font-normal text-[#3B3B3B]">
+                  <span>{t("profilePopperLastUpdatedPrefix")}</span>
+                  <span>{lastUpdatedFormatted.dateLine}</span>
+                  <span>{lastUpdatedFormatted.timeLine}</span>
+                </div>
+              ) : null}
             </div>
             <Link
               href="/withdraw"
               onClick={() => onWithdrawNavigate?.()}
-              className="flex h-8 min-h-8 items-center justify-center gap-2 rounded-full bg-[#00CC99] px-4 no-underline transition hover:brightness-[0.97]"
+              className="inline-flex h-11 min-h-[44px] w-full max-w-full items-center justify-center gap-2 rounded-full bg-[#00CC99] px-6 text-base font-medium text-white no-underline transition hover:brightness-[0.97] sm:h-8 sm:min-h-8 sm:w-auto sm:max-w-none sm:px-4"
             >
-              <span className="text-base font-medium text-white">{t("Withdraw")}</span>
+              <span>{t("Withdraw")}</span>
               <WithdrawIcon width={16} height={16} stroke="#ffffff" />
             </Link>
           </div>

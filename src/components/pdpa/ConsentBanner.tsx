@@ -96,7 +96,7 @@ export default function ConsentBanner() {
         borderTop: "1px solid rgba(255,255,255,0.06)",
       }}
     >
-      <div className="mx-auto flex w-full max-w-[1000px] flex-col gap-5 px-4 py-6 sm:flex-row sm:items-center sm:gap-5 sm:px-6">
+      <div className="mx-auto flex w-full max-w-[1000px] flex-col gap-5 px-4 pt-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:flex-row sm:items-center sm:gap-5 sm:px-6 sm:pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]">
         <div className="flex min-w-0 flex-1 items-start gap-4 sm:gap-5 sm:items-center">
           <Box
             className="shrink-0"

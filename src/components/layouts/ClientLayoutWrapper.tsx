@@ -7,6 +7,7 @@ import Footer from "@/components/layouts/Footer";
 import LineOfficialFab from "@/components/layouts/LineOfficialFab";
 import ConsentBanner from "@/components/pdpa/ConsentBanner";
 import { NavigationLoadingProvider } from "@/components/providers/NavigationLoadingOverlay";
+import { GolinkMobileSheetProvider } from "@/components/providers/GolinkMobileSheetProvider";
 import { isMainFlexNonePath } from "@/lib/layout/mainFlexConfig";
 
 // Dynamic imports split layout chunks; SSR enabled for faster first paint (header HTML in document).
@@ -29,20 +30,22 @@ export default function ClientLayoutWrapper({ children }: ClientLayoutWrapperPro
   const isMainContentHeight = isMainFlexNonePath(pathname);
 
   return (
-    <NavigationLoadingProvider>
-      <div className="flex min-h-screen flex-col">
-        <Header />
-        <SubHeader />
-        <main
-          className={`flex min-h-0 w-full flex-col bg-[#f6f6f6] pb-[108px] md:pb-0${isMainContentHeight ? " flex-none" : " flex-1"}${isAuthPage ? " gc-page-block" : ""}`}
-        >
-          {children}
-        </main>
-        <Footer />
-        <FooterMobile />
-        <LineOfficialFab />
-        <ConsentBanner />
-      </div>
-    </NavigationLoadingProvider>
+    <GolinkMobileSheetProvider>
+      <NavigationLoadingProvider>
+        <div className="flex min-h-dvh min-h-screen flex-col max-md:pt-[env(safe-area-inset-top,0px)]">
+          <Header />
+          <SubHeader />
+          <main
+            className={`flex min-h-0 w-full flex-col bg-[#f6f6f6] max-md:pb-[calc(var(--gc-mobile-nav-clearance)+var(--gc-safe-bottom))] md:pb-0${isMainContentHeight ? " flex-none" : " flex-1"}${isAuthPage ? " gc-page-block" : ""}`}
+          >
+            {children}
+          </main>
+          <Footer />
+          <FooterMobile />
+          <LineOfficialFab />
+          <ConsentBanner />
+        </div>
+      </NavigationLoadingProvider>
+    </GolinkMobileSheetProvider>
   );
 }

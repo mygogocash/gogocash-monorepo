@@ -19,8 +19,21 @@ const SEARCH_LIMIT = 5;
 const STALE_MS_TRENDING = 5 * 60 * 1000;
 const STALE_MS_SEARCH = 60 * 1000;
 
-const SearchShop = () => {
+export type SearchShopVariant = "header" | "homeMobile";
+
+export interface SearchShopProps {
+  /** `header`: desktop nav only (hidden below lg). `homeMobile`: home hero strip only (hidden from lg up). */
+  variant?: SearchShopVariant;
+}
+
+const SearchShop = ({ variant = "header" }: SearchShopProps) => {
   const t = useTranslations();
+  const isHomeMobile = variant === "homeMobile";
+  const trendingListId = isHomeMobile ? "home_hero_trending_stores" : "header_trending_stores";
+  const trendingListName = isHomeMobile ? "Home Hero Trending Stores" : "Header Trending Stores";
+  const searchListId = isHomeMobile ? "home_hero_store_search" : "header_store_search";
+  const searchListName = isHomeMobile ? "Home Hero Store Search" : "Header Store Search";
+  const analyticsSource = isHomeMobile ? "home_hero_search" : "header_search";
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const popperRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
@@ -31,7 +44,11 @@ const SearchShop = () => {
   }, []);
 
   const open = Boolean(anchorEl);
-  const popperId = open ? "header-search-popper" : undefined;
+  const popperId = open
+    ? isHomeMobile
+      ? "home-hero-search-popper"
+      : "header-search-popper"
+    : undefined;
 
   const handleClose = useCallback(() => {
     setAnchorEl(null);
@@ -101,10 +118,10 @@ const SearchShop = () => {
     trackMerchantSearch({
       searchTerm,
       resultsCount: searchOffers.data.length,
-      listId: "header_store_search",
-      listName: "Header Store Search",
+      listId: searchListId,
+      listName: searchListName,
     });
-  }, [offerSearch.search, searchOffers]);
+  }, [offerSearch.search, searchOffers, searchListId, searchListName]);
 
   const trendingList = trendingOffers?.data ?? [];
   const matchList = searchOffers?.data ?? [];
@@ -124,33 +141,66 @@ const SearchShop = () => {
     };
   }, [anchorEl]);
 
+  const inputVisibilityClass =
+    variant === "homeMobile"
+      ? "w-full max-w-none lg:hidden"
+      : "w-full max-w-[560px] lg:block hidden";
+
+  const homeMobileInputSx = isHomeMobile
+    ? {
+        " .MuiOutlinedInput-root": {
+          minHeight: 52,
+        },
+        " .MuiInputBase-input": {
+          fontSize: "16px",
+        },
+      }
+    : undefined;
+
+  const searchField = (
+    <Input
+      ref={triggerRef}
+      onFocus={handleOpen}
+      onChange={(e) => setSearch({ ...offerSearch, search: e.target.value, page: 1 })}
+      uiVariant="search"
+      className={inputVisibilityClass}
+      placeholder={t("headerSearchPlaceholder")}
+      inputProps={{
+        "aria-label": t("headerSearchAria"),
+      }}
+      sx={homeMobileInputSx}
+      slotProps={{
+        input: {
+          startAdornment: (
+            <InputAdornment position="start" sx={{ marginRight: 0.5 }}>
+              <span
+                className={`flex shrink-0 items-center justify-center rounded-full bg-[#e3f5ee] text-[#0d9488] shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] ${
+                  isHomeMobile ? "h-10 w-10" : "h-9 w-9"
+                }`}
+                aria-hidden
+              >
+                <Search sx={{ fontSize: isHomeMobile ? 22 : 20 }} />
+              </span>
+            </InputAdornment>
+          ),
+        },
+      }}
+    />
+  );
+
   return (
     <>
-      <Input
-        ref={triggerRef}
-        onFocus={handleOpen}
-        onChange={(e) => setSearch({ ...offerSearch, search: e.target.value, page: 1 })}
-        uiVariant="search"
-        className="w-full max-w-[560px] lg:block hidden"
-        placeholder={t("headerSearchPlaceholder")}
-        inputProps={{
-          "aria-label": t("headerSearchAria"),
-        }}
-        slotProps={{
-          input: {
-            startAdornment: (
-              <InputAdornment position="start" sx={{ marginRight: 0.5 }}>
-                <span
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#e3f5ee] text-[#0d9488] shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]"
-                  aria-hidden
-                >
-                  <Search sx={{ fontSize: 20 }} />
-                </span>
-              </InputAdornment>
-            ),
-          },
-        }}
-      />
+      {isHomeMobile ? (
+        <div
+          className="w-full min-w-0 touch-manipulation"
+          role="search"
+          aria-label={t("headerSearchAria")}
+        >
+          {searchField}
+        </div>
+      ) : (
+        searchField
+      )}
       <Popper
         id={popperId}
         open={open}
@@ -179,9 +229,9 @@ const SearchShop = () => {
             <>
               <MerchantListTracker
                 items={trendingList}
-                listId="header_trending_stores"
-                listName="Header Trending Stores"
-                source="header_search"
+                listId={trendingListId}
+                listName={trendingListName}
+                source={analyticsSource}
               />
               {trendingList.length === 0 ? (
                 <p className="rounded-2xl border border-dashed border-[#d1fae5] bg-white/80 px-4 py-8 text-center text-sm leading-relaxed text-[#6b7280]">
@@ -214,10 +264,10 @@ const SearchShop = () => {
                         offer={offer}
                         variant="trending-large"
                         trackingContext={{
-                          listId: "header_trending_stores",
-                          listName: "Header Trending Stores",
+                          listId: trendingListId,
+                          listName: trendingListName,
                           position: index + 1,
-                          source: "header_search",
+                          source: analyticsSource,
                         }}
                       />
                     ))}
@@ -229,15 +279,15 @@ const SearchShop = () => {
             <>
               <MerchantListTracker
                 items={matchList}
-                listId="header_store_search"
-                listName="Header Store Search"
-                source="header_search"
+                listId={searchListId}
+                listName={searchListName}
+                source={analyticsSource}
               />
               <MerchantListTracker
                 items={trendingList}
-                listId="header_trending_stores"
-                listName="Header Trending Stores"
-                source="header_search"
+                listId={trendingListId}
+                listName={trendingListName}
+                source={analyticsSource}
               />
               <div className="flex flex-col gap-4">
                 {matchList.length > 0 ? (
@@ -257,10 +307,10 @@ const SearchShop = () => {
                           offer={offer}
                           variant="compact"
                           trackingContext={{
-                            listId: "header_store_search",
-                            listName: "Header Store Search",
+                            listId: searchListId,
+                            listName: searchListName,
                             position: index + 1,
-                            source: "header_search",
+                            source: analyticsSource,
                           }}
                         />
                       ))}
@@ -304,10 +354,10 @@ const SearchShop = () => {
                             offer={offer}
                             variant="compact"
                             trackingContext={{
-                              listId: "header_trending_stores",
-                              listName: "Header Trending Stores",
+                              listId: trendingListId,
+                              listName: trendingListName,
                               position: index + 1,
-                              source: "header_search",
+                              source: analyticsSource,
                             }}
                           />
                         ))}

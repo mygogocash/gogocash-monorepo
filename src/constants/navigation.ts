@@ -1,6 +1,7 @@
 export type AppIconKey =
   | "home"
   | "shop"
+  | "golink"
   | "wallet"
   | "quest"
   | "profile"
@@ -130,7 +131,7 @@ export const desktopMenuBarNav: DesktopMenuBarItem[] = [
 
 export const mobileNavItems: NavigationItem[] = [
   { label: "Home", href: "/", icon: "home" },
-  { label: "Search", href: "/shop", icon: "shop" },
+  { label: "GoGoLink", translationKey: "navMobileGogoLink", href: "/golink", icon: "golink" },
   { label: "Wallet", href: "/wallet", icon: "wallet" },
   { label: "Quest", href: "/quest", icon: "quest" },
   { label: "Profile", href: "/profile", icon: "profile" },

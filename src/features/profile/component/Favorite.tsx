@@ -172,7 +172,7 @@ const FavoriteList = () => {
             listName="Recently Visited Brands"
             source="favorite_page"
           />
-          <div className="grid grid-cols-1 justify-items-center gap-6 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-2 justify-items-center gap-4 sm:gap-6 xl:grid-cols-3">
             {recentList.map((offer, index) => (
               <FavoriteShopCard
                 key={offer._id}
@@ -279,7 +279,7 @@ const FavoriteList = () => {
               {t("favoritePageNoSearchResults")}
             </p>
           ) : (
-            <div className="grid grid-cols-1 justify-items-center gap-6 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-2 justify-items-center gap-4 sm:gap-6 xl:grid-cols-3">
               {pagedFavorites.map((item, index) => {
                 const offer = item.offer_id;
                 const globalIndex = (listPage - 1) * PAGE_SIZE + index + 1;

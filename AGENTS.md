@@ -27,6 +27,16 @@ Concise guidance for AI coding agents and contributors. **Deep architecture and 
 | Pricing / billing UI     | `src/features/subscription/*`, profile routes `src/app/[locale]/(profile)/pricing                                                                                | billing | membership/` |
 | Feature flags            | `src/constants/featureFlags.ts`                                                                                                                                  |
 | Env schema               | `src/env.ts`, `.env.example`                                                                                                                                     |
+| Firebase App Hosting     | `firebase.json`, `apphosting.yaml`, `npm run deploy:firebase`                                                                                                    |
+
+## Firebase App Hosting (staging / UAT)
+
+- **Deploy:** `npm run deploy:firebase` (upload + rollout). Full pipeline: `npm run deploy:firebase:release` (validate → build → preflight → deploy). Console env template: `firebase-console.staging.env.example`.
+- **HTTP 409 on deploy (`unable to queue the operation`):** Usually **another rollout is still in progress** (QUEUED / BUILDING / DEPLOYING)—wait for it to finish or fix it in the [App Hosting console](https://console.firebase.google.com/project/gogocash-app-staging/apphosting). Less often, the API rejects reusing a `buildId`; then try `npm run apphosting:delete-stale-build -- <buildId>` (id from the error URL; needs `gcloud auth login` or ADC).
+- **Build:** `npm run build` runs **`next build --webpack`** — required for Google Cloud Build (Turbopack fails on `node_modules` symlink layout there). `npm run analyze` uses the same flag.
+- **Runtime bundle:** `output: 'standalone'` in `next.config.ts` so the App Hosting adapter can produce a Cloud Run–compatible server.
+- **Locale / i18n routing:** Root **`proxy.ts`** with `next-intl` (Next.js 16 convention; not `middleware.ts`).
+- **Env:** `apphosting.yaml` sets non-secret defaults (e.g. mock API for internal UAT). **Console env overrides YAML.** For real sessions, set **`NEXTAUTH_SECRET`** (Secret Manager) and **`NEXT_PUBLIC_FIREBASE_*`** in App Hosting; align `NEXTAUTH_URL` / `NEXT_PUBLIC_FRONTEND_URL` with the URL testers use (hosted app or custom domain).
 
 ## Conventions agents should follow
 
@@ -40,7 +50,7 @@ Concise guidance for AI coding agents and contributors. **Deep architecture and 
 
 ```bash
 npm run validate   # lint + format:check + i18n:check + test
-npm run build      # production build (catches Next/TS issues)
+npm run build      # production build (Webpack; matches Firebase Cloud Build)
 npx tsc --noEmit   # TypeScript only (fast)
 npm run test:e2e   # Playwright E2E (when flows or nav change)
 ```

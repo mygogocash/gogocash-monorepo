@@ -54,7 +54,7 @@ export default function FavoriteShopCard({
     <div
       role="link"
       tabIndex={0}
-      className="mx-auto flex w-full max-w-[280px] cursor-pointer flex-col gap-2 overflow-hidden rounded-2xl border border-[#e4e4e4] bg-white p-2"
+      className="mx-auto flex w-full max-w-[280px] cursor-pointer flex-col gap-1.5 overflow-hidden rounded-2xl border border-[var(--gc-border)] bg-[var(--gc-surface)] p-1.5 shadow-[0_1px_3px_rgba(16,34,23,0.04)] md:gap-2 md:p-2 md:shadow-none"
       onClick={goToShop}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -64,7 +64,7 @@ export default function FavoriteShopCard({
       }}
     >
       <div className="relative w-full shrink-0">
-        <div className="relative aspect-272/153 w-full overflow-hidden rounded-lg bg-[#dedede]">
+        <div className="relative aspect-[168/94.5] w-full overflow-hidden rounded-lg bg-[var(--gc-border)] md:aspect-[272/153]">
           <img
             src={logoSrc}
             alt={offerName}
@@ -73,7 +73,7 @@ export default function FavoriteShopCard({
             className="size-full object-cover object-center"
           />
           {showGrabCoupon ? (
-            <div className="absolute left-2 top-1.5 flex h-6 items-center gap-2 rounded-2xl border border-[#e4e4e4] bg-white px-2 py-1 text-xs font-normal text-[#3b3b3b] shadow-[0px_2px_2px_rgba(0,0,0,0.05)]">
+            <div className="absolute left-1.5 top-1 flex h-5 max-w-[calc(100%-12px)] items-center gap-1 rounded-full border border-[var(--gc-border)] bg-[var(--gc-surface)] px-1.5 py-0.5 text-[10px] font-medium leading-normal text-[var(--gc-text)] shadow-[0_1px_2px_rgba(0,0,0,0.05)] sm:left-2 sm:top-1.5 sm:h-6 sm:max-w-none sm:gap-2 sm:rounded-2xl sm:px-2 sm:py-1 sm:text-xs sm:font-normal">
               <span className="text-[13px] leading-none" aria-hidden>
                 🧧
               </span>
@@ -83,11 +83,11 @@ export default function FavoriteShopCard({
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-1 pt-1">
-        <div className="flex w-full items-center justify-between gap-2">
+      <div className="flex min-h-0 flex-1 flex-col gap-0.5 pt-0.5 md:gap-1 md:pt-1">
+        <div className="flex w-full items-center justify-between gap-1.5 md:gap-2">
           {expiresInDays != null && expiresInDays >= 0 ? (
-            <div className="inline-flex max-w-[min(100%,200px)] items-center gap-2 rounded-full bg-[#ffe8e9] px-2 py-1 text-xs font-normal leading-normal text-[#cd0d0d]">
-              <ScheduleOutlined sx={{ fontSize: 12 }} aria-hidden />
+            <div className="inline-flex max-w-[min(100%,200px)] items-center gap-1 rounded-full bg-[#ffe8e9] px-1.5 py-0.5 text-[10px] font-normal leading-normal text-[var(--gc-danger)] md:gap-2 md:px-2 md:py-1 md:text-xs">
+              <ScheduleOutlined sx={{ fontSize: { xs: 10, md: 12 } }} aria-hidden />
               <span className="flex flex-wrap items-center gap-1">
                 <span>{t("Expires in")}</span>
                 <span>{expiresInDays}</span>
@@ -106,33 +106,34 @@ export default function FavoriteShopCard({
                 onToggleFavorite();
               }}
               sx={{
-                border: "1px solid #E6F7ED",
-                background: "#E6F7ED",
+                border: "1px solid var(--gc-primary-soft)",
+                background: "var(--gc-primary-soft)",
                 borderRadius: "100px",
                 padding: "4px",
               }}
               aria-label={favorite ? t("favoritePageRemoveFavorite") : t("favoritePageAddFavorite")}
             >
               {favorite ? (
-                <FavoriteOutlined sx={{ color: designSystemColor.green2, fontSize: 18 }} />
+                <FavoriteOutlined
+                  sx={{ color: "var(--gc-primary-strong)", fontSize: { xs: 16, md: 18 } }}
+                />
               ) : (
-                <FavoriteIcon />
+                <FavoriteIcon fill={designSystemColor.green2} width="18" height="15" />
               )}
             </IconButton>
           ) : null}
         </div>
 
-        <div className="flex min-h-[47px] w-full items-end justify-between gap-2">
+        <div className="flex min-h-0 w-full items-end justify-between gap-1.5 md:min-h-[47px] md:gap-2">
           <div className="min-w-0 flex-1">
-            <p className="line-clamp-2 text-xl font-medium leading-tight text-[#3b3b3b]">
+            <p className="line-clamp-2 text-sm font-medium leading-tight text-[var(--gc-text)] md:text-xl">
               {offerName}
             </p>
-            <p className="mt-1 text-sm font-normal text-[#989898]">{t("Cashback up to")}</p>
+            <p className="mt-0.5 text-xs font-normal leading-normal text-[var(--gc-text-soft)] md:mt-1 md:text-sm">
+              {t("Cashback up to")}
+            </p>
           </div>
-          <p
-            className="shrink-0 text-right text-[32px] font-semibold leading-none tabular-nums"
-            style={{ color: designSystemColor.green2 }}
-          >
+          <p className="max-w-[42%] shrink-0 text-right text-xl font-semibold leading-none tabular-nums text-(--gc-primary) md:max-w-[45%] md:text-[32px]">
             {percentLabel}
           </p>
         </div>

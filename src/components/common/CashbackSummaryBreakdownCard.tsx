@@ -290,7 +290,7 @@ export function CashbackSummaryBreakdownCard({
               className={`inline-flex items-center justify-center gap-2 rounded-full bg-[#00CC99] font-medium no-underline transition hover:brightness-[0.97] ${
                 isRail
                   ? "h-9 min-h-9 px-4 text-sm"
-                  : "h-11 min-h-[44px] w-auto max-w-full px-6 text-base sm:h-10 sm:px-5"
+                  : "h-11 min-h-[44px] w-full max-w-full px-6 text-base sm:h-10 sm:w-auto sm:px-5"
               }`}
             >
               <span className="font-medium text-white">{t("Withdraw")}</span>

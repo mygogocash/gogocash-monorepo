@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import "./globals.css";
 import { env } from "@/env";
@@ -27,6 +27,13 @@ function resolveMetadataBase(): URL {
   }
   return new URL("http://localhost:3000");
 }
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#00CC99",
+};
 
 export const metadata: Metadata = {
   metadataBase: resolveMetadataBase(),

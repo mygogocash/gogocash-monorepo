@@ -614,13 +614,13 @@ export default function MissingOrdersFormBody() {
                   e.target.value = "";
                 }}
               />
-              <div className="flex flex-wrap items-start gap-3">
+              <div className="flex w-full flex-wrap items-start gap-3">
                 <Button
                   type="button"
                   variant="outlined"
                   startIcon={<AddPhotoAlternateOutlinedIcon sx={{ fontSize: 22 }} />}
                   onClick={() => fileInputRef.current?.click()}
-                  className="normal-case"
+                  className="normal-case w-full sm:w-auto"
                   aria-describedby={`${attachmentInputId}-hint`}
                   sx={missingOrdersAttachmentButtonSx}
                 >

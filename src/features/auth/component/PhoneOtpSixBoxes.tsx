@@ -16,7 +16,7 @@ type PhoneOtpSixBoxesProps = {
 };
 
 /**
- * Six single-digit OTP cells — layout matches GoGoCash 1.1 Figma (56×56, 16px gap, two groups of 3 with 32px between).
+ * Six single-digit OTP cells — one row; gap and cell size scale down on narrow viewports so all six fit without wrapping.
  */
 export function PhoneOtpSixBoxes({
   value,
@@ -108,22 +108,21 @@ export function PhoneOtpSixBoxes({
       aria-invalid={hasError || undefined}
       aria-describedby={hasError && errorDescriptionId ? errorDescriptionId : undefined}
       className={cn(
-        "flex size-14 shrink-0 items-center justify-center rounded-2xl border border-solid bg-white text-center font-semibold tabular-nums outline-none transition-[border-color,box-shadow,color] disabled:opacity-60 lg:size-12",
+        "flex size-11 shrink-0 items-center justify-center rounded-2xl border border-solid bg-white text-center font-semibold tabular-nums outline-none transition-[border-color,box-shadow,color] disabled:opacity-60 sm:size-12 md:size-14",
         hasError
-          ? "border-[rgba(205,13,13,0.4)] text-[#cd0d0d] text-[28px] leading-none focus-visible:border-[#cd0d0d] focus-visible:ring-2 focus-visible:ring-[#cd0d0d]/25 lg:text-[32px]"
-          : "border-[rgba(152,152,152,0.4)] text-lg text-[#3b3b3b] focus-visible:border-[#00cc99] focus-visible:ring-2 focus-visible:ring-[#00cc99]/20 lg:text-base"
+          ? "border-[rgba(205,13,13,0.4)] text-[#cd0d0d] text-[22px] leading-none focus-visible:border-[#cd0d0d] focus-visible:ring-2 focus-visible:ring-[#cd0d0d]/25 sm:text-[26px] md:text-[28px] lg:text-[32px]"
+          : "border-[rgba(152,152,152,0.4)] text-base text-[#3b3b3b] focus-visible:border-[#00cc99] focus-visible:ring-2 focus-visible:ring-[#00cc99]/20 sm:text-lg lg:text-base"
       )}
     />
   );
 
   return (
     <div
-      className="flex w-full flex-wrap items-center justify-center gap-x-8 gap-y-3"
+      className="flex w-full flex-nowrap items-center justify-center gap-1.5 sm:gap-2 md:gap-3"
       role="group"
       aria-label={ariaLabel}
     >
-      <div className="flex gap-4">{[0, 1, 2].map(renderCell)}</div>
-      <div className="flex gap-4">{[3, 4, 5].map(renderCell)}</div>
+      {[0, 1, 2, 3, 4, 5].map(renderCell)}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { Metadata } from "next";
 import { METADATA, SITE_ICONS } from "@/constants/Metadata";
 import { getLocale, getMessages } from "next-intl/server";
 import ClientLayoutWrapper from "@/components/layouts/ClientLayoutWrapper";
+import MiniAppBootstrap from "@/components/miniapp/MiniAppBootstrap";
 import LocaleHtmlSync from "@/components/providers/LocaleHtmlSync";
 import NextIntlClientProviderWithFallback from "@/components/providers/NextIntlClientProviderWithFallback";
 
@@ -51,6 +52,7 @@ export default async function RootLayout({
   return (
     <NextIntlClientProviderWithFallback locale={locale} messages={messages}>
       <LocaleHtmlSync />
+      <MiniAppBootstrap />
       <ClientLayoutWrapper>{children}</ClientLayoutWrapper>
     </NextIntlClientProviderWithFallback>
   );

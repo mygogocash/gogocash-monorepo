@@ -64,12 +64,7 @@ export default function MembershipPageClient() {
   const faqItems = t.raw("faq") as { q: string; a: string }[];
 
   return (
-    <div
-      ref={rootRef}
-      className="membership-root font-sans antialiased"
-      data-theme={theme}
-      suppressHydrationWarning
-    >
+    <div ref={rootRef} className="membership-root font-sans antialiased" data-theme={theme}>
       <div className="mship-layout">
         <main className="mship-main">
           <section className="hero-section section" aria-labelledby="hero-title">
