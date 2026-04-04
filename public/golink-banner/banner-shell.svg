@@ -1,0 +1,33 @@
+<svg width="1350" height="374" viewBox="0 0 1350 374" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g filter="url(#filter0_dd_9703_278496)">
+<rect x="74.9604" y="49.7737" width="1200" height="224" rx="32" fill="#F8FBFF"/>
+<rect x="74.9604" y="49.7737" width="1200" height="224" rx="32" fill="url(#paint0_linear_9703_278496)"/>
+<rect x="74.9604" y="49.7737" width="1200" height="224" rx="32" fill="url(#paint1_radial_9703_278496)" fill-opacity="0.3"/>
+</g>
+<defs>
+<filter id="filter0_dd_9703_278496" x="8.39233e-05" y="0" width="1349.92" height="373.921" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset dy="25.1867"/>
+<feGaussianBlur stdDeviation="37.4802"/>
+<feComposite in2="hardAlpha" operator="out"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0.0266667 0 0 0 0 0.1312 0 0 0 0 0.4 0 0 0 0.12 0"/>
+<feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_9703_278496"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset dy="3.5981"/>
+<feGaussianBlur stdDeviation="5.0973"/>
+<feComposite in2="hardAlpha" operator="out"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0.0172222 0 0 0 0 0.0636667 0 0 0 0 0.133333 0 0 0 0.06 0"/>
+<feBlend mode="normal" in2="effect1_dropShadow_9703_278496" result="effect2_dropShadow_9703_278496"/>
+<feBlend mode="normal" in="SourceGraphic" in2="effect2_dropShadow_9703_278496" result="shape"/>
+</filter>
+<linearGradient id="paint0_linear_9703_278496" x1="74.9604" y1="161.774" x2="705.96" y2="161.774" gradientUnits="userSpaceOnUse">
+<stop stop-color="#D8F8EF"/>
+<stop offset="1" stop-color="#EAF4FF"/>
+</linearGradient>
+<radialGradient id="paint1_radial_9703_278496" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(968.461 273.774) rotate(-180) scale(509 224)">
+<stop stop-color="#00CC99"/>
+<stop offset="1" stop-color="#00CC99" stop-opacity="0"/>
+</radialGradient>
+</defs>
+</svg>

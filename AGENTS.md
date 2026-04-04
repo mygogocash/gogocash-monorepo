@@ -1,0 +1,69 @@
+# AGENTS.md — GoGoCash Web (gogocash-web)
+
+Concise guidance for AI coding agents and contributors. **Deep architecture and feature notes live in [README.md](./README.md).**
+
+## Project
+
+- **Stack:** Next.js 16 (App Router), TypeScript (strict), React, Tailwind CSS v4.
+- **Data:** TanStack React Query + Axios (`src/lib/axios/client.ts`).
+- **Auth:** NextAuth JWT; primary identity is **Firebase** (`src/lib/authFirebase.ts`). **Crossmint** remains mounted for wallet/subscription-related flows—do not rip out Crossmint plumbing without product sign-off and browser verification.
+- **Payments:** **Stripe** for membership/checkout and billing portal (`src/lib/stripe/*`, `src/features/subscription/*`). Enable checkout UI with `NEXT_PUBLIC_STRIPE_BILLING=1` plus server keys and Price IDs (see `.env.example` and `src/env.ts`).
+- **i18n:** `next-intl`, locales `en` / `th` (see `src/i18n/`). User-facing copy belongs in `src/messages/en.json` and `src/messages/th.json` together (parity checked by `npm run i18n:check`).
+- **Imports:** Path alias `@/*` → `src/*` (`tsconfig.json`).
+
+## Where to start (by task)
+
+| Area                     | Good entry points                                                                                                                                                |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | ------------ |
+| App shell & providers    | `src/app/layout.tsx`, `src/providers/ProviderDefault.tsx`                                                                                                        |
+| HTTP + tokens            | `src/lib/axios/client.ts`                                                                                                                                        |
+| Firebase auth / NextAuth | `src/lib/authFirebase.ts`, `src/app/api/auth/[...nextauth]/route.ts`                                                                                             |
+| Login UI                 | `src/features/auth/component/LoginComponent.tsx`, `src/hooks/useFirebaseLogin.ts`                                                                                |
+| Crossmint wrapper        | `src/lib/crossmint/SettingCrossmint.tsx`, `src/hooks/useSafeCrossmint.ts`, `src/hooks/useCrossmintLogin.ts`                                                      |
+| Feature UI               | `src/features/*`, shared pieces under `src/components/*`                                                                                                         |
+| Membership landing       | `docs/membership.md`, `src/features/membership/*`, `useMembershipLanding.ts`                                                                                     |
+| Stripe checkout / portal | `src/app/api/stripe/checkout/route.ts`, `src/app/api/stripe/portal/route.ts`, `src/lib/stripe/handleStripeWebhook.ts`                                            |
+| Stripe webhooks          | **Canonical:** `POST /api/webhooks/stripe` (`src/app/api/webhooks/stripe/route.ts`). `POST /api/stripe/webhook` is deprecated but still relays the same handler. |
+| Pricing / billing UI     | `src/features/subscription/*`, profile routes `src/app/[locale]/(profile)/pricing                                                                                | billing | membership/` |
+| Feature flags            | `src/constants/featureFlags.ts`                                                                                                                                  |
+| Env schema               | `src/env.ts`, `.env.example`                                                                                                                                     |
+| Firebase App Hosting     | `firebase.json`, `apphosting.yaml`, `npm run deploy:firebase`                                                                                                    |
+
+## Firebase App Hosting (staging / UAT)
+
+- **Deploy:** `npm run deploy:firebase` (upload + rollout). Full pipeline: `npm run deploy:firebase:release` (validate → build → preflight → deploy). Console env template: `firebase-console.staging.env.example`.
+- **HTTP 409 on deploy (`unable to queue the operation`):** Usually **another rollout is still in progress** (QUEUED / BUILDING / DEPLOYING)—wait for it to finish or fix it in the [App Hosting console](https://console.firebase.google.com/project/gogocash-app-staging/apphosting). Less often, the API rejects reusing a `buildId`; then try `npm run apphosting:delete-stale-build -- <buildId>` (id from the error URL; needs `gcloud auth login` or ADC).
+- **Build:** `npm run build` runs **`next build --webpack`** — required for Google Cloud Build (Turbopack fails on `node_modules` symlink layout there). `npm run analyze` uses the same flag.
+- **Runtime bundle:** `output: 'standalone'` in `next.config.ts` so the App Hosting adapter can produce a Cloud Run–compatible server.
+- **Locale / i18n routing:** Root **`proxy.ts`** with `next-intl` (Next.js 16 convention; not `middleware.ts`).
+- **Env:** `apphosting.yaml` sets non-secret defaults (e.g. mock API for internal UAT). **Console env overrides YAML.** For real sessions, set **`NEXTAUTH_SECRET`** (Secret Manager) and **`NEXT_PUBLIC_FIREBASE_*`** in App Hosting; align `NEXTAUTH_URL` / `NEXT_PUBLIC_FRONTEND_URL` with the URL testers use (hosted app or custom domain).
+
+## Conventions agents should follow
+
+1. **Scope:** Change only what the task requires; match existing patterns (imports at top, naming, component style).
+2. **Types:** Run `npx tsc --noEmit` after non-trivial edits. Respect SDK types (e.g. Crossmint `SDKExternalUser`—`twitter` is a string, not `{ id }`).
+3. **i18n:** Add or update keys in **both** `en.json` and `th.json` for new user-visible strings.
+4. **Analytics / consent:** Meta Pixel, GTM/GA, and **PostHog** paths are consent-gated—see README “Analytics” sections before adding tracking.
+5. **Verification:** For auth, analytics, wallet, or **Stripe** changes, **browser verification** (and webhook/CLI testing where relevant) matters; lint/build alone is not always enough.
+
+## Commands (verify before claiming done)
+
+```bash
+npm run validate   # lint + format:check + i18n:check + test
+npm run build      # production build (Webpack; matches Firebase Cloud Build)
+npx tsc --noEmit   # TypeScript only (fast)
+npm run test:e2e   # Playwright E2E (when flows or nav change)
+```
+
+Use `npm run lint:fix` and `npm run format` when appropriate.
+
+## Repository facts (avoid surprises)
+
+- Many route segments use **`"use client"`** for interactivity and SDK compatibility.
+- Profile routes live under `src/app/[locale]/(profile)/` with `AuthGuard`.
+- `ClientLayoutWrapper` coordinates rendering with Crossmint readiness—avoid reordering providers without understanding `ProviderDefault.tsx`.
+- Backend contract: `NEXT_PUBLIC_API_URL` (see `.env.example`).
+- **Stripe local webhooks:** `stripe listen --forward-to localhost:3000/api/webhooks/stripe` — set `STRIPE_WEBHOOK_SECRET` from the CLI signing secret.
+- **npm CLI:** If every command prints `Unknown env config "devdir"`, your user-level config or environment references an invalid npm key. Run `npm config delete devdir` (add `-g` if it was set globally), remove any `devdir=…` line from `~/.npmrc`, and unset `NPM_CONFIG_DEVDIR` in your shell profile if present.
+
+When in doubt, search the codebase for an existing pattern before introducing a new abstraction.

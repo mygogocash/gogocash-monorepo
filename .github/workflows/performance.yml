@@ -1,0 +1,51 @@
+# Optional: Lighthouse against a local production server (manual / weekly).
+# Does not run on every PR by default — enable `on.schedule` or trigger workflow_dispatch.
+
+name: Performance (Lighthouse)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        env:
+          SKIP_ENV_VALIDATION: "1"
+          NEXTAUTH_SECRET: "ci-build-placeholder-secret-min-32-chars!!"
+        run: npm run build
+
+      - name: Start server and run Lighthouse
+        env:
+          SKIP_ENV_VALIDATION: "1"
+          NEXTAUTH_SECRET: "ci-build-placeholder-secret-min-32-chars!!"
+        run: |
+          npm run start &
+          npx --yes wait-on http://127.0.0.1:3000 -t 120000
+          npx --yes lighthouse http://127.0.0.1:3000/en \
+            --only-categories=performance \
+            --preset=desktop \
+            --output=json \
+            --output-path=lighthouse-report.json \
+            --chrome-flags="--headless --no-sandbox"
+          node -e "const r=require('./lighthouse-report.json'); const p=r.categories.performance.score; console.log('Performance score:', (p*100).toFixed(0)); process.exit(p>=0.85?0:0);"
+
+      - name: Upload Lighthouse report
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-report
+          path: lighthouse-report.json

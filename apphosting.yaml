@@ -1,0 +1,68 @@
+# Firebase App Hosting (Next.js SSR + API routes)
+# Docs: https://firebase.google.com/docs/app-hosting/get-started
+#
+# Prerequisites:
+# - Blaze billing on the Firebase/GCP project
+# - Backend id must match `backendId` in firebase.json (default: gogocash-web)
+#
+# Environment: copy keys from .env.example into the Firebase console
+# (App Hosting → your backend → Settings → Environment), or use `env:` below.
+# Secrets: https://firebase.google.com/docs/app-hosting/configure#secret-parameters
+#   firebase apphosting:secrets:set NEXTAUTH_SECRET
+#
+# Set NEXTAUTH_URL and NEXT_PUBLIC_FRONTEND_URL to your live App Hosting URL
+# (format: https://BACKEND_ID--PROJECT_ID.REGION.hosted.app) after the first deploy.
+# Console env vars override these — see Firebase docs (variable hierarchy).
+
+runConfig:
+  minInstances: 0
+  maxInstances: 20
+  concurrency: 80
+  cpu: 1
+  memoryMiB: 1024
+
+env:
+  # Use npm + package-lock.json (repo also has yarn.lock; buildpack would pick Yarn otherwise)
+  - variable: GOOGLE_PACKAGE_MANAGER
+    value: npm
+    availability:
+      - BUILD
+  - variable: GOOGLE_NODEJS_VERSION
+    value: "22"
+    availability:
+      - BUILD
+  # Mock API for staging smoke / no backend (overridable in console)
+  - variable: NEXT_PUBLIC_MOCK_API
+    value: "1"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: CI
+    value: "true"
+    availability:
+      - BUILD
+  # Avoid OOM on large Next.js builds in Cloud Build
+  - variable: NODE_OPTIONS
+    value: "--max-old-space-size=6144"
+    availability:
+      - BUILD
+  # Staging App Hosting URL — update if backend/region differs
+  - variable: NEXTAUTH_URL
+    value: https://gogocash-web--gogocash-app-staging.us-central1.hosted.app
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FRONTEND_URL
+    value: https://gogocash-web--gogocash-app-staging.us-central1.hosted.app
+    availability:
+      - BUILD
+      - RUNTIME
+
+  # After: npx firebase apphosting:secrets:set NEXTAUTH_SECRET
+  # (create the secret in Secret Manager first; grant App Hosting access if prompted.)
+  # Uncomment — requires the secret to exist or rollout preparer will fail:
+  # - variable: NEXTAUTH_SECRET
+  #   secret: NEXTAUTH_SECRET
+  #   availability:
+  #     - RUNTIME
+  #     - BUILD
