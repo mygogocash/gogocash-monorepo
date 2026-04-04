@@ -90,16 +90,17 @@ export default function ConsentBanner() {
       role="dialog"
       aria-labelledby="pdpa-consent-banner-title"
       aria-describedby="pdpa-consent-banner-desc"
-      className="fixed bottom-0 left-0 right-0 z-[1200] shadow-[0_-8px_32px_rgba(0,0,0,0.35)]"
+      className="fixed bottom-0 left-0 right-0 z-[1200] rounded-t-2xl shadow-[0_-8px_32px_rgba(0,0,0,0.35)] sm:rounded-none"
       sx={{
         bgcolor: BANNER_BG,
         borderTop: "1px solid rgba(255,255,255,0.06)",
       }}
     >
-      <div className="mx-auto flex w-full max-w-[1000px] flex-col gap-5 px-4 pt-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:flex-row sm:items-center sm:gap-5 sm:px-6 sm:pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]">
-        <div className="flex min-w-0 flex-1 items-start gap-4 sm:gap-5 sm:items-center">
+      {/* Mobile: compact sheet + side-by-side CTAs. Desktop: unchanged single row. */}
+      <div className="mx-auto flex w-full max-w-[1000px] flex-col gap-3 px-3 pt-4 pb-[calc(0.875rem+env(safe-area-inset-bottom,0px))] sm:flex-row sm:items-center sm:gap-5 sm:px-6 sm:pt-6 sm:pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]">
+        <div className="flex min-w-0 flex-1 items-start gap-3 sm:gap-5 sm:items-center">
           <Box
-            className="shrink-0"
+            className="shrink-0 pt-0.5 sm:pt-0"
             sx={{
               color: "#f4c430",
               display: "flex",
@@ -108,7 +109,7 @@ export default function ConsentBanner() {
             }}
             aria-hidden
           >
-            <Cookie sx={{ fontSize: { xs: 36, sm: 40 } }} />
+            <Cookie sx={{ fontSize: { xs: 28, sm: 40 } }} />
           </Box>
           <div className="min-w-0 flex-1">
             <Typography
@@ -117,11 +118,11 @@ export default function ConsentBanner() {
               variant="body1"
               sx={{
                 m: 0,
-                mb: 0.5,
+                mb: { xs: 0.375, sm: 0.5 },
                 fontWeight: 700,
                 color: "#ffffff",
-                fontSize: { xs: "0.9375rem", sm: 16 },
-                lineHeight: "20px",
+                fontSize: { xs: "0.875rem", sm: 16 },
+                lineHeight: { xs: 1.35, sm: "20px" },
               }}
             >
               {bannerCopy.title}
@@ -133,8 +134,8 @@ export default function ConsentBanner() {
               sx={{
                 m: 0,
                 color: BODY_MUTED,
-                fontSize: { xs: "0.875rem", sm: 16 },
-                lineHeight: 1.5,
+                fontSize: { xs: "0.8125rem", sm: 16 },
+                lineHeight: { xs: 1.45, sm: 1.5 },
               }}
             >
               {bannerCopy.bodyPart1}
@@ -146,19 +147,20 @@ export default function ConsentBanner() {
           </div>
         </div>
 
-        <div className="flex w-full shrink-0 flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:gap-3 sm:pl-4 md:pl-8">
+        <div className="flex w-full min-w-0 shrink-0 flex-row items-stretch gap-2 sm:w-auto sm:items-center sm:justify-end sm:gap-3 sm:pl-4 md:pl-8">
           <Button
             type="button"
             variant="text"
             onClick={goToCookieSettings}
             sx={{
-              alignSelf: { xs: "stretch", sm: "center" },
-              minHeight: 0,
-              px: 1.5,
-              py: 0.75,
+              alignSelf: "stretch",
+              minHeight: { xs: 44, sm: 0 },
+              minWidth: 0,
+              px: { xs: 1, sm: 1.5 },
+              py: { xs: 1, sm: 0.75 },
               fontWeight: 600,
-              fontSize: 13,
-              lineHeight: 1.3,
+              fontSize: { xs: 12, sm: 13 },
+              lineHeight: 1.25,
               letterSpacing: "0.02em",
               textTransform: "none",
               color: "rgba(255,255,255,0.92)",
@@ -166,7 +168,8 @@ export default function ConsentBanner() {
               border: "1px solid rgba(244, 196, 48, 0.45)",
               bgcolor: "rgba(255,255,255,0.06)",
               boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06)",
-              flex: { xs: "none", sm: "0 0 auto" },
+              flex: { xs: "1 1 0%", sm: "0 0 auto" },
+              whiteSpace: { xs: "normal", sm: "nowrap" },
               "&:hover": {
                 bgcolor: "rgba(244, 196, 48, 0.12)",
                 borderColor: "rgba(244, 196, 48, 0.65)",
@@ -182,20 +185,20 @@ export default function ConsentBanner() {
             disableElevation
             onClick={() => void acceptEssential()}
             sx={{
-              alignSelf: { xs: "stretch", sm: "center" },
-              minHeight: 48,
-              minWidth: { sm: 168 },
-              px: 2.5,
-              py: 1.25,
+              alignSelf: "stretch",
+              minHeight: { xs: 44, sm: 48 },
+              minWidth: { xs: 0, sm: 168 },
+              px: { xs: 1.5, sm: 2.5 },
+              py: { xs: 1, sm: 1.25 },
               fontWeight: 700,
-              fontSize: 15,
+              fontSize: { xs: 13, sm: 15 },
               lineHeight: 1.25,
               textTransform: "none",
               color: "#ffffff",
-              borderRadius: "14px",
+              borderRadius: { xs: "12px", sm: "14px" },
               background: `linear-gradient(180deg, ${CTA_GREEN} 0%, ${CTA_GREEN_DEEP} 100%)`,
               boxShadow: "0 4px 18px rgba(0, 204, 153, 0.45), 0 1px 0 rgba(255,255,255,0.2) inset",
-              flex: { xs: 1, sm: "0 0 auto" },
+              flex: { xs: "1 1 0%", sm: "0 0 auto" },
               transition: "transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease",
               "&:hover": {
                 background: `linear-gradient(180deg, #00e0b0 0%, ${CTA_GREEN} 100%)`,

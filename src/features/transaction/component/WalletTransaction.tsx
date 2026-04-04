@@ -163,15 +163,16 @@ const walletFilterOutlinedInputSx = {
 } as const;
 
 const walletFilterSearchFieldSx = {
-  flex: 1,
-  minWidth: 200,
+  width: { xs: "100%", md: "auto" },
+  flex: { xs: "none", md: 1 },
+  minWidth: { xs: 0, md: 200 },
   maxWidth: "100%",
   "& .MuiOutlinedInput-root": { ...walletFilterOutlinedInputSx },
 } as const;
 
 const walletFilterDateFieldSx = {
-  width: 220,
-  minWidth: 220,
+  width: { xs: "100%", md: 220 },
+  minWidth: { xs: 0, md: 220 },
   maxWidth: "100%",
   "& .MuiOutlinedInput-root": {
     ...walletFilterOutlinedInputSx,
@@ -183,10 +184,13 @@ const walletFilterDateFieldSx = {
 } as const;
 
 const walletFilterStatusFormSx = {
-  width: 220,
-  minWidth: 220,
+  width: { xs: "100%", md: 220 },
+  minWidth: { xs: 0, md: 220 },
   maxWidth: "100%",
-  "& .MuiOutlinedInput-root": walletFilterOutlinedInputSx,
+  "& .MuiOutlinedInput-root": {
+    ...walletFilterOutlinedInputSx,
+    width: "100%",
+  },
 } as const;
 
 const WithdrawTransaction = () => {
@@ -875,9 +879,10 @@ const WithdrawTransaction = () => {
           })}
         </div>
         {(active === 1 || active === 2 || active === 3) && (
-          <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center">
+          <div className="flex w-full min-w-0 flex-col gap-3 md:flex-row md:flex-wrap md:items-center">
             <TextField
               size="small"
+              fullWidth
               placeholder={t("walletTransactionsSearch")}
               value={active === 3 ? withdrawSearch : searchText}
               onChange={(e) =>
@@ -894,6 +899,7 @@ const WithdrawTransaction = () => {
             />
             <TextField
               size="small"
+              fullWidth
               placeholder={t("Date")}
               disabled
               sx={walletFilterDateFieldSx}
@@ -905,8 +911,9 @@ const WithdrawTransaction = () => {
                 ),
               }}
             />
-            <FormControl size="small" sx={walletFilterStatusFormSx}>
+            <FormControl size="small" fullWidth sx={walletFilterStatusFormSx}>
               <Select
+                fullWidth
                 value={active === 3 ? withdrawStatusFilter : statusFilter}
                 onChange={onWalletStatusFilterChange}
                 displayEmpty

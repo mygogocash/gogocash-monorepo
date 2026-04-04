@@ -11,7 +11,7 @@ export default function ProfileLayoutShell({ children }: { children: React.React
 
   return (
     <div
-      className={`${LAYOUT_CONTENT_SHELL_CLASS} flex min-h-0 flex-1 items-stretch gap-10 bg-[#f6f6f6]`}
+      className={`${LAYOUT_CONTENT_SHELL_CLASS} flex min-h-0 flex-1 items-stretch gap-6 bg-[#f6f6f6] md:gap-10`}
     >
       {!integrated ? <SubProfile /> : null}
       <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col self-stretch">{children}</div>

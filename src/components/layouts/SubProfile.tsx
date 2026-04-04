@@ -30,6 +30,7 @@ import {
 } from "@/components/layouts/profileSectionSubNav";
 import { cn } from "@/lib/utils";
 import KeyboardArrowDown from "@mui/icons-material/KeyboardArrowDown";
+import { useMediaQuery } from "@mui/material";
 import { useEffect, useState } from "react";
 import type { ComponentType, SVGProps } from "react";
 
@@ -43,7 +44,7 @@ const navRowActive = "bg-[var(--gc-primary)] shadow-[0_1px_3px_rgba(0,0,0,0.06)]
 /** Leaf menu links: subtle press feedback. */
 const navRowInactive =
   "bg-transparent hover:bg-black/[0.03] active:scale-[0.99] active:bg-black/[0.05] motion-reduce:active:scale-100 motion-reduce:active:bg-transparent";
-/** Profile hub row (link + chevron): no whole-row scale so the expand control stays stable. */
+/** Profile hub row: one control toggles submenu (icon + label + chevron). */
 const navRowInactiveHub = "bg-transparent hover:bg-black/[0.03]";
 
 type IconComp = ComponentType<SVGProps<SVGSVGElement>>;
@@ -166,6 +167,9 @@ type SubProfileProps = {
 
 const SubProfile = ({ variant = "sidebar", className }: SubProfileProps) => {
   const pathname = usePathname();
+  /** Align with Tailwind `md:` — mobile `/profile` is hub-only; desktop `/profile` is personal info. */
+  const isMdUp = useMediaQuery("(min-width:768px)");
+  const isMobileProfileHub = pathname === "/profile" && !isMdUp;
   const t = useTranslations();
   const { data: session } = useSession();
   const { signOutAuth } = useCrossmintLoginContext();
@@ -174,10 +178,22 @@ const SubProfile = ({ variant = "sidebar", className }: SubProfileProps) => {
   const autoExpandProfileSub = shouldAutoExpandProfileSubNav(pathname);
   const [profileSubOpen, setProfileSubOpen] = useState(autoExpandProfileSub);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
+  /** Immediate highlight while client navigates (pathname updates shortly after). */
+  const [pendingProfileSubHref, setPendingProfileSubHref] = useState<string | null>(null);
+  /** After mount so subnav active state can use matchMedia without SSR/client HTML drift. */
+  const [viewportReady, setViewportReady] = useState(false);
 
   useEffect(() => {
     setProfileSubOpen(shouldAutoExpandProfileSubNav(pathname));
   }, [pathname]);
+
+  useEffect(() => {
+    setPendingProfileSubHref(null);
+  }, [pathname]);
+
+  useEffect(() => {
+    setViewportReady(true);
+  }, []);
 
   const menu: MenuEntry[] = [
     ...baseMenuHead,
@@ -248,47 +264,37 @@ const SubProfile = ({ variant = "sidebar", className }: SubProfileProps) => {
             const chevronColor = active ? "#ffffff" : "#3B3B3B";
             return (
               <div key={item.translationKey} className="flex flex-col gap-1">
-                <div
+                <button
+                  type="button"
+                  id="profile-section-submenu-trigger"
+                  aria-expanded={profileSubOpen}
+                  aria-controls="profile-section-submenu"
+                  aria-label={t("profileSubNavToggleAriaLabel")}
+                  onClick={() => setProfileSubOpen((open) => !open)}
                   className={cn(
-                    "flex h-[52px] max-h-[52px] w-full items-stretch overflow-hidden rounded-2xl",
+                    "flex h-[52px] max-h-[52px] w-full min-w-0 cursor-pointer items-center gap-4 rounded-2xl border-0 px-4 text-left outline-none transition-[color,background-color,box-shadow,transform] duration-200 ease-out focus-visible:ring-2 focus-visible:ring-inset",
                     navRowTransition,
-                    active ? navRowActive : navRowInactiveHub
+                    active ? navRowActive : navRowInactiveHub,
+                    active
+                      ? "focus-visible:ring-white/80"
+                      : "focus-visible:ring-[var(--gc-primary)]/50"
                   )}
                 >
-                  <Link
-                    href={item.href}
-                    className="flex min-w-0 flex-1 items-center gap-4 px-4 no-underline"
+                  <span
+                    className="inline-flex size-6 shrink-0 items-center justify-center [&>svg]:block"
+                    aria-hidden
                   >
-                    <span
-                      className="inline-flex size-6 shrink-0 items-center justify-center [&>svg]:block"
-                      aria-hidden
-                    >
-                      <Icon width={24} height={24} fill={iconFill} />
-                    </span>
-                    <span
-                      className={cn(
-                        "min-w-0 flex-1 truncate text-base leading-normal transition-colors duration-200 ease-out",
-                        active ? "font-medium text-white" : "font-normal text-[#3B3B3B]"
-                      )}
-                    >
-                      {t(item.translationKey)}
-                    </span>
-                  </Link>
-                  <button
-                    type="button"
-                    id="profile-section-submenu-trigger"
-                    aria-expanded={profileSubOpen}
-                    aria-controls="profile-section-submenu"
-                    aria-label={t("profileSubNavToggleAriaLabel")}
-                    onClick={() => setProfileSubOpen((open) => !open)}
+                    <Icon width={24} height={24} fill={iconFill} />
+                  </span>
+                  <span
                     className={cn(
-                      "flex shrink-0 items-center justify-center border-0 px-2 transition-[color,background-color] duration-200 ease-out md:px-3",
-                      "cursor-pointer bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-inset",
-                      active
-                        ? "text-white focus-visible:ring-white/80"
-                        : "text-[#3B3B3B] focus-visible:ring-[var(--gc-primary)]/50"
+                      "min-w-0 flex-1 truncate text-base leading-normal transition-colors duration-200 ease-out",
+                      active ? "font-medium text-white" : "font-normal text-[#3B3B3B]"
                     )}
                   >
+                    {t(item.translationKey)}
+                  </span>
+                  <span className="inline-flex shrink-0 items-center justify-center" aria-hidden>
                     <KeyboardArrowDown
                       sx={{
                         fontSize: 24,
@@ -296,10 +302,9 @@ const SubProfile = ({ variant = "sidebar", className }: SubProfileProps) => {
                         transition: "transform 0.28s cubic-bezier(0.4, 0, 0.2, 1)",
                         transform: profileSubOpen ? "rotate(180deg)" : "rotate(0deg)",
                       }}
-                      aria-hidden
                     />
-                  </button>
-                </div>
+                  </span>
+                </button>
                 <div
                   id="profile-section-submenu"
                   role="group"
@@ -313,9 +318,28 @@ const SubProfile = ({ variant = "sidebar", className }: SubProfileProps) => {
                   <div className="min-h-0">
                     <div className="ml-1 mt-1 flex flex-col gap-2 pl-2 pt-0.5 md:ml-2 md:mt-0.5 md:gap-1 md:pt-1">
                       {profileSectionSubNavItems.map((sub) => {
-                        const subActive = isProfileSubNavItemActive(pathname, sub.href);
+                        const fromPath = isProfileSubNavItemActive(
+                          pathname,
+                          sub.href,
+                          isMobileProfileHub,
+                          viewportReady
+                        );
+                        const subActive =
+                          pendingProfileSubHref != null
+                            ? sub.href === pendingProfileSubHref
+                            : fromPath;
                         return (
-                          <Link key={sub.href} href={sub.href} className="no-underline">
+                          <Link
+                            key={sub.href}
+                            href={sub.href}
+                            className="no-underline"
+                            aria-current={subActive ? "page" : undefined}
+                            onClick={() => {
+                              if (sub.href !== pathname) {
+                                setPendingProfileSubHref(sub.href);
+                              }
+                            }}
+                          >
                             <div
                               className={cn(
                                 "flex min-h-[44px] items-center rounded-xl px-3 py-2 text-sm",

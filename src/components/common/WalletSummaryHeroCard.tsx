@@ -186,7 +186,7 @@ export function WalletSummaryHeroCard({
             <Link
               href="/withdraw"
               onClick={() => onWithdrawNavigate?.()}
-              className="inline-flex h-11 min-h-[44px] w-full max-w-full items-center justify-center gap-2 rounded-full bg-[#00CC99] px-6 text-base font-medium text-white no-underline transition hover:brightness-[0.97] sm:h-8 sm:min-h-8 sm:w-auto sm:max-w-none sm:px-4"
+              className="inline-flex h-11 min-h-[44px] w-full max-w-full items-center justify-center gap-2 rounded-full bg-[#00CC99] px-6 text-base font-medium !text-white no-underline transition hover:brightness-[0.97] visited:!text-white sm:h-8 sm:min-h-8 sm:w-auto sm:max-w-none sm:px-4"
             >
               <span>{t("Withdraw")}</span>
               <WithdrawIcon width={16} height={16} stroke="#ffffff" />

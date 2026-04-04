@@ -792,7 +792,7 @@
   "pdpaQuickGuide3": "Request deletion of your data or review requests you’ve already sent.",
   "pdpaExportSectionBody": "We’ll prepare your export and notify you when a download link is ready. This may take a little time depending on how much data we store.",
   "pdpaDeleteSectionBody": "Deletion is permanent for data we are allowed to erase. Some records must be kept or anonymized where the law requires (for example tax or fraud rules).",
-  "pdpaRequestDeleteButton": "Request account deletion (PDPA Section 33)",
+  "pdpaRequestDeleteButton": "Request account deletion",
   "pdpaDeleteRetentionNote": "Some records may be anonymized instead of deleted where the law requires retention.",
   "pdpaRequestsSectionTitle": "Your privacy requests",
   "pdpaRequestsSectionBody": "A short history of portability and deletion requests submitted from this account.",

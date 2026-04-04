@@ -8,16 +8,24 @@ import { useEffect } from "react";
 
 const PROFILE_MENU_PREFETCH_ROUTES = [
   "/profile",
+  "/profile/info",
+  "/profile/verify-phone",
+  "/profile/cf-phone",
   "/wallet",
   "/withdraw",
+  "/withdraw/my-cashback",
   "/favorite",
   "/method",
+  "/method/create",
   "/language",
   "/missing-orders",
   "/membership",
   "/referral",
   "/quest/history",
   "/privacy-center",
+  "/subscription",
+  "/pricing",
+  "/billing",
 ] as const;
 
 /**

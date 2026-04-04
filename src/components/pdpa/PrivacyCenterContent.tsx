@@ -39,6 +39,10 @@ const OPTIONAL_PURPOSES: { code: PurposeCode; labelKey: string; descKey: string 
 
 const sectionHeadingClass = "text-lg font-semibold tracking-tight text-[#1a1a1a] md:text-xl";
 
+/** Shared card padding: compact on mobile, roomier from `sm` / `md` up. */
+const cardPad = "p-4 sm:p-5 md:p-8";
+const cardPadCompact = "p-4 sm:p-5 md:p-6";
+
 export default function PrivacyCenterContent() {
   const t = useTranslations();
   const [effective, setEffective] = useState<Record<string, EffectivePurpose | undefined>>({});
@@ -169,7 +173,7 @@ export default function PrivacyCenterContent() {
 
   if (loading) {
     return (
-      <Box className="flex flex-col gap-10">
+      <Box className="flex flex-col gap-6">
         <Skeleton variant="rounded" height={120} className="rounded-2xl" />
         <Skeleton variant="rounded" height={100} className="rounded-2xl" />
         <Skeleton variant="text" width="55%" />
@@ -183,8 +187,8 @@ export default function PrivacyCenterContent() {
   }
 
   return (
-    <Box className="flex flex-col gap-10 md:gap-12">
-      <section aria-labelledby="pdpa-consent-heading" className="flex flex-col gap-8 md:gap-10">
+    <Box className="flex flex-col gap-6 md:gap-12">
+      <section aria-labelledby="pdpa-consent-heading" className="flex flex-col gap-6 md:gap-10">
         <div>
           <h3 id="pdpa-consent-heading" className={sectionHeadingClass}>
             {t("pdpaSectionConsent")}
@@ -194,17 +198,22 @@ export default function PrivacyCenterContent() {
           </Typography>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-[#d4ede6] bg-gradient-to-br from-[#f0fdf8] via-white to-[#f8faf9] p-6 shadow-sm md:p-8">
-          <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-8">
+        <div
+          className={`overflow-hidden rounded-2xl border border-[#d4ede6] bg-gradient-to-br from-[#f0fdf8] via-white to-[#f8faf9] shadow-sm ${cardPad}`}
+        >
+          <div className="mb-3 flex flex-col gap-2 sm:gap-3 md:mb-5 md:flex-row md:items-start md:justify-between md:gap-8">
             <div className="min-w-0 flex-1">
               <Typography
                 variant="h6"
                 component="h4"
-                className="mb-1 text-lg font-semibold text-[#1a1a1a]"
+                className="mb-1 text-base font-semibold text-[#1a1a1a] md:text-lg"
               >
                 {t("pdpaConsentHeroTitle")}
               </Typography>
-              <Typography variant="body2" className="leading-relaxed text-[#5a5a5a] md:text-[15px]">
+              <Typography
+                variant="body2"
+                className="text-[14px] leading-relaxed text-[#5a5a5a] md:text-[15px]"
+              >
                 {t("pdpaConsentHeroBody")}
               </Typography>
             </div>
@@ -214,7 +223,10 @@ export default function PrivacyCenterContent() {
               aria-hidden
             />
           </div>
-          <Typography variant="caption" className="mb-4 block text-[#6b7280]">
+          <Typography
+            variant="caption"
+            className="mb-3 block text-[#6b7280] max-md:leading-snug md:mb-4"
+          >
             {t("pdpaAcceptAllOptionalHint")}
           </Typography>
           <Button
@@ -222,7 +234,7 @@ export default function PrivacyCenterContent() {
             size="large"
             disabled={savingAll || allOptionalGranted}
             onClick={() => void acceptAllOptional()}
-            className="rounded-full px-6 normal-case shadow-none"
+            className="max-md:min-h-11 max-md:py-2 max-md:text-[0.9375rem] rounded-full px-5 normal-case shadow-none md:px-6"
             sx={{
               bgcolor: "#00AA80",
               "&:hover": { bgcolor: "#009970" },
@@ -234,8 +246,8 @@ export default function PrivacyCenterContent() {
           </Button>
         </div>
 
-        <div className="rounded-2xl border border-[#e8e8e8] bg-[#fafafa] p-5 md:p-6">
-          <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className={`rounded-2xl border border-[#e8e8e8] bg-[#fafafa] ${cardPadCompact}`}>
+          <div className="mb-2 flex flex-wrap items-center gap-2 md:mb-3">
             <LockRoundedIcon sx={{ fontSize: 22, color: "#00AA80" }} aria-hidden />
             <Typography variant="subtitle2" component="h4" className="font-semibold text-[#1a1a1a]">
               {t("pdpaPurposeCashback")}
@@ -244,7 +256,10 @@ export default function PrivacyCenterContent() {
               {t("pdpaRequiredBadge")}
             </span>
           </div>
-          <Typography variant="body2" className="leading-relaxed text-[#5a5a5a]">
+          <Typography
+            variant="body2"
+            className="text-[14px] leading-relaxed text-[#5a5a5a] md:text-[0.875rem]"
+          >
             {t("pdpaCashbackRequiredDescription")}
           </Typography>
         </div>
@@ -253,21 +268,24 @@ export default function PrivacyCenterContent() {
           <Typography
             variant="subtitle1"
             component="h4"
-            className="mb-5 text-base font-semibold text-[#1a1a1a]"
+            className="mb-4 text-base font-semibold text-[#1a1a1a] md:mb-5"
           >
             {t("pdpaOptionalConsentTitle")}
           </Typography>
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3 md:gap-4">
             {OPTIONAL_PURPOSES.map(({ code, labelKey, descKey }) => (
               <div
                 key={code}
-                className="flex flex-col gap-4 rounded-2xl border border-[#e4e4e4] bg-white p-5 transition-colors hover:border-[#c5e8dc] md:flex-row md:items-center md:justify-between md:gap-6 md:p-6"
+                className="flex flex-col gap-3 rounded-2xl border border-[#e4e4e4] bg-white p-4 transition-colors hover:border-[#c5e8dc] sm:p-5 md:flex-row md:items-center md:justify-between md:gap-6 md:p-6"
               >
                 <div className="min-w-0 flex-1">
                   <Typography variant="subtitle2" className="font-semibold text-[#1a1a1a]">
                     {t(labelKey)}
                   </Typography>
-                  <Typography variant="body2" className="mt-2 leading-relaxed text-[#6b7280]">
+                  <Typography
+                    variant="body2"
+                    className="mt-1.5 text-[14px] leading-relaxed text-[#6b7280] md:mt-2 md:text-[0.875rem]"
+                  >
                     {t(descKey)}
                   </Typography>
                 </div>
@@ -300,28 +318,33 @@ export default function PrivacyCenterContent() {
         </div>
       </section>
 
-      <section aria-labelledby="pdpa-data-rights-heading" className="flex flex-col gap-7 md:gap-8">
+      <section aria-labelledby="pdpa-data-rights-heading" className="flex flex-col gap-6 md:gap-8">
         <h3 id="pdpa-data-rights-heading" className={sectionHeadingClass}>
           {t("pdpaSectionExport")} &amp; {t("pdpaSectionDelete")}
         </h3>
-        <div className="grid gap-6 lg:grid-cols-2 lg:gap-8">
-          <div className="flex h-full flex-col rounded-2xl border border-[#e4e4e4] bg-white p-6 shadow-sm md:p-8">
-            <div className="mb-4 flex items-center gap-3 text-[#00AA80]">
-              <DownloadRoundedIcon sx={{ fontSize: 26 }} aria-hidden />
+        <div className="grid gap-4 md:gap-6 lg:grid-cols-2 lg:gap-8">
+          <div
+            className={`flex h-full flex-col rounded-2xl border border-[#e4e4e4] bg-white shadow-sm ${cardPad}`}
+          >
+            <div className="mb-3 flex items-center gap-2.5 text-[#00AA80] md:mb-4 md:gap-3">
+              <DownloadRoundedIcon sx={{ fontSize: { xs: 24, md: 26 } }} aria-hidden />
               <Typography
                 variant="subtitle1"
                 component="h4"
-                className="font-semibold text-[#1a1a1a]"
+                className="text-[15px] font-semibold text-[#1a1a1a] md:text-base"
               >
                 {t("pdpaSectionExport")}
               </Typography>
             </div>
-            <Typography variant="body2" className="mb-6 flex-1 leading-relaxed text-[#5a5a5a]">
+            <Typography
+              variant="body2"
+              className="mb-4 flex-1 text-[14px] leading-relaxed text-[#5a5a5a] md:mb-6 md:text-[0.875rem]"
+            >
               {t("pdpaExportSectionBody")}
             </Typography>
             <Button
               variant="contained"
-              className="w-full rounded-full normal-case sm:w-auto"
+              className="max-md:min-h-11 max-md:py-2 max-md:text-[0.9375rem] w-full rounded-full normal-case sm:w-auto"
               onClick={() => void requestExport()}
               sx={{ bgcolor: "#00AA80", "&:hover": { bgcolor: "#009970" } }}
             >
@@ -329,24 +352,29 @@ export default function PrivacyCenterContent() {
             </Button>
           </div>
 
-          <div className="flex h-full flex-col rounded-2xl border border-[#f0e6d6] bg-[#fffaf5] p-6 shadow-sm md:p-8">
-            <div className="mb-4 flex items-center gap-3 text-[#c45c00]">
-              <DeleteOutlineRoundedIcon sx={{ fontSize: 26 }} aria-hidden />
+          <div
+            className={`flex h-full flex-col rounded-2xl border border-[#f0e6d6] bg-[#fffaf5] shadow-sm ${cardPad}`}
+          >
+            <div className="mb-3 flex items-center gap-2.5 text-[#c45c00] md:mb-4 md:gap-3">
+              <DeleteOutlineRoundedIcon sx={{ fontSize: { xs: 24, md: 26 } }} aria-hidden />
               <Typography
                 variant="subtitle1"
                 component="h4"
-                className="font-semibold text-[#1a1a1a]"
+                className="text-[15px] font-semibold text-[#1a1a1a] md:text-base"
               >
                 {t("pdpaSectionDelete")}
               </Typography>
             </div>
-            <Typography variant="body2" className="mb-6 flex-1 leading-relaxed text-[#5a5a5a]">
+            <Typography
+              variant="body2"
+              className="mb-4 flex-1 text-[14px] leading-relaxed text-[#5a5a5a] md:mb-6 md:text-[0.875rem]"
+            >
               {t("pdpaDeleteSectionBody")}
             </Typography>
             <Button
               variant="outlined"
               color="warning"
-              className="w-full rounded-full border-amber-700 normal-case sm:w-auto"
+              className="max-md:min-h-11 max-md:py-2 max-md:text-[0.9375rem] w-full rounded-full border-amber-700 normal-case sm:w-auto"
               onClick={() => void requestErasure()}
             >
               {t("pdpaRequestDeleteButton")}
@@ -354,7 +382,7 @@ export default function PrivacyCenterContent() {
             <Typography
               variant="caption"
               display="block"
-              className="mt-4 leading-relaxed text-[#6b7280]"
+              className="mt-3 max-md:leading-snug text-[#6b7280] md:mt-4 md:leading-relaxed"
             >
               {t("pdpaDeleteRetentionNote")}
             </Typography>
@@ -364,15 +392,18 @@ export default function PrivacyCenterContent() {
 
       <section
         aria-labelledby="pdpa-requests-heading"
-        className="rounded-2xl border border-[#e8e8e8] bg-[#fafafa] p-6 md:p-8"
+        className={`rounded-2xl border border-[#e8e8e8] bg-[#fafafa] ${cardPadCompact}`}
       >
         <h3 id="pdpa-requests-heading" className={sectionHeadingClass}>
           {t("pdpaRequestsSectionTitle")}
         </h3>
-        <Typography variant="body2" className="mt-3 max-w-2xl leading-relaxed text-[#6b7280]">
+        <Typography
+          variant="body2"
+          className="mt-2 max-w-2xl text-[14px] leading-relaxed text-[#6b7280] md:mt-3 md:text-[0.875rem]"
+        >
           {t("pdpaRequestsSectionBody")}
         </Typography>
-        <Typography variant="body1" className="mt-5 font-medium text-[#3b3b3b]">
+        <Typography variant="body1" className="mt-4 font-medium text-[#3b3b3b] md:mt-5">
           {t("pdpaRequestsCount", { count: requests.length })}
         </Typography>
       </section>

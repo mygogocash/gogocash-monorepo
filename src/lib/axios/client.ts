@@ -4,7 +4,8 @@ import axios, {
   AxiosRequestConfig,
   type InternalAxiosRequestConfig,
 } from "axios";
-import { getSession, signOut } from "next-auth/react";
+import { signOut } from "next-auth/react";
+import { clearAxiosSessionCache, getSessionForAxios } from "@/lib/axios/sessionForAxios";
 import { devEmailMockVerifyOtpHttpStatus } from "@/lib/dev/emailOtpMock";
 import { getMockApiResponse, getMockHttpStatus } from "@/mocks/homeApi";
 import { getApiBaseUrl, shouldUseMockApi } from "@/lib/env";
@@ -96,7 +97,7 @@ const client = axios.create({
 
 client.interceptors.request.use(
   async (config) => {
-    const session = await getSession(); // Get session
+    const session = await getSessionForAxios();
 
     if (session?.user?.access_token) {
       config.headers.Authorization = `Bearer ${session.user.access_token}`;
@@ -126,6 +127,7 @@ client.interceptors.response.use(
         m.includes("invalid algorithm") ||
         m.includes("jwt expired")
       ) {
+        clearAxiosSessionCache();
         void signOut({ redirect: false });
         return Promise.reject(error.response);
       }

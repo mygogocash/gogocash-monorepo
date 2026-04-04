@@ -1,6 +1,7 @@
 "use client";
 import { ResponseWithdrawCheck } from "@/interfaces/withdraw";
 import { fetcherPost } from "@/lib/axios/client";
+import { clearAxiosSessionCache } from "@/lib/axios/sessionForAxios";
 import { useSafeAuth, useSafeWallet } from "./useSafeCrossmint";
 import { useQuery } from "@tanstack/react-query";
 import { signIn, signOut, useSession } from "next-auth/react";
@@ -180,6 +181,7 @@ const useCrossmintLogin = () => {
 
   const signOutAuth = useCallback(async () => {
     await Promise.all([crossmintAuth.logout(), signOut({ redirect: true, callbackUrl: "/" })]);
+    clearAxiosSessionCache();
     setLoginState({
       isLoggingIn: false,
       hasAttemptedLogin: false,

@@ -92,9 +92,9 @@ const AntSwitch = styled(Switch)(({ theme }) => ({
   },
 }));
 
-/** Mobile: ≥48px min height, padded full-width row for thumb-friendly tap targets; desktop stays compact. */
+/** Mobile: ≥48px min height, padded full-width row; switch + label aligned end (right); desktop stays compact, start-aligned. */
 const DEFAULT_SWITCH_ROW_CLASS =
-  "flex max-w-full cursor-pointer touch-manipulation items-center gap-4 self-start transition-colors max-md:w-full max-md:min-h-12 max-md:rounded-2xl max-md:border max-md:border-[var(--gc-border)] max-md:bg-[#f9f9f9] max-md:px-4 max-md:py-3 max-md:active:bg-[#f0f0f0] md:min-h-0 md:w-auto md:border-0 md:bg-transparent md:px-0 md:py-0 md:active:bg-transparent";
+  "flex max-w-full cursor-pointer touch-manipulation items-center gap-4 self-start transition-colors max-md:w-full max-md:min-h-12 max-md:justify-end max-md:rounded-2xl max-md:border max-md:border-[var(--gc-border)] max-md:bg-[#f9f9f9] max-md:px-4 max-md:py-3 max-md:active:bg-[#f0f0f0] md:min-h-0 md:w-auto md:justify-start md:border-0 md:bg-transparent md:px-0 md:py-0 md:active:bg-transparent";
 
 type FormProps = {
   methodId: string | null;
@@ -192,7 +192,7 @@ export function CreateMethodWithdrawForm({ methodId, initialForm }: FormProps) {
 
   const tabClass = (tab: MethodTab) =>
     [
-      "box-border flex min-h-[81px] w-[142px] shrink-0 flex-col items-center justify-center gap-2 rounded-lg border border-solid px-11 py-2 transition-colors",
+      "box-border flex min-h-[81px] flex-1 min-w-0 basis-0 flex-col items-center justify-center gap-1.5 rounded-lg border border-solid px-2 py-2 transition-colors md:w-[142px] md:flex-none md:basis-auto md:shrink-0 md:gap-2 md:px-11",
       methodTab === tab
         ? "border-[#00AA80] bg-[#ebf8f5]"
         : "border-[#e4e4e4] bg-white hover:border-[#cfcfcf]",
@@ -208,7 +208,9 @@ export function CreateMethodWithdrawForm({ methodId, initialForm }: FormProps) {
     active ? "size-4 rounded-full bg-[#00AA80]" : "size-4 rounded-full bg-transparent";
 
   const tabLabelClass = (tab: MethodTab) =>
-    methodTab === tab ? "text-xs font-normal text-[#00AA80]" : "text-xs font-normal text-[#7f7f7f]";
+    methodTab === tab
+      ? "text-center text-[11px] font-normal leading-tight text-[#00AA80] sm:text-xs"
+      : "text-center text-[11px] font-normal leading-tight text-[#7f7f7f] sm:text-xs";
 
   const tabIconClass = (tab: MethodTab) =>
     methodTab === tab ? "text-[#00AA80]" : "text-[#7f7f7f]";
@@ -220,7 +222,7 @@ export function CreateMethodWithdrawForm({ methodId, initialForm }: FormProps) {
           {t("withdrawMethodAddPageTitle")}
         </h2>
 
-        <div className="flex flex-wrap items-start gap-4">
+        <div className="flex w-full flex-nowrap items-stretch gap-2 md:gap-4">
           <button
             type="button"
             className={tabClass("promptpay")}
@@ -373,14 +375,15 @@ export function CreateMethodWithdrawForm({ methodId, initialForm }: FormProps) {
             </p>
 
             <label className={DEFAULT_SWITCH_ROW_CLASS}>
+              <span className="order-1 text-base font-normal text-black md:order-2">
+                {t("withdrawMethodFormSetAsDefault")}
+              </span>
               <AntSwitch
+                className="order-2 shrink-0 md:order-1"
                 checked={ppIsDefault}
                 inputProps={{ "aria-label": t("withdrawMethodDefaultSwitchAria") }}
                 onChange={(e) => setPpIsDefault(e.target.checked)}
               />
-              <span className="text-base font-normal text-black">
-                {t("withdrawMethodFormSetAsDefault")}
-              </span>
             </label>
 
             <div className="flex w-full flex-wrap items-start justify-end gap-6 max-md:flex-nowrap max-md:justify-between max-md:gap-3">
@@ -493,16 +496,17 @@ export function CreateMethodWithdrawForm({ methodId, initialForm }: FormProps) {
             </p>
 
             <label className={DEFAULT_SWITCH_ROW_CLASS}>
+              <span className="order-1 text-base font-normal text-black md:order-2">
+                {t("withdrawMethodFormSetAsDefault")}
+              </span>
               <AntSwitch
+                className="order-2 shrink-0 md:order-1"
                 checked={form.is_default}
                 inputProps={{ "aria-label": t("withdrawMethodDefaultSwitchAria") }}
                 onChange={(e) => {
                   setForm({ ...form, is_default: e.target.checked });
                 }}
               />
-              <span className="text-base font-normal text-black">
-                {t("withdrawMethodFormSetAsDefault")}
-              </span>
             </label>
 
             <div className="flex w-full flex-wrap items-start justify-end gap-6 max-md:flex-nowrap max-md:justify-between max-md:gap-3">
@@ -565,14 +569,15 @@ export function CreateMethodWithdrawForm({ methodId, initialForm }: FormProps) {
             </p>
 
             <label className={DEFAULT_SWITCH_ROW_CLASS}>
+              <span className="order-1 text-base font-normal text-black md:order-2">
+                {t("withdrawMethodFormSetAsDefault")}
+              </span>
               <AntSwitch
+                className="order-2 shrink-0 md:order-1"
                 checked={cryptoIsDefault}
                 inputProps={{ "aria-label": t("withdrawMethodDefaultSwitchAria") }}
                 onChange={(e) => setCryptoIsDefault(e.target.checked)}
               />
-              <span className="text-base font-normal text-black">
-                {t("withdrawMethodFormSetAsDefault")}
-              </span>
             </label>
 
             <div className="flex w-full flex-wrap items-start justify-end gap-6 max-md:flex-nowrap max-md:justify-between max-md:gap-3">
