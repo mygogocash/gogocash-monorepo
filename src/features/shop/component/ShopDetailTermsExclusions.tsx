@@ -11,17 +11,40 @@ import { dmSans } from "@/lib/utils";
  * Merchant detail — Terms & exclusions accordions (shared mobile/desktop).
  * On mobile, ShopDetail places this after ShopDetailRightRail so it sits below Cashback Tips.
  */
+type ShopTermDescription = {
+  kind: "text";
+  text: string;
+};
+
+type ShopTermLinkDescription = {
+  kind: "link";
+  text: string;
+  href: string;
+};
+
+type ShopTermSection = {
+  title: string;
+  subtitle: string;
+  description: Array<ShopTermDescription | ShopTermLinkDescription>;
+};
+
 export function ShopDetailTermsExclusions() {
   const t = useTranslations();
 
-  const termSections = useMemo(
+  const termSections = useMemo<ShopTermSection[]>(
     () => [
       {
         title: t("Exclusions"),
-        subtitle: t("You won't get Cashback on:"),
+        subtitle: t("You won't get Cashback on:"),
         description: [
-          t("Purchases made with Vouchers or Promo codes not featured on our platform"),
-          t("Taxes · Service charges · Shipping and delivery"),
+          {
+            kind: "text",
+            text: t("Purchases made with Vouchers or Promo codes not featured on our platform"),
+          },
+          {
+            kind: "text",
+            text: t("Taxes · Service charges · Shipping and delivery"),
+          },
         ],
       },
       {
@@ -30,22 +53,36 @@ export function ShopDetailTermsExclusions() {
           "Any rejected, cancelled, refunded, exchanged or returned purchases will not be eligible for Cashback"
         ),
         description: [
-          t("For partial returns or exchanges, we'll prorate the Cashback as an adjustment"),
+          {
+            kind: "text",
+            text: t(
+              "For partial returns or exchanges, we'll prorate the Cashback as an adjustment"
+            ),
+          },
         ],
       },
       {
         title: t("Tracking Disclaimers"),
         subtitle: "",
         description: [
-          t(
-            "Your Cashback may be tracked at a different rate initially and adjusted to the correct rate when we confirm the transaction details"
-          ),
+          {
+            kind: "text",
+            text: t(
+              "Your Cashback may be tracked at a different rate initially and adjusted to the correct rate when we confirm the transaction details"
+            ),
+          },
         ],
       },
       {
         title: t("Other terms and conditions"),
         subtitle: "",
-        description: [t("GoGoCash terms of use")],
+        description: [
+          {
+            kind: "link",
+            text: t("GoGoCash terms of use"),
+            href: "https://gogocash.co/term-of-use",
+          },
+        ],
       },
     ],
     [t]
@@ -53,7 +90,7 @@ export function ShopDetailTermsExclusions() {
 
   return (
     <section className="min-w-0" aria-labelledby="shop-detail-terms-heading">
-      <h2 id="shop-detail-terms-heading" className="mb-4 text-xl font-semibold text-[#3b3b3b]">
+      <h2 id="shop-detail-terms-heading" className="mb-4 text-xl font-semibold text-(--gc-text)">
         {t("Terms and exclusions")}
       </h2>
       {termSections.map((item, index) => {
@@ -64,7 +101,7 @@ export function ShopDetailTermsExclusions() {
             disableGutters
             elevation={0}
             sx={{
-              border: "1px solid #b7e7db",
+              border: "1px solid var(--gc-border-mint)",
               borderRadius: "12px",
               boxShadow: "0px 4px 6px rgba(0,0,0,0.05)",
               mb: 2,
@@ -78,7 +115,7 @@ export function ShopDetailTermsExclusions() {
             }}
           >
             <AccordionSummary
-              expandIcon={<ExpandMoreIcon sx={{ color: "#3b3b3b" }} />}
+              expandIcon={<ExpandMoreIcon sx={{ color: "var(--gc-text)" }} />}
               aria-controls={`shop-term-${index}-content`}
               id={`shop-term-${index}-header`}
               sx={{
@@ -89,22 +126,35 @@ export function ShopDetailTermsExclusions() {
                 },
               }}
             >
-              <HelpOutlineOutlinedIcon sx={{ fontSize: 20, color: "#00cc99", flexShrink: 0 }} />
+              <HelpOutlineOutlinedIcon
+                sx={{ fontSize: 20, color: "var(--gc-primary)", flexShrink: 0 }}
+              />
               <span
-                className={`${dmSans.style.fontFamily} text-left font-semibold text-[#3b3b3b] text-base`}
+                className={`${dmSans.className} text-left font-semibold text-(--gc-text) text-base`}
               >
                 {item.title}
               </span>
             </AccordionSummary>
             <AccordionDetails sx={{ pt: 0, pb: 2 }}>
               {item.subtitle ? (
-                <p className={`${dmSans.className} text-sm text-[#3b3b3b]`}>{item.subtitle}</p>
+                <p className={`${dmSans.className} text-sm text-(--gc-text)`}>{item.subtitle}</p>
               ) : null}
               <ul className="mt-2 list-disc pl-4">
                 {item.description.map((desc, descIndex) => {
                   return (
-                    <li key={descIndex} className="mb-2 text-sm text-[#7f7f7f]">
-                      <p className={`${dmSans.className}`}>{desc}</p>
+                    <li key={descIndex} className="mb-2 text-sm text-(--gc-text-muted)">
+                      {desc.kind === "link" ? (
+                        <a
+                          href={desc.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`${dmSans.className} rounded-[2px] font-medium text-(--gc-primary) underline decoration-[1.5px] underline-offset-2 transition-colors hover:text-(--gc-primary-strong) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--gc-primary)`}
+                        >
+                          {desc.text}
+                        </a>
+                      ) : (
+                        <p className={dmSans.className}>{desc.text}</p>
+                      )}
                     </li>
                   );
                 })}

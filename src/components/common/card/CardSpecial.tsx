@@ -4,14 +4,9 @@
 import FavoriteBorder from "@mui/icons-material/FavoriteBorder";
 import ScheduleOutlined from "@mui/icons-material/ScheduleOutlined";
 import { useTranslations } from "next-intl";
-import { ShopExploreMenuTapIcon } from "@/components/nav/ShopExploreMenuTapIcon";
-import { designSystemColor } from "@/constants/design-system";
-import { getOfferCategoryRowVisual } from "@/lib/offer/offerCardVisuals";
+import { CategoryChip } from "@/components/common/card/CategoryChip";
+import { getOfferCategoryRowVisual, FALLBACK_BANNER } from "@/lib/offer/offerCardVisuals";
 import { cn } from "@/lib/utils";
-
-/** Compact category chip: same row height as the favorite control (`size-5` = 20px). */
-const cardCategoryChipClass =
-  "inline-flex h-5 max-h-5 min-h-0 items-center gap-1 overflow-hidden rounded-full border border-[#e4e4e4] bg-[#f6f6f6] px-2 py-0 text-[10px] font-medium leading-none text-[#3b3b3b] shadow-[0_1px_3px_rgba(0,0,0,0.05)] transition-colors hover:bg-[#ececec] sm:text-xs";
 
 /**
  * GoGoCash 1.1 — Shop Cards (featured)
@@ -30,7 +25,7 @@ interface IProp {
    * Shop/category explore grids: 2+ columns — fill cell width and use slightly smaller type on narrow viewports.
    */
   directoryGrid?: boolean;
-  /** When true, show the “Grab Coupon” badge on the banner (offer has an available coupon). */
+  /** When true, show the "Grab Coupon" badge on the banner (offer has an available coupon). */
   showGrabCoupon?: boolean;
 }
 
@@ -50,25 +45,24 @@ const CardSpecial = ({
   return (
     <div
       className={cn(
-        "pointer-events-none flex h-full min-h-0 w-full flex-col gap-2 overflow-hidden rounded-2xl border border-[#e4e4e4] bg-white p-2",
+        "pointer-events-none flex h-full min-h-0 w-full flex-col gap-2 overflow-hidden rounded-2xl border border-(--gc-border) bg-white p-2",
         directoryGrid ? "max-w-none" : "mx-auto max-w-[280px]",
-        /* Stretch-link parent: clicks must pass through to overlay `<a>` except the favorite control */
         "[&_*]:pointer-events-none [&_button]:pointer-events-auto"
       )}
     >
       <div className="relative w-full shrink-0">
-        <div className="relative aspect-272/153 w-full overflow-hidden rounded-lg bg-[#989898]">
+        <div className="relative aspect-272/153 w-full overflow-hidden rounded-lg bg-(--gc-text-soft)">
           <img
             src={banner}
             alt={offer_name}
             width={272}
             height={153}
-            className={`size-full ${banner === "/home/banner.webp" ? "object-fill" : "object-cover"}`}
+            className={`size-full ${banner === FALLBACK_BANNER ? "object-fill" : "object-cover"}`}
           />
         </div>
 
         {showGrabCoupon ? (
-          <div className="absolute left-2 top-1.5 flex h-6 max-w-[calc(100%-16px)] items-center gap-2 rounded-2xl border border-[#e4e4e4] bg-white px-2 py-1 text-xs font-normal leading-normal text-[#3b3b3b] shadow-[0px_2px_2px_0px_rgba(0,0,0,0.05)]">
+          <div className="absolute left-2 top-1.5 flex h-6 max-w-[calc(100%-16px)] items-center gap-2 rounded-2xl border border-(--gc-border) bg-white px-2 py-1 text-xs font-normal leading-normal text-(--gc-text) shadow-[0px_2px_2px_0px_rgba(0,0,0,0.05)]">
             <span
               aria-hidden
               className="flex size-[13px] shrink-0 items-center justify-center text-[13px] leading-none"
@@ -83,19 +77,14 @@ const CardSpecial = ({
       <div className="flex min-h-0 flex-1 flex-col gap-1">
         <div className="flex w-full items-center gap-2">
           <div className="flex min-w-0 flex-1 items-center gap-2">
-            {/* Compact chip — height matches favorite `size-5` (20px); span only (card is inside shop Link) */}
-            <span className={cn(cardCategoryChipClass, "min-w-0 max-w-full shrink-0")}>
-              <span className="flex size-[18px] shrink-0 items-center justify-center text-[#3b3b3b]">
-                <ShopExploreMenuTapIcon
-                  variant="category"
-                  categoryIndex={iconIndex}
-                  className="size-[18px] lg:size-[18px]"
-                />
-              </span>
-              <span className="min-w-0 truncate">{categoryLabel}</span>
-            </span>
+            <CategoryChip
+              label={categoryLabel}
+              iconIndex={iconIndex}
+              size="md"
+              className="min-w-0 max-w-full shrink-0"
+            />
             {showExpiry ? (
-              <div className="inline-flex max-w-[min(100%,11rem)] shrink-0 items-center gap-1 rounded-full bg-[#ffe8e9] px-1 py-0.5 text-[10px] font-normal leading-normal text-[#cd0d0d]">
+              <div className="inline-flex max-w-[min(100%,11rem)] shrink-0 items-center gap-1 rounded-full bg-[#ffe8e9] px-1 py-0.5 text-[10px] font-normal leading-normal text-(--gc-danger)">
                 <ScheduleOutlined sx={{ fontSize: 10 }} aria-hidden />
                 <span className="flex flex-wrap items-center gap-0.5">
                   <span>{t("Expires in")}</span>
@@ -114,7 +103,7 @@ const CardSpecial = ({
               e.stopPropagation();
             }}
           >
-            <FavoriteBorder sx={{ fontSize: 18, color: designSystemColor.green2 }} aria-hidden />
+            <FavoriteBorder sx={{ fontSize: 18, color: "var(--gc-primary-strong)" }} aria-hidden />
           </button>
         </div>
 
@@ -127,7 +116,7 @@ const CardSpecial = ({
           <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-1">
             <p
               className={cn(
-                "line-clamp-2 font-medium leading-tight text-[#3b3b3b]",
+                "line-clamp-2 font-medium leading-tight text-(--gc-text)",
                 directoryGrid ? "text-[15px] sm:text-xl" : "text-xl"
               )}
             >
@@ -135,7 +124,7 @@ const CardSpecial = ({
             </p>
             <p
               className={cn(
-                "font-normal leading-normal text-[#989898]",
+                "font-normal leading-normal text-(--gc-text-soft)",
                 directoryGrid ? "text-xs sm:text-sm" : "text-sm"
               )}
             >
@@ -144,10 +133,9 @@ const CardSpecial = ({
           </div>
           <p
             className={cn(
-              "max-w-[45%] shrink-0 text-right font-semibold leading-none tabular-nums",
+              "max-w-[45%] shrink-0 text-right font-semibold leading-none tabular-nums text-(--gc-primary-strong)",
               directoryGrid ? "text-xl sm:text-2xl md:text-[32px]" : "text-[32px]"
             )}
-            style={{ color: designSystemColor.green2 }}
           >
             {percent}
           </p>

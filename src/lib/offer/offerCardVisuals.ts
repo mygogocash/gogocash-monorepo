@@ -5,7 +5,7 @@ import {
   SHOP_EXPLORE_MENU_ITEMS,
 } from "@/features/shop/shopExploreCategoryMenu";
 
-const FALLBACK_BANNER = "/home/banner.webp";
+export const FALLBACK_BANNER = "/home/banner.webp";
 
 /** Resolved banner URL for CardSpecial / CardShopMini (matches `CardSlideCategory` rules). */
 export function getOfferBannerSrc(offer: DataOffer, isDesktopWidth: boolean): string {
