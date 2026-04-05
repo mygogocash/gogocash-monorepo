@@ -21,9 +21,9 @@ describe("offerHasGrabCouponBadge", () => {
   });
 
   it("prefers explicit has_coupon over active_coupon_count", () => {
-    expect(
-      offerHasGrabCouponBadge(stubOffer({ has_coupon: false, active_coupon_count: 5 }))
-    ).toBe(false);
+    expect(offerHasGrabCouponBadge(stubOffer({ has_coupon: false, active_coupon_count: 5 }))).toBe(
+      false
+    );
   });
 
   it("is false when no coupon signals are present", () => {

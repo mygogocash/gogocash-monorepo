@@ -33,7 +33,10 @@ export default function ConsentBanner() {
   useEffect(() => {
     const run = () => {
       try {
-        if (typeof window !== "undefined" && !localStorage.getItem(PDPA_CONSENT_BANNER_DISMISSED_KEY)) {
+        if (
+          typeof window !== "undefined" &&
+          !localStorage.getItem(PDPA_CONSENT_BANNER_DISMISSED_KEY)
+        ) {
           setVisible(true);
         }
       } catch {
