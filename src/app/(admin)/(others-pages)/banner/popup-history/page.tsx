@@ -1,13 +1,14 @@
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import type { BreadcrumbItem } from "@/components/common/PageBreadCrumb";
 import BannerSubNav from "@/components/banner/BannerSubNav";
+import BannerInactiveSlotsSection from "@/components/banner/BannerInactiveSlotsSection";
 import PopupHistoryTable from "@/components/banner/PopupHistoryTable";
 import type { Metadata } from "next";
 import { awaitPageDynamicProps, type DefaultAppPageProps } from "@/lib/nextAppPageProps";
 
 export const metadata: Metadata = {
   title: "Popup history | GoGoCash Admin",
-  description: "History of app-open modal popup configurations.",
+  description: "Modal popup snapshots and inactive banner slots (empty or past end date).",
 };
 
 const items: BreadcrumbItem[] = [
@@ -32,6 +33,17 @@ export default async function BannerPopupHistoryPage(props: DefaultAppPageProps)
             </p>
           </div>
           <PopupHistoryTable />
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03] sm:p-6">
+          <div className="mb-4">
+            <h3 className="text-base font-semibold text-gray-900 dark:text-white">Inactive banner slots</h3>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              Slots that are <strong>empty</strong> or <strong>past their end date</strong> (using each surface&apos;s shared start/end
+              schedule). <strong>Active</strong> and <strong>Scheduled</strong> slots only show a status badge on the main banner tables; inactive
+              ones are listed here instead.
+            </p>
+          </div>
+          <BannerInactiveSlotsSection />
         </div>
       </div>
     </div>

@@ -1,3 +1,6 @@
+/** Which homepage / brands banner admin surface is being edited (tables + mock paths). */
+export type BannerTableVariant = "home" | "homeSmall" | "allBrand";
+
 export interface BannerRequestForm {
   image_1: File | null;
   image_2: File | null;
@@ -16,5 +19,8 @@ export interface BannerRequestForm {
   id: string;
 }
 
-/** API payload for `/admin/banner-home` — no `end_forever` (derived from `end_date`). */
+/**
+ * API payload for banner slot APIs (`/admin/banner-home`, `/admin/banner-home-small`,
+ * `/admin/banner-all-brand-page`). No `end_forever` (derived from `end_date`).
+ */
 export type BannerData = Omit<BannerRequestForm, "id" | "end_forever">;

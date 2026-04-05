@@ -100,6 +100,14 @@ const offerTemplates = [
     banner_mobile: "",
     extra_store: false,
     offer_name_display: "Banana IT (TH)",
+    offer_display_tags: {
+      brand_category_enabled: true,
+      brand_category_label: "",
+      extra_cashback_tag: true,
+      grab_coupon_tag: false,
+      expire_in_days_enabled: true,
+      expire_in_days: 14,
+    },
   },
   {
     categories: "Fashion",
@@ -322,6 +330,34 @@ export const mockBanner = {
   link_1: "https://www.bananastore.com/th",
   link_2: "https://www.adidas.co.th",
   link_3: "https://www.airasia.com",
+  link_4: "",
+  link_5: "",
+};
+
+/** Secondary / compact carousel row on the app home screen (below main hero banners). */
+export const mockBannerHomeSmall = {
+  image_1: "banner-small-1",
+  image_2: null,
+  image_3: null,
+  image_4: null,
+  image_5: null,
+  link_1: "https://gogocash.app/promo/small-slot-1",
+  link_2: "",
+  link_3: "",
+  link_4: "",
+  link_5: "",
+};
+
+/** Carousel for the in-app “all brands” listing screen (separate from homepage). */
+export const mockBannerAllBrandPage = {
+  image_1: "brands-page-banner-1",
+  image_2: null,
+  image_3: null,
+  image_4: null,
+  image_5: null,
+  link_1: "https://gogocash.app/brands/promo",
+  link_2: "",
+  link_3: "",
   link_4: "",
   link_5: "",
 };

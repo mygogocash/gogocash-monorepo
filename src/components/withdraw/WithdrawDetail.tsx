@@ -608,9 +608,10 @@ const WithdrawDetail = () => {
                     </div>
 
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <p className="flex items-center text-sm text-gray-800 dark:text-gray-200">
+                      <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
                         <span className="min-w-[100px] font-medium">Full name:</span>{" "}
                         {withdrawDetail?.user?.fullName ?? "—"}
+                        <CopyButton value={withdrawDetail?.user?.fullName ?? ""} />
                       </p>
                       <p className="flex items-center text-sm text-gray-800 dark:text-gray-200">
                         <span className="min-w-[100px] font-medium">Gender:</span>{" "}
@@ -739,26 +740,26 @@ const WithdrawDetail = () => {
                           </p>
                         )}
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                          <p className="flex items-center text-sm text-gray-800 dark:text-gray-200">
+                          <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
                             <span className="min-w-[120px] font-medium">Bank:</span>{" "}
                             {bank.bank_name || "N/A"}
-                            <CopyButton value={bank.bank_name} />
+                            <CopyButton value={bank.bank_name?.trim() || "N/A"} />
                           </p>
-                          <p className="flex items-center text-sm text-gray-800 dark:text-gray-200">
+                          <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
                             <span className="min-w-[120px] font-medium">Account Number:</span>{" "}
                             {bank.account_number || "N/A"}
-                            <CopyButton value={bank.account_number} />
+                            <CopyButton value={bank.account_number?.trim() || "N/A"} />
                           </p>
-                          <p className="flex items-center text-sm text-gray-800 dark:text-gray-200">
+                          <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
                             <span className="min-w-[120px] font-medium">Account Name:</span>{" "}
                             {bank.account_name || "N/A"}
-                            <CopyButton value={bank.account_name} />
+                            <CopyButton value={bank.account_name?.trim() || "N/A"} />
                           </p>
                           {bank.method && bank.method !== "bank_transfer" && (
-                            <p className="flex items-center text-sm text-gray-800 dark:text-gray-200">
+                            <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
                               <span className="min-w-[120px] font-medium">Address:</span>{" "}
                               {bank.address || "N/A"}
-                              <CopyButton value={bank.address} />
+                              <CopyButton value={bank.address?.trim() || "N/A"} />
                             </p>
                           )}
                         </div>

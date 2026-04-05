@@ -14,6 +14,8 @@ import {
   Offer,
   OffersQuery,
   OffersResponse,
+  TopBrandsAdminResponse,
+  SaveTopBrandsResponse,
   WithdrawQuery,
   ResponseWithdraws,
   ConversionQuery,
@@ -506,6 +508,19 @@ class ApiClient {
 
     return this.request<OffersResponse>(endpoint, {
       method: "GET",
+    });
+  }
+
+  async getTopBrands(): Promise<TopBrandsAdminResponse> {
+    return this.request<TopBrandsAdminResponse>("/admin/top-brands", {
+      method: "GET",
+    });
+  }
+
+  async saveTopBrands(order: string[]): Promise<SaveTopBrandsResponse> {
+    return this.request<SaveTopBrandsResponse>("/admin/top-brands", {
+      method: "PUT",
+      body: JSON.stringify({ order }),
     });
   }
 

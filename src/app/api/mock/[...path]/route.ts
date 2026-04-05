@@ -39,6 +39,8 @@ export function generateStaticParams() {
   add("admin", "conversion-all");
   add("admin", "get-fee-rate");
   add("admin", "banner-home");
+  add("admin", "banner-home-small");
+  add("admin", "banner-all-brand-page");
   add("admin", "get-mycashback-user", "u1");
   add("admin", "list-mycashback-users");
   add("auth", "profile");
@@ -92,7 +94,26 @@ export async function POST(
   { params }: { params: Promise<{ path: string[] }> },
 ) {
   const { path } = await params;
-  const body = await request.json().catch(() => undefined);
+  const contentType = request.headers.get("content-type") ?? "";
+  let body: unknown;
+
+  if (contentType.includes("multipart/form-data")) {
+    const formData = await request.formData();
+    const safeName = (name: string) => name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const bodyObj: Record<string, string> = {};
+    for (const [key, value] of formData.entries()) {
+      if (value instanceof File) {
+        if (value.size === 0) continue;
+        bodyObj[key] = `uploads/${path.join("/")}/${key}/${Date.now()}-${safeName(value.name)}`;
+      } else {
+        bodyObj[key] = String(value);
+      }
+    }
+    body = bodyObj;
+  } else {
+    body = await request.json().catch(() => undefined);
+  }
+
   const r = await handleMockApiRequest({
     method: "POST",
     path,
