@@ -1,6 +1,6 @@
 /**
- * Shared “segmented” tab strip used under profile / wallet surfaces.
- * Keeps `WalletTransaction` and `ReferralInvitationPanel` visually aligned.
+ * Shared “segmented” tab strip used under profile / wallet surfaces and mobile GoGoQuest tabs.
+ * Keeps `WalletTransaction`, `ReferralInvitationPanel`, and `TabTitle` (quest) visually aligned.
  */
 
 export const PROFILE_TAB_STRIP_LIST_CLASS =

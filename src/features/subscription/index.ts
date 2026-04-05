@@ -1,5 +1,5 @@
 export type { PlanId, SubscriptionState, SubscriptionStatus } from "./types";
-export { PLANS, USD_TO_THB_DISPLAY } from "./constants";
+export { PLANS } from "./constants";
 export { createBillingPortalSession, createCheckoutSession, getUserSubscription } from "./actions";
 export { useSubscription } from "./hooks/useSubscription";
 export { useCheckout } from "./hooks/useCheckout";

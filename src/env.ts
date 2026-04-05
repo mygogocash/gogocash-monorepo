@@ -52,6 +52,10 @@ export const env = createEnv({
     STRIPE_PRICE_PLUS_YEARLY: optionalString,
     STRIPE_PRICE_PRO_MONTHLY: optionalString,
     STRIPE_PRICE_PRO_YEARLY: optionalString,
+    /** GoGo Unlimited — 49 THB / month (preferred when set; overrides tier starter/plus monthly). */
+    STRIPE_PRICE_THB_MONTHLY: optionalString,
+    /** GoGo Unlimited — 490 THB / year (preferred when set; overrides tier starter/plus annual). */
+    STRIPE_PRICE_THB_ANNUAL: optionalString,
   },
   client: {
     NEXT_PUBLIC_API_URL: optionalString,

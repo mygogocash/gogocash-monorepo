@@ -1055,24 +1055,24 @@
     "toggle": {
       "monthly": "Monthly",
       "annual": "Annual",
-      "saveBadge": "Save 16.7%",
+      "saveBadge": "Save ~16%",
       "aria": "Billing period"
     },
     "plan": {
       "monthly": {
         "name": "Monthly",
-        "price": "$1.49",
-        "period": "/ month",
-        "thbRef": "≈ ฿52 / month"
+        "price": "49",
+        "period": "THB / month",
+        "thbRef": ""
       },
       "annual": {
         "name": "Annual",
-        "price": "$14.90",
-        "period": "/ year",
-        "thbRef": "≈ ฿521 / year · ฿44/mo",
-        "effectiveMonthly": "$1.24 / month",
+        "price": "490",
+        "period": "THB / year",
+        "thbRef": "",
+        "effectiveMonthly": "≈ 41 THB / month · Save ~16%",
         "bestValue": "Best Value",
-        "savingsLine": "Best price · Save 16.7% vs monthly"
+        "savingsLine": "Best price · Save ~16% vs paying monthly"
       }
     },
     "benefits": {
@@ -1081,8 +1081,8 @@
       "vouchers": "Exclusive partner vouchers"
     },
     "cta": {
-      "subscribeMonthly": "Subscribe Monthly",
-      "subscribeAnnual": "Subscribe Annually",
+      "subscribeMonthly": "Subscribe for 49 THB / month",
+      "subscribeAnnual": "Subscribe for 490 THB / year",
       "currentPlan": "Current Plan ✓",
       "manageSubscription": "Manage Subscription",
       "changePlan": "Change Plan",
@@ -1112,9 +1112,9 @@
       "noSubBody": "Unlock GoGo Unlimited to access exclusive benefits."
     },
     "comparison": {
-      "monthlyTotal": "Monthly × 12 months = ${amount}",
-      "annualTotal": "Annual = ${amount}",
-      "save": "You save ${amount} ({pct}%)",
+      "monthlyTotal": "{monthly} THB × 12 = {total} THB",
+      "annualTotal": "{annual} THB / year",
+      "save": "Save {save} THB (~{pct}%)",
       "arrow": "→",
       "arrowDown": "↓"
     },
@@ -1127,9 +1127,8 @@
       "q3": "What happens after I cancel?",
       "a3": "You revert to the free GoGoCash plan. Unused days are not refunded.",
       "q4": "Which currency will I be billed in?",
-      "a4": "All charges are in USD. Thai Baht prices shown are estimates for reference only."
+      "a4": "All subscription charges are in Thai Baht (THB), processed securely by Stripe."
     },
-    "thbDisclaimer": "THB shown for reference only. Final billing in USD via Stripe.",
     "successToast": "🎉 GoGo Unlimited activated! Welcome aboard.",
     "errorToast": "Something went wrong. Please try again."
   },
@@ -1139,7 +1138,7 @@
     "pageTitle": "Go Unlimited",
     "planStarterMonthly": "Go Unlimited",
     "planStarterAnnual": "Go Unlimited Annual",
-    "pageSubtitle": "Starter membership in USD. THB amounts are estimates for display only (1 USD ≈ 35 THB).",
+    "pageSubtitle": "GoGo Unlimited is billed in Thai Baht (THB) — 49 THB / month or 490 THB / year.",
     "stripeDisabled": "Stripe checkout is not enabled in this environment.",
     "stripeDisabledCta": "View membership page",
     "periodMonthly": "Monthly",
@@ -1148,8 +1147,8 @@
     "saveBadge": "Save {pct}%",
     "month": "month",
     "year": "year",
-    "effectiveMonthly": "≈ ${usd}/mo billed annually (~฿{thb}/mo est.)",
-    "thbDisclaimer": "Reference: ≈ ฿{thb} THB (display only; you are charged in USD).",
+    "effectiveMonthly": "≈ 41 THB / month when billed annually (490 THB / year)",
+    "thbDisclaimer": "Prices are in THB including VAT where applicable; charged in THB via Stripe.",
     "benefit1": "Priority customer care",
     "benefit2": "Monthly warranty coupons",
     "benefit3": "Exclusive vouchers & partner deals",
@@ -1164,12 +1163,12 @@
     "viewPricing": "View pricing",
     "faqTitle": "FAQ",
     "faq1Q": "How does billing work?",
-    "faq1A": "You are charged in USD on the schedule you pick (monthly or yearly). THB figures are estimates for convenience.",
+    "faq1A": "You are charged in THB on the schedule you pick (49 THB monthly or 490 THB yearly).",
     "faq2Q": "Can I cancel anytime?",
     "faq2A": "Yes. You can cancel from the billing portal; access continues until the end of the paid period unless otherwise stated.",
     "faq3Q": "What happens after I cancel?",
     "faq3A": "Your membership benefits continue until the end of the current billing period, then revert according to your plan terms.",
-    "plansFootnote": "Prices: ${monthly}/mo vs ${annual}/yr Starter annual plan.",
+    "plansFootnote": "Prices: 49 THB / month vs 490 THB / year (annual plan).",
     "status": {
       "active": "Active",
       "trialing": "Trialing",

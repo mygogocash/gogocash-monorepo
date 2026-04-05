@@ -11,6 +11,7 @@ import HelpOutlineOutlined from "@mui/icons-material/HelpOutlineOutlined";
 import HourglassEmptyOutlined from "@mui/icons-material/HourglassEmptyOutlined";
 import PaymentsOutlined from "@mui/icons-material/PaymentsOutlined";
 import { ClickAwayListener, IconButton, Tooltip } from "@mui/material";
+import { useCashbackSummaryCountUp } from "@/hooks/useCashbackSummaryCountUp";
 import { useTranslations } from "next-intl";
 import { useState, type ReactNode } from "react";
 
@@ -88,6 +89,7 @@ function TotalHighlight({
         </div>
         <div className="shrink-0 text-right">
           <span
+            suppressHydrationWarning
             className={`font-semibold tabular-nums tracking-tight text-[#00aa80] ${compact ? "text-xl" : "text-2xl sm:text-[28px]"}`}
           >
             {formatNumber(amount)}
@@ -142,6 +144,7 @@ function SupportingTile({
       </div>
       <div className={`tabular-nums ${compact ? "mt-0.5" : "mt-1"}`}>
         <span
+          suppressHydrationWarning
           className={`font-semibold text-[#00aa80] ${compact ? "text-lg" : "text-xl md:text-2xl"}`}
         >
           {formatNumber(amount)}
@@ -179,11 +182,18 @@ export function CashbackSummaryBreakdownCard({
     thai
   );
 
+  const { containerRef, display } = useCashbackSummaryCountUp({
+    totalCashback,
+    pendingCashback,
+    withdrawn,
+  });
+
   const isRail = layout === "rail";
   const [helpOpen, setHelpOpen] = useState(false);
 
   return (
     <div
+      ref={containerRef}
       className={`relative shrink-0 overflow-hidden rounded-2xl border border-[#e4e4e4] bg-white shadow-[0_2px_16px_rgba(0,0,0,0.06)] ${
         isRail ? "flex h-full min-h-[257px] w-full min-w-0 flex-1" : "w-full max-w-[916px]"
       }`}
@@ -257,7 +267,7 @@ export function CashbackSummaryBreakdownCard({
             icon={<AccountBalanceWalletOutlined sx={{ fontSize: isRail ? 18 : 22 }} />}
             label={t("Total Cashback")}
             hint={t("cashbackSummaryTotalHint")}
-            amount={totalCashback}
+            amount={display.totalCashback}
             currency={currency}
             compact={isRail}
           />
@@ -268,7 +278,7 @@ export function CashbackSummaryBreakdownCard({
               icon={<HourglassEmptyOutlined sx={{ fontSize: isRail ? 18 : 20 }} />}
               label={t("Pending Cashback")}
               hint={t("cashbackSummaryPendingHint")}
-              amount={pendingCashback}
+              amount={display.pendingCashback}
               currency={currency}
               compact={isRail}
             />
@@ -276,7 +286,7 @@ export function CashbackSummaryBreakdownCard({
               icon={<PaymentsOutlined sx={{ fontSize: isRail ? 18 : 20 }} />}
               label={t("Withdrawn")}
               hint={t("cashbackSummaryWithdrawnHint")}
-              amount={withdrawn}
+              amount={display.withdrawn}
               currency={currency}
               compact={isRail}
             />

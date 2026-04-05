@@ -22,12 +22,11 @@ export default function PricingPageClient() {
   const t = useTranslations("subscription");
   const [period, setPeriod] = useState<BillingPeriod>("annual");
 
-  const monthlyYearTotal = (PLANS.starter_monthly.priceUsd * 12).toFixed(2);
-  const annualPrice = PLANS.starter_annual.priceUsd.toFixed(2);
-  const saveAmount = (PLANS.starter_monthly.priceUsd * 12 - PLANS.starter_annual.priceUsd).toFixed(
-    2
-  );
-  const savePct = String(PLANS.starter_annual.savingsPct);
+  const monthlyAmt = PLANS.thb_monthly_49.priceTHB;
+  const annualAmt = PLANS.thb_annual_490.priceTHB;
+  const stackYear = monthlyAmt * 12;
+  const saveAmt = stackYear - annualAmt;
+  const savePct = String(PLANS.thb_annual_490.savingsPct);
 
   if (!FEATURE_FLAGS.stripeBilling) {
     return (
@@ -86,10 +85,10 @@ export default function PricingPageClient() {
           }}
         >
           <Box sx={{ order: { xs: 2, md: 1 } }}>
-            <PricingCard planId="starter_monthly" emphasized={period === "monthly"} />
+            <PricingCard planId="thb_monthly_49" emphasized={period === "monthly"} />
           </Box>
           <Box sx={{ order: { xs: 1, md: 2 } }}>
-            <PricingCard planId="starter_annual" emphasized={period === "annual"} />
+            <PricingCard planId="thb_annual_490" emphasized={period === "annual"} />
           </Box>
         </Box>
 
@@ -113,16 +112,16 @@ export default function PricingPageClient() {
               color: "var(--gc-text)",
             }}
           >
-            <span>{t("comparison.monthlyTotal", { amount: `$${monthlyYearTotal}` })}</span>
+            <span>{t("comparison.monthlyTotal", { monthly: monthlyAmt, total: stackYear })}</span>
             <span aria-hidden="true" style={{ color: "var(--gc-primary)" }}>
               {t("comparison.arrowDown")}
             </span>
-            <span>{t("comparison.annualTotal", { amount: `$${annualPrice}` })}</span>
+            <span>{t("comparison.annualTotal", { annual: annualAmt })}</span>
             <Typography
               component="span"
               sx={{ color: "var(--gc-primary-strong)", fontWeight: 700 }}
             >
-              {t("comparison.save", { amount: `$${saveAmount}`, pct: savePct })}
+              {t("comparison.save", { save: saveAmt, pct: savePct })}
             </Typography>
           </Box>
           <Box
@@ -138,11 +137,11 @@ export default function PricingPageClient() {
               color: "var(--gc-text)",
             }}
           >
-            <span>{t("comparison.monthlyTotal", { amount: `$${monthlyYearTotal}` })}</span>
+            <span>{t("comparison.monthlyTotal", { monthly: monthlyAmt, total: stackYear })}</span>
             <span aria-hidden="true" style={{ color: "var(--gc-primary)" }}>
               {t("comparison.arrow")}
             </span>
-            <span>{t("comparison.annualTotal", { amount: `$${annualPrice}` })}</span>
+            <span>{t("comparison.annualTotal", { annual: annualAmt })}</span>
             <span aria-hidden="true" style={{ color: "var(--gc-primary)" }}>
               {t("comparison.arrow")}
             </span>
@@ -150,7 +149,7 @@ export default function PricingPageClient() {
               component="span"
               sx={{ color: "var(--gc-primary-strong)", fontWeight: 700 }}
             >
-              {t("comparison.save", { amount: `$${saveAmount}`, pct: savePct })}
+              {t("comparison.save", { save: saveAmt, pct: savePct })}
             </Typography>
           </Box>
         </Box>

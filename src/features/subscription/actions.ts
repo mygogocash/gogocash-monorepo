@@ -34,10 +34,12 @@ async function absoluteOrigin(): Promise<string> {
 
 function planIdFromPriceId(priceId: string | undefined): PlanId | null {
   if (!priceId) return null;
-  const monthly = env.STRIPE_PRICE_STARTER_MONTHLY;
-  const annual = env.STRIPE_PRICE_STARTER_ANNUAL ?? env.STRIPE_PRICE_STARTER_YEARLY;
-  if (monthly && priceId === monthly) return "starter_monthly";
-  if (annual && priceId === annual) return "starter_annual";
+  const thbM = env.STRIPE_PRICE_THB_MONTHLY;
+  const thbY = env.STRIPE_PRICE_THB_ANNUAL;
+  const legM = env.STRIPE_PRICE_STARTER_MONTHLY;
+  const legY = env.STRIPE_PRICE_STARTER_ANNUAL ?? env.STRIPE_PRICE_STARTER_YEARLY;
+  if ((thbM && priceId === thbM) || (legM && priceId === legM)) return "thb_monthly_49";
+  if ((thbY && priceId === thbY) || (legY && priceId === legY)) return "thb_annual_490";
   return null;
 }
 

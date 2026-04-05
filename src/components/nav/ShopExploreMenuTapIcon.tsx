@@ -14,6 +14,10 @@ const ROW_STEP = 60;
 /**
  * Vector icons from Figma “Menu Taps.svg” (node 8123:68217). Tint via `currentColor`
  * on the parent row (`text-white` active, `#005D46` default in List).
+ *
+ * **Sizing:** Omit `className` for shop-explore nav defaults (`size-5` / `lg:size-6`).
+ * Pass explicit `className` (e.g. `size-4 md:size-3` from `CategoryChip`) so chip icons
+ * are not enlarged by the nav breakpoint.
  */
 export function ShopExploreMenuTapIcon({
   variant,
@@ -23,6 +27,7 @@ export function ShopExploreMenuTapIcon({
   variant: "all" | "category";
   /** 0 = Digital Services … 12 = Others (order matches `SHOP_EXPLORE_MENU_ITEMS`) */
   categoryIndex?: number;
+  /** When set, replaces default `size-5 lg:size-6` (must include size utilities if needed). */
   className?: string;
 }) {
   const translateY = variant === "all" ? FIRST_ROW_Y : FIRST_ROW_Y + ROW_STEP * (categoryIndex + 1);
@@ -39,7 +44,7 @@ export function ShopExploreMenuTapIcon({
       viewBox="0 0 24 24"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      className={cn("size-5 shrink-0 lg:size-6", className)}
+      className={cn("shrink-0", className ?? "size-5 lg:size-6")}
       aria-hidden
     >
       <g transform={`translate(-${ICON_SLOT_X},-${translateY})`}>

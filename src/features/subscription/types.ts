@@ -6,7 +6,7 @@ export type SubscriptionStatus =
   | "incomplete"
   | "none";
 
-export type PlanId = "starter_monthly" | "starter_annual";
+export type PlanId = "thb_monthly_49" | "thb_annual_490";
 
 export interface SubscriptionState {
   status: SubscriptionStatus;

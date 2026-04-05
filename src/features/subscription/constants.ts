@@ -1,24 +1,18 @@
 export const PLANS = {
-  starter_monthly: {
-    id: "starter_monthly" as const,
+  thb_monthly_49: {
+    id: "thb_monthly_49" as const,
     name: "GoGo Unlimited",
-    priceUsd: 1.49,
-    priceTHBDisplay: 52.15,
+    priceTHB: 49,
     interval: "month" as const,
-    stripePriceEnvKey: "STRIPE_PRICE_STARTER_MONTHLY",
+    stripePriceEnvKey: "STRIPE_PRICE_THB_MONTHLY",
   },
-  starter_annual: {
-    id: "starter_annual" as const,
+  thb_annual_490: {
+    id: "thb_annual_490" as const,
     name: "GoGo Unlimited Annual",
-    priceUsd: 14.9,
-    priceTHBDisplay: 521.5,
-    effectiveMonthlyUsd: 1.24,
-    effectiveMonthlyTHB: 43.46,
-    savingsPct: 16.7,
+    priceTHB: 490,
+    effectiveMonthlyTHB: 41,
+    savingsPct: 16,
     interval: "year" as const,
-    stripePriceEnvKey: "STRIPE_PRICE_STARTER_ANNUAL",
+    stripePriceEnvKey: "STRIPE_PRICE_THB_ANNUAL",
   },
 } as const;
-
-/** THB display uses 1 USD = 35 THB (UI reference only). */
-export const USD_TO_THB_DISPLAY = 35;

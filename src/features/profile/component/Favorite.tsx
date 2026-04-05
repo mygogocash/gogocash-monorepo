@@ -5,16 +5,11 @@ import FavoriteShopCard from "@/features/profile/component/FavoriteShopCard";
 import FavoriteShopsEmptyState from "@/features/profile/component/FavoriteShopsEmptyState";
 import FavoriteStoreHero from "@/features/profile/component/FavoriteStoreHero";
 import SubPage from "../layout/SubPage";
-import type {
-  DataFav,
-  DataFavList,
-  DataOffer,
-  IResponseFav,
-  IResponseOffer,
-} from "@/interfaces/offer";
+import type { DataFav, DataOffer, IResponseFav, IResponseOffer } from "@/interfaces/offer";
 import { fetcher } from "@/lib/axios/client";
 import { favoriteOffer } from "@/lib/services/offer";
-import { banner, getPercent, pathImage } from "@/lib/utils";
+import { getOfferBannerSrc, getOfferCashbackPercentLabel } from "@/lib/offer/offerCardVisuals";
+import { offerHasGrabCouponBadge } from "@/lib/offer/offerGrabCouponBadge";
 import {
   FAVORITE_SHOP_SORT_VALUES,
   type FavoriteShopSort,
@@ -41,32 +36,10 @@ import SearchIcon from "@mui/icons-material/Search";
 const FAVORITE_FETCH = { page: 1, limit: 200 };
 const PAGE_SIZE = 18;
 
-function percentLabelForOffer(offer: DataOffer): string {
-  if (offer.commission_store != null && !Number.isNaN(Number(offer.commission_store))) {
-    return `${Number(offer.commission_store).toFixed(1)}%`;
-  }
-  return getPercent(offer.commissions, true) || "0%";
-}
-
-function percentLabelForFavRow(offer: DataFavList["offer_id"]): string {
-  return percentLabelForOffer(offer as unknown as DataOffer);
-}
-
-function logoSrcForFavoriteItem(item: DataFavList): string {
-  const o = item.offer_id;
-  const src = o.logo_desktop || o.logo_mobile || o.logo;
-  return src ? pathImage(src) : "";
-}
-
-function logoSrcForDataOffer(offer: DataOffer, lg: boolean): string {
-  if (offer.logo_desktop || offer.logo_mobile || offer.logo) {
-    return pathImage(offer.logo_desktop || offer.logo_mobile || offer.logo);
-  }
-  const b = offer.banner || offer.banner_mobile;
-  if (b) {
-    return banner(offer.banner_mobile, offer.banner, lg);
-  }
-  return "/home/banner.webp";
+function showGrabCouponForOffer(offer: DataOffer): boolean {
+  return (
+    offerHasGrabCouponBadge(offer) || (offer.extra_point != null && Number(offer.extra_point) > 0)
+  );
 }
 
 const FavoriteList = () => {
@@ -176,13 +149,12 @@ const FavoriteList = () => {
             {recentList.map((offer, index) => (
               <FavoriteShopCard
                 key={offer._id}
-                logoSrc={logoSrcForDataOffer(offer, lg)}
+                bannerSrc={getOfferBannerSrc(offer, lg)}
                 offerName={offer.offer_name_display || offer.offer_name}
-                percentLabel={percentLabelForOffer(offer)}
+                percentLabel={getOfferCashbackPercentLabel(offer)}
                 shopHref={`/shop/${offer._id}`}
-                showGrabCoupon={
-                  offer.extra_point != null && Number(offer.extra_point) > 0 ? true : false
-                }
+                categories={offer.categories}
+                showGrabCoupon={showGrabCouponForOffer(offer)}
                 trackingOffer={offer}
                 trackingContext={{
                   listId: "favorite_recent_visit",
@@ -281,25 +253,23 @@ const FavoriteList = () => {
           ) : (
             <div className="grid grid-cols-2 justify-items-center gap-4 sm:gap-6 xl:grid-cols-3">
               {pagedFavorites.map((item, index) => {
-                const offer = item.offer_id;
+                const offer = item.offer_id as unknown as DataOffer;
                 const globalIndex = (listPage - 1) * PAGE_SIZE + index + 1;
                 return (
                   <FavoriteShopCard
                     key={item._id}
-                    logoSrc={logoSrcForFavoriteItem(item)}
-                    offerName={offer?.offer_name_display || offer?.offer_name || ""}
-                    percentLabel={percentLabelForFavRow(offer)}
-                    shopHref={`/shop/${offer?._id}`}
+                    bannerSrc={getOfferBannerSrc(offer, lg)}
+                    offerName={offer.offer_name_display || offer.offer_name || ""}
+                    percentLabel={getOfferCashbackPercentLabel(offer)}
+                    shopHref={`/shop/${offer._id}`}
+                    categories={offer.categories ?? ""}
                     favorite
                     onToggleFavorite={() => {
-                      if (offer?._id) {
+                      if (offer._id) {
                         void mutateFav({ offer_id: offer._id });
                       }
                     }}
-                    showGrabCoupon={(() => {
-                      const ep = (offer as unknown as DataOffer).extra_point;
-                      return ep != null && Number(ep) > 0;
-                    })()}
+                    showGrabCoupon={showGrabCouponForOffer(offer)}
                     trackingOffer={offer}
                     trackingContext={{
                       listId: "favorite_merchants",

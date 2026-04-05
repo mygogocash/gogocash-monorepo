@@ -10,8 +10,8 @@ import { useId, useMemo, useRef, useState } from "react";
 import { useMembershipLanding, type MembershipLandingI18n } from "./useMembershipLanding";
 import { useStripeCheckout } from "./useStripeCheckout";
 
-const STARTER_PRICE_MONTHLY = 69;
-const STARTER_PRICE_ANNUAL_EFFECTIVE = 57;
+const STARTER_PRICE_MONTHLY = 49;
+const STARTER_PRICE_ANNUAL_EFFECTIVE = 41;
 
 function FeatureIcon({ ok }: { ok: boolean }) {
   return ok ? (

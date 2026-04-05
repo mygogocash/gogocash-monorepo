@@ -25,7 +25,7 @@ type Props = {
 
 export function PricingCard({ planId, emphasized }: Props) {
   const t = useTranslations("subscription");
-  const isAnnual = planId === "starter_annual";
+  const isAnnual = planId === "thb_annual_490";
   const { mutate, isPending, variables: pendingPlan } = useCheckout();
   const { data: sub } = useSubscription();
 
@@ -125,26 +125,6 @@ export function PricingCard({ planId, emphasized }: Props) {
             {t("plan.annual.effectiveMonthly")}
           </Typography>
         ) : null}
-        <Typography
-          sx={{
-            mt: 0.75,
-            fontSize: "0.75rem",
-            color: "var(--gc-text-soft)",
-          }}
-        >
-          {isAnnual ? t("plan.annual.thbRef") : t("plan.monthly.thbRef")}
-        </Typography>
-        <Typography
-          component="p"
-          sx={{
-            mt: 0.5,
-            fontSize: "0.7rem",
-            fontStyle: "italic",
-            color: "var(--gc-text-soft)",
-          }}
-        >
-          {t("thbDisclaimer")}
-        </Typography>
       </Box>
 
       <List dense disablePadding sx={{ flex: 1, mb: 2 }}>

@@ -62,9 +62,9 @@ export default function BillingPageClient() {
   }
 
   const intervalLabel =
-    data.planId === "starter_annual"
+    data.planId === "thb_annual_490"
       ? t("billing.intervalAnnual")
-      : data.planId === "starter_monthly"
+      : data.planId === "thb_monthly_49"
         ? t("billing.intervalMonthly")
         : "";
 

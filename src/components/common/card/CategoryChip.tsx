@@ -8,12 +8,13 @@ const BASE =
 
 const SIZE = {
   sm: "h-4 max-h-4 px-1.5 py-0 text-[10px]",
-  md: "h-5 max-h-5 px-2 py-0 text-[10px] sm:text-xs",
+  md: "h-5 max-h-5 px-2 py-0 text-[10px] sm:text-xs md:h-4 md:max-h-4 md:px-1.5",
 } as const;
 
 const ICON_SIZE = {
   sm: "size-3",
-  md: "size-4",
+  /** Smaller icon from `md` up so chips match desktop type scale (see `CardSpecial`). */
+  md: "size-4 md:size-3",
 } as const;
 
 interface CategoryChipProps {
@@ -26,12 +27,7 @@ interface CategoryChipProps {
 export function CategoryChip({ label, iconIndex, size = "sm", className }: CategoryChipProps) {
   return (
     <span className={cn(BASE, SIZE[size], className)}>
-      <span
-        className={cn(
-          "flex shrink-0 items-center justify-center text-(--gc-primary-strong)",
-          ICON_SIZE[size]
-        )}
-      >
+      <span className="flex shrink-0 items-center justify-center text-(--gc-primary-strong)">
         <ShopExploreMenuTapIcon
           variant="category"
           categoryIndex={iconIndex}
