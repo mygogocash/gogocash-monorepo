@@ -806,6 +806,8 @@
   "pdpaConsentBannerBodyPart2": ". By using GoGoCash you agree to our use of cookies for cashback and analytics.",
   "pdpaConsentDecline": "Cookie settings",
   "pdpaConsentAllow": "Accept all cookies",
+  "cookieBannerInternalTrigger": "Cookies",
+  "cookieBannerInternalTriggerAria": "Open cookie consent banner",
   "pdpaPrivacyCenterTitle": "Privacy center",
   "pdpaPrivacyCenterIntro": "This page puts you in control. See what data we use for cashback, turn optional uses on or off, download a copy of your information, or ask us to delete it—whenever you need.",
   "pdpaQuickGuideTitle": "On this page you can",

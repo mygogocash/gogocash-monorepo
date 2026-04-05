@@ -1,4 +1,5 @@
 import CardSpecial from "@/components/common/card/CardSpecial";
+import { offerHasGrabCouponBadge } from "@/lib/offer/offerGrabCouponBadge";
 import MerchantListTracker from "@/components/analytics/MerchantListTracker";
 import Input from "@/components/common/Input";
 import { Link } from "@/i18n/navigation";
@@ -233,6 +234,7 @@ const List = () => {
                         offer_name={offer.offer_name_display || offer.offer_name}
                         percent={percentLabel(offer)}
                         categories={offer.categories}
+                        showGrabCoupon={offerHasGrabCouponBadge(offer)}
                       />
                     </div>
                   </div>

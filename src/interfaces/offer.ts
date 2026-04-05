@@ -45,6 +45,13 @@ export interface DataOffer {
   max_cap: number;
   extra_point: number | null;
   product_type: ProductTypeList[];
+  /**
+   * When set by API, drives “Grab Coupon” on listing cards.
+   * Prefer this or `active_coupon_count` over client-side guessing.
+   */
+  has_coupon?: boolean;
+  /** Active coupons count from API; if set without `has_coupon`, >0 shows the badge. */
+  active_coupon_count?: number;
 }
 
 export interface ProductTypeList {

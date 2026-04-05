@@ -22,6 +22,8 @@ interface CardShopMobileDefaultProps {
   offer_name: string;
   percent: string;
   categories?: string;
+  /** When true, show the “Grab Coupon” badge on the banner. */
+  showGrabCoupon?: boolean;
 }
 
 const CardShopMobileDefault = ({
@@ -29,6 +31,7 @@ const CardShopMobileDefault = ({
   offer_name,
   percent,
   categories = "",
+  showGrabCoupon = false,
 }: CardShopMobileDefaultProps) => {
   const t = useTranslations();
   const { label: categoryLabel, iconIndex } = getOfferCategoryRowVisual(categories);
@@ -52,15 +55,17 @@ const CardShopMobileDefault = ({
           />
         </div>
 
-        <div className="absolute left-1.5 top-1.5 flex h-[22px] max-w-[calc(100%-12px)] items-center gap-1 rounded-2xl border border-[#e4e4e4] bg-white px-2 py-1 text-[10px] font-normal leading-normal text-[#3b3b3b] shadow-[0px_2px_2px_0px_rgba(0,0,0,0.05)]">
-          <span
-            aria-hidden
-            className="flex size-2.5 shrink-0 items-center justify-center text-[10px] leading-none"
-          >
-            🧧
-          </span>
-          <span className="min-w-0 truncate">{t("Grab Coupon")}</span>
-        </div>
+        {showGrabCoupon ? (
+          <div className="absolute left-1.5 top-1.5 flex h-[22px] max-w-[calc(100%-12px)] items-center gap-1 rounded-2xl border border-[#e4e4e4] bg-white px-2 py-1 text-[10px] font-normal leading-normal text-[#3b3b3b] shadow-[0px_2px_2px_0px_rgba(0,0,0,0.05)]">
+            <span
+              aria-hidden
+              className="flex size-2.5 shrink-0 items-center justify-center text-[10px] leading-none"
+            >
+              🧧
+            </span>
+            <span className="min-w-0 truncate">{t("Grab Coupon")}</span>
+          </div>
+        ) : null}
       </div>
 
       <div className="flex min-h-0 w-full flex-col gap-1">

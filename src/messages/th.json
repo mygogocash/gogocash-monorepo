@@ -806,6 +806,8 @@
   "pdpaConsentBannerBodyPart2": " เมื่อใช้ GoGoCash ถือว่าคุณยอมรับการใช้คุกกี้เพื่อแคชแบ็กและการวิเคราะห์",
   "pdpaConsentDecline": "ตั้งค่าคุกกี้",
   "pdpaConsentAllow": "ยอมรับคุกกี้ทั้งหมด",
+  "cookieBannerInternalTrigger": "คุกกี้",
+  "cookieBannerInternalTriggerAria": "เปิดแบนเนอร์ยินยอมคุกกี้",
   "pdpaPrivacyCenterTitle": "ศูนย์ความเป็นส่วนตัว",
   "pdpaPrivacyCenterIntro": "หน้านี้รวมการตั้งค่าไว้ที่เดียว ดูการใช้ข้อมูลสำหรับแคชแบ็ก เปิดหรือปิดการใช้ข้อมูลเสริม ดาวน์โหลดสำเนาข้อมูล หรือขอลบข้อมูลได้เมื่อต้องการ",
   "pdpaQuickGuideTitle": "คุณทำอะไรในหน้านี้ได้บ้าง",

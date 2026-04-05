@@ -65,6 +65,8 @@ interface MockBrandSeedInput {
   logo: string;
   banner: string;
   description: string;
+  /** Omit or true: show “Grab Coupon” on cards; false = no coupons for this mock brand. */
+  has_coupon?: boolean;
 }
 
 interface MockCashbackBlueprint {
@@ -191,6 +193,7 @@ const createMockBrand = ({
   logo,
   banner,
   description,
+  has_coupon: hasCouponSeed,
 }: MockBrandSeedInput): DataOffer => ({
   _id: id,
   offer_id: getNumericId(id),
@@ -227,6 +230,7 @@ const createMockBrand = ({
   max_cap: 0,
   extra_point: null,
   product_type: createProductTypes(category),
+  has_coupon: hasCouponSeed !== false,
 });
 
 const mockBrandCatalog: MockBrandSeedInput[] = [
@@ -256,6 +260,7 @@ const mockBrandCatalog: MockBrandSeedInput[] = [
     logo: "/globe.svg",
     banner: "/quest/banner_en.png",
     description: "Flight promos and travel cashback in one place.",
+    has_coupon: false,
   },
   {
     id: "brand-pixelport-1004",
@@ -265,6 +270,7 @@ const mockBrandCatalog: MockBrandSeedInput[] = [
     logo: "/window.svg",
     banner: "/popular/Electronic.png",
     description: "Tech accessories, mobile gear, and gadget drops.",
+    has_coupon: false,
   },
   {
     id: "brand-glow-theory-1005",

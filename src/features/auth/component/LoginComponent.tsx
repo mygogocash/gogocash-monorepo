@@ -543,7 +543,7 @@ const LoginComponent = () => {
             />
           </div>
 
-          <div className="flex w-full max-w-[480px] flex-col lg:mx-0 lg:h-[690px] lg:max-w-[600px] lg:shrink-0">
+          <div className="mx-auto flex w-full max-w-[480px] flex-col lg:mx-0 lg:h-[690px] lg:max-w-[600px] lg:shrink-0">
             <div className="flex min-h-0 flex-1 flex-col gap-8 overflow-hidden rounded-[24px] border-2 border-[#e4e4e4] bg-white px-5 py-6 max-md:px-4 max-md:pb-7 md:px-6 lg:h-full lg:gap-3 lg:px-10 lg:py-8">
               <div className="flex shrink-0 flex-col items-center text-center">
                 <LogoMark className="mb-6 bg-[#fafafa] shadow-[0_4px_24px_rgba(0,0,0,0.06)] lg:mb-2 lg:bg-white lg:shadow-none" />

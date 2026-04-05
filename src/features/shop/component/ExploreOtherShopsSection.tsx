@@ -4,6 +4,7 @@ import MerchantListTracker from "@/components/analytics/MerchantListTracker";
 import type { DataOffer, IResponseFav } from "@/interfaces/offer";
 import { banner, getPercent, logoOffer } from "@/lib/utils";
 import { trackMerchantSelect } from "@/lib/analytics";
+import { offerHasGrabCouponBadge } from "@/lib/offer/offerGrabCouponBadge";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import { IconButton } from "@mui/material";
 import { useTranslations } from "next-intl";
@@ -108,12 +109,14 @@ export default function ExploreOtherShopsSection({
                     height={225}
                     className="size-full object-cover object-center"
                   />
-                  <span className="absolute left-2.5 top-2.5 flex items-center gap-1 rounded-full border border-[#e4e4e4] bg-white/95 px-2.5 py-1 text-[11px] font-semibold text-[#3b3b3b] shadow-sm sm:left-3 sm:top-3 sm:text-xs">
-                    <span aria-hidden className="text-[#e93636]">
-                      🧧
+                  {offerHasGrabCouponBadge(relatedOffer) ? (
+                    <span className="absolute left-2.5 top-2.5 flex items-center gap-1 rounded-full border border-[#e4e4e4] bg-white/95 px-2.5 py-1 text-[11px] font-semibold text-[#3b3b3b] shadow-sm sm:left-3 sm:top-3 sm:text-xs">
+                      <span aria-hidden className="text-[#e93636]">
+                        🧧
+                      </span>
+                      {t("Grab Coupon")}
                     </span>
-                    {t("Grab Coupon")}
-                  </span>
+                  ) : null}
                 </div>
               </LocaleLink>
               <div className="flex items-start gap-2 border-t border-[#f0f0f0] p-3 sm:p-4">

@@ -14,6 +14,7 @@ import MerchantListTracker from "@/components/analytics/MerchantListTracker";
 import { DataOffer } from "@/interfaces/offer";
 import { Link } from "@/i18n/navigation";
 import { getOfferBannerSrc, getOfferCashbackPercentLabel } from "@/lib/offer/offerCardVisuals";
+import { offerHasGrabCouponBadge } from "@/lib/offer/offerGrabCouponBadge";
 import { useMediaQuery } from "@mui/material";
 import { trackMerchantSelect } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
@@ -155,6 +156,7 @@ const CardSlideCategory = ({
   const renderOfferCard = (offer: DataOffer, index: number) => {
     const bannerSrc = getOfferBannerSrc(offer, lg);
     const percentStr = getOfferCashbackPercentLabel(offer);
+    const showGrabCoupon = offerHasGrabCouponBadge(offer);
 
     const trackClick = () => {
       trackMerchantSelect({
@@ -197,6 +199,7 @@ const CardSlideCategory = ({
             offer_name={offer.offer_name}
             percent={percentStr}
             categories={offer.categories}
+            showGrabCoupon={showGrabCoupon}
           />
         </div>
       </div>
@@ -206,6 +209,7 @@ const CardSlideCategory = ({
   const renderMobileFeaturedGridCard = (offer: DataOffer, index: number) => {
     const bannerSrc = getOfferBannerSrc(offer, lg);
     const percentStr = getOfferCashbackPercentLabel(offer);
+    const showGrabCoupon = offerHasGrabCouponBadge(offer);
     const trackClick = () => {
       trackMerchantSelect({
         merchant: offer,
@@ -229,6 +233,7 @@ const CardSlideCategory = ({
             offer_name={offer.offer_name}
             percent={percentStr}
             categories={offer.categories}
+            showGrabCoupon={showGrabCoupon}
           />
         </div>
       </div>

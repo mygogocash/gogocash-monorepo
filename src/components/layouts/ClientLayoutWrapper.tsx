@@ -6,6 +6,7 @@ import { usePathname } from "@/i18n/navigation";
 import Footer from "@/components/layouts/Footer";
 import LineOfficialFab from "@/components/layouts/LineOfficialFab";
 import ConsentBanner from "@/components/pdpa/ConsentBanner";
+import ConsentBannerInternalTrigger from "@/components/pdpa/ConsentBannerInternalTrigger";
 import { NavigationLoadingProvider } from "@/components/providers/NavigationLoadingOverlay";
 import { GolinkMobileSheetProvider } from "@/components/providers/GolinkMobileSheetProvider";
 import { isMainFlexNonePath } from "@/lib/layout/mainFlexConfig";
@@ -43,6 +44,7 @@ export default function ClientLayoutWrapper({ children }: ClientLayoutWrapperPro
           <Footer />
           <FooterMobile />
           <LineOfficialFab />
+          <ConsentBannerInternalTrigger />
           <ConsentBanner />
         </div>
       </NavigationLoadingProvider>

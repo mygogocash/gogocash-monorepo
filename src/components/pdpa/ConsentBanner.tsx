@@ -7,14 +7,16 @@ import { useLocale } from "next-intl";
 import { Link as I18nLink, useRouter } from "@/i18n/navigation";
 import { TRANSLATIONS_DISABLED } from "@/constants/translations";
 import { getPdpaConsentBannerCopy } from "@/i18n/pdpaConsentBannerMerge";
+import {
+  CONSENT_BANNER_OPEN_EVENT,
+  PDPA_CONSENT_BANNER_DISMISSED_KEY,
+} from "@/lib/pdpa/consentBannerChannel";
 
 /** Dark bar + cookie icon + secondary / primary CTAs. */
 const BANNER_BG = "#1d1929";
 const BODY_MUTED = "#d1d1d4";
 const CTA_GREEN = "#00cc99";
 const CTA_GREEN_DEEP = "#00aa80";
-
-const STORAGE_KEY = "pdpa_consent_banner_dismissed_v1";
 
 const linkClass =
   "font-bold text-inherit underline decoration-solid underline-offset-2 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/80";
@@ -31,7 +33,7 @@ export default function ConsentBanner() {
   useEffect(() => {
     const run = () => {
       try {
-        if (typeof window !== "undefined" && !localStorage.getItem(STORAGE_KEY)) {
+        if (typeof window !== "undefined" && !localStorage.getItem(PDPA_CONSENT_BANNER_DISMISSED_KEY)) {
           setVisible(true);
         }
       } catch {
@@ -41,9 +43,15 @@ export default function ConsentBanner() {
     queueMicrotask(run);
   }, []);
 
+  useEffect(() => {
+    const onOpen = () => setVisible(true);
+    window.addEventListener(CONSENT_BANNER_OPEN_EVENT, onOpen);
+    return () => window.removeEventListener(CONSENT_BANNER_OPEN_EVENT, onOpen);
+  }, []);
+
   const dismiss = () => {
     try {
-      localStorage.setItem(STORAGE_KEY, "1");
+      localStorage.setItem(PDPA_CONSENT_BANNER_DISMISSED_KEY, "1");
     } catch {
       /* ignore */
     }

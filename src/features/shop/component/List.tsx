@@ -1,6 +1,7 @@
 "use client";
 
 import CardSpecial from "@/components/common/card/CardSpecial";
+import { offerHasGrabCouponBadge } from "@/lib/offer/offerGrabCouponBadge";
 import MerchantListTracker from "@/components/analytics/MerchantListTracker";
 import { Link } from "@/i18n/navigation";
 import { DataOffer, IResponseOffer } from "@/interfaces/offer";
@@ -155,6 +156,7 @@ const List = () => {
                         offer_name={offer.offer_name_display || offer.offer_name}
                         percent={percentLabel(offer)}
                         categories={offer.categories}
+                        showGrabCoupon={offerHasGrabCouponBadge(offer)}
                       />
                     </div>
                   </div>

@@ -30,6 +30,8 @@ interface IProp {
    * Shop/category explore grids: 2+ columns — fill cell width and use slightly smaller type on narrow viewports.
    */
   directoryGrid?: boolean;
+  /** When true, show the “Grab Coupon” badge on the banner (offer has an available coupon). */
+  showGrabCoupon?: boolean;
 }
 
 const CardSpecial = ({
@@ -39,6 +41,7 @@ const CardSpecial = ({
   categories = "",
   expiresInDays,
   directoryGrid = false,
+  showGrabCoupon = false,
 }: IProp) => {
   const t = useTranslations();
   const showExpiry = expiresInDays != null && expiresInDays >= 0;
@@ -64,15 +67,17 @@ const CardSpecial = ({
           />
         </div>
 
-        <div className="absolute left-2 top-1.5 flex h-6 max-w-[calc(100%-16px)] items-center gap-2 rounded-2xl border border-[#e4e4e4] bg-white px-2 py-1 text-xs font-normal leading-normal text-[#3b3b3b] shadow-[0px_2px_2px_0px_rgba(0,0,0,0.05)]">
-          <span
-            aria-hidden
-            className="flex size-[13px] shrink-0 items-center justify-center text-[13px] leading-none"
-          >
-            🧧
-          </span>
-          <span className="min-w-0 truncate">{t("Grab Coupon")}</span>
-        </div>
+        {showGrabCoupon ? (
+          <div className="absolute left-2 top-1.5 flex h-6 max-w-[calc(100%-16px)] items-center gap-2 rounded-2xl border border-[#e4e4e4] bg-white px-2 py-1 text-xs font-normal leading-normal text-[#3b3b3b] shadow-[0px_2px_2px_0px_rgba(0,0,0,0.05)]">
+            <span
+              aria-hidden
+              className="flex size-[13px] shrink-0 items-center justify-center text-[13px] leading-none"
+            >
+              🧧
+            </span>
+            <span className="min-w-0 truncate">{t("Grab Coupon")}</span>
+          </div>
+        ) : null}
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col gap-1">
