@@ -68,15 +68,15 @@ export function ShopDetailHero({
           </div>
         </div>
 
-        <div className="relative z-2 flex w-full max-w-full justify-center px-0 sm:px-4 md:px-10 lg:px-20">
+        {/* Same width reference as hero above (no extra horizontal inset) so 90% matches the banner card */}
+        <div className="relative z-2 flex w-full max-w-full justify-center px-0">
           {/**
            * GoGoCash 1.1 — Merchant hero summary card
            * https://www.figma.com/design/jFDx8MnbCtlCaTQxlhpJIp/GoGoCash-1.1?node-id=8553-213094
            *
-           * Mobile: 90% width, single row (title • fav • Shop Now), compact CTAs.
-           * sm+: full-width 97px bar, larger type, fixed Shop Now width.
+           * 90% of hero width at all breakpoints; single row; sm+ fixed 97px bar height.
            */}
-          <div className="mx-auto flex w-[90%] max-w-[90%] flex-row items-center justify-between gap-2 rounded-3xl bg-white px-4 py-3 shadow-[0_3px_14px_rgba(0,0,0,0.1)] sm:mx-0 sm:h-[97px] sm:min-h-[97px] sm:w-full sm:max-w-full sm:gap-4 sm:rounded-[32px] sm:px-8 sm:py-0 sm:shadow-[0_4px_20px_rgba(0,0,0,0.12)] md:px-12 lg:px-20">
+          <div className="mx-auto flex w-[90%] max-w-[90%] flex-row items-center justify-between gap-2 rounded-3xl bg-white px-4 py-3 shadow-[0_3px_14px_rgba(0,0,0,0.1)] sm:h-[97px] sm:min-h-[97px] sm:gap-4 sm:rounded-[32px] sm:px-8 sm:py-0 sm:shadow-[0_4px_20px_rgba(0,0,0,0.12)] md:px-12 lg:px-20">
             <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-center pr-1 sm:min-h-[97px] sm:pr-0 sm:py-2.5">
               <p
                 className={`${dmSans.style.fontFamily} truncate text-[17px] leading-snug font-semibold text-[#3b3b3b] sm:text-3xl sm:leading-tight lg:text-[40px] lg:leading-none`}

@@ -43,35 +43,39 @@ const sectionHeadingClass = "text-lg font-semibold tracking-tight text-[#1a1a1a]
 const cardPad = "p-4 sm:p-5 md:p-8";
 const cardPadCompact = "p-4 sm:p-5 md:p-6";
 
+/** Centered footnotes under primary actions (export / delete cards). */
+const cardActionFootnoteClass =
+  "mt-3 max-md:leading-snug text-center text-[#6b7280] md:mt-4 md:leading-relaxed";
+
+const primaryGreenButtonSx = {
+  bgcolor: "#00AA80",
+  "&:hover": { bgcolor: "#009970" },
+} as const;
+
 export default function PrivacyCenterContent() {
   const t = useTranslations();
   const [effective, setEffective] = useState<Record<string, EffectivePurpose | undefined>>({});
-  const [requests, setRequests] = useState<unknown[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingAll, setSavingAll] = useState(false);
 
   const refresh = useCallback(async () => {
-    const [eRes, rRes] = await Promise.all([
-      fetch("/api/pdpa/consent/effective", { credentials: "include" }),
-      fetch("/api/pdpa/data-subject-requests", { credentials: "include" }),
-    ]);
-    if (eRes.ok) {
-      const data = (await eRes.json()) as {
-        purposes: Record<string, EffectivePurpose>;
-      };
-      setEffective(data.purposes ?? {});
+    try {
+      const eRes = await fetch("/api/pdpa/consent/effective", { credentials: "include" });
+      if (eRes.ok) {
+        const data = (await eRes.json()) as {
+          purposes: Record<string, EffectivePurpose>;
+        };
+        setEffective(data.purposes ?? {});
+      }
+    } catch {
+      toast.error(t("pdpaRequestFailed"));
+    } finally {
+      setLoading(false);
     }
-    if (rRes.ok) {
-      const data = (await rRes.json()) as { requests: unknown[] };
-      setRequests(data.requests ?? []);
-    }
-    setLoading(false);
-  }, []);
+  }, [t]);
 
   useEffect(() => {
-    queueMicrotask(() => {
-      void refresh();
-    });
+    void refresh();
   }, [refresh]);
 
   const allOptionalGranted = useMemo(
@@ -81,37 +85,41 @@ export default function PrivacyCenterContent() {
 
   const setPurpose = async (code: PurposeCode, granted: boolean) => {
     const consentText = `${code} ${granted ? "granted" : "withdrawn"} — v${PDPA_CONSENT_VERSION}`;
-    if (granted) {
-      const res = await fetch("/api/pdpa/consent", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          purposes: [{ purposeCode: code, granted: true, consentText }],
-          method: "SETTINGS_UPDATE",
-        }),
-      });
-      if (!res.ok) {
-        toast.error(t("pdpaConsentSaveError"));
-        return;
+    try {
+      if (granted) {
+        const res = await fetch("/api/pdpa/consent", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            purposes: [{ purposeCode: code, granted: true, consentText }],
+            method: "SETTINGS_UPDATE",
+          }),
+        });
+        if (!res.ok) {
+          toast.error(t("pdpaConsentSaveError"));
+          return;
+        }
+      } else {
+        const res = await fetch("/api/pdpa/consent/withdraw", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            purposeCodes: [code],
+            method: "SETTINGS_UPDATE",
+          }),
+        });
+        if (!res.ok) {
+          toast.error(t("pdpaConsentSaveError"));
+          return;
+        }
       }
-    } else {
-      const res = await fetch("/api/pdpa/consent/withdraw", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          purposeCodes: [code],
-          method: "SETTINGS_UPDATE",
-        }),
-      });
-      if (!res.ok) {
-        toast.error(t("pdpaConsentSaveError"));
-        return;
-      }
+      toast.success(t("pdpaRequestSubmitted"));
+      await refresh();
+    } catch {
+      toast.error(t("pdpaConsentSaveError"));
     }
-    toast.success(t("pdpaRequestSubmitted"));
-    await refresh();
   };
 
   const acceptAllOptional = async () => {
@@ -121,54 +129,67 @@ export default function PrivacyCenterContent() {
       return;
     }
     setSavingAll(true);
-    const purposes = toGrant.map(({ code }) => ({
-      purposeCode: code,
-      granted: true as const,
-      consentText: `${code} granted — v${PDPA_CONSENT_VERSION}`,
-    }));
-    const res = await fetch("/api/pdpa/consent", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ purposes, method: "SETTINGS_UPDATE" }),
-    });
-    setSavingAll(false);
-    if (!res.ok) {
-      toast.error(t("pdpaConsentSaveError"));
-      return;
+    try {
+      const purposes = toGrant.map(({ code }) => ({
+        purposeCode: code,
+        granted: true as const,
+        consentText: `${code} granted — v${PDPA_CONSENT_VERSION}`,
+      }));
+      const res = await fetch("/api/pdpa/consent", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ purposes, method: "SETTINGS_UPDATE" }),
+      });
+      if (!res.ok) {
+        toast.error(t("pdpaConsentSaveError"));
+        return;
+      }
+      toast.success(t("pdpaRequestSubmitted"));
+      await refresh();
+    } catch {
+      toast.error(t("pdpaRequestFailed"));
+    } finally {
+      setSavingAll(false);
     }
-    toast.success(t("pdpaRequestSubmitted"));
-    await refresh();
   };
 
   const requestExport = async () => {
-    const res = await fetch("/api/pdpa/data-subject-requests", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ requestType: "PORTABILITY", channel: "IN_APP" }),
-    });
-    if (!res.ok) {
+    try {
+      const res = await fetch("/api/pdpa/data-subject-requests", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestType: "PORTABILITY", channel: "IN_APP" }),
+      });
+      if (!res.ok) {
+        toast.error(t("pdpaRequestFailed"));
+        return;
+      }
+      toast.success(t("pdpaRequestSubmitted"));
+      await refresh();
+    } catch {
       toast.error(t("pdpaRequestFailed"));
-      return;
     }
-    toast.success(t("pdpaRequestSubmitted"));
-    await refresh();
   };
 
   const requestErasure = async () => {
-    const res = await fetch("/api/pdpa/data-subject-requests", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ requestType: "ERASURE", channel: "IN_APP" }),
-    });
-    if (!res.ok) {
+    try {
+      const res = await fetch("/api/pdpa/data-subject-requests", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestType: "ERASURE", channel: "IN_APP" }),
+      });
+      if (!res.ok) {
+        toast.error(t("pdpaRequestFailed"));
+        return;
+      }
+      toast.success(t("pdpaRequestSubmitted"));
+      await refresh();
+    } catch {
       toast.error(t("pdpaRequestFailed"));
-      return;
     }
-    toast.success(t("pdpaRequestSubmitted"));
-    await refresh();
   };
 
   if (loading) {
@@ -218,32 +239,35 @@ export default function PrivacyCenterContent() {
               </Typography>
             </div>
             <CheckCircleRoundedIcon
-              className="hidden shrink-0 text-[#00AA80] md:block"
-              sx={{ fontSize: 40 }}
+              className="shrink-0 text-[#00AA80]"
+              sx={{ fontSize: 40, display: { xs: "none", md: "block" } }}
               aria-hidden
             />
           </div>
-          <Typography
-            variant="caption"
-            className="mb-3 block text-[#6b7280] max-md:leading-snug md:mb-4"
-          >
-            {t("pdpaAcceptAllOptionalHint")}
-          </Typography>
           <Button
             variant="contained"
             size="large"
             disabled={savingAll || allOptionalGranted}
+            aria-busy={savingAll}
+            aria-describedby="pdpa-accept-all-hint"
             onClick={() => void acceptAllOptional()}
-            className="max-md:min-h-11 max-md:py-2 max-md:text-[0.9375rem] rounded-full px-5 normal-case shadow-none md:px-6"
+            className="mb-3 w-full max-md:min-h-11 max-md:py-2 max-md:text-[0.9375rem] rounded-full px-5 normal-case shadow-none md:mb-4 md:px-6"
             sx={{
-              bgcolor: "#00AA80",
-              "&:hover": { bgcolor: "#009970" },
+              ...primaryGreenButtonSx,
               "&.Mui-disabled": { bgcolor: "#b8e6d9", color: "#fff" },
             }}
             startIcon={savingAll ? <CircularProgress color="inherit" size={18} /> : undefined}
           >
             {allOptionalGranted ? t("pdpaAllOptionalEnabled") : t("pdpaAcceptAllOptional")}
           </Button>
+          <Typography
+            id="pdpa-accept-all-hint"
+            variant="caption"
+            component="p"
+            className="m-0 text-[#6b7280] max-md:leading-snug"
+          >
+            {t("pdpaAcceptAllOptionalHint")}
+          </Typography>
         </div>
 
         <div className={`rounded-2xl border border-[#e8e8e8] bg-[#fafafa] ${cardPadCompact}`}>
@@ -345,11 +369,20 @@ export default function PrivacyCenterContent() {
             <Button
               variant="contained"
               className="max-md:min-h-11 max-md:py-2 max-md:text-[0.9375rem] w-full rounded-full normal-case sm:w-auto"
+              aria-describedby="pdpa-export-email-note"
               onClick={() => void requestExport()}
-              sx={{ bgcolor: "#00AA80", "&:hover": { bgcolor: "#009970" } }}
+              sx={primaryGreenButtonSx}
             >
               {t("pdpaRequestExport")}
             </Button>
+            <Typography
+              id="pdpa-export-email-note"
+              variant="caption"
+              component="p"
+              className={`m-0 ${cardActionFootnoteClass}`}
+            >
+              {t("pdpaExportEmailNote")}
+            </Typography>
           </div>
 
           <div
@@ -375,37 +408,21 @@ export default function PrivacyCenterContent() {
               variant="outlined"
               color="warning"
               className="max-md:min-h-11 max-md:py-2 max-md:text-[0.9375rem] w-full rounded-full border-amber-700 normal-case sm:w-auto"
+              aria-describedby="pdpa-delete-retention-note"
               onClick={() => void requestErasure()}
             >
               {t("pdpaRequestDeleteButton")}
             </Button>
             <Typography
+              id="pdpa-delete-retention-note"
               variant="caption"
-              display="block"
-              className="mt-3 max-md:leading-snug text-[#6b7280] md:mt-4 md:leading-relaxed"
+              component="p"
+              className={`m-0 ${cardActionFootnoteClass}`}
             >
               {t("pdpaDeleteRetentionNote")}
             </Typography>
           </div>
         </div>
-      </section>
-
-      <section
-        aria-labelledby="pdpa-requests-heading"
-        className={`rounded-2xl border border-[#e8e8e8] bg-[#fafafa] ${cardPadCompact}`}
-      >
-        <h3 id="pdpa-requests-heading" className={sectionHeadingClass}>
-          {t("pdpaRequestsSectionTitle")}
-        </h3>
-        <Typography
-          variant="body2"
-          className="mt-2 max-w-2xl text-[14px] leading-relaxed text-[#6b7280] md:mt-3 md:text-[0.875rem]"
-        >
-          {t("pdpaRequestsSectionBody")}
-        </Typography>
-        <Typography variant="body1" className="mt-4 font-medium text-[#3b3b3b] md:mt-5">
-          {t("pdpaRequestsCount", { count: requests.length })}
-        </Typography>
       </section>
 
       <GuardianConsentFlow />

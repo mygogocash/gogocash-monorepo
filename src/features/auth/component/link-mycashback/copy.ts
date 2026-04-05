@@ -28,6 +28,11 @@ import {
   LINK_MYCASHBACK_VERIFY_SENT_TO_EMAIL_FALLBACK,
   LINK_MYCASHBACK_VERIFY_TITLE_FALLBACK,
   LINK_MYCASHBACK_GOGOCASH_LABEL_FALLBACK,
+  LINK_MYCASHBACK_VERIFY_INVALID_OTP_FALLBACK,
+  LINK_MYCASHBACK_VERIFY_SUCCESS_TITLE_FALLBACK,
+  LINK_MYCASHBACK_VERIFY_SUCCESS_DESCRIPTION_FALLBACK,
+  LINK_MYCASHBACK_VERIFY_SUCCESS_CONTINUE_FALLBACK,
+  LINK_MYCASHBACK_VERIFY_SUCCESS_EDIT_CODE_FALLBACK,
 } from "./constants";
 
 export function messagesForLocale(locale: string): Record<string, unknown> {
@@ -177,6 +182,31 @@ export function buildCopy(messages: Record<string, unknown>): LinkMyCashbackScre
         messages,
         "linkMyCashbackMethodNext",
         LINK_MYCASHBACK_METHOD_NEXT_FALLBACK
+      ),
+      verifyInvalidOtp: messageString(
+        messages,
+        "linkMyCashbackVerifyInvalidOtp",
+        LINK_MYCASHBACK_VERIFY_INVALID_OTP_FALLBACK
+      ),
+      verifySuccessTitle: messageString(
+        messages,
+        "linkMyCashbackVerifySuccessTitle",
+        LINK_MYCASHBACK_VERIFY_SUCCESS_TITLE_FALLBACK
+      ),
+      verifySuccessDescription: messageString(
+        messages,
+        "linkMyCashbackVerifySuccessDescription",
+        LINK_MYCASHBACK_VERIFY_SUCCESS_DESCRIPTION_FALLBACK
+      ),
+      verifySuccessContinue: messageString(
+        messages,
+        "linkMyCashbackVerifySuccessContinue",
+        LINK_MYCASHBACK_VERIFY_SUCCESS_CONTINUE_FALLBACK
+      ),
+      verifySuccessEditCode: messageString(
+        messages,
+        "linkMyCashbackVerifySuccessEditCode",
+        LINK_MYCASHBACK_VERIFY_SUCCESS_EDIT_CODE_FALLBACK
       ),
     },
   };

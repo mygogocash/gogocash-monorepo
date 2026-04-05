@@ -25,6 +25,11 @@ export type LinkMyCashbackVerifyCopy = {
   verifyOtpAriaLabel: string;
   verifyBack: string;
   verifyNext: string;
+  verifyInvalidOtp: string;
+  verifySuccessTitle: string;
+  verifySuccessDescription: string;
+  verifySuccessContinue: string;
+  verifySuccessEditCode: string;
 };
 
 export type LinkMyCashbackScreenCopy = {
@@ -41,7 +46,7 @@ export type LinkMyCashbackScreenCopy = {
   verify: LinkMyCashbackVerifyCopy;
 };
 
-export type LinkStep = "intro" | "method" | "verify";
+export type LinkStep = "intro" | "method" | "verify" | "verify_success";
 
 export type LinkMyCashbackMethodStepProps = {
   copy: LinkMyCashbackMethodCopy;
@@ -68,4 +73,5 @@ export type LinkMyCashbackVerifyStepProps = {
   onResend: () => void;
   onBack: () => void;
   onNext: () => void;
+  submitting?: boolean;
 };

@@ -32,3 +32,10 @@ export const LINK_MYCASHBACK_VERIFY_TITLE_FALLBACK = "Verification Code";
 export const LINK_MYCASHBACK_VERIFY_DESC_EMAIL_FALLBACK =
   "A verification code will be sent to your email address to confirm this action is being performed by you.";
 export const LINK_MYCASHBACK_VERIFY_SENT_TO_EMAIL_FALLBACK = "Code is sent to email :";
+export const LINK_MYCASHBACK_VERIFY_INVALID_OTP_FALLBACK =
+  "That code doesn’t match. Check the code and try again.";
+export const LINK_MYCASHBACK_VERIFY_SUCCESS_TITLE_FALLBACK = "Verification successful";
+export const LINK_MYCASHBACK_VERIFY_SUCCESS_DESCRIPTION_FALLBACK =
+  "Your contact details have been confirmed. Continue to finish linking your MyCashBack account.";
+export const LINK_MYCASHBACK_VERIFY_SUCCESS_CONTINUE_FALLBACK = "Continue";
+export const LINK_MYCASHBACK_VERIFY_SUCCESS_EDIT_CODE_FALLBACK = "Change code";

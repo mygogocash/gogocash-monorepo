@@ -226,7 +226,7 @@ const List = () => {
                         })
                       }
                     />
-                    <div className="relative z-[1]">
+                    <div className="pointer-events-none relative z-[1]">
                       <CardSpecial
                         directoryGrid
                         banner={bannerSrc}

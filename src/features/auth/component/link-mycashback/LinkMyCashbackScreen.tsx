@@ -6,7 +6,7 @@
  * Copy resolves via static locale JSON → en fallback → literals (`copy.ts`).
  *
  * Figma: intro 9569-167488 · method 9573-224702 · verify 9573-225076
- * After verify success → Account setup (Figma 9022-914403) `/method/create` (no intermediate success screen).
+ * Valid OTP → success step; Continue → `/method/create`.
  * Skip → same `/method/create`.
  */
 
@@ -14,11 +14,14 @@ import { Link, useRouter } from "@/i18n/navigation";
 import { LogoMark } from "@/components/brand/LogoMark";
 import { BRAND_MINT_HEX } from "@/constants/brand";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import toast from "react-hot-toast";
+import { isLinkMyCashbackOtpValid } from "@/lib/link-mycashback/isLinkMyCashbackOtpValid";
 import { useLinkMyCashbackScreenCopy } from "./copy";
 import { LinkConnectorDots } from "./LinkConnectorDots";
 import { LinkMyCashbackMethodStep } from "./MethodStep";
 import type { LinkMyCashbackChannel, LinkStep } from "./types";
+import { LinkMyCashbackVerifySuccessStep } from "./VerifySuccessStep";
 import { LinkMyCashbackVerifyStep } from "./VerifyStep";
 
 export default function LinkMyCashbackScreen() {
@@ -31,6 +34,7 @@ export default function LinkMyCashbackScreen() {
   const [consentChecked, setConsentChecked] = useState(false);
   const [otpInput, setOtpInput] = useState("");
   const [resendSeconds, setResendSeconds] = useState(0);
+  const [verifySubmitting, setVerifySubmitting] = useState(false);
 
   useEffect(() => {
     if (linkStep !== "verify" || resendSeconds <= 0) {
@@ -59,12 +63,31 @@ export default function LinkMyCashbackScreen() {
     router.replace("/method/create");
   };
 
+  const onVerifyOtpSubmit = useCallback(() => {
+    const digits = otpInput.replace(/\D/g, "");
+    if (digits.length < 6) {
+      return;
+    }
+    setVerifySubmitting(true);
+    try {
+      if (!isLinkMyCashbackOtpValid(digits)) {
+        toast.error(copy.verify.verifyInvalidOtp);
+        return;
+      }
+      setLinkStep("verify_success");
+    } finally {
+      setVerifySubmitting(false);
+    }
+  }, [copy.verify.verifyInvalidOtp, otpInput]);
+
   const sectionHeadingId =
     linkStep === "intro"
       ? "link-mycashback-heading"
       : linkStep === "method"
         ? "link-mycashback-method-heading"
-        : "link-mycashback-verify-heading";
+        : linkStep === "verify_success"
+          ? "link-mycashback-verify-success-heading"
+          : "link-mycashback-verify-heading";
 
   return (
     <div className="mx-auto w-full max-w-[480px] px-6 pb-16 pt-10 md:px-8 md:pt-16">
@@ -174,11 +197,21 @@ export default function LinkMyCashbackScreen() {
             setOtpInput={setOtpInput}
             resendSeconds={resendSeconds}
             onResend={onVerifyResend}
+            submitting={verifySubmitting}
             onBack={() => {
               setLinkStep("method");
               setOtpInput("");
             }}
-            onNext={goToAccountSetupAfterVerify}
+            onNext={onVerifyOtpSubmit}
+          />
+        ) : linkStep === "verify_success" ? (
+          <LinkMyCashbackVerifySuccessStep
+            copy={copy.verify}
+            onContinue={goToAccountSetupAfterVerify}
+            onEditCode={() => {
+              setLinkStep("verify");
+              setOtpInput("");
+            }}
           />
         ) : null}
       </section>

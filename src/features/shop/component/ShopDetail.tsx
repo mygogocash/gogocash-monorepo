@@ -56,7 +56,7 @@ const ShopDetail = () => {
   const locale = useLocale();
   const messages = useMessages() as Record<string, unknown>;
   const merchantSummaryTagsAriaLabel = getMerchantSummaryTagsAriaLabel(messages, locale);
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const lg = useMediaQuery("(min-width:768px)");
   const [openLink, setOpenLink] = useState(false);
   const showOpenLinkLoading = useMinimumLoadingDuration(openLink);
@@ -187,29 +187,33 @@ const ShopDetail = () => {
   });
 
   const openLinkOffer = () => {
-    if (session) {
-      if (offer) {
-        trackMerchantRedirect({
-          merchant: offer,
-          status: "attempt",
-        });
-
-        trackMetaInitiateCheckout();
-
-        mutateGenerateDeeplink({
-          offer_id: offer?.offer_id,
-          merchant_id: offer?.merchant_id,
-          preview_url: offer.preview_url,
-        });
-      }
-    } else {
+    if (sessionStatus === "loading") {
+      return;
+    }
+    if (sessionStatus === "unauthenticated") {
       if (offer) {
         trackMerchantRedirect({
           merchant: offer,
           status: "login_required",
         });
       }
-      toast.error("Please login to continue");
+      const q = pathname ? `?callbackUrl=${encodeURIComponent(pathname)}` : "";
+      router.push(`/login${q}`);
+      return;
+    }
+    if (offer) {
+      trackMerchantRedirect({
+        merchant: offer,
+        status: "attempt",
+      });
+
+      trackMetaInitiateCheckout();
+
+      mutateGenerateDeeplink({
+        offer_id: offer?.offer_id,
+        merchant_id: offer?.merchant_id,
+        preview_url: offer.preview_url,
+      });
     }
   };
 

@@ -15,6 +15,7 @@ export function LinkMyCashbackVerifyStep({
   onResend,
   onBack,
   onNext,
+  submitting = false,
 }: LinkMyCashbackVerifyStepProps) {
   const {
     verifyTitle,
@@ -92,7 +93,7 @@ export function LinkMyCashbackVerifyStep({
         </button>
         <button
           type="button"
-          disabled={otpDigits.length < 6}
+          disabled={otpDigits.length < 6 || submitting}
           onClick={onNext}
           className="flex h-12 w-[144px] shrink-0 items-center justify-center rounded-full bg-[#F6F6F6] px-3 text-xs font-medium text-[#989898] disabled:cursor-not-allowed disabled:opacity-90 enabled:bg-[#00CC99] enabled:text-white enabled:hover:brightness-[0.98]"
         >

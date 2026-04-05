@@ -16,7 +16,7 @@ import WalletIcon from "@/components/icons/WalletIcon";
 import ProfilePopperMissingOrdersIcon from "@/components/icons/ProfilePopperMissingOrdersIcon";
 import MembershipNavIcon from "@/components/icons/MembershipNavIcon";
 import LogoutIcon from "@/components/icons/LogoutIcon";
-import CookiesIcon from "@/components/icons/CookiesIcon";
+import DocumentIcon from "@/components/icons/DocumentIcon";
 import LogoutConfirmDialog from "@/components/layouts/LogoutConfirmDialog";
 import { Link, usePathname } from "@/i18n/navigation";
 import { useCrossmintLoginContext } from "@/providers/CrossmintLoginContext";
@@ -105,9 +105,9 @@ const baseMenuTail: MenuEntry[] = [
     activePrefix: "/quest/history",
   },
   {
-    translationKey: "navCookiesPolicy",
+    translationKey: "navPrivacyPolicy",
     href: "/privacy-center",
-    icon: CookiesIcon,
+    icon: DocumentIcon,
     activePrefix: "/privacy-center",
   },
   {

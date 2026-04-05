@@ -45,49 +45,49 @@ export default function ProfileCashbackSummaryCard({
       aria-labelledby="profile-cashback-heading"
     >
       <div className="border-b border-[#e8f5ef] bg-gradient-to-br from-[#ecfdf5] via-[#f6fef9] to-white px-5 pb-5 pt-6 md:px-6 md:pb-6 md:pt-7">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <div className="flex items-center gap-2 text-[#0d5c45]">
-              <span className="flex size-9 items-center justify-center rounded-2xl bg-white/80 text-[#00AA80] shadow-sm ring-1 ring-[#d1fae5]">
+        <div className="flex min-w-0 flex-col gap-1">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-2 text-[#0d5c45]">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-white/80 text-[#00AA80] shadow-sm ring-1 ring-[#d1fae5]">
                 <AccountBalanceWalletOutlined sx={{ fontSize: 22 }} aria-hidden />
               </span>
               <h3
                 id="profile-cashback-heading"
-                className="text-lg font-semibold text-[#103522] md:text-xl"
+                className="min-w-0 text-lg font-semibold text-[#103522] md:text-xl"
               >
                 {t("Total Cashback")}
               </h3>
             </div>
-            <p className="pl-[44px] text-sm leading-snug text-[#6b7280] md:max-w-md">
-              {t("profileCashbackCardHint")}
-            </p>
-          </div>
-          <div className="shrink-0 sm:pt-1">
-            <Button
-              type="button"
-              onClick={onWithdraw}
-              uiVariant="ghost"
-              uiSize="sm"
-              sx={{
-                border: "1px solid #00CC99 !important",
-                color: "#ffffff",
-                background: "#00CC99 !important",
-                minHeight: "32px",
-                fontWeight: 500,
-                px: 2,
-                fontSize: "12px",
-                textTransform: "none",
-                boxShadow: "none",
-                "&:hover": {
-                  background: "#00b88a !important",
-                  borderColor: "#00b88a !important",
+            <div className="shrink-0">
+              <Button
+                type="button"
+                onClick={onWithdraw}
+                uiVariant="ghost"
+                uiSize="sm"
+                sx={{
+                  border: "1px solid #00CC99 !important",
+                  color: "#ffffff",
+                  background: "#00CC99 !important",
+                  minHeight: "32px",
+                  fontWeight: 500,
+                  px: 2,
+                  fontSize: "12px",
+                  textTransform: "none",
                   boxShadow: "none",
-                },
-              }}
-            >
-              {t("Withdraw")}
-            </Button>
+                  "&:hover": {
+                    background: "#00b88a !important",
+                    borderColor: "#00b88a !important",
+                    boxShadow: "none",
+                  },
+                }}
+              >
+                {t("Withdraw")}
+              </Button>
+            </div>
           </div>
+          <p className="pl-[44px] text-sm leading-snug text-[#6b7280] md:max-w-md">
+            {t("profileCashbackCardHint")}
+          </p>
         </div>
 
         <div className="mt-6 rounded-2xl border border-[#d1fae5]/80 bg-white/90 px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] md:px-5 md:py-5">

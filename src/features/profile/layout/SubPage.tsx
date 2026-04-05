@@ -57,20 +57,18 @@ const SubPage = ({ title, resolvedTitle, children, subTitle, showSubMenu, conten
               <SubProfile variant="panel" />
             </div>
             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-              <div className="flex shrink-0 items-center gap-2 border-b border-[var(--gc-border)] bg-white px-3 py-2.5 md:hidden">
-                <IconButton
-                  component={Link}
-                  href="/profile"
-                  aria-label={t("Back to Profile")}
-                  size="small"
-                  sx={{ color: "#103522" }}
-                >
+              <Link
+                href="/profile"
+                className="flex min-h-[48px] min-w-0 shrink-0 items-center gap-2 border-b border-[var(--gc-border)] bg-white px-3 py-2.5 no-underline outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#00cc99] md:hidden"
+                aria-label={`${t("Back to Profile")}: ${heading}`}
+              >
+                <span className="inline-flex shrink-0 text-[#103522]" aria-hidden>
                   <ArrowBackIosIcon sx={{ fontSize: 20 }} />
-                </IconButton>
+                </span>
                 <h1 className="min-w-0 flex-1 truncate text-[18px] font-semibold leading-snug tracking-[-0.02em] text-[#103522]">
                   {heading}
                 </h1>
-              </div>
+              </Link>
               <div
                 ref={mainScrollRef}
                 data-testid="profile-subpage-main-scroll"

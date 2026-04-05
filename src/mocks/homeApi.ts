@@ -2171,9 +2171,27 @@ function baseQuestRank(
   };
 }
 
+const MOCK_QUEST_LEADERBOARD_TAIL: Array<{ user_id: string; username: string; point: number }> = [
+  { user_id: "mock-user-rank-6", username: "PixelPilot", point: 695 },
+  { user_id: "mock-user-rank-7", username: "CashFlowCat", point: 672 },
+  { user_id: "mock-user-rank-8", username: "TurboSaver", point: 648 },
+  { user_id: "mock-user-rank-9", username: "MintMarathon", point: 625 },
+  { user_id: "mock-user-rank-10", username: "ShopHunter88", point: 601 },
+  { user_id: "mock-user-rank-11", username: "BonusBuilder", point: 578 },
+  { user_id: "mock-user-rank-12", username: "QuestNova", point: 554 },
+  { user_id: "mock-user-rank-13", username: "DealDrifter", point: 531 },
+  { user_id: "mock-user-rank-14", username: "RewardRider", point: 508 },
+  { user_id: "mock-user-rank-15", username: "TierTrader", point: 484 },
+  { user_id: "mock-user-rank-16", username: "CashbackAce", point: 461 },
+  { user_id: "mock-user-rank-17", username: "OfferOptIn", point: 438 },
+  { user_id: "mock-user-rank-18", username: "StackStar", point: 414 },
+  { user_id: "mock-user-rank-19", username: "PointsPanda", point: 391 },
+  { user_id: "mock-user-rank-20", username: "SwiftShopper", point: 368 },
+];
+
 function getMockQuestLeaderboard(): QuestRankResponse[] {
   const u = getActiveMockUserSeed().user;
-  return [
+  const head: QuestRankResponse[] = [
     baseQuestRank({ user_id: "mock-user-rank-1", username: "StarHunter", point: 2100, rank: 1 }),
     baseQuestRank({ user_id: "mock-user-rank-2", username: "LunaMint", point: 1840, rank: 2 }),
     baseQuestRank({ user_id: "mock-user-rank-3", username: "QuestKid", point: 1590, rank: 3 }),
@@ -2189,6 +2207,15 @@ function getMockQuestLeaderboard(): QuestRankResponse[] {
     }),
     baseQuestRank({ user_id: "mock-user-rank-5", username: "NeoShop", point: 720, rank: 5 }),
   ];
+  const tail = MOCK_QUEST_LEADERBOARD_TAIL.map((row, i) =>
+    baseQuestRank({
+      user_id: row.user_id,
+      username: row.username,
+      point: row.point,
+      rank: 6 + i,
+    })
+  );
+  return [...head, ...tail];
 }
 
 function getMockMyQuestList(): QuestRankResponse {

@@ -2,11 +2,14 @@
 import SubPage from "../layout/SubPage";
 import CardProfile from "./CardProfile";
 import ProfileDesktopPersonalPanel, {
+  PROFILE_PERSONAL_INFORMATION_SECTION_ID,
   type ProfileExtendedForm,
 } from "./ProfileDesktopPersonalPanel";
 import { useSession } from "next-auth/react";
 import { useTranslations } from "next-intl";
+import { useSearchParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
+import { WITHDRAW_FLOW_COLLECT_IDENTITY } from "@/lib/profile/withdrawFlowRoutes";
 import { fetcher, fetcherPost, fetcherPut } from "@/lib/axios/client";
 import { useQuery } from "@tanstack/react-query";
 import { ResGetBalanceMyCashback } from "@/interfaces/userMyCashback";
@@ -23,6 +26,9 @@ const ProfileInfo = () => {
   const { getCheck } = useCrossmintLoginContext();
   const t = useTranslations();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const openPersonalEditingFromWithdraw =
+    searchParams.get("flow") === WITHDRAW_FLOW_COLLECT_IDENTITY;
   const [loading, setLoading] = React.useState(false);
   const [formData, setFormData] = React.useState<ProfileExtendedForm>({
     username: "",
@@ -50,6 +56,18 @@ const ProfileInfo = () => {
     refetchOnWindowFocus: false,
     refetchOnMount: false,
   });
+
+  React.useEffect(() => {
+    if (!openPersonalEditingFromWithdraw) return;
+    const scrollToPersonal = () => {
+      document.getElementById(PROFILE_PERSONAL_INFORMATION_SECTION_ID)?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    };
+    const timeoutId = window.setTimeout(scrollToPersonal, 200);
+    return () => window.clearTimeout(timeoutId);
+  }, [openPersonalEditingFromWithdraw]);
 
   const saveProfile = async (): Promise<boolean> => {
     setLoading(true);
@@ -154,6 +172,7 @@ const ProfileInfo = () => {
             onSave={saveProfile}
             session={session ?? null}
             balanceMyCashback={balanceMyCashback}
+            initialEditing={openPersonalEditingFromWithdraw}
           />
         </div>
       </SubPage>

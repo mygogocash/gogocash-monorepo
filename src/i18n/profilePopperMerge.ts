@@ -1,15 +1,20 @@
 /**
- * Profile header popper: ensure keys exist if locale JSON is stale (Turbopack HMR).
+ * Profile nav / header popper: ensure keys exist if locale JSON is stale (Turbopack HMR).
  * Mirrors `withdrawCtaMerge.ts` / `headerSearchMerge.ts`.
  */
-export const PROFILE_POPPER_MESSAGE_KEYS = ["profilePopperGogoquestHistory"] as const;
+export const PROFILE_POPPER_MESSAGE_KEYS = [
+  "profilePopperGogoquestHistory",
+  "navPrivacyPolicy",
+] as const;
 
 const FALLBACK_EN: Record<(typeof PROFILE_POPPER_MESSAGE_KEYS)[number], string> = {
   profilePopperGogoquestHistory: "GoGoQuest History",
+  navPrivacyPolicy: "Privacy Policy",
 };
 
 const FALLBACK_TH: Record<(typeof PROFILE_POPPER_MESSAGE_KEYS)[number], string> = {
   profilePopperGogoquestHistory: "ประวัติ GoGoQuest",
+  navPrivacyPolicy: "นโยบายความเป็นส่วนตัว",
 };
 
 function isMissing(value: unknown): boolean {

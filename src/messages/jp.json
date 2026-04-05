@@ -186,7 +186,7 @@
   "profileAvatarUpdatedToast": "プロフィール写真を更新しました",
   "profileAvatarUploadFailedToast": "写真をアップロードできませんでした。もう一度お試しください。",
   "profileAvatarEditAria": "プロフィール写真を編集",
-  "navCookiesPolicy": "クッキーポリシー",
+  "navPrivacyPolicy": "プライバシーポリシー",
   "profilePopperLogOut": "ログアウト",
   "profilePopperGogoquestHistory": "GoGoQuest 履歴",
   "gogoquestHistoryHeroKicker": "GoGoQuest",

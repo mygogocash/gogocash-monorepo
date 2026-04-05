@@ -1,5 +1,5 @@
 /*
- * Shop Promotion by Brands — Swiper pagination, nav disabled state, fade-preview slides.
+ * Shop Promotion by Brands — Swiper pagination, fade-preview slides.
  * Imported only from `ShopPromotionHero.tsx` (not global).
  */
 
@@ -26,12 +26,6 @@
   background: #ffffff !important;
 }
 
-.shop-promo-swiper .shop-promo-swiper-button-next.swiper-button-disabled {
-  opacity: 0.35;
-  pointer-events: none;
-  cursor: not-allowed;
-}
-
 .shop-promo-swiper--fade-preview.swiper {
   overflow: hidden;
 }
@@ -51,6 +45,14 @@
   opacity: 0.38;
   pointer-events: none;
   filter: brightness(0.92);
+}
+
+/* Narrow viewports: single-slide swipe — no side peek; avoids dim duplicate + layout glitches */
+@media (max-width: 767px) {
+  .shop-promo-swiper--fade-preview .swiper-slide-next {
+    opacity: 0 !important;
+    filter: none;
+  }
 }
 
 .shop-promo-swiper--fade-preview .swiper-slide-active {

@@ -15,6 +15,7 @@ import type {
   DataGetBalanceMyCashback,
   ResGetBalanceMyCashback,
 } from "@/interfaces/userMyCashback";
+import { BRAND_MINT_HEX } from "@/constants/brand";
 import { profileLinkActionPillClass } from "@/features/profile/profileLinkPill";
 
 export type ProfileExtendedForm = {
@@ -142,7 +143,11 @@ type Props = {
   onSave: () => Promise<boolean>;
   session: Session | null;
   balanceMyCashback: ResGetBalanceMyCashback | undefined;
+  /** When true (e.g. withdraw KYC deep-link), start in edit mode so ID/address fields are usable immediately */
+  initialEditing?: boolean;
 };
+
+export const PROFILE_PERSONAL_INFORMATION_SECTION_ID = "profile-personal-information";
 
 export default function ProfileDesktopPersonalPanel({
   formData,
@@ -151,10 +156,11 @@ export default function ProfileDesktopPersonalPanel({
   onSave,
   session,
   balanceMyCashback,
+  initialEditing = false,
 }: Props) {
   const t = useTranslations();
   const router = useRouter();
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(initialEditing);
 
   const fieldsLocked = !isEditing;
 
@@ -180,7 +186,10 @@ export default function ProfileDesktopPersonalPanel({
   const socialSoon = () => toast(t("authFeatureComingSoon"));
 
   return (
-    <div className="flex w-full max-w-full flex-col gap-8 rounded-3xl border border-[#e4e4e4] bg-white p-6">
+    <div
+      id={PROFILE_PERSONAL_INFORMATION_SECTION_ID}
+      className="flex w-full max-w-full scroll-mt-24 flex-col gap-8 rounded-3xl border border-[#e4e4e4] bg-white p-6 md:scroll-mt-28"
+    >
       <div className="flex flex-col gap-6">
         <div className="flex w-full items-center justify-between gap-3">
           <h3 className="text-xl font-medium text-[#3b3b3b] md:text-2xl">
@@ -190,6 +199,7 @@ export default function ProfileDesktopPersonalPanel({
             uiVariant={isEditing ? "primary" : "ghost"}
             uiSize="sm"
             disabled={loading}
+            bgColor={isEditing ? BRAND_MINT_HEX : undefined}
             onClick={() => void handleEditOrSave()}
             sx={{
               ...(isEditing
@@ -201,8 +211,8 @@ export default function ProfileDesktopPersonalPanel({
                     textTransform: "none",
                   }
                 : {
-                    border: "1px solid #00CC99 !important",
-                    color: "#00CC99",
+                    border: `1px solid ${BRAND_MINT_HEX} !important`,
+                    color: BRAND_MINT_HEX,
                     background: "transparent !important",
                     minHeight: "32px",
                     fontWeight: 500,

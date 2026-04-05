@@ -27,27 +27,35 @@ export default function ReferralFaqsSection() {
       <h2 id="referral-faq-heading" className="mb-4 text-2xl font-semibold text-[#3b3b3b]">
         {t("referralFaqTitle")}
       </h2>
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-3 sm:gap-4">
         {items.map(({ q, a }, index) => (
           <Accordion
             key={q}
             defaultExpanded={index === 0}
             disableGutters
             elevation={0}
-            className="border-0 border-b border-solid border-[#b7e7db] bg-white shadow-[0px_4px_6px_rgba(0,0,0,0.05)] before:hidden"
             sx={{
-              "&.Mui-expanded": { margin: 0 },
+              border: "1px solid #b7e7db",
+              borderRadius: "16px",
+              boxShadow: "0px 4px 6px rgba(0,0,0,0.05)",
+              bgcolor: "#fff",
+              overflow: "hidden",
+              "&.Mui-expanded": {
+                bgcolor: "#fff",
+                margin: 0,
+              },
               "&:before": { display: "none" },
             }}
           >
             <AccordionSummary
-              expandIcon={<ExpandMoreIcon sx={{ fontSize: 16, color: "#3b3b3b" }} />}
+              expandIcon={<ExpandMoreIcon sx={{ fontSize: 20, color: "#3b3b3b" }} />}
               className="px-4 py-4"
               sx={{
                 minHeight: 0,
                 "& .MuiAccordionSummary-content": {
                   margin: "12px 0",
                   alignItems: "center",
+                  columnGap: "8px",
                 },
               }}
             >
@@ -64,7 +72,7 @@ export default function ReferralFaqsSection() {
                 </span>
                 <Typography
                   component="span"
-                  className="text-base font-medium leading-normal text-[#3b3b3b]"
+                  className="text-left text-base font-semibold leading-normal text-[#3b3b3b]"
                 >
                   {t(q)}
                 </Typography>

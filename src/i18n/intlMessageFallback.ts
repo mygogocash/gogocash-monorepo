@@ -114,7 +114,7 @@ export function createGetMessageFallback(messageLocale: string) {
           ? "MyCashBack の情報を共有することに同意します。"
           : "I consent to share my MyCashBack information. ";
     }
-    if (key === "linkMyCashbackPrivacyPolicy") {
+    if (key === "linkMyCashbackPrivacyPolicy" || key === "navPrivacyPolicy") {
       return messageLocale === "th"
         ? "นโยบายความเป็นส่วนตัว"
         : messageLocale === "jp"

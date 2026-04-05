@@ -1,90 +1,101 @@
-import { useTranslations } from "next-intl";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
+
+import { cn } from "@/lib/utils";
+
 interface TabTitleProps {
   activeTab: number;
   setActiveTab: (index: number) => void;
 }
+
+const TAB_SVGS = {
+  active: "bg-[url(/quest/tab_white2.svg)]",
+  inactive: "bg-[url(/quest/tab_grey.svg)]",
+} as const;
+
+const labelSurfaceClass =
+  "box-border min-h-[45px] w-full bg-[length:100%_100%] bg-center bg-no-repeat text-center text-[13px] leading-snug text-gray-900 antialiased max-[380px]:text-[11px]";
+
+const INACTIVE_Z = ["z-0", "z-[1]", "z-[2]"] as const;
+
+const tabs = [
+  { positionClass: "left-[calc(50%-200px)]", labelKey: "How to win!" },
+  { positionClass: "left-[calc(50%-80px)]", labelKey: "Tasks" },
+  { positionClass: "left-[calc(50%+40px)]", labelKey: "Leaderboard", champ: true },
+] as const;
+
 const TabTitle = ({ activeTab, setActiveTab }: TabTitleProps) => {
   const t = useTranslations();
-  // const active =
-  //   "w-1/2 flex items-center justify-center gap-2 bg-white text-gray-900 font-medium px-6 py-3 rounded-t-lg shadow-[0_-2px_5px_rgba(0,0,0,0.05)] focus:outline-none";
-  // const inactive =
-  //   "w-1/2 flex items-center justify-center gap-2 bg-gray-100 text-gray-600 font-medium px-6 py-3 rounded-t-lg hover:bg-gray-200 focus:outline-none";
+
   return (
-    <>
-      <div className="relative h-[50px] flex items-center justify-center">
-        <div
-          onClick={() => {
-            setActiveTab(0);
-          }}
-          // w-[33.33%]
-          className={`${activeTab === 0 ? "z-99" : ""} w-[150px] absolute left-[calc(50%-200px)]  h-auto flex items-center justify-center flex-col`}
-        >
-          <p
-            className={`text-[13px] bg-size-[150px] ${activeTab === 0 ? "bg-[url(/quest/tab_white2.svg)]" : "bg-[url(/quest/tab_grey.svg)]"}  min-h-[45px]  w-full bg-no-repeat bg-center flex items-center justify-center`}
-          >
-            {t("How to win!")}
-          </p>
-          <hr className={`${activeTab === 0 ? "border-b border-black w-10" : ""}`} />
-        </div>
-        <div
-          onClick={() => {
-            setActiveTab(1);
-          }}
-          className={`${activeTab === 1 ? "z-99" : ""} w-[150px] absolute left-[calc(50%-80px)] h-auto flex items-center justify-center flex-col`}
-        >
-          <p
-            className={`text-[13px] bg-size-[150px] ${activeTab === 1 ? "bg-[url(/quest/tab_white2.svg)]" : "bg-[url(/quest/tab_grey.svg)]"}  min-h-[45px]  w-full bg-no-repeat bg-center flex items-center justify-center`}
-          >
-            {t("Tasks")}
-          </p>
-          <hr className={`${activeTab === 1 ? "border-b border-black  w-10" : ""}`} />
-        </div>
-        <div
-          onClick={() => {
-            setActiveTab(2);
-          }}
-          className={`${activeTab === 2 ? "z-99" : ""} w-[150px] absolute left-[calc(50%+40px)]  h-auto flex items-center justify-center flex-col`}
-        >
-          {/* <div className="flex items-center justify-center"> */}
-          <div
-            className={`bg-size-[150px] ${activeTab === 2 ? "bg-[url(/quest/tab_white2.svg)]" : "bg-[url(/quest/tab_grey.svg)]"}  min-h-[45px] w-full bg-no-repeat bg-center flex items-center justify-center`}
-          >
-            <Image src={`/quest/champ.png`} alt="champ" width={14} height={14} />
-            <p className="text-[13px] ">{t("Leaderboard")}</p>
-          </div>
-          <hr className={`${activeTab === 2 ? "border-b border-black w-10 " : ""} `} />
-        </div>
-      </div>
-
-      {/* <div className="flex justify-center bg-white w-full">
-        <div className="flex space-x-1 bg-gray-50 rounded-t-lg p-1 w-full">
+    <div className="relative flex h-[50px] items-center justify-center" role="tablist">
+      {tabs.map((tab, index) => {
+        const isActive = activeTab === index;
+        return (
           <button
+            key={tab.labelKey}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
             onClick={() => {
-              setActiveTab(0);
+              setActiveTab(index);
             }}
-            className={activeTab === 0 ? active : inactive}
-          >
-            Tasks
-          </button>
-
-          <button
-            onClick={() => {
-              setActiveTab(1);
+            onKeyDown={(e) => {
+              if (e.key === "ArrowRight") {
+                e.preventDefault();
+                setActiveTab((index + 1) % tabs.length);
+              }
+              if (e.key === "ArrowLeft") {
+                e.preventDefault();
+                setActiveTab((index - 1 + tabs.length) % tabs.length);
+              }
             }}
-            className={activeTab === 1 ? active : inactive}
+            className={cn(
+              "absolute top-auto flex h-auto w-[150px] max-w-[33.333%] cursor-pointer select-none flex-col items-center justify-center border-0 bg-transparent p-0 touch-manipulation outline-none",
+              tab.positionClass,
+              isActive ? "z-[99]" : INACTIVE_Z[index],
+              "focus-visible:z-[100] focus-visible:ring-2 focus-visible:ring-[#00CC99]/35 focus-visible:ring-offset-2"
+            )}
           >
-            <Image
-              src={`/quest/champ.png`}
-              alt="champ"
-              width={14}
-              height={14}
+            {"champ" in tab ? (
+              <div
+                className={cn(
+                  labelSurfaceClass,
+                  TAB_SVGS[isActive ? "active" : "inactive"],
+                  "flex items-center justify-center gap-0.5 px-1"
+                )}
+              >
+                <Image
+                  src="/quest/champ.png"
+                  alt=""
+                  width={14}
+                  height={14}
+                  className="shrink-0"
+                  aria-hidden
+                />
+                <span className="min-w-0 truncate">{t(tab.labelKey)}</span>
+              </div>
+            ) : (
+              <span
+                className={cn(
+                  labelSurfaceClass,
+                  TAB_SVGS[isActive ? "active" : "inactive"],
+                  "flex items-center justify-center px-1"
+                )}
+              >
+                {t(tab.labelKey)}
+              </span>
+            )}
+            <hr
+              className={cn(
+                "m-0 border-0 border-solid border-black p-0",
+                isActive ? "mt-0 w-10 border-b-2 border-black" : "h-0 w-0 overflow-hidden border-0"
+              )}
             />
-            Leaderboard
           </button>
-        </div>
-      </div> */}
-    </>
+        );
+      })}
+    </div>
   );
 };
 

@@ -1,3 +1,6 @@
+"use client";
+
+import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import MissionList from "./MissionList";
 import { DataOffer } from "@/interfaces/offer";
@@ -17,6 +20,9 @@ interface SocailListProps {
   questSocial?: ResSocialReward | undefined;
   refetchQuestSocial?: () => void;
 }
+
+const FacebookQuestSdk = dynamic(() => import("./FacebookQuestSdk"), { ssr: false });
+
 const SocailList = ({ questSocial, refetchQuestSocial }: SocailListProps) => {
   const { data: session } = useSession();
   const t = useTranslations();
@@ -96,15 +102,7 @@ const SocailList = ({ questSocial, refetchQuestSocial }: SocailListProps) => {
 
   return (
     <>
-      {/* <!-- Load Facebook SDK for JavaScript --> */}
-      <div id="fb-root"></div>
-      <script
-        async
-        defer
-        crossOrigin="anonymous"
-        src={`https://connect.facebook.net/en_US/sdk.js#xfbml=1&version=v25.0&appId=${process.env.NEXT_PUBLIC_FACEBOOK_CLIENT_ID}&autoLogAppEvents=1`}
-      ></script>
-      {/* <!-- Load Facebook SDK for JavaScript --> */}
+      <FacebookQuestSdk />
       {dataList &&
         dataList.length > 0 &&
         dataList.map((offer, index) => {
