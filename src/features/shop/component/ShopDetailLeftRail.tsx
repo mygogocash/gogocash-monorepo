@@ -2,17 +2,13 @@
 
 import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
 import CheckroomOutlinedIcon from "@mui/icons-material/CheckroomOutlined";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import { Accordion, AccordionDetails, AccordionSummary } from "@mui/material";
 import { useTranslations } from "next-intl";
-import { useMemo } from "react";
 import BankIcon from "@/components/icons/BankIcon";
 import type { DataOffer } from "@/interfaces/offer";
 import { Link as LocaleLink } from "@/i18n/navigation";
-import { cn, dmSans } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { merchantSummaryTagBase } from "./shopDetailShared";
 
 export type ShopDetailLeftRailProps = {
@@ -35,43 +31,6 @@ export function ShopDetailLeftRail({
   percentSpecial,
 }: ShopDetailLeftRailProps) {
   const t = useTranslations();
-
-  const termSections = useMemo(
-    () => [
-      {
-        title: t("Exclusions"),
-        subtitle: t("You won't get Cashback on:"),
-        description: [
-          t("Purchases made with Vouchers or Promo codes not featured on our platform"),
-          t("Taxes · Service charges · Shipping and delivery"),
-        ],
-      },
-      {
-        title: t("Refunds, Cancellations, & no-shows"),
-        subtitle: t(
-          "Any rejected, cancelled, refunded, exchanged or returned purchases will not be eligible for Cashback"
-        ),
-        description: [
-          t("For partial returns or exchanges, we'll prorate the Cashback as an adjustment"),
-        ],
-      },
-      {
-        title: t("Tracking Disclaimers"),
-        subtitle: "",
-        description: [
-          t(
-            "Your Cashback may be tracked at a different rate initially and adjusted to the correct rate when we confirm the transaction details"
-          ),
-        ],
-      },
-      {
-        title: t("Other terms and conditions"),
-        subtitle: "",
-        description: [t("GoGoCash terms of use")],
-      },
-    ],
-    [t]
-  );
 
   return (
     <div className="flex min-w-0 flex-col gap-14">
@@ -212,10 +171,7 @@ export function ShopDetailLeftRail({
                 <span className="block text-[#7f7f7f]">{t("merchantTrackingWithGoGoCash")}</span>
               </div>
             </div>
-            <div
-              className="mx-1 mt-3 hidden h-0 min-w-4 flex-1 border-b border-[#e4e4e4] sm:block"
-              aria-hidden
-            />
+            <div className="mx-1 mt-3 h-0 min-w-4 flex-1 border-b border-[#e4e4e4]" aria-hidden />
             <div className="flex max-w-[33%] flex-1 flex-col items-center gap-2 text-center sm:max-w-[120px] sm:flex-none">
               <CheckCircleIcon sx={{ fontSize: 24, color: "#7f7f7f" }} />
               <div className="text-xs leading-tight font-medium text-[#3b3b3b]">
@@ -225,10 +181,7 @@ export function ShopDetailLeftRail({
                 </span>
               </div>
             </div>
-            <div
-              className="mx-1 mt-3 hidden h-0 min-w-4 flex-1 border-b border-[#e4e4e4] sm:block"
-              aria-hidden
-            />
+            <div className="mx-1 mt-3 h-0 min-w-4 flex-1 border-b border-[#e4e4e4]" aria-hidden />
             <div className="flex max-w-[33%] flex-1 flex-col items-center gap-2 text-center sm:max-w-[120px] sm:flex-none">
               <BankIcon fill="#7f7f7f" width="24" height="24" />
               <div className="text-xs leading-tight font-medium text-[#3b3b3b]">
@@ -240,67 +193,6 @@ export function ShopDetailLeftRail({
             </div>
           </div>
         </div>
-      </div>
-
-      <div>
-        <h2 className="mb-4 text-xl font-semibold text-[#3b3b3b]">{t("Terms and exclusions")}</h2>
-        {termSections.map((item, index) => {
-          return (
-            <Accordion
-              key={index}
-              defaultExpanded={index === 0}
-              disableGutters
-              elevation={0}
-              sx={{
-                border: "1px solid #b7e7db",
-                borderRadius: "12px",
-                boxShadow: "0px 4px 6px rgba(0,0,0,0.05)",
-                mb: 2,
-                bgcolor: "#fff",
-                overflow: "hidden",
-                "&.Mui-expanded": {
-                  bgcolor: "#fff",
-                  margin: "0 0 16px 0",
-                },
-                "&:before": { display: "none" },
-              }}
-            >
-              <AccordionSummary
-                expandIcon={<ExpandMoreIcon sx={{ color: "#3b3b3b" }} />}
-                aria-controls={`shop-term-${index}-content`}
-                id={`shop-term-${index}-header`}
-                sx={{
-                  "& .MuiAccordionSummary-content": {
-                    alignItems: "center",
-                    columnGap: "8px",
-                    margin: "12px 0",
-                  },
-                }}
-              >
-                <HelpOutlineOutlinedIcon sx={{ fontSize: 20, color: "#00cc99", flexShrink: 0 }} />
-                <span
-                  className={`${dmSans.style.fontFamily} text-left font-semibold text-[#3b3b3b] text-base`}
-                >
-                  {item.title}
-                </span>
-              </AccordionSummary>
-              <AccordionDetails sx={{ pt: 0, pb: 2 }}>
-                {item.subtitle ? (
-                  <p className={`${dmSans.className} text-sm text-[#3b3b3b]`}>{item.subtitle}</p>
-                ) : null}
-                <ul className="mt-2 list-disc pl-4">
-                  {item.description.map((desc, descIndex) => {
-                    return (
-                      <li key={descIndex} className="mb-2 text-sm text-[#7f7f7f]">
-                        <p className={`${dmSans.className}`}>{desc}</p>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </AccordionDetails>
-            </Accordion>
-          );
-        })}
       </div>
     </div>
   );

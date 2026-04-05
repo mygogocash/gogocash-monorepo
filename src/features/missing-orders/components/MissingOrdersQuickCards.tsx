@@ -54,13 +54,13 @@ export default function MissingOrdersQuickCards() {
         className={`relative flex h-[72px] w-full shrink-0 items-center justify-center sm:h-[76px] ${gradientBg}`}
         aria-hidden
       >
-        <Icon sx={{ fontSize: 44, color: "#00AA80", opacity: 0.9 }} />
+        <Icon sx={{ fontSize: { xs: 36, sm: 40, md: 44 }, color: "#00AA80", opacity: 0.9 }} />
       </div>
-      <div className="flex flex-1 flex-col items-center justify-center gap-0.5 px-3 py-3 text-center">
-        <span className="text-[15px] font-normal leading-snug text-[#3b3b3b] sm:text-[16px]">
+      <div className="flex flex-1 flex-col items-center justify-center gap-0.5 px-2.5 py-2.5 text-center sm:px-3 sm:py-3">
+        <span className="text-sm font-normal leading-snug text-[#3b3b3b] sm:text-[15px] md:text-[16px]">
           {mo(line1)}
         </span>
-        <span className="text-lg font-semibold leading-tight text-[#00AA80] sm:text-xl">
+        <span className="text-base font-semibold leading-tight text-[#00AA80] sm:text-lg md:text-xl">
           {mo(line2)}
         </span>
       </div>
@@ -68,7 +68,7 @@ export default function MissingOrdersQuickCards() {
   );
 
   return (
-    <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-3 md:gap-4">
+    <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-3 md:gap-4">
       {cards.map(({ href, icon: Icon, line1, line2, ...rest }) => {
         const body = cardBody(Icon, line1, line2);
         const lineOfficialAccount =

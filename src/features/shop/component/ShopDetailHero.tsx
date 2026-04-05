@@ -3,6 +3,7 @@
 
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import { IconButton } from "@mui/material";
+import { useTranslations } from "next-intl";
 import Button from "@/components/common/Button";
 import type { DataOffer, IResponseFav } from "@/interfaces/offer";
 import { dmSans } from "@/lib/utils";
@@ -34,6 +35,15 @@ export function ShopDetailHero({
   shopNowLabel,
   shopNowFallback,
 }: ShopDetailHeroProps) {
+  const t = useTranslations();
+  const merchantDisplayName = offer?.offer_name_display || offer?.offer_name || "";
+  const offerIdStr = offer?._id?.toString();
+
+  const isFavorited = Boolean(
+    offerIdStr &&
+    getFavouriteOffer?.data?.some((item) => item?.offer_id?._id.toString() === offerIdStr)
+  );
+
   return (
     <div className="mb-8 md:mb-10">
       <div className="flex w-full flex-col items-center pb-8 md:pb-10">
@@ -46,7 +56,7 @@ export function ShopDetailHero({
               height={410}
               className={`absolute inset-0 size-full ${heroBannerIsStock ? "object-fill object-center" : "object-cover object-center"}`}
             />
-            <div className="relative z-1 flex h-full items-center pt-6 pr-6 pb-12 pl-8 md:pr-24 md:pl-24 lg:pb-12 lg:pl-32 lg:pr-24">
+            <div className="relative z-[1] flex h-full items-center pt-6 pr-6 pb-12 pl-8 md:pr-24 md:pl-24 lg:pb-12 lg:pl-32 lg:pr-24">
               <img
                 src={heroLogoSrc}
                 alt=""
@@ -59,15 +69,23 @@ export function ShopDetailHero({
         </div>
 
         <div className="relative z-2 flex w-full max-w-full justify-center px-0 sm:px-4 md:px-10 lg:px-20">
-          <div className="flex min-h-[88px] w-full max-w-full flex-col gap-4 rounded-[32px] bg-white px-5 py-4 shadow-[0_4px_20px_rgba(0,0,0,0.15)] sm:h-[97px] sm:min-h-[97px] sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-8 sm:py-0 md:px-12 lg:px-20">
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-center">
+          {/**
+           * GoGoCash 1.1 — Merchant hero summary card
+           * https://www.figma.com/design/jFDx8MnbCtlCaTQxlhpJIp/GoGoCash-1.1?node-id=8553-213094
+           *
+           * Mobile: 90% width, single row (title • fav • Shop Now), compact CTAs.
+           * sm+: full-width 97px bar, larger type, fixed Shop Now width.
+           */}
+          <div className="mx-auto flex w-[90%] max-w-[90%] flex-row items-center justify-between gap-2 rounded-3xl bg-white px-4 py-3 shadow-[0_3px_14px_rgba(0,0,0,0.1)] sm:mx-0 sm:h-[97px] sm:min-h-[97px] sm:w-full sm:max-w-full sm:gap-4 sm:rounded-[32px] sm:px-8 sm:py-0 sm:shadow-[0_4px_20px_rgba(0,0,0,0.12)] md:px-12 lg:px-20">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-center pr-1 sm:min-h-[97px] sm:pr-0 sm:py-2.5">
               <p
-                className={`${dmSans.style.fontFamily} w-full min-w-0 truncate font-semibold text-[#3b3b3b] text-2xl leading-tight sm:text-3xl lg:text-[40px] lg:leading-none`}
+                className={`${dmSans.style.fontFamily} truncate text-[17px] leading-snug font-semibold text-[#3b3b3b] sm:text-3xl sm:leading-tight lg:text-[40px] lg:leading-none`}
+                title={merchantDisplayName || undefined}
               >
-                {offer?.offer_name_display || offer?.offer_name}
+                {merchantDisplayName}
               </p>
             </div>
-            <div className="flex shrink-0 items-center gap-4">
+            <div className="flex w-auto shrink-0 items-center gap-2 sm:gap-4">
               {offer?._id ? (
                 <IconButton
                   disabled={loadingFav}
@@ -75,22 +93,20 @@ export function ShopDetailHero({
                     mutateFav({ offer_id: offer?._id });
                   }}
                   sx={{
-                    width: 44,
-                    height: 44,
+                    width: { xs: 40, sm: 44 },
+                    height: { xs: 40, sm: 44 },
+                    flexShrink: 0,
                     border: "1px solid #E6F7ED",
                     background: "#E6F7ED",
                     borderRadius: "999px",
                   }}
-                  aria-label="Favorite"
+                  aria-label={t("favoritePageAddFavorite")}
+                  aria-pressed={isFavorited}
                 >
                   <FavoriteIcon
                     sx={{
-                      fontSize: 22,
-                      color: getFavouriteOffer?.data
-                        ?.map((item) => item?.offer_id?._id.toString())
-                        .includes(offer?._id?.toString())
-                        ? "#00cc99"
-                        : "#686868",
+                      fontSize: { xs: 20, sm: 22 },
+                      color: isFavorited ? "#00cc99" : "#686868",
                     }}
                   />
                 </IconButton>
@@ -105,7 +121,12 @@ export function ShopDetailHero({
                 onClick={() => {
                   openLinkOffer();
                 }}
-                className="h-12 w-full min-w-0 rounded-full px-6 sm:w-[200px] sm:min-w-[200px] sm:shrink-0"
+                className="h-10 min-h-10 max-w-[148px] shrink-0 overflow-hidden text-ellipsis whitespace-nowrap rounded-full px-3 sm:max-w-none sm:h-12 sm:min-h-12 sm:min-w-[200px] sm:w-[200px] sm:shrink-0 sm:overflow-visible sm:whitespace-normal sm:px-6"
+                sx={{
+                  fontSize: { xs: "14px", sm: "18px" },
+                  minHeight: { xs: 40, sm: 52 },
+                  py: { xs: 0.5, sm: 1 },
+                }}
               >
                 {shopNowLabel || shopNowFallback}
               </Button>

@@ -25,7 +25,7 @@ export default function MissingOrdersFaqSection() {
     <section className="w-full max-w-[948px]" aria-labelledby="missing-orders-faq-heading">
       <h2
         id="missing-orders-faq-heading"
-        className="mb-4 w-full text-center text-2xl font-medium text-[#3b3b3b]"
+        className="mb-3 w-full text-center text-lg font-semibold text-[#3b3b3b] sm:mb-4 sm:text-xl md:text-2xl md:font-medium"
       >
         {mo("missingOrdersFaqSectionTitle")}
       </h2>
@@ -44,11 +44,11 @@ export default function MissingOrdersFaqSection() {
           >
             <AccordionSummary
               expandIcon={<ExpandMoreIcon sx={{ fontSize: 16, color: "#3b3b3b" }} />}
-              className="px-4 py-4"
+              className="px-3 py-3 sm:px-4 sm:py-4"
               sx={{
                 minHeight: 0,
                 "& .MuiAccordionSummary-content": {
-                  margin: "12px 0",
+                  margin: { xs: "8px 0", sm: "12px 0" },
                   alignItems: "center",
                 },
               }}
@@ -66,16 +66,21 @@ export default function MissingOrdersFaqSection() {
                 </span>
                 <Typography
                   component="span"
-                  className="text-base font-medium leading-normal text-[#3b3b3b]"
+                  className="text-sm font-medium leading-normal text-[#3b3b3b] sm:text-base"
                 >
                   {mo(q)}
                 </Typography>
               </div>
             </AccordionSummary>
-            <AccordionDetails className="pt-0 pb-4 pr-4" sx={{ paddingLeft: detailsPaddingLeft }}>
+            <AccordionDetails
+              className="pt-0 pb-3 pr-3 sm:pb-4 sm:pr-4"
+              sx={{
+                paddingLeft: { xs: "calc(12px + 21px + 8px)", sm: detailsPaddingLeft },
+              }}
+            >
               <Typography
                 component="div"
-                className="text-sm font-normal leading-normal text-[#7f7f7f]"
+                className="text-xs font-normal leading-normal text-[#7f7f7f] sm:text-sm"
               >
                 {mo(a)}
               </Typography>

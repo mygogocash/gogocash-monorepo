@@ -26,9 +26,20 @@ interface IProp {
   categories?: string;
   /** When set, shows the expiry pill */
   expiresInDays?: number | null;
+  /**
+   * Shop/category explore grids: 2+ columns — fill cell width and use slightly smaller type on narrow viewports.
+   */
+  directoryGrid?: boolean;
 }
 
-const CardSpecial = ({ banner, offer_name, percent, categories = "", expiresInDays }: IProp) => {
+const CardSpecial = ({
+  banner,
+  offer_name,
+  percent,
+  categories = "",
+  expiresInDays,
+  directoryGrid = false,
+}: IProp) => {
   const t = useTranslations();
   const showExpiry = expiresInDays != null && expiresInDays >= 0;
   const { label: categoryLabel, iconIndex } = getOfferCategoryRowVisual(categories);
@@ -36,7 +47,8 @@ const CardSpecial = ({ banner, offer_name, percent, categories = "", expiresInDa
   return (
     <div
       className={cn(
-        "mx-auto flex h-full min-h-0 w-full max-w-[280px] flex-col gap-2 overflow-hidden rounded-2xl border border-[#e4e4e4] bg-white p-2",
+        "pointer-events-none flex h-full min-h-0 w-full flex-col gap-2 overflow-hidden rounded-2xl border border-[#e4e4e4] bg-white p-2",
+        directoryGrid ? "max-w-none" : "mx-auto max-w-[280px]",
         /* Stretch-link parent: clicks must pass through to overlay `<a>` except the favorite control */
         "[&_*]:pointer-events-none [&_button]:pointer-events-auto"
       )}
@@ -101,17 +113,35 @@ const CardSpecial = ({ banner, offer_name, percent, categories = "", expiresInDa
           </button>
         </div>
 
-        <div className="flex min-h-[47px] w-full items-end justify-between gap-2">
+        <div
+          className={cn(
+            "flex w-full items-end justify-between gap-2",
+            directoryGrid ? "min-h-10 sm:min-h-[47px]" : "min-h-[47px]"
+          )}
+        >
           <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-1">
-            <p className="line-clamp-2 text-xl font-medium leading-tight text-[#3b3b3b]">
+            <p
+              className={cn(
+                "line-clamp-2 font-medium leading-tight text-[#3b3b3b]",
+                directoryGrid ? "text-[15px] sm:text-xl" : "text-xl"
+              )}
+            >
               {offer_name}
             </p>
-            <p className="text-sm font-normal leading-normal text-[#989898]">
+            <p
+              className={cn(
+                "font-normal leading-normal text-[#989898]",
+                directoryGrid ? "text-xs sm:text-sm" : "text-sm"
+              )}
+            >
               {t("Cashback up to")}
             </p>
           </div>
           <p
-            className="max-w-[45%] shrink-0 text-right text-[32px] font-semibold leading-none tabular-nums"
+            className={cn(
+              "max-w-[45%] shrink-0 text-right font-semibold leading-none tabular-nums",
+              directoryGrid ? "text-xl sm:text-2xl md:text-[32px]" : "text-[32px]"
+            )}
             style={{ color: designSystemColor.green2 }}
           >
             {percent}

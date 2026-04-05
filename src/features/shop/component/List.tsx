@@ -125,7 +125,7 @@ const List = () => {
               listName="All Stores"
               source="shop_directory"
             />
-            <div className="grid grid-cols-1 justify-items-center gap-6 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-2 justify-items-stretch gap-3 sm:gap-6 xl:grid-cols-3">
               {sortedOffers.map((offer, index) => {
                 const bannerSrc =
                   offer.banner || offer.banner_mobile
@@ -133,7 +133,7 @@ const List = () => {
                     : "/home/banner.webp";
 
                 return (
-                  <div key={offer._id} className="relative block w-full max-w-[280px]">
+                  <div key={offer._id} className="relative block w-full min-w-0">
                     <Link
                       href={`/shop/${offer._id}`}
                       className="absolute inset-0 z-0"
@@ -150,6 +150,7 @@ const List = () => {
                     />
                     <div className="relative z-[1]">
                       <CardSpecial
+                        directoryGrid
                         banner={bannerSrc}
                         offer_name={offer.offer_name_display || offer.offer_name}
                         percent={percentLabel(offer)}

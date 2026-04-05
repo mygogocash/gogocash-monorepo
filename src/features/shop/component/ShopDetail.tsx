@@ -38,6 +38,7 @@ import { GOLINK_SHOP_CONTINUE_QUERY } from "@/constants/golink";
 import { ShopDetailHero } from "./ShopDetailHero";
 import { ShopDetailLeftRail } from "./ShopDetailLeftRail";
 import { ShopDetailRightRail } from "./ShopDetailRightRail";
+import { ShopDetailTermsExclusions } from "./ShopDetailTermsExclusions";
 import { getMerchantSummaryTagsAriaLabel } from "./shopDetailShared";
 
 const ShopDetailExploreRelated = dynamic(() => import("./ShopDetailExploreRelated"), {
@@ -307,23 +308,35 @@ const ShopDetail = () => {
             shopNowFallback={t("Shop Now")}
           />
 
-          <div className="flex w-full flex-col gap-12 lg:grid lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)] lg:items-start lg:gap-x-20">
-            <ShopDetailLeftRail
-              offer={offer}
-              sumPercent={sumPercent}
-              hasMerchantSummaryTags={hasMerchantSummaryTags}
-              merchantSummaryTagsAriaLabel={merchantSummaryTagsAriaLabel}
-              activeCouponCount={activeCoupons.length}
-              couponExpiryDays={couponExpiryDays}
-              percentSpecial={Number(percentSpecial)}
-            />
+          {/**
+           * Mobile: left summary → right rail (coupons + Cashback Tips) → terms.
+           * lg+: left column = summary + terms (stacked); right column spans both rows.
+           */}
+          <div className="grid w-full grid-cols-1 gap-12 lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)] lg:items-start lg:gap-x-20">
+            <div className="min-w-0 lg:col-start-1 lg:row-start-1">
+              <ShopDetailLeftRail
+                offer={offer}
+                sumPercent={sumPercent}
+                hasMerchantSummaryTags={hasMerchantSummaryTags}
+                merchantSummaryTagsAriaLabel={merchantSummaryTagsAriaLabel}
+                activeCouponCount={activeCoupons.length}
+                couponExpiryDays={couponExpiryDays}
+                percentSpecial={Number(percentSpecial)}
+              />
+            </div>
 
-            <ShopDetailRightRail
-              locale={locale}
-              activeCoupons={activeCoupons}
-              couponTick={couponTick}
-              offer={offer}
-            />
+            <div className="min-w-0 lg:col-start-2 lg:row-start-1 lg:row-span-2">
+              <ShopDetailRightRail
+                locale={locale}
+                activeCoupons={activeCoupons}
+                couponTick={couponTick}
+                offer={offer}
+              />
+            </div>
+
+            <div className="min-w-0 lg:col-start-1 lg:row-start-2">
+              <ShopDetailTermsExclusions />
+            </div>
           </div>
 
           <ShopDetailExploreRelated

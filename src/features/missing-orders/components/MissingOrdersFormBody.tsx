@@ -22,6 +22,7 @@ import {
   type SelectChangeEvent,
   TextField,
   Typography,
+  useMediaQuery,
 } from "@mui/material";
 import LineAppIcon from "@/components/icons/social/LineAppIcon";
 import { MissingOrdersSubmittedDialog } from "@/features/missing-orders/components/MissingOrdersSubmittedDialog";
@@ -34,12 +35,12 @@ import toast from "react-hot-toast";
 
 /** Outlined secondary — LINE green (Get help on LINE, Clear data) */
 const missingOrdersLineCtaSx = {
-  minHeight: 48,
-  px: 2.5,
-  py: 1.25,
+  minHeight: { xs: 44, sm: 48 },
+  px: { xs: 2, sm: 2.5 },
+  py: { xs: 1, sm: 1.25 },
   gap: 1,
   borderRadius: "16px",
-  fontSize: "0.9375rem",
+  fontSize: { xs: "0.8125rem", sm: "0.9375rem" },
   fontWeight: 600,
   letterSpacing: "0.01em",
   textTransform: "none" as const,
@@ -60,12 +61,12 @@ const missingOrdersLineCtaSx = {
 
 /** Mint outline — matches primary CTA / SubProfile teal, same shell as LINE secondary */
 const missingOrdersAttachmentButtonSx = {
-  minHeight: 48,
-  px: 2.5,
-  py: 1.25,
+  minHeight: { xs: 44, sm: 48 },
+  px: { xs: 2, sm: 2.5 },
+  py: { xs: 1, sm: 1.25 },
   gap: 1,
   borderRadius: "16px",
-  fontSize: "0.9375rem",
+  fontSize: { xs: "0.8125rem", sm: "0.9375rem" },
   fontWeight: 600,
   letterSpacing: "0.01em",
   textTransform: "none" as const,
@@ -196,19 +197,21 @@ function MissingOrdersFormSection({
   return (
     <section
       aria-labelledby={headingId}
-      className="flex flex-col gap-4 rounded-2xl border border-[#e6e6e6] bg-[#f9fafb] p-4 md:p-5"
+      className="flex flex-col gap-3 rounded-2xl border border-[#e6e6e6] bg-[#f9fafb] p-3 sm:gap-4 sm:p-4 md:p-5"
     >
-      <header className="flex flex-col gap-1.5">
+      <header className="flex flex-col gap-1 sm:gap-1.5">
         <Typography
           id={headingId}
           component="h3"
-          className="text-[17px] font-semibold leading-snug text-[#2d2d2d]"
+          className="text-[15px] font-semibold leading-snug text-[#2d2d2d] sm:text-[16px] md:text-[17px]"
         >
           {title}
         </Typography>
-        <Typography className="text-sm leading-relaxed text-[#656565]">{description}</Typography>
+        <Typography className="text-xs leading-normal text-[#656565] sm:text-sm sm:leading-relaxed">
+          {description}
+        </Typography>
       </header>
-      <div className="flex flex-col gap-4">{children}</div>
+      <div className="flex flex-col gap-3 sm:gap-4">{children}</div>
     </section>
   );
 }
@@ -219,6 +222,8 @@ function MissingOrdersFormSection({
  */
 export default function MissingOrdersFormBody() {
   const locale = useLocale();
+  const isMdUp = useMediaQuery("(min-width:768px)");
+  const fieldSize = isMdUp ? "medium" : "small";
   /** All copy from static JSON — do not use `useTranslations()` / `t()` here (Turbopack drops flat keys). */
   const mo = (key: string) => missingOrdersStaticT(locale, key);
   const sectionHeadings = useMemo(() => getMissingOrdersSectionHeadings(locale), [locale]);
@@ -362,20 +367,20 @@ export default function MissingOrdersFormBody() {
   };
 
   return (
-    <div className="w-full min-w-0 rounded-3xl border border-[#e4e4e4] bg-white p-6">
-      <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
+    <div className="w-full min-w-0 rounded-2xl border border-[#e4e4e4] bg-white p-4 sm:rounded-3xl sm:p-5 md:p-6">
+      <form className="flex flex-col gap-4 md:gap-6" onSubmit={handleSubmit}>
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:gap-3">
           <div className="min-w-0 flex-1">
             <Typography
               component="h2"
-              className="text-2xl font-medium text-[#3b3b3b]"
+              className="text-lg font-semibold text-[#3b3b3b] sm:text-xl md:text-2xl md:font-medium"
               sx={{ fontVariationSettings: "'opsz' 14" }}
             >
               {mo("missingOrdersPageTitle")}
             </Typography>
             <Typography
               component="p"
-              className="mt-2 max-w-3xl text-sm leading-relaxed text-[#656565]"
+              className="mt-1.5 max-w-3xl text-xs leading-normal text-[#656565] sm:mt-2 sm:text-sm sm:leading-relaxed"
             >
               {mo("missingOrdersPageIntroSelfService")}
             </Typography>
@@ -387,7 +392,7 @@ export default function MissingOrdersFormBody() {
               onClick={handleClearForm}
               disabled={!hasFormData}
               className="w-full normal-case sm:w-auto"
-              startIcon={<ClearOutlinedIcon sx={{ fontSize: 22 }} />}
+              endIcon={<ClearOutlinedIcon sx={{ fontSize: { xs: 20, sm: 22 } }} />}
               sx={missingOrdersLineCtaSx}
             >
               {mo("missingOrdersClearData")}
@@ -415,12 +420,12 @@ export default function MissingOrdersFormBody() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-4 md:gap-6">
           <MissingOrdersFormSection
             title={sectionHeadings.purchaseTitle}
             description={sectionHeadings.purchaseHelp}
           >
-            <FormControl fullWidth sx={inputSx}>
+            <FormControl fullWidth size={fieldSize} sx={inputSx}>
               <InputLabel id="missing-orders-shop-label">{mo("missingOrdersFieldShop")}</InputLabel>
               <Select
                 labelId="missing-orders-shop-label"
@@ -429,6 +434,7 @@ export default function MissingOrdersFormBody() {
                 label={mo("missingOrdersFieldShop")}
                 onChange={handleShopChange}
                 displayEmpty
+                size={fieldSize}
                 renderValue={() => shopLabel}
               >
                 {PRESET_SHOPS.map(({ id, key }) => (
@@ -443,8 +449,8 @@ export default function MissingOrdersFormBody() {
                     bgcolor: "#00AA80 !important",
                     color: "#fff !important",
                     opacity: "1 !important",
-                    fontSize: 16,
-                    py: 1,
+                    fontSize: { xs: 14, sm: 16 },
+                    py: { xs: 0.75, sm: 1 },
                   }}
                 >
                   {mo("missingOrdersShopOtherSection")}
@@ -456,6 +462,7 @@ export default function MissingOrdersFormBody() {
             {shop === "other" && (
               <TextField
                 fullWidth
+                size={fieldSize}
                 label={mo("missingOrdersEnterShopPlaceholder")}
                 placeholder={mo("missingOrdersEnterShopPlaceholder")}
                 value={otherShop}
@@ -467,23 +474,29 @@ export default function MissingOrdersFormBody() {
             <TextField
               fullWidth
               required
+              size={fieldSize}
               label={mo("missingOrdersFieldOrderId")}
               placeholder={mo("missingOrdersFieldOrderId")}
               value={orderId}
               onChange={(e) => setOrderId(e.target.value)}
               helperText={mo("missingOrdersOrderIdHelper")}
-              FormHelperTextProps={{ className: "mx-0 text-xs text-[#7f7f7f]" }}
+              FormHelperTextProps={{
+                className: "mx-0 text-[11px] text-[#7f7f7f] sm:text-xs",
+              }}
               sx={inputSx}
             />
 
             <TextField
               fullWidth
+              size={fieldSize}
               label={mo("missingOrdersFieldAmount")}
               placeholder={mo("missingOrdersFieldAmount")}
               value={amount}
               onChange={(e) => setAmount(sanitizeThbAmountInput(e.target.value))}
               helperText={mo("missingOrdersAmountHelper")}
-              FormHelperTextProps={{ className: "mx-0 text-xs text-[#7f7f7f]" }}
+              FormHelperTextProps={{
+                className: "mx-0 text-[11px] text-[#7f7f7f] sm:text-xs",
+              }}
               slotProps={{
                 htmlInput: {
                   inputMode: "decimal",
@@ -498,6 +511,7 @@ export default function MissingOrdersFormBody() {
               <TextField
                 fullWidth
                 type="date"
+                size={fieldSize}
                 label={mo("missingOrdersFieldPurchaseDate")}
                 value={purchaseDate}
                 onChange={(e) => setPurchaseDate(e.target.value)}
@@ -508,7 +522,9 @@ export default function MissingOrdersFormBody() {
                   },
                 }}
                 helperText={mo("missingOrdersDateHint")}
-                FormHelperTextProps={{ className: "mx-0 text-xs text-[#7f7f7f]" }}
+                FormHelperTextProps={{
+                  className: "mx-0 text-[11px] text-[#7f7f7f] sm:text-xs",
+                }}
                 sx={inputSx}
               />
             </div>
@@ -520,10 +536,13 @@ export default function MissingOrdersFormBody() {
           >
             <TextField
               fullWidth
+              size={fieldSize}
               label={mo("profileUserIdLabel")}
               value={userIdFieldValue}
               helperText={mo("missingOrdersUserIdMatchHint")}
-              FormHelperTextProps={{ className: "mx-0 text-xs text-[#989898]" }}
+              FormHelperTextProps={{
+                className: "mx-0 text-[11px] text-[#989898] sm:text-xs",
+              }}
               slotProps={{
                 input: {
                   readOnly: true,
@@ -567,17 +586,18 @@ export default function MissingOrdersFormBody() {
           >
             <TextField
               fullWidth
+              size={fieldSize}
               label={mo("missingOrdersFieldNote")}
               placeholder={mo("missingOrdersFieldNote")}
               value={note}
               onChange={(e) => setNote(e.target.value)}
               multiline
-              minRows={3}
+              minRows={isMdUp ? 3 : 2}
               sx={inputSx}
             />
 
             <Box
-              className="flex flex-col gap-2 rounded-xl border border-dashed border-[#d4d4d4] bg-white p-3 md:p-4"
+              className="flex flex-col gap-2 rounded-xl border border-dashed border-[#d4d4d4] bg-white p-2.5 sm:p-3 md:p-4"
               role="group"
               aria-labelledby={`${attachmentInputId}-label`}
             >
@@ -585,7 +605,7 @@ export default function MissingOrdersFormBody() {
                 id={`${attachmentInputId}-label`}
                 component="label"
                 htmlFor={attachmentInputId}
-                className="text-[15px] font-medium text-[#3b3b3b]"
+                className="text-sm font-medium text-[#3b3b3b] sm:text-[15px]"
               >
                 {mo("missingOrdersAttachmentLabel")}
                 <Box component="span" sx={{ color: "error.main", ml: 0.25 }} aria-hidden="true">
@@ -618,7 +638,9 @@ export default function MissingOrdersFormBody() {
                 <Button
                   type="button"
                   variant="outlined"
-                  startIcon={<AddPhotoAlternateOutlinedIcon sx={{ fontSize: 22 }} />}
+                  startIcon={
+                    <AddPhotoAlternateOutlinedIcon sx={{ fontSize: { xs: 20, sm: 22 } }} />
+                  }
                   onClick={() => fileInputRef.current?.click()}
                   className="normal-case w-full sm:w-auto"
                   aria-describedby={`${attachmentInputId}-hint`}
@@ -667,15 +689,15 @@ export default function MissingOrdersFormBody() {
           </MissingOrdersFormSection>
         </div>
 
-        <Typography component="div" className="text-sm text-[#7f7f7f]">
-          <ul className="list-disc space-y-1 pl-5">
+        <Typography component="div" className="text-xs text-[#7f7f7f] sm:text-sm">
+          <ul className="list-disc space-y-0.5 pl-4 sm:space-y-1 sm:pl-5">
             <li>{mo("missingOrdersBullet1")}</li>
             <li>{mo("missingOrdersBullet2")}</li>
             <li>{mo("missingOrdersBullet3")}</li>
           </ul>
         </Typography>
 
-        <div className="mt-1 flex w-full flex-col gap-3 border-t border-[#e4e4e4] pt-6 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-4">
+        <div className="mt-1 flex w-full flex-col gap-2.5 border-t border-[#e4e4e4] pt-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-3 sm:pt-6 md:gap-4">
           {process.env.NODE_ENV === "development" ? (
             <Button
               type="button"
@@ -703,7 +725,7 @@ export default function MissingOrdersFormBody() {
             target="_blank"
             rel="noopener noreferrer"
             className="w-full sm:w-auto"
-            startIcon={<LineAppIcon width={22} height={22} />}
+            startIcon={<LineAppIcon width={20} height={20} />}
             sx={missingOrdersLineCtaSx}
           >
             {mo("missingOrdersPageSupportButton")}
@@ -711,7 +733,7 @@ export default function MissingOrdersFormBody() {
           <button
             type="submit"
             disabled={!canSubmit}
-            className="inline-flex w-full max-w-full items-center justify-center gap-2 rounded-full bg-[#00CC99] px-6 text-base font-medium text-white transition hover:brightness-[0.97] disabled:cursor-not-allowed disabled:bg-[#e4e4e4] disabled:text-[#9ca3a3] disabled:hover:brightness-100 h-11 min-h-[44px] sm:h-10 sm:w-auto sm:min-w-[200px] sm:px-5"
+            className="inline-flex h-10 min-h-[44px] w-full max-w-full items-center justify-center gap-2 rounded-full bg-[#00CC99] px-5 text-sm font-medium text-white transition hover:brightness-[0.97] disabled:cursor-not-allowed disabled:bg-[#e4e4e4] disabled:text-[#9ca3a3] disabled:hover:brightness-100 sm:h-10 sm:w-auto sm:min-w-[200px] sm:px-5 sm:text-base"
           >
             {mo("missingOrdersSubmitClaim")}
           </button>

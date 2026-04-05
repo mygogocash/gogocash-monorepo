@@ -1,13 +1,12 @@
 "use client";
-import { env } from "@/env";
-import MerchantListTracker from "@/components/analytics/MerchantListTracker";
+// import MerchantListTracker from "@/components/analytics/MerchantListTracker";
 import { DataOffer } from "@/interfaces/offer";
 import MissionList from "./common/MissionList";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
 import BadgeQuest from "./BadgeQuest";
-import CopyAll from "@mui/icons-material/CopyAll";
+import { CopyAll } from "@mui/icons-material";
 import { IconButton } from "@mui/material";
 import { Link } from "@/i18n/navigation";
 import { useParams } from "next/navigation";
@@ -57,12 +56,12 @@ const ListShop = ({
         <h1 className="lg:text-[30px] text-[24px] font-semibold text-[#005D46] mb-5 mt-5">
           {t("Lets Got the Tasks Done!")}
         </h1>
-        <MerchantListTracker
+        {/* <MerchantListTracker
           items={offerExtraPoint}
           listId="quest_extra_point_merchants"
           listName="Quest Extra Point Merchants"
           source="quest_tasks"
-        />
+        /> */}
         {offerExtraPoint &&
           offerExtraPoint.length > 0 &&
           offerExtraPoint.map((offer, index) => (
@@ -94,7 +93,7 @@ const ListShop = ({
             </div>
             <div className="h-auto rounded-lg border border-[#989898] flex items-center justify-between px-2 ">
               <p className="text-[14px] text-[#989898] max-w-[70%] truncate line-clamp-2">
-                {`${env.NEXT_PUBLIC_FRONTEND_URL}/login?referral_id=${
+                {`${process.env.NEXT_PUBLIC_FRONTEND_URL}/login?referral_id=${
                   session?.user?._id ? session?.user?._id : "-"
                 }`}
               </p>
@@ -102,14 +101,14 @@ const ListShop = ({
                 className="flex items-center gap-1 rounded-xl!"
                 onClick={() =>
                   navigator.clipboard.writeText(
-                    `${env.NEXT_PUBLIC_FRONTEND_URL}/login?referral_id=${
+                    `${process.env.NEXT_PUBLIC_FRONTEND_URL}/login?referral_id=${
                       session?.user?._id ? session?.user?._id : "-"
                     }`
                   )
                 }
               >
                 <CopyAll className="ml-2 text-[#00CC99] cursor-pointer" />
-                <span className="max-w-[70px] text-[14px] text-[#00CC99]">{t("Copy Link")}</span>
+                <p className="text-[#00CC99] text-[14px] max-w-[70px]">{t("Copy Link")}</p>
               </IconButton>
             </div>
             <div className="mt-2 flex flex-col w-full">

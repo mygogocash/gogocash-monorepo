@@ -191,7 +191,7 @@ const CardSlideCategory = ({
           aria-label={offer.offer_name}
           onClick={trackClick}
         />
-        <div className="relative z-[1] min-h-0 flex flex-1 flex-col">
+        <div className="pointer-events-none relative z-[1] min-h-0 flex flex-1 flex-col">
           <CardSpecial
             banner={bannerSrc}
             offer_name={offer.offer_name}
@@ -223,7 +223,7 @@ const CardSlideCategory = ({
           aria-label={offer.offer_name}
           onClick={trackClick}
         />
-        <div className="relative z-[1] w-full min-w-0">
+        <div className="pointer-events-none relative z-[1] w-full min-w-0">
           <CardShopMobileDefault
             banner={bannerSrc}
             offer_name={offer.offer_name}

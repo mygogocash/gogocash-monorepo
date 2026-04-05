@@ -17,7 +17,7 @@ const MissingOrdersPage = () => {
 
   return (
     <SubPage title="missingOrdersPageTitle" resolvedTitle={resolvedTitle} showSubMenu>
-      <div className="flex w-full flex-col gap-8">
+      <div className="flex w-full flex-col gap-5 md:gap-8">
         <div className="min-w-0 w-full">
           <MissingOrdersFormBody />
         </div>

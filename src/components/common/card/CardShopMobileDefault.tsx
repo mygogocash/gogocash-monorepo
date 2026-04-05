@@ -36,7 +36,8 @@ const CardShopMobileDefault = ({
   return (
     <div
       className={cn(
-        "flex w-full min-w-0 flex-col gap-2 overflow-hidden rounded-2xl border border-[#e4e4e4] bg-white p-2",
+        "pointer-events-none flex w-full min-w-0 flex-col gap-2 overflow-hidden rounded-2xl border border-[#e4e4e4] bg-white p-2",
+        /* Stretch-link sibling: overlay `<Link>` sits under this card at z-0 */
         "[&_*]:pointer-events-none [&_button]:pointer-events-auto"
       )}
     >

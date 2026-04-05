@@ -45,11 +45,11 @@ export function ShopDetailRightRail({
 
       <div className="flex flex-col gap-14">
         <div>
-          <h2 className="text-xl font-semibold text-[#3b3b3b]">
+          <h2 className="text-lg font-semibold text-[#3b3b3b] sm:text-xl">
             {t("Target Top Coupons and Deals")}
           </h2>
           {activeCoupons.length > 0 ? (
-            <ul className="mt-6 flex list-none flex-col gap-2 p-0">
+            <ul className="mt-4 flex list-none flex-col gap-2 p-0 sm:mt-6">
               {activeCoupons.map((coupon) => {
                 const countdown = formatCouponCountdown(coupon.end_date, couponTick);
                 const subtitle =
@@ -60,41 +60,45 @@ export function ShopDetailRightRail({
                 const couponLink = coupon.link?.trim() || "";
                 return (
                   <li key={coupon._id}>
-                    <div className="flex overflow-hidden rounded-2xl border border-[#e4e4e4] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-                      <div className="relative flex w-[108px] shrink-0 items-center justify-center bg-[#f0fdf9] sm:w-[128px] md:w-[140px]">
+                    <div className="flex overflow-hidden rounded-xl border border-[#e4e4e4] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.04)] sm:rounded-2xl">
+                      <div className="relative flex w-[72px] shrink-0 items-center justify-center bg-[#f0fdf9] sm:w-[108px] md:w-[128px] lg:w-[140px]">
                         <Image
                           src="/coupon.svg"
                           alt=""
                           width={115}
                           height={100}
                           unoptimized
-                          className="object-contain p-3"
+                          className="max-h-[56px] object-contain p-1.5 sm:max-h-none sm:p-3"
                         />
                         <span
                           className="absolute top-1/2 right-0 hidden h-[70%] w-px -translate-y-1/2 border-r border-dashed border-[#e4e4e4] sm:block"
                           aria-hidden
                         />
                       </div>
-                      <div className="flex min-w-0 flex-1 flex-col gap-4 p-4 sm:p-5 md:px-10 md:py-5">
-                        <div className="flex min-w-0 items-start justify-between gap-4">
+                      <div className="flex min-w-0 flex-1 flex-col gap-2 p-3 sm:gap-4 sm:p-4 md:px-10 md:py-5">
+                        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                           <div className="min-w-0 flex-1">
-                            <h3 className="text-2xl font-semibold text-[#00cc99]">{coupon.name}</h3>
+                            <h3 className="text-base leading-snug font-semibold text-[#00cc99] sm:text-lg md:text-2xl md:leading-normal">
+                              {coupon.name}
+                            </h3>
                             {subtitle ? (
-                              <p className="mt-1 text-lg text-[#7f7f7f]">{subtitle}</p>
+                              <p className="mt-0.5 text-sm leading-snug text-[#7f7f7f] sm:mt-1 sm:text-lg sm:leading-normal">
+                                {subtitle}
+                              </p>
                             ) : null}
-                            <p className="mt-1 font-mono text-sm text-[#3b3b3b]">
+                            <p className="mt-0.5 font-mono text-xs text-[#3b3b3b] sm:mt-1 sm:text-sm">
                               <span className="font-sans font-medium text-[#7f7f7f]">
                                 {t("couponCodeLabel")}:{" "}
                               </span>
                               {coupon.code}
                             </p>
                             {couponLink ? (
-                              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+                              <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 sm:mt-2 sm:gap-x-4 sm:gap-y-1">
                                 <Link
                                   href={couponLink}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-sm font-medium text-[#00cc99] hover:underline"
+                                  className="text-xs font-medium text-[#00cc99] hover:underline sm:text-sm"
                                   onClick={() => {
                                     trackCouponInteraction({
                                       merchant: offer || {},
@@ -109,7 +113,7 @@ export function ShopDetailRightRail({
                                   href="https://gogocash.gitbook.io/doc/promotion-campaign"
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="group inline-flex items-center gap-1 rounded-sm text-sm font-medium text-[#00aa80] transition-colors hover:bg-[#e6faf5] hover:text-[#00cc99] hover:underline"
+                                  className="group inline-flex items-center gap-0.5 rounded-sm text-xs font-medium text-[#00aa80] transition-colors hover:bg-[#e6faf5] hover:text-[#00cc99] hover:underline sm:gap-1 sm:text-sm"
                                   onClick={() => {
                                     trackCouponInteraction({
                                       merchant: offer || {},
@@ -120,7 +124,10 @@ export function ShopDetailRightRail({
                                 >
                                   {t("Read")}
                                   <InfoOutlinedIcon
-                                    sx={{ fontSize: 16, color: "currentColor" }}
+                                    sx={{
+                                      fontSize: { xs: 14, sm: 16 },
+                                      color: "currentColor",
+                                    }}
                                     aria-hidden
                                   />
                                 </Link>
@@ -135,7 +142,13 @@ export function ShopDetailRightRail({
                             fontSize="14px"
                             radius="999px"
                             minWidth="auto"
-                            className="h-8 shrink-0 px-4"
+                            className="w-full shrink-0 sm:w-auto"
+                            sx={{
+                              minHeight: { xs: 30, sm: 32 },
+                              fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                              px: { xs: "12px", sm: "16px" },
+                              py: { xs: 0.5, sm: 1 },
+                            }}
                             onClick={() => {
                               trackCouponInteraction({
                                 merchant: offer || {},
@@ -151,20 +164,23 @@ export function ShopDetailRightRail({
                           </Button>
                         </div>
                         {countdown ? (
-                          <div className="flex items-center gap-1 text-sm">
-                            <span className="text-[#989898]">{t("Expires in")}</span>
+                          <div className="flex flex-wrap items-center gap-1 text-xs text-[#989898] sm:text-sm">
+                            <span className="shrink-0">{t("Expires in")}</span>
                             {countdown.split(" : ").flatMap((unit, i, arr) => {
                               const items = [
                                 <span
                                   key={`unit-${i}`}
-                                  className="inline-flex h-7 min-w-[28px] items-center justify-center rounded border border-[#e4e4e4] px-1 text-sm text-[#7f7f7f]"
+                                  className="inline-flex h-6 min-w-[22px] items-center justify-center rounded border border-[#e4e4e4] px-0.5 text-xs text-[#7f7f7f] sm:h-7 sm:min-w-[28px] sm:px-1 sm:text-sm"
                                 >
                                   {unit}
                                 </span>,
                               ];
                               if (i < arr.length - 1) {
                                 items.push(
-                                  <span key={`sep-${i}`} className="text-[#989898]">
+                                  <span
+                                    key={`sep-${i}`}
+                                    className="text-[#989898] max-sm:text-[11px]"
+                                  >
                                     :
                                   </span>
                                 );

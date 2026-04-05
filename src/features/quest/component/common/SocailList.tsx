@@ -1,6 +1,3 @@
-"use client";
-
-import { env } from "@/env";
 import { useTranslations } from "next-intl";
 import MissionList from "./MissionList";
 import { DataOffer } from "@/interfaces/offer";
@@ -105,7 +102,7 @@ const SocailList = ({ questSocial, refetchQuestSocial }: SocailListProps) => {
         async
         defer
         crossOrigin="anonymous"
-        src={`https://connect.facebook.net/en_US/sdk.js#xfbml=1&version=v25.0&appId=${env.NEXT_PUBLIC_FACEBOOK_CLIENT_ID}&autoLogAppEvents=1`}
+        src={`https://connect.facebook.net/en_US/sdk.js#xfbml=1&version=v25.0&appId=${process.env.NEXT_PUBLIC_FACEBOOK_CLIENT_ID}&autoLogAppEvents=1`}
       ></script>
       {/* <!-- Load Facebook SDK for JavaScript --> */}
       {dataList &&

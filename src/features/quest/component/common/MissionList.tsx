@@ -6,9 +6,9 @@ import { pathImage } from "@/lib/utils";
 import Image from "next/image";
 import BadgeQuest from "../BadgeQuest";
 import { useTranslations } from "next-intl";
-import { trackMerchantSelect, trackQuestStarted } from "@/lib/analytics";
-import { trackMetaQuestStarted } from "@/lib/metaPixel";
-import { POSTHOG_FLAG_KEYS, usePostHogFlagPayload } from "@/lib/posthog";
+// import { trackMerchantSelect, trackQuestStarted } from "@/lib/analytics";
+// import { trackMetaQuestStarted } from "@/lib/metaPixel";
+// import { POSTHOG_FLAG_KEYS, usePostHogFlagPayload } from "@/lib/posthog";
 interface MissionListProps {
   offer: DataOffer & { link?: string };
   recieved?: boolean;
@@ -16,37 +16,33 @@ interface MissionListProps {
 
 const MissionList = ({ offer, recieved }: MissionListProps) => {
   const t = useTranslations();
-  const questDiscoveryExperiment = usePostHogFlagPayload<{
-    cta_label?: string;
-  }>(POSTHOG_FLAG_KEYS.questDiscovery, {});
+  // const questDiscoveryExperiment = usePostHogFlagPayload<{
+  //   cta_label?: string;
+  // }>(POSTHOG_FLAG_KEYS.questDiscovery, {});
 
   const component = (
     <div
       className="w-full h-auto"
-      onClick={() => {
-        // REQ-006: Meta Pixel QuestStarted
-        trackMetaQuestStarted();
-        trackQuestStarted({
-          merchant: offer,
-          source: "quest_tasks",
-        });
+      // onClick={() => {
+      //   // REQ-006: Meta Pixel QuestStarted
+      //   trackMetaQuestStarted();
+      //   trackQuestStarted({
+      //     merchant: offer,
+      //     source: "quest_tasks",
+      //   });
 
-        if (offer._id || offer.offer_id || offer.merchant_id) {
-          trackMerchantSelect({
-            merchant: offer,
-            listId: "quest_task_merchants",
-            listName: "Quest Task Merchants",
-            source: "quest_tasks",
-          });
-        }
-      }}
+      //   if (offer._id || offer.offer_id || offer.merchant_id) {
+      //     trackMerchantSelect({
+      //       merchant: offer,
+      //       listId: "quest_task_merchants",
+      //       listName: "Quest Task Merchants",
+      //       source: "quest_tasks",
+      //     });
+      //   }
+      // }}
     >
       <BadgeQuest
-        title={
-          questDiscoveryExperiment.cta_label || recieved
-            ? `${t("Recieved")}`
-            : `+${offer.extra_point || 0} ${t("Points")}`
-        }
+        title={recieved ? `${t("Recieved")}` : `+${offer.extra_point || 0} ${t("Points")}`}
         icon={
           <Image
             src={recieved ? "/quest/bath.svg" : "/quest/bath_grey.svg"}

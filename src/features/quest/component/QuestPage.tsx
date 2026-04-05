@@ -1,27 +1,29 @@
 import Image from "next/image";
-import MerchantListTracker from "@/components/analytics/MerchantListTracker";
 import ListShop from "./ListShop";
 import ListRank from "./ListRank";
 import TabTitle from "./TabTitle";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import client, { fetcher } from "@/lib/axios/client";
 import { QuestRankResponse, ResponseQuestDate, ResSocialReward } from "@/interfaces/quest";
-import { DataOffer, IResponseOffer } from "@/interfaces/offer";
-import { getPercent, logoOffer, pathImage } from "@/lib/utils";
+import { DataFav, DataOffer, IResponseFav, IResponseOffer } from "@/interfaces/offer";
+import { pathImage } from "@/lib/utils";
 import { useSession } from "next-auth/react";
-import Title from "@/components/common/Title";
-import CardImage from "@/components/common/card/CardImage";
+import ExploreOtherShopsSection from "@/features/shop/component/ExploreOtherShopsSection";
+import { favoriteOffer } from "@/lib/services/offer";
+import { trackFavoriteToggle } from "@/lib/analytics";
+import toast from "react-hot-toast";
 import { useMediaQuery } from "@mui/material";
-import { useParams } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
 import DialogQuestSocial from "./common/DialogQuestSocial";
 
 const QuestPage = () => {
+  const t = useTranslations();
+  const locale = useLocale();
   const { data: session } = useSession();
   const [activeTab, setActiveTab] = useState(0);
   const lg = useMediaQuery("(min-width:768px)");
-  const param = useParams();
-  const pathname = param?.locale;
+  const isThLocale = locale === "th";
 
   const { data: questDateOpen } = useQuery<ResponseQuestDate>({
     queryKey: ["questDateOpen"],
@@ -70,52 +72,70 @@ const QuestPage = () => {
     queryFn: () => fetcher(`/offer?category=Travel&search=${""}&limit=4&page=1`),
     staleTime: 0,
   });
+
+  const [questFavPagination] = useState({ page: 1, limit: 100 });
+  const { data: getFavouriteOffer, refetch: refetchFavList } = useQuery<IResponseFav>({
+    queryKey: [
+      "getFavouriteOffer",
+      "quest-explore",
+      questFavPagination.page,
+      questFavPagination.limit,
+    ],
+    queryFn: () =>
+      fetcher(`/offer/favorite/${questFavPagination.page}/${questFavPagination.limit}`),
+    staleTime: 60_000,
+    enabled: !!session,
+    refetchOnWindowFocus: false,
+  });
+
+  const { isPending: loadingFav, mutateAsync: mutateFav } = useMutation({
+    mutationKey: ["mutateFav", "quest-explore"],
+    mutationFn: favoriteOffer,
+    onSuccess(data: DataFav, variables: { offer_id: string }) {
+      const toggledId = variables.offer_id;
+      const merchantForAnalytics = offers?.data?.find((o) => o._id === toggledId);
+      const wasFavorite =
+        getFavouriteOffer?.data
+          ?.map((item) => item?.offer_id?._id.toString())
+          .includes(toggledId?.toString()) ?? false;
+
+      if (merchantForAnalytics) {
+        trackFavoriteToggle({
+          merchant: merchantForAnalytics,
+          action: wasFavorite ? "remove" : "add",
+          location: "quest_explore",
+        });
+      }
+
+      if (data) {
+        toast.success("Favorite offer successfully");
+      } else {
+        toast.success("Unfavorite offer successfully");
+      }
+      void refetchFavList();
+    },
+    onError(_error: { data?: { message?: string } }) {
+      toast.error(_error?.data?.message || "Failed to favorite this offer");
+    },
+  });
+
   return (
-    <section className="container mx-auto h-full w-full px-[15px] py-5 md:px-0 gc-section">
-      <div className="gc-surface-card overflow-hidden p-3 md:p-4">
-        <Image
-          src={
-            pathname?.includes("th")
-              ? questDateOpen?.banner_th
-                ? pathImage(questDateOpen?.banner_th)
-                : "/quest/banner_th.png"
-              : questDateOpen?.banner_en
-                ? pathImage(questDateOpen?.banner_en)
-                : "/quest/banner_en.png"
-          }
-          alt="Quest Image"
-          width={1200}
-          height={675}
-          className="h-auto w-full rounded-[28px]"
-        />
-      </div>
-      <div className="mt-5 grid gap-4 md:grid-cols-[minmax(0,1.3fr)_minmax(0,0.7fr)]">
-        <div className="gc-soft-panel p-5 md:p-6">
-          <p className="gc-kicker mb-3">Weekly challenge</p>
-          <h1 className="text-[30px] font-semibold tracking-[-0.04em] text-[#103522]">
-            Quest missions, ranking, and bonus-store discovery
-          </h1>
-          <p className="mt-3 max-w-[680px] text-[15px] leading-7 text-[#5B6B61]">
-            Complete campaign tasks, stack extra points, and explore featured partner stores from
-            one coordinated quest hub.
-          </p>
-        </div>
-        <div className="gc-soft-panel p-5 md:p-6">
-          <p className="mb-2 text-[13px] font-semibold uppercase tracking-[0.14em] text-[#87948B]">
-            Quest period
-          </p>
-          <p className="text-[20px] font-semibold text-[#103522]">
-            {questDateOpen?.start_date && questDateOpen?.end_date
-              ? `${startDate} - ${endDate}`
-              : "Campaign details coming soon"}
-          </p>
-          <p className="mt-3 text-[14px] leading-6 text-[#5B6B61]">
-            {session
-              ? `Your current score: ${myQuestList?.point || 0} points`
-              : "Sign in to see your personal quest progress and rewards."}
-          </p>
-        </div>
-      </div>
+    <div className="container 2xl:max-w-[1200px]! mx-auto w-full h-full py-5 px-[15px] md:px-0">
+      <Image
+        src={
+          isThLocale
+            ? questDateOpen?.banner_th
+              ? pathImage(questDateOpen?.banner_th)
+              : "/quest/banner_th.png"
+            : questDateOpen?.banner_en
+              ? pathImage(questDateOpen?.banner_en)
+              : "/quest/banner_en.png"
+        }
+        alt={t("questPageBannerAlt")}
+        width={1200}
+        height={675}
+        className="rounded-3xl w-full h-auto mb-5"
+      />
       <div className="w-full h-full md:hidden flex flex-col gap-5 mt-5 ">
         <TabTitle activeTab={activeTab} setActiveTab={setActiveTab} />
         {activeTab === 2 ? (
@@ -138,50 +158,26 @@ const QuestPage = () => {
           myQuest={myQuestList}
           questSocial={questSocial}
           refetchQuestSocial={refetch}
-        />{" "}
+        />
         <ListRank list={questList} myQuest={myQuestList} />
       </div>
 
-      <Title title="Explore Other Shops" />
-      <MerchantListTracker
-        items={offers?.data}
-        listId="quest_explore_other_shops"
-        listName="Quest Explore Other Shops"
-        source="quest_explore"
-      />
-      <div className="grid grid-cols-2 gap-4 my-6 md:grid-cols-4">
-        {offers?.data.map((offer, index) => {
-          const percent = getPercent(offer.commissions);
-
-          return (
-            <CardImage
-              key={offer._id}
-              logo={logoOffer(offer.logo, offer.logo_desktop, offer.logo_mobile, lg)}
-              offer_name={offer.offer_name_display || offer.offer_name}
-              percent={
-                offer?.commission_store
-                  ? `${offer.commission_store?.toFixed(1)}%`
-                  : percent
-                    ? `${percent}%`
-                    : "0%"
-              }
-              show_name_1
-              green_text
-              link={`/shop/${offer._id}`}
-              trackingOffer={offer}
-              trackingContext={{
-                listId: "quest_explore_other_shops",
-                listName: "Quest Explore Other Shops",
-                position: index + 1,
-                source: "quest_explore",
-              }}
-            />
-          );
-        })}
-      </div>
+      {offers?.data?.length ? (
+        <ExploreOtherShopsSection
+          offers={offers.data}
+          lg={lg}
+          getFavouriteOffer={getFavouriteOffer}
+          loadingFav={loadingFav}
+          mutateFav={mutateFav}
+          listId="quest_explore_other_shops"
+          listName="Quest Explore Other Shops"
+          source="quest_explore"
+          category="Travel"
+        />
+      ) : null}
 
       <DialogQuestSocial refetch={refetch} />
-    </section>
+    </div>
   );
 };
 export default QuestPage;
