@@ -27,6 +27,11 @@ const NewOfferPanel = dynamic(() => import("./NewOfferPanel").then((m) => m.defa
   loading: () => <TabPanelSkeleton />,
 });
 
+const TopBrandManagementPanel = dynamic(
+  () => import("./TopBrandManagementPanel").then((m) => m.default),
+  { loading: () => <TabPanelSkeleton /> },
+);
+
 function TabPanelSkeleton() {
   return (
     <div className="animate-pulse rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 dark:border-gray-800 dark:bg-white/[0.03]">
@@ -58,6 +63,11 @@ const TABS = [
     label: "User Deeplink",
     breadcrumb: "User Deeplink",
   },
+  {
+    id: "top-brands" as const,
+    label: "Top brands",
+    breadcrumb: "Top brands",
+  },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -67,6 +77,7 @@ function tabFromSearch(tabParam: string | null): TabId {
   if (tabParam === "policy") return "policy";
   if (tabParam === "deeplink") return "deeplink";
   if (tabParam === "commission") return "commission";
+  if (tabParam === "top-brands") return "top-brands";
   return "offers";
 }
 
@@ -143,6 +154,7 @@ export default function OffersManagementPageContent() {
         {activeTab === "commission" && <CommissionManagementClient embedded />}
         {activeTab === "policy" && <PolicyTable />}
         {activeTab === "deeplink" && <DeeplinkTable />}
+        {activeTab === "top-brands" && <TopBrandManagementPanel />}
       </div>
     </div>
   );

@@ -11,6 +11,8 @@ import {
   mockConversions,
   mockFee,
   mockBanner,
+  mockBannerHomeSmall,
+  mockBannerAllBrandPage,
   mockCategories,
   mockCoupons,
   mockMyCashback,
@@ -29,7 +31,11 @@ import {
   resolveAffiliateNetworkIdForOffer,
 } from "@/data/affiliateNetworks";
 import { bestPercentFromPartnerRates, buildSuggestedAppDeeplink } from "@/lib/offerDeeplink";
-import { normalizeOfferProductTypes, type Offer } from "@/types/api";
+import {
+  normalizeOfferDisplayTags,
+  normalizeOfferProductTypes,
+  type Offer,
+} from "@/types/api";
 import { DEFAULT_MOCK_ACCESS_TOKEN } from "@/lib/authTokens";
 
 export type MockApiInput = {
@@ -256,6 +262,9 @@ function mockWithdrawDetailForUser(userId: string) {
 /** Admin-set app deeplink per offer (commission management). */
 const commissionAppDeeplinkByOfferId = new Map<string, string>();
 
+/** Homepage top-brand rail: ordered offer `_id`s (mock; in-memory). */
+let topBrandHomepageOrder: string[] = ["o1", "o2", "o3", "o5"];
+
 function paginate<T>(items: T[], page = 1, limit = 10) {
   const start = (page - 1) * limit;
   return {
@@ -318,6 +327,16 @@ function handleMockGET(
   if (path[0] === "admin" && path.length === 2) {
     const user = mockAdminUsers.find((u) => u._id === path[1]);
     if (user) return ok(user);
+  }
+
+  if (joined === "admin/top-brands") {
+    const items = topBrandHomepageOrder
+      .map((id) => mockOffers.find((o) => o._id === id))
+      .filter((o) => o != null);
+    return ok({
+      order: [...topBrandHomepageOrder],
+      items,
+    });
   }
 
   if (joined === "dashboard/stats") {
@@ -507,6 +526,14 @@ function handleMockGET(
 
   if (joined === "admin/banner-home") {
     return ok(mockBanner);
+  }
+
+  if (joined === "admin/banner-home-small") {
+    return ok(mockBannerHomeSmall);
+  }
+
+  if (joined === "admin/banner-all-brand-page") {
+    return ok(mockBannerAllBrandPage);
   }
 
   if (path[0] === "admin" && path[1] === "get-mycashback-user") {
@@ -770,6 +797,38 @@ async function handleMockPOST(
     });
   }
 
+  if (
+    joined === "admin/banner-home" ||
+    joined === "admin/banner-home-small" ||
+    joined === "admin/banner-all-brand-page"
+  ) {
+    const target =
+      joined === "admin/banner-home"
+        ? mockBanner
+        : joined === "admin/banner-home-small"
+          ? mockBannerHomeSmall
+          : mockBannerAllBrandPage;
+    const raw = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
+    for (let i = 1; i <= 5; i++) {
+      const lk = `link_${i}`;
+      if (typeof raw[lk] === "string") {
+        (target as Record<string, unknown>)[lk] = raw[lk];
+      }
+      const ik = `image_${i}`;
+      if (typeof raw[ik] === "string") {
+        const s = String(raw[ik]).trim();
+        (target as Record<string, unknown>)[ik] = s.length > 0 ? s : null;
+      }
+    }
+    if (typeof raw.start_date === "string") {
+      (target as Record<string, unknown>).start_date = raw.start_date;
+    }
+    if (typeof raw.end_date === "string") {
+      (target as Record<string, unknown>).end_date = raw.end_date;
+    }
+    return ok({ success: true, message: "Banner updated", ...target });
+  }
+
   if (joined === "offer") {
     return ok({ _id: "o_new", ...(body as object) });
   }
@@ -924,6 +983,26 @@ async function handleMockPUT(
   body: unknown,
 ): Promise<MockApiResult> {
   const b = body as Record<string, unknown> & { categoryId?: string; content?: string };
+
+  if (joined === "admin/top-brands") {
+    const raw = b?.order;
+    const order = Array.isArray(raw)
+      ? raw.map((id) => String(id).trim()).filter(Boolean)
+      : [];
+    const seen = new Set<string>();
+    const next: string[] = [];
+    for (const id of order) {
+      if (!mockOffers.some((o) => o._id === id) || seen.has(id)) continue;
+      seen.add(id);
+      next.push(id);
+    }
+    topBrandHomepageOrder = next;
+    return ok({
+      success: true,
+      order: next,
+      message: "Top brand homepage order saved (mock).",
+    });
+  }
 
   if (path[0] === "offer" && path.length === 2) {
     const offer = mockOffers.find((o) => o._id === path[1]);
@@ -1103,6 +1182,14 @@ async function handleMockPATCH(
       const sid = (b.deeplink_store_id ?? "").trim();
       if (sid && isValidDeeplinkStoreId(sid)) {
         offer.deeplink_store_id = sid;
+      }
+    }
+    if (b.offer_display_tags != null) {
+      try {
+        const parsed: unknown = JSON.parse(b.offer_display_tags);
+        offer.offer_display_tags = normalizeOfferDisplayTags(parsed);
+      } catch {
+        /* ignore invalid JSON */
       }
     }
 

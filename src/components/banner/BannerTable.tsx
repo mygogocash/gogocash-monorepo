@@ -1,16 +1,79 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
-import { OffersQuery } from "@/types/api";
 import { fetcher } from "@/lib/axios/client";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import FormUpdate from "./FormUpdate";
+import { BANNER_ADMIN_SURFACES } from "@/lib/bannerAdminSurfaces";
+import { getBannerSlotRowFields, getBannerTableStatusCell } from "@/lib/bannerSlotStatus";
 import { pathImage } from "@/utils/helper";
-import { BannerData, BannerRequestForm } from "@/types/banner";
+import type { BannerData, BannerRequestForm, BannerTableVariant } from "@/types/banner";
 
-export default function BannerTable() {
+export type { BannerTableVariant } from "@/types/banner";
+
+type HeaderNavMode = "fullHome" | "fullAllBrand" | "minimal";
+
+const VARIANT_CONFIG: Record<
+  BannerTableVariant,
+  {
+    queryKey: string[];
+    fetchPath: string;
+    savePath: string;
+    tableTitle: string;
+    tableSubtitle?: string;
+    formTitle: string;
+    formDescription: string;
+    uploadHint: string;
+    headerNavMode: HeaderNavMode;
+  }
+> = {
+  home: {
+    queryKey: BANNER_ADMIN_SURFACES.home.queryKey,
+    fetchPath: BANNER_ADMIN_SURFACES.home.fetchPath,
+    savePath: BANNER_ADMIN_SURFACES.home.fetchPath,
+    tableTitle: "Home Page Banner",
+    formTitle: "Banner Home",
+    formDescription:
+      "Edit homepage banner slot {slot}: upload an image, set the link and optional start/end dates. The banner is shown to users on the app homepage.",
+    uploadHint:
+      "Choose a banner image (e.g. PNG, JPG). Use a clear, wide image for best display on the homepage.",
+    headerNavMode: "fullHome",
+  },
+  homeSmall: {
+    queryKey: BANNER_ADMIN_SURFACES.homeSmall.queryKey,
+    fetchPath: BANNER_ADMIN_SURFACES.homeSmall.fetchPath,
+    savePath: BANNER_ADMIN_SURFACES.homeSmall.fetchPath,
+    tableTitle: "Home Page Banner Small Banner",
+    tableSubtitle: "Secondary strip on the home screen (below the main carousel). Same five slots; use smaller artwork in the app.",
+    formTitle: "Home Page Banner — Small",
+    formDescription:
+      "Edit small-banner slot {slot} on the homepage: upload a compact image, set the link, and optional start/end dates.",
+    uploadHint:
+      "Smaller tiles or icons work well here (e.g. square or short-wide ratio), separate from the main hero banners.",
+    headerNavMode: "minimal",
+  },
+  allBrand: {
+    queryKey: BANNER_ADMIN_SURFACES.allBrand.queryKey,
+    fetchPath: BANNER_ADMIN_SURFACES.allBrand.fetchPath,
+    savePath: BANNER_ADMIN_SURFACES.allBrand.fetchPath,
+    tableTitle: "All Brand Page banner",
+    formTitle: "All Brand Page banner",
+    formDescription:
+      "Edit banner slot {slot} for the app’s all-brands listing: upload an image, set the link, and optional start/end dates.",
+    uploadHint:
+      "Choose a banner image (e.g. PNG, JPG). Wide assets work best at the top of the brands list.",
+    headerNavMode: "fullAllBrand",
+  },
+};
+
+type BannerTableProps = {
+  variant?: BannerTableVariant;
+};
+
+export default function BannerTable({ variant = "home" }: BannerTableProps) {
+  const cfg = VARIANT_CONFIG[variant];
   const [openModal, setOpenModal] = useState<boolean>(false);
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
   const actionsDropdownRef = useRef<HTMLDivElement>(null);
@@ -32,27 +95,30 @@ export default function BannerTable() {
     id: "",
   });
 
-  const [query, setQuery] = useState<OffersQuery>({
-    search: "",
-    limit: 10,
-    page: 1,
-  });
-
-  // Fetch offers
+  const [tableSearch, setTableSearch] = useState("");
 
   const {
     data: bannerData,
     refetch,
     isLoading: isLoadingBanner,
   } = useQuery<BannerData>({
-    queryKey: ["getBannerHome"],
-    queryFn: () => fetcher(`/admin/banner-home`),
+    queryKey: cfg.queryKey,
+    queryFn: () => fetcher(cfg.fetchPath),
   });
-  // Handle search
-  const handleSearch = (searchValue: string) => {
-    const newQuery = { ...query, search: searchValue, page: 1 };
-    setQuery(newQuery);
-  };
+  const visibleSlots = useMemo(() => {
+    const needle = tableSearch.trim().toLowerCase();
+    const all = [1, 2, 3, 4, 5] as const;
+    if (!needle) return [...all];
+    return all.filter((slot) => {
+      const { imageId, link } = getBannerSlotRowFields(bannerData, slot);
+      const idStr = String(imageId ?? "").toLowerCase();
+      return (
+        String(slot).includes(needle) ||
+        link.toLowerCase().includes(needle) ||
+        idStr.includes(needle)
+      );
+    });
+  }, [bannerData, tableSearch]);
 
   useEffect(() => {
     if (!openActionsId) return;
@@ -63,6 +129,8 @@ export default function BannerTable() {
     document.addEventListener("click", handleClick, true);
     return () => document.removeEventListener("click", handleClick, true);
   }, [openActionsId]);
+
+  const rowActionKey = (slot: number) => `${variant}-banner-${slot}`;
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
@@ -75,31 +143,58 @@ export default function BannerTable() {
         setForm={setForm}
         isLoading={isLoading}
         setIsLoading={setIsLoading}
+        savePath={cfg.savePath}
+        headerTitle={cfg.formTitle}
+        headerDescription={cfg.formDescription}
+        uploadImageHint={cfg.uploadHint}
       />
       <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-5">
-        <div>
-          <h3 className="text-base font-medium text-gray-800 dark:text-white/90">
-            Home Page Banner
-          </h3>
+        <div className="min-w-0">
+          <h3 className="text-base font-medium text-gray-800 dark:text-white/90">{cfg.tableTitle}</h3>
+          {cfg.tableSubtitle ? (
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{cfg.tableSubtitle}</p>
+          ) : null}
         </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/banner/modal-popups"
-            className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-          >
-            Modal popups
-          </Link>
-          <Link
-            href="/banner/popup-history"
-            className="inline-flex items-center justify-center rounded-lg border border-transparent px-4 py-2 text-sm font-medium text-brand-600 hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-950/30"
-          >
-            Popup history
-          </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          {cfg.headerNavMode === "fullHome" ? (
+            <Link
+              href="/banner/all-brand-page"
+              className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+            >
+              All Brand Page banner
+            </Link>
+          ) : null}
+          {cfg.headerNavMode === "fullAllBrand" ? (
+            <Link
+              href="/banner"
+              className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+            >
+              Home Page Banner
+            </Link>
+          ) : null}
+          {cfg.headerNavMode === "fullHome" || cfg.headerNavMode === "fullAllBrand" ? (
+            <>
+              <Link
+                href="/banner/modal-popups"
+                className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+              >
+                Modal popups
+              </Link>
+              <Link
+                href="/banner/popup-history"
+                className="inline-flex items-center justify-center rounded-lg border border-transparent px-4 py-2 text-sm font-medium text-brand-600 hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-950/30"
+              >
+                Popup history
+              </Link>
+            </>
+          ) : null}
           <input
-            type="text"
-            placeholder="Search"
-            onChange={(e) => handleSearch(e.target.value)}
+            type="search"
+            placeholder="Search slots, links, image id…"
+            value={tableSearch}
+            onChange={(e) => setTableSearch(e.target.value)}
             className="h-11 w-full rounded-lg border border-gray-200 bg-transparent px-5 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:ring-brand-500/20 focus:outline-hidden xl:w-[300px] dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400 dark:focus:ring-brand-400/30"
+            aria-label="Filter banner rows"
           />
         </div>
       </div>
@@ -116,38 +211,54 @@ export default function BannerTable() {
             {/* Banner Table */}
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <caption className="sr-only">{cfg.tableTitle} — five slots</caption>
                 <thead className="bg-gray-50 dark:bg-gray-800">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                       #
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                       Image
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                       Link
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Status
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                       Actions
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
-                  {[1, 2, 3, 4, 5].map((item, index) => {
-                    const imageId = bannerData?.[`image_${item}` as keyof BannerData] as string | null | undefined;
-                    const link = (bannerData?.[`link_${item}` as keyof BannerData] as string) || "";
+                  {visibleSlots.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                        No rows match your search.
+                      </td>
+                    </tr>
+                  ) : (
+                  visibleSlots.map((item) => {
+                    const { imageId, link, hasSlotContent } = getBannerSlotRowFields(bannerData, item);
                     const imageSrc = imageId
                       ? pathImage(imageId) ||
                         `https://placehold.co/96x96.png/e2e8f0/64748b?text=Banner+${item}`
                       : null;
+                    const statusCell = getBannerTableStatusCell({
+                      hasSlotContent,
+                      start_date: bannerData?.start_date,
+                      end_date: bannerData?.end_date,
+                    });
+                    const actionKey = rowActionKey(item);
 
                     return (
                       <tr
                         className="hover:bg-gray-50 dark:hover:bg-gray-800"
-                        key={index}
+                        key={item}
                       >
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                          {index + 1}
+                          {item}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {imageSrc ? (
@@ -178,9 +289,22 @@ export default function BannerTable() {
                             <span className="text-gray-400 dark:text-gray-500">—</span>
                           )}
                         </td>
+                        <td className="px-6 py-4 text-sm whitespace-nowrap">
+                          {statusCell.kind === "live" ? (
+                            <span className={statusCell.badgeClass}>{statusCell.label}</span>
+                          ) : (
+                            <span
+                              className="text-gray-400 dark:text-gray-500"
+                              title="Inactive slots are listed on Popup history"
+                              aria-label="Inactive; see Popup history page"
+                            >
+                              —
+                            </span>
+                          )}
+                        </td>
                         <td className="relative px-6 py-4 text-sm font-medium whitespace-nowrap">
                           <div
-                            ref={openActionsId === `banner-${index}` ? actionsDropdownRef : undefined}
+                            ref={openActionsId === actionKey ? actionsDropdownRef : undefined}
                             className="relative inline-block"
                             onClick={(e) => e.stopPropagation()}
                           >
@@ -188,11 +312,10 @@ export default function BannerTable() {
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                const id = `banner-${index}`;
-                                setOpenActionsId((prev) => (prev === id ? null : id));
+                                setOpenActionsId((prev) => (prev === actionKey ? null : actionKey));
                               }}
                               className="inline-flex min-h-[2rem] items-center justify-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                              aria-expanded={openActionsId === `banner-${index}`}
+                              aria-expanded={openActionsId === actionKey}
                               aria-haspopup="true"
                             >
                               Actions
@@ -200,7 +323,7 @@ export default function BannerTable() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                               </svg>
                             </button>
-                            {openActionsId === `banner-${index}` && (
+                            {openActionsId === actionKey && (
                               <div className="absolute right-0 top-full z-50 mt-1 min-w-[10rem] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800" role="menu">
                                 <button
                                   type="button"
@@ -243,10 +366,20 @@ export default function BannerTable() {
                         </td>
                       </tr>
                     );
-                  })}
+                  })
+                  )}
                 </tbody>
               </table>
             </div>
+            <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+              Status shows <span className="font-medium text-gray-600 dark:text-gray-300">Active</span> or{" "}
+              <span className="font-medium text-gray-600 dark:text-gray-300">Scheduled</span> only. Empty or past-end slots are{" "}
+              <span className="font-medium text-gray-600 dark:text-gray-300">inactive</span> — see them under{" "}
+              <Link href="/banner/popup-history" className="font-medium text-brand-600 hover:underline dark:text-brand-400">
+                Popup history
+              </Link>
+              .
+            </p>
           </>
         )}
       </div>

@@ -3,18 +3,19 @@
 import React, { useCallback } from "react";
 import toast from "react-hot-toast";
 
-export default function CopyButton({ value }: { value: string }) {
+export default function CopyButton({ value }: { value: string | null | undefined }) {
+  const text = value == null ? "" : String(value);
   const handleCopy = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      navigator.clipboard.writeText(value).then(() => {
-        toast.success(`Copied: ${value}`, { duration: 1500 });
+      navigator.clipboard.writeText(text).then(() => {
+        toast.success(`Copied: ${text}`, { duration: 1500 });
       });
     },
-    [value],
+    [text],
   );
 
-  if (!value || value === "N/A") return null;
+  if (!text.trim()) return null;
 
   return (
     <button

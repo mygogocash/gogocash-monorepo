@@ -39,9 +39,10 @@ Concise context for coding agents working in this repository. For full setup, ar
 Several sections use a **shared top tab row** under the breadcrumb, mirroring sidebar entries:
 
 - **Conversion:** `src/components/conversion/ConversionSubNav.tsx` — lists use `/conversion` and `/conversion?tab=created`; add flow at `/conversion/add`. `ConversionPageClient` reads `tab` from the query string.
-- **Banner:** `src/components/banner/BannerSubNav.tsx` on `/banner`, `/banner/modal-popups`, `/banner/popup-history`.
+- **Banner:** `src/components/banner/BannerSubNav.tsx` on `/banner`, `/banner/all-brand-page`, `/banner/modal-popups`, `/banner/popup-history`.
 - **Coupon:** `src/components/coupon/CouponSubNav.tsx` on `/coupon`, `/coupon/history`.
 - **Quest:** `src/components/quest/QuestSubNav.tsx` on `/quest`, `/reward`.
+- **Offers:** `src/components/offer/OffersManagementPageContent.tsx` — tabs include `/offers`, `/offers?tab=new-offer`, `commission`, `policy`, `deeplink`, `top-brands`.
 
 When adding a new sidebar subsection, consider the same pattern for consistency.
 

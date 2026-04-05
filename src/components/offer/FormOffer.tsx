@@ -8,7 +8,7 @@ import { devError } from "@/lib/devConsole";
 import toast from "react-hot-toast";
 import Button from "../ui/button/Button";
 import Switch from "../form/switch/Switch";
-import { Offer, OfferRequestForm } from "@/types/api";
+import { Offer, OfferRequestForm, type OfferDisplayTags } from "@/types/api";
 import { pathImage } from "@/utils/helper";
 import { useDataSession } from "@/hooks/useDataSession";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -56,6 +56,23 @@ function FieldLabel({ label, description }: { label: string; description: string
       <p className="text-xs text-gray-500 dark:text-gray-400">{description}</p>
     </div>
   );
+}
+
+/** Preview pills for the “Offer tags” block (kept pure for clarity and reuse). */
+function buildOfferTagPreviewChips(tags: OfferDisplayTags, offer: Offer | null): string[] {
+  const chips: string[] = [];
+  if (tags.brand_category_enabled) {
+    chips.push(
+      tags.brand_category_label.trim() ||
+        (offer?.categories?.trim() ? offer.categories : "Brand category"),
+    );
+  }
+  if (tags.extra_cashback_tag) chips.push("Extra cashback");
+  if (tags.grab_coupon_tag) chips.push("Grab Coupon");
+  if (tags.expire_in_days_enabled && tags.expire_in_days != null) {
+    chips.push(`Expire in ${tags.expire_in_days} days`);
+  }
+  return chips;
 }
 
 interface FormOfferProps {
@@ -142,11 +159,43 @@ const FormOffer = ({
     },
   });
 
-  const { data: policyCategories = [] } = useQuery<ResCategoryList[]>({
+  const { data: policyCategories = [], isPending: policyCategoriesPending } = useQuery<
+    ResCategoryList[]
+  >({
     queryKey: ["getCategory", "form-offer-policy"],
     queryFn: () => fetcher("/offer/get-category/list"),
     staleTime: 60_000,
   });
+
+  const categoriesSortedForTags = useMemo(
+    () => [...policyCategories].sort((a, b) => a.name.localeCompare(b.name)),
+    [policyCategories],
+  );
+
+  /** One option per unique category name (duplicate names would break native select value matching). */
+  const categoriesForTagSelect = useMemo(() => {
+    const seen = new Set<string>();
+    const out: ResCategoryList[] = [];
+    for (const c of categoriesSortedForTags) {
+      const n = c.name.trim();
+      if (!n || seen.has(n)) continue;
+      seen.add(n);
+      out.push(c);
+    }
+    return out;
+  }, [categoriesSortedForTags]);
+
+  const offerTagPreviewChips = useMemo(
+    () => buildOfferTagPreviewChips(form.offer_display_tags, offer),
+    [form.offer_display_tags, offer],
+  );
+
+  const legacyBrandCategoryLabel = useMemo(() => {
+    const cur = form.offer_display_tags.brand_category_label.trim();
+    if (!cur) return null;
+    if (categoriesForTagSelect.some((c) => c.name === cur)) return null;
+    return cur;
+  }, [form.offer_display_tags.brand_category_label, categoriesForTagSelect]);
 
   const { data: policiesList = {} } = useQuery<Record<string, string>>({
     queryKey: ["policyList"],
@@ -164,6 +213,16 @@ const FormOffer = ({
   };
 
   const handleSave = () => {
+    const tags = form.offer_display_tags;
+    if (tags.expire_in_days_enabled) {
+      const n = tags.expire_in_days;
+      if (n == null || Number.isNaN(n) || n < 1) {
+        toast.error(
+          'Set a positive number of days for "Expire in X days", or turn that tag off.',
+        );
+        return;
+      }
+    }
     const formData = new FormData();
     if (form.logo_desktop) {
       formData.append("logo_desktop", form.logo_desktop);
@@ -223,6 +282,7 @@ const FormOffer = ({
     formData.append("note_to_user", form.note_to_user ?? "");
     formData.append("affiliate_network_id", form.affiliate_network_id.trim() || "involve_asia");
     formData.append("deeplink_store_id", form.deeplink_store_id.trim() || "global");
+    formData.append("offer_display_tags", JSON.stringify(form.offer_display_tags));
     const hasProductTypeRows = (form.product_types ?? []).length > 0;
 
     setIsLoading(true);
@@ -544,6 +604,200 @@ const FormOffer = ({
                 {offer.special_commissions.length} tier(s) — see partner portal for full rules.
               </p>
             ) : null}
+
+            <div className="mt-6 border-t border-brand-200/70 pt-5 dark:border-brand-800/50">
+              <h4 className="text-sm font-semibold text-brand-900 dark:text-brand-100">
+                Offer tags (merchandising)
+              </h4>
+              <p className="mt-1 text-xs text-brand-800/80 dark:text-brand-200/80">
+                Optional labels for the offer card in the app: category, promos, and expiry messaging. Editable
+                here; unrelated to partner rates above.
+              </p>
+              {offerTagPreviewChips.length > 0 ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {offerTagPreviewChips.map((c, i) => (
+                    <span
+                      key={`tag-preview-${i}`}
+                      className="rounded-full bg-white/90 px-2.5 py-1 text-xs font-medium text-brand-900 shadow-sm dark:bg-brand-950/60 dark:text-brand-100"
+                    >
+                      {c}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-xs text-brand-800/70 dark:text-brand-200/70">
+                  No tags enabled — use the toggles below to show pills in the app.
+                </p>
+              )}
+
+              <div className="mt-4 space-y-5">
+                <div>
+                  <Switch
+                    key={`${form.id}-odt-brand`}
+                    label="Brand category"
+                    defaultChecked={form.offer_display_tags.brand_category_enabled}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        offer_display_tags: {
+                          ...form.offer_display_tags,
+                          brand_category_enabled: e,
+                        },
+                      })
+                    }
+                    disabled={isLoading}
+                  />
+                  <p className="ml-6 mt-0.5 text-xs text-gray-600 dark:text-gray-400">
+                    Partner feed category:{" "}
+                    <span className="font-medium text-gray-800 dark:text-gray-200">
+                      {offer?.categories?.trim() ? offer.categories : "—"}
+                    </span>
+                    . Pick a system category below, or leave “Use partner feed” so the tag uses that value.
+                  </p>
+                  {form.offer_display_tags.brand_category_enabled ? (
+                    <div className="ml-6 mt-2 max-w-xl">
+                      <label htmlFor="offer_tag_brand_category" className="sr-only">
+                        Brand category tag
+                      </label>
+                      <select
+                        id="offer_tag_brand_category"
+                        name="offer_tag_brand_category"
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 shadow-theme-xs dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                        value={form.offer_display_tags.brand_category_label}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            offer_display_tags: {
+                              ...form.offer_display_tags,
+                              brand_category_label: e.target.value,
+                            },
+                          })
+                        }
+                        disabled={isLoading || policyCategoriesPending}
+                      >
+                        <option value="">
+                          Use partner feed
+                          {offer?.categories?.trim() ? ` (${offer.categories.trim()})` : ""}
+                        </option>
+                        {legacyBrandCategoryLabel ? (
+                          <option value={legacyBrandCategoryLabel}>
+                            {legacyBrandCategoryLabel} (not in category list — choose a listed value to
+                            replace)
+                          </option>
+                        ) : null}
+                        {categoriesForTagSelect.map((cat) => (
+                          <option key={cat._id} value={cat.name}>
+                            {cat.name}
+                          </option>
+                        ))}
+                      </select>
+                      {policyCategoriesPending ? (
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          Loading categories…
+                        </p>
+                      ) : categoriesForTagSelect.length === 0 ? (
+                        <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                          No categories in the system yet. Add them under Category Management, or use
+                          partner feed.
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+
+                <div>
+                  <Switch
+                    key={`${form.id}-odt-xc`}
+                    label="Extra cashback"
+                    defaultChecked={form.offer_display_tags.extra_cashback_tag}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        offer_display_tags: {
+                          ...form.offer_display_tags,
+                          extra_cashback_tag: e,
+                        },
+                      })
+                    }
+                    disabled={isLoading}
+                  />
+                  <p className="ml-6 mt-0.5 text-xs text-gray-600 dark:text-gray-400">
+                    Show an “extra cashback” style promo tag (separate from Upsize fields below).
+                  </p>
+                </div>
+
+                <div>
+                  <Switch
+                    key={`${form.id}-odt-grab`}
+                    label="Grab Coupon"
+                    defaultChecked={form.offer_display_tags.grab_coupon_tag}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        offer_display_tags: {
+                          ...form.offer_display_tags,
+                          grab_coupon_tag: e,
+                        },
+                      })
+                    }
+                    disabled={isLoading}
+                  />
+                  <p className="ml-6 mt-0.5 text-xs text-gray-600 dark:text-gray-400">
+                    Highlight that users can claim a Grab-related coupon for this offer.
+                  </p>
+                </div>
+
+                <div>
+                  <Switch
+                    key={`${form.id}-odt-exp`}
+                    label='Expire in X days'
+                    defaultChecked={form.offer_display_tags.expire_in_days_enabled}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        offer_display_tags: {
+                          ...form.offer_display_tags,
+                          expire_in_days_enabled: e,
+                        },
+                      })
+                    }
+                    disabled={isLoading}
+                  />
+                  <p className="ml-6 mt-0.5 text-xs text-gray-600 dark:text-gray-400">
+                    Shows “Expire in {"{n}"} days” on the card. Set the number when enabled.
+                  </p>
+                  {form.offer_display_tags.expire_in_days_enabled ? (
+                    <div className="ml-6 mt-2 flex max-w-md flex-wrap items-center gap-2">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Expire in</span>
+                      <Input
+                        type="number"
+                        name="offer_tag_expire_days"
+                        min="1"
+                        className="w-24"
+                        value={
+                          form.offer_display_tags.expire_in_days == null
+                            ? ""
+                            : String(form.offer_display_tags.expire_in_days)
+                        }
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setForm({
+                            ...form,
+                            offer_display_tags: {
+                              ...form.offer_display_tags,
+                              expire_in_days: v === "" ? null : Number(v),
+                            },
+                          });
+                        }}
+                        disabled={isLoading}
+                        autoComplete="off"
+                      />
+                      <span className="text-sm text-gray-600 dark:text-gray-400">days</span>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Admin commission lines (editable) */}

@@ -18,6 +18,7 @@ import {
   Offer,
   OfferRequestForm,
   OffersQuery,
+  normalizeOfferDisplayTags,
   normalizeOfferProductTypes,
 } from "@/types/api";
 import { resolveDeeplinkStoreId } from "@/data/deeplinkStores";
@@ -62,6 +63,7 @@ function offerToEditForm(offer: Offer): OfferRequestForm {
     note_to_user: offer.note_to_user ?? "",
     affiliate_network_id: resolveAffiliateNetworkIdForOffer(offer),
     deeplink_store_id: resolveDeeplinkStoreId(offer),
+    offer_display_tags: normalizeOfferDisplayTags(offer.offer_display_tags),
   };
 }
 
@@ -93,6 +95,7 @@ export default function OffersTable() {
     note_to_user: "",
     affiliate_network_id: "involve_asia",
     deeplink_store_id: "global",
+    offer_display_tags: normalizeOfferDisplayTags(undefined),
   });
   const session = useDataSession();
   const queryClient = useQueryClient();

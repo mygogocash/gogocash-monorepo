@@ -55,6 +55,7 @@ export const navItems: NavItem[] = [
       { name: "Commission Management", path: "/offers?tab=commission", pro: false },
       { name: "Policy Management", path: "/offers?tab=policy", pro: false },
       { name: "User Deeplink", path: "/offers?tab=deeplink", pro: false },
+      { name: "Top brands", path: "/offers?tab=top-brands", pro: false },
     ],
   },
   {
@@ -76,6 +77,7 @@ export const navItems: NavItem[] = [
     name: "Banner Management",
     subItems: [
       { name: "Home Page Banner", path: "/banner", pro: false },
+      { name: "All Brand Page banner", path: "/banner/all-brand-page", pro: false },
       { name: "Modal popups", path: "/banner/modal-popups", pro: false },
       { name: "Popup history", path: "/banner/popup-history", pro: false },
     ],

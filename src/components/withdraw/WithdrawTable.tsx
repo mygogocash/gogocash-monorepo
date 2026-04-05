@@ -291,28 +291,28 @@ export default function WithdrawTable() {
                         </div>
                         {list.method === "web3" ? (
                           <>
-                            <p className="flex items-center text-sm text-gray-900 dark:text-gray-100">
+                            <p className="flex flex-wrap items-center gap-1 text-sm text-gray-900 dark:text-gray-100">
                               Address: {list.address || "N/A"}
-                              <CopyButton value={list.address} />
+                              <CopyButton value={list.address?.trim() || "N/A"} />
                             </p>
-                            <p className="flex items-center text-sm text-gray-900 dark:text-gray-100">
+                            <p className="flex flex-wrap items-center gap-1 text-sm text-gray-900 dark:text-gray-100">
                               Transaction Hash: {list.tx_hash || "N/A"}
-                              <CopyButton value={list.tx_hash} />
+                              <CopyButton value={list.tx_hash?.trim() || "N/A"} />
                             </p>
                           </>
                         ) : (
                           <>
-                            <p className="flex items-center text-sm text-gray-900 dark:text-gray-100">
+                            <p className="flex flex-wrap items-center gap-1 text-sm text-gray-900 dark:text-gray-100">
                               Bank Name: {list.bank_name || "N/A"}
-                              <CopyButton value={list.bank_name} />
+                              <CopyButton value={list.bank_name?.trim() || "N/A"} />
                             </p>
-                            <p className="flex items-center text-sm text-gray-900 dark:text-gray-100">
+                            <p className="flex flex-wrap items-center gap-1 text-sm text-gray-900 dark:text-gray-100">
                               Account Number: {list.account_number || "N/A"}
-                              <CopyButton value={list.account_number} />
+                              <CopyButton value={list.account_number?.trim() || "N/A"} />
                             </p>
-                            <p className="flex items-center text-sm text-gray-900 dark:text-gray-100">
+                            <p className="flex flex-wrap items-center gap-1 text-sm text-gray-900 dark:text-gray-100">
                               Account Name: {list.account_name || "N/A"}
-                              <CopyButton value={list.account_name} />
+                              <CopyButton value={list.account_name?.trim() || "N/A"} />
                             </p>
                           </>
                         )}

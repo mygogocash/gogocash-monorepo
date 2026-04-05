@@ -333,12 +333,16 @@ interface Session {
 | `/admin-users` | `AdminUsersTable` | Manage admin user accounts (CRUD) |
 | `/users` | `UsersTable` | View & manage regular users |
 | `/offers` | `OffersTable` | Browse & manage merchant offers |
+| `/offers?tab=top-brands` | `TopBrandManagementPanel` | Homepage top-brand order (mock API) |
 | `/offers/[id]` | `Detail` + `FormOffer` | Individual offer detail & editing |
 | `/offers/pending/[id]` | `PendingOfferReviewRouteClient` | Full-page review for merchant-submitted (pending) offers |
 | `/withdraw` | `WithdrawTable` | View withdrawal requests |
 | `/withdraw/[id]` | `WithdrawDetail` | Approve/reject withdrawals |
 | `/conversion` | `ConversionTable` | Track affiliate conversions |
-| `/banner` | Banner components | Homepage banner management |
+| `/banner` | `BannerTable` ×2 | Main homepage carousel + small-banner strip (separate mock APIs) |
+| `/banner/all-brand-page` | `BannerTable` (all-brand variant) | All-brands listing screen banners |
+| `/banner/modal-popups` | `AppOpenPopupSettingsForm` | App-open modal popups |
+| `/banner/popup-history` | `PopupHistoryTable` | Local snapshots of popup configs |
 | `/category` | Category components | Offer category management |
 | `/coupon` | Coupon components | Coupon code management |
 | `/fee` | `FeeForm` | System fee rate configuration |
@@ -707,7 +711,8 @@ Offers Management
 ├── Offers (/offers)
 ├── Commission Management (/offers?tab=commission)
 ├── Policy Management (/offers?tab=policy)
-└── User Deeplink (/offers?tab=deeplink)
+├── User Deeplink (/offers?tab=deeplink)
+└── Top brands (/offers?tab=top-brands)
 
 Category Management
 └── Category (/category)

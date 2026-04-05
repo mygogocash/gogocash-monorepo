@@ -19,6 +19,11 @@ interface IProp {
   setForm: React.Dispatch<React.SetStateAction<BannerRequestForm>>;
   isLoading: boolean;
   setIsLoading: React.Dispatch<React.SetStateAction<boolean>>;
+  /** POST target (mock: `/admin/banner-home` or `/admin/banner-all-brand-page`). */
+  savePath?: string;
+  headerTitle?: string;
+  headerDescription?: string;
+  uploadImageHint?: string;
 }
 const FormUpdate = ({
   fetchData,
@@ -28,6 +33,10 @@ const FormUpdate = ({
   setForm,
   isLoading,
   setIsLoading,
+  savePath = "/admin/banner-home",
+  headerTitle = "Banner Home",
+  headerDescription = "Edit homepage banner slot {slot}: upload an image, set the link and optional start/end dates. The banner is shown to users on the app homepage.",
+  uploadImageHint = "Choose a banner image (e.g. PNG, JPG). Use a clear, wide image for best display on the homepage.",
 }: IProp) => {
   const session = useDataSession();
 
@@ -58,7 +67,7 @@ const FormUpdate = ({
     if (form.image_5) formData.append("image_5", form.image_5);
     setIsLoading(true);
     client
-      .post(`/admin/banner-home`, formData, {
+      .post(savePath, formData, {
         headers: {
           Authorization: `Bearer ${session?.accessToken}`,
           "Content-Type": "multipart/form-data",
@@ -77,6 +86,7 @@ const FormUpdate = ({
       });
   };
   const slotImage = form[`image_${form.id}` as keyof BannerRequestForm];
+  const slotDesc = headerDescription.replace(/\{slot\}/g, String(form.id));
 
   return (
     <Modal
@@ -92,11 +102,9 @@ const FormUpdate = ({
         <div className="mb-4 flex w-full shrink-0 flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-4 dark:border-gray-700">
           <div className="min-w-0">
             <h4 className="text-title-sm mb-1 font-semibold text-gray-800 dark:text-white/90">
-              Banner Home
+              {headerTitle}
             </h4>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Edit homepage banner slot {form.id}: upload an image, set the link and optional start/end dates. The banner is shown to users on the app homepage.
-            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{slotDesc}</p>
           </div>
           <div className="flex shrink-0 items-center gap-3">
             <Button
@@ -127,15 +135,13 @@ const FormUpdate = ({
             <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
               Upload image {form.id}
             </p>
-            <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-              Choose a banner image (e.g. PNG, JPG). Use a clear, wide image for best display on the homepage.
-            </p>
+            <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">{uploadImageHint}</p>
             <Input
               type="file"
               name={`image_${form.id}`}
               onChange={(event) => handleFileChange(event, `image_${form.id}`)}
             />
-            {form.image_1 && (
+            {Boolean(slotImage) && (
               <div className="mt-4 mb-4">
                 <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
                   Preview Banner {form.id}
