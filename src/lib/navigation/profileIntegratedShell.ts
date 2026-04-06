@@ -58,5 +58,8 @@ export function isIntegratedProfileShellPath(pathname: string | null): boolean {
   if (pathname === "/privacy-center" || pathname.startsWith("/privacy-center/")) {
     return true;
   }
+  if (pathname === "/age-verification" || pathname.startsWith("/age-verification/")) {
+    return true;
+  }
   return false;
 }

@@ -23,6 +23,7 @@ const PROFILE_MENU_PREFETCH_ROUTES = [
   "/referral",
   "/quest/history",
   "/privacy-center",
+  "/age-verification",
   "/subscription",
   "/pricing",
   "/billing",

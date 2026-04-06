@@ -18,6 +18,7 @@ import MembershipNavIcon from "@/components/icons/MembershipNavIcon";
 import LogoutIcon from "@/components/icons/LogoutIcon";
 import DocumentIcon from "@/components/icons/DocumentIcon";
 import LogoutConfirmDialog from "@/components/layouts/LogoutConfirmDialog";
+import AgeVerificationNavIcon from "@/components/icons/AgeVerificationNavIcon";
 import { Link, usePathname } from "@/i18n/navigation";
 import { useCrossmintLoginContext } from "@/providers/CrossmintLoginContext";
 import { useSession } from "next-auth/react";
@@ -91,6 +92,14 @@ const membershipMenuItem: MenuEntry = {
   iconStroke: true,
 };
 
+const ageVerificationMenuItem: MenuEntry = {
+  translationKey: "pdpaAgeVerifyTitle",
+  href: "/age-verification",
+  icon: AgeVerificationNavIcon,
+  activePrefix: "/age-verification",
+  iconStroke: true,
+};
+
 const baseMenuTail: MenuEntry[] = [
   {
     translationKey: "Favorite Brands",
@@ -104,6 +113,7 @@ const baseMenuTail: MenuEntry[] = [
     icon: QuestIcon,
     activePrefix: "/quest/history",
   },
+  ageVerificationMenuItem,
   {
     translationKey: "navPrivacyPolicy",
     href: "/privacy-center",
@@ -197,8 +207,8 @@ const SubProfile = ({ variant = "sidebar", className }: SubProfileProps) => {
 
   const menu: MenuEntry[] = [
     ...baseMenuHead,
-    missingOrderMenuItem,
     membershipMenuItem,
+    missingOrderMenuItem,
     ...baseMenuTail,
     { ...helpItem, href: supportHref },
     connectItem,

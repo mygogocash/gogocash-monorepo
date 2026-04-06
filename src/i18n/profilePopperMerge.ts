@@ -9,12 +9,12 @@ export const PROFILE_POPPER_MESSAGE_KEYS = [
 
 const FALLBACK_EN: Record<(typeof PROFILE_POPPER_MESSAGE_KEYS)[number], string> = {
   profilePopperGogoquestHistory: "GoGoQuest History",
-  navPrivacyPolicy: "Privacy Policy",
+  navPrivacyPolicy: "Consent preferences",
 };
 
 const FALLBACK_TH: Record<(typeof PROFILE_POPPER_MESSAGE_KEYS)[number], string> = {
   profilePopperGogoquestHistory: "ประวัติ GoGoQuest",
-  navPrivacyPolicy: "นโยบายความเป็นส่วนตัว",
+  navPrivacyPolicy: "การตั้งค่าความยินยอม",
 };
 
 function isMissing(value: unknown): boolean {

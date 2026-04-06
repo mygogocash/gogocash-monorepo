@@ -1,8 +1,11 @@
-import type { MembershipLandingI18n } from "./types";
+type StreakGridI18n = {
+  streakZero: string;
+  streakFmt: (done: number, ptsTotal: number) => string;
+};
 
 export function setupStreakGrid(
   rootEl: HTMLElement,
-  i18n: MembershipLandingI18n | undefined
+  i18n: StreakGridI18n | undefined
 ): () => void {
   const grid = rootEl.querySelector<HTMLElement>("#streak-grid");
   const resetBtn = rootEl.querySelector("#streak-reset");

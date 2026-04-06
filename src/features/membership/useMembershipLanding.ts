@@ -1,17 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { RefObject } from "react";
 
 import { MEMBERSHIP_QUEST_END } from "./landing/constants";
 import { setupFaqAccordion } from "./landing/setupFaqAccordion";
 import { setupHashNavigation } from "./landing/setupHashNavigation";
-import { setupHeroCountUp } from "./landing/setupHeroCountUp";
-import { setupQuestTasks } from "./landing/setupQuestTasks";
 import { setupRevealAndStats } from "./landing/setupRevealAndStats";
 import { setupRippleButtons } from "./landing/setupRippleButtons";
 import { setupSpendCalculator } from "./landing/setupSpendCalculator";
-import { setupStreakGrid } from "./landing/setupStreakGrid";
 import type { MembershipLandingI18n } from "./landing/types";
 
 export type { MembershipLandingI18n } from "./landing/types";
@@ -29,7 +26,6 @@ export function useMembershipLanding(
 ) {
   const theme = "light" as const;
   const [countdownText, setCountdownText] = useState("");
-  const questCompletedRef = useRef(0);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -56,12 +52,6 @@ export function useMembershipLanding(
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
-    return setupHeroCountUp(root);
-  }, [rootRef]);
-
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
     return setupSpendCalculator(root);
   }, [rootRef]);
 
@@ -76,18 +66,6 @@ export function useMembershipLanding(
     if (!root) return;
     return setupFaqAccordion(root);
   }, [rootRef]);
-
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
-    return setupStreakGrid(root, i18n);
-  }, [rootRef, i18n]);
-
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
-    return setupQuestTasks(root, i18n, questCompletedRef);
-  }, [rootRef, i18n]);
 
   useEffect(() => {
     const root = rootRef.current;

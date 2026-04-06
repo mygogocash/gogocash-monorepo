@@ -27,6 +27,8 @@ describe("isIntegratedProfileShellPath", () => {
     expect(isIntegratedProfileShellPath("/withdraw/my-cashback")).toBe(true);
     expect(isIntegratedProfileShellPath("/privacy-center")).toBe(true);
     expect(isIntegratedProfileShellPath("/privacy-center/x")).toBe(true);
+    expect(isIntegratedProfileShellPath("/age-verification")).toBe(true);
+    expect(isIntegratedProfileShellPath("/age-verification/x")).toBe(true);
   });
 
   it("returns false for non-hub routes (e.g. shop)", () => {

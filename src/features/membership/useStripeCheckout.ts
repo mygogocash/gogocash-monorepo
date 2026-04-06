@@ -32,7 +32,7 @@ export function useStripeCheckout(
   const enabled = FEATURE_FLAGS.stripeBilling;
 
   const startCheckout = useCallback(
-    async (tier: StripePlanTier) => {
+    async (tier: StripePlanTier, opts?: { interval?: StripeBillingInterval }) => {
       if (!enabled) {
         toast.error(messages.disabled);
         return;
@@ -41,7 +41,7 @@ export function useStripeCheckout(
         toast.error(messages.loginRequired);
         return;
       }
-      const interval = readBillingInterval(rootRef.current);
+      const interval = opts?.interval ?? readBillingInterval(rootRef.current);
       setPending(true);
       try {
         const res = await fetch("/api/stripe/checkout", {

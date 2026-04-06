@@ -3,7 +3,7 @@
 import "./membership.css";
 
 import Image from "next/image";
-import { Check, Minus, Plus, RotateCcw } from "lucide-react";
+import { Check, Gift, Headphones, Plus, ShieldCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useMemo, useRef, useState } from "react";
 
@@ -11,15 +11,10 @@ import { useMembershipLanding, type MembershipLandingI18n } from "./useMembershi
 import { useStripeCheckout } from "./useStripeCheckout";
 
 const STARTER_PRICE_MONTHLY = 49;
+const STARTER_PRICE_ANNUAL = 490;
 const STARTER_PRICE_ANNUAL_EFFECTIVE = 41;
-
-function FeatureIcon({ ok }: { ok: boolean }) {
-  return ok ? (
-    <Check className="feat-icon" width={18} height={18} aria-hidden />
-  ) : (
-    <Minus className="feat-icon" width={18} height={18} aria-hidden />
-  );
-}
+const MONTHLY_STACK = 588;
+const ANNUAL_SAVE = 98;
 
 export default function MembershipPageClient() {
   const t = useTranslations("membership");
@@ -27,12 +22,7 @@ export default function MembershipPageClient() {
   const noiseId = `mship-noise-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
 
   const landingI18n: MembershipLandingI18n = useMemo(
-    () => ({
-      streakZero: t("streakZero"),
-      streakFmt: (done, ptsTotal) => t("streakFmt", { done, pts: ptsTotal.toLocaleString() }),
-      questFmt: (done, ptsTotal) => t("questFmt", { done, pts: ptsTotal.toLocaleString() }),
-      countdownEnded: t("countdownEnded"),
-    }),
+    () => ({ countdownEnded: t("countdownEnded") }),
     [t]
   );
 
@@ -54,14 +44,17 @@ export default function MembershipPageClient() {
   );
 
   const [billingAnnual, setBillingAnnual] = useState(true);
-  const starterPriceLabel = billingAnnual
-    ? `฿${STARTER_PRICE_ANNUAL_EFFECTIVE}/mo`
-    : `฿${STARTER_PRICE_MONTHLY}/mo`;
-
-  const freeFeatures = t.raw("freeFeatures") as string[];
-  const starterFeatures = t.raw("starterFeatures") as string[];
-  const questTasks = t.raw("questTasks") as string[];
+  const memberBenefits = t.raw("memberBenefits") as string[];
   const faqItems = t.raw("faq") as { q: string; a: string }[];
+
+  const benefitBlocks = useMemo(
+    () => [
+      { Icon: Headphones, title: t("benefitCareTitle"), body: t("benefitCareBody") },
+      { Icon: ShieldCheck, title: t("benefitWarrantyTitle"), body: t("benefitWarrantyBody") },
+      { Icon: Gift, title: t("benefitPartnerTitle"), body: t("benefitPartnerBody") },
+    ],
+    [t]
+  );
 
   return (
     <div ref={rootRef} className="membership-root font-sans antialiased" data-theme={theme}>
@@ -84,7 +77,7 @@ export default function MembershipPageClient() {
                 <div className="eyebrow hero-eyebrow">
                   <div className="hero-eyebrow-campaign">
                     <span className="hero-eyebrow-icon" aria-hidden>
-                      🏆
+                      ✦
                     </span>
                     <div className="hero-eyebrow-copy">
                       <span className="hero-eyebrow-kicker">{t("heroEyebrowKicker")}</span>
@@ -105,48 +98,78 @@ export default function MembershipPageClient() {
                   {t("heroH1")}
                 </h1>
                 <p className="hero-body">{t("heroBody")}</p>
-                <div className="hero-tiers-row">
-                  <div className="hero-tier-cell">
-                    <div className="hero-card hero-card-free">
-                      <h3>{t("tierFree")}</h3>
-                      <div className="mult-badge mb-free">1×</div>
-                      <div className="hero-pts">
-                        <span id="hero-pts-free" data-suffix={t("ptsSuffix")}>
-                          0
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="hero-tier-cell">
-                    <div className="hero-card hero-card-plus">
-                      <h3>{t("tierStarter")}</h3>
-                      <div className="mult-badge mb-plus badge-pulse">1.5×</div>
-                      <div className="hero-pts">
-                        <span id="hero-pts-starter" data-suffix={t("ptsSuffix")}>
-                          0
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+
+                <div className="hero-pricing-row" role="presentation">
+                  <button
+                    type="button"
+                    className={`hero-price-card hero-price-card--monthly ${!billingAnnual ? "is-selected" : ""}`}
+                    onClick={() => setBillingAnnual(false)}
+                    aria-pressed={!billingAnnual}
+                  >
+                    <span className="hero-price-label">{t("planMonthly")}</span>
+                    <span className="hero-price-amount">
+                      ฿{STARTER_PRICE_MONTHLY}
+                      <span className="hero-price-period">{t("perMonthShort")}</span>
+                    </span>
+                    <span className="hero-price-hint">{t("planMonthlyHint")}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`hero-price-card hero-price-card--annual ${billingAnnual ? "is-selected" : ""}`}
+                    onClick={() => setBillingAnnual(true)}
+                    aria-pressed={billingAnnual}
+                  >
+                    <span className="hero-price-badge">{t("bestValue")}</span>
+                    <span className="hero-price-label">{t("planAnnual")}</span>
+                    <span className="hero-price-amount hero-price-amount--lg">
+                      ฿{STARTER_PRICE_ANNUAL}
+                      <span className="hero-price-period">{t("perYearShort")}</span>
+                    </span>
+                    <span className="hero-price-effective">
+                      {t("annualEffectiveLine", {
+                        amount: STARTER_PRICE_ANNUAL_EFFECTIVE,
+                      })}
+                    </span>
+                    <span className="hero-price-save">{t("annualSave")}</span>
+                  </button>
                 </div>
+
+                <p className="hero-plan-name">{t("planUnlimitedName")}</p>
+
                 <div className="hero-actions">
                   {stripeBillingEnabled ? (
-                    <button
-                      type="button"
-                      className="btn-primary btn-ripple"
-                      disabled={pending}
-                      aria-busy={pending}
-                      onClick={() => void startCheckout("plus")}
-                    >
-                      {t("unlockCta")}
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        className="btn-primary btn-ripple"
+                        disabled={pending}
+                        aria-busy={pending}
+                        onClick={() => void startCheckout("starter", { interval: "year" })}
+                      >
+                        {t("ctaAnnual")}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-outline btn-ripple hero-cta-secondary"
+                        disabled={pending}
+                        aria-busy={pending}
+                        onClick={() => void startCheckout("starter", { interval: "month" })}
+                      >
+                        {t("ctaMonthly")}
+                      </button>
+                    </>
                   ) : (
-                    <a className="btn-primary btn-ripple" href="#pricing">
-                      {t("unlockCta")}
-                    </a>
+                    <>
+                      <a className="btn-primary btn-ripple" href="#pricing">
+                        {t("ctaAnnual")}
+                      </a>
+                      <a className="btn-outline btn-ripple hero-cta-secondary" href="#pricing">
+                        {t("ctaMonthly")}
+                      </a>
+                    </>
                   )}
-                  <a className="link-bounce" href="#calculator">
-                    {t("seeHow")}{" "}
+                  <a className="link-bounce" href="#benefits">
+                    {t("seeBenefits")}{" "}
                     <span className="arr" aria-hidden="true">
                       ↓
                     </span>
@@ -156,10 +179,187 @@ export default function MembershipPageClient() {
             </div>
           </section>
 
+          <section className="section" id="pricing">
+            <div className="container">
+              <div className="section-head section-head--pricing">
+                <h2 className="section-title">{t("pricingSectionTitle")}</h2>
+                <p className="section-subtitle pricing-section-subtitle">{t("pricingSectionSubtitle")}</p>
+              </div>
+            </div>
+            <div className="mship-bleed" data-testid="membership-bleed-pricing">
+              <div className="pricing-billing-header">
+                <p className="billing-nudge">{t("billingAnnualNudge")}</p>
+                <div
+                  id="billing-toggle"
+                  data-annual={billingAnnual ? "true" : "false"}
+                  role="group"
+                  aria-label={t("billingAria")}
+                >
+                  <button
+                    type="button"
+                    id="bill-monthly"
+                    data-billing="monthly"
+                    className={!billingAnnual ? "active" : undefined}
+                    onClick={() => setBillingAnnual(false)}
+                  >
+                    <span className="billing-choice-eyebrow">{t("monthly")}</span>
+                    <span className="billing-choice-hint">{t("billingMonthlyHint")}</span>
+                  </button>
+                  <button
+                    type="button"
+                    id="bill-annual"
+                    className={billingAnnual ? "active" : undefined}
+                    data-billing="annual"
+                    onClick={() => setBillingAnnual(true)}
+                  >
+                    <span className="billing-choice-badge">{t("bestValue")}</span>
+                    <span className="billing-choice-eyebrow billing-choice-eyebrow--lg">
+                      {t("annual")}
+                    </span>
+                    <span className="billing-choice-save">{t("annualSave")}</span>
+                    <span className="billing-choice-hint">{t("billingAnnualHint")}</span>
+                  </button>
+                </div>
+              </div>
+              <div className="pricing-grid pricing-grid--dual">
+                <article
+                  className={`pricing-card pc-monthly ${!billingAnnual ? "pricing-card--focus" : ""}`}
+                >
+                  <div className="pc-head">
+                    <h3 className="pc-tier-title">{t("planMonthly")}</h3>
+                  </div>
+                  <div className="pc-price">
+                    <span>
+                      ฿{STARTER_PRICE_MONTHLY}
+                      {t("perMonthShort")}
+                    </span>
+                  </div>
+                  <p className="pc-tagline">{t("planMonthlyHint")}</p>
+                  <ul className="pc-features">
+                    {memberBenefits.map((line) => (
+                      <li key={line} className="ok">
+                        <Check className="feat-icon" width={18} height={18} aria-hidden />
+                        <span>{line}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  {stripeBillingEnabled ? (
+                    <button
+                      type="button"
+                      className="btn-outline btn-ripple"
+                      disabled={pending}
+                      aria-busy={pending}
+                      onClick={() => void startCheckout("starter", { interval: "month" })}
+                    >
+                      {t("ctaCheckoutMonthly")}
+                    </button>
+                  ) : (
+                    <a className="btn-outline btn-ripple" href="#pricing">
+                      {t("ctaCheckoutMonthly")}
+                    </a>
+                  )}
+                </article>
+                <article
+                  className={`pricing-card pc-annual pricing-card-featured ${billingAnnual ? "pricing-card--focus" : ""}`}
+                >
+                  <div className="pc-head">
+                    <span className="pc-best-pill">{t("bestValue")}</span>
+                    <h3 className="pc-tier-title">{t("planAnnual")}</h3>
+                  </div>
+                  <div className="pc-price">
+                    <span>
+                      ฿{STARTER_PRICE_ANNUAL}
+                      {t("perYearShort")}
+                    </span>
+                  </div>
+                  <p className="pc-effective">
+                    {t("annualEffectiveLine", { amount: STARTER_PRICE_ANNUAL_EFFECTIVE })}
+                  </p>
+                  <ul className="pc-features">
+                    {memberBenefits.map((line) => (
+                      <li key={`a-${line}`} className="ok">
+                        <Check className="feat-icon" width={18} height={18} aria-hidden />
+                        <span>{line}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  {stripeBillingEnabled ? (
+                    <button
+                      type="button"
+                      className="btn-primary btn-ripple"
+                      disabled={pending}
+                      aria-busy={pending}
+                      onClick={() => void startCheckout("starter", { interval: "year" })}
+                    >
+                      {t("ctaCheckoutAnnual")}
+                    </button>
+                  ) : (
+                    <a className="btn-primary btn-ripple" href="#pricing">
+                      {t("ctaCheckoutAnnual")}
+                    </a>
+                  )}
+                </article>
+              </div>
+              <ul className="trust-strip" aria-label={t("trustStripLabel")}>
+                <li>{t("trustBilledThb")}</li>
+                <li>{t("trustCancelAnytime")}</li>
+                <li>{t("trustAccessThroughPeriod")}</li>
+              </ul>
+            </div>
+          </section>
+
+          <section className="section" id="benefits">
+            <div className="container">
+              <div className="section-head">
+                <h2 className="section-title">{t("benefitsHeading")}</h2>
+                <p className="section-subtitle">{t("benefitsSubtitle")}</p>
+              </div>
+              <div className="benefits-grid">
+                {benefitBlocks.map(({ Icon, title, body }) => (
+                  <div key={title} className="benefit-card reveal">
+                    <div className="benefit-icon-wrap" aria-hidden>
+                      <Icon className="benefit-icon" width={28} height={28} />
+                    </div>
+                    <h3 className="benefit-title">{title}</h3>
+                    <p className="benefit-body">{body}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="benefits-footnote">{t("benefitsPointsFootnote")}</p>
+            </div>
+          </section>
+
+          <section className="section" id="savings">
+            <div className="container">
+              <div className="section-head">
+                <h2 className="section-title">{t("savingsHeading")}</h2>
+                <p className="section-subtitle">{t("savingsSubtitle")}</p>
+              </div>
+              <div className="savings-proof-card reveal">
+                <div className="savings-row">
+                  <span>{t("savingsMonthlyLine")}</span>
+                  <span className="savings-value">฿{MONTHLY_STACK.toLocaleString("en-US")}</span>
+                </div>
+                <div className="savings-row">
+                  <span>{t("savingsAnnualLine")}</span>
+                  <span className="savings-value">฿{STARTER_PRICE_ANNUAL.toLocaleString("en-US")}</span>
+                </div>
+                <div className="savings-row savings-row--total">
+                  <span>{t("savingsYouSave")}</span>
+                  <span className="savings-value savings-value--accent">
+                    ฿{ANNUAL_SAVE.toLocaleString("en-US")} (~16%)
+                  </span>
+                </div>
+                <p className="savings-footnote">{t("savingsFootnote")}</p>
+              </div>
+            </div>
+          </section>
+
           <section className="section" id="calculator">
             <div className="container">
               <div className="section-head">
                 <h2 className="section-title">{t("calcHeading")}</h2>
+                <p className="section-subtitle">{t("calcSubtitle")}</p>
               </div>
             </div>
             <div className="calc-card">
@@ -195,7 +395,7 @@ export default function MembershipPageClient() {
                   <div id="extra-free" className="calc-extra" />
                 </div>
                 <div className="calc-col">
-                  <div className="calc-tier">{t("calcStarter")}</div>
+                  <div className="calc-tier">{t("calcMember")}</div>
                   <div id="pts-starter" className="calc-pts" />
                   <div id="extra-starter" className="calc-extra" />
                 </div>
@@ -229,348 +429,29 @@ export default function MembershipPageClient() {
             </div>
           </section>
 
-          <section className="section" id="pricing">
-            <div className="container">
-              <div className="section-head section-head--pricing">
-                <h2 className="section-title">{t("pickHeading")}</h2>
-              </div>
-            </div>
-            <div className="mship-bleed" data-testid="membership-bleed-pricing">
-              <div className="pricing-billing-header">
-                <p className="billing-nudge">{t("billingAnnualNudge")}</p>
-                <div
-                  id="billing-toggle"
-                  data-annual={billingAnnual ? "true" : "false"}
-                  role="group"
-                  aria-label={t("billingAria")}
-                >
-                  <button
-                    type="button"
-                    id="bill-monthly"
-                    data-billing="monthly"
-                    className={!billingAnnual ? "active" : undefined}
-                    onClick={() => setBillingAnnual(false)}
-                  >
-                    <span className="billing-choice-eyebrow">{t("monthly")}</span>
-                    <span className="billing-choice-hint">{t("billingMonthlyHint")}</span>
-                  </button>
-                  <button
-                    type="button"
-                    id="bill-annual"
-                    className={billingAnnual ? "active" : undefined}
-                    data-billing="annual"
-                    onClick={() => setBillingAnnual(true)}
-                  >
-                    <span className="billing-choice-badge">{t("popular")}</span>
-                    <span className="billing-choice-eyebrow billing-choice-eyebrow--lg">
-                      {t("annual")}
-                    </span>
-                    <span className="billing-choice-save">{t("annualSave")}</span>
-                    <span className="billing-choice-hint">{t("billingAnnualHint")}</span>
-                  </button>
-                </div>
-              </div>
-              <div className="pricing-grid">
-                <article className="pricing-card pc-free">
-                  <div className="pc-head">
-                    <span className="mult-badge mb-free">1×</span>
-                  </div>
-                  <div className="pc-price">{t("freePrice")}</div>
-                  <ul className="pc-features">
-                    {freeFeatures.map((line, i) => (
-                      <li key={line} className={i < 3 ? "ok" : "no"}>
-                        <FeatureIcon ok={i < 3} />
-                        <span>{line}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <button type="button" className="btn-ghost" disabled>
-                    {t("currentPlan")}
-                  </button>
-                </article>
-                <article className="pricing-card">
-                  <div className="pc-head">
-                    <span
-                      className="mult-badge mb-plus"
-                      style={{ fontSize: "var(--text-sm)", minWidth: 40, minHeight: 40 }}
-                    >
-                      1.5×
-                    </span>
-                  </div>
-                  <div className="pc-price">
-                    <span id="price-starter">{starterPriceLabel}</span>{" "}
-                    <span
-                      id="price-orig-starter"
-                      className="orig"
-                      style={{
-                        display: billingAnnual ? "inline" : "none",
-                        textDecoration: "line-through",
-                        color: "var(--text-muted)",
-                        fontSize: "var(--text-sm)",
-                      }}
-                    >
-                      ฿{STARTER_PRICE_MONTHLY}
-                    </span>
-                  </div>
-                  <ul className="pc-features">
-                    {starterFeatures.map((line, i) => (
-                      <li key={line} className={i < 5 ? "ok" : "no"}>
-                        <FeatureIcon ok={i < 5} />
-                        <span>{i === 0 ? <strong>{line}</strong> : line}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <button
-                    type="button"
-                    className="btn-outline btn-ripple"
-                    disabled={stripeBillingEnabled && pending}
-                    aria-busy={stripeBillingEnabled && pending}
-                    onClick={stripeBillingEnabled ? () => void startCheckout("starter") : undefined}
-                  >
-                    {t("starterCta")}
-                  </button>
-                </article>
-              </div>
-            </div>
-          </section>
-
-          <section className="section songkran" id="songkran">
-            <div className="container">
-              <div className="section-head">
-                <h2 className="section-title">{t("songkranHeading")}</h2>
-                <p
-                  style={{
-                    marginTop: "var(--s3)",
-                    fontSize: "var(--text-sm)",
-                    color: "var(--text-muted)",
-                  }}
-                >
-                  <span
-                    className="partner-pill"
-                    style={{ background: "var(--brand)", padding: "var(--s2) var(--s4)" }}
-                  >
-                    {t("songkranChip")}
-                  </span>
-                </p>
-              </div>
-              <div className="table-wrap reveal" style={{ marginBottom: "var(--s6)" }}>
-                <table>
-                  <thead>
-                    <tr>
-                      <th scope="col">{t("tablePurchase")}</th>
-                      <th scope="col">{t("tablePartner")}</th>
-                      <th scope="col">{t("tableSpend")}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>{t("rowHotel")}</td>
-                      <td>{t("partnerAgoda")}</td>
-                      <td>฿3,000</td>
-                    </tr>
-                    <tr>
-                      <td>{t("rowShop")}</td>
-                      <td>{t("partnerShopee")}</td>
-                      <td>฿1,500</td>
-                    </tr>
-                    <tr>
-                      <td>{t("rowGrocery")}</td>
-                      <td>{t("partnerLotus")}</td>
-                      <td>฿800</td>
-                    </tr>
-                    <tr>
-                      <th scope="row">{t("tableTotal")}</th>
-                      <td />
-                      <th>฿5,300</th>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <div className="table-wrap reveal">
-                <table>
-                  <thead>
-                    <tr>
-                      <th scope="col">{t("tableTier")}</th>
-                      <th scope="col">{t("tableMult")}</th>
-                      <th scope="col">{t("tableQuestBonus")}</th>
-                      <th scope="col">{t("tableTotalPts")}</th>
-                      <th scope="col">{t("tableValue")}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>Free</td>
-                      <td>1×</td>
-                      <td>+150 pts</td>
-                      <td>5,450 pts</td>
-                      <td>฿54.50</td>
-                    </tr>
-                    <tr>
-                      <td>Starter</td>
-                      <td>1.5×</td>
-                      <td>+150 pts</td>
-                      <td>8,100 pts</td>
-                      <td>฿81.00</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <p className="leaving-line reveal" style={{ marginTop: "var(--s8)" }}>
-                {t("songkranCallout")}
-              </p>
-              <div className="promo-bar">{t("songkranUrgency", { countdown: countdownText })}</div>
-              <div style={{ textAlign: "center", marginTop: "var(--s8)" }}>
-                {stripeBillingEnabled ? (
-                  <button
-                    type="button"
-                    className="btn-primary btn-ripple"
-                    disabled={pending}
-                    aria-busy={pending}
-                    onClick={() => void startCheckout("starter")}
-                  >
-                    {t("songkranUpgradeCta")}
-                  </button>
-                ) : (
-                  <a className="btn-primary btn-ripple" href="#pricing">
-                    {t("songkranUpgradeCta")}
-                  </a>
-                )}
-              </div>
-            </div>
-          </section>
-
-          <section className="section section-gameboard" id="gameboard">
-            <div className="container">
-              <div className="section-head gameboard-section-head">
-                <h2 className="section-title">{t("gameboardHeading")}</h2>
-                <p className="gameboard-intro">{t("gameboardIntro")}</p>
-              </div>
-            </div>
-            <div className="gameboard-card">
-              <div className="gameboard-panels">
-                <div className="gameboard-panel gameboard-panel--streak">
-                  <div className="gameboard-panel-head">
-                    <div className="gameboard-panel-head-main">
-                      <h3 className="gameboard-panel-title">{t("streakLabel")}</h3>
-                      <p className="gameboard-panel-hint">{t("streakHelp")}</p>
-                    </div>
-                    <button type="button" id="streak-reset" className="gameboard-reset">
-                      <RotateCcw
-                        className="gameboard-reset-icon"
-                        width={18}
-                        height={18}
-                        aria-hidden
-                      />
-                      <span>{t("streakReset")}</span>
-                    </button>
-                  </div>
-                  <p className="gameboard-field-label" id="streak-plan-label">
-                    {t("streakPlanHelp")}
-                  </p>
-                  <div
-                    className="streak-plan-segment"
-                    role="radiogroup"
-                    aria-labelledby="streak-plan-label"
-                  >
-                    <label className="streak-plan-option">
-                      <input type="radio" name="mship-streak-plan" value="plus" defaultChecked />
-                      <span className="streak-plan-option-ui">{t("streakPlus")}</span>
-                    </label>
-                    <label className="streak-plan-option">
-                      <input type="radio" name="mship-streak-plan" value="pro" />
-                      <span className="streak-plan-option-ui">{t("streakPro")}</span>
-                    </label>
-                  </div>
-                  <p className="gameboard-field-label" id="streak-grid-label">
-                    {t("streakGridHelp")}
-                  </p>
-                  <div
-                    className="streak-grid-surface"
-                    role="group"
-                    aria-label={t("streakGridAria")}
-                    aria-describedby="streak-grid-label"
-                  >
-                    <div id="streak-grid" className="sg7" />
-                  </div>
-                  <p id="streak-total" className="gameboard-streak-total">
-                    {t("streakZero")}
-                  </p>
-                </div>
-                <div className="gameboard-panel gameboard-panel--quests">
-                  <div className="gameboard-panel-head gameboard-panel-head--quests">
-                    <div className="gameboard-panel-head-main">
-                      <h3 className="gameboard-panel-title">{t("questSection")}</h3>
-                      <p className="gameboard-panel-hint">{t("questHelp")}</p>
-                    </div>
-                  </div>
-                  <ul className="quest-list" role="list" aria-label={t("questSection")}>
-                    {questTasks.map((label) => (
-                      <li key={label}>
-                        <button type="button" className="quest-task reveal">
-                          <span className="quest-task-check" aria-hidden />
-                          <span className="quest-task-label">{label}</span>
-                          <span className="quest-pts">{t("questPts")}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                  <p className="gameboard-progress-label" id="quest-progress-label">
-                    {t("questProgressLabel")}
-                  </p>
-                  <p
-                    id="quest-total"
-                    className="gameboard-quest-total"
-                    aria-labelledby="quest-progress-label"
-                  >
-                    {t("questFmt", { done: "0", pts: "0" })}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </section>
-
           <section className="section" id="social-proof">
             <div className="container">
               <div className="section-head">
                 <h2 className="section-title">{t("socialHeading")}</h2>
+                <p className="section-subtitle">{t("socialSubtitle")}</p>
               </div>
             </div>
-            <div className="leaderboard" style={{ marginBottom: "var(--s10)" }}>
-              <div className="lb-row">
-                <span className="lb-rank rank-gold">🥇</span>
-                <span className="lb-name">{t("lbUser1")}</span>
-                <span className="lb-pts">150,209 pts</span>
-                <span className="tier-badge tb-pro">{t("badgePro")}</span>
-              </div>
-              <div className="lb-row">
-                <span className="lb-rank rank-gold">🥈</span>
-                <span className="lb-name">{t("lbUser2")}</span>
-                <span className="lb-pts">102,450 pts</span>
-                <span className="tier-badge tb-pro">{t("badgePro")}</span>
-              </div>
-              <div className="lb-row">
-                <span className="lb-rank rank-gold">🥉</span>
-                <span className="lb-name">{t("lbUser3")}</span>
-                <span className="lb-pts">100,016 pts</span>
-                <span className="tier-badge tb-plus">{t("badgePlus")}</span>
-              </div>
-            </div>
-            <div className="stats-row">
+            <div className="stats-row stats-row--membership">
               <div className="stat-card reveal">
-                <span data-count-to="95" data-suffix="%">
-                  0%
+                <span data-count-to="220" data-suffix="+">
+                  0
                 </span>
                 <p>{t("stat1")}</p>
               </div>
               <div className="stat-card reveal">
-                <span data-count-to="3.2" data-suffix="×">
-                  0×
+                <span data-count-to="16" data-suffix="%">
+                  0
                 </span>
                 <p>{t("stat2")}</p>
               </div>
               <div className="stat-card reveal">
                 <span>
-                  ฿<span data-count-to="107">0</span>
+                  ฿<span data-count-to="49">0</span>
                 </span>
                 <p>{t("stat3")}</p>
               </div>
@@ -581,6 +462,7 @@ export default function MembershipPageClient() {
             <div className="container">
               <div className="section-head">
                 <h2 className="section-title">{t("faqHeading")}</h2>
+                <p className="section-subtitle">{t("faqSubtitle")}</p>
               </div>
             </div>
             <div className="mship-bleed" data-testid="membership-bleed-faq">

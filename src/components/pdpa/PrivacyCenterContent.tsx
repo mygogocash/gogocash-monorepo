@@ -10,16 +10,12 @@ import {
   Typography,
 } from "@mui/material";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
-import DownloadRoundedIcon from "@mui/icons-material/DownloadRounded";
 import LockRoundedIcon from "@mui/icons-material/LockRounded";
-import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import toast from "react-hot-toast";
 import { PDPA_CONSENT_VERSION } from "@/lib/pdpa/constants";
 import type { PurposeCode } from "@/lib/pdpa/constants";
-import GuardianConsentFlow from "@/components/pdpa/GuardianConsentFlow";
-
 type EffectivePurpose = { granted: boolean; lastGrantedAt: string | null };
 
 const OPTIONAL_PURPOSES: { code: PurposeCode; labelKey: string; descKey: string }[] = [
@@ -42,10 +38,6 @@ const sectionHeadingClass = "text-lg font-semibold tracking-tight text-[#1a1a1a]
 /** Shared card padding: compact on mobile, roomier from `sm` / `md` up. */
 const cardPad = "p-4 sm:p-5 md:p-8";
 const cardPadCompact = "p-4 sm:p-5 md:p-6";
-
-/** Centered footnotes under primary actions (export / delete cards). */
-const cardActionFootnoteClass =
-  "mt-3 max-md:leading-snug text-center text-[#6b7280] md:mt-4 md:leading-relaxed";
 
 const primaryGreenButtonSx = {
   bgcolor: "#00AA80",
@@ -154,44 +146,6 @@ export default function PrivacyCenterContent() {
     }
   };
 
-  const requestExport = async () => {
-    try {
-      const res = await fetch("/api/pdpa/data-subject-requests", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ requestType: "PORTABILITY", channel: "IN_APP" }),
-      });
-      if (!res.ok) {
-        toast.error(t("pdpaRequestFailed"));
-        return;
-      }
-      toast.success(t("pdpaRequestSubmitted"));
-      await refresh();
-    } catch {
-      toast.error(t("pdpaRequestFailed"));
-    }
-  };
-
-  const requestErasure = async () => {
-    try {
-      const res = await fetch("/api/pdpa/data-subject-requests", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ requestType: "ERASURE", channel: "IN_APP" }),
-      });
-      if (!res.ok) {
-        toast.error(t("pdpaRequestFailed"));
-        return;
-      }
-      toast.success(t("pdpaRequestSubmitted"));
-      await refresh();
-    } catch {
-      toast.error(t("pdpaRequestFailed"));
-    }
-  };
-
   if (loading) {
     return (
       <Box className="flex flex-col gap-6">
@@ -199,10 +153,6 @@ export default function PrivacyCenterContent() {
         <Skeleton variant="rounded" height={100} className="rounded-2xl" />
         <Skeleton variant="text" width="55%" />
         <Skeleton variant="rounded" height={160} className="rounded-2xl" />
-        <div className="grid gap-4 md:grid-cols-2">
-          <Skeleton variant="rounded" height={140} className="rounded-2xl" />
-          <Skeleton variant="rounded" height={140} className="rounded-2xl" />
-        </div>
       </Box>
     );
   }
@@ -270,24 +220,6 @@ export default function PrivacyCenterContent() {
           </Typography>
         </div>
 
-        <div className={`rounded-2xl border border-[#e8e8e8] bg-[#fafafa] ${cardPadCompact}`}>
-          <div className="mb-2 flex flex-wrap items-center gap-2 md:mb-3">
-            <LockRoundedIcon sx={{ fontSize: 22, color: "#00AA80" }} aria-hidden />
-            <Typography variant="subtitle2" component="h4" className="font-semibold text-[#1a1a1a]">
-              {t("pdpaPurposeCashback")}
-            </Typography>
-            <span className="rounded-full bg-[#e6f7f2] px-2.5 py-0.5 text-xs font-medium text-[#007a5c]">
-              {t("pdpaRequiredBadge")}
-            </span>
-          </div>
-          <Typography
-            variant="body2"
-            className="text-[14px] leading-relaxed text-[#5a5a5a] md:text-[0.875rem]"
-          >
-            {t("pdpaCashbackRequiredDescription")}
-          </Typography>
-        </div>
-
         <div>
           <Typography
             variant="subtitle1"
@@ -340,92 +272,25 @@ export default function PrivacyCenterContent() {
             ))}
           </div>
         </div>
-      </section>
 
-      <section aria-labelledby="pdpa-data-rights-heading" className="flex flex-col gap-6 md:gap-8">
-        <h3 id="pdpa-data-rights-heading" className={sectionHeadingClass}>
-          {t("pdpaSectionExport")} &amp; {t("pdpaSectionDelete")}
-        </h3>
-        <div className="grid gap-4 md:gap-6 lg:grid-cols-2 lg:gap-8">
-          <div
-            className={`flex h-full flex-col rounded-2xl border border-[#e4e4e4] bg-white shadow-sm ${cardPad}`}
-          >
-            <div className="mb-3 flex items-center gap-2.5 text-[#00AA80] md:mb-4 md:gap-3">
-              <DownloadRoundedIcon sx={{ fontSize: { xs: 24, md: 26 } }} aria-hidden />
-              <Typography
-                variant="subtitle1"
-                component="h4"
-                className="text-[15px] font-semibold text-[#1a1a1a] md:text-base"
-              >
-                {t("pdpaSectionExport")}
-              </Typography>
-            </div>
-            <Typography
-              variant="body2"
-              className="mb-4 flex-1 text-[14px] leading-relaxed text-[#5a5a5a] md:mb-6 md:text-[0.875rem]"
-            >
-              {t("pdpaExportSectionBody")}
+        <div className={`rounded-2xl border border-[#e8e8e8] bg-[#fafafa] ${cardPadCompact}`}>
+          <div className="mb-2 flex flex-wrap items-center gap-2 md:mb-3">
+            <LockRoundedIcon sx={{ fontSize: 22, color: "#00AA80" }} aria-hidden />
+            <Typography variant="subtitle2" component="h4" className="font-semibold text-[#1a1a1a]">
+              {t("pdpaPurposeCashback")}
             </Typography>
-            <Button
-              variant="contained"
-              className="max-md:min-h-11 max-md:py-2 max-md:text-[0.9375rem] w-full rounded-full normal-case sm:w-auto"
-              aria-describedby="pdpa-export-email-note"
-              onClick={() => void requestExport()}
-              sx={primaryGreenButtonSx}
-            >
-              {t("pdpaRequestExport")}
-            </Button>
-            <Typography
-              id="pdpa-export-email-note"
-              variant="caption"
-              component="p"
-              className={`m-0 ${cardActionFootnoteClass}`}
-            >
-              {t("pdpaExportEmailNote")}
-            </Typography>
+            <span className="rounded-full bg-[#e6f7f2] px-2.5 py-0.5 text-xs font-medium text-[#007a5c]">
+              {t("pdpaRequiredBadge")}
+            </span>
           </div>
-
-          <div
-            className={`flex h-full flex-col rounded-2xl border border-[#f0e6d6] bg-[#fffaf5] shadow-sm ${cardPad}`}
+          <Typography
+            variant="body2"
+            className="text-[14px] leading-relaxed text-[#5a5a5a] md:text-[0.875rem]"
           >
-            <div className="mb-3 flex items-center gap-2.5 text-[#c45c00] md:mb-4 md:gap-3">
-              <DeleteOutlineRoundedIcon sx={{ fontSize: { xs: 24, md: 26 } }} aria-hidden />
-              <Typography
-                variant="subtitle1"
-                component="h4"
-                className="text-[15px] font-semibold text-[#1a1a1a] md:text-base"
-              >
-                {t("pdpaSectionDelete")}
-              </Typography>
-            </div>
-            <Typography
-              variant="body2"
-              className="mb-4 flex-1 text-[14px] leading-relaxed text-[#5a5a5a] md:mb-6 md:text-[0.875rem]"
-            >
-              {t("pdpaDeleteSectionBody")}
-            </Typography>
-            <Button
-              variant="outlined"
-              color="warning"
-              className="max-md:min-h-11 max-md:py-2 max-md:text-[0.9375rem] w-full rounded-full border-amber-700 normal-case sm:w-auto"
-              aria-describedby="pdpa-delete-retention-note"
-              onClick={() => void requestErasure()}
-            >
-              {t("pdpaRequestDeleteButton")}
-            </Button>
-            <Typography
-              id="pdpa-delete-retention-note"
-              variant="caption"
-              component="p"
-              className={`m-0 ${cardActionFootnoteClass}`}
-            >
-              {t("pdpaDeleteRetentionNote")}
-            </Typography>
-          </div>
+            {t("pdpaCashbackRequiredDescription")}
+          </Typography>
         </div>
       </section>
-
-      <GuardianConsentFlow />
     </Box>
   );
 }

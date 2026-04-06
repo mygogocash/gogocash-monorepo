@@ -1,8 +1,10 @@
-import type { MembershipLandingI18n } from "./types";
+type QuestTasksI18n = {
+  questFmt: (done: number, ptsTotal: number) => string;
+};
 
 export function setupQuestTasks(
   root: HTMLElement,
-  i18n: MembershipLandingI18n | undefined,
+  i18n: QuestTasksI18n | undefined,
   questCompletedRef: { current: number }
 ): () => void {
   questCompletedRef.current = 0;

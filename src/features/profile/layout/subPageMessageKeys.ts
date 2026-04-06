@@ -14,6 +14,7 @@ export const SUB_PAGE_TITLE_KEYS = [
   "Favorite Brands",
   "profilePopperGogoquestHistory",
   "missingOrdersPageTitle",
+  "pdpaAgeVerifyTitle",
   "pdpaPrivacyCenterTitle",
   "subscriptionPricingTitle",
   "subscriptionBillingTitle",

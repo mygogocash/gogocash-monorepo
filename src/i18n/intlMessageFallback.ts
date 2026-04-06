@@ -114,12 +114,19 @@ export function createGetMessageFallback(messageLocale: string) {
           ? "MyCashBack の情報を共有することに同意します。"
           : "I consent to share my MyCashBack information. ";
     }
-    if (key === "linkMyCashbackPrivacyPolicy" || key === "navPrivacyPolicy") {
+    if (key === "linkMyCashbackPrivacyPolicy") {
       return messageLocale === "th"
         ? "นโยบายความเป็นส่วนตัว"
         : messageLocale === "jp"
           ? "プライバシーポリシー"
           : "Privacy Policy";
+    }
+    if (key === "navPrivacyPolicy") {
+      return messageLocale === "th"
+        ? "การตั้งค่าความยินยอม"
+        : messageLocale === "jp"
+          ? "同意の設定"
+          : "Consent preferences";
     }
     if (key === "linkMyCashbackMethodBack") {
       return messageLocale === "th" ? "กลับ" : messageLocale === "jp" ? "戻る" : "Back";
