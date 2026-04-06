@@ -1,7 +1,8 @@
 import { SUPPORT_LINE_OFFICIAL_HREF } from "@/constants/navigation";
 import { LINE_MINI_APP_HREF, WEB_APP_PUBLIC_HREF } from "@/constants/footer-social";
 
-const MARKETING_ORIGIN = "https://gogocash.co";
+/** Public marketing site (legal pages, learn, etc.) — same origin as footer Resources links. */
+export const GOGOCASH_MARKETING_ORIGIN = "https://gogocash.co";
 
 export type FooterLinkItem = {
   labelKey: string;
@@ -34,20 +35,20 @@ export const FOOTER_SECTIONS: FooterSectionDef[] = [
     titleKey: "Resources",
     items: [
       { labelKey: "Privacy Policy", href: "/privacy-policy" },
-      { labelKey: "footerLinkTermsOfUse", href: `${MARKETING_ORIGIN}/term-of-use` },
+      { labelKey: "footerLinkTermsOfUse", href: `${GOGOCASH_MARKETING_ORIGIN}/term-of-use` },
       {
         labelKey: "footerLinkTermsOfService",
-        href: `${MARKETING_ORIGIN}/terms-of-service`,
+        href: `${GOGOCASH_MARKETING_ORIGIN}/terms-of-service`,
       },
       {
         labelKey: "footerLinkHowGoGoCashMakesMoney",
-        href: `${MARKETING_ORIGIN}/how-gogocash-makes-money`,
+        href: `${GOGOCASH_MARKETING_ORIGIN}/how-gogocash-makes-money`,
       },
-      { labelKey: "footerLinkLearn", href: `${MARKETING_ORIGIN}/learn` },
+      { labelKey: "footerLinkLearn", href: `${GOGOCASH_MARKETING_ORIGIN}/learn` },
       { labelKey: "footerLinkSystemStatus", href: "https://status.gogocash.co/" },
       {
         labelKey: "footerLinkCookieSettings",
-        href: `${MARKETING_ORIGIN}/privacy-policy`,
+        href: `${GOGOCASH_MARKETING_ORIGIN}/privacy-policy`,
       },
     ],
   },

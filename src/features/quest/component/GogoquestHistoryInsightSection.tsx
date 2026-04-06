@@ -63,7 +63,7 @@ export function GogoquestHistoryInsightSection({
       </h2>
       <p className="mt-2 text-[14px] leading-relaxed text-[#4a5c54]">{body}</p>
       {activeMonthsInWindow > 0 ? (
-        <p className="mt-3 text-[13px] text-[#87948b]">
+        <p className="mt-3 text-[14px] text-[#87948b]">
           {formatMessageFromEnThCatalog("gogoquestHistoryActivityStrip", locale, {
             active: activeMonthsInWindow,
             total: 3,

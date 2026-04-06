@@ -51,7 +51,7 @@ const ListRank = ({
         </div>
         <QuestHistoryNavLink variant="inline" className="shrink-0" />
       </div>
-      <div className="flex w-full max-h-[790px] flex-col divide-y divide-[#E0E0E0] overflow-y-auto lg:min-w-[495px] lg:max-h-[1013px]">
+      <div className="flex w-full max-h-[790px] flex-col divide-y divide-[#E0E0E0] overflow-y-auto lg:min-w-[495px] lg:max-w-full lg:max-h-[1013px]">
         {list &&
           list?.map((item, index) => {
             return (
@@ -138,7 +138,7 @@ const ListRank = ({
                     <button
                       type="button"
                       onClick={() => onViewPlayer(item)}
-                      className="rounded-xl border border-[#00aa80]/40 bg-white px-3 py-1.5 text-[12px] font-semibold text-[#00aa80] transition-colors hover:bg-[#00aa80]/10 lg:px-4 lg:py-2 lg:text-[14px]"
+                      className="min-h-[44px] rounded-xl border border-[#00aa80]/40 bg-white px-3 py-2.5 text-[13px] font-semibold text-[#00aa80] transition-colors hover:bg-[#00aa80]/10 lg:px-4 lg:py-2 lg:text-[14px]"
                     >
                       {viewPlayerLabel}
                     </button>

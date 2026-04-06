@@ -461,6 +461,8 @@
   "gogoquestHistoryPlanStep2": "เริ่มจาก GoGoCash แล้วชำระเงินที่ร้านพันธมิตรให้ครบ เพื่อให้ออเดอร์นับคะแนน",
   "gogoquestHistoryPlanStep3": "กลับมาดูหน้านี้อีกครั้งเพื่อตามคะแนนและรับโบนัสเมื่อครบเงื่อนไข",
   "gogoquestHistoryPlanCtaBrowse": "ดูร้านค้า",
+  "gogoquestHistoryPlanCtaBrowseShort": "ร้านค้า",
+  "gogoquestHistoryViewQuestHubShort": "Quest",
   "gogoquestHistoryCurrentCampaign": "รอบเควสนี้",
   "gogoquestHistoryRoundShopHint": "ช่วงวันที่นี้คือเวลาที่การช้อปและภารกิจที่เข้าร่วมได้จะเพิ่มคะแนนเควสของคุณ",
   "gogoquestHistoryPeriodLabel": "ช้อปและสะสมคะแนนช่วง",

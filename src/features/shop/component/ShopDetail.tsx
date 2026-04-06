@@ -57,7 +57,7 @@ const ShopDetail = () => {
   const messages = useMessages() as Record<string, unknown>;
   const merchantSummaryTagsAriaLabel = getMerchantSummaryTagsAriaLabel(messages, locale);
   const { data: session, status: sessionStatus } = useSession();
-  const lg = useMediaQuery("(min-width:768px)");
+  const isMdUp = useMediaQuery("(min-width:768px)");
   const [openLink, setOpenLink] = useState(false);
   const showOpenLinkLoading = useMinimumLoadingDuration(openLink);
   const merchantDetailExperiment = usePostHogFlagPayload<{
@@ -290,7 +290,7 @@ const ShopDetail = () => {
     [offers?.data, offer?._id]
   );
 
-  const { heroBannerSrc, heroLogoSrc, heroBannerIsStock } = useMerchantBrandHero(offer, lg);
+  const { heroBannerSrc, heroLogoSrc, heroBannerIsStock } = useMerchantBrandHero(offer, isMdUp);
 
   return (
     <section className="w-full pt-6 md:pt-8 lg:pt-10">
@@ -346,7 +346,7 @@ const ShopDetail = () => {
           <ShopDetailExploreRelated
             exploreRelatedOffers={exploreRelatedOffers}
             offer={offer}
-            lg={lg}
+            lg={isMdUp}
             getFavouriteOffer={getFavouriteOffer}
             loadingFav={loadingFav}
             mutateFav={mutateFav}

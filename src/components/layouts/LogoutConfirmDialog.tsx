@@ -63,7 +63,7 @@ export default function LogoutConfirmDialog({
             <button
               type="button"
               onClick={onClose}
-              className="flex h-10 min-h-0 flex-1 cursor-pointer items-center justify-center rounded-full border-0 px-6 text-base font-medium text-white transition-opacity hover:opacity-92 active:opacity-88"
+              className="flex h-11 min-h-11 flex-1 cursor-pointer items-center justify-center rounded-full border-0 px-6 text-base font-medium text-white transition-opacity hover:opacity-92 active:opacity-88"
               style={{ backgroundColor: designSystemColor.mint }}
             >
               {t("logoutConfirmNo")}
@@ -71,7 +71,7 @@ export default function LogoutConfirmDialog({
             <button
               type="button"
               onClick={() => void onConfirm()}
-              className="flex h-10 min-h-0 max-h-[52px] flex-1 cursor-pointer items-center justify-center rounded-full border-0 px-3.5 py-3 text-base font-medium transition-opacity hover:opacity-92 active:opacity-88"
+              className="flex h-11 min-h-11 max-h-[52px] flex-1 cursor-pointer items-center justify-center rounded-full border-0 px-3.5 py-3 text-base font-medium transition-opacity hover:opacity-92 active:opacity-88"
               style={{
                 backgroundColor: "#d8f8ef",
                 color: designSystemColor.green2,

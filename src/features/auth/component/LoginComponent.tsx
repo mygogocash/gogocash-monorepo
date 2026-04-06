@@ -251,8 +251,6 @@ const LoginComponent = () => {
     const authDate = params.get("auth_date");
     const hash = params.get("hash");
     const dataTelegram = { id, firstName, username, photoUrl, authDate, hash };
-    // // ส่งไป API
-    // Implement login logic here using dataTelegram
     const res = await client
       .post<IResponseLogin>(`/auth/log-in/telegram`, {
         ...dataTelegram,
@@ -483,7 +481,7 @@ const LoginComponent = () => {
 
           {showUpdateEmail && (
             <>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Input
                   placeholder="Email"
                   onChange={(event) => {
@@ -494,8 +492,9 @@ const LoginComponent = () => {
                   onClick={() => {
                     onSendCodeEmail();
                   }}
+                  minWidth="auto"
                 >
-                  <p className="w-[65px]">Get Code</p>
+                  Get Code
                 </Button>
               </div>
               <div className="flex items-center gap-2">

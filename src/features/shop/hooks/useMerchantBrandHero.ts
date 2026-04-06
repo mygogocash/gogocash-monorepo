@@ -5,7 +5,7 @@ import { banner, pathImage } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
-export function useMerchantBrandHero(offer: DataOffer | undefined, lg: boolean) {
+export function useMerchantBrandHero(offer: DataOffer | undefined, isMdUp: boolean) {
   const brandDomain = useMemo(
     () =>
       extractBrandfetchDomain(offer?.preview_url) ?? extractBrandfetchDomain(offer?.directory_page),
@@ -30,7 +30,7 @@ export function useMerchantBrandHero(offer: DataOffer | undefined, lg: boolean) 
   const { heroBannerSrc, heroLogoSrc, heroBannerIsStock } = useMemo(() => {
     const offerHasBanner = Boolean(offer?.banner || offer?.banner_mobile);
     const offerBannerSrc = offerHasBanner
-      ? banner(offer?.banner_mobile ?? "", offer?.banner ?? "", lg)
+      ? banner(offer?.banner_mobile ?? "", offer?.banner ?? "", isMdUp)
       : "";
     const useBfBanner = Boolean(brandHero?.bannerUrl) && (preferBrandfetchHero || !offerHasBanner);
     const heroBannerSrc = useBfBanner
@@ -50,7 +50,7 @@ export function useMerchantBrandHero(offer: DataOffer | undefined, lg: boolean) 
       heroLogoSrc,
       heroBannerIsStock: heroBannerSrc === "/home/banner.webp",
     };
-  }, [brandHero, lg, offer, preferBrandfetchHero]);
+  }, [brandHero, isMdUp, offer, preferBrandfetchHero]);
 
   return { heroBannerSrc, heroLogoSrc, heroBannerIsStock, brandDomain };
 }

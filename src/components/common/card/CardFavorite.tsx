@@ -64,7 +64,7 @@ const CardFavorite = ({
           : undefined
       }
     >
-      <div className="h-[196px] w-[282px] rounded-2xl border border-[#E4E4E4] p-2">
+      <div className="h-[196px] w-full max-w-[282px] rounded-2xl border border-[#E4E4E4] p-2">
         <img
           src={logo}
           alt={offer_name}

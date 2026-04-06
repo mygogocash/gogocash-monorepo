@@ -461,6 +461,8 @@
   "gogoquestHistoryPlanStep2": "Start from GoGoCash, then complete checkout at the partner store so your order counts.",
   "gogoquestHistoryPlanStep3": "Check this page again to watch your points grow and grab bonuses when you qualify.",
   "gogoquestHistoryPlanCtaBrowse": "Browse stores",
+  "gogoquestHistoryPlanCtaBrowseShort": "Stores",
+  "gogoquestHistoryViewQuestHubShort": "Quest",
   "gogoquestHistoryCurrentCampaign": "This quest round",
   "gogoquestHistoryRoundShopHint": "These are the dates when eligible shopping and tasks can add to your quest score.",
   "gogoquestHistoryPeriodLabel": "Shop & earn during",

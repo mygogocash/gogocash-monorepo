@@ -126,7 +126,6 @@ const useWithdrawMyCashback = () => {
 
   const createWithdraw = async (data: CreateWithdrawDto) => {
     try {
-      // Implementation for creating a withdraw record in the backend
       const dt = await client.post(`/withdraw`, data);
 
       if (dt.status === 201) {

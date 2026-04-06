@@ -12,7 +12,6 @@ import { trackMetaCompleteRegistration } from "@/lib/metaPixel";
 import { resolvePostLoginHref } from "@/lib/auth/postLoginRedirect";
 
 const useFirebaseLogin = () => {
-  // Implementation of the hook
   // Get referral_id safely without useSearchParams to avoid Suspense issues
   const [referral_id, setReferralId] = useState<string | undefined>(undefined);
 
@@ -36,7 +35,7 @@ const useFirebaseLogin = () => {
   }, []);
 
   const handleModalAfterLogin = () => {
-    // Implement modal logic here if needed
+    // `ModalAfterLogin` reads this flag on the home route after social sign-in.
     window.sessionStorage.setItem("showModalAfterLogin", "true");
   };
   const handleLoginGoogle = async () => {

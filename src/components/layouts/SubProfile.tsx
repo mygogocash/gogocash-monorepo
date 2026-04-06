@@ -1,6 +1,7 @@
 "use client";
 
 import { FEATURE_FLAGS } from "@/constants/featureFlags";
+import { GOGOCASH_MARKETING_ORIGIN } from "@/constants/footer-links";
 import {
   getSupportHref,
   GOGOCASH_LINKTREE_HREF,
@@ -16,7 +17,10 @@ import WalletIcon from "@/components/icons/WalletIcon";
 import ProfilePopperMissingOrdersIcon from "@/components/icons/ProfilePopperMissingOrdersIcon";
 import MembershipNavIcon from "@/components/icons/MembershipNavIcon";
 import LogoutIcon from "@/components/icons/LogoutIcon";
-import DocumentIcon from "@/components/icons/DocumentIcon";
+import CookiesIcon from "@/components/icons/CookiesIcon";
+import PrivacyPolicyNavIcon from "@/components/icons/PrivacyPolicyNavIcon";
+import TermsOfServiceNavIcon from "@/components/icons/TermsOfServiceNavIcon";
+import TermsOfUseNavIcon from "@/components/icons/TermsOfUseNavIcon";
 import LogoutConfirmDialog from "@/components/layouts/LogoutConfirmDialog";
 import AgeVerificationNavIcon from "@/components/icons/AgeVerificationNavIcon";
 import { Link, usePathname } from "@/i18n/navigation";
@@ -115,16 +119,38 @@ const baseMenuTail: MenuEntry[] = [
   },
   ageVerificationMenuItem,
   {
-    translationKey: "navPrivacyPolicy",
-    href: "/privacy-center",
-    icon: DocumentIcon,
-    activePrefix: "/privacy-center",
-  },
-  {
     translationKey: "profilePopperReferYourFriends",
     href: "/referral",
     icon: ProfileAddIcon,
     activePrefix: "/referral",
+  },
+  {
+    translationKey: "navPrivacyPolicy",
+    href: "/privacy-center",
+    icon: CookiesIcon,
+    activePrefix: "/privacy-center",
+  },
+  /** Same destinations as footer Resources (internal policy route + marketing legal pages). */
+  {
+    translationKey: "footerPrivacyPolicy",
+    href: "/privacy-policy",
+    icon: PrivacyPolicyNavIcon,
+    activePrefix: "/privacy-policy",
+    iconStroke: true,
+  },
+  {
+    translationKey: "footerLinkTermsOfUse",
+    href: `${GOGOCASH_MARKETING_ORIGIN}/term-of-use`,
+    icon: TermsOfUseNavIcon,
+    external: true,
+    iconStroke: true,
+  },
+  {
+    translationKey: "footerLinkTermsOfService",
+    href: `${GOGOCASH_MARKETING_ORIGIN}/terms-of-service`,
+    icon: TermsOfServiceNavIcon,
+    external: true,
+    iconStroke: true,
   },
 ];
 

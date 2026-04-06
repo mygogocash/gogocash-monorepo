@@ -314,9 +314,9 @@ const WithdrawMyCashback = () => {
             my: 3,
           }}
         />
-        <div className="flex justify-between mt-3">
-          <p className="text-[16px] text-[#000000]">{t("Active Balance")}</p>
-          <p className="ml-auto text-[20px] text-[#000000]">
+        <div className="mt-3 flex flex-wrap items-baseline justify-between gap-1">
+          <p className="min-w-0 text-[16px] text-[#000000]">{t("Active Balance")}</p>
+          <p className="ml-auto min-w-0 text-[20px] text-[#000000]">
             {checkThai
               ? formatNumber(myCashback ? myCashback?.totalMyCashbackTHB : 0)
               : formatNumber(myCashback ? myCashback?.totalMyCashbackUSD : 0)}{" "}
@@ -332,18 +332,18 @@ const WithdrawMyCashback = () => {
             {checkThai ? "THB" : "USD"}
           </p>
         </div> */}
-        <div className="flex justify-between mt-3">
-          <p className="text-[16px] text-[#000000]">{t("Withdraw Fee")}</p>
-          <p className="ml-auto text-[20px] text-[#000000]">
+        <div className="mt-3 flex flex-wrap items-baseline justify-between gap-1">
+          <p className="min-w-0 text-[16px] text-[#000000]">{t("Withdraw Fee")}</p>
+          <p className="ml-auto min-w-0 text-[20px] text-[#000000]">
             {/* {checkThai
               ? formatNumber(myCashback?.fee?.fee_withdraw_thb || 0)
               : formatNumber(myCashback?.fee?.fee_withdraw_usd || 0)}{" "}
             {checkThai ? "THB" : "USD"} */}
           </p>
         </div>
-        <div className="flex justify-between mt-3">
-          <p className="text-[20px] text-[#000000]">{t("You will receive")}</p>
-          <p className="ml-auto text-[30px] text-[#00B14F]">
+        <div className="mt-3 flex flex-wrap items-baseline justify-between gap-1">
+          <p className="min-w-0 text-[20px] text-[#000000]">{t("You will receive")}</p>
+          <p className="ml-auto min-w-0 text-[30px] text-[#00B14F]">
             {/* {formatNumber(
               checkThai
                 ? Number(myCashback?.netMyCashbackTHB) || 0

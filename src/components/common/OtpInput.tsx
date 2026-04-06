@@ -64,7 +64,7 @@ export default function OtpInput({ length = 6, onChange, onComplete, disabled }:
   return (
     <div
       onPaste={handlePaste}
-      style={{ display: "flex", gap: 10 }}
+      style={{ display: "flex", gap: 8, width: "100%" }}
       aria-label="One time password input"
     >
       {values.map((v, i) => (
@@ -82,7 +82,9 @@ export default function OtpInput({ length = 6, onChange, onComplete, disabled }:
           disabled={disabled}
           aria-label={`Digit ${i + 1}`}
           style={{
-            width: 44,
+            flex: 1,
+            maxWidth: 44,
+            minWidth: 0,
             height: 52,
             textAlign: "center",
             fontSize: 22,

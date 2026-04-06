@@ -68,10 +68,10 @@ export default function ProfileCashbackSummaryCard({
                   border: "1px solid #00CC99 !important",
                   color: "#ffffff",
                   background: "#00CC99 !important",
-                  minHeight: "32px",
+                  minHeight: "44px",
                   fontWeight: 500,
                   px: 2,
-                  fontSize: "12px",
+                  fontSize: "14px",
                   textTransform: "none",
                   boxShadow: "none",
                   "&:hover": {

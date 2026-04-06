@@ -73,7 +73,7 @@ const CardShopMobileDefault = ({
           />
           <button
             type="button"
-            className="relative z-[2] flex size-4 shrink-0 items-center justify-center rounded-full text-(--gc-primary-strong) hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--gc-primary-strong)"
+            className="relative z-[2] -m-3 flex size-10 shrink-0 items-center justify-center rounded-full text-(--gc-primary-strong) hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--gc-primary-strong)"
             aria-label={t("favoritePageAddFavorite")}
             onClick={(e) => {
               e.preventDefault();

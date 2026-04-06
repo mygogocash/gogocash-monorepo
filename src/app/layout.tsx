@@ -11,7 +11,6 @@ import {
   GoogleTagManagerNoScript,
 } from "@/components/analytics/GoogleTagManager";
 import MetaPixel from "@/components/analytics/MetaPixel";
-// import CookieConsent from "@/components/consent/CookieConsent";
 
 function resolveMetadataBase(): URL {
   const fromEnv = env.NEXT_PUBLIC_FRONTEND_URL?.trim();
@@ -99,9 +98,9 @@ export default async function RootLayout({
       <body
         className={`${dmSans.variable} ${anuphan.variable} antialiased ${locale === "th" ? "locale-th" : "locale-en"}`}
       >
+        {/* PDPA / cookie consent: ConsentBanner lives in ClientLayoutWrapper (next-intl locale tree). */}
         <GoogleTagManagerNoScript />
         <ProviderDefault>{children}</ProviderDefault>
-        {/* <CookieConsent /> */}
       </body>
     </html>
   );

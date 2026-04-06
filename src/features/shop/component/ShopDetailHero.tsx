@@ -93,8 +93,8 @@ export function ShopDetailHero({
                     mutateFav({ offer_id: offer?._id });
                   }}
                   sx={{
-                    width: { xs: 40, sm: 44 },
-                    height: { xs: 40, sm: 44 },
+                    width: 44,
+                    height: 44,
                     flexShrink: 0,
                     border: "1px solid #E6F7ED",
                     background: "#E6F7ED",

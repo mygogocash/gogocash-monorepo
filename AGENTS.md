@@ -13,21 +13,28 @@ Concise guidance for AI coding agents and contributors. **Deep architecture and 
 
 ## Where to start (by task)
 
-| Area                     | Good entry points                                                                                                                                                |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | ------------ |
-| App shell & providers    | `src/app/layout.tsx`, `src/providers/ProviderDefault.tsx`                                                                                                        |
-| HTTP + tokens            | `src/lib/axios/client.ts`                                                                                                                                        |
-| Firebase auth / NextAuth | `src/lib/authFirebase.ts`, `src/app/api/auth/[...nextauth]/route.ts`                                                                                             |
-| Login UI                 | `src/features/auth/component/LoginComponent.tsx`, `src/hooks/useFirebaseLogin.ts`                                                                                |
-| Crossmint wrapper        | `src/lib/crossmint/SettingCrossmint.tsx`, `src/hooks/useSafeCrossmint.ts`, `src/hooks/useCrossmintLogin.ts`                                                      |
-| Feature UI               | `src/features/*`, shared pieces under `src/components/*`                                                                                                         |
-| Membership landing       | `docs/membership.md`, `src/features/membership/*`, `useMembershipLanding.ts`                                                                                     |
-| Stripe checkout / portal | `src/app/api/stripe/checkout/route.ts`, `src/app/api/stripe/portal/route.ts`, `src/lib/stripe/handleStripeWebhook.ts`                                            |
-| Stripe webhooks          | **Canonical:** `POST /api/webhooks/stripe` (`src/app/api/webhooks/stripe/route.ts`). `POST /api/stripe/webhook` is deprecated but still relays the same handler. |
-| Pricing / billing UI     | `src/features/subscription/*`, profile routes `src/app/[locale]/(profile)/pricing                                                                                | billing | membership/` |
-| Feature flags            | `src/constants/featureFlags.ts`                                                                                                                                  |
-| Env schema               | `src/env.ts`, `.env.example`                                                                                                                                     |
-| Firebase App Hosting     | `firebase.json`, `apphosting.yaml`, `npm run deploy:firebase`                                                                                                    |
+| Area | Good entry points |
+| ---- | ------------------- |
+| App shell & providers | `src/app/layout.tsx`, `src/providers/ProviderDefault.tsx` |
+| HTTP + tokens | `src/lib/axios/client.ts` |
+| Firebase auth / NextAuth | `src/lib/authFirebase.ts`, `src/app/api/auth/[...nextauth]/route.ts` |
+| Login UI | `src/features/auth/component/LoginComponent.tsx`, `src/hooks/useFirebaseLogin.ts` |
+| Crossmint wrapper | `src/lib/crossmint/SettingCrossmint.tsx`, `src/hooks/useSafeCrossmint.ts`, `src/hooks/useCrossmintLogin.ts` |
+| Feature UI | `src/features/*`, shared pieces under `src/components/*` |
+| Profile nav (sidebar / SubPage rail) | `src/components/layouts/SubProfile.tsx`, `src/features/profile/layout/SubPage.tsx`, `src/features/profile/component/ProfileMenu.tsx` (mobile prefetch list) |
+| Profile personal info | `src/features/profile/component/ProfileDesktopPersonalPanel.tsx`, `ProfileInfo.tsx` |
+| PDPA consent UI (Consent preferences) | `src/components/pdpa/PrivacyCenterContent.tsx` — route `/privacy-center`; sidebar label key `navPrivacyPolicy` |
+| Age verification | `src/components/pdpa/AgeVerificationFlow.tsx`, `src/app/[locale]/(profile)/age-verification/`; API `POST /api/pdpa/guardian/verify` |
+| PDPA data export / account deletion | `src/components/pdpa/PdpaDataRightsSection.tsx` (embedded under Personal Information, below social links) |
+| Integrated profile shell routes | `src/lib/navigation/profileIntegratedShell.ts` (+ tests) — keep in sync when adding profile-hub pages (e.g. `/age-verification`) |
+| SubPage title keys | `src/features/profile/layout/subPageMessageKeys.ts` |
+| Membership landing | `docs/membership.md`, `docs/membership-hero-content.md`, `src/features/membership/*`, `useMembershipLanding.ts` |
+| Stripe checkout / portal | `src/app/api/stripe/checkout/route.ts`, `src/app/api/stripe/portal/route.ts`, `src/lib/stripe/handleStripeWebhook.ts` |
+| Stripe webhooks | **Canonical:** `POST /api/webhooks/stripe` (`src/app/api/webhooks/stripe/route.ts`). `POST /api/stripe/webhook` is deprecated but still relays the same handler. |
+| Pricing / billing UI | `src/features/subscription/*`; profile routes under `(profile)/pricing`, `(profile)/billing`, `(profile)/membership` |
+| Feature flags | `src/constants/featureFlags.ts` |
+| Env schema | `src/env.ts`, `.env.example` |
+| Firebase App Hosting | `firebase.json`, `apphosting.yaml`, `npm run deploy:firebase` |
 
 ## Firebase App Hosting (staging / UAT)
 
@@ -62,6 +69,8 @@ Use `npm run lint:fix` and `npm run format` when appropriate.
 - Many route segments use **`"use client"`** for interactivity and SDK compatibility.
 - Profile routes live under `src/app/[locale]/(profile)/` with `AuthGuard`.
 - `ClientLayoutWrapper` coordinates rendering with Crossmint readiness—avoid reordering providers without understanding `ProviderDefault.tsx`.
+- **Profile popper / nav copy:** `navPrivacyPolicy` powers the Consent preferences item (not the generic `Privacy Policy` key). HMR fallbacks: `src/i18n/profilePopperMerge.ts`; test fallbacks: `src/i18n/intlMessageFallback.ts` (keep `linkMyCashbackPrivacyPolicy` separate from `navPrivacyPolicy`).
+- **New profile hub routes:** Update `SubProfile` menu entries, `ProfileMenu.tsx` prefetch list, `profileIntegratedShell.ts`, and `subPageMessageKeys.ts` when adding a `SubPage` + rail page (mirror existing `/referral`, `/age-verification` pattern).
 - Backend contract: `NEXT_PUBLIC_API_URL` (see `.env.example`).
 - **Stripe local webhooks:** `stripe listen --forward-to localhost:3000/api/webhooks/stripe` — set `STRIPE_WEBHOOK_SECRET` from the CLI signing secret.
 - **npm CLI:** If every command prints `Unknown env config "devdir"`, your user-level config or environment references an invalid npm key. Run `npm config delete devdir` (add `-g` if it was set globally), remove any `devdir=…` line from `~/.npmrc`, and unset `NPM_CONFIG_DEVDIR` in your shell profile if present.

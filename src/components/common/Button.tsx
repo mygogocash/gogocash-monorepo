@@ -45,7 +45,7 @@ const variantStyles = {
 
 const sizeStyles = {
   sm: {
-    minHeight: "38px",
+    minHeight: "44px",
     px: 2,
     fontSize: "13px",
   },

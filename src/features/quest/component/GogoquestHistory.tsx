@@ -16,12 +16,13 @@ import {
   nextSoftGoal,
 } from "@/lib/quest/gogoquestInsights";
 import { monthKeyToRangeEnCA } from "@/lib/quest/monthRangeEnCA";
-import { formatNumber } from "@/lib/utils";
+import { cn, formatNumber } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
 import toast from "react-hot-toast";
-import Button from "@mui/material/Button";
+import QuestIcon from "@/components/icons/QuestIcon";
+import ShopIcon from "@/components/icons/ShopIcon";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 function formatMonthYear(monthKey: string, locale: string): string {
@@ -306,10 +307,10 @@ export default function GogoquestHistory() {
 
   return (
     <SubPage title="profilePopperGogoquestHistory" showSubMenu>
-      <div className="flex flex-col gap-12">
+      <div className="flex flex-col gap-8 md:gap-12">
         {/* Hero — plain language, scannable */}
-        <header className="flex flex-col gap-4 rounded-3xl border border-[#e4e4e4] bg-linear-to-br from-[#f0fdf9] via-white to-[#f6f6f6] p-6 md:flex-row md:items-stretch md:gap-8 md:p-8">
-          <div className="flex min-w-0 flex-1 flex-col gap-3">
+        <header className="flex flex-col gap-4 rounded-3xl border border-[#e4e4e4] bg-linear-to-br from-[#f0fdf9] via-white to-[#f6f6f6] p-6 md:gap-6 md:p-8">
+          <div className="flex min-w-0 flex-col gap-4">
             <p className="text-[13px] font-semibold uppercase tracking-[0.12em] text-[#00aa80]">
               {t("gogoquestHistoryHeroKicker")}
             </p>
@@ -319,35 +320,46 @@ export default function GogoquestHistory() {
             <p className="max-w-[640px] text-[15px] leading-relaxed text-[#4a5c54]">
               {t("gogoquestHistoryPageIntro")}
             </p>
-          </div>
-          <div className="flex w-full shrink-0 flex-col justify-center gap-3 rounded-2xl border border-[#00aa80]/20 bg-white/90 p-5 shadow-sm md:max-w-[320px]">
-            <p className="text-[14px] font-medium text-[#103522]">
-              {t("gogoquestHistoryPlanTitle")}
-            </p>
-            <ol className="list-decimal space-y-2 pl-4 text-[14px] leading-relaxed text-[#5b6b61]">
-              <li>{t("gogoquestHistoryPlanStep1")}</li>
-              <li>{t("gogoquestHistoryPlanStep2")}</li>
-              <li>{t("gogoquestHistoryPlanStep3")}</li>
-            </ol>
-            <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-              <Button
-                variant="outlined"
-                color="primary"
-                component={Link}
-                href="/quest"
-                className="w-full normal-case sm:w-auto"
-              >
-                {t("gogoquestHistoryViewQuestHub")}
-              </Button>
-              <Button
-                variant="contained"
-                component={Link}
-                href="/shop"
-                className="w-full normal-case sm:w-auto"
-                sx={{ bgcolor: "#00AA80", "&:hover": { bgcolor: "#009970" } }}
-              >
-                {t("gogoquestHistoryPlanCtaBrowse")}
-              </Button>
+            <div className="flex w-full min-w-0 flex-col justify-center gap-3 rounded-2xl border border-[#00aa80]/20 bg-white/90 p-5 shadow-sm">
+              <p className="text-[14px] font-medium text-[#103522]">
+                {t("gogoquestHistoryPlanTitle")}
+              </p>
+              <ol className="list-decimal space-y-2 pl-4 text-[14px] leading-relaxed text-[#5b6b61]">
+                <li>{t("gogoquestHistoryPlanStep1")}</li>
+                <li>{t("gogoquestHistoryPlanStep2")}</li>
+                <li>{t("gogoquestHistoryPlanStep3")}</li>
+              </ol>
+              <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-3">
+                <Link
+                  href="/quest"
+                  aria-label={t("gogoquestHistoryViewQuestHub")}
+                  className={cn(
+                    "inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-full border border-[#00aa80]/35",
+                    "bg-white/90 px-4 py-2.5 text-sm font-semibold text-[#007d5e] shadow-sm",
+                    "transition-[background-color,border-color,transform,box-shadow] duration-200 ease-out",
+                    "hover:border-[#00aa80]/55 hover:bg-[#f0fdf9] active:scale-[0.99] motion-reduce:active:scale-100",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00aa80]/45 focus-visible:ring-offset-2",
+                    "sm:w-auto sm:min-w-[7.5rem] sm:flex-1"
+                  )}
+                >
+                  <QuestIcon width={22} height={22} fill="currentColor" className="shrink-0" aria-hidden />
+                  <span className="truncate">{t("gogoquestHistoryViewQuestHubShort")}</span>
+                </Link>
+                <Link
+                  href="/shop"
+                  aria-label={t("gogoquestHistoryPlanCtaBrowse")}
+                  className={cn(
+                    "inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold text-white shadow-sm",
+                    "bg-[#00AA80] transition-[background-color,transform,box-shadow] duration-200 ease-out",
+                    "hover:bg-[#009970] active:scale-[0.99] motion-reduce:active:scale-100",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00aa80]/50 focus-visible:ring-offset-2",
+                    "sm:w-auto sm:min-w-[7.5rem] sm:flex-1"
+                  )}
+                >
+                  <ShopIcon width={20} height={20} fill="#ffffff" className="shrink-0" aria-hidden />
+                  <span className="truncate text-white">{t("gogoquestHistoryPlanCtaBrowseShort")}</span>
+                </Link>
+              </div>
             </div>
           </div>
         </header>
@@ -585,7 +597,7 @@ export default function GogoquestHistory() {
                   <button
                     type="button"
                     onClick={() => setRankUpChipVisible(false)}
-                    className="text-[12px] font-medium text-[#007d5e] underline decoration-[#007d5e]/50"
+                    className="-m-1 min-h-[44px] px-2 text-[13px] font-medium text-[#007d5e] underline decoration-[#007d5e]/50"
                   >
                     {t("gogoquestHistoryRankUpChipDismiss")}
                   </button>
@@ -613,7 +625,7 @@ export default function GogoquestHistory() {
                       role="option"
                       aria-selected={selected}
                       onClick={() => setLeaderboardMonthKey(opt.value)}
-                      className={`rounded-full border px-4 py-2.5 text-left text-[14px] font-medium transition-colors ${
+                      className={`min-h-[44px] rounded-full border px-4 py-2.5 text-left text-[14px] font-medium transition-colors ${
                         selected
                           ? "border-[#00aa80] bg-[#00aa80] text-white shadow-sm"
                           : "border-[#e4e4e4] bg-white text-[#3b3b3b] hover:border-[#00aa80]/40"
