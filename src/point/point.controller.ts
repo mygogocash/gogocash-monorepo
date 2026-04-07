@@ -56,15 +56,15 @@ export class PointController {
     return this.pointService.getListReferral(id);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updatePointDto: UpdatePointDto) {
-    return this.pointService.update(+id, updatePointDto);
-  }
+  // @Patch(':id')
+  // update(@Param('id') id: string, @Body() updatePointDto: UpdatePointDto) {
+  //   return this.pointService.update(+id, updatePointDto);
+  // }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.pointService.remove(+id);
-  }
+  // @Delete(':id')
+  // remove(@Param('id') id: string) {
+  //   return this.pointService.remove(+id);
+  // }
 
   @Get('quest-list/:startDate/:endDate')
   getQuestRankList(

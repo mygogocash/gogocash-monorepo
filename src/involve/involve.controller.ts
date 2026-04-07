@@ -78,8 +78,9 @@ export class InvolveController {
       userId: id,
     });
 
-    return this.involveService.createAffiliate(createInvolveDto, id).then(
-      async (deeplink) => {
+    return this.involveService
+      .createAffiliate(createInvolveDto, id)
+      .then(async (deeplink) => {
         await this.analytics.capture(
           'affiliate_deeplink_generated',
           analyticsContext,
@@ -91,8 +92,7 @@ export class InvolveController {
         );
 
         return deeplink;
-      },
-    );
+      });
   }
 
   @Post('create-affiliate-ai/:email')
