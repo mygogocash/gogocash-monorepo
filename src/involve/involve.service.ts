@@ -189,12 +189,13 @@ export class InvolveService {
         page: pageFilter?.page || 1,
         limit: pageFilter?.limit || 100,
       };
-      filter['application_status'] = 'Approved'; //Approved|Blocked|Pending|Rejected
-      filter['offer_status'] = 'Active'; //Active|Paused
-
+      const filters = {};
+      filters['application_status'] = 'Approved'; //Approved|Blocked|Pending|Rejected
+      filters['offer_status'] = 'Active'; //Active|Paused
+      filters['offer_type'] = 'cps'; //cps|cpa|cpc
       const res = await axios.post(
         `${this.endpoint}/offers/all`,
-        { page: filter.page, limit: filter.limit, filter },
+        { page: filter.page, limit: filter.limit, filter: filters },
         {
           headers: {
             Authorization: `Bearer ${token}`,
