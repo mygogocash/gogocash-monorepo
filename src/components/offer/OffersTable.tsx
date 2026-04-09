@@ -361,47 +361,27 @@ export default function OffersTable() {
                         {rowNumber}
                       </td>
                       <td className="min-w-0 px-4 py-3 sm:px-6 sm:py-4">
-                        <div className="flex items-center">
-                          <div className="h-12 w-12 flex-shrink-0">
-                            {offer.logo ? (
-                              <RemoteOrBlobImage
-                                className="h-10 w-10 rounded-lg object-cover sm:h-12 sm:w-12"
-                                src={offer.logo}
-                                alt={offer.offer_name}
-                                width={48}
-                                height={48}
-                                sizes={OFFER_THUMB_SIZES}
-                              />
-                            ) : (
-                              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-300 dark:bg-gray-600 sm:h-12 sm:w-12">
-                                <span className="text-xs font-medium text-gray-700 dark:text-gray-200">
-                                  {offer.offer_name.charAt(0).toUpperCase()}
-                                </span>
-                              </div>
-                            )}
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                            {offer.offer_name}
                           </div>
-                          <div className="ml-2 min-w-0 sm:ml-4">
-                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                              {offer.offer_name}
-                            </div>
-                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                              New Name:{" "}
-                              {offer.offer_name_display
-                                ? offer.offer_name_display
-                                : "N/A"}
-                            </div>
-                            {offer.disabled && (
-                              <div className="text-xs text-gray-400 dark:text-gray-500">
-                                Disabled:{" "}
-                                {offer.disabled ? "Disabled" : "Enabled"}
-                              </div>
-                            )}
-                            {offer.categories && (
-                              <div className="text-xs text-gray-400 dark:text-gray-500">
-                                {offer.categories}
-                              </div>
-                            )}
+                          <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                            New Name:{" "}
+                            {offer.offer_name_display
+                              ? offer.offer_name_display
+                              : "N/A"}
                           </div>
+                          {offer.disabled && (
+                            <div className="text-xs text-gray-400 dark:text-gray-500">
+                              Disabled:{" "}
+                              {offer.disabled ? "Disabled" : "Enabled"}
+                            </div>
+                          )}
+                          {offer.categories && (
+                            <div className="text-xs text-gray-400 dark:text-gray-500">
+                              {offer.categories}
+                            </div>
+                          )}
                         </div>
                       </td>
 
