@@ -170,7 +170,7 @@ const FormUpdate = ({
               Link {form.id}
             </p>
             <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-              URL to open when users tap this banner (e.g. promo page or deep link).
+              URL to open when users tap this banner (e.g. promo page or tracking link).
             </p>
             <Input
               type="text"

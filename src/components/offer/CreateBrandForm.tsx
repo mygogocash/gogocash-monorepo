@@ -113,8 +113,8 @@ export default function CreateBrandForm() {
     <div className="rounded-2xl border border-gray-200 bg-white p-6 sm:p-8 dark:border-gray-800 dark:bg-white/[0.03]">
       <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Create brand from affiliate</h1>
       <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-        Register a merchant line using the partner tracking URL, map the GoGoCash app deeplink when you have it, and
-        choose the advertiser store used in deep links (same as offer edit / Commission Management).
+        Register a merchant line using the partner tracking URL, map the GoGoCash app tracking link when you have it, and
+        choose the advertiser store used in tracking links (same as offer edit / Commission Management).
       </p>
       <form onSubmit={handleSubmit} className="mt-6 max-w-2xl space-y-4">
         <div>
@@ -150,7 +150,7 @@ export default function CreateBrandForm() {
         </div>
         <div>
           <label htmlFor="create-brand-store" className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Advertiser (deeplink store)
+            Advertiser (tracking link store)
           </label>
           <select
             id="create-brand-store"
@@ -180,7 +180,7 @@ export default function CreateBrandForm() {
         </div>
         <div>
           <label htmlFor="create-brand-app-deeplink" className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-            GoGoCash app deeplink
+            GoGoCash app tracking link
           </label>
           <input
             id="create-brand-app-deeplink"
@@ -191,7 +191,7 @@ export default function CreateBrandForm() {
             placeholder="https://gogocash.app/open/offer/… (optional)"
           />
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            If set, saved as the commission deeplink mapping for this new offer (same as editing an offer → Deep links).
+            If set, saved as the commission tracking link mapping for this new offer (same as editing an offer → Tracking Links).
           </p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">

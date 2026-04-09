@@ -650,7 +650,7 @@ class ApiClient {
     });
   }
 
-  /** Registers a new brand/offer from affiliate tracking data and optional GoGoCash app deeplink. */
+  /** Registers a new brand/offer from affiliate tracking data and optional GoGoCash app tracking link. */
   async createBrandFromAffiliate(
     payload: CreateBrandFromAffiliatePayload,
     token?: string,

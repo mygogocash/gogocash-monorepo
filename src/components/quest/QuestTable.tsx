@@ -349,7 +349,7 @@ export default function QuestTable() {
         </button>
       </div>
       <div className="min-w-0 overflow-x-auto border-t border-gray-100 dark:border-gray-700 dark:bg-white/[0.02]">
-        <Table className="min-w-[900px]">
+        <Table className="min-w-[480px]">
               <TableHeader className="border-gray-100 dark:border-gray-800">
                 <TableRow>
                   <TableCell isHeader className="py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400">ID</TableCell>
@@ -357,13 +357,6 @@ export default function QuestTable() {
                   <TableCell isHeader className="py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400">End Date</TableCell>
                   <TableCell isHeader className="py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400">Status</TableCell>
                   <TableCell isHeader className="py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400">Reward Status</TableCell>
-                  <TableCell isHeader className="py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400">Facebook Page</TableCell>
-                  <TableCell isHeader className="py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400">Facebook Post</TableCell>
-                  <TableCell isHeader className="py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400">Line</TableCell>
-                  <TableCell isHeader className="py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400">Banner EN</TableCell>
-                  <TableCell isHeader className="py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400">Banner TH</TableCell>
-                  <TableCell isHeader className="py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400">Sub Banner EN</TableCell>
-                  <TableCell isHeader className="py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400">Sub Banner TH</TableCell>
                   <TableCell isHeader className="py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400">Action</TableCell>
                 </TableRow>
               </TableHeader>
@@ -381,13 +374,6 @@ export default function QuestTable() {
                     <TableCell className="whitespace-nowrap py-3 text-center">
                       <Badge size="sm" color={q.rewardStatus === "claimed" ? "success" : "warning"}>{q.rewardStatus}</Badge>
                     </TableCell>
-                    <TableCell className="whitespace-nowrap py-3 text-center text-theme-sm text-gray-600 dark:text-gray-300">{q.facebookPage}</TableCell>
-                    <TableCell className="whitespace-nowrap py-3 text-center text-theme-sm text-gray-600 dark:text-gray-300">{q.facebookPost}</TableCell>
-                    <TableCell className="whitespace-nowrap py-3 text-center text-theme-sm text-gray-600 dark:text-gray-300">{q.line}</TableCell>
-                    <TableCell className="whitespace-nowrap py-3 text-center text-theme-sm text-gray-600 dark:text-gray-300">{q.bannerEn}</TableCell>
-                    <TableCell className="whitespace-nowrap py-3 text-center text-theme-sm text-gray-600 dark:text-gray-300">{q.bannerTh}</TableCell>
-                    <TableCell className="whitespace-nowrap py-3 text-center text-theme-sm text-gray-600 dark:text-gray-300">{q.subBannerEn}</TableCell>
-                    <TableCell className="whitespace-nowrap py-3 text-center text-theme-sm text-gray-600 dark:text-gray-300">{q.subBannerTh}</TableCell>
                     <TableCell className="whitespace-nowrap py-3 text-center">
                       <div className="flex flex-wrap items-center justify-center gap-2">
                         <button

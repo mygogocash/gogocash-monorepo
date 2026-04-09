@@ -333,7 +333,7 @@ interface Session {
 | `/admin-users` | `AdminUsersTable` | Manage admin user accounts (CRUD) |
 | `/users` | `UsersTable` | View & manage regular users |
 | `/offers` | `OffersTable` | Browse & manage merchant offers |
-| `/offers/create-brand` | `CreateBrandForm` | Create brand from affiliate tracking + app deeplink |
+| `/offers/create-brand` | `CreateBrandForm` | Create brand from affiliate tracking + app tracking link |
 | `/offers?tab=top-brands` | `TopBrandManagementPanel` | Homepage top-brand order (mock API) |
 | `/offers/[id]` | `Detail` + `FormOffer` | Individual offer detail & editing |
 | `/offers/pending/[id]` | `PendingOfferReviewRouteClient` | Full-page review for merchant-submitted (pending) offers |
@@ -712,7 +712,7 @@ Offers Management
 ├── Offers (/offers)
 ├── Commission Management (/offers?tab=commission)
 ├── Policy Management (/offers?tab=policy)
-├── User Deeplink (/offers?tab=deeplink)
+├── User tracking link (/offers?tab=deeplink)
 └── Top brands (/offers?tab=top-brands)
 
 Category Management

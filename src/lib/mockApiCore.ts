@@ -259,7 +259,7 @@ function mockWithdrawDetailForUser(userId: string) {
   };
 }
 
-/** Admin-set app deeplink per offer (commission management). */
+/** Admin-set app tracking link per offer (commission management). */
 const commissionAppDeeplinkByOfferId = new Map<string, string>();
 
 /** Homepage top-brand rail: ordered offer `_id`s (mock; in-memory). */
@@ -1235,6 +1235,14 @@ async function handleMockPATCH(
       offer.upsize_max_cap =
         b.upsize_max_cap === "" || b.upsize_max_cap == null ? null : Number(b.upsize_max_cap);
     }
+    if (b.upsize_product_types != null) {
+      try {
+        const parsed: unknown = JSON.parse(b.upsize_product_types);
+        offer.upsize_product_types = normalizeOfferProductTypes(parsed);
+      } catch {
+        /* ignore invalid JSON */
+      }
+    }
     if (b.product_types != null) {
       try {
         const parsed: unknown = JSON.parse(b.product_types);
@@ -1242,6 +1250,9 @@ async function handleMockPATCH(
       } catch {
         /* ignore invalid JSON */
       }
+    }
+    if (b.all_product_types != null) {
+      offer.all_product_types = b.all_product_types === "true";
     }
     if (b.admin_commission_info != null) {
       try {
@@ -1266,6 +1277,10 @@ async function handleMockPATCH(
       } else {
         offer.active_policy = offer.categories;
       }
+    }
+    if (b.custom_terms !== undefined) {
+      const t = (b.custom_terms ?? "").trim();
+      offer.custom_terms = t.length > 0 ? t : null;
     }
     if (b.note_to_user !== undefined) {
       const t = (b.note_to_user ?? "").trim();
@@ -1301,7 +1316,7 @@ async function handleMockPATCH(
     const id = (raw.offerId ?? "").trim();
     const deeplink = (raw.deeplink ?? "").trim();
     if (!id || !deeplink) {
-      return jsonErr(400, { message: "offerId and deeplink are required" });
+      return jsonErr(400, { message: "offerId and tracking link URL are required" });
     }
     const offer = mockOffers.find((o) => o._id === id);
     if (!offer) {

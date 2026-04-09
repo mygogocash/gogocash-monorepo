@@ -1,4 +1,4 @@
-/** Advertiser / campaign-style targets for deep links (admin-selectable; `store=` query param). */
+/** Advertiser / campaign-style targets for tracking links (admin-selectable; `store=` query param). */
 export const DEEPLINK_STORE_OPTIONS: { id: string; label: string }[] = [
   { id: "global", label: "Default / other" },
   { id: "banana_it_th", label: "Banana IT (TH)" },

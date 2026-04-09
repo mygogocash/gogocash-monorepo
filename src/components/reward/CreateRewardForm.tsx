@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Label from "@/components/form/Label";
 import Input from "@/components/form/input/InputField";
+import Checkbox from "@/components/form/input/Checkbox";
 
 const REWARD_STATUS_OPTIONS = [
   { value: "pending", label: "Pending" },
@@ -17,9 +18,11 @@ export default function CreateRewardForm() {
   const [rewardCurrency, setRewardCurrency] = useState("THB");
   const [rewardUser, setRewardUser] = useState("");
   const [rewardStatus, setRewardStatus] = useState<RewardStatus>("pending");
+  const [reviewConfirmed, setReviewConfirmed] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!reviewConfirmed) return;
     // Placeholder: would call API to create reward
     alert(
       "Create Reward (mock): " +
@@ -31,6 +34,7 @@ export default function CreateRewardForm() {
           status: rewardStatus,
         }),
     );
+    setReviewConfirmed(false);
   };
 
   return (
@@ -125,9 +129,21 @@ export default function CreateRewardForm() {
               ))}
             </select>
           </div>
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+            <Checkbox
+              id="reward-review-confirmed"
+              checked={reviewConfirmed}
+              onChange={setReviewConfirmed}
+              label="I have reviewed this reward and confirm the details are correct"
+            />
+            <p className="mt-2 pl-8 text-xs text-gray-500 dark:text-gray-400">
+              You must check this box before creating the reward.
+            </p>
+          </div>
           <button
             type="submit"
-            className="rounded-lg border border-brand-500 bg-brand-500 px-5 py-2.5 text-sm font-medium text-white shadow-theme-xs hover:bg-brand-600 dark:border-brand-500 dark:bg-brand-500 dark:hover:bg-brand-600"
+            disabled={!reviewConfirmed}
+            className="rounded-lg border border-brand-500 bg-brand-500 px-5 py-2.5 text-sm font-medium text-white shadow-theme-xs hover:bg-brand-600 disabled:pointer-events-none disabled:opacity-45 dark:border-brand-500 dark:bg-brand-500 dark:hover:bg-brand-600"
           >
             Create Reward
           </button>

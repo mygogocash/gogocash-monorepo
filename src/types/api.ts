@@ -172,7 +172,7 @@ export function normalizeOfferDisplayTags(value: unknown): OfferDisplayTags {
 export interface OfferProductTypeEntry {
   name: string;
   commission_info: string;
-  /** Optional app deep link for this brand / product line. */
+  /** Optional app tracking link for this brand / product line. */
   deeplink?: string;
 }
 
@@ -197,13 +197,13 @@ export function normalizeOfferProductTypes(value: unknown): OfferProductTypeEntr
   });
 }
 
-/** POST `/offer` — create a merchant row from affiliate feed data and optional app deeplink (mock + future API). */
+/** POST `/offer` — create a merchant row from affiliate feed data and optional app tracking link (mock + future API). */
 export interface CreateBrandFromAffiliatePayload {
   brand_name: string;
   affiliate_network_id: string;
   /** Partner / network tracking or destination URL for this brand line. */
   affiliate_tracking_link: string;
-  /** GoGoCash in-app open URL; stored as commission deeplink mapping for the new offer. */
+  /** GoGoCash in-app open URL; stored as commission tracking link mapping for the new offer. */
   app_deeplink?: string;
   countries?: string;
   currency?: string;
@@ -259,13 +259,19 @@ export interface Offer {
   active_policy?: string | null;
   /** When set, T&C for this offer come from this category’s policy (Policy Management). Empty = use offer category name to resolve. */
   policy_category_id?: string | null;
+  /** Merchant/offer-specific terms shown in addition to (not instead of) the category policy unless the app merges them. */
+  custom_terms?: string | null;
   /** Upsize event (optional, from API) */
   upsize_start_date?: string | null;
   upsize_end_date?: string | null;
   upsize_special_commission?: number | null;
   upsize_max_cap?: number | null;
+  /** Per–product-line commission copy for the upsize promo period (optional). */
+  upsize_product_types?: OfferProductTypeEntry[];
   /** Product types for this offer (optional, from API) */
   product_types?: OfferProductTypeEntry[];
+  /** When true, admin treats this offer as covering all product lines (single tracking link / commission setup). */
+  all_product_types?: boolean;
   /** Admin-entered commission notes or tiers (e.g. internal deals); separate from partner feed. */
   admin_commission_info?: string[];
   /** Short message from admin shown to end users for this offer (e.g. app offer detail). */
@@ -296,17 +302,23 @@ export interface OfferRequestForm {
   upsize_end_date: string | null;
   upsize_special_commission: number | null;
   upsize_max_cap: number | null;
+  /** Product lines + commission messaging for the upsize promo (same shape as Product Type rows). */
+  upsize_product_types?: OfferProductTypeEntry[];
   /** Product types (name + commission info per row) for this offer */
   product_types?: OfferProductTypeEntry[];
+  /** When true, one setup applies to all product types (per-line rows ignored on save). */
+  all_product_types: boolean;
   /** Admin commission lines (saved with offer; not from partner API). */
   admin_commission_info?: string[];
   /** Category whose terms & conditions apply; empty string = default (match offer category). */
   policy_category_id: string;
+  /** Extra T&C copy for this offer/merchant, additive to category policy. */
+  custom_terms: string;
   /** Shown to users in the app; empty = no message. */
   note_to_user: string;
   /** Affiliate network id (`involve_asia`, `optimise`, `accesstrade`, …). */
   affiliate_network_id: string;
-  /** Advertiser / market for deep link targeting (see `DEEPLINK_STORE_OPTIONS`). */
+  /** Advertiser / market for tracking link targeting (see `DEEPLINK_STORE_OPTIONS`). */
   deeplink_store_id: string;
   offer_display_tags: OfferDisplayTags;
 }
