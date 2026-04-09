@@ -17,7 +17,7 @@ export function bestPercentFromPartnerRates(commissions: string[]): number {
 }
 
 /**
- * Partner-style suggested app URL (aligned with mock `/admin/commission-management/brands` `appDeeplink` fallback).
+ * Partner-style suggested app tracking-link URL (aligned with mock `/admin/commission-management/brands` `appDeeplink` fallback).
  * `adminCommissionStore` is the value from the edit form when present so preview updates as admins edit Commission (%).
  */
 export function buildSuggestedAppDeeplink(

@@ -49,7 +49,7 @@ const BREADCRUMB_LABEL: Record<OffersManagementTabId, string> = {
   offers: "Offers",
   commission: "Commission Management",
   policy: "Policy Management",
-  deeplink: "User Deeplink",
+  deeplink: "User tracking link",
   "top-brands": "Top brands",
 };
 

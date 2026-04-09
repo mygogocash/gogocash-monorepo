@@ -30,7 +30,7 @@ export default function DeeplinkTable() {
       <div className="flex flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
         <div className="min-w-0">
           <h3 className="truncate text-base font-medium text-gray-800 dark:text-white/90">
-            Deeplink Lists
+            Tracking link records
           </h3>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             Total: {filtered.length}
@@ -40,7 +40,7 @@ export default function DeeplinkTable() {
         <div className="min-w-0 sm:max-w-xs">
           <input
             type="search"
-            placeholder="Search by User ID, Email, Source, Offer, or Deeplink..."
+            placeholder="Search by User ID, Email, Source, Offer, or tracking link..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="h-11 w-full rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring-3 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400 dark:focus:ring-brand-400/30"
@@ -57,7 +57,7 @@ export default function DeeplinkTable() {
                 Source
               </TableCell>
               <TableCell isHeader className="py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400">Offer / shop / brand</TableCell>
-              <TableCell isHeader className="py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400">Deeplink</TableCell>
+              <TableCell isHeader className="py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400">Tracking link</TableCell>
               <TableCell isHeader className="py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400">Click</TableCell>
               <TableCell isHeader className="py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400">Create Date</TableCell>
               <TableCell isHeader className="py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400">Update Date</TableCell>
@@ -95,7 +95,7 @@ export default function DeeplinkTable() {
       </div>
       {filtered.length === 0 && (
         <div className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-          No deeplinks match your search.
+          No tracking links match your search.
         </div>
       )}
     </div>

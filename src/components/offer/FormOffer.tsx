@@ -76,6 +76,105 @@ function buildOfferTagPreviewChips(tags: OfferDisplayTags, offer: Offer | null):
   return chips;
 }
 
+function FormOfferBrandReferenceStrip({
+  offer,
+  form,
+}: {
+  offer: Offer;
+  form: OfferRequestForm;
+}) {
+  const circlePersisted = (offer.logo_circle || offer.logo || "").trim();
+  const circleSrc = form.logo_circle
+    ? URL.createObjectURL(form.logo_circle)
+    : pathImage(circlePersisted || null);
+  const desktopSrc = form.logo_desktop
+    ? URL.createObjectURL(form.logo_desktop)
+    : pathImage((offer.logo_desktop || "").trim() || null);
+  const mobileSrc = form.logo_mobile
+    ? URL.createObjectURL(form.logo_mobile)
+    : pathImage((offer.logo_mobile || "").trim() || null);
+
+  const meta = [
+    { label: "Offer ID", value: offer._id },
+    { label: "Lookup slug", value: offer.lookup_value?.trim() || "—" },
+    { label: "Category", value: offer.categories?.trim() || "—" },
+    { label: "Partner offer name", value: offer.offer_name?.trim() || "—" },
+  ] as const;
+
+  return (
+    <section className="rounded-xl border border-brand-200/80 bg-brand-50/40 p-4 dark:border-brand-500/30 dark:bg-brand-500/5">
+      <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+        Brand reference
+      </h4>
+      <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
+        Logos and feed identifiers so you can confirm the correct brand or branch before editing.
+      </p>
+      <div className="mt-4 flex flex-wrap items-end gap-6">
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Circle</span>
+          <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-gray-200 bg-white dark:border-gray-600 dark:bg-gray-900">
+            {circleSrc.trim() ? (
+              <RemoteOrBlobImage
+                src={circleSrc}
+                alt="Brand logo, circle"
+                width={128}
+                height={128}
+                className="h-full w-full object-contain"
+              />
+            ) : (
+              <span className="px-1 text-center text-[10px] leading-tight text-gray-400 dark:text-gray-500">
+                No image
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Desktop</span>
+          <div className="flex h-16 max-w-[200px] items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-white px-2 dark:border-gray-600 dark:bg-gray-900">
+            {desktopSrc.trim() ? (
+              <RemoteOrBlobImage
+                src={desktopSrc}
+                alt="Brand logo, desktop"
+                width={256}
+                height={128}
+                className="max-h-14 max-w-full object-contain"
+              />
+            ) : (
+              <span className="text-[10px] text-gray-400 dark:text-gray-500">No image</span>
+            )}
+          </div>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Mobile</span>
+          <div className="flex h-16 max-w-[200px] items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-white px-2 dark:border-gray-600 dark:bg-gray-900">
+            {mobileSrc.trim() ? (
+              <RemoteOrBlobImage
+                src={mobileSrc}
+                alt="Brand logo, mobile"
+                width={256}
+                height={128}
+                className="max-h-14 max-w-full object-contain"
+              />
+            ) : (
+              <span className="text-[10px] text-gray-400 dark:text-gray-500">No image</span>
+            )}
+          </div>
+        </div>
+      </div>
+      <dl className="mt-4 grid gap-2 text-xs sm:grid-cols-2">
+        {meta.map(({ label, value }) => (
+          <div key={label} className="min-w-0">
+            <dt className="text-gray-500 dark:text-gray-400">{label}</dt>
+            <dd className="mt-0.5 break-all font-medium text-gray-800 dark:text-gray-200">
+              {value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
 interface FormOfferProps {
   fetchOffers: () => void;
   openModal: boolean | Offer;
@@ -126,7 +225,19 @@ const FormOffer = ({
     return buildSuggestedAppDeeplink(offer, nw, form.commission_store, form.deeplink_store_id);
   }, [offer, form.affiliate_network_id, form.commission_store, form.deeplink_store_id]);
 
-  /** When there are no product-type rows, deeplink is stored via commission API (same as Commission Management). */
+  /** Per-line tracking URLs only when there are product-type rows and “all product types” is off. */
+  const usePerProductTrackingLinks =
+    (form.product_types ?? []).length > 0 && !form.all_product_types;
+
+  /** Names from Brand Info → Product Type rows, for Upsize line picker. */
+  const upsizeProductTypeNameOptions = useMemo(() => {
+    const names = (form.product_types ?? [])
+      .map((r) => r.name.trim())
+      .filter(Boolean);
+    return [...new Set(names)];
+  }, [form.product_types]);
+
+  /** When there are no product-type rows, the app tracking link is stored via commission API (same as Commission Management). */
   const serverSuggestedDeeplink = useMemo(() => {
     if (!offer) return null;
     const saved = brandRowForOffer?.appDeeplink?.trim() ?? "";
@@ -260,7 +371,7 @@ const FormOffer = ({
     if (form.upsize_max_cap != null) {
       formData.append("upsize_max_cap", String(form.upsize_max_cap));
     }
-    const productTypeRows = (form.product_types ?? [])
+    const upsizeProductTypeRows = (form.upsize_product_types ?? [])
       .map((row) => ({
         name: row.name.trim(),
         commission_info: row.commission_info.trim(),
@@ -272,7 +383,23 @@ const FormOffer = ({
           row.commission_info.length > 0 ||
           row.deeplink.length > 0,
       );
+    formData.append("upsize_product_types", JSON.stringify(upsizeProductTypeRows));
+    const productTypeRows = form.all_product_types
+      ? []
+      : (form.product_types ?? [])
+          .map((row) => ({
+            name: row.name.trim(),
+            commission_info: row.commission_info.trim(),
+            deeplink: (row.deeplink ?? "").trim(),
+          }))
+          .filter(
+            (row) =>
+              row.name.length > 0 ||
+              row.commission_info.length > 0 ||
+              row.deeplink.length > 0,
+          );
     formData.append("product_types", JSON.stringify(productTypeRows));
+    formData.append("all_product_types", String(form.all_product_types));
     formData.append(
       "admin_commission_info",
       JSON.stringify(
@@ -280,11 +407,13 @@ const FormOffer = ({
       ),
     );
     formData.append("policy_category_id", form.policy_category_id ?? "");
+    formData.append("custom_terms", form.custom_terms ?? "");
     formData.append("note_to_user", form.note_to_user ?? "");
     formData.append("affiliate_network_id", form.affiliate_network_id.trim() || "involve_asia");
     formData.append("deeplink_store_id", form.deeplink_store_id.trim() || "global");
     formData.append("offer_display_tags", JSON.stringify(form.offer_display_tags));
-    const hasProductTypeRows = (form.product_types ?? []).length > 0;
+    const hasProductTypeRows =
+      !form.all_product_types && (form.product_types ?? []).length > 0;
 
     setIsLoading(true);
     client
@@ -301,7 +430,7 @@ const FormOffer = ({
             try {
               await saveOfferDeeplink.mutateAsync({ offerId: form.id, deeplink: d });
             } catch {
-              toast.error("Offer saved, but deep link could not be synced.");
+              toast.error("Offer saved, but tracking link could not be synced.");
             }
           }
         }
@@ -363,10 +492,111 @@ const FormOffer = ({
           </div>
         }
       >
-        {/* Basic info */}
+        {offer ? <FormOfferBrandReferenceStrip offer={offer} form={form} /> : null}
+
+        {/* Tracking links — one per product-type row (brand / line), or single offer row */}
+        <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 dark:border-gray-700 dark:bg-gray-800/30">
+          <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            Tracking Links
+          </h4>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Tracking link for each brand or product line. With{" "}
+            <span className="font-medium">Product Type</span> rows below (and without{" "}
+            <span className="font-medium">all product types</span>), each line gets its own URL;
+            otherwise the default below uses the same store as Commission Management.
+          </p>
+          <div className="mt-4">
+            <FieldLabel
+              label="Affiliate partner"
+              description="Performance network for this offer (Involve Asia, Optimise, Accesstrade)."
+            />
+            <select
+              id="offer-affiliate-network"
+              className="w-full max-w-xl rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+              value={form.affiliate_network_id}
+              onChange={(e) => setForm({ ...form, affiliate_network_id: e.target.value })}
+              disabled={isLoading}
+            >
+              {AFFILIATE_NETWORKS.map((n) => (
+                <option key={n.id} value={n.id}>
+                  {n.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="mt-4">
+            <FieldLabel
+              label="Advertiser"
+              description="Campaign-style advertiser (e.g. Banana IT TH CPS). Adds store= to the tracking link unless Default / other."
+            />
+            <select
+              id="offer-deeplink-advertiser"
+              className="w-full max-w-xl rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+              value={form.deeplink_store_id}
+              onChange={(e) => setForm({ ...form, deeplink_store_id: e.target.value })}
+              disabled={isLoading}
+            >
+              {DEEPLINK_STORE_OPTIONS.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          {usePerProductTrackingLinks ? (
+            <ul className="mt-4 space-y-4">
+              {(form.product_types ?? []).map((row, i) => {
+                const label = row.name.trim() || `Brand / product line ${i + 1}`;
+                return (
+                  <li key={i}>
+                    <FieldLabel
+                      label={`Tracking link — ${label}`}
+                      description="URL opened in the app for this product type (e.g. gogocash.app/...)."
+                    />
+                    <Input
+                      type="url"
+                      name={`product_type_deeplink_${i}`}
+                      placeholder="https://gogocash.app/open/offer/..."
+                      value={row.deeplink ?? ""}
+                      onChange={(e) => {
+                        const next = [...(form.product_types ?? [])];
+                        next[i] = { ...next[i], deeplink: e.target.value };
+                        setForm({ ...form, product_types: next });
+                      }}
+                      disabled={isLoading}
+                      autoComplete="off"
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <div className="mt-4">
+              <FieldLabel
+                label="Tracking link"
+                description="Prefilled from partner data (rate, currency, affiliate network); you can edit before save. If you previously saved a custom URL, that value is shown instead."
+              />
+              <Input
+                type="url"
+                name="offer_deeplink"
+                placeholder="https://gogocash.app/open/offer/..."
+                value={offerDeeplinkDraft}
+                onChange={(e) =>
+                  setDeeplinkOverride(
+                    offer ? { offerId: offer._id, value: e.target.value } : null,
+                  )
+                }
+                disabled={isLoading || saveOfferDeeplink.isPending}
+                autoComplete="off"
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Brand info */}
         <section className="space-y-4">
           <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-            Basic info
+            Brand Info
           </h4>
           <div>
             <FieldLabel
@@ -403,108 +633,10 @@ const FormOffer = ({
             </div>
           </div>
 
-          {/* Deep links — one per product-type row (brand / line), or single offer row */}
-          <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 dark:border-gray-700 dark:bg-gray-800/30">
-            <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-              Deep links
-            </h4>
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              App deep link for each brand or product line. With{" "}
-              <span className="font-medium">Product Type</span> rows below, each line gets its own URL;
-              otherwise the default below uses the same store as Commission Management.
-            </p>
-            <div className="mt-4">
-              <FieldLabel
-                label="Affiliate partner"
-                description="Performance network for this offer (Involve Asia, Optimise, Accesstrade)."
-              />
-              <select
-                id="offer-affiliate-network"
-                className="w-full max-w-xl rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-                value={form.affiliate_network_id}
-                onChange={(e) => setForm({ ...form, affiliate_network_id: e.target.value })}
-                disabled={isLoading}
-              >
-                {AFFILIATE_NETWORKS.map((n) => (
-                  <option key={n.id} value={n.id}>
-                    {n.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="mt-4">
-              <FieldLabel
-                label="Advertiser"
-                description="Campaign-style advertiser (e.g. Banana IT TH CPS). Adds store= to the deep link unless Default / other."
-              />
-              <select
-                id="offer-deeplink-advertiser"
-                className="w-full max-w-xl rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-                value={form.deeplink_store_id}
-                onChange={(e) => setForm({ ...form, deeplink_store_id: e.target.value })}
-                disabled={isLoading}
-              >
-                {DEEPLINK_STORE_OPTIONS.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {(form.product_types ?? []).length > 0 ? (
-              <ul className="mt-4 space-y-4">
-                {(form.product_types ?? []).map((row, i) => {
-                  const label = row.name.trim() || `Brand / product line ${i + 1}`;
-                  return (
-                    <li key={i}>
-                      <FieldLabel
-                        label={`Deep link — ${label}`}
-                        description="URL opened in the app for this product type (e.g. gogocash.app/...)."
-                      />
-                      <Input
-                        type="url"
-                        name={`product_type_deeplink_${i}`}
-                        placeholder="https://gogocash.app/open/offer/..."
-                        value={row.deeplink ?? ""}
-                        onChange={(e) => {
-                          const next = [...(form.product_types ?? [])];
-                          next[i] = { ...next[i], deeplink: e.target.value };
-                          setForm({ ...form, product_types: next });
-                        }}
-                        disabled={isLoading}
-                        autoComplete="off"
-                      />
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <div className="mt-4">
-                <FieldLabel
-                  label={`Deep link — ${form.offer_name_display?.trim() || "This offer"}`}
-                  description="Prefilled from partner data (rate, currency, affiliate network); you can edit before save. If you previously saved a custom URL, that value is shown instead."
-                />
-                <Input
-                  type="url"
-                  name="offer_deeplink"
-                  placeholder="https://gogocash.app/open/offer/..."
-                  value={offerDeeplinkDraft}
-                  onChange={(e) =>
-                    setDeeplinkOverride(
-                      offer ? { offerId: offer._id, value: e.target.value } : null,
-                    )
-                  }
-                  disabled={isLoading || saveOfferDeeplink.isPending}
-                  autoComplete="off"
-                />
-              </div>
-            )}
-          </div>
-
           <div>
             <FieldLabel
               label="Commission (%)"
-              description="Your configured commission rate for this offer in the admin (store / user payout)."
+              description="Maximum % offered to users. Enter the value already reduced by 30% from the affiliate partner rate."
             />
             <Input
               type="text"
@@ -512,11 +644,152 @@ const FormOffer = ({
               onChange={(e) => setForm({ ...form, commission_store: Number(e.target.value) })}
               defaultValue={form.commission_store || ""}
             />
+            <div className="mt-3">
+              <Switch
+                key={`${form.id}-all-product-types`}
+                label="All product types"
+                onChange={(e) => setForm({ ...form, all_product_types: e })}
+                defaultChecked={form.all_product_types}
+                disabled={isLoading}
+              />
+              <p className="ml-6 mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                Use one commission rate and tracking link for all lines. Turn off to add per-row
+                names and commission.
+              </p>
+            </div>
           </div>
+
+        {/* Product Type — stacked on small screens; 44px+ touch targets; 16px text on mobile avoids iOS input zoom */}
+        <section className="space-y-4">
+          <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+            <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              Product Type
+            </h4>
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:gap-2">
+              <Button
+                size="sm"
+                type="button"
+                disabled={isLoading}
+                onClick={handleSave}
+                className="min-h-11 w-full touch-manipulation sm:w-auto sm:shrink-0"
+                startIcon={
+                  isLoading ? (
+                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-brand-500 dark:border-gray-600" />
+                  ) : null
+                }
+              >
+                Save changes
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                type="button"
+                onClick={() =>
+                  setForm({
+                    ...form,
+                    product_types: [
+                      ...(form.product_types ?? []),
+                      { name: "", commission_info: "", deeplink: "" },
+                    ],
+                  })
+                }
+                disabled={isLoading || form.all_product_types}
+                className="min-h-11 w-full touch-manipulation sm:w-auto sm:shrink-0"
+              >
+                Add
+              </Button>
+            </div>
+          </div>
+          <p className="text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+            {form.all_product_types
+              ? "Turn off all product types under Commission (%) to add per-line names and commission."
+              : (
+                  <>
+                    Add a row for each product type with its name and commission info, then use{" "}
+                    <span className="font-medium">Save changes</span> here or in the header to
+                    persist.
+                  </>
+                )}
+          </p>
+          {!form.all_product_types && (form.product_types ?? []).length > 0 && (
+            <ul className="space-y-4">
+              {(form.product_types ?? []).map((row, i) => {
+                const baseId = `offer-pt-${form.id || "new"}-${i}`;
+                return (
+                  <li
+                    key={i}
+                    className="flex flex-col gap-4 rounded-xl border border-gray-100 bg-gray-50/50 p-4 dark:border-gray-700 dark:bg-gray-800/30 sm:flex-row sm:items-stretch sm:gap-3 sm:p-3"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <label
+                        htmlFor={`${baseId}-name`}
+                        className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                      >
+                        Product type name
+                      </label>
+                      <Input
+                        id={`${baseId}-name`}
+                        type="text"
+                        placeholder="e.g. Electronics"
+                        value={row.name}
+                        onChange={(e) => {
+                          const next = [...(form.product_types ?? [])];
+                          next[i] = { ...next[i], name: e.target.value };
+                          setForm({ ...form, product_types: next });
+                        }}
+                        disabled={isLoading}
+                        autoComplete="off"
+                        enterKeyHint="next"
+                        className="min-h-11 min-w-0 w-full touch-manipulation !text-base sm:!text-sm"
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <label
+                        htmlFor={`${baseId}-commission`}
+                        className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                      >
+                        Commission info (-30% from affiliate partner)
+                      </label>
+                      <TextArea
+                        id={`${baseId}-commission`}
+                        rows={1}
+                        placeholder="e.g. 5% on new customers"
+                        value={row.commission_info}
+                        onChange={(v) => {
+                          const next = [...(form.product_types ?? [])];
+                          next[i] = { ...next[i], commission_info: v };
+                          setForm({ ...form, product_types: next });
+                        }}
+                        disabled={isLoading}
+                        className="h-11 min-h-11 max-h-11 resize-none overflow-y-auto touch-manipulation !text-base !text-gray-800 placeholder:text-gray-400 dark:!text-white/90 sm:!text-sm"
+                      />
+                    </div>
+                    <div className="flex shrink-0 sm:items-end sm:pb-0.5">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        type="button"
+                        onClick={() => {
+                          const next = (form.product_types ?? []).filter((_, j) => j !== i);
+                          setForm({ ...form, product_types: next.length ? next : undefined });
+                        }}
+                        disabled={isLoading}
+                        className="min-h-11 w-full touch-manipulation text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/20 sm:w-auto"
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+
           <div>
             <FieldLabel
               label="Max cap"
-              description="Maximum conversions or payout cap for this offer."
+              description="Maximum cap offered to users. Enter the value already reduced by 30% from the affiliate partner cap."
             />
             <Input
               type="text"
@@ -725,6 +998,174 @@ const FormOffer = ({
                   <p className="ml-6 mt-0.5 text-xs text-gray-600 dark:text-gray-400">
                     Show an “extra cashback” style promo tag (separate from Upsize fields below).
                   </p>
+                  <div className="mt-4 border-t border-brand-200/70 pt-4 dark:border-brand-800/50">
+                    <h5 className="text-sm font-semibold text-brand-900 dark:text-brand-100">
+                      Upsize event
+                    </h5>
+                    <p className="mt-0.5 text-xs text-brand-800/80 dark:text-brand-200/80">
+                      Optional period with special commission and max cap.
+                    </p>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        type="button"
+                        onClick={() =>
+                          setForm({
+                            ...form,
+                            upsize_product_types: [
+                              ...(form.upsize_product_types ?? []),
+                              { name: "", commission_info: "", deeplink: "" },
+                            ],
+                          })
+                        }
+                        disabled={isLoading}
+                        className="touch-manipulation"
+                      >
+                        Add product line
+                      </Button>
+                    </div>
+                    {(form.upsize_product_types ?? []).length > 0 ? (
+                      <ul className="mt-3 space-y-4">
+                        {(form.upsize_product_types ?? []).map((row, i) => {
+                          const baseId = `offer-upsize-pt-${form.id || "new"}-${i}`;
+                          return (
+                            <li
+                              key={i}
+                              className="flex flex-col gap-4 rounded-xl border border-gray-100 bg-gray-50/50 p-4 dark:border-gray-700 dark:bg-gray-800/30 sm:flex-row sm:items-stretch sm:gap-3 sm:p-3"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <label
+                                  htmlFor={`${baseId}-name`}
+                                  className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                                >
+                                  Product type name
+                                </label>
+                                <select
+                                  id={`${baseId}-name`}
+                                  className="min-h-11 w-full min-w-0 touch-manipulation rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 shadow-theme-xs dark:border-gray-600 dark:bg-gray-900 dark:text-white sm:text-sm"
+                                  value={row.name}
+                                  onChange={(e) => {
+                                    const next = [...(form.upsize_product_types ?? [])];
+                                    next[i] = { ...next[i], name: e.target.value };
+                                    setForm({ ...form, upsize_product_types: next });
+                                  }}
+                                  disabled={isLoading}
+                                >
+                                  <option value="">Select product type…</option>
+                                  {upsizeProductTypeNameOptions.map((name) => (
+                                    <option key={name} value={name}>
+                                      {name}
+                                    </option>
+                                  ))}
+                                  {row.name.trim() &&
+                                  !upsizeProductTypeNameOptions.includes(row.name.trim()) ? (
+                                    <option value={row.name.trim()}>
+                                      {row.name.trim()} (saved — add under Product Type to pick)
+                                    </option>
+                                  ) : null}
+                                </select>
+                                {upsizeProductTypeNameOptions.length === 0 ? (
+                                  <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                                    Add named lines under{" "}
+                                    <span className="font-medium">Brand Info → Product Type</span>{" "}
+                                    first, or turn off{" "}
+                                    <span className="font-medium">all product types</span> if those
+                                    rows are hidden.
+                                  </p>
+                                ) : null}
+                              </div>
+                              <div className="flex shrink-0 sm:items-end sm:pb-0.5">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  type="button"
+                                  onClick={() => {
+                                    const next = (form.upsize_product_types ?? []).filter(
+                                      (_, j) => j !== i,
+                                    );
+                                    setForm({
+                                      ...form,
+                                      upsize_product_types: next.length ? next : [],
+                                    });
+                                  }}
+                                  disabled={isLoading}
+                                  className="min-h-11 w-full touch-manipulation text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/20 sm:w-auto"
+                                >
+                                  Remove
+                                </Button>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : null}
+                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <FieldLabel label="Start date" description="When the promo starts." />
+                        <Input
+                          type="date"
+                          name="upsize_start_date"
+                          onChange={(e) =>
+                            setForm({ ...form, upsize_start_date: e.target.value || null })
+                          }
+                          defaultValue={form.upsize_start_date ?? ""}
+                          disabled={isLoading}
+                        />
+                      </div>
+                      <div>
+                        <FieldLabel label="End date" description="When the promo ends." />
+                        <Input
+                          type="date"
+                          name="upsize_end_date"
+                          onChange={(e) =>
+                            setForm({ ...form, upsize_end_date: e.target.value || null })
+                          }
+                          defaultValue={form.upsize_end_date ?? ""}
+                          disabled={isLoading}
+                        />
+                      </div>
+                      <div>
+                        <FieldLabel
+                          label="Special commission (%)"
+                          description="Commission during the promo."
+                        />
+                        <Input
+                          type="number"
+                          name="upsize_special_commission"
+                          placeholder="e.g. 10"
+                          onChange={(e) =>
+                            setForm({
+                              ...form,
+                              upsize_special_commission:
+                                e.target.value === "" ? null : Number(e.target.value),
+                            })
+                          }
+                          defaultValue={form.upsize_special_commission ?? ""}
+                          disabled={isLoading}
+                        />
+                      </div>
+                      <div>
+                        <FieldLabel
+                          label="Max cap (upsize)"
+                          description="Maximum cap offered to users during the promo. Enter the value already reduced by 30% from the affiliate partner cap."
+                        />
+                        <Input
+                          type="number"
+                          name="upsize_max_cap"
+                          placeholder="e.g. 1000"
+                          onChange={(e) =>
+                            setForm({
+                              ...form,
+                              upsize_max_cap: e.target.value === "" ? null : Number(e.target.value),
+                            })
+                          }
+                          defaultValue={form.upsize_max_cap ?? ""}
+                          disabled={isLoading}
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div>
@@ -800,71 +1241,6 @@ const FormOffer = ({
               </div>
             </div>
           </div>
-
-          {/* Admin commission lines (editable) */}
-          <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900/40">
-            <div className="mb-2 flex w-full flex-wrap items-center gap-3">
-              <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                Commission info (admin)
-              </h4>
-              <Button
-                size="sm"
-                variant="outline"
-                type="button"
-                onClick={() =>
-                  setForm({
-                    ...form,
-                    admin_commission_info: [...(form.admin_commission_info ?? []), ""],
-                  })
-                }
-                disabled={isLoading}
-              >
-                Add
-              </Button>
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Add internal commission notes, negotiated tiers, or overrides. Shown only from admin data — partner terms stay in the block above.
-            </p>
-            {(form.admin_commission_info ?? []).length > 0 ? (
-              <ul className="mt-3 space-y-2">
-                {(form.admin_commission_info ?? []).map((value, i) => (
-                  <li key={i} className="flex w-full items-center gap-3">
-                    <Input
-                      type="text"
-                      placeholder="e.g. Q1 promo: 7% CPA · cap ฿50k"
-                      value={value}
-                      onChange={(e) => {
-                        const next = [...(form.admin_commission_info ?? [])];
-                        next[i] = e.target.value;
-                        setForm({ ...form, admin_commission_info: next });
-                      }}
-                      className="min-w-0 flex-1"
-                    />
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      type="button"
-                      onClick={() => {
-                        const next = (form.admin_commission_info ?? []).filter((_, j) => j !== i);
-                        setForm({
-                          ...form,
-                          admin_commission_info: next.length ? next : [],
-                        });
-                      }}
-                      disabled={isLoading}
-                      className="shrink-0 text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/20"
-                    >
-                      Remove
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="mt-3 text-xs text-gray-400 dark:text-gray-500">
-                No admin lines yet. Click <strong>Add</strong> to record commission info.
-              </p>
-            )}
-          </div>
         </section>
 
         {/* Policy (T&C source) */}
@@ -905,169 +1281,19 @@ const FormOffer = ({
               No override: the app can match <span className="font-medium">{offer?.categories ?? "—"}</span> to a category and load its policy.
             </p>
           )}
-        </section>
-
-        {/* Product Type — stacked on small screens; 44px+ touch targets; 16px text on mobile avoids iOS input zoom */}
-        <section className="space-y-4">
-          <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-            <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-              Product Type
-            </h4>
-            <Button
-              size="sm"
-              variant="outline"
-              type="button"
-                onClick={() =>
-                setForm({
-                  ...form,
-                  product_types: [
-                    ...(form.product_types ?? []),
-                    { name: "", commission_info: "", deeplink: "" },
-                  ],
-                })
-              }
+          <div className="mt-4 border-t border-gray-200 pt-4 dark:border-gray-600">
+            <FieldLabel
+              label="Custom terms (this merchant)"
+              description="Optional terms for this offer only, shown in addition to the category policy above. Use for merchant-specific rules or legal supplements; your app should merge or append with Policy Management text."
+            />
+            <TextArea
+              rows={5}
+              placeholder="e.g. Brand-specific eligibility · stacked promotions not allowed · see partner site for full rules"
+              value={form.custom_terms}
+              onChange={(v) => setForm({ ...form, custom_terms: v })}
               disabled={isLoading}
-              className="min-h-11 w-full touch-manipulation sm:w-auto sm:shrink-0"
-            >
-              Add
-            </Button>
-          </div>
-          <p className="text-xs leading-relaxed text-gray-500 dark:text-gray-400">
-            Add a row for each product type with its name and commission info, then use{" "}
-            <span className="font-medium">Save changes</span> at the bottom to persist.
-          </p>
-          {(form.product_types ?? []).length > 0 && (
-            <ul className="space-y-4">
-              {(form.product_types ?? []).map((row, i) => {
-                const baseId = `offer-pt-${form.id || "new"}-${i}`;
-                return (
-                  <li
-                    key={i}
-                    className="flex flex-col gap-4 rounded-xl border border-gray-100 bg-gray-50/50 p-4 dark:border-gray-700 dark:bg-gray-800/30 sm:flex-row sm:items-stretch sm:gap-3 sm:p-3"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <label
-                        htmlFor={`${baseId}-name`}
-                        className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                      >
-                        Product type name
-                      </label>
-                      <Input
-                        id={`${baseId}-name`}
-                        type="text"
-                        placeholder="e.g. Electronics"
-                        value={row.name}
-                        onChange={(e) => {
-                          const next = [...(form.product_types ?? [])];
-                          next[i] = { ...next[i], name: e.target.value };
-                          setForm({ ...form, product_types: next });
-                        }}
-                        disabled={isLoading}
-                        autoComplete="off"
-                        enterKeyHint="next"
-                        className="min-h-11 min-w-0 w-full touch-manipulation !text-base sm:!text-sm"
-                      />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <label
-                        htmlFor={`${baseId}-commission`}
-                        className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                      >
-                        Commission info
-                      </label>
-                      <TextArea
-                        id={`${baseId}-commission`}
-                        rows={1}
-                        placeholder="e.g. 5% on new customers"
-                        value={row.commission_info}
-                        onChange={(v) => {
-                          const next = [...(form.product_types ?? [])];
-                          next[i] = { ...next[i], commission_info: v };
-                          setForm({ ...form, product_types: next });
-                        }}
-                        disabled={isLoading}
-                        className="h-11 min-h-11 max-h-11 resize-none overflow-y-auto touch-manipulation !text-base !text-gray-800 placeholder:text-gray-400 dark:!text-white/90 sm:!text-sm"
-                      />
-                    </div>
-                    <div className="flex shrink-0 sm:items-end sm:pb-0.5">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        type="button"
-                        onClick={() => {
-                          const next = (form.product_types ?? []).filter((_, j) => j !== i);
-                          setForm({ ...form, product_types: next.length ? next : undefined });
-                        }}
-                        disabled={isLoading}
-                        className="min-h-11 w-full touch-manipulation text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/20 sm:w-auto"
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
-
-        {/* Upsize event */}
-        <section className="rounded-xl border border-gray-200 bg-gray-50/80 p-4 dark:border-gray-600 dark:bg-gray-800/40">
-          <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-            Upsize event
-          </h4>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            Optional period with special commission and max cap.
-          </p>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <div>
-              <FieldLabel label="Start date" description="When the promo starts." />
-              <Input
-                type="date"
-                name="upsize_start_date"
-                onChange={(e) => setForm({ ...form, upsize_start_date: e.target.value || null })}
-                defaultValue={form.upsize_start_date ?? ""}
-              />
-            </div>
-            <div>
-              <FieldLabel label="End date" description="When the promo ends." />
-              <Input
-                type="date"
-                name="upsize_end_date"
-                onChange={(e) => setForm({ ...form, upsize_end_date: e.target.value || null })}
-                defaultValue={form.upsize_end_date ?? ""}
-              />
-            </div>
-            <div>
-              <FieldLabel label="Special commission (%)" description="Commission during the promo." />
-              <Input
-                type="number"
-                name="upsize_special_commission"
-                placeholder="e.g. 10"
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    upsize_special_commission: e.target.value === "" ? null : Number(e.target.value),
-                  })
-                }
-                defaultValue={form.upsize_special_commission ?? ""}
-              />
-            </div>
-            <div>
-              <FieldLabel label="Max cap (upsize)" description="Cap during the promo." />
-              <Input
-                type="number"
-                name="upsize_max_cap"
-                placeholder="e.g. 1000"
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    upsize_max_cap: e.target.value === "" ? null : Number(e.target.value),
-                  })
-                }
-                defaultValue={form.upsize_max_cap ?? ""}
-              />
-            </div>
+              className="min-h-[6rem] resize-y !text-base !text-gray-800 placeholder:text-gray-400 dark:!text-white/90 sm:!text-sm"
+            />
           </div>
         </section>
 

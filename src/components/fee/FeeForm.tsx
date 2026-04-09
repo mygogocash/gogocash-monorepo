@@ -172,13 +172,14 @@ export default function FeeForm() {
     setPresetValue("");
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const saveSettings = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!forms.id?.trim()) {
       toast.error("Fee record is not loaded yet. Please wait or refresh.");
       return;
     }
-    const normalized = normalizeRegionsForSave(regions);
+    const currentRegions = forms.withdraw_regions ?? [];
+    const normalized = normalizeRegionsForSave(currentRegions);
     if (normalized.length === 0) {
       toast.error("Add at least one country/currency row for withdrawal fees.");
       return;
@@ -224,7 +225,7 @@ export default function FeeForm() {
           </div>
         )}
         <form
-          onSubmit={handleSave}
+          onSubmit={saveSettings}
           className={`space-y-8 ${fetching ? "pointer-events-none opacity-60" : ""}`}
         >
           <section className="space-y-4">
@@ -430,14 +431,25 @@ export default function FeeForm() {
                         </span>
                       </div>
                     </div>
-                    <div className="flex items-end sm:col-span-2">
-                      <button
-                        type="button"
-                        onClick={() => removeRegion(row.id)}
-                        className="h-11 w-full rounded-lg border border-red-200 bg-white px-3 text-sm font-medium text-red-700 hover:bg-red-50 dark:border-red-900/50 dark:bg-gray-800 dark:text-red-300 dark:hover:bg-red-950/40"
-                      >
-                        Remove
-                      </button>
+                    <div className="flex flex-col gap-2 sm:col-span-2 sm:items-stretch">
+                      <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-end sm:justify-end">
+                        <button
+                          type="button"
+                          onClick={() => void saveSettings()}
+                          disabled={saving || fetching || !forms.id}
+                          className="h-11 w-full shrink-0 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:min-w-[96px]"
+                        >
+                          {saving ? "Saving..." : "Save"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeRegion(row.id)}
+                          disabled={saving}
+                          className="h-11 w-full shrink-0 rounded-lg border border-red-200 bg-white px-3 text-sm font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900/50 dark:bg-gray-800 dark:text-red-300 dark:hover:bg-red-950/40 sm:w-auto"
+                        >
+                          Remove
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>

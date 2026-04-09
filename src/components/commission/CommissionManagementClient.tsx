@@ -61,7 +61,7 @@ export default function CommissionManagementClient({
   const [selectedNetworkId, setSelectedNetworkId] = useState("involve_asia");
   /** Empty string means “first brand in list” until user picks explicitly. */
   const [selectedOfferId, setSelectedOfferId] = useState("");
-  /** When non-null, user or “fetch best” has overridden the server deeplink for the field. */
+  /** When non-null, user or “fetch best” has overridden the server tracking link for the field. */
   const [deeplinkOverride, setDeeplinkOverride] = useState<string | null>(null);
 
   const { data: networksRes, isLoading: networksLoading } = useQuery({
@@ -131,10 +131,10 @@ export default function CommissionManagementClient({
         queryKey: COMMISSION_MANAGEMENT_BRANDS_ROOT_QUERY_KEY,
       });
       setDeeplinkOverride(null);
-      toast.success("Deeplink saved for this brand.");
+      toast.success("Tracking link saved for this brand.");
     },
     onError: () => {
-      toast.error("Could not save deeplink.");
+      toast.error("Could not save tracking link.");
     },
   });
 
@@ -160,7 +160,7 @@ export default function CommissionManagementClient({
     }
     const d = deeplinkDraft.trim();
     if (!d) {
-      toast.error("Enter a deeplink URL.");
+      toast.error("Enter a tracking link URL.");
       return;
     }
     saveDeeplink.mutate({ offerId: resolvedOfferId, deeplink: d });
@@ -183,12 +183,12 @@ export default function CommissionManagementClient({
 
       <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 dark:border-gray-800 dark:bg-white/[0.03]">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-          Best commission &amp; deeplink
+          Best commission &amp; tracking link
         </h2>
         <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
           Choose a connected affiliate network, pick a merchant, then fetch the best
           commission rate for users from that network&apos;s feed. Update the app
-          deeplink when ready. Mock data only; wire your backend to the same
+          tracking link when ready. Mock data only; wire your backend to the same
           routes for production.
         </p>
 
@@ -388,7 +388,7 @@ export default function CommissionManagementClient({
                 </li>
               </ul>
               <p className="text-brand-800/80 dark:text-brand-200/80 mt-2 text-xs">
-                Suggested app deeplink is filled below — edit if needed, then
+                Suggested app tracking link is filled below — edit if needed, then
                 save.
               </p>
             </div>
@@ -399,7 +399,7 @@ export default function CommissionManagementClient({
               htmlFor="commission-deeplink"
               className="mb-1.5 block text-sm font-medium text-gray-800 dark:text-gray-200"
             >
-              App deeplink for this brand
+              App tracking link for this brand
             </label>
             <input
               id="commission-deeplink"
@@ -410,7 +410,7 @@ export default function CommissionManagementClient({
               className="shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-3 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:placeholder:text-gray-500"
             />
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              This is the deep link users open in the app for this merchant
+              This is the tracking link users open in the app for this merchant
               after you optimize commission routing.
             </p>
           </div>
@@ -423,7 +423,7 @@ export default function CommissionManagementClient({
               onClick={onSaveDeeplink}
               disabled={!resolvedOfferId || saveDeeplink.isPending}
             >
-              {saveDeeplink.isPending ? "Saving…" : "Save deeplink"}
+              {saveDeeplink.isPending ? "Saving…" : "Save tracking link"}
             </Button>
           </div>
         </div>

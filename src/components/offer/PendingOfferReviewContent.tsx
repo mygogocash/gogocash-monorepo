@@ -311,7 +311,7 @@ export function PendingOfferDetailBody({ offer }: { offer: PendingOfferRow }) {
             )}
           </DetailRow>
           <DetailRow label="Directory / store page">{offer.directory_page || "—"}</DetailRow>
-          <DetailRow label="Deeplink store id">{offer.deeplink_store_id ?? "—"}</DetailRow>
+          <DetailRow label="Tracking link store id">{offer.deeplink_store_id ?? "—"}</DetailRow>
           <DetailRow label="Offer ID (system)">{String(offer.offer_id)}</DetailRow>
           <DetailRow label="Internal ID">{offer._id}</DetailRow>
           <DetailRow label="Lookup value">{offer.lookup_value || "—"}</DetailRow>

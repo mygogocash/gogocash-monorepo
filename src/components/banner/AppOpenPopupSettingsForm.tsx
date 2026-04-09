@@ -310,7 +310,7 @@ export default function AppOpenPopupSettingsForm({
                   className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 placeholder:text-gray-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:focus:border-brand-400"
                 />
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Deep link or web URL opened when the user taps this popup.
+                  Tracking link or web URL opened when the user taps this popup.
                 </p>
               </div>
             </div>

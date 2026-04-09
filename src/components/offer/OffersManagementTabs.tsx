@@ -16,7 +16,7 @@ export const OFFERS_MANAGEMENT_TABS = [
   },
   {
     id: "deeplink" as const,
-    label: "User Deeplink",
+    label: "User tracking link",
   },
   {
     id: "top-brands" as const,

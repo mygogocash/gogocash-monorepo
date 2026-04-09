@@ -2,7 +2,7 @@ export type MockDeeplinkRow = {
   userId: string;
   email: string;
   offerName: string;
-  /** Whether this deeplink targets an offer, shop, or brand surface */
+  /** Whether this tracking link targets an offer, shop, or brand surface */
   sourceType: "Offer" | "Shop" | "Brand";
   deeplink: string;
   createDate: string;

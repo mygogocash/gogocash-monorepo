@@ -56,7 +56,7 @@ const TABS: { id: DetailTab; label: string }[] = [
   { id: "user", label: "User Info" },
   { id: "conversion", label: "Conversion All" },
   { id: "withdraw", label: "Withdraw All" },
-  { id: "deeplink", label: "Deeplinks" },
+  { id: "deeplink", label: "Tracking links" },
   { id: "login", label: "Login Tracking" },
 ];
 
@@ -927,7 +927,7 @@ const WithdrawDetail = () => {
             <div className="space-y-3">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Deeplinks from offers, shops & brands
+                  Tracking links from offers, shops & brands
                 </h2>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                   Tracking links associated with this user (mock data). Replace with API when available.
@@ -938,19 +938,19 @@ const WithdrawDetail = () => {
               ) : userDeeplinks.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 py-10 text-center dark:border-gray-600 dark:bg-gray-800/50">
                   <p className="text-sm text-gray-600 dark:text-gray-300">
-                    No deeplink records for this user in mock data.
+                    No tracking link records for this user in mock data.
                   </p>
                   <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                    Global deeplink admin:{" "}
+                    Global tracking link admin:{" "}
                     <Link
                       href="/offers?tab=deeplink"
                       className="text-brand-600 underline dark:text-brand-400"
                     >
-                      User Deeplink
+                      User tracking link
                     </Link>
                     {" "}
                     <span className="text-gray-400 dark:text-gray-500">
-                      (Offers Management → User Deeplink)
+                      (Offers Management → User tracking link)
                     </span>
                   </p>
                 </div>
@@ -975,7 +975,7 @@ const WithdrawDetail = () => {
                           isHeader
                           className="py-3 text-left text-theme-xs font-medium text-gray-500 dark:text-gray-400"
                         >
-                          Deeplink
+                          Tracking link
                         </TableCell>
                         <TableCell
                           isHeader

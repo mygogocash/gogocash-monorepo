@@ -106,7 +106,7 @@ Adjust to match product and API.
 | Offers / category / coupon / quest | various | admin, support (read_only: read-only where applicable) |
 | Withdraw / conversion approve | `/withdraw`, `/conversion` | admin, support (narrow approve to admin only if required) |
 | Fee | `/fee` | super_admin, admin |
-| Deeplink / banner | `/deeplink`, `/banner` | admin, marketing (if exists) |
+| User tracking link / banner | `/deeplink`, `/banner` | admin, marketing (if exists) |
 
 Empty cells mean **define with stakeholders**.
 

@@ -42,7 +42,7 @@ Several sections use a **shared top tab row** under the breadcrumb, mirroring si
 - **Banner:** `src/components/banner/BannerSubNav.tsx` on `/banner`, `/banner/all-brand-page`, `/banner/modal-popups`, `/banner/popup-history`.
 - **Coupon:** `src/components/coupon/CouponSubNav.tsx` on `/coupon`, `/coupon/history`.
 - **Quest:** `src/components/quest/QuestSubNav.tsx` on `/quest`, `/reward`.
-- **Offers:** `src/components/offer/OffersManagementPageContent.tsx` — tabs include Create brand (`/offers/create-brand`), `/offers`, `commission`, `policy`, `deeplink`, `top-brands`.
+- **Offers:** `src/components/offer/OffersManagementPageContent.tsx` — tabs include Create brand (`/offers/create-brand`), `/offers`, `commission`, `policy`, user tracking link (`?tab=deeplink`), `top-brands`.
 
 When adding a new sidebar subsection, consider the same pattern for consistency.
 
