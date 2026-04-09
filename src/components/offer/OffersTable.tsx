@@ -29,6 +29,7 @@ import {
 import { pathImage } from "@/utils/helper";
 import { devError } from "@/lib/devConsole";
 import { useDataSession } from "@/hooks/useDataSession";
+import Link from "next/link";
 import FormOffer from "./FormOffer";
 import { useRouter } from "next/navigation";
 import Select from "../form/Select";
@@ -214,7 +215,13 @@ export default function OffersTable() {
             Total: {pagination.total} offers
           </p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-3 lg:gap-4 xl:flex-nowrap">
+          <Link
+            href="/offers/create-brand"
+            className="shadow-theme-xs flex w-full min-w-[130px] items-center justify-center gap-2 rounded-full border border-brand-500/40 bg-brand-500/10 px-4 py-3 text-sm font-medium text-brand-700 hover:bg-brand-500/15 lg:inline-flex lg:w-auto dark:border-brand-400/30 dark:bg-brand-500/15 dark:text-brand-200 dark:hover:bg-brand-500/25"
+          >
+            Create brand
+          </Link>
           <button
             type="button"
             onClick={() => updateListMutation.mutate()}
@@ -223,35 +230,38 @@ export default function OffersTable() {
           >
             Update Offer
           </button>
-          <input
-            type="text"
-            placeholder="Search offers..."
-            onChange={(e) => handleSearch(e.target.value)}
-            className="h-11 w-full rounded-lg border border-gray-200 bg-transparent px-5 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:ring-brand-500/20 focus:outline-hidden xl:w-[300px] dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400 dark:focus:ring-brand-400/30"
-          />
-          <Select
-            options={[
-              { label: "All", value: "" },
-              { label: "🇹🇭 Thailand", value: "Thailand" },
-              { label: "🇮🇩 Indonesia", value: "Indonesia" },
-              { label: "🇻🇳 Vietnam", value: "Vietnam" },
-              { label: "🇵🇭 Philippines", value: "Philippines" },
-              { label: "🇮🇳 India", value: "India" },
-              { label: "🇲🇾 Malaysia", value: "Malaysia" },
-              { label: "🇧🇷 Brazil", value: "Brazil" },
-              {
-                label: "🇺🇸 United States of America",
-                value: "United States of America",
-              },
-              { label: "🇬🇧 United Kingdom", value: "United Kingdom" },
-              { label: "🇸🇬 Singapore", value: "Singapore" },
-              { label: "🇲🇲 Myanmar", value: "Myanmar" },
-            ]}
-            placeholder="Select country"
-            onChange={(e) => {
-              setQuery((q) => ({ ...q, country: e, page: 1 }));
-            }}
-          />
+          <div className="flex min-w-0 w-full flex-nowrap items-center gap-3 sm:w-auto sm:max-w-none sm:flex-initial">
+            <input
+              type="text"
+              placeholder="Search offers..."
+              onChange={(e) => handleSearch(e.target.value)}
+              className="h-11 min-w-0 flex-1 rounded-lg border border-gray-200 bg-transparent px-5 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:ring-brand-500/20 focus:outline-hidden sm:flex-none sm:w-[min(100%,280px)] xl:w-[300px] dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400 dark:focus:ring-brand-400/30"
+            />
+            <Select
+              className="w-[min(100%,220px)] shrink-0 sm:w-[200px]"
+              options={[
+                { label: "All", value: "" },
+                { label: "🇹🇭 Thailand", value: "Thailand" },
+                { label: "🇮🇩 Indonesia", value: "Indonesia" },
+                { label: "🇻🇳 Vietnam", value: "Vietnam" },
+                { label: "🇵🇭 Philippines", value: "Philippines" },
+                { label: "🇮🇳 India", value: "India" },
+                { label: "🇲🇾 Malaysia", value: "Malaysia" },
+                { label: "🇧🇷 Brazil", value: "Brazil" },
+                {
+                  label: "🇺🇸 United States of America",
+                  value: "United States of America",
+                },
+                { label: "🇬🇧 United Kingdom", value: "United Kingdom" },
+                { label: "🇸🇬 Singapore", value: "Singapore" },
+                { label: "🇲🇲 Myanmar", value: "Myanmar" },
+              ]}
+              placeholder="Select country"
+              onChange={(e) => {
+                setQuery((q) => ({ ...q, country: e, page: 1 }));
+              }}
+            />
+          </div>
         </div>
       </div>
 

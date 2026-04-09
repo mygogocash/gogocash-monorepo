@@ -8,6 +8,7 @@ import { isAxiosError } from "axios";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 import toast from "react-hot-toast";
+import { COMMISSION_MANAGEMENT_BRANDS_ROOT_QUERY_KEY } from "@/lib/query/offersQueries";
 
 export type CommissionBrandRow = {
   id: string;
@@ -72,7 +73,7 @@ export default function CommissionManagementClient({
   const networks = networksRes?.data ?? [];
 
   const { data: brandsRes, isLoading: brandsLoading } = useQuery({
-    queryKey: ["commission-management-brands", selectedNetworkId],
+    queryKey: [...COMMISSION_MANAGEMENT_BRANDS_ROOT_QUERY_KEY, selectedNetworkId],
     queryFn: () => getBrands(selectedNetworkId),
     staleTime: 30_000,
   });
@@ -127,7 +128,7 @@ export default function CommissionManagementClient({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["commission-management-brands"],
+        queryKey: COMMISSION_MANAGEMENT_BRANDS_ROOT_QUERY_KEY,
       });
       setDeeplinkOverride(null);
       toast.success("Deeplink saved for this brand.");

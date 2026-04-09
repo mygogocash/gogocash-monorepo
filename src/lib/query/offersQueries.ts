@@ -30,3 +30,6 @@ export function offersListQueryKey(q: OffersQuery) {
 export async function fetchOffersList(query: OffersQuery): Promise<OffersResponse> {
   return apiClient.getOffers(query);
 }
+
+/** Invalidate all commission-management brand pickers after offer/brand mutations. */
+export const COMMISSION_MANAGEMENT_BRANDS_ROOT_QUERY_KEY = ["commission-management-brands"] as const;

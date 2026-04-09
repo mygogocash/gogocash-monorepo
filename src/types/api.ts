@@ -197,6 +197,24 @@ export function normalizeOfferProductTypes(value: unknown): OfferProductTypeEntr
   });
 }
 
+/** POST `/offer` — create a merchant row from affiliate feed data and optional app deeplink (mock + future API). */
+export interface CreateBrandFromAffiliatePayload {
+  brand_name: string;
+  affiliate_network_id: string;
+  /** Partner / network tracking or destination URL for this brand line. */
+  affiliate_tracking_link: string;
+  /** GoGoCash in-app open URL; stored as commission deeplink mapping for the new offer. */
+  app_deeplink?: string;
+  countries?: string;
+  currency?: string;
+  deeplink_store_id?: string;
+  /** URL slug segment for `open/offer/{lookup}`; auto-generated if omitted. */
+  lookup_value?: string;
+  description?: string;
+  /** Shown as partner rate hint; optional. */
+  commission_store?: number | null;
+}
+
 // Offer Types (from /offer endpoint)
 export interface Offer {
   _id: string;

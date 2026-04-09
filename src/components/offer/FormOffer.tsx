@@ -16,6 +16,7 @@ import type { ResCategoryList } from "@/types/category";
 import { DEEPLINK_STORE_OPTIONS } from "@/data/deeplinkStores";
 import { AFFILIATE_NETWORKS, affiliateNetworkIdForOfferId } from "@/data/affiliateNetworks";
 import { buildSuggestedAppDeeplink } from "@/lib/offerDeeplink";
+import { COMMISSION_MANAGEMENT_BRANDS_ROOT_QUERY_KEY } from "@/lib/query/offersQueries";
 import { OfferFullscreenCardShell } from "./OfferFullscreenCardShell";
 
 function formatPartnerMaxCap(offer: Offer | null): string {
@@ -101,7 +102,7 @@ const FormOffer = ({
     : "";
 
   const { data: brandsRes } = useQuery({
-    queryKey: ["commission-management-brands", networkId],
+    queryKey: [...COMMISSION_MANAGEMENT_BRANDS_ROOT_QUERY_KEY, networkId],
     queryFn: async () => {
       const { data } = await client.get<{ data: { id: string; appDeeplink: string }[] }>(
         "/admin/commission-management/brands",
@@ -155,7 +156,7 @@ const FormOffer = ({
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["commission-management-brands"] });
+      queryClient.invalidateQueries({ queryKey: COMMISSION_MANAGEMENT_BRANDS_ROOT_QUERY_KEY });
     },
   });
 
