@@ -117,7 +117,7 @@ function PendingOfferNotificationItem({
 export default function NotificationDropdown() {
   const [isOpen, setIsOpen] = useState(false);
   const [notifying, setNotifying] = useState(true);
-  /** Match SSR; sync session pending queue after mount (same pattern as New offer panel). */
+  /** Match SSR; sync session pending queue after mount. */
   const [pendingOffers, setPendingOffers] = useState<PendingOfferRow[]>([]);
 
   useEffect(() => {
@@ -258,11 +258,11 @@ export default function NotificationDropdown() {
             View Withdrawal Management
           </Link>
           <Link
-            href="/offers?tab=new-offer"
+            href="/offers"
             className="block rounded-lg border border-gray-300 bg-white px-4 py-2 text-center text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
             onClick={closeDropdown}
           >
-            Open New offer queue
+            View Offers
           </Link>
         </div>
       </Dropdown>

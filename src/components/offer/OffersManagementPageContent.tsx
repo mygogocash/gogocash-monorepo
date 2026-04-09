@@ -1,9 +1,13 @@
 "use client";
 
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useMemo } from "react";
+import { useEffect, useMemo } from "react";
+import OffersManagementTabs, {
+  offersManagementTabFromSearch,
+  type OffersManagementTabId,
+} from "./OffersManagementTabs";
 
 const OffersTable = dynamic(() => import("./OffersTable").then((m) => m.default), {
   loading: () => <TabPanelSkeleton />,
@@ -23,10 +27,6 @@ const DeeplinkTable = dynamic(
   { loading: () => <TabPanelSkeleton /> },
 );
 
-const NewOfferPanel = dynamic(() => import("./NewOfferPanel").then((m) => m.default), {
-  loading: () => <TabPanelSkeleton />,
-});
-
 const TopBrandManagementPanel = dynamic(
   () => import("./TopBrandManagementPanel").then((m) => m.default),
   { loading: () => <TabPanelSkeleton /> },
@@ -45,47 +45,18 @@ function TabPanelSkeleton() {
   );
 }
 
-const TABS = [
-  { id: "new-offer" as const, label: "New offer", breadcrumb: "New offer" },
-  { id: "offers" as const, label: "Offers", breadcrumb: "Offers" },
-  {
-    id: "commission" as const,
-    label: "Commission Management",
-    breadcrumb: "Commission Management",
-  },
-  {
-    id: "policy" as const,
-    label: "Policy Management",
-    breadcrumb: "Policy Management",
-  },
-  {
-    id: "deeplink" as const,
-    label: "User Deeplink",
-    breadcrumb: "User Deeplink",
-  },
-  {
-    id: "top-brands" as const,
-    label: "Top brands",
-    breadcrumb: "Top brands",
-  },
-] as const;
-
-type TabId = (typeof TABS)[number]["id"];
-
-function tabFromSearch(tabParam: string | null): TabId {
-  if (tabParam === "new-offer") return "new-offer";
-  if (tabParam === "policy") return "policy";
-  if (tabParam === "deeplink") return "deeplink";
-  if (tabParam === "commission") return "commission";
-  if (tabParam === "top-brands") return "top-brands";
-  return "offers";
-}
+const BREADCRUMB_LABEL: Record<OffersManagementTabId, string> = {
+  offers: "Offers",
+  commission: "Commission Management",
+  policy: "Policy Management",
+  deeplink: "User Deeplink",
+  "top-brands": "Top brands",
+};
 
 export default function OffersManagementPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const pathname = usePathname();
-  const activeTab = tabFromSearch(searchParams.get("tab"));
+  const activeTab = offersManagementTabFromSearch(searchParams.get("tab"));
 
   useEffect(() => {
     if (searchParams.get("tab") === "category") {
@@ -93,25 +64,20 @@ export default function OffersManagementPageContent() {
     }
   }, [router, searchParams]);
 
-  const setTab = useCallback(
-    (id: TabId) => {
-      const next = new URLSearchParams(searchParams.toString());
-      if (id === "offers") next.delete("tab");
-      else next.set("tab", id);
-      const qs = next.toString();
-      router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-    },
-    [pathname, router, searchParams],
-  );
+  useEffect(() => {
+    if (searchParams.get("tab") === "new-offer") {
+      router.replace("/offers", { scroll: false });
+    }
+  }, [router, searchParams]);
 
   const breadcrumbMeta = useMemo(() => {
-    const tab = TABS.find((t) => t.id === activeTab)!;
+    const pageTitle = BREADCRUMB_LABEL[activeTab];
     return {
-      pageTitle: tab.breadcrumb,
+      pageTitle,
       items: [
         { label: "Home", href: "/" },
         { label: "Offers Management", href: "/offers" },
-        { label: tab.breadcrumb },
+        { label: pageTitle },
       ],
     };
   }, [activeTab]);
@@ -123,33 +89,8 @@ export default function OffersManagementPageContent() {
         items={breadcrumbMeta.items}
       />
       <div className="space-y-6">
-        <div
-          className="flex flex-wrap gap-2 border-b border-gray-200 dark:border-gray-800"
-          role="tablist"
-          aria-label="Offers management sections"
-        >
-          {TABS.map((t) => {
-            const selected = activeTab === t.id;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                role="tab"
-                aria-selected={selected}
-                onClick={() => setTab(t.id)}
-                className={`-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
-                  selected
-                    ? "border-brand-500 text-brand-600 dark:border-brand-400 dark:text-brand-400"
-                    : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:border-gray-600 dark:hover:text-gray-200"
-                }`}
-              >
-                {t.label}
-              </button>
-            );
-          })}
-        </div>
+        <OffersManagementTabs />
 
-        {activeTab === "new-offer" && <NewOfferPanel />}
         {activeTab === "offers" && <OffersTable />}
         {activeTab === "commission" && <CommissionManagementClient embedded />}
         {activeTab === "policy" && <PolicyTable />}

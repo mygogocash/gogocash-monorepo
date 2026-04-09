@@ -265,6 +265,20 @@ const commissionAppDeeplinkByOfferId = new Map<string, string>();
 /** Homepage top-brand rail: ordered offer `_id`s (mock; in-memory). */
 let topBrandHomepageOrder: string[] = ["o1", "o2", "o3", "o5"];
 
+function allocateNewOfferIds(): { _id: string; offer_id: number; merchant_id: number } {
+  let maxSeq = 0;
+  let maxOfferId = 0;
+  let maxMerchant = 0;
+  for (const o of mockOffers) {
+    const seqMatch = /^o(\d+)$/.exec(o._id);
+    if (seqMatch) maxSeq = Math.max(maxSeq, parseInt(seqMatch[1], 10));
+    maxOfferId = Math.max(maxOfferId, o.offer_id);
+    maxMerchant = Math.max(maxMerchant, o.merchant_id);
+  }
+  const seq = maxSeq + 1;
+  return { _id: `o${seq}`, offer_id: maxOfferId + 1, merchant_id: maxMerchant + 1 };
+}
+
 function paginate<T>(items: T[], page = 1, limit = 10) {
   const start = (page - 1) * limit;
   return {
@@ -830,6 +844,91 @@ async function handleMockPOST(
   }
 
   if (joined === "offer") {
+    const b = body as Record<string, unknown>;
+    const brandName = String(b.brand_name ?? "").trim();
+    if (brandName) {
+      const trackingLink = String(
+        b.affiliate_tracking_link ?? b.tracking_link ?? "",
+      ).trim();
+      if (!trackingLink) {
+        return jsonErr(400, { message: "affiliate_tracking_link is required" });
+      }
+      let networkId = String(b.affiliate_network_id ?? "involve_asia").trim();
+      if (!AFFILIATE_NETWORKS.some((n) => n.id === networkId)) {
+        networkId = "involve_asia";
+      }
+      let storeId = String(b.deeplink_store_id ?? "global").trim();
+      if (!isValidDeeplinkStoreId(storeId)) storeId = "global";
+      const rawLookup = String(b.lookup_value ?? "").trim();
+      const lookup =
+        rawLookup.replace(/[^\w-]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "").toLowerCase() ||
+        `brand_${Date.now()}`;
+      const countries = String(b.countries ?? "Thailand").trim() || "Thailand";
+      const currency = String(b.currency ?? "THB").trim() || "THB";
+      const description =
+        String(b.description ?? "").trim() ||
+        `Created from affiliate feed. Network: ${affiliateNetworkName(networkId)}.`;
+      let commissionStore: number | null = null;
+      if (typeof b.commission_store === "number" && !Number.isNaN(b.commission_store)) {
+        commissionStore = b.commission_store;
+      } else if (typeof b.commission_store === "string" && b.commission_store.trim()) {
+        const n = parseFloat(b.commission_store);
+        commissionStore = Number.isNaN(n) ? null : n;
+      }
+      const rateLine =
+        commissionStore != null && !Number.isNaN(commissionStore)
+          ? [`${commissionStore}%`]
+          : ["0%"];
+
+      const { _id, offer_id, merchant_id } = allocateNewOfferIds();
+      const ts = new Date();
+      const newOffer: Offer = {
+        _id,
+        offer_id,
+        __v: 0,
+        categories: "Shopping",
+        commission_tracking: "CPS",
+        commissions: rateLine,
+        countries,
+        currency,
+        datetime_created: ts,
+        datetime_updated: ts,
+        description,
+        directory_page: trackingLink,
+        is_require_approval: 0,
+        logo: "/images/merchant-logos/gadgethub-th.png",
+        logo_desktop: "/images/merchant-logos/gadgethub-th.png",
+        logo_mobile: "/images/merchant-logos/gadgethub-th-mobile.png",
+        banner: "/images/merchant-logos/gadgethub-th.png",
+        logo_circle: "/images/merchant-logos/gadgethub-th-mobile.png",
+        marketplace_store_offer: true,
+        merchant_id,
+        offer_name: `${brandName} - CPS`,
+        offer_name_display: brandName,
+        payment_terms: 60,
+        preview_url: trackingLink,
+        special_commissions: [],
+        tracking_link: trackingLink,
+        tracking_type: "link",
+        validation_terms: 30,
+        disabled: false,
+        commission_store: commissionStore,
+        max_cap: null,
+        partner_max_cap: null,
+        banner_mobile: "",
+        extra_store: false,
+        lookup_value: lookup,
+        affiliate_partner: affiliateNetworkName(networkId),
+        deeplink_store_id: storeId,
+        offer_display_tags: normalizeOfferDisplayTags(undefined),
+      };
+      (mockOffers as unknown as Offer[]).push(newOffer);
+      const appDeeplink = String(b.app_deeplink ?? "").trim();
+      if (appDeeplink) {
+        commissionAppDeeplinkByOfferId.set(_id, appDeeplink);
+      }
+      return ok(newOffer);
+    }
     return ok({ _id: "o_new", ...(body as object) });
   }
 

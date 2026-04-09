@@ -30,7 +30,7 @@ export default function PendingOfferReviewRouteClient({ offerId }: { offerId: st
     (o: PendingOfferRow) => {
       removeAndPersist(o._id);
       toast.success(`Approved “${o.offer_name_display || o.offer_name}”.`);
-      router.push("/offers?tab=new-offer");
+      router.push("/offers");
     },
     [removeAndPersist, router],
   );
@@ -46,13 +46,13 @@ export default function PendingOfferReviewRouteClient({ offerId }: { offerId: st
       }
       removeAndPersist(o._id);
       toast(`Rejected “${o.offer_name_display || o.offer_name}”.`, { icon: "⛔" });
-      router.push("/offers?tab=new-offer");
+      router.push("/offers");
     },
     [removeAndPersist, router],
   );
 
   const handleClose = useCallback(() => {
-    router.push("/offers?tab=new-offer");
+    router.push("/offers");
   }, [router]);
 
   if (offer === undefined) {
@@ -72,7 +72,7 @@ export default function PendingOfferReviewRouteClient({ offerId }: { offerId: st
           items={[
             { label: "Home", href: "/" },
             { label: "Offers Management", href: "/offers" },
-            { label: "New offer", href: "/offers?tab=new-offer" },
+            { label: "Offers", href: "/offers" },
             { label: "Not found" },
           ]}
         />
@@ -85,7 +85,7 @@ export default function PendingOfferReviewRouteClient({ offerId }: { offerId: st
             onClick={handleClose}
             className="mt-4 rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600"
           >
-            Back to New offer
+            Back to Offers
           </button>
         </div>
       </div>
@@ -101,7 +101,7 @@ export default function PendingOfferReviewRouteClient({ offerId }: { offerId: st
         items={[
           { label: "Home", href: "/" },
           { label: "Offers Management", href: "/offers" },
-          { label: "New offer", href: "/offers?tab=new-offer" },
+          { label: "Offers", href: "/offers" },
           { label: "Review" },
         ]}
       />

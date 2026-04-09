@@ -12,6 +12,7 @@ import {
   DashboardStatsResponse,
   DashboardSummaryResponse,
   Offer,
+  CreateBrandFromAffiliatePayload,
   OffersQuery,
   OffersResponse,
   TopBrandsAdminResponse,
@@ -646,6 +647,22 @@ class ApiClient {
       method: "POST",
       headers,
       body: JSON.stringify(offerData),
+    });
+  }
+
+  /** Registers a new brand/offer from affiliate tracking data and optional GoGoCash app deeplink. */
+  async createBrandFromAffiliate(
+    payload: CreateBrandFromAffiliatePayload,
+    token?: string,
+  ): Promise<Offer> {
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    return this.request<Offer>("/offer", {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
     });
   }
 
