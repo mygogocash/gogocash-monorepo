@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import { Modal } from "@/components/ui/modal";
+import Button from "@/components/ui/button/Button";
 
 export interface CouponHistoryEntry {
   id: string;
@@ -39,6 +41,10 @@ export interface CouponEngagementRow {
   /** Users who copied the coupon code (clipboard) */
   copies: number;
 }
+
+type CouponHistoryQuickView =
+  | { kind: "redemption"; entry: CouponHistoryEntry }
+  | { kind: "engagement"; row: CouponEngagementRow };
 
 /** Mock engagement — replace with API when analytics are available */
 const MOCK_ENGAGEMENT: CouponEngagementRow[] = [
@@ -86,6 +92,7 @@ export default function CouponHistoryTable() {
   const [statusFilter, setStatusFilter] = useState<"" | CouponHistoryEntry["status"]>("");
   const [engagementSearch, setEngagementSearch] = useState("");
   const [engagementPage, setEngagementPage] = useState(1);
+  const [quickView, setQuickView] = useState<CouponHistoryQuickView | null>(null);
 
   const statusCounts = useMemo(() => {
     const tallies: Record<CouponHistoryEntry["status"], number> = {
@@ -385,7 +392,12 @@ export default function CouponHistoryTable() {
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
                   {paginated.map((entry, index) => (
-                    <tr key={entry.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                    <tr
+                      key={entry.id}
+                      title="Click row for quick view"
+                      className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                      onClick={() => setQuickView({ kind: "redemption", entry })}
+                    >
                       <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900 dark:text-gray-100">
                         {(page - 1) * PAGE_SIZE + index + 1}
                       </td>
@@ -550,7 +562,12 @@ export default function CouponHistoryTable() {
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
                   {engagementPaginated.map((row) => (
-                    <tr key={row.couponCode} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                    <tr
+                      key={row.couponCode}
+                      title="Click row for quick view"
+                      className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                      onClick={() => setQuickView({ kind: "engagement", row })}
+                    >
                       <td className="whitespace-nowrap px-6 py-4 text-sm font-mono text-gray-800 dark:text-gray-200">
                         {row.couponCode}
                       </td>
@@ -614,6 +631,99 @@ export default function CouponHistoryTable() {
           </div>
         </>
       )}
+
+      <Modal
+        isOpen={quickView != null}
+        onClose={() => setQuickView(null)}
+        className="max-h-[90vh] overflow-y-auto"
+      >
+        {quickView?.kind === "redemption" ? (
+          <div className="p-2 sm:p-4">
+            <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Redemption</h4>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Read-only row detail.</p>
+            <dl className="mt-4 space-y-3 text-sm">
+              <div>
+                <dt className="font-medium text-gray-500 dark:text-gray-400">Coupon code</dt>
+                <dd className="mt-0.5 font-mono text-gray-900 dark:text-gray-100">{quickView.entry.couponCode}</dd>
+              </div>
+              <div>
+                <dt className="font-medium text-gray-500 dark:text-gray-400">Coupon name</dt>
+                <dd className="mt-0.5 text-gray-900 dark:text-gray-100">{quickView.entry.couponName}</dd>
+              </div>
+              <div>
+                <dt className="font-medium text-gray-500 dark:text-gray-400">User</dt>
+                <dd className="mt-0.5 break-all text-gray-900 dark:text-gray-100">
+                  {quickView.entry.userId}
+                  <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">{quickView.entry.userEmail}</span>
+                </dd>
+              </div>
+              <div>
+                <dt className="font-medium text-gray-500 dark:text-gray-400">Used at</dt>
+                <dd className="mt-0.5 text-gray-900 dark:text-gray-100">{formatDate(quickView.entry.usedAt)}</dd>
+              </div>
+              <div>
+                <dt className="font-medium text-gray-500 dark:text-gray-400">Offer</dt>
+                <dd className="mt-0.5 text-gray-900 dark:text-gray-100">{quickView.entry.offerName}</dd>
+              </div>
+              <div>
+                <dt className="font-medium text-gray-500 dark:text-gray-400">Discount</dt>
+                <dd className="mt-0.5 text-gray-900 dark:text-gray-100">{quickView.entry.discount ?? "—"}</dd>
+              </div>
+              <div>
+                <dt className="font-medium text-gray-500 dark:text-gray-400">Status</dt>
+                <dd className="mt-0.5 capitalize text-gray-900 dark:text-gray-100">{quickView.entry.status}</dd>
+              </div>
+            </dl>
+            <div className="mt-6 flex justify-end">
+              <Button size="sm" variant="outline" type="button" onClick={() => setQuickView(null)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        ) : quickView?.kind === "engagement" ? (
+          <div className="p-2 sm:p-4">
+            <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Coupon engagement</h4>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Sample metrics for this coupon.</p>
+            <dl className="mt-4 space-y-3 text-sm">
+              <div>
+                <dt className="font-medium text-gray-500 dark:text-gray-400">Coupon code</dt>
+                <dd className="mt-0.5 font-mono text-gray-900 dark:text-gray-100">{quickView.row.couponCode}</dd>
+              </div>
+              <div>
+                <dt className="font-medium text-gray-500 dark:text-gray-400">Coupon name</dt>
+                <dd className="mt-0.5 text-gray-900 dark:text-gray-100">{quickView.row.couponName}</dd>
+              </div>
+              <div>
+                <dt className="font-medium text-gray-500 dark:text-gray-400">Offer</dt>
+                <dd className="mt-0.5 text-gray-900 dark:text-gray-100">{quickView.row.offerName}</dd>
+              </div>
+              <div>
+                <dt className="font-medium text-gray-500 dark:text-gray-400">Detail views</dt>
+                <dd className="mt-0.5 tabular-nums text-gray-900 dark:text-gray-100">
+                  {quickView.row.detailViews.toLocaleString()}
+                </dd>
+              </div>
+              <div>
+                <dt className="font-medium text-gray-500 dark:text-gray-400">Copies</dt>
+                <dd className="mt-0.5 tabular-nums text-gray-900 dark:text-gray-100">
+                  {quickView.row.copies.toLocaleString()}
+                </dd>
+              </div>
+              <div>
+                <dt className="font-medium text-gray-500 dark:text-gray-400">Copy rate</dt>
+                <dd className="mt-0.5 tabular-nums text-gray-900 dark:text-gray-100">
+                  {copyRatePercent(quickView.row.detailViews, quickView.row.copies)}
+                </dd>
+              </div>
+            </dl>
+            <div className="mt-6 flex justify-end">
+              <Button size="sm" variant="outline" type="button" onClick={() => setQuickView(null)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
     </div>
   );
 }

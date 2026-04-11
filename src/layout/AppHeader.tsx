@@ -1,5 +1,6 @@
 "use client";
 import { ThemeToggleButton } from "@/components/common/ThemeToggleButton";
+import { GlobalSearchForm } from "@/components/header/GlobalSearchForm";
 import NotificationDropdown from "@/components/header/NotificationDropdown";
 import UserDropdown from "@/components/header/UserDropdown";
 import { useSidebar } from "@/context/SidebarContext";
@@ -10,7 +11,7 @@ import { useDataSession } from "@/hooks/useDataSession";
 import { DEFAULT_MOCK_ACCESS_TOKEN } from "@/lib/authTokens";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import React, { useState, useEffect, useRef, startTransition } from "react";
+import React, { useState, useEffect, useRef, startTransition, useCallback, type FormEvent } from "react";
 
 const SEARCH_DEBOUNCE_MS = 300;
 const PREVIEW_LIMIT = 5;
@@ -25,7 +26,7 @@ const AppHeader: React.FC = () => {
     offers: Offer[];
     withdraws: DataWithdrawsList[];
   }>({ users: [], offers: [], withdraws: [] });
-  const searchContainerRef = useRef<HTMLDivElement>(null);
+  const searchBoundaryRef = useRef<HTMLDivElement>(null);
   const previewOpenRef = useRef(previewOpen);
   const { getUsers, getOffers, getWithdraws } = useApi();
   const apiRef = useRef({ getUsers, getOffers, getWithdraws });
@@ -54,12 +55,17 @@ const AppHeader: React.FC = () => {
     setApplicationMenuOpen(!isApplicationMenuOpen);
   };
   const inputRef = useRef<HTMLInputElement>(null);
+  const inputMobileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key === "k") {
         event.preventDefault();
-        inputRef.current?.focus();
+        if (typeof window !== "undefined" && window.innerWidth >= 1024) {
+          inputRef.current?.focus();
+        } else {
+          inputMobileRef.current?.focus();
+        }
       }
     };
 
@@ -125,7 +131,7 @@ const AppHeader: React.FC = () => {
   // Close preview on click outside (use ref to avoid stale closure and only set when open)
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (!searchContainerRef.current?.contains(e.target as Node) && previewOpenRef.current) {
+      if (!searchBoundaryRef.current?.contains(e.target as Node) && previewOpenRef.current) {
         setPreviewOpen(false);
       }
     };
@@ -133,21 +139,34 @@ const AppHeader: React.FC = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const hasResults =
-    previewResults.users.length > 0 ||
-    previewResults.offers.length > 0 ||
-    previewResults.withdraws.length > 0;
+  const handleGlobalSearchSubmit = useCallback(
+    (e: FormEvent) => {
+      e.preventDefault();
+      if (previewResults.users[0]) router.push(`/users?highlight=${previewResults.users[0]._id}`);
+      else if (previewResults.offers[0]) router.push(`/offers/${previewResults.offers[0]._id}`);
+      else if (previewResults.withdraws[0])
+        router.push(`/withdraw/${previewResults.withdraws[0]._id}`);
+      else if (searchQuery.trim())
+        router.push(`/users?search=${encodeURIComponent(searchQuery.trim())}`);
+      setPreviewOpen(false);
+    },
+    [previewResults, router, searchQuery],
+  );
 
   return (
     <header className="sticky top-0 z-50 flex w-full shrink-0 border-b border-gray-200 bg-white pt-[env(safe-area-inset-top,0px)] shadow-sm dark:border-gray-800 dark:bg-gray-900">
       <div className="flex grow flex-col items-center justify-between lg:flex-row lg:px-6">
-        <div className="flex w-full items-center justify-between gap-2 px-3 py-3 sm:gap-4 lg:justify-normal lg:px-0 lg:py-4">
-          <button
-            type="button"
-            className="z-[99999] flex h-11 min-h-[44px] w-11 min-w-[44px] items-center justify-center rounded-lg border border-transparent text-gray-500 lg:h-11 lg:w-11 lg:border-gray-200 lg:dark:border-gray-800 dark:text-gray-400"
-            onClick={handleToggle}
-            aria-label="Toggle navigation sidebar"
-          >
+        <div
+          ref={searchBoundaryRef}
+          className="flex w-full flex-col gap-2 px-3 py-3 sm:gap-4 lg:flex-row lg:items-center lg:gap-4 lg:px-0 lg:py-4"
+        >
+          <div className="flex w-full min-w-0 items-center justify-between gap-2 sm:gap-4 lg:w-auto lg:shrink-0 lg:justify-normal">
+            <button
+              type="button"
+              className="z-[99999] flex h-11 min-h-[44px] w-11 min-w-[44px] items-center justify-center rounded-lg border border-transparent text-gray-500 lg:h-11 lg:w-11 lg:border-gray-200 lg:dark:border-gray-800 dark:text-gray-400"
+              onClick={handleToggle}
+              aria-label="Toggle navigation sidebar"
+            >
             {isMobileOpen ? (
               <svg
                 width="24"
@@ -179,8 +198,7 @@ const AppHeader: React.FC = () => {
                 />
               </svg>
             )}
-            {/* Cross Icon */}
-          </button>
+            </button>
 
           <Link href="/dashboard" className="lg:hidden">
             <Image
@@ -223,142 +241,34 @@ const AppHeader: React.FC = () => {
               />
             </svg>
           </button>
+          </div>
 
-          <div className="hidden lg:block" ref={searchContainerRef}>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (previewResults.users[0]) router.push(`/users?highlight=${previewResults.users[0]._id}`);
-                else if (previewResults.offers[0]) router.push(`/offers/${previewResults.offers[0]._id}`);
-                else if (previewResults.withdraws[0]) router.push(`/withdraw/${previewResults.withdraws[0]._id}`);
-                else if (searchQuery.trim()) router.push(`/users?search=${encodeURIComponent(searchQuery.trim())}`);
-                setPreviewOpen(false);
-              }}
-            >
-              <div className="relative">
-                <span className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2">
-                  <svg
-                    className="fill-gray-500 dark:fill-gray-400"
-                    width="20"
-                    height="20"
-                    viewBox="0 0 20 20"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      clipRule="evenodd"
-                      d="M3.04175 9.37363C3.04175 5.87693 5.87711 3.04199 9.37508 3.04199C12.8731 3.04199 15.7084 5.87693 15.7084 9.37363C15.7084 12.8703 12.8731 15.7053 9.37508 15.7053C5.87711 15.7053 3.04175 12.8703 3.04175 9.37363ZM9.37508 1.54199C5.04902 1.54199 1.54175 5.04817 1.54175 9.37363C1.54175 13.6991 5.04902 17.2053 9.37508 17.2053C11.2674 17.2053 13.003 16.5344 14.357 15.4176L17.177 18.238C17.4699 18.5309 17.9448 18.5309 18.2377 18.238C18.5306 17.9451 18.5306 17.4703 18.2377 17.1774L15.418 14.3573C16.5365 13.0033 17.2084 11.2669 17.2084 9.37363C17.2084 5.04817 13.7011 1.54199 9.37508 1.54199Z"
-                    />
-                  </svg>
-                </span>
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onFocus={() => searchQuery.trim() && setPreviewOpen(true)}
-                  placeholder="Search or type command..."
-                  className="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full rounded-lg border border-gray-200 bg-transparent py-2.5 pr-14 pl-12 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden min-w-[280px] xl:w-[600px] 2xl:w-[720px] dark:border-gray-800 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"
-                />
+          <div className="w-full min-w-0 lg:hidden">
+            <GlobalSearchForm
+              variant="mobile"
+              inputRef={inputMobileRef}
+              searchQuery={searchQuery}
+              onSearchQueryChange={setSearchQuery}
+              previewOpen={previewOpen}
+              onPreviewOpenChange={setPreviewOpen}
+              searchLoading={searchLoading}
+              previewResults={previewResults}
+              onSubmit={handleGlobalSearchSubmit}
+            />
+          </div>
 
-                <button
-                  type="button"
-                  className="absolute top-1/2 right-2.5 inline-flex -translate-y-1/2 items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 px-[7px] py-[4.5px] text-xs -tracking-[0.2px] text-gray-500 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-400"
-                >
-                  <span> ⌘ </span>
-                  <span> K </span>
-                </button>
-
-                {/* Preview results dropdown */}
-                {previewOpen && searchQuery.trim() && (
-                  <div className="absolute top-full left-0 z-[100] mt-1 w-full min-w-[380px] max-w-[600px] 2xl:max-w-[720px] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg dark:border-gray-800 dark:bg-gray-900">
-                    {searchLoading ? (
-                      <div className="flex items-center gap-2 px-4 py-6 text-sm text-gray-500 dark:text-gray-400">
-                        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
-                        Searching...
-                      </div>
-                    ) : (
-                      <div className="max-h-[320px] overflow-y-auto py-2">
-                        {previewResults.users.length > 0 && (
-                          <div className="px-2 pb-2">
-                            <div className="mb-1 px-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                              Users
-                            </div>
-                            <ul className="space-y-0.5">
-                              {previewResults.users.map((u) => (
-                                <li key={u._id}>
-                                  <Link
-                                    href={`/users?search=${encodeURIComponent(searchQuery)}`}
-                                    onClick={() => setPreviewOpen(false)}
-                                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-800 hover:bg-gray-100 dark:text-white/90 dark:hover:bg-gray-800"
-                                  >
-                                    <span className="truncate font-medium">{u.username ?? u.email}</span>
-                                    <span className="truncate text-gray-500 dark:text-gray-400">{u.email}</span>
-                                  </Link>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                        {previewResults.offers.length > 0 && (
-                          <div className="px-2 pb-2">
-                            <div className="mb-1 px-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                              Offers
-                            </div>
-                            <ul className="space-y-0.5">
-                              {previewResults.offers.map((o) => (
-                                <li key={o._id}>
-                                  <Link
-                                    href={`/offers/${o._id}`}
-                                    onClick={() => setPreviewOpen(false)}
-                                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-800 hover:bg-gray-100 dark:text-white/90 dark:hover:bg-gray-800"
-                                  >
-                                    <span className="truncate font-medium">
-                                      {o.offer_name_display || o.offer_name}
-                                    </span>
-                                  </Link>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                        {previewResults.withdraws.length > 0 && (
-                          <div className="px-2 pb-2">
-                            <div className="mb-1 px-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                              Withdrawals
-                            </div>
-                            <ul className="space-y-0.5">
-                              {previewResults.withdraws.map((w) => (
-                                <li key={w._id}>
-                                  <Link
-                                    href={`/withdraw/${w._id}`}
-                                    onClick={() => setPreviewOpen(false)}
-                                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-800 hover:bg-gray-100 dark:text-white/90 dark:hover:bg-gray-800"
-                                  >
-                                    <span className="truncate font-medium">
-                                      {w.user_id?.username ?? w.account_name ?? w._id}
-                                    </span>
-                                    <span className="text-gray-500 dark:text-gray-400">
-                                      {w.amount_net} {w.currency}
-                                    </span>
-                                  </Link>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                        {!searchLoading && !hasResults && (
-                          <div className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                            No results for &quot;{searchQuery}&quot;
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </form>
+          <div className="hidden min-w-0 flex-1 lg:block">
+            <GlobalSearchForm
+              variant="desktop"
+              inputRef={inputRef}
+              searchQuery={searchQuery}
+              onSearchQueryChange={setSearchQuery}
+              previewOpen={previewOpen}
+              onPreviewOpenChange={setPreviewOpen}
+              searchLoading={searchLoading}
+              previewResults={previewResults}
+              onSubmit={handleGlobalSearchSubmit}
+            />
           </div>
         </div>
         <div

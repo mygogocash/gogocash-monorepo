@@ -11,7 +11,17 @@ import type { PendingOfferRow } from "@/data/mockPendingOffers";
 import type { Offer } from "@/types/api";
 import { pathImage } from "@/utils/helper";
 import { hasNonEmptyString, OFFER_REVIEW_MEDIA_SIZES } from "./offerMedia";
+import { FormSectionJumpNav } from "@/components/form/FormSectionJumpNav";
 import { OfferFullscreenCardShell } from "./OfferFullscreenCardShell";
+
+const PENDING_OFFER_JUMP_LINKS = [
+  { id: "pending-offer-section-basic", label: "Basic info" },
+  { id: "pending-offer-section-media", label: "Media" },
+  { id: "pending-offer-section-partner", label: "Partner terms" },
+  { id: "pending-offer-section-admin", label: "Admin & coverage" },
+] as const;
+
+const PENDING_OFFER_SCROLL_CLASS = "scroll-mt-[4.5rem]";
 
 export function displayAffiliatePartner(offer: Offer): string {
   const raw = offer.affiliate_partner?.trim();
@@ -102,7 +112,7 @@ export function PendingOfferDetailBody({ offer }: { offer: PendingOfferRow }) {
 
   return (
     <>
-      <section className="space-y-4">
+      <section id="pending-offer-section-basic" className={`space-y-4 ${PENDING_OFFER_SCROLL_CLASS}`}>
         <div className="flex flex-wrap items-center gap-3">
           <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
             Basic info
@@ -131,7 +141,7 @@ export function PendingOfferDetailBody({ offer }: { offer: PendingOfferRow }) {
         </div>
       </section>
 
-      <section className="space-y-3">
+      <section id="pending-offer-section-media" className={`space-y-3 ${PENDING_OFFER_SCROLL_CLASS}`}>
         <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
           Media
         </h4>
@@ -180,7 +190,10 @@ export function PendingOfferDetailBody({ offer }: { offer: PendingOfferRow }) {
         </div>
       </section>
 
-      <div className="rounded-xl border border-dashed border-brand-200/80 bg-brand-50/50 p-4 dark:border-brand-800/60 dark:bg-brand-950/25">
+      <section
+        id="pending-offer-section-partner"
+        className={`rounded-xl border border-dashed border-brand-200/80 bg-brand-50/50 p-4 dark:border-brand-800/60 dark:bg-brand-950/25 ${PENDING_OFFER_SCROLL_CLASS}`}
+      >
         <h4 className="text-sm font-semibold text-brand-900 dark:text-brand-100">
           Commission info from partner
         </h4>
@@ -251,9 +264,9 @@ export function PendingOfferDetailBody({ offer }: { offer: PendingOfferRow }) {
             {offer.special_commissions.length} tier(s) — see partner portal for full rules.
           </p>
         ) : null}
-      </div>
+      </section>
 
-      <section className="space-y-3">
+      <section id="pending-offer-section-admin" className={`space-y-3 ${PENDING_OFFER_SCROLL_CLASS}`}>
         <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
           Admin &amp; coverage (submission)
         </h4>
@@ -337,6 +350,12 @@ export function PendingOfferReviewPage({
 }) {
   return (
     <OfferFullscreenCardShell
+      afterHeader={
+        <FormSectionJumpNav
+          links={[...PENDING_OFFER_JUMP_LINKS]}
+          ariaLabel="Jump to review sections"
+        />
+      }
       header={
         <div className="mb-4 flex w-full shrink-0 flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-4 dark:border-gray-700">
           <div className="min-w-0">

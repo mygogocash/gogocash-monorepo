@@ -1,5 +1,7 @@
 import { apiClient } from "@/lib/api";
 import type {
+  DashboardInsightRange,
+  DashboardInsightsResponse,
   DashboardStatsResponse,
   DashboardSummaryResponse,
 } from "@/types/api";
@@ -39,29 +41,10 @@ export async function fetchDashboardWithdrawSummary(): Promise<DashboardSummaryR
   }
 }
 
-export type ExecutiveDashboardBundle = {
-  stats: DashboardStatsResponse;
-  summary: DashboardSummaryResponse;
-};
+export const DASHBOARD_INSIGHTS_QUERY_KEY = ["dashboard", "insights"] as const;
 
-/** Matches legacy ExecutiveSummary load: stats with fallback to users count; summary or full mock on failure. */
-export async function fetchExecutiveDashboard(): Promise<ExecutiveDashboardBundle> {
-  try {
-    const [stats, summary] = await Promise.all([
-      apiClient.getDashboardStats().catch(async () => {
-        const users = await apiClient.getUsers({ limit: 1, page: 1 });
-        return {
-          gogocashUsers: users.pagination?.total ?? MOCK_DASHBOARD_STATS.gogocashUsers,
-          mycashbackUsers: MOCK_DASHBOARD_STATS.mycashbackUsers,
-        } satisfies DashboardStatsResponse;
-      }),
-      apiClient.getDashboardSummary(),
-    ]);
-    return { stats, summary };
-  } catch {
-    return {
-      stats: MOCK_DASHBOARD_STATS,
-      summary: MOCK_DASHBOARD_SUMMARY,
-    };
-  }
+export async function fetchDashboardInsights(
+  range: DashboardInsightRange = "30d",
+): Promise<DashboardInsightsResponse> {
+  return apiClient.getDashboardInsights({ range });
 }

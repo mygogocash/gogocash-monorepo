@@ -7,7 +7,8 @@ export function getWithdrawDetailDataGridSx(theme: Theme): SystemStyleObject<The
 
   return {
     width: "100%",
-    minWidth: "700px",
+    minWidth: { xs: 520, sm: 620, md: 700 },
+    maxWidth: "100%",
     border: 0,
     color: theme.palette.text.primary,
     "& .MuiSvgIcon-root": { fill: "#00B14F" },
@@ -38,6 +39,9 @@ export function getWithdrawDetailDataGridSx(theme: Theme): SystemStyleObject<The
     "& .MuiDataGrid-footerContainer": {
       borderTopColor: theme.palette.divider,
     },
+    "& .MuiDataGrid-virtualScroller": {
+      WebkitOverflowScrolling: "touch",
+    },
   };
 }
 
@@ -46,6 +50,9 @@ export function getOfferCouponDataGridSx(theme: Theme): SystemStyleObject<Theme>
   const headerBg = theme.palette.mode === "dark" ? theme.palette.grey[800] : "#F6F6F6";
 
   return {
+    width: "100%",
+    minWidth: { xs: 520, sm: 640, md: 720 },
+    maxWidth: "100%",
     border: 0,
     color: theme.palette.text.primary,
     "& .MuiSvgIcon-root": { fill: "#00B14F" },
@@ -60,9 +67,18 @@ export function getOfferCouponDataGridSx(theme: Theme): SystemStyleObject<Theme>
     },
     "& .MuiDataGrid-cell": {
       borderColor: theme.palette.divider,
+      whiteSpace: "normal",
+      wordBreak: "break-word",
+    },
+    "& .MuiDataGrid-columnHeaderTitle": {
+      whiteSpace: "normal",
+      lineHeight: 1.2,
     },
     "& .MuiDataGrid-footerContainer": {
       borderTopColor: theme.palette.divider,
+    },
+    "& .MuiDataGrid-virtualScroller": {
+      WebkitOverflowScrolling: "touch",
     },
   };
 }

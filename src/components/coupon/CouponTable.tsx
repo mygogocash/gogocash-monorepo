@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { ConversionQuery } from "@/types/api";
 import FormCoupon from "./FormCoupon";
-import { CouponRequestForm, ResponseCoupon } from "@/types/coupon";
+import { CouponData, CouponRequestForm, ResponseCoupon } from "@/types/coupon";
 import { useQuery } from "@tanstack/react-query";
 import client from "@/lib/axios/client";
 export default function CouponTable() {
@@ -88,6 +88,27 @@ export default function CouponTable() {
 
   const hasNextPage = Number(couponData?.page) < Number(couponData?.totalPages);
   const hasPrevPage = Number(couponData?.page) > 1;
+
+  const couponDataToForm = (list: CouponData): CouponRequestForm => ({
+    name: list.name,
+    description: list.description,
+    code: list.code,
+    offer_id: list.offer_id._id,
+    start_date: list.start_date,
+    end_date: list.end_date,
+    eligibility: list.eligibility,
+    min_spend: list.min_spend,
+    discount: list.discount,
+    id: list._id,
+    link: list.link,
+  });
+
+  const openCouponQuickView = (list: CouponData) => {
+    const dt = couponDataToForm(list);
+    setOpenModal(dt);
+    setForm(dt);
+    setOpenActionsId(null);
+  };
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
@@ -192,7 +213,9 @@ export default function CouponTable() {
                   {couponData?.data?.map((list, index) => (
                     <tr
                       key={list._id}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-800"
+                      title="Click row for quick view"
+                      className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                      onClick={() => openCouponQuickView(list)}
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
                         {index + 1}
@@ -262,28 +285,13 @@ export default function CouponTable() {
                             </svg>
                           </button>
                           {openActionsId === list._id && (
-                            <div className="absolute right-0 top-full z-50 mt-1 min-w-[10rem] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800" role="menu">
+                            <div className="absolute left-0 right-auto top-full z-50 mt-1 min-w-[10rem] max-w-[min(18rem,calc(100vw-1.5rem))] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800 sm:left-auto sm:right-0 sm:max-w-none" role="menu">
                               <button
                                 type="button"
                                 role="menuitem"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  const dt = {
-                                    name: list.name,
-                                    description: list.description,
-                                    code: list.code,
-                                    offer_id: list.offer_id._id,
-                                    start_date: list.start_date,
-                                    end_date: list.end_date,
-                                    eligibility: list.eligibility,
-                                    min_spend: list.min_spend,
-                                    discount: list.discount,
-                                    id: list._id,
-                                    link: list.link,
-                                  };
-                                  setOpenModal(dt);
-                                  setForm(dt);
-                                  setOpenActionsId(null);
+                                  openCouponQuickView(list);
                                 }}
                                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
                               >

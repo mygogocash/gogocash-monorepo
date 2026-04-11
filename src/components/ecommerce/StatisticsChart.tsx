@@ -1,8 +1,13 @@
 "use client";
 import React, { useMemo, useState } from "react";
 import { ApexOptions } from "apexcharts";
+import { useQuery } from "@tanstack/react-query";
 import ChartTab, { type ChartTabId } from "../common/ChartTab";
 import dynamic from "next/dynamic";
+import {
+  DASHBOARD_INSIGHTS_QUERY_KEY,
+  fetchDashboardInsights,
+} from "@/lib/query/dashboardQueries";
 import {
   getSummaryTotalsFromBundle,
   STATISTICS_MOCK_BY_TAB,
@@ -13,6 +18,7 @@ import {
   STATISTICS_SUMMARY_CARD_ACCENTS,
 } from "@/constants/statisticsChartTheme";
 import { useHtmlDarkClass } from "@/hooks/useHtmlDarkClass";
+import type { DashboardInsightRange } from "@/types/api";
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), {
   ssr: false,
@@ -37,17 +43,27 @@ const CHART_KIND_LABELS: Record<ChartKind, string> = {
   line: "Line",
 };
 
-export default function StatisticsChart() {
+export type StatisticsChartProps = {
+  insightRange?: DashboardInsightRange;
+};
+
+export default function StatisticsChart({ insightRange = "30d" }: StatisticsChartProps = {}) {
   const [timeRange, setTimeRange] = useState<ChartTabId>("month");
   const [chartKind, setChartKind] = useState<ChartKind>("line");
   const isDarkChart = useHtmlDarkClass();
 
-  const bundle = STATISTICS_MOCK_BY_TAB[timeRange];
+  const { data: insights } = useQuery({
+    queryKey: [...DASHBOARD_INSIGHTS_QUERY_KEY, insightRange],
+    queryFn: () => fetchDashboardInsights(insightRange),
+    staleTime: 60_000,
+  });
 
-  const summaryTotals = useMemo(
-    () => getSummaryTotalsFromBundle(STATISTICS_MOCK_BY_TAB[timeRange]),
-    [timeRange],
-  );
+  const bundle = useMemo(() => {
+    const fromApi = insights?.statistics?.[timeRange];
+    return fromApi ?? STATISTICS_MOCK_BY_TAB[timeRange];
+  }, [insights?.statistics, timeRange]);
+
+  const summaryTotals = useMemo(() => getSummaryTotalsFromBundle(bundle), [bundle]);
 
   const summaryCards = useMemo(
     () =>
@@ -79,7 +95,7 @@ export default function StatisticsChart() {
   const isBar = chartKind === "column";
 
   const options: ApexOptions = useMemo(() => {
-    const tab = STATISTICS_MOCK_BY_TAB[timeRange];
+    const tab = bundle;
     const seriesColors = [...STATISTICS_SERIES_COLORS];
     const legendLabelColor = isDarkChart ? "#D1D5DB" : "#374151";
     const axisMuted = isDarkChart ? "#9CA3AF" : "#4B5563";
@@ -260,22 +276,25 @@ export default function StatisticsChart() {
         },
       ],
     };
-  }, [isBar, timeRange, isDarkChart]);
+  }, [isBar, isDarkChart, bundle]);
 
-  const series = useMemo(() => STATISTICS_MOCK_BY_TAB[timeRange].series, [timeRange]);
+  const series = useMemo(() => bundle.series, [bundle]);
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white px-5 pb-5 pt-5 transition-shadow duration-300 ease-out dark:border-gray-800 dark:bg-white/[0.03] sm:px-6 sm:pt-6">
-      <div className="mb-6 flex flex-col gap-5 sm:flex-row sm:justify-between">
-        <div className="w-full">
+    <div className="min-w-0 max-w-full rounded-2xl border border-gray-200 bg-white px-5 pb-5 pt-5 transition-shadow duration-300 ease-out dark:border-gray-800 dark:bg-white/[0.03] sm:px-6 sm:pt-6">
+      <div className="mb-6 flex min-w-0 flex-col gap-5 sm:flex-row sm:justify-between">
+        <div className="min-w-0 w-full">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
             Statistics
           </h3>
-          <p className="mt-1 text-gray-500 text-theme-sm dark:text-gray-400">
+          <p className="mt-1 break-words text-gray-500 text-theme-sm dark:text-gray-400">
             Clicks, conversions, sale amount & estimated earnings
-            <span className="ml-1 text-gray-400 dark:text-gray-500">— {bundle.description}</span>
+            <span className="ml-1 text-gray-400 dark:text-gray-500">
+              — {bundle.description}
+              {insights?.statistics?.[timeRange] ? " (from conversion data)" : ""}
+            </span>
           </p>
         </div>
-        <div className="flex w-full items-start gap-3 sm:justify-end">
+        <div className="flex w-full min-w-0 items-start gap-3 sm:shrink-0 sm:justify-end">
           <ChartTab value={timeRange} onChange={setTimeRange} />
         </div>
       </div>
@@ -331,7 +350,7 @@ export default function StatisticsChart() {
         </div>
       </div>
 
-      <div className="max-w-full overflow-x-auto custom-scrollbar">
+      <div className="min-w-0 max-w-full overflow-x-auto overscroll-x-contain custom-scrollbar">
         <div
           className={
             timeRange === "day"

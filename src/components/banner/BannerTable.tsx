@@ -132,6 +132,32 @@ export default function BannerTable({ variant = "home" }: BannerTableProps) {
 
   const rowActionKey = (slot: number) => `${variant}-banner-${slot}`;
 
+  const openBannerSlotQuickView = (slot: number) => {
+    if (!bannerData) return;
+    setOpenActionsId(null);
+    setOpenModal(true);
+    setForm(() => {
+      const endRaw = bannerData.end_date ?? "";
+      const hasEnd = Boolean(String(endRaw).trim());
+      return {
+        image_1: bannerData.image_1 || null,
+        image_2: bannerData.image_2 || null,
+        image_3: bannerData.image_3 || null,
+        image_4: bannerData.image_4 || null,
+        image_5: bannerData.image_5 || null,
+        link_1: bannerData.link_1 || "",
+        link_2: bannerData.link_2 || "",
+        link_3: bannerData.link_3 || "",
+        link_4: bannerData.link_4 || "",
+        link_5: bannerData.link_5 || "",
+        start_date: bannerData.start_date ?? "",
+        end_date: hasEnd ? String(endRaw) : "",
+        end_forever: !hasEnd,
+        id: slot.toString(),
+      };
+    });
+  };
+
   return (
     <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
       {/* Header */}
@@ -254,8 +280,10 @@ export default function BannerTable({ variant = "home" }: BannerTableProps) {
 
                     return (
                       <tr
-                        className="hover:bg-gray-50 dark:hover:bg-gray-800"
                         key={item}
+                        title="Click row for quick view"
+                        className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                        onClick={() => openBannerSlotQuickView(item)}
                       >
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                           {item}
@@ -281,6 +309,7 @@ export default function BannerTable({ variant = "home" }: BannerTableProps) {
                               href={link}
                               target="_blank"
                               rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
                               className="truncate text-blue-600 hover:underline dark:text-blue-400"
                             >
                               {link}
@@ -324,34 +353,13 @@ export default function BannerTable({ variant = "home" }: BannerTableProps) {
                               </svg>
                             </button>
                             {openActionsId === actionKey && (
-                              <div className="absolute right-0 top-full z-50 mt-1 min-w-[10rem] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800" role="menu">
+                              <div className="absolute left-0 right-auto top-full z-50 mt-1 min-w-[10rem] max-w-[min(18rem,calc(100vw-1.5rem))] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800 sm:left-auto sm:right-0 sm:max-w-none" role="menu">
                                 <button
                                   type="button"
                                   role="menuitem"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setOpenModal(true);
-                                    setForm(() => {
-                                      const endRaw = bannerData?.end_date ?? "";
-                                      const hasEnd = Boolean(String(endRaw).trim());
-                                      return {
-                                        image_1: bannerData?.image_1 || null,
-                                        image_2: bannerData?.image_2 || null,
-                                        image_3: bannerData?.image_3 || null,
-                                        image_4: bannerData?.image_4 || null,
-                                        image_5: bannerData?.image_5 || null,
-                                        link_1: bannerData?.link_1 || "",
-                                        link_2: bannerData?.link_2 || "",
-                                        link_3: bannerData?.link_3 || "",
-                                        link_4: bannerData?.link_4 || "",
-                                        link_5: bannerData?.link_5 || "",
-                                        start_date: bannerData?.start_date ?? "",
-                                        end_date: hasEnd ? String(endRaw) : "",
-                                        end_forever: !hasEnd,
-                                        id: item.toString(),
-                                      };
-                                    });
-                                    setOpenActionsId(null);
+                                    openBannerSlotQuickView(item);
                                   }}
                                   className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
                                 >

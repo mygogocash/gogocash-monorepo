@@ -11,8 +11,9 @@ import {
   UsersResponse,
   DashboardStatsResponse,
   DashboardSummaryResponse,
+  DashboardInsightsResponse,
+  DashboardInsightRange,
   Offer,
-  CreateBrandFromAffiliatePayload,
   OffersQuery,
   OffersResponse,
   TopBrandsAdminResponse,
@@ -492,6 +493,23 @@ class ApiClient {
     });
   }
 
+  async getDashboardInsights(
+    params: { range?: DashboardInsightRange | string } = {},
+    token?: string,
+  ): Promise<DashboardInsightsResponse> {
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    const q = new URLSearchParams();
+    if (params.range) q.set("range", params.range);
+    const qs = q.toString();
+    return this.request<DashboardInsightsResponse>(
+      qs ? `/dashboard/insights?${qs}` : "/dashboard/insights",
+      { method: "GET", headers },
+    );
+  }
+
   // Offer Management (from /offer endpoint)
   async getOffers(query: OffersQuery = {}): Promise<OffersResponse> {
     // Build query parameters
@@ -650,20 +668,61 @@ class ApiClient {
     });
   }
 
-  /** Registers a new brand/offer from affiliate tracking data and optional GoGoCash app tracking link. */
-  async createBrandFromAffiliate(
-    payload: CreateBrandFromAffiliatePayload,
-    token?: string,
-  ): Promise<Offer> {
-    const headers: Record<string, string> = {};
+  /**
+   * Registers a new brand/offer from affiliate tracking data, optional app link, and optional image assets.
+   * Use `FormData`: text fields (brand_name, affiliate_network_id, …) plus optional files
+   * `logo_desktop`, `logo_mobile`, `logo_circle`, `banner`, `banner_mobile` (same keys as offer edit).
+   */
+  async createBrandFromAffiliate(formData: FormData, token?: string): Promise<Offer> {
+    const baseURL = this.getBaseURL();
+    const endpoint = "/offer";
+    const headers: Record<string, string> = { Accept: "application/json" };
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
-    return this.request<Offer>("/offer", {
-      method: "POST",
+
+    const formDataToMockBody = (fd: FormData): Record<string, string> => {
+      const safeName = (name: string) => name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const bodyObj: Record<string, string> = {};
+      let fileSeq = 0;
+      for (const [key, value] of fd.entries()) {
+        if (value instanceof File) {
+          if (value.size === 0) continue;
+          fileSeq += 1;
+          bodyObj[key] = `uploads/offer/create/${key}/${Date.now()}-${fileSeq}-${safeName(value.name)}`;
+        } else {
+          bodyObj[key] = String(value);
+        }
+      }
+      return bodyObj;
+    };
+
+    if (typeof window !== "undefined" && isStaticHostingClient()) {
+      const { handleMockApiRequest } = await import("@/lib/mockApiCore");
+      const body = formDataToMockBody(formData);
+      const result = await handleMockApiRequest({
+        method: "POST",
+        path: ["offer"],
+        searchParams: new URLSearchParams(),
+        body,
+      });
+      if (result.status >= 400) {
+        const data = result.body as { message?: string; errors?: unknown };
+        const apiError: ApiError = {
+          message: data?.message || `HTTP Error ${result.status}`,
+          status: result.status,
+          errors: data?.errors as ApiError["errors"],
+        };
+        throw apiError;
+      }
+      return result.body as Offer;
+    }
+
+    const axios = await import("axios");
+    const response = await axios.default.post<Offer>(`${baseURL}${endpoint}`, formData, {
       headers,
-      body: JSON.stringify(payload),
     });
+    return response.data;
   }
 
   async updateOffer(

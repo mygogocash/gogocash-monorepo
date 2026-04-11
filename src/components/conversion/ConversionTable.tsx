@@ -48,7 +48,7 @@ export default function ConversionTable() {
     limit: 10,
     page: 1,
     status: "",
-    key: "",
+    key: "aff_sub1",
   });
 
   // Fetch offers
@@ -316,62 +316,151 @@ export default function ConversionTable() {
         </div>
       </Modal>
 
-      {/* Header */}
-      <div className="flex flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
-        <div className="min-w-0">
-          <h3 className="text-base font-medium text-gray-800 dark:text-white/90">
-            Lists
-          </h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Total: {pagination.total}
-          </p>
-        </div>
-        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-4">
-          <select
-            onChange={(e) => handleFilterKey(e.target.value)}
-            value={query.key}
-            className="rounded-lg border border-gray-200 bg-transparent px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-          >
-            <option value="aff_sub1">User Id</option>
-            <option value="conversion_id">Conversion Id</option>
-            <option value="adv_sub1">Order Id 1</option>
-            <option value="adv_sub2">Order Id 2</option>
-            <option value="adv_sub3">Order Id 3</option>
-            <option value="adv_sub4">Order Id 4</option>
-          </select>
-          <input
-            type="text"
-            placeholder="Search offers..."
-            value={query.search}
-            onChange={(e) => handleSearch(e.target.value)}
-            className="h-11 w-full rounded-lg border border-gray-200 bg-transparent px-5 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:ring-brand-500/20 focus:outline-hidden xl:w-[300px] dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400 dark:focus:ring-brand-400/30"
-          />
-          <select onChange={(e) => handleFilterStatus(e.target.value)} className="rounded-lg border border-gray-200 bg-transparent px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90">
-            <option value="">All Statuses</option>
-            <option value="approved">Approved</option>
-            <option value="pending">Pending</option>
-            <option value="rejected">Rejected</option>
-            <option value="paid">Paid</option>
-            <option value="yet to consume">Yet to consumed</option>
-            <option value="invalid">Invalid</option>
-          </select>
-          <div className="flex flex-wrap items-center gap-2 border-l border-gray-200 pl-4 dark:border-gray-600 sm:gap-3">
-            <span className="shrink-0 text-sm text-gray-700 dark:text-gray-300">
-              Update Conversion (Ex. 670041412|671101377)
-            </span>
-            <input
-              type="text"
-              placeholder="conversion id"
-              onChange={(e) => setConversionId(e.target.value)}
-              className="h-11 w-full max-w-[200px] rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 sm:max-w-[180px]"
-            />
-            <button
-              onClick={handleUpdateConversion}
-              className="shrink-0 rounded-lg border border-brand-500 bg-brand-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-600 dark:border-brand-500 dark:bg-brand-500 dark:hover:bg-brand-600"
-            >
-              Update
-            </button>
+      {/* Header + tools — two jobs: filter table vs sync from partner */}
+      <div className="space-y-5 px-4 py-4 sm:px-6 sm:py-5">
+        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h3 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
+              Conversion list
+            </h3>
+            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+              Left: shrink the table. Right: pull fresh data for specific IDs.
+            </p>
           </div>
+          <div
+            className="flex shrink-0 items-baseline gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 dark:border-gray-700 dark:bg-gray-800/80"
+            title="Rows matching current filters"
+          >
+            <span className="text-2xl font-semibold tabular-nums text-gray-900 dark:text-white">
+              {pagination.total}
+            </span>
+            <span className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              rows
+            </span>
+          </div>
+        </div>
+
+        <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+          {/* A — Filter (only affects the list below) */}
+          <section className="rounded-xl border border-gray-200 border-l-4 border-l-gray-400 bg-gray-50/90 p-4 pl-5 dark:border-gray-700 dark:border-l-gray-500 dark:bg-gray-900/50">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-white">Filter</h4>
+                <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
+                  Narrows the table only — nothing is saved until you use sync on the right.
+                </p>
+              </div>
+              <span className="rounded-md bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-500 ring-1 ring-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:ring-gray-600">
+                List
+              </span>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:items-end lg:grid-cols-12">
+              <div className="sm:col-span-1 lg:col-span-3">
+                <label
+                  htmlFor="conversion-search-key"
+                  className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-300"
+                >
+                  Column
+                </label>
+                <select
+                  id="conversion-search-key"
+                  onChange={(e) => handleFilterKey(e.target.value)}
+                  value={query.key}
+                  className="h-11 w-full min-w-0 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 shadow-theme-xs dark:border-gray-600 dark:bg-gray-900 dark:text-white/90"
+                >
+                  <option value="aff_sub1">User Id</option>
+                  <option value="conversion_id">Conversion Id</option>
+                  <option value="adv_sub1">Order Id 1</option>
+                  <option value="adv_sub2">Order Id 2</option>
+                  <option value="adv_sub3">Order Id 3</option>
+                  <option value="adv_sub4">Order Id 4</option>
+                </select>
+              </div>
+              <div className="sm:col-span-1 lg:col-span-6">
+                <label
+                  htmlFor="conversion-search-value"
+                  className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-300"
+                >
+                  Contains
+                </label>
+                <input
+                  id="conversion-search-value"
+                  type="search"
+                  enterKeyHint="search"
+                  autoComplete="off"
+                  placeholder="Type to filter…"
+                  value={query.search}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  className="h-11 w-full min-w-0 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-base text-gray-800 placeholder:text-gray-400 shadow-theme-xs focus:ring-3 focus:ring-brand-500/20 focus:outline-hidden sm:text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:placeholder:text-gray-500 dark:focus:ring-brand-400/30"
+                />
+              </div>
+              <div className="sm:col-span-2 lg:col-span-3">
+                <label
+                  htmlFor="conversion-status-filter"
+                  className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-300"
+                >
+                  Status
+                </label>
+                <select
+                  id="conversion-status-filter"
+                  value={query.status ?? ""}
+                  onChange={(e) => handleFilterStatus(e.target.value)}
+                  className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 shadow-theme-xs dark:border-gray-600 dark:bg-gray-900 dark:text-white/90"
+                >
+                  <option value="">All statuses</option>
+                  <option value="approved">Approved</option>
+                  <option value="pending">Pending</option>
+                  <option value="rejected">Rejected</option>
+                  <option value="paid">Paid</option>
+                  <option value="yet to consume">Yet to consumed</option>
+                  <option value="invalid">Invalid</option>
+                </select>
+              </div>
+            </div>
+          </section>
+
+          {/* B — Partner sync (API action, separate from filtering) */}
+          <section className="rounded-xl border border-brand-200/80 border-l-4 border-l-brand-500 bg-brand-50/60 p-4 pl-5 dark:border-brand-800/60 dark:border-l-brand-400 dark:bg-brand-950/25">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <h4 className="text-sm font-semibold text-brand-950 dark:text-brand-50">
+                  Partner sync
+                </h4>
+                <p className="mt-0.5 text-xs text-brand-900/85 dark:text-brand-100/85">
+                  Calls the affiliate API for these conversion IDs. Multiple IDs: separate with{" "}
+                  <kbd className="rounded border border-brand-300/80 bg-white/80 px-1 font-mono text-[10px] dark:border-brand-700 dark:bg-gray-900">
+                    |
+                  </kbd>{" "}
+                  · e.g.{" "}
+                  <span className="font-mono text-[11px] text-brand-950 dark:text-brand-100">
+                    670041412|671101377
+                  </span>
+                </p>
+              </div>
+              <span className="rounded-md bg-brand-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                Action
+              </span>
+            </div>
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-stretch">
+              <input
+                id="conversion-bulk-update-id"
+                type="text"
+                aria-label="Conversion id or ids"
+                placeholder="670041412 or 670041412|671101377"
+                value={conversionId}
+                onChange={(e) => setConversionId(e.target.value)}
+                className="h-11 min-h-[44px] w-full min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-base text-gray-800 placeholder:text-gray-400 shadow-theme-xs focus:ring-3 focus:ring-brand-500/25 focus:outline-hidden sm:text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:placeholder:text-gray-500"
+              />
+              <button
+                type="button"
+                onClick={handleUpdateConversion}
+                className="h-11 min-h-[44px] shrink-0 rounded-lg border border-brand-500 bg-brand-500 px-5 text-sm font-semibold text-white hover:bg-brand-600 dark:border-brand-500 dark:bg-brand-500 dark:hover:bg-brand-600"
+              >
+                Sync now
+              </button>
+            </div>
+          </section>
         </div>
       </div>
       {/* Content */}
@@ -429,7 +518,12 @@ export default function ConversionTable() {
                   {lists?.data?.map((list, index) => (
                     <tr
                       key={list.conversion_id}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-800"
+                      title="Click row for quick view"
+                      className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                      onClick={() => {
+                        setOpenActionsId(null);
+                        setViewConversion(list);
+                      }}
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
                         {index + 1}
@@ -484,6 +578,8 @@ export default function ConversionTable() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <select
                           value={list.conversion_status ?? ""}
+                          onClick={(e) => e.stopPropagation()}
+                          onMouseDown={(e) => e.stopPropagation()}
                           onChange={(e) => handleStatusChange(list.conversion_id, e.target.value)}
                           disabled={updatingStatusId === list.conversion_id}
                           className="min-w-[120px] rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:focus:ring-brand-400/20 disabled:opacity-50"
@@ -521,7 +617,7 @@ export default function ConversionTable() {
                             </svg>
                           </button>
                           {openActionsId === String(list.conversion_id) && (
-                            <div className="absolute right-0 top-full z-50 mt-1 min-w-[10rem] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800" role="menu">
+                            <div className="absolute left-0 right-auto top-full z-50 mt-1 min-w-[10rem] max-w-[min(18rem,calc(100vw-1.5rem))] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800 sm:left-auto sm:right-0 sm:max-w-none" role="menu">
                               <button
                                 type="button"
                                 role="menuitem"

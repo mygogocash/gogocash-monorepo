@@ -1,5 +1,12 @@
-import { useMemo, useState } from "react";
+"use client";
+
+import { useCallback, useMemo, useState } from "react";
+import { isAxiosError } from "axios";
+import Autocomplete from "@mui/material/Autocomplete";
+import TextField from "@mui/material/TextField";
+import type { FetchBestResponse } from "@/components/commission/CommissionManagementClient";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
+import CopyButton from "@/components/ui/CopyButton";
 import { Modal } from "../ui/modal";
 import Input from "../form/input/InputField";
 import TextArea from "../form/input/TextArea";
@@ -18,6 +25,7 @@ import { AFFILIATE_NETWORKS, affiliateNetworkIdForOfferId } from "@/data/affilia
 import { buildSuggestedAppDeeplink } from "@/lib/offerDeeplink";
 import { COMMISSION_MANAGEMENT_BRANDS_ROOT_QUERY_KEY } from "@/lib/query/offersQueries";
 import { OfferFullscreenCardShell } from "./OfferFullscreenCardShell";
+import { FormSectionJumpNav } from "@/components/form/FormSectionJumpNav";
 
 function formatPartnerMaxCap(offer: Offer | null): string {
   const raw = offer?.partner_max_cap;
@@ -50,6 +58,13 @@ function formatPartnerRatesMinMax(offer: Offer | null): string {
   return `Min ${min}% · Max ${max}%`;
 }
 
+/** User-facing commission is partner best rate reduced by 30%. */
+const STORE_COMMISSION_FROM_PARTNER_FACTOR = 0.7;
+
+function partnerBestRateToStoreCommission(partnerPercent: number): number {
+  return Math.round(partnerPercent * STORE_COMMISSION_FROM_PARTNER_FACTOR * 100) / 100;
+}
+
 function FieldLabel({ label, description }: { label: string; description: string }) {
   return (
     <div className="mb-1.5">
@@ -57,6 +72,29 @@ function FieldLabel({ label, description }: { label: string; description: string
       <p className="text-xs text-gray-500 dark:text-gray-400">{description}</p>
     </div>
   );
+}
+
+const OFFER_FORM_SECTION_SCROLL_CLASS = "scroll-mt-[4.5rem]";
+
+const AUTOCOMPLETE_POPPER_Z = { zIndex: 100002 } as const;
+
+type IdLabelOption = { id: string; label: string };
+
+function OfferFormSectionNav({ showReference }: { showReference: boolean }) {
+  const links = useMemo(
+    () =>
+      [
+        ...(showReference ? [{ id: "offer-section-reference", label: "Reference" }] : []),
+        { id: "offer-section-tracking", label: "Tracking" },
+        { id: "offer-section-brand", label: "Brand" },
+        { id: "offer-section-product", label: "Product types" },
+        { id: "offer-section-merch", label: "Tags & feed" },
+        { id: "offer-section-policy", label: "Policy" },
+        { id: "offer-section-media", label: "Media" },
+      ] as const,
+    [showReference],
+  );
+  return <FormSectionJumpNav links={[...links]} ariaLabel="Jump to form section" />;
 }
 
 /** Preview pills for the “Offer tags” block (kept pure for clarity and reuse). */
@@ -87,12 +125,6 @@ function FormOfferBrandReferenceStrip({
   const circleSrc = form.logo_circle
     ? URL.createObjectURL(form.logo_circle)
     : pathImage(circlePersisted || null);
-  const desktopSrc = form.logo_desktop
-    ? URL.createObjectURL(form.logo_desktop)
-    : pathImage((offer.logo_desktop || "").trim() || null);
-  const mobileSrc = form.logo_mobile
-    ? URL.createObjectURL(form.logo_mobile)
-    : pathImage((offer.logo_mobile || "").trim() || null);
 
   const meta = [
     { label: "Offer ID", value: offer._id },
@@ -102,17 +134,25 @@ function FormOfferBrandReferenceStrip({
   ] as const;
 
   return (
-    <section className="rounded-xl border border-brand-200/80 bg-brand-50/40 p-4 dark:border-brand-500/30 dark:bg-brand-500/5">
-      <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
-        Brand reference
-      </h4>
-      <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
-        Logos and feed identifiers so you can confirm the correct brand or branch before editing.
-      </p>
-      <div className="mt-4 flex flex-wrap items-end gap-6">
-        <div className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Circle</span>
-          <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-gray-200 bg-white dark:border-gray-600 dark:bg-gray-900">
+    <section
+      id="offer-section-reference"
+      className={`rounded-xl border border-brand-200/80 bg-brand-50/40 p-4 sm:p-5 dark:border-brand-500/30 dark:bg-brand-500/5 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
+    >
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <div>
+          <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+            Brand reference
+          </h4>
+          <p className="mt-1 max-w-2xl text-xs leading-relaxed text-gray-600 dark:text-gray-400">
+            Partner feed snapshot: logo and IDs so you know which merchant row you are editing.
+            Nothing here is saved from this form.
+          </p>
+        </div>
+      </div>
+      <div className="mt-4 flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
+        <div className="flex shrink-0 flex-col gap-1.5">
+          <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Logo</span>
+          <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-gray-200 bg-white shadow-theme-xs dark:border-gray-600 dark:bg-gray-900 sm:h-[5.5rem] sm:w-[5.5rem]">
             {circleSrc.trim() ? (
               <RemoteOrBlobImage
                 src={circleSrc}
@@ -128,49 +168,35 @@ function FormOfferBrandReferenceStrip({
             )}
           </div>
         </div>
-        <div className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Desktop</span>
-          <div className="flex h-16 max-w-[200px] items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-white px-2 dark:border-gray-600 dark:bg-gray-900">
-            {desktopSrc.trim() ? (
-              <RemoteOrBlobImage
-                src={desktopSrc}
-                alt="Brand logo, desktop"
-                width={256}
-                height={128}
-                className="max-h-14 max-w-full object-contain"
-              />
-            ) : (
-              <span className="text-[10px] text-gray-400 dark:text-gray-500">No image</span>
-            )}
-          </div>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Mobile</span>
-          <div className="flex h-16 max-w-[200px] items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-white px-2 dark:border-gray-600 dark:bg-gray-900">
-            {mobileSrc.trim() ? (
-              <RemoteOrBlobImage
-                src={mobileSrc}
-                alt="Brand logo, mobile"
-                width={256}
-                height={128}
-                className="max-h-14 max-w-full object-contain"
-              />
-            ) : (
-              <span className="text-[10px] text-gray-400 dark:text-gray-500">No image</span>
-            )}
-          </div>
-        </div>
+        <dl className="grid min-w-0 flex-1 grid-cols-1 gap-x-8 gap-y-4 text-xs sm:grid-cols-2">
+          {meta.map(({ label, value }) => {
+            const copyable =
+              value !== "—" &&
+              (label === "Offer ID" ||
+                label === "Lookup slug" ||
+                label === "Partner offer name" ||
+                label === "Category");
+            return (
+              <div
+                key={label}
+                className="min-w-0 rounded-lg border border-gray-200/80 bg-white/60 px-3 py-2.5 dark:border-gray-600/60 dark:bg-gray-900/40"
+              >
+                <dt className="text-[11px] font-medium text-gray-500 dark:text-gray-400">
+                  {label}
+                </dt>
+                <dd className="mt-1 flex items-start justify-between gap-2 break-all font-mono text-[13px] font-medium text-gray-900 dark:text-gray-100">
+                  <span className="min-w-0">{value}</span>
+                  {copyable ? (
+                    <span className="shrink-0 pt-0.5">
+                      <CopyButton value={String(value)} />
+                    </span>
+                  ) : null}
+                </dd>
+              </div>
+            );
+          })}
+        </dl>
       </div>
-      <dl className="mt-4 grid gap-2 text-xs sm:grid-cols-2">
-        {meta.map(({ label, value }) => (
-          <div key={label} className="min-w-0">
-            <dt className="text-gray-500 dark:text-gray-400">{label}</dt>
-            <dd className="mt-0.5 break-all font-medium text-gray-800 dark:text-gray-200">
-              {value}
-            </dd>
-          </div>
-        ))}
-      </dl>
     </section>
   );
 }
@@ -229,6 +255,24 @@ const FormOffer = ({
   const usePerProductTrackingLinks =
     (form.product_types ?? []).length > 0 && !form.all_product_types;
 
+  const affiliateSelectOptions = useMemo<IdLabelOption[]>(
+    () => AFFILIATE_NETWORKS.map((n) => ({ id: n.id, label: n.name })),
+    [],
+  );
+  const selectedAffiliateOption = useMemo(
+    () => affiliateSelectOptions.find((o) => o.id === form.affiliate_network_id) ?? null,
+    [affiliateSelectOptions, form.affiliate_network_id],
+  );
+
+  const advertiserSelectOptions = useMemo<IdLabelOption[]>(
+    () => DEEPLINK_STORE_OPTIONS.map((s) => ({ id: s.id, label: s.label })),
+    [],
+  );
+  const selectedAdvertiserOption = useMemo(
+    () => advertiserSelectOptions.find((o) => o.id === form.deeplink_store_id) ?? null,
+    [advertiserSelectOptions, form.deeplink_store_id],
+  );
+
   /** Names from Brand Info → Product Type rows, for Upsize line picker. */
   const upsizeProductTypeNameOptions = useMemo(() => {
     const names = (form.product_types ?? [])
@@ -271,6 +315,36 @@ const FormOffer = ({
     },
   });
 
+  const fetchPartnerBestCommission = useMutation({
+    mutationFn: async (affiliateNetworkIdArg: string) => {
+      if (!offer) throw new Error("No offer loaded");
+      const affiliateNetworkId =
+        affiliateNetworkIdArg.trim() || affiliateNetworkIdForOfferId(offer._id);
+      const { data } = await client.post<FetchBestResponse>(
+        "/admin/commission-management/fetch-best",
+        { offerId: offer._id, affiliateNetworkId },
+      );
+      return data;
+    },
+    onSuccess: (data) => {
+      const applied = partnerBestRateToStoreCommission(data.bestRatePercent);
+      setForm((prev) => ({ ...prev, commission_store: applied }));
+      toast.success(
+        `Commission set to ${applied}% (partner ${data.bestRatePercent}% with −30%)`,
+      );
+    },
+    onError: (err) => {
+      const msg =
+        isAxiosError(err) &&
+        err.response?.data &&
+        typeof err.response.data === "object" &&
+        "message" in err.response.data
+          ? String((err.response.data as { message?: string }).message)
+          : "Could not fetch partner commission. Check the affiliate network matches this merchant.";
+      toast.error(msg);
+    },
+  });
+
   const { data: policyCategories = [], isPending: policyCategoriesPending } = useQuery<
     ResCategoryList[]
   >({
@@ -308,6 +382,23 @@ const FormOffer = ({
     if (categoriesForTagSelect.some((c) => c.name === cur)) return null;
     return cur;
   }, [form.offer_display_tags.brand_category_label, categoriesForTagSelect]);
+
+  /** Upsize period fields stay hidden until at least one product line exists, or loaded offer already has period data. */
+  const showUpsizeEventPeriodFields = useMemo(() => {
+    if ((form.upsize_product_types ?? []).length > 0) return true;
+    return (
+      Boolean(form.upsize_start_date) ||
+      Boolean(form.upsize_end_date) ||
+      form.upsize_special_commission != null ||
+      form.upsize_max_cap != null
+    );
+  }, [
+    form.upsize_product_types,
+    form.upsize_start_date,
+    form.upsize_end_date,
+    form.upsize_special_commission,
+    form.upsize_max_cap,
+  ]);
 
   const { data: policiesList = {} } = useQuery<Record<string, string>>({
     queryKey: ["policyList"],
@@ -455,18 +546,41 @@ const FormOffer = ({
       className="p-0"
     >
       <OfferFullscreenCardShell
+        afterHeader={<OfferFormSectionNav showReference={Boolean(offer)} />}
         header={
-          <div className="mb-4 flex w-full shrink-0 flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-4 dark:border-gray-700">
-            <div className="min-w-0">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Edit offer
-              </h3>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Update basic info, policy source, promo period, and media. Partner commission details below are read-only (from the network).
+          <div className="flex w-full flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+            <div className="min-w-0 space-y-3">
+              <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                <h3 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
+                  Edit offer
+                </h3>
+                {offer ? (
+                  <span
+                    className="max-w-full truncate rounded-full border border-gray-200 bg-gray-50 px-3 py-0.5 text-xs font-medium text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+                    title={form.offer_name_display?.trim() || offer.offer_name || offer._id}
+                  >
+                    {form.offer_name_display?.trim() || offer.offer_name || offer._id}
+                  </span>
+                ) : null}
+              </div>
+              <p className="max-w-2xl text-pretty text-sm leading-snug text-gray-600 dark:text-gray-300">
+                <span className="font-semibold text-gray-900 dark:text-white">You edit</span> names,
+                caps, tracking links, images, and display tags.{" "}
+                <span className="font-semibold text-gray-900 dark:text-white">Grey / reference blocks</span>{" "}
+                show partner feed data (not saved from this screen).
               </p>
+              <div className="flex flex-wrap gap-2">
+                <span className="inline-flex items-center rounded-md bg-emerald-500/15 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-200">
+                  Editable fields below
+                </span>
+                <span className="inline-flex items-center rounded-md bg-gray-500/10 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">
+                  Partner feed = read-only
+                </span>
+              </div>
             </div>
-            <div className="flex shrink-0 items-center gap-3">
+            <div className="flex w-full shrink-0 flex-col gap-2 xsm:flex-row xsm:justify-end sm:w-auto sm:items-center sm:gap-2">
               <Button
+                className="order-2 w-full min-h-11 touch-manipulation xsm:order-1 xsm:w-auto"
                 size="sm"
                 variant="outline"
                 type="button"
@@ -476,6 +590,7 @@ const FormOffer = ({
                 Close
               </Button>
               <Button
+                className="order-1 w-full min-h-11 touch-manipulation xsm:order-2 xsm:w-auto"
                 size="sm"
                 type="button"
                 disabled={isLoading}
@@ -492,56 +607,84 @@ const FormOffer = ({
           </div>
         }
       >
-        {offer ? <FormOfferBrandReferenceStrip offer={offer} form={form} /> : null}
+        <>
+          {offer ? <FormOfferBrandReferenceStrip offer={offer} form={form} /> : null}
 
         {/* Tracking links — one per product-type row (brand / line), or single offer row */}
-        <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 dark:border-gray-700 dark:bg-gray-800/30">
+        <div
+          id="offer-section-tracking"
+          className={`rounded-xl border border-gray-200 bg-gray-50/50 p-4 sm:p-5 dark:border-gray-700 dark:bg-gray-800/30 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
+        >
           <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-            Tracking Links
+            Tracking links
           </h4>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            Tracking link for each brand or product line. With{" "}
-            <span className="font-medium">Product Type</span> rows below (and without{" "}
-            <span className="font-medium">all product types</span>), each line gets its own URL;
-            otherwise the default below uses the same store as Commission Management.
+          <p className="mt-1 max-w-3xl text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+            Choose network and advertiser, then set the app URL users open from this offer.
+            Per–product-type URLs appear when you add product lines below and turn off{" "}
+            <span className="font-medium text-gray-700 dark:text-gray-300">all product types</span>.
           </p>
-          <div className="mt-4">
-            <FieldLabel
-              label="Affiliate partner"
-              description="Performance network for this offer (Involve Asia, Optimise, Accesstrade)."
-            />
-            <select
-              id="offer-affiliate-network"
-              className="w-full max-w-xl rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-              value={form.affiliate_network_id}
-              onChange={(e) => setForm({ ...form, affiliate_network_id: e.target.value })}
-              disabled={isLoading}
-            >
-              {AFFILIATE_NETWORKS.map((n) => (
-                <option key={n.id} value={n.id}>
-                  {n.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="mt-4">
-            <FieldLabel
-              label="Advertiser"
-              description="Campaign-style advertiser (e.g. Banana IT TH CPS). Adds store= to the tracking link unless Default / other."
-            />
-            <select
-              id="offer-deeplink-advertiser"
-              className="w-full max-w-xl rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-              value={form.deeplink_store_id}
-              onChange={(e) => setForm({ ...form, deeplink_store_id: e.target.value })}
-              disabled={isLoading}
-            >
-              {DEEPLINK_STORE_OPTIONS.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
+          <details className="mt-2 max-w-3xl rounded-lg border border-gray-200/80 bg-white/50 px-3 py-2 text-xs text-gray-600 dark:border-gray-600 dark:bg-gray-900/30 dark:text-gray-400">
+            <summary className="cursor-pointer select-none font-medium text-gray-700 dark:text-gray-300">
+              How this ties to Commission Management
+            </summary>
+            <p className="mt-2 leading-relaxed">
+              With <span className="font-medium">Product Type</span> rows (and without{" "}
+              <span className="font-medium">all product types</span>), each line can have its own
+              tracking URL. Otherwise the single field below follows the same store as Commission
+              Management.
+            </p>
+          </details>
+          <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
+                       <div className="min-w-0">
+              <FieldLabel
+                label="Affiliate partner"
+                description="Network that supplies rates and tracking. Type to filter the list."
+              />
+              <Autocomplete<IdLabelOption, false, false, false>
+                id="offer-affiliate-network"
+                options={affiliateSelectOptions}
+                value={selectedAffiliateOption}
+                onChange={(_e, v) =>
+                  setForm({ ...form, affiliate_network_id: v?.id ?? "" })
+                }
+                getOptionLabel={(o) => o.label}
+                isOptionEqualToValue={(a, b) => a.id === b.id}
+                disabled={isLoading}
+                size="small"
+                sx={{ mt: 0.5, width: "100%" }}
+                slotProps={{
+                  popper: { sx: AUTOCOMPLETE_POPPER_Z },
+                }}
+                renderInput={(params) => (
+                  <TextField {...params} placeholder="Search network…" variant="outlined" />
+                )}
+              />
+            </div>
+            <div className="min-w-0">
+              <FieldLabel
+                label="Advertiser"
+                description="Campaign / store on the network. Type to filter; drives store= when applicable."
+              />
+              <Autocomplete<IdLabelOption, false, false, false>
+                id="offer-deeplink-advertiser"
+                options={advertiserSelectOptions}
+                value={selectedAdvertiserOption}
+                onChange={(_e, v) =>
+                  setForm({ ...form, deeplink_store_id: v?.id ?? "" })
+                }
+                getOptionLabel={(o) => o.label}
+                isOptionEqualToValue={(a, b) => a.id === b.id}
+                disabled={isLoading}
+                size="small"
+                sx={{ mt: 0.5, width: "100%" }}
+                slotProps={{
+                  popper: { sx: AUTOCOMPLETE_POPPER_Z },
+                }}
+                renderInput={(params) => (
+                  <TextField {...params} placeholder="Search advertiser…" variant="outlined" />
+                )}
+              />
+            </div>
           </div>
           {usePerProductTrackingLinks ? (
             <ul className="mt-4 space-y-4">
@@ -594,7 +737,10 @@ const FormOffer = ({
         </div>
 
         {/* Brand info */}
-        <section className="space-y-4">
+        <section
+          id="offer-section-brand"
+          className={`space-y-4 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
+        >
           <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
             Brand Info
           </h4>
@@ -610,8 +756,8 @@ const FormOffer = ({
               defaultValue={form.offer_name_display}
             />
           </div>
-          <div className="flex flex-wrap items-center gap-6">
-            <div>
+          <div className="flex flex-col gap-5 sm:flex-row sm:flex-wrap sm:items-start sm:gap-6">
+            <div className="min-w-0 sm:max-w-md">
               <Switch
                 label="Disabled offer"
                 onChange={(e) => setForm({ ...form, disabled: e })}
@@ -621,7 +767,7 @@ const FormOffer = ({
                 Hide this offer from users.
               </p>
             </div>
-            <div>
+            <div className="min-w-0 sm:max-w-md">
               <Switch
                 label="Top Brands"
                 onChange={(e) => setForm({ ...form, extra_store: e })}
@@ -633,17 +779,85 @@ const FormOffer = ({
             </div>
           </div>
 
-          <div>
+          <div className="min-w-0">
             <FieldLabel
               label="Commission (%)"
-              description="Maximum % offered to users. Enter the value already reduced by 30% from the affiliate partner rate."
+              description={
+                form.commission_entry_mode === "auto"
+                  ? "Loads the best partner rate for this merchant on the selected affiliate network (same as Commission Management), then applies −30% for the user-facing %."
+                  : "Maximum % offered to users. Enter the value already reduced by 30% from the affiliate partner rate."
+              }
             />
+            <div className="mb-2 flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                type="button"
+                variant={form.commission_entry_mode === "manual" ? "primary" : "outline"}
+                onClick={() => setForm((prev) => ({ ...prev, commission_entry_mode: "manual" }))}
+                disabled={isLoading}
+                className="touch-manipulation"
+              >
+                Manual
+              </Button>
+              <Button
+                size="sm"
+                type="button"
+                variant={form.commission_entry_mode === "auto" ? "primary" : "outline"}
+                onClick={() => setForm((prev) => ({ ...prev, commission_entry_mode: "auto" }))}
+                disabled={isLoading}
+                className="touch-manipulation"
+              >
+                From partner (-30%)
+              </Button>
+            </div>
             <Input
               type="text"
               name="commission_store"
-              onChange={(e) => setForm({ ...form, commission_store: Number(e.target.value) })}
-              defaultValue={form.commission_store || ""}
+              value={form.commission_store ?? ""}
+              onChange={(e) => {
+                const v = e.target.value;
+                setForm((prev) => ({
+                  ...prev,
+                  commission_store: v === "" ? null : Number(v),
+                }));
+              }}
+              disabled={isLoading || form.commission_entry_mode === "auto"}
+              placeholder={
+                form.commission_entry_mode === "auto"
+                  ? "Use “Fetch from partner” below"
+                  : undefined
+              }
             />
+            {form.commission_entry_mode === "auto" ? (
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Partner rates on file:{" "}
+                  <span className="font-medium text-gray-700 dark:text-gray-300">
+                    {formatPartnerRatesMinMax(offer)}
+                  </span>
+                </p>
+                <Button
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                  onClick={() =>
+                    fetchPartnerBestCommission.mutate(
+                      form.affiliate_network_id.trim() ||
+                        (offer ? affiliateNetworkIdForOfferId(offer._id) : ""),
+                    )
+                  }
+                  disabled={isLoading || !offer || fetchPartnerBestCommission.isPending}
+                  className="touch-manipulation shrink-0"
+                  startIcon={
+                    fetchPartnerBestCommission.isPending ? (
+                      <div className="h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-brand-500 dark:border-gray-600" />
+                    ) : null
+                  }
+                >
+                  Fetch from partner & apply −30%
+                </Button>
+              </div>
+            ) : null}
             <div className="mt-3">
               <Switch
                 key={`${form.id}-all-product-types`}
@@ -660,7 +874,10 @@ const FormOffer = ({
           </div>
 
         {/* Product Type — stacked on small screens; 44px+ touch targets; 16px text on mobile avoids iOS input zoom */}
-        <section className="space-y-4">
+        <section
+          id="offer-section-product"
+          className={`space-y-4 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
+        >
           <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
               Product Type
@@ -815,7 +1032,10 @@ const FormOffer = ({
           </div>
 
           {/* Read-only: from partner / network feed */}
-          <div className="rounded-xl border border-dashed border-brand-200/80 bg-brand-50/50 p-4 dark:border-brand-800/60 dark:bg-brand-950/25">
+          <div
+            id="offer-section-merch"
+            className={`rounded-xl border border-dashed border-brand-200/80 bg-brand-50/50 p-4 dark:border-brand-800/60 dark:bg-brand-950/25 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
+          >
             <h4 className="text-sm font-semibold text-brand-900 dark:text-brand-100">
               Commission info from partner
             </h4>
@@ -1100,71 +1320,73 @@ const FormOffer = ({
                         })}
                       </ul>
                     ) : null}
-                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                      <div>
-                        <FieldLabel label="Start date" description="When the promo starts." />
-                        <Input
-                          type="date"
-                          name="upsize_start_date"
-                          onChange={(e) =>
-                            setForm({ ...form, upsize_start_date: e.target.value || null })
-                          }
-                          defaultValue={form.upsize_start_date ?? ""}
-                          disabled={isLoading}
-                        />
+                    {showUpsizeEventPeriodFields ? (
+                      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                        <div>
+                          <FieldLabel label="Start date" description="When the promo starts." />
+                          <Input
+                            type="date"
+                            name="upsize_start_date"
+                            onChange={(e) =>
+                              setForm({ ...form, upsize_start_date: e.target.value || null })
+                            }
+                            defaultValue={form.upsize_start_date ?? ""}
+                            disabled={isLoading}
+                          />
+                        </div>
+                        <div>
+                          <FieldLabel label="End date" description="When the promo ends." />
+                          <Input
+                            type="date"
+                            name="upsize_end_date"
+                            onChange={(e) =>
+                              setForm({ ...form, upsize_end_date: e.target.value || null })
+                            }
+                            defaultValue={form.upsize_end_date ?? ""}
+                            disabled={isLoading}
+                          />
+                        </div>
+                        <div>
+                          <FieldLabel
+                            label="Special commission (%)"
+                            description="Commission during the promo."
+                          />
+                          <Input
+                            type="number"
+                            name="upsize_special_commission"
+                            placeholder="e.g. 10"
+                            onChange={(e) =>
+                              setForm({
+                                ...form,
+                                upsize_special_commission:
+                                  e.target.value === "" ? null : Number(e.target.value),
+                              })
+                            }
+                            defaultValue={form.upsize_special_commission ?? ""}
+                            disabled={isLoading}
+                          />
+                        </div>
+                        <div>
+                          <FieldLabel
+                            label="Max cap (upsize)"
+                            description="Maximum cap offered to users during the promo. Enter the value already reduced by 30% from the affiliate partner cap."
+                          />
+                          <Input
+                            type="number"
+                            name="upsize_max_cap"
+                            placeholder="e.g. 1000"
+                            onChange={(e) =>
+                              setForm({
+                                ...form,
+                                upsize_max_cap: e.target.value === "" ? null : Number(e.target.value),
+                              })
+                            }
+                            defaultValue={form.upsize_max_cap ?? ""}
+                            disabled={isLoading}
+                          />
+                        </div>
                       </div>
-                      <div>
-                        <FieldLabel label="End date" description="When the promo ends." />
-                        <Input
-                          type="date"
-                          name="upsize_end_date"
-                          onChange={(e) =>
-                            setForm({ ...form, upsize_end_date: e.target.value || null })
-                          }
-                          defaultValue={form.upsize_end_date ?? ""}
-                          disabled={isLoading}
-                        />
-                      </div>
-                      <div>
-                        <FieldLabel
-                          label="Special commission (%)"
-                          description="Commission during the promo."
-                        />
-                        <Input
-                          type="number"
-                          name="upsize_special_commission"
-                          placeholder="e.g. 10"
-                          onChange={(e) =>
-                            setForm({
-                              ...form,
-                              upsize_special_commission:
-                                e.target.value === "" ? null : Number(e.target.value),
-                            })
-                          }
-                          defaultValue={form.upsize_special_commission ?? ""}
-                          disabled={isLoading}
-                        />
-                      </div>
-                      <div>
-                        <FieldLabel
-                          label="Max cap (upsize)"
-                          description="Maximum cap offered to users during the promo. Enter the value already reduced by 30% from the affiliate partner cap."
-                        />
-                        <Input
-                          type="number"
-                          name="upsize_max_cap"
-                          placeholder="e.g. 1000"
-                          onChange={(e) =>
-                            setForm({
-                              ...form,
-                              upsize_max_cap: e.target.value === "" ? null : Number(e.target.value),
-                            })
-                          }
-                          defaultValue={form.upsize_max_cap ?? ""}
-                          disabled={isLoading}
-                        />
-                      </div>
-                    </div>
+                    ) : null}
                   </div>
                 </div>
 
@@ -1244,7 +1466,10 @@ const FormOffer = ({
         </section>
 
         {/* Policy (T&C source) */}
-        <section className="space-y-3 rounded-xl border border-gray-200 bg-gray-50/80 p-4 dark:border-gray-700 dark:bg-gray-800/40">
+        <section
+          id="offer-section-policy"
+          className={`space-y-3 rounded-xl border border-gray-200 bg-gray-50/80 p-4 dark:border-gray-700 dark:bg-gray-800/40 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
+        >
           <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
             Terms &amp; conditions (policy)
           </h4>
@@ -1298,7 +1523,10 @@ const FormOffer = ({
         </section>
 
         {/* Logos & media */}
-        <section className="space-y-4">
+        <section
+          id="offer-section-media"
+          className={`space-y-4 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
+        >
           <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
             Logos & media
           </h4>
@@ -1416,6 +1644,7 @@ const FormOffer = ({
             )}
           </div>
         </section>
+        </>
       </OfferFullscreenCardShell>
     </Modal>
   );

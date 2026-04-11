@@ -80,12 +80,14 @@ export default function OfferCouponDataGrid({ couponDetail, onEditRow }: Props) 
   );
 
   return (
-    <DataGrid
-      rows={rows}
-      columns={columns}
-      initialState={{ pagination: { paginationModel } }}
-      pageSizeOptions={[5, 10]}
-      sx={(muiTheme) => getOfferCouponDataGridSx(muiTheme)}
-    />
+    <div className="w-full min-w-0 overflow-x-auto [-webkit-overflow-scrolling:touch]">
+      <DataGrid
+        rows={rows}
+        columns={columns}
+        initialState={{ pagination: { paginationModel } }}
+        pageSizeOptions={[5, 10]}
+        sx={(muiTheme) => getOfferCouponDataGridSx(muiTheme)}
+      />
+    </div>
   );
 }

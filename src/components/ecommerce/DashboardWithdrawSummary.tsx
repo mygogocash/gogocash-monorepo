@@ -75,6 +75,15 @@ export function DashboardWithdrawSummary() {
         >
           <span className="text-sm font-medium text-warning-800 dark:text-warning-200">
             {pendingCount} pending withdrawal{pendingCount !== 1 ? "s" : ""} need review
+            {displaySummary?.withdrawByStatus?.pending?.oldestAt ? (
+              <span className="mt-0.5 block text-xs font-normal text-warning-700/90 dark:text-warning-300/90">
+                Oldest pending:{" "}
+                {new Date(displaySummary.withdrawByStatus.pending.oldestAt).toLocaleString(undefined, {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })}
+              </span>
+            ) : null}
           </span>
           <ArrowRightIcon className="size-5 shrink-0 text-warning-600 dark:text-warning-400" />
         </Link>

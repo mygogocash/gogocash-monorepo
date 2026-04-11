@@ -9,19 +9,24 @@ interface Option {
 interface SelectProps {
   options: Option[];
   placeholder?: string;
+  /** When false, the placeholder row stays selectable (e.g. "All countries" with value ""). */
+  placeholderDisabled?: boolean;
   onChange: (value: string) => void;
   className?: string;
   defaultValue?: string;
   disabled?: boolean;
+  id?: string;
 }
 
 const Select: React.FC<SelectProps> = ({
   options,
   placeholder = "Select an option",
+  placeholderDisabled = true,
   onChange,
   className = "",
   defaultValue = "",
   disabled = false,
+  id,
 }) => {
   // Manage the selected value
   const [selectedValue, setSelectedValue] = useState<string>(defaultValue);
@@ -38,10 +43,11 @@ const Select: React.FC<SelectProps> = ({
 
   return (
     <select
+      id={id}
       disabled={disabled}
       className={twMerge(
         "shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full appearance-none rounded-lg border border-gray-300 px-4 py-2.5 pr-11 text-sm placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30",
-        selectedValue
+        selectedValue || !placeholderDisabled
           ? "text-gray-800 dark:text-white/90"
           : "text-gray-400 dark:text-gray-400",
         className,
@@ -52,7 +58,7 @@ const Select: React.FC<SelectProps> = ({
       {/* Placeholder option */}
       <option
         value=""
-        disabled
+        disabled={placeholderDisabled}
         className="text-gray-700 dark:bg-gray-900 dark:text-gray-400"
       >
         {placeholder}

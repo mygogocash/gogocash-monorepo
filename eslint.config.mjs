@@ -4,7 +4,16 @@ import eslintConfig from "eslint-config-next/core-web-vitals";
 const config = [
   ...eslintConfig,
   {
-    ignores: [".open-next/**"],
+    ignores: [
+      "**/.next/**",
+      "**/node_modules/**",
+      "**/.open-next/**",
+      "**/.claude/**",
+      "**/dist/**",
+      "**/coverage/**",
+      "**/.turbo/**",
+      "**/out/**",
+    ],
   },
   {
     rules: {

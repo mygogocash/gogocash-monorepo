@@ -37,6 +37,10 @@ import {
   type Offer,
 } from "@/types/api";
 import { DEFAULT_MOCK_ACCESS_TOKEN } from "@/lib/authTokens";
+import {
+  buildDashboardInsights,
+  buildDashboardSummaryExtended,
+} from "@/lib/dashboardInsightsBuilder";
 
 export type MockApiInput = {
   method: string;
@@ -361,23 +365,11 @@ function handleMockGET(
   }
 
   if (joined === "dashboard/summary") {
-    const withdrawByStatus = { pending: { count: 0, total: 0 }, approved: { count: 0, total: 0 }, rejected: { count: 0, total: 0 } };
-    for (const w of mockWithdraws) {
-      const status = (w.status?.toLowerCase() || "pending") as keyof typeof withdrawByStatus;
-      if (withdrawByStatus[status]) {
-        withdrawByStatus[status].count += 1;
-        withdrawByStatus[status].total += Number(w.amount_total) || 0;
-      }
-    }
-    let conversionTotalPayout = 0;
-    for (const c of mockConversions) {
-      conversionTotalPayout += Number(c.payout) || 0;
-    }
-    return ok({
-      conversionCount: mockConversions.length,
-      conversionTotalPayout: Math.round(conversionTotalPayout * 100) / 100,
-      withdrawByStatus,
-    });
+    return ok(buildDashboardSummaryExtended());
+  }
+
+  if (joined === "dashboard/insights") {
+    return ok(buildDashboardInsights(searchParams));
   }
 
   if (joined === "user") {
@@ -599,6 +591,8 @@ function handleMockGET(
       currency: string;
       partnerRates: string[];
       adminCommission: number | null;
+      maxCap: number | null;
+      partnerMaxCap: number | null;
       trackingLink: string;
       appDeeplink: string;
       affiliateNetworkId: string;
@@ -609,6 +603,13 @@ function handleMockGET(
       const nwId = affiliateNetworkIdForOfferId(o._id);
       if (networkFilter && networkFilter !== nwId) continue;
       seen.add(o.merchant_id);
+      const rawPC = o.partner_max_cap;
+      const partnerMaxCapNum =
+        typeof rawPC === "number"
+          ? rawPC
+          : rawPC != null && String(rawPC).trim() !== ""
+            ? Number(rawPC)
+            : NaN;
       data.push({
         id: o._id,
         name: o.offer_name_display || o.offer_name,
@@ -616,6 +617,8 @@ function handleMockGET(
         currency: o.currency,
         partnerRates: o.commissions ?? [],
         adminCommission: o.commission_store,
+        maxCap: o.max_cap ?? null,
+        partnerMaxCap: Number.isFinite(partnerMaxCapNum) ? partnerMaxCapNum : null,
         trackingLink: o.tracking_link,
         appDeeplink:
           commissionAppDeeplinkByOfferId.get(o._id) ??
@@ -868,17 +871,74 @@ async function handleMockPOST(
       const description =
         String(b.description ?? "").trim() ||
         `Created from affiliate feed. Network: ${affiliateNetworkName(networkId)}.`;
+      const entryMode = String(b.commission_entry_mode ?? "manual").trim();
       let commissionStore: number | null = null;
-      if (typeof b.commission_store === "number" && !Number.isNaN(b.commission_store)) {
-        commissionStore = b.commission_store;
-      } else if (typeof b.commission_store === "string" && b.commission_store.trim()) {
-        const n = parseFloat(b.commission_store);
-        commissionStore = Number.isNaN(n) ? null : n;
+      if (entryMode !== "auto") {
+        if (typeof b.commission_store === "number" && !Number.isNaN(b.commission_store)) {
+          commissionStore = b.commission_store;
+        } else if (typeof b.commission_store === "string" && b.commission_store.trim()) {
+          const n = parseFloat(b.commission_store);
+          commissionStore = Number.isNaN(n) ? null : n;
+        }
       }
       const rateLine =
         commissionStore != null && !Number.isNaN(commissionStore)
           ? [`${commissionStore}%`]
           : ["0%"];
+
+      const parseBool = (v: unknown, fallback: boolean): boolean => {
+        if (typeof v === "boolean") return v;
+        if (typeof v === "string") {
+          const s = v.trim().toLowerCase();
+          if (s === "true") return true;
+          if (s === "false") return false;
+        }
+        return fallback;
+      };
+
+      const disabledOffer = parseBool(b.disabled, false);
+      const extraStore = parseBool(b.extra_store, false);
+      const allProductTypes = parseBool(b.all_product_types, true);
+
+      let productTypesParsed: ReturnType<typeof normalizeOfferProductTypes> = [];
+      if (typeof b.product_types === "string" && b.product_types.trim()) {
+        try {
+          productTypesParsed = normalizeOfferProductTypes(JSON.parse(b.product_types) as unknown);
+        } catch {
+          productTypesParsed = [];
+        }
+      }
+
+      let maxCap: number | null = null;
+      if (typeof b.max_cap === "number" && !Number.isNaN(b.max_cap)) {
+        maxCap = b.max_cap;
+      } else if (typeof b.max_cap === "string" && b.max_cap.trim()) {
+        const n = parseFloat(b.max_cap);
+        maxCap = Number.isNaN(n) ? null : n;
+      }
+
+      const noteToUserRaw = String(b.note_to_user ?? "").trim();
+      const noteToUser = noteToUserRaw.length > 0 ? noteToUserRaw : null;
+
+      let offerDisplayTags = normalizeOfferDisplayTags(undefined);
+      if (typeof b.offer_display_tags === "string" && b.offer_display_tags.trim()) {
+        try {
+          offerDisplayTags = normalizeOfferDisplayTags(JSON.parse(b.offer_display_tags) as unknown);
+        } catch {
+          /* keep default */
+        }
+      }
+
+      const customTermsRaw = String(b.custom_terms ?? "").trim();
+      const customTerms = customTermsRaw.length > 0 ? customTermsRaw : null;
+
+      const policyCategoryRaw = String(b.policy_category_id ?? "").trim();
+      const policyCategoryId = policyCategoryRaw.length > 0 ? policyCategoryRaw : null;
+      let activePolicy: string | null = "Shopping";
+      if (policyCategoryId) {
+        const cat = mockCategories.find((c) => c._id === policyCategoryId);
+        activePolicy = cat?.name ?? policyCategoryId;
+      }
 
       const { _id, offer_id, merchant_id } = allocateNewOfferIds();
       const ts = new Date();
@@ -911,17 +971,49 @@ async function handleMockPOST(
         tracking_link: trackingLink,
         tracking_type: "link",
         validation_terms: 30,
-        disabled: false,
+        disabled: disabledOffer,
         commission_store: commissionStore,
-        max_cap: null,
+        max_cap: maxCap,
         partner_max_cap: null,
         banner_mobile: "",
-        extra_store: false,
+        extra_store: extraStore,
         lookup_value: lookup,
         affiliate_partner: affiliateNetworkName(networkId),
         deeplink_store_id: storeId,
-        offer_display_tags: normalizeOfferDisplayTags(undefined),
+        offer_display_tags: offerDisplayTags,
+        all_product_types: allProductTypes,
+        product_types: allProductTypes ? undefined : productTypesParsed.length ? productTypesParsed : undefined,
+        note_to_user: noteToUser,
+        policy_category_id: policyCategoryId,
+        active_policy: activePolicy,
+        custom_terms: customTerms,
       };
+      const pickPath = (key: string) => {
+        const v = b[key];
+        return typeof v === "string" && v.trim().length > 0 ? String(v).trim() : undefined;
+      };
+      const logoDesktopPath = pickPath("logo_desktop");
+      const logoMobilePath = pickPath("logo_mobile");
+      const logoCirclePath = pickPath("logo_circle");
+      const bannerPath = pickPath("banner");
+      const bannerMobilePath = pickPath("banner_mobile");
+      if (logoDesktopPath) {
+        newOffer.logo_desktop = logoDesktopPath;
+        newOffer.logo = logoDesktopPath;
+      }
+      if (logoMobilePath) {
+        newOffer.logo_mobile = logoMobilePath;
+        if (!logoDesktopPath) newOffer.logo = logoMobilePath;
+      }
+      if (logoCirclePath) {
+        newOffer.logo_circle = logoCirclePath;
+      }
+      if (bannerPath) {
+        newOffer.banner = bannerPath;
+      }
+      if (bannerMobilePath) {
+        newOffer.banner_mobile = bannerMobilePath;
+      }
       (mockOffers as unknown as Offer[]).push(newOffer);
       const appDeeplink = String(b.app_deeplink ?? "").trim();
       if (appDeeplink) {
@@ -1061,6 +1153,14 @@ async function handleMockPOST(
       offer.commission_store,
       resolveDeeplinkStoreId(offer),
     );
+    const rawPartnerCap = offer.partner_max_cap;
+    const partnerMaxCapNum =
+      typeof rawPartnerCap === "number"
+        ? rawPartnerCap
+        : rawPartnerCap != null && String(rawPartnerCap).trim() !== ""
+          ? Number(rawPartnerCap)
+          : NaN;
+    const partnerMaxCap = Number.isFinite(partnerMaxCapNum) ? partnerMaxCapNum : null;
     return ok({
       bestRatePercent,
       currency: offer.currency,
@@ -1070,6 +1170,8 @@ async function handleMockPOST(
       offerName: offer.offer_name_display || offer.offer_name,
       affiliateNetworkId,
       affiliateNetworkName: affiliateNetworkName(affiliateNetworkId),
+      partnerMaxCap,
+      adminMaxCap: offer.max_cap ?? null,
     });
   }
 

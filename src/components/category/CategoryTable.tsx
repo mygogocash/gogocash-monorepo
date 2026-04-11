@@ -56,6 +56,12 @@ export default function CategoryTable() {
     setQuery(newQuery);
   };
 
+  const openCategoryQuickView = (offer: ResCategoryList) => {
+    setOpenActionsId(null);
+    setOpenModal(offer);
+    setForm({ image: null, banner: null });
+  };
+
   return (
     <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
       {/* Header */}
@@ -119,7 +125,9 @@ export default function CategoryTable() {
                   {categoryData?.map((offer, index) => (
                     <tr
                       key={offer._id}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-800"
+                      title="Click row for quick view"
+                      className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                      onClick={() => openCategoryQuickView(offer)}
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
                         {index + 1}
@@ -185,15 +193,13 @@ export default function CategoryTable() {
                             </svg>
                           </button>
                           {openActionsId === offer._id && (
-                            <div className="absolute right-0 top-full z-50 mt-1 min-w-[10rem] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800" role="menu">
+                            <div className="absolute left-0 right-auto top-full z-50 mt-1 min-w-[10rem] max-w-[min(18rem,calc(100vw-1.5rem))] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800 sm:left-auto sm:right-0 sm:max-w-none" role="menu">
                               <button
                                 type="button"
                                 role="menuitem"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setOpenModal(offer);
-                                  setForm({ image: null, banner: null });
-                                  setOpenActionsId(null);
+                                  openCategoryQuickView(offer);
                                 }}
                                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
                               >

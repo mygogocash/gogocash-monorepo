@@ -70,6 +70,11 @@ export default function MyCashbackUsersTable() {
     return b ? `${b.amount} ${b.currency}` : "—";
   };
 
+  const openUserCashbackDetail = (id: string) => {
+    setDetailId(id);
+    setDetailOpen(true);
+  };
+
   return (
     <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
       <ViewMyCashback
@@ -155,7 +160,9 @@ export default function MyCashbackUsersTable() {
                     rows.map((u) => (
                       <tr
                         key={u._id}
-                        className="hover:bg-gray-50 dark:hover:bg-gray-800/80"
+                        title="Click row for quick view"
+                        className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/80"
+                        onClick={() => openUserCashbackDetail(u._id)}
                       >
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
                           {u.firstName} {u.lastName}
@@ -189,9 +196,9 @@ export default function MyCashbackUsersTable() {
                         <td className="px-4 py-3 text-right">
                           <button
                             type="button"
-                            onClick={() => {
-                              setDetailId(u._id);
-                              setDetailOpen(true);
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openUserCashbackDetail(u._id);
                             }}
                             className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                           >

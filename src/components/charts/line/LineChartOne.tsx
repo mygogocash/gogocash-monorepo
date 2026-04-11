@@ -20,6 +20,7 @@ export default function LineChartOne() {
     chart: {
       fontFamily: "Outfit, sans-serif",
       height: 310,
+      width: "100%",
       type: "line", // Set the chart type to 'line'
       toolbar: {
         show: false, // Hide chart toolbar
@@ -106,6 +107,20 @@ export default function LineChartOne() {
         },
       },
     },
+    responsive: [
+      {
+        breakpoint: 480,
+        options: {
+          chart: { height: 260 },
+          xaxis: {
+            labels: {
+              rotate: -45,
+              style: { fontSize: "10px" },
+            },
+          },
+        },
+      },
+    ],
   };
 
   const series = [
@@ -119,8 +134,8 @@ export default function LineChartOne() {
     },
   ];
   return (
-    <div className="max-w-full overflow-x-auto custom-scrollbar">
-      <div id="chartEight" className="min-w-[1000px]">
+    <div className="w-full min-w-0 max-w-full">
+      <div id="chartEight" className="w-full min-w-0">
         <ReactApexChart
           options={options}
           series={series}
