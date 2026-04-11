@@ -183,7 +183,7 @@ export default async function SupportPage(props: DefaultAppPageProps) {
               11. Fee
             </h2>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Under the sidebar <strong>Fee</strong> section, open <strong>Fee rate</strong> to configure system fee (%), withdrawal fees (THB / USD), and minimum withdrawal amounts. These apply when users request withdrawals; keep them aligned with how you process requests in Withdraw management.
+              Under the sidebar <strong>Fee</strong> section, open <strong>Fee Structure</strong> to configure system fee (%), withdrawal fees (THB / USD), and minimum withdrawal amounts. These apply when users request withdrawals; keep them aligned with how you process requests in Withdraw management.
             </p>
           </section>
 

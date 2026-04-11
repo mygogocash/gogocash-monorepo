@@ -173,55 +173,104 @@ export default function WithdrawTable() {
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
-      {/* Header */}
-      <div className="flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-        <div className="shrink-0">
-          <h3 className="text-base font-medium text-gray-800 dark:text-white/90">
-            Lists
-          </h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Total: {pagination.total}
-          </p>
-        </div>
-        <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-3">
-          <label className="sr-only" htmlFor="withdraw-filter-status">
-            Filter by status
-          </label>
-          <select
-            id="withdraw-filter-status"
-            value={query.status ?? ""}
-            onChange={(e) => handleStatusFilter(e.target.value)}
-            className="h-11 w-full min-w-[9.5rem] shrink-0 rounded-lg border border-gray-200 bg-transparent px-3 py-2 pr-8 text-sm text-gray-800 focus:ring-3 focus:ring-brand-500/20 focus:outline-hidden xl:w-auto dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:focus:ring-brand-400/30"
+      {/* Header — title + count, then one “filter & search” card (same scan pattern as Conversion list) */}
+      <div className="space-y-5 px-4 py-4 sm:px-6 sm:py-5">
+        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h3 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
+              Withdrawal requests
+            </h3>
+            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+              Status and method narrow the list; search matches text in the rows below.
+            </p>
+          </div>
+          <div
+            className="flex shrink-0 items-baseline gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 dark:border-gray-700 dark:bg-gray-800/80"
+            title="Rows matching current filters"
           >
-            {STATUS_FILTER_OPTIONS.map((opt) => (
-              <option key={opt.label} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-          <label className="sr-only" htmlFor="withdraw-filter-method">
-            Filter by method
-          </label>
-          <select
-            id="withdraw-filter-method"
-            value={query.method ?? ""}
-            onChange={(e) => handleMethodFilter(e.target.value)}
-            className="h-11 w-full min-w-[10rem] shrink-0 rounded-lg border border-gray-200 bg-transparent px-3 py-2 pr-8 text-sm text-gray-800 focus:ring-3 focus:ring-brand-500/20 focus:outline-hidden xl:w-auto dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:focus:ring-brand-400/30"
-          >
-            {METHOD_FILTER_OPTIONS.map((opt) => (
-              <option key={opt.label} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-          <input
-            type="text"
-            value={query.search ?? ""}
-            placeholder="Search withdrawals..."
-            onChange={(e) => handleSearch(e.target.value)}
-            className="h-11 w-full rounded-lg border border-gray-200 bg-transparent px-5 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:ring-brand-500/20 focus:outline-hidden xl:w-[300px] dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400 dark:focus:ring-brand-400/30"
-          />
+            <span className="text-2xl font-semibold tabular-nums text-gray-900 dark:text-white">
+              {pagination.total}
+            </span>
+            <span className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              in list
+            </span>
+          </div>
         </div>
+
+        <section className="rounded-xl border border-gray-200 border-l-4 border-l-gray-400 bg-gray-50/90 p-4 pl-5 dark:border-gray-700 dark:border-l-gray-500 dark:bg-gray-900/50">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-white">Filter & search</h4>
+              <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
+                Only changes what you see in the table — nothing is saved automatically.
+              </p>
+            </div>
+            <span className="rounded-md bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-500 ring-1 ring-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:ring-gray-600">
+              List
+            </span>
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12 lg:items-end">
+            <div className="sm:col-span-1 lg:col-span-3">
+              <label
+                htmlFor="withdraw-filter-status"
+                className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-300"
+              >
+                Status
+              </label>
+              <select
+                id="withdraw-filter-status"
+                value={query.status ?? ""}
+                onChange={(e) => handleStatusFilter(e.target.value)}
+                className="h-11 w-full min-w-0 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 shadow-theme-xs dark:border-gray-600 dark:bg-gray-900 dark:text-white/90"
+              >
+                {STATUS_FILTER_OPTIONS.map((opt) => (
+                  <option key={opt.label} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="sm:col-span-1 lg:col-span-3">
+              <label
+                htmlFor="withdraw-filter-method"
+                className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-300"
+              >
+                Payout method
+              </label>
+              <select
+                id="withdraw-filter-method"
+                value={query.method ?? ""}
+                onChange={(e) => handleMethodFilter(e.target.value)}
+                className="h-11 w-full min-w-0 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 shadow-theme-xs dark:border-gray-600 dark:bg-gray-900 dark:text-white/90"
+              >
+                {METHOD_FILTER_OPTIONS.map((opt) => (
+                  <option key={opt.label} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="sm:col-span-2 lg:col-span-6">
+              <label
+                htmlFor="withdraw-search"
+                className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-300"
+              >
+                Search
+              </label>
+              <input
+                id="withdraw-search"
+                type="search"
+                enterKeyHint="search"
+                autoComplete="off"
+                value={query.search ?? ""}
+                placeholder="User, bank, amount, reference…"
+                onChange={(e) => handleSearch(e.target.value)}
+                className="h-11 w-full min-w-0 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-base text-gray-800 placeholder:text-gray-400 shadow-theme-xs focus:ring-3 focus:ring-brand-500/20 focus:outline-hidden sm:text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:placeholder:text-gray-500 dark:focus:ring-brand-400/30"
+              />
+            </div>
+          </div>
+        </section>
       </div>
 
       {/* Content */}
@@ -275,12 +324,14 @@ export default function WithdrawTable() {
                 <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
                   {lists?.data?.map((list, index) => (
                     <tr
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        router.push(`/withdraw/${list.user_id._id}?from=withdraw`);
-                      }}
                       key={list._id}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-800"
+                      title="Click row for quick view"
+                      className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                      onClick={() => {
+                        setOpenActionsId(null);
+                        setOpenModal(list);
+                        setForm({ id: list._id, file: null, status: list.status });
+                      }}
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
                         {index + 1}
@@ -387,7 +438,7 @@ export default function WithdrawTable() {
                             </svg>
                           </button>
                           {openActionsId === list._id && (
-                            <div className="absolute right-0 top-full z-50 mt-1 min-w-[10rem] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800" role="menu">
+                            <div className="absolute left-0 right-auto top-full z-50 mt-1 min-w-[10rem] max-w-[min(18rem,calc(100vw-1.5rem))] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800 sm:left-auto sm:right-0 sm:max-w-none" role="menu">
                               <button
                                 type="button"
                                 role="menuitem"
@@ -400,6 +451,18 @@ export default function WithdrawTable() {
                                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
                               >
                                 {list.status === "pending" ? "Update" : "View"}
+                              </button>
+                              <button
+                                type="button"
+                                role="menuitem"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  router.push(`/withdraw/${list.user_id._id}?from=withdraw`);
+                                  setOpenActionsId(null);
+                                }}
+                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+                              >
+                                User withdrawal history
                               </button>
                             </div>
                           )}

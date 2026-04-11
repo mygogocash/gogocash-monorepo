@@ -88,7 +88,11 @@ export default function PopupHistoryTable() {
               const open = expanded === e.id;
               return (
                 <React.Fragment key={e.id}>
-                  <tr className="hover:bg-gray-50 dark:hover:bg-gray-800/80">
+                  <tr
+                    title={open ? "Click row to hide details" : "Click row to show link details"}
+                    className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/80"
+                    onClick={() => setExpanded(open ? null : e.id)}
+                  >
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-800 dark:text-gray-200">
                       {new Date(e.savedAt).toLocaleString()}
                     </td>
@@ -98,7 +102,10 @@ export default function PopupHistoryTable() {
                     <td className="px-4 py-3 text-right">
                       <button
                         type="button"
-                        onClick={() => setExpanded(open ? null : e.id)}
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          setExpanded(open ? null : e.id);
+                        }}
                         className="text-sm font-medium text-brand-600 hover:underline dark:text-brand-400"
                       >
                         {open ? "Hide" : "View links"}

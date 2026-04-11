@@ -56,7 +56,7 @@ describe("bannerSlotStatus", () => {
       link_5: "",
       start_date: "",
       end_date: "2026-01-01",
-    } as BannerData;
+    } as unknown as BannerData;
 
     const rows = listInactiveBannerSlots(data, REF);
     expect(rows.some((r) => r.slot === 1 && r.reason === "Ended")).toBe(true);

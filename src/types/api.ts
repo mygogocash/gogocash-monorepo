@@ -115,14 +115,233 @@ export interface DashboardStatsResponse {
   mycashbackUsers: number;
 }
 
+export interface DashboardWithdrawStatusBucket {
+  count: number;
+  total: number;
+  /** ISO8601 — oldest pending request (pending only). */
+  oldestAt?: string | null;
+}
+
 export interface DashboardSummaryResponse {
   conversionCount: number;
   conversionTotalPayout: number;
+  /** Sum of sale amounts for conversions in scope (when provided by API). */
+  conversionTotalSaleAmount?: number;
+  period?: { from: string; to: string };
+  lastUpdated?: string;
   withdrawByStatus: {
-    pending: { count: number; total: number };
-    approved: { count: number; total: number };
-    rejected: { count: number; total: number };
+    pending: DashboardWithdrawStatusBucket;
+    approved: DashboardWithdrawStatusBucket;
+    rejected: DashboardWithdrawStatusBucket;
   };
+  priorPeriod?: {
+    conversionCount: number;
+    conversionTotalPayout: number;
+    conversionTotalSaleAmount?: number;
+  };
+}
+
+/** One Apex-style statistics bundle (matches `statisticsChartMockData` shape). */
+export type DashboardStatisticsSeriesName =
+  | "Clicks"
+  | "Conversions"
+  | "Sale Amount"
+  | "Estimated Earnings";
+
+export interface DashboardStatisticsBundle {
+  categories: string[];
+  series: {
+    name: DashboardStatisticsSeriesName;
+    data: number[];
+  }[];
+  description: string;
+}
+
+export type DashboardStatisticsByTab = Record<
+  "day" | "week" | "month" | "quarter" | "year",
+  DashboardStatisticsBundle
+>;
+
+export type DashboardInsightRange = "7d" | "30d" | "90d" | "all";
+
+export interface DashboardKpiSnapshot {
+  gogocashUsers: number;
+  mycashbackUsers: number;
+  conversionCount: number;
+  conversionTotalPayout: number;
+  conversionTotalSaleAmount: number;
+}
+
+export interface DashboardKpiBlock {
+  current: DashboardKpiSnapshot;
+  prior: DashboardKpiSnapshot | null;
+  newUsersInPeriod: number;
+}
+
+export interface DashboardTopOfferRow {
+  offerId: number;
+  offerName: string;
+  merchantId: number;
+  conversions: number;
+  gmv: number;
+  payout: number;
+  currency: string;
+}
+
+export interface DashboardNetworkRow {
+  networkId: string;
+  networkName: string;
+  offersCount: number;
+  conversions: number;
+  gmv: number;
+  payout: number;
+}
+
+export interface DashboardCommissionHealth {
+  missingAdminCap: number;
+  missingPartnerCap: number;
+  adminOverPartner: number;
+}
+
+export type DashboardAlertSeverity = "low" | "medium" | "high";
+
+export interface DashboardAlert {
+  id: string;
+  severity: DashboardAlertSeverity;
+  title: string;
+  body: string;
+  href: string;
+  metric?: string;
+  deltaPct?: number;
+}
+
+export interface DashboardWithdrawMetrics {
+  approvalRatePct: number | null;
+  pendingOver48hCount: number;
+  rejectedSharePct: number | null;
+}
+
+export type DashboardQuestLifecycle = "live" | "scheduled" | "ended";
+
+/** Mock / API funnel — unique users per step (illustrative). */
+export interface DashboardQuestFunnelCounts {
+  viewed: number;
+  joined: number;
+  tasksStarted: number;
+  fullyCompleted: number;
+}
+
+export interface DashboardQuestRow {
+  id: string;
+  status: string;
+  rewardStatus: string;
+  startDate: string;
+  endDate: string;
+  taskCount: number;
+  /** Enrolled users (mock leaderboard size). */
+  participantCount: number;
+  lifecycle: DashboardQuestLifecycle;
+  /** Quest schedule overlaps the dashboard insight window */
+  overlapsSelectedRange: boolean;
+  funnel: DashboardQuestFunnelCounts;
+  activeParticipants: number;
+  pointsIssued: number;
+  taskOfferCount: number;
+  taskMerchantCount: number;
+  conditionalTaskCount: number;
+  /** Conversions attributed to this quest in the insight period (mock heuristic). */
+  attributedConversions: number;
+  attributedGmv: number;
+  attributedPayout: number;
+  /** Promotional surfaces enabled (Facebook / Line / any banner). */
+  channelFacebook: boolean;
+  channelLine: boolean;
+  channelBanner: boolean;
+  /** Days until schedule end; negative after end; null if dates invalid. */
+  daysUntilEnd: number | null;
+}
+
+export interface DashboardQuestEngagementTotals {
+  enrolledInOverlapping: number;
+  activeInOverlapping: number;
+  fullCompletesInOverlapping: number;
+  pointsIssuedInOverlapping: number;
+}
+
+export interface DashboardQuestAttributionTotals {
+  attributedConversionsInPeriod: number;
+  attributedGmvInPeriod: number;
+  attributedPayoutInPeriod: number;
+  /** Attributed conversions as a share of all conversions in the insight period. */
+  shareOfPeriodConversionsPct: number | null;
+}
+
+export interface DashboardQuestTaskMix {
+  offerTasks: number;
+  merchantTasks: number;
+  conditionalTasks: number;
+}
+
+export interface DashboardQuestChannelTotals {
+  questsWithFacebook: number;
+  questsWithLine: number;
+  questsWithBanner: number;
+}
+
+export interface DashboardQuestTimelineBar {
+  id: string;
+  shortId: string;
+  startDate: string;
+  endDate: string;
+  lifecycle: DashboardQuestLifecycle;
+  /** 0–100 where “today” sits in [start,end]; clamped for ended/scheduled. */
+  progressThroughSchedulePct: number;
+}
+
+export interface DashboardQuestLeaderboardRow {
+  rank: number;
+  label: string;
+  points: number;
+}
+
+export interface DashboardQuestMetrics {
+  totalQuests: number;
+  liveNow: number;
+  scheduled: number;
+  ended: number;
+  overlappingSelectedRange: number;
+  totalParticipantsInOverlapping: number;
+  rows: DashboardQuestRow[];
+  engagement: DashboardQuestEngagementTotals;
+  attribution: DashboardQuestAttributionTotals;
+  funnelTotals: DashboardQuestFunnelCounts;
+  taskMix: DashboardQuestTaskMix;
+  channels: DashboardQuestChannelTotals;
+  timeline: DashboardQuestTimelineBar[];
+  /** Preview for the largest overlapping quest by enrollment (mock). */
+  leaderboardPreview: {
+    questId: string;
+    questShortId: string;
+    rows: DashboardQuestLeaderboardRow[];
+  } | null;
+}
+
+export interface DashboardInsightsResponse {
+  lastUpdated: string;
+  range: DashboardInsightRange | string;
+  period: { from: string; to: string };
+  kpis: DashboardKpiBlock;
+  withdrawByStatus: DashboardSummaryResponse["withdrawByStatus"];
+  withdrawMetrics: DashboardWithdrawMetrics;
+  conversionsByStatus: Record<string, number>;
+  payoutRatio: number | null;
+  topOffers: DashboardTopOfferRow[];
+  networkBreakdown: DashboardNetworkRow[];
+  commissionHealth: DashboardCommissionHealth;
+  alerts: DashboardAlert[];
+  insightSummary: string;
+  statistics: DashboardStatisticsByTab;
+  quests: DashboardQuestMetrics;
 }
 
 /** Admin-controlled offer card / listing tags (app merchandising). */
@@ -197,7 +416,12 @@ export function normalizeOfferProductTypes(value: unknown): OfferProductTypeEntr
   });
 }
 
-/** POST `/offer` — create a merchant row from affiliate feed data and optional app tracking link (mock + future API). */
+/**
+ * POST `/offer` — create a merchant row from affiliate feed data and optional app tracking link (mock + future API).
+ * The admin UI submits a `FormData` with string fields plus optional files (`logo_desktop`, `logo_mobile`, `logo_circle`, `banner`, `banner_mobile`).
+ * Additional keys mirror offer edit: `disabled`, `extra_store`, `commission_entry_mode` (`manual`|`auto`), `commission_store` (manual only),
+ * `all_product_types`, `product_types` (JSON array), `max_cap`, `note_to_user`, `offer_display_tags` (JSON), `policy_category_id`, `custom_terms`.
+ */
 export interface CreateBrandFromAffiliatePayload {
   brand_name: string;
   affiliate_network_id: string;
@@ -211,7 +435,7 @@ export interface CreateBrandFromAffiliatePayload {
   /** URL slug segment for `open/offer/{lookup}`; auto-generated if omitted. */
   lookup_value?: string;
   description?: string;
-  /** Shown as partner rate hint; optional. */
+  /** Shown as partner rate hint; optional when `commission_entry_mode` is `manual`. */
   commission_store?: number | null;
 }
 
@@ -293,6 +517,8 @@ export interface OfferRequestForm {
   disabled: boolean;
   max_cap: number | null;
   commission_store: number | null;
+  /** Manual entry vs. derived from partner API with −30% (see Commission Management fetch-best). */
+  commission_entry_mode: "manual" | "auto";
   id: string;
   banner_mobile: File | null;
   /** Top brands toggle (persisted as extra_store). */
@@ -455,6 +681,9 @@ export interface DataConversion {
 }
 
 
+/** Max-cap mode for global or per-region fee rules. */
+export type GlobalMaxCapMode = "percent" | "fixed";
+
 /** Per-country (or territory) withdrawal fee rules; legacy THB/USD columns mirror common pairs. */
 export interface FeeWithdrawRegion {
   id: string;
@@ -464,6 +693,11 @@ export interface FeeWithdrawRegion {
   currency: string;
   feeWithdraw: number;
   minimumWithdraw: number;
+  /** Regional max cap for offers/brands in this market (optional until API returns it). */
+  max_cap_mode?: GlobalMaxCapMode;
+  max_cap_percent?: number;
+  max_cap_amount?: number;
+  max_cap_currency?: string;
 }
 
 export interface ResponseFee {
@@ -479,6 +713,14 @@ export interface ResponseFee {
     fee_withdraw_thb: number;
     /** When present, preferred source for multi-country configuration. */
     withdraw_regions?: FeeWithdrawRegion[];
+    /** Platform-wide max cap mode (optional until API returns it). */
+    global_max_cap_mode?: GlobalMaxCapMode;
+    /** When mode is `percent`, cap as a percentage (e.g. 10 for 10%). */
+    global_max_cap_percent?: number;
+    /** When mode is `fixed`, cap as a monetary amount in `global_max_cap_currency`. */
+    global_max_cap_amount?: number;
+    /** ISO 4217; used when mode is `fixed`. */
+    global_max_cap_currency?: string;
 }
 
 export interface FeeSettingsForm {
@@ -491,4 +733,8 @@ export interface FeeSettingsForm {
     fee_withdraw_usd: number;
     fee_withdraw_thb: number;
     withdraw_regions?: FeeWithdrawRegion[];
+    global_max_cap_mode: GlobalMaxCapMode;
+    global_max_cap_percent: number;
+    global_max_cap_amount: number;
+    global_max_cap_currency: string;
 }

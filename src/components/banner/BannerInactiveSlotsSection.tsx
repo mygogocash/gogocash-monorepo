@@ -1,6 +1,7 @@
 "use client";
 
 import { useQueries } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { fetcher } from "@/lib/axios/client";
 import { BANNER_ADMIN_SURFACE_ORDER, BANNER_ADMIN_SURFACES } from "@/lib/bannerAdminSurfaces";
 import { listInactiveBannerSlots, type InactiveBannerSlotReason } from "@/lib/bannerSlotStatus";
@@ -21,6 +22,7 @@ function inactiveReasonLabel(reason: InactiveBannerSlotReason): string {
 }
 
 export default function BannerInactiveSlotsSection() {
+  const router = useRouter();
   const results = useQueries({
     queries: BANNER_ADMIN_SURFACE_ORDER.map((surfaceId) => {
       const s = BANNER_ADMIN_SURFACES[surfaceId];
@@ -83,7 +85,12 @@ export default function BannerInactiveSlotsSection() {
                   </thead>
                   <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
                     {inactive.map((row) => (
-                      <tr key={row.slot} className="hover:bg-gray-50 dark:hover:bg-gray-800/80">
+                      <tr
+                        key={row.slot}
+                        title="Open banner admin for this surface"
+                        className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/80"
+                        onClick={() => router.push(surface.editHref)}
+                      >
                         <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-900 dark:text-gray-100">
                           {row.slot}
                         </td>
@@ -98,6 +105,7 @@ export default function BannerInactiveSlotsSection() {
                               href={row.link}
                               target="_blank"
                               rel="noopener noreferrer"
+                              onClick={(ev) => ev.stopPropagation()}
                               className="break-all text-brand-600 hover:underline dark:text-brand-400"
                             >
                               {row.link}

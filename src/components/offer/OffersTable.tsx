@@ -35,6 +35,23 @@ import { useRouter } from "next/navigation";
 import Select from "../form/Select";
 import { OFFER_THUMB_SIZES } from "./offerMedia";
 
+const OFFERS_COUNTRY_FILTER_OPTIONS = [
+  { label: "\uD83C\uDDF9\uD83C\uDDED Thailand", value: "Thailand" },
+  { label: "\uD83C\uDDEE\uD83C\uDDE9 Indonesia", value: "Indonesia" },
+  { label: "\uD83C\uDDFB\uD83C\uDDF3 Vietnam", value: "Vietnam" },
+  { label: "\uD83C\uDDF5\uD83C\uDDED Philippines", value: "Philippines" },
+  { label: "\uD83C\uDDEE\uD83C\uDDF3 India", value: "India" },
+  { label: "\uD83C\uDDF2\uD83C\uDDFE Malaysia", value: "Malaysia" },
+  { label: "\uD83C\uDDE7\uD83C\uDDF7 Brazil", value: "Brazil" },
+  {
+    label: "\uD83C\uDDFA\uD83C\uDDF8 United States of America",
+    value: "United States of America",
+  },
+  { label: "\uD83C\uDDEC\uD83C\uDDE7 United Kingdom", value: "United Kingdom" },
+  { label: "\uD83C\uDDF8\uD83C\uDDEC Singapore", value: "Singapore" },
+  { label: "\uD83C\uDDF2\uD83C\uDDF2 Myanmar", value: "Myanmar" },
+];
+
 function displayAffiliatePartner(offer: Offer): string {
   const raw = offer.affiliate_partner?.trim();
   if (raw) return raw;
@@ -52,6 +69,7 @@ function offerToEditForm(offer: Offer): OfferRequestForm {
     disabled: offer.disabled,
     max_cap: offer.max_cap,
     commission_store: offer.commission_store,
+    commission_entry_mode: "manual",
     banner_mobile: null,
     extra_store: offer.extra_store || false,
     upsize_start_date: offer.upsize_start_date ?? null,
@@ -86,6 +104,7 @@ export default function OffersTable() {
     disabled: false,
     max_cap: null,
     commission_store: null,
+    commission_entry_mode: "manual",
     id: "",
     banner_mobile: null,
     extra_store: false,
@@ -212,67 +231,102 @@ export default function OffersTable() {
         setIsLoading={setIsLoading}
       />
 
-      <div className="flex items-center justify-between px-6 py-5">
-        <div>
-          <h3 className="text-base font-medium text-gray-800 dark:text-white/90">
-            Offers
-          </h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Total: {pagination.total} offers
-          </p>
-        </div>
-        <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-3 lg:gap-4 xl:flex-nowrap">
-          <Link
-            href="/offers/create-brand"
-            className="shadow-theme-xs flex w-full min-w-[130px] items-center justify-center gap-2 rounded-full border border-brand-500/40 bg-brand-500/10 px-4 py-3 text-sm font-medium text-brand-700 hover:bg-brand-500/15 lg:inline-flex lg:w-auto dark:border-brand-400/30 dark:bg-brand-500/15 dark:text-brand-200 dark:hover:bg-brand-500/25"
-          >
-            Create brand
-          </Link>
-          <button
-            type="button"
-            onClick={() => updateListMutation.mutate()}
-            disabled={updateListMutation.isPending}
-            className="shadow-theme-xs flex w-full min-w-[130px] items-center justify-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-800 lg:inline-flex lg:w-auto dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] dark:hover:text-gray-200"
-          >
-            Update Offer
-          </button>
-          <div className="flex min-w-0 w-full flex-nowrap items-center gap-3 sm:w-auto sm:max-w-none sm:flex-initial">
-            <input
-              type="text"
-              placeholder="Search offers..."
-              onChange={(e) => handleSearch(e.target.value)}
-              className="h-11 min-w-0 flex-1 rounded-lg border border-gray-200 bg-transparent px-5 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:ring-brand-500/20 focus:outline-hidden sm:flex-none sm:w-[min(100%,280px)] xl:w-[300px] dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400 dark:focus:ring-brand-400/30"
-            />
-            <Select
-              className="w-[min(100%,220px)] shrink-0 sm:w-[200px]"
-              options={[
-                { label: "All", value: "" },
-                { label: "🇹🇭 Thailand", value: "Thailand" },
-                { label: "🇮🇩 Indonesia", value: "Indonesia" },
-                { label: "🇻🇳 Vietnam", value: "Vietnam" },
-                { label: "🇵🇭 Philippines", value: "Philippines" },
-                { label: "🇮🇳 India", value: "India" },
-                { label: "🇲🇾 Malaysia", value: "Malaysia" },
-                { label: "🇧🇷 Brazil", value: "Brazil" },
-                {
-                  label: "🇺🇸 United States of America",
-                  value: "United States of America",
-                },
-                { label: "🇬🇧 United Kingdom", value: "United Kingdom" },
-                { label: "🇸🇬 Singapore", value: "Singapore" },
-                { label: "🇲🇲 Myanmar", value: "Myanmar" },
-              ]}
-              placeholder="Select country"
-              onChange={(e) => {
-                setQuery((q) => ({ ...q, country: e, page: 1 }));
-              }}
-            />
+      <div className="border-b border-gray-100 px-4 py-5 sm:px-6 dark:border-gray-800">
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between lg:gap-10">
+            <div className="min-w-0 shrink-0 lg:max-w-md">
+              <h3 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
+                Offers
+              </h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-gray-600 dark:text-gray-400">
+                <span className="font-semibold tabular-nums text-gray-800 dark:text-gray-200">
+                  {pagination.total.toLocaleString()}
+                </span>{" "}
+                offers
+                {pagination.totalPages > 1 ? (
+                  <span className="text-gray-500 dark:text-gray-500">
+                    {" "}
+                    · Page {pagination.page} of {pagination.totalPages}
+                  </span>
+                ) : null}
+              </p>
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-500">
+                Add a new merchant line or filter the table below. Sync pulls the latest list from the feed.
+              </p>
+            </div>
+
+            <div className="flex w-full min-w-0 flex-col lg:w-auto lg:shrink-0">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                Actions
+              </p>
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-stretch">
+                <Link
+                  href="/offers/create-brand"
+                  className="inline-flex min-h-11 items-center justify-center rounded-full bg-brand-500 px-5 py-2.5 text-center text-sm font-medium text-white shadow-theme-xs transition-colors hover:bg-brand-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500"
+                >
+                  Create brand
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => updateListMutation.mutate()}
+                  disabled={updateListMutation.isPending}
+                  title="Re-fetch offers from the affiliate feed and refresh this list"
+                  className="inline-flex min-h-11 items-center justify-center rounded-full border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-800 shadow-theme-xs transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700/80"
+                >
+                  {updateListMutation.isPending ? "Syncing…" : "Sync offer list"}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="w-full min-w-0 rounded-xl border border-gray-200 bg-gray-50/90 p-4 sm:p-5 dark:border-gray-700 dark:bg-gray-900/50">
+            <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              Find offers
+            </p>
+            <div className="grid w-full min-w-0 grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_220px] sm:items-start">
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <label
+                  htmlFor="offers-toolbar-search"
+                  className="text-xs font-medium text-gray-600 dark:text-gray-400"
+                >
+                  Search
+                </label>
+                <input
+                  id="offers-toolbar-search"
+                  type="search"
+                  autoComplete="off"
+                  placeholder="Name, partner, or offer ID…"
+                  value={query.search}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  className="h-11 w-full min-w-0 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/15 dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:placeholder:text-gray-500 dark:focus:border-brand-700 dark:focus:ring-brand-400/20"
+                />
+              </div>
+              <div className="flex min-w-0 w-full flex-col gap-1.5">
+                <label
+                  htmlFor="offers-toolbar-country"
+                  className="text-xs font-medium text-gray-600 dark:text-gray-400"
+                >
+                  Country
+                </label>
+                <Select
+                  id="offers-toolbar-country"
+                  className="w-full min-w-0"
+                  options={OFFERS_COUNTRY_FILTER_OPTIONS}
+                  placeholder="All countries"
+                  placeholderDisabled={false}
+                  defaultValue={query.country ?? ""}
+                  onChange={(value) => {
+                    setQuery((q) => ({ ...q, country: value, page: 1 }));
+                  }}
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="border-t border-gray-100 p-4 sm:p-6 dark:border-gray-700 dark:bg-white/[0.02]">
+      <div className="p-4 sm:p-6 dark:bg-white/[0.02]">
         {listErrorMessage ? (
           <div className="mb-4 rounded-lg border border-red-300 bg-red-100 p-3 text-red-700 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400">
             {listErrorMessage}
@@ -515,15 +569,13 @@ export default function OffersTable() {
                       </td>
                       <td className="min-w-0 px-4 py-3 sm:px-6 sm:py-4">
                         <span
-                          className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold break-words ${
-                            offer.tracking_type === "active"
-                              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                              : offer.tracking_type === "expired"
-                                ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-                                : "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200"
+                          className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
+                            offer.disabled
+                              ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                              : "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
                           }`}
                         >
-                          {offer.tracking_type || "Active"}
+                          {offer.disabled ? "Disable" : "Enable"}
                         </span>
                       </td>
                       <td className="relative whitespace-nowrap px-4 py-3 text-sm font-medium sm:px-6 sm:py-4">
@@ -549,7 +601,7 @@ export default function OffersTable() {
                           </button>
                           {openActionsId === offer._id && (
                             <div
-                              className="absolute right-0 top-full z-50 mt-1 min-w-[10rem] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800"
+                              className="absolute left-0 right-auto top-full z-50 mt-1 min-w-[10rem] max-w-[min(18rem,calc(100vw-1.5rem))] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800 sm:left-auto sm:right-0 sm:max-w-none"
                               role="menu"
                             >
                               <button

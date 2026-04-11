@@ -42,7 +42,7 @@ export const navItems: NavItem[] = [
     name: "Users Management",
     subItems: [
       { name: "Users Admin", path: "/admin-users", pro: false },
-      { name: "Users", path: "/users", pro: false },
+      { name: "GoGoCash Users", path: "/users", pro: false },
       { name: "MyCashBack Users", path: "/users/mycashback", pro: false },
     ],
   },
@@ -62,6 +62,11 @@ export const navItems: NavItem[] = [
     icon: <DollarLineIcon />,
     name: "Withdraw Management",
     subItems: [{ name: "Withdraw", path: "/withdraw", pro: false }],
+  },
+  {
+    icon: <PieChartIcon />,
+    name: "Fee",
+    subItems: [{ name: "Fee Structure", path: "/fee", pro: false }],
   },
   {
     icon: <ArrowUpIcon />,
@@ -100,13 +105,8 @@ export const navItems: NavItem[] = [
   },
 ];
 
-export const othersItems: NavItem[] = [
-  {
-    icon: <PieChartIcon />,
-    name: "Fee",
-    subItems: [{ name: "Fee rate", path: "/fee", pro: false }],
-  },
-];
+/** Secondary sidebar group; keep empty until more items belong under "Others". */
+export const othersItems: NavItem[] = [];
 
 type SubItem = NonNullable<NavItem["subItems"]>[number];
 
@@ -364,16 +364,18 @@ export default function AppSidebarContent({ isSubItemActive }: Props) {
               {renderMenuItems(navItems, "main")}
             </div>
 
-            <div className="">
-              <h2
-                className={`mb-4 flex text-xs leading-[20px] text-gray-400 uppercase ${
-                  !isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
-                }`}
-              >
-                {isExpanded || isHovered || isMobileOpen ? "Others" : <HorizontaLDots />}
-              </h2>
-              {renderMenuItems(othersItems, "others")}
-            </div>
+            {othersItems.length > 0 && (
+              <div className="">
+                <h2
+                  className={`mb-4 flex text-xs leading-[20px] text-gray-400 uppercase ${
+                    !isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
+                  }`}
+                >
+                  {isExpanded || isHovered || isMobileOpen ? "Others" : <HorizontaLDots />}
+                </h2>
+                {renderMenuItems(othersItems, "others")}
+              </div>
+            )}
           </div>
         </nav>
       </div>

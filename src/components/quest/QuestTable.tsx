@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Table,
@@ -16,9 +16,15 @@ import Input from "@/components/form/input/InputField";
 import { fetchOffersList, offersListQueryKey } from "@/lib/query/offersQueries";
 import type { Offer, OffersQuery } from "@/types/api";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
+import { MOCK_QUESTS, mockQuestParticipantTotal } from "@/data/mockQuests";
+import type {
+  QuestCompletionLimit,
+  QuestDetails,
+  QuestTaskDisplay,
+  QuestTaskType,
+} from "@/types/questTable";
 
-export type QuestTaskType = "offer" | "merchant";
-export type QuestCompletionLimit = "once" | "multiple";
+export type { QuestDetails, QuestTaskDisplay, QuestTaskType, QuestCompletionLimit };
 export type ConditionOperator = "<" | ">" | "=" | ">=" | "<=";
 export type ConditionMetric = "sale" | "conversion";
 
@@ -61,39 +67,6 @@ const MOCK_MERCHANTS = [
 
 const CONDITION_CURRENCIES = ["THB", "USD", "EUR"] as const;
 
-/** Task summary for display in Quest details (no logo/file fields) */
-export interface QuestTaskDisplay {
-  taskType: QuestTaskType;
-  offerId?: string;
-  merchantId?: string;
-  offerName?: string;
-  merchantName?: string;
-  points: number;
-  completionLimit: QuestCompletionLimit;
-  condition: QuestTaskCondition | null;
-  link: string;
-}
-
-/** Quest with optional links and tasks for details modal */
-export interface QuestDetails extends Record<string, unknown> {
-  id: string;
-  startDate: string;
-  endDate: string;
-  status: string;
-  rewardStatus: string;
-  facebookPage: string;
-  facebookPost: string;
-  line: string;
-  bannerEn: string;
-  bannerTh: string;
-  subBannerEn: string;
-  subBannerTh: string;
-  facebookPageLink?: string;
-  facebookPostLink?: string;
-  lineLink?: string;
-  tasks?: QuestTaskDisplay[];
-}
-
 function formatCondition(c: QuestTaskCondition | null): string {
   if (!c) return "—";
   const metric = c.metric === "sale" ? "Sale" : "Conversion";
@@ -101,6 +74,60 @@ function formatCondition(c: QuestTaskCondition | null): string {
 }
 
 type UserPointRow = { userId: string; email: string; username: string; points: number; rewards: string };
+
+type UserPointsSortKey = "points" | "userId" | "username" | "email" | "rewards";
+
+const USER_POINTS_SORT_OPTIONS: { value: UserPointsSortKey; label: string }[] = [
+  { value: "points", label: "Points" },
+  { value: "userId", label: "User ID" },
+  { value: "username", label: "Username" },
+  { value: "email", label: "Email" },
+  { value: "rewards", label: "Rewards" },
+];
+
+function filterUserPointRows(rows: UserPointRow[], q: string): UserPointRow[] {
+  const s = q.trim().toLowerCase();
+  if (!s) return rows;
+  return rows.filter((r) => {
+    return (
+      r.userId.toLowerCase().includes(s) ||
+      r.username.toLowerCase().includes(s) ||
+      r.email.toLowerCase().includes(s) ||
+      r.rewards.toLowerCase().includes(s) ||
+      String(r.points).includes(s)
+    );
+  });
+}
+
+function sortUserPointRows(
+  rows: UserPointRow[],
+  sort: { key: UserPointsSortKey; dir: "asc" | "desc" },
+): UserPointRow[] {
+  const m = sort.dir === "asc" ? 1 : -1;
+  return [...rows].sort((a, b) => {
+    let v = 0;
+    switch (sort.key) {
+      case "points":
+        v = a.points - b.points;
+        break;
+      case "userId":
+        v = a.userId.localeCompare(b.userId, undefined, { numeric: true, sensitivity: "base" });
+        break;
+      case "username":
+        v = a.username.localeCompare(b.username, undefined, { sensitivity: "base" });
+        break;
+      case "email":
+        v = a.email.localeCompare(b.email, undefined, { sensitivity: "base" });
+        break;
+      case "rewards":
+        v = a.rewards.localeCompare(b.rewards, undefined, { numeric: true, sensitivity: "base" });
+        break;
+      default:
+        v = 0;
+    }
+    return v * m;
+  });
+}
 
 function first5(s: string): string {
   if (s.length <= 5) return s;
@@ -150,72 +177,7 @@ function exportAsExcelXml(rows: UserPointRow[]): string {
 </Workbook>`;
 }
 
-const MOCK_QUESTS: QuestDetails[] = [
-  {
-    id: "699dbee2508fddade48e1710",
-    startDate: "2/1/2026",
-    endDate: "2/28/2026",
-    status: "active",
-    rewardStatus: "claimed",
-    facebookPage: "Yes",
-    facebookPost: "Yes",
-    line: "Yes",
-    bannerEn: "Yes",
-    bannerTh: "Yes",
-    subBannerEn: "Yes",
-    subBannerTh: "Yes",
-    facebookPageLink: "https://facebook.com/gogocash",
-    facebookPostLink: "https://facebook.com/gogocash/posts/quest-feb-2026",
-    lineLink: "https://line.me/R/ti/p/@gogocash",
-    tasks: [
-      {
-        taskType: "offer",
-        offerId: "o1",
-        offerName: "Banana IT TH - CPS",
-        points: 50,
-        completionLimit: "multiple",
-        condition: null,
-        link: "https://www.bananastore.com/th",
-      },
-      {
-        taskType: "offer",
-        offerId: "o2",
-        offerName: "Adidas TH - CPS",
-        points: 75,
-        completionLimit: "once",
-        condition: { operator: ">=", metric: "sale", amount: 100, currency: "THB" },
-        link: "https://www.adidas.co.th",
-      },
-      {
-        taskType: "merchant",
-        merchantId: "m1",
-        merchantName: "Merchant A",
-        points: 25,
-        completionLimit: "multiple",
-        condition: null,
-        link: "https://merchant-a.example.com",
-      },
-    ],
-  },
-  {
-    id: "699dbee2508fddade48e1711",
-    startDate: "3/1/2026",
-    endDate: "3/31/2026",
-    status: "pending",
-    rewardStatus: "pending",
-    facebookPage: "No",
-    facebookPost: "No",
-    line: "No",
-    bannerEn: "No",
-    bannerTh: "No",
-    subBannerEn: "No",
-    subBannerTh: "No",
-  },
-];
-
 const POINTS_PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 500, 0] as const; // 0 = All
-
-const MOCK_POINTS_TOTAL = 1500; // Simulate 1000+ participants for first quest
 
 // Format large numbers with commas for display
 function formatCount(n: number): string {
@@ -225,7 +187,7 @@ function formatCount(n: number): string {
 // Mock user points per quest — supports 1000+ rows; real API would return paginated or full list
 function getMockUserPointsForQuest(questId: string): UserPointRow[] {
   const rewardsOptions = ["—", "25 THB", "50 THB", "75 THB", "80 THB", "90 THB", "100 THB", "120 THB", "140 THB", "150 THB", "200 THB"];
-  const total = questId === MOCK_QUESTS[0].id ? MOCK_POINTS_TOTAL : 20;
+  const total = mockQuestParticipantTotal(questId);
   const rows: UserPointRow[] = [];
   for (let i = 1; i <= total; i++) {
     const points = 50 + (i * 37 + i * i) % 500; // varied points 50–550
@@ -267,6 +229,11 @@ export default function QuestTable() {
   const [pointsModalQuest, setPointsModalQuest] = useState<typeof MOCK_QUESTS[0] | null>(null);
   const [detailsModalQuest, setDetailsModalQuest] = useState<QuestDetails | null>(null);
   const [pointsModalPageSize, setPointsModalPageSize] = useState<number>(10);
+  const [pointsModalSearch, setPointsModalSearch] = useState("");
+  const [pointsSort, setPointsSort] = useState<{ key: UserPointsSortKey; dir: "asc" | "desc" }>({
+    key: "points",
+    dir: "desc",
+  });
   const [exportOpen, setExportOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
@@ -293,14 +260,35 @@ export default function QuestTable() {
 
   const openPointsModal = (q: QuestDetails) => {
     setPointsModalPageSize(10);
+    setPointsModalSearch("");
+    setPointsSort({ key: "points", dir: "desc" });
     setExportOpen(false);
     setPointsModalQuest(q);
   };
 
   const closePointsModal = () => {
     setExportOpen(false);
+    setPointsModalSearch("");
     setPointsModalQuest(null);
   };
+
+  const onPointsSortHeaderClick = useCallback((key: UserPointsSortKey) => {
+    setPointsSort((s) =>
+      s.key === key
+        ? { key, dir: s.dir === "asc" ? "desc" : "asc" }
+        : { key, dir: key === "points" ? "desc" : "asc" },
+    );
+  }, []);
+
+  const pointsModalPrepared = useMemo(() => {
+    if (!pointsModalQuest) return null;
+    const all = getMockUserPointsForQuest(pointsModalQuest.id);
+    const filtered = filterUserPointRows(all, pointsModalSearch);
+    const sorted = sortUserPointRows(filtered, pointsSort);
+    const pageSize = pointsModalPageSize;
+    const display = pageSize === 0 ? sorted : sorted.slice(0, pageSize);
+    return { all, filtered, sorted, display };
+  }, [pointsModalQuest, pointsModalSearch, pointsSort, pointsModalPageSize]);
 
   useEffect(() => {
     if (!exportOpen) return;
@@ -312,8 +300,8 @@ export default function QuestTable() {
   }, [exportOpen]);
 
   const handleExport = (format: "markdown" | "csv" | "excel") => {
-    if (!pointsModalQuest) return;
-    const rows = [...getMockUserPointsForQuest(pointsModalQuest.id)].sort((a, b) => b.points - a.points);
+    if (!pointsModalQuest || !pointsModalPrepared) return;
+    const rows = pointsModalPrepared.sorted;
     const slug = pointsModalQuest.id.slice(-8);
     const questTitle = `Quest ${pointsModalQuest.id} (${pointsModalQuest.startDate} – ${pointsModalQuest.endDate})`;
     if (format === "markdown") {
@@ -362,7 +350,12 @@ export default function QuestTable() {
               </TableHeader>
               <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
                 {quests.map((q) => (
-                  <TableRow key={q.id}>
+                  <TableRow
+                    key={q.id}
+                    title="Click row for quick view"
+                    className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/80"
+                    onClick={() => setDetailsModalQuest(q)}
+                  >
                     <TableCell className="whitespace-nowrap py-3 text-center font-mono text-theme-sm text-gray-800 dark:text-white/90" title={q.id}>
                       <span className="inline-block max-w-full truncate px-1 sm:max-w-[180px]">{q.id}</span>
                     </TableCell>
@@ -375,7 +368,11 @@ export default function QuestTable() {
                       <Badge size="sm" color={q.rewardStatus === "claimed" ? "success" : "warning"}>{q.rewardStatus}</Badge>
                     </TableCell>
                     <TableCell className="whitespace-nowrap py-3 text-center">
-                      <div className="flex flex-wrap items-center justify-center gap-2">
+                      <div
+                        className="flex flex-wrap items-center justify-center gap-2"
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                      >
                         <button
                           type="button"
                           onClick={() => setDetailsModalQuest(q)}
@@ -421,38 +418,104 @@ export default function QuestTable() {
             </div>
           </div>
 
-          {/* Show per page + Export */}
-          <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-gray-100 pb-4 dark:border-gray-700">
-            <div className="flex items-center gap-2">
-              <label htmlFor="points-show" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Show
+          {/* Search + sort / page size / export toolbar */}
+          <div className="mb-4 flex shrink-0 flex-col gap-3 border-b border-gray-100 pb-4 dark:border-gray-700">
+            <div className="min-w-0 flex-1">
+              <label htmlFor="points-search" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Search participants
               </label>
-              <select
-                id="points-show"
-                value={pointsModalPageSize}
-                onChange={(e) => setPointsModalPageSize(Number(e.target.value))}
-                className="h-9 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-              >
-                {POINTS_PAGE_SIZE_OPTIONS.map((n) => (
-                  <option key={n} value={n}>
-                    {n === 0 ? "All" : n}
-                  </option>
-                ))}
-              </select>
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                {pointsModalQuest && (() => {
-                  const total = getMockUserPointsForQuest(pointsModalQuest.id).length;
-                  const showing = pointsModalPageSize === 0 ? total : Math.min(pointsModalPageSize, total);
-                  return `${formatCount(showing)} of ${formatCount(total)}`;
-                })()}
-              </span>
+              <Input
+                id="points-search"
+                type="search"
+                placeholder="User ID, username, email, points, rewards…"
+                value={pointsModalSearch}
+                onChange={(e) => setPointsModalSearch(e.target.value)}
+                className="w-full min-w-0 sm:max-w-xl"
+                autoComplete="off"
+                enterKeyHint="search"
+              />
             </div>
-            <div className="relative" ref={exportRef}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <label htmlFor="points-sort-key" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Sort by
+                  </label>
+                  <select
+                    id="points-sort-key"
+                    value={pointsSort.key}
+                    onChange={(e) => {
+                      const key = e.target.value as UserPointsSortKey;
+                      setPointsSort({ key, dir: key === "points" ? "desc" : "asc" });
+                    }}
+                    className="h-9 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                  >
+                    {USER_POINTS_SORT_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <label htmlFor="points-sort-dir" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Order
+                  </label>
+                  <select
+                    id="points-sort-dir"
+                    value={pointsSort.dir}
+                    onChange={(e) => setPointsSort((s) => ({ ...s, dir: e.target.value as "asc" | "desc" }))}
+                    className="h-9 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                  >
+                    <option value="asc">Ascending</option>
+                    <option value="desc">Descending</option>
+                  </select>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <label htmlFor="points-show" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Show
+                  </label>
+                  <select
+                    id="points-show"
+                    value={pointsModalPageSize}
+                    onChange={(e) => setPointsModalPageSize(Number(e.target.value))}
+                    className="h-9 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                  >
+                    {POINTS_PAGE_SIZE_OPTIONS.map((n) => (
+                      <option key={n} value={n}>
+                        {n === 0 ? "All" : n}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    {pointsModalPrepared
+                      ? (() => {
+                          const { all, filtered, display } = pointsModalPrepared;
+                          const showing = display.length;
+                          const matchTotal = filtered.length;
+                          const allTotal = all.length;
+                          const suffix =
+                            matchTotal !== allTotal || pointsModalSearch.trim()
+                              ? ` matching (${formatCount(allTotal)} total)`
+                              : "";
+                          return `${formatCount(showing)} of ${formatCount(matchTotal)}${suffix}`;
+                        })()
+                      : ""}
+                  </span>
+                </div>
+              </div>
+              <div className="relative shrink-0" ref={exportRef}>
               <button
                 type="button"
                 onClick={() => setExportOpen((o) => !o)}
                 className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600"
-                title={pointsModalQuest ? `Export all ${formatCount(getMockUserPointsForQuest(pointsModalQuest.id).length)} participants` : undefined}
+                title={
+                  pointsModalQuest && pointsModalPrepared
+                    ? pointsModalSearch.trim() || pointsModalPrepared.filtered.length !== pointsModalPrepared.all.length
+                      ? `Export ${formatCount(pointsModalPrepared.sorted.length)} matching participants (current sort & search)`
+                      : `Export all ${formatCount(pointsModalPrepared.all.length)} participants (current sort)`
+                    : undefined
+                }
               >
                 <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -460,10 +523,16 @@ export default function QuestTable() {
                 Export
               </button>
               {exportOpen && (
-                <div className="absolute right-0 top-full z-20 mt-1 min-w-[200px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-700">
-                  {pointsModalQuest && (
+                <div className="absolute left-0 right-auto top-full z-20 mt-1 min-w-[200px] max-w-[min(20rem,calc(100vw-1.5rem))] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-700 sm:left-auto sm:right-0 sm:max-w-none">
+                  {pointsModalQuest && pointsModalPrepared && (
                     <p className="border-b border-gray-100 px-4 py-2 text-xs text-gray-500 dark:border-gray-600 dark:text-gray-400">
-                      Export all {formatCount(getMockUserPointsForQuest(pointsModalQuest.id).length)} participants
+                      Export{" "}
+                      {formatCount(pointsModalPrepared.sorted.length)}{" "}
+                      {pointsModalPrepared.sorted.length === 1 ? "row" : "rows"}
+                      {pointsModalSearch.trim() || pointsModalPrepared.filtered.length !== pointsModalPrepared.all.length
+                        ? ` (search/filter; ${formatCount(pointsModalPrepared.all.length)} total in quest)`
+                        : ""}
+                      . Order matches the table.
                     </p>
                   )}
                   <button type="button" onClick={() => handleExport("markdown")} className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-600">
@@ -479,43 +548,91 @@ export default function QuestTable() {
               )}
             </div>
           </div>
+          </div>
 
           {/* Table — fills remaining space; min-height fits header + 10 rows (py-3 × 11 ≈ 520px) */}
           <div className="min-h-0 min-w-0 flex-1 overflow-auto rounded-lg border border-gray-200 dark:border-gray-600" style={{ minHeight: 520 }}>
             <Table className="min-w-[380px]">
               <TableHeader className="sticky top-0 z-[1] border-b border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-700">
                 <TableRow>
-                  <TableCell isHeader className="py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400">Rank</TableCell>
-                  <TableCell isHeader className="py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400">User ID</TableCell>
-                  <TableCell isHeader className="py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400">Username</TableCell>
-                  <TableCell isHeader className="py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400">Email</TableCell>
-                  <TableCell isHeader className="py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400">Points</TableCell>
-                  <TableCell isHeader className="py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400">Rewards</TableCell>
+                  <TableCell isHeader className="py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400">
+                    Rank
+                  </TableCell>
+                  {(
+                    [
+                      ["User ID", "userId"],
+                      ["Username", "username"],
+                      ["Email", "email"],
+                      ["Points", "points"],
+                      ["Rewards", "rewards"],
+                    ] as const
+                  ).map(([label, sortKey]) => {
+                    const active = pointsSort.key === sortKey;
+                    return (
+                      <TableCell key={sortKey} isHeader className="p-0 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400">
+                        <button
+                          type="button"
+                          onClick={() => onPointsSortHeaderClick(sortKey)}
+                          className="flex w-full items-center justify-center gap-1 px-2 py-3 text-theme-xs font-medium text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-600/50"
+                          title={
+                            active
+                              ? `Sorted ${pointsSort.dir === "asc" ? "ascending" : "descending"}. Click to reverse.`
+                              : "Click to sort"
+                          }
+                        >
+                          <span>{label}</span>
+                          <span className="inline-flex h-4 w-3 flex-col justify-center gap-0 text-[9px] leading-[0.65]" aria-hidden>
+                            <span
+                              className={
+                                active && pointsSort.dir === "asc"
+                                  ? "text-gray-800 dark:text-white"
+                                  : "text-gray-300 dark:text-gray-600"
+                              }
+                            >
+                              {"\u25B2"}
+                            </span>
+                            <span
+                              className={
+                                active && pointsSort.dir === "desc"
+                                  ? "text-gray-800 dark:text-white"
+                                  : "text-gray-300 dark:text-gray-600"
+                              }
+                            >
+                              {"\u25BC"}
+                            </span>
+                          </span>
+                        </button>
+                      </TableCell>
+                    );
+                  })}
                 </TableRow>
               </TableHeader>
               <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
-                {pointsModalQuest &&
-                  (() => {
-                    const all = getMockUserPointsForQuest(pointsModalQuest.id);
-                    const sorted = [...all].sort((a, b) => b.points - a.points);
-                    const display = pointsModalPageSize === 0 ? sorted : sorted.slice(0, pointsModalPageSize);
-                    return display.map((u, index) => (
-                    <TableRow key={u.userId}>
-                      <TableCell className="py-3 text-center text-theme-sm font-medium text-gray-800 dark:text-white/90">{index + 1}</TableCell>
-                      <TableCell className="py-3 text-center font-mono text-theme-sm text-gray-800 dark:text-white/90" title={u.userId}>
-                        {first5(u.userId)}
+                {pointsModalPrepared &&
+                  (pointsModalPrepared.display.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="py-10 text-center text-theme-sm text-gray-500 dark:text-gray-400">
+                        No participants match your search.
                       </TableCell>
-                      <TableCell className="py-3 text-center text-theme-sm text-gray-600 dark:text-gray-300" title={u.username}>
-                        {first5(u.username)}
-                      </TableCell>
-                      <TableCell className="py-3 text-center text-theme-sm text-gray-600 dark:text-gray-300" title={u.email}>
-                        {first5(u.email)}
-                      </TableCell>
-                      <TableCell className="py-3 text-center text-theme-sm font-medium text-gray-800 dark:text-white/90">{u.points}</TableCell>
-                      <TableCell className="py-3 text-center text-theme-sm text-gray-600 dark:text-gray-300">{u.rewards}</TableCell>
                     </TableRow>
-                  ));
-                  })()}
+                  ) : (
+                    pointsModalPrepared.display.map((u, index) => (
+                      <TableRow key={u.userId}>
+                        <TableCell className="py-3 text-center text-theme-sm font-medium text-gray-800 dark:text-white/90">{index + 1}</TableCell>
+                        <TableCell className="py-3 text-center font-mono text-theme-sm text-gray-800 dark:text-white/90" title={u.userId}>
+                          {first5(u.userId)}
+                        </TableCell>
+                        <TableCell className="py-3 text-center text-theme-sm text-gray-600 dark:text-gray-300" title={u.username}>
+                          {first5(u.username)}
+                        </TableCell>
+                        <TableCell className="py-3 text-center text-theme-sm text-gray-600 dark:text-gray-300" title={u.email}>
+                          {first5(u.email)}
+                        </TableCell>
+                        <TableCell className="py-3 text-center text-theme-sm font-medium text-gray-800 dark:text-white/90">{u.points}</TableCell>
+                        <TableCell className="py-3 text-center text-theme-sm text-gray-600 dark:text-gray-300">{u.rewards}</TableCell>
+                      </TableRow>
+                    ))
+                  ))}
               </TableBody>
             </Table>
           </div>

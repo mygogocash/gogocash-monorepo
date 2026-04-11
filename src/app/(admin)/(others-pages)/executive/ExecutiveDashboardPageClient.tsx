@@ -358,7 +358,7 @@ export default function ExecutiveDashboardPageClient() {
               formatY={(n) => fmtUsd(n)}
             />
           </div>
-          <div className="overflow-x-auto rounded-xl border border-gray-200/90 bg-white dark:border-gray-800 dark:bg-gray-900/60">
+          <div className="-mx-3 overflow-x-auto overscroll-x-contain rounded-xl border border-gray-200/90 bg-white px-3 sm:mx-0 sm:px-0 dark:border-gray-800 dark:bg-gray-900/60">
             <table className="w-full min-w-[640px] text-left text-sm">
               <thead className="border-b border-gray-200 bg-gray-50 text-xs font-semibold text-gray-500 uppercase dark:border-gray-800 dark:bg-gray-800/50 dark:text-gray-400">
                 <tr>

@@ -16,6 +16,7 @@ export default function BarChartOne() {
       fontFamily: "Outfit, sans-serif",
       type: "bar",
       height: 180,
+      width: "100%",
       toolbar: {
         show: false,
       },
@@ -88,6 +89,21 @@ export default function BarChartOne() {
         formatter: (val: number) => `${val}`,
       },
     },
+    responsive: [
+      {
+        breakpoint: 480,
+        options: {
+          chart: { height: 220 },
+          plotOptions: { bar: { columnWidth: "55%" } },
+          xaxis: {
+            labels: {
+              rotate: -45,
+              style: { fontSize: "10px" },
+            },
+          },
+        },
+      },
+    ],
   };
   const series = [
     {
@@ -96,8 +112,8 @@ export default function BarChartOne() {
     },
   ];
   return (
-    <div className="max-w-full overflow-x-auto custom-scrollbar">
-      <div id="chartOne" className="min-w-[1000px]">
+    <div className="w-full min-w-0 max-w-full">
+      <div id="chartOne" className="w-full min-w-0">
         <ReactApexChart
           options={options}
           series={series}

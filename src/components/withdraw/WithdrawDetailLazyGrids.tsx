@@ -23,7 +23,7 @@ function rowIdFromWithdrawGridRow(row: Record<string, unknown>): string {
 
 export default function WithdrawDetailDataGrid({ rows, columns }: WithdrawDetailGridProps) {
   return (
-    <div className="w-full overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+    <div className="w-full min-w-0 overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] -mx-4 px-4 sm:mx-0 sm:px-0">
       <DataGrid
         rows={rows}
         columns={columns}

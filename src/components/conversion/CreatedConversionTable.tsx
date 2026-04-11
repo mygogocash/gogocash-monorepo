@@ -172,7 +172,15 @@ export default function CreatedConversionTable() {
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
                   {lists?.data?.map((list, index) => (
-                    <tr key={list.conversion_id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                    <tr
+                      key={list.conversion_id}
+                      title="Click row for quick view"
+                      className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                      onClick={() => {
+                        setOpenActionsId(null);
+                        openUpdateModal(list);
+                      }}
+                    >
                       <td className="whitespace-nowrap px-6 py-4">{index + 1}</td>
                       <td className="whitespace-nowrap px-6 py-4">
                         <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
@@ -239,14 +247,14 @@ export default function CreatedConversionTable() {
                             </svg>
                           </button>
                           {openActionsId === String(list.conversion_id) && (
-                            <div className="absolute right-0 top-full z-50 mt-1 min-w-[10rem] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800" role="menu">
+                            <div className="absolute left-0 right-auto top-full z-50 mt-1 min-w-[10rem] max-w-[min(18rem,calc(100vw-1.5rem))] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800 sm:left-auto sm:right-0 sm:max-w-none" role="menu">
                               <button
                                 type="button"
                                 role="menuitem"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  openUpdateModal(list);
                                   setOpenActionsId(null);
+                                  openUpdateModal(list);
                                 }}
                                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
                               >

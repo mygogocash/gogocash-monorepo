@@ -499,7 +499,7 @@ const WithdrawDetail = () => {
         </div>
 
         {/* Tab content */}
-        <div className="pt-4">
+        <div className="min-w-0 pt-4">
           {activeTab === "user" && (
             <div className="space-y-6 rounded-lg bg-gray-50 p-4 dark:bg-gray-800/50">
               <div>

@@ -6,7 +6,7 @@ import client from "@/lib/axios/client";
 import type { AffiliateNetwork } from "@/data/affiliateNetworks";
 import { isAxiosError } from "axios";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { COMMISSION_MANAGEMENT_BRANDS_ROOT_QUERY_KEY } from "@/lib/query/offersQueries";
 
@@ -17,6 +17,10 @@ export type CommissionBrandRow = {
   currency: string;
   partnerRates: string[];
   adminCommission: number | null;
+  /** Admin-published max cashback cap (bounded by partner rules). */
+  maxCap?: number | null;
+  /** Numeric partner / network cap when the feed exposes an amount. */
+  partnerMaxCap?: number | null;
   trackingLink: string;
   appDeeplink: string;
   affiliateNetworkId: string;
@@ -32,7 +36,23 @@ export type FetchBestResponse = {
   offerName: string;
   affiliateNetworkId: string;
   affiliateNetworkName: string;
+  partnerMaxCap?: number | null;
+  adminMaxCap?: number | null;
 };
+
+function formatMoneyCap(amount: number | null | undefined, currency: string): string {
+  if (amount == null || Number.isNaN(Number(amount))) return "—";
+  const code = (currency || "USD").trim() || "USD";
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: code,
+      maximumFractionDigits: 0,
+    }).format(Number(amount));
+  } catch {
+    return `${amount} ${code}`;
+  }
+}
 
 async function getNetworks(): Promise<{ data: AffiliateNetwork[] }> {
   const { data } = await client.get<{ data: AffiliateNetwork[] }>(
@@ -63,6 +83,8 @@ export default function CommissionManagementClient({
   const [selectedOfferId, setSelectedOfferId] = useState("");
   /** When non-null, user or “fetch best” has overridden the server tracking link for the field. */
   const [deeplinkOverride, setDeeplinkOverride] = useState<string | null>(null);
+  /** Re-run partner “best cashback + caps” whenever merchant or network changes. */
+  const [autoFindBestCashback, setAutoFindBestCashback] = useState(false);
 
   const { data: networksRes, isLoading: networksLoading } = useQuery({
     queryKey: ["commission-management-networks"],
@@ -102,8 +124,17 @@ export default function CommissionManagementClient({
     },
     onSuccess: (data) => {
       setDeeplinkOverride(data.suggestedDeeplink);
+      const capBits: string[] = [];
+      if (data.partnerMaxCap != null) {
+        capBits.push(`partner cap ${formatMoneyCap(data.partnerMaxCap, data.currency)}`);
+      }
+      if (data.adminMaxCap != null) {
+        capBits.push(`admin cap ${formatMoneyCap(data.adminMaxCap, data.currency)}`);
+      }
       toast.success(
-        `Best rate via ${data.affiliateNetworkName}: ${data.bestRatePercent}% (${data.currency})`,
+        `Best cashback ${data.bestRatePercent}% (${data.currency}) via ${data.affiliateNetworkName}${
+          capBits.length ? ` · ${capBits.join(" · ")}` : ""
+        }`,
       );
     },
     onError: (err) => {
@@ -153,6 +184,21 @@ export default function CommissionManagementClient({
     });
   }, [fetchBest, resolvedOfferId, selectedNetworkId]);
 
+  useEffect(
+    () => {
+      if (!autoFindBestCashback) return;
+      if (!resolvedOfferId || !selectedNetworkId) return;
+      if (brandsLoading || networksLoading) return;
+      fetchBest.mutate({
+        offerId: resolvedOfferId,
+        affiliateNetworkId: selectedNetworkId,
+      });
+    },
+    // fetchBest.mutate is stable from useMutation
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [autoFindBestCashback, resolvedOfferId, selectedNetworkId, brandsLoading, networksLoading],
+  );
+
   const onSaveDeeplink = useCallback(() => {
     if (!resolvedOfferId) {
       toast.error("Select a brand / merchant first.");
@@ -183,21 +229,90 @@ export default function CommissionManagementClient({
 
       <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 dark:border-gray-800 dark:bg-white/[0.03]">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-          Best commission &amp; tracking link
+          Best cashback, max cap &amp; tracking link
         </h2>
         <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-          Choose a connected affiliate network, pick a merchant, then fetch the best
-          commission rate for users from that network&apos;s feed. Update the app
-          tracking link when ready. Mock data only; wire your backend to the same
-          routes for production.
+          Pull the strongest partner cashback for the selected merchant, surface the partner&apos;s
+          max cap vs what you publish in-app, then align the GoGoCash tracking link. Turn on
+          auto-optimization to re-run whenever you change network or merchant. Mock data only;
+          wire your backend to the same routes for production.
         </p>
 
-        <div className="mt-6 space-y-4">
-          <div>
-            <p className="mb-2 text-[11px] font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
-              Connected affiliate networks
-            </p>
-            <div className="rounded-xl border border-gray-200 bg-gray-50/90 p-3 dark:border-gray-700 dark:bg-gray-800/50">
+        <div className="mt-6 space-y-6">
+          <div className="rounded-xl border border-brand-200/80 bg-brand-50/60 p-4 sm:p-5 dark:border-brand-800/50 dark:bg-brand-950/30">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-800 dark:text-brand-300">
+                  Auto optimization
+                </p>
+                <p className="mt-1 text-sm text-brand-900/90 dark:text-brand-100/90">
+                  When enabled, we automatically request the best cashback and cap snapshot each time
+                  you switch affiliate network or merchant (same as &quot;Run optimization&quot;).
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={autoFindBestCashback}
+                onClick={() => setAutoFindBestCashback((v) => !v)}
+                className="flex shrink-0 items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900"
+              >
+                <span
+                  className={`relative inline-flex h-7 w-12 shrink-0 rounded-full transition-colors ${
+                    autoFindBestCashback
+                      ? "bg-brand-500"
+                      : "bg-gray-300 dark:bg-gray-600"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 size-6 rounded-full bg-white shadow transition-transform ${
+                      autoFindBestCashback ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </span>
+                <span className="text-left text-sm font-medium text-gray-900 dark:text-gray-100">
+                  Auto-find best cashback
+                </span>
+              </button>
+            </div>
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+              <Button
+                type="button"
+                size="sm"
+                onClick={onFetchBest}
+                disabled={
+                  !resolvedOfferId || !selectedNetworkId || fetchBest.isPending || networksLoading
+                }
+                startIcon={
+                  fetchBest.isPending ? (
+                    <span className="border-t-brand-500 inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-300 dark:border-gray-600" />
+                  ) : null
+                }
+              >
+                Run optimization now
+              </Button>
+              <p className="text-xs text-brand-900/75 dark:text-brand-200/80">
+                Uses the partner feed for the selected network to suggest rate, caps, and app
+                deeplink.
+              </p>
+            </div>
+          </div>
+
+          <details className="rounded-xl border border-gray-200 bg-gray-50/90 open:shadow-theme-xs dark:border-gray-700 dark:bg-gray-800/40">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium text-gray-800 dark:text-gray-200 [&::-webkit-details-marker]:hidden">
+              <span>
+                Connected affiliate networks
+                {!networksLoading && networks.length > 0 ? (
+                  <span className="ml-2 font-normal text-gray-500 dark:text-gray-400">
+                    ({networks.length} configured)
+                  </span>
+                ) : null}
+              </span>
+              <span aria-hidden className="shrink-0 text-gray-400 dark:text-gray-500">
+                &#9662;
+              </span>
+            </summary>
+            <div className="border-t border-gray-200 px-4 py-3 dark:border-gray-700">
               {networksLoading ? (
                 <p className="text-sm text-gray-500 dark:text-gray-400">Loading networks…</p>
               ) : networks.length === 0 ? (
@@ -211,7 +326,9 @@ export default function CommissionManagementClient({
                     >
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-gray-900 dark:text-white">{n.name}</p>
-                        <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">{n.shortDescription}</p>
+                        <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
+                          {n.shortDescription}
+                        </p>
                       </div>
                       <span
                         className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
@@ -227,14 +344,17 @@ export default function CommissionManagementClient({
                 </ul>
               )}
             </div>
-          </div>
+          </details>
 
           <div>
+            <p className="mb-3 text-[11px] font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
+              Merchant scope
+            </p>
             <label
               htmlFor="commission-affiliate-network"
               className="mb-1.5 block text-sm font-medium text-gray-800 dark:text-gray-200"
             >
-              Fetch offers from network
+              Affiliate network (feed source)
             </label>
             <select
               id="commission-affiliate-network"
@@ -295,86 +415,122 @@ export default function CommissionManagementClient({
           </div>
 
           {selected ? (
-            <dl className="grid gap-3 rounded-xl border border-gray-100 bg-gray-50/80 p-4 text-sm sm:grid-cols-2 dark:border-gray-700 dark:bg-gray-800/40">
-              <div>
-                <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                  Affiliate network
-                </dt>
-                <dd className="mt-0.5 text-gray-900 dark:text-gray-100">
-                  {selected.affiliateNetworkName}
-                </dd>
+            <div className="space-y-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                Current merchant snapshot
+              </p>
+              <div className="grid gap-3 rounded-xl border border-brand-200/70 bg-brand-50/40 p-4 sm:grid-cols-2 dark:border-brand-800/50 dark:bg-brand-950/20">
+                <div>
+                  <p className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                    Partner max cap (feed)
+                  </p>
+                  <p className="mt-1 text-base font-semibold tabular-nums text-gray-900 dark:text-white">
+                    {formatMoneyCap(selected.partnerMaxCap ?? null, selected.currency)}
+                  </p>
+                  <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
+                    Ceiling reported by the affiliate partner for this offer.
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                    Max cap in app (admin)
+                  </p>
+                  <p className="mt-1 text-base font-semibold tabular-nums text-gray-900 dark:text-white">
+                    {formatMoneyCap(selected.maxCap ?? null, selected.currency)}
+                  </p>
+                  <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
+                    What users see; should stay within the partner cap.
+                  </p>
+                </div>
               </div>
-              <div>
-                <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                  Partner rates (feed)
-                </dt>
-                <dd className="mt-0.5 text-gray-900 dark:text-gray-100">
-                  {selected.partnerRates?.length
-                    ? selected.partnerRates.join(" · ")
-                    : "—"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                  Admin commission (%)
-                </dt>
-                <dd className="mt-0.5 text-gray-900 dark:text-gray-100">
-                  {selected.adminCommission ?? "—"}
-                </dd>
-              </div>
-              <div className="sm:col-span-2">
-                <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                  Partner tracking link
-                </dt>
-                <dd className="mt-0.5 break-all text-gray-800 dark:text-gray-200">
-                  {selected.trackingLink ? (
-                    <a
-                      href={selected.trackingLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-brand-600 dark:text-brand-400 underline"
-                    >
-                      {selected.trackingLink}
-                    </a>
-                  ) : (
-                    "—"
-                  )}
-                </dd>
-              </div>
-            </dl>
+              <dl className="grid gap-3 rounded-xl border border-gray-100 bg-gray-50/80 p-4 text-sm sm:grid-cols-2 dark:border-gray-700 dark:bg-gray-800/40">
+                <div>
+                  <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                    Affiliate network
+                  </dt>
+                  <dd className="mt-0.5 text-gray-900 dark:text-gray-100">
+                    {selected.affiliateNetworkName}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                    Admin commission (%)
+                  </dt>
+                  <dd className="mt-0.5 text-gray-900 dark:text-gray-100">
+                    {selected.adminCommission ?? "—"}
+                  </dd>
+                </div>
+                <div className="sm:col-span-2">
+                  <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                    Partner rates (feed)
+                  </dt>
+                  <dd className="mt-0.5 text-gray-900 dark:text-gray-100">
+                    {selected.partnerRates?.length
+                      ? selected.partnerRates.join(" · ")
+                      : "—"}
+                  </dd>
+                </div>
+                <div className="sm:col-span-2">
+                  <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                    Partner tracking link
+                  </dt>
+                  <dd className="mt-0.5 break-all text-gray-800 dark:text-gray-200">
+                    {selected.trackingLink ? (
+                      <a
+                        href={selected.trackingLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-brand-600 dark:text-brand-400 underline"
+                      >
+                        {selected.trackingLink}
+                      </a>
+                    ) : (
+                      "—"
+                    )}
+                  </dd>
+                </div>
+              </dl>
+            </div>
           ) : null}
-
-          <div className="flex flex-wrap gap-3">
-            <Button
-              type="button"
-              size="sm"
-              onClick={onFetchBest}
-              disabled={
-                !resolvedOfferId || !selectedNetworkId || fetchBest.isPending || networksLoading
-              }
-              startIcon={
-                fetchBest.isPending ? (
-                  <span className="border-t-brand-500 inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-300 dark:border-gray-600" />
-                ) : null
-              }
-            >
-              Fetch best commission for users
-            </Button>
-          </div>
 
           {lastFetch ? (
             <div className="border-brand-200/80 bg-brand-50/50 dark:border-brand-800/60 dark:bg-brand-950/25 rounded-xl border border-dashed p-4">
               <p className="text-brand-900 dark:text-brand-100 text-sm font-semibold">
-                Result · {lastFetch.offerName}
+                Latest optimization · {lastFetch.offerName}
               </p>
-              <ul className="text-brand-900/90 dark:text-brand-100/90 mt-2 space-y-1 text-sm">
+              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-lg border border-brand-200/60 bg-white/80 p-3 dark:border-brand-800/40 dark:bg-gray-900/40">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-brand-800 dark:text-brand-300">
+                    Best cashback
+                  </p>
+                  <p className="mt-1 text-lg font-semibold tabular-nums text-brand-900 dark:text-brand-50">
+                    {lastFetch.bestRatePercent}%
+                    <span className="ml-1 text-sm font-normal text-brand-800/80 dark:text-brand-200/80">
+                      {lastFetch.currency}
+                    </span>
+                  </p>
+                </div>
+                <div className="rounded-lg border border-brand-200/60 bg-white/80 p-3 dark:border-brand-800/40 dark:bg-gray-900/40">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-brand-800 dark:text-brand-300">
+                    Partner max cap
+                  </p>
+                  <p className="mt-1 text-lg font-semibold tabular-nums text-brand-900 dark:text-brand-50">
+                    {formatMoneyCap(lastFetch.partnerMaxCap ?? null, lastFetch.currency)}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-brand-200/60 bg-white/80 p-3 dark:border-brand-800/40 dark:bg-gray-900/40">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-brand-800 dark:text-brand-300">
+                    Admin max cap
+                  </p>
+                  <p className="mt-1 text-lg font-semibold tabular-nums text-brand-900 dark:text-brand-50">
+                    {formatMoneyCap(lastFetch.adminMaxCap ?? null, lastFetch.currency)}
+                  </p>
+                </div>
+              </div>
+              <ul className="text-brand-900/90 dark:text-brand-100/90 mt-3 space-y-1 text-sm">
                 <li>
                   <span className="font-medium">Network: </span>
                   {lastFetch.affiliateNetworkName}
-                </li>
-                <li>
-                  <span className="font-medium">Best rate for users: </span>
-                  {lastFetch.bestRatePercent}% ({lastFetch.currency})
                 </li>
                 <li>
                   <span className="font-medium">Tracking model: </span>
@@ -388,8 +544,7 @@ export default function CommissionManagementClient({
                 </li>
               </ul>
               <p className="text-brand-800/80 dark:text-brand-200/80 mt-2 text-xs">
-                Suggested app tracking link is filled below — edit if needed, then
-                save.
+                Suggested app tracking link is filled below — edit if needed, then save.
               </p>
             </div>
           ) : null}

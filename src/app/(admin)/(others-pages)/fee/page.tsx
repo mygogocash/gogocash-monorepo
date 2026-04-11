@@ -11,7 +11,7 @@ export default async function FeePage(props: DefaultAppPageProps) {
   await awaitPageDynamicProps(props);
   return (
     <div>
-      <PageBreadcrumb pageTitle="Fee" />
+      <PageBreadcrumb pageTitle="Fee Structure" />
       <div className="space-y-6">
         <FeeForm />
       </div>
