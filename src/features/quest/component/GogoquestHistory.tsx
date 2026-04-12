@@ -342,7 +342,13 @@ export default function GogoquestHistory() {
                     "sm:w-auto sm:min-w-[7.5rem] sm:flex-1"
                   )}
                 >
-                  <QuestIcon width={22} height={22} fill="currentColor" className="shrink-0" aria-hidden />
+                  <QuestIcon
+                    width={22}
+                    height={22}
+                    fill="currentColor"
+                    className="shrink-0"
+                    aria-hidden
+                  />
                   <span className="truncate">{t("gogoquestHistoryViewQuestHubShort")}</span>
                 </Link>
                 <Link
@@ -356,8 +362,16 @@ export default function GogoquestHistory() {
                     "sm:w-auto sm:min-w-[7.5rem] sm:flex-1"
                   )}
                 >
-                  <ShopIcon width={20} height={20} fill="#ffffff" className="shrink-0" aria-hidden />
-                  <span className="truncate text-white">{t("gogoquestHistoryPlanCtaBrowseShort")}</span>
+                  <ShopIcon
+                    width={20}
+                    height={20}
+                    fill="#ffffff"
+                    className="shrink-0"
+                    aria-hidden
+                  />
+                  <span className="truncate text-white">
+                    {t("gogoquestHistoryPlanCtaBrowseShort")}
+                  </span>
                 </Link>
               </div>
             </div>

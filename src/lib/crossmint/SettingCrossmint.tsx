@@ -1,5 +1,9 @@
 "use client";
-import { CrossmintAuthProvider, CrossmintProvider } from "@crossmint/client-sdk-react-ui";
+import {
+  CrossmintAuthProvider,
+  CrossmintProvider,
+  CrossmintWalletProvider,
+} from "@crossmint/client-sdk-react-ui";
 import { ReactNode, memo, useEffect } from "react";
 import { env } from "@/env";
 import { shouldUseMockApi } from "@/lib/env";
@@ -31,17 +35,12 @@ const SettingCrossmint = ({ children }: { children: ReactNode }) => {
   return (
     <CrossmintProvider key={version} apiKey={clientSecret}>
       <CrossmintAuthProvider
-        embeddedWallets={{
-          type: "evm-smart-wallet",
-          createOnLogin: "all-users",
-          defaultChain: "polygon",
-        }}
         onLoginSuccess={() => {
           window.sessionStorage.setItem("isAfterLogin", "true");
         }}
-        loginMethods={["email", "google", "twitter", "web3"]}
+        loginMethods={["email", "google", "twitter"]}
       >
-        {children}
+        <CrossmintWalletProvider>{children}</CrossmintWalletProvider>
       </CrossmintAuthProvider>
     </CrossmintProvider>
   );

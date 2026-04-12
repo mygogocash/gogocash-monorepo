@@ -69,7 +69,9 @@ export default function PdpaDataRightsSection() {
         {t("pdpaSectionExport")} &amp; {t("pdpaSectionDelete")}
       </h3>
       <div className="grid gap-4 md:gap-6 lg:grid-cols-2 lg:gap-8">
-        <div className={`flex h-full flex-col rounded-2xl border border-[#e4e4e4] bg-white shadow-sm ${cardPad}`}>
+        <div
+          className={`flex h-full flex-col rounded-2xl border border-[#e4e4e4] bg-white shadow-sm ${cardPad}`}
+        >
           <div className="mb-3 flex items-center gap-2.5 text-[#00AA80] md:mb-4 md:gap-3">
             <DownloadRoundedIcon sx={{ fontSize: { xs: 24, md: 26 } }} aria-hidden />
             <Typography
@@ -105,7 +107,9 @@ export default function PdpaDataRightsSection() {
           </Typography>
         </div>
 
-        <div className={`flex h-full flex-col rounded-2xl border border-[#f0e6d6] bg-[#fffaf5] shadow-sm ${cardPad}`}>
+        <div
+          className={`flex h-full flex-col rounded-2xl border border-[#f0e6d6] bg-[#fffaf5] shadow-sm ${cardPad}`}
+        >
           <div className="mb-3 flex items-center gap-2.5 text-[#c45c00] md:mb-4 md:gap-3">
             <DeleteOutlineRoundedIcon sx={{ fontSize: { xs: 24, md: 26 } }} aria-hidden />
             <Typography

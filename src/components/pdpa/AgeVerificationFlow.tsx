@@ -68,7 +68,11 @@ export default function AgeVerificationFlow() {
           >
             {t("pdpaAgeVerifyTitle")}
           </Typography>
-          <Typography variant="body2" color="text.secondary" className="max-w-prose leading-relaxed">
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            className="max-w-prose leading-relaxed"
+          >
             {t("pdpaAgeVerifyBody")}
           </Typography>
           <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-stretch">
@@ -106,7 +110,13 @@ export default function AgeVerificationFlow() {
               {t("pdpaAgeVerifySubmit")}
             </Button>
           </div>
-          <Typography id="pdpa-age-verify-hint" variant="caption" color="text.secondary" component="p" className="m-0">
+          <Typography
+            id="pdpa-age-verify-hint"
+            variant="caption"
+            color="text.secondary"
+            component="p"
+            className="m-0"
+          >
             {t("pdpaAgeVerifyHint")}
           </Typography>
         </div>

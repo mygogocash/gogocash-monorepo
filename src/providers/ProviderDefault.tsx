@@ -53,7 +53,8 @@ const ProviderDefault = ({ children }: { children: React.ReactNode }) => {
                     {children}
                     <Toaster
                       containerStyle={{
-                        bottom: "calc(var(--gc-mobile-nav-clearance, 0px) + var(--gc-safe-bottom, 0px) + 8px)",
+                        bottom:
+                          "calc(var(--gc-mobile-nav-clearance, 0px) + var(--gc-safe-bottom, 0px) + 8px)",
                       }}
                     />
                   </CrossmintLoginContext>

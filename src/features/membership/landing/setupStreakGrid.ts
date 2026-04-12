@@ -3,10 +3,7 @@ type StreakGridI18n = {
   streakFmt: (done: number, ptsTotal: number) => string;
 };
 
-export function setupStreakGrid(
-  rootEl: HTMLElement,
-  i18n: StreakGridI18n | undefined
-): () => void {
+export function setupStreakGrid(rootEl: HTMLElement, i18n: StreakGridI18n | undefined): () => void {
   const grid = rootEl.querySelector<HTMLElement>("#streak-grid");
   const resetBtn = rootEl.querySelector("#streak-reset");
   if (!grid) return () => {};

@@ -161,6 +161,8 @@ const nextConfig: NextConfig = {
         https: false,
         zlib: false,
         url: false,
+        /** MetaMask SDK (Crossmint v4 / Dynamic) optional RN peer — not used on web. */
+        "@react-native-async-storage/async-storage": false,
       },
     };
 

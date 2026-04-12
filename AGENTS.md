@@ -13,28 +13,28 @@ Concise guidance for AI coding agents and contributors. **Deep architecture and 
 
 ## Where to start (by task)
 
-| Area | Good entry points |
-| ---- | ------------------- |
-| App shell & providers | `src/app/layout.tsx`, `src/providers/ProviderDefault.tsx` |
-| HTTP + tokens | `src/lib/axios/client.ts` |
-| Firebase auth / NextAuth | `src/lib/authFirebase.ts`, `src/app/api/auth/[...nextauth]/route.ts` |
-| Login UI | `src/features/auth/component/LoginComponent.tsx`, `src/hooks/useFirebaseLogin.ts` |
-| Crossmint wrapper | `src/lib/crossmint/SettingCrossmint.tsx`, `src/hooks/useSafeCrossmint.ts`, `src/hooks/useCrossmintLogin.ts` |
-| Feature UI | `src/features/*`, shared pieces under `src/components/*` |
-| Profile nav (sidebar / SubPage rail) | `src/components/layouts/SubProfile.tsx`, `src/features/profile/layout/SubPage.tsx`, `src/features/profile/component/ProfileMenu.tsx` (mobile prefetch list) |
-| Profile personal info | `src/features/profile/component/ProfileDesktopPersonalPanel.tsx`, `ProfileInfo.tsx` |
-| PDPA consent UI (Consent preferences) | `src/components/pdpa/PrivacyCenterContent.tsx` — route `/privacy-center`; sidebar label key `navPrivacyPolicy` |
-| Age verification | `src/components/pdpa/AgeVerificationFlow.tsx`, `src/app/[locale]/(profile)/age-verification/`; API `POST /api/pdpa/guardian/verify` |
-| PDPA data export / account deletion | `src/components/pdpa/PdpaDataRightsSection.tsx` (embedded under Personal Information, below social links) |
-| Integrated profile shell routes | `src/lib/navigation/profileIntegratedShell.ts` (+ tests) — keep in sync when adding profile-hub pages (e.g. `/age-verification`) |
-| SubPage title keys | `src/features/profile/layout/subPageMessageKeys.ts` |
-| Membership landing | `docs/membership.md`, `docs/membership-hero-content.md`, `src/features/membership/*`, `useMembershipLanding.ts` |
-| Stripe checkout / portal | `src/app/api/stripe/checkout/route.ts`, `src/app/api/stripe/portal/route.ts`, `src/lib/stripe/handleStripeWebhook.ts` |
-| Stripe webhooks | **Canonical:** `POST /api/webhooks/stripe` (`src/app/api/webhooks/stripe/route.ts`). `POST /api/stripe/webhook` is deprecated but still relays the same handler. |
-| Pricing / billing UI | `src/features/subscription/*`; profile routes under `(profile)/pricing`, `(profile)/billing`, `(profile)/membership` |
-| Feature flags | `src/constants/featureFlags.ts` |
-| Env schema | `src/env.ts`, `.env.example` |
-| Firebase App Hosting | `firebase.json`, `apphosting.yaml`, `npm run deploy:firebase` |
+| Area                                  | Good entry points                                                                                                                                                |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| App shell & providers                 | `src/app/layout.tsx`, `src/providers/ProviderDefault.tsx`                                                                                                        |
+| HTTP + tokens                         | `src/lib/axios/client.ts`                                                                                                                                        |
+| Firebase auth / NextAuth              | `src/lib/authFirebase.ts`, `src/app/api/auth/[...nextauth]/route.ts`                                                                                             |
+| Login UI                              | `src/features/auth/component/LoginComponent.tsx`, `src/hooks/useFirebaseLogin.ts`                                                                                |
+| Crossmint wrapper                     | `src/lib/crossmint/SettingCrossmint.tsx`, `src/hooks/useSafeCrossmint.ts`, `src/hooks/useCrossmintLogin.ts`                                                      |
+| Feature UI                            | `src/features/*`, shared pieces under `src/components/*`                                                                                                         |
+| Profile nav (sidebar / SubPage rail)  | `src/components/layouts/SubProfile.tsx`, `src/features/profile/layout/SubPage.tsx`, `src/features/profile/component/ProfileMenu.tsx` (mobile prefetch list)      |
+| Profile personal info                 | `src/features/profile/component/ProfileDesktopPersonalPanel.tsx`, `ProfileInfo.tsx`                                                                              |
+| PDPA consent UI (Consent preferences) | `src/components/pdpa/PrivacyCenterContent.tsx` — route `/privacy-center`; sidebar label key `navPrivacyPolicy`                                                   |
+| Age verification                      | `src/components/pdpa/AgeVerificationFlow.tsx`, `src/app/[locale]/(profile)/age-verification/`; API `POST /api/pdpa/guardian/verify`                              |
+| PDPA data export / account deletion   | `src/components/pdpa/PdpaDataRightsSection.tsx` (embedded under Personal Information, below social links)                                                        |
+| Integrated profile shell routes       | `src/lib/navigation/profileIntegratedShell.ts` (+ tests) — keep in sync when adding profile-hub pages (e.g. `/age-verification`)                                 |
+| SubPage title keys                    | `src/features/profile/layout/subPageMessageKeys.ts`                                                                                                              |
+| Membership landing                    | `docs/membership.md`, `docs/membership-hero-content.md`, `src/features/membership/*`, `useMembershipLanding.ts`                                                  |
+| Stripe checkout / portal              | `src/app/api/stripe/checkout/route.ts`, `src/app/api/stripe/portal/route.ts`, `src/lib/stripe/handleStripeWebhook.ts`                                            |
+| Stripe webhooks                       | **Canonical:** `POST /api/webhooks/stripe` (`src/app/api/webhooks/stripe/route.ts`). `POST /api/stripe/webhook` is deprecated but still relays the same handler. |
+| Pricing / billing UI                  | `src/features/subscription/*`; profile routes under `(profile)/pricing`, `(profile)/billing`, `(profile)/membership`                                             |
+| Feature flags                         | `src/constants/featureFlags.ts`                                                                                                                                  |
+| Env schema                            | `src/env.ts`, `.env.example`                                                                                                                                     |
+| Firebase App Hosting                  | `firebase.json`, `apphosting.yaml`, `npm run deploy:firebase`                                                                                                    |
 
 ## Firebase App Hosting (staging / UAT)
 

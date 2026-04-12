@@ -103,8 +103,10 @@ export async function getUserSubscription(): Promise<SubscriptionState> {
       };
     }
 
-    const priceId = pick.items.data[0]?.price?.id;
-    const periodEndSec = pick.current_period_end;
+    const firstItem = pick.items.data[0];
+    const priceId = firstItem?.price?.id;
+    /** Stripe SDK v22+ types period fields on subscription items, not the subscription root. */
+    const periodEndSec = firstItem?.current_period_end;
     return {
       status: mapStripeSubscriptionStatus(pick.status),
       planId: planIdFromPriceId(priceId),

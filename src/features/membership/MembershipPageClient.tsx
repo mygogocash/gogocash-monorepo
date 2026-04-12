@@ -183,7 +183,9 @@ export default function MembershipPageClient() {
             <div className="container">
               <div className="section-head section-head--pricing">
                 <h2 className="section-title">{t("pricingSectionTitle")}</h2>
-                <p className="section-subtitle pricing-section-subtitle">{t("pricingSectionSubtitle")}</p>
+                <p className="section-subtitle pricing-section-subtitle">
+                  {t("pricingSectionSubtitle")}
+                </p>
               </div>
             </div>
             <div className="mship-bleed" data-testid="membership-bleed-pricing">
@@ -342,7 +344,9 @@ export default function MembershipPageClient() {
                 </div>
                 <div className="savings-row">
                   <span>{t("savingsAnnualLine")}</span>
-                  <span className="savings-value">฿{STARTER_PRICE_ANNUAL.toLocaleString("en-US")}</span>
+                  <span className="savings-value">
+                    ฿{STARTER_PRICE_ANNUAL.toLocaleString("en-US")}
+                  </span>
                 </div>
                 <div className="savings-row savings-row--total">
                   <span>{t("savingsYouSave")}</span>
