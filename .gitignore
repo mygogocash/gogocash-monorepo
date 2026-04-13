@@ -26,7 +26,10 @@ npm-debug.log*
 .idea/
 .vscode/
 .claude/
-.cursor/
+# Cursor — ignore local IDE state but keep versioned agent skills
+.cursor/*
+!.cursor/skills/
+!.cursor/skills/**
 *.swp
 *.swo
 
