@@ -26,6 +26,59 @@ export function getOfferCashbackPercentLabel(offer: DataOffer): string {
   return "";
 }
 
+function discoverListingAmountThb(offer: DataOffer): number {
+  if (typeof offer.listing_price_thb === "number" && Number.isFinite(offer.listing_price_thb)) {
+    return Math.max(0, Math.round(offer.listing_price_thb));
+  }
+  let h = 0;
+  const s = offer._id || String(offer.offer_id ?? "");
+  for (let i = 0; i < s.length; i++) {
+    h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  }
+  /** Stable placeholder range when API does not send `listing_price_thb`. */
+  return 100 + (h % 1900);
+}
+
+/** Discover tile: formatted listing price in THB (e.g. `100 THB`). */
+export function getDiscoverListingPriceLabel(offer: DataOffer, locale: string): string {
+  const amount = discoverListingAmountThb(offer);
+  const isTh = locale.toLowerCase().startsWith("th");
+  const fmt = new Intl.NumberFormat(isTh ? "th-TH" : "en-US", { maximumFractionDigits: 0 });
+  return `${fmt.format(amount)} THB`;
+}
+
+/**
+ * Outbound URL for Discover “Shop Now” — product-level affiliate link when provided.
+ * Order: `listing_affiliate_url` → `tracking_link` → `preview_url`.
+ */
+export function getDiscoverProductOutboundUrl(offer: DataOffer): string {
+  const a = offer.listing_affiliate_url?.trim();
+  if (a) return a;
+  const t = offer.tracking_link?.trim();
+  if (t) return t;
+  return offer.preview_url?.trim() ?? "";
+}
+
+/**
+ * Maps feed `condition` (e.g. Studio7 CPS `new`) to localized Discover card copy.
+ * Unknown tokens are title-cased for display.
+ */
+export function formatOfferListingCondition(
+  raw: string | undefined,
+  translate: (key: string) => string
+): string {
+  if (!raw?.trim()) return "";
+  const k = raw.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (k === "new") return translate("productConditionNew");
+  if (k === "refurbished" || k === "renewed") return translate("productConditionRefurbished");
+  if (k === "used" || k === "pre_owned" || k === "preowned")
+    return translate("productConditionUsed");
+  const words = raw.trim().split(/[\s_-]+/);
+  return words
+    .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w))
+    .join(" ");
+}
+
 const OTHERS_INDEX = SHOP_EXPLORE_MENU_ITEMS.length - 1;
 
 /**

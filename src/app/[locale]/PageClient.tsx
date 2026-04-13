@@ -40,10 +40,6 @@ const Special = dynamic(() => import("@/features/home/component/Special"), {
   loading: () => <div className="h-40 w-full animate-pulse rounded-2xl bg-[#f0f0f0]" aria-hidden />,
 });
 
-const Popular = dynamic(() => import("@/features/home/component/Popular"), {
-  loading: () => <div className="h-40 w-full animate-pulse rounded-2xl bg-[#f0f0f0]" aria-hidden />,
-});
-
 const CategoryHome = dynamic(() => import("@/features/home/component/CategoryHome"), {
   loading: () => <div className="h-48 w-full animate-pulse rounded-2xl bg-[#f0f0f0]" aria-hidden />,
 });
@@ -61,7 +57,7 @@ export default function PageClient() {
         <Extra />
         <Trending />
         <Special />
-        <Popular />
+        {/* Popular ("What's Popular Now?!") — hidden for now; restore `Popular` import + component when needed. */}
         <CategoryHome />
       </div>
     </div>

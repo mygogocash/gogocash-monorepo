@@ -56,6 +56,21 @@ export interface DataOffer {
    * Optional note from admin (CMS / back office), shown on the shop detail cashback panel when non-empty.
    */
   admin_note?: string;
+  /**
+   * When set (e.g. product feed / CMS), shown on Discover listing cards as the listing price in THB.
+   * If omitted, the client derives a stable placeholder from `_id` for layout demos.
+   */
+  listing_price_thb?: number;
+  /**
+   * Product condition from partner datafeeds (e.g. CPS CSV `condition`: `new`, `refurbished`).
+   * Shown on Discover when set.
+   */
+  listing_condition?: string;
+  /**
+   * Affiliate / tracked product URL for Discover “Shop Now” (e.g. Involve `aff_m` deeplink).
+   * When set, takes precedence over `tracking_link` / `preview_url` for outbound clicks.
+   */
+  listing_affiliate_url?: string;
 }
 
 export interface ProductTypeList {

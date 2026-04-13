@@ -18,24 +18,24 @@ const FALLBACK_EN: Record<(typeof HEADER_SEARCH_MESSAGE_KEYS)[number], string> =
   headerSearchTrendingPill: "Trending",
   headerSearchTrendingTitle: "Popular right now",
   headerSearchTrendingSubtitle: "Hand-picked stores with standout cashback—tap a shop to explore.",
-  headerSearchResultsTitle: "Matching stores",
+  headerSearchResultsTitle: "Matching brands & products",
   headerSearchResultsSubtitle: "From your search",
   headerSearchTrendingEmpty: "No popular stores to show yet. Try searching above.",
-  headerSearchNoMatches: "No stores match that search—browse popular picks below.",
-  headerSearchPlaceholder: "Search brands, stores, or cashback",
-  headerSearchAria: "Search stores and cashback offers",
+  headerSearchNoMatches: "No brands or products match that search—browse popular picks below.",
+  headerSearchPlaceholder: "Search brands, stores, products, or cashback",
+  headerSearchAria: "Search brands, stores, products, and cashback offers",
 };
 
 const FALLBACK_TH: Record<(typeof HEADER_SEARCH_MESSAGE_KEYS)[number], string> = {
   headerSearchTrendingPill: "มาแรง",
   headerSearchTrendingTitle: "ยอดนิยมตอนนี้",
   headerSearchTrendingSubtitle: "ร้านคัดพิเศษพร้อมแคชแบ็กโดดเด่น—แตะเพื่อดูรายละเอียด",
-  headerSearchResultsTitle: "ร้านที่ตรงกับการค้นหา",
+  headerSearchResultsTitle: "แบรนด์และสินค้าที่ตรงกับการค้นหา",
   headerSearchResultsSubtitle: "จากคำที่คุณพิมพ์",
   headerSearchTrendingEmpty: "ยังไม่มีร้านแนะนำ ลองค้นหาด้านบนได้เลย",
-  headerSearchNoMatches: "ไม่พบร้านที่ตรงกับคำค้น—ลองดูร้านยอดนิยมด้านล่าง",
-  headerSearchPlaceholder: "ค้นหาแบรนด์ ร้านค้า หรือแคชแบ็ก",
-  headerSearchAria: "ค้นหาร้านค้าและข้อเสนอแคชแบ็ก",
+  headerSearchNoMatches: "ไม่พบแบรนด์หรือสินค้าที่ตรงกับคำค้น—ลองดูร้านยอดนิยมด้านล่าง",
+  headerSearchPlaceholder: "ค้นหาแบรนด์ ร้านค้า สินค้า หรือแคชแบ็ก",
+  headerSearchAria: "ค้นหาแบรนด์ ร้านค้า สินค้า และข้อเสนอแคชแบ็ก",
 };
 
 function isMissing(value: unknown): boolean {

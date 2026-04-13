@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { DataOffer } from "@/interfaces/offer";
 import {
+  formatOfferListingCondition,
+  getDiscoverProductOutboundUrl,
   getOfferBannerSrc,
   getOfferCashbackPercentLabel,
   getOfferCategoryRowVisual,
@@ -39,6 +41,55 @@ describe("getOfferCashbackPercentLabel", () => {
         })
       )
     ).toBe("8.0%");
+  });
+});
+
+describe("getDiscoverProductOutboundUrl", () => {
+  it("prefers listing_affiliate_url", () => {
+    expect(
+      getDiscoverProductOutboundUrl(
+        stubOffer({
+          listing_affiliate_url: "https://aff.example/p",
+          tracking_link: "https://track.example",
+          preview_url: "https://preview.example",
+        })
+      )
+    ).toBe("https://aff.example/p");
+  });
+
+  it("falls back to tracking_link then preview_url", () => {
+    expect(getDiscoverProductOutboundUrl(stubOffer({ tracking_link: "https://t", preview_url: "https://p" }))).toBe(
+      "https://t"
+    );
+    expect(getDiscoverProductOutboundUrl(stubOffer({ preview_url: "https://p" }))).toBe("https://p");
+  });
+
+  it("returns empty when none set", () => {
+    expect(getDiscoverProductOutboundUrl(stubOffer({}))).toBe("");
+  });
+});
+
+describe("formatOfferListingCondition", () => {
+  const t = (key: string) =>
+    ({
+      productConditionNew: "New",
+      productConditionRefurbished: "Refurbished",
+      productConditionUsed: "Used",
+    })[key] ?? key;
+
+  it("returns empty for missing or blank", () => {
+    expect(formatOfferListingCondition(undefined, t)).toBe("");
+    expect(formatOfferListingCondition("   ", t)).toBe("");
+  });
+
+  it("maps known feed tokens", () => {
+    expect(formatOfferListingCondition("new", t)).toBe("New");
+    expect(formatOfferListingCondition("REFURBISHED", t)).toBe("Refurbished");
+    expect(formatOfferListingCondition("pre-owned", t)).toBe("Used");
+  });
+
+  it("title-cases unknown tokens", () => {
+    expect(formatOfferListingCondition("open_box", t)).toBe("Open Box");
   });
 });
 

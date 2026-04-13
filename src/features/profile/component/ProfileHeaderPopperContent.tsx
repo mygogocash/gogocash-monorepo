@@ -1,16 +1,24 @@
 "use client";
 
+import AgeVerificationNavIcon from "@/components/icons/AgeVerificationNavIcon";
+import CookiesIcon from "@/components/icons/CookiesIcon";
 import FavoriteIcon from "@/components/icons/FavoriteIcon";
+import GlobeIcon from "@/components/icons/GlobeIcon";
+import HelpIcon from "@/components/icons/HelpIcon";
 import LogoutIcon from "@/components/icons/LogoutIcon";
-import ProfilePopperCustomerSupportIcon from "@/components/icons/ProfilePopperCustomerSupportIcon";
-import ProfilePopperFaqBubbleIcon from "@/components/icons/ProfilePopperFaqBubbleIcon";
+import MembershipNavIcon from "@/components/icons/MembershipNavIcon";
 import ProfilePopperMissingOrdersIcon from "@/components/icons/ProfilePopperMissingOrdersIcon";
 import ProfileAddIcon from "@/components/icons/ProfileAddIcon";
 import ProfileIcon from "@/components/icons/ProfileIcon";
+import PrivacyPolicyNavIcon from "@/components/icons/PrivacyPolicyNavIcon";
 import QuestIcon from "@/components/icons/QuestIcon";
+import TermsOfServiceNavIcon from "@/components/icons/TermsOfServiceNavIcon";
+import TermsOfUseNavIcon from "@/components/icons/TermsOfUseNavIcon";
 import WalletIcon from "@/components/icons/WalletIcon";
 import { WalletSummaryHeroCard } from "@/components/common/WalletSummaryHeroCard";
-import { getSupportHref } from "@/constants/navigation";
+import { FEATURE_FLAGS } from "@/constants/featureFlags";
+import { GOGOCASH_MARKETING_ORIGIN } from "@/constants/footer-links";
+import { getSupportHref, GOGOCASH_LINKTREE_HREF } from "@/constants/navigation";
 import { Link } from "@/i18n/navigation";
 import { useCrossmintLoginContext } from "@/providers/CrossmintLoginContext";
 import { Divider } from "@mui/material";
@@ -85,8 +93,7 @@ function MenuRowButton({
 
 /**
  * Header account dropdown — wallet summary + menu.
- * Wallet card: Figma GoGoCash 1.1 node 8369-116145 (Wallet).
- * Menu list: Figma 9038-925453 (Menu Tap).
+ * Menu order matches `SubProfile` rail (`SubPage` sidebar).
  */
 export default function ProfileHeaderPopperContent({ onNavigate }: { onNavigate?: () => void }) {
   const { data: session } = useSession();
@@ -104,7 +111,6 @@ export default function ProfileHeaderPopperContent({ onNavigate }: { onNavigate?
     <div className="flex w-full max-w-[384px] flex-col items-center gap-[14px]">
       <WalletSummaryHeroCard variant="popper" getCheck={getCheck} onWithdrawNavigate={onNavigate} />
 
-      {/* Menu — Figma: gap-8px between groups */}
       <div className="flex w-full flex-col gap-2">
         <div className="flex flex-col">
           <MenuRowLink
@@ -120,10 +126,22 @@ export default function ProfileHeaderPopperContent({ onNavigate }: { onNavigate?
             label={t("My Wallet")}
           />
           <MenuRowLink
+            href="/membership"
+            onNavigate={onNavigate}
+            icon={<MembershipNavIcon width={24} height={24} stroke={ICON_TEAL} />}
+            label={t("navMembership")}
+          />
+          <MenuRowLink
+            href="/missing-orders"
+            onNavigate={onNavigate}
+            icon={<ProfilePopperMissingOrdersIcon width={24} height={24} stroke={ICON_TEAL} />}
+            label={t("profilePopperMissingOrders")}
+          />
+          <MenuRowLink
             href="/favorite"
             onNavigate={onNavigate}
             icon={<FavoriteIcon width={24} height={20} fill={ICON_TEAL} />}
-            label={t("profilePopperMyFavoriteStores")}
+            label={t("Favorite Brands")}
           />
           <MenuRowLink
             href="/quest/history"
@@ -132,10 +150,42 @@ export default function ProfileHeaderPopperContent({ onNavigate }: { onNavigate?
             label={t("profilePopperGogoquestHistory")}
           />
           <MenuRowLink
+            href="/age-verification"
+            onNavigate={onNavigate}
+            icon={<AgeVerificationNavIcon width={24} height={24} stroke={ICON_TEAL} />}
+            label={t("pdpaAgeVerifyTitle")}
+          />
+          <MenuRowLink
             href="/referral"
             onNavigate={onNavigate}
             icon={<ProfileAddIcon width={24} height={24} fill={ICON_TEAL} />}
             label={t("profilePopperReferYourFriends")}
+          />
+          <MenuRowLink
+            href="/privacy-center"
+            onNavigate={onNavigate}
+            icon={<CookiesIcon width={24} height={24} fill={ICON_TEAL} />}
+            label={t("navPrivacyPolicy")}
+          />
+          <MenuRowLink
+            href="/privacy-policy"
+            onNavigate={onNavigate}
+            icon={<PrivacyPolicyNavIcon width={24} height={24} stroke={ICON_TEAL} />}
+            label={t("footerPrivacyPolicy")}
+          />
+          <MenuRowLink
+            href={`${GOGOCASH_MARKETING_ORIGIN}/term-of-use`}
+            external
+            onNavigate={onNavigate}
+            icon={<TermsOfUseNavIcon width={24} height={24} stroke={ICON_TEAL} />}
+            label={t("footerLinkTermsOfUse")}
+          />
+          <MenuRowLink
+            href={`${GOGOCASH_MARKETING_ORIGIN}/terms-of-service`}
+            external
+            onNavigate={onNavigate}
+            icon={<TermsOfServiceNavIcon width={24} height={24} stroke={ICON_TEAL} />}
+            label={t("footerLinkTermsOfService")}
           />
         </div>
 
@@ -146,23 +196,24 @@ export default function ProfileHeaderPopperContent({ onNavigate }: { onNavigate?
             href={supportHref}
             external
             onNavigate={onNavigate}
-            icon={<ProfilePopperCustomerSupportIcon width={24} height={24} fill={ICON_TEAL} />}
+            icon={<HelpIcon width={24} height={24} fill={ICON_TEAL} />}
             label={t("Help Center")}
           />
           <MenuRowLink
-            href={supportHref}
+            href={GOGOCASH_LINKTREE_HREF}
             external
             onNavigate={onNavigate}
-            icon={<ProfilePopperMissingOrdersIcon width={24} height={24} stroke={ICON_TEAL} />}
-            label={t("profilePopperMissingOrders")}
+            icon={<GlobeIcon width={24} height={24} fill={ICON_TEAL} />}
+            label={t("sidebarConnectGoGoCash")}
           />
-          <MenuRowLink
-            href={supportHref}
-            external
-            onNavigate={onNavigate}
-            icon={<ProfilePopperFaqBubbleIcon width={24} height={24} fill={ICON_TEAL} />}
-            label={t("profilePopperFaqs")}
-          />
+          {FEATURE_FLAGS.subscription ? (
+            <MenuRowLink
+              href="/subscription"
+              onNavigate={onNavigate}
+              icon={<ProfileAddIcon width={24} height={24} fill={ICON_TEAL} />}
+              label={t("Subscription")}
+            />
+          ) : null}
         </div>
 
         <Divider sx={{ borderColor: "#E4E4E4" }} />

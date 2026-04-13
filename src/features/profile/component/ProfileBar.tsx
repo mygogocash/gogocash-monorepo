@@ -108,7 +108,12 @@ const ProfileBar = () => {
             mt: 2,
             width: "384px",
             maxWidth: "calc(100vw - 24px)",
+            boxSizing: "border-box",
             boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
+            /* Match header search popper: cap height to viewport so menus stay reachable on small laptops */
+            maxHeight: "min(72vh, 640px)",
+            overflowY: "auto",
+            overflowX: "hidden",
           }}
         >
           <ProfileHeaderPopperContent onNavigate={handleClose} />

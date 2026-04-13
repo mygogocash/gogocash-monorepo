@@ -257,15 +257,18 @@ export function createGetMessageFallback(messageLocale: string) {
         en: "Hand-picked stores with standout cashback—tap a shop to explore.",
         th: "ร้านคัดพิเศษพร้อมแคชแบ็กโดดเด่น—แตะเพื่อดูรายละเอียด",
       },
-      headerSearchResultsTitle: { en: "Matching stores", th: "ร้านที่ตรงกับการค้นหา" },
+      headerSearchResultsTitle: {
+        en: "Matching brands & products",
+        th: "แบรนด์และสินค้าที่ตรงกับการค้นหา",
+      },
       headerSearchResultsSubtitle: { en: "From your search", th: "จากคำที่คุณพิมพ์" },
       headerSearchTrendingEmpty: {
         en: "No popular stores to show yet. Try searching above.",
         th: "ยังไม่มีร้านแนะนำ ลองค้นหาด้านบนได้เลย",
       },
       headerSearchNoMatches: {
-        en: "No stores match that search—browse popular picks below.",
-        th: "ไม่พบร้านที่ตรงกับคำค้น—ลองดูร้านยอดนิยมด้านล่าง",
+        en: "No brands or products match that search—browse popular picks below.",
+        th: "ไม่พบแบรนด์หรือสินค้าที่ตรงกับคำค้น—ลองดูร้านยอดนิยมด้านล่าง",
       },
     };
     const hs = headerSearchFallbacks[key];

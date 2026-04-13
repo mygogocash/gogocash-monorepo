@@ -236,6 +236,12 @@ const createMockBrand = ({
   max_cap: 0,
   extra_point: null,
   product_type: createProductTypes(category),
+  /** Demo listing price for Discover cards (THB). */
+  listing_price_thb: 99 + (getNumericId(id) * 47) % 1901,
+  /** Demo product condition (CPS-style feed). */
+  listing_condition: (["new", "refurbished", "used"] as const)[getNumericId(id) % 3],
+  /** Demo affiliate product deeplink for Discover “Shop Now”. */
+  listing_affiliate_url: `https://mock-affiliate.gogocash.local/product?brand=${encodeURIComponent(id)}`,
   has_coupon: hasCouponSeed !== false,
   ...(hasNonEmptyAdminNote(adminNoteSeed) ? { admin_note: adminNoteSeed.trim() } : {}),
 });
@@ -1718,6 +1724,124 @@ const filterBrands = (category: string | null, search: string | null) => {
   });
 };
 
+/** Procedural “Product Discovery” scale mock: IDs `mock-offer-mass-{0…N-1}` (opt-in via env). */
+const MOCK_MASS_OFFER_ID_PREFIX = "mock-offer-mass";
+const MOCK_MASS_OFFER_CAP = 100_000;
+
+const DISCOVER_MOCK_API_CATEGORIES = [
+  "Travel",
+  "electronic",
+  "beauty",
+  "Digital Services",
+  "Food & Grocery",
+  "others",
+] as const;
+
+function getMockMassOfferCatalogSize(): number {
+  const raw = env.NEXT_PUBLIC_MOCK_OFFER_CATALOG_SIZE;
+  if (raw == null || raw === "") return 0;
+  const n = Number.parseInt(String(raw).trim(), 10);
+  if (!Number.isFinite(n) || n < 1) return 0;
+  return Math.min(Math.floor(n), MOCK_MASS_OFFER_CAP);
+}
+
+function massOfferApiCategory(index: number): string {
+  return DISCOVER_MOCK_API_CATEGORIES[index % DISCOVER_MOCK_API_CATEGORIES.length]!;
+}
+
+function apiCategoryToMockSeedCategory(apiCat: string): MockBrandCategory {
+  const n = normalize(apiCat);
+  if (n.includes("travel")) return "Travel";
+  if (n === "electronic") return "electronic";
+  if (n.includes("beauty")) return "beauty";
+  if (n.includes("digital")) return "electronic";
+  if (n.includes("food") || n.includes("grocery")) return "others";
+  if (n.includes("other")) return "others";
+  return "others";
+}
+
+function massOfferMatchesFilter(
+  index: number,
+  categoryParam: string | null,
+  search: string | null
+): boolean {
+  const apiCat = massOfferApiCategory(index);
+  const catNorm = normalize(categoryParam ?? "");
+  if (catNorm.length > 0 && normalize(apiCat) !== catNorm) {
+    return false;
+  }
+  const normalizedSearch = normalize(search);
+  if (!normalizedSearch) return true;
+  const name = `Mock Partner ${index + 1}`;
+  const seedCat = apiCategoryToMockSeedCategory(apiCat);
+  const hay = [
+    name,
+    apiCat,
+    categoryDisplayName[seedCat] ?? apiCat,
+    String(index + 1),
+  ]
+    .join(" ")
+    .toLowerCase();
+  return hay.includes(normalizedSearch);
+}
+
+function buildMassMockOffer(index: number): DataOffer {
+  const apiCat = massOfferApiCategory(index);
+  const seedCat = apiCategoryToMockSeedCategory(apiCat);
+  const template = mockBrandCatalog[index % mockBrandCatalog.length]!;
+  const id = `${MOCK_MASS_OFFER_ID_PREFIX}-${index}`;
+  const name = `Mock Partner ${index + 1}`;
+  const commission = Number((5 + (index % 151) / 10).toFixed(1));
+  const created = addDays(mockNow, -(index % 730));
+  const base = createMockBrand({
+    id,
+    name,
+    category: seedCat,
+    commission,
+    logo: template.logo,
+    banner: template.banner,
+    description: `${template.description} (mock catalog #${index + 1})`,
+    has_coupon: index % 4 !== 0,
+  });
+  return {
+    ...base,
+    categories: apiCat,
+    datetime_created: created,
+    datetime_updated: created,
+  };
+}
+
+function paginateMassOffers(category: string | null, search: string | null, page: number, limit: number) {
+  const n = getMockMassOfferCatalogSize();
+  const allIndices: number[] = [];
+  for (let i = 0; i < n; i++) {
+    if (massOfferMatchesFilter(i, category, search)) {
+      allIndices.push(i);
+    }
+  }
+  const safePage = Number.isFinite(page) && page > 0 ? page : 1;
+  const safeLimit = Number.isFinite(limit) && limit > 0 ? limit : 60;
+  const start = (safePage - 1) * safeLimit;
+  const pageIndices = allIndices.slice(start, start + safeLimit);
+  const data = pageIndices.map(buildMassMockOffer);
+  return {
+    page: safePage,
+    limit: safeLimit,
+    total: allIndices.length,
+    totalPages: Math.max(1, Math.ceil(allIndices.length / safeLimit)),
+    data,
+  };
+}
+
+function parseMassOfferIndex(brandId: string): number | null {
+  if (!brandId.startsWith(`${MOCK_MASS_OFFER_ID_PREFIX}-`)) return null;
+  const rest = brandId.slice(MOCK_MASS_OFFER_ID_PREFIX.length + 1);
+  const idx = Number(rest);
+  const cap = getMockMassOfferCatalogSize();
+  if (!Number.isInteger(idx) || idx < 0 || idx >= cap || cap < 1) return null;
+  return idx;
+}
+
 const buildMyCashbackSummary = (): ResponseWithdrawCheckMyCashback => {
   const approvedMyCashback = getApprovedTransactions(getActiveMyCashbackTransactions());
   const totalMyCashbackUSD = sumPayout(approvedMyCashback);
@@ -2487,7 +2611,13 @@ export const getMockApiResponse = (
 
     if (pathname.startsWith("/offer/get-coupon-id/")) {
       const brandId = pathname.replace("/offer/get-coupon-id/", "");
-      return mockCouponsByBrandId.get(brandId) ?? [];
+      const cached = mockCouponsByBrandId.get(brandId);
+      if (cached) return cached;
+      const massIdx = parseMassOfferIndex(brandId);
+      if (massIdx != null) {
+        return createMockCoupons(buildMassMockOffer(massIdx), massIdx);
+      }
+      return [];
     }
 
     if (pathname === "/offer") {
@@ -2496,11 +2626,18 @@ export const getMockApiResponse = (
       const page = Number(url.searchParams.get("page") || "1");
       const limit = Number(url.searchParams.get("limit") || "8");
 
+      if (getMockMassOfferCatalogSize() > 0) {
+        return paginateMassOffers(category, search, page, limit);
+      }
       return paginateItems(filterBrands(category, search), page, limit);
     }
 
     if (pathname.startsWith("/offer/")) {
       const brandId = pathname.replace("/offer/", "");
+      const massIdx = parseMassOfferIndex(brandId);
+      if (massIdx != null) {
+        return buildMassMockOffer(massIdx);
+      }
       return brandsById.get(brandId) ?? null;
     }
   }

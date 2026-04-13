@@ -28,12 +28,12 @@ export function DiscoverMobileFilterChips({ filters, onChange }: DiscoverMobileF
       <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {DISCOVER_CATEGORIES.map((cat) => (
           <button
-            key={cat.value || "all"}
+            key={cat.apiCategory || "all"}
             type="button"
-            onClick={() => onChange({ ...filters, category: cat.value })}
+            onClick={() => onChange({ ...filters, category: cat.apiCategory })}
             className={cn(
               "shrink-0 rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors",
-              filters.category === cat.value
+              filters.category === cat.apiCategory
                 ? "border-[var(--gc-primary-strong)] bg-[var(--gc-primary-strong)] text-white"
                 : "border-[var(--gc-border)] bg-[var(--gc-surface)] text-[var(--gc-text)] hover:border-[var(--gc-primary-strong)] hover:text-[var(--gc-primary-strong)]"
             )}

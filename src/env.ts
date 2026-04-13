@@ -67,6 +67,11 @@ export const env = createEnv({
     /** When using mock API, optional profile id: mock-user-001 … mock-user-005 (see `src/mocks/homeApi.ts`). */
     NEXT_PUBLIC_MOCK_ACTIVE_USER_ID: optionalString,
     /**
+     * When using mock API: if set to a positive integer (e.g. `10000`), `GET /offer` serves that many
+     * procedurally generated partners for Product Discovery stress tests (see `src/mocks/homeApi.ts`).
+     */
+    NEXT_PUBLIC_MOCK_OFFER_CATALOG_SIZE: optionalString,
+    /**
      * Crossmint client API key used by `@crossmint/client-sdk-react-ui` in the browser.
      * Use a Crossmint **client / publishable** key scoped for frontend use; never put server admin keys here.
      */
@@ -123,6 +128,7 @@ export const env = createEnv({
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
     NEXT_PUBLIC_MOCK_API: process.env.NEXT_PUBLIC_MOCK_API,
     NEXT_PUBLIC_MOCK_ACTIVE_USER_ID: process.env.NEXT_PUBLIC_MOCK_ACTIVE_USER_ID,
+    NEXT_PUBLIC_MOCK_OFFER_CATALOG_SIZE: process.env.NEXT_PUBLIC_MOCK_OFFER_CATALOG_SIZE,
     NEXT_PUBLIC_CROSSMINT_API_KEY: process.env.NEXT_PUBLIC_CROSSMINT_API_KEY,
     NEXT_PUBLIC_CROSSMINT_COLLECTION_ID: process.env.NEXT_PUBLIC_CROSSMINT_COLLECTION_ID,
     NEXT_PUBLIC_TELEGRAM_BOT_USERNAME: process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME,

@@ -13,6 +13,7 @@ export default function DiscoverPage() {
     category: "",
     minCashback: 0,
     sort: "popular",
+    search: "",
   });
 
   return (
