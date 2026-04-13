@@ -4,6 +4,7 @@ import { Button, Typography } from "@mui/material";
 import DownloadRoundedIcon from "@mui/icons-material/DownloadRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import { useTranslations } from "next-intl";
+import { useCallback, useRef, useState } from "react";
 import toast from "react-hot-toast";
 
 const sectionHeadingClass = "text-lg font-semibold tracking-tight text-[#1a1a1a] md:text-xl";
@@ -19,46 +20,49 @@ const primaryGreenButtonSx = {
 } as const;
 
 /**
- * PDPA data portability + erasure requests (moved from Privacy Center to Personal Information).
+ * PDPA data portability + erasure requests (Account Settings).
  */
 export default function PdpaDataRightsSection() {
   const t = useTranslations();
+  const inFlightRef = useRef(false);
+  const [busy, setBusy] = useState(false);
 
-  const requestExport = async () => {
-    try {
-      const res = await fetch("/api/pdpa/data-subject-requests", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ requestType: "PORTABILITY", channel: "IN_APP" }),
-      });
-      if (!res.ok) {
+  const postDataSubjectRequest = useCallback(
+    async (requestType: "PORTABILITY" | "ERASURE") => {
+      if (inFlightRef.current) return;
+      inFlightRef.current = true;
+      setBusy(true);
+      try {
+        const res = await fetch("/api/pdpa/data-subject-requests", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ requestType, channel: "IN_APP" }),
+        });
+        if (!res.ok) {
+          toast.error(t("pdpaRequestFailed"));
+          return;
+        }
+        toast.success(t("pdpaRequestSubmitted"));
+      } catch {
         toast.error(t("pdpaRequestFailed"));
-        return;
+      } finally {
+        inFlightRef.current = false;
+        setBusy(false);
       }
-      toast.success(t("pdpaRequestSubmitted"));
-    } catch {
-      toast.error(t("pdpaRequestFailed"));
-    }
-  };
+    },
+    [t]
+  );
 
-  const requestErasure = async () => {
-    try {
-      const res = await fetch("/api/pdpa/data-subject-requests", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ requestType: "ERASURE", channel: "IN_APP" }),
-      });
-      if (!res.ok) {
-        toast.error(t("pdpaRequestFailed"));
-        return;
-      }
-      toast.success(t("pdpaRequestSubmitted"));
-    } catch {
-      toast.error(t("pdpaRequestFailed"));
-    }
-  };
+  const requestExport = useCallback(
+    () => void postDataSubjectRequest("PORTABILITY"),
+    [postDataSubjectRequest]
+  );
+
+  const requestErasure = useCallback(
+    () => void postDataSubjectRequest("ERASURE"),
+    [postDataSubjectRequest]
+  );
 
   return (
     <section
@@ -92,7 +96,8 @@ export default function PdpaDataRightsSection() {
             variant="contained"
             className="max-md:min-h-11 max-md:py-2 max-md:text-[0.9375rem] w-full rounded-full normal-case sm:w-auto"
             aria-describedby="pdpa-export-email-note"
-            onClick={() => void requestExport()}
+            disabled={busy}
+            onClick={requestExport}
             sx={primaryGreenButtonSx}
           >
             {t("pdpaRequestExport")}
@@ -131,7 +136,8 @@ export default function PdpaDataRightsSection() {
             color="warning"
             className="max-md:min-h-11 max-md:py-2 max-md:text-[0.9375rem] w-full rounded-full border-amber-700 normal-case sm:w-auto"
             aria-describedby="pdpa-delete-retention-note"
-            onClick={() => void requestErasure()}
+            disabled={busy}
+            onClick={requestErasure}
           >
             {t("pdpaRequestDeleteButton")}
           </Button>

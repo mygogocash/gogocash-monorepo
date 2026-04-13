@@ -68,15 +68,16 @@ export function formatOfferListingCondition(
   translate: (key: string) => string
 ): string {
   if (!raw?.trim()) return "";
-  const k = raw.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  const k = raw
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
   if (k === "new") return translate("productConditionNew");
   if (k === "refurbished" || k === "renewed") return translate("productConditionRefurbished");
   if (k === "used" || k === "pre_owned" || k === "preowned")
     return translate("productConditionUsed");
   const words = raw.trim().split(/[\s_-]+/);
-  return words
-    .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w))
-    .join(" ");
+  return words.map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w)).join(" ");
 }
 
 const OTHERS_INDEX = SHOP_EXPLORE_MENU_ITEMS.length - 1;

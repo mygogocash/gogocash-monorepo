@@ -1,7 +1,15 @@
 "use client";
 
 import CloseIcon from "@mui/icons-material/Close";
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Typography } from "@mui/material";
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  Typography,
+} from "@mui/material";
 import { useTranslations } from "next-intl";
 
 export type DiscoverProductTermsDialogProps = {

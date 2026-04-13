@@ -2,7 +2,6 @@
 
 import Input from "@/components/common/Input";
 import Button from "@/components/common/Button";
-import PdpaDataRightsSection from "@/components/pdpa/PdpaDataRightsSection";
 import { Link, useRouter } from "@/i18n/navigation";
 import Edit from "@mui/icons-material/Edit";
 import SaveOutlined from "@mui/icons-material/SaveOutlined";
@@ -552,8 +551,6 @@ export default function ProfileDesktopPersonalPanel({
           />
         </div>
       </div>
-
-      <PdpaDataRightsSection />
     </div>
   );
 }

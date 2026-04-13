@@ -13,7 +13,6 @@ import {
 } from "@mui/material";
 import { LazyDataGrid, type GridColDef } from "@/components/perf/LazyMuiDataGrid";
 import ContentCopyOutlined from "@mui/icons-material/ContentCopyOutlined";
-import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
 import SearchIcon from "@mui/icons-material/Search";
 import { useQuery } from "@tanstack/react-query";
 import toast from "react-hot-toast";
@@ -27,6 +26,7 @@ import {
   ResponseWithdrawHistory,
 } from "@/interfaces/withdraw";
 import React, { memo, useCallback, useMemo, useState } from "react";
+import type { Dayjs } from "dayjs";
 import { checkThai, formatAddress, formatNumber } from "@/lib/utils";
 import { combineAvailableBalance } from "@/lib/withdraw/combineAvailableBalance";
 import { CashbackSummaryBreakdownCard } from "@/components/common/CashbackSummaryBreakdownCard";
@@ -35,6 +35,7 @@ import { useRouter } from "@/i18n/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useSession } from "next-auth/react";
 import NoDataWallet from "./NoDataWallet";
+import { WalletTransactionDateRangeFilter } from "./WalletTransactionDateRangeFilter";
 import { useSearchParams } from "next/navigation";
 import { ProfileSupportHelpBanner } from "@/components/common/ProfileSupportHelpBanner";
 import {
@@ -65,6 +66,14 @@ type UnifiedTxRow = {
   status: string;
   conversionId: string;
 };
+
+/** Inclusive calendar-day range [start 00:00, end 23:59:59.999] in local time. */
+function isMsWithinDayjsRange(rowMs: number, start: Dayjs, end: Dayjs): boolean {
+  if (Number.isNaN(rowMs)) return false;
+  const lo = start.startOf("day").valueOf();
+  const hi = end.endOf("day").valueOf();
+  return rowMs >= lo && rowMs <= hi;
+}
 
 function chipSxForStatus(status: string) {
   const s = status.toLowerCase();
@@ -170,17 +179,15 @@ const walletFilterSearchFieldSx = {
   "& .MuiOutlinedInput-root": { ...walletFilterOutlinedInputSx },
 } as const;
 
-const walletFilterDateFieldSx = {
+const walletFilterDateRangeTriggerSx = {
   width: { xs: "100%", md: 220 },
   minWidth: { xs: 0, md: 220 },
   maxWidth: "100%",
-  "& .MuiOutlinedInput-root": {
-    ...walletFilterOutlinedInputSx,
-    backgroundColor: "#f6f6f6",
-    "&.Mui-disabled": {
-      backgroundColor: "#f6f6f6",
-    },
-  },
+  borderRadius: "9999px",
+  border: "1px solid #e4e4e4",
+  backgroundColor: "#f6f6f6",
+  boxSizing: "border-box",
+  "&:hover": { borderColor: "#bdbdbd" },
 } as const;
 
 const walletFilterStatusFormSx = {
@@ -204,6 +211,8 @@ const WithdrawTransaction = () => {
   const [statusFilter, setStatusFilter] = useState("");
   const [withdrawSearch, setWithdrawSearch] = useState("");
   const [withdrawStatusFilter, setWithdrawStatusFilter] = useState("");
+  const [txRangeStart, setTxRangeStart] = useState<Dayjs | null>(null);
+  const [txRangeEnd, setTxRangeEnd] = useState<Dayjs | null>(null);
   const t = useTranslations();
   const locale = useLocale();
 
@@ -234,6 +243,11 @@ const WithdrawTransaction = () => {
     },
     [active]
   );
+
+  const commitTxDateRange = useCallback((start: Dayjs | null, end: Dayjs | null) => {
+    setTxRangeStart(start);
+    setTxRangeEnd(end);
+  }, []);
 
   const {
     data: getCheck,
@@ -309,6 +323,10 @@ const WithdrawTransaction = () => {
   const applyFilters = useCallback(
     (rows: UnifiedTxRow[]) => {
       return rows.filter((row) => {
+        if (txRangeStart && txRangeEnd) {
+          const rowMs = new Date(row.conversionDate).getTime();
+          if (!isMsWithinDayjsRange(rowMs, txRangeStart, txRangeEnd)) return false;
+        }
         if (searchText.trim()) {
           const q = searchText.toLowerCase();
           const blob =
@@ -321,7 +339,7 @@ const WithdrawTransaction = () => {
         return true;
       });
     },
-    [searchText, statusFilter]
+    [searchText, statusFilter, txRangeStart, txRangeEnd]
   );
 
   const claimRowsUnified = useMemo((): Omit<UnifiedTxRow, "rowNumber">[] => {
@@ -462,6 +480,13 @@ const WithdrawTransaction = () => {
   const applyWithdrawFilters = useCallback(
     (rows: WithdrawGridRow[]) =>
       rows.filter((row) => {
+        if (txRangeStart && txRangeEnd) {
+          const rowTime =
+            row.created_at instanceof Date
+              ? row.created_at.getTime()
+              : new Date(row.created_at).getTime();
+          if (!isMsWithinDayjsRange(rowTime, txRangeStart, txRangeEnd)) return false;
+        }
         if (withdrawSearch.trim()) {
           const q = withdrawSearch.toLowerCase();
           const blob =
@@ -477,7 +502,7 @@ const WithdrawTransaction = () => {
         }
         return true;
       }),
-    [withdrawSearch, withdrawStatusFilter]
+    [withdrawSearch, withdrawStatusFilter, txRangeStart, txRangeEnd]
   );
 
   const withdrawRowsFiltered = useMemo(() => {
@@ -897,19 +922,11 @@ const WithdrawTransaction = () => {
                 ),
               }}
             />
-            <TextField
-              size="small"
-              fullWidth
-              placeholder={t("Date")}
-              disabled
-              sx={walletFilterDateFieldSx}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <CalendarTodayOutlinedIcon sx={{ color: "#9e9e9e", fontSize: 18 }} />
-                  </InputAdornment>
-                ),
-              }}
+            <WalletTransactionDateRangeFilter
+              valueStart={txRangeStart}
+              valueEnd={txRangeEnd}
+              onCommit={commitTxDateRange}
+              triggerSx={walletFilterDateRangeTriggerSx}
             />
             <FormControl size="small" fullWidth sx={walletFilterStatusFormSx}>
               <Select

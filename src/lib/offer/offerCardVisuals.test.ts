@@ -58,10 +58,14 @@ describe("getDiscoverProductOutboundUrl", () => {
   });
 
   it("falls back to tracking_link then preview_url", () => {
-    expect(getDiscoverProductOutboundUrl(stubOffer({ tracking_link: "https://t", preview_url: "https://p" }))).toBe(
-      "https://t"
+    expect(
+      getDiscoverProductOutboundUrl(
+        stubOffer({ tracking_link: "https://t", preview_url: "https://p" })
+      )
+    ).toBe("https://t");
+    expect(getDiscoverProductOutboundUrl(stubOffer({ preview_url: "https://p" }))).toBe(
+      "https://p"
     );
-    expect(getDiscoverProductOutboundUrl(stubOffer({ preview_url: "https://p" }))).toBe("https://p");
   });
 
   it("returns empty when none set", () => {

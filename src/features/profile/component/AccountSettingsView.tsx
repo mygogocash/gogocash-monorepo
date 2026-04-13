@@ -4,6 +4,7 @@ import { ACCOUNT_SETTINGS_COMMUNITY } from "@/constants/accountSettingsCommunity
 import { TRANSLATIONS_DISABLED } from "@/constants/translations";
 import LineAppIcon from "@/components/icons/social/LineAppIcon";
 import { usePathname, useRouter } from "@/i18n/navigation";
+import PdpaDataRightsSection from "@/components/pdpa/PdpaDataRightsSection";
 import SubPage from "../layout/SubPage";
 import EmailOutlined from "@mui/icons-material/EmailOutlined";
 import { Switch } from "@mui/material";
@@ -114,11 +115,14 @@ export default function AccountSettingsView() {
     }
   }, []);
 
-  function switchLocale(locale: string) {
-    router.replace(pathname || "/", {
-      locale: locale as "en" | "th",
-    });
-  }
+  const switchLocale = useCallback(
+    (locale: string) => {
+      router.replace(pathname || "/", {
+        locale: locale as "en" | "th",
+      });
+    },
+    [router, pathname]
+  );
 
   return (
     <SubPage title="Account Settings" showSubMenu>
@@ -222,6 +226,8 @@ export default function AccountSettingsView() {
             ))}
           </div>
         </section>
+
+        <PdpaDataRightsSection />
       </div>
     </SubPage>
   );

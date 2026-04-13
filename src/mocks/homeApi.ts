@@ -237,7 +237,7 @@ const createMockBrand = ({
   extra_point: null,
   product_type: createProductTypes(category),
   /** Demo listing price for Discover cards (THB). */
-  listing_price_thb: 99 + (getNumericId(id) * 47) % 1901,
+  listing_price_thb: 99 + ((getNumericId(id) * 47) % 1901),
   /** Demo product condition (CPS-style feed). */
   listing_condition: (["new", "refurbished", "used"] as const)[getNumericId(id) % 3],
   /** Demo affiliate product deeplink for Discover “Shop Now”. */
@@ -1774,12 +1774,7 @@ function massOfferMatchesFilter(
   if (!normalizedSearch) return true;
   const name = `Mock Partner ${index + 1}`;
   const seedCat = apiCategoryToMockSeedCategory(apiCat);
-  const hay = [
-    name,
-    apiCat,
-    categoryDisplayName[seedCat] ?? apiCat,
-    String(index + 1),
-  ]
+  const hay = [name, apiCat, categoryDisplayName[seedCat] ?? apiCat, String(index + 1)]
     .join(" ")
     .toLowerCase();
   return hay.includes(normalizedSearch);
@@ -1811,7 +1806,12 @@ function buildMassMockOffer(index: number): DataOffer {
   };
 }
 
-function paginateMassOffers(category: string | null, search: string | null, page: number, limit: number) {
+function paginateMassOffers(
+  category: string | null,
+  search: string | null,
+  page: number,
+  limit: number
+) {
   const n = getMockMassOfferCatalogSize();
   const allIndices: number[] = [];
   for (let i = 0; i < n; i++) {

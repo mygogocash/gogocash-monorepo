@@ -27,18 +27,18 @@ export interface DiscoverCategoryDef {
 /** Thai labels aligned with `SHOP_EXPLORE_MENU_ITEMS` order */
 const DISCOVER_CATEGORY_LABEL_TH: Record<string, string> = {
   "Digital Services": "บริการดิจิทัล",
-  "Education": "การศึกษา",
-  "Electronics": "อิเล็กทรอนิกส์",
-  "Fashion": "แฟชั่น",
-  "Finance": "การเงิน",
+  Education: "การศึกษา",
+  Electronics: "อิเล็กทรอนิกส์",
+  Fashion: "แฟชั่น",
+  Finance: "การเงิน",
   "Food & Grocery": "อาหารและของชำ",
   "Gifting & Crafts": "ของขวัญและหัตถกรรม",
   "Health & Beauty": "สุขภาพและความงาม",
   "Home & Living": "บ้านและไลฟ์สไตล์",
-  "Marketplace": "มาร์เก็ตเพลส",
-  "Travel": "ท่องเที่ยว",
+  Marketplace: "มาร์เก็ตเพลส",
+  Travel: "ท่องเที่ยว",
   "Top-up / Recharge": "เติมเงิน / เติมเกม",
-  "Others": "อื่นๆ",
+  Others: "อื่นๆ",
 };
 
 const DISCOVER_ALL: DiscoverCategoryDef = {
@@ -56,7 +56,10 @@ const DISCOVER_FROM_MENU: DiscoverCategoryDef[] = SHOP_EXPLORE_MENU_ITEMS.map((i
 }));
 
 /** All categories — same set and order as Shop Explore sidebar */
-export const DISCOVER_CATEGORIES: readonly DiscoverCategoryDef[] = [DISCOVER_ALL, ...DISCOVER_FROM_MENU];
+export const DISCOVER_CATEGORIES: readonly DiscoverCategoryDef[] = [
+  DISCOVER_ALL,
+  ...DISCOVER_FROM_MENU,
+];
 
 export const DISCOVER_CASHBACK_OPTIONS: readonly { value: DiscoverCashbackMin }[] = [
   { value: 0 },
@@ -69,7 +72,10 @@ export function discoverCategoryApiQuery(category: DiscoverCategoryKey): string 
   return category;
 }
 
-export function discoverCategoryDisplayLabel(category: DiscoverCategoryKey, locale: string): string {
+export function discoverCategoryDisplayLabel(
+  category: DiscoverCategoryKey,
+  locale: string
+): string {
   const row = DISCOVER_CATEGORIES.find((c) => c.apiCategory === category);
   if (!row) return category;
   return locale.toLowerCase().startsWith("th") ? row.labelTh : row.label;

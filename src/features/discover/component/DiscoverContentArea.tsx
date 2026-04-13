@@ -76,14 +76,11 @@ function DiscoverProductFeed({
     const filtered = flat.filter((o) => (o.commission_store ?? 0) >= filters.minCashback);
     if (filters.sort === "newest") {
       return [...filtered].sort(
-        (a, b) =>
-          new Date(b.datetime_created).getTime() - new Date(a.datetime_created).getTime()
+        (a, b) => new Date(b.datetime_created).getTime() - new Date(a.datetime_created).getTime()
       );
     }
     if (filters.sort === "highCashback") {
-      return [...filtered].sort(
-        (a, b) => (b.commission_store ?? 0) - (a.commission_store ?? 0)
-      );
+      return [...filtered].sort((a, b) => (b.commission_store ?? 0) - (a.commission_store ?? 0));
     }
     return filtered;
   }, [data, filters.sort, filters.minCashback]);
@@ -132,7 +129,12 @@ function DiscoverProductFeed({
         </p>
       ) : (
         <>
-          <MerchantListTracker items={allOffers} listId={listId} listName={listName} source="discover_page" />
+          <MerchantListTracker
+            items={allOffers}
+            listId={listId}
+            listName={listName}
+            source="discover_page"
+          />
           <div className={cn("mt-6 pb-1 pt-0.5", discoverBrandsGrid)}>
             {allOffers.map((offer, index) => {
               const bannerSrc = getOfferBannerSrc(offer, lg);
@@ -209,7 +211,13 @@ function DiscoverProductFeed({
   );
 }
 
-function DiscoverResultsCount({ apiCategory, filters }: { apiCategory: string; filters: DiscoverFilters }) {
+function DiscoverResultsCount({
+  apiCategory,
+  filters,
+}: {
+  apiCategory: string;
+  filters: DiscoverFilters;
+}) {
   const t = useTranslations();
   const { data, isPending } = useQuery({
     queryKey: ["discoverFeed", apiCategory, filters.search, 1, DISCOVER_PAGE_SIZE],
@@ -288,7 +296,9 @@ export function DiscoverContentArea({ filters, onChange }: DiscoverContentAreaPr
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="mr-1 text-sm font-medium text-[var(--gc-text-muted)]">{t("discoverSortBy")}</span>
+          <span className="mr-1 text-sm font-medium text-[var(--gc-text-muted)]">
+            {t("discoverSortBy")}
+          </span>
           {SORT_SEQUENCE.map((s) => (
             <button
               key={s}

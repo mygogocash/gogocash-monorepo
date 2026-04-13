@@ -25,7 +25,7 @@ Concise guidance for AI coding agents and contributors. **Deep architecture and 
 | Profile personal info                 | `src/features/profile/component/ProfileDesktopPersonalPanel.tsx`, `ProfileInfo.tsx`                                                                              |
 | PDPA consent UI (Consent preferences) | `src/components/pdpa/PrivacyCenterContent.tsx` — route `/privacy-center`; sidebar label key `navPrivacyPolicy`                                                   |
 | Age verification                      | `src/components/pdpa/AgeVerificationFlow.tsx`, `src/app/[locale]/(profile)/age-verification/`; API `POST /api/pdpa/guardian/verify`                              |
-| PDPA data export / account deletion   | `src/components/pdpa/PdpaDataRightsSection.tsx` (embedded under Personal Information, below social links)                                                        |
+| PDPA data export / account deletion   | `src/components/pdpa/PdpaDataRightsSection.tsx` (rendered in `AccountSettingsView.tsx`, below notifications + community)                                         |
 | Integrated profile shell routes       | `src/lib/navigation/profileIntegratedShell.ts` (+ tests) — keep in sync when adding profile-hub pages (e.g. `/age-verification`)                                 |
 | SubPage title keys                    | `src/features/profile/layout/subPageMessageKeys.ts`                                                                                                              |
 | Membership landing                    | `docs/membership.md`, `docs/membership-hero-content.md`, `src/features/membership/*`, `useMembershipLanding.ts`                                                  |

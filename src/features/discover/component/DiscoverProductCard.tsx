@@ -57,7 +57,10 @@ export function DiscoverProductCard({
               alt={offer_name}
               width={400}
               height={400}
-              className={cn("size-full", banner === FALLBACK_BANNER ? "object-fill" : "object-cover")}
+              className={cn(
+                "size-full",
+                banner === FALLBACK_BANNER ? "object-fill" : "object-cover"
+              )}
             />
           </div>
         </div>
