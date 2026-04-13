@@ -76,3 +76,12 @@ Use `npm run lint:fix` and `npm run format` when appropriate.
 - **npm CLI:** If every command prints `Unknown env config "devdir"`, your user-level config or environment references an invalid npm key. Run `npm config delete devdir` (add `-g` if it was set globally), remove any `devdir=…` line from `~/.npmrc`, and unset `NPM_CONFIG_DEVDIR` in your shell profile if present.
 
 When in doubt, search the codebase for an existing pattern before introducing a new abstraction.
+
+## Cursor Cloud specific instructions
+
+- **Node 22.x** is pre-installed. Dependencies are refreshed on startup via `npm install --legacy-peer-deps`.
+- **Mock API mode:** `.env.local` is pre-configured with `NEXT_PUBLIC_MOCK_API=1`, so the dev server works without a real backend. Shops, categories, and mock user data are served from `src/mocks/`.
+- **Dev server:** `npm run dev` starts on port 3000. Pages require the locale prefix (e.g. `http://localhost:3000/en`). First request compiles on demand (~30 s); subsequent requests are fast.
+- **Timezone warning:** `next-intl` may log `ENVIRONMENT_FALLBACK: There is no timeZone configured` on first compile—this is cosmetic and does not block page serving.
+- **Validation / checks:** `npm run validate` runs lint + format:check + i18n:check + test. Build: `npm run build` (uses `--webpack`; Turbopack is not supported for this project). TypeScript: `npx tsc --noEmit`.
+- **No external services required** for local dev in mock mode. Firebase, Stripe, Crossmint, and analytics integrations are all optional and disabled by default.
