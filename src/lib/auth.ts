@@ -22,7 +22,7 @@ import { signInCrossmint } from "./services/auth";
 //   error?: string;
 // }
 export const authOptions: AuthOptions = {
-  debug: process.env.NODE_ENV === "development",
+  debug: process.env.NEXTAUTH_DEBUG === "true",
   providers: [
     CredentialsProvider({
       id: "crossmint",

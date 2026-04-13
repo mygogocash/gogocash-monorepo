@@ -60,6 +60,8 @@ export default function FavoriteStoreHero({ onSeeMore }: FavoriteStoreHeroProps)
             alt={t("favoritePageHeroIllustrationAlt")}
             width={355}
             height={258}
+            loading="eager"
+            priority
             className="h-auto max-h-[200px] w-auto max-w-[min(100%,355px)] object-contain md:max-h-none"
           />
         </div>

@@ -38,7 +38,7 @@ export function ShopDetailRightRail({
           alt=""
           width={720}
           height={405}
-          className="h-[405px] w-full object-cover"
+          className="h-auto w-full object-cover"
           sizes="(min-width: 1024px) 720px, 100vw"
         />
       </LocaleLink>

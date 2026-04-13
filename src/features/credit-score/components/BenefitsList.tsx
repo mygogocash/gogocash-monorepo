@@ -1,93 +1,127 @@
 "use client";
 
-import type { TierKey } from "../utils/scoreCalculator";
-import {
-  getActiveBenefitIds,
-  getFutureBenefitIds,
-  getNextTierExclusiveBenefitIds,
-  type BenefitId,
-} from "../utils/benefitsCatalog";
+import type { Tier } from "../utils/scoreCalculator";
 import { useTranslations } from "next-intl";
 
 type BenefitsListProps = {
-  tierKey: TierKey;
+  tier: Tier;
+};
+
+type BenefitItem = {
+  id: string;
+  icon: string;
+  label: string;
+  note?: string;
 };
 
 function BenefitCard({
-  benefitId,
+  item,
   active,
+  locked,
   coming,
 }: {
-  benefitId: BenefitId;
+  item: BenefitItem;
   active: boolean;
+  locked: boolean;
   coming: boolean;
 }) {
   const t = useTranslations("creditScore");
-  const title = t(`benefit_${benefitId}`);
 
   return (
     <div
       className={
         active
-          ? "flex flex-wrap items-center justify-between gap-2 rounded-[var(--gc-radius-md)] border border-[var(--gc-border)] bg-[var(--gc-surface)] p-4 shadow-[var(--gc-shadow)]"
-          : "flex flex-wrap items-center justify-between gap-2 rounded-[var(--gc-radius-md)] border border-[var(--gc-border)] bg-[var(--gc-surface)] p-4 opacity-55 shadow-[var(--gc-shadow)]"
+          ? "flex items-center justify-between gap-3 rounded-[var(--gc-radius-md)] border border-[var(--gc-border)] bg-[var(--gc-surface)] p-4 shadow-[var(--gc-shadow)]"
+          : locked
+            ? "flex items-center justify-between gap-3 rounded-[var(--gc-radius-md)] border border-[var(--gc-border)] bg-[var(--gc-surface)] p-4 opacity-55 shadow-[var(--gc-shadow)]"
+            : "flex items-center justify-between gap-3 rounded-[var(--gc-radius-md)] border border-[var(--gc-border)] bg-[var(--gc-surface)] p-4 shadow-[var(--gc-shadow)]"
       }
     >
-      <p className="min-w-0 text-sm font-medium text-[var(--gc-text)]">{title}</p>
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-[var(--gc-text)]">
+          <span className="mr-2" aria-hidden>
+            {item.icon}
+          </span>
+          {item.label}
+        </p>
+        {item.note ? (
+          <p className="mt-0.5 text-xs text-[var(--gc-text-muted)]">{item.note}</p>
+        ) : null}
+      </div>
       {coming ? (
-        <span className="shrink-0 rounded-full bg-[var(--gc-surface-muted)] px-2 py-0.5 text-xs font-semibold text-[var(--gc-text-muted)] ring-1 ring-[var(--gc-border)]">
-          {t("benefitComing")}
+        <span className="rounded-full bg-[var(--gc-surface-muted)] px-2 py-0.5 text-xs text-[var(--gc-text-soft)]">
+          {t("chipComing")}
         </span>
       ) : active ? (
-        <span className="shrink-0 rounded-full bg-[var(--gc-primary-soft)] px-2 py-0.5 text-xs font-semibold text-[var(--gc-accent)] ring-1 ring-[var(--gc-border-mint)]">
-          {t("benefitActive")}
+        <span className="rounded-full bg-[var(--gc-primary-soft)] px-2 py-0.5 text-xs font-semibold text-[var(--gc-accent)]">
+          {t("chipActive")}
         </span>
       ) : (
-        <span className="shrink-0 rounded-full bg-[var(--gc-surface-muted)] px-2 py-0.5 text-xs font-semibold text-[var(--gc-text-muted)] ring-1 ring-[var(--gc-border)]">
-          {t("benefitLocked")}
+        <span className="text-sm" aria-hidden>
+          🔒
         </span>
       )}
     </div>
   );
 }
 
-export default function BenefitsList({ tierKey }: BenefitsListProps) {
+export default function BenefitsList({ tier }: BenefitsListProps) {
   const t = useTranslations("creditScore");
-  const activeIds = getActiveBenefitIds(tierKey);
-  const lockedNextIds = getNextTierExclusiveBenefitIds(tierKey);
-  const futureIds = getFutureBenefitIds();
+  const starterItems: BenefitItem[] = [
+    { id: "starter-cashback", icon: "💰", label: "Cashback on every purchase" },
+    { id: "starter-payout", icon: "📦", label: "Standard payout (2–5 days)" },
+    { id: "starter-quests", icon: "🎯", label: "Access to all GoGo Quests" },
+  ];
+  const trustedItems: BenefitItem[] = [
+    { id: "trusted-support", icon: "🎧", label: "Priority customer support" },
+    { id: "trusted-exclusive-quests", icon: "🎯", label: "Access to Exclusive Quests" },
+    {
+      id: "trusted-badge",
+      icon: "👑",
+      label: "Free GoGoPass for 12 months",
+      note: "Unlock when you stay Trusted for 3 consecutive months",
+    },
+  ];
+  const comingItems: BenefitItem[] = [
+    { id: "future-credit", icon: "💳", label: "Micro-credit access" },
+  ];
+  const isTrusted = tier.key === "trusted";
 
   return (
     <section className="flex flex-col gap-4" aria-labelledby="benefits-title">
-      <h2
-        id="benefits-title"
-        className="text-lg font-semibold tracking-tight text-[#103522] sm:text-[1.25rem]"
-      >
+      <h2 id="benefits-title" className="text-[32px] font-semibold tracking-tight text-[#103522]">
         {t("benefitsTitle")}
       </h2>
 
       <div>
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--gc-text-muted)]">
-          {t("benefitsActiveHeading")}
+          {t("sectionActive")}
         </p>
         <ul className="flex flex-col gap-2">
-          {activeIds.map((id) => (
-            <li key={id}>
-              <BenefitCard benefitId={id} active coming={false} />
+          {starterItems.map((item) => (
+            <li key={item.id}>
+              <BenefitCard item={item} active locked={false} coming={false} />
             </li>
           ))}
+          {isTrusted
+            ? trustedItems.map((item) => (
+                <li key={item.id}>
+                  <BenefitCard item={item} active locked={false} coming={false} />
+                </li>
+              ))
+            : null}
         </ul>
       </div>
 
-      {lockedNextIds.length > 0 ? (
+      {!isTrusted ? (
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--gc-text-muted)]">
-            {t("benefitsUnlockHeading")}
+            {t("sectionLocked")}
           </p>
           <ul className="flex flex-col gap-2">
-            {lockedNextIds.map((id) => (
-              <li key={id}>
-                <BenefitCard benefitId={id} active={false} coming={false} />
+            {trustedItems.map((item) => (
+              <li key={item.id}>
+                <BenefitCard item={item} active={false} locked coming={false} />
               </li>
             ))}
           </ul>
@@ -96,12 +130,12 @@ export default function BenefitsList({ tierKey }: BenefitsListProps) {
 
       <div>
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--gc-text-muted)]">
-          {t("benefitsFutureHeading")}
+          {t("sectionComing")}
         </p>
         <ul className="flex flex-col gap-2">
-          {futureIds.map((id) => (
-            <li key={id}>
-              <BenefitCard benefitId={id} active={false} coming />
+          {comingItems.map((item) => (
+            <li key={item.id}>
+              <BenefitCard item={item} active={false} locked={false} coming />
             </li>
           ))}
         </ul>

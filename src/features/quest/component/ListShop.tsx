@@ -7,12 +7,15 @@ import Image from "next/image";
 import { useSession } from "next-auth/react";
 import BadgeQuest from "./BadgeQuest";
 import { CopyAll } from "@mui/icons-material";
+import AdsClickOutlined from "@mui/icons-material/AdsClickOutlined";
 import { IconButton } from "@mui/material";
 import { Link } from "@/i18n/navigation";
 import { useParams } from "next/navigation";
 import { QuestRankResponse, ResponseQuestDate, ResSocialReward } from "@/interfaces/quest";
 import SocailList from "./common/SocailList";
 import { pathImage } from "@/lib/utils";
+import { useEffect, useState } from "react";
+import AdSenseSlot from "@/components/ads/AdSenseSlot";
 interface ListShopProps {
   offerExtraPoint: DataOffer[] | undefined;
   activeTab?: number;
@@ -34,6 +37,67 @@ const ListShop = ({
   const t = useTranslations();
   const param = useParams();
   const pathname = param?.locale;
+  const DAILY_CHECKIN_LIMIT = 2;
+  const DAILY_VIDEO_POINTS = 10;
+  const [dailyCheckins, setDailyCheckins] = useState(0);
+  const [adOpen, setAdOpen] = useState(false);
+  const [adRemaining, setAdRemaining] = useState(30);
+
+  const storageKey = `gogocash.quest.daily-checkin.${session?.user?._id ?? "guest"}`;
+  const today = new Date().toLocaleDateString("en-CA");
+  const dailyCompleted = dailyCheckins >= DAILY_CHECKIN_LIMIT;
+  const earnedTodayPoints = dailyCheckins * DAILY_VIDEO_POINTS;
+  const questAdSlot = process.env.NEXT_PUBLIC_GOOGLE_ADSENSE_SLOT_QUEST;
+
+  useEffect(() => {
+    let nextCount: number | null = null;
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { date?: string; count?: number };
+      if (parsed.date !== today) return;
+      nextCount = Math.max(0, Math.min(DAILY_CHECKIN_LIMIT, Number(parsed.count) || 0));
+    } catch {
+      /* ignore storage parse errors */
+    }
+    if (nextCount === null) return;
+    const timer = window.setTimeout(() => setDailyCheckins(nextCount as number), 0);
+    return () => window.clearTimeout(timer);
+  }, [storageKey, today]);
+
+  const persistDailyCheckins = (nextCount: number) => {
+    const safe = Math.max(0, Math.min(DAILY_CHECKIN_LIMIT, nextCount));
+    setDailyCheckins(safe);
+    try {
+      localStorage.setItem(
+        storageKey,
+        JSON.stringify({
+          date: today,
+          count: safe,
+        })
+      );
+    } catch {
+      /* ignore storage write errors */
+    }
+  };
+
+  const startDailyCheckin = () => {
+    if (dailyCompleted) return;
+    setAdRemaining(30);
+    setAdOpen(true);
+  };
+
+  useEffect(() => {
+    if (!adOpen || adRemaining <= 0) return;
+    const id = window.setTimeout(() => setAdRemaining((prev) => Math.max(0, prev - 1)), 1000);
+    return () => window.clearTimeout(id);
+  }, [adOpen, adRemaining]);
+
+  const completeAdWatch = () => {
+    if (adRemaining > 0) return;
+    setAdOpen(false);
+    persistDailyCheckins(dailyCheckins + 1);
+  };
 
   return (
     <div className="flex flex-col">
@@ -62,6 +126,50 @@ const ListShop = ({
           listName="Quest Extra Point Merchants"
           source="quest_tasks"
         /> */}
+        <div className="flex items-center justify-between gap-3 border-b border-gray-300 pb-4 mb-4">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#E8FBF5] lg:h-14 lg:w-14">
+              <AdsClickOutlined
+                aria-hidden
+                sx={{
+                  fontSize: { xs: 20, lg: 30 },
+                  color: "#00AA80",
+                }}
+              />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-[18px] font-normal leading-snug text-black">
+                {t("questDailyCheckinTitle")}
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={startDailyCheckin}
+              disabled={dailyCompleted}
+              className="rounded-full disabled:cursor-not-allowed"
+            >
+              <BadgeQuest
+                title={
+                  dailyCompleted
+                    ? `+${earnedTodayPoints} ${t("Points")}`
+                    : `+${DAILY_VIDEO_POINTS} ${t("Points")}`
+                }
+                icon={
+                  <Image
+                    src={dailyCheckins > 0 ? "/quest/bath.svg" : "/quest/bath_grey.svg"}
+                    alt="coin"
+                    width={24}
+                    height={24}
+                    className="size-[18px] shrink-0 lg:size-5"
+                  />
+                }
+                theme={`${dailyCheckins > 0 ? "bg-white border border-[#00CC99] text-[#00CC99]" : "bg-[#00CC99] text-white"} text-[18px] font-medium leading-snug !px-3 !py-1.5 ${dailyCheckins > 0 ? "" : "lg:min-w-[142px]"} ${dailyCompleted ? "opacity-70" : ""}`}
+              />
+            </button>
+          </div>
+        </div>
         {offerExtraPoint &&
           offerExtraPoint.length > 0 &&
           offerExtraPoint.map((offer, index) => (
@@ -144,6 +252,34 @@ const ListShop = ({
           </>
         )}
       </div>
+
+      {adOpen ? (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 p-4">
+          <div className="w-full max-w-[560px] rounded-2xl bg-white p-4 shadow-2xl md:p-6">
+            <h3 className="text-lg font-semibold text-[#3b3b3b]">{t("questDailyAdTitle")}</h3>
+            <p className="mt-1 text-sm text-[#6b7280]">{t("questDailyAdBody")}</p>
+            <div className="mt-4 h-[220px] overflow-hidden rounded-xl bg-[#111827]">
+              {questAdSlot ? (
+                <AdSenseSlot className="h-full w-full" slot={questAdSlot} format="rectangle" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_top,_#2b5567,_#0f172a_65%)] px-6 text-center text-sm text-white">
+                  {t("questDailyAdWatchToEarn")}
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={completeAdWatch}
+              disabled={adRemaining > 0}
+              className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-[#00CC99] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {adRemaining > 0
+                ? t("questDailyAdLocked", { seconds: adRemaining })
+                : t("questDailyAdContinue")}
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {/* <Image
         src={

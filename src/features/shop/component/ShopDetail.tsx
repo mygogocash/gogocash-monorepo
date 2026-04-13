@@ -41,12 +41,75 @@ import { ShopDetailRightRail } from "./ShopDetailRightRail";
 import { ShopDetailTermsExclusions } from "./ShopDetailTermsExclusions";
 import { getMerchantSummaryTagsAriaLabel } from "./shopDetailShared";
 import { sortedProductTypes } from "@/features/shop/utils/sortedProductTypes";
+import { Gift, Share2 } from "lucide-react";
 
 const ShopDetailExploreRelated = dynamic(() => import("./ShopDetailExploreRelated"), {
   loading: () => (
     <div className="mt-12 h-64 w-full animate-pulse rounded-2xl bg-[#f0f0f0] md:h-80" aria-hidden />
   ),
 });
+
+function ShopDetailShareReferralCard({
+  locale,
+  t,
+}: {
+  locale: string;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const onShare = async () => {
+    const referralUrl = `${window.location.origin}/${locale}/referral`;
+    const shareText = t("homeShareReferralText");
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: t("homeShareReferralHeading"),
+          text: shareText,
+          url: referralUrl,
+        });
+        return;
+      }
+    } catch {
+      // User may close the share sheet; fallback to copy.
+    }
+
+    try {
+      await navigator.clipboard.writeText(`${shareText}\n${referralUrl}`);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard can be blocked in some browsers.
+    }
+  };
+
+  return (
+    <section className="w-full overflow-hidden rounded-2xl border border-[#bfe9de] bg-gradient-to-br from-[#f4fdfa] to-[#edfaf6] p-3 sm:p-4">
+      <div className="flex flex-col gap-2.5">
+        <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-[#bfe9de] bg-white/80 px-2 py-0.5 text-[11px] font-semibold text-[#0f5f4c]">
+          <Gift size={14} aria-hidden />
+          10% Cashback Bonus
+        </span>
+
+        <h2 className="text-[1.25rem] font-semibold leading-tight text-[#144a3b] sm:text-[1.35rem]">
+          {t("homeShareReferralHeading")}
+        </h2>
+
+        <p className="text-[13px] leading-5 text-[#3f695f]">{t("homeShareReferralDescription")}</p>
+
+        <button
+          type="button"
+          onClick={() => void onShare()}
+          className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl bg-[#00cc99] px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#00b589] sm:w-auto sm:self-start"
+        >
+          <Share2 size={16} aria-hidden />
+          {copied ? t("homeShareReferralCopied") : t("homeShareReferralCta")}
+        </button>
+      </div>
+    </section>
+  );
+}
 
 const ShopDetail = () => {
   const { id } = useParams();
@@ -349,6 +412,7 @@ const ShopDetail = () => {
                 couponExpiryDays={couponExpiryDays}
                 percentSpecial={Number(percentSpecial)}
               />
+              <ShopDetailShareReferralCard locale={locale} t={t} />
               <div className="hidden min-w-0 lg:block">
                 <ShopDetailTermsExclusions />
               </div>

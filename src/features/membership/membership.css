@@ -794,38 +794,58 @@
   text-align: center;
 }
 .membership-root .partners-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--s3);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: var(--s2);
   margin-top: var(--s6);
 }
 .membership-root .partners-label {
   font-size: var(--text-xs);
   color: var(--text-muted);
-  width: 100%;
+  grid-column: 1 / -1;
+  margin-bottom: var(--s1);
 }
-.membership-root .partner-pill {
+.membership-root .partner-logo-pill {
   display: inline-flex;
   align-items: center;
   gap: var(--s2);
-  padding: var(--s2) var(--s4);
+  width: 100%;
+  padding: var(--s2) var(--s3);
   border-radius: var(--r-full);
   font-size: var(--text-xs);
   font-weight: 600;
-  color: var(--text-inv);
+  color: var(--text);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  white-space: nowrap;
 }
-.membership-root .badge-agoda {
-  background: #003580;
+.membership-root .partner-logo-pill img {
+  border-radius: 9999px;
 }
-.membership-root .badge-klook {
-  background: #ff5722;
+.membership-root .partner-logo-pill span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.membership-root .badge-traveloka {
-  background: #0f4c81;
+.membership-root .partner-logo-fallback {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  border-radius: 9999px;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  background: var(--surface-muted);
 }
-.membership-root .badge-lotus {
-  background: #00753c;
+@media (min-width: 768px) {
+  .membership-root .partners-row {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--s3);
+  }
 }
 .membership-root .section-head {
   text-align: left;
@@ -837,6 +857,15 @@
   margin-bottom: var(--s3);
   color: var(--heading-green);
   letter-spacing: -0.02em;
+}
+.membership-root .calc-history-wrap {
+  margin-top: var(--s5);
+}
+.membership-root .calc-history-btn {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 var(--s5);
+  border-radius: var(--r-xl);
 }
 /* Pricing: heading + billing toggle share one full-width column (matches section title width) */
 .membership-root .pricing-billing-header {
@@ -2106,4 +2135,150 @@
 }
 .membership-root .stats-row--membership .stat-card span[data-count-to] {
   font-weight: 800;
+}
+
+/* Membership spacing pass: consistent rhythm for profile subpage */
+.membership-root {
+  --mship-section-gap-mobile: 1.5rem;
+  --mship-section-gap-desktop: 2rem;
+  --mship-card-pad-mobile: 1rem;
+  --mship-card-pad-desktop: 1.25rem;
+}
+
+.membership-root .mship-main {
+  gap: var(--mship-section-gap-mobile);
+}
+
+.membership-root .mship-main > .section {
+  margin-block: 0;
+}
+
+.membership-root .section-head {
+  margin-bottom: 1rem;
+}
+
+.membership-root .section-subtitle {
+  margin-top: 0.5rem;
+}
+
+.membership-root .hero-section {
+  padding-block: 1rem;
+}
+
+.membership-root .hero-grid {
+  gap: 1rem;
+}
+
+.membership-root .hero-title {
+  margin-bottom: 0.75rem;
+}
+
+.membership-root .hero-body {
+  margin-bottom: 0.875rem;
+}
+
+.membership-root .hero-benefits {
+  gap: 0.625rem;
+  margin-bottom: 1rem;
+}
+
+.membership-root .hero-pricing-row {
+  margin-bottom: 0.875rem;
+}
+
+.membership-root .hero-plan-name {
+  margin-bottom: 0.75rem;
+}
+
+.membership-root .hero-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 32rem;
+  margin-inline: auto;
+}
+
+.membership-root .calc-card {
+  padding: var(--mship-card-pad-mobile);
+}
+
+.membership-root .calc-input-group {
+  margin-bottom: 1rem;
+  padding: var(--mship-card-pad-mobile);
+}
+
+.membership-root .calc-results {
+  gap: 0.75rem;
+}
+
+.membership-root .leaving-line {
+  margin-top: 1rem;
+}
+
+.membership-root .partners-row {
+  margin-top: 1rem;
+}
+
+.membership-root .hero-actions .btn-primary,
+.membership-root .hero-actions a.btn-primary {
+  min-height: 56px;
+  border-radius: 9999px;
+  font-size: clamp(1.05rem, 1.6vw, 1.3rem);
+  font-weight: 800;
+  box-shadow:
+    0 14px 28px rgba(0, 177, 79, 0.22),
+    0 2px 0 rgba(0, 0, 0, 0.08);
+}
+
+.membership-root .hero-actions .hero-cta-secondary {
+  min-height: 50px;
+  border-radius: 9999px;
+  font-size: 1rem;
+  font-weight: 700;
+  border-width: 2px;
+  opacity: 0.92;
+}
+
+.membership-root .hero-actions .link-bounce {
+  justify-self: center;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--brand-dark);
+  margin-top: 0.25rem;
+}
+
+@media (min-width: 768px) {
+  .membership-root .mship-main {
+    gap: var(--mship-section-gap-desktop);
+  }
+
+  .membership-root .hero-section {
+    padding-block: 1.25rem;
+  }
+
+  .membership-root .hero-grid {
+    gap: 1.25rem;
+  }
+
+  .membership-root .hero-benefits {
+    margin-bottom: 1.25rem;
+  }
+
+  .membership-root .hero-pricing-row {
+    margin-bottom: 1rem;
+  }
+
+  .membership-root .calc-card {
+    padding: var(--mship-card-pad-desktop);
+  }
+
+  .membership-root .calc-input-group {
+    margin-bottom: 1.25rem;
+    padding: var(--mship-card-pad-desktop);
+  }
+
+  .membership-root .calc-results {
+    gap: 1rem;
+  }
 }

@@ -18,6 +18,8 @@ export default getRequestConfig(async ({ requestLocale }) => {
   return {
     locale,
     messages,
+    // Prevent next-intl ENVIRONMENT_FALLBACK warnings and hydration drift.
+    timeZone: "Asia/Bangkok",
     getMessageFallback: createGetMessageFallback(messageLocale),
   };
 });

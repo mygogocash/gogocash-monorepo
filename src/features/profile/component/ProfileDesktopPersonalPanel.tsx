@@ -33,6 +33,11 @@ export type ProfileExtendedForm = {
 
 const genderOptions = ["Male", "Female", "Other"];
 
+function normalizeGenderValue(value?: string | null): string {
+  if (!value || value === "unspecified") return "";
+  return genderOptions.includes(value) ? value : "";
+}
+
 const inputOutlineSx = {
   " .MuiOutlinedInput-root": {
     borderRadius: "16px",
@@ -423,7 +428,7 @@ export default function ProfileDesktopPersonalPanel({
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Select
             displayEmpty
-            value={formData.gender || session?.user?.gender || ""}
+            value={normalizeGenderValue(formData.gender || session?.user?.gender)}
             onChange={(e) => setFormData((p) => ({ ...p, gender: e.target.value }))}
             sx={selectSx}
             disabled={fieldsLocked}

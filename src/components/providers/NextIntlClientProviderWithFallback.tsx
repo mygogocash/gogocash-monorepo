@@ -47,6 +47,7 @@ export default function NextIntlClientProviderWithFallback({ locale, messages, c
     <NextIntlClientProvider
       locale={locale}
       messages={messages}
+      timeZone="Asia/Bangkok"
       getMessageFallback={createGetMessageFallback(messageLocale)}
       onError={onIntlError}
     >

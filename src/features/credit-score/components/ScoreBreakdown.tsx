@@ -1,94 +1,110 @@
 "use client";
 
-import type { CreditScoreInput, ScoreBreakdownRow } from "../utils/scoreCalculator";
+import type { Tier, UserCreditData } from "../utils/scoreCalculator";
 import { getScoreBreakdown } from "../utils/scoreCalculator";
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 
 type ScoreBreakdownProps = {
-  user: CreditScoreInput;
-  isDiamondTier: boolean;
+  user: UserCreditData;
+  tier: Tier;
 };
 
-function ctaForRow(
-  id: ScoreBreakdownRow["id"]
-): { href: string; labelKey: "cta_verify" | "cta_complete" | "cta_shop" } | null {
-  switch (id) {
-    case "transactions":
-      return { href: "/", labelKey: "cta_shop" };
-    case "phone":
-      return { href: "/profile/verify-phone", labelKey: "cta_verify" };
-    case "email":
-      return { href: "/profile/info", labelKey: "cta_verify" };
-    case "profile":
-      return { href: "/profile/info", labelKey: "cta_complete" };
-    default:
-      return null;
-  }
-}
-
-const rowBase =
-  "flex flex-col gap-2 rounded-[var(--gc-radius-md)] border p-4 shadow-[var(--gc-shadow)] sm:flex-row sm:items-center sm:justify-between";
-const rowComplete = `${rowBase} border-[var(--gc-border)] bg-[var(--gc-surface)]`;
-const rowIncomplete = `${rowBase} border-[var(--gc-border)] bg-[var(--gc-surface-muted)]`;
-
-export default function ScoreBreakdown({ user, isDiamondTier }: ScoreBreakdownProps) {
+export default function ScoreBreakdown({ user, tier }: ScoreBreakdownProps) {
   const t = useTranslations("creditScore");
-  const rows = getScoreBreakdown(user);
+  const rows = getScoreBreakdown(user).map((row) => ({
+    ...row,
+    label: t(`row_${row.id}`),
+    subLabel:
+      row.id === "spend"
+        ? t("row_spend_sub", {
+            amount: Math.max(0, Math.round(user.monthlySpend)).toLocaleString("en-US"),
+          })
+        : row.id === "transactions"
+          ? t("row_transactions_sub", {
+              count: Math.max(0, Math.floor(user.monthlyTransactionCount)),
+            })
+          : row.subLabel,
+  }));
+  const completeRows = rows.filter((row) => row.isComplete);
+  const todoRows = rows.filter((row) => !row.isComplete);
 
   return (
     <section className="flex flex-col gap-3" aria-labelledby="score-breakdown-title">
       <h2
         id="score-breakdown-title"
-        className="text-lg font-semibold tracking-tight text-[#103522] sm:text-[1.25rem]"
+        className="text-4xl font-semibold tracking-tight text-[#103522]"
       >
-        {isDiamondTier ? t("breakdownTitle_complete") : t("breakdownTitle_incomplete")}
+        {tier.key === "trusted" ? t("breakdownTitle_trusted") : t("breakdownTitle_starter")}
       </h2>
-      <ul className="flex flex-col gap-3">
-        {rows.map((row) => {
-          const maybeCta = ctaForRow(row.id);
-          const cta = !row.isComplete && maybeCta ? maybeCta : null;
-          const earnedDisplay =
-            row.earnedPts === Math.floor(row.earnedPts)
-              ? String(row.earnedPts)
-              : row.earnedPts.toFixed(1);
 
-          return (
-            <li key={row.id} className={row.isComplete ? rowComplete : rowIncomplete}>
-              <div className="flex min-w-0 items-start gap-3">
-                <span className="shrink-0 text-xl leading-none" aria-hidden>
-                  {row.isComplete ? "\u2705" : "\u{1F512}"}
-                </span>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-[var(--gc-text)]">
-                    {t(`row_${row.id}`)}
-                  </p>
-                  {row.id === "transactions" && row.transactionCount != null ? (
-                    <p className="mt-0.5 text-sm text-[var(--gc-text-muted)]">
-                      {t("row_transactions_sub", { count: row.transactionCount })}
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-              <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
-                <span className="text-sm font-semibold tabular-nums text-[var(--gc-text)]">
-                  {row.isComplete
-                    ? `+${row.maxPts} ${t("ptsSuffix")}`
-                    : `+${earnedDisplay} / ${row.maxPts} ${t("ptsSuffix")}`}
-                </span>
-                {cta ? (
-                  <Link
-                    href={cta.href}
-                    className="inline-flex min-h-10 items-center justify-center rounded-full bg-[var(--gc-primary-strong)] px-4 py-2 text-sm font-semibold text-white no-underline transition-[filter] hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gc-primary)]"
-                  >
-                    {t(cta.labelKey)}
-                  </Link>
+      <p className="text-xs font-semibold uppercase tracking-wide text-[var(--gc-text-muted)]">
+        {t("sectionComplete")}
+      </p>
+      <ul className="flex flex-col gap-3">
+        {completeRows.map((row) => (
+          <li
+            key={row.id}
+            className="rounded-[var(--gc-radius-md)] border border-[var(--gc-border)] bg-[var(--gc-surface)] p-4 shadow-[var(--gc-shadow)]"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-[var(--gc-text)]">✅ {row.label}</p>
+                {row.subLabel ? (
+                  <p className="mt-0.5 text-sm text-[var(--gc-text-muted)]">{row.subLabel}</p>
                 ) : null}
               </div>
-            </li>
-          );
-        })}
+              <span className="text-sm font-semibold text-[var(--gc-accent)]">
+                +{row.maxPts} pts
+              </span>
+            </div>
+          </li>
+        ))}
       </ul>
+
+      {todoRows.length > 0 ? (
+        <>
+          <p className="pt-1 text-xs font-semibold uppercase tracking-wide text-[var(--gc-text-muted)]">
+            {t("sectionTodo")}
+          </p>
+          <ul className="flex flex-col gap-3">
+            {todoRows.map((row) => (
+              <li
+                key={row.id}
+                className="rounded-[var(--gc-radius-md)] border border-[var(--gc-border)] bg-[var(--gc-surface-muted)] p-4 shadow-[var(--gc-shadow)]"
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-[var(--gc-text)]">🔒 {row.label}</p>
+                    {row.subLabel ? (
+                      <p className="mt-0.5 text-sm text-[var(--gc-text-muted)]">{row.subLabel}</p>
+                    ) : null}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-[var(--gc-accent)]">
+                      +{row.maxPts} pts
+                    </span>
+                    {row.ctaLabel && row.ctaHref ? (
+                      <Link
+                        href={row.ctaHref}
+                        className="inline-flex h-11 items-center rounded-full border border-[var(--gc-primary)] bg-white px-3 text-xs font-semibold text-[var(--gc-accent)] no-underline"
+                      >
+                        {row.id === "email"
+                          ? t("ctaVerifyEmail")
+                          : row.id === "phone"
+                            ? t("ctaVerifyPhone")
+                            : row.id === "profile"
+                              ? t("ctaCompleteProfile")
+                              : t("boostCta")}
+                      </Link>
+                    ) : null}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
     </section>
   );
 }

@@ -13,28 +13,30 @@ Concise guidance for AI coding agents and contributors. **Deep architecture and 
 
 ## Where to start (by task)
 
-| Area                                  | Good entry points                                                                                                                                                |
-| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| App shell & providers                 | `src/app/layout.tsx`, `src/providers/ProviderDefault.tsx`                                                                                                        |
-| HTTP + tokens                         | `src/lib/axios/client.ts`                                                                                                                                        |
-| Firebase auth / NextAuth              | `src/lib/authFirebase.ts`, `src/app/api/auth/[...nextauth]/route.ts`                                                                                             |
-| Login UI                              | `src/features/auth/component/LoginComponent.tsx`, `src/hooks/useFirebaseLogin.ts`                                                                                |
-| Crossmint wrapper                     | `src/lib/crossmint/SettingCrossmint.tsx`, `src/hooks/useSafeCrossmint.ts`, `src/hooks/useCrossmintLogin.ts`                                                      |
-| Feature UI                            | `src/features/*`, shared pieces under `src/components/*`                                                                                                         |
-| Profile nav (sidebar / SubPage rail)  | `src/components/layouts/SubProfile.tsx`, `src/features/profile/layout/SubPage.tsx`, `src/features/profile/component/ProfileMenu.tsx` (mobile prefetch list)      |
-| Profile personal info                 | `src/features/profile/component/ProfileDesktopPersonalPanel.tsx`, `ProfileInfo.tsx`                                                                              |
-| PDPA consent UI (Consent preferences) | `src/components/pdpa/PrivacyCenterContent.tsx` — route `/privacy-center`; sidebar label key `navPrivacyPolicy`                                                   |
-| Age verification                      | `src/components/pdpa/AgeVerificationFlow.tsx`, `src/app/[locale]/(profile)/age-verification/`; API `POST /api/pdpa/guardian/verify`                              |
-| PDPA data export / account deletion   | `src/components/pdpa/PdpaDataRightsSection.tsx` (rendered in `AccountSettingsView.tsx`, below notifications + community)                                         |
-| Integrated profile shell routes       | `src/lib/navigation/profileIntegratedShell.ts` (+ tests) — keep in sync when adding profile-hub pages (e.g. `/age-verification`)                                 |
-| SubPage title keys                    | `src/features/profile/layout/subPageMessageKeys.ts`                                                                                                              |
-| Membership landing                    | `docs/membership.md`, `docs/membership-hero-content.md`, `src/features/membership/*`, `useMembershipLanding.ts`                                                  |
-| Stripe checkout / portal              | `src/app/api/stripe/checkout/route.ts`, `src/app/api/stripe/portal/route.ts`, `src/lib/stripe/handleStripeWebhook.ts`                                            |
-| Stripe webhooks                       | **Canonical:** `POST /api/webhooks/stripe` (`src/app/api/webhooks/stripe/route.ts`). `POST /api/stripe/webhook` is deprecated but still relays the same handler. |
-| Pricing / billing UI                  | `src/features/subscription/*`; profile routes under `(profile)/pricing`, `(profile)/billing`, `(profile)/membership`                                             |
-| Feature flags                         | `src/constants/featureFlags.ts`                                                                                                                                  |
-| Env schema                            | `src/env.ts`, `.env.example`                                                                                                                                     |
-| Firebase App Hosting                  | `firebase.json`, `apphosting.yaml`, `npm run deploy:firebase`                                                                                                    |
+| Area                                  | Good entry points                                                                                                                                                                                                                   |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| App shell & providers                 | `src/app/layout.tsx`, `src/providers/ProviderDefault.tsx`                                                                                                                                                                           |
+| HTTP + tokens                         | `src/lib/axios/client.ts`                                                                                                                                                                                                           |
+| Firebase auth / NextAuth              | `src/lib/authFirebase.ts`, `src/app/api/auth/[...nextauth]/route.ts`                                                                                                                                                                |
+| Login UI                              | `src/features/auth/component/LoginComponent.tsx`, `src/hooks/useFirebaseLogin.ts`                                                                                                                                                   |
+| Crossmint wrapper                     | `src/lib/crossmint/SettingCrossmint.tsx`, `src/hooks/useSafeCrossmint.ts`, `src/hooks/useCrossmintLogin.ts`                                                                                                                         |
+| Feature UI                            | `src/features/*`, shared pieces under `src/components/*`                                                                                                                                                                            |
+| Profile nav (sidebar / SubPage rail)  | `src/components/layouts/SubProfile.tsx`, `src/features/profile/layout/SubPage.tsx`, `src/features/profile/component/ProfileMenu.tsx` (mobile prefetch list)                                                                         |
+| Profile personal info                 | `src/features/profile/component/ProfileDesktopPersonalPanel.tsx`, `ProfileInfo.tsx`                                                                                                                                                 |
+| PDPA consent UI (Consent preferences) | `src/components/pdpa/PrivacyCenterContent.tsx` — route `/privacy-center`; sidebar label key `navPrivacyPolicy`                                                                                                                      |
+| Age verification                      | `src/components/pdpa/AgeVerificationFlow.tsx`, `src/app/[locale]/(profile)/age-verification/`; API `POST /api/pdpa/guardian/verify`                                                                                                 |
+| PDPA data export / account deletion   | `src/components/pdpa/PdpaDataRightsSection.tsx` (rendered in `AccountSettingsView.tsx`, below notifications + community; cards use a single-column stack on all breakpoints)                                                        |
+| Product Discovery (`/discover`)       | `src/app/[locale]/discover/page.tsx`, `src/features/discover/component/DiscoverContentArea.tsx`, `DiscoverProductCard.tsx`, `DiscoverProductTermsDialog.tsx`, `src/features/discover/types.ts`, `src/lib/offer/offerCardVisuals.ts` |
+| Wallet transaction history + filters  | `src/features/transaction/component/WalletTransaction.tsx`, `WalletTransactionDateRangeFilter.tsx` (MUI date presets + range)                                                                                                       |
+| Integrated profile shell routes       | `src/lib/navigation/profileIntegratedShell.ts` (+ tests) — keep in sync when adding profile-hub pages (e.g. `/age-verification`)                                                                                                    |
+| SubPage title keys                    | `src/features/profile/layout/subPageMessageKeys.ts`                                                                                                                                                                                 |
+| Membership landing                    | `docs/membership.md`, `docs/membership-hero-content.md`, `src/features/membership/*`, `useMembershipLanding.ts`                                                                                                                     |
+| Stripe checkout / portal              | `src/app/api/stripe/checkout/route.ts`, `src/app/api/stripe/portal/route.ts`, `src/lib/stripe/handleStripeWebhook.ts`                                                                                                               |
+| Stripe webhooks                       | **Canonical:** `POST /api/webhooks/stripe` (`src/app/api/webhooks/stripe/route.ts`). `POST /api/stripe/webhook` is deprecated but still relays the same handler.                                                                    |
+| Pricing / billing UI                  | `src/features/subscription/*`; profile routes under `(profile)/pricing`, `(profile)/billing`, `(profile)/membership`                                                                                                                |
+| Feature flags                         | `src/constants/featureFlags.ts`                                                                                                                                                                                                     |
+| Env schema                            | `src/env.ts`, `.env.example`                                                                                                                                                                                                        |
+| Firebase App Hosting                  | `firebase.json`, `apphosting.yaml`, `npm run deploy:firebase`                                                                                                                                                                       |
 
 ## Firebase App Hosting (staging / UAT)
 
@@ -93,5 +95,16 @@ Use `npm run lint:fix` and `npm run format` when appropriate.
 - Backend contract: `NEXT_PUBLIC_API_URL` (see `.env.example`).
 - **Stripe local webhooks:** `stripe listen --forward-to localhost:3000/api/webhooks/stripe` — set `STRIPE_WEBHOOK_SECRET` from the CLI signing secret.
 - **npm CLI:** If every command prints `Unknown env config "devdir"`, your user-level config or environment references an invalid npm key. Run `npm config delete devdir` (add `-g` if it was set globally), remove any `devdir=…` line from `~/.npmrc`, and unset `NPM_CONFIG_DEVDIR` in your shell profile if present.
+- **MUI X `DatePicker` inside a `Popover`:** Keep calendars co-located with the wallet filter — wrap pickers in `LocalizationProvider` + `AdapterDayjs` (see `WalletTransactionDateRangeFilter.tsx`) and set `slotProps.popper.disablePortal: true` on each `DatePicker` so the popper does not mount on `document.body` (avoids z-index, focus, and nested-overlay issues).
 
 When in doubt, search the codebase for an existing pattern before introducing a new abstraction.
+
+## Learned User Preferences
+
+- After bulk edits to `src/messages/en.json` or `th.json`, run `npm run i18n:check` before claiming parity; re-open files if Thai text shows replacement characters.
+
+## Learned Workspace Facts
+
+- Product Discovery tiles and terms flow live under `src/features/discover/`; outbound “Shop now” URL resolution and card imagery reuse `src/lib/offer/offerCardVisuals.ts` (unit tests in `offerCardVisuals.test.ts`).
+- Wallet list filtering by date uses inclusive day bounds when both start and end are set; withdraw rows filter on `created_at`, earning/all modes on `conversionDate` (see `WalletTransaction.tsx`).
+- `PdpaDataRightsSection` is owned for layout/copy in `src/components/pdpa/`; account settings is the integration surface (`AccountSettingsView.tsx`).

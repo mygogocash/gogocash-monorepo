@@ -123,6 +123,10 @@ export const env = createEnv({
     NEXT_PUBLIC_STRIPE_BILLING: optionalString,
     /** Stripe publishable key (`pk_...`) — only if you add Stripe.js / Elements later; keep optional. */
     NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: optionalString,
+    /** Google AdSense publisher id (e.g. `ca-pub-xxxxxxxx`). */
+    NEXT_PUBLIC_GOOGLE_ADSENSE_CLIENT: optionalString,
+    /** AdSense slot id for quest rewarded-ad style placement. */
+    NEXT_PUBLIC_GOOGLE_ADSENSE_SLOT_QUEST: optionalString,
   },
   experimental__runtimeEnv: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
@@ -165,6 +169,8 @@ export const env = createEnv({
       process.env.NEXT_PUBLIC_INTERNAL_CONSENT_BANNER_BUTTON,
     NEXT_PUBLIC_STRIPE_BILLING: process.env.NEXT_PUBLIC_STRIPE_BILLING,
     NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
+    NEXT_PUBLIC_GOOGLE_ADSENSE_CLIENT: process.env.NEXT_PUBLIC_GOOGLE_ADSENSE_CLIENT,
+    NEXT_PUBLIC_GOOGLE_ADSENSE_SLOT_QUEST: process.env.NEXT_PUBLIC_GOOGLE_ADSENSE_SLOT_QUEST,
   },
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
   emptyStringAsUndefined: true,

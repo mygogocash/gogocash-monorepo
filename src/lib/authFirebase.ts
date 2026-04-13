@@ -8,7 +8,7 @@ import { mockSignInUser } from "@/mocks/auth/signInMockData";
 import { DEV_PHONE_CREDENTIAL_JWT, devPhoneMockIsNewUser } from "@/lib/dev/phoneAuthMock";
 
 export const authOptions: AuthOptions = {
-  debug: process.env.NODE_ENV === "development",
+  debug: process.env.NEXTAUTH_DEBUG === "true",
   providers: [
     CredentialsProvider({
       id: "firebase",

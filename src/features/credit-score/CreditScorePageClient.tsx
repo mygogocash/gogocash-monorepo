@@ -1,32 +1,29 @@
 "use client";
 
-import "./credit-score.css";
-
 import { useSession } from "next-auth/react";
 import dynamic from "next/dynamic";
 import { useMemo } from "react";
 
-import {
-  calculateCreditScore,
-  getPointsToNextTier,
-  getTier,
-  type CreditScoreInput,
-} from "./utils/scoreCalculator";
+import { calculateCreditScore, getTier, type UserCreditData } from "./utils/scoreCalculator";
 
-const ScoreRing = dynamic(() => import("./components/ScoreRing"), { ssr: false });
+const ScoreHero = dynamic(() => import("./components/ScoreHero"), { ssr: false });
 const ProgressBar = dynamic(() => import("./components/ProgressBar"), { ssr: false });
 const ScoreBreakdown = dynamic(() => import("./components/ScoreBreakdown"), { ssr: false });
 const BenefitsList = dynamic(() => import("./components/BenefitsList"), { ssr: false });
+const StreakCard = dynamic(() => import("./components/StreakCard"), { ssr: false });
 const BoostCTA = dynamic(() => import("./components/BoostCTA"), { ssr: false });
 
-function mapSessionToCreditInput(session: ReturnType<typeof useSession>["data"]): CreditScoreInput {
+function mapSessionToCreditData(session: ReturnType<typeof useSession>["data"]): UserCreditData {
   const u = session?.user;
   if (!u) {
     return {
-      transactionCount: 0,
+      monthlySpend: 0,
+      monthlyTransactionCount: 0,
       emailVerified: false,
       phoneNumberVerified: false,
       profileComplete: false,
+      trustedStreakMonths: 0,
+      streakRewardStatus: "none",
     };
   }
   const email = u.email?.trim?.() ?? "";
@@ -34,21 +31,23 @@ function mapSessionToCreditInput(session: ReturnType<typeof useSession>["data"])
   const hasAvatar = Boolean(u.avatar_url && String(u.avatar_url).length > 0);
 
   return {
-    transactionCount: 0,
+    monthlySpend: 0,
+    monthlyTransactionCount: 0,
     emailVerified: email.length > 0,
     phoneNumberVerified: Boolean(u.mobile && u.mobile.trim().length > 0),
     profileComplete: hasUsername && hasAvatar,
+    trustedStreakMonths: 0,
+    streakRewardStatus: "none",
   };
 }
 
 export default function CreditScorePageClient() {
   const { data: session, status } = useSession();
-  const user = useMemo(() => mapSessionToCreditInput(session), [session]);
+  const user = useMemo(() => mapSessionToCreditData(session), [session]);
 
   const score = useMemo(() => calculateCreditScore(user), [user]);
   const tier = useMemo(() => getTier(score), [score]);
-  const pointsToNext = useMemo(() => getPointsToNextTier(score), [score]);
-  const isDiamond = tier.key === "diamond";
+  const isStarter = tier.key === "starter";
 
   if (status === "loading") {
     return (
@@ -60,12 +59,13 @@ export default function CreditScorePageClient() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[430px] flex-col gap-5 py-1 pb-24 md:max-w-2xl md:gap-6">
-      <ScoreRing score={score} tier={tier} pointsToNext={pointsToNext} />
-      {!isDiamond ? <ProgressBar score={score} tier={tier} /> : null}
-      <ScoreBreakdown user={user} isDiamondTier={isDiamond} />
-      <BenefitsList tierKey={tier.key} />
-      {!isDiamond ? <BoostCTA score={score} tier={tier} /> : null}
+    <div className="mx-auto flex w-full max-w-[430px] flex-col gap-4 py-1 pb-24 md:max-w-2xl">
+      <ScoreHero score={score} tier={tier} />
+      {isStarter ? <ProgressBar score={score} /> : null}
+      <ScoreBreakdown user={user} tier={tier} />
+      <BenefitsList tier={tier} />
+      <StreakCard user={user} />
+      {isStarter ? <BoostCTA score={score} /> : null}
     </div>
   );
 }

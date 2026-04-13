@@ -4,6 +4,7 @@ import "./membership.css";
 
 import Image from "next/image";
 import { Check, Headphones, Plus, Sparkles, Star, Wallet } from "lucide-react";
+import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { useId, useMemo, useRef, useState } from "react";
 
@@ -16,6 +17,36 @@ const STARTER_PRICE_ANNUAL_EFFECTIVE = 41;
 const MONTHLY_STACK = 588;
 const ANNUAL_SAVE = 98;
 
+type PartnerBrand = {
+  name: string;
+  src: string;
+};
+
+function PartnerLogoPill({ brand }: { brand: PartnerBrand }) {
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const logoFailed = failedSrc === brand.src;
+
+  return (
+    <span className="partner-logo-pill" title={brand.name}>
+      {!logoFailed ? (
+        <Image
+          src={brand.src}
+          width={24}
+          height={24}
+          alt={brand.name}
+          unoptimized
+          onError={() => setFailedSrc(brand.src)}
+        />
+      ) : (
+        <span className="partner-logo-fallback" aria-hidden>
+          {brand.name.slice(0, 2).toUpperCase()}
+        </span>
+      )}
+      <span>{brand.name}</span>
+    </span>
+  );
+}
+
 export default function MembershipPageClient() {
   const t = useTranslations("membership");
   const rootRef = useRef<HTMLDivElement>(null);
@@ -26,7 +57,7 @@ export default function MembershipPageClient() {
     [t]
   );
 
-  const { theme, countdownText } = useMembershipLanding(rootRef, landingI18n);
+  const { theme } = useMembershipLanding(rootRef, landingI18n);
 
   const checkoutMessages = useMemo(
     () => ({
@@ -75,26 +106,6 @@ export default function MembershipPageClient() {
             </svg>
             <div className="container hero-grid">
               <div>
-                <div className="eyebrow hero-eyebrow">
-                  <div className="hero-eyebrow-campaign">
-                    <span className="hero-eyebrow-icon" aria-hidden>
-                      ✦
-                    </span>
-                    <div className="hero-eyebrow-copy">
-                      <span className="hero-eyebrow-kicker">{t("heroEyebrowKicker")}</span>
-                      <span className="hero-eyebrow-sep" aria-hidden>
-                        ·
-                      </span>
-                      <span className="hero-eyebrow-period">{t("heroEyebrowPeriod")}</span>
-                    </div>
-                  </div>
-                  <div className="hero-countdown-block">
-                    <span className="hero-countdown-label">{t("heroCountdownLabel")}</span>
-                    <span className="hero-countdown" aria-live="polite">
-                      {countdownText}
-                    </span>
-                  </div>
-                </div>
                 <h1 id="hero-title" className="hero-title">
                   {t("heroH1")}
                 </h1>
@@ -392,7 +403,7 @@ export default function MembershipPageClient() {
                   id="spend-slider"
                   type="range"
                   min={500}
-                  max={50000}
+                  max={200000}
                   step={500}
                   defaultValue={3000}
                   aria-label={t("spendHelp")}
@@ -417,25 +428,28 @@ export default function MembershipPageClient() {
               </p>
               <div className="partners-row">
                 <span className="partners-label">{t("partnersLabel")}</span>
-                <Image
-                  src="https://cdn.simpleicons.org/shopee/EE4D2D"
-                  width={24}
-                  height={24}
-                  alt="Shopee"
-                  unoptimized
-                />
-                <Image
-                  src="https://cdn.simpleicons.org/lazada/0F146D"
-                  width={24}
-                  height={24}
-                  alt="Lazada"
-                  unoptimized
-                />
-                <span className="partner-pill badge-agoda">Agoda</span>
-                <span className="partner-pill badge-klook">Klook</span>
-                <span className="partner-pill badge-traveloka">Traveloka</span>
-                <span className="partner-pill badge-lotus">Lotus&apos;s</span>
+                {[
+                  { name: "SHEIN", src: "/partners/shein.png" },
+                  { name: "Shopee", src: "/partners/shopee.png" },
+                  { name: "Lazada", src: "/partners/lazada.png" },
+                  { name: "Lotus's", src: "/partners/lotus.png" },
+                  { name: "Klook", src: "/partners/klook.png" },
+                  { name: "GoWabi", src: "/partners/gowabi.png" },
+                  { name: "agoda", src: "/partners/agoda.png" },
+                  { name: "Adidas", src: "/partners/adidas.png" },
+                  { name: "Traveloka", src: "/partners/traveloka.png" },
+                  { name: "Trip.com", src: "/partners/trip.png" },
+                  { name: "AirAsia", src: "/partners/airasia.png" },
+                  { name: "Taobao", src: "/partners/taobao.png" },
+                ].map((brand) => (
+                  <PartnerLogoPill key={`${brand.name}-${brand.src}`} brand={brand} />
+                ))}
               </div>
+            </div>
+            <div className="container calc-history-wrap">
+              <Link href="/quest/history" className="btn-outline calc-history-btn">
+                {t("calcHistoryCta")}
+              </Link>
             </div>
           </section>
 

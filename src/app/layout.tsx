@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
+import Script from "next/script";
 import "./globals.css";
 import { env } from "@/env";
 import ProviderDefault from "@/providers/ProviderDefault";
@@ -89,11 +90,20 @@ export default async function RootLayout({
   const locale = resolveLocaleFromCookie(cookieStore.get("NEXT_LOCALE")?.value);
 
   return (
-    <html lang={locale}>
+    <html lang={locale} data-scroll-behavior="smooth">
       <head>
         <meta name="facebook-domain-verification" content="4tqyqamr33ektym9ra9hs4iivsjfy2" />
         <GoogleTagManagerHead />
         <MetaPixel />
+        {env.NEXT_PUBLIC_GOOGLE_ADSENSE_CLIENT ? (
+          <Script
+            id="google-adsense-script"
+            async
+            strategy="afterInteractive"
+            crossOrigin="anonymous"
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${env.NEXT_PUBLIC_GOOGLE_ADSENSE_CLIENT}`}
+          />
+        ) : null}
       </head>
       <body
         className={`${dmSans.variable} ${anuphan.variable} antialiased ${locale === "th" ? "locale-th" : "locale-en"}`}

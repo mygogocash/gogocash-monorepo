@@ -37,7 +37,7 @@ export function ShopDetailTermsExclusions() {
     () => [
       {
         title: t("Exclusions"),
-        subtitle: t("You won't get Cashback on:"),
+        subtitle: t("cashbackExclusionSubtitle"),
         description: [
           {
             kind: "text",

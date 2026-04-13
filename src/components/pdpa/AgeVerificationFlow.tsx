@@ -12,36 +12,33 @@ import { ShieldCheck } from "lucide-react";
  */
 export default function AgeVerificationFlow() {
   const t = useTranslations();
-  const [token, setToken] = useState("");
+  const [birthDate, setBirthDate] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const submit = async () => {
-    const code = token.trim();
-    if (!code) {
+  const isOver20 = (dateInput: string) => {
+    const dob = new Date(dateInput);
+    if (Number.isNaN(dob.getTime())) return false;
+    const now = new Date();
+    let age = now.getFullYear() - dob.getFullYear();
+    const hasHadBirthdayThisYear =
+      now.getMonth() > dob.getMonth() ||
+      (now.getMonth() === dob.getMonth() && now.getDate() >= dob.getDate());
+    if (!hasHadBirthdayThisYear) age -= 1;
+    return age > 20;
+  };
+
+  const submit = () => {
+    if (!birthDate) {
       toast.error(t("pdpaAgeVerifyIncompleteCode"));
       return;
     }
-    if (code.length < 10) {
-      toast.error(t("pdpaAgeVerifyIncompleteCode"));
+    if (!isOver20(birthDate)) {
+      toast.error(t("pdpaAgeVerifyUnder20"));
       return;
     }
     setBusy(true);
-    try {
-      const res = await fetch("/api/pdpa/guardian/verify", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: code }),
-      });
-      if (!res.ok) {
-        toast.error(t("pdpaAgeVerifyError"));
-        return;
-      }
-      toast.success(t("pdpaAgeVerifySuccess"));
-      setToken("");
-    } finally {
-      setBusy(false);
-    }
+    toast.success(t("pdpaAgeVerifySuccess"));
+    setBusy(false);
   };
 
   return (
@@ -78,9 +75,10 @@ export default function AgeVerificationFlow() {
           <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-stretch">
             <TextField
               size="small"
+              type="date"
               label={t("pdpaAgeVerifyPlaceholder")}
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
+              value={birthDate}
+              onChange={(e) => setBirthDate(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !busy) {
                   e.preventDefault();
@@ -90,9 +88,10 @@ export default function AgeVerificationFlow() {
               fullWidth
               className="sm:flex-1"
               inputProps={{
-                autoComplete: "one-time-code",
+                max: new Date().toISOString().slice(0, 10),
                 "aria-describedby": "pdpa-age-verify-hint",
               }}
+              InputLabelProps={{ shrink: true }}
             />
             <Button
               type="button"

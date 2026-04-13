@@ -1,6 +1,7 @@
 "use client";
 
 import { ACCOUNT_SETTINGS_COMMUNITY } from "@/constants/accountSettingsCommunity";
+import { FEATURE_FLAGS } from "@/constants/featureFlags";
 import { TRANSLATIONS_DISABLED } from "@/constants/translations";
 import LineAppIcon from "@/components/icons/social/LineAppIcon";
 import { usePathname, useRouter } from "@/i18n/navigation";
@@ -8,9 +9,11 @@ import PdpaDataRightsSection from "@/components/pdpa/PdpaDataRightsSection";
 import SubPage from "../layout/SubPage";
 import EmailOutlined from "@mui/icons-material/EmailOutlined";
 import { Switch } from "@mui/material";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { useSession } from "next-auth/react";
 import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
+import toast from "react-hot-toast";
 
 const LS_LINE = "gogocash.account.notify.line";
 const LS_EMAIL = "gogocash.account.notify.email";
@@ -78,20 +81,22 @@ function CommunityCard({
  */
 export default function AccountSettingsView() {
   const t = useTranslations();
+  const locale = useLocale();
   const pathname = usePathname();
   const router = useRouter();
+  const { data: session, status } = useSession();
   const [lineOn, setLineOn] = useState(false);
   const [emailOn, setEmailOn] = useState(true);
+  const [portalPending, setPortalPending] = useState(false);
+  const stripeBillingEnabled = FEATURE_FLAGS.stripeBilling;
 
   useEffect(() => {
     try {
       const l = localStorage.getItem(LS_LINE);
       const e = localStorage.getItem(LS_EMAIL);
       /* Sync toggles from localStorage after mount (defaults match Figma: Line off, Email on). */
-      /* eslint-disable react-hooks/set-state-in-effect -- client-only preference hydration */
       if (l !== null) setLineOn(l === "true");
       if (e !== null) setEmailOn(e === "true");
-      /* eslint-enable react-hooks/set-state-in-effect */
     } catch {
       /* ignore */
     }
@@ -123,6 +128,38 @@ export default function AccountSettingsView() {
     },
     [router, pathname]
   );
+
+  const openSubscriptionPortal = useCallback(async () => {
+    if (!stripeBillingEnabled) {
+      toast.error(t("accountSettingsSubscriptionDisabled"));
+      return;
+    }
+    if (status !== "authenticated" || !session?.user?.email) {
+      toast.error(t("accountSettingsSubscriptionLoginRequired"));
+      return;
+    }
+
+    setPortalPending(true);
+    try {
+      const res = await fetch("/api/stripe/portal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ locale: locale === "th" ? "th" : "en" }),
+      });
+      const data = (await res.json()) as { error?: string; url?: string };
+
+      if (!res.ok || !data.url) {
+        toast.error(data.error ?? t("accountSettingsSubscriptionError"));
+        return;
+      }
+
+      window.location.href = data.url;
+    } catch {
+      toast.error(t("accountSettingsSubscriptionError"));
+    } finally {
+      setPortalPending(false);
+    }
+  }, [locale, session?.user?.email, status, stripeBillingEnabled, t]);
 
   return (
     <SubPage title="Account Settings" showSubMenu>
@@ -156,6 +193,35 @@ export default function AccountSettingsView() {
             ))}
           </section>
         ) : null}
+
+        <section
+          className="flex flex-col gap-4"
+          aria-labelledby="account-settings-subscription-heading"
+        >
+          <h2
+            id="account-settings-subscription-heading"
+            className="text-lg font-semibold text-[#3b3b3b] md:text-xl"
+          >
+            {t("accountSettingsSubscriptionHeading")}
+          </h2>
+          <div className="flex flex-col gap-3 rounded-2xl border border-[rgba(152,152,152,0.4)] p-4">
+            <p className="text-sm text-[#7f7f7f]">{t("accountSettingsSubscriptionDescription")}</p>
+            <button
+              type="button"
+              onClick={() => void openSubscriptionPortal()}
+              disabled={portalPending || !stripeBillingEnabled}
+              aria-busy={portalPending}
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-[#00cc99] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {portalPending
+                ? t("accountSettingsSubscriptionLoading")
+                : t("accountSettingsSubscriptionCta")}
+            </button>
+            {!stripeBillingEnabled ? (
+              <p className="text-xs text-[#7f7f7f]">{t("accountSettingsSubscriptionDisabled")}</p>
+            ) : null}
+          </div>
+        </section>
 
         <section className="flex flex-col gap-4" aria-labelledby="account-settings-notify-heading">
           <h2
