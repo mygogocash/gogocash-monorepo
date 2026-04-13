@@ -179,6 +179,16 @@ const nextConfig: NextConfig = {
       config.optimization.minimize = true;
     }
 
+    /**
+     * @crossmint/common-sdk-base uses dynamic `require` patterns webpack cannot analyze.
+     * The SDK works at runtime; suppressing avoids noisy "Critical dependency" duplicates on every build.
+     */
+    config.ignoreWarnings = [
+      ...(config.ignoreWarnings ?? []),
+      { module: /node_modules\/@crossmint\/common-sdk-base/ },
+      /Critical dependency: require function is used in a way in which dependencies cannot be statically extracted/,
+    ];
+
     return config;
   },
 

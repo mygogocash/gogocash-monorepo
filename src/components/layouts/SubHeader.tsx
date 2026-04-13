@@ -4,15 +4,13 @@ import Image from "next/image";
 import { MenuBarMaskedIcon } from "@/components/nav/MenuBarMaskedIcon";
 import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
-import { useSession } from "next-auth/react";
-import { desktopMenuBarNav, getSupportHref } from "@/constants/navigation";
+import { desktopMenuBarNav } from "@/constants/navigation";
 import { LAYOUT_CONTENT_SHELL_CLASS } from "@/constants/layout-shell";
 import { isMenuBarItemActive } from "@/lib/navigation/isInternalHrefActive";
 
 const SubHeader = () => {
   const t = useTranslations();
   const pathname = usePathname();
-  const { data: session } = useSession();
 
   return (
     <div className="sticky top-20 z-30 hidden w-full shrink-0 bg-white md:block">
@@ -28,7 +26,7 @@ const SubHeader = () => {
         <ul className="flex h-[38px] max-w-full items-end justify-center gap-4 overflow-x-auto">
           {desktopMenuBarNav.map((item) => {
             const active = isMenuBarItemActive(pathname, item);
-            const href = item.supportOnly ? getSupportHref(session?.user?.region) : item.href;
+            const href = item.href;
             const label = t(item.translationKey);
             const isLead = item.menuTypography === "lead";
             const textClass = isLead ? "text-base font-normal" : "text-sm font-medium";

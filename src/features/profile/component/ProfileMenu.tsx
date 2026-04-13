@@ -20,6 +20,7 @@ const PROFILE_MENU_PREFETCH_ROUTES = [
   "/language",
   "/missing-orders",
   "/membership",
+  "/credit-score",
   "/referral",
   "/quest/history",
   "/privacy-center",

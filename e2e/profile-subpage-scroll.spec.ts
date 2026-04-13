@@ -1,5 +1,7 @@
 import { test, expect } from "@playwright/test";
 
+import { attachPageErrorCollector } from "./attachPageErrorCollector";
+
 /**
  * Profile routes (e.g. /membership) require auth. To run this test locally:
  * 1. Log in once with Playwright codegen or a small script.
@@ -16,6 +18,7 @@ test.describe("profile subpage scroll (authenticated)", () => {
   test.use(authFile ? { storageState: authFile } : {});
 
   test("membership main column scrolls long content", async ({ page }) => {
+    const { messages } = attachPageErrorCollector(page);
     await page.goto("/en/membership", { waitUntil: "domcontentloaded" });
     await expect(page).not.toHaveURL(/\/login/);
 
@@ -31,5 +34,7 @@ test.describe("profile subpage scroll (authenticated)", () => {
       scrollHeight,
       "membership page should overflow the profile main column so the inner scrollport is used"
     ).toBeGreaterThan(clientHeight);
+
+    expect(messages, messages.join("\n")).toEqual([]);
   });
 });

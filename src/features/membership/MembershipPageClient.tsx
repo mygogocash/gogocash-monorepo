@@ -3,7 +3,7 @@
 import "./membership.css";
 
 import Image from "next/image";
-import { Check, Gift, Headphones, Plus, ShieldCheck } from "lucide-react";
+import { Check, Headphones, Plus, Sparkles, Star, Wallet } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useMemo, useRef, useState } from "react";
 
@@ -47,14 +47,15 @@ export default function MembershipPageClient() {
   const memberBenefits = t.raw("memberBenefits") as string[];
   const faqItems = t.raw("faq") as { q: string; a: string }[];
 
-  const benefitBlocks = useMemo(
-    () => [
-      { Icon: Headphones, title: t("benefitCareTitle"), body: t("benefitCareBody") },
-      { Icon: ShieldCheck, title: t("benefitWarrantyTitle"), body: t("benefitWarrantyBody") },
-      { Icon: Gift, title: t("benefitPartnerTitle"), body: t("benefitPartnerBody") },
-    ],
-    [t]
-  );
+  const benefitIcons = useMemo(() => [Wallet, Sparkles, Star, Headphones] as const, []);
+
+  const benefitBlocks = useMemo(() => {
+    return benefitIcons.map((Icon, i) => ({
+      Icon,
+      title: memberBenefits[i] ?? "",
+      body: "",
+    }));
+  }, [benefitIcons, memberBenefits]);
 
   return (
     <div ref={rootRef} className="membership-root font-sans antialiased" data-theme={theme}>
@@ -98,6 +99,11 @@ export default function MembershipPageClient() {
                   {t("heroH1")}
                 </h1>
                 <p className="hero-body">{t("heroBody")}</p>
+                <ul className="hero-benefits" aria-label={t("heroBenefitsAria")}>
+                  {memberBenefits.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
 
                 <div className="hero-pricing-row" role="presentation">
                   <button
@@ -323,7 +329,7 @@ export default function MembershipPageClient() {
                       <Icon className="benefit-icon" width={28} height={28} />
                     </div>
                     <h3 className="benefit-title">{title}</h3>
-                    <p className="benefit-body">{body}</p>
+                    {body ? <p className="benefit-body">{body}</p> : null}
                   </div>
                 ))}
               </div>

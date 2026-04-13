@@ -39,8 +39,9 @@ describe("isMenuBarItemActive", () => {
     expect(isMenuBarItemActive("/category/Digital%20Services", item!)).toBe(true);
   });
 
-  it("is false for help tab", () => {
-    const item = desktopMenuBarNav.find((i) => i.id === "help");
-    expect(isMenuBarItemActive("/anything", item!)).toBe(false);
+  it("is false for product discover tab (popover, not a route)", () => {
+    const item = desktopMenuBarNav.find((i) => i.id === "product-discover");
+    expect(item).toBeDefined();
+    expect(isMenuBarItemActive("/shop/abc123", item!)).toBe(false);
   });
 });

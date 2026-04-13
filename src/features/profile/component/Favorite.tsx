@@ -25,7 +25,7 @@ import {
   TextField,
   type SelectChangeEvent,
 } from "@mui/material";
-import { useMediaQuery } from "@mui/material";
+import { useBreakpointMdUp } from "@/hooks/useBreakpointMdUp";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
@@ -45,7 +45,7 @@ function showGrabCouponForOffer(offer: DataOffer): boolean {
 const FavoriteList = () => {
   const router = useRouter();
   const t = useTranslations();
-  const lg = useMediaQuery("(min-width:768px)");
+  const lg = useBreakpointMdUp();
   const [sortBy, setSortBy] = useState<FavoriteShopSort>("highest_cashback");
   const [search, setSearch] = useState("");
   const [listPage, setListPage] = useState(1);

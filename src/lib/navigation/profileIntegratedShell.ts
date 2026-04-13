@@ -16,6 +16,9 @@ export function isIntegratedProfileShellPath(pathname: string | null): boolean {
   if (pathname === "/profile" || pathname === "/profile/info") {
     return true;
   }
+  if (pathname === "/profile/my-rating" || pathname.startsWith("/profile/my-rating/")) {
+    return true;
+  }
   if (pathname === "/profile/offer" || pathname.startsWith("/profile/offer/")) {
     return true;
   }
@@ -47,6 +50,9 @@ export function isIntegratedProfileShellPath(pathname: string | null): boolean {
     return true;
   }
   if (pathname === "/membership" || pathname.startsWith("/membership/")) {
+    return true;
+  }
+  if (pathname === "/credit-score" || pathname.startsWith("/credit-score/")) {
     return true;
   }
   if (pathname === "/pricing" || pathname === "/billing") {

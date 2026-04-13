@@ -9,7 +9,7 @@ import {
   TypeCommissions,
 } from "@/interfaces/offer";
 import { fetcher } from "@/lib/axios/client";
-import { useMediaQuery } from "@mui/material";
+import { useBreakpointMdUp } from "@/hooks/useBreakpointMdUp";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -40,6 +40,7 @@ import { ShopDetailLeftRail } from "./ShopDetailLeftRail";
 import { ShopDetailRightRail } from "./ShopDetailRightRail";
 import { ShopDetailTermsExclusions } from "./ShopDetailTermsExclusions";
 import { getMerchantSummaryTagsAriaLabel } from "./shopDetailShared";
+import { sortedProductTypes } from "@/features/shop/utils/sortedProductTypes";
 
 const ShopDetailExploreRelated = dynamic(() => import("./ShopDetailExploreRelated"), {
   loading: () => (
@@ -57,7 +58,7 @@ const ShopDetail = () => {
   const messages = useMessages() as Record<string, unknown>;
   const merchantSummaryTagsAriaLabel = getMerchantSummaryTagsAriaLabel(messages, locale);
   const { data: session, status: sessionStatus } = useSession();
-  const isMdUp = useMediaQuery("(min-width:768px)");
+  const isMdUp = useBreakpointMdUp();
   const [openLink, setOpenLink] = useState(false);
   const showOpenLinkLoading = useMinimumLoadingDuration(openLink);
   const merchantDetailExperiment = usePostHogFlagPayload<{
@@ -91,6 +92,26 @@ const ShopDetail = () => {
   useEffect(() => {
     golinkAutoCheckoutRef.current = false;
   }, [id]);
+
+  useEffect(() => {
+    const raw = searchParams.get("product");
+    if (raw == null || !offer?.product_type?.length) return;
+    let decoded = raw;
+    try {
+      decoded = decodeURIComponent(raw);
+    } catch {
+      return;
+    }
+    const rows = sortedProductTypes(offer);
+    const idx = rows.findIndex((p) => p.name === decoded);
+    if (idx < 0) return;
+    const el = document.getElementById(`merchant-product-${idx}`);
+    if (!el) return;
+    const timer = window.setTimeout(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 120);
+    return () => window.clearTimeout(timer);
+  }, [offer, searchParams]);
 
   const [offerSearch] = useState({
     category: offer?.categories || "",
@@ -313,11 +334,12 @@ const ShopDetail = () => {
           />
 
           {/**
-           * Mobile: left summary → right rail (coupons + Cashback Tips) → terms.
-           * lg+: left column = summary + terms (stacked); right column spans both rows.
+           * Mobile: left rail → right rail → terms (below coupons / tips).
+           * lg+: one grid row — left column stacks rail + terms (terms directly under tracking);
+           * right column is the coupon rail (no row-span; single row).
            */}
-          <div className="grid w-full grid-cols-1 gap-12 lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)] lg:items-start lg:gap-x-20">
-            <div className="min-w-0 lg:col-start-1 lg:row-start-1">
+          <div className="grid w-full grid-cols-1 gap-y-12 lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)] lg:items-start lg:gap-x-20">
+            <div className="order-1 flex min-w-0 flex-col gap-4 lg:col-start-1">
               <ShopDetailLeftRail
                 offer={offer}
                 sumPercent={sumPercent}
@@ -327,9 +349,12 @@ const ShopDetail = () => {
                 couponExpiryDays={couponExpiryDays}
                 percentSpecial={Number(percentSpecial)}
               />
+              <div className="hidden min-w-0 lg:block">
+                <ShopDetailTermsExclusions />
+              </div>
             </div>
 
-            <div className="min-w-0 lg:col-start-2 lg:row-start-1 lg:row-span-2">
+            <div className="order-2 min-w-0 lg:col-start-2 lg:row-start-1">
               <ShopDetailRightRail
                 locale={locale}
                 activeCoupons={activeCoupons}
@@ -338,7 +363,7 @@ const ShopDetail = () => {
               />
             </div>
 
-            <div className="min-w-0 lg:col-start-1 lg:row-start-2">
+            <div className="order-3 min-w-0 lg:hidden">
               <ShopDetailTermsExclusions />
             </div>
           </div>

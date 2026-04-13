@@ -4,12 +4,13 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import { Accordion, AccordionDetails, AccordionSummary } from "@mui/material";
 import { useTranslations } from "next-intl";
-import { useMemo } from "react";
+import { useId, useMemo } from "react";
 import { dmSans } from "@/lib/utils";
 
 /**
  * Merchant detail — Terms & exclusions accordions (shared mobile/desktop).
- * On mobile, ShopDetail places this after ShopDetailRightRail so it sits below Cashback Tips.
+ * Desktop: stacked under the left rail (below tracking). Mobile: third grid block after the right rail.
+ * Two instances may mount (responsive show/hide); `useId` keeps heading and accordion ids unique.
  */
 type ShopTermDescription = {
   kind: "text";
@@ -30,6 +31,7 @@ type ShopTermSection = {
 
 export function ShopDetailTermsExclusions() {
   const t = useTranslations();
+  const instanceId = useId().replace(/:/g, "");
 
   const termSections = useMemo<ShopTermSection[]>(
     () => [
@@ -88,15 +90,17 @@ export function ShopDetailTermsExclusions() {
     [t]
   );
 
+  const headingId = `shop-detail-terms-heading-${instanceId}`;
+
   return (
-    <section className="min-w-0" aria-labelledby="shop-detail-terms-heading">
-      <h2 id="shop-detail-terms-heading" className="mb-4 text-xl font-semibold text-(--gc-text)">
+    <section className="min-w-0" aria-labelledby={headingId}>
+      <h2 id={headingId} className="mb-3 text-xl font-semibold text-(--gc-text)">
         {t("Terms and exclusions")}
       </h2>
       {termSections.map((item, index) => {
         return (
           <Accordion
-            key={`shop-term-${index}-${item.title}`}
+            key={`shop-term-${instanceId}-${index}-${item.title}`}
             defaultExpanded={index === 0}
             disableGutters
             elevation={0}
@@ -116,8 +120,8 @@ export function ShopDetailTermsExclusions() {
           >
             <AccordionSummary
               expandIcon={<ExpandMoreIcon sx={{ color: "var(--gc-text)" }} />}
-              aria-controls={`shop-term-${index}-content`}
-              id={`shop-term-${index}-header`}
+              aria-controls={`shop-term-${instanceId}-${index}-content`}
+              id={`shop-term-${instanceId}-${index}-header`}
               sx={{
                 "& .MuiAccordionSummary-content": {
                   alignItems: "center",
@@ -135,7 +139,7 @@ export function ShopDetailTermsExclusions() {
                 {item.title}
               </span>
             </AccordionSummary>
-            <AccordionDetails sx={{ pt: 0, pb: 2 }}>
+            <AccordionDetails id={`shop-term-${instanceId}-${index}-content`} sx={{ pt: 0, pb: 2 }}>
               {item.subtitle ? (
                 <p className={`${dmSans.className} text-sm text-(--gc-text)`}>{item.subtitle}</p>
               ) : null}

@@ -15,7 +15,7 @@ import { DataOffer } from "@/interfaces/offer";
 import { Link } from "@/i18n/navigation";
 import { getOfferBannerSrc, getOfferCashbackPercentLabel } from "@/lib/offer/offerCardVisuals";
 import { offerHasGrabCouponBadge } from "@/lib/offer/offerGrabCouponBadge";
-import { useMediaQuery } from "@mui/material";
+import { useBreakpointMdUp } from "@/hooks/useBreakpointMdUp";
 import { trackMerchantSelect } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 
@@ -128,7 +128,7 @@ const CardSlideCategory = ({
   const prevRef = useRef(null);
   const nextRef = useRef(null);
   const [swiperRef, setSwiperRef] = useState<SwiperClass | null>(null);
-  const lg = useMediaQuery("(min-width:768px)");
+  const lg = useBreakpointMdUp();
   const isMini = cardVariant === "mini";
   const isCover = slideLayout === "cover" && cardVariant === "featured" && !isMini;
   const isStaticCoverRow = isCover && (staticRowMax != null || staticGridRows != null);

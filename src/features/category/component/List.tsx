@@ -27,7 +27,7 @@ import {
   Select,
   type SelectChangeEvent,
 } from "@mui/material";
-import { useMediaQuery } from "@mui/material";
+import { useBreakpointMdUp } from "@/hooks/useBreakpointMdUp";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { useParams } from "next/navigation";
@@ -44,7 +44,7 @@ const List = () => {
     }
   })();
   const t = useTranslations();
-  const lg = useMediaQuery("(min-width:768px)");
+  const lg = useBreakpointMdUp();
   const [sortBy, setSortBy] = useState<ShopExploreSort>("highest_cashback");
   const [offerSearch, setOfferSearch] = useState({
     page: 1,

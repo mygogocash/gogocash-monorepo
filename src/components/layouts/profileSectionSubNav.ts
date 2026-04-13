@@ -3,6 +3,7 @@
 export const profileSectionSubNavItems = [
   /** `/profile` is mobile hub only; `/profile/info` is the personal-info screen on all breakpoints. */
   { messageKey: "Personal Information", href: "/profile/info" },
+  { messageKey: "navCreditScore", href: "/credit-score" },
   { messageKey: "sidebarWithdrawMethods", href: "/method" },
   { messageKey: "sidebarAccountSetting", href: "/language" },
 ] as const;
@@ -16,6 +17,9 @@ function isPersonalActive(
     return false;
   }
   if (pathname === "/language" || pathname.startsWith("/language/")) {
+    return false;
+  }
+  if (pathname === "/credit-score" || pathname.startsWith("/credit-score/")) {
     return false;
   }
   /** Mobile `/profile` is the hub (nav list only); desktop `/profile` shows personal info. */
@@ -49,6 +53,9 @@ export function isProfileSubNavItemActive(
   if (href === "/profile/info") {
     return isPersonalActive(pathname, isMobileProfileHub, viewportKnown);
   }
+  if (href === "/credit-score") {
+    return pathname === "/credit-score" || pathname.startsWith("/credit-score/");
+  }
   if (href === "/method") {
     return isMethodActive(pathname);
   }
@@ -63,6 +70,8 @@ export function isProfileSectionHubActive(pathname: string): boolean {
   return (
     pathname === "/profile" ||
     pathname.startsWith("/profile/") ||
+    pathname === "/credit-score" ||
+    pathname.startsWith("/credit-score/") ||
     pathname === "/method" ||
     pathname.startsWith("/method/") ||
     pathname === "/language" ||
@@ -79,6 +88,8 @@ export function shouldAutoExpandProfileSubNav(pathname: string): boolean {
   return (
     pathname === "/profile" ||
     pathname.startsWith("/profile/") ||
+    pathname === "/credit-score" ||
+    pathname.startsWith("/credit-score/") ||
     pathname === "/method" ||
     pathname.startsWith("/method/") ||
     pathname === "/language" ||

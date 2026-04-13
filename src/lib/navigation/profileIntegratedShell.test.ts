@@ -9,6 +9,7 @@ describe("isIntegratedProfileShellPath", () => {
   it("matches integrated hub routes", () => {
     expect(isIntegratedProfileShellPath("/profile")).toBe(true);
     expect(isIntegratedProfileShellPath("/profile/info")).toBe(true);
+    expect(isIntegratedProfileShellPath("/profile/my-rating")).toBe(true);
     expect(isIntegratedProfileShellPath("/profile/offer")).toBe(true);
     expect(isIntegratedProfileShellPath("/profile/offer/x")).toBe(true);
     expect(isIntegratedProfileShellPath("/method")).toBe(true);
@@ -21,6 +22,7 @@ describe("isIntegratedProfileShellPath", () => {
     expect(isIntegratedProfileShellPath("/missing-orders")).toBe(true);
     expect(isIntegratedProfileShellPath("/subscription")).toBe(true);
     expect(isIntegratedProfileShellPath("/membership")).toBe(true);
+    expect(isIntegratedProfileShellPath("/credit-score")).toBe(true);
     expect(isIntegratedProfileShellPath("/pricing")).toBe(true);
     expect(isIntegratedProfileShellPath("/billing")).toBe(true);
     expect(isIntegratedProfileShellPath("/withdraw")).toBe(true);

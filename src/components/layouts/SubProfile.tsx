@@ -35,7 +35,7 @@ import {
 } from "@/components/layouts/profileSectionSubNav";
 import { cn } from "@/lib/utils";
 import KeyboardArrowDown from "@mui/icons-material/KeyboardArrowDown";
-import { useMediaQuery } from "@mui/material";
+import { useBreakpointMdUp } from "@/hooks/useBreakpointMdUp";
 import { useEffect, useState } from "react";
 import type { ComponentType, SVGProps } from "react";
 
@@ -204,7 +204,7 @@ type SubProfileProps = {
 const SubProfile = ({ variant = "sidebar", className }: SubProfileProps) => {
   const pathname = usePathname();
   /** Align with Tailwind `md:` — mobile `/profile` is hub-only; desktop `/profile` is personal info. */
-  const isMdUp = useMediaQuery("(min-width:768px)");
+  const isMdUp = useBreakpointMdUp();
   const isMobileProfileHub = pathname === "/profile" && !isMdUp;
   const t = useTranslations();
   const { data: session } = useSession();

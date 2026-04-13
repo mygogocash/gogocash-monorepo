@@ -77,6 +77,8 @@ export interface DesktopMenuBarItem {
   external?: boolean;
   /** Resolve URL via getSupportHref(region) */
   supportOnly?: boolean;
+  /** Opens Product Discover (merchant × product rates) instead of navigating to `href`. */
+  productDiscover?: boolean;
 }
 
 export const desktopMenuBarNav: DesktopMenuBarItem[] = [
@@ -120,12 +122,11 @@ export const desktopMenuBarNav: DesktopMenuBarItem[] = [
     icon: "digital",
   },
   {
-    id: "help",
-    translationKey: "help",
-    href: "",
-    icon: "help",
-    external: true,
-    supportOnly: true,
+    id: "product-discover",
+    translationKey: "navProductDiscover",
+    href: "/discover",
+    icon: "promotion",
+    menuTypography: "lead",
   },
 ];
 

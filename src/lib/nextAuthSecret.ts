@@ -4,7 +4,7 @@ const DEV_FALLBACK_SECRET = "dev-only-nextauth-secret-min-32-characters-required
 
 /**
  * `next build` sets NODE_ENV=production but often runs without a real secret (local/CI).
- * Runtime (`next start`, serverless) must still set NEXTAUTH_SECRET in real deployments.
+ * Runtime (`npm start` / standalone Node server, serverless) must still set NEXTAUTH_SECRET in real deployments.
  */
 function shouldUseProductionBuildPlaceholder(): boolean {
   if (process.env.CI === "true") return true;

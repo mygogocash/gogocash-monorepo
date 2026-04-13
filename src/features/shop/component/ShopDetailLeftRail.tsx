@@ -9,6 +9,7 @@ import BankIcon from "@/components/icons/BankIcon";
 import type { DataOffer } from "@/interfaces/offer";
 import { Link as LocaleLink } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
+import { sortedProductTypes } from "@/features/shop/utils/sortedProductTypes";
 import { merchantSummaryTagBase } from "./shopDetailShared";
 
 export type ShopDetailLeftRailProps = {
@@ -33,7 +34,7 @@ export function ShopDetailLeftRail({
   const t = useTranslations();
 
   return (
-    <div className="flex min-w-0 flex-col gap-14">
+    <div className="flex min-w-0 flex-col gap-10">
       <div className="flex flex-col gap-6">
         <div className="flex items-end justify-between gap-4">
           <p className="text-[20px] leading-none text-[#7f7f7f] md:text-[24px]">
@@ -137,22 +138,38 @@ export function ShopDetailLeftRail({
                     {Math.max(...offer.product_type.map((item) => Number(item?.minimum)))}%
                   </span>
                 </div>
-                <div className="flex flex-col border-t border-[#e4e4e4]">
-                  {[...offer.product_type]
-                    .sort((a, b) => Number(a?.minimum) - Number(b?.minimum))
-                    .map((product, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between gap-3 border-b border-[#e4e4e4] py-[11px] last:border-b-0"
-                      >
-                        <p className="text-base font-normal text-[#3b3b3b]">{product.name}</p>
-                        <p className="shrink-0 text-xl font-semibold leading-none text-[#3b3b3b]">
-                          {product.minimum}%
-                        </p>
-                      </div>
-                    ))}
+                <div
+                  className="flex flex-col border-t border-[#e4e4e4]"
+                  data-testid="merchant-product-rates"
+                >
+                  {sortedProductTypes(offer).map((product, index) => (
+                    <div
+                      key={`${product.name}-${index}`}
+                      id={`merchant-product-${index}`}
+                      className="flex items-center justify-between gap-3 border-b border-[#e4e4e4] py-[11px] last:border-b-0"
+                    >
+                      <p className="text-base font-normal text-[#3b3b3b]">{product.name}</p>
+                      <p className="shrink-0 text-xl font-semibold leading-none text-[#3b3b3b]">
+                        {product.minimum}%
+                      </p>
+                    </div>
+                  ))}
                 </div>
               </>
+            ) : null}
+            {offer?.admin_note?.trim() ? (
+              <div
+                className="rounded-xl border border-[#c8ebe0] bg-[#f7fdfb] px-3 py-3"
+                role="region"
+                aria-label={t("merchantAdminNoteTitle")}
+              >
+                <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-[#00aa80]">
+                  {t("merchantAdminNoteTitle")}
+                </p>
+                <p className="whitespace-pre-line text-sm leading-relaxed text-[#3b3b3b]">
+                  {offer.admin_note.trim()}
+                </p>
+              </div>
             ) : null}
           </div>
         </div>

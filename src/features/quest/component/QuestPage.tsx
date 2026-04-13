@@ -13,7 +13,7 @@ import ExploreOtherShopsSection from "@/features/shop/component/ExploreOtherShop
 import { favoriteOffer } from "@/lib/services/offer";
 import { trackFavoriteToggle } from "@/lib/analytics";
 import toast from "react-hot-toast";
-import { useMediaQuery } from "@mui/material";
+import { useBreakpointMdUp } from "@/hooks/useBreakpointMdUp";
 import { useLocale, useTranslations } from "next-intl";
 import DialogQuestSocial from "./common/DialogQuestSocial";
 
@@ -22,7 +22,7 @@ const QuestPage = () => {
   const locale = useLocale();
   const { data: session } = useSession();
   const [activeTab, setActiveTab] = useState(0);
-  const lg = useMediaQuery("(min-width:768px)");
+  const lg = useBreakpointMdUp();
   const isThLocale = locale === "th";
 
   const { data: questDateOpen } = useQuery<ResponseQuestDate>({

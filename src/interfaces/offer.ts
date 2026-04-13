@@ -52,6 +52,10 @@ export interface DataOffer {
   has_coupon?: boolean;
   /** Active coupons count from API; if set without `has_coupon`, >0 shows the badge. */
   active_coupon_count?: number;
+  /**
+   * Optional note from admin (CMS / back office), shown on the shop detail cashback panel when non-empty.
+   */
+  admin_note?: string;
 }
 
 export interface ProductTypeList {

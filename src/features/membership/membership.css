@@ -97,6 +97,9 @@
 }
 .membership-root {
   min-height: 100%;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
   font-family: var(--font-body);
   font-size: var(--ds-lead);
   color: var(--text);
@@ -164,7 +167,8 @@
   }
 }
 .membership-root .container {
-  max-width: 1200px;
+  width: 100%;
+  max-width: min(75rem, 100%);
   margin-inline: auto;
   padding-inline: var(--mship-inline);
 }
@@ -391,6 +395,9 @@
   align-items: start;
   grid-template-columns: 1fr;
 }
+.membership-root .hero-grid > * {
+  min-width: 0;
+}
 /* Free + Plus in one band below hero copy */
 .membership-root .hero-tiers-row {
   display: grid;
@@ -416,7 +423,7 @@
   align-items: stretch;
   gap: var(--s4);
   width: 100%;
-  max-width: 40rem;
+  max-width: min(40rem, 100%);
   margin-bottom: var(--s4);
   padding: var(--s4) var(--s5);
   border-radius: var(--r-xl);
@@ -441,6 +448,7 @@
   align-items: center;
   gap: var(--s3);
   min-width: 0;
+  flex: 1 1 auto;
 }
 .membership-root .hero-eyebrow-icon {
   display: inline-flex;
@@ -485,6 +493,7 @@
   gap: var(--s2) var(--s3);
   padding-top: var(--s1);
   border-top: 1px solid var(--divider);
+  min-width: 0;
 }
 @media (min-width: 640px) {
   .membership-root .hero-countdown-block {
@@ -512,9 +521,36 @@
 }
 .membership-root .hero-body {
   color: var(--text-muted);
-  margin-bottom: var(--s5);
+  margin-bottom: var(--s3);
   font-size: var(--ds-lead);
   line-height: 1.55;
+}
+.membership-root .hero-benefits {
+  list-style: none;
+  margin: 0 0 var(--s5);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  max-width: none;
+}
+.membership-root .hero-benefits li {
+  position: relative;
+  padding-left: var(--s6);
+  color: var(--text-muted);
+  font-size: var(--ds-body);
+  line-height: 1.45;
+  max-width: none;
+}
+.membership-root .hero-benefits li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--brand);
 }
 .membership-root .hero-actions {
   display: flex;
@@ -523,6 +559,23 @@
   justify-content: center;
   gap: var(--s4);
   width: 100%;
+}
+@media (max-width: 639px) {
+  .membership-root .hero-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .membership-root .hero-actions .btn-primary,
+  .membership-root .hero-actions .btn-outline,
+  .membership-root .hero-actions a.btn-primary,
+  .membership-root .hero-actions a.btn-outline {
+    width: 100%;
+    justify-content: center;
+  }
+  .membership-root .hero-actions .link-bounce {
+    justify-content: center;
+    width: 100%;
+  }
 }
 .membership-root .btn-primary {
   display: inline-flex;
@@ -1031,13 +1084,20 @@
   background: var(--surface-2);
 }
 .membership-root .btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
   min-height: 48px;
+  padding: 0 var(--s8);
   border-radius: var(--r-full);
   border: 2px solid var(--brand);
   color: var(--brand);
   font-weight: 700;
   background: var(--surface);
+  text-align: center;
+  text-decoration: none;
+  box-sizing: border-box;
 }
 .membership-root .btn-outline:hover {
   background: var(--surface-2);
@@ -1547,6 +1607,8 @@
 .membership-root .mship-layout {
   display: flex;
   min-height: 0;
+  min-width: 0;
+  width: 100%;
   flex-direction: column;
   gap: 0;
 }
@@ -1554,7 +1616,8 @@
 .membership-root .mship-main {
   display: flex;
   width: 100%;
-  max-width: 68.75rem; /* 1100px — readable line length on wide viewports */
+  min-width: 0;
+  max-width: min(68.75rem, 100%); /* 1100px — readable line length on wide viewports */
   flex-direction: column;
   margin-inline: auto;
   padding-top: clamp(var(--s5), 2.5vw, var(--s8));
@@ -1601,6 +1664,7 @@
   display: inline-flex;
   align-items: center;
   min-height: 2rem;
+  max-width: 100%;
   padding: 0.35rem 0.85rem;
   border-radius: var(--r-lg);
   background: var(--surface);
@@ -1611,6 +1675,15 @@
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.03em;
   box-shadow: 0 1px 0 var(--divider);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+@media (max-width: 380px) {
+  .membership-root .hero-countdown {
+    font-size: 0.7rem;
+    padding: 0.3rem 0.6rem;
+    letter-spacing: 0.02em;
+  }
 }
 .membership-root[data-theme="dark"] .hero-countdown {
   color: var(--brand);
@@ -1660,6 +1733,21 @@
 .membership-root .pricing-card > .btn-pro-dark,
 .membership-root .pricing-card > .btn-ghost {
   margin-top: auto;
+}
+/* Narrow dual-column cards (~170px tracks): inline-flex + zero vertical padding makes   wrapped labels shrink-width (lines hug the left) and pill + overflow:hidden clips glyphs. */
+.membership-root .pricing-card > .btn-primary,
+.membership-root .pricing-card > .btn-outline {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  padding: var(--s3) var(--s4);
+  line-height: 1.35;
+  font-size: var(--text-xs);
 }
 @media (prefers-reduced-motion: reduce) {
   .membership-root .pricing-card:hover {
@@ -1741,13 +1829,13 @@
   gap: var(--s4);
   margin-bottom: var(--s4);
   width: 100%;
-  max-width: 520px;
+  max-width: min(40rem, 100%);
   margin-inline: auto;
 }
 @media (min-width: 520px) {
   .membership-root .hero-pricing-row {
-    grid-template-columns: 1fr 1.15fr;
-    max-width: 640px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    max-width: min(40rem, 100%);
   }
 }
 .membership-root .hero-price-card {
@@ -1757,6 +1845,8 @@
   align-items: flex-start;
   gap: var(--s2);
   padding: var(--s5) var(--s5);
+  min-width: 0;
+  width: 100%;
   border-radius: var(--r-xl);
   border: 2px solid var(--border);
   background: var(--surface);
@@ -1920,18 +2010,17 @@
   border-radius: var(--r-full);
   background: var(--brand);
 }
+/* Track count follows the *grid container* width (profile main column can be narrow on wide viewports). */
 .membership-root .benefits-grid {
+  --benefit-col-min: 12.5rem;
   display: grid;
   gap: var(--s6);
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--benefit-col-min)), 1fr));
   margin-top: var(--s6);
-}
-@media (min-width: 768px) {
-  .membership-root .benefits-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
+  min-width: 0;
 }
 .membership-root .benefit-card {
+  min-width: 0;
   padding: var(--s6);
   border-radius: var(--r-xl);
   border: 1px solid var(--border);
@@ -1956,6 +2045,8 @@
   font-size: var(--ds-h6);
   font-weight: 800;
   color: var(--heading-green);
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 .membership-root .benefit-body {
   margin: 0;

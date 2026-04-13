@@ -1,6 +1,7 @@
 "use client";
 
 import { getSupportHref } from "@/constants/navigation";
+import { useBreakpointMdUp } from "@/hooks/useBreakpointMdUp";
 import {
   appendMissingOrderClaimToLocalStorage,
   getMissingOrderClaimAccountKey,
@@ -22,7 +23,6 @@ import {
   type SelectChangeEvent,
   TextField,
   Typography,
-  useMediaQuery,
 } from "@mui/material";
 import LineAppIcon from "@/components/icons/social/LineAppIcon";
 import { MissingOrdersSubmittedDialog } from "@/features/missing-orders/components/MissingOrdersSubmittedDialog";
@@ -222,7 +222,7 @@ function MissingOrdersFormSection({
  */
 export default function MissingOrdersFormBody() {
   const locale = useLocale();
-  const isMdUp = useMediaQuery("(min-width:768px)");
+  const isMdUp = useBreakpointMdUp();
   const fieldSize = isMdUp ? "medium" : "small";
   /** All copy from static JSON — do not use `useTranslations()` / `t()` here (Turbopack drops flat keys). */
   const mo = (key: string) => missingOrdersStaticT(locale, key);

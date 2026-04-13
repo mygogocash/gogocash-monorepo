@@ -22,7 +22,8 @@ export default defineConfig({
         webServer: {
           command: "npm run build && npm run start",
           url: "http://127.0.0.1:3000",
-          timeout: 180_000,
+          /** `next build --webpack` can exceed 3m on cold CI / large apps — allow headroom. */
+          timeout: 600_000,
           reuseExistingServer: !process.env.CI,
           env: {
             ...process.env,

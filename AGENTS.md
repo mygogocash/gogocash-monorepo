@@ -64,6 +64,25 @@ npm run test:e2e   # Playwright E2E (when flows or nav change)
 
 Use `npm run lint:fix` and `npm run format` when appropriate.
 
+## Console and terminal hygiene
+
+**Terminal / CI**
+
+1. Run `npx tsc --noEmit` and `npm run validate` before merging risky UI changes.
+2. Run `npm run build` periodically; it is the gate for Next.js and Webpack issues not covered by ESLint alone.
+3. **`npm warn Unknown env config "devdir"`** — comes from **your machine’s npm config or environment**, not this repo. Remove `devdir` from `~/.npmrc`, run `npm config delete devdir` (and `-g` if needed), and unset `NPM_CONFIG_DEVDIR` in shell profiles if set (see “npm CLI” under Repository facts).
+4. **`i18n:check` note about `jp.json`** — informational; partial `jp` locale is allowed unless product requires full parity.
+
+**Browser**
+
+1. Manually spot-check critical routes with DevTools → Console: fix **errors** first, then decide on **warnings** (third-party scripts may be noisy).
+2. **E2E:** `e2e/smoke.spec.ts` and authenticated `e2e/profile-subpage-scroll.spec.ts` assert **no `pageerror` and no `console.error`** after load. Set **`PLAYWRIGHT_STRICT_CONSOLE=1`** to also treat **`console.warning`** as a failure (stricter; optional in CI).
+3. **App logging:** Prefer `src/lib/clientDevLog.ts` on the client so production bundles stay quiet; avoid raw `console.*` in feature code.
+
+**Build warnings accepted in-repo**
+
+- **Crossmint SDK** (`@crossmint/common-sdk-base`): Webpack “Critical dependency” for dynamic `require` is **suppressed** in `next.config.ts` (`ignoreWarnings`); the SDK is known-good at runtime. Revisit only if upgrading Crossmint major versions.
+
 ## Repository facts (avoid surprises)
 
 - Many route segments use **`"use client"`** for interactivity and SDK compatibility.

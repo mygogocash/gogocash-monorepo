@@ -26,7 +26,7 @@ export function isInternalHrefActive(pathname: string, href: string): boolean {
 /** Active state for `desktopMenuBarNav` items (single source: `item.href`). */
 export function isMenuBarItemActive(pathname: string, item: DesktopMenuBarItem): boolean {
   const p = pathname || "";
-  if (item.supportOnly || item.external) return false;
+  if (item.productDiscover || item.supportOnly || item.external) return false;
   if (item.id === "top-brands") return p === "/" || p === "";
   if (!item.href) return false;
   return isInternalHrefActive(p, item.href);

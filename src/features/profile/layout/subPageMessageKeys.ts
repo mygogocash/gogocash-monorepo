@@ -7,6 +7,7 @@ export const SUB_PAGE_TITLE_KEYS = [
   "My Wallet",
   "Subscription",
   "navMembership",
+  "navCreditScore",
   "Referral",
   "Verify Phone",
   "Profile",

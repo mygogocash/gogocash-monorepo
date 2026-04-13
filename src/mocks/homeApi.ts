@@ -67,6 +67,8 @@ interface MockBrandSeedInput {
   description: string;
   /** Omit or true: show “Grab Coupon” on cards; false = no coupons for this mock brand. */
   has_coupon?: boolean;
+  /** Shown on shop detail when set (mirrors optional `DataOffer.admin_note`). */
+  admin_note?: string;
 }
 
 interface MockCashbackBlueprint {
@@ -185,6 +187,9 @@ const createProductTypes = (category: MockBrandCategory): DataOffer["product_typ
   }
 };
 
+const hasNonEmptyAdminNote = (note: string | undefined): note is string =>
+  typeof note === "string" && note.trim().length > 0;
+
 const createMockBrand = ({
   id,
   name,
@@ -194,6 +199,7 @@ const createMockBrand = ({
   banner,
   description,
   has_coupon: hasCouponSeed,
+  admin_note: adminNoteSeed,
 }: MockBrandSeedInput): DataOffer => ({
   _id: id,
   offer_id: getNumericId(id),
@@ -231,6 +237,7 @@ const createMockBrand = ({
   extra_point: null,
   product_type: createProductTypes(category),
   has_coupon: hasCouponSeed !== false,
+  ...(hasNonEmptyAdminNote(adminNoteSeed) ? { admin_note: adminNoteSeed.trim() } : {}),
 });
 
 const mockBrandCatalog: MockBrandSeedInput[] = [
@@ -242,6 +249,8 @@ const mockBrandCatalog: MockBrandSeedInput[] = [
     logo: "/logo.png",
     banner: "/home/banner1.webp",
     description: "Weekly pantry deals and fresh-cart cashback.",
+    admin_note:
+      "Promo stack: this merchant may run time-limited campaigns. Cashback can take up to 7 days to track after delivery.",
   },
   {
     id: "brand-pocket-pantry-1002",

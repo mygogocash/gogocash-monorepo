@@ -9,7 +9,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "NODE_OPTIONS=--max-old-space-size=8192 next build --webpack",
-    "start": "next start",
+    "postbuild": "node scripts/sync-next-standalone.mjs",
+    "start": "node .next/standalone/server.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"e2e/**/*.ts\" \"*.{ts,mjs,json,md}\"",
