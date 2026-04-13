@@ -10,6 +10,18 @@ for (const path of PRODUCTION_PAGE_PATHS) {
     }) => {
       await page.setViewportSize({ width, height: 812 });
       await page.goto(path, { waitUntil: "load", timeout: 90_000 });
+      // Layout-dependent widths can settle a tick after `load` in CI browsers.
+      await page.waitForTimeout(100);
+      await expect
+        .poll(
+          () =>
+            page.evaluate(() => {
+              const d = document.documentElement;
+              return d.scrollWidth - d.clientWidth;
+            }),
+          { timeout: 5_000 },
+        )
+        .toBeLessThanOrEqual(1);
       const extra = await page.evaluate(() => {
         const d = document.documentElement;
         return d.scrollWidth - d.clientWidth;
