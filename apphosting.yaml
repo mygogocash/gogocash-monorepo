@@ -1,14 +1,49 @@
 # Firebase App Hosting – GoGoCash Admin (frontend + mock data only)
 # See https://firebase.google.com/docs/app-hosting/configure
 # Connect this repo in Firebase Console → App Hosting → Create backend
+#
+# ─── First-time setup ───
+#   1. Firebase Console → gogocash-staging → App Hosting → Create backend.
+#      Backend ID: gogocash-admin   Root dir: .   Branch: staging
+#   2. Add custom domain admin-staging.gogocash.co to the backend.
+#   3. Set NEXTAUTH_SECRET in Secret Manager:
+#        npx firebase apphosting:secrets:set NEXTAUTH_SECRET \
+#          --project gogocash-staging
+#      Then uncomment the secret block below.
 
 runConfig:
   minInstances: 0
+  maxInstances: 10
+  concurrency: 40
+  cpu: 1
+  memoryMiB: 512
 
-# Optional: set NEXTAUTH_SECRET in Firebase Console (App Hosting → Backend → Environment)
-# or: firebase apphosting:secrets:set NEXTAUTH_SECRET
-# NEXTAUTH_URL is set automatically by App Hosting to your live URL.
-# env:
-#   - variable: NEXTAUTH_SECRET
-#     secret: NEXTAUTH_SECRET
-#     availability: [BUILD, RUNTIME]
+env:
+  - variable: NODE_ENV
+    value: production
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_TELEMETRY_DISABLED
+    value: "1"
+    availability:
+      - BUILD
+  - variable: CI
+    value: "true"
+    availability:
+      - BUILD
+  # Staging custom domain — App Hosting also sets this automatically, but
+  # setting it explicitly avoids the default *.hosted.app URL being used in OAuth callbacks.
+  - variable: NEXTAUTH_URL
+    value: https://admin-staging.gogocash.co
+    availability:
+      - BUILD
+      - RUNTIME
+
+  # Provision once, then uncomment:
+  #   npx firebase apphosting:secrets:set NEXTAUTH_SECRET --project gogocash-staging
+  # - variable: NEXTAUTH_SECRET
+  #   secret: NEXTAUTH_SECRET
+  #   availability:
+  #     - BUILD
+  #     - RUNTIME
