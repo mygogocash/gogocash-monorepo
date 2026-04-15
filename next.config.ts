@@ -14,6 +14,12 @@ const assetPrefix = (process.env.NEXT_PUBLIC_ASSET_PREFIX ?? basePath ?? "").rep
 
 // Standalone for Node/Docker; static export for Firebase Hosting.
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      { source: "/offers", destination: "/brands", permanent: true },
+      { source: "/offers/:path*", destination: "/brands/:path*", permanent: true },
+    ];
+  },
   experimental: {
     optimizePackageImports: ["@mui/material", "@mui/x-data-grid"],
   },

@@ -9,7 +9,7 @@ const MOCK_PENDING_SESSION_KEY = "gogocash-admin-mock-pending-offers-v5";
 export type PendingOfferRow = Offer & { submitted_at: string };
 
 /**
- * Mock “submitted for approval” offers — same shape as `Offer` for parity with Offers Management.
+ * Mock “submitted for approval” offers — same shape as `Offer` for parity with Brands Management.
  * Replace with GET /admin/offers/pending when wiring a real backend.
  */
 export function getDefaultMockPendingOffers(): PendingOfferRow[] {
@@ -156,7 +156,7 @@ function readPendingOffersFromSession(): PendingOfferRow[] | null {
 
 /**
  * Current pending queue (mock): persisted in sessionStorage so approve/reject survives navigation
- * (e.g. full-page review at `/offers/pending/[id]`).
+ * (e.g. full-page review at `/brands/pending/[id]`).
  */
 export function getMockPendingOffers(): PendingOfferRow[] {
   return readPendingOffersFromSession() ?? getDefaultMockPendingOffers();
@@ -177,7 +177,7 @@ export function resetMockPendingOffersToDefault(): PendingOfferRow[] {
   return getDefaultMockPendingOffers();
 }
 
-/** Maps Offers Management country dropdown values to ISO codes in `Offer.countries`. */
+/** Maps Brands Management country dropdown values to ISO codes in `Offer.countries`. */
 export const COUNTRY_FILTER_TO_CODES: Record<string, string[]> = {
   Thailand: ["TH"],
   Indonesia: ["ID"],

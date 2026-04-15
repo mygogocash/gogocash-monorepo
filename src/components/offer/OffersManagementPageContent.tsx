@@ -46,7 +46,7 @@ function TabPanelSkeleton() {
 }
 
 const BREADCRUMB_LABEL: Record<OffersManagementTabId, string> = {
-  offers: "Offers",
+  brands: "Brands",
   commission: "Commission Management",
   policy: "Policy Management",
   deeplink: "User tracking link",
@@ -66,7 +66,7 @@ export default function OffersManagementPageContent() {
 
   useEffect(() => {
     if (searchParams.get("tab") === "new-offer") {
-      router.replace("/offers", { scroll: false });
+      router.replace("/brands", { scroll: false });
     }
   }, [router, searchParams]);
 
@@ -76,7 +76,7 @@ export default function OffersManagementPageContent() {
       pageTitle,
       items: [
         { label: "Home", href: "/" },
-        { label: "Offers Management", href: "/offers" },
+        { label: "Brands Management", href: "/brands" },
         { label: pageTitle },
       ],
     };
@@ -91,7 +91,7 @@ export default function OffersManagementPageContent() {
       <div className="space-y-6">
         <OffersManagementTabs />
 
-        {activeTab === "offers" && <OffersTable />}
+        {activeTab === "brands" && <OffersTable />}
         {activeTab === "commission" && <CommissionManagementClient embedded />}
         {activeTab === "policy" && <PolicyTable />}
         {activeTab === "deeplink" && <DeeplinkTable />}

@@ -20,7 +20,7 @@ export default async function ConversionPage(props: DefaultAppPageProps) {
           { label: "Conversion" },
         ]}
       />
-      <div className="space-y-6">
+      <div className="mt-6 space-y-6">
         <Suspense fallback={<div className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">Loading…</div>}>
           <ConversionPageClient />
         </Suspense>

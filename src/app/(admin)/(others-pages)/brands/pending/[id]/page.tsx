@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import { awaitPageDynamicProps, type DefaultAppPageProps } from "@/lib/nextAppPageProps";
 
 export const metadata: Metadata = {
-  title: "Review pending offer | GoGoCash Admin",
+  title: "Review pending brand | GoGoCash Admin",
 };
 
 /** Pre-render pending review paths for static export (Firebase Hosting). */

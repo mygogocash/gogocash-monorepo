@@ -30,7 +30,7 @@ export interface MyCashbackResponse {
     phoneNumber:         string;
     phoneNumberVerified: boolean;
     gender:              string;
-    dateOfBirth:         null;
+    dateOfBirth:         string | Date | null;
     lineIdentity:        string;
     facebookIdentity:    string;
     instagramIdentity:   string;
@@ -49,16 +49,16 @@ export interface MyCashbackResponse {
     buyerId:             string;
     publisherId:         string;
     balance:             Balance[];
-    createdAt:           Date;
-    updatedAt:           Date;
+    createdAt:           Date | string;
+    updatedAt:           Date | string;
     __v:                 number;
 }
 
 export interface Balance {
     amount:      number;
     currency:    string;
-    countryCode: string;
-    lastUpdated: Date;
+    countryCode?: string;
+    lastUpdated: Date | string;
     _id:         string;
 }
 

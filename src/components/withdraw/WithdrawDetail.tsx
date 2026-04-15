@@ -1,8 +1,9 @@
 "use client";
 import Link from "next/link";
-import client, { fetcherPost } from "@/lib/axios/client";
+import client, { fetcher, fetcherPost } from "@/lib/axios/client";
+import type { Subscription } from "@/types/adminModules";
 import type { GridColDef } from "@mui/x-data-grid";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { ResDataWithdrawsListByUser, ResMCBDetail } from "@/types/withdraw";
@@ -17,9 +18,13 @@ import {
   normalizeUserEmails,
   normalizeUserMobiles,
 } from "@/lib/userContact";
+import { getSubscriptions } from "@/lib/api/adminModulesApi";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import { shouldShowMockOtpHint } from "@/lib/mockOtpHint";
-import { updateWithdrawUserProfile } from "@/lib/api/withdrawUserContactApi";
+import {
+  deleteWithdrawUserData,
+  updateWithdrawUserProfile,
+} from "@/lib/api/withdrawUserContactApi";
 import WithdrawUserContactEditor, {
   withdrawUserContactsReady,
 } from "@/components/withdraw/WithdrawUserContactEditor";
@@ -39,6 +44,9 @@ import {
 import { WithdrawRequestForm } from "./WithdrawTable";
 import { DataWithdrawsList } from "@/types/api";
 import CopyButton from "@/components/ui/CopyButton";
+import MyCashbackProfileSection from "@/components/withdraw/MyCashbackProfileSection";
+import type { MyCashbackResponse } from "@/types/user";
+import toast from "react-hot-toast";
 
 const WithdrawDetailDataGrid = dynamic(
   () => import("./WithdrawDetailLazyGrids"),
@@ -50,17 +58,29 @@ const WithdrawDetailDataGrid = dynamic(
   },
 );
 
-type DetailTab = "user" | "conversion" | "withdraw" | "deeplink" | "login";
+type DetailTab =
+  | "user"
+  | "subscription"
+  | "conversion"
+  | "withdraw"
+  | "deeplink"
+  | "login"
+  | "deleteData";
+
+const DELETE_USER_DATA_CONFIRM_PHRASE = "DELETE";
 
 const TABS: { id: DetailTab; label: string }[] = [
   { id: "user", label: "User Info" },
+  { id: "subscription", label: "Subscription" },
   { id: "conversion", label: "Conversion All" },
   { id: "withdraw", label: "Withdraw All" },
   { id: "deeplink", label: "Tracking links" },
   { id: "login", label: "Login Tracking" },
+  { id: "deleteData", label: "Delete user data" },
 ];
 
 const WithdrawDetail = () => {
+  const queryClient = useQueryClient();
   const { id } = useParams();
   const searchParams = useSearchParams();
   const editUserFromQuery = searchParams.get("editUser") === "1";
@@ -79,6 +99,9 @@ const WithdrawDetail = () => {
   const [editingUser, setEditingUser] = useState(false);
   const [savingUser, setSavingUser] = useState(false);
   const [userSaveError, setUserSaveError] = useState<string | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleteUserDataLoading, setDeleteUserDataLoading] = useState(false);
+  const [deleteUserDataError, setDeleteUserDataError] = useState<string | null>(null);
   const [userDraft, setUserDraft] = useState<WithdrawUserEditDraft>(() =>
     emptyWithdrawUserEditDraft(),
   );
@@ -121,6 +144,24 @@ const WithdrawDetail = () => {
     queryKey: ["MCBDetail", id],
     queryFn: () => fetcherPost(`/withdraw/check-my-cashback-admin/${id}`),
   });
+
+  const routeUserId = typeof id === "string" ? id : "";
+
+  const {
+    data: myCashbackRows,
+    isLoading: myCashbackLoading,
+    isError: myCashbackError,
+  } = useQuery({
+    queryKey: ["mycashbackUserProfile", routeUserId],
+    queryFn: () =>
+      fetcher(`/admin/get-mycashback-user/${encodeURIComponent(routeUserId)}`),
+    enabled: Boolean(routeUserId),
+  });
+
+  const myCashbackUser = useMemo(() => {
+    if (!Array.isArray(myCashbackRows) || myCashbackRows.length === 0) return null;
+    return myCashbackRows[0] as MyCashbackResponse;
+  }, [myCashbackRows]);
 
   const column = useMemo<GridColDef[]>(
     () => [
@@ -367,6 +408,13 @@ const WithdrawDetail = () => {
   const withdrawUserId =
     withdrawDetail?.user?._id ?? (typeof id === "string" ? id : "") ?? "";
 
+  const { data: userSubscriptions, isLoading: userSubsLoading, isError: userSubsError } =
+    useQuery({
+      queryKey: ["admin", "subscription", "withdraw-detail", withdrawUserId],
+      queryFn: () => getSubscriptions({ page: 1, limit: 20, search: withdrawUserId }),
+      enabled: Boolean(withdrawUserId) && activeTab === "subscription",
+    });
+
   const beginEditUser = useCallback(() => {
     const u = withdrawDetail?.user;
     if (!u) return;
@@ -469,6 +517,29 @@ const WithdrawDetail = () => {
     initialMobilesRef.current,
   );
 
+  const isUserDataDeleted = withdrawDetail?.user?.fullName === "User data deleted";
+
+  const handleDeleteUserData = async () => {
+    if (!withdrawUserId) return;
+    if (deleteConfirmText.trim() !== DELETE_USER_DATA_CONFIRM_PHRASE) return;
+    setDeleteUserDataError(null);
+    setDeleteUserDataLoading(true);
+    try {
+      await deleteWithdrawUserData({ userId: withdrawUserId });
+      toast.success("User data removed for this profile.");
+      setDeleteConfirmText("");
+      await fetchWithdrawDetail();
+      await fetchMCBDetail();
+      void queryClient.invalidateQueries({
+        queryKey: ["admin", "subscription", "withdraw-detail", withdrawUserId],
+      });
+    } catch (e: unknown) {
+      setDeleteUserDataError(getApiErrorMessage(e, "Failed to delete user data"));
+    } finally {
+      setDeleteUserDataLoading(false);
+    }
+  };
+
   return (
     <>
       <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03] sm:p-5">
@@ -480,6 +551,7 @@ const WithdrawDetail = () => {
           >
             {TABS.map((tab) => {
               const isActive = activeTab === tab.id;
+              const danger = tab.id === "deleteData";
               return (
                 <button
                   key={tab.id}
@@ -487,8 +559,12 @@ const WithdrawDetail = () => {
                   onClick={() => setActiveTab(tab.id)}
                   className={`whitespace-nowrap rounded-t-lg border-b-2 px-4 py-3 text-sm font-medium transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 ${
                     isActive
-                      ? "border-blue-600 bg-blue-50/80 text-blue-700 hover:bg-blue-50 hover:text-blue-800 dark:border-blue-400 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/40 dark:hover:text-blue-200"
-                      : "border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700/50 dark:hover:text-gray-200"
+                      ? danger
+                        ? "border-red-600 bg-red-50/90 text-red-800 hover:bg-red-50 hover:text-red-900 dark:border-red-500 dark:bg-red-950/40 dark:text-red-200 dark:hover:bg-red-950/60 dark:hover:text-red-100"
+                        : "border-blue-600 bg-blue-50/80 text-blue-700 hover:bg-blue-50 hover:text-blue-800 dark:border-blue-400 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/40 dark:hover:text-blue-200"
+                      : danger
+                        ? "border-transparent text-red-700/90 hover:bg-red-50 hover:text-red-900 dark:text-red-400/90 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                        : "border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700/50 dark:hover:text-gray-200"
                   }`}
                 >
                   {tab.label}
@@ -511,7 +587,7 @@ const WithdrawDetail = () => {
                     <button
                       type="button"
                       onClick={beginEditUser}
-                      disabled={!withdrawDetail?.user}
+                      disabled={!withdrawDetail?.user || isUserDataDeleted}
                       className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-800 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
                     >
                       Edit user
@@ -641,6 +717,130 @@ const WithdrawDetail = () => {
                         <CopyButton value={withdrawDetail?.user?.wallet || ""} />
                       </p>
                     </div>
+
+                    {(() => {
+                      const wu = withdrawDetail?.user;
+                      const hasExtended =
+                        wu &&
+                        (wu.firstName ||
+                          wu.lastName ||
+                          wu.createdAt ||
+                          wu.updatedAt ||
+                          wu.buyerId ||
+                          wu.publisherId ||
+                          wu.streetAddress ||
+                          wu.city ||
+                          wu.zipCode ||
+                          wu.rating != null ||
+                          wu.creditScoreType != null ||
+                          wu.emailVerified != null ||
+                          wu.phoneVerified != null);
+                      if (!hasExtended || !wu) return null;
+                      const fmtIso = (s?: string) =>
+                        s
+                          ? (() => {
+                              const d = new Date(s);
+                              return Number.isNaN(d.getTime())
+                                ? s
+                                : d.toLocaleString();
+                            })()
+                          : "—";
+                      const yn = (v: boolean | undefined) =>
+                        v === true ? "Yes" : v === false ? "No" : "—";
+                      return (
+                        <div className="rounded-lg border border-gray-200 bg-white/80 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+                          <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                            Extended profile
+                          </h4>
+                          <p className="mb-3 text-xs text-gray-500 dark:text-gray-500">
+                            Optional fields returned by{" "}
+                            <code className="rounded bg-gray-100 px-1 dark:bg-gray-800">
+                              /withdraw/list-check-admin
+                            </code>
+                            .
+                          </p>
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                            {wu.firstName ? (
+                              <p className="text-sm text-gray-800 dark:text-gray-200">
+                                <span className="font-medium">First name:</span> {wu.firstName}
+                              </p>
+                            ) : null}
+                            {wu.lastName ? (
+                              <p className="text-sm text-gray-800 dark:text-gray-200">
+                                <span className="font-medium">Last name:</span> {wu.lastName}
+                              </p>
+                            ) : null}
+                            {wu.createdAt ? (
+                              <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                                <span className="font-medium">Account created:</span>{" "}
+                                {fmtIso(wu.createdAt)}
+                              </p>
+                            ) : null}
+                            {wu.updatedAt ? (
+                              <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                                <span className="font-medium">Last updated:</span>{" "}
+                                {fmtIso(wu.updatedAt)}
+                              </p>
+                            ) : null}
+                            {wu.buyerId ? (
+                              <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                                <span className="font-medium">Buyer ID:</span> {wu.buyerId}
+                                <CopyButton value={wu.buyerId} />
+                              </p>
+                            ) : null}
+                            {wu.publisherId ? (
+                              <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                                <span className="font-medium">Publisher ID:</span> {wu.publisherId}
+                                <CopyButton value={wu.publisherId} />
+                              </p>
+                            ) : null}
+                            {wu.streetAddress ? (
+                              <p className="text-sm text-gray-800 dark:text-gray-200 sm:col-span-2">
+                                <span className="font-medium">Address:</span> {wu.streetAddress}
+                              </p>
+                            ) : null}
+                            {wu.city ? (
+                              <p className="text-sm text-gray-800 dark:text-gray-200">
+                                <span className="font-medium">City:</span> {wu.city}
+                              </p>
+                            ) : null}
+                            {wu.zipCode ? (
+                              <p className="text-sm text-gray-800 dark:text-gray-200">
+                                <span className="font-medium">Zip code:</span> {wu.zipCode}
+                              </p>
+                            ) : null}
+                            {wu.rating != null ? (
+                              <p className="text-sm text-gray-800 dark:text-gray-200">
+                                <span className="font-medium">Rating:</span> {wu.rating}
+                              </p>
+                            ) : null}
+                            {wu.creditScoreType != null ? (
+                              <p className="text-sm text-gray-800 dark:text-gray-200">
+                                <span className="font-medium">Credit score type:</span>{" "}
+                                {wu.creditScoreType}
+                              </p>
+                            ) : null}
+                            {wu.emailVerified != null ? (
+                              <p className="text-sm text-gray-800 dark:text-gray-200">
+                                <span className="font-medium">Email verified:</span> {yn(wu.emailVerified)}
+                              </p>
+                            ) : null}
+                            {wu.phoneVerified != null ? (
+                              <p className="text-sm text-gray-800 dark:text-gray-200">
+                                <span className="font-medium">Phone verified:</span>{" "}
+                                {yn(wu.phoneVerified)}
+                              </p>
+                            ) : null}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    <MyCashbackProfileSection
+                      loading={myCashbackLoading}
+                      error={myCashbackError}
+                      user={myCashbackUser}
+                    />
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -852,6 +1052,66 @@ const WithdrawDetail = () => {
             </div>
           )}
 
+          {activeTab === "subscription" && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Subscription</h2>
+                <Link
+                  href="/subscription"
+                  className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
+                >
+                  Open subscription admin →
+                </Link>
+              </div>
+              {!withdrawUserId ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Load user details to view subscription records.
+                </p>
+              ) : userSubsLoading ? (
+                <div className="h-36 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" />
+              ) : userSubsError ? (
+                <p className="text-sm text-red-600 dark:text-red-400">
+                  Could not load subscriptions for this user.
+                </p>
+              ) : (userSubscriptions?.data ?? []).length === 0 ? (
+                <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 py-10 text-center dark:border-gray-600 dark:bg-gray-800/50">
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                    No subscription rows match this user in admin data.
+                  </p>
+                  <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                    Managed subscriptions use mock users; this withdraw profile may not appear in
+                    that list until the backend links them.
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+                  <table className="min-w-full text-left text-sm">
+                    <thead className="border-b border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-600 dark:bg-gray-800/80 dark:text-gray-400">
+                      <tr>
+                        <th className="px-4 py-3 font-medium">Plan</th>
+                        <th className="px-4 py-3 font-medium">Status</th>
+                        <th className="px-4 py-3 font-medium">Amount</th>
+                        <th className="px-4 py-3 font-medium">Next billing</th>
+                        <th className="px-4 py-3 font-medium">Payment</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                      {(userSubscriptions?.data ?? []).map((s: Subscription) => (
+                        <tr key={s.id} className="text-gray-800 dark:text-gray-200">
+                          <td className="px-4 py-3">{s.planName}</td>
+                          <td className="px-4 py-3 capitalize">{s.status}</td>
+                          <td className="px-4 py-3 tabular-nums">{s.amount}</td>
+                          <td className="px-4 py-3 whitespace-nowrap">{s.nextBillingDate}</td>
+                          <td className="px-4 py-3">{s.paymentMethod}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
           {activeTab === "conversion" && (
             <>
               <h2 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
@@ -943,14 +1203,14 @@ const WithdrawDetail = () => {
                   <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
                     Global tracking link admin:{" "}
                     <Link
-                      href="/offers?tab=deeplink"
+                      href="/brands?tab=deeplink"
                       className="text-brand-600 underline dark:text-brand-400"
                     >
                       User tracking link
                     </Link>
                     {" "}
                     <span className="text-gray-400 dark:text-gray-500">
-                      (Offers Management → User tracking link)
+                      (Brands Management → User tracking link)
                     </span>
                   </p>
                 </div>
@@ -1044,6 +1304,71 @@ const WithdrawDetail = () => {
               <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
                 Connect a login/session data source to show history.
               </p>
+            </div>
+          )}
+
+          {activeTab === "deleteData" && (
+            <div className="space-y-5 rounded-xl border border-red-200 bg-red-50/40 p-4 dark:border-red-900/50 dark:bg-red-950/20 sm:p-6">
+              <div>
+                <h2 className="text-lg font-semibold text-red-900 dark:text-red-200">
+                  Delete user data
+                </h2>
+                <p className="mt-1 text-sm text-red-800/90 dark:text-red-300/90">
+                  Permanently remove this user&apos;s personal data and activity from the admin view.
+                  When wired to a real backend, this should follow your retention policy and legal
+                  requirements.
+                </p>
+              </div>
+
+              {isUserDataDeleted ? (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
+                  User data for this profile has already been removed. Lists and profile fields below
+                  are cleared in the mock environment.
+                </div>
+              ) : (
+                <>
+                  <ul className="list-inside list-disc space-y-1.5 text-sm text-gray-700 dark:text-gray-300">
+                    <li>Profile contacts, wallet, and login history (mock)</li>
+                    <li>Conversion and withdrawal rows shown on this page (mock)</li>
+                    <li>Tracking link rows for this user (mock)</li>
+                  </ul>
+                  <div>
+                    <Label className="mb-1.5 block text-gray-800 dark:text-gray-200">
+                      Type{" "}
+                      <span className="font-mono font-semibold text-red-700 dark:text-red-400">
+                        {DELETE_USER_DATA_CONFIRM_PHRASE}
+                      </span>{" "}
+                      to confirm
+                    </Label>
+                    <Input
+                      type="text"
+                      autoComplete="off"
+                      placeholder={DELETE_USER_DATA_CONFIRM_PHRASE}
+                      value={deleteConfirmText}
+                      onChange={(e) => {
+                        setDeleteConfirmText(e.target.value);
+                        setDeleteUserDataError(null);
+                      }}
+                      className="max-w-[280px]"
+                    />
+                  </div>
+                  {deleteUserDataError ? (
+                    <p className="text-sm text-red-600 dark:text-red-400">{deleteUserDataError}</p>
+                  ) : null}
+                  <button
+                    type="button"
+                    disabled={
+                      deleteUserDataLoading ||
+                      !withdrawUserId ||
+                      deleteConfirmText.trim() !== DELETE_USER_DATA_CONFIRM_PHRASE
+                    }
+                    onClick={() => void handleDeleteUserData()}
+                    className="rounded-lg border border-red-600 bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-500 dark:bg-red-600 dark:hover:bg-red-500"
+                  >
+                    {deleteUserDataLoading ? "Deleting…" : "Delete user data"}
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>

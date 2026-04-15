@@ -77,10 +77,10 @@ export default function CategoryTable() {
       <div className="flex items-center justify-between px-6 py-5">
         <div>
           <h3 className="text-base font-medium text-gray-800 dark:text-white/90">
-            Offers
+            Brands
           </h3>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Total: {categoryData?.length} offers
+            Total: {categoryData?.length} brands
           </p>
         </div>
         <div className="flex items-center gap-4">
@@ -102,7 +102,7 @@ export default function CategoryTable() {
           </div>
         ) : (
           <>
-            {/* Offers Table */}
+            {/* Brands table */}
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-800">

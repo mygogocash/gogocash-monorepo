@@ -5,21 +5,20 @@ import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import { devError } from "@/lib/devConsole";
 import type { MyCashbackResponse } from "@/types/user";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
-import ViewMyCashback from "./ViewMyCashback";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 
 const PAGE_SIZE = 12;
 
 type ListQuery = { page: number; search: string };
 
 export default function MyCashbackUsersTable() {
+  const router = useRouter();
   const [searchInput, setSearchInput] = useState("");
   const [{ page, search: searchQuery }, setListQuery] = useState<ListQuery>({
     page: 1,
     search: "",
   });
-  const [detailId, setDetailId] = useState("");
-  const [detailOpen, setDetailOpen] = useState(false);
 
   useEffect(() => {
     const trimmed = searchInput.trim();
@@ -70,18 +69,21 @@ export default function MyCashbackUsersTable() {
     return b ? `${b.amount} ${b.currency}` : "—";
   };
 
-  const openUserCashbackDetail = (id: string) => {
-    setDetailId(id);
-    setDetailOpen(true);
-  };
+  const navigateToWithdrawDetail = useCallback(
+    (u: MyCashbackResponse) => {
+      const displayName =
+        [u.firstName, u.lastName].filter(Boolean).join(" ").trim() || u.email || "User";
+      const params = new URLSearchParams({
+        from: "mycashback",
+        name: displayName,
+      });
+      router.push(`/withdraw/${u._id}?${params.toString()}`);
+    },
+    [router],
+  );
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
-      <ViewMyCashback
-        id={detailId}
-        openModal={detailOpen}
-        setOpenModal={setDetailOpen}
-      />
       <div className="flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-base font-medium text-gray-800 dark:text-white/90">
@@ -123,25 +125,25 @@ export default function MyCashbackUsersTable() {
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-800">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
-                      Name
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      User
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                       Email
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                       Phone
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                       Buyer ID
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                       Balance
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                       Status
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                    <th className="px-6 py-3 text-right text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                       Actions
                     </th>
                   </tr>
@@ -151,7 +153,7 @@ export default function MyCashbackUsersTable() {
                     <tr>
                       <td
                         colSpan={7}
-                        className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400"
+                        className="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400"
                       >
                         No MyCashBack users match your search.
                       </td>
@@ -160,29 +162,63 @@ export default function MyCashbackUsersTable() {
                     rows.map((u) => (
                       <tr
                         key={u._id}
-                        title="Click row for quick view"
-                        className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/80"
-                        onClick={() => openUserCashbackDetail(u._id)}
+                        title="Open user detail (withdraw)"
+                        className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                        onClick={() => navigateToWithdrawDetail(u)}
                       >
-                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
-                          {u.firstName} {u.lastName}
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            {u._id}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="h-10 w-10 flex-shrink-0">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-300 dark:bg-gray-600">
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                                  {u.firstName?.charAt(0)?.toUpperCase() ?? "?"}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                {[u.firstName, u.lastName].filter(Boolean).join(" ") || u.email}
+                              </div>
+                              <div className="text-sm text-gray-500 dark:text-gray-400">
+                                ID: {u._id}
+                              </div>
+                              <div className="text-sm text-gray-500 dark:text-gray-400">
+                                Address: {u.address ? u.address : "-"}
+                              </div>
+                              <div className="text-sm text-gray-500 dark:text-gray-400">
+                                Mobile: {u.phoneNumber ? u.phoneNumber : "-"}
+                              </div>
+                              <div className="text-sm text-gray-500 dark:text-gray-400">
+                                birthdate:{" "}
+                                {u.dateOfBirth
+                                  ? String(u.dateOfBirth)
+                                  : "-"}
+                              </div>
+                              <div className="text-sm text-gray-500 dark:text-gray-400">
+                                gender: {u.gender ? u.gender : "-"}
+                              </div>
+                              <div className="text-sm text-gray-500 dark:text-gray-400">
+                                Date Login:{" "}
+                                {u.updatedAt
+                                  ? `${new Date(u.updatedAt).toLocaleDateString()} ${new Date(u.updatedAt).toLocaleTimeString()}`
+                                  : "-"}
+                              </div>
+                            </div>
                           </div>
                         </td>
-                        <td className="max-w-[200px] truncate px-4 py-3 text-sm text-gray-800 dark:text-gray-200">
+                        <td className="max-w-[200px] truncate px-6 py-4 text-sm text-gray-800 dark:text-gray-200">
                           {u.email}
                         </td>
-                        <td className="whitespace-nowrap px-4 py-3 font-mono text-sm text-gray-800 dark:text-gray-200">
+                        <td className="whitespace-nowrap px-6 py-4 font-mono text-sm text-gray-800 dark:text-gray-200">
                           {u.phoneNumber}
                         </td>
-                        <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-gray-700 dark:text-gray-300">
+                        <td className="whitespace-nowrap px-6 py-4 font-mono text-xs text-gray-700 dark:text-gray-300">
                           {u.buyerId}
                         </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-800 dark:text-gray-200">
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-800 dark:text-gray-200">
                           {primaryBalance(u)}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-6 py-4">
                           {u.banned ? (
                             <span className="inline-flex rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800 dark:bg-red-900/40 dark:text-red-200">
                               Banned
@@ -193,16 +229,16 @@ export default function MyCashbackUsersTable() {
                             </span>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-6 py-4 text-right">
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              openUserCashbackDetail(u._id);
+                              navigateToWithdrawDetail(u);
                             }}
                             className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                           >
-                            View cashback
+                            View info
                           </button>
                         </td>
                       </tr>

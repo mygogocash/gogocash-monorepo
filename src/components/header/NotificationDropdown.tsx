@@ -101,7 +101,7 @@ function PendingOfferNotificationItem({
   return (
     <DropdownItem
       tag="a"
-      href={`/offers/pending/${offer._id}`}
+      href={`/brands/pending/${offer._id}`}
       onItemClick={onClose}
       className={`flex gap-3 rounded-lg border-b border-gray-100 p-3 px-4.5 py-3 hover:bg-gray-100 dark:border-gray-800 dark:hover:bg-white/5 ${
         read ? "opacity-80" : ""
@@ -122,7 +122,7 @@ function PendingOfferNotificationItem({
       </span>
       <span className="block min-w-0 flex-1">
         <span className="mb-1.5 block text-theme-sm text-gray-700 dark:text-gray-300">
-          <span className="font-medium text-gray-800 dark:text-white/90">New offer pending review</span>
+          <span className="font-medium text-gray-800 dark:text-white/90">New brand pending review</span>
           <span className="text-gray-500 dark:text-gray-400"> — </span>
           <span className="font-medium text-gray-800 dark:text-white/90">{title}</span>
         </span>
@@ -344,7 +344,7 @@ export default function NotificationDropdown() {
             {offerRows.length > 0 ? (
               <>
                 <p className="mb-1 mt-3 px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
-                  Pending offer review
+                  Pending brand review
                 </p>
                 <ul className="flex flex-col">
                   {offerRows.map((offer) => {
@@ -359,11 +359,11 @@ export default function NotificationDropdown() {
               </>
             ) : inboxFilter === "unread" && hasPendingOffers ? (
               <p className="mt-3 rounded-lg border border-dashed border-gray-200 px-3 py-2 text-center text-theme-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">
-                No new pending offers in your inbox.
+                No new pending brands in your inbox.
               </p>
             ) : (
               <p className="mt-3 rounded-lg border border-dashed border-gray-200 px-3 py-2 text-center text-theme-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">
-                No offers awaiting review.
+                No brands awaiting review.
               </p>
             )}
           </div>
@@ -377,11 +377,11 @@ export default function NotificationDropdown() {
             View Withdrawal Management
           </Link>
           <Link
-            href="/offers"
+            href="/brands"
             className="block rounded-lg border border-gray-300 bg-white px-4 py-2 text-center text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
             onClick={closeDropdown}
           >
-            View Offers
+            View Brands
           </Link>
         </div>
       </Dropdown>

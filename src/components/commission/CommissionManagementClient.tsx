@@ -70,7 +70,7 @@ async function getBrands(networkId: string): Promise<{ data: CommissionBrandRow[
 }
 
 type CommissionManagementClientProps = {
-  /** When true, skip the page breadcrumb (e.g. embedded under Offers Management tabs). */
+  /** When true, skip the page breadcrumb (e.g. embedded under Brands Management tabs). */
   embedded?: boolean;
 };
 
@@ -221,7 +221,7 @@ export default function CommissionManagementClient({
           pageTitle="Commission Management"
           items={[
             { label: "Home", href: "/dashboard" },
-            { label: "Offers Management", href: "/offers" },
+            { label: "Brands Management", href: "/brands" },
             { label: "Commission Management" },
           ]}
         />

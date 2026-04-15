@@ -3,7 +3,7 @@ import Detail from "@/components/offer/Detail";
 import { mockOffers } from "@/app/api/mock/data";
 
 export const metadata: Metadata = {
-  title: "Offers | TailAdmin - Next.js Dashboard Template",
+  title: "Brands | TailAdmin - Next.js Dashboard Template",
 };
 
 /** Pre-render offer detail paths for static export (Firebase Hosting). */

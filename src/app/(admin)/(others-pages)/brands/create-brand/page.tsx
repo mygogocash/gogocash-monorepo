@@ -16,7 +16,7 @@ export default async function CreateBrandPage(props: DefaultAppPageProps) {
         pageTitle="Create brand"
         items={[
           { label: "Home", href: "/" },
-          { label: "Offers Management", href: "/offers" },
+          { label: "Brands Management", href: "/brands" },
           { label: "Create brand" },
         ]}
       />

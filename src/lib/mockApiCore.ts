@@ -41,6 +41,7 @@ import {
   buildDashboardInsights,
   buildDashboardSummaryExtended,
 } from "@/lib/dashboardInsightsBuilder";
+import { tryMockAdminFeaturesRequest } from "@/lib/mockAdminFeatures";
 
 export type MockApiInput = {
   method: string;
@@ -149,6 +150,8 @@ type WithdrawDetailUserPatch = Partial<{
   gogopassActive: boolean;
 }>;
 const withdrawDetailUserEdits: Record<string, WithdrawDetailUserPatch> = {};
+/** Mock-only: user ids for which admin requested data deletion (list/detail return empty + anonymized user). */
+const withdrawUserDataDeleted = new Set<string>();
 
 function fullNameFromUsername(username: string): string {
   const parts = username.split("_");
@@ -169,6 +172,9 @@ function resolveWithdrawRouteSegmentToUserId(routeSegment: string): string {
       : "";
     if (uid) return uid;
   }
+  /** MyCashBack profile ids (`mcb1` …) align 1:1 with GoGoCash user ids (`u1` …) in mock data. */
+  const mcb = /^mcb(\d+)$/i.exec(raw);
+  if (mcb) return `u${mcb[1]}`;
   return raw || "u1";
 }
 
@@ -196,7 +202,40 @@ function buildWithdrawDetailUser(userId: string) {
   return { ...next, ...(edits ?? {}) };
 }
 
+function emptyWithdrawDetailForDeletedUser(userId: string) {
+  return {
+    totalsByStatusAndCurrency: [] as typeof mockWithdrawDetail.totalsByStatusAndCurrency,
+    data: {
+      approved: { count: 0, totalPayout: 0, items: [] as unknown[] },
+      pending: { count: 0, totalPayout: 0, items: [] as unknown[] },
+      rejected: { count: 0, totalPayout: 0, items: [] as unknown[] },
+    },
+    fee: mockWithdrawDetail.fee,
+    withdrawList: [] as (typeof mockWithdrawDetail.withdrawList)[number][],
+    allConversions: [] as (typeof mockWithdrawDetail.allConversions)[number][],
+    user: {
+      _id: userId,
+      email: "",
+      mobile: "",
+      emails: [] as string[],
+      mobiles: [] as string[],
+      fullName: "User data deleted",
+      gender: "",
+      birthdate: "",
+      wallet: "",
+      gogopassActive: false,
+      totalCashback: 0,
+      totalCashbackCurrency: "THB",
+      userLog: [] as { action?: string; at?: string; ip?: string }[],
+    },
+    withdrawSumByCurrency: {} as typeof mockWithdrawDetail.withdrawSumByCurrency,
+  };
+}
+
 function mockWithdrawDetailForUser(userId: string) {
+  if (withdrawUserDataDeleted.has(userId)) {
+    return emptyWithdrawDetailForDeletedUser(userId);
+  }
   const withdrawList = mockWithdraws
     .filter((w) => w.user_id._id === userId)
     .slice(0, 40)
@@ -752,6 +791,20 @@ async function handleMockPOST(
       success: true,
       message: "User profile updated",
       user: buildWithdrawDetailUser(userId),
+    });
+  }
+
+  if (path[0] === "withdraw" && path[1] === "delete-user-data") {
+    const b = body as Record<string, unknown>;
+    const userId = String(b.userId ?? "").trim();
+    if (!userId) {
+      return jsonErr(400, { message: "userId is required" });
+    }
+    withdrawUserDataDeleted.add(userId);
+    delete withdrawDetailUserEdits[userId];
+    return ok({
+      success: true,
+      message: "User data deleted",
     });
   }
 
@@ -1452,6 +1505,9 @@ export async function handleMockApiRequest(input: MockApiInput): Promise<MockApi
   const { method, path, searchParams, body } = input;
   const joined = path.join("/");
   const m = method.toUpperCase();
+
+  const adminFeatureHit = tryMockAdminFeaturesRequest(input);
+  if (adminFeatureHit) return adminFeatureHit;
 
   switch (m) {
     case "GET":

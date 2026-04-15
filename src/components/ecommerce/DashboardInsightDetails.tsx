@@ -178,7 +178,7 @@ export function DashboardInsightDetails({ range = "30d" }: DashboardInsightDetai
             </table>
           </div>
           <Link
-            href="/offers?tab=commission"
+            href="/brands?tab=commission"
             className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-brand-500 hover:text-brand-600 dark:text-brand-400"
           >
             Commission management
@@ -188,7 +188,7 @@ export function DashboardInsightDetails({ range = "30d" }: DashboardInsightDetai
 
         <div className="min-w-0 rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] sm:p-6">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">Commission &amp; cap hygiene</h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Live offers catalog (non-disabled).</p>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Live brands catalog (non-disabled).</p>
           <dl className="mt-4 space-y-3 text-sm">
             <div className="flex justify-between gap-4">
               <dt className="text-gray-600 dark:text-gray-400">Missing admin max cap</dt>
@@ -210,10 +210,10 @@ export function DashboardInsightDetails({ range = "30d" }: DashboardInsightDetai
             </div>
           </dl>
           <Link
-            href="/offers"
+            href="/brands"
             className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-brand-500 hover:text-brand-600 dark:text-brand-400"
           >
-            Review offers
+            Review brands
             <ArrowRightIcon className="size-4" />
           </Link>
         </div>

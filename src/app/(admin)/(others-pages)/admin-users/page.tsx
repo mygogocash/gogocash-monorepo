@@ -1,5 +1,6 @@
 import AdminUsersTable from "@/components/admin/AdminUsersTable";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import UsersManagementTabs from "@/components/user/UsersManagementTabs";
 import { Metadata } from "next";
 import { awaitPageDynamicProps, type DefaultAppPageProps } from "@/lib/nextAppPageProps";
 
@@ -10,9 +11,10 @@ export const metadata: Metadata = {
 export default async function AdminUsersPage(props: DefaultAppPageProps) {
   await awaitPageDynamicProps(props);
   return (
-    <div>
+    <div className="min-w-0">
       <PageBreadcrumb pageTitle="Admin Users" />
-      <div className="space-y-6">
+      <div className="mt-6 space-y-6">
+        <UsersManagementTabs />
         <AdminUsersTable />
       </div>
     </div>

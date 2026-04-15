@@ -42,7 +42,7 @@ function AppSidebarResolved() {
       }
       if (qIndex < 0) {
         const tab = searchParams.get("tab");
-        return tab === null || tab === "" || tab === "offers";
+        return tab === null || tab === "" || tab === "brands" || tab === "offers";
       }
       const want = new URLSearchParams(path.slice(qIndex + 1));
       for (const [key, value] of want.entries()) {

@@ -27,7 +27,7 @@
 |--------|--------|
 | Admin  | Full access: list categories, view and edit terms and conditions for each category. |
 
-Only users who can access the GoGoCash Admin dashboard and the “Policy Management” menu item (under Offers Management) can manage policies.
+Only users who can access the GoGoCash Admin dashboard and the “Policy Management” menu item (under Brands Management) can manage policies.
 
 ---
 
@@ -83,7 +83,7 @@ The admin UI should align with whatever API the backend exposes (e.g. `GET/PUT /
 
 ### 5.1 Policy Management entry
 
-- **UX-1** Policy Management MUST be available under **Offers Management** in the sidebar (already added).
+- **UX-1** Policy Management MUST be available under **Brands Management** in the sidebar (already added).
 - **UX-2** The main Policy Management page MUST have a clear title and breadcrumb (e.g. “Policy Management”).
 
 ### 5.2 List view
@@ -105,7 +105,7 @@ The admin UI should align with whatever API the backend exposes (e.g. `GET/PUT /
 
 ## 6. Acceptance Criteria (Summary)
 
-- [ ] Admin can open Policy Management from the sidebar (Offers Management → Policy Management).
+- [ ] Admin can open Policy Management from the sidebar (Brands Management → Policy Management).
 - [ ] Admin sees a list of all categories with an indication of whether T&C are set.
 - [ ] Admin can open the T&C view/editor for a chosen category.
 - [ ] Admin can create or update the terms and conditions text for that category and save.
