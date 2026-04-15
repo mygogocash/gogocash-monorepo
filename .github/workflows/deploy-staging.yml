@@ -1,22 +1,19 @@
 # Deploy Backend API to Cloud Run — api-staging.gogocash.co.
 # Triggered on push to the `staging` branch.
 #
-# ─── Required secrets ───
-#   GCP_PROJECT_ID                        GCP project ID (e.g. gogocash-api-prod)
-#   FIREBASE_SERVICE_ACCOUNT_API_STAGING  JSON key for a service account with:
-#                                           Cloud Run Admin, Artifact Registry Writer,
-#                                           Cloud Build Editor, Secret Manager Accessor
+# ─── Required GitHub variables (Settings → Secrets and variables → Actions) ───
+#   GCP_PROJECT_ID        gogocash-staging
+#   GCP_WIF_PROVIDER      projects/729804769570/locations/global/workloadIdentityPools/github-actions/providers/github
+#   GCP_SERVICE_ACCOUNT   github-actions-api@gogocash-staging.iam.gserviceaccount.com
 #
-# ─── First-time Cloud Run setup ───
-#   1. Create Artifact Registry repo (Docker):
-#        gcloud artifacts repositories create gogocash \
-#          --repository-format=docker \
-#          --location=asia-southeast1 \
-#          --project=<PROJECT_ID>
-#   2. Create Secret Manager secrets (one per env var in cloudbuild.yaml --set-secrets).
-#   3. After first deploy, add custom domain in Cloud Run Console:
+# ─── After first deploy ───
+#   1. Add custom domain in Cloud Run Console:
 #        Cloud Run → gogocash-api-staging → Custom domains → api-staging.gogocash.co
-#      Then add the CNAME Cloud Run gives you to your DNS.
+#   2. Add the CNAME Cloud Run gives you to your DNS provider.
+#   3. Fill in placeholder secrets in Secret Manager (gogocash-staging project):
+#        gogocash-staging-firebase-project-id
+#        gogocash-staging-involve-secret
+#        gogocash-staging-telegram-bot-token
 
 name: Deploy API (staging)
 
@@ -56,7 +53,7 @@ jobs:
         run: npm run build
 
   deploy:
-    name: Cloud Build → Cloud Run
+    name: Docker → Artifact Registry → Cloud Run
     needs: test
     runs-on: ubuntu-latest
     env:
@@ -67,10 +64,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Authenticate to Google Cloud
+      - name: Authenticate to Google Cloud (WIF)
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_API_STAGING }}
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
@@ -81,20 +79,20 @@ jobs:
       - name: Build Docker image
         run: |
           docker build \
-            --tag ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
-            --tag ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:latest \
-            --cache-from ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:latest \
+            --tag ${{ env.REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+            --tag ${{ env.REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:latest \
+            --cache-from ${{ env.REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:latest \
             .
 
       - name: Push Docker image
         run: |
-          docker push ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
-          docker push ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:latest
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:latest
 
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy ${{ env.SERVICE_NAME }} \
-            --image ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+            --image ${{ env.REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
             --region ${{ env.REGION }} \
             --platform managed \
             --allow-unauthenticated \
@@ -105,11 +103,11 @@ jobs:
             --cpu 1 \
             --set-env-vars "NODE_ENV=production,PORT=8080,WEB_APP_URL=https://app-staging.gogocash.co,API_BASE_URL=https://api-staging.gogocash.co,POSTHOG_HOST=https://us.i.posthog.com,POSTHOG_ENABLED=true" \
             --set-secrets "MONGO_URI=gogocash-staging-mongo-uri:latest,JWT_SECRET=gogocash-staging-jwt-secret:latest,JWT_ADMIN_SECRET=gogocash-staging-jwt-admin-secret:latest,FIREBASE_PROJECT_ID=gogocash-staging-firebase-project-id:latest,INVOLVE_SECRET=gogocash-staging-involve-secret:latest,POSTHOG_KEY=gogocash-staging-posthog-key:latest,TELEGRAM_BOT_TOKEN=gogocash-staging-telegram-bot-token:latest" \
-            --project ${{ secrets.GCP_PROJECT_ID }}
+            --project ${{ vars.GCP_PROJECT_ID }}
 
       - name: Print service URL
         run: |
           gcloud run services describe ${{ env.SERVICE_NAME }} \
             --region ${{ env.REGION }} \
-            --project ${{ secrets.GCP_PROJECT_ID }} \
+            --project ${{ vars.GCP_PROJECT_ID }} \
             --format "value(status.url)"
