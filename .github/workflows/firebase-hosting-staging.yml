@@ -79,11 +79,13 @@ jobs:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_STAGING }}
 
       - name: Authenticate to Google Cloud (Workload Identity Federation)
+        id: auth
         if: ${{ vars.FIREBASE_WORKLOAD_IDENTITY_PROVIDER != '' }}
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ vars.FIREBASE_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.FIREBASE_WIF_SERVICE_ACCOUNT }}
+          token_format: access_token
 
       - name: Build static export (Firebase)
         run: npm run build:firebase
@@ -93,4 +95,10 @@ jobs:
           NEXT_TELEMETRY_DISABLED: "1"
 
       - name: Deploy to Firebase Hosting
-        run: npx firebase deploy --only hosting --project gogocash-staging --non-interactive
+        run: |
+          if [ -n "${{ steps.auth.outputs.access_token }}" ]; then
+            npx firebase deploy --only hosting --project gogocash-staging --non-interactive \
+              --token "${{ steps.auth.outputs.access_token }}"
+          else
+            npx firebase deploy --only hosting --project gogocash-staging --non-interactive
+          fi
