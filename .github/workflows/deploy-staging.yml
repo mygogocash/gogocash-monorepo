@@ -103,7 +103,7 @@ jobs:
             --memory 512Mi \
             --cpu 1 \
             --set-env-vars "NODE_ENV=production,WEB_APP_URL=https://app-staging.gogocash.co,API_BASE_URL=https://api-staging.gogocash.co,POSTHOG_HOST=https://us.i.posthog.com,POSTHOG_ENABLED=true" \
-            --set-secrets "MONGO_URI=gogocash-staging-mongo-uri:latest,JWT_SECRET=gogocash-staging-jwt-secret:latest,JWT_ADMIN_SECRET=gogocash-staging-jwt-admin-secret:latest,FIREBASE_PROJECT_ID=gogocash-staging-firebase-project-id:latest,INVOLVE_SECRET=gogocash-staging-involve-secret:latest,POSTHOG_KEY=gogocash-staging-posthog-key:latest,TELEGRAM_BOT_TOKEN=gogocash-staging-telegram-bot-token:latest" \
+            --set-secrets "MONGO_URI=gogocash-staging-mongo-uri:latest,JWT_SECRET=gogocash-staging-jwt-secret:latest,JWT_ADMIN_SECRET=gogocash-staging-jwt-admin-secret:latest,FIREBASE_PROJECT_ID=gogocash-staging-firebase-project-id:latest,INVOLVE_SECRET=gogocash-staging-involve-secret:latest,POSTHOG_KEY=gogocash-staging-posthog-key:latest,TELEGRAM_BOT_TOKEN=gogocash-staging-telegram-bot-token:latest,CROSSMINT_AUTH_BASE=gogocash-staging-crossmint-auth-base:latest,CROSSMINT_PROJECT_ID=gogocash-staging-crossmint-project-id:latest,CROSSMINT_SECRET=gogocash-staging-crossmint-secret:latest" \
             --project ${{ vars.GCP_PROJECT_ID }}
 
       - name: Print service URL

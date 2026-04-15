@@ -88,7 +88,10 @@ steps:
         FIREBASE_PROJECT_ID=gogocash-staging-firebase-project-id:latest,
         INVOLVE_SECRET=gogocash-staging-involve-secret:latest,
         POSTHOG_KEY=gogocash-staging-posthog-key:latest,
-        TELEGRAM_BOT_TOKEN=gogocash-staging-telegram-bot-token:latest
+        TELEGRAM_BOT_TOKEN=gogocash-staging-telegram-bot-token:latest,
+        CROSSMINT_AUTH_BASE=gogocash-staging-crossmint-auth-base:latest,
+        CROSSMINT_PROJECT_ID=gogocash-staging-crossmint-project-id:latest,
+        CROSSMINT_SECRET=gogocash-staging-crossmint-secret:latest
     waitFor: [push-sha]
 
 images:
