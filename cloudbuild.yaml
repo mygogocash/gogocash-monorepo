@@ -76,7 +76,6 @@ steps:
       - --set-env-vars
       - >-
         NODE_ENV=production,
-        PORT=8080,
         WEB_APP_URL=https://app-staging.gogocash.co,
         API_BASE_URL=https://api-staging.gogocash.co,
         POSTHOG_HOST=https://us.i.posthog.com,
