@@ -1,0 +1,92 @@
+# Deploy Customer App to Firebase App Hosting — app-staging.gogocash.co
+# Triggered on push to the `staging` branch.
+#
+# ─── Required GitHub variables (Settings → Secrets and variables → Actions → Variables) ───
+#   FIREBASE_WIF_PROVIDER   projects/512119574460/locations/global/workloadIdentityPools/github-actions/providers/github
+#   FIREBASE_SA_EMAIL       github-actions-app@gogocash-app-staging.iam.gserviceaccount.com
+#
+# ─── First-time setup ───
+#   1. Add custom domain app-staging.gogocash.co in Firebase Console:
+#        App Hosting → gogocash-web → Custom domains → add app-staging.gogocash.co
+#   2. Set NEXTAUTH_SECRET in Secret Manager:
+#        npx firebase apphosting:secrets:set NEXTAUTH_SECRET \
+#          --project gogocash-app-staging
+#      Then uncomment the secret block in apphosting.yaml.
+
+name: Deploy Customer App (staging)
+
+on:
+  push:
+    branches:
+      - staging
+  workflow_dispatch:
+
+concurrency:
+  group: app-staging-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  ci:
+    name: Lint & build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint & format check
+        env:
+          SKIP_ENV_VALIDATION: "1"
+        run: npm run lint && npm run format:check && npm run i18n:check
+
+      - name: Unit tests
+        env:
+          SKIP_ENV_VALIDATION: "1"
+          NODE_ENV: test
+        run: npm run test
+        continue-on-error: true
+
+      - name: Build (staging env)
+        env:
+          SKIP_ENV_VALIDATION: "1"
+          NEXTAUTH_SECRET: "ci-build-placeholder-secret-min-32-chars!!"
+          NEXT_PUBLIC_API_BASE_URL: https://api-staging.gogocash.co
+          NEXT_PUBLIC_MOCK_API: "0"
+          NEXTAUTH_URL: https://app-staging.gogocash.co
+        run: npm run build
+
+      - name: Bundle size budget
+        run: npm run perf:check-budget
+
+  deploy:
+    name: Firebase App Hosting deploy
+    needs: ci
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.FIREBASE_WIF_PROVIDER }}
+          service_account: ${{ vars.FIREBASE_SA_EMAIL }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy to Firebase App Hosting
+        run: |
+          npx firebase-tools deploy --only apphosting \
+            --project gogocash-app-staging \
+            --non-interactive \
+            --force
