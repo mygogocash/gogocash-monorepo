@@ -1,0 +1,103 @@
+# Cloud Build — GoGoCash API staging deployment.
+# Builds a Docker image, pushes to Artifact Registry, and deploys to Cloud Run.
+#
+# ─── Trigger setup (Cloud Build Console) ───
+#   Source: mygogocash/gogocash-api   Branch: ^staging$
+#   Substitutions (set in trigger, NOT here):
+#     _SERVICE_NAME     gogocash-api-staging
+#     _REGION           asia-southeast1
+#     _ARTIFACT_REPO    gogocash                        (Artifact Registry repo name)
+#     _CLOUD_RUN_SA     gogocash-api@<PROJECT_ID>.iam.gserviceaccount.com
+#
+# ─── Secret Manager secrets (grant Cloud Build SA access) ───
+#   mongo-uri-staging, jwt-secret-staging, jwt-admin-secret-staging,
+#   firebase-project-id, involve-secret-staging, posthog-key-staging,
+#   telegram-bot-token-staging
+
+substitutions:
+  _SERVICE_NAME: gogocash-api-staging
+  _REGION: asia-southeast1
+  _ARTIFACT_REPO: gogocash
+
+steps:
+  # ── 1. Build Docker image ──────────────────────────────────────────────────
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --tag
+      - $_REGION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REPO/$_SERVICE_NAME:$COMMIT_SHA
+      - --tag
+      - $_REGION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REPO/$_SERVICE_NAME:latest
+      - --cache-from
+      - $_REGION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REPO/$_SERVICE_NAME:latest
+      - .
+
+  # ── 2. Push images ─────────────────────────────────────────────────────────
+  - id: push-sha
+    name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - $_REGION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REPO/$_SERVICE_NAME:$COMMIT_SHA
+    waitFor: [build]
+
+  - id: push-latest
+    name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - $_REGION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REPO/$_SERVICE_NAME:latest
+    waitFor: [build]
+
+  # ── 3. Deploy to Cloud Run ─────────────────────────────────────────────────
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - $_SERVICE_NAME
+      - --image
+      - $_REGION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REPO/$_SERVICE_NAME:$COMMIT_SHA
+      - --region
+      - $_REGION
+      - --platform
+      - managed
+      - --allow-unauthenticated
+      - --port
+      - "8080"
+      - --min-instances
+      - "0"
+      - --max-instances
+      - "5"
+      - --memory
+      - 512Mi
+      - --cpu
+      - "1"
+      - --set-env-vars
+      - >-
+        NODE_ENV=production,
+        PORT=8080,
+        WEB_APP_URL=https://app-staging.gogocash.co,
+        API_BASE_URL=https://api-staging.gogocash.co,
+        POSTHOG_HOST=https://us.i.posthog.com,
+        POSTHOG_ENABLED=true
+      - --set-secrets
+      - >-
+        MONGO_URI=mongo-uri-staging:latest,
+        JWT_SECRET=jwt-secret-staging:latest,
+        JWT_ADMIN_SECRET=jwt-admin-secret-staging:latest,
+        FIREBASE_PROJECT_ID=firebase-project-id:latest,
+        INVOLVE_SECRET=involve-secret-staging:latest,
+        POSTHOG_KEY=posthog-key-staging:latest,
+        TELEGRAM_BOT_TOKEN=telegram-bot-token-staging:latest
+    waitFor: [push-sha]
+
+images:
+  - $_REGION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REPO/$_SERVICE_NAME:$COMMIT_SHA
+  - $_REGION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REPO/$_SERVICE_NAME:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+
+timeout: 1200s
