@@ -76,10 +76,12 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Authenticate to Google Cloud (WIF)
+        id: auth
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ vars.FIREBASE_WIF_PROVIDER }}
           service_account: ${{ vars.FIREBASE_SA_EMAIL }}
+          token_format: access_token
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
@@ -89,4 +91,5 @@ jobs:
           npx firebase-tools deploy --only apphosting \
             --project gogocash-app-staging \
             --non-interactive \
-            --force
+            --force \
+            --token "${{ steps.auth.outputs.access_token }}"
