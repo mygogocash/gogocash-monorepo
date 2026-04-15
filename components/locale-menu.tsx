@@ -154,7 +154,9 @@ export function LocaleDropdown() {
       </button>
       {open && (
         <div
-          className="absolute right-0 top-[calc(100%+0.5rem)] z-[60] w-[min(calc(100vw-2rem),18rem)] origin-top-right animate-locale-panel-in rounded-2xl border border-gray-100 bg-white p-4 shadow-lg motion-reduce:animate-none"
+          className={`z-[60] w-[min(calc(100vw-2rem),18rem)] rounded-2xl border border-gray-100 bg-white p-4 shadow-lg motion-reduce:animate-none animate-locale-panel-in
+            max-md:fixed max-md:left-1/2 max-md:right-auto max-md:top-[calc(env(safe-area-inset-top,0px)+4.25rem)] max-md:max-h-[min(32rem,calc(100dvh-env(safe-area-inset-top,0px)-5rem))] max-md:-translate-x-1/2 max-md:overflow-y-auto max-md:origin-top
+            md:absolute md:left-auto md:right-0 md:top-[calc(100%+0.5rem)] md:max-h-none md:translate-x-0 md:overflow-visible md:origin-top-right`}
           role="dialog"
           aria-label="Choose language and region"
         >
