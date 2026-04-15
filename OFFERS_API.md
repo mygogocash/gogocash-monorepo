@@ -205,9 +205,9 @@ curl -X 'GET' \
 
 A complete demo component is available at:
 - Component: `src/components/offer/OffersTable.tsx`
-- Page: `src/app/(admin)/(others-pages)/offers/page.tsx`
+- Page: `src/app/(admin)/(others-pages)/brands/page.tsx`
 
-Access it at: `/offers`
+Access it at: `/brands`
 
 ## Error Handling
 

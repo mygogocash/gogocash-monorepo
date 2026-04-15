@@ -132,6 +132,7 @@ export default function StatisticsChart({ insightRange = "30d" }: StatisticsChar
       chart: {
         fontFamily: "Outfit, sans-serif",
         height: STATISTICS_CHART_HEIGHT,
+        width: "100%",
         type: isBar ? "bar" : "line",
         stacked: false,
         toolbar: {
@@ -281,20 +282,26 @@ export default function StatisticsChart({ insightRange = "30d" }: StatisticsChar
   const series = useMemo(() => bundle.series, [bundle]);
   return (
     <div className="min-w-0 max-w-full rounded-2xl border border-gray-200 bg-white px-5 pb-5 pt-5 transition-shadow duration-300 ease-out dark:border-gray-800 dark:bg-white/[0.03] sm:px-6 sm:pt-6">
-      <div className="mb-6 flex min-w-0 flex-col gap-5 sm:flex-row sm:justify-between">
-        <div className="min-w-0 w-full">
+      <div className="mb-6 flex min-w-0 flex-col gap-5 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        {/*
+          Avoid w-full + flex-row: the title column can shrink to ~0px (min-w-0), which makes
+          the subtitle render one character per line. Use flex-1 min-w-0 for the text block and
+          shrink-0 for the tab control.
+        */}
+        <div className="min-w-0 w-full sm:flex-1 sm:basis-0">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
             Statistics
           </h3>
-          <p className="mt-1 break-words text-gray-500 text-theme-sm dark:text-gray-400">
+          <p className="mt-1 max-w-full text-pretty text-gray-500 text-theme-sm leading-relaxed dark:text-gray-400">
             Clicks, conversions, sale amount & estimated earnings
-            <span className="ml-1 text-gray-400 dark:text-gray-500">
+            <span className="text-gray-400 dark:text-gray-500">
+              {" "}
               — {bundle.description}
               {insights?.statistics?.[timeRange] ? " (from conversion data)" : ""}
             </span>
           </p>
         </div>
-        <div className="flex w-full min-w-0 items-start gap-3 sm:shrink-0 sm:justify-end">
+        <div className="flex w-full min-w-0 shrink-0 items-start justify-start sm:w-auto sm:justify-end">
           <ChartTab value={timeRange} onChange={setTimeRange} />
         </div>
       </div>
@@ -352,20 +359,23 @@ export default function StatisticsChart({ insightRange = "30d" }: StatisticsChar
 
       <div className="min-w-0 max-w-full overflow-x-auto overscroll-x-contain custom-scrollbar">
         <div
-          className={
+          className={`w-full min-w-0 ${
             timeRange === "day"
               ? "min-w-[1400px] xl:min-w-full"
               : "min-w-[1000px] xl:min-w-full"
-          }
+          }`}
         >
-          <div className="rounded-xl bg-slate-50/90 p-2 ring-1 ring-slate-200/80 dark:bg-gray-900/40 dark:ring-gray-700/80">
-            <ReactApexChart
-              key={`${chartKind}-${timeRange}-${isBar ? "bar" : "line"}`}
-              options={options}
-              series={series}
-              type={isBar ? "bar" : "line"}
-              height={STATISTICS_CHART_HEIGHT}
-            />
+          <div className="w-full min-w-0 rounded-xl bg-slate-50/90 p-2 ring-1 ring-slate-200/80 dark:bg-gray-900/40 dark:ring-gray-700/80">
+            <div className="w-full min-w-0" style={{ minHeight: STATISTICS_CHART_HEIGHT }}>
+              <ReactApexChart
+                key={`${chartKind}-${timeRange}-${isBar ? "bar" : "line"}`}
+                options={options}
+                series={series}
+                type={isBar ? "bar" : "line"}
+                width="100%"
+                height={STATISTICS_CHART_HEIGHT}
+              />
+            </div>
           </div>
         </div>
       </div>

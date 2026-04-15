@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
 
 export const OFFERS_MANAGEMENT_TABS = [
-  { id: "offers" as const, label: "Offers" },
+  { id: "brands" as const, label: "Brands" },
   {
     id: "commission" as const,
     label: "Commission Management",
@@ -31,7 +31,8 @@ export function offersManagementTabFromSearch(tabParam: string | null): OffersMa
   if (tabParam === "deeplink") return "deeplink";
   if (tabParam === "commission") return "commission";
   if (tabParam === "top-brands") return "top-brands";
-  return "offers";
+  if (tabParam === "offers") return "brands";
+  return "brands";
 }
 
 const tabButtonClass = (selected: boolean) =>
@@ -45,22 +46,27 @@ export default function OffersManagementTabs() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const createBrandActive = pathname === "/offers/create-brand";
+  const createBrandActive = pathname === "/brands/create-brand";
   const queryActiveTab = offersManagementTabFromSearch(searchParams.get("tab"));
 
   const setTab = useCallback(
     (id: OffersManagementTabId) => {
       const next = new URLSearchParams(searchParams.toString());
-      if (id === "offers") next.delete("tab");
+      if (id === "brands") next.delete("tab");
       else next.set("tab", id);
       const qs = next.toString();
-      router.push(qs ? `/offers?${qs}` : "/offers", { scroll: false });
+      router.push(qs ? `/brands?${qs}` : "/brands", { scroll: false });
     },
     [router, searchParams],
   );
 
+  const onBrandsListWithTabs = pathname === "/brands";
+  const missingOrdersActive = pathname === "/missing-orders";
+  const searchConfigActive = pathname === "/search-config";
+
   const renderQueryTab = (t: (typeof OFFERS_MANAGEMENT_TABS)[number]) => {
-    const selected = !createBrandActive && queryActiveTab === t.id;
+    const selected =
+      onBrandsListWithTabs && !createBrandActive && queryActiveTab === t.id;
     return (
       <button
         key={t.id}
@@ -79,10 +85,10 @@ export default function OffersManagementTabs() {
     <div
       className="flex flex-wrap gap-2 border-b border-gray-200 dark:border-gray-800"
       role="tablist"
-      aria-label="Offers management sections"
+      aria-label="Brands management sections"
     >
       <Link
-        href="/offers/create-brand"
+        href="/brands/create-brand"
         role="tab"
         aria-selected={createBrandActive}
         className={tabButtonClass(createBrandActive)}
@@ -90,6 +96,22 @@ export default function OffersManagementTabs() {
         Create brand
       </Link>
       {OFFERS_MANAGEMENT_TABS.map((t) => renderQueryTab(t))}
+      <Link
+        href="/missing-orders"
+        role="tab"
+        aria-selected={missingOrdersActive}
+        className={tabButtonClass(missingOrdersActive)}
+      >
+        Missing orders
+      </Link>
+      <Link
+        href="/search-config"
+        role="tab"
+        aria-selected={searchConfigActive}
+        className={tabButtonClass(searchConfigActive)}
+      >
+        Search config
+      </Link>
     </div>
   );
 }

@@ -30,7 +30,7 @@ export default async function SupportPage(props: DefaultAppPageProps) {
               1. Getting started
             </h2>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              After signing in, you usually land on a dashboard. The left sidebar groups tools by area: <strong>Platform Dashboard</strong>, <strong>Users Management</strong>, <strong>Offers Management</strong> (offers, commission, policy, user tracking link), <strong>Withdraw Management</strong>, <strong>Conversion Management</strong>, <strong>Banner Management</strong>, <strong>Coupon Management</strong>, and <strong>Quest Management</strong>. Below that, <strong>Fee</strong> holds fee and withdrawal settings. Use the header menu for your profile, account settings, this <strong>Support</strong> page, and <strong>Sign out</strong>.
+              After signing in, you usually land on a dashboard. The left sidebar groups tools by area: <strong>Platform Dashboard</strong>, <strong>Users Management</strong>, <strong>Brands Management</strong> (brands list, commission, policy, user tracking link), <strong>Withdraw Management</strong>, <strong>Conversion Management</strong>, <strong>Banner Management</strong>, <strong>Coupon Management</strong>, and <strong>Quest Management</strong>. Below that, <strong>Fee</strong> holds fee and withdrawal settings. Use the header menu for your profile, account settings, this <strong>Support</strong> page, and <strong>Sign out</strong>.
             </p>
           </section>
 
@@ -64,23 +64,23 @@ export default async function SupportPage(props: DefaultAppPageProps) {
             </ul>
           </section>
 
-          {/* Offers Management */}
+          {/* Brands Management */}
           <section>
             <h2 className="mb-3 text-lg font-semibold text-gray-800 dark:text-white">
-              4. Offers Management
+              4. Brands Management
             </h2>
             <ul className="list-inside list-disc space-y-2 text-sm text-gray-600 dark:text-gray-400">
               <li>
-                <strong>Offers</strong> — Manage offers that users can complete for rewards. Create or edit offers, set logos and links, and control visibility. Offer details can be linked to quest tasks and coupons.
+                <strong>Brands</strong> — Manage brands that users can complete for rewards. Create or edit brands, set logos and links, and control visibility. Brand details can be linked to quest tasks and coupons.
               </li>
               <li>
-                <strong>Commission Management</strong> — Configure commission rules and rates associated with offers (opens under the Offers area via the Commission tab).
+                <strong>Commission Management</strong> — Configure commission rules and rates associated with brands (opens under the Brands area via the Commission tab).
               </li>
               <li>
-                <strong>Policy Management</strong> — Terms and conditions per category (opens from the Offers section).
+                <strong>Policy Management</strong> — Terms and conditions per category (opens from the Brands section).
               </li>
               <li>
-                <strong>User tracking link</strong> — Manage user-associated tracking links that open specific screens or offers in the app (campaigns, notifications, in-app navigation).
+                <strong>User tracking link</strong> — Manage user-associated tracking links that open specific screens or brands in the app (campaigns, notifications, in-app navigation).
               </li>
             </ul>
           </section>
@@ -91,7 +91,7 @@ export default async function SupportPage(props: DefaultAppPageProps) {
               5. Category
             </h2>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Open <strong>/category</strong> to upload or update category images and maintain the structure the app uses when browsing offers and content. Policy text per category is edited from <strong>Policy Management</strong> under Offers, not on this page.
+              Open <strong>/category</strong> to upload or update category images and maintain the structure the app uses when browsing brands and content. Policy text per category is edited from <strong>Policy Management</strong> under Brands, not on this page.
             </p>
           </section>
 
@@ -126,7 +126,7 @@ export default async function SupportPage(props: DefaultAppPageProps) {
             </h2>
             <ul className="list-inside list-disc space-y-2 text-sm text-gray-600 dark:text-gray-400">
               <li>
-                <strong>Conversion</strong> — View conversions (sales or actions linked to offers). Open a row to see “Conversion & user data”; use “View user info” to go to that user on the Users page.
+                <strong>Conversion</strong> — View conversions (sales or actions linked to brands). Open a row to see “Conversion & user data”; use “View user info” to go to that user on the Users page.
               </li>
               <li>
                 <strong>Add conversion</strong> — Manually add a conversion when needed (e.g. offline or reconciled sales).
@@ -151,7 +151,7 @@ export default async function SupportPage(props: DefaultAppPageProps) {
             </h2>
             <ul className="list-inside list-disc space-y-2 text-sm text-gray-600 dark:text-gray-400">
               <li>
-                <strong>Coupon</strong> — Create or edit coupon codes. Set the linked offer, validity dates, and discount. Users redeem codes in the app for the linked offer.
+                <strong>Coupon</strong> — Create or edit coupon codes. Set the linked brand, validity dates, and discount. Users redeem codes in the app for the linked brand.
               </li>
               <li>
                 <strong>Coupon History</strong> — Redemption log with filters, plus a <strong>Views &amp; copies</strong> tab for per-coupon detail views and copy counts (connect your analytics API when ready).
@@ -166,10 +166,10 @@ export default async function SupportPage(props: DefaultAppPageProps) {
             </h2>
             <ul className="list-inside list-disc space-y-2 text-sm text-gray-600 dark:text-gray-400">
               <li>
-                <strong>Quest</strong> — View quests and their dates/status. Create new quests from this area when available. Use “View points” to see participant rankings and export data (supports 1000+ rows). Use “View Quest details” to see full config: links (Facebook Page, Facebook Post, Line) and tasks (offer/merchant, points, completion, condition, link).
+                <strong>Quest</strong> — View quests and their dates/status. Create new quests from this area when available. Use “View points” to see participant rankings and export data (supports 1000+ rows). Use “View Quest details” to see full config: links (Facebook Page, Facebook Post, Line) and tasks (brand/merchant, points, completion, condition, link).
               </li>
               <li>
-                When creating a quest: set start/end dates, upload banners (EN/TH), enable Facebook Page, Facebook Post, and Line and add their URLs. Add tasks by selecting an offer or merchant, points, completion (once or multiple), optional condition (e.g. sale ≥ amount in a currency), and task link. You can upload a custom logo per task, then save.
+                When creating a quest: set start/end dates, upload banners (EN/TH), enable Facebook Page, Facebook Post, and Line and add their URLs. Add tasks by selecting a brand or merchant, points, completion (once or multiple), optional condition (e.g. sale ≥ amount in a currency), and task link. You can upload a custom logo per task, then save.
               </li>
               <li>
                 <strong>Create Reward</strong> — Create rewards that users can claim (e.g. after completing a quest). Set reward name, amount, currency, and target user.
@@ -208,7 +208,7 @@ export default async function SupportPage(props: DefaultAppPageProps) {
               <li>Quest tasks can have a condition (e.g. “Sale ≥ 100 THB”). Set the operator, metric (sale/conversion), amount, and currency when creating a task.</li>
               <li>If you need a specific user, go to Users and use the search box, or use “View user info” from a conversion or similar view to jump to that user with search pre-filled.</li>
               <li>Editing a withdraw user’s emails or phones requires OTP verification for each new or changed value before Save is enabled—plan a moment to complete Send OTP → Verify when updating contacts.</li>
-              <li>Commission and policy for offers live under Offers Management (tabs), not on the Category page.</li>
+              <li>Commission and policy for brands live under Brands Management (tabs), not on the Category page.</li>
             </ul>
           </section>
         </div>

@@ -42,7 +42,7 @@ Several sections use a **shared top tab row** under the breadcrumb, mirroring si
 - **Banner:** `src/components/banner/BannerSubNav.tsx` on `/banner`, `/banner/all-brand-page`, `/banner/modal-popups`, `/banner/popup-history`.
 - **Coupon:** `src/components/coupon/CouponSubNav.tsx` on `/coupon`, `/coupon/history`.
 - **Quest:** `src/components/quest/QuestSubNav.tsx` on `/quest`, `/reward`.
-- **Offers:** `src/components/offer/OffersManagementPageContent.tsx` — tabs include Create brand (`/offers/create-brand`), `/offers`, `commission`, `policy`, user tracking link (`?tab=deeplink`), `top-brands`.
+- **Brands:** `src/components/offer/OffersManagementPageContent.tsx` — tabs include Create brand (`/brands/create-brand`), `/brands`, `commission`, `policy`, user tracking link (`?tab=deeplink`), `top-brands`.
 
 When adding a new sidebar subsection, consider the same pattern for consistency.
 
@@ -72,3 +72,20 @@ npm run build
 ## Related repos (human context)
 
 Backend and mobile app contracts may live in sibling repos (see README **Related Repositories**). This admin UI should stay aligned with those APIs when moving beyond mock data.
+
+## Learned User Preferences
+
+- UI and layout feedback is often anchored to a specific DOM node or browser preview selection; expect iterative, viewport-aware tweaks (modals, dashboard charts, sidebar).
+- The primary operational entry should stay **one click** from the sidebar (**Platform Dashboard**), not buried in a submenu.
+
+## Learned Workspace Facts
+
+- Sidebar: first item is **Platform Dashboard** → `/dashboard` (`src/layout/AppSidebarContent.tsx`). **`/executive`** may still exist as a route even when it is not linked in the sidebar.
+- **Statistics** dashboard chart: `src/components/ecommerce/StatisticsChart.tsx` — four series (Clicks, Conversions, Sale amount, Estimated earnings), optional chart kinds (column / stacked column / line). For ApexCharts, **do not set `plotOptions` to `undefined`** when toggling types; that wipes defaults and can throw (`reading 'line'`). Use conditional object spread or explicit `plotOptions.line` for line mode.
+- **`ChartTab`** (`src/components/common/ChartTab.tsx`): tabs include Day, Week, Monthly, Quarterly, Annually; supports controlled `value` / `onChange` — wire those props when the chart should follow the tab selection.
+- Sub-`sm` layout tuning: the project defines **`xsm:`** (425px) in `globals.css`, not Tailwind’s `xs:`.
+- Fullscreen offer UI: `OfferFullscreenCardShell` / related forms use **safe-area** padding patterns for notched mobile viewports.
+- If the dev server uses **3001** because **3000** is taken, align **`NEXTAUTH_URL`** in `.env.local` with the actual origin (see README / `npm run dev:3001`).
+- **`git pull` over HTTPS** may return “repository not found” for private repos without credentials; use a PAT, `gh auth login`, or an SSH remote.
+- **Node version:** some tooling may warn **EBADENGINE** on very new Node; prefer **20 or 22** if installs or Firebase-related deps misbehave.
+- **Next.js 16:** `params` and `searchParams` are async; client `page`/`layout` components that receive them may need **`React.use()`** or a thin async server wrapper to avoid dev enumeration warnings (see Next.js “sync dynamic APIs” message).

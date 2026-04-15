@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { awaitPageDynamicProps, type DefaultAppPageProps } from "@/lib/nextAppPageProps";
 
 export const metadata: Metadata = {
-  title: "Offers Management | GoGoCash Admin",
+  title: "Brands Management | GoGoCash Admin",
 };
 
 function OffersManagementFallback() {

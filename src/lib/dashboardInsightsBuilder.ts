@@ -733,7 +733,7 @@ function buildAlerts(
       severity: "medium",
       title: "Admin max cap exceeds partner cap",
       body: `${health.adminOverPartner} offer(s) have admin max cap above the partner max cap — review in Offers / Commission Management.`,
-      href: "/offers?tab=commission",
+      href: "/brands?tab=commission",
       metric: "admin_over_partner_cap",
     });
   }
@@ -743,7 +743,7 @@ function buildAlerts(
       severity: "low",
       title: "Many offers without admin max cap",
       body: `${health.missingAdminCap} live offers have no admin max cap set.`,
-      href: "/offers",
+      href: "/brands",
     });
   }
   return sortAlertsBySeverity(alerts);

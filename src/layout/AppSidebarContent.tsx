@@ -44,18 +44,25 @@ export const navItems: NavItem[] = [
       { name: "Users Admin", path: "/admin-users", pro: false },
       { name: "GoGoCash Users", path: "/users", pro: false },
       { name: "MyCashBack Users", path: "/users/mycashback", pro: false },
+      { name: "Membership", path: "/membership", pro: false },
+      { name: "Subscription", path: "/subscription", pro: false },
+      { name: "Credit score", path: "/credit-score", pro: false },
+      { name: "Referral", path: "/referral", pro: false },
+      { name: "Wallet", path: "/wallet", pro: false },
     ],
   },
   {
     icon: <ShootingStarIcon />,
-    name: "Offers Management",
+    name: "Brands Management",
     subItems: [
-      { name: "Create brand", path: "/offers/create-brand", pro: false },
-      { name: "Offers", path: "/offers", pro: false },
-      { name: "Commission Management", path: "/offers?tab=commission", pro: false },
-      { name: "Policy Management", path: "/offers?tab=policy", pro: false },
-      { name: "User tracking link", path: "/offers?tab=deeplink", pro: false },
-      { name: "Top brands", path: "/offers?tab=top-brands", pro: false },
+      { name: "Create brand", path: "/brands/create-brand", pro: false },
+      { name: "Brands", path: "/brands", pro: false },
+      { name: "Commission Management", path: "/brands?tab=commission", pro: false },
+      { name: "Policy Management", path: "/brands?tab=policy", pro: false },
+      { name: "User tracking link", path: "/brands?tab=deeplink", pro: false },
+      { name: "Top brands", path: "/brands?tab=top-brands", pro: false },
+      { name: "Missing orders", path: "/missing-orders", pro: false },
+      { name: "Search config", path: "/search-config", pro: false },
     ],
   },
   {
@@ -75,6 +82,7 @@ export const navItems: NavItem[] = [
       { name: "Conversion Lists", path: "/conversion", pro: false },
       { name: "Created Conversion", path: "/conversion?tab=created", pro: false },
       { name: "Add conversion", path: "/conversion/add", pro: false },
+      { name: "Transactions", path: "/transactions", pro: false },
     ],
   },
   {
@@ -121,7 +129,7 @@ function SidebarSubmenuLink({
 }) {
   const queryClient = useQueryClient();
   const prefetchOffersManagement = useCallback(() => {
-    if (!subItem.path.startsWith("/offers")) return;
+    if (!subItem.path.startsWith("/brands")) return;
     void queryClient.prefetchQuery({
       queryKey: offersListQueryKey(DEFAULT_OFFERS_LIST_QUERY),
       queryFn: () => fetchOffersList(DEFAULT_OFFERS_LIST_QUERY),

@@ -199,7 +199,7 @@ export default function AdminUsersTable() {
               setInviteEmail("");
               setInviteSuccess(null);
             }}
-            className="inline-flex items-center justify-center rounded-lg border border-blue-600 bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-blue-500 dark:bg-blue-600 dark:hover:bg-blue-700"
+            className="inline-flex h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-blue-600 bg-blue-600 px-4 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-blue-500 dark:bg-blue-600 dark:hover:bg-blue-700"
           >
             Send invitation
           </button>

@@ -21,10 +21,10 @@ export default async function AddConversionPage(props: DefaultAppPageProps) {
           { label: "Add conversion" },
         ]}
       />
-      <div className="space-y-6">
+      <div className="mt-6 space-y-6">
         <Suspense
           fallback={
-            <div className="h-[46px] border-b border-gray-200 dark:border-gray-700" aria-hidden />
+            <div className="h-12 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" aria-hidden />
           }
         >
           <ConversionSubNav />

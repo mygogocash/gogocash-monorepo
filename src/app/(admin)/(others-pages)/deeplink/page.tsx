@@ -6,8 +6,8 @@ export const metadata: Metadata = {
   title: "User tracking link | GoGoCash Admin",
 };
 
-/** Standalone URL; same UI as Offers Management → User tracking link tab. */
+/** Standalone URL; same UI as Brands Management → User tracking link tab. */
 export default async function DeeplinkPage(props: DefaultAppPageProps) {
   await awaitPageDynamicProps(props);
-  redirect("/offers?tab=deeplink");
+  redirect("/brands?tab=deeplink");
 }

@@ -37,7 +37,7 @@ export const MOCK_POPUP_HISTORY_ENTRIES: PopupHistoryEntry[] = [
       {
         id: "mock-b1",
         duration: "5",
-        link: "https://app.gogocash.co/offers",
+        link: "https://app.gogocash.co/brands",
         startDate: "",
         endForever: true,
         endDate: "",

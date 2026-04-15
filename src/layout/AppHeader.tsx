@@ -143,7 +143,7 @@ const AppHeader: React.FC = () => {
     (e: FormEvent) => {
       e.preventDefault();
       if (previewResults.users[0]) router.push(`/users?highlight=${previewResults.users[0]._id}`);
-      else if (previewResults.offers[0]) router.push(`/offers/${previewResults.offers[0]._id}`);
+      else if (previewResults.offers[0]) router.push(`/brands/${previewResults.offers[0]._id}`);
       else if (previewResults.withdraws[0])
         router.push(`/withdraw/${previewResults.withdraws[0]._id}`);
       else if (searchQuery.trim())

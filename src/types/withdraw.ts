@@ -75,6 +75,8 @@ export interface User {
   /** All known phone numbers for this user */
   mobiles?: string[];
   fullName?: string;
+  firstName?: string;
+  lastName?: string;
   gender?: string;
   birthdate?: string;
   wallet?: string;
@@ -83,6 +85,20 @@ export interface User {
   userLog?: UserLogEntry[];
   totalCashback?: number;
   totalCashbackCurrency?: string;
+  /** When the API exposes account lifecycle timestamps (ISO strings) */
+  createdAt?: string;
+  updatedAt?: string;
+  /** MyCashBack / partner identifiers when merged into this profile */
+  buyerId?: string;
+  publisherId?: string;
+  /** Street / mailing address (not crypto wallet — see `wallet`) */
+  streetAddress?: string;
+  city?: string;
+  zipCode?: string;
+  rating?: number;
+  creditScoreType?: number;
+  emailVerified?: boolean;
+  phoneVerified?: boolean;
 }
 export interface WithdrawList {
   _id: string;

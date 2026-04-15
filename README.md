@@ -332,11 +332,11 @@ interface Session {
 | `/` | `EcommerceMetrics` + Charts | Dashboard with KPIs, sales charts, demographics |
 | `/admin-users` | `AdminUsersTable` | Manage admin user accounts (CRUD) |
 | `/users` | `UsersTable` | View & manage regular users |
-| `/offers` | `OffersTable` | Browse & manage merchant offers |
-| `/offers/create-brand` | `CreateBrandForm` | Create brand from affiliate tracking + app tracking link |
-| `/offers?tab=top-brands` | `TopBrandManagementPanel` | Homepage top-brand order (mock API) |
-| `/offers/[id]` | `Detail` + `FormOffer` | Individual offer detail & editing |
-| `/offers/pending/[id]` | `PendingOfferReviewRouteClient` | Full-page review for merchant-submitted (pending) offers |
+| `/brands` | `OffersTable` | Browse & manage merchant brands |
+| `/brands/create-brand` | `CreateBrandForm` | Create brand from affiliate tracking + app tracking link |
+| `/brands?tab=top-brands` | `TopBrandManagementPanel` | Homepage top-brand order (mock API) |
+| `/brands/[id]` | `Detail` + `FormOffer` | Individual brand detail & editing |
+| `/brands/pending/[id]` | `PendingOfferReviewRouteClient` | Full-page review for merchant-submitted (pending) brands |
 | `/withdraw` | `WithdrawTable` | View withdrawal requests |
 | `/withdraw/[id]` | `WithdrawDetail` | Approve/reject withdrawals |
 | `/conversion` | `ConversionTable` | Track affiliate conversions |
@@ -344,7 +344,7 @@ interface Session {
 | `/banner/all-brand-page` | `BannerTable` (all-brand variant) | All-brands listing screen banners |
 | `/banner/modal-popups` | `AppOpenPopupSettingsForm` | App-open modal popups |
 | `/banner/popup-history` | `PopupHistoryTable` | Local snapshots of popup configs |
-| `/category` | Category components | Offer category management |
+| `/category` | Category components | Brand category management |
 | `/coupon` | Coupon components | Coupon code management |
 | `/fee` | `FeeForm` | System fee rate configuration |
 | `/profile` | Profile page | Admin profile settings |
@@ -707,13 +707,13 @@ Users Management
 ├── Users Admin (/admin-users)
 └── Users (/users)
 
-Offers Management
-├── Create brand (/offers/create-brand)
-├── Offers (/offers)
-├── Commission Management (/offers?tab=commission)
-├── Policy Management (/offers?tab=policy)
-├── User tracking link (/offers?tab=deeplink)
-└── Top brands (/offers?tab=top-brands)
+Brands Management
+├── Create brand (/brands/create-brand)
+├── Brands (/brands)
+├── Commission Management (/brands?tab=commission)
+├── Policy Management (/brands?tab=policy)
+├── User tracking link (/brands?tab=deeplink)
+└── Top brands (/brands?tab=top-brands)
 
 Category Management
 └── Category (/category)

@@ -15,7 +15,7 @@ export default async function CategoryPage(props: DefaultAppPageProps) {
         pageTitle="Category"
         items={[
           { label: "Home", href: "/" },
-          { label: "Offers Management", href: "/offers" },
+          { label: "Brands Management", href: "/brands" },
           { label: "Category" },
         ]}
       />

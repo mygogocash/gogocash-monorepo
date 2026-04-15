@@ -236,13 +236,13 @@ export default function OffersTable() {
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between lg:gap-10">
             <div className="min-w-0 shrink-0 lg:max-w-md">
               <h3 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
-                Offers
+                Brands
               </h3>
               <p className="mt-1.5 text-sm leading-relaxed text-gray-600 dark:text-gray-400">
                 <span className="font-semibold tabular-nums text-gray-800 dark:text-gray-200">
                   {pagination.total.toLocaleString()}
                 </span>{" "}
-                offers
+                brands
                 {pagination.totalPages > 1 ? (
                   <span className="text-gray-500 dark:text-gray-500">
                     {" "}
@@ -261,7 +261,7 @@ export default function OffersTable() {
               </p>
               <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-stretch">
                 <Link
-                  href="/offers/create-brand"
+                  href="/brands/create-brand"
                   className="inline-flex min-h-11 items-center justify-center rounded-full bg-brand-500 px-5 py-2.5 text-center text-sm font-medium text-white shadow-theme-xs transition-colors hover:bg-brand-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500"
                 >
                   Create brand
@@ -270,10 +270,10 @@ export default function OffersTable() {
                   type="button"
                   onClick={() => updateListMutation.mutate()}
                   disabled={updateListMutation.isPending}
-                  title="Re-fetch offers from the affiliate feed and refresh this list"
+                  title="Re-fetch brands from the affiliate feed and refresh this list"
                   className="inline-flex min-h-11 items-center justify-center rounded-full border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-800 shadow-theme-xs transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700/80"
                 >
-                  {updateListMutation.isPending ? "Syncing…" : "Sync offer list"}
+                  {updateListMutation.isPending ? "Syncing…" : "Sync brand list"}
                 </button>
               </div>
             </div>
@@ -281,18 +281,18 @@ export default function OffersTable() {
 
           <div className="w-full min-w-0 rounded-xl border border-gray-200 bg-gray-50/90 p-4 sm:p-5 dark:border-gray-700 dark:bg-gray-900/50">
             <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-              Find offers
+              Find brands
             </p>
             <div className="grid w-full min-w-0 grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_220px] sm:items-start">
               <div className="flex min-w-0 flex-col gap-1.5">
                 <label
-                  htmlFor="offers-toolbar-search"
+                  htmlFor="brands-toolbar-search"
                   className="text-xs font-medium text-gray-600 dark:text-gray-400"
                 >
                   Search
                 </label>
                 <input
-                  id="offers-toolbar-search"
+                  id="brands-toolbar-search"
                   type="search"
                   autoComplete="off"
                   placeholder="Name, partner, or offer ID…"
@@ -303,13 +303,13 @@ export default function OffersTable() {
               </div>
               <div className="flex min-w-0 w-full flex-col gap-1.5">
                 <label
-                  htmlFor="offers-toolbar-country"
+                  htmlFor="brands-toolbar-country"
                   className="text-xs font-medium text-gray-600 dark:text-gray-400"
                 >
                   Country
                 </label>
                 <Select
-                  id="offers-toolbar-country"
+                  id="brands-toolbar-country"
                   className="w-full min-w-0"
                   options={OFFERS_COUNTRY_FILTER_OPTIONS}
                   placeholder="All countries"
@@ -343,13 +343,13 @@ export default function OffersTable() {
         {offersLoading && (
           <div className="flex items-center justify-center py-8">
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-brand-500 dark:border-gray-700 dark:border-t-brand-400"></div>
-            <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Loading offers...</span>
+            <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Loading brands...</span>
           </div>
         )}
 
         {!offersLoading && (
           <>
-            {/* Offers Table */}
+            {/* Brands table */}
             <div className="w-full overflow-x-auto -mx-4 sm:mx-0">
               <table className="w-full min-w-[920px] divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-800">
@@ -621,7 +621,7 @@ export default function OffersTable() {
                                 role="menuitem"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  router.push(`/offers/${offer._id}`);
+                                  router.push(`/brands/${offer._id}`);
                                   setOpenActionsId(null);
                                 }}
                                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
@@ -740,7 +740,7 @@ export default function OffersTable() {
 
             {offers.length === 0 && !offersLoading && (
               <div className="py-8 text-center text-gray-500 dark:text-gray-400">
-                No offers found
+                No brands found
               </div>
             )}
           </>

@@ -9,5 +9,5 @@ export const metadata: Metadata = {
 
 export default async function PolicyPage(props: DefaultAppPageProps) {
   await awaitPageDynamicProps(props);
-  redirect("/offers?tab=policy");
+  redirect("/brands?tab=policy");
 }
