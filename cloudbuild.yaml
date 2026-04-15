@@ -83,13 +83,13 @@ steps:
         POSTHOG_ENABLED=true
       - --set-secrets
       - >-
-        MONGO_URI=mongo-uri-staging:latest,
-        JWT_SECRET=jwt-secret-staging:latest,
-        JWT_ADMIN_SECRET=jwt-admin-secret-staging:latest,
-        FIREBASE_PROJECT_ID=firebase-project-id:latest,
-        INVOLVE_SECRET=involve-secret-staging:latest,
-        POSTHOG_KEY=posthog-key-staging:latest,
-        TELEGRAM_BOT_TOKEN=telegram-bot-token-staging:latest
+        MONGO_URI=gogocash-staging-mongo-uri:latest,
+        JWT_SECRET=gogocash-staging-jwt-secret:latest,
+        JWT_ADMIN_SECRET=gogocash-staging-jwt-admin-secret:latest,
+        FIREBASE_PROJECT_ID=gogocash-staging-firebase-project-id:latest,
+        INVOLVE_SECRET=gogocash-staging-involve-secret:latest,
+        POSTHOG_KEY=gogocash-staging-posthog-key:latest,
+        TELEGRAM_BOT_TOKEN=gogocash-staging-telegram-bot-token:latest
     waitFor: [push-sha]
 
 images:
