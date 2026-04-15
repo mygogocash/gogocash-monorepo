@@ -28,7 +28,10 @@ import { AnalyticsModule } from './analytics/analytics.module';
     WithdrawModule,
     GoogleDriveModule,
     PointModule,
-    TelegramBotModule,
+    ...(process.env.TELEGRAM_BOT_TOKEN &&
+    process.env.TELEGRAM_BOT_TOKEN !== 'PLACEHOLDER'
+      ? [TelegramBotModule]
+      : []),
   ],
   controllers: [AppController],
   providers: [AppService],
