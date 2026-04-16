@@ -1,23 +1,39 @@
 /**
- * Detect Firebase / `output: "export"` hosting in the browser WITH mock data mode.
+ * Detect Firebase / `output: "export"` hosting in the browser.
  *
- * Returns true only when the build was marked as a static-mock export AND
- * no real API URL is configured. When `NEXT_PUBLIC_API_URL` is set, we're
- * pointing at a real backend — static-hosting mock shims must stay inactive.
+ * Two signals:
+ * - `isStaticExportBuild()`: true whenever the build is a static export (regardless
+ *   of mock vs real API). Used to install auth shims — static exports have no
+ *   server-side `/api/auth/*` routes, so NextAuth must be mocked client-side.
+ * - `isStaticHostingClient()`: true only when we're in static-export AND using
+ *   mock data (no real API URL). Used to route `/api/mock/*` through the mock core.
  *
  * Next may not inline `NEXT_PUBLIC_FIREBASE_STATIC` in all toolchains; the root
- * layout also emits `<meta name="gogocash-static-export" content="1" />` when
- * `BUILD_FOR_FIREBASE=1`.
+ * layout emits `<meta name="gogocash-static-export" content="1" />` when
+ * `BUILD_FOR_FIREBASE=1`, which works in every toolchain.
  */
-export function isStaticHostingClient(): boolean {
+
+function hasStaticExportMeta(): boolean {
   if (typeof window === "undefined") return false;
-  // Real API configured → not in static-mock mode regardless of flags.
-  if (process.env.NEXT_PUBLIC_API_URL) return false;
-  if (process.env.NEXT_PUBLIC_FIREBASE_STATIC === "1") return true;
   try {
     const el = document.querySelector('meta[name="gogocash-static-export"]');
     return el?.getAttribute("content") === "1";
   } catch {
     return false;
   }
+}
+
+/** True whenever we're running a static-export build (auth shims required). */
+export function isStaticExportBuild(): boolean {
+  if (typeof window === "undefined") return false;
+  if (process.env.NEXT_PUBLIC_FIREBASE_STATIC === "1") return true;
+  return hasStaticExportMeta();
+}
+
+/** True only in static-export AND mock-data mode. */
+export function isStaticHostingClient(): boolean {
+  if (typeof window === "undefined") return false;
+  // Real API configured → not in static-mock mode regardless of build flags.
+  if (process.env.NEXT_PUBLIC_API_URL) return false;
+  return isStaticExportBuild();
 }
