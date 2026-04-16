@@ -545,4 +545,70 @@ export class AdminService {
       { $unwind: '$user' },
     ]);
   }
+
+  /** Return conversions manually created by admins (quest rewards). */
+  async getCreatedConversions(limit = 10, page = 1) {
+    const skip = (page - 1) * limit;
+    const query = { offer_name: 'reward_conversion_quest' };
+
+    const [data, total] = await Promise.all([
+      this.conversionModel
+        .find(query)
+        .sort({ datetime_conversion: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      this.conversionModel.countDocuments(query),
+    ]);
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  /** Top brands ranked by conversion count. */
+  async getTopBrands() {
+    const topBrands = await this.conversionModel.aggregate([
+      { $group: { _id: '$offer_id', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 20 },
+      {
+        $lookup: {
+          from: 'offers',
+          localField: '_id',
+          foreignField: 'offer_id',
+          as: 'offer',
+        },
+      },
+      { $unwind: { path: '$offer', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          offer_id: '$_id',
+          conversions: '$count',
+          offer_name: '$offer.offer_name',
+          logo: '$offer.logo',
+          categories: '$offer.categories',
+        },
+      },
+    ]);
+
+    return { data: topBrands };
+  }
+
+  /** Save manual top brand ordering (array of offer IDs). */
+  async saveTopBrands(order: string[]) {
+    // Store as a banner-style config document
+    await this.bannerModel.updateOne(
+      { type: 'top_brands' },
+      { $set: { type: 'top_brands', order, updatedAt: new Date() } },
+      { upsert: true },
+    );
+    return { success: true, order };
+  }
 }

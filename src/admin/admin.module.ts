@@ -6,6 +6,8 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 import { UserAdminService } from './user-admin/user-admin-service';
+import { DashboardController } from './dashboard/dashboard.controller';
+import { DashboardService } from './dashboard/dashboard.service';
 
 import {
   UserAdmin,
@@ -80,10 +82,11 @@ import { AnalyticsModule } from 'src/analytics/analytics.module';
       signOptions: { expiresIn: '7d' },
     }),
   ],
-  controllers: [AdminController],
+  controllers: [AdminController, DashboardController],
   providers: [
     AdminService,
     UserAdminService,
+    DashboardService,
     JwtService,
     InvolveService,
     UserService,
