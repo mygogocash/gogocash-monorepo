@@ -46,6 +46,30 @@ export class User {
 
   @Prop()
   id_telegram: string;
+
+  // ── Wallet (Phase 2B) ──
+  @Prop({ type: Boolean, default: false })
+  wallet_frozen: boolean;
+
+  @Prop({ type: Date, required: false })
+  wallet_frozen_at: Date;
+
+  @Prop({ type: String, required: false })
+  wallet_frozen_by: string;
+
+  // ── Referrals (Phase 3B) ──
+  @Prop({ type: String, required: false })
+  referred_by: string;
+
+  @Prop({ type: String, required: false })
+  referral_code: string;
+
+  // ── Credit Score (Phase 4A) ──
+  @Prop({ type: Number, default: 0 })
+  credit_score: number;
+
+  @Prop({ type: String, default: 'none' })
+  credit_tier: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

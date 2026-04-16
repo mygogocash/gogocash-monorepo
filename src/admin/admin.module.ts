@@ -9,6 +9,40 @@ import { UserAdminService } from './user-admin/user-admin-service';
 import { DashboardController } from './dashboard/dashboard.controller';
 import { DashboardService } from './dashboard/dashboard.service';
 
+// Phase 2A: Transactions
+import { TransactionsController } from './transactions/transactions.controller';
+import { TransactionsService } from './transactions/transactions.service';
+
+// Phase 2B: Wallets
+import { WalletsController } from './wallets/wallets.controller';
+import { WalletsService } from './wallets/wallets.service';
+
+// Phase 3A: Missing Orders
+import { MissingOrdersController } from './missing-orders/missing-orders.controller';
+import { MissingOrdersService } from './missing-orders/missing-orders.service';
+
+// Phase 3B: Referrals
+import { ReferralsController } from './referrals/referrals.controller';
+import { ReferralsService } from './referrals/referrals.service';
+
+// Phase 4A: Credit Scores
+import { CreditScoresController } from './credit-scores/credit-scores.controller';
+import { CreditScoresService } from './credit-scores/credit-scores.service';
+
+// Phase 4B: Membership
+import { MembershipController } from './membership/membership.controller';
+import { MembershipService } from './membership/membership.service';
+
+// Phase 5: Subscriptions
+import { SubscriptionsController } from './subscriptions/subscriptions.controller';
+import { SubscriptionsService } from './subscriptions/subscriptions.service';
+
+// Phase 6: Discover & Search
+import { DiscoverController } from './discover/discover.controller';
+import { DiscoverService } from './discover/discover.service';
+import { SearchController } from './search/search.controller';
+import { SearchService } from './search/search.service';
+
 import {
   UserAdmin,
   UserAdminSchema,
@@ -46,6 +80,58 @@ import {
   SocialReward,
   SocialRewardSchema,
 } from 'src/point/schemas/social-reward.schema';
+import {
+  WalletAdjustment,
+  WalletAdjustmentSchema,
+} from './wallets/schemas/wallet-adjustment.schema';
+import {
+  MissingOrder,
+  MissingOrderSchema,
+} from './missing-orders/schemas/missing-order.schema';
+import {
+  ReferralConfig,
+  ReferralConfigSchema,
+} from './referrals/schemas/referral-config.schema';
+import {
+  CreditScoreConfig,
+  CreditScoreConfigSchema,
+} from './credit-scores/schemas/credit-score-config.schema';
+import {
+  CreditScoreAudit,
+  CreditScoreAuditSchema,
+} from './credit-scores/schemas/credit-score-audit.schema';
+import {
+  MembershipTier,
+  MembershipTierSchema,
+} from './membership/schemas/membership-tier.schema';
+import {
+  Membership,
+  MembershipSchema,
+} from './membership/schemas/membership.schema';
+import {
+  SubscriptionPlan,
+  SubscriptionPlanSchema,
+} from './subscriptions/schemas/subscription-plan.schema';
+import {
+  Subscription,
+  SubscriptionSchema,
+} from './subscriptions/schemas/subscription.schema';
+import {
+  DiscoverSection,
+  DiscoverSectionSchema,
+} from './discover/schemas/discover-section.schema';
+import {
+  FeaturedSearchTerm,
+  FeaturedSearchTermSchema,
+} from './search/schemas/featured-term.schema';
+import {
+  SearchBoostRule,
+  SearchBoostRuleSchema,
+} from './search/schemas/boost-rule.schema';
+import {
+  SearchBlacklist,
+  SearchBlacklistSchema,
+} from './search/schemas/blacklist.schema';
 
 import { InvolveService } from 'src/involve/involve.service';
 import { UserService } from 'src/user/user.service';
@@ -76,17 +162,58 @@ import { AnalyticsModule } from 'src/analytics/analytics.module';
       { name: Quest.name, schema: QuestSchema },
       { name: Point.name, schema: PointSchema },
       { name: SocialReward.name, schema: SocialRewardSchema },
+      // Phase 2B
+      { name: WalletAdjustment.name, schema: WalletAdjustmentSchema },
+      // Phase 3A
+      { name: MissingOrder.name, schema: MissingOrderSchema },
+      // Phase 3B
+      { name: ReferralConfig.name, schema: ReferralConfigSchema },
+      // Phase 4A
+      { name: CreditScoreConfig.name, schema: CreditScoreConfigSchema },
+      { name: CreditScoreAudit.name, schema: CreditScoreAuditSchema },
+      // Phase 4B
+      { name: MembershipTier.name, schema: MembershipTierSchema },
+      { name: Membership.name, schema: MembershipSchema },
+      // Phase 5
+      { name: SubscriptionPlan.name, schema: SubscriptionPlanSchema },
+      { name: Subscription.name, schema: SubscriptionSchema },
+      // Phase 6
+      { name: DiscoverSection.name, schema: DiscoverSectionSchema },
+      { name: FeaturedSearchTerm.name, schema: FeaturedSearchTermSchema },
+      { name: SearchBoostRule.name, schema: SearchBoostRuleSchema },
+      { name: SearchBlacklist.name, schema: SearchBlacklistSchema },
     ]),
     JwtModule.register({
       secret: process.env.JWT_ADMIN_SECRET,
       signOptions: { expiresIn: '7d' },
     }),
   ],
-  controllers: [AdminController, DashboardController],
+  controllers: [
+    AdminController,
+    DashboardController,
+    TransactionsController,
+    WalletsController,
+    MissingOrdersController,
+    ReferralsController,
+    CreditScoresController,
+    MembershipController,
+    SubscriptionsController,
+    DiscoverController,
+    SearchController,
+  ],
   providers: [
     AdminService,
     UserAdminService,
     DashboardService,
+    TransactionsService,
+    WalletsService,
+    MissingOrdersService,
+    ReferralsService,
+    CreditScoresService,
+    MembershipService,
+    SubscriptionsService,
+    DiscoverService,
+    SearchService,
     JwtService,
     InvolveService,
     UserService,
