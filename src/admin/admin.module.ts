@@ -29,6 +29,10 @@ import {
 } from 'src/user/schemas/user-my-cashback.schema';
 import { Banner, BannerSchema } from 'src/offer/schemas/banner.schema';
 import { Deeplink, DeeplinkSchema } from 'src/involve/schemas/deeplink.schema';
+import {
+  WithdrawMethod,
+  WithdrawMethodSchema,
+} from 'src/withdraw/schemas/withdrawMethod.schema';
 import { Coupon, CouponSchema } from 'src/offer/schemas/coupon.schema';
 import {
   RewardList,
@@ -64,6 +68,7 @@ import { AnalyticsModule } from 'src/analytics/analytics.module';
       { name: UserMyCashback.name, schema: UserMyCashbackSchema },
       { name: Banner.name, schema: BannerSchema },
       { name: Deeplink.name, schema: DeeplinkSchema },
+      { name: WithdrawMethod.name, schema: WithdrawMethodSchema },
       { name: Coupon.name, schema: CouponSchema },
       { name: RewardList.name, schema: RewardListSchema },
       { name: Quest.name, schema: QuestSchema },
