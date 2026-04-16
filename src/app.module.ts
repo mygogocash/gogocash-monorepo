@@ -3,6 +3,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
+import { AdminModule } from './admin/admin.module';
 import envConfig from './config/env.config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { UserModule } from './user/user.module';
@@ -22,8 +23,8 @@ import { AnalyticsModule } from './analytics/analytics.module';
     }),
     MongooseModule.forRoot(process.env.MONGO_URI!),
     AuthModule,
+    AdminModule,
     UserModule,
-    AuthModule,
     OfferModule,
     WithdrawModule,
     GoogleDriveModule,
