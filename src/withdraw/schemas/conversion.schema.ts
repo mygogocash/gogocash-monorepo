@@ -86,6 +86,12 @@ export class Conversion {
 
   @Prop({ type: Boolean, required: false })
   add_point: boolean;
+
+  @Prop({ type: Boolean, default: false })
+  flagged: boolean;
+
+  @Prop({ type: String, required: false })
+  flag_reason: string;
 }
 
 export const ConversionSchema = SchemaFactory.createForClass(Conversion);

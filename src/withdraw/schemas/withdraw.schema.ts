@@ -55,6 +55,12 @@ export class Withdraw {
 
   @Prop({ required: false })
   rate: number;
+
+  @Prop({ type: Boolean, default: false })
+  flagged: boolean;
+
+  @Prop({ type: String, required: false })
+  flag_reason: string;
 }
 
 export const WithdrawSchema = SchemaFactory.createForClass(Withdraw);

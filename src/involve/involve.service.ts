@@ -35,7 +35,7 @@ export class InvolveService {
   }
   async signIn() {
     const res = await axios.post(`${this.endpoint}/authenticate`, {
-      secret: process.env.INVOVLE_SECRET,
+      secret: process.env.INVOLVE_SECRET,
       key: 'general',
     });
 
@@ -46,7 +46,7 @@ export class InvolveService {
 
   async signInOld() {
     const res = await axios.post(`${this.endpoint}/authenticate`, {
-      secret: process.env.INVOVLE_SECRET_OLD,
+      secret: process.env.INVOLVE_SECRET_OLD,
       key: 'general',
     });
 
