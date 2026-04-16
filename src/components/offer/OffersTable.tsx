@@ -9,6 +9,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
+import { appLinks } from "@/lib/appLinks";
 import { DEFAULT_MOCK_ACCESS_TOKEN } from "@/lib/authTokens";
 import {
   fetchOffersList,
@@ -641,6 +642,16 @@ export default function OffersTable() {
                               >
                                 View conversions
                               </button>
+                              <a
+                                href={appLinks.offer(offer._id)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                role="menuitem"
+                                onClick={() => setOpenActionsId(null)}
+                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+                              >
+                                Open in App ↗
+                              </a>
                               <button
                                 type="button"
                                 role="menuitem"
