@@ -3,16 +3,19 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Body,
   Patch,
   Param,
   Delete,
   UseGuards,
   Query,
+  Req,
   UseInterceptors,
   UploadedFile,
   UploadedFiles,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { AdminService } from './admin.service';
 import {
   CreateAdminDto,
@@ -46,6 +49,45 @@ export class AdminController {
   @Post('login')
   login(@Body() createAdminDto: LoginAdminDto) {
     return this.userAdminService.login(createAdminDto);
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Get('profile')
+  getProfile(@Req() req: Request) {
+    const user = req['user'] as any;
+    return this.userAdminService.findById(user?.sub);
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Get('created-conversions')
+  getCreatedConversions(
+    @Query('limit') limit?: number,
+    @Query('page') page?: number,
+  ) {
+    return this.adminService.getCreatedConversions(
+      Number(limit) || 10,
+      Number(page) || 1,
+    );
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Get('top-brands')
+  getTopBrands() {
+    return this.adminService.getTopBrands();
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Put('top-brands')
+  saveTopBrands(@Body() body: { order: string[] }) {
+    return this.adminService.saveTopBrands(body.order);
   }
 
   @UseGuards(AuthAdminGuard)

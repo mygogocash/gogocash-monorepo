@@ -90,4 +90,8 @@ export class UserAdminService {
   async remove(id: number): Promise<any> {
     return this.userAdmin.deleteOne({ _id: id }).exec();
   }
+
+  async findById(id: string): Promise<UserAdmin | null> {
+    return this.userAdmin.findById(id).select('-password').exec();
+  }
 }
