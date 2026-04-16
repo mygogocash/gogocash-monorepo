@@ -41,8 +41,8 @@ jobs:
           service_account: ${{ vars.FIREBASE_WIF_SERVICE_ACCOUNT }}
           token_format: access_token
 
-      - name: Build static export (Firebase)
-        run: npm run build:firebase
+      - name: Build static export (Firebase, real API — no mocks)
+        run: npm run build:firebase:ai-test
         env:
           NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET_STAGING }}
           NEXTAUTH_URL: https://admin-ai-test.gogocash.co
