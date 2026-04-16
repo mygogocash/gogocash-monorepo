@@ -100,13 +100,16 @@ async function handleRealCredentialsLogin(
     const data = await res.json().catch(() => null);
     if (!res.ok || !data?.token) {
       const message = data?.message || `Login failed (${res.status})`;
+      // NextAuth treats non-2xx as a catastrophic error and redirects to
+      // /api/auth/error (which doesn't exist on static hosting). Return 200
+      // with ok:false + a signin URL so the client stays on the sign-in page.
       return new Response(
         JSON.stringify({
           url: `${origin}/signin/?error=${encodeURIComponent("CredentialsSignin")}`,
           error: message,
           ok: false,
         }),
-        { status: 401, headers: { "Content-Type": "application/json" } },
+        { status: 200, headers: { "Content-Type": "application/json" } },
       );
     }
     writeRealSession({
@@ -126,7 +129,7 @@ async function handleRealCredentialsLogin(
         error: err instanceof Error ? err.message : "Network error",
         ok: false,
       }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
+      { status: 200, headers: { "Content-Type": "application/json" } },
     );
   }
 }
