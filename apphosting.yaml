@@ -39,7 +39,7 @@ env:
       - RUNTIME
   # Staging API base URL
   - variable: NEXT_PUBLIC_API_BASE_URL
-    value: https://api-staging.gogocash.co
+    value: https://api-ai-test.gogocash.co
     availability:
       - BUILD
       - RUNTIME
@@ -54,12 +54,12 @@ env:
       - BUILD
   # Staging custom domain
   - variable: NEXTAUTH_URL
-    value: https://app-staging.gogocash.co
+    value: https://app-ai-test.gogocash.co
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FRONTEND_URL
-    value: https://app-staging.gogocash.co
+    value: https://app-ai-test.gogocash.co
     availability:
       - BUILD
       - RUNTIME
