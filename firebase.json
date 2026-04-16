@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "site": "gogocash-staging-637d5",
+    "site": "gogocash-admin-ai-test",
     "public": "out",
     "ignore": [
       "firebase.json",
