@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { JwtService } from '@nestjs/jwt';
 import {
@@ -31,7 +31,8 @@ export class UserAdminService {
       .exec();
 
     if (!user) {
-      throw new Error('User not found');
+      // Use the same generic message to avoid leaking which emails exist.
+      throw new UnauthorizedException('Invalid email or password');
     }
 
     const isPasswordValid = await bcrypt.compare(
@@ -40,7 +41,7 @@ export class UserAdminService {
     );
 
     if (!isPasswordValid) {
-      throw new Error('Invalid password');
+      throw new UnauthorizedException('Invalid email or password');
     }
     delete user.password;
     // Generate JWT token for authentication

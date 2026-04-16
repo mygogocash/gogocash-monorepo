@@ -8,8 +8,33 @@ import * as path from 'path';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.use(cookieParser());
+  // Browsers reject `origin: '*'` when `credentials: true`. Use an explicit
+  // allow-list and fall through to reflect the origin for non-credentialed
+  // requests (useful for public GETs, curl, Swagger UI, etc.).
+  const CORS_ALLOWLIST = [
+    // Staging
+    'https://app-staging.gogocash.co',
+    'https://admin-staging.gogocash.co',
+    'https://staging.gogocash.co',
+    'https://gogocash-staging-637d5.web.app',
+    'https://gogocash-web--gogocash-app-staging.us-central1.hosted.app',
+    // AI test
+    'https://app-ai-test.gogocash.co',
+    'https://admin-ai-test.gogocash.co',
+    'https://gogocash-admin-ai-test.web.app',
+    'https://gogocash-web-ai-test--gogocash-app-staging.us-central1.hosted.app',
+    // Local dev
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:3002',
+  ];
   app.enableCors({
-    origin: '*', // Adjust this to your needs
+    origin: (origin, callback) => {
+      // No origin (server-to-server, curl) — allow.
+      if (!origin) return callback(null, true);
+      if (CORS_ALLOWLIST.includes(origin)) return callback(null, true);
+      return callback(null, false);
+    },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
     allowedHeaders: [
