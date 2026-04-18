@@ -1,5 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsIn, IsNotEmpty, IsNumber, IsString, Min } from 'class-validator';
+import {
+  IsIn,
+  IsNotEmpty,
+  IsNumber,
+  IsString,
+  Matches,
+  Max,
+  Min,
+} from 'class-validator';
 
 export class CreateWithdrawDto {
   tx_hash?: string;
@@ -28,6 +36,9 @@ export class CreateManualWithdrawRequestDto {
   @ApiProperty({ description: 'User wallet address the payout should go to' })
   @IsString()
   @IsNotEmpty()
+  @Matches(/^0x[0-9a-fA-F]{40}$/, {
+    message: 'address must be a 0x-prefixed 40-char hex string',
+  })
   address: string;
 
   @ApiProperty({ enum: ['USDT', 'USDC'] })
@@ -35,16 +46,27 @@ export class CreateManualWithdrawRequestDto {
   @IsIn(['USDT', 'USDC'])
   currency: 'USDT' | 'USDC';
 
-  @ApiProperty({ description: 'Requested amount in the chosen token' })
-  @IsNumber()
+  /**
+   * Cap at 1_000_000 USD-equiv to avoid obviously nonsensical requests. The
+   * balance check in the service enforces the real ceiling; this guards
+   * against float overflow / input garbage short-circuiting validation.
+   */
+  @ApiProperty({ description: 'Requested amount in the chosen token', minimum: 0.01, maximum: 1_000_000 })
+  @IsNumber({ maxDecimalPlaces: 6 })
   @Min(0.01)
+  @Max(1_000_000)
   amount: number;
 }
 
 export class MarkWithdrawPaidDto {
-  @ApiProperty({ description: 'On-chain tx hash of the admin-initiated payout' })
+  @ApiProperty({
+    description: 'On-chain tx hash of the admin-initiated payout (0x + 64 hex)',
+  })
   @IsString()
   @IsNotEmpty()
+  @Matches(/^0x[0-9a-fA-F]{64}$/, {
+    message: 'tx_hash must be a 0x-prefixed 64-char hex string',
+  })
   tx_hash: string;
 }
 

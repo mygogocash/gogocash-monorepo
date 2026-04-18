@@ -16,6 +16,8 @@ import {
 import { OtpService } from './otp.service';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { UserOtp, UserOtpSchema } from 'src/user/schemas/user-otp.schema';
+import { SiweNonce, SiweNonceSchema } from './schemas/siwe-nonce.schema';
+import { RateLimitGuard } from './rate-limit.guard';
 
 @Module({
   imports: [
@@ -27,6 +29,7 @@ import { UserOtp, UserOtpSchema } from 'src/user/schemas/user-otp.schema';
       { name: Point.name, schema: PointSchema },
       { name: UserMyCashback.name, schema: UserMyCashbackSchema },
       { name: UserOtp.name, schema: UserOtpSchema },
+      { name: SiweNonce.name, schema: SiweNonceSchema },
     ]),
     JwtModule.register({
       // This is for signing tokens your backend generates.
@@ -47,6 +50,6 @@ import { UserOtp, UserOtpSchema } from 'src/user/schemas/user-otp.schema';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, UserService, JwtService, OtpService],
+  providers: [AuthService, UserService, JwtService, OtpService, RateLimitGuard],
 })
 export class AuthModule {}

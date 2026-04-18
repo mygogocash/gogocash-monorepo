@@ -1169,48 +1169,63 @@ export class WithdrawService {
       );
     }
 
-    const existingPending = await this.withdrawModel
-      .findOne({
-        user_id: user._id,
-        withdraw_mode: 'manual',
-        status: 'pending',
-      })
-      .lean();
-    if (existingPending) {
+    // Hard balance gate: USDT and USDC are both $1-pegged, so compare the
+    // request to the user's available USD payout. `checkWithdraw` already
+    // reconciles against pending+approved withdrawals so we don't
+    // double-count outstanding requests.
+    const balance = await this.checkWithdraw(userId);
+    const availableUsd = Number(balance?.netAmount ?? 0);
+    if (!Number.isFinite(availableUsd) || dto.amount > availableUsd + 1e-6) {
       throw new HttpException(
         {
-          message:
-            'You already have a pending withdrawal request. Please wait for it to be processed.',
+          message: `Requested amount exceeds available balance (${availableUsd.toFixed(2)} USD)`,
         },
-        409,
+        400,
       );
     }
 
-    const record = await this.withdrawModel.create({
-      user_id: user._id,
-      status: 'pending',
-      address: dto.address,
-      account_name: user.username || '',
-      bank_name: '',
-      account_number: '',
-      tx_hash: '',
-      tx_hash_record: '',
-      percent_fee: 0,
-      amount_total: dto.amount,
-      amount_net: dto.amount,
-      method: 'minipay_manual',
-      currency: dto.currency,
-      chain: 'CELO',
-      conversion_id: [],
-      mycashback_id: [],
-      rate: 0,
-      withdraw_mode: 'manual',
-    });
-
-    return {
-      success: true,
-      data: record,
-    };
+    try {
+      const record = await this.withdrawModel.create({
+        user_id: user._id,
+        status: 'pending',
+        address: dto.address,
+        account_name: user.username || '',
+        bank_name: '',
+        account_number: '',
+        tx_hash: '',
+        tx_hash_record: '',
+        percent_fee: 0,
+        amount_total: dto.amount,
+        amount_net: dto.amount,
+        method: 'minipay_manual',
+        currency: dto.currency,
+        chain: 'CELO',
+        conversion_id: [],
+        mycashback_id: [],
+        rate: 0,
+        withdraw_mode: 'manual',
+      });
+      return { success: true, data: record };
+    } catch (err: unknown) {
+      // Duplicate-key error from the partial unique index on
+      // (user_id, withdraw_mode: "manual", status: "pending") means another
+      // request for this user slipped through concurrently.
+      if (
+        err &&
+        typeof err === 'object' &&
+        'code' in err &&
+        (err as { code?: number }).code === 11000
+      ) {
+        throw new HttpException(
+          {
+            message:
+              'You already have a pending withdrawal request. Please wait for it to be processed.',
+          },
+          409,
+        );
+      }
+      throw err;
+    }
   }
 
   /**
@@ -1236,22 +1251,47 @@ export class WithdrawService {
         400,
       );
     }
-    if (existing.status === 'paid' || existing.status === 'approved') {
+    // Idempotent on already-paid; hard block on any other terminal state so a
+    // rejected/approved row cannot be silently flipped back to paid.
+    if (existing.status === 'paid') {
       return { success: true, data: existing };
     }
-    const updated = await this.withdrawModel.findByIdAndUpdate(
-      withdrawId,
-      {
-        $set: {
-          status: 'paid',
-          tx_hash: dto.tx_hash,
-          paid_by: adminId,
-          paid_at: new Date(),
+    if (existing.status !== 'pending') {
+      throw new HttpException(
+        {
+          message: `Only pending withdrawals can be marked paid (current: ${existing.status})`,
         },
-      },
-      { new: true },
-    );
-    return { success: true, data: updated };
+        409,
+      );
+    }
+    try {
+      const updated = await this.withdrawModel.findByIdAndUpdate(
+        withdrawId,
+        {
+          $set: {
+            status: 'paid',
+            tx_hash: dto.tx_hash,
+            paid_by: adminId,
+            paid_at: new Date(),
+          },
+        },
+        { new: true },
+      );
+      return { success: true, data: updated };
+    } catch (err: unknown) {
+      if (
+        err &&
+        typeof err === 'object' &&
+        'code' in err &&
+        (err as { code?: number }).code === 11000
+      ) {
+        throw new HttpException(
+          { message: 'This tx_hash is already recorded on another withdrawal' },
+          409,
+        );
+      }
+      throw err;
+    }
   }
 
   async createBankTransfer(createWithdrawDto: CreateWithdrawDto, id: string) {
