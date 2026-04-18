@@ -1,7 +1,10 @@
 "use client";
 
 import WithdrawIcon from "@/components/icons/WithdrawIcon";
+import PremiumAvatar from "@/components/premium/PremiumAvatar";
+import PremiumBadge from "@/components/premium/PremiumBadge";
 import type { ResponseWithdrawCheck } from "@/interfaces/withdraw";
+import type { MembershipTier } from "@/interfaces/auth";
 import { Link } from "@/i18n/navigation";
 import { combineAvailableBalance } from "@/lib/withdraw/combineAvailableBalance";
 import { checkThai, cn, formatAddress, formatCashDisplay } from "@/lib/utils";
@@ -69,6 +72,15 @@ export function WalletSummaryHeroCard({
   const t = useTranslations();
   const locale = useLocale();
 
+  // Preview: NEXT_PUBLIC_GOGOPASS_PREVIEW=1 forces GoGoPass for all signed-in users.
+  const sessionTier = (session?.user as { membership_tier?: MembershipTier } | undefined)
+    ?.membership_tier;
+  const membershipTier: MembershipTier | undefined =
+    sessionTier ??
+    (process.env.NEXT_PUBLIC_GOGOPASS_PREVIEW === "1" && session?.user
+      ? "gogopass"
+      : undefined);
+
   const displayName =
     (session?.user?.username != "undefined" && session?.user?.username) ||
     (session?.user?.wallet != "undefined" && session?.user?.wallet
@@ -135,24 +147,29 @@ export function WalletSummaryHeroCard({
         ) : (
           <div className="shrink-0 bg-[#00AA80] px-[18px] pb-3 pt-4 shadow-[3px_-2px_4px_rgba(0,0,0,0.05)]">
             <div className="flex items-start justify-between gap-3">
-              <div className="relative size-[52px] shrink-0 overflow-hidden rounded-full bg-[#ffdbe3]">
-                <Image
-                  src="/profile.png"
-                  alt=""
-                  width={192}
-                  height={192}
-                  sizes="52px"
-                  quality={92}
-                  className="size-full object-cover"
-                />
-              </div>
+              <PremiumAvatar tier={membershipTier} size={52} ringWidth={3}>
+                <div className="relative size-full overflow-hidden rounded-full bg-[#ffdbe3]">
+                  <Image
+                    src="/profile.png"
+                    alt=""
+                    width={192}
+                    height={192}
+                    sizes="52px"
+                    quality={92}
+                    className="size-full object-cover"
+                  />
+                </div>
+              </PremiumAvatar>
               <div className="flex min-w-0 flex-col items-end gap-1 text-right whitespace-nowrap">
-                <p
-                  className="text-base font-medium leading-normal text-white"
-                  style={{ textShadow: "2px 2px 4px rgba(0,0,0,0.3)" }}
-                >
-                  {displayName}
-                </p>
+                <div className="flex items-center gap-1.5">
+                  <PremiumBadge tier={membershipTier} size="sm" />
+                  <p
+                    className="text-base font-medium leading-normal text-white"
+                    style={{ textShadow: "2px 2px 4px rgba(0,0,0,0.3)" }}
+                  >
+                    {displayName}
+                  </p>
+                </div>
                 <p className="text-xs font-normal leading-normal text-[#83F2D6]">{maskedId}</p>
               </div>
             </div>
