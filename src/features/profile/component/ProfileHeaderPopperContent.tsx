@@ -203,7 +203,7 @@ export default function ProfileHeaderPopperContent({ onNavigate }: { onNavigate?
             href={GOGOCASH_LINKTREE_HREF}
             external
             onNavigate={onNavigate}
-            icon={<GlobeIcon width={24} height={24} fill={ICON_TEAL} />}
+            icon={<GlobeIcon width={24} height={24} stroke={ICON_TEAL} />}
             label={t("sidebarConnectGoGoCash")}
           />
           {FEATURE_FLAGS.subscription ? (
