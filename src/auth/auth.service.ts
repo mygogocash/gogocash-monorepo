@@ -4,7 +4,13 @@ import axios from 'axios';
 import * as https from 'https';
 import { createCrossmint, CrossmintAuth } from '@crossmint/server-sdk';
 import { UserService } from 'src/user/user.service';
-import { SignInDto, SignInFirebaseDto, TelegramAuthDto } from './dto/auth.dto';
+import {
+  MiniPaySiweDto,
+  SignInDto,
+  SignInFirebaseDto,
+  TelegramAuthDto,
+} from './dto/auth.dto';
+import { ethers } from 'ethers';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Point, PointDocument } from 'src/point/schemas/point.schema';
@@ -434,5 +440,104 @@ export class AuthService {
     });
 
     return token;
+  }
+
+  /**
+   * MiniPay SIWE sign-in.
+   *
+   * Verifies an EIP-4361 signature recovers the claimed address, parses
+   * `Issued At` out of the message body and rejects anything older than 5
+   * minutes (replay mitigation — server-issued nonces are a follow-up).
+   * On success, upserts a user keyed by a synthetic
+   * `id_firebase = "minipay:<lowercase-address>"` so the existing
+   * `unique` index on that field keeps holding and the `findOne` lookups
+   * in other flows don't accidentally collide with real Firebase UIDs.
+   *
+   * Returns the same envelope shape as `signInFirebase` so the customer-app
+   * NextAuth `minipay_siwe` branch consumes it uniformly.
+   */
+  async signInMiniPaySiwe(payload: MiniPaySiweDto) {
+    const { address, message, signature, referral_id } = payload;
+
+    let recovered: string;
+    try {
+      recovered = ethers.verifyMessage(message, signature);
+    } catch {
+      throw new UnauthorizedException('Invalid SIWE signature');
+    }
+    if (recovered.toLowerCase() !== address.toLowerCase()) {
+      throw new UnauthorizedException('Signature does not match address');
+    }
+
+    // Pull `Issued At` out of the SIWE message (EIP-4361 field order is stable).
+    const issuedAtMatch = /^Issued At:\s*(.+)$/m.exec(message);
+    if (!issuedAtMatch) {
+      throw new UnauthorizedException('Missing Issued At in SIWE message');
+    }
+    const issuedAt = new Date(issuedAtMatch[1].trim());
+    if (Number.isNaN(issuedAt.getTime())) {
+      throw new UnauthorizedException('Malformed Issued At in SIWE message');
+    }
+    const ageMs = Date.now() - issuedAt.getTime();
+    // Accept 60 s of client clock skew; 5 min freshness window past that.
+    if (ageMs < -60_000 || ageMs > 5 * 60_000) {
+      throw new UnauthorizedException('SIWE message expired or in the future');
+    }
+
+    const syntheticFirebaseId = `minipay:${address.toLowerCase()}`;
+    const existing = await this.userService.findOne({
+      id_firebase: syntheticFirebaseId,
+    });
+
+    let user: any;
+    let isNewUser: boolean;
+    if (existing) {
+      user = await this.userService.update(existing._id, {
+        address: address.toLowerCase(),
+        provider: 'minipay',
+      });
+      if (user?.disabled) {
+        throw new UnauthorizedException('Your account has been disabled');
+      }
+      isNewUser = false;
+    } else {
+      user = await this.userService.createFromFirebase({
+        address: address.toLowerCase(),
+        id_crossmint: '',
+        email: '',
+        username: `MiniPay ${address.slice(0, 6)}…${address.slice(-4)}`,
+        id_twitter: '',
+        id_firebase: syntheticFirebaseId,
+        country: '',
+        provider: 'minipay',
+      });
+      if (user?.disabled) {
+        throw new UnauthorizedException('Your account has been disabled');
+      }
+      if (referral_id && referral_id !== 'undefined') {
+        const ref = await this.userService.findOne({
+          _id: new Types.ObjectId(referral_id),
+        });
+        if (ref && user._id?.toString() !== referral_id) {
+          await this.updatePoint({
+            user_id: user._id.toString(),
+            referral_id,
+          });
+        }
+      }
+      isNewUser = true;
+    }
+
+    const token = await this.generateToken({
+      userId: user._id.toString(),
+      firebaseId: syntheticFirebaseId,
+    });
+
+    return {
+      user,
+      token,
+      is_new_user: isNewUser,
+      auth_flow: (isNewUser ? 'register' : 'login') as 'register' | 'login',
+    };
   }
 }

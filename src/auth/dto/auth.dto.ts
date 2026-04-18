@@ -82,3 +82,32 @@ export class TelegramAuthDto {
   referral_id?: string;
   country?: string;
 }
+
+/**
+ * MiniPay SIWE (EIP-4361) sign-in payload. The client signs a message of the
+ * standard SIWE shape inside MiniPay; the server verifies the signature
+ * recovers the claimed address and that `Issued At` is fresh (≤ 5 min old).
+ * No server-issued nonce in this MVP — we rely on the timestamp window for
+ * replay protection. Tightening to a server nonce is a follow-up.
+ */
+export class MiniPaySiweDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  address: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  message: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  signature: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  referral_id?: string;
+}

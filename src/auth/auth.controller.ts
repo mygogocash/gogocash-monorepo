@@ -8,7 +8,13 @@ import {
   ApiSecurity,
   ApiTags,
 } from '@nestjs/swagger';
-import { SignInAiDto, SignInDto, SignInFirebaseDto, TelegramAuthDto } from './dto/auth.dto';
+import {
+  MiniPaySiweDto,
+  SignInAiDto,
+  SignInDto,
+  SignInFirebaseDto,
+  TelegramAuthDto,
+} from './dto/auth.dto';
 import { CrossmintAuthGuard } from './jwt-auth.guard';
 import { Request } from 'express';
 import { FirebaseAuthGuard } from './firebase-auth.guard';
@@ -57,6 +63,20 @@ export class AuthController {
     const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
     // The guard has already validated the token and added the user payload to the request
     const user = await this.auth.signInFirebase(token, body);
+    return { message: 'Login successful!', ...user };
+  }
+
+  /**
+   * MiniPay (Opera) mini-app SIWE sign-in. Accepts the EIP-4361 message body
+   * and signature produced by MiniPay's injected wallet; the service verifies
+   * the signature recovers the claimed address, upserts a user keyed by the
+   * wallet, and returns the same envelope as the Firebase login endpoint.
+   */
+  @Post('minipay-siwe')
+  @ApiBody({ type: MiniPaySiweDto })
+  @ApiResponse({ status: 201, description: 'MiniPay SIWE login successful' })
+  async loginMiniPaySiwe(@Body() body: MiniPaySiweDto) {
+    const user = await this.auth.signInMiniPaySiwe(body);
     return { message: 'Login successful!', ...user };
   }
 
