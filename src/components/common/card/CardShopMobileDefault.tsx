@@ -68,7 +68,7 @@ const CardShopMobileDefault = ({
           <CategoryChip
             label={categoryLabel}
             iconIndex={iconIndex}
-            size="sm"
+            size="md"
             className="min-w-0 max-w-[calc(100%-2.25rem)] shrink"
           />
           <button
