@@ -47,7 +47,7 @@ const CategoryHome = dynamic(() => import("@/features/home/component/CategoryHom
 export default function PageClient() {
   return (
     <div className="gc-home-page">
-      <div className="gc-home-layout gc-home-layout--stack">
+      <div className="gc-home-layout gc-home-layout--stack gc-page-block">
         <ModalAfterLogin />
         <div className="gc-home-hero-search w-full pt-4 max-md:pt-5 lg:hidden">
           <HomeHeroSearch variant="homeMobile" />

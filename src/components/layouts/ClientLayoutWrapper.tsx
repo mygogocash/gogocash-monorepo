@@ -36,7 +36,7 @@ export default function ClientLayoutWrapper({ children }: ClientLayoutWrapperPro
           <Header />
           <SubHeader />
           <main
-            className={`flex min-h-0 w-full flex-col bg-[#f6f6f6] max-md:pb-[calc(var(--gc-mobile-nav-clearance)+var(--gc-safe-bottom))] md:pb-0${isMainContentHeight ? " flex-none" : " flex-1"}${isAuthPage ? " gc-page-block" : ""}`}
+            className={`flex min-h-0 w-full flex-col bg-background max-md:pb-[calc(var(--gc-mobile-nav-clearance)+var(--gc-safe-bottom))] md:pb-0${isMainContentHeight ? " flex-none" : " flex-1"}${isAuthPage ? " gc-page-block" : ""}`}
           >
             {children}
           </main>

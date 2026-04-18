@@ -1,26 +1,36 @@
 "use client";
 
 import CardSpecial from "@/components/common/card/CardSpecial";
+import SearchIcon from "@/components/icons/SearchIcon";
 import { offerHasGrabCouponBadge } from "@/lib/offer/offerGrabCouponBadge";
 import MerchantListTracker from "@/components/analytics/MerchantListTracker";
 import { Link } from "@/i18n/navigation";
 import { DataOffer, IResponseOffer } from "@/interfaces/offer";
 import { IResponseCategory } from "@/interfaces/shop";
 import { fetcher } from "@/lib/axios/client";
-import { banner, getPercent } from "@/lib/utils";
+import { banner, cn, getPercent } from "@/lib/utils";
 import { trackMerchantSelect } from "@/lib/analytics";
 import ShopExploreCategoryAside from "@/features/shop/component/ShopExploreCategoryAside";
 import { buildShopExploreCategoryMenu } from "@/features/shop/shopExploreCategoryMenu";
 import {
-  SHOP_EXPLORE_SORT_VALUES,
   type ShopExploreSort,
   sortShopExploreOffers,
 } from "@/features/shop/shopExploreSort";
-import { FormControl, MenuItem, Pagination, Select, type SelectChangeEvent } from "@mui/material";
+import Pagination from "@mui/material/Pagination";
 import { useBreakpointMdUp } from "@/hooks/useBreakpointMdUp";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+const SEARCH_DEBOUNCE_MS = 320;
+
+/** Pill order aligned with Discover (Popular / Latest / High Cashback) plus lowest cashback. */
+const SHOP_EXPLORE_SORT_PILLS: ShopExploreSort[] = [
+  "popular",
+  "newest",
+  "highest_cashback",
+  "lowest_cashback",
+];
 
 const List = () => {
   const t = useTranslations();
@@ -32,6 +42,21 @@ const List = () => {
     limit: 18,
     search: "",
   });
+  const offerSearchRef = useRef(offerSearch);
+  useEffect(() => {
+    offerSearchRef.current = offerSearch;
+  }, [offerSearch]);
+
+  const [searchDraft, setSearchDraft] = useState("");
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      const next = searchDraft.trim();
+      if (next !== offerSearchRef.current.search) {
+        setOfferSearch((p) => ({ ...p, search: next, page: 1 }));
+      }
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(id);
+  }, [searchDraft]);
 
   const { data: categoryList } = useQuery<IResponseCategory[]>({
     queryKey: ["getCategory", "shop-explore"],
@@ -46,7 +71,7 @@ const List = () => {
     [categoryList]
   );
 
-  const { data: offers } = useQuery<IResponseOffer>({
+  const { data: offers, isPending: offersPending } = useQuery<IResponseOffer>({
     queryKey: ["getTrending", offerSearch],
     queryFn: () =>
       fetcher(
@@ -72,54 +97,89 @@ const List = () => {
         : "0%";
   };
 
+  const sortPillLabel = (s: ShopExploreSort) => {
+    if (s === "popular") return t("discoverSortPopular");
+    if (s === "newest") return t("discoverSortNewest");
+    if (s === "highest_cashback") return t("discoverSortHighCashback");
+    return t("sortOption_lowest_cashback");
+  };
+
   return (
-    <section id="explore-shop" className="gc-home-layout gc-section w-full scroll-mt-24 pb-10">
-      <div className="flex flex-col gap-8">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <h2 className="min-w-0 text-[clamp(1.5rem,3vw,2rem)] font-semibold leading-tight text-[#3b3b3b]">
-            {t("shopExploreTitle")}
-            <span className="ml-2 inline-block" aria-hidden>
-              🔎
-            </span>
-          </h2>
-          <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 md:w-auto">
-            <span className="shrink-0 text-sm font-medium text-[#3b3b3b]">{t("sortByLabel")}</span>
-            <FormControl size="small" className="min-w-0 sm:min-w-[220px]">
-              <Select<ShopExploreSort>
-                value={sortBy}
-                onChange={(e: SelectChangeEvent<ShopExploreSort>) =>
-                  setSortBy(e.target.value as ShopExploreSort)
-                }
-                inputProps={{ "aria-label": t("sortByLabel") }}
-                sx={{
-                  borderRadius: "16px",
-                  width: { xs: "100%", sm: 220 },
-                  "& .MuiOutlinedInput-notchedOutline": { borderColor: "#e4e4e4" },
-                }}
-              >
-                {SHOP_EXPLORE_SORT_VALUES.map((value) => (
-                  <MenuItem key={value} value={value}>
-                    {t(`sortOption_${value}`)}
-                  </MenuItem>
+    <section id="explore-shop" className="gc-home-layout gc-page-block w-full scroll-mt-24 pb-10">
+      <header className="mb-8 md:mb-10">
+        <h1 className="gc-section-title">
+          {t("shopExploreTitle")}
+          <span className="ml-2 inline-block align-middle text-[0.85em] font-extrabold" aria-hidden>
+            🔎
+          </span>
+        </h1>
+        <p className="mt-3 max-w-2xl text-base leading-relaxed text-[var(--gc-text-muted)]">
+          {t("shopExploreSubtitle")}
+        </p>
+      </header>
+
+      <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
+        <ShopExploreCategoryAside
+          categoryMenuRows={categoryMenuRows}
+          activeCategory={offerSearch.category}
+          asideMode={{
+            mode: "inPageFilter",
+            onSelectCategory: (filterName) => {
+              setOfferSearch((p) => ({ ...p, category: filterName, page: 1 }));
+            },
+          }}
+        />
+
+        <div className="flex min-w-0 flex-1 flex-col gap-6">
+          <div className="gc-surface-card sticky top-[80px] z-20 flex flex-col gap-3 px-4 py-3">
+              <div className="relative w-full min-w-0">
+                <SearchIcon
+                  width="18"
+                  height="18"
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--gc-text-muted)]"
+                  fill="currentColor"
+                  aria-hidden
+                />
+                <input
+                  type="search"
+                  enterKeyHint="search"
+                  value={searchDraft}
+                  onChange={(e) => setSearchDraft(e.target.value)}
+                  placeholder={t("discoverSearchPlaceholder")}
+                  aria-label={t("discoverSearchLabel")}
+                  className={cn(
+                    "w-full min-w-0 rounded-full border border-[var(--gc-border)] bg-[var(--gc-surface)] py-2.5 pl-10 pr-4 text-sm text-[var(--gc-text)] shadow-sm",
+                    "placeholder:text-[var(--gc-text-soft)]",
+                    "focus-visible:border-[var(--gc-primary-strong)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gc-primary-strong)]"
+                  )}
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="mr-1 text-sm font-medium text-[var(--gc-text-muted)]">
+                  {t("discoverSortBy")}
+                </span>
+                {SHOP_EXPLORE_SORT_PILLS.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setSortBy(s)}
+                    className={cn(
+                      "rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors",
+                      "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gc-primary-strong)]",
+                      sortBy === s
+                        ? "border-[var(--gc-primary-strong)] bg-[var(--gc-primary-strong)] text-white"
+                        : "border-[var(--gc-border)] bg-[var(--gc-surface)] text-[var(--gc-text)] hover:border-[var(--gc-primary-strong)] hover:text-[var(--gc-primary-strong)]"
+                    )}
+                  >
+                    {sortPillLabel(s)}
+                  </button>
                 ))}
-              </Select>
-            </FormControl>
-          </div>
-        </div>
+                <span className="ml-auto text-sm text-[var(--gc-text-soft)]">
+                  {offersPending ? "—" : (offers?.total ?? 0)} {t("shopExploreResultsUnit")}
+                </span>
+              </div>
+            </div>
 
-        <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
-          <ShopExploreCategoryAside
-            categoryMenuRows={categoryMenuRows}
-            activeCategory={offerSearch.category}
-            asideMode={{
-              mode: "inPageFilter",
-              onSelectCategory: (filterName) => {
-                setOfferSearch((p) => ({ ...p, category: filterName, page: 1 }));
-              },
-            }}
-          />
-
-          <div className="min-w-0 flex-1">
             <MerchantListTracker
               items={sortedOffers}
               listId="merchant_directory"
@@ -193,7 +253,6 @@ const List = () => {
             </div>
           </div>
         </div>
-      </div>
     </section>
   );
 };

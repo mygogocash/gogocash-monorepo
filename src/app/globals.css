@@ -147,9 +147,9 @@ button {
   margin-top: clamp(2.1rem, 4vw, 3.4rem);
 }
 
-/* Figma 9509:146306 — Homepage frame 1440px, px-[120px], py-[40px] per block */
+/* Same shell grey as `<main>` — use theme token so it stays in sync with `bg-background` */
 .gc-home-page {
-  background-color: #ffffff;
+  background-color: var(--background);
 }
 
 .gc-home-layout {
