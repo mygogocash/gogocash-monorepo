@@ -9,8 +9,9 @@ import axios, {
 import xhrAdapter from "axios/lib/adapters/xhr.js";
 import { getSession } from "next-auth/react";
 
-// Internal-only: always use mock API.
-const baseURL = "/api/mock";
+// Use real API when NEXT_PUBLIC_API_URL is set; fall back to local mock.
+const baseURL = process.env.NEXT_PUBLIC_API_URL || "/api/mock";
+const isRealApi = !!process.env.NEXT_PUBLIC_API_URL;
 
 const firebaseStaticMockAdapter: AxiosAdapter = async (
   config: InternalAxiosRequestConfig,
@@ -50,6 +51,13 @@ const firebaseStaticMockAdapter: AxiosAdapter = async (
 };
 
 const hybridAdapter: AxiosAdapter = (config) => {
+  // Skip mock adapter when connected to real API
+  if (isRealApi) {
+    if (typeof xhrAdapter !== "function") {
+      return Promise.reject(new Error("XHR adapter unavailable"));
+    }
+    return xhrAdapter(config);
+  }
   if (typeof window !== "undefined" && isStaticHostingClient()) {
     return firebaseStaticMockAdapter(config);
   }

@@ -8,9 +8,10 @@ export default function CopyButton({ value }: { value: string | null | undefined
   const handleCopy = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      navigator.clipboard.writeText(text).then(() => {
-        toast.success(`Copied: ${text}`, { duration: 1500 });
-      });
+      navigator.clipboard.writeText(text).then(
+        () => toast.success(`Copied: ${text}`, { duration: 1500 }),
+        () => toast.error("Clipboard access denied", { duration: 1500 }),
+      );
     },
     [text],
   );

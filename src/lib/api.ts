@@ -30,11 +30,19 @@ import { AxiosRequestConfig } from "axios";
 
 class ApiClient {
   private getBaseURL(): string {
+    // Use real API when configured; fall back to local mock.
+    const realApi = process.env.NEXT_PUBLIC_API_URL;
+    if (realApi) return realApi;
+
     if (typeof window !== "undefined") {
       return `${window.location.origin}/api/mock`;
     }
     const appOrigin = (process.env.NEXTAUTH_URL || "http://localhost:3000").replace(/\/$/, "");
     return `${appOrigin}/api/mock`;
+  }
+
+  private get isRealApi(): boolean {
+    return !!process.env.NEXT_PUBLIC_API_URL;
   }
 
   private async request<T>(
@@ -66,7 +74,7 @@ class ApiClient {
       data: parsedBody,
     };
 
-    if (typeof window !== "undefined" && isStaticHostingClient()) {
+    if (!this.isRealApi && typeof window !== "undefined" && isStaticHostingClient()) {
       const { handleMockApiRequest } = await import("@/lib/mockApiCore");
       const u = new URL(url);
       const prefix = "/api/mock";
