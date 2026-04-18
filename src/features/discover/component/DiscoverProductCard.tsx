@@ -69,8 +69,8 @@ export function DiscoverProductCard({
           <CategoryChip
             label={categoryLabel}
             iconIndex={iconIndex}
-            size="sm"
-            className="max-w-full shrink-0"
+            size="md"
+            className="min-w-0 max-w-full shrink-0"
           />
 
           <p
