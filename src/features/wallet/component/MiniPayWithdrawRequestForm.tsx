@@ -47,9 +47,17 @@ export default function MiniPayWithdrawRequestForm() {
   const [amountStr, setAmountStr] = useState("");
   const [currency, setCurrency] = useState<ManualWithdrawCurrency>("USDT");
 
+  const MAX_AMOUNT = 1_000_000;
+  /**
+   * Clamp to 2 decimal places to dodge IEEE-754 jitter from `Number(...)`
+   * on user input like `"0.1"`, and cap at the server-side maximum so a
+   * client-side bug can't send `Infinity` or a string-coerced NaN.
+   */
   const amount = useMemo(() => {
     const n = Number(amountStr);
-    return Number.isFinite(n) && n > 0 ? n : 0;
+    if (!Number.isFinite(n) || n <= 0) return 0;
+    const rounded = Math.round(n * 100) / 100;
+    return Math.min(rounded, MAX_AMOUNT);
   }, [amountStr]);
 
   const submit = useMutation({

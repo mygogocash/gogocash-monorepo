@@ -22,9 +22,10 @@
  */
 
 import { useIsInMiniPay } from "@/lib/web3/useIsInMiniPay";
+import { fetchSiweNonce } from "@/lib/services/auth";
 import { signIn, useSession } from "next-auth/react";
 import { useEffect, useRef } from "react";
-import { createSiweMessage, generateSiweNonce } from "viem/siwe";
+import { createSiweMessage } from "viem/siwe";
 import { useAccount, useConnect, useConnectors, useSignMessage } from "wagmi";
 
 /** Celo mainnet chain id — SIWE message binding. Matches `wagmi/chains`' `celo`. */
@@ -59,11 +60,12 @@ export function MiniPayAutoSignIn() {
 
     (async () => {
       try {
+        const { nonce } = await fetchSiweNonce();
         const message = createSiweMessage({
           address,
           chainId: CELO_CHAIN_ID,
           domain: window.location.host,
-          nonce: generateSiweNonce(),
+          nonce,
           statement: "Sign in to GoGoCash with your MiniPay wallet.",
           uri: window.location.origin,
           version: "1",

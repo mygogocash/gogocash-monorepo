@@ -57,11 +57,15 @@ export const authOptions: AuthOptions = {
             }).catch(() => null);
             if (!res?.user) return null;
             const u = res.user;
+            // `u.address` is the backend-normalised, signature-verified wallet.
+            // If it's missing we refuse the session rather than trusting the
+            // raw `credentials.address` string the client submitted.
+            if (!u.address) return null;
             return {
               email: u.email ?? "",
               username: u.username,
               id_twitter: u.id_twitter,
-              wallet: u.address ?? credentials.address,
+              wallet: u.address,
               access_token: res.token,
               _id: u._id,
               region: u.country,
