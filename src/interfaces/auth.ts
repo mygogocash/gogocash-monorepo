@@ -26,7 +26,20 @@ export interface User {
   id_number?: string;
   /** Residential or legal address — not the Web3 wallet `address` field. */
   legal_address?: string;
+  /**
+   * Membership tier (GoGoPass / free). When set to a premium tier, the
+   * Customer App renders a gold badge + ring around the user's avatar.
+   */
+  membership_tier?: MembershipTier;
 }
+
+/**
+ * Membership tiers drive the premium visual treatment.
+ * - `"free"` / `undefined`: standard user — no badge or ring.
+ * - `"gogopass"`: GoGoPass premium — gold badge + ring.
+ * - Higher tiers reserved for future use.
+ */
+export type MembershipTier = "free" | "gogopass" | "gogopass-pro";
 
 export interface IDataSignIn {
   access_token: string;

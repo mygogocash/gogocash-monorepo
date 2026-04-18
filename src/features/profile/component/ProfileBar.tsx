@@ -1,6 +1,10 @@
 "use client";
 import ArrowIcon from "@/components/icons/ArrowIcon";
+import PremiumAvatar from "@/components/premium/PremiumAvatar";
+import PremiumMark from "@/components/premium/PremiumMark";
+import { isPremiumTier } from "@/components/premium/premiumTokens";
 import { designSystemColor } from "@/constants/design-system";
+import type { MembershipTier } from "@/interfaces/auth";
 import { combineAvailableBalance } from "@/lib/withdraw/combineAvailableBalance";
 import { checkThai, formatAddress, formatCashDisplay } from "@/lib/utils";
 import { useCrossmintLoginContext } from "@/providers/CrossmintLoginContext";
@@ -34,6 +38,18 @@ const ProfileBar = () => {
   const thai = session?.user?.region === "Thailand" || checkThai;
   const combinedDisplay = combineAvailableBalance(getCheck, thai);
 
+  /*
+   * Temporary preview flag: NEXT_PUBLIC_GOGOPASS_PREVIEW=1 renders every
+   * logged-in user as a GoGoPass member so we can demo the premium
+   * treatment before the membership API is wired into the session.
+   * Replace with `session?.user?.membership_tier` once available.
+   */
+  const sessionTier = (session?.user as { membership_tier?: MembershipTier } | undefined)
+    ?.membership_tier;
+  const previewEnabled = process.env.NEXT_PUBLIC_GOGOPASS_PREVIEW === "1";
+  const membershipTier: MembershipTier | undefined =
+    sessionTier ?? (previewEnabled && session?.user ? "gogopass" : undefined);
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       // ตรวจสอบว่าได้คลิกนอก Popper Container และนอก Trigger Button หรือไม่
@@ -62,26 +78,47 @@ const ProfileBar = () => {
     <>
       <div
         ref={triggerRef}
-        className="gc-soft-panel flex h-12 w-fit items-center justify-center gap-2 rounded-full px-2"
+        className="gc-soft-panel flex h-12 w-fit items-center gap-2.5 rounded-full px-2"
         onClick={handleClick}
       >
-        <Image
-          src="/profile.png"
-          alt="Avatar"
-          width={128}
-          height={128}
-          sizes="34px"
-          quality={92}
-          className="h-[34px] w-[34px] rounded-full object-cover"
-        />
-        <div className="lg:block hidden">
-          <p className="text-[12px] text-[#87948B] line-clamp-1">
-            {(session?.user?.username != "undefined" ? session?.user?.username : "USER") ||
-              (session?.user?.wallet != "undefined"
-                ? formatAddress(session?.user?.wallet || "")
-                : "USER")}
-          </p>
-          <p className="text-[14px] font-normal" style={{ color: designSystemColor.mint }}>
+        <PremiumAvatar tier={membershipTier} size={34}>
+          <Image
+            src="/profile.png"
+            alt="Avatar"
+            width={128}
+            height={128}
+            sizes="34px"
+            quality={92}
+            className="h-full w-full rounded-full object-cover"
+          />
+        </PremiumAvatar>
+        <div className="lg:block hidden min-w-0 pr-0.5">
+          {/*
+           * Premium users get a bolder, darker name — signals hierarchy.
+           * A tiny gold verification mark sits after the name (like a
+           * Twitter blue tick but gold). The full "GoGoPass" label lives
+           * in the popper and on larger profile surfaces — putting it
+           * here again competes with the username at this compact size.
+           */}
+          <div className="flex items-center leading-tight">
+            <p
+              className={`text-[13px] line-clamp-1 ${
+                isPremiumTier(membershipTier)
+                  ? "font-semibold text-[#3B3B3B]"
+                  : "font-normal text-[#87948B]"
+              }`}
+            >
+              {(session?.user?.username != "undefined" ? session?.user?.username : "USER") ||
+                (session?.user?.wallet != "undefined"
+                  ? formatAddress(session?.user?.wallet || "")
+                  : "USER")}
+            </p>
+            <PremiumMark tier={membershipTier} size={13} marginLeft={5} />
+          </div>
+          <p
+            className="mt-0.5 text-[14px] font-medium leading-tight tabular-nums"
+            style={{ color: designSystemColor.mint }}
+          >
             {formatCashDisplay(combinedDisplay)} {thai ? "THB" : "USD"}
           </p>
         </div>
