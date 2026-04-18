@@ -7,16 +7,23 @@ import { designSystemColor } from "@/constants/design-system";
 import type { MembershipTier } from "@/interfaces/auth";
 import { combineAvailableBalance } from "@/lib/withdraw/combineAvailableBalance";
 import { checkThai, formatAddress, formatCashDisplay } from "@/lib/utils";
+import { useIsInMiniPay } from "@/lib/web3/useIsInMiniPay";
+import { useIsWalletUser } from "@/lib/web3/useIsWalletUser";
 import { useSessionContext } from "@/providers/SessionContext";
 import { Box, Popper } from "@mui/material";
 import { useSession } from "next-auth/react";
+import { useTranslations } from "next-intl";
 import Image from "next/image";
 import React, { useCallback, useEffect, useRef } from "react";
 import ProfileHeaderPopperContent from "./ProfileHeaderPopperContent";
 
 const ProfileBar = () => {
+  const t = useTranslations();
   const { data: session } = useSession();
   const { getCheck } = useSessionContext();
+  const isInMiniPay = useIsInMiniPay();
+  const isWalletUser = useIsWalletUser();
+  const showMiniPayBadge = isInMiniPay || isWalletUser;
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const popperRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
@@ -108,11 +115,21 @@ const ProfileBar = () => {
                   : "font-normal text-[#87948B]"
               }`}
             >
-              {(session?.user?.username != "undefined" ? session?.user?.username : "USER") ||
-                (session?.user?.wallet != "undefined"
-                  ? formatAddress(session?.user?.wallet || "")
-                  : "USER")}
+              {showMiniPayBadge && session?.user?.wallet
+                ? formatAddress(session.user.wallet)
+                : (session?.user?.username != "undefined" ? session?.user?.username : "USER") ||
+                  (session?.user?.wallet != "undefined"
+                    ? formatAddress(session?.user?.wallet || "")
+                    : "USER")}
             </p>
+            {showMiniPayBadge ? (
+              <span
+                className="ml-1.5 rounded-full bg-[#E8FBF4] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#00AA80]"
+                aria-label={t("minipayBadgeLabel")}
+              >
+                {t("minipayBadgeLabel")}
+              </span>
+            ) : null}
             <PremiumMark tier={membershipTier} size={13} marginLeft={5} />
           </div>
           <p
