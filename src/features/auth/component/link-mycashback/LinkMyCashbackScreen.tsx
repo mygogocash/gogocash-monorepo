@@ -5,9 +5,9 @@
  * stale Turbopack client bundles can throw MISSING_MESSAGE.
  * Copy resolves via static locale JSON → en fallback → literals (`copy.ts`).
  *
- * Figma: intro 9569-167488 · method 9573-224702 · verify 9573-225076
- * Valid OTP → success step; Continue → `/method/create`.
- * Skip → same `/method/create`.
+ * Figma: intro 9569-167488 · method 9573-224702 · verify 9573-225076 · account setup 9022-914403
+ * Valid OTP → success step; Continue → `/account-setup` (PromptPay-first onboarding).
+ * Skip (intro) → `/method/create` (generic editor; unchanged).
  */
 
 import { Link, useRouter } from "@/i18n/navigation";
@@ -60,7 +60,7 @@ export default function LinkMyCashbackScreen() {
   };
 
   const goToAccountSetupAfterVerify = () => {
-    router.replace("/method/create");
+    router.replace("/account-setup");
   };
 
   const onVerifyOtpSubmit = useCallback(() => {
