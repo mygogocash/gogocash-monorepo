@@ -121,6 +121,17 @@ export interface WithdrawList {
   updatedAt: Date;
   __v: number;
   slip_file: string;
+  /**
+   * "auto" (default) — user signed the on-chain tx themselves.
+   * "manual" — request submitted via MiniPay (or similar custodial flow);
+   *            admin fulfils externally via PATCH /withdraw/:id/mark-paid.
+   */
+  withdraw_mode?: "auto" | "manual";
+  /** Payout chain (e.g. "CELO") — populated on manual rows. */
+  chain?: string;
+  /** Admin user id who marked the manual request paid. */
+  paid_by?: string;
+  paid_at?: string | Date;
 }
 export interface AllConversion {
   _id: string;

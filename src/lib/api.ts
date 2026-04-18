@@ -576,6 +576,29 @@ class ApiClient {
     });
   }
 
+  /**
+   * Mark a manual (MiniPay) withdraw request as paid. Accepts the on-chain
+   * tx hash of the admin-side payout. Backend endpoint is
+   * `PATCH /withdraw/:id/mark-paid` (admin-guarded).
+   */
+  async markWithdrawPaid(
+    id: string,
+    tx_hash: string,
+    token: string,
+  ): Promise<{ success: boolean; data: unknown }> {
+    return this.request<{ success: boolean; data: unknown }>(
+      `/withdraw/${id}/mark-paid`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ tx_hash }),
+      },
+    );
+  }
+
   async getConversion(
     query: ConversionQuery = {},
     token: string,

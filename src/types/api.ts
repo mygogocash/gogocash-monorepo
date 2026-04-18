@@ -626,7 +626,12 @@ export interface DataWithdrawsList {
   createdAt: Date;
   updatedAt: Date;
   __v: number;
-  slip_file: string
+  slip_file: string;
+  /** "auto" — user signed on-chain; "manual" — MiniPay request, admin pays. */
+  withdraw_mode?: "auto" | "manual";
+  chain?: string;
+  paid_by?: string;
+  paid_at?: string | Date;
 }
 
 export interface Pagination {
