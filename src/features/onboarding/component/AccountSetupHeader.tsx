@@ -3,29 +3,28 @@
 import { LogoMark } from "@/components/brand/LogoMark";
 import { useTranslations } from "next-intl";
 
-const MINT = "#00CC99";
-
 /**
- * Top of every Account Setup step: logo → mint "Account Setup" heading → subtitle
- * → PromptPay badge. Kept in one place so every sub-flow starts visually identical.
+ * Top of every Account Setup step: logo → mint heading → subtitle → PromptPay
+ * badge. Centered to match the sign-in page's header treatment
+ * (LoginComponent.tsx L547–556); `LogoMark` gets the same mobile shadow
+ * ornament and clears it on `lg:`.
  *
  * `headingId` lets each step wire its own `aria-labelledby` on the form below.
  */
 export function AccountSetupHeader({ headingId }: { headingId: string }) {
   const t = useTranslations();
   return (
-    <div className="flex flex-col items-center gap-6 text-center md:items-start md:text-left">
-      <LogoMark />
-      <div className="flex flex-col gap-2">
-        <h1
-          id={headingId}
-          className="text-[34px] font-semibold leading-tight tracking-tight"
-          style={{ color: MINT }}
-        >
-          {t("accountSetupTitle")}
-        </h1>
-        <p className="text-[15px] leading-relaxed text-[#5B6B61]">{t("accountSetupSubtitle")}</p>
-      </div>
+    <div className="flex shrink-0 flex-col items-center gap-3 text-center">
+      <LogoMark className="bg-[#fafafa] shadow-[0_4px_24px_rgba(0,0,0,0.06)] lg:bg-white lg:shadow-none" />
+      <h1
+        id={headingId}
+        className="text-[clamp(1.75rem,4vw,2.5rem)] font-semibold leading-tight text-[#00cc99] lg:text-[1.625rem]"
+      >
+        {t("accountSetupTitle")}
+      </h1>
+      <p className="text-sm leading-snug text-[#7f7f7f] lg:text-[13px]">
+        {t("accountSetupSubtitle")}
+      </p>
       <PromptPayBadge />
     </div>
   );

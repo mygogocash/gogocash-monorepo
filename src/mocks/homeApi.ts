@@ -2671,6 +2671,29 @@ export const getMockApiResponse = (
       return toggleFavoriteBrand(brandId);
     }
 
+    if (pathname === "/withdraw/methods") {
+      // Account Setup flow submits here. Mock a plausible success payload
+      // so the happy path (PromptPay via registered phone / other phone /
+      // citizen ID) redirects to home as intended in mock-API mode.
+      const payload = isRecord(body) ? body : {};
+      return {
+        message: "Method created",
+        status: "success",
+        data: {
+          _id: `mock_method_${Date.now()}`,
+          account_no: String(payload.account_no ?? ""),
+          account_name: String(payload.account_name ?? ""),
+          bank_name: String(payload.bank_name ?? ""),
+          bank_code: String(payload.bank_code ?? ""),
+          is_default: Boolean(payload.is_default),
+          user_id: getActiveUserProfile()._id,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          __v: 0,
+        },
+      };
+    }
+
     if (pathname === "/withdraw/signature") {
       return MOCK_WITHDRAW_SIGNATURE;
     }

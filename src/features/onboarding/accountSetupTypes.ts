@@ -2,9 +2,9 @@
  * Account Setup onboarding — shared types.
  *
  * The screen is a step machine. Paths:
- *  - registered_phone:   intro → rp_name → rp_qr → (submit) → success
- *  - other_phone:        intro → op_input → op_otp → op_name → (submit) → success
- *  - citizen_id:         intro → ci_input → ci_name → (submit) → success
+ *  - registered_phone:   intro → (submit) → home (direct submit from intro)
+ *  - other_phone:        intro → op_input → op_otp → op_name → (submit) → home
+ *  - citizen_id:         intro → ci_input → ci_name → (submit) → home
  *
  * Figma: 9756-214495 (overview) · 9022-914403 (primary frame)
  */
@@ -12,17 +12,14 @@
 /** Which PromptPay identity the user picked on the intro step. */
 export type PromptPayChoice = "registered_phone" | "other_phone" | "citizen_id";
 
-/** Finite set of step ids across all three sub-flows. `success` opens the modal overlay. */
+/** Finite set of step ids across all sub-flows. */
 export type AccountSetupStep =
   | "intro"
-  | "rp_name"
-  | "rp_qr"
   | "op_input"
   | "op_otp"
   | "op_name"
   | "ci_input"
-  | "ci_name"
-  | "success";
+  | "ci_name";
 
 /** User-entered values held by the orchestrator and handed to each step component. */
 export type AccountSetupFormState = {
