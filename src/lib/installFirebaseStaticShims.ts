@@ -1,34 +1,145 @@
 /**
  * Firebase static export: no API routes on the host. Patch `fetch` before NextAuth runs.
- * - `/api/auth/*` — session, csrf, providers, callback, signout (NextAuth client)
- * - `/api/mock/*` — same behavior as `mockApiCore` (used by `fetch()`)
+ * - `/api/auth/*` — always shimmed on static builds (no server-side NextAuth handler exists).
+ *   When `NEXT_PUBLIC_API_URL` is set, the credentials `callback` hits the REAL admin login
+ *   endpoint and stores the returned token in localStorage; subsequent `session` calls return
+ *   that token. When unset, returns a synthetic mock session.
+ * - `/api/mock/*` — only shimmed when `NEXT_PUBLIC_API_URL` is NOT set (real API mode
+ *   bypasses mock entirely).
  */
 import { handleMockApiRequest } from "@/lib/mockApiCore";
 import { DEFAULT_MOCK_ACCESS_TOKEN } from "@/lib/authTokens";
-import { isStaticHostingClient } from "@/lib/isStaticHostingClient";
-import { DEFAULT_POST_LOGIN_PATH, safeAppPathFromCallback } from "@/lib/safeCallbackUrl";
+import {
+  isStaticExportBuild,
+  isStaticHostingClient,
+} from "@/lib/isStaticHostingClient";
+import {
+  DEFAULT_POST_LOGIN_PATH,
+  safeAppPathFromCallback,
+} from "@/lib/safeCallbackUrl";
 
-function syntheticNextAuthSession(): string {
+interface RealApiSession {
+  accessToken: string;
+  email: string;
+  id: string;
+  username: string;
+}
+
+const REAL_SESSION_STORAGE_KEY = "gogocash:admin:realSession";
+
+function readRealSession(): RealApiSession | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(REAL_SESSION_STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as RealApiSession;
+  } catch {
+    return null;
+  }
+}
+
+function writeRealSession(session: RealApiSession | null): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (session) {
+      window.localStorage.setItem(
+        REAL_SESSION_STORAGE_KEY,
+        JSON.stringify(session),
+      );
+    } else {
+      window.localStorage.removeItem(REAL_SESSION_STORAGE_KEY);
+    }
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+function sessionPayload(real: RealApiSession | null): string {
   const expires = new Date(Date.now() + 30 * 86400000).toISOString();
+  if (real) {
+    return JSON.stringify({
+      user: { name: real.username, email: real.email, id: real.id },
+      expires,
+      accessToken: real.accessToken,
+    });
+  }
   return JSON.stringify({
-    user: {
-      name: "admin",
-      email: "admin@gogocash.co",
-      id: "a1",
-    },
+    user: { name: "admin", email: "admin@gogocash.co", id: "a1" },
     expires,
     accessToken: DEFAULT_MOCK_ACCESS_TOKEN,
   });
 }
 
-/**
- * Handle NextAuth client `fetch` calls on static hosting (no `/api/auth` server).
- */
-function staticAuthResponse(
+async function handleRealCredentialsLogin(
+  bodyText: string | undefined,
+): Promise<Response> {
+  const origin = window.location.origin;
+  let email = "";
+  let password = "";
+  let callbackUrl = `${origin}${DEFAULT_POST_LOGIN_PATH}`;
+  if (bodyText) {
+    try {
+      const params = new URLSearchParams(bodyText);
+      email = params.get("email") || "";
+      password = params.get("password") || "";
+      const c = params.get("callbackUrl");
+      const path = safeAppPathFromCallback(c);
+      if (path) callbackUrl = `${origin}${path}`;
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const apiBase = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
+  try {
+    const res = await fetch(`${apiBase}/admin/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data?.token) {
+      const message = data?.message || `Login failed (${res.status})`;
+      // NextAuth treats non-2xx as a catastrophic error and redirects to
+      // /api/auth/error (which doesn't exist on static hosting). Return 200
+      // with ok:false + a signin URL so the client stays on the sign-in page.
+      return new Response(
+        JSON.stringify({
+          url: `${origin}/signin/?error=${encodeURIComponent("CredentialsSignin")}`,
+          error: message,
+          ok: false,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    }
+    writeRealSession({
+      accessToken: data.token,
+      email: data.email || email,
+      id: data._id || data.id || "admin",
+      username: data.username || "admin",
+    });
+    return new Response(JSON.stringify({ url: callbackUrl, ok: true }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    return new Response(
+      JSON.stringify({
+        url: `${origin}/signin/?error=CredentialsSignin`,
+        error: err instanceof Error ? err.message : "Network error",
+        ok: false,
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
+  }
+}
+
+async function staticAuthResponse(
   pathname: string,
   method: string,
   bodyText: string | undefined,
-): Response {
+): Promise<Response> {
+  const hasRealApi = !!process.env.NEXT_PUBLIC_API_URL;
   let rest = "";
   if (pathname.startsWith("/api/auth/")) {
     rest = pathname.slice("/api/auth/".length).split("?")[0];
@@ -37,8 +148,8 @@ function staticAuthResponse(
   const m = method.toUpperCase();
 
   if (rest === "session") {
-    // GET (read session) or POST (SessionProvider.update with CSRF + body)
-    return new Response(syntheticNextAuthSession(), {
+    const real = hasRealApi ? readRealSession() : null;
+    return new Response(sessionPayload(real), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
@@ -67,15 +178,16 @@ function staticAuthResponse(
   }
 
   if (rest.startsWith("callback/") && m === "POST") {
+    if (hasRealApi) {
+      return handleRealCredentialsLogin(bodyText);
+    }
     let callbackUrl = `${origin}${DEFAULT_POST_LOGIN_PATH}`;
     if (bodyText) {
       try {
         const params = new URLSearchParams(bodyText);
         const c = params.get("callbackUrl");
         const path = safeAppPathFromCallback(c);
-        if (path) {
-          callbackUrl = `${origin}${path}`;
-        }
+        if (path) callbackUrl = `${origin}${path}`;
       } catch {
         /* ignore */
       }
@@ -87,6 +199,7 @@ function staticAuthResponse(
   }
 
   if (rest === "signout") {
+    writeRealSession(null);
     const url = origin ? `${origin}/` : "/";
     return new Response(JSON.stringify({ url }), {
       status: 200,
@@ -108,7 +221,7 @@ function staticAuthResponse(
 }
 
 export function installFirebaseStaticShims(): void {
-  if (typeof window === "undefined" || !isStaticHostingClient()) return;
+  if (typeof window === "undefined" || !isStaticExportBuild()) return;
   const w = window as Window & { __gogocashFetchShimInstalled?: boolean };
   if (w.__gogocashFetchShimInstalled) return;
   w.__gogocashFetchShimInstalled = true;
@@ -140,31 +253,33 @@ export function installFirebaseStaticShims(): void {
       return staticAuthResponse(pathname, method, bodyText);
     }
 
-
-    const mockMarker = "/api/mock";
-    const mockIdx = pathname.indexOf(mockMarker);
-    if (mockIdx !== -1) {
-      const after = pathname.slice(mockIdx + mockMarker.length);
-      const rest = after.replace(/^\/+/, "");
-      const pathSegments = rest ? rest.split("/").filter(Boolean) : [];
-      let body: unknown = undefined;
-      if (bodyText) {
-        try {
-          body = JSON.parse(bodyText);
-        } catch {
-          body = undefined;
+    // Only intercept /api/mock/* when we're NOT pointed at a real API.
+    if (isStaticHostingClient()) {
+      const mockMarker = "/api/mock";
+      const mockIdx = pathname.indexOf(mockMarker);
+      if (mockIdx !== -1) {
+        const after = pathname.slice(mockIdx + mockMarker.length);
+        const rest = after.replace(/^\/+/, "");
+        const pathSegments = rest ? rest.split("/").filter(Boolean) : [];
+        let body: unknown = undefined;
+        if (bodyText) {
+          try {
+            body = JSON.parse(bodyText);
+          } catch {
+            body = undefined;
+          }
         }
+        const result = await handleMockApiRequest({
+          method,
+          path: pathSegments,
+          searchParams: u.searchParams,
+          body,
+        });
+        return new Response(JSON.stringify(result.body), {
+          status: result.status,
+          headers: { "Content-Type": "application/json" },
+        });
       }
-      const result = await handleMockApiRequest({
-        method,
-        path: pathSegments,
-        searchParams: u.searchParams,
-        body,
-      });
-      return new Response(JSON.stringify(result.body), {
-        status: result.status,
-        headers: { "Content-Type": "application/json" },
-      });
     }
 
     return orig(input as RequestInfo, init);
