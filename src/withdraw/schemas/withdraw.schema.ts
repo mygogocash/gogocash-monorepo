@@ -61,6 +61,36 @@ export class Withdraw {
 
   @Prop({ type: String, required: false })
   flag_reason: string;
+
+  /**
+   * `"auto"` (default) — user signed an on-chain tx themselves; `tx_hash` is
+   * populated immediately. `"manual"` — user submitted a request from a
+   * custodial context (e.g. MiniPay); admin sends the payout externally and
+   * records the tx hash via `PATCH /admin/withdraw/:id/mark-paid`.
+   *
+   * Default `"auto"` keeps every pre-existing withdraw record valid without a
+   * backfill migration.
+   */
+  @Prop({ type: String, enum: ['auto', 'manual'], default: 'auto' })
+  withdraw_mode: 'auto' | 'manual';
+
+  /**
+   * Which chain the payout is on. Populated for manual requests
+   * (currently always `"CELO"` for MiniPay). Left optional so the existing
+   * auto flow is unchanged.
+   */
+  @Prop({ type: String, required: false })
+  chain: string;
+
+  /** Admin user id who marked the manual request paid. */
+  @Prop({ type: String, required: false })
+  paid_by: string;
+
+  @Prop({ type: Date, required: false })
+  paid_at: Date;
 }
 
 export const WithdrawSchema = SchemaFactory.createForClass(Withdraw);
+
+/** Supports the admin "Pending manual" filter in O(log n). */
+WithdrawSchema.index({ withdraw_mode: 1, status: 1 });

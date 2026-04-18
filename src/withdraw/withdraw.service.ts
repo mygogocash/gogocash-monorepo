@@ -5,9 +5,11 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import {
+  CreateManualWithdrawRequestDto,
   CreateWithdrawDto,
   GETSignDTO,
   GetWithdrawTransactionsDTO,
+  MarkWithdrawPaidDto,
   RequestCreateRewardList,
 } from './dto/create-withdraw.dto';
 import {
@@ -1137,6 +1139,119 @@ export class WithdrawService {
       });
     }
     return { message: 'Withdraw request created', data: dt, status: 'success' };
+  }
+
+  /**
+   * MiniPay manual withdraw request.
+   *
+   * No on-chain call — the user's wallet is custodial (MiniPay) and they can
+   * not sign contract calls. Admin fulfils the request externally, then
+   * marks the record paid via {@link markWithdrawPaid}.
+   *
+   * Rejects if the user already has a pending manual request (one-at-a-time)
+   * or if their session doesn't carry an email (tight coupling with the
+   * blocking email modal on the client — server enforces the same contract).
+   */
+  async createManualWithdrawRequest(
+    dto: CreateManualWithdrawRequestDto,
+    userId: string,
+  ) {
+    const user = await this.userModel.findOne({
+      _id: new Types.ObjectId(userId),
+    });
+    if (!user) {
+      throw new UnauthorizedException({ message: 'User not found' });
+    }
+    if (!user.email || user.email.trim().length === 0) {
+      throw new HttpException(
+        { message: 'Email required before requesting a withdrawal' },
+        400,
+      );
+    }
+
+    const existingPending = await this.withdrawModel
+      .findOne({
+        user_id: user._id,
+        withdraw_mode: 'manual',
+        status: 'pending',
+      })
+      .lean();
+    if (existingPending) {
+      throw new HttpException(
+        {
+          message:
+            'You already have a pending withdrawal request. Please wait for it to be processed.',
+        },
+        409,
+      );
+    }
+
+    const record = await this.withdrawModel.create({
+      user_id: user._id,
+      status: 'pending',
+      address: dto.address,
+      account_name: user.username || '',
+      bank_name: '',
+      account_number: '',
+      tx_hash: '',
+      tx_hash_record: '',
+      percent_fee: 0,
+      amount_total: dto.amount,
+      amount_net: dto.amount,
+      method: 'minipay_manual',
+      currency: dto.currency,
+      chain: 'CELO',
+      conversion_id: [],
+      mycashback_id: [],
+      rate: 0,
+      withdraw_mode: 'manual',
+    });
+
+    return {
+      success: true,
+      data: record,
+    };
+  }
+
+  /**
+   * Admin action: record that the MiniPay manual payout has been sent on-chain.
+   * Idempotent — if the record is already paid, returns it unchanged rather
+   * than double-paying.
+   */
+  async markWithdrawPaid(
+    withdrawId: string,
+    dto: MarkWithdrawPaidDto,
+    adminId: string,
+  ) {
+    if (!Types.ObjectId.isValid(withdrawId)) {
+      throw new HttpException({ message: 'Invalid withdraw id' }, 400);
+    }
+    const existing = await this.withdrawModel.findById(withdrawId);
+    if (!existing) {
+      throw new HttpException({ message: 'Withdraw not found' }, 404);
+    }
+    if (existing.withdraw_mode !== 'manual') {
+      throw new HttpException(
+        { message: 'Only manual withdrawals can be marked paid' },
+        400,
+      );
+    }
+    if (existing.status === 'paid' || existing.status === 'approved') {
+      return { success: true, data: existing };
+    }
+    const updated = await this.withdrawModel.findByIdAndUpdate(
+      withdrawId,
+      {
+        $set: {
+          status: 'paid',
+          tx_hash: dto.tx_hash,
+          paid_by: adminId,
+          paid_at: new Date(),
+        },
+      },
+      { new: true },
+    );
+    return { success: true, data: updated };
   }
 
   async createBankTransfer(createWithdrawDto: CreateWithdrawDto, id: string) {
