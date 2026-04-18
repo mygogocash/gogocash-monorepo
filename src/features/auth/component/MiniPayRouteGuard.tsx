@@ -1,10 +1,16 @@
 "use client";
 
 /**
- * Redirect MiniPay users away from routes that don't apply to them:
- * auth (`/login`, `/register`), Link-MyCashBack and Account Setup
- * (Thai-only flows that assume phone/bank infrastructure). Mounts
- * invisibly in the client shell; returns null.
+ * Redirect MiniPay users away from routes that don't apply to them.
+ *
+ * Two tiers:
+ * - Thai-only post-auth flows (`/link-mycashback`, `/account-setup`) never
+ *   apply in a MiniPay context, signed in or not → blocked whenever
+ *   `isInMiniPay || isWalletUser`.
+ * - Auth routes (`/login`, `/register`) are only blocked once the user is
+ *   actually authenticated as a wallet user. An anonymous visitor in the
+ *   MiniPay mock (or a real MiniPay session where auto-SIWE hasn't landed
+ *   yet) still needs `/login` as an escape hatch.
  */
 
 import { useIsInMiniPay } from "@/lib/web3/useIsInMiniPay";
@@ -12,12 +18,8 @@ import { useIsWalletUser } from "@/lib/web3/useIsWalletUser";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-const REDIRECT_PREFIXES = [
-  "/login",
-  "/register",
-  "/link-mycashback",
-  "/account-setup",
-];
+const THAI_ONLY_PREFIXES = ["/link-mycashback", "/account-setup"];
+const AUTH_PREFIXES = ["/login", "/register"];
 
 const LOCALES = ["en", "th"];
 
@@ -30,12 +32,8 @@ function stripLocale(pathname: string | null): string | null {
   return pathname;
 }
 
-function pathIsBlocked(pathname: string | null): boolean {
-  const p = stripLocale(pathname);
-  if (!p) return false;
-  return REDIRECT_PREFIXES.some(
-    (prefix) => p === prefix || p.startsWith(`${prefix}/`)
-  );
+function matchesPrefix(path: string, prefixes: string[]): boolean {
+  return prefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
 }
 
 export function MiniPayRouteGuard() {
@@ -46,7 +44,13 @@ export function MiniPayRouteGuard() {
 
   useEffect(() => {
     if (!isInMiniPay && !isWalletUser) return;
-    if (pathIsBlocked(pathname)) {
+    const p = stripLocale(pathname);
+    if (!p) return;
+
+    const blockThai = matchesPrefix(p, THAI_ONLY_PREFIXES);
+    const blockAuth = isWalletUser && matchesPrefix(p, AUTH_PREFIXES);
+
+    if (blockThai || blockAuth) {
       router.replace("/");
     }
   }, [isInMiniPay, isWalletUser, pathname, router]);
