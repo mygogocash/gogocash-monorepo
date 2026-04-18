@@ -1,17 +1,31 @@
 import type { Offer } from "@/types/api";
 
-function parseCommissionPercentString(s: string): number | null {
-  const m = s.trim().match(/([\d.]+)\s*%/);
+function parseCommissionPercentString(s: unknown): number | null {
+  if (s == null) return null;
+  const str = typeof s === "string" ? s : String(s);
+  const m = str.trim().match(/([\d.]+)\s*%/);
   if (m) return parseFloat(m[1]);
   return null;
 }
 
-/** Best partner % from rate strings (e.g. `"5%"`, `"3% CPA"`). */
-export function bestPercentFromPartnerRates(commissions: string[]): number {
+/**
+ * Best partner % from commission data.
+ * Handles both string arrays (`["5%"]`) and Involve Asia object arrays
+ * (`[{ "Commission": "2.80%" }]`).
+ */
+export function bestPercentFromPartnerRates(commissions: unknown[]): number {
   let max = 0;
   for (const c of commissions) {
-    const p = parseCommissionPercentString(c);
-    if (p != null && p > max) max = p;
+    if (c != null && typeof c === "object") {
+      // Involve Asia format: { "Commission": "2.80%", ... }
+      for (const val of Object.values(c as Record<string, unknown>)) {
+        const p = parseCommissionPercentString(val);
+        if (p != null && p > max) max = p;
+      }
+    } else {
+      const p = parseCommissionPercentString(c);
+      if (p != null && p > max) max = p;
+    }
   }
   return max;
 }

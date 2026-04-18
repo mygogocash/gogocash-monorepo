@@ -92,6 +92,8 @@ jobs:
         env:
           NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET_STAGING }}
           NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL_STAGING }}
+          # Customer App URL for "Open in App" deep links from admin rows.
+          NEXT_PUBLIC_APP_URL: https://app-staging.gogocash.co
           NEXT_TELEMETRY_DISABLED: "1"
 
       - name: Deploy to Firebase Hosting
