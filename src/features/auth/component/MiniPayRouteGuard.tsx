@@ -13,6 +13,7 @@
  *   yet) still needs `/login` as an escape hatch.
  */
 
+import { routing } from "@/i18n/routing";
 import { useIsInMiniPay } from "@/lib/web3/useIsInMiniPay";
 import { useIsWalletUser } from "@/lib/web3/useIsWalletUser";
 // NOTE: We intentionally import from `next/navigation` (not
@@ -29,12 +30,10 @@ import { useEffect } from "react";
 const THAI_ONLY_PREFIXES = ["/link-mycashback", "/account-setup"];
 const AUTH_PREFIXES = ["/login", "/register"];
 
-const LOCALES = ["en", "th"];
-
 function stripLocale(pathname: string | null): string | null {
   if (!pathname) return pathname;
   const [, first, ...rest] = pathname.split("/");
-  if (first && LOCALES.includes(first)) {
+  if (first && (routing.locales as readonly string[]).includes(first)) {
     return `/${rest.join("/")}` || "/";
   }
   return pathname;
