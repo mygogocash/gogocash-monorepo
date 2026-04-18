@@ -9,7 +9,7 @@
 
 import { useIsInMiniPay } from "@/lib/web3/useIsInMiniPay";
 import { useIsWalletUser } from "@/lib/web3/useIsWalletUser";
-import { usePathname, useRouter } from "@/i18n/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 const REDIRECT_PREFIXES = [
@@ -19,10 +19,22 @@ const REDIRECT_PREFIXES = [
   "/account-setup",
 ];
 
+const LOCALES = ["en", "th"];
+
+function stripLocale(pathname: string | null): string | null {
+  if (!pathname) return pathname;
+  const [, first, ...rest] = pathname.split("/");
+  if (first && LOCALES.includes(first)) {
+    return `/${rest.join("/")}` || "/";
+  }
+  return pathname;
+}
+
 function pathIsBlocked(pathname: string | null): boolean {
-  if (!pathname) return false;
+  const p = stripLocale(pathname);
+  if (!p) return false;
   return REDIRECT_PREFIXES.some(
-    (p) => pathname === p || pathname.startsWith(`${p}/`)
+    (prefix) => p === prefix || p.startsWith(`${prefix}/`)
   );
 }
 
