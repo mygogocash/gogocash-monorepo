@@ -58,11 +58,17 @@ export function MiniPayAutoSignIn() {
     if (signedForAddress.current === address) return;
     signedForAddress.current = address;
 
+    // Snapshot the address so an account switch mid-flight (after nonce
+    // fetch but before `signIn` lands) can't submit a stale address/sig
+    // pair that no longer matches the currently connected wallet.
+    const signingAddress = address;
     (async () => {
       try {
         const { nonce } = await fetchSiweNonce();
+        if (signingAddress !== signedForAddress.current) return;
+
         const message = createSiweMessage({
-          address,
+          address: signingAddress,
           chainId: CELO_CHAIN_ID,
           domain: window.location.host,
           nonce,
@@ -73,21 +79,32 @@ export function MiniPayAutoSignIn() {
         });
 
         const signature = await signMessageAsync({ message });
+        if (signingAddress !== signedForAddress.current) return;
 
         await signIn("firebase", {
           type: "minipay_siwe",
-          address,
+          address: signingAddress,
           siwe_message: message,
           siwe_signature: signature,
           redirect: false,
         });
       } catch {
         // User cancelled or a network hiccup occurred — allow a retry on the
-        // next render pass.
-        signedForAddress.current = null;
+        // next render pass (only if we're still on the same address).
+        if (signingAddress === signedForAddress.current) {
+          signedForAddress.current = null;
+        }
       }
     })();
-  }, [isInMiniPay, status, isConnected, address, connect, connectors, signMessageAsync]);
+  }, [
+    isInMiniPay,
+    status,
+    isConnected,
+    address,
+    connect,
+    connectors,
+    signMessageAsync,
+  ]);
 
   return null;
 }

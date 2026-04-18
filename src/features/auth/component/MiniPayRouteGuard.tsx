@@ -15,6 +15,14 @@
 
 import { useIsInMiniPay } from "@/lib/web3/useIsInMiniPay";
 import { useIsWalletUser } from "@/lib/web3/useIsWalletUser";
+// NOTE: We intentionally import from `next/navigation` (not
+// `@/i18n/navigation`) even though most other components use the i18n-aware
+// wrapper. This component mounts inside ProviderDefault in the ROOT
+// `app/layout.tsx`, which sits ABOVE the NextIntlClientProvider in
+// `app/[locale]/layout.tsx`. Importing from `@/i18n/navigation` throws
+// "No intl context found" on first render. `router.replace("/")` still
+// lands the user on the correct locale because next-intl middleware
+// re-applies the locale prefix on the redirect response.
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
