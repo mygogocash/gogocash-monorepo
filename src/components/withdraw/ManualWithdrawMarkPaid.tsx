@@ -14,7 +14,7 @@
  */
 
 import { apiClient } from "@/lib/api";
-import type { WithdrawList } from "@/types/withdraw";
+import { Status, type WithdrawList } from "@/types/withdraw";
 import { useState } from "react";
 
 type Props = {
@@ -31,7 +31,7 @@ export function ManualWithdrawMarkPaid({ withdraw, token, onMarkedPaid }: Props)
   const [error, setError] = useState<string | null>(null);
   const [confirmStep, setConfirmStep] = useState(false);
 
-  if (withdraw.withdraw_mode !== "manual" || withdraw.status !== "pending") {
+  if (withdraw.withdraw_mode !== "manual" || withdraw.status !== Status.Pending) {
     return null;
   }
 

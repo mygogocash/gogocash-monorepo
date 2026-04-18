@@ -106,19 +106,20 @@ class ApiClient {
       return response.data;
     } catch (error) {
       if (axios.default.isAxiosError(error) && error.response) {
-      const apiError: ApiError = {
-        message: error.response.data?.message || `HTTP Error ${error.response.status}`,
-        status: error.response.status,
-        errors: error.response.data?.errors,
-      };
-      throw apiError;
+        const message =
+          error.response.data?.message || `HTTP Error ${error.response.status}`;
+        throw Object.assign(new Error(message), {
+          status: error.response.status,
+          errors: error.response.data?.errors,
+        } satisfies Partial<ApiError>);
       }
-      
-      // Handle network or other errors
-      throw {
-      message: error instanceof Error ? error.message : 'Network error',
-      status: 0,
-      } as ApiError;
+
+      // Network or other non-HTTP errors — still an Error instance so
+      // global error handlers / Sentry / `instanceof Error` narrowing work.
+      const message = error instanceof Error ? error.message : "Network error";
+      throw Object.assign(new Error(message), {
+        status: 0,
+      } satisfies Partial<ApiError>);
     }
   }
 
