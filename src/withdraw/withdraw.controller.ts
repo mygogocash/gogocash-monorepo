@@ -11,9 +11,11 @@ import {
 } from '@nestjs/common';
 import { WithdrawService } from './withdraw.service';
 import {
+  CreateManualWithdrawRequestDto,
   CreateWithdrawDto,
   GETSignDTO,
   GetWithdrawTransactionsDTO,
+  MarkWithdrawPaidDto,
   RequestCreateRewardList,
 } from './dto/create-withdraw.dto';
 import {
@@ -99,6 +101,44 @@ export class WithdrawController {
       userId: id,
     });
     return this.withdrawService.create(createWithdrawDto, id);
+  }
+
+  /**
+   * MiniPay manual withdraw request. Stores a `withdraw_mode: "manual"`
+   * record in `pending`; admin fulfils externally and flips to `paid` via
+   * `PATCH /withdraw/:id/mark-paid`. USDT or USDC on Celo only.
+   */
+  @UseGuards(FirebaseAuthGuard)
+  @ApiBody({ type: CreateManualWithdrawRequestDto })
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Post('request-manual')
+  createManualRequest(
+    @Req() req: Request,
+    @Body() body: CreateManualWithdrawRequestDto,
+  ) {
+    const user = req['user'] as any;
+    const id = user?.sub;
+    return this.withdrawService.createManualWithdrawRequest(body, id);
+  }
+
+  /**
+   * Admin action: mark a manual withdraw request as paid. Takes the on-chain
+   * tx hash of the admin-side payout and stamps `paid_by` + `paid_at`.
+   */
+  @UseGuards(AuthAdminGuard)
+  @ApiBody({ type: MarkWithdrawPaidDto })
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Patch(':id/mark-paid')
+  markPaid(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() body: MarkWithdrawPaidDto,
+  ) {
+    const admin = req['user'] as { sub?: string } | undefined;
+    const adminId = admin?.sub ?? 'unknown';
+    return this.withdrawService.markWithdrawPaid(id, body, adminId);
   }
 
   @UseGuards(FirebaseAuthGuard)

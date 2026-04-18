@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { IsIn, IsNotEmpty, IsNumber, IsString, Min } from 'class-validator';
 
 export class CreateWithdrawDto {
   tx_hash?: string;
@@ -15,6 +16,36 @@ export class CreateWithdrawDto {
   chain?: number;
   mycashback_id?: string[];
   rate?: number;
+}
+
+/**
+ * MiniPay manual-withdraw request. The user picks USDT or USDC on Celo; an
+ * admin reviews + sends the payout externally and flips the record to paid
+ * via `PATCH /admin/withdraw/:id/mark-paid`. Chain is locked to Celo
+ * server-side — we don't accept a chain param from the client.
+ */
+export class CreateManualWithdrawRequestDto {
+  @ApiProperty({ description: 'User wallet address the payout should go to' })
+  @IsString()
+  @IsNotEmpty()
+  address: string;
+
+  @ApiProperty({ enum: ['USDT', 'USDC'] })
+  @IsString()
+  @IsIn(['USDT', 'USDC'])
+  currency: 'USDT' | 'USDC';
+
+  @ApiProperty({ description: 'Requested amount in the chosen token' })
+  @IsNumber()
+  @Min(0.01)
+  amount: number;
+}
+
+export class MarkWithdrawPaidDto {
+  @ApiProperty({ description: 'On-chain tx hash of the admin-initiated payout' })
+  @IsString()
+  @IsNotEmpty()
+  tx_hash: string;
 }
 
 export class GETSignDTO {
