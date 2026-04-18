@@ -166,6 +166,7 @@ const connectItem: MenuEntry = {
   href: GOGOCASH_LINKTREE_HREF,
   icon: GlobeIcon,
   external: true,
+  iconStroke: true,
 };
 
 const subscriptionItem: MenuEntry = {
