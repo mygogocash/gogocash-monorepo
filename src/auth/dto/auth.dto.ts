@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, IsString, Matches } from 'class-validator';
 
 export class SignInDto {
   @ApiProperty()
@@ -86,14 +86,17 @@ export class TelegramAuthDto {
 /**
  * MiniPay SIWE (EIP-4361) sign-in payload. The client signs a message of the
  * standard SIWE shape inside MiniPay; the server verifies the signature
- * recovers the claimed address and that `Issued At` is fresh (≤ 5 min old).
- * No server-issued nonce in this MVP — we rely on the timestamp window for
- * replay protection. Tightening to a server nonce is a follow-up.
+ * recovers the claimed address, that `Issued At` is fresh (≤ 5 min old), and
+ * that `Nonce:` matches a server-issued single-use record in the
+ * `siwenonces` collection.
  */
 export class MiniPaySiweDto {
-  @ApiProperty()
+  @ApiProperty({ example: '0x1234…40 hex chars total' })
   @IsString()
   @IsNotEmpty()
+  @Matches(/^0x[0-9a-fA-F]{40}$/, {
+    message: 'address must be a 0x-prefixed 40-char hex string',
+  })
   address: string;
 
   @ApiProperty()
@@ -101,9 +104,12 @@ export class MiniPaySiweDto {
   @IsNotEmpty()
   message: string;
 
-  @ApiProperty()
+  @ApiProperty({ example: '0x…130 hex chars (65-byte ECDSA)' })
   @IsString()
   @IsNotEmpty()
+  @Matches(/^0x[0-9a-fA-F]{130}$/, {
+    message: 'signature must be a 0x-prefixed 130-char hex string',
+  })
   signature: string;
 
   @ApiProperty({ required: false })

@@ -94,3 +94,35 @@ export const WithdrawSchema = SchemaFactory.createForClass(Withdraw);
 
 /** Supports the admin "Pending manual" filter in O(log n). */
 WithdrawSchema.index({ withdraw_mode: 1, status: 1 });
+
+/**
+ * Enforces uniqueness of on-chain tx hashes **only when populated**. Legacy
+ * rows (and any manual request still in `pending`) keep `tx_hash: ''` which
+ * the partial filter excludes, so the index doesn't reject empties.
+ */
+WithdrawSchema.index(
+  { tx_hash: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      tx_hash: { $exists: true, $type: 'string', $gt: '' },
+    },
+  },
+);
+
+/**
+ * Guarantees at most one `pending` manual request per user at the DB layer,
+ * closing the check-then-create race in `createManualWithdrawRequest`. The
+ * partial filter means rows in other states (paid/rejected/approved) don't
+ * collide and only manual-mode rows are constrained.
+ */
+WithdrawSchema.index(
+  { user_id: 1, withdraw_mode: 1, status: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      withdraw_mode: 'manual',
+      status: 'pending',
+    },
+  },
+);

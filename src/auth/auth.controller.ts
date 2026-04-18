@@ -20,6 +20,8 @@ import { Request } from 'express';
 import { FirebaseAuthGuard } from './firebase-auth.guard';
 import { OtpService } from './otp.service';
 import { SendOtpDto, VerifyOtpDto } from './dto/otp.dto';
+import { RateLimitGuard } from './rate-limit.guard';
+import { RateLimit } from './rate-limit.decorator';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -67,12 +69,27 @@ export class AuthController {
   }
 
   /**
+   * Issue a single-use SIWE nonce. Client fetches this before building the
+   * EIP-4361 message. The nonce is consumed on `POST /auth/minipay-siwe` and
+   * the collection has a 5-minute TTL so unused ones are pruned.
+   */
+  @Get('siwe-nonce')
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ windowMs: 60_000, max: 20 })
+  @ApiResponse({ status: 200, description: 'SIWE nonce issued' })
+  async siweNonce() {
+    return this.auth.issueSiweNonce();
+  }
+
+  /**
    * MiniPay (Opera) mini-app SIWE sign-in. Accepts the EIP-4361 message body
    * and signature produced by MiniPay's injected wallet; the service verifies
    * the signature recovers the claimed address, upserts a user keyed by the
    * wallet, and returns the same envelope as the Firebase login endpoint.
    */
   @Post('minipay-siwe')
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ windowMs: 60_000, max: 10 })
   @ApiBody({ type: MiniPaySiweDto })
   @ApiResponse({ status: 201, description: 'MiniPay SIWE login successful' })
   async loginMiniPaySiwe(@Body() body: MiniPaySiweDto) {

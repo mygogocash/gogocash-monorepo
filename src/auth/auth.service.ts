@@ -18,6 +18,7 @@ import { getAdminAuth } from './firebase-admin.provider';
 import * as admin from 'firebase-admin';
 import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
+import { SiweNonce, SiweNonceDocument } from './schemas/siwe-nonce.schema';
 @Injectable()
 export class AuthService {
   private baseUrl: string;
@@ -32,6 +33,8 @@ export class AuthService {
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
     @InjectModel(Point.name) private pointModel: Model<PointDocument>,
+    @InjectModel(SiweNonce.name)
+    private siweNonceModel: Model<SiweNonceDocument>,
   ) {
     this.baseUrl = this.config.get<string>('env.CROSSMINT_BASE_URL')!;
     this.projectId = this.config.get<string>('env.CROSSMINT_PROJECT_ID')!;
@@ -456,6 +459,18 @@ export class AuthService {
    * Returns the same envelope shape as `signInFirebase` so the customer-app
    * NextAuth `minipay_siwe` branch consumes it uniformly.
    */
+  /**
+   * Issue a single-use SIWE nonce. The client embeds this in the EIP-4361
+   * `Nonce:` field before signing; the server consumes (deletes) it on
+   * verification. TTL on the collection prunes unused nonces after 5 min.
+   */
+  async issueSiweNonce(): Promise<{ nonce: string }> {
+    // 16 random bytes → 32-char hex. EIP-4361 says nonce >= 8 chars alphanum.
+    const nonce = crypto.randomBytes(16).toString('hex');
+    await this.siweNonceModel.create({ nonce, issuedAt: new Date() });
+    return { nonce };
+  }
+
   async signInMiniPaySiwe(payload: MiniPaySiweDto) {
     const { address, message, signature, referral_id } = payload;
 
@@ -482,6 +497,18 @@ export class AuthService {
     // Accept 60 s of client clock skew; 5 min freshness window past that.
     if (ageMs < -60_000 || ageMs > 5 * 60_000) {
       throw new UnauthorizedException('SIWE message expired or in the future');
+    }
+
+    // Single-use nonce — atomically consume so replay of the same message
+    // body+signature within the freshness window fails the second time.
+    const nonceMatch = /^Nonce:\s*(\S+)/m.exec(message);
+    if (!nonceMatch) {
+      throw new UnauthorizedException('Missing Nonce in SIWE message');
+    }
+    const nonce = nonceMatch[1];
+    const consumed = await this.siweNonceModel.findOneAndDelete({ nonce });
+    if (!consumed) {
+      throw new UnauthorizedException('Nonce invalid, expired, or already used');
     }
 
     const syntheticFirebaseId = `minipay:${address.toLowerCase()}`;
