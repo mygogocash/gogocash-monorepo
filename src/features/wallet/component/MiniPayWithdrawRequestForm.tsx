@@ -23,18 +23,13 @@ import {
   createManualWithdrawRequest,
   type ManualWithdrawCurrency,
 } from "@/lib/services/withdraw";
+import { formatAddress } from "@/lib/utils";
 import { useMutation } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
 import { useSession } from "next-auth/react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import toast from "react-hot-toast";
-
-function maskAddress(addr: string | undefined): string {
-  if (!addr) return "";
-  if (addr.length < 10) return addr;
-  return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
-}
 
 export default function MiniPayWithdrawRequestForm() {
   const t = useTranslations();
@@ -119,7 +114,7 @@ export default function MiniPayWithdrawRequestForm() {
                 {t("minipayWithdrawPayoutTo")}
               </span>
               <div className="flex h-[52px] items-center rounded-2xl border border-[#E4EAE6] bg-[#F8FAF9] px-4 text-[14px] font-mono text-[#103522]">
-                {walletAddress ? maskAddress(walletAddress) : t("minipayWithdrawNoWallet")}
+                {walletAddress ? formatAddress(walletAddress) : t("minipayWithdrawNoWallet")}
               </div>
               <span className="text-[12px] text-[#7A8B81]">
                 {t("minipayWithdrawChainBadge")}

@@ -51,9 +51,6 @@ export const authOptions: AuthOptions = {
               message: credentials.siwe_message,
               signature: credentials.siwe_signature,
               referral_id: credentials?.referral_id || "",
-              locale: credentials?.locale || "",
-              posthog_distinct_id: credentials?.posthog_distinct_id || "",
-              posthog_anonymous_id: credentials?.posthog_anonymous_id || "",
             }).catch(() => null);
             if (!res?.user) return null;
             const u = res.user;

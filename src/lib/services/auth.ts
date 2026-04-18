@@ -63,23 +63,11 @@ export const signInMiniPaySiwe = (formData: {
   message: string;
   signature: string;
   referral_id?: string;
-  locale?: string;
-  posthog_distinct_id?: string;
-  posthog_anonymous_id?: string;
 }): Promise<IResponseLogin> =>
   new Promise((resolve, reject) => {
     client
       .post(`/auth/minipay-siwe`, formData, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(formData.locale ? { "X-App-Locale": formData.locale } : {}),
-          ...(formData.posthog_distinct_id
-            ? { "X-PostHog-Distinct-Id": formData.posthog_distinct_id }
-            : {}),
-          ...(formData.posthog_anonymous_id
-            ? { "X-PostHog-Anonymous-Id": formData.posthog_anonymous_id }
-            : {}),
-        },
+        headers: { "Content-Type": "application/json" },
       })
       .then((response) => resolve(response.data))
       .catch((_error) => reject(_error));
