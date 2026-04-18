@@ -1,10 +1,10 @@
 // Safe wrappers for Crossmint hooks that prevent store initialization errors
-import { useCrossmintAuth, useWallet } from "@crossmint/client-sdk-react-ui";
+import { useAuth, useWallet } from "@crossmint/client-sdk-react-ui";
 
 // Safe wrapper for useCrossmintAuth that returns defaults during store initialization
 export const useSafeAuth = () => {
   try {
-    const auth = useCrossmintAuth();
+    const auth = useAuth();
     return auth;
   } catch {
     return {

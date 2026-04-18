@@ -1,5 +1,8 @@
 "use client";
 
+import PremiumAvatar from "@/components/premium/PremiumAvatar";
+import PremiumBadge from "@/components/premium/PremiumBadge";
+import type { MembershipTier } from "@/interfaces/auth";
 import { buildReferralInviteUrl } from "@/lib/referral/referralLink";
 import { useReferralSiteOrigin } from "@/lib/referral/useReferralSiteOrigin";
 import { fetcherPut } from "@/lib/axios/client";
@@ -68,6 +71,15 @@ const CardProfile = () => {
   const displaySnippet = referralUrl && userId ? userId : t("profileInviteLinkEmpty");
 
   const displayUserIdDigits = useMemo(() => nineDigitUserIdDisplay(userId), [userId]);
+
+  // Preview: NEXT_PUBLIC_GOGOPASS_PREVIEW=1 forces GoGoPass for all signed-in users.
+  const sessionTier = (session?.user as { membership_tier?: MembershipTier } | undefined)
+    ?.membership_tier;
+  const membershipTier: MembershipTier | undefined =
+    sessionTier ??
+    (process.env.NEXT_PUBLIC_GOGOPASS_PREVIEW === "1" && session?.user
+      ? "gogopass"
+      : undefined);
 
   const displayAvatarSrc = useMemo(() => {
     if (uploadPreviewUrl) return uploadPreviewUrl;
@@ -169,25 +181,27 @@ const CardProfile = () => {
         aria-hidden
       />
       <div className="relative z-10 flex w-full flex-col gap-6 p-4 md:flex-row md:items-center md:gap-12 md:p-0 lg:gap-20">
-        <div className="relative h-[120px] w-[120px] shrink-0 self-start md:self-center">
-          <button
-            type="button"
-            onClick={openFilePicker}
-            disabled={!userId}
-            aria-label={t("profileAvatarEditAria")}
-            className="relative block h-[120px] w-[120px] cursor-pointer overflow-hidden rounded-full border-0 bg-transparent p-0 shadow-none outline-none transition-[opacity,transform] hover:opacity-95 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#00CC99] motion-reduce:transition-none motion-reduce:active:scale-100 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:opacity-50 disabled:active:scale-100"
-          >
-            <Image
-              src={displayAvatarSrc}
-              alt=""
-              width={360}
-              height={360}
-              sizes="120px"
-              quality={92}
-              unoptimized={avatarUnoptimized}
-              className="pointer-events-none h-[120px] w-[120px] rounded-full bg-[#f6f6f6] object-cover"
-            />
-          </button>
+        <div className="relative shrink-0 self-start md:self-center">
+          <PremiumAvatar tier={membershipTier} size={120} ringWidth={4}>
+            <button
+              type="button"
+              onClick={openFilePicker}
+              disabled={!userId}
+              aria-label={t("profileAvatarEditAria")}
+              className="relative block h-full w-full cursor-pointer overflow-hidden rounded-full border-0 bg-transparent p-0 shadow-none outline-none transition-[opacity,transform] hover:opacity-95 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#00CC99] motion-reduce:transition-none motion-reduce:active:scale-100 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:opacity-50 disabled:active:scale-100"
+            >
+              <Image
+                src={displayAvatarSrc}
+                alt=""
+                width={360}
+                height={360}
+                sizes="120px"
+                quality={92}
+                unoptimized={avatarUnoptimized}
+                className="pointer-events-none h-full w-full rounded-full bg-[#f6f6f6] object-cover"
+              />
+            </button>
+          </PremiumAvatar>
           <span
             className="pointer-events-none absolute bottom-0 right-0 flex h-10 w-10 items-center justify-center rounded-full border border-white bg-white shadow-[0_4px_12px_rgba(0,0,0,0.1)]"
             aria-hidden
@@ -198,9 +212,12 @@ const CardProfile = () => {
 
         <div className="flex min-w-0 flex-1 flex-col gap-4">
           <div className="flex flex-col gap-2 text-center md:text-left">
-            <h4 className="text-2xl font-semibold text-[#3b3b3b]">
-              {session?.user?.username || t("profileFieldName")}
-            </h4>
+            <div className="flex flex-wrap items-center justify-center gap-2 md:justify-start">
+              <h4 className="text-2xl font-semibold text-[#3b3b3b]">
+                {session?.user?.username || t("profileFieldName")}
+              </h4>
+              <PremiumBadge tier={membershipTier} size="md" />
+            </div>
             <div className="flex flex-wrap items-center justify-center gap-2 md:justify-start">
               <p className="text-base font-normal text-[#7f7f7f] md:text-lg">
                 {t("profileUserIdLabel")}:{" "}
