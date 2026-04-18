@@ -1,6 +1,5 @@
 "use client";
 
-import { FEATURE_FLAGS } from "@/constants/featureFlags";
 import { GOGOCASH_MARKETING_ORIGIN } from "@/constants/footer-links";
 import {
   getSupportHref,
@@ -24,7 +23,7 @@ import TermsOfUseNavIcon from "@/components/icons/TermsOfUseNavIcon";
 import LogoutConfirmDialog from "@/components/layouts/LogoutConfirmDialog";
 import AgeVerificationNavIcon from "@/components/icons/AgeVerificationNavIcon";
 import { Link, usePathname } from "@/i18n/navigation";
-import { useCrossmintLoginContext } from "@/providers/CrossmintLoginContext";
+import { useSessionContext } from "@/providers/SessionContext";
 import { useSession } from "next-auth/react";
 import { useTranslations } from "next-intl";
 import {
@@ -169,13 +168,6 @@ const connectItem: MenuEntry = {
   iconStroke: true,
 };
 
-const subscriptionItem: MenuEntry = {
-  translationKey: "Subscription",
-  href: "/subscription",
-  icon: ProfileAddIcon,
-  activePrefix: "/subscription",
-};
-
 function isActive(pathname: string, item: MenuEntry): boolean {
   if (item.external) {
     return false;
@@ -209,7 +201,7 @@ const SubProfile = ({ variant = "sidebar", className }: SubProfileProps) => {
   const isMobileProfileHub = pathname === "/profile" && !isMdUp;
   const t = useTranslations();
   const { data: session } = useSession();
-  const { signOutAuth } = useCrossmintLoginContext();
+  const { signOutAuth } = useSessionContext();
   const supportHref = getSupportHref(session?.user?.region);
 
   const autoExpandProfileSub = shouldAutoExpandProfileSubNav(pathname);
@@ -239,7 +231,6 @@ const SubProfile = ({ variant = "sidebar", className }: SubProfileProps) => {
     ...baseMenuTail,
     { ...helpItem, href: supportHref },
     connectItem,
-    ...(FEATURE_FLAGS.subscription ? [subscriptionItem] : []),
   ];
 
   return (

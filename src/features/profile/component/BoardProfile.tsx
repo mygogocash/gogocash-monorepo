@@ -3,7 +3,7 @@ import { WalletSummaryHeroCard } from "@/components/common/WalletSummaryHeroCard
 import { Link, useRouter } from "@/i18n/navigation";
 import { checkThai, cn, formatCashDisplay } from "@/lib/utils";
 import { combineAvailableBalance } from "@/lib/withdraw/combineAvailableBalance";
-import { useCrossmintLoginContext } from "@/providers/CrossmintLoginContext";
+import { useSessionContext } from "@/providers/SessionContext";
 import { useSession } from "next-auth/react";
 import { useTranslations } from "next-intl";
 
@@ -19,7 +19,7 @@ export type BoardProfileProps = {
 const BoardProfile = ({ className }: BoardProfileProps) => {
   const { data: session } = useSession();
   const t = useTranslations();
-  const { getCheck } = useCrossmintLoginContext();
+  const { getCheck } = useSessionContext();
   const router = useRouter();
 
   const thai = checkThai || session?.user?.region === "Thailand";

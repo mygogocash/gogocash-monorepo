@@ -11,7 +11,6 @@ export interface User {
   address: string;
   __v: number;
   email: string;
-  id_crossmint: string;
   id_twitter: string;
   username: string;
   country: string;
@@ -97,30 +96,8 @@ export interface RequestSignup {
   condition: string;
 }
 
-export interface IRequestSignInWeb3 {
-  crossmintToken: string;
-  message: string;
-  provider: string;
-  signature: string;
-  walletAddress: string;
-}
 export interface IRequestSignIGoogle {
   idToken: string;
-}
-
-export interface IRequestSignInCrossmint {
-  address: string;
-  id_crossmint: string;
-  email: string;
-  referral_id?: string;
-}
-
-export interface IRequestSignInWeb3Crossmint {
-  walletAddress: string;
-  signature: string;
-  message: string;
-  provider: string;
-  crossmintToken: string;
 }
 
 export interface ResponseWithdrawCheckMyCashback {

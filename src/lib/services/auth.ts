@@ -1,36 +1,5 @@
-import { IRequestSignInCrossmint, IResponseLogin } from "@/interfaces/auth";
+import { IResponseLogin } from "@/interfaces/auth";
 import client from "../axios/client";
-
-export const signInCrossmint = (formData: IRequestSignInCrossmint, jwt: string) =>
-  new Promise<IResponseLogin>((resolve, reject) => {
-    // Prepare the request payload with proper validation
-
-    client
-      .post<IResponseLogin>(`/auth/sign-in`, formData, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${jwt}`,
-        },
-      })
-      .then((response) => {
-        resolve(response.data);
-      })
-      .catch((error) => {
-        // Enhance error message for better user experience
-        const enhancedError = {
-          ...error,
-          response: {
-            ...error.response,
-            data: {
-              ...error.response?.data,
-              message: error.response?.data?.message || "Authentication failed. Please try again.",
-            },
-          },
-        };
-
-        reject(enhancedError);
-      });
-  });
 
 export const updateCountry = (formData: { country: string }) =>
   new Promise((resolve, reject) => {

@@ -22,7 +22,6 @@ interface ClientLayoutWrapperProps {
 
 /**
  * Client shell: always paints header/main/footer for LCP/TTI (perf plan).
- * Crossmint readiness no longer blocks the layout; wallet flows handle SDK state locally.
  */
 export default function ClientLayoutWrapper({ children }: ClientLayoutWrapperProps) {
   const pathname = usePathname();

@@ -2,11 +2,11 @@
 
 **Repo:** `https://github.com/mygogocash/gogocash_app`  
 **Branch:** `staging` (pushed with this commit)  
-**Stack:** Next.js 16 (Turbopack dev), React, MUI, TanStack Query, NextAuth, Firebase, Crossmint.
+**Stack:** Next.js 16 (Turbopack dev), React, MUI, TanStack Query, NextAuth, Firebase.
 
 ## What landed in this update
 
-- **Performance / shell:** Web Vitals reporter (`WebVitalsReporter` → `ProviderDefault`); `@next/bundle-analyzer` + `analyze` / `perf:bundle-note` scripts; `optimizePackageImports` for MUI in `next.config.ts`; TanStack Query defaults in `src/lib/query/queryClient.ts`; Crossmint readiness tweaks (`SettingCrossmint.tsx`); header/main/footer without global Crossmint “ready” gate (`ClientLayoutWrapper`, `ClientLayoutWallet`); lazy MUI Data Grid (`src/components/perf/LazyMuiDataGrid.tsx`) used from `WalletTransaction`, `MyOffer`; shop detail code-split in `shop/[id]/PageClient.tsx`; font fallback tuning in `src/lib/fonts.ts`.
+- **Performance / shell:** Web Vitals reporter (`WebVitalsReporter` → `ProviderDefault`); `@next/bundle-analyzer` + `analyze` / `perf:bundle-note` scripts; `optimizePackageImports` for MUI in `next.config.ts`; TanStack Query defaults in `src/lib/query/queryClient.ts`; header/main/footer paint immediately (`ClientLayoutWrapper`, `ClientLayoutWallet`); lazy MUI Data Grid (`src/components/perf/LazyMuiDataGrid.tsx`) used from `WalletTransaction`, `MyOffer`; shop detail code-split in `shop/[id]/PageClient.tsx`; font fallback tuning in `src/lib/fonts.ts`.
 - **Profile / layout:** Profile shell, sub-nav, personal panel, cashback summary, withdraw UI pieces, Figma-aligned footer/header/subprofile work; removed obsolete pieces (e.g. `SubProfileInfo.tsx`, `CategoryPopup.tsx` per git).
 - **Link My Cashback:** New locale routes under `src/app/[locale]/link-mycashback/` plus auth/components and public assets under `public/images/link-mycashback-*`, `public/profile/link-mycashback-*`.
 - **Console / CSP:** Dynamic `PageLoader` in `NavigationLoadingOverlay.tsx` and `DelayedPageLoadingScreen.tsx` to avoid unused CSS preload warnings; Web Vitals **dev** logging only when `NEXT_PUBLIC_WEB_VITALS_DEBUG=1`; CSP report-only adds `https://telegram.org` for Telegram widget (`next.config.ts`).
@@ -41,7 +41,7 @@ E2E: see `playwright.config.ts` (`npm run test:e2e` with server per config).
 
 | Area                 | Paths                                                                                        |
 | -------------------- | -------------------------------------------------------------------------------------------- |
-| Layout / Crossmint   | `ClientLayoutWrapper.tsx`, `SettingCrossmint.tsx`, `ProviderDefault.tsx`                     |
+| Layout / providers   | `ClientLayoutWrapper.tsx`, `ProviderDefault.tsx`, `SessionContext.tsx`                       |
 | Perf                 | `WebVitalsReporter.tsx`, `LazyMuiDataGrid.tsx`, `queryClient.ts`, `next.config.ts`           |
 | Profile UI           | `ProfileDesktopPersonalPanel.tsx`, `ProfileLayoutShell.tsx`, `SubProfile.tsx`, `SubPage.tsx` |
 | Auth / link cashback | `src/app/[locale]/link-mycashback/`, `src/features/auth/component/link-mycashback/`          |

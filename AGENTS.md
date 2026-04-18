@@ -6,7 +6,7 @@ Concise guidance for AI coding agents and contributors. **Deep architecture and 
 
 - **Stack:** Next.js 16 (App Router), TypeScript (strict), React, Tailwind CSS v4.
 - **Data:** TanStack React Query + Axios (`src/lib/axios/client.ts`).
-- **Auth:** NextAuth JWT; primary identity is **Firebase** (`src/lib/authFirebase.ts`). **Crossmint** remains mounted for wallet/subscription-related flows—do not rip out Crossmint plumbing without product sign-off and browser verification.
+- **Auth:** NextAuth JWT; identity is **Firebase** (`src/lib/authFirebase.ts`). Session-wide helpers (logout, withdraw-check query) live in `src/providers/SessionContext.tsx`.
 - **Payments:** **Stripe** for membership/checkout and billing portal (`src/lib/stripe/*`, `src/features/subscription/*`). Enable checkout UI with `NEXT_PUBLIC_STRIPE_BILLING=1` plus server keys and Price IDs (see `.env.example` and `src/env.ts`).
 - **i18n:** `next-intl`, locales `en` / `th` (see `src/i18n/`). User-facing copy belongs in `src/messages/en.json` and `src/messages/th.json` together (parity checked by `npm run i18n:check`).
 - **Imports:** Path alias `@/*` → `src/*` (`tsconfig.json`).
@@ -19,7 +19,6 @@ Concise guidance for AI coding agents and contributors. **Deep architecture and 
 | HTTP + tokens                         | `src/lib/axios/client.ts`                                                                                                                                                                                                           |
 | Firebase auth / NextAuth              | `src/lib/authFirebase.ts`, `src/app/api/auth/[...nextauth]/route.ts`                                                                                                                                                                |
 | Login UI                              | `src/features/auth/component/LoginComponent.tsx`, `src/hooks/useFirebaseLogin.ts`                                                                                                                                                   |
-| Crossmint wrapper                     | `src/lib/crossmint/SettingCrossmint.tsx`, `src/hooks/useSafeCrossmint.ts`, `src/hooks/useCrossmintLogin.ts`                                                                                                                         |
 | Feature UI                            | `src/features/*`, shared pieces under `src/components/*`                                                                                                                                                                            |
 | Profile nav (sidebar / SubPage rail)  | `src/components/layouts/SubProfile.tsx`, `src/features/profile/layout/SubPage.tsx`, `src/features/profile/component/ProfileMenu.tsx` (mobile prefetch list)                                                                         |
 | Profile personal info                 | `src/features/profile/component/ProfileDesktopPersonalPanel.tsx`, `ProfileInfo.tsx`                                                                                                                                                 |
@@ -50,7 +49,7 @@ Concise guidance for AI coding agents and contributors. **Deep architecture and 
 ## Conventions agents should follow
 
 1. **Scope:** Change only what the task requires; match existing patterns (imports at top, naming, component style).
-2. **Types:** Run `npx tsc --noEmit` after non-trivial edits. Respect SDK types (e.g. Crossmint `SDKExternalUser`—`twitter` is a string, not `{ id }`).
+2. **Types:** Run `npx tsc --noEmit` after non-trivial edits.
 3. **i18n:** Add or update keys in **both** `en.json` and `th.json` for new user-visible strings.
 4. **Analytics / consent:** Meta Pixel, GTM/GA, and **PostHog** paths are consent-gated—see README “Analytics” sections before adding tracking.
 5. **Verification:** For auth, analytics, wallet, or **Stripe** changes, **browser verification** (and webhook/CLI testing where relevant) matters; lint/build alone is not always enough.
@@ -81,15 +80,11 @@ Use `npm run lint:fix` and `npm run format` when appropriate.
 2. **E2E:** `e2e/smoke.spec.ts` and authenticated `e2e/profile-subpage-scroll.spec.ts` assert **no `pageerror` and no `console.error`** after load. Set **`PLAYWRIGHT_STRICT_CONSOLE=1`** to also treat **`console.warning`** as a failure (stricter; optional in CI).
 3. **App logging:** Prefer `src/lib/clientDevLog.ts` on the client so production bundles stay quiet; avoid raw `console.*` in feature code.
 
-**Build warnings accepted in-repo**
-
-- **Crossmint SDK** (`@crossmint/common-sdk-base`): Webpack “Critical dependency” for dynamic `require` is **suppressed** in `next.config.ts` (`ignoreWarnings`); the SDK is known-good at runtime. Revisit only if upgrading Crossmint major versions.
-
 ## Repository facts (avoid surprises)
 
 - Many route segments use **`"use client"`** for interactivity and SDK compatibility.
 - Profile routes live under `src/app/[locale]/(profile)/` with `AuthGuard`.
-- `ClientLayoutWrapper` coordinates rendering with Crossmint readiness—avoid reordering providers without understanding `ProviderDefault.tsx`.
+- `ClientLayoutWrapper` is the main client shell; avoid reordering providers in `ProviderDefault.tsx` without understanding their lifecycle.
 - **Profile popper / nav copy:** `navPrivacyPolicy` powers the Consent preferences item (not the generic `Privacy Policy` key). HMR fallbacks: `src/i18n/profilePopperMerge.ts`; test fallbacks: `src/i18n/intlMessageFallback.ts` (keep `linkMyCashbackPrivacyPolicy` separate from `navPrivacyPolicy`).
 - **New profile hub routes:** Update `SubProfile` menu entries, `ProfileMenu.tsx` prefetch list, `profileIntegratedShell.ts`, and `subPageMessageKeys.ts` when adding a `SubPage` + rail page (mirror existing `/referral`, `/age-verification` pattern).
 - Backend contract: `NEXT_PUBLIC_API_URL` (see `.env.example`).
@@ -116,4 +111,4 @@ When in doubt, search the codebase for an existing pattern before introducing a 
 - **Dev server:** `npm run dev` starts on port 3000. Pages require the locale prefix (e.g. `http://localhost:3000/en`). First request compiles on demand (~30 s); subsequent requests are fast.
 - **`next-intl` timeZone:** Server and client use `Asia/Bangkok` in `src/i18n/request.ts` and `NextIntlClientProviderWithFallback` to avoid `ENVIRONMENT_FALLBACK` / hydration mismatches; keep those aligned if you touch i18n wiring.
 - **Validation / checks:** `npm run validate` runs lint + format:check + i18n:check + test. Build: `npm run build` (uses `--webpack`; Turbopack is not supported for this project). TypeScript: `npx tsc --noEmit`.
-- **No external services required** for local dev in mock mode. Firebase, Stripe, Crossmint, and analytics integrations are all optional and disabled by default.
+- **No external services required** for local dev in mock mode. Firebase, Stripe, and analytics integrations are all optional and disabled by default.

@@ -7,7 +7,7 @@ import { designSystemColor } from "@/constants/design-system";
 import type { MembershipTier } from "@/interfaces/auth";
 import { combineAvailableBalance } from "@/lib/withdraw/combineAvailableBalance";
 import { checkThai, formatAddress, formatCashDisplay } from "@/lib/utils";
-import { useCrossmintLoginContext } from "@/providers/CrossmintLoginContext";
+import { useSessionContext } from "@/providers/SessionContext";
 import { Box, Popper } from "@mui/material";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
@@ -16,7 +16,7 @@ import ProfileHeaderPopperContent from "./ProfileHeaderPopperContent";
 
 const ProfileBar = () => {
   const { data: session } = useSession();
-  const { getCheck } = useCrossmintLoginContext();
+  const { getCheck } = useSessionContext();
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const popperRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLDivElement>(null);

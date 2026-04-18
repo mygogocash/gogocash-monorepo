@@ -19,11 +19,11 @@ import toast from "react-hot-toast";
 import BoardProfile from "./BoardProfile";
 import ProfileCashbackSummaryCard from "./ProfileCashbackSummaryCard";
 import { ResponseWithdrawCheckMyCashback } from "@/interfaces/auth";
-import { useCrossmintLoginContext } from "@/providers/CrossmintLoginContext";
+import { useSessionContext } from "@/providers/SessionContext";
 
 const ProfileInfo = () => {
   const { data: session, update } = useSession();
-  const { getCheck } = useCrossmintLoginContext();
+  const { getCheck } = useSessionContext();
   const t = useTranslations();
   const router = useRouter();
   const searchParams = useSearchParams();
