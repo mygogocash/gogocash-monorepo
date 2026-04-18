@@ -116,25 +116,4 @@ export class MiniPaySiweDto {
   @IsString()
   @IsOptional()
   referral_id?: string;
-
-  /**
-   * Forwarded by the client for analytics stitching. Currently unused
-   * server-side but declared here so NestJS ValidationPipe (with
-   * `whitelist: true`) doesn't silently strip them — keeps the client /
-   * server contract explicit.
-   */
-  @ApiProperty({ required: false })
-  @IsString()
-  @IsOptional()
-  locale?: string;
-
-  @ApiProperty({ required: false })
-  @IsString()
-  @IsOptional()
-  posthog_distinct_id?: string;
-
-  @ApiProperty({ required: false })
-  @IsString()
-  @IsOptional()
-  posthog_anonymous_id?: string;
 }

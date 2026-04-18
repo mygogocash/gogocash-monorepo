@@ -447,20 +447,6 @@ export class AuthService {
   }
 
   /**
-   * MiniPay SIWE sign-in.
-   *
-   * Verifies an EIP-4361 signature recovers the claimed address, parses
-   * `Issued At` out of the message body and rejects anything older than 5
-   * minutes (replay mitigation — server-issued nonces are a follow-up).
-   * On success, upserts a user keyed by a synthetic
-   * `id_firebase = "minipay:<lowercase-address>"` so the existing
-   * `unique` index on that field keeps holding and the `findOne` lookups
-   * in other flows don't accidentally collide with real Firebase UIDs.
-   *
-   * Returns the same envelope shape as `signInFirebase` so the customer-app
-   * NextAuth `minipay_siwe` branch consumes it uniformly.
-   */
-  /**
    * Issue a single-use SIWE nonce. The client embeds this in the EIP-4361
    * `Nonce:` field before signing; the server consumes (deletes) it on
    * verification. TTL on the collection prunes unused nonces after 5 min.
@@ -472,6 +458,23 @@ export class AuthService {
     return { nonce };
   }
 
+  /**
+   * MiniPay SIWE sign-in.
+   *
+   * Verifies an EIP-4361 signature recovers the claimed address, parses
+   * `Issued At` out of the message body and rejects anything older than
+   * 5 minutes, and atomically consumes the single-use `Nonce:` issued by
+   * `issueSiweNonce` so replay of the same message+signature pair fails
+   * the second time.
+   *
+   * On success, upserts a user keyed by a synthetic
+   * `id_firebase = "minipay:<lowercase-address>"` so the existing `unique`
+   * index on that field keeps holding and the `findOne` lookups in other
+   * flows don't accidentally collide with real Firebase UIDs.
+   *
+   * Returns the same envelope shape as `signInFirebase` so the customer-app
+   * NextAuth `minipay_siwe` branch consumes it uniformly.
+   */
   async signInMiniPaySiwe(payload: MiniPaySiweDto) {
     const { address, message, signature, referral_id } = payload;
 
