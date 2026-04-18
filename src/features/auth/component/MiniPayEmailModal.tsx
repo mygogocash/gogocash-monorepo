@@ -12,7 +12,7 @@
  * re-reads an authenticated, email-present session and proceeds.
  */
 
-import { fetcherPut } from "@/lib/axios/client";
+import { fetcher, fetcherPut } from "@/lib/axios/client";
 import { useSession } from "next-auth/react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -41,7 +41,25 @@ export function MiniPayEmailModal() {
     setSubmitting(true);
     try {
       await fetcherPut([`/user/profile`, { data: { email: trimmed } }]);
-      await update({ ...session, user: { ...session?.user, email: trimmed } });
+      // Re-fetch the server-authoritative profile rather than trusting the
+      // locally typed value — if the API normalised (e.g. lowercased) the
+      // address, or a concurrent write changed it, the session must reflect
+      // what was actually persisted.
+      let persistedEmail = trimmed;
+      try {
+        const profile = (await fetcher(`/user/profile`)) as {
+          email?: string;
+        } | null;
+        if (profile && typeof profile.email === "string" && profile.email.trim()) {
+          persistedEmail = profile.email;
+        }
+      } catch {
+        // Non-fatal — fall through with the trimmed value we just PUT.
+      }
+      await update({
+        ...session,
+        user: { ...session?.user, email: persistedEmail },
+      });
       toast.success(t("minipayEmailSavedToast"));
       // Parent re-renders and hides this modal once session reflects the new email.
     } catch {

@@ -46,6 +46,14 @@ export const signInFirebase = (formData: {
   });
 
 /**
+ * Fetch a single-use SIWE nonce from the server. The returned value must be
+ * embedded verbatim in the `Nonce:` field of the EIP-4361 message body
+ * before signing; the server consumes it on `/auth/minipay-siwe`.
+ */
+export const fetchSiweNonce = (): Promise<{ nonce: string }> =>
+  client.get(`/auth/siwe-nonce`).then((response) => response.data);
+
+/**
  * MiniPay SIWE sign-in: verify the EIP-4361 signature on the backend and
  * exchange it for a GoGoCash session (same envelope shape as Firebase).
  * The backend upserts a user keyed by wallet address with `provider: "minipay"`.
