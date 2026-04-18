@@ -8,6 +8,8 @@ import { formatPrice, pathImage } from "@/utils/helper";
 import { WithdrawRequestForm } from "./WithdrawTable";
 import { DataWithdrawsList } from "@/types/api";
 import { useDataSession } from "@/hooks/useDataSession";
+import { ManualWithdrawMarkPaid } from "./ManualWithdrawMarkPaid";
+import type { WithdrawList } from "@/types/withdraw";
 import { useState } from "react";
 import client from "@/lib/axios/client";
 import { devError } from "@/lib/devConsole";
@@ -111,6 +113,18 @@ const ModalWithdraw = ({
           </div>
         </div>
         <div className="min-h-0 flex-1 space-y-6 overflow-y-auto pb-4">
+        {/* MiniPay / manual-payout admin action. Renders only when the row is
+            `withdraw_mode === "manual"` and `status === "pending"`. */}
+        {session?.accessToken ? (
+          <ManualWithdrawMarkPaid
+            withdraw={openModal as unknown as WithdrawList}
+            token={session.accessToken}
+            onMarkedPaid={() => {
+              setOpenModal(false);
+              fetchData();
+            }}
+          />
+        ) : null}
         {/* <div className="overflow-auto">
               <table>
                 <thead>
