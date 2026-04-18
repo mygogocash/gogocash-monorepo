@@ -9,6 +9,7 @@ import { WagmiProvider } from "wagmi";
 import { wagmiConfig } from "@/lib/web3/wagmiConfig";
 import { SessionContextProvider } from "./SessionContext";
 import { MiniPayAutoSignIn } from "@/features/auth/component/MiniPayAutoSignIn";
+import { MiniPayRouteGuard } from "@/features/auth/component/MiniPayRouteGuard";
 import RouteAnalyticsTracker from "@/components/analytics/RouteAnalyticsTracker";
 import WebVitalsReporter from "@/components/analytics/WebVitalsReporter";
 import PostHogProvider from "./PostHogProvider";
@@ -37,6 +38,7 @@ const ProviderDefault = ({ children }: { children: React.ReactNode }) => {
             <PostHogProvider>
               <SessionContextProvider>
                 <MiniPayAutoSignIn />
+                <MiniPayRouteGuard />
                 <WebVitalsReporter />
                 <PostHogAuthSync />
                 <PostHogReplayController />

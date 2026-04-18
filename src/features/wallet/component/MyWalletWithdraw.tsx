@@ -3,8 +3,11 @@ import Button from "@/components/common/Button";
 import { helpTooltipMuiSlotProps } from "@/components/common/helpTooltipMuiSlotProps";
 import { WithdrawHelpTooltipList } from "@/components/common/WithdrawHelpTooltipList";
 import WithdrawIcon from "@/components/icons/WithdrawIcon";
+import MiniPayWithdrawRequestForm from "@/features/wallet/component/MiniPayWithdrawRequestForm";
 import SubPage from "@/features/profile/layout/SubPage";
 import useWithdrawWeb3, { chainAll } from "@/hooks/useWithdrawWeb3";
+import { useIsInMiniPay } from "@/lib/web3/useIsInMiniPay";
+import { useIsWalletUser } from "@/lib/web3/useIsWalletUser";
 import { useRouter } from "@/i18n/navigation";
 import { User } from "@/interfaces/auth";
 import {
@@ -88,7 +91,26 @@ export interface BankSelected {
   data: DataMethodWithdraw;
 }
 
+/**
+ * Top-level dispatcher. MiniPay users (in-app browser OR session established
+ * via SIWE) get a simplified manual-request form — they can't sign on-chain
+ * txs themselves. Web users fall through to the existing multi-chain
+ * on-chain flow below.
+ *
+ * Split into this wrapper + the legacy `MyWalletWithdrawWeb3` to keep the
+ * conditional above the legacy hook surface (which runs many hooks), so
+ * rules-of-hooks stay happy.
+ */
 const MyWalletWithdraw = () => {
+  const isInMiniPay = useIsInMiniPay();
+  const isWalletUser = useIsWalletUser();
+  if (isInMiniPay || isWalletUser) {
+    return <MiniPayWithdrawRequestForm />;
+  }
+  return <MyWalletWithdrawWeb3 />;
+};
+
+const MyWalletWithdrawWeb3 = () => {
   const [method, setMethod] = React.useState("bank_transfer");
   const [withdrawUiStep, setWithdrawUiStep] = React.useState<"form" | "confirm">("form");
   const [withdrawHelpOpen, setWithdrawHelpOpen] = React.useState(false);
