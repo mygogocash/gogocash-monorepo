@@ -51,13 +51,7 @@ export default function PremiumMark({
       aria-label={`${style.label} member`}
       title={`${style.label} member`}
     >
-      <svg
-        width={size}
-        height={size}
-        viewBox="0 0 16 16"
-        fill="none"
-        aria-hidden
-      >
+      <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden>
         <defs>
           <linearGradient id={`gg-mark-${tier}`} x1="0" y1="0" x2="16" y2="16">
             <stop offset="0%" stopColor={style.accentSoft} />

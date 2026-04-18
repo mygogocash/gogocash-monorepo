@@ -54,11 +54,7 @@ export default function PremiumAvatar({
   // Non-premium: render children unchanged.
   if (!style || !isPremiumTier(tier)) {
     return (
-      <div
-        className={className}
-        style={{ width: size, height: size }}
-        data-tier="free"
-      >
+      <div className={className} style={{ width: size, height: size }} data-tier="free">
         {children}
       </div>
     );
@@ -88,8 +84,7 @@ export default function PremiumAvatar({
           padding: ringWidth,
           background: style.ringGradient,
           animation: staticRing ? "none" : "gogopass-spin 6s linear infinite",
-          WebkitMask:
-            "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
+          WebkitMask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
           WebkitMaskComposite: "xor",
           maskComposite: "exclude",
         }}

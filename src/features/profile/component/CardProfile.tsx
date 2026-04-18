@@ -77,9 +77,7 @@ const CardProfile = () => {
     ?.membership_tier;
   const membershipTier: MembershipTier | undefined =
     sessionTier ??
-    (process.env.NEXT_PUBLIC_GOGOPASS_PREVIEW === "1" && session?.user
-      ? "gogopass"
-      : undefined);
+    (process.env.NEXT_PUBLIC_GOGOPASS_PREVIEW === "1" && session?.user ? "gogopass" : undefined);
 
   const displayAvatarSrc = useMemo(() => {
     if (uploadPreviewUrl) return uploadPreviewUrl;

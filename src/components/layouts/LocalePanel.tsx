@@ -43,9 +43,7 @@ function OptionButton({
       type="button"
       onClick={onClick}
       className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-[background-color,border-color,color,box-shadow,transform,opacity] duration-200 ease-out active:scale-[0.98] motion-reduce:active:scale-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00CC99] ${
-        selected
-          ? "bg-[#E8FAF5] text-[#00CC99]"
-          : "text-gray-700 hover:bg-gray-50"
+        selected ? "bg-[#E8FAF5] text-[#00CC99]" : "text-gray-700 hover:bg-gray-50"
       }`}
     >
       {children}
@@ -66,20 +64,17 @@ export default function LocalePanel() {
   const [region, setRegion] = useState<RegionCode>("TH");
   const rootRef = useRef<HTMLDivElement>(null);
 
-  const switchLocale = useCallback(
-    (locale: string) => {
-      setOpen(false);
-      const currentLoc =
-        document.cookie
-          .split("; ")
-          .find((c) => c.startsWith("NEXT_LOCALE="))
-          ?.split("=")[1] || "en";
-      const pathname = window.location.pathname;
-      const old = pathname.replace(`/${currentLoc}`, "");
-      window.location.href = `/${locale}${old}`;
-    },
-    [],
-  );
+  const switchLocale = useCallback((locale: string) => {
+    setOpen(false);
+    const currentLoc =
+      document.cookie
+        .split("; ")
+        .find((c) => c.startsWith("NEXT_LOCALE="))
+        ?.split("=")[1] || "en";
+    const pathname = window.location.pathname;
+    const old = pathname.replace(`/${currentLoc}`, "");
+    window.location.href = `/${locale}${old}`;
+  }, []);
 
   /* close on outside click / escape */
   useEffect(() => {
@@ -110,9 +105,7 @@ export default function LocalePanel() {
       >
         <GlobeIcon
           className={`transition-transform duration-200 ease-out motion-reduce:transition-none ${
-            open
-              ? "scale-110 text-[#00CC99]"
-              : "group-hover:rotate-12 group-hover:scale-105"
+            open ? "scale-110 text-[#00CC99]" : "group-hover:rotate-12 group-hover:scale-105"
           } motion-reduce:group-hover:rotate-0 motion-reduce:group-hover:scale-100`}
           width="22"
           height="22"
@@ -128,9 +121,7 @@ export default function LocalePanel() {
         >
           {/* ── Language ─────────────────────── */}
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-              Language
-            </p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Language</p>
             <div className="mt-2 flex flex-col gap-0.5">
               {LANGUAGES.map((l) => (
                 <OptionButton
@@ -149,9 +140,7 @@ export default function LocalePanel() {
 
           {/* ── Region ───────────────────────── */}
           <div className="mt-4 border-t border-gray-100 pt-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-              Region
-            </p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Region</p>
             <div className="mt-2 flex max-h-48 flex-col gap-0.5 overflow-y-auto">
               {REGIONS.map((r) => (
                 <OptionButton
