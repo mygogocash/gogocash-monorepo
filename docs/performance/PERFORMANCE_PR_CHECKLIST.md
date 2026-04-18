@@ -23,5 +23,5 @@ Use for changes that touch UI, data loading, analytics, or dependencies.
 ## Anti-patterns to flag in review
 
 - `import { Something } from "@mui/icons-material"` barrel — prefer `@mui/icons-material/IconName`.
-- Importing `ethers`, Firebase auth, or Crossmint on routes that do not need them — use dynamic import or route-level code splitting.
+- Importing `ethers` or Firebase auth on routes that do not need them — use dynamic import or route-level code splitting.
 - `fetch` in client that could be server `fetch` with caching.

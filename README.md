@@ -26,7 +26,7 @@ This repository contains the GoGoCash frontend built with Next.js App Router. It
 
 - Read these files first: `src/app/layout.tsx`, `src/providers/ProviderDefault.tsx`, `src/lib/axios/client.ts`, `src/lib/authFirebase.ts`, `src/features/auth/component/LoginComponent.tsx`.
 - **Analytics / Meta Pixel**: tracking lives in `src/lib/metaPixel.ts` (event helpers) and `src/components/analytics/MetaPixel.tsx` (base code loader). Cookie consent is handled by `src/hooks/useConsent.ts` + `src/components/consent/CookieConsent.tsx`. All `fbq()` calls are consent-gated — the pixel only loads after the user accepts. See section 3.7 below for full details.
-- Active auth is Firebase-based, but Crossmint still wraps parts of the runtime. Do not remove Crossmint plumbing until subscription and wallet flows are verified in the browser.
+- Auth is Firebase-based via NextAuth (`src/lib/authFirebase.ts`). Session-wide helpers (logout, withdraw-check query) live in `src/providers/SessionContext.tsx`.
 - Most features are client components backed by React Query and thin Axios services. If the API shape changes, update typings, query hooks, and UI consumers together.
 - Browser verification matters for auth callbacks, analytics, GTM, metadata, and favicon changes. Do not stop at lint or build output for those areas.
 
@@ -38,9 +38,7 @@ This repository contains the GoGoCash frontend built with Next.js App Router. It
 - Rendering style: mostly client components (`"use client"`) for fast UI interactivity and SDK compatibility.
 - Data layer: `@tanstack/react-query` + Axios wrapper with centralized auth token injection.
 - Auth session: NextAuth JWT strategy.
-- Identity providers:
-  - Active: Firebase-based credential flow (`provider id: firebase`) with Google/X/Facebook/Telegram entry points.
-  - Integrated but partially legacy: Crossmint provider + context is mounted globally for wallet/subscription integrations.
+- Identity provider: Firebase-based credential flow (`provider id: firebase`) with Google/X/Facebook/Telegram entry points.
 - i18n: `next-intl` route-based localization (`/en/*`, `/th/*`).
 - Web3: `ethers` + MetaMask for on-chain withdrawal transactions.
 
@@ -52,7 +50,7 @@ flowchart LR
   Router --> Providers["Global Providers (ProviderDefault)"]
   Providers --> Session["NextAuth SessionProvider"]
   Providers --> Query["React Query Client"]
-  Providers --> Crossmint["Crossmint Providers + Ready Context"]
+  Providers --> SessionCtx["SessionContextProvider (logout, withdraw-check query)"]
   Router --> Features["Feature Modules (src/features/*)"]
   Features --> Axios["Axios Client (src/lib/axios/client.ts)"]
   Axios --> Backend["GoGoCash API (NEXT_PUBLIC_API_URL)"]
@@ -110,21 +108,17 @@ src/
   hooks/
     useFirebaseLogin.ts
     useConsent.ts                  # Cookie consent state (localStorage)
-    useCrossmintLogin.ts
     useWithdrawWeb3.ts
     useWithdrawMyCashback.ts
-    useSafeCrossmint.ts
 
   lib/
     analytics.ts                   # GA4/GTM event helpers
     metaPixel.ts                   # Meta Pixel fbq() helpers (consent-gated)
     axios/client.ts                # HTTP client + auth interceptors
-    authFirebase.ts                # Active NextAuth config
-    auth.ts                        # Legacy Crossmint NextAuth config
+    authFirebase.ts                # NextAuth config
     firebaseClient.ts              # Firebase browser setup
     query/queryClient.ts           # React Query defaults
     services/*.ts                  # Domain API wrappers
-    crossmint/SettingCrossmint.tsx
 
   i18n/
     routing.ts navigation.ts request.ts
@@ -164,8 +158,7 @@ src/
 
 ### Layout gating behavior
 
-- `ClientLayoutWrapper` waits for Crossmint ready signal before rendering Header/SubHeader/Footer.
-- This avoids calling Crossmint-dependent hooks before SDK is initialized.
+- `ClientLayoutWrapper` always paints header/main/footer immediately (no SDK-readiness gate).
 
 ## 3.2 Global Provider Stack
 
@@ -174,19 +167,16 @@ File: `src/providers/ProviderDefault.tsx`
 Provider order:
 
 1. `QueryClientProvider`
-2. `SessionProvider`
-3. `ClientOnly` mount guard
-4. `CrossmintReadyProvider`
-5. `CrossmintErrorBoundary`
-6. `SettingCrossmint` (dynamic import, `ssr: false`)
-7. `CrossmintLoginContext`
-8. `Toaster`
-9. `ReactQueryDevtools`
+2. `ThemeProvider` (MUI) + `CssBaseline`
+3. `SessionProvider` (NextAuth)
+4. `PostHogProvider`
+5. `SessionContextProvider` (session, signOutAuth, withdraw-check query)
+6. `Toaster`
+7. `ReactQueryDevtools` (dev only)
 
 Why this matters:
 
-- Prevents SSR/hydration issues from SDKs requiring browser globals.
-- Ensures one place controls React Query, auth session, and Crossmint readiness.
+- Ensures one place controls React Query, auth session, and shared session-derived queries.
 
 ## 3.3 Authentication Architecture
 
@@ -225,12 +215,6 @@ Why this matters:
   - Adds `Authorization: Bearer <session.user.access_token>`.
 - Response interceptor:
   - Auto-signout on token-invalid messages (Firebase token invalid/expired, bad algorithm).
-
-### Crossmint auth notes
-
-- `src/lib/auth.ts` defines `provider id: crossmint` but is not wired in API route currently.
-- `useCrossmintLogin.ts` still calls `signIn("crossmint", ...)`, which indicates legacy/in-transition behavior.
-- `SettingCrossmint` + Crossmint contexts are still used by parts of the app (for readiness and hosted checkout-related UX).
 
 ## 3.4 Data Access Layer
 
@@ -365,7 +349,7 @@ These audiences should be created in **Meta Events Manager → Audiences**:
 | `transaction`  | Wallet summary, conversion list, withdraw history                       | `src/features/transaction/component/WalletTransaction.tsx`                        |
 | `quest`        | Ranking, extra-point offers, quest-related shop list                    | `src/features/quest/component/QuestPage.tsx`                                      |
 | `referral`     | Referral link sharing and referral activity listing                     | `src/features/referral/ReferralPage.tsx`                                          |
-| `subscription` | Crossmint hosted checkout integration                                   | `src/features/subscription/SubscriptionPage.tsx`                                  |
+| `subscription` | Subscription placeholder (Stripe link or "unavailable" fallback)        | `src/features/subscription/SubscriptionPage.tsx`                                  |
 
 ## 5) API Surface Used By Frontend
 
@@ -479,8 +463,6 @@ Copy `.env.example` to `.env.local` before running the app locally.
 | `NEXT_PUBLIC_FRONTEND_URL`            | Used in Telegram/referral links and redirects                                          |
 | `NEXT_PUBLIC_TELEGRAM_BOT_TOKEN`      | Telegram OAuth flow (`LoginComponent`)                                                 |
 | `NEXT_PUBLIC_TELEGRAM_BOT_USERNAME`   | Telegram widget (`TelegramLogin`)                                                      |
-| `NEXT_PUBLIC_CROSSMINT_API_KEY`       | Crossmint provider initialization                                                      |
-| `NEXT_PUBLIC_CROSSMINT_COLLECTION_ID` | Subscription checkout collection locator                                               |
 | `NEXT_PUBLIC_META_PIXEL_ID`           | Meta Pixel ID (default: `207487147928890`). Used by `MetaPixel.tsx` and `metaPixel.ts` |
 | `NEXT_PUBLIC_META_USER_SALT`          | Salt for hashing user identifiers before analytics dispatch                            |
 | `NEXT_PUBLIC_ANALYTICS_DEBUG`         | Enables verbose console logging for analytics + Meta Pixel events                      |
@@ -549,8 +531,6 @@ Make sure lockfile/package manager strategy is consistent in CI/CD (current file
 ## 11) Technical Notes / Caveats
 
 - Quest API date range in `QuestPage` is currently hardcoded (`2026-02-01` to `2026-02-28`).
-- Two auth configs exist (`authFirebase.ts` active, `auth.ts` legacy). Keep provider ids and hooks aligned when refactoring.
-- Crossmint readiness and login context are globally mounted even though Firebase is the active NextAuth provider.
 - Locale config defaults differ between `src/i18n/routing.ts` and `next-intl.config.ts`.
 - `src/messages/jp.json` exists but `jp` is not included in active locale routing.
 
@@ -560,7 +540,7 @@ Make sure lockfile/package manager strategy is consistent in CI/CD (current file
 - Auth config: `src/lib/authFirebase.ts`
 - API client/interceptors: `src/lib/axios/client.ts`
 - Firebase browser auth: `src/lib/firebaseClient.ts`
-- Crossmint setup: `src/lib/crossmint/SettingCrossmint.tsx`
+- Session context (logout, withdraw-check query): `src/providers/SessionContext.tsx`
 - Protected layout: `src/app/[locale]/(profile)/layout.tsx`
 - Login entry: `src/features/auth/component/LoginComponent.tsx`
 - Withdraw hook (Web3): `src/hooks/useWithdrawWeb3.ts`

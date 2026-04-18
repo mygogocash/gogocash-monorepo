@@ -76,9 +76,7 @@ export const authOptions: AuthOptions = {
               const userData = res;
               const tokenData = credentials.jwt;
               const fullName = userData?.username;
-              // console.log('User Data:', userData);
               return {
-                // id: userData?.id_crossmint || credentials.userId || "unknown",
                 email: userData?.email || credentials.email || "",
                 username: fullName,
                 id_twitter: userData.id_twitter,
@@ -98,12 +96,9 @@ export const authOptions: AuthOptions = {
             return null;
           } else {
             if (!credentials?.jwt) {
-              throw new Error("Crossmint JWT is required");
+              throw new Error("Firebase JWT is required");
             }
 
-            // Perform Web3 login with Crossmint JWT
-            // const loginResult = await performCrossmintLogin(credentials.jwt);
-            // console.log("credentials", credentials);
             const pathname = credentials?.pathname || "";
             if (credentials.jwt) {
               let response;
@@ -139,10 +134,8 @@ export const authOptions: AuthOptions = {
                 const userData = response?.user;
                 const tokenData = response?.token;
                 const fullName = userData?.username;
-                // console.log('User Data:', userData);
 
                 return {
-                  // id: userData?.id_crossmint || credentials.userId || "unknown",
                   email: userData?.email || credentials.email || "",
                   username: fullName,
                   id_twitter: userData.id_twitter,
@@ -162,7 +155,7 @@ export const authOptions: AuthOptions = {
             }
             // If login failed, throw error with details
             throw new Error(
-              `Crossmint authentication failed: ${credentials.address || "Unknown error"}`
+              `Firebase authentication failed: ${credentials.address || "Unknown error"}`
             );
           }
         } catch {

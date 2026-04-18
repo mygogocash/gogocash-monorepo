@@ -35,9 +35,6 @@ const nextConfig: NextConfig = {
   // swcMinify: false,
   // Development optimizations for hot reload
 
-  // Support for external modules transpilation
-  // transpilePackages: ['lucid-cardano', '@crossmint/connect'],
-
   // Modern image optimization
   images: {
     remotePatterns: [
@@ -161,7 +158,7 @@ const nextConfig: NextConfig = {
         https: false,
         zlib: false,
         url: false,
-        /** MetaMask SDK (Crossmint v4 / Dynamic) optional RN peer — not used on web. */
+        /** MetaMask / Dynamic / similar SDKs list this RN-only package as an optional peer; not used on web. */
         "@react-native-async-storage/async-storage": false,
       },
     };
@@ -180,12 +177,11 @@ const nextConfig: NextConfig = {
     }
 
     /**
-     * @crossmint/common-sdk-base uses dynamic `require` patterns webpack cannot analyze.
-     * The SDK works at runtime; suppressing avoids noisy "Critical dependency" duplicates on every build.
+     * Suppress noisy "Critical dependency" warnings from vendor code that uses dynamic
+     * `require` patterns webpack cannot statically analyze. These SDKs work at runtime.
      */
     config.ignoreWarnings = [
       ...(config.ignoreWarnings ?? []),
-      { module: /node_modules\/@crossmint\/common-sdk-base/ },
       /Critical dependency: require function is used in a way in which dependencies cannot be statically extracted/,
     ];
 

@@ -21,7 +21,6 @@ export interface ReferralID {
   address: string;
   __v: number;
   email: string;
-  id_crossmint: string;
   id_twitter: string;
   username: string;
   country: string;

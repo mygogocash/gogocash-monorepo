@@ -8,7 +8,7 @@ const WalletTransaction = dynamic(
   { ssr: false }
 );
 
-/** Wallet page entry: code-split grid; Crossmint does not block paint (see ClientLayoutWrapper). */
+/** Wallet page entry: code-split grid. */
 export default function ClientLayoutWallet() {
   return (
     <Suspense fallback={null}>

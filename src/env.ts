@@ -71,12 +71,6 @@ export const env = createEnv({
      * procedurally generated partners for Product Discovery stress tests (see `src/mocks/homeApi.ts`).
      */
     NEXT_PUBLIC_MOCK_OFFER_CATALOG_SIZE: optionalString,
-    /**
-     * Crossmint client API key used by `@crossmint/client-sdk-react-ui` in the browser.
-     * Use a Crossmint **client / publishable** key scoped for frontend use; never put server admin keys here.
-     */
-    NEXT_PUBLIC_CROSSMINT_API_KEY: optionalString,
-    NEXT_PUBLIC_CROSSMINT_COLLECTION_ID: optionalString,
     NEXT_PUBLIC_TELEGRAM_BOT_USERNAME: optionalString,
     NEXT_PUBLIC_FRONTEND_URL: optionalString,
     NEXT_PUBLIC_ANALYTICS_ENABLED: optionalString,
@@ -133,8 +127,6 @@ export const env = createEnv({
     NEXT_PUBLIC_MOCK_API: process.env.NEXT_PUBLIC_MOCK_API,
     NEXT_PUBLIC_MOCK_ACTIVE_USER_ID: process.env.NEXT_PUBLIC_MOCK_ACTIVE_USER_ID,
     NEXT_PUBLIC_MOCK_OFFER_CATALOG_SIZE: process.env.NEXT_PUBLIC_MOCK_OFFER_CATALOG_SIZE,
-    NEXT_PUBLIC_CROSSMINT_API_KEY: process.env.NEXT_PUBLIC_CROSSMINT_API_KEY,
-    NEXT_PUBLIC_CROSSMINT_COLLECTION_ID: process.env.NEXT_PUBLIC_CROSSMINT_COLLECTION_ID,
     NEXT_PUBLIC_TELEGRAM_BOT_USERNAME: process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME,
     NEXT_PUBLIC_FRONTEND_URL: process.env.NEXT_PUBLIC_FRONTEND_URL,
     NEXT_PUBLIC_ANALYTICS_ENABLED: process.env.NEXT_PUBLIC_ANALYTICS_ENABLED,

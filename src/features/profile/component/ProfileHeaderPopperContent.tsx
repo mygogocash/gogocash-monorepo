@@ -16,11 +16,10 @@ import TermsOfServiceNavIcon from "@/components/icons/TermsOfServiceNavIcon";
 import TermsOfUseNavIcon from "@/components/icons/TermsOfUseNavIcon";
 import WalletIcon from "@/components/icons/WalletIcon";
 import { WalletSummaryHeroCard } from "@/components/common/WalletSummaryHeroCard";
-import { FEATURE_FLAGS } from "@/constants/featureFlags";
 import { GOGOCASH_MARKETING_ORIGIN } from "@/constants/footer-links";
 import { getSupportHref, GOGOCASH_LINKTREE_HREF } from "@/constants/navigation";
 import { Link } from "@/i18n/navigation";
-import { useCrossmintLoginContext } from "@/providers/CrossmintLoginContext";
+import { useSessionContext } from "@/providers/SessionContext";
 import { Divider } from "@mui/material";
 import { useSession } from "next-auth/react";
 import { useTranslations } from "next-intl";
@@ -98,7 +97,7 @@ function MenuRowButton({
 export default function ProfileHeaderPopperContent({ onNavigate }: { onNavigate?: () => void }) {
   const { data: session } = useSession();
   const t = useTranslations();
-  const { signOutAuth, getCheck } = useCrossmintLoginContext();
+  const { signOutAuth, getCheck } = useSessionContext();
 
   const supportHref = getSupportHref(session?.user?.region);
 
@@ -206,14 +205,6 @@ export default function ProfileHeaderPopperContent({ onNavigate }: { onNavigate?
             icon={<GlobeIcon width={24} height={24} stroke={ICON_TEAL} />}
             label={t("sidebarConnectGoGoCash")}
           />
-          {FEATURE_FLAGS.subscription ? (
-            <MenuRowLink
-              href="/subscription"
-              onNavigate={onNavigate}
-              icon={<ProfileAddIcon width={24} height={24} fill={ICON_TEAL} />}
-              label={t("Subscription")}
-            />
-          ) : null}
         </div>
 
         <Divider sx={{ borderColor: "#E4E4E4" }} />

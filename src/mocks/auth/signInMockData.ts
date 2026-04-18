@@ -6,7 +6,6 @@ export const mockSignInUser: User = {
   address: "0xmock000000000000000000000000000000000001",
   __v: 0,
   email: "mock.user@gogocash.test",
-  id_crossmint: "mock-crossmint-id",
   id_twitter: "",
   username: "Mock User",
   country: "Thailand",

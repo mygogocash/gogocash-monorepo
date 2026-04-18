@@ -12,8 +12,6 @@ declare module "next-auth" {
     refresh_token?: string;
     expires?: string;
     wallet?: string;
-    crossmint_user_id?: string;
-    crossmint_jwt?: string;
     username?: string;
     _id?: string;
     region?: string;
@@ -34,8 +32,6 @@ declare module "next-auth" {
       access_token?: string;
       refresh_token?: string;
       wallet?: string;
-      crossmint_user_id?: string;
-      crossmint_jwt?: string;
       username?: string;
       _id?: string;
       region?: string;
@@ -60,8 +56,6 @@ declare module "next-auth/jwt" {
     username?: string;
     address?: string;
     wallet?: string;
-    crossmint_user_id?: string;
-    crossmint_jwt?: string;
     _id?: string;
     region?: string;
     mobile?: string;

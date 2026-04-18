@@ -7,7 +7,7 @@ SKIP_ENV_VALIDATION=1 NEXTAUTH_SECRET=ci-build-placeholder-secret-min-32-chars!!
 npm run analyze
 ```
 
-Opens the Webpack bundle analyzer (requires `ANALYZE=true`). Inspect shared vendors (MUI, Crossmint, etc.) and async chunks.
+Opens the Webpack bundle analyzer (requires `ANALYZE=true`). Inspect shared vendors (MUI, Firebase, etc.) and async chunks.
 
 ## Bundle size gate (CI)
 
