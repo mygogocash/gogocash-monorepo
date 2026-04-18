@@ -5,7 +5,10 @@ import { Toaster } from "react-hot-toast";
 import { getQueryClient } from "@/lib/query/queryClient";
 import { Suspense } from "react";
 import dynamic from "next/dynamic";
+import { WagmiProvider } from "wagmi";
+import { wagmiConfig } from "@/lib/web3/wagmiConfig";
 import { SessionContextProvider } from "./SessionContext";
+import { MiniPayAutoSignIn } from "@/features/auth/component/MiniPayAutoSignIn";
 import RouteAnalyticsTracker from "@/components/analytics/RouteAnalyticsTracker";
 import WebVitalsReporter from "@/components/analytics/WebVitalsReporter";
 import PostHogProvider from "./PostHogProvider";
@@ -27,28 +30,31 @@ const ProviderDefault = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider theme={appTheme}>
-        <CssBaseline />
-        <SessionProvider>
-          <PostHogProvider>
-            <SessionContextProvider>
-              <WebVitalsReporter />
-              <PostHogAuthSync />
-              <PostHogReplayController />
-              <Suspense fallback={null}>
-                <RouteAnalyticsTracker />
-              </Suspense>
-              {children}
-              <Toaster
-                containerStyle={{
-                  bottom:
-                    "calc(var(--gc-mobile-nav-clearance, 0px) + var(--gc-safe-bottom, 0px) + 8px)",
-                }}
-              />
-            </SessionContextProvider>
-          </PostHogProvider>
-        </SessionProvider>
-      </ThemeProvider>
+      <WagmiProvider config={wagmiConfig}>
+        <ThemeProvider theme={appTheme}>
+          <CssBaseline />
+          <SessionProvider>
+            <PostHogProvider>
+              <SessionContextProvider>
+                <MiniPayAutoSignIn />
+                <WebVitalsReporter />
+                <PostHogAuthSync />
+                <PostHogReplayController />
+                <Suspense fallback={null}>
+                  <RouteAnalyticsTracker />
+                </Suspense>
+                {children}
+                <Toaster
+                  containerStyle={{
+                    bottom:
+                      "calc(var(--gc-mobile-nav-clearance, 0px) + var(--gc-safe-bottom, 0px) + 8px)",
+                  }}
+                />
+              </SessionContextProvider>
+            </PostHogProvider>
+          </SessionProvider>
+        </ThemeProvider>
+      </WagmiProvider>
       {process.env.NODE_ENV === "development" ? (
         <ReactQueryDevtoolsLazy initialIsOpen={false} />
       ) : null}
