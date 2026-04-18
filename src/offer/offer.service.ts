@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
@@ -13,7 +13,8 @@ import { Banner } from './schemas/banner.schema';
 import { Coupon } from './schemas/coupon.schema';
 import { UpdateCouponDto } from './dto/update-offer.dto';
 @Injectable()
-export class OfferService {
+export class OfferService implements OnApplicationBootstrap {
+  private readonly logger = new Logger(OfferService.name);
   private filePath = join(process.cwd(), 'uploads', 'data', 'offers.json');
 
   constructor(
@@ -27,6 +28,28 @@ export class OfferService {
     @InjectModel(Banner.name)
     private bannerModel: Model<Banner>,
   ) {}
+
+  /**
+   * One-shot index migration: the former `{ offer_id: 1 }` unique index becomes
+   * a compound `{ source, offer_id }` after the Optimise integration. Drop the
+   * legacy index on startup if it still exists so Mongoose can create the new
+   * compound index cleanly. Idempotent — a no-op once the migration has run.
+   */
+  async onApplicationBootstrap(): Promise<void> {
+    try {
+      const indexes = await this.offerModel.collection.indexes();
+      const legacy = indexes.find((idx) => idx.name === 'offer_id_1');
+      if (legacy) {
+        await this.offerModel.collection.dropIndex('offer_id_1');
+        this.logger.log(
+          'Dropped legacy `offer_id_1` unique index; compound `source_1_offer_id_1` will be created by Mongoose.',
+        );
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Offer index migration check skipped: ${msg}`);
+    }
+  }
   async findAll(
     page: number,
     limit: number,
@@ -34,6 +57,8 @@ export class OfferService {
     categories: string,
     country?: string,
     admin = false,
+    /** Admin-only curation filters. Ignored on public (`admin=false`) calls. */
+    adminFilters: { status?: string; source?: string } = {},
   ) {
     const filter: any = {};
     if (search) {
@@ -49,7 +74,17 @@ export class OfferService {
     }
     if (!admin) {
       filter.disabled = { $ne: true };
+      // Hide pending/rejected offers from the customer app. Legacy Involve docs
+      // default to `status: 'approved'` via the Offer schema, so they remain visible.
+      filter.status = { $nin: ['pending_review', 'rejected'] };
       // filter.countries = { $regex: 'Thailand', $options: 'i' };
+    } else {
+      if (adminFilters.status) {
+        filter.status = adminFilters.status;
+      }
+      if (adminFilters.source) {
+        filter.source = adminFilters.source;
+      }
     }
     const data = await this.offerModel
       .find(filter)
@@ -64,6 +99,7 @@ export class OfferService {
   async findAllExtra() {
     const filter: any = {};
     filter.disabled = { $ne: true };
+    filter.status = { $nin: ['pending_review', 'rejected'] };
     filter.extra_store = true;
     // filter.countries = { $regex: 'Thailand', $options: 'i' };
 

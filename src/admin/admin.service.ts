@@ -611,4 +611,61 @@ export class AdminService {
     );
     return { success: true, order };
   }
+
+  /**
+   * Approve an offer for display on the customer app. Clears any prior
+   * rejection reason so an un-reject / re-approve cycle leaves a clean record.
+   */
+  async approveOffer(offerId: string, adminId: string) {
+    if (!Types.ObjectId.isValid(offerId)) {
+      throw new HttpException('Invalid offer id', 400);
+    }
+    const updated = await this.offerModel
+      .findByIdAndUpdate(
+        offerId,
+        {
+          $set: {
+            status: 'approved',
+            reviewed_by: adminId,
+            reviewed_at: new Date(),
+          },
+          $unset: { rejection_reason: '' },
+        },
+        { new: true },
+      )
+      .exec();
+    if (!updated) {
+      throw new HttpException('Offer not found', 404);
+    }
+    return updated;
+  }
+
+  /** Reject an offer. Reason is required for audit and is surfaced on the detail view. */
+  async rejectOffer(offerId: string, adminId: string, reason: string) {
+    if (!Types.ObjectId.isValid(offerId)) {
+      throw new HttpException('Invalid offer id', 400);
+    }
+    const trimmed = reason?.trim();
+    if (!trimmed) {
+      throw new HttpException('Rejection reason is required', 400);
+    }
+    const updated = await this.offerModel
+      .findByIdAndUpdate(
+        offerId,
+        {
+          $set: {
+            status: 'rejected',
+            reviewed_by: adminId,
+            reviewed_at: new Date(),
+            rejection_reason: trimmed,
+          },
+        },
+        { new: true },
+      )
+      .exec();
+    if (!updated) {
+      throw new HttpException('Offer not found', 404);
+    }
+    return updated;
+  }
 }

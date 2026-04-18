@@ -23,6 +23,8 @@ import {
   RegisterAdminDto,
 } from './dto/create-admin.dto';
 import {
+  ApproveOfferDto,
+  RejectOfferDto,
   UpdateAdminDto,
   UpdateBannerHomeDto,
   UpdateFeeRateDto,
@@ -245,6 +247,36 @@ export class AdminController {
     });
   }
 
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @ApiBody({ type: ApproveOfferDto })
+  @Post('offer/:id/approve')
+  approveOffer(
+    @Param('id') id: string,
+    @Body() _body: ApproveOfferDto,
+    @Req() req: Request,
+  ) {
+    const user = req['user'] as { sub?: string } | undefined;
+    const adminId = user?.sub ?? 'unknown';
+    return this.adminService.approveOffer(id, adminId);
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @ApiBody({ type: RejectOfferDto })
+  @Post('offer/:id/reject')
+  rejectOffer(
+    @Param('id') id: string,
+    @Body() body: RejectOfferDto,
+    @Req() req: Request,
+  ) {
+    const user = req['user'] as { sub?: string } | undefined;
+    const adminId = user?.sub ?? 'unknown';
+    return this.adminService.rejectOffer(id, adminId, body.reason);
+  }
 
   @UseInterceptors(
     FileFieldsInterceptor([

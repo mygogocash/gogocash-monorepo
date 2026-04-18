@@ -3,9 +3,20 @@ import { HydratedDocument } from 'mongoose';
 
 export type OfferDocument = HydratedDocument<Offer>;
 
+/** Affiliate network the offer was ingested from (or `'manual'` for admin-created brands). */
+export type OfferSource = 'involve' | 'optimise' | 'manual';
+
+/** Admin curation state. `'approved'` is the default so legacy Involve offers stay visible. */
+export type OfferStatus = 'pending_review' | 'approved' | 'rejected';
+
 @Schema({ timestamps: true })
 export class Offer {
-  @Prop({ required: true, unique: true })
+  /**
+   * Network-scoped identifier from the upstream affiliate provider.
+   * Uniqueness is enforced by the compound index `{ source, offer_id }` below —
+   * different networks may happen to use the same numeric id.
+   */
+  @Prop({ required: true })
   offer_id: number;
 
   @Prop({ required: true })
@@ -109,6 +120,48 @@ export class Offer {
 
   @Prop()
   product_type: { [key: string]: string }[];
+
+  /**
+   * Affiliate network of origin. `'involve'` default keeps every pre-existing
+   * document valid without a backfill migration.
+   */
+  @Prop({ default: 'involve', enum: ['involve', 'optimise', 'manual'] })
+  source: OfferSource;
+
+  /**
+   * Admin curation state. `'approved'` default preserves visibility of every
+   * legacy Involve offer after this schema change — no migration needed.
+   * Optimise sync writes `'pending_review'` on newly-seen offers.
+   */
+  @Prop({
+    default: 'approved',
+    enum: ['pending_review', 'approved', 'rejected'],
+  })
+  status: OfferStatus;
+
+  /** Admin user id of the last reviewer (approve/reject). */
+  @Prop()
+  reviewed_by?: string;
+
+  /** Timestamp of the last review action. */
+  @Prop()
+  reviewed_at?: Date;
+
+  /** Reason provided when rejecting; cleared on approve. */
+  @Prop()
+  rejection_reason?: string;
 }
 
 export const OfferSchema = SchemaFactory.createForClass(Offer);
+
+/**
+ * Unique per (source, offer_id). Replaces the former single-field unique index on
+ * `offer_id`, which would reject Optimise campaigns that happen to share a numeric
+ * id with an Involve offer. Run-time migration is a sub-second re-index on the
+ * current collection size.
+ */
+OfferSchema.index({ source: 1, offer_id: 1 }, { unique: true });
+
+/** Fast lookups for admin Pending tab and customer-app visibility filter. */
+OfferSchema.index({ status: 1 });
+OfferSchema.index({ source: 1, status: 1 });
