@@ -1,7 +1,7 @@
 import { getNextAuthSecret } from "@/lib/nextAuthSecret";
 import type { AuthOptions, User } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { registerFirebase, signInFirebase } from "./services/auth";
+import { registerFirebase, signInFirebase, signInMiniPaySiwe } from "./services/auth";
 import client from "./axios/client";
 import { User as IUser } from "@/interfaces/auth";
 import { mockSignInUser } from "@/mocks/auth/signInMockData";
@@ -16,6 +16,9 @@ export const authOptions: AuthOptions = {
       credentials: {
         jwt: { label: "Firebase JWT", type: "text" },
         type: { label: "Type", type: "text" },
+        // MiniPay SIWE fields (only used when `type === "minipay_siwe"`).
+        siwe_message: { label: "SIWE Message", type: "text" },
+        siwe_signature: { label: "SIWE Signature", type: "text" },
         // userId: { label: "User ID", type: "text" },
         // _id: { label: 'Mongo ID', type: 'text' },
         email: { label: "Email", type: "email" },
@@ -36,6 +39,41 @@ export const authOptions: AuthOptions = {
       },
       async authorize(credentials) {
         try {
+          // MiniPay SIWE: verify the signed EIP-4361 message on the backend
+          // and exchange it for a GoGoCash session. Auth envelope matches the
+          // Firebase path so downstream callbacks don't need to branch.
+          if (credentials?.type === "minipay_siwe") {
+            if (!credentials.address || !credentials.siwe_message || !credentials.siwe_signature) {
+              return null;
+            }
+            const res = await signInMiniPaySiwe({
+              address: credentials.address,
+              message: credentials.siwe_message,
+              signature: credentials.siwe_signature,
+              referral_id: credentials?.referral_id || "",
+              locale: credentials?.locale || "",
+              posthog_distinct_id: credentials?.posthog_distinct_id || "",
+              posthog_anonymous_id: credentials?.posthog_anonymous_id || "",
+            }).catch(() => null);
+            if (!res?.user) return null;
+            const u = res.user;
+            return {
+              email: u.email ?? "",
+              username: u.username,
+              id_twitter: u.id_twitter,
+              wallet: u.address ?? credentials.address,
+              access_token: res.token,
+              _id: u._id,
+              region: u.country,
+              mobile: u.mobile,
+              birthdate: u.birthdate,
+              gender: u.gender,
+              id_telegram: u.id_telegram,
+              provider: "minipay",
+              is_new_user: res.is_new_user ?? false,
+              auth_flow: res.auth_flow ?? "login",
+            } as unknown as User;
+          }
           if (credentials?.type === "dev_phone") {
             if (process.env.NODE_ENV !== "development") {
               return null;
