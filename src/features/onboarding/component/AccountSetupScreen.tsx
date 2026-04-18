@@ -6,14 +6,17 @@
  * Entered from: Link-MyCashBack flow → Verify Success → "Continue".
  *
  * Three sub-flows, selected on the intro step:
- *   - registered_phone:   intro → rp_name → rp_qr → submit → success → home
- *   - other_phone:        intro → op_input → op_otp → op_name → submit → success → home
- *   - citizen_id:         intro → ci_input → ci_name → submit → success → home
+ *   - registered_phone:   intro → submit → home (session's username is the
+ *                         account holder name; no name/QR/modal prompts).
+ *   - other_phone:        intro → op_input → op_otp → op_name → submit → home
+ *   - citizen_id:         intro → ci_input → ci_name → submit → home
  *
  * Bank Account / Crypto Wallet buttons on the intro step hop to the generic
  * `/method/create` editor that already supports those methods.
  *
- * Figma: 9756-214495 (overview) · 9022-914403 (primary frame).
+ * Figma: 9756-214495 (overview) · 9022-914403 (primary frame). The Figma
+ * 3.1.3 multi-step (name → QR → success modal) is a richer future iteration;
+ * current behaviour is the simplified MVP per product direction.
  */
 
 import { useRouter } from "@/i18n/navigation";
@@ -38,14 +41,12 @@ import {
 } from "../accountSetupValidators";
 import { AccountSetupHeader } from "./AccountSetupHeader";
 import { AccountSetupHeroPanel } from "./AccountSetupHeroPanel";
-import { AccountSetupSuccessModal } from "./AccountSetupSuccessModal";
 import {
   CitizenIdInputStep,
   IntroStep,
   NameConfirmationStep,
   OtherPhoneInputStep,
   OtherPhoneOtpStep,
-  RegisteredPhoneQrStep,
 } from "./AccountSetupSteps";
 
 const HEADING_ID = "account-setup-heading";
@@ -82,29 +83,38 @@ export default function AccountSetupScreen() {
   const save = useMutation({
     mutationFn: (payload: {
       account_no: string;
+      account_name: string;
       bank_code: "PP_PHONE" | "PP_CITIZEN";
     }) =>
       createMethodWithdraw({
         account_no: payload.account_no,
-        account_name: `${form.firstName.trim()} ${form.lastName.trim()}`.trim(),
+        account_name: payload.account_name,
         bank_name: "PromptPay",
         bank_code: payload.bank_code,
         is_default: true,
       }),
-    onSuccess: () => setStep("success"),
+    onSuccess: () => {
+      toast.success(t("accountSetupSubmitSuccess"));
+      router.replace("/");
+    },
     onError: () => toast.error(t("accountSetupSubmitError")),
   });
 
   /* ─── Navigation handlers per step ─────────────────────────────────── */
 
-  // Intro → Next: branch by choice.
+  // Intro → Next: branch by choice. Registered-phone submits immediately
+  // using the session username as the PromptPay account holder name.
   const onIntroNext = () => {
     if (form.choice === "registered_phone") {
       if (!hasRegisteredPhone) {
         toast.error(t("accountSetupNoRegisteredPhoneError"));
         return;
       }
-      setStep("rp_name");
+      save.mutate({
+        account_no: registeredPhone,
+        account_name: session?.user?.username ?? "",
+        bank_code: "PP_PHONE",
+      });
     } else if (form.choice === "other_phone") {
       setPhoneError(null);
       setStep("op_input");
@@ -117,18 +127,6 @@ export default function AccountSetupScreen() {
   const onNotNow = () => router.push("/");
   const onChooseBank = () => router.push("/method/create");
   const onChooseCrypto = () => router.push("/method/create");
-
-  // Registered-phone path: name → QR → submit.
-  const onRpNameNext = () => {
-    if (!isNameValid(form.firstName) || !isNameValid(form.lastName)) {
-      // Field-level errors render below the inputs; no toast needed.
-      return;
-    }
-    setStep("rp_qr");
-  };
-  const onRpQrNext = () => {
-    save.mutate({ account_no: registeredPhone, bank_code: "PP_PHONE" });
-  };
 
   // Other-phone path: input → OTP → name → submit.
   const onOpInputNext = () => {
@@ -153,6 +151,7 @@ export default function AccountSetupScreen() {
     if (!isNameValid(form.firstName) || !isNameValid(form.lastName)) return;
     save.mutate({
       account_no: canonicalThaiMobile(form.otherPhoneDigits),
+      account_name: `${form.firstName.trim()} ${form.lastName.trim()}`.trim(),
       bank_code: "PP_PHONE",
     });
   };
@@ -168,26 +167,35 @@ export default function AccountSetupScreen() {
   };
   const onCiNameNext = () => {
     if (!isNameValid(form.firstName) || !isNameValid(form.lastName)) return;
-    save.mutate({ account_no: form.citizenIdDigits, bank_code: "PP_CITIZEN" });
+    save.mutate({
+      account_no: form.citizenIdDigits,
+      account_name: `${form.firstName.trim()} ${form.lastName.trim()}`.trim(),
+      bank_code: "PP_CITIZEN",
+    });
   };
-
-  const onSuccessDone = () => router.replace("/");
 
   /* ─── Render ───────────────────────────────────────────────────────── */
 
   return (
     <>
+      {/*
+        Outer layout mirrors the sign-in page (LoginComponent.tsx L532–546):
+        1440px outer, 126px gap at lg, hero hidden until lg, form card in a
+        rounded white card with a matching 690px desktop height.
+      */}
       <section
-        className="mx-auto w-full max-w-[1200px] px-4 py-8 md:px-8 md:py-12 lg:py-16"
+        className="mx-auto w-full max-w-[1440px] px-6 pb-16 pt-10 md:px-10 md:pb-24 md:pt-20 lg:px-14 xl:max-2xl:px-20 2xl:px-28"
         aria-labelledby={HEADING_ID}
       >
-        <div className="grid items-start gap-8 md:grid-cols-2 md:gap-12 lg:gap-20">
+        <div className="flex flex-col gap-8 lg:flex-row lg:items-stretch lg:gap-[126px]">
           <AccountSetupHeroPanel />
 
-          <div className="mx-auto w-full max-w-[480px] md:mx-0">
-            <AccountSetupHeader headingId={HEADING_ID} />
+          <div className="mx-auto flex w-full max-w-[480px] flex-col lg:mx-0 lg:h-[690px] lg:max-w-[600px] lg:shrink-0">
+            <div className="flex min-h-0 flex-1 flex-col gap-8 overflow-hidden rounded-[24px] border-2 border-[#e4e4e4] bg-white px-5 py-6 max-md:px-4 max-md:pb-7 md:px-6 lg:h-full lg:gap-6 lg:px-10 lg:py-8">
+              <AccountSetupHeader headingId={HEADING_ID} />
 
-            {step === "intro" ? (
+              <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]">
+                {step === "intro" ? (
               <IntroStep
                 maskedTail={maskedTail}
                 hasRegisteredPhone={hasRegisteredPhone}
@@ -198,22 +206,6 @@ export default function AccountSetupScreen() {
                 onNotNow={onNotNow}
                 onChooseBank={onChooseBank}
                 onChooseCrypto={onChooseCrypto}
-              />
-            ) : step === "rp_name" ? (
-              <NameConfirmationStep
-                firstName={form.firstName}
-                lastName={form.lastName}
-                setFirstName={(v) => setForm((s) => ({ ...s, firstName: v }))}
-                setLastName={(v) => setForm((s) => ({ ...s, lastName: v }))}
-                onBack={() => setStep("intro")}
-                onNext={onRpNameNext}
-                withQrStep
-              />
-            ) : step === "rp_qr" ? (
-              <RegisteredPhoneQrStep
-                onBack={() => setStep("rp_name")}
-                onNext={onRpQrNext}
-                submitting={save.isPending}
               />
             ) : step === "op_input" ? (
               <OtherPhoneInputStep
@@ -260,12 +252,12 @@ export default function AccountSetupScreen() {
                 onNext={onCiNameNext}
                 submitting={save.isPending}
               />
-            ) : null /* step === "success" renders the modal below */}
+                ) : null}
+              </div>
+            </div>
           </div>
         </div>
       </section>
-
-      <AccountSetupSuccessModal open={step === "success"} onDone={onSuccessDone} />
     </>
   );
 }

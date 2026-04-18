@@ -14,14 +14,12 @@
 import { PhoneOtpSixBoxes } from "@/features/auth/component/PhoneOtpSixBoxes";
 import AccountBalanceOutlinedIcon from "@mui/icons-material/AccountBalanceOutlined";
 import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
-import QrCode2OutlinedIcon from "@mui/icons-material/QrCode2Outlined";
 import { useTranslations } from "next-intl";
 import { useId } from "react";
 import type { PromptPayChoice } from "../accountSetupTypes";
 
 /* ───── Shared UI pieces ───────────────────────────────────────────────── */
 
-const MINT = "#00CC99";
 const MINT_DARK = "#00AA80";
 
 function SectionHeading({ title, description }: { title: string; description?: string }) {
@@ -451,7 +449,7 @@ export function CitizenIdInputStep({
   );
 }
 
-/* ───── Name confirmation (shared by all 3 sub-flows) ──────────────────── */
+/* ───── Name confirmation (shared by other-phone + citizen-id flows) ───── */
 
 export function NameConfirmationStep({
   firstName,
@@ -461,8 +459,6 @@ export function NameConfirmationStep({
   onBack,
   onNext,
   submitting = false,
-  /** `withQrStep=true` keeps Next labeled "Next" and continues to QR view (only 3.1.3). */
-  withQrStep = false,
 }: {
   firstName: string;
   lastName: string;
@@ -471,7 +467,6 @@ export function NameConfirmationStep({
   onBack: () => void;
   onNext: () => void;
   submitting?: boolean;
-  withQrStep?: boolean;
 }) {
   const t = useTranslations();
   const firstErrorId = useId();
@@ -480,11 +475,7 @@ export function NameConfirmationStep({
   const firstError = firstName.length > 0 && firstName.trim().length === 0;
   const lastError = lastName.length > 0 && lastName.trim().length === 0;
 
-  const nextLabel = withQrStep
-    ? t("accountSetupNext")
-    : submitting
-      ? t("accountSetupNextSaving")
-      : t("accountSetupConfirmSave");
+  const nextLabel = submitting ? t("accountSetupNextSaving") : t("accountSetupConfirmSave");
 
   return (
     <>
@@ -535,51 +526,3 @@ export function NameConfirmationStep({
   );
 }
 
-/* ───── 3.1.3 Registered Phone: QR display (optional step) ─────────────── */
-
-export function RegisteredPhoneQrStep({
-  onBack,
-  onNext,
-  submitting = false,
-}: {
-  onBack: () => void;
-  onNext: () => void;
-  submitting?: boolean;
-}) {
-  const t = useTranslations();
-
-  return (
-    <>
-      <div className="mt-8 flex flex-col gap-3">
-        <SectionHeading
-          title={t("accountSetupQrTitle")}
-          description={t("accountSetupQrDescription")}
-        />
-      </div>
-
-      <div className="mt-6 flex justify-center">
-        {/* Placeholder QR — per design note "QR Code is optional", Next works either way.
-            Replace with a real PromptPay QR (server-issued or client-generated) when ready. */}
-        <div
-          className="flex size-[200px] flex-col items-center justify-center gap-2 rounded-2xl border border-[#E4EAE6] bg-white text-center text-[11px] text-[#7A8B81]"
-          aria-label={t("accountSetupQrAriaLabel")}
-        >
-          <QrCode2OutlinedIcon sx={{ fontSize: 88, color: MINT }} aria-hidden />
-          <span>{t("accountSetupQrPlaceholder")}</span>
-        </div>
-      </div>
-
-      <p className="mt-4 text-center text-[12px] text-[#7A8B81]">{t("accountSetupQrOptional")}</p>
-
-      <div className="mt-6">
-        <StepFooter
-          onBack={onBack}
-          onNext={onNext}
-          backLabel={t("accountSetupBack")}
-          nextLabel={submitting ? t("accountSetupNextSaving") : t("accountSetupConfirmSave")}
-          submitting={submitting}
-        />
-      </div>
-    </>
-  );
-}
