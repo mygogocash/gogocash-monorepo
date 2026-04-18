@@ -115,7 +115,13 @@ export interface WithdrawList {
   tx_hash_record: string;
   user_id: string;
   conversion_id: number[];
-  currency: Currency;
+  /**
+   * Narrow enough to type-gate the admin UI (USDT/USDC are the MiniPay
+   * manual-payout tokens; THB is retained for legacy bank_transfer rows).
+   * Widened to `string` at the boundary as a defensive fallback if the API
+   * returns an unexpected value — the UI validates at render time.
+   */
+  currency: "THB" | "USDT" | "USDC" | (string & {});
   mycashback_id: string[];
   createdAt: Date;
   updatedAt: Date;
