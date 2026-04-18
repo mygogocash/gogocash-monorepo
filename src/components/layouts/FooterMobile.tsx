@@ -50,8 +50,12 @@ const FooterMobile = () => {
         <div className="flex items-end justify-between gap-1">
           {mobileNavItems.map((item) => {
             const onGolinkRoute = item.href === "/golink" && pathname === item.href;
+            const profileUnauth = item.icon === "profile" && !session?.user;
+            const effectiveHref = profileUnauth ? "/login" : item.href;
             const active =
-              item.href === "/golink" ? onGolinkRoute || isGolinkSheetOpen : pathname === item.href;
+              item.href === "/golink"
+                ? onGolinkRoute || isGolinkSheetOpen
+                : pathname === effectiveHref;
             const icon = getIcon(item.icon, active ? BRAND_MINT_HEX : "#6D7B73");
 
             if (item.icon === "golink" && !onGolinkRoute) {
