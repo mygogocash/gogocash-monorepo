@@ -147,6 +147,18 @@ export class OfferController {
     type: String,
     description: 'Country offer',
   })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['pending_review', 'approved', 'rejected'],
+    description: 'Admin-only curation status filter.',
+  })
+  @ApiQuery({
+    name: 'source',
+    required: false,
+    enum: ['involve', 'optimise', 'manual'],
+    description: 'Admin-only affiliate network filter.',
+  })
   findAllAdmin(@Req() request: Request) {
     const page = request.query.page ? Number(request.query.page) : 1;
     const limit = request.query.limit ? Number(request.query.limit) : 10;
@@ -157,6 +169,12 @@ export class OfferController {
     const country = request.query.country
       ? request.query.country?.toString()
       : '';
+    const status = request.query.status
+      ? request.query.status?.toString()
+      : undefined;
+    const source = request.query.source
+      ? request.query.source?.toString()
+      : undefined;
 
     return this.offerService.findAll(
       page,
@@ -165,6 +183,7 @@ export class OfferController {
       category,
       country,
       true,
+      { status, source },
     );
   }
 

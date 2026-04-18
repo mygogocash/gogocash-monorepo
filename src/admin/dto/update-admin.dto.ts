@@ -163,3 +163,25 @@ export class UpdateBannerHomeDto {
   @IsString()
   image_5: string | File | null;
 }
+
+/**
+ * Payload for approving a pending offer. No body fields are required today;
+ * the admin user id and timestamp are derived from the authenticated request.
+ * Kept as an explicit class so Swagger docs and future extensions (e.g. audit
+ * notes) have a stable surface.
+ */
+export class ApproveOfferDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}
+
+/** Payload for rejecting a pending offer. Reason is required so the admin
+ *  decision is auditable and can be surfaced on the offer detail view. */
+export class RejectOfferDto {
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsString()
+  reason: string;
+}
