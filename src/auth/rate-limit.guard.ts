@@ -25,6 +25,15 @@ export interface RateLimitOptions {
 
 const DEFAULTS: RateLimitOptions = { windowMs: 60_000, max: 20 };
 
+/**
+ * Longest window this guard is expected to enforce across any route. Used
+ * only for the opportunistic Map-cleanup threshold — not for rate-limit
+ * decisions themselves. Entries older than this can safely be pruned even
+ * for routes we haven't seen yet, because no live window could still be
+ * referencing them.
+ */
+const MAX_TRACKED_WINDOW_MS = 60 * 60_000; // 1 h
+
 @Injectable()
 export class RateLimitGuard implements CanActivate {
   private readonly logger = new Logger(RateLimitGuard.name);
@@ -52,8 +61,10 @@ export class RateLimitGuard implements CanActivate {
     const key = `${routeKey}::${ip}`;
 
     const now = Date.now();
-    const cutoff = now - opts.windowMs;
-    const recent = (this.hits.get(key) ?? []).filter((ts) => ts > cutoff);
+    const windowCutoff = now - opts.windowMs;
+    const recent = (this.hits.get(key) ?? []).filter(
+      (ts) => ts > windowCutoff,
+    );
 
     if (recent.length >= opts.max) {
       this.logger.warn(`rate-limit hit ${key} (${recent.length}/${opts.max})`);
@@ -63,10 +74,14 @@ export class RateLimitGuard implements CanActivate {
     recent.push(now);
     this.hits.set(key, recent);
 
-    // Opportunistic cleanup so the Map does not grow unbounded.
+    // Opportunistic cleanup so the Map does not grow unbounded. Uses the
+    // global MAX_TRACKED_WINDOW_MS (not `opts.windowMs`) as the cutoff so a
+    // short-window route can't evict entries belonging to a longer-window
+    // route that is still enforcing its limit.
     if (this.hits.size > 10_000) {
+      const pruneCutoff = now - MAX_TRACKED_WINDOW_MS;
       for (const [k, arr] of this.hits.entries()) {
-        if (arr[arr.length - 1] < cutoff) this.hits.delete(k);
+        if (arr[arr.length - 1] < pruneCutoff) this.hits.delete(k);
       }
     }
 

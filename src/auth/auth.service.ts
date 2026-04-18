@@ -19,6 +19,7 @@ import * as admin from 'firebase-admin';
 import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
 import { SiweNonce, SiweNonceDocument } from './schemas/siwe-nonce.schema';
+import { UserDocument } from 'src/user/schemas/user.schema';
 @Injectable()
 export class AuthService {
   private baseUrl: string;
@@ -467,7 +468,7 @@ export class AuthService {
   async issueSiweNonce(): Promise<{ nonce: string }> {
     // 16 random bytes → 32-char hex. EIP-4361 says nonce >= 8 chars alphanum.
     const nonce = crypto.randomBytes(16).toString('hex');
-    await this.siweNonceModel.create({ nonce, issuedAt: new Date() });
+    await this.siweNonceModel.create({ nonce });
     return { nonce };
   }
 
@@ -512,23 +513,27 @@ export class AuthService {
     }
 
     const syntheticFirebaseId = `minipay:${address.toLowerCase()}`;
-    const existing = await this.userService.findOne({
+    const existing = (await this.userService.findOne({
       id_firebase: syntheticFirebaseId,
-    });
+    })) as UserDocument | null;
 
-    let user: any;
+    let user: UserDocument;
     let isNewUser: boolean;
     if (existing) {
-      user = await this.userService.update(existing._id, {
+      const updated = (await this.userService.update(existing._id, {
         address: address.toLowerCase(),
         provider: 'minipay',
-      });
-      if (user?.disabled) {
+      })) as UserDocument | null;
+      if (!updated) {
+        throw new UnauthorizedException('Failed to update wallet session');
+      }
+      if (updated.disabled) {
         throw new UnauthorizedException('Your account has been disabled');
       }
+      user = updated;
       isNewUser = false;
     } else {
-      user = await this.userService.createFromFirebase({
+      const created = (await this.userService.createFromFirebase({
         address: address.toLowerCase(),
         id_crossmint: '',
         email: '',
@@ -537,10 +542,14 @@ export class AuthService {
         id_firebase: syntheticFirebaseId,
         country: '',
         provider: 'minipay',
-      });
-      if (user?.disabled) {
+      })) as UserDocument | null;
+      if (!created) {
+        throw new UnauthorizedException('Failed to provision wallet session');
+      }
+      if (created.disabled) {
         throw new UnauthorizedException('Your account has been disabled');
       }
+      user = created;
       if (referral_id && referral_id !== 'undefined') {
         const ref = await this.userService.findOne({
           _id: new Types.ObjectId(referral_id),
