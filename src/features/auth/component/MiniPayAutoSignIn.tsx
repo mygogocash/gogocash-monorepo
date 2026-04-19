@@ -94,15 +94,7 @@ export function MiniPayAutoSignIn() {
         }
       }
     })();
-  }, [
-    isInMiniPay,
-    status,
-    isConnected,
-    address,
-    connect,
-    connectors,
-    signMessageAsync,
-  ]);
+  }, [isInMiniPay, status, isConnected, address, connect, connectors, signMessageAsync]);
 
   return null;
 }

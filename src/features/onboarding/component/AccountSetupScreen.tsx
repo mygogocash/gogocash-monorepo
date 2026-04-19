@@ -196,62 +196,62 @@ export default function AccountSetupScreen() {
 
               <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]">
                 {step === "intro" ? (
-              <IntroStep
-                maskedTail={maskedTail}
-                hasRegisteredPhone={hasRegisteredPhone}
-                choice={form.choice}
-                setChoice={setChoice}
-                submitting={save.isPending}
-                onNext={onIntroNext}
-                onNotNow={onNotNow}
-                onChooseBank={onChooseBank}
-                onChooseCrypto={onChooseCrypto}
-              />
-            ) : step === "op_input" ? (
-              <OtherPhoneInputStep
-                value={form.otherPhoneDigits}
-                setValue={(v) => setForm((s) => ({ ...s, otherPhoneDigits: v }))}
-                error={phoneError}
-                onBack={() => setStep("intro")}
-                onNext={onOpInputNext}
-              />
-            ) : step === "op_otp" ? (
-              <OtherPhoneOtpStep
-                phoneTail={maskTail(form.otherPhoneDigits)}
-                otp={form.otpInput}
-                setOtp={(v) => setForm((s) => ({ ...s, otpInput: v }))}
-                error={otpError}
-                onBack={() => setStep("op_input")}
-                onNext={onOpOtpNext}
-              />
-            ) : step === "op_name" ? (
-              <NameConfirmationStep
-                firstName={form.firstName}
-                lastName={form.lastName}
-                setFirstName={(v) => setForm((s) => ({ ...s, firstName: v }))}
-                setLastName={(v) => setForm((s) => ({ ...s, lastName: v }))}
-                onBack={() => setStep("op_otp")}
-                onNext={onOpNameNext}
-                submitting={save.isPending}
-              />
-            ) : step === "ci_input" ? (
-              <CitizenIdInputStep
-                value={form.citizenIdDigits}
-                setValue={(v) => setForm((s) => ({ ...s, citizenIdDigits: v }))}
-                error={citizenIdError}
-                onBack={() => setStep("intro")}
-                onNext={onCiInputNext}
-              />
-            ) : step === "ci_name" ? (
-              <NameConfirmationStep
-                firstName={form.firstName}
-                lastName={form.lastName}
-                setFirstName={(v) => setForm((s) => ({ ...s, firstName: v }))}
-                setLastName={(v) => setForm((s) => ({ ...s, lastName: v }))}
-                onBack={() => setStep("ci_input")}
-                onNext={onCiNameNext}
-                submitting={save.isPending}
-              />
+                  <IntroStep
+                    maskedTail={maskedTail}
+                    hasRegisteredPhone={hasRegisteredPhone}
+                    choice={form.choice}
+                    setChoice={setChoice}
+                    submitting={save.isPending}
+                    onNext={onIntroNext}
+                    onNotNow={onNotNow}
+                    onChooseBank={onChooseBank}
+                    onChooseCrypto={onChooseCrypto}
+                  />
+                ) : step === "op_input" ? (
+                  <OtherPhoneInputStep
+                    value={form.otherPhoneDigits}
+                    setValue={(v) => setForm((s) => ({ ...s, otherPhoneDigits: v }))}
+                    error={phoneError}
+                    onBack={() => setStep("intro")}
+                    onNext={onOpInputNext}
+                  />
+                ) : step === "op_otp" ? (
+                  <OtherPhoneOtpStep
+                    phoneTail={maskTail(form.otherPhoneDigits)}
+                    otp={form.otpInput}
+                    setOtp={(v) => setForm((s) => ({ ...s, otpInput: v }))}
+                    error={otpError}
+                    onBack={() => setStep("op_input")}
+                    onNext={onOpOtpNext}
+                  />
+                ) : step === "op_name" ? (
+                  <NameConfirmationStep
+                    firstName={form.firstName}
+                    lastName={form.lastName}
+                    setFirstName={(v) => setForm((s) => ({ ...s, firstName: v }))}
+                    setLastName={(v) => setForm((s) => ({ ...s, lastName: v }))}
+                    onBack={() => setStep("op_otp")}
+                    onNext={onOpNameNext}
+                    submitting={save.isPending}
+                  />
+                ) : step === "ci_input" ? (
+                  <CitizenIdInputStep
+                    value={form.citizenIdDigits}
+                    setValue={(v) => setForm((s) => ({ ...s, citizenIdDigits: v }))}
+                    error={citizenIdError}
+                    onBack={() => setStep("intro")}
+                    onNext={onCiInputNext}
+                  />
+                ) : step === "ci_name" ? (
+                  <NameConfirmationStep
+                    firstName={form.firstName}
+                    lastName={form.lastName}
+                    setFirstName={(v) => setForm((s) => ({ ...s, firstName: v }))}
+                    setLastName={(v) => setForm((s) => ({ ...s, lastName: v }))}
+                    onBack={() => setStep("ci_input")}
+                    onNext={onCiNameNext}
+                    submitting={save.isPending}
+                  />
                 ) : null}
               </div>
             </div>
