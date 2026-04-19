@@ -1,0 +1,71 @@
+# Deploy Admin Panel to Firebase Hosting — production site (admin.gogocash.co).
+# Scaffold — awaits infra setup before first successful run.
+#
+# ─── TODO — production infrastructure setup ───────────────────────────
+#   1. Create Firebase Hosting site "gogocash-admin-production".
+#   2. Bind custom domain admin.gogocash.co to that site.
+#   3. Point NEXT_PUBLIC_API_URL at https://api.gogocash.co once the API
+#      production Cloud Run service is live.
+#   4. Consider a separate GCP project for production (gogocash-production)
+#      rather than reusing gogocash-staging — affects WIF provider + SA.
+#   5. Add repo secrets NEXTAUTH_SECRET_PRODUCTION + NEXTAUTH_URL_PRODUCTION.
+#   6. Consider branch protection on `production` — PR-only, required status
+#      checks, required reviewers.
+# ──────────────────────────────────────────────────────────────────────
+
+name: Deploy Firebase Hosting (production)
+
+on:
+  push:
+    branches:
+      - production
+  workflow_dispatch:
+
+concurrency:
+  group: firebase-production-${{ github.ref }}
+  cancel-in-progress: false # never cancel a production deploy mid-flight
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Authenticate to Google Cloud (Workload Identity Federation)
+        id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.FIREBASE_WORKLOAD_IDENTITY_PROVIDER_PRODUCTION || vars.FIREBASE_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.FIREBASE_WIF_SERVICE_ACCOUNT_PRODUCTION || vars.FIREBASE_WIF_SERVICE_ACCOUNT }}
+          token_format: access_token
+
+      - name: Build static export (Firebase, real API — no mocks)
+        run: npm run build:firebase
+        env:
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET_PRODUCTION }}
+          NEXTAUTH_URL: https://admin.gogocash.co
+          NEXT_PUBLIC_API_URL: https://api.gogocash.co
+          NEXT_PUBLIC_APP_URL: https://app.gogocash.co
+          NEXT_PUBLIC_APP_ENV: production
+          NEXT_TELEMETRY_DISABLED: "1"
+
+      - name: Deploy to Firebase Hosting (production site)
+        run: |
+          npx firebase deploy --only hosting:gogocash-admin-production \
+            --project ${{ vars.FIREBASE_PROJECT_PRODUCTION || 'gogocash-staging' }} \
+            --non-interactive \
+            --token "${{ steps.auth.outputs.access_token }}"

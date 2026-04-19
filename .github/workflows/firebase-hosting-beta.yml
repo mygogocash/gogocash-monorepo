@@ -1,0 +1,75 @@
+# Deploy Admin Panel to Firebase Hosting — beta site (admin-beta.gogocash.co).
+# Scaffold — awaits infra setup before first successful run.
+#
+# ─── TODO — beta infrastructure setup ─────────────────────────────────
+#   1. Create Firebase Hosting site "gogocash-admin-beta".
+#   2. Bind custom domain admin-beta.gogocash.co to that site.
+#   3. Confirm the beta API is reachable at https://api-beta.gogocash.co
+#      (or point NEXT_PUBLIC_API_URL at staging while that's stood up).
+#   4. Reuse existing FIREBASE_WORKLOAD_IDENTITY_PROVIDER +
+#      FIREBASE_WIF_SERVICE_ACCOUNT vars (they target the shared project).
+#   5. Add repo secrets NEXTAUTH_SECRET_BETA + NEXTAUTH_URL_BETA
+#      (can mirror staging values initially).
+# ──────────────────────────────────────────────────────────────────────
+
+name: Deploy Firebase Hosting (beta)
+
+on:
+  push:
+    branches:
+      - beta
+  workflow_dispatch:
+
+concurrency:
+  group: firebase-beta-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Authenticate to Google Cloud (Workload Identity Federation)
+        id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.FIREBASE_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.FIREBASE_WIF_SERVICE_ACCOUNT }}
+          token_format: access_token
+
+      - name: Build static export (Firebase, real API — no mocks)
+        run: npm run build:firebase
+        env:
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET_BETA }}
+          NEXTAUTH_URL: https://admin-beta.gogocash.co
+          NEXT_PUBLIC_API_URL: https://api-beta.gogocash.co
+          NEXT_PUBLIC_APP_URL: https://app-beta.gogocash.co
+          NEXT_PUBLIC_APP_ENV: beta
+          NEXT_TELEMETRY_DISABLED: "1"
+
+      - name: Deploy to Firebase Hosting (beta site)
+        run: |
+          npx firebase hosting:channel:deploy live \
+            --only gogocash-admin-beta \
+            --project gogocash-staging \
+            --non-interactive \
+            --token "${{ steps.auth.outputs.access_token }}" || \
+          npx firebase deploy --only hosting:gogocash-admin-beta \
+            --project gogocash-staging \
+            --non-interactive \
+            --token "${{ steps.auth.outputs.access_token }}"
