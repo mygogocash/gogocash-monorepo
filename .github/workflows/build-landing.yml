@@ -1,11 +1,15 @@
-# Build Next.js static export and deploy to Firebase Hosting.
+# Build Next.js static export and deploy to Firebase Hosting (production site
+# — landing-page-4ae23 → gogocash.co). Triggers on push to `production` as
+# part of the beta/staging/production branch model. `main` remains the
+# default branch for GitHub; production ships from the `production` branch.
+#
 # Auth is handled through GitHub OIDC + Google Workload Identity Federation.
 
-name: Build and deploy landing
+name: Build and deploy landing (production)
 
 on:
   push:
-    branches: [main]
+    branches: [production]
   workflow_dispatch:
 
 permissions:

@@ -1,0 +1,80 @@
+# Deploy Landing Page to Firebase Hosting — beta site (beta.gogocash.co).
+# Scaffold — awaits infra setup before first successful run.
+#
+# ─── TODO — beta infrastructure setup ─────────────────────────────────
+#   1. Create Firebase Hosting site "gogocash-landing-beta" in the
+#      landing-page-4ae23 project:
+#        Firebase Console → Hosting → Add another site
+#   2. Bind custom domain beta.gogocash.co to that site.
+#   3. Reuse existing FIREBASE_WIF_PROVIDER + FIREBASE_SA_EMAIL repo vars.
+#
+# Until (1) and (2) are done, first push to `beta` will fail at the
+# deploy step with "site not found". CI up to that point will still run.
+# ──────────────────────────────────────────────────────────────────────
+
+name: Deploy Landing Page (beta)
+
+on:
+  push:
+    branches:
+      - beta
+  workflow_dispatch:
+
+concurrency:
+  group: landing-beta-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  FIREBASE_PROJECT_ID: landing-page-4ae23
+  FIREBASE_HOSTING_SITE: gogocash-landing-beta
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: ".nvmrc"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm run test
+
+      - name: Build static site
+        run: npm run build
+        env:
+          INVOLVE_ASIA_API_KEY: ${{ secrets.INVOLVE_ASIA_API_KEY }}
+          INVOLVE_ASIA_API_SECRET: ${{ secrets.INVOLVE_ASIA_API_SECRET }}
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: E2E smoke tests
+        run: npm run test:e2e:ci
+        continue-on-error: true
+
+      - name: Authenticate to Google Cloud (WIF)
+        id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.FIREBASE_WIF_PROVIDER }}
+          service_account: ${{ vars.FIREBASE_SA_EMAIL }}
+          token_format: access_token
+
+      - name: Deploy to Firebase Hosting (beta site)
+        env:
+          FIREBASE_PROJECT_ID: ${{ env.FIREBASE_PROJECT_ID }}
+          FIREBASE_HOSTING_SITES: ${{ env.FIREBASE_HOSTING_SITE }}
+        run: node scripts/deploy-firebase-hosting.mjs
