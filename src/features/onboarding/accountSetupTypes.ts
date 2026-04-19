@@ -13,13 +13,7 @@
 export type PromptPayChoice = "registered_phone" | "other_phone" | "citizen_id";
 
 /** Finite set of step ids across all sub-flows. */
-export type AccountSetupStep =
-  | "intro"
-  | "op_input"
-  | "op_otp"
-  | "op_name"
-  | "ci_input"
-  | "ci_name";
+export type AccountSetupStep = "intro" | "op_input" | "op_otp" | "op_name" | "ci_input" | "ci_name";
 
 /** User-entered values held by the orchestrator and handed to each step component. */
 export type AccountSetupFormState = {

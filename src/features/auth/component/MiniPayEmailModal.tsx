@@ -92,9 +92,7 @@ export function MiniPayEmailModal() {
           </p>
         </div>
         <label className="flex flex-col gap-2">
-          <span className="text-[13px] font-medium text-[#103522]">
-            {t("minipayEmailLabel")}
-          </span>
+          <span className="text-[13px] font-medium text-[#103522]">{t("minipayEmailLabel")}</span>
           <input
             type="email"
             inputMode="email"
@@ -112,9 +110,7 @@ export function MiniPayEmailModal() {
             ].join(" ")}
             autoFocus
           />
-          {error ? (
-            <span className="text-[13px] leading-snug text-[#CD0D0D]">{error}</span>
-          ) : null}
+          {error ? <span className="text-[13px] leading-snug text-[#CD0D0D]">{error}</span> : null}
         </label>
         <button
           type="submit"

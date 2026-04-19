@@ -19,10 +19,7 @@
 
 import { MiniPayEmailModal } from "@/features/auth/component/MiniPayEmailModal";
 import { useRouter } from "@/i18n/navigation";
-import {
-  createManualWithdrawRequest,
-  type ManualWithdrawCurrency,
-} from "@/lib/services/withdraw";
+import { createManualWithdrawRequest, type ManualWithdrawCurrency } from "@/lib/services/withdraw";
 import { formatAddress } from "@/lib/utils";
 import { useMutation } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
@@ -77,8 +74,7 @@ export default function MiniPayWithdrawRequestForm() {
     },
   });
 
-  const canSubmit =
-    !emailMissing && !!walletAddress && amount > 0 && !submit.isPending;
+  const canSubmit = !emailMissing && !!walletAddress && amount > 0 && !submit.isPending;
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,9 +112,7 @@ export default function MiniPayWithdrawRequestForm() {
               <div className="flex h-[52px] items-center rounded-2xl border border-[#E4EAE6] bg-[#F8FAF9] px-4 text-[14px] font-mono text-[#103522]">
                 {walletAddress ? formatAddress(walletAddress) : t("minipayWithdrawNoWallet")}
               </div>
-              <span className="text-[12px] text-[#7A8B81]">
-                {t("minipayWithdrawChainBadge")}
-              </span>
+              <span className="text-[12px] text-[#7A8B81]">{t("minipayWithdrawChainBadge")}</span>
             </div>
 
             {/* Currency picker — USDT / USDC on Celo. */}
@@ -176,9 +170,7 @@ export default function MiniPayWithdrawRequestForm() {
               disabled={!canSubmit}
               className="mt-2 flex h-12 items-center justify-center rounded-full bg-[#00CC99] px-6 text-[15px] font-semibold text-white transition hover:brightness-[0.98] active:brightness-[0.95] disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {submit.isPending
-                ? t("minipayWithdrawSubmitting")
-                : t("minipayWithdrawSubmit")}
+              {submit.isPending ? t("minipayWithdrawSubmitting") : t("minipayWithdrawSubmit")}
             </button>
 
             <p className="text-center text-[12px] leading-snug text-[#7A8B81]">

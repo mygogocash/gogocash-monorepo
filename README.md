@@ -449,23 +449,23 @@ Copy `.env.example` to `.env.local` before running the app locally.
 
 ## Required for local development
 
-| Variable                              | Purpose                                                                                |
-| ------------------------------------- | -------------------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_API_URL`                 | Base URL for backend API used by Axios client                                          |
-| `NEXTAUTH_SECRET`                     | NextAuth JWT/session signing secret                                                    |
-| `NEXT_PUBLIC_ANALYTICS_ENABLED`       | Kill switch for GTM/GA4/Meta tracking                                                  |
-| `NEXT_PUBLIC_GTM_ID`                  | Google Tag Manager container ID                                                        |
-| `NEXT_PUBLIC_GA_MEASUREMENT_ID`       | GA4 property ID used by GTM and direct config fallback                                 |
-| `NEXT_PUBLIC_FIREBASE_API_KEY`        | Firebase client SDK                                                                    |
-| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`    | Firebase client SDK                                                                    |
-| `NEXT_PUBLIC_FIREBASE_PROJECT_ID`     | Firebase client SDK                                                                    |
-| `NEXT_PUBLIC_FIREBASE_APP_ID`         | Firebase client SDK                                                                    |
-| `NEXT_PUBLIC_FRONTEND_URL`            | Used in Telegram/referral links and redirects                                          |
-| `NEXT_PUBLIC_TELEGRAM_BOT_TOKEN`      | Telegram OAuth flow (`LoginComponent`)                                                 |
-| `NEXT_PUBLIC_TELEGRAM_BOT_USERNAME`   | Telegram widget (`TelegramLogin`)                                                      |
-| `NEXT_PUBLIC_META_PIXEL_ID`           | Meta Pixel ID (default: `207487147928890`). Used by `MetaPixel.tsx` and `metaPixel.ts` |
-| `NEXT_PUBLIC_META_USER_SALT`          | Salt for hashing user identifiers before analytics dispatch                            |
-| `NEXT_PUBLIC_ANALYTICS_DEBUG`         | Enables verbose console logging for analytics + Meta Pixel events                      |
+| Variable                            | Purpose                                                                                |
+| ----------------------------------- | -------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_API_URL`               | Base URL for backend API used by Axios client                                          |
+| `NEXTAUTH_SECRET`                   | NextAuth JWT/session signing secret                                                    |
+| `NEXT_PUBLIC_ANALYTICS_ENABLED`     | Kill switch for GTM/GA4/Meta tracking                                                  |
+| `NEXT_PUBLIC_GTM_ID`                | Google Tag Manager container ID                                                        |
+| `NEXT_PUBLIC_GA_MEASUREMENT_ID`     | GA4 property ID used by GTM and direct config fallback                                 |
+| `NEXT_PUBLIC_FIREBASE_API_KEY`      | Firebase client SDK                                                                    |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`  | Firebase client SDK                                                                    |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID`   | Firebase client SDK                                                                    |
+| `NEXT_PUBLIC_FIREBASE_APP_ID`       | Firebase client SDK                                                                    |
+| `NEXT_PUBLIC_FRONTEND_URL`          | Used in Telegram/referral links and redirects                                          |
+| `NEXT_PUBLIC_TELEGRAM_BOT_TOKEN`    | Telegram OAuth flow (`LoginComponent`)                                                 |
+| `NEXT_PUBLIC_TELEGRAM_BOT_USERNAME` | Telegram widget (`TelegramLogin`)                                                      |
+| `NEXT_PUBLIC_META_PIXEL_ID`         | Meta Pixel ID (default: `207487147928890`). Used by `MetaPixel.tsx` and `metaPixel.ts` |
+| `NEXT_PUBLIC_META_USER_SALT`        | Salt for hashing user identifiers before analytics dispatch                            |
+| `NEXT_PUBLIC_ANALYTICS_DEBUG`       | Enables verbose console logging for analytics + Meta Pixel events                      |
 
 ## Required for Web3 withdrawal
 
