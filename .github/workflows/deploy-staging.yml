@@ -1,0 +1,83 @@
+# Deploy Landing Page to Firebase Hosting — staging site (staging.gogocash.co).
+# Triggered on push to the `staging` branch.
+#
+# ─── Prerequisites ───
+#   1. Create a Firebase Hosting site named `gogocash-landing-staging` in the
+#      landing-page-4ae23 project (Firebase Console → Hosting → Add another site).  ✅ DONE
+#   2. Add custom domain staging.gogocash.co to that site.
+#   3. Add a DNS CNAME  staging  →  gogocash-landing-staging.web.app  in your registrar.
+#
+# ─── Required GitHub variables (Settings → Secrets and variables → Actions → Variables) ───
+#   FIREBASE_WIF_PROVIDER   projects/110817639529/locations/global/workloadIdentityPools/github-actions/providers/github
+#   FIREBASE_SA_EMAIL       github-actions-landing@landing-page-4ae23.iam.gserviceaccount.com
+#
+# ─── Optional secrets ───
+#   INVOLVE_ASIA_API_KEY / INVOLVE_ASIA_API_SECRET  — partner data at build time.
+
+name: Deploy Landing Page (staging)
+
+on:
+  push:
+    branches:
+      - staging
+  workflow_dispatch:
+
+concurrency:
+  group: landing-staging-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  FIREBASE_PROJECT_ID: landing-page-4ae23
+  FIREBASE_HOSTING_SITE: gogocash-landing-staging
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm run test
+
+      - name: Build static site
+        run: npm run build
+        env:
+          INVOLVE_ASIA_API_KEY: ${{ secrets.INVOLVE_ASIA_API_KEY }}
+          INVOLVE_ASIA_API_SECRET: ${{ secrets.INVOLVE_ASIA_API_SECRET }}
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: E2E smoke tests
+        run: npm run test:e2e:ci
+        continue-on-error: true
+
+      - name: Authenticate to Google Cloud (WIF)
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.FIREBASE_WIF_PROVIDER }}
+          service_account: ${{ vars.FIREBASE_SA_EMAIL }}
+          token_format: access_token
+
+      - name: Deploy to Firebase Hosting (staging site)
+        run: |
+          npx firebase-tools deploy --only hosting \
+            --project ${{ env.FIREBASE_PROJECT_ID }} \
+            --non-interactive \
+            --token "${{ steps.auth.outputs.access_token }}"

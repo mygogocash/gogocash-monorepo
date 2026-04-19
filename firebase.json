@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "site": "landing-page-4ae23",
+    "site": "gogocash-landing-staging",
     "public": "out",
     "ignore": [
       "firebase.json",

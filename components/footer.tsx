@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import GoGoCashLogo from "./gogocash-logo";
 import {
@@ -52,6 +53,7 @@ const FOOTER_LINKS = {
 };
 
 export default function Footer() {
+  const year = new Date().getFullYear();
   return (
     <footer role="contentinfo" className="bg-white pt-20 pb-8">
       <div className="mx-auto min-w-0 max-w-site px-4 sm:px-6 lg:px-8">
@@ -99,6 +101,31 @@ export default function Footer() {
                     );
                   })}
                 </ul>
+                {/* Trust row appended to the Products column so the footer
+                    matches the customer app (gogocash_app Footer.tsx). */}
+                {title === "Products" ? (
+                  <div className="mt-6 flex flex-col items-start gap-2">
+                    <span className="text-xs font-medium text-[#6b7280]">
+                      Secured by
+                    </span>
+                    <a
+                      href="https://www.cloudflare.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`inline-flex shrink-0 opacity-90 hover:opacity-100 ${twOpacityHoverMotion} ${twFocusRingPrimary}`}
+                      aria-label="Cloudflare"
+                    >
+                      <Image
+                        src="/branding/cloudflare-logo.png"
+                        alt=""
+                        width={200}
+                        height={80}
+                        className="h-8 w-auto max-w-[min(100%,200px)] object-contain object-left"
+                        sizes="200px"
+                      />
+                    </a>
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>
@@ -106,7 +133,7 @@ export default function Footer() {
 
         <div className="mt-16 flex flex-col items-center gap-6 border-t border-gray-100 pt-8 sm:flex-row sm:justify-between">
           <p className="text-sm text-[#6b7280]">
-            &copy; 2026 Copyright - Made with{" "}
+            &copy; {year} Copyright - Made with{" "}
             <span className="text-primary">💚</span> by GoGoCash
           </p>
 
