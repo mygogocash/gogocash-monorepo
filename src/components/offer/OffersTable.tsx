@@ -59,6 +59,30 @@ function displayAffiliatePartner(offer: Offer): string {
   return affiliateNetworkName(resolveAffiliateNetworkIdForOffer(offer));
 }
 
+/**
+ * Brand-grouping key — same logic as the customer-side `dedupeOffersByBrand`.
+ * `merchant_id` is the strongest grouping signal (one merchant id across markets); falls
+ * back to `lookup_value` with the country suffix stripped (e.g. `apple_th` → `apple`).
+ */
+function brandGroupKey(offer: Offer): string {
+  if (offer.merchant_id && offer.merchant_id > 0) return `mid:${offer.merchant_id}`;
+  if (offer.lookup_value) {
+    const stem = String(offer.lookup_value).replace(/_[a-z]{2}$/i, "");
+    if (stem) return `lv:${stem}`;
+  }
+  return `id:${offer._id}`;
+}
+
+/** Display name for a brand group — strips trailing `(TH)` / `- TH` style suffixes. */
+function brandGroupDisplayName(offer: Offer): string {
+  const name = (offer.offer_name || "").trim();
+  // Drop common country suffix patterns; admins write them inconsistently.
+  return name
+    .replace(/\s*[-–—]\s*(TH|SG|ID|MY|PH|VN|US|UK|GB)\b.*$/i, "")
+    .replace(/\s*\((TH|SG|ID|MY|PH|VN|US|UK|GB)\)\s*$/i, "")
+    .trim() || name;
+}
+
 function offerToEditForm(offer: Offer): OfferRequestForm {
   return {
     logo_desktop: null,
@@ -149,6 +173,42 @@ export default function OffersTable() {
   });
 
   const offers = offersResponse?.data ?? [];
+
+  /**
+   * View mode: "flat" lists every offer row independently (current behavior); "grouped" buckets
+   * country variants of the same brand under a collapsible parent row so admins see "Apple" once
+   * with a TH · SG · ID summary instead of three unrelated rows.
+   */
+  const [viewMode, setViewMode] = useState<"flat" | "grouped">("flat");
+  const [expandedBrandKeys, setExpandedBrandKeys] = useState<Set<string>>(new Set());
+
+  const brandGroups = useMemo(() => {
+    const map = new Map<string, { key: string; name: string; variants: Offer[]; isAnyGlobal: boolean }>();
+    const order: string[] = [];
+    for (const o of offers) {
+      const key = brandGroupKey(o);
+      if (!map.has(key)) {
+        map.set(key, { key, name: brandGroupDisplayName(o), variants: [], isAnyGlobal: false });
+        order.push(key);
+      }
+      const g = map.get(key)!;
+      g.variants.push(o);
+      if (o.is_global) g.isAnyGlobal = true;
+    }
+    return order.map((k) => map.get(k)!);
+  }, [offers]);
+
+  const toggleBrandExpand = (key: string) => {
+    setExpandedBrandKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const expandAllBrands = () => setExpandedBrandKeys(new Set(brandGroups.map((g) => g.key)));
+  const collapseAllBrands = () => setExpandedBrandKeys(new Set());
   const pagination = useMemo(
     () =>
       offersResponse
@@ -322,6 +382,58 @@ export default function OffersTable() {
                 />
               </div>
             </div>
+            {/* View mode: flat (one row per offer) vs grouped (one row per brand, expandable per country variant). */}
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 pt-3 dark:border-gray-700">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-gray-600 dark:text-gray-400">View</span>
+                <div className="inline-flex rounded-lg border border-gray-300 bg-white text-xs dark:border-gray-600 dark:bg-gray-900">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("flat")}
+                    className={`rounded-l-lg px-3 py-1.5 transition-colors ${
+                      viewMode === "flat"
+                        ? "bg-brand-500 text-white"
+                        : "text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
+                    }`}
+                  >
+                    Flat
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("grouped")}
+                    className={`rounded-r-lg px-3 py-1.5 transition-colors ${
+                      viewMode === "grouped"
+                        ? "bg-brand-500 text-white"
+                        : "text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
+                    }`}
+                    title="Group country variants of the same brand under one expandable row"
+                  >
+                    Grouped by brand
+                  </button>
+                </div>
+              </div>
+              {viewMode === "grouped" && (
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-gray-500 dark:text-gray-400">
+                    {brandGroups.length} brand{brandGroups.length === 1 ? "" : "s"} · {offers.length} variant{offers.length === 1 ? "" : "s"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={expandAllBrands}
+                    className="rounded border border-gray-300 bg-white px-2 py-1 font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                  >
+                    Expand all
+                  </button>
+                  <button
+                    type="button"
+                    onClick={collapseAllBrands}
+                    className="rounded border border-gray-300 bg-white px-2 py-1 font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                  >
+                    Collapse all
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -410,10 +522,66 @@ export default function OffersTable() {
                     const logoCircleSrc = pathImage(offer.logo_circle);
                     const has = (s: string) => typeof s === "string" && s.length > 0;
                     const rowNumber = (pagination.page - 1) * pagination.limit + index + 1;
+                    // In grouped mode, emit a brand header before the FIRST variant of each brand,
+                    // and hide subsequent variants when the brand is collapsed.
+                    const groupKey = brandGroupKey(offer);
+                    const group = brandGroups.find((g) => g.key === groupKey);
+                    const isFirstOfGroup =
+                      viewMode === "grouped" && group !== undefined && group.variants[0]?._id === offer._id;
+                    const isExpanded = expandedBrandKeys.has(groupKey);
+                    // Collapsed brand groups show only their header row; expanding reveals every variant.
+                    const hideVariantRow = viewMode === "grouped" && !isExpanded;
                     return (
+                    <React.Fragment key={offer._id}>
+                    {isFirstOfGroup && group ? (
+                      <tr
+                        key={`brand-header-${group.key}`}
+                        className="bg-gray-50 hover:bg-gray-100 dark:bg-gray-800/60 dark:hover:bg-gray-800"
+                      >
+                        <td colSpan={15} className="px-4 py-3 sm:px-6">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleBrandExpand(group.key);
+                            }}
+                            className="flex w-full items-center justify-between gap-3 text-left"
+                          >
+                            <span className="flex items-center gap-2">
+                              <span aria-hidden className="inline-block w-4 text-gray-500 dark:text-gray-400">
+                                {isExpanded ? "▾" : "▸"}
+                              </span>
+                              <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                {group.name}
+                              </span>
+                              {group.isAnyGlobal && (
+                                <span className="inline-flex items-center rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-700 dark:bg-brand-500/15 dark:text-brand-300">
+                                  Global
+                                </span>
+                              )}
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                {group.variants.length} {group.variants.length === 1 ? "country" : "countries"}
+                              </span>
+                            </span>
+                            <span className="flex flex-wrap items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+                              {group.variants.map((v) => {
+                                const list = (v.countries || "").split(",").map((c) => c.trim()).filter(Boolean);
+                                return list.map((c) => (
+                                  <span key={`${v._id}-${c}`} className="rounded border border-gray-200 bg-white px-1.5 py-0.5 dark:border-gray-600 dark:bg-gray-900">
+                                    {c}
+                                  </span>
+                                ));
+                              })}
+                            </span>
+                          </button>
+                        </td>
+                      </tr>
+                    ) : null}
+                    {hideVariantRow ? null : (
                     <tr
-                      key={offer._id}
-                      className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                      className={`cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 ${
+                        viewMode === "grouped" ? "bg-white dark:bg-gray-900/40" : ""
+                      }`}
                       onClick={() => {
                         openEditOfferModal(offer);
                       }}
@@ -679,6 +847,8 @@ export default function OffersTable() {
                         </div>
                       </td>
                     </tr>
+                    )}
+                    </React.Fragment>
                   );
                   })}
                 </tbody>
