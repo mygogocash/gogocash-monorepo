@@ -76,7 +76,12 @@ const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   session: {
     strategy: "jwt",
-    maxAge: 24 * 60 * 60,
+    // 30 days lifetime; cookie expiry rolls forward every 24h of activity so
+    // active admins effectively never get signed out. Tighten to e.g.
+    // `maxAge: 7 * 24 * 60 * 60, updateAge: 60 * 60` if security policy
+    // requires a shorter admin window.
+    maxAge: 30 * 24 * 60 * 60,
+    updateAge: 24 * 60 * 60,
   },
   pages: {
     signIn: "/signin",
