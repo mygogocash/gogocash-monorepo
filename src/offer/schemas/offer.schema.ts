@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
+import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
 
 export type OfferDocument = HydratedDocument<Offer>;
 
@@ -150,6 +150,34 @@ export class Offer {
   /** Reason provided when rejecting; cleared on approve. */
   @Prop()
   rejection_reason?: string;
+
+  /**
+   * FK to the parent `brands` collection. Multiple offers (one per country variant)
+   * point at the same brand id; the customer-app visibility filter and the admin
+   * grouped table both rely on this for clean per-brand grouping.
+   *
+   * Optional during the migration window — legacy rows without `brand_id` keep
+   * working via the customer-side dedupe heuristic (`merchant_id` then `lookup_value` stem).
+   * The migration script `scripts/migrate-brands.ts` backfills this field.
+   */
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Brand' })
+  brand_id?: Types.ObjectId;
+
+  /**
+   * Whether this brand is visible to customers in every country regardless of variant.
+   * Denormalized from the parent `Brand.is_global` for fast filtering at the offer-list
+   * query path (avoids a join on the hottest customer-facing endpoint). Kept in sync
+   * by `BrandService.update`.
+   */
+  @Prop({ default: false })
+  is_global: boolean;
+
+  /**
+   * Fallback country variant for global brands. Same denormalization rationale as
+   * `is_global` — kept in sync by `BrandService.update`.
+   */
+  @Prop()
+  default_country?: string;
 }
 
 export const OfferSchema = SchemaFactory.createForClass(Offer);
@@ -165,3 +193,14 @@ OfferSchema.index({ source: 1, offer_id: 1 }, { unique: true });
 /** Fast lookups for admin Pending tab and customer-app visibility filter. */
 OfferSchema.index({ status: 1 });
 OfferSchema.index({ source: 1, status: 1 });
+
+/** Brand-grouping queries: list every variant of a brand, or filter by brand+country. */
+OfferSchema.index({ brand_id: 1 });
+OfferSchema.index({ brand_id: 1, countries: 1 });
+
+/**
+ * One variant per (brand, country) — guarantees a TH user can't accidentally see two
+ * Apple TH rows. Sparse so legacy offers without `brand_id` aren't constrained until
+ * the migration backfills them.
+ */
+OfferSchema.index({ brand_id: 1, countries: 1 }, { unique: true, sparse: true });
