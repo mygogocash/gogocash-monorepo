@@ -51,7 +51,6 @@ export class AuthService {
   }
 
   async signUp(email: string, password: string) {
-    console.log('this.baseUrl', this.baseUrl);
     const res = await axios.post(
       `${this.baseUrl}/signup`,
       { email, password, projectId: this.projectId },
@@ -124,10 +123,8 @@ export class AuthService {
 
   async signInFirebase(token: string, payload: SignInFirebaseDto) {
     try {
-      console.log('payload', payload);
       getAdminAuth();
       const data = await admin.auth().verifyIdToken(token);
-      console.log('data', data);
       if (!data) {
         throw new Error('User not found in Gogocash');
       }
@@ -141,7 +138,6 @@ export class AuthService {
         });
       }
 
-      console.log('userExist', userExist);
       if (userExist) {
         const user = await this.userService.update(userExist._id, {
           email: data.email,
@@ -201,12 +197,9 @@ export class AuthService {
         }
       }
 
-      console.log('user', user);
       if (user?.disabled) {
         throw new Error('Your account has been disabled');
       }
-      // Update points for referral if referral_id is provided
-      // return user; // { accessToken, refreshToken, user }
       const accessToken = await this.generateToken({
         userId: user._id.toString(),
         firebaseId: user.id_firebase,
@@ -218,33 +211,62 @@ export class AuthService {
         auth_flow: 'register' as const,
       };
     } catch (error: any) {
-      console.log('err', error);
-      throw new Error(error?.message || 'Invalid Firebase token');
+      throw new UnauthorizedException(
+        error?.message || 'Invalid Firebase token',
+      );
     }
   }
 
   async signInTelegram(payload: TelegramAuthDto) {
     try {
-      console.log('payload', payload);
-      // const check = await this.verifyTelegramAuth(payload);
-      // console.log('data', check);
-      // if (!check) {
-      //   throw new Error('User not found in Telegram');
-      // }
-      // console.log('payload', data.id);
+      // Verify the Telegram-provided HMAC. Without this, anyone can POST
+      // arbitrary {id, email} and impersonate any Telegram-linked user.
+      // Also reject stale payloads (>60s) to prevent replay of captured
+      // legitimate logins.
+      if (!process.env.TELEGRAM_BOT_TOKEN) {
+        throw new UnauthorizedException(
+          'Telegram login is not configured on this server',
+        );
+      }
+      const valid = await this.verifyTelegramAuth(payload);
+      if (!valid) {
+        throw new UnauthorizedException('Invalid Telegram signature');
+      }
+      const ageSeconds =
+        Math.floor(Date.now() / 1000) - Number(payload.auth_date || 0);
+      if (!Number.isFinite(ageSeconds) || ageSeconds < 0 || ageSeconds > 60) {
+        throw new UnauthorizedException('Telegram auth payload expired');
+      }
       const data = payload;
 
       let userExist = await this.userService.findOne({
         id_telegram: data.id.toString(),
       });
 
+      // Cross-provider collision guard: if no user matches by Telegram ID
+      // but the email matches an existing record from a DIFFERENT provider
+      // (Firebase, MiniPay, etc.), refuse to merge silently. An attacker
+      // with a Telegram account using the victim's email could otherwise
+      // hijack the victim's record. Require the user to verify ownership
+      // through the original provider (or an OTP linking flow we don't
+      // ship yet) before linking accounts.
       if (!userExist && data.email) {
-        userExist = await this.userService.findOne({
+        const emailMatch = await this.userService.findOne({
           email: data.email,
         });
+        const alreadyLinkedToTelegram =
+          emailMatch &&
+          (emailMatch.id_telegram === data.id.toString() ||
+            emailMatch.provider === 'telegram');
+        if (emailMatch && !alreadyLinkedToTelegram) {
+          throw new UnauthorizedException(
+            'An account already exists for this email under a different sign-in method. ' +
+              'Please sign in with your original method, then link Telegram from your profile.',
+          );
+        }
+        userExist = emailMatch;
       }
 
-      console.log('userExist', userExist);
       if (userExist) {
         const user = await this.userService.update(userExist._id, {
           email: userExist?.email || data.email,
@@ -263,7 +285,6 @@ export class AuthService {
           userId: user._id.toString(),
           firebaseId: user.id_firebase,
         });
-        console.log('accessToken', accessToken);
         return {
           user,
           token: accessToken,
@@ -297,12 +318,9 @@ export class AuthService {
         }
       }
 
-      console.log('user bb', user);
       if (user?.disabled) {
         throw new Error('Your account has been disabled');
       }
-      // Update points for referral if referral_id is provided
-      // return user; // { accessToken, refreshToken, user }
       const accessToken = await this.generateToken({
         userId: user._id.toString(),
         firebaseId: user.id_firebase,
@@ -314,8 +332,10 @@ export class AuthService {
         auth_flow: 'register' as const,
       };
     } catch (error: any) {
-      console.log('err', error);
-      throw new Error(error?.message || 'Invalid Firebase token');
+      // Preserve UnauthorizedException so 401 reaches the client; wrap
+      // anything else in a 401 too so we never leak DB/SDK details.
+      if (error instanceof UnauthorizedException) throw error;
+      throw new UnauthorizedException('Telegram login failed');
     }
   }
 
@@ -337,25 +357,23 @@ export class AuthService {
       .update(dataCheckString)
       .digest('hex');
 
-    console.log('hmac', computedHash, 'hash', hash);
-
-    return computedHash === hash;
+    // Constant-time compare prevents timing-side-channel hash recovery.
+    if (typeof hash !== 'string' || hash.length !== computedHash.length) {
+      return false;
+    }
+    return crypto.timingSafeEqual(
+      Buffer.from(computedHash, 'hex'),
+      Buffer.from(hash, 'hex'),
+    );
   }
   async signInAi(email: string) {
     try {
-      // console.log('payload', data.id);
-      let user = null;
-      if (email) {
-        user = await this.userService.findOne({
-          email: email,
-        });
-      }
-      console.log('user', user);
-      // Update points for referral if referral_id is provided
-      return user; // { accessToken, refreshToken, user }
-    } catch (error: any) {
-      console.log('err', error);
-      throw new Error(error?.message || 'Invalid Firebase token');
+      if (!email) return null;
+      return await this.userService.findOne({ email });
+    } catch {
+      // Caller (admin endpoint) only checks Boolean(user); avoid throwing
+      // raw upstream errors that could leak internals.
+      return null;
     }
   }
 
@@ -435,8 +453,6 @@ export class AuthService {
 
       return { uid: decoded.uid, user: userUpdate };
     } catch (error: any) {
-      // แนะนำ log error.message/error.code เพื่อ debug
-      console.log('verifyIdToken error:', error);
       throw new UnauthorizedException(
         error?.message || 'Invalid Firebase token',
       );

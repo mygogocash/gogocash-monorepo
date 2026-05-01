@@ -35,6 +35,8 @@ import {
 import { UserAdminService } from './user-admin/user-admin-service';
 import { ApiBearerAuth, ApiBody, ApiSecurity } from '@nestjs/swagger';
 import { AuthAdminGuard } from './jwt-auth-admin.guard';
+import { RateLimitGuard } from 'src/auth/rate-limit.guard';
+import { RateLimit } from 'src/auth/rate-limit.decorator';
 import {
   FileFieldsInterceptor,
   FileInterceptor,
@@ -47,6 +49,8 @@ export class AdminController {
     private readonly userAdminService: UserAdminService,
   ) {}
 
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ windowMs: 60_000, max: 5 })
   @ApiBody({ type: LoginAdminDto })
   @Post('login')
   login(@Body() createAdminDto: LoginAdminDto) {

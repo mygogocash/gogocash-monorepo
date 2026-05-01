@@ -44,11 +44,14 @@ export class UserAdminService {
       throw new UnauthorizedException('Invalid email or password');
     }
     delete user.password;
-    // Generate JWT token for authentication
+    // Generate JWT token for authentication. Embed `role` so the RolesGuard
+    // can authorise without a DB roundtrip; absent role means legacy admin
+    // (treated as superadmin in roleHasAccess for backward compat).
     const payload = {
       sub: user._id,
       email: user.email,
       username: user.username,
+      role: user.role,
     };
     const token = this.jwtService.sign(payload, {
       secret: process.env.JWT_ADMIN_SECRET,
