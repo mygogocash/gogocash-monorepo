@@ -423,8 +423,18 @@ export default function OffersTable() {
                       </td>
                       <td className="min-w-0 px-4 py-3 sm:px-6 sm:py-4">
                         <div className="min-w-0">
-                          <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                            {offer.offer_name}
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                              {offer.offer_name}
+                            </span>
+                            {offer.is_global && (
+                              <span
+                                className="inline-flex items-center rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-700 dark:bg-brand-500/15 dark:text-brand-300"
+                                title={`Visible to customers in every country${offer.default_country ? ` (default: ${offer.default_country})` : ""}`}
+                              >
+                                Global
+                              </span>
+                            )}
                           </div>
                           <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                             New Name:{" "}

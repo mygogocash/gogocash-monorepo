@@ -106,6 +106,11 @@ export default function CreateBrandForm() {
   const [description, setDescription] = useState("");
   const [disabledOffer, setDisabledOffer] = useState(false);
   const [topBrands, setTopBrands] = useState(false);
+  // Brand visibility: when isGlobal=true the brand is shown to customers in every country;
+  // otherwise only customers whose country matches `countries` see it. defaultCountry is the
+  // fallback variant when a global brand is opened by a user whose country has no dedicated line.
+  const [isGlobal, setIsGlobal] = useState(false);
+  const [defaultCountry, setDefaultCountry] = useState("Thailand");
   const [commissionEntryMode, setCommissionEntryMode] = useState<"manual" | "auto">("manual");
   const [commissionPercentInput, setCommissionPercentInput] = useState("");
   const [allProductTypes, setAllProductTypes] = useState(true);
@@ -273,6 +278,12 @@ export default function CreateBrandForm() {
     formData.append("offer_display_tags", JSON.stringify(offerDisplayTags));
     formData.append("policy_category_id", policyCategoryId);
     formData.append("custom_terms", customTerms);
+    formData.append("is_global", String(isGlobal));
+    if (isGlobal) {
+      // default_country is only relevant for global brands; sending it for country-specific
+      // brands would be misleading (the single-country variant is implicitly the default).
+      formData.append("default_country", defaultCountry);
+    }
 
     const desc = description.trim();
     if (desc) formData.append("description", desc);
@@ -423,6 +434,68 @@ export default function CreateBrandForm() {
               className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
               placeholder="THB"
             />
+          </div>
+        </div>
+
+        {/* Brand visibility — controls whether this brand is shown to customers in other countries. */}
+        <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4 dark:border-gray-700 dark:bg-gray-800/40">
+          <FieldLabel
+            label="Availability"
+            description="Country-specific brands are hidden from customers in other countries. Global brands appear worldwide and route customers without a dedicated country variant to the default country's tracking link."
+          />
+          <div className="mt-3 space-y-2">
+            <label className="flex cursor-pointer items-start gap-3 rounded-md p-2 hover:bg-gray-100/50 dark:hover:bg-gray-800/40">
+              <input
+                type="radio"
+                name="create-brand-availability"
+                checked={!isGlobal}
+                onChange={() => setIsGlobal(false)}
+                className="mt-0.5 h-4 w-4 border-gray-300 text-brand-600 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-900"
+              />
+              <span className="text-sm">
+                <span className="font-medium text-gray-800 dark:text-gray-200">Country-specific</span>
+                <span className="block text-xs text-gray-500 dark:text-gray-400">
+                  Only customers whose country is {countries} will see this brand. Customers in other countries won&apos;t see it on home, search, or category pages.
+                </span>
+              </span>
+            </label>
+            <label className="flex cursor-pointer items-start gap-3 rounded-md p-2 hover:bg-gray-100/50 dark:hover:bg-gray-800/40">
+              <input
+                type="radio"
+                name="create-brand-availability"
+                checked={isGlobal}
+                onChange={() => setIsGlobal(true)}
+                className="mt-0.5 h-4 w-4 border-gray-300 text-brand-600 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-900"
+              />
+              <span className="text-sm">
+                <span className="font-medium text-gray-800 dark:text-gray-200">Global / worldwide</span>
+                <span className="block text-xs text-gray-500 dark:text-gray-400">
+                  Every customer sees this brand. Customers from countries without a dedicated variant are routed to the default country&apos;s tracking link.
+                </span>
+              </span>
+            </label>
+            {isGlobal && (
+              <div className="ml-7 mt-2">
+                <label htmlFor="create-brand-default-country" className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                  Default country (fallback for users without a dedicated variant)
+                </label>
+                <select
+                  id="create-brand-default-country"
+                  value={defaultCountry}
+                  onChange={(e) => setDefaultCountry(e.target.value)}
+                  className="w-full max-w-sm rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                >
+                  {COUNTRY_OPTIONS.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  When a Singapore user opens this brand and there&apos;s no SG variant, they&apos;ll be sent to the {defaultCountry} tracking link.
+                </p>
+              </div>
+            )}
           </div>
         </div>
 

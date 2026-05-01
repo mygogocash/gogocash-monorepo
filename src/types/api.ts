@@ -437,6 +437,17 @@ export interface CreateBrandFromAffiliatePayload {
   description?: string;
   /** Shown as partner rate hint; optional when `commission_entry_mode` is `manual`. */
   commission_store?: number | null;
+  /**
+   * When `true`, the brand is visible to customers worldwide, regardless of their country.
+   * Customers in countries without a specific variant are routed to `default_country`'s tracking link.
+   * When `false` (default), the brand is only shown to customers whose country matches `countries`.
+   */
+  is_global?: boolean;
+  /**
+   * Fallback country (matches `countries` value, e.g. `Thailand`) used when a global brand
+   * is opened by a customer whose country has no dedicated variant.
+   */
+  default_country?: string;
 }
 
 // Offer Types (from /offer endpoint)
@@ -506,6 +517,14 @@ export interface Offer {
   deeplink_store_id?: string | null;
   /** Pills / labels for offer discovery (category, promos, expiry messaging). */
   offer_display_tags?: OfferDisplayTags;
+  /**
+   * When `true`, the brand is visible to all customers regardless of country.
+   * When `false` (default), only customers whose `country` is listed in `countries` see this brand.
+   * See `CreateBrandFromAffiliatePayload.is_global` for the full visibility rule.
+   */
+  is_global?: boolean;
+  /** Fallback country variant when a global brand is opened by a user whose country has no dedicated variant. */
+  default_country?: string | null;
 }
 
 export interface OfferRequestForm {
