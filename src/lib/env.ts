@@ -4,26 +4,15 @@ const INVALID_ENV_VALUES = new Set(["", "undefined", "null"]);
 
 /**
  * Numeric Telegram bot id for `https://oauth.telegram.org/auth?bot_id=…`.
- * Prefer `NEXT_PUBLIC_TELEGRAM_BOT_ID`. Legacy: derives `123456789` from `NEXT_PUBLIC_TELEGRAM_BOT_TOKEN`
- * when it contains `:` so OAuth works without putting the full token in new deployments.
+ *
+ * Only `NEXT_PUBLIC_TELEGRAM_BOT_ID` is supported. The legacy
+ * `NEXT_PUBLIC_TELEGRAM_BOT_TOKEN` fallback was removed because it shipped the
+ * full bot secret to every browser bundle. If a deploy still has only the
+ * legacy var set, this returns "" and Telegram OAuth will fail loudly rather
+ * than silently leak the token.
  */
 export const getTelegramOAuthBotId = (): string => {
-  const explicit = env.NEXT_PUBLIC_TELEGRAM_BOT_ID?.trim();
-  if (explicit) {
-    return explicit;
-  }
-
-  const legacy = env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN?.trim();
-  if (!legacy) {
-    return "";
-  }
-
-  const colon = legacy.indexOf(":");
-  if (colon > 0) {
-    return legacy.slice(0, colon).trim();
-  }
-
-  return legacy;
+  return env.NEXT_PUBLIC_TELEGRAM_BOT_ID?.trim() ?? "";
 };
 
 export const getApiBaseUrl = () => {
@@ -37,6 +26,29 @@ export const getApiBaseUrl = () => {
 };
 
 export const hasApiBaseUrl = () => getApiBaseUrl().length > 0;
+
+/**
+ * Production boot assertion: refuse to start if NEXT_PUBLIC_API_URL is missing.
+ * Without this, a misconfigured prod deploy silently falls back to in-memory
+ * mocks (see `shouldUseMockApi` below) — fake balances, fake offers, fake
+ * withdrawals, no errors. Failing loud at boot is the right behaviour.
+ *
+ * Runs server-side only (Next.js executes module top-level code on the server
+ * during build and at request-time). Skipped during build itself
+ * (NEXT_PHASE === 'phase-production-build') because env may not be present
+ * during static generation; the runtime gate is what matters.
+ */
+if (
+  typeof window === "undefined" &&
+  process.env.NODE_ENV === "production" &&
+  process.env.NEXT_PHASE !== "phase-production-build" &&
+  !hasApiBaseUrl()
+) {
+  throw new Error(
+    "[gogocash-web] Refusing to start in production without NEXT_PUBLIC_API_URL. " +
+      "Without it the app silently serves mock data. Set it in your hosting env.",
+  );
+}
 
 const truthyPublicFlag = (value: string | undefined): boolean => {
   const v = value?.trim().toLowerCase() ?? "";

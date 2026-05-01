@@ -1,5 +1,12 @@
 import { initializeApp, getApp, getApps } from "firebase/app";
-import { getAuth, GoogleAuthProvider, TwitterAuthProvider, type Auth } from "firebase/auth";
+import {
+  browserLocalPersistence,
+  getAuth,
+  GoogleAuthProvider,
+  setPersistence,
+  TwitterAuthProvider,
+  type Auth,
+} from "firebase/auth";
 import { env } from "@/env";
 
 const firebaseConfig = {
@@ -34,6 +41,10 @@ export function getClientAuth(): Auth {
   if (!cachedAuth) {
     const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
     cachedAuth = getAuth(app);
+    // IndexedDB persistence — keeps `currentUser` (and the auto-refreshing
+    // ID token) alive across reloads and tab restarts. Failures here are
+    // non-fatal: Firebase falls back to in-memory persistence.
+    setPersistence(cachedAuth, browserLocalPersistence).catch(() => {});
   }
 
   return cachedAuth;
