@@ -35,7 +35,7 @@ const CardShopMobileDefault = ({
   return (
     <div
       className={cn(
-        "pointer-events-none flex w-full min-w-0 flex-col gap-2 overflow-hidden rounded-2xl border border-(--gc-border) bg-white p-2",
+        "pointer-events-none flex w-full min-w-0 flex-col gap-2 overflow-hidden rounded-2xl border border-(--gc-border) bg-white p-2 shadow-sm",
         "[&_*]:pointer-events-none [&_button]:pointer-events-auto"
       )}
     >

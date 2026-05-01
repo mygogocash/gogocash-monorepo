@@ -51,8 +51,9 @@ const CategoryHome = () => {
             link={travelSection.link}
           />
           <CardSlideCategory
-            cardVariant="featured"
+            cardVariant="brandLogoBadge"
             showPagination
+            maxItems={24}
             list={travel?.data}
             trackingListId={travelSection.trackingListId}
             trackingListName={travelSection.trackingListName}
@@ -69,8 +70,9 @@ const CategoryHome = () => {
             link={makeupSection.link}
           />
           <CardSlideCategory
-            cardVariant="featured"
+            cardVariant="brandLogoBadge"
             showPagination
+            maxItems={24}
             list={cosmetic?.data}
             trackingListId={makeupSection.trackingListId}
             trackingListName={makeupSection.trackingListName}

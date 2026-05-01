@@ -1,4 +1,4 @@
-import CardSpecial from "@/components/common/card/CardSpecial";
+import CardBrandLogo from "@/components/common/card/CardBrandLogo";
 import SearchIcon from "@/components/icons/SearchIcon";
 import { offerHasGrabCouponBadge } from "@/lib/offer/offerGrabCouponBadge";
 import MerchantListTracker from "@/components/analytics/MerchantListTracker";
@@ -12,8 +12,12 @@ import { type ShopExploreSort, sortShopExploreOffers } from "@/features/shop/sho
 import { DataOffer, IResponseOffer } from "@/interfaces/offer";
 import { IResponseCategory } from "@/interfaces/shop";
 import { fetcher } from "@/lib/axios/client";
-import { banner, cn, getPercent } from "@/lib/utils";
+import { cn, getPercent } from "@/lib/utils";
 import { trackMerchantSearch, trackMerchantSelect } from "@/lib/analytics";
+import {
+  getBrandTileTint,
+  getOfferSquareLogoSrc,
+} from "@/lib/offer/offerCardVisuals";
 import Pagination from "@mui/material/Pagination";
 import { useBreakpointMdUp } from "@/hooks/useBreakpointMdUp";
 import { useQuery } from "@tanstack/react-query";
@@ -45,7 +49,7 @@ const List = () => {
   const [sortBy, setSortBy] = useState<ShopExploreSort>("highest_cashback");
   const [offerSearch, setOfferSearch] = useState({
     page: 1,
-    limit: 18,
+    limit: 24,
     search: "",
   });
   const offerSearchRef = useRef(offerSearch);
@@ -163,13 +167,13 @@ const List = () => {
           activeCategoryMatch="normalized"
           asideMode={{
             mode: "navigate",
-            allHref: "/shop#explore-shop",
+            allHref: "/brand#explore-shop",
             categoryHref,
           }}
         />
 
         <div className="flex min-w-0 flex-1 flex-col gap-6">
-          <div className="gc-surface-card sticky top-[80px] z-20 flex flex-col gap-3 px-4 py-3">
+          <div className="gc-surface-card flex flex-col gap-3 px-4 py-3">
             <div className="relative w-full min-w-0">
               <SearchIcon
                 width="18"
@@ -225,15 +229,12 @@ const List = () => {
             category={String(name)}
             source="category_results"
           />
-          <div className="grid grid-cols-2 justify-items-stretch gap-3 sm:gap-6 xl:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
             {sortedOffers.map((offer, index) => {
-              const bannerSrc =
-                offer.banner || offer.banner_mobile
-                  ? banner(offer.banner_mobile, offer.banner, lg)
-                  : "/home/banner.webp";
-
+              const logoSrc = getOfferSquareLogoSrc(offer, lg);
+              const tint = getBrandTileTint(offer._id || offer.offer_name);
               return (
-                <div key={offer._id} className="relative block w-full min-w-0">
+                <div key={offer._id} className="relative flex h-full w-full min-w-0 flex-col">
                   <Link
                     href={`/shop/${offer._id}`}
                     className="absolute inset-0 z-0"
@@ -248,14 +249,14 @@ const List = () => {
                       })
                     }
                   />
-                  <div className="pointer-events-none relative z-[1]">
-                    <CardSpecial
-                      directoryGrid
-                      banner={bannerSrc}
+                  <div className="pointer-events-none relative z-[1] flex min-h-0 min-w-0 flex-1 flex-col">
+                    <CardBrandLogo
+                      logo={logoSrc}
                       offer_name={offer.offer_name_display || offer.offer_name}
                       percent={percentLabel(offer)}
                       categories={offer.categories}
                       showGrabCoupon={offerHasGrabCouponBadge(offer)}
+                      tint={tint}
                     />
                   </div>
                 </div>

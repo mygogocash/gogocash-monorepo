@@ -1,10 +1,7 @@
-import Button from "@/components/common/Button";
 import { WalletSummaryHeroCard } from "@/components/common/WalletSummaryHeroCard";
-import { Link, useRouter } from "@/i18n/navigation";
-import { checkThai, cn, formatCashDisplay } from "@/lib/utils";
-import { combineAvailableBalance } from "@/lib/withdraw/combineAvailableBalance";
+import { Link } from "@/i18n/navigation";
+import { cn } from "@/lib/utils";
 import { useSessionContext } from "@/providers/SessionContext";
-import { useSession } from "next-auth/react";
 import { useTranslations } from "next-intl";
 
 export type BoardProfileProps = {
@@ -17,14 +14,8 @@ export type BoardProfileProps = {
  * teal header, frosted body, combined available balance, last updated, mint Withdraw CTA.
  */
 const BoardProfile = ({ className }: BoardProfileProps) => {
-  const { data: session } = useSession();
   const t = useTranslations();
   const { getCheck } = useSessionContext();
-  const router = useRouter();
-
-  const thai = checkThai || session?.user?.region === "Thailand";
-  const currency = thai ? "THB" : "USD";
-  const totalLine = formatCashDisplay(combineAvailableBalance(getCheck, thai));
 
   return (
     <div className={cn("flex flex-col gap-3", className)}>
@@ -40,24 +31,6 @@ const BoardProfile = ({ className }: BoardProfileProps) => {
         >
           {t("View Profile")}
         </Link>
-      </div>
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--gc-border)] bg-[var(--gc-surface)] px-4 py-3">
-        <p className="min-w-0 text-xs leading-snug text-[var(--gc-text-muted)]">
-          {t("Total Cashback")}{" "}
-          <span className="font-medium text-[var(--gc-text)]">
-            {totalLine} {currency}
-          </span>
-        </p>
-        <Button
-          uiVariant="secondary"
-          uiSize="sm"
-          className="shrink-0"
-          onClick={() => {
-            router.push("/wallet");
-          }}
-        >
-          {t("View Wallet")}
-        </Button>
       </div>
     </div>
   );

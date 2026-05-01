@@ -34,11 +34,16 @@ const Extra = dynamic(() => import("@/features/home/component/Extra"), {
   loading: () => <div className="h-24 w-full animate-pulse rounded-2xl bg-[#f0f0f0]" aria-hidden />,
 });
 
-const Trending = dynamic(() => import("@/features/home/component/Trending"));
+const MobileBrowseShortcuts = dynamic(
+  () => import("@/features/home/component/MobileBrowseShortcuts"),
+  {
+    loading: () => (
+      <div className="h-44 w-full animate-pulse rounded-2xl bg-[#f0f0f0] md:hidden" aria-hidden />
+    ),
+  }
+);
 
-const Special = dynamic(() => import("@/features/home/component/Special"), {
-  loading: () => <div className="h-40 w-full animate-pulse rounded-2xl bg-[#f0f0f0]" aria-hidden />,
-});
+const Trending = dynamic(() => import("@/features/home/component/Trending"));
 
 const CategoryHome = dynamic(() => import("@/features/home/component/CategoryHome"), {
   loading: () => <div className="h-48 w-full animate-pulse rounded-2xl bg-[#f0f0f0]" aria-hidden />,
@@ -47,16 +52,16 @@ const CategoryHome = dynamic(() => import("@/features/home/component/CategoryHom
 export default function PageClient() {
   return (
     <div className="gc-home-page">
+      <div className="sticky top-0 z-30 w-full bg-(--background) px-4 pb-2 pt-[max(0.5rem,var(--gc-safe-top))] shadow-[0_2px_8px_rgba(0,0,0,0.04)] lg:hidden">
+        <HomeHeroSearch variant="homeMobile" />
+      </div>
       <div className="gc-home-layout gc-home-layout--stack gc-page-block">
         <ModalAfterLogin />
-        <div className="gc-home-hero-search w-full pt-4 max-md:pt-5 lg:hidden">
-          <HomeHeroSearch variant="homeMobile" />
-        </div>
+        <MobileBrowseShortcuts />
         <Banner />
         <GoLinkBanner />
         <Extra />
         <Trending />
-        <Special />
         {/* Popular ("What's Popular Now?!") — hidden for now; restore `Popular` import + component when needed. */}
         <CategoryHome />
       </div>

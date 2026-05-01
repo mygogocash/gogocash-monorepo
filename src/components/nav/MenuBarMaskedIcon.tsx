@@ -13,6 +13,8 @@ import type { CSSProperties } from "react";
  */
 const FIGMA_MENU_BAR_SVG: Partial<Record<DesktopMenuBarIcon, string>> = {
   promotion: "/nav/menu-bar/promotion.svg",
+  /** 4-tile grid representing a directory of shops (distinguishes "All Shops" from single-storefront "All Brands"). */
+  shops: "/nav/menu-bar/shops.svg",
   travel: "/nav/menu-bar/travel.svg",
   electronic: "/nav/menu-bar/electronics.svg",
   beauty: "/nav/menu-bar/health-beauty.svg",

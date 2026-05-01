@@ -2,6 +2,7 @@
 export const PDPA_CONSENT_BANNER_DISMISSED_KEY = "pdpa_consent_banner_dismissed_v1" as const;
 
 export const CONSENT_BANNER_OPEN_EVENT = "gc:open-consent-banner" as const;
+export const CONSENT_BANNER_DISMISSED_EVENT = "gc:consent-banner-dismissed" as const;
 
 type OpenOptions = {
   /**

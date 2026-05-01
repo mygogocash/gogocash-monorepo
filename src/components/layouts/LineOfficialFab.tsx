@@ -18,7 +18,7 @@ export default function LineOfficialFab() {
       href={SUPPORT_LINE_OFFICIAL_HREF}
       target="_blank"
       rel="noopener noreferrer"
-      className="fixed z-60 size-14 overflow-hidden rounded-full shadow-[0_6px_20px_rgba(0,0,0,0.15)] ring-2 ring-white/90 transition hover:scale-105 hover:shadow-[0_8px_24px_rgba(0,0,0,0.18)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00cc99] max-md:right-[max(1rem,var(--gc-safe-right))] bottom-[calc(var(--gc-mobile-nav-clearance)+0.75rem+var(--gc-safe-bottom))] md:bottom-8 md:right-8 md:size-16"
+      className="fixed z-60 size-14 overflow-hidden rounded-full shadow-[0_6px_20px_rgba(0,0,0,0.15)] ring-2 ring-white/90 transition hover:scale-105 hover:shadow-[0_8px_24px_rgba(0,0,0,0.18)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00cc99] max-md:hidden md:bottom-8 md:right-8 md:size-16"
       aria-label="LINE Official Account"
       title="LINE Official Account"
     >

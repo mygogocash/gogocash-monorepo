@@ -10,10 +10,16 @@ import { useEffect, useRef, useState } from "react";
 import CardSpecial from "@/components/common/card/CardSpecial";
 import CardShopMini from "@/components/common/card/CardShopMini";
 import CardShopMobileDefault from "@/components/common/card/CardShopMobileDefault";
+import CardBrandLogo from "@/components/common/card/CardBrandLogo";
 import MerchantListTracker from "@/components/analytics/MerchantListTracker";
 import { DataOffer } from "@/interfaces/offer";
 import { Link } from "@/i18n/navigation";
-import { getOfferBannerSrc, getOfferCashbackPercentLabel } from "@/lib/offer/offerCardVisuals";
+import {
+  getBrandTileTint,
+  getOfferBannerSrc,
+  getOfferCashbackPercentLabel,
+  getOfferSquareLogoSrc,
+} from "@/lib/offer/offerCardVisuals";
 import { offerHasGrabCouponBadge } from "@/lib/offer/offerGrabCouponBadge";
 import { useBreakpointMdUp } from "@/hooks/useBreakpointMdUp";
 import { trackMerchantSelect } from "@/lib/analytics";
@@ -26,8 +32,10 @@ interface IProp {
   /**
    * `mini` — Figma 8290:133549 ShopCards Mini (184×156, 6×2 grid desktop).
    * `featured` — CardSpecial (Figma GoGoCash 1.1 node 9711:194922 Shop Cards).
+   * `brandLogo` — 1:1 brand-logo tile with full meta, 6-col desktop (Top Brands).
+   * `brandLogoBadge` — 1:1 brand-logo tile with compact meta, 8-col desktop (Trending Brands).
    */
-  cardVariant?: "mini" | "featured";
+  cardVariant?: "mini" | "featured" | "brandLogo" | "brandLogoBadge";
   /** Figma 9509:146306 Top Brands — dot pagination under carousel */
   showPagination?: boolean;
   /**
@@ -109,6 +117,70 @@ const FEATURED_BREAKPOINTS = {
   },
 } as const;
 
+/**
+ * Brand-logo badge: ultra-compact 1:1 tile with name + cashback only.
+ * 4→5→6→8 columns as width grows.
+ */
+const BRAND_LOGO_BADGE_BREAKPOINTS = {
+  0: {
+    slidesPerView: 3,
+    slidesPerGroup: 3,
+    spaceBetween: 10,
+  },
+  480: {
+    slidesPerView: 4,
+    slidesPerGroup: 4,
+    spaceBetween: 12,
+  },
+  768: {
+    slidesPerView: 5,
+    slidesPerGroup: 5,
+    spaceBetween: 14,
+  },
+  1024: {
+    slidesPerView: 6,
+    slidesPerGroup: 6,
+    spaceBetween: 16,
+  },
+  1280: {
+    slidesPerView: 8,
+    slidesPerGroup: 8,
+    spaceBetween: 16,
+  },
+} as const;
+
+/**
+ * Brand-logo tiles are denser than featured cards — 3→4→6 columns as width grows.
+ * Spacing grows with viewport so rows don't feel packed at desktop widths.
+ */
+const BRAND_LOGO_BREAKPOINTS = {
+  0: {
+    slidesPerView: 2,
+    slidesPerGroup: 2,
+    spaceBetween: 12,
+  },
+  480: {
+    slidesPerView: 3,
+    slidesPerGroup: 3,
+    spaceBetween: 16,
+  },
+  768: {
+    slidesPerView: 4,
+    slidesPerGroup: 4,
+    spaceBetween: 20,
+  },
+  1024: {
+    slidesPerView: 5,
+    slidesPerGroup: 5,
+    spaceBetween: 20,
+  },
+  1280: {
+    slidesPerView: 6,
+    slidesPerGroup: 6,
+    spaceBetween: 24,
+  },
+} as const;
+
 /** Mobile featured: 2-column grid, 8px gap; cap list length. */
 const MOBILE_FEATURED_MAX = 16;
 
@@ -130,7 +202,11 @@ const CardSlideCategory = ({
   const [swiperRef, setSwiperRef] = useState<SwiperClass | null>(null);
   const lg = useBreakpointMdUp();
   const isMini = cardVariant === "mini";
-  const isCover = slideLayout === "cover" && cardVariant === "featured" && !isMini;
+  const isBrandLogo = cardVariant === "brandLogo";
+  const isBrandLogoBadge = cardVariant === "brandLogoBadge";
+  const isAnyBrandLogo = isBrandLogo || isBrandLogoBadge;
+  const isCover =
+    slideLayout === "cover" && cardVariant === "featured" && !isMini && !isAnyBrandLogo;
   const isStaticCoverRow = isCover && (staticRowMax != null || staticGridRows != null);
   const effectiveList = maxItems != null ? list?.slice(0, maxItems) : list;
   const staticCoverCap =
@@ -168,6 +244,32 @@ const CardSlideCategory = ({
       });
     };
 
+    if (isAnyBrandLogo) {
+      const logoSrc = getOfferSquareLogoSrc(offer, lg);
+      const tint = getBrandTileTint(offer._id || offer.offer_name);
+      return (
+        <div className="gc-hover-lift relative flex h-full min-h-0 min-w-0 w-full max-w-[280px] flex-col">
+          <Link
+            href={`/shop/${offer._id}`}
+            className="absolute inset-0 z-0"
+            aria-label={offer.offer_name}
+            onClick={trackClick}
+          />
+          <div className="pointer-events-none relative z-[1] flex min-h-0 min-w-0 flex-1 flex-col">
+            <CardBrandLogo
+              logo={logoSrc}
+              offer_name={offer.offer_name}
+              percent={percentStr}
+              categories={offer.categories}
+              showGrabCoupon={showGrabCoupon}
+              tint={tint}
+              layout={isBrandLogoBadge ? "compact" : "full"}
+            />
+          </div>
+        </div>
+      );
+    }
+
     if (isMini) {
       return (
         <Link
@@ -182,8 +284,8 @@ const CardSlideCategory = ({
 
     /** CardSpecial contains a favorite `<button>` — avoid nesting interactive content inside `<a>` (stretch-link pattern). */
     const featuredOuterClass = isCover
-      ? "relative block h-full w-full max-w-[280px]"
-      : "relative flex h-full min-h-0 w-full max-w-[280px] flex-col";
+      ? "gc-hover-lift relative block h-full w-full max-w-[280px]"
+      : "gc-hover-lift relative flex h-full min-h-0 w-full max-w-[280px] flex-col";
 
     return (
       <div className={featuredOuterClass}>
@@ -220,7 +322,7 @@ const CardSlideCategory = ({
       });
     };
     return (
-      <div className="relative flex w-full min-w-0 justify-center">
+      <div className="gc-hover-lift relative flex w-full min-w-0 justify-center">
         <Link
           href={`/shop/${offer._id}`}
           className="absolute inset-0 z-0"
@@ -274,7 +376,8 @@ const CardSlideCategory = ({
    * Mobile (<768px): 2-column CSS grid — Shop Card mobile default (Figma 8079:67033), 8px gap.
    * Dot pagination applies to the desktop/tablet carousel only.
    */
-  const mobileFeaturedTwoCol = !lg && !isMini && !isCover && displayList && displayList.length > 0;
+  const mobileFeaturedTwoCol =
+    !lg && !isMini && !isCover && !isAnyBrandLogo && displayList && displayList.length > 0;
   if (mobileFeaturedTwoCol) {
     const mobileCap =
       mobileFeaturedGridRows != null ? mobileFeaturedGridRows * 2 : MOBILE_FEATURED_MAX;
@@ -338,11 +441,15 @@ const CardSlideCategory = ({
             /* Swiper’s Grid module can omit `swiper-grid` on first paint; CSS needs it for `.swiper-wrapper { flex-wrap: wrap }` (2-row layout). */
             className={cn("mySwiper", !isCover && "swiper-grid")}
             breakpoints={
-              isCover
-                ? (FEATURED_BREAKPOINTS as typeof FEATURED_BREAKPOINTS)
-                : isMini
-                  ? (MINI_BREAKPOINTS as typeof MINI_BREAKPOINTS)
-                  : (FEATURED_BREAKPOINTS as typeof FEATURED_BREAKPOINTS)
+              isBrandLogoBadge
+                ? (BRAND_LOGO_BADGE_BREAKPOINTS as typeof BRAND_LOGO_BADGE_BREAKPOINTS)
+                : isBrandLogo
+                  ? (BRAND_LOGO_BREAKPOINTS as typeof BRAND_LOGO_BREAKPOINTS)
+                  : isCover
+                    ? (FEATURED_BREAKPOINTS as typeof FEATURED_BREAKPOINTS)
+                    : isMini
+                      ? (MINI_BREAKPOINTS as typeof MINI_BREAKPOINTS)
+                      : (FEATURED_BREAKPOINTS as typeof FEATURED_BREAKPOINTS)
             }
           >
             {displayList?.map((offer, index) => (
@@ -366,14 +473,21 @@ const CardSlideCategory = ({
             <button
               ref={prevRef}
               type="button"
-              className="swiper-custom-button-prev pointer-events-auto mx-[-14px] flex h-[52px] w-[52px] items-center justify-center rounded-full border border-[#D8E2D9] bg-white/95 p-2.5 shadow-[0_8px_24px_rgba(16,34,23,0.08)] backdrop-blur-sm"
+              className={cn(
+                "swiper-custom-button-prev pointer-events-auto flex h-[52px] w-[52px] items-center justify-center rounded-full border border-[#D8E2D9] bg-white/95 p-2.5 shadow-[0_8px_24px_rgba(16,34,23,0.08)] backdrop-blur-sm",
+                /** Brand-logo tiles are dense — pull arrows fully outside the tile column so they don't sit on top of cards. */
+                isAnyBrandLogo ? "-ml-6" : "mx-[-14px]"
+              )}
             >
               <ArrowIcon fill="#103522" className="rotate-90" />
             </button>
             <button
               ref={nextRef}
               type="button"
-              className="swiper-custom-button-next pointer-events-auto mx-[-14px] flex h-[52px] w-[52px] items-center justify-center rounded-full border border-[#D8E2D9] bg-white/95 p-2.5 shadow-[0_8px_24px_rgba(16,34,23,0.08)] backdrop-blur-sm"
+              className={cn(
+                "swiper-custom-button-next pointer-events-auto flex h-[52px] w-[52px] items-center justify-center rounded-full border border-[#D8E2D9] bg-white/95 p-2.5 shadow-[0_8px_24px_rgba(16,34,23,0.08)] backdrop-blur-sm",
+                isAnyBrandLogo ? "-mr-6" : "mx-[-14px]"
+              )}
             >
               <ArrowIcon fill="#103522" className="rotate-270" />
             </button>

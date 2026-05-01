@@ -75,28 +75,30 @@ function TotalHighlight({
     >
       <div className="flex items-start gap-3">
         <IconBadge>{icon}</IconBadge>
-        <div className="min-w-0 flex-1">
-          <p
-            className={`font-semibold leading-snug text-[#1a1a1a] ${compact ? "text-sm" : "text-base"}`}
-          >
-            {label}
-          </p>
-          <p
-            className={`mt-0.5 leading-normal text-[#7f7f7f] ${compact ? "text-[11px] leading-snug" : "text-xs"}`}
-          >
-            {hint}
-          </p>
-        </div>
-        <div className="shrink-0 text-right">
-          <span
-            suppressHydrationWarning
-            className={`font-semibold tabular-nums tracking-tight text-[#00aa80] ${compact ? "text-xl" : "text-2xl sm:text-[28px]"}`}
-          >
-            {formatNumber(amount)}
-          </span>
-          <span className={`ml-1 font-medium text-[#00aa80] ${compact ? "text-xs" : "text-sm"}`}>
-            {currency}
-          </span>
+        <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-start sm:gap-3">
+          <div className="min-w-0 flex-1">
+            <p
+              className={`font-semibold leading-snug text-[#1a1a1a] ${compact ? "text-sm" : "text-base"}`}
+            >
+              {label}
+            </p>
+            <p
+              className={`mt-0.5 leading-normal text-[#7f7f7f] ${compact ? "text-[11px] leading-snug" : "text-xs"}`}
+            >
+              {hint}
+            </p>
+          </div>
+          <div className="shrink-0 whitespace-nowrap text-left sm:text-right">
+            <span
+              suppressHydrationWarning
+              className={`font-semibold tabular-nums tracking-tight text-[#00aa80] ${compact ? "text-xl" : "text-2xl sm:text-[28px]"}`}
+            >
+              {formatNumber(amount)}
+            </span>
+            <span className={`ml-1 font-medium text-[#00aa80] ${compact ? "text-xs" : "text-sm"}`}>
+              {currency}
+            </span>
+          </div>
         </div>
       </div>
     </div>

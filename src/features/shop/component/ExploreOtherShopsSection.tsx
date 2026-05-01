@@ -45,7 +45,7 @@ export default function ExploreOtherShopsSection({
           {t("Explore Other Shops")}
         </h2>
         <LocaleLink
-          href="/shop"
+          href="/brand"
           className="gc-inline-link gc-inline-link--regular hidden shrink-0 md:inline-flex"
         >
           {t("View all")}
