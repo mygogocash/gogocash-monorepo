@@ -8,6 +8,7 @@ import envConfig from './config/env.config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { UserModule } from './user/user.module';
 import { OfferModule } from './offer/offer.module';
+import { BrandModule } from './brand/brand.module';
 import { WithdrawModule } from './withdraw/withdraw.module';
 import { GoogleDriveModule } from './google-drive/google-drive.module';
 import { PointModule } from './point/point.module';
@@ -26,6 +27,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
     AdminModule,
     UserModule,
     OfferModule,
+    BrandModule,
     WithdrawModule,
     GoogleDriveModule,
     PointModule,
