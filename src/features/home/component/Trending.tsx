@@ -1,10 +1,12 @@
 import { IResponseOffer } from "@/interfaces/offer";
 import { fetcher } from "@/lib/axios/client";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import CardSlideCategory from "../common/CardSlideCategory";
 import HomeSectionHeader from "../common/HomeSectionHeader";
 import { homeSectionMeta } from "../constants";
+import { useUserCountry } from "@/hooks/useUserCountry";
+import { dedupeOffersByBrand } from "@/lib/offer/offerVisibility";
 
 const Trending = () => {
   const [offerSearch] = useState({
@@ -32,6 +34,13 @@ const Trending = () => {
     refetchOnMount: false,
   });
 
+  const { country } = useUserCountry();
+  // Hide country-specific brands from users in other countries; global brands stay visible.
+  const visibleOffers = useMemo(
+    () => (offers?.data ? dedupeOffersByBrand(offers.data, country) : offers?.data),
+    [offers, country],
+  );
+
   const section = homeSectionMeta.trendingBrands;
 
   return (
@@ -39,7 +48,7 @@ const Trending = () => {
       <HomeSectionHeader variant="sectionRow" title={section.title} link={section.link} />
       <CardSlideCategory
         cardVariant="brandLogoBadge"
-        list={offers?.data}
+        list={visibleOffers}
         showPagination
         trackingListId={section.trackingListId}
         trackingListName={section.trackingListName}

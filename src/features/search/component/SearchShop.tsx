@@ -12,6 +12,9 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import { trackMerchantSearch } from "@/lib/analytics";
 import HeaderSearchPopperRow from "./HeaderSearchPopperRow";
 import { useTranslations } from "next-intl";
+import { useUserCountry } from "@/hooks/useUserCountry";
+import { dedupeOffersByBrand } from "@/lib/offer/offerVisibility";
+import { useMemo } from "react";
 
 const TRENDING_LIMIT = 5;
 const SEARCH_LIMIT = 5;
@@ -123,8 +126,16 @@ const SearchShop = ({ variant = "header" }: SearchShopProps) => {
     });
   }, [offerSearch.search, searchOffers, searchListId, searchListName]);
 
-  const trendingList = trendingOffers?.data ?? [];
-  const matchList = searchOffers?.data ?? [];
+  const { country } = useUserCountry();
+  // Country-specific brands are hidden from users in other countries; global brands always show.
+  const trendingList = useMemo(
+    () => dedupeOffersByBrand(trendingOffers?.data ?? [], country),
+    [trendingOffers?.data, country],
+  );
+  const matchList = useMemo(
+    () => dedupeOffersByBrand(searchOffers?.data ?? [], country),
+    [searchOffers?.data, country],
+  );
 
   const [popperWidthPx, setPopperWidthPx] = useState<number | null>(null);
 

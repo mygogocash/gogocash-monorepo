@@ -113,7 +113,8 @@ function pickMockBrandSlug(key: string): string {
   for (let i = 0; i < key.length; i++) {
     h = (h * 31 + key.charCodeAt(i)) >>> 0;
   }
-  return GENERIC_BRAND_SLUGS[h % GENERIC_BRAND_SLUGS.length];
+  // Modulo on a non-empty literal tuple always yields a defined index, so the assertion is safe.
+  return GENERIC_BRAND_SLUGS[h % GENERIC_BRAND_SLUGS.length]!;
 }
 
 /**
@@ -145,7 +146,8 @@ export function getBrandTileTint(key: string): string {
   for (let i = 0; i < key.length; i++) {
     h = (h * 31 + key.charCodeAt(i)) >>> 0;
   }
-  return BRAND_TILE_PALETTE[h % BRAND_TILE_PALETTE.length];
+  // Modulo on a non-empty literal tuple always yields a defined index, so the assertion is safe.
+  return BRAND_TILE_PALETTE[h % BRAND_TILE_PALETTE.length]!;
 }
 
 /** Cashback label for cards, e.g. `12.5%` (empty when unknown). */
