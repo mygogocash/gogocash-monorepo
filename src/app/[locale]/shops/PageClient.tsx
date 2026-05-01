@@ -9,7 +9,7 @@ export default function PageClient() {
       <div className="gc-home-layout gc-page-block w-full">
         <ShopPromotionHero />
       </div>
-      <List />
+      <List mode="shops" />
     </div>
   );
 }

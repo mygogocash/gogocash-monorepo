@@ -4,19 +4,19 @@ export const HOME_TOP_BRANDS_CAROUSEL_MAX = 24;
 export const homeSectionMeta = {
   topBrands: {
     title: "Top Brands",
-    link: "/shop",
+    link: "/brand",
     trackingListId: "home_top_brands",
     trackingListName: "Top Brands",
   },
   trendingBrands: {
     title: "Trending Brands",
-    link: "/shop",
+    link: "/brand",
     trackingListId: "home_trending_brands",
     trackingListName: "Trending Brands",
   },
   specialPick: {
     title: "Special Pick for You!",
-    link: "/shop",
+    link: "/brand",
     trackingListId: "home_special_pick_for_you",
     trackingListName: "Special Pick for You!",
   },
@@ -35,5 +35,8 @@ export const homeSectionMeta = {
     link: "/category/Health & Beauty",
     trackingListId: "home_makeup_must_have",
     trackingListName: "Makeup Must Have!",
+  },
+  browseShortcuts: {
+    title: "Browse",
   },
 } as const;

@@ -4,7 +4,7 @@ import { IconButton } from "@mui/material";
 import { useTranslations } from "next-intl";
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import {
   PROFILE_SUBPAGE_CARD_CLASS,
   PROFILE_SUBPAGE_MAIN_SCROLL_SOLO_CLASS,
@@ -33,20 +33,16 @@ const SubPage = ({ title, resolvedTitle, children, subTitle, showSubMenu, conten
   const heading = resolvedTitle ?? t(title);
   const router = useRouter();
   const pathname = usePathname();
-  const mainScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const el = mainScrollRef.current;
-    if (!el) return;
-    const instant =
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    el.scrollTo({ top: 0, behavior: instant ? "auto" : "smooth" });
+    if (typeof window === "undefined") return;
+    const instant = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: instant ? "auto" : "smooth" });
   }, [pathname]);
 
   if (showSubMenu) {
     return (
-      <div className="flex h-full min-h-0 min-w-0 w-full flex-1 flex-col px-0 pb-20 pt-6 md:pt-10 md:pb-20">
+      <div className="flex h-full min-h-0 min-w-0 w-full flex-1 flex-col px-0 pb-20 pt-6 max-md:-mx-4 max-md:w-[calc(100%+2rem)] md:pt-10 md:pb-20">
         {/* Desktop: single sr-only title. Mobile: visible title lives in the top bar below. */}
         <h1 className="hidden md:sr-only">{heading}</h1>
         <div className={PROFILE_SUBPAGE_CARD_CLASS}>
@@ -70,7 +66,6 @@ const SubPage = ({ title, resolvedTitle, children, subTitle, showSubMenu, conten
                 </h1>
               </Link>
               <div
-                ref={mainScrollRef}
                 data-testid="profile-subpage-main-scroll"
                 className={`${PROFILE_SUBPAGE_MAIN_SCROLL_WITH_RAIL_CLASS} min-h-0 flex-1`}
               >
@@ -95,11 +90,10 @@ const SubPage = ({ title, resolvedTitle, children, subTitle, showSubMenu, conten
 
   if (contentOnly) {
     return (
-      <div className="flex h-full min-h-0 min-w-0 w-full flex-1 flex-col px-0 pb-20 pt-6 md:pt-10 md:pb-20">
+      <div className="flex h-full min-h-0 min-w-0 w-full flex-1 flex-col px-0 pb-20 pt-6 max-md:-mx-4 max-md:w-[calc(100%+2rem)] md:pt-10 md:pb-20">
         <h1 className="sr-only">{heading}</h1>
         <div className={PROFILE_SUBPAGE_CARD_CLASS}>
           <div
-            ref={mainScrollRef}
             data-testid="profile-subpage-main-scroll"
             className={PROFILE_SUBPAGE_MAIN_SCROLL_SOLO_CLASS}
           >
@@ -121,7 +115,7 @@ const SubPage = ({ title, resolvedTitle, children, subTitle, showSubMenu, conten
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1080px] px-4 pb-12 md:px-0">
+    <div className="mx-auto w-full max-w-[1080px] pb-12 max-md:-mx-4 max-md:w-[calc(100%+2rem)] md:px-0">
       {/* Mobile: no back row (profile hub uses bottom nav); keep one sr-only h1 for a11y. md+: visible title bar. */}
       <h1 className="sr-only md:hidden">{heading}</h1>
       <div className="mb-4 hidden w-full items-center gap-3 pt-5 md:mb-8 md:flex md:pt-10">

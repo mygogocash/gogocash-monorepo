@@ -2,6 +2,7 @@
 
 import MerchantListTracker from "@/components/analytics/MerchantListTracker";
 import { DiscoverProductCard } from "@/features/discover/component/DiscoverProductCard";
+import { DiscoverProductTermsDialog } from "@/features/discover/component/DiscoverProductTermsDialog";
 import SearchIcon from "@/components/icons/SearchIcon";
 import type { DiscoverFilters, DiscoverSort } from "@/features/discover/types";
 import { discoverCategoryApiQuery, discoverCategoryDisplayLabel } from "@/features/discover/types";
@@ -19,7 +20,7 @@ import { useBreakpointMdUp } from "@/hooks/useBreakpointMdUp";
 import Pagination from "@mui/material/Pagination";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 
 const SEARCH_DEBOUNCE_MS = 320;
 const DISCOVER_PAGE_SIZE = 60;
@@ -55,6 +56,9 @@ function DiscoverProductFeed({
 }: DiscoverProductFeedProps) {
   const t = useTranslations();
   const [page, setPage] = useState(1);
+  const [termsOpen, setTermsOpen] = useState(false);
+  const openTerms = useCallback(() => setTermsOpen(true), []);
+  const closeTerms = useCallback(() => setTermsOpen(false), []);
   const gridAnchorRef = useRef<HTMLDivElement>(null);
 
   const { data, isPending, isFetching } = useQuery({
@@ -135,7 +139,7 @@ function DiscoverProductFeed({
             listName={listName}
             source="discover_page"
           />
-          <div className={cn("mt-6 pb-1 pt-0.5", discoverBrandsGrid)}>
+          <div className={cn("gc-stagger mt-6 pb-1 pt-0.5", discoverBrandsGrid)}>
             {allOffers.map((offer, index) => {
               const bannerSrc = getOfferBannerSrc(offer, lg);
               const priceLabel = getDiscoverListingPriceLabel(offer, locale);
@@ -146,8 +150,8 @@ function DiscoverProductFeed({
               const offerTitle = offer.offer_name_display || offer.offer_name || t("shop");
               const listPosition = (safePage - 1) * DISCOVER_PAGE_SIZE + index + 1;
               return (
-                <div key={offer._id} className="box-border flex h-auto w-full min-w-0">
-                  <div className="relative w-full min-w-0">
+                <div key={offer._id} className="gc-fade-up box-border flex h-auto w-full min-w-0">
+                  <div className="gc-hover-lift relative w-full min-w-0">
                     <Link
                       href={`/shop/${offer._id}`}
                       className="absolute inset-0 z-0"
@@ -161,7 +165,7 @@ function DiscoverProductFeed({
                         priceLabel={priceLabel}
                         shopNow={shopNow}
                         onShopNowNavigate={() => trackSelect(offer, listPosition - 1)}
-                        categories={offer.categories}
+                        onOpenTerms={openTerms}
                         isDesktop={lg}
                       />
                     </div>
@@ -207,6 +211,8 @@ function DiscoverProductFeed({
           />
         </div>
       ) : null}
+
+      <DiscoverProductTermsDialog open={termsOpen} onClose={closeTerms} />
     </>
   );
 }
@@ -272,7 +278,7 @@ export function DiscoverContentArea({ filters, onChange }: DiscoverContentAreaPr
 
   return (
     <div className="min-w-0 flex-1">
-      <div className="gc-surface-card sticky top-[80px] z-20 flex flex-col gap-3 px-4 py-3">
+      <div className="gc-surface-card flex flex-col gap-3 px-4 py-3">
         <div className="relative w-full min-w-0">
           <SearchIcon
             width="18"

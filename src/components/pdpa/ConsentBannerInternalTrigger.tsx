@@ -1,8 +1,14 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { env } from "@/env";
-import { requestOpenConsentBanner } from "@/lib/pdpa/consentBannerChannel";
+import {
+  CONSENT_BANNER_DISMISSED_EVENT,
+  CONSENT_BANNER_OPEN_EVENT,
+  PDPA_CONSENT_BANNER_DISMISSED_KEY,
+  requestOpenConsentBanner,
+} from "@/lib/pdpa/consentBannerChannel";
 
 function shouldShowInternalConsentTrigger(): boolean {
   if (process.env.NODE_ENV === "development") return true;
@@ -10,14 +16,36 @@ function shouldShowInternalConsentTrigger(): boolean {
   return v === "1" || v === "true";
 }
 
+function readDismissed(): boolean {
+  try {
+    return localStorage.getItem(PDPA_CONSENT_BANNER_DISMISSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Floating control to reopen the PDPA cookie banner (clears dismissal so it matches first visit).
  * Visible in development, or when `NEXT_PUBLIC_INTERNAL_CONSENT_BANNER_BUTTON=1`.
+ * Hidden once consent has been accepted (banner dismissed).
  */
 export default function ConsentBannerInternalTrigger() {
   const t = useTranslations();
+  const [dismissed, setDismissed] = useState(false);
 
-  if (!shouldShowInternalConsentTrigger()) {
+  useEffect(() => {
+    setDismissed(readDismissed());
+    const onDismissed = () => setDismissed(true);
+    const onOpen = () => setDismissed(false);
+    window.addEventListener(CONSENT_BANNER_DISMISSED_EVENT, onDismissed);
+    window.addEventListener(CONSENT_BANNER_OPEN_EVENT, onOpen);
+    return () => {
+      window.removeEventListener(CONSENT_BANNER_DISMISSED_EVENT, onDismissed);
+      window.removeEventListener(CONSENT_BANNER_OPEN_EVENT, onOpen);
+    };
+  }, []);
+
+  if (!shouldShowInternalConsentTrigger() || dismissed) {
     return null;
   }
 

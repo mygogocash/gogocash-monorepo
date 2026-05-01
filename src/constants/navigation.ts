@@ -27,7 +27,7 @@ export const desktopShortcutNav: NavigationItem[] = [
   {
     label: "Shop",
     translationKey: "shop",
-    href: "/shop",
+    href: "/brand",
     icon: "shop",
   },
   {
@@ -56,6 +56,7 @@ export type DesktopMenuBarIcon =
   | "none"
   | "promotion"
   | "shop"
+  | "shops"
   | "travel"
   | "electronic"
   | "beauty"
@@ -92,8 +93,21 @@ export const desktopMenuBarNav: DesktopMenuBarItem[] = [
   {
     id: "all-brands",
     translationKey: "navAllBrands",
-    href: "/shop",
+    href: "/brand",
     icon: "shop",
+  },
+  {
+    id: "all-shops",
+    translationKey: "navAllShops",
+    href: "/shops",
+    icon: "shops",
+  },
+  {
+    id: "product-discover",
+    translationKey: "navProductDiscover",
+    href: "/discover",
+    icon: "promotion",
+    menuTypography: "lead",
   },
   {
     id: "travel",
@@ -120,13 +134,6 @@ export const desktopMenuBarNav: DesktopMenuBarItem[] = [
     translationKey: "navDigitalServices",
     href: "/category/Digital Services",
     icon: "digital",
-  },
-  {
-    id: "product-discover",
-    translationKey: "navProductDiscover",
-    href: "/discover",
-    icon: "promotion",
-    menuTypography: "lead",
   },
 ];
 

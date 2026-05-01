@@ -1,13 +1,22 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { CategoryChip } from "@/components/common/card/CategoryChip";
-import { DiscoverProductTermsDialog } from "@/features/discover/component/DiscoverProductTermsDialog";
-import { Link } from "@/i18n/navigation";
-import { getOfferCategoryRowVisual, FALLBACK_BANNER } from "@/lib/offer/offerCardVisuals";
+import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
+import FavoriteBorder from "@mui/icons-material/FavoriteBorder";
+import { useRouter } from "@/i18n/navigation";
+import { FALLBACK_BANNER } from "@/lib/offer/offerCardVisuals";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+
+/**
+ * GoGoCash 1.1 — Product Discovery card.
+ * Two-line title with stable min-height for consistent card heights, no-wrap price
+ * with tabular numerals, Shop Now CTA with arrow affordance.
+ *
+ * The card is rendered inside an `<a class="absolute inset-0">` overlay (see
+ * DiscoverContentArea). To avoid an illegal nested-anchor structure, the inner
+ * Shop Now CTA is a `<button>` that navigates programmatically.
+ */
 
 const interactive = "gc-discover-interactive pointer-events-auto relative z-10 cursor-pointer";
 
@@ -15,7 +24,6 @@ export type DiscoverShopNowTarget =
   | { kind: "external"; href: string }
   | { kind: "internal"; href: string };
 
-/** Product Discovery tile aligned with GoGoCash CI (globals.css + Figma shop cards). */
 export interface DiscoverProductCardProps {
   banner: string;
   offer_name: string;
@@ -24,7 +32,8 @@ export interface DiscoverProductCardProps {
   shopNow: DiscoverShopNowTarget;
   /** Fires when user follows Shop Now (analytics). */
   onShopNowNavigate?: () => void;
-  categories?: string;
+  /** Opens the shared terms dialog hoisted in the feed. */
+  onOpenTerms: () => void;
   isDesktop?: boolean;
 }
 
@@ -34,126 +43,123 @@ export function DiscoverProductCard({
   priceLabel,
   shopNow,
   onShopNowNavigate,
-  categories = "",
+  onOpenTerms,
   isDesktop = false,
 }: DiscoverProductCardProps) {
   const t = useTranslations();
-  const [termsOpen, setTermsOpen] = useState(false);
-  const { label: categoryLabel, iconIndex } = getOfferCategoryRowVisual(categories);
+  const router = useRouter();
   const showPrice = Boolean(priceLabel.trim());
 
+  const handleShopNow = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    onShopNowNavigate?.();
+    if (shopNow.kind === "external") {
+      window.open(shopNow.href, "_blank", "noopener,noreferrer");
+    } else {
+      router.push(shopNow.href);
+    }
+  };
+
   return (
-    <>
-      <div
-        className={cn(
-          "flex h-full min-h-0 w-full flex-col gap-2.5 overflow-hidden rounded-2xl border border-(--gc-border) bg-(--gc-surface) p-3 shadow-[var(--gc-shadow)]",
-          "[&_*]:pointer-events-none [&_.gc-discover-interactive]:pointer-events-auto"
-        )}
-      >
-        <div className="relative w-full shrink-0">
-          <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-(--gc-text-soft) ring-1 ring-(--gc-border) ring-inset">
-            <img
-              src={banner}
-              alt={offer_name}
-              width={400}
-              height={400}
-              className={cn(
-                "size-full",
-                banner === FALLBACK_BANNER ? "object-fill" : "object-cover"
-              )}
-            />
-          </div>
-        </div>
-
-        <div className="flex min-h-0 flex-1 flex-col gap-2">
-          <CategoryChip
-            label={categoryLabel}
-            iconIndex={iconIndex}
-            size="md"
-            className="min-w-0 max-w-full shrink-0"
-          />
-
-          <p
+    <div
+      className={cn(
+        "pointer-events-none flex h-full min-h-0 w-full min-w-0 flex-col gap-3 overflow-hidden rounded-2xl border border-(--gc-border) bg-white p-2.5 shadow-sm",
+        "[&_*]:pointer-events-none [&_.gc-discover-interactive]:pointer-events-auto"
+      )}
+    >
+      <div className="relative w-full shrink-0">
+        <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-(--gc-text-soft)">
+          <img
+            src={banner}
+            alt={offer_name}
+            width={400}
+            height={400}
             className={cn(
-              "line-clamp-2 min-h-[2.75em] font-semibold leading-snug tracking-tight text-(--gc-text)",
-              isDesktop ? "text-[15px]" : "text-[13px] sm:text-[14px]"
+              "size-full transition-transform duration-300",
+              banner === FALLBACK_BANNER ? "object-fill" : "object-cover"
             )}
-          >
-            {offer_name}
-          </p>
-
-          <div className="mt-auto flex flex-col gap-2 border-t border-(--gc-border) pt-2.5">
-            <div className="flex items-baseline justify-between gap-2">
-              <span
-                className={cn(
-                  "shrink-0 font-medium text-(--gc-text-soft)",
-                  isDesktop ? "text-[11px]" : "text-[10px]"
-                )}
-              >
-                {t("discoverCardPriceHint")}
-              </span>
-              <p
-                className={cn(
-                  "min-w-0 truncate text-right text-base font-bold tabular-nums leading-none md:text-lg",
-                  showPrice ? "text-(--gc-primary-strong)" : "text-(--gc-text-soft)"
-                )}
-              >
-                {showPrice ? priceLabel : "—"}
-              </p>
-            </div>
-            {shopNow.kind === "external" ? (
-              <a
-                href={shopNow.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={cn(
-                  interactive,
-                  "flex w-full items-center justify-center rounded-full border-0 py-2.5 text-center text-sm font-semibold !text-white no-underline",
-                  "bg-(--gc-primary-strong) shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
-                )}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onShopNowNavigate?.();
-                }}
-              >
-                {t("Shop Now")}
-              </a>
-            ) : (
-              <Link
-                href={shopNow.href}
-                className={cn(
-                  interactive,
-                  "flex w-full items-center justify-center rounded-full py-2.5 text-center text-sm font-semibold !text-white no-underline",
-                  "bg-(--gc-primary-strong) shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
-                )}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onShopNowNavigate?.();
-                }}
-              >
-                {t("Shop Now")}
-              </Link>
-            )}
-            <button
-              type="button"
-              className={cn(
-                interactive,
-                "w-full border-0 bg-transparent p-0 text-center font-medium text-(--gc-primary-strong) underline decoration-(--gc-primary-strong)/40 underline-offset-2",
-                isDesktop ? "text-[12px]" : "text-[11px]"
-              )}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setTermsOpen(true);
-              }}
-            >
-              {t("discoverTermsLearnMore")}
-            </button>
-          </div>
+          />
         </div>
+        {/* TODO: wire up favorite toggle (currently a visual placeholder) */}
+        <button
+          type="button"
+          className={cn(
+            interactive,
+            "absolute right-2 top-2 flex size-8 items-center justify-center rounded-full border border-(--gc-border) bg-white/95 text-(--gc-primary-strong) shadow-[0_2px_6px_rgba(0,0,0,0.08)] backdrop-blur-sm transition-transform hover:scale-105 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--gc-primary-strong)"
+          )}
+          aria-label={t("favoritePageAddFavorite")}
+          aria-pressed={false}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+        >
+          <FavoriteBorder
+            sx={{ fontSize: 16, color: "var(--gc-primary-strong)" }}
+            aria-hidden
+          />
+        </button>
       </div>
 
-      <DiscoverProductTermsDialog open={termsOpen} onClose={() => setTermsOpen(false)} />
-    </>
+      <div className="flex min-h-0 flex-1 flex-col gap-2.5">
+        <h2
+          className={cn(
+            "line-clamp-2 min-h-[2.5em] font-semibold leading-snug tracking-tight text-(--gc-text)",
+            isDesktop ? "text-[15px]" : "text-sm"
+          )}
+        >
+          {offer_name}
+        </h2>
+
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-(--gc-text-soft)">
+            {t("discoverCardPriceHint")}
+          </span>
+          <span
+            className={cn(
+              "shrink-0 whitespace-nowrap text-right font-bold leading-none tabular-nums",
+              isDesktop ? "text-2xl" : "text-xl",
+              showPrice ? "text-(--gc-primary-strong)" : "text-(--gc-text-soft)"
+            )}
+          >
+            {showPrice ? priceLabel : "—"}
+          </span>
+        </div>
+
+        <div className="mt-auto flex flex-col gap-1.5">
+          <button
+            type="button"
+            className={cn(
+              interactive,
+              "group/cta flex w-full items-center justify-center gap-1.5 rounded-full border-0 py-2.5 text-center text-sm font-semibold !text-white",
+              "bg-(--gc-primary-strong) shadow-[0_2px_6px_rgba(0,170,128,0.25)] transition-all duration-150 hover:opacity-90 active:scale-[0.98]",
+              "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--gc-primary-strong)"
+            )}
+            onClick={handleShopNow}
+          >
+            <span>{t("Shop Now")}</span>
+            <ArrowForwardRoundedIcon
+              sx={{ fontSize: 16 }}
+              className="transition-transform duration-200 group-hover/cta:translate-x-0.5"
+              aria-hidden
+            />
+          </button>
+          <button
+            type="button"
+            className={cn(
+              interactive,
+              "w-full border-0 bg-transparent p-0 text-center text-[11px] font-medium leading-normal text-(--gc-text-soft) underline decoration-(--gc-text-soft)/30 underline-offset-2 transition-colors hover:text-(--gc-primary-strong) hover:decoration-(--gc-primary-strong)/40"
+            )}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onOpenTerms();
+            }}
+          >
+            {t("discoverTermsLearnMore")}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

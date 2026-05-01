@@ -13,7 +13,7 @@ function CustomNavSwiper() {
     <section className="gc-home-section-y flex w-full flex-col gap-6">
       <HomeSectionHeader variant="sectionRow" icon="🔥" title={section.title} link={section.link} />
       <CardSlideCategory
-        cardVariant="featured"
+        cardVariant="brandLogo"
         maxItems={HOME_TOP_BRANDS_CAROUSEL_MAX}
         list={offers}
         showPagination

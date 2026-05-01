@@ -45,7 +45,7 @@ const CardSpecial = ({
   return (
     <div
       className={cn(
-        "pointer-events-none flex h-full min-h-0 w-full flex-col gap-2 overflow-hidden rounded-2xl border border-(--gc-border) bg-white p-2",
+        "pointer-events-none flex h-full min-h-0 w-full flex-col gap-2 overflow-hidden rounded-2xl border border-(--gc-border) bg-white p-2 shadow-sm",
         directoryGrid ? "max-w-none" : "mx-auto max-w-[280px]",
         "[&_*]:pointer-events-none [&_button]:pointer-events-auto"
       )}

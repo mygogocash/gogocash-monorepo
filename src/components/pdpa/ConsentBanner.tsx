@@ -8,6 +8,7 @@ import { Link as I18nLink, useRouter } from "@/i18n/navigation";
 import { TRANSLATIONS_DISABLED } from "@/constants/translations";
 import { getPdpaConsentBannerCopy } from "@/i18n/pdpaConsentBannerMerge";
 import {
+  CONSENT_BANNER_DISMISSED_EVENT,
   CONSENT_BANNER_OPEN_EVENT,
   PDPA_CONSENT_BANNER_DISMISSED_KEY,
 } from "@/lib/pdpa/consentBannerChannel";
@@ -59,6 +60,9 @@ export default function ConsentBanner() {
       /* ignore */
     }
     setVisible(false);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent(CONSENT_BANNER_DISMISSED_EVENT));
+    }
   };
 
   const goToCookieSettings = () => {

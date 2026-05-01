@@ -6,7 +6,7 @@ export const PROFILE_SUBPAGE_CARD_CLASS =
   "flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-3xl border border-[var(--gc-border)] bg-white";
 
 const PROFILE_SUBPAGE_MAIN_SCROLL_BASE =
-  "flex min-h-0 min-w-0 flex-1 flex-col gap-0 overflow-y-auto overscroll-contain px-3 py-4 sm:px-5 sm:py-6 md:h-full md:min-h-0 md:px-8 md:py-9 lg:px-10";
+  "flex min-h-0 min-w-0 flex-1 flex-col gap-0 px-3 py-4 sm:px-5 sm:py-6 md:px-8 md:py-9 lg:px-10";
 
 /** Main column when the left nav rail is visible — vertical rule follows this column’s height. */
 export const PROFILE_SUBPAGE_MAIN_SCROLL_WITH_RAIL_CLASS = `${PROFILE_SUBPAGE_MAIN_SCROLL_BASE} md:border-l md:border-[var(--gc-border)]`;
