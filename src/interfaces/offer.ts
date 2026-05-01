@@ -82,6 +82,17 @@ export interface DataOffer {
    * When set, takes precedence over `tracking_link` / `preview_url` for outbound clicks.
    */
   listing_affiliate_url?: string;
+  /**
+   * When `true`, the brand is visible to customers worldwide, regardless of their country.
+   * When `false`/absent (default), only customers whose country is listed in `countries` see this brand.
+   * The visibility filter `(matchesUserCountry || is_global)` is applied by `filterOffersByCountry`.
+   */
+  is_global?: boolean;
+  /**
+   * Fallback country variant for global brands when a customer's country has no dedicated variant.
+   * Used to resolve which tracking link is opened — discovery filtering itself only checks `is_global`.
+   */
+  default_country?: string | null;
 }
 
 export interface ProductTypeList {
