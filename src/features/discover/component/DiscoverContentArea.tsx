@@ -17,6 +17,8 @@ import {
 import { cn } from "@/lib/utils";
 import { Link } from "@/i18n/navigation";
 import { useBreakpointMdUp } from "@/hooks/useBreakpointMdUp";
+import { useUserCountry } from "@/hooks/useUserCountry";
+import { filterOffersByCountry } from "@/lib/offer/offerVisibility";
 import Pagination from "@mui/material/Pagination";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
@@ -60,6 +62,7 @@ function DiscoverProductFeed({
   const openTerms = useCallback(() => setTermsOpen(true), []);
   const closeTerms = useCallback(() => setTermsOpen(false), []);
   const gridAnchorRef = useRef<HTMLDivElement>(null);
+  const { country: userCountry } = useUserCountry();
 
   const { data, isPending, isFetching } = useQuery({
     queryKey: ["discoverFeed", apiCategory, filters.search, page, DISCOVER_PAGE_SIZE],
@@ -77,7 +80,9 @@ function DiscoverProductFeed({
 
   const allOffers = useMemo(() => {
     const flat = data?.data ?? [];
-    const filtered = flat.filter((o) => (o.commission_store ?? 0) >= filters.minCashback);
+    // Visibility: country-specific brands only shown to matching customers; global brands shown to everyone.
+    const visible = filterOffersByCountry(flat, userCountry);
+    const filtered = visible.filter((o) => (o.commission_store ?? 0) >= filters.minCashback);
     if (filters.sort === "newest") {
       return [...filtered].sort(
         (a, b) => new Date(b.datetime_created).getTime() - new Date(a.datetime_created).getTime()
@@ -87,7 +92,7 @@ function DiscoverProductFeed({
       return [...filtered].sort((a, b) => (b.commission_store ?? 0) - (a.commission_store ?? 0));
     }
     return filtered;
-  }, [data, filters.sort, filters.minCashback]);
+  }, [data, filters.sort, filters.minCashback, userCountry]);
 
   const trackSelect = (offer: DataOffer, index: number) => {
     trackMerchantSelect({
