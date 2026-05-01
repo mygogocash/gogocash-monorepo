@@ -68,28 +68,19 @@ describe("getTelegramOAuthBotId", () => {
     vi.resetModules();
     process.env.SKIP_ENV_VALIDATION = "1";
     delete process.env.NEXT_PUBLIC_TELEGRAM_BOT_ID;
-    delete process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN;
   });
 
   afterEach(() => {
     delete process.env.NEXT_PUBLIC_TELEGRAM_BOT_ID;
-    delete process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN;
   });
 
-  it("prefers NEXT_PUBLIC_TELEGRAM_BOT_ID when set", async () => {
+  it("returns NEXT_PUBLIC_TELEGRAM_BOT_ID when set", async () => {
     process.env.NEXT_PUBLIC_TELEGRAM_BOT_ID = "999888777";
-    process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN = "111:legacy-secret";
     const { getTelegramOAuthBotId } = await import("./env");
     expect(getTelegramOAuthBotId()).toBe("999888777");
   });
 
-  it("uses numeric prefix from legacy NEXT_PUBLIC_TELEGRAM_BOT_TOKEN", async () => {
-    process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN = "8471948428:AAGSfgmnJp";
-    const { getTelegramOAuthBotId } = await import("./env");
-    expect(getTelegramOAuthBotId()).toBe("8471948428");
-  });
-
-  it("returns empty when unset", async () => {
+  it("returns empty when unset (legacy NEXT_PUBLIC_TELEGRAM_BOT_TOKEN fallback removed for security)", async () => {
     const { getTelegramOAuthBotId } = await import("./env");
     expect(getTelegramOAuthBotId()).toBe("");
   });

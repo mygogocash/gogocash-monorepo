@@ -6,6 +6,8 @@ import type { Session } from "next-auth";
 import { useQuery } from "@tanstack/react-query";
 import { fetcherPost } from "@/lib/axios/client";
 import { clearAxiosSessionCache } from "@/lib/axios/sessionForAxios";
+import { getClientAuth, isFirebaseClientConfigured } from "@/lib/firebaseClient";
+import { signOut as firebaseSignOut } from "firebase/auth";
 import type { ResponseWithdrawCheck } from "@/interfaces/withdraw";
 
 /**
@@ -50,8 +52,18 @@ export const SessionContextProvider = ({ children }: { children: ReactNode }) =>
   });
 
   const signOutAuth = useCallback(async () => {
-    await signOut({ redirect: true, callbackUrl: "/" });
+    // Sign out of Firebase first so the axios interceptor stops minting fresh
+    // ID tokens for the now-departing user. Errors here (e.g. user already
+    // signed out, or Firebase not configured) are non-fatal.
+    if (isFirebaseClientConfigured()) {
+      try {
+        await firebaseSignOut(getClientAuth());
+      } catch {
+        // ignore — NextAuth signOut below is the source of truth for the UI
+      }
+    }
     clearAxiosSessionCache();
+    await signOut({ redirect: true, callbackUrl: "/" });
   }, []);
 
   const value: SessionContextValue = {

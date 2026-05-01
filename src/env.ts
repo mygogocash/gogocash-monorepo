@@ -82,14 +82,10 @@ export const env = createEnv({
     NEXT_PUBLIC_FACEBOOK_CLIENT_ID: optionalString,
     /**
      * Telegram bot numeric id for `oauth.telegram.org` (same number as before `:` in the bot token).
-     * Prefer this over NEXT_PUBLIC_TELEGRAM_BOT_TOKEN so the full token is not shipped to the browser.
+     * The legacy NEXT_PUBLIC_TELEGRAM_BOT_TOKEN was removed because it shipped
+     * the full bot secret to the browser bundle.
      */
     NEXT_PUBLIC_TELEGRAM_BOT_ID: optionalString,
-    /**
-     * @deprecated Prefer NEXT_PUBLIC_TELEGRAM_BOT_ID. If set, only the `123456789` prefix is used for OAuth URLs.
-     * Avoid deploying the full token to the client in new setups.
-     */
-    NEXT_PUBLIC_TELEGRAM_BOT_TOKEN: optionalString,
     NEXT_PUBLIC_POSTHOG_KEY: optionalString,
     NEXT_PUBLIC_POSTHOG_HOST: optionalString,
     NEXT_PUBLIC_CHAIN_ID_WITHDRAW_SONIC: optionalString,
@@ -136,7 +132,6 @@ export const env = createEnv({
     NEXT_PUBLIC_META_PIXEL_ID: process.env.NEXT_PUBLIC_META_PIXEL_ID,
     NEXT_PUBLIC_FACEBOOK_CLIENT_ID: process.env.NEXT_PUBLIC_FACEBOOK_CLIENT_ID,
     NEXT_PUBLIC_TELEGRAM_BOT_ID: process.env.NEXT_PUBLIC_TELEGRAM_BOT_ID,
-    NEXT_PUBLIC_TELEGRAM_BOT_TOKEN: process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN,
     NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
     NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
     NEXT_PUBLIC_CHAIN_ID_WITHDRAW_SONIC: process.env.NEXT_PUBLIC_CHAIN_ID_WITHDRAW_SONIC,

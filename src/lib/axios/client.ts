@@ -10,6 +10,30 @@ import { devEmailMockVerifyOtpHttpStatus } from "@/lib/dev/emailOtpMock";
 import { getMockApiResponse, getMockHttpStatus } from "@/mocks/homeApi";
 import { getApiBaseUrl, shouldUseMockApi } from "@/lib/env";
 import { getPostHogRequestHeaders } from "@/lib/posthog";
+import { getClientAuth, isFirebaseClientConfigured } from "@/lib/firebaseClient";
+
+type RetryableConfig = InternalAxiosRequestConfig & { _retried?: boolean };
+
+/**
+ * Prefer the auto-refreshing Firebase ID token over the (potentially stale)
+ * backend JWT held in the NextAuth session. Firebase silently refreshes the
+ * ID token when <5min remain, so this single change removes the most common
+ * cause of "session expired" errors.
+ *
+ * `forceRefresh` is used by the response interceptor when the API rejects a
+ * token: we re-mint and retry once before giving up.
+ */
+async function getFirebaseIdToken(forceRefresh = false): Promise<string | null> {
+  if (typeof window === "undefined") return null;
+  if (!isFirebaseClientConfigured()) return null;
+  try {
+    const user = getClientAuth().currentUser;
+    if (!user) return null;
+    return await user.getIdToken(forceRefresh);
+  } catch {
+    return null;
+  }
+}
 
 const parseConfigData = (data: unknown): unknown => {
   if (data == null || data === "") return undefined;
@@ -97,10 +121,16 @@ const client = axios.create({
 
 client.interceptors.request.use(
   async (config) => {
-    const session = await getSessionForAxios();
-
-    if (session?.user?.access_token) {
-      config.headers.Authorization = `Bearer ${session.user.access_token}`;
+    // Prefer Firebase's auto-refreshing ID token. Fall back to the NextAuth
+    // session-stored backend JWT for non-Firebase users (Telegram, MiniPay).
+    const firebaseToken = await getFirebaseIdToken();
+    if (firebaseToken) {
+      config.headers.Authorization = `Bearer ${firebaseToken}`;
+    } else {
+      const session = await getSessionForAxios();
+      if (session?.user?.access_token) {
+        config.headers.Authorization = `Bearer ${session.user.access_token}`;
+      }
     }
 
     if (typeof window !== "undefined") {
@@ -116,23 +146,49 @@ client.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+const isAuthExpiredError = (message: unknown): boolean => {
+  const m = typeof message === "string" ? message : "";
+  return (
+    m.includes("Firebase ID token") ||
+    m.includes("invalid algorithm") ||
+    m.includes("jwt expired") ||
+    m.includes("Invalid token")
+  );
+};
+
 client.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error: AxiosError) => {
     if (error.response) {
-      const authMsg = error.response?.data?.message;
-      const m = typeof authMsg === "string" ? authMsg : "";
-      if (
-        m.includes("Firebase ID token") ||
-        m.includes("invalid algorithm") ||
-        m.includes("jwt expired")
-      ) {
+      const status = error.response.status;
+      const authMsg = (error.response.data as { message?: unknown } | undefined)?.message;
+      const looksExpired = status === 401 || isAuthExpiredError(authMsg);
+
+      if (looksExpired) {
+        const original = error.config as RetryableConfig | undefined;
+
+        // Retry exactly once with a freshly minted Firebase ID token. Firebase
+        // users who hit this path almost always recover silently — only users
+        // without a Firebase session (or whose Firebase session is genuinely
+        // gone) get signed out.
+        if (original && !original._retried) {
+          const fresh = await getFirebaseIdToken(true);
+          if (fresh) {
+            original._retried = true;
+            original.headers = original.headers ?? new AxiosHeaders();
+            (original.headers as AxiosHeaders).set("Authorization", `Bearer ${fresh}`);
+            try {
+              return await client.request(original);
+            } catch (retryError) {
+              return Promise.reject(retryError);
+            }
+          }
+        }
+
         clearAxiosSessionCache();
         void signOut({ redirect: false });
-        return Promise.reject(error.response);
       }
       return Promise.reject(error.response);
-      // throw new Error('No response from server');
     } else if (error.request) {
       throw new Error("No response from server");
     } else {

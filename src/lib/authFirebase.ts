@@ -291,7 +291,10 @@ export const authOptions: AuthOptions = {
   secret: getNextAuthSecret(),
   session: {
     strategy: "jwt",
-    maxAge: 24 * 60 * 60, // 24 hours
+    // 30 days lifetime; cookie expiry rolls forward every 24h of activity so
+    // active users effectively never get signed out.
+    maxAge: 30 * 24 * 60 * 60,
+    updateAge: 24 * 60 * 60,
   },
   pages: {
     signIn: "/login", // Custom login (OAuth) before any credential flows
