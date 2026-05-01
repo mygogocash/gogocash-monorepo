@@ -23,15 +23,15 @@ export class AuthAdminGuard implements CanActivate {
     }
     const token = authHeader.substring(7);
     try {
-      // Validate JWT token and check if user is admin
       const decoded = this.jwtService.verify(token, {
         secret: process.env.JWT_ADMIN_SECRET,
       });
       request['user'] = decoded;
       return decoded;
     } catch (error: any) {
-      console.log('error', error);
-      throw new UnauthorizedException(error.message || 'Invalid token');
+      // Don't log the error — repeated failed admin auth attempts can fill
+      // logs with details that fingerprint the JWT library / secret format.
+      throw new UnauthorizedException(error?.message || 'Invalid token');
     }
   }
 }

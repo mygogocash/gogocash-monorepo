@@ -22,6 +22,7 @@ import { OtpService } from './otp.service';
 import { SendOtpDto, VerifyOtpDto } from './dto/otp.dto';
 import { RateLimitGuard } from './rate-limit.guard';
 import { RateLimit } from './rate-limit.decorator';
+import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -41,10 +42,9 @@ export class AuthController {
   }
 
   @Post('log-in')
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ windowMs: 60_000, max: 20 })
   @ApiBody({ type: SignInFirebaseDto })
-  // @UseGuards(FirebaseAuthGuard)
-  // @ApiSecurity('access-token') // Apply the security scheme defined globally
-  // @ApiBearerAuth() // This directly applies Bearer authentication
   @ApiResponse({ status: 201, description: 'User login successfully' })
   async loginFirebase(@Req() req: Request, @Body() body: SignInFirebaseDto) {
     const authHeader = req.headers.authorization ?? "";
@@ -56,9 +56,9 @@ export class AuthController {
 
 
   @Post('register')
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ windowMs: 60_000, max: 10 })
   @ApiBody({ type: SignInFirebaseDto })
-  // @ApiSecurity('access-token') // Apply the security scheme defined globally
-  // @ApiBearerAuth() // This directly applies Bearer authentication
   @ApiResponse({ status: 201, description: 'User login successfully' })
   async register(@Req() req: Request, @Body() body: SignInFirebaseDto) {
     const authHeader = req.headers.authorization ?? "";
@@ -98,6 +98,8 @@ export class AuthController {
   }
 
   @Post('log-in/telegram')
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ windowMs: 60_000, max: 20 })
   @ApiBody({ type: TelegramAuthDto })
   @ApiResponse({ status: 201, description: 'User login successfully' })
   async loginTelegram(@Req() req: Request, @Body() body: TelegramAuthDto) {
@@ -106,10 +108,17 @@ export class AuthController {
     return { message: 'Login successful!', ...user };
   }
 
+  /**
+   * Account-existence probe for Telegram IDs. Admin-only to prevent
+   * unauthenticated enumeration of which Telegram IDs have GoGoCash
+   * accounts (which then feeds Telegram-login impersonation attacks).
+   */
   @Get('check-account-telegram/:id')
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
   async checkAccountTelegram(@Req() req: Request) {
     const id = req.params.id;
-    // The guard has already validated the token and added the user payload to the request
     const user = await this.auth.getProfileByTelegramId(id?.toString());
     return user ? true : false;
   }
@@ -128,13 +137,20 @@ export class AuthController {
     return this.auth.verifyPhone(token, id);
   }
 
+  /**
+   * Internal AI integration: lookup whether an email has an account.
+   * Admin-only and only returns existence (no PII) to prevent unauthenticated
+   * email enumeration / record dump.
+   */
   @Post('log-in/ai')
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
   @ApiBody({ type: SignInAiDto })
-  @ApiResponse({ status: 201, description: 'User login successfully' })
+  @ApiResponse({ status: 201, description: 'Account existence check' })
   async loginAi(@Req() req: Request, @Body() body: SignInAiDto) {
-    // The guard has already validated the token and added the user payload to the request
     const user = await this.auth.signInAi(body.email);
-    return { message: 'Login successful!', user };
+    return { exists: Boolean(user) };
   }
 
   // @Post('sign-out')
@@ -169,13 +185,21 @@ export class AuthController {
   //   return cookies[key] || null;
   // }
 
+  // Send-OTP: limited to discourage email-bombing the same address.
   @Post('send-otp')
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ windowMs: 60_000, max: 5 })
   @ApiBody({ type: SendOtpDto })
   async sendOtp(@Body('email') email: string) {
     return this.otpService.sendOtpToEmail(email);
   }
 
+  // Verify-OTP: tight per-IP cap is the outer brake; per-email lockout
+  // (3 wrong attempts → 30 min cooldown) lives in OtpService and prevents
+  // 6-digit brute force regardless of rotating IPs.
   @Post('verify-otp')
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ windowMs: 60_000, max: 10 })
   @ApiBody({ type: VerifyOtpDto })
   async verifyOtp(@Body('email') email: string, @Body('otp') otp: string) {
     return this.otpService.verifyOtpAndCreateToken(email, otp);

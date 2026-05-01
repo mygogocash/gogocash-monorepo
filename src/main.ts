@@ -1,13 +1,25 @@
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { json, urlencoded } from 'express';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 import * as cookieParser from 'cookie-parser';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import * as path from 'path';
+import { SanitisedExceptionFilter } from './common/sanitised-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // Security headers. CSP is disabled because the app serves Swagger UI
+  // (inline scripts/styles) and is API-only otherwise. Re-enable CSP only
+  // if/when this server starts serving HTML to end-user browsers.
+  app.use(helmet({ contentSecurityPolicy: false }));
+  // Body size limits — defends against memory-exhaustion DoS via huge JSON.
+  // File uploads use Multer (multipart) which is unaffected by these caps.
+  app.use(json({ limit: '256kb' }));
+  app.use(urlencoded({ extended: true, limit: '256kb' }));
   app.use(cookieParser());
+  app.useGlobalFilters(new SanitisedExceptionFilter());
   // DEV ONLY: request logger so we can see incoming hits in the nest log.
   if (process.env.NODE_ENV !== 'production') {
     app.use((req: any, _res: any, next: any) => {

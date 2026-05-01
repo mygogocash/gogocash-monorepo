@@ -51,6 +51,9 @@ export class WithdrawController {
     return this.withdrawService.checkWithdraw(id);
   }
 
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
   @Post('check-admin/:userId')
   checkWithdrawGGCAdmin(@Req() req: Request, @Param('userId') userId: string) {
     return this.withdrawService.checkWithdraw(userId);
@@ -66,6 +69,9 @@ export class WithdrawController {
     return this.withdrawService.listCheckWithdraw(id);
   }
 
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
   @Post('list-check-admin/:userId')
   listCheckWithdrawAdmin(@Req() req: Request, @Param('userId') userId: string) {
     return this.withdrawService.listCheckWithdraw(userId);
@@ -81,6 +87,9 @@ export class WithdrawController {
     return this.withdrawService.checkWithdrawMyCashback(id);
   }
 
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
   @Post('check-my-cashback-admin/:userId')
   checkWithdrawMyCashbackAdmin(
     @Req() req: Request,

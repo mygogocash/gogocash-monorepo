@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { JwtModule, JwtService } from '@nestjs/jwt';
 import { CacheModule } from '@nestjs/cache-manager';
+import { RateLimitGuard } from 'src/auth/rate-limit.guard';
+import { RolesGuard } from './roles.guard';
 
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
@@ -221,6 +223,8 @@ import { AnalyticsModule } from 'src/analytics/analytics.module';
     JobService,
     PointService,
     WithdrawService,
+    RateLimitGuard,
+    RolesGuard,
   ],
   exports: [AdminService, UserAdminService],
 })
