@@ -123,6 +123,33 @@ export default function CreateBrandForm() {
   const [policyCategoryId, setPolicyCategoryId] = useState("");
   const [customTerms, setCustomTerms] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  // When true, after a successful save the form keeps the brand-level fields (name, logos,
+  // description, availability, default country) but clears the country / tracking inputs so
+  // the admin can add another country variant of the same brand without re-entering shared info.
+  const [addAnotherCountry, setAddAnotherCountry] = useState(false);
+
+  const resetCountryVariantFields = () => {
+    // Country-specific fields — wiped after save when "Add another country" is on.
+    setCountries(isGlobal ? defaultCountry : "Thailand");
+    setCurrency("THB");
+    setTrackingLink("");
+    setAppDeeplink("");
+    setLookupValue("");
+    setSyncLookupFromBrandCountry(false);
+    setCommissionEntryMode("manual");
+    setCommissionPercentInput("");
+    setMaxCapInput("");
+    setNoteToUser("");
+    setProductTypes([]);
+    setAllProductTypes(true);
+    setDeeplinkStoreId("global");
+    setPolicyCategoryId("");
+    setCustomTerms("");
+    setOfferDisplayTags({ ...DEFAULT_OFFER_DISPLAY_TAGS });
+    setDisabledOffer(false);
+    setTopBrands(false);
+    // Brand-level fields kept: brandName, logos, banners, description, isGlobal, defaultCountry.
+  };
   const [logoDesktop, setLogoDesktop] = useState<File | null>(null);
   const [logoMobile, setLogoMobile] = useState<File | null>(null);
   const [logoCircle, setLogoCircle] = useState<File | null>(null);
@@ -300,10 +327,19 @@ export default function CreateBrandForm() {
     setSubmitting(true);
     try {
       await apiClient.createBrandFromAffiliate(formData, accessToken);
-      toast.success(`Brand "${name}" created and linked.`);
       void queryClient.invalidateQueries({ queryKey: ["offers", "list"] });
       void queryClient.invalidateQueries({ queryKey: COMMISSION_MANAGEMENT_BRANDS_ROOT_QUERY_KEY });
-      router.push("/brands");
+      if (addAnotherCountry) {
+        toast.success(`${name} (${countries}) saved. Add another country variant.`);
+        resetCountryVariantFields();
+        // Scroll back to the country select so the admin can immediately fill the next variant.
+        if (typeof window !== "undefined") {
+          document.getElementById("create-brand-country")?.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      } else {
+        toast.success(`Brand "${name}" created and linked.`);
+        router.push("/brands");
+      }
     } catch (err: unknown) {
       toast.error(getApiErrorMessage(err, "Could not create brand."));
     } finally {
@@ -1170,7 +1206,26 @@ export default function CreateBrandForm() {
         </div>
         </section>
 
-        <div className="flex flex-wrap justify-end gap-3 pt-2">
+        <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
+          <label
+            htmlFor="create-brand-add-another"
+            className="mr-auto flex cursor-pointer items-start gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+            title="After saving, keep brand-level fields (name, logo, default country) and clear the country/tracking inputs so you can add another country variant of this brand quickly."
+          >
+            <input
+              id="create-brand-add-another"
+              type="checkbox"
+              checked={addAnotherCountry}
+              onChange={(e) => setAddAnotherCountry(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-900"
+            />
+            <span>
+              <span className="font-medium">Save and add another country variant</span>
+              <span className="block text-xs text-gray-500 dark:text-gray-400">
+                Keeps brand fields, clears the country / tracking inputs.
+              </span>
+            </span>
+          </label>
           <Link
             href="/brands"
             className="inline-flex items-center justify-center rounded-full border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
@@ -1182,7 +1237,7 @@ export default function CreateBrandForm() {
             disabled={submitting}
             className="rounded-full bg-brand-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50 dark:bg-brand-600 dark:hover:bg-brand-500"
           >
-            {submitting ? "Creating…" : "Create brand"}
+            {submitting ? "Creating…" : addAnotherCountry ? "Save & add another" : "Create brand"}
           </button>
         </div>
       </form>
