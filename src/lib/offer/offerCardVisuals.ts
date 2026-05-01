@@ -175,9 +175,96 @@ function discoverListingAmountThb(offer: DataOffer): number {
 /** Discover tile: formatted listing price in THB (e.g. `100 THB`). */
 export function getDiscoverListingPriceLabel(offer: DataOffer, locale: string): string {
   const amount = discoverListingAmountThb(offer);
+  return formatListingPrice(amount, locale);
+}
+
+function formatListingPrice(amount: number, locale: string): string {
   const isTh = locale.toLowerCase().startsWith("th");
   const fmt = new Intl.NumberFormat(isTh ? "th-TH" : "en-US", { maximumFractionDigits: 0 });
   return `${fmt.format(amount)} THB`;
+}
+
+/** Stable placeholder for dev/demo mode — ~35% of offers get a 10–30% discount derived from `_id`. */
+function placeholderDiscountPercent(offer: DataOffer): number {
+  const s = offer._id || String(offer.offer_id ?? "");
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 33 + s.charCodeAt(i)) >>> 0;
+  if (h % 100 < 35) return 10 + (h % 21); // 10–30%
+  return 0;
+}
+
+export type DiscoverListingPricing = {
+  /** Current price label (always present; equals sale_price when discounted). */
+  priceLabel: string;
+  /** Strike-through original price, only when a discount applies. */
+  originalPriceLabel?: string;
+  /** Discount percent (1–99) when applicable; otherwise 0. */
+  discountPercent: number;
+};
+
+/**
+ * Discover listing pricing — current price + optional original/strike-through + discount %.
+ * Sources fields from Shopee CPS feed (`price`, `sale_price`, `discount_percentage`); falls back
+ * to a deterministic placeholder discount when the feed omits the values, so demo data shows
+ * the strike-through styling.
+ */
+export function getDiscoverListingPricing(
+  offer: DataOffer,
+  locale: string
+): DiscoverListingPricing {
+  const sale = discoverListingAmountThb(offer);
+  const priceLabel = formatListingPrice(sale, locale);
+
+  const explicitOriginal =
+    typeof offer.listing_original_price_thb === "number" &&
+    Number.isFinite(offer.listing_original_price_thb)
+      ? Math.round(offer.listing_original_price_thb)
+      : null;
+  const explicitDiscount =
+    typeof offer.listing_discount_percentage === "number" &&
+    Number.isFinite(offer.listing_discount_percentage)
+      ? Math.max(0, Math.min(99, Math.round(offer.listing_discount_percentage)))
+      : null;
+
+  if (explicitOriginal != null && explicitOriginal > sale) {
+    const computedPct =
+      explicitDiscount && explicitDiscount > 0
+        ? explicitDiscount
+        : Math.round(((explicitOriginal - sale) / explicitOriginal) * 100);
+    if (computedPct > 0) {
+      return {
+        priceLabel,
+        originalPriceLabel: formatListingPrice(explicitOriginal, locale),
+        discountPercent: computedPct,
+      };
+    }
+  }
+
+  if (explicitDiscount != null && explicitDiscount > 0) {
+    const original = Math.round(sale / (1 - explicitDiscount / 100));
+    if (original > sale) {
+      return {
+        priceLabel,
+        originalPriceLabel: formatListingPrice(original, locale),
+        discountPercent: explicitDiscount,
+      };
+    }
+  }
+
+  // Demo fallback so the strike-through styling is visible without a wired feed.
+  const demoPct = placeholderDiscountPercent(offer);
+  if (demoPct > 0) {
+    const original = Math.round(sale / (1 - demoPct / 100));
+    if (original > sale) {
+      return {
+        priceLabel,
+        originalPriceLabel: formatListingPrice(original, locale),
+        discountPercent: demoPct,
+      };
+    }
+  }
+
+  return { priceLabel, discountPercent: 0 };
 }
 
 /**

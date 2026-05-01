@@ -59,8 +59,19 @@ export interface DataOffer {
   /**
    * When set (e.g. product feed / CMS), shown on Discover listing cards as the listing price in THB.
    * If omitted, the client derives a stable placeholder from `_id` for layout demos.
+   * Maps to Shopee CPS `sale_price`.
    */
   listing_price_thb?: number;
+  /**
+   * Pre-discount price in THB. Maps to Shopee CPS `price`.
+   * When > `listing_price_thb`, Discover renders a strike-through original price + discount badge.
+   */
+  listing_original_price_thb?: number;
+  /**
+   * Discount percentage from the partner datafeed (Shopee CPS `discount_percentage`).
+   * When > 0, Discover shows a "-X%" badge on the card banner. Pass `0` or omit for no discount.
+   */
+  listing_discount_percentage?: number;
   /**
    * Product condition from partner datafeeds (e.g. CPS CSV `condition`: `new`, `refurbished`).
    * Shown on Discover when set.

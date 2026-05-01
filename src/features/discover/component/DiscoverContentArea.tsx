@@ -10,7 +10,7 @@ import type { DataOffer, IResponseOffer } from "@/interfaces/offer";
 import { trackMerchantSelect } from "@/lib/analytics";
 import { fetcher } from "@/lib/axios/client";
 import {
-  getDiscoverListingPriceLabel,
+  getDiscoverListingPricing,
   getDiscoverProductOutboundUrl,
   getOfferBannerSrc,
 } from "@/lib/offer/offerCardVisuals";
@@ -33,7 +33,7 @@ export interface DiscoverContentAreaProps {
 }
 
 const discoverBrandsGrid =
-  "grid w-full grid-cols-2 gap-2 sm:gap-4 md:grid-cols-5 md:gap-5 lg:gap-6";
+  "grid w-full grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 lg:gap-5 xl:grid-cols-5 xl:gap-6";
 
 type DiscoverProductFeedProps = {
   filters: DiscoverFilters;
@@ -142,7 +142,7 @@ function DiscoverProductFeed({
           <div className={cn("gc-stagger mt-6 pb-1 pt-0.5", discoverBrandsGrid)}>
             {allOffers.map((offer, index) => {
               const bannerSrc = getOfferBannerSrc(offer, lg);
-              const priceLabel = getDiscoverListingPriceLabel(offer, locale);
+              const pricing = getDiscoverListingPricing(offer, locale);
               const outbound = getDiscoverProductOutboundUrl(offer);
               const shopNow = outbound
                 ? ({ kind: "external", href: outbound } as const)
@@ -162,7 +162,9 @@ function DiscoverProductFeed({
                       <DiscoverProductCard
                         banner={bannerSrc}
                         offer_name={offerTitle}
-                        priceLabel={priceLabel}
+                        priceLabel={pricing.priceLabel}
+                        originalPriceLabel={pricing.originalPriceLabel}
+                        discountPercent={pricing.discountPercent}
                         shopNow={shopNow}
                         onShopNowNavigate={() => trackSelect(offer, listPosition - 1)}
                         onOpenTerms={openTerms}

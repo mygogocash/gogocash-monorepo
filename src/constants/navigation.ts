@@ -129,12 +129,6 @@ export const desktopMenuBarNav: DesktopMenuBarItem[] = [
     icon: "beauty",
     menuTypography: "lead",
   },
-  {
-    id: "digital-services",
-    translationKey: "navDigitalServices",
-    href: "/category/Digital Services",
-    icon: "digital",
-  },
 ];
 
 export const mobileNavItems: NavigationItem[] = [
