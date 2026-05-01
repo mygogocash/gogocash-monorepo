@@ -2,7 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import * as https from 'https';
-import { createCrossmint, CrossmintAuth } from '@crossmint/server-sdk';
+// Crossmint deprecated — auth now flows via Firebase + SIWE only.
 import { UserService } from 'src/user/user.service';
 import {
   MiniPaySiweDto,
@@ -37,14 +37,13 @@ export class AuthService {
     @InjectModel(SiweNonce.name)
     private siweNonceModel: Model<SiweNonceDocument>,
   ) {
-    this.baseUrl = this.config.get<string>('env.CROSSMINT_BASE_URL')!;
-    this.projectId = this.config.get<string>('env.CROSSMINT_PROJECT_ID')!;
-    this.secret = this.config.get<string>('env.CROSSMINT_SECRET')!;
+    this.baseUrl = this.config.get<string>('env.CROSSMINT_BASE_URL') ?? '';
+    this.projectId = this.config.get<string>('env.CROSSMINT_PROJECT_ID') ?? '';
+    this.secret = this.config.get<string>('env.CROSSMINT_SECRET') ?? '';
     this.httpsAgent = new https.Agent({ rejectUnauthorized: false });
-    this.crossmint = createCrossmint({
-      apiKey: this.secret!,
-    });
-    this.crossmintAuth = CrossmintAuth.from(this.crossmint);
+    // Crossmint SDK removed; signIn() path will throw if invoked.
+    this.crossmint = null;
+    this.crossmintAuth = null;
   }
 
   private headers() {
@@ -61,7 +60,14 @@ export class AuthService {
     return res.data;
   }
 
-  async signIn(payload: SignInDto) {
+  async signIn(payload: SignInDto): Promise<never> {
+    // Crossmint deprecated. Callers should use Firebase or SIWE sign-in flows.
+    void payload;
+    throw new UnauthorizedException(
+      'Crossmint sign-in is disabled. Use /auth/log-in (Firebase) or /auth/minipay-siwe instead.',
+    );
+    // unreachable code preserved below for reference during migration
+    /*
     const data = await this.crossmintAuth.getUser(payload.id_crossmint);
     // console.log('data', data);
     if (!data.id) {
@@ -113,6 +119,7 @@ export class AuthService {
     }
     // Update points for referral if referral_id is provided
     return user; // { accessToken, refreshToken, user }
+    */
   }
 
   async signInFirebase(token: string, payload: SignInFirebaseDto) {
