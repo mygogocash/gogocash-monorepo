@@ -8,6 +8,14 @@ import * as path from 'path';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.use(cookieParser());
+  // DEV ONLY: request logger so we can see incoming hits in the nest log.
+  if (process.env.NODE_ENV !== 'production') {
+    app.use((req: any, _res: any, next: any) => {
+      // eslint-disable-next-line no-console
+      console.log(`[REQ] ${req.method} ${req.originalUrl || req.url}`);
+      next();
+    });
+  }
   // Browsers reject `origin: '*'` when `credentials: true`. Use an explicit
   // allow-list and fall through to reflect the origin for non-credentialed
   // requests (useful for public GETs, curl, Swagger UI, etc.).
