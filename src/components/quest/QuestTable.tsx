@@ -225,9 +225,49 @@ const QUEST_MODAL_OFFERS_QUERY: OffersQuery = {
 };
 
 export default function QuestTable() {
-  const [quests] = useState(MOCK_QUESTS);
+  const [quests, setQuests] = useState<QuestDetails[]>(MOCK_QUESTS);
   const [pointsModalQuest, setPointsModalQuest] = useState<typeof MOCK_QUESTS[0] | null>(null);
   const [detailsModalQuest, setDetailsModalQuest] = useState<QuestDetails | null>(null);
+  const [detailsEditMode, setDetailsEditMode] = useState(false);
+  const [editDraft, setEditDraft] = useState<QuestDetails | null>(null);
+  const [editSubmitting, setEditSubmitting] = useState(false);
+
+  const startEditQuest = useCallback(() => {
+    if (!detailsModalQuest) return;
+    setEditDraft({
+      ...detailsModalQuest,
+      tasks: detailsModalQuest.tasks ? detailsModalQuest.tasks.map((t) => ({ ...t })) : undefined,
+    });
+    setDetailsEditMode(true);
+  }, [detailsModalQuest]);
+
+  const cancelEditQuest = useCallback(() => {
+    setDetailsEditMode(false);
+    setEditDraft(null);
+  }, []);
+
+  const saveEditQuest = useCallback(() => {
+    if (!editDraft) return;
+    setEditSubmitting(true);
+    // Mock persistence — in production this would call the API.
+    setTimeout(() => {
+      setQuests((prev) => prev.map((q) => (q.id === editDraft.id ? editDraft : q)));
+      setDetailsModalQuest(editDraft);
+      setDetailsEditMode(false);
+      setEditDraft(null);
+      setEditSubmitting(false);
+    }, 300);
+  }, [editDraft]);
+
+  const patchEditDraft = useCallback((patch: Partial<QuestDetails>) => {
+    setEditDraft((d) => (d ? { ...d, ...patch } : d));
+  }, []);
+
+  const closeDetailsModal = useCallback(() => {
+    setDetailsModalQuest(null);
+    setDetailsEditMode(false);
+    setEditDraft(null);
+  }, []);
   const [pointsModalPageSize, setPointsModalPageSize] = useState<number>(10);
   const [pointsModalSearch, setPointsModalSearch] = useState("");
   const [pointsSort, setPointsSort] = useState<{ key: UserPointsSortKey; dir: "asc" | "desc" }>({
@@ -253,10 +293,67 @@ export default function QuestTable() {
   const { data: offersData } = useQuery({
     queryKey: offersListQueryKey(QUEST_MODAL_OFFERS_QUERY),
     queryFn: () => fetchOffersList(QUEST_MODAL_OFFERS_QUERY),
-    enabled: createModalOpen,
+    enabled: createModalOpen || detailsEditMode,
     staleTime: 30_000,
   });
   const offers: Offer[] = offersData?.data ?? [];
+
+  // Helpers for the inline task editor inside the Quest details edit mode.
+  const patchEditTask = useCallback((index: number, patch: Partial<QuestTaskDisplay>) => {
+    setEditDraft((d) => {
+      if (!d || !d.tasks) return d;
+      return { ...d, tasks: d.tasks.map((t, i) => (i === index ? { ...t, ...patch } : t)) };
+    });
+  }, []);
+
+  const removeEditTask = useCallback((index: number) => {
+    setEditDraft((d) => {
+      if (!d || !d.tasks) return d;
+      return { ...d, tasks: d.tasks.filter((_, i) => i !== index) };
+    });
+  }, []);
+
+  const moveEditTask = useCallback((index: number, direction: -1 | 1) => {
+    setEditDraft((d) => {
+      if (!d || !d.tasks) return d;
+      const target = index + direction;
+      if (target < 0 || target >= d.tasks.length) return d;
+      const next = [...d.tasks];
+      [next[index], next[target]] = [next[target], next[index]];
+      return { ...d, tasks: next };
+    });
+  }, []);
+
+  // Drag-and-drop reorder for the edit-mode tasks list (uses native HTML5 DnD).
+  const [dragSrcIndex, setDragSrcIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+  const reorderEditTasks = useCallback((from: number, to: number) => {
+    setEditDraft((d) => {
+      if (!d || !d.tasks) return d;
+      if (from === to || from < 0 || to < 0 || from >= d.tasks.length || to >= d.tasks.length) return d;
+      const next = [...d.tasks];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return { ...d, tasks: next };
+    });
+  }, []);
+
+  const addEditTask = useCallback(() => {
+    setEditDraft((d) => {
+      if (!d) return d;
+      const empty: QuestTaskDisplay = {
+        taskType: "offer",
+        offerId: "",
+        offerName: "",
+        points: 0,
+        completionLimit: "once",
+        condition: null,
+        link: "",
+      };
+      return { ...d, tasks: d.tasks ? [...d.tasks, empty] : [empty] };
+    });
+  }, []);
 
   const openPointsModal = (q: QuestDetails) => {
     setPointsModalPageSize(10);
@@ -642,21 +739,55 @@ export default function QuestTable() {
       {/* Quest details modal — fullscreen */}
       <Modal
         isOpen={!!detailsModalQuest}
-        onClose={() => setDetailsModalQuest(null)}
+        onClose={closeDetailsModal}
         isFullscreen
         showCloseButton={false}
         className="p-0"
       >
         <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800 sm:p-6 md:p-8">
           <div className="mb-4 flex w-full shrink-0 flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-4 dark:border-gray-700">
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Quest details</h3>
-            <button
-              type="button"
-              onClick={() => setDetailsModalQuest(null)}
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-            >
-              Close
-            </button>
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+              {detailsEditMode ? "Edit quest" : "Quest details"}
+            </h3>
+            <div className="flex shrink-0 items-center gap-2">
+              {detailsEditMode ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={cancelEditQuest}
+                    disabled={editSubmitting}
+                    className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={saveEditQuest}
+                    disabled={editSubmitting}
+                    className="rounded-lg border border-brand-500 bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-60 dark:border-brand-500 dark:bg-brand-500 dark:hover:bg-brand-600"
+                  >
+                    {editSubmitting ? "Saving…" : "Save changes"}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={startEditQuest}
+                    className="rounded-lg border border-brand-500 bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 dark:border-brand-500 dark:bg-brand-500 dark:hover:bg-brand-600"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closeDetailsModal}
+                    className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                  >
+                    Close
+                  </button>
+                </>
+              )}
+            </div>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto pb-4">
           {detailsModalQuest && (
@@ -670,169 +801,581 @@ export default function QuestTable() {
               <div>
                 <dt className="font-medium text-gray-500 dark:text-gray-400">Start Date</dt>
                 <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">When the quest becomes available for users to join and complete tasks.</p>
-                <dd className="mt-1 text-gray-800 dark:text-white/90">{detailsModalQuest.startDate}</dd>
+                {detailsEditMode && editDraft ? (
+                  <Input
+                    type="text"
+                    value={editDraft.startDate}
+                    onChange={(e) => patchEditDraft({ startDate: e.target.value })}
+                    placeholder="Ex.(2026-02-01)"
+                    className="mt-2"
+                  />
+                ) : (
+                  <dd className="mt-1 text-gray-800 dark:text-white/90">{detailsModalQuest.startDate}</dd>
+                )}
               </div>
               <div>
                 <dt className="font-medium text-gray-500 dark:text-gray-400">End Date</dt>
                 <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Last day users can earn points or claim rewards for this quest.</p>
-                <dd className="mt-1 text-gray-800 dark:text-white/90">{detailsModalQuest.endDate}</dd>
+                {detailsEditMode && editDraft ? (
+                  <Input
+                    type="text"
+                    value={editDraft.endDate}
+                    onChange={(e) => patchEditDraft({ endDate: e.target.value })}
+                    placeholder="Ex.(2026-02-28)"
+                    className="mt-2"
+                  />
+                ) : (
+                  <dd className="mt-1 text-gray-800 dark:text-white/90">{detailsModalQuest.endDate}</dd>
+                )}
               </div>
               <div>
                 <dt className="font-medium text-gray-500 dark:text-gray-400">Status</dt>
                 <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Whether the quest is currently active (live) or pending (scheduled).</p>
-                <dd className="mt-1">
-                  <Badge size="sm" color={detailsModalQuest.status === "active" ? "success" : "warning"}>{detailsModalQuest.status}</Badge>
-                </dd>
+                {detailsEditMode && editDraft ? (
+                  <select
+                    value={editDraft.status}
+                    onChange={(e) => patchEditDraft({ status: e.target.value })}
+                    className="mt-2 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                  >
+                    <option value="active">active</option>
+                    <option value="pending">pending</option>
+                  </select>
+                ) : (
+                  <dd className="mt-1">
+                    <Badge size="sm" color={detailsModalQuest.status === "active" ? "success" : "warning"}>{detailsModalQuest.status}</Badge>
+                  </dd>
+                )}
               </div>
               <div>
                 <dt className="font-medium text-gray-500 dark:text-gray-400">Reward Status</dt>
                 <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Whether the quest reward has been claimed or is still pending.</p>
-                <dd className="mt-1">
-                  <Badge size="sm" color={detailsModalQuest.rewardStatus === "claimed" ? "success" : "warning"}>{detailsModalQuest.rewardStatus}</Badge>
-                </dd>
+                {detailsEditMode && editDraft ? (
+                  <select
+                    value={editDraft.rewardStatus}
+                    onChange={(e) => patchEditDraft({ rewardStatus: e.target.value })}
+                    className="mt-2 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                  >
+                    <option value="claimed">claimed</option>
+                    <option value="pending">pending</option>
+                  </select>
+                ) : (
+                  <dd className="mt-1">
+                    <Badge size="sm" color={detailsModalQuest.rewardStatus === "claimed" ? "success" : "warning"}>{detailsModalQuest.rewardStatus}</Badge>
+                  </dd>
+                )}
               </div>
               <div>
                 <dt className="font-medium text-gray-500 dark:text-gray-400">Facebook Page</dt>
                 <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Whether this quest is promoted on the Facebook page (and if a link was set).</p>
-                <dd className="mt-1 text-gray-800 dark:text-white/90">{detailsModalQuest.facebookPage}</dd>
+                {detailsEditMode && editDraft ? (
+                  <select
+                    value={editDraft.facebookPage}
+                    onChange={(e) => patchEditDraft({ facebookPage: e.target.value })}
+                    className="mt-2 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                  >
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                  </select>
+                ) : (
+                  <dd className="mt-1 text-gray-800 dark:text-white/90">{detailsModalQuest.facebookPage}</dd>
+                )}
               </div>
               <div>
                 <dt className="font-medium text-gray-500 dark:text-gray-400">Facebook Post</dt>
                 <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Whether this quest was announced in a Facebook post (and if a link was set).</p>
-                <dd className="mt-1 text-gray-800 dark:text-white/90">{detailsModalQuest.facebookPost}</dd>
+                {detailsEditMode && editDraft ? (
+                  <select
+                    value={editDraft.facebookPost}
+                    onChange={(e) => patchEditDraft({ facebookPost: e.target.value })}
+                    className="mt-2 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                  >
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                  </select>
+                ) : (
+                  <dd className="mt-1 text-gray-800 dark:text-white/90">{detailsModalQuest.facebookPost}</dd>
+                )}
               </div>
               <div>
                 <dt className="font-medium text-gray-500 dark:text-gray-400">Line</dt>
                 <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Whether this quest is promoted via Line (and if a link was set).</p>
-                <dd className="mt-1 text-gray-800 dark:text-white/90">{detailsModalQuest.line}</dd>
+                {detailsEditMode && editDraft ? (
+                  <select
+                    value={editDraft.line}
+                    onChange={(e) => patchEditDraft({ line: e.target.value })}
+                    className="mt-2 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                  >
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                  </select>
+                ) : (
+                  <dd className="mt-1 text-gray-800 dark:text-white/90">{detailsModalQuest.line}</dd>
+                )}
               </div>
               <div>
                 <dt className="font-medium text-gray-500 dark:text-gray-400">Banner EN</dt>
                 <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Whether an English main banner image was uploaded for this quest.</p>
-                <dd className="mt-1 text-gray-800 dark:text-white/90">{detailsModalQuest.bannerEn}</dd>
+                {detailsEditMode && editDraft ? (
+                  <select
+                    value={editDraft.bannerEn}
+                    onChange={(e) => patchEditDraft({ bannerEn: e.target.value })}
+                    className="mt-2 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                  >
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                  </select>
+                ) : (
+                  <dd className="mt-1 text-gray-800 dark:text-white/90">{detailsModalQuest.bannerEn}</dd>
+                )}
               </div>
               <div>
                 <dt className="font-medium text-gray-500 dark:text-gray-400">Banner TH</dt>
                 <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Whether a Thai main banner image was uploaded for this quest.</p>
-                <dd className="mt-1 text-gray-800 dark:text-white/90">{detailsModalQuest.bannerTh}</dd>
+                {detailsEditMode && editDraft ? (
+                  <select
+                    value={editDraft.bannerTh}
+                    onChange={(e) => patchEditDraft({ bannerTh: e.target.value })}
+                    className="mt-2 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                  >
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                  </select>
+                ) : (
+                  <dd className="mt-1 text-gray-800 dark:text-white/90">{detailsModalQuest.bannerTh}</dd>
+                )}
               </div>
               <div>
                 <dt className="font-medium text-gray-500 dark:text-gray-400">Sub Banner EN</dt>
                 <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Whether an English sub-banner image was uploaded for this quest.</p>
-                <dd className="mt-1 text-gray-800 dark:text-white/90">{detailsModalQuest.subBannerEn}</dd>
+                {detailsEditMode && editDraft ? (
+                  <select
+                    value={editDraft.subBannerEn}
+                    onChange={(e) => patchEditDraft({ subBannerEn: e.target.value })}
+                    className="mt-2 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                  >
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                  </select>
+                ) : (
+                  <dd className="mt-1 text-gray-800 dark:text-white/90">{detailsModalQuest.subBannerEn}</dd>
+                )}
               </div>
               <div>
                 <dt className="font-medium text-gray-500 dark:text-gray-400">Sub Banner TH</dt>
                 <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Whether a Thai sub-banner image was uploaded for this quest.</p>
-                <dd className="mt-1 text-gray-800 dark:text-white/90">{detailsModalQuest.subBannerTh}</dd>
+                {detailsEditMode && editDraft ? (
+                  <select
+                    value={editDraft.subBannerTh}
+                    onChange={(e) => patchEditDraft({ subBannerTh: e.target.value })}
+                    className="mt-2 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                  >
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                  </select>
+                ) : (
+                  <dd className="mt-1 text-gray-800 dark:text-white/90">{detailsModalQuest.subBannerTh}</dd>
+                )}
               </div>
             </dl>
 
-            {/* Links section — shown when any social channel is Yes */}
-            {(detailsModalQuest.facebookPage === "Yes" || detailsModalQuest.facebookPost === "Yes" || detailsModalQuest.line === "Yes") && (
+            {/* Links section — shown when any social channel is Yes (uses draft when editing) */}
+            {(() => {
+              const linkSource = detailsEditMode && editDraft ? editDraft : detailsModalQuest;
+              const showSection = linkSource.facebookPage === "Yes" || linkSource.facebookPost === "Yes" || linkSource.line === "Yes";
+              if (!showSection) return null;
+              return (
               <section className="mt-6 border-t border-gray-200 pt-6 dark:border-gray-700">
                 <h4 className="mb-3 text-base font-semibold text-gray-800 dark:text-white">Links</h4>
                 <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">URLs for promotion channels. Shown when the channel is enabled above.</p>
                 <dl className="space-y-3 text-sm">
-                  {detailsModalQuest.facebookPage === "Yes" && (
+                  {linkSource.facebookPage === "Yes" && (
                     <div>
                       <dt className="font-medium text-gray-500 dark:text-gray-400">Facebook Page link</dt>
-                      <dd className="mt-1">
-                        {detailsModalQuest.facebookPageLink ? (
-                          <a href={detailsModalQuest.facebookPageLink} target="_blank" rel="noopener noreferrer" className="break-all text-brand-600 hover:underline dark:text-brand-400">
-                            {detailsModalQuest.facebookPageLink}
-                          </a>
-                        ) : (
-                          <span className="text-gray-500 dark:text-gray-400">Not set</span>
-                        )}
-                      </dd>
+                      {detailsEditMode && editDraft ? (
+                        <Input
+                          type="url"
+                          value={editDraft.facebookPageLink ?? ""}
+                          onChange={(e) => patchEditDraft({ facebookPageLink: e.target.value })}
+                          placeholder="https://..."
+                          className="mt-2"
+                        />
+                      ) : (
+                        <dd className="mt-1">
+                          {detailsModalQuest.facebookPageLink ? (
+                            <a href={detailsModalQuest.facebookPageLink} target="_blank" rel="noopener noreferrer" className="break-all text-brand-600 hover:underline dark:text-brand-400">
+                              {detailsModalQuest.facebookPageLink}
+                            </a>
+                          ) : (
+                            <span className="text-gray-500 dark:text-gray-400">Not set</span>
+                          )}
+                        </dd>
+                      )}
                     </div>
                   )}
-                  {detailsModalQuest.facebookPost === "Yes" && (
+                  {linkSource.facebookPost === "Yes" && (
                     <div>
                       <dt className="font-medium text-gray-500 dark:text-gray-400">Facebook Post link</dt>
-                      <dd className="mt-1">
-                        {detailsModalQuest.facebookPostLink ? (
-                          <a href={detailsModalQuest.facebookPostLink} target="_blank" rel="noopener noreferrer" className="break-all text-brand-600 hover:underline dark:text-brand-400">
-                            {detailsModalQuest.facebookPostLink}
-                          </a>
-                        ) : (
-                          <span className="text-gray-500 dark:text-gray-400">Not set</span>
-                        )}
-                      </dd>
+                      {detailsEditMode && editDraft ? (
+                        <Input
+                          type="url"
+                          value={editDraft.facebookPostLink ?? ""}
+                          onChange={(e) => patchEditDraft({ facebookPostLink: e.target.value })}
+                          placeholder="https://..."
+                          className="mt-2"
+                        />
+                      ) : (
+                        <dd className="mt-1">
+                          {detailsModalQuest.facebookPostLink ? (
+                            <a href={detailsModalQuest.facebookPostLink} target="_blank" rel="noopener noreferrer" className="break-all text-brand-600 hover:underline dark:text-brand-400">
+                              {detailsModalQuest.facebookPostLink}
+                            </a>
+                          ) : (
+                            <span className="text-gray-500 dark:text-gray-400">Not set</span>
+                          )}
+                        </dd>
+                      )}
                     </div>
                   )}
-                  {detailsModalQuest.line === "Yes" && (
+                  {linkSource.line === "Yes" && (
                     <div>
                       <dt className="font-medium text-gray-500 dark:text-gray-400">Line link</dt>
-                      <dd className="mt-1">
-                        {detailsModalQuest.lineLink ? (
-                          <a href={detailsModalQuest.lineLink} target="_blank" rel="noopener noreferrer" className="break-all text-brand-600 hover:underline dark:text-brand-400">
-                            {detailsModalQuest.lineLink}
-                          </a>
-                        ) : (
-                          <span className="text-gray-500 dark:text-gray-400">Not set</span>
-                        )}
-                      </dd>
+                      {detailsEditMode && editDraft ? (
+                        <Input
+                          type="url"
+                          value={editDraft.lineLink ?? ""}
+                          onChange={(e) => patchEditDraft({ lineLink: e.target.value })}
+                          placeholder="https://..."
+                          className="mt-2"
+                        />
+                      ) : (
+                        <dd className="mt-1">
+                          {detailsModalQuest.lineLink ? (
+                            <a href={detailsModalQuest.lineLink} target="_blank" rel="noopener noreferrer" className="break-all text-brand-600 hover:underline dark:text-brand-400">
+                              {detailsModalQuest.lineLink}
+                            </a>
+                          ) : (
+                            <span className="text-gray-500 dark:text-gray-400">Not set</span>
+                          )}
+                        </dd>
+                      )}
                     </div>
                   )}
                 </dl>
               </section>
-            )}
+              );
+            })()}
 
-            {/* Tasks section */}
-            {detailsModalQuest.tasks && detailsModalQuest.tasks.length > 0 && (
-              <section className="mt-6 border-t border-gray-200 pt-6 dark:border-gray-700">
-                <h4 className="mb-3 text-base font-semibold text-gray-800 dark:text-white">Tasks</h4>
-                <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">Tasks linked to offers or merchants. Users complete these to earn points.</p>
-                <div className="space-y-4">
-                  {detailsModalQuest.tasks.map((task, index) => (
-                    <div
-                      key={index}
-                      className="rounded-lg border border-gray-200 bg-gray-50/50 p-4 dark:border-gray-600 dark:bg-gray-800/40"
-                    >
-                      <div className="mb-2 font-medium text-gray-800 dark:text-white">Task {index + 1}</div>
-                      <dl className="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
-                        <div>
-                          <dt className="text-gray-500 dark:text-gray-400">Type</dt>
-                          <dd className="mt-0.5 capitalize text-gray-800 dark:text-white/90">{task.taskType}</dd>
-                        </div>
-                        <div>
-                          <dt className="text-gray-500 dark:text-gray-400">{task.taskType === "offer" ? "Offer" : "Merchant"}</dt>
-                          <dd className="mt-0.5 text-gray-800 dark:text-white/90">
-                            {task.taskType === "offer" ? (task.offerName ?? task.offerId ?? "—") : (task.merchantName ?? task.merchantId ?? "—")}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className="text-gray-500 dark:text-gray-400">Points</dt>
-                          <dd className="mt-0.5 text-gray-800 dark:text-white/90">{task.points}</dd>
-                        </div>
-                        <div>
-                          <dt className="text-gray-500 dark:text-gray-400">Completion</dt>
-                          <dd className="mt-0.5 capitalize text-gray-800 dark:text-white/90">{task.completionLimit === "once" ? "Once" : "Multiple"}</dd>
-                        </div>
-                        <div className="sm:col-span-2">
-                          <dt className="text-gray-500 dark:text-gray-400">Condition</dt>
-                          <dd className="mt-0.5 text-gray-800 dark:text-white/90">{formatCondition(task.condition)}</dd>
-                        </div>
-                        <div className="sm:col-span-2">
-                          <dt className="text-gray-500 dark:text-gray-400">Link</dt>
-                          <dd className="mt-0.5">
-                            {task.link ? (
-                              <a href={task.link} target="_blank" rel="noopener noreferrer" className="break-all text-brand-600 hover:underline dark:text-brand-400">
-                                {task.link}
-                              </a>
-                            ) : (
-                              <span className="text-gray-500 dark:text-gray-400">Not set</span>
-                            )}
-                          </dd>
-                        </div>
-                      </dl>
+            {/* Tasks section — read-only in view mode, fully editable in edit mode (reorder/edit/remove/add) */}
+            {(() => {
+              const taskSource = detailsEditMode && editDraft ? editDraft : detailsModalQuest;
+              const tasksList = taskSource.tasks ?? [];
+              const showSection = detailsEditMode || tasksList.length > 0;
+              if (!showSection) return null;
+              return (
+                <section className="mt-6 border-t border-gray-200 pt-6 dark:border-gray-700">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h4 className="text-base font-semibold text-gray-800 dark:text-white">Tasks</h4>
+                      <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                        {detailsEditMode
+                          ? "Drag the ⋮⋮ handle (or use the arrow buttons) to reorder. Edit fields inline, or remove a task. Logo uploads stay in the Create Quest flow."
+                          : "Tasks linked to offers or merchants. Users complete these to earn points."}
+                      </p>
                     </div>
-                  ))}
-                </div>
-              </section>
-            )}
+                    {detailsEditMode && (
+                      <button
+                        type="button"
+                        onClick={addEditTask}
+                        className="shrink-0 rounded-lg border border-brand-500 bg-brand-500 px-3 py-2 text-sm font-medium text-white hover:bg-brand-600 dark:border-brand-500 dark:bg-brand-500 dark:hover:bg-brand-600"
+                      >
+                        Add task
+                      </button>
+                    )}
+                  </div>
+                  {tasksList.length === 0 ? (
+                    <p className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4 text-center text-sm text-gray-500 dark:border-gray-600 dark:bg-gray-800/40 dark:text-gray-400">
+                      No tasks yet. Click &quot;Add task&quot; to create one.
+                    </p>
+                  ) : (
+                    <div className="space-y-4">
+                      {tasksList.map((task, index) => {
+                        const isDragSource = dragSrcIndex === index;
+                        const isDragTarget = detailsEditMode && dragSrcIndex !== null && dragOverIndex === index && dragSrcIndex !== index;
+                        return (
+                        <div
+                          key={index}
+                          onDragOver={detailsEditMode ? (e) => {
+                            if (dragSrcIndex === null) return;
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = "move";
+                            if (dragOverIndex !== index) setDragOverIndex(index);
+                          } : undefined}
+                          onDrop={detailsEditMode ? (e) => {
+                            e.preventDefault();
+                            if (dragSrcIndex !== null && dragSrcIndex !== index) {
+                              reorderEditTasks(dragSrcIndex, index);
+                            }
+                            setDragSrcIndex(null);
+                            setDragOverIndex(null);
+                          } : undefined}
+                          className={[
+                            "rounded-lg border bg-gray-50/50 p-4 transition-all dark:bg-gray-800/40",
+                            isDragSource ? "border-brand-400 opacity-50" : "border-gray-200 dark:border-gray-600",
+                            isDragTarget ? "border-brand-500 ring-2 ring-brand-500/30" : "",
+                          ].filter(Boolean).join(" ")}
+                        >
+                          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              {detailsEditMode && (
+                                <button
+                                  type="button"
+                                  aria-label="Drag to reorder"
+                                  title="Drag to reorder"
+                                  draggable
+                                  onDragStart={(e) => {
+                                    setDragSrcIndex(index);
+                                    e.dataTransfer.effectAllowed = "move";
+                                    e.dataTransfer.setData("text/plain", String(index));
+                                  }}
+                                  onDragEnd={() => {
+                                    setDragSrcIndex(null);
+                                    setDragOverIndex(null);
+                                  }}
+                                  className="cursor-grab select-none rounded border border-gray-300 bg-white px-1.5 py-1 text-sm leading-none text-gray-500 hover:bg-gray-100 active:cursor-grabbing dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                                >
+                                  <span aria-hidden>⋮⋮</span>
+                                </button>
+                              )}
+                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Task {index + 1}</span>
+                            </div>
+                            {detailsEditMode && (
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  aria-label="Move task up"
+                                  onClick={() => moveEditTask(index, -1)}
+                                  disabled={index === 0}
+                                  className="rounded border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-40 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                                >
+                                  ↑
+                                </button>
+                                <button
+                                  type="button"
+                                  aria-label="Move task down"
+                                  onClick={() => moveEditTask(index, 1)}
+                                  disabled={index === tasksList.length - 1}
+                                  className="rounded border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-40 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                                >
+                                  ↓
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => removeEditTask(index)}
+                                  className="ml-1 rounded border border-red-300 bg-white px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:border-red-700 dark:bg-gray-700 dark:text-red-400 dark:hover:bg-red-900/20"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                          {detailsEditMode ? (
+                            <div className="grid gap-x-4 gap-y-3 text-sm sm:grid-cols-2">
+                              <div>
+                                <Label className="text-xs">Type</Label>
+                                <select
+                                  value={task.taskType}
+                                  onChange={(e) => {
+                                    const taskType = e.target.value as QuestTaskType;
+                                    // Clear the now-irrelevant id/name when switching task type so we don't keep stale references.
+                                    patchEditTask(index, taskType === "offer"
+                                      ? { taskType, merchantId: undefined, merchantName: undefined }
+                                      : { taskType, offerId: undefined, offerName: undefined });
+                                  }}
+                                  className="mt-2 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                                >
+                                  <option value="offer">Offer</option>
+                                  <option value="merchant">Merchant</option>
+                                </select>
+                              </div>
+                              <div>
+                                <Label className="text-xs">{task.taskType === "offer" ? "Offer" : "Merchant"}</Label>
+                                {task.taskType === "offer" ? (
+                                  <select
+                                    value={task.offerId ?? ""}
+                                    onChange={(e) => {
+                                      const offerId = e.target.value;
+                                      const offer = offers.find((o) => o._id === offerId);
+                                      patchEditTask(index, { offerId, offerName: offer?.offer_name ?? "" });
+                                    }}
+                                    className="mt-2 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                                  >
+                                    <option value="">— Select an offer —</option>
+                                    {/* Keep existing offer visible even if not in fetched list */}
+                                    {task.offerId && !offers.find((o) => o._id === task.offerId) && (
+                                      <option value={task.offerId}>{task.offerName ?? task.offerId}</option>
+                                    )}
+                                    {offers.map((o) => (
+                                      <option key={o._id} value={o._id}>{o.offer_name}</option>
+                                    ))}
+                                  </select>
+                                ) : (
+                                  <select
+                                    value={task.merchantId ?? ""}
+                                    onChange={(e) => {
+                                      const merchantId = e.target.value;
+                                      const merchant = MOCK_MERCHANTS.find((m) => m.id === merchantId);
+                                      patchEditTask(index, { merchantId, merchantName: merchant?.name ?? "" });
+                                    }}
+                                    className="mt-2 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                                  >
+                                    <option value="">— Select a merchant —</option>
+                                    {MOCK_MERCHANTS.map((m) => (
+                                      <option key={m.id} value={m.id}>{m.name}</option>
+                                    ))}
+                                  </select>
+                                )}
+                              </div>
+                              <div>
+                                <Label className="text-xs">Points</Label>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  value={String(task.points)}
+                                  onChange={(e) => patchEditTask(index, { points: Number.parseInt(e.target.value, 10) || 0 })}
+                                  className="mt-2"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs">Completion</Label>
+                                <select
+                                  value={task.completionLimit}
+                                  onChange={(e) => patchEditTask(index, { completionLimit: e.target.value as QuestCompletionLimit })}
+                                  className="mt-2 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                                >
+                                  <option value="once">Once</option>
+                                  <option value="multiple">Multiple</option>
+                                </select>
+                              </div>
+                              <div className="sm:col-span-2">
+                                <div className="flex items-center justify-between">
+                                  <Label className="text-xs">Condition</Label>
+                                  <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                                    <input
+                                      type="checkbox"
+                                      checked={!!task.condition}
+                                      onChange={(e) => patchEditTask(index, {
+                                        condition: e.target.checked
+                                          ? { operator: ">=", metric: "sale", amount: 0, currency: "THB" }
+                                          : null,
+                                      })}
+                                    />
+                                    Has condition
+                                  </label>
+                                </div>
+                                {task.condition ? (
+                                  <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                    <select
+                                      value={task.condition.metric}
+                                      onChange={(e) => patchEditTask(index, {
+                                        condition: { ...(task.condition as QuestTaskCondition), metric: e.target.value as ConditionMetric },
+                                      })}
+                                      className="h-11 rounded-lg border border-gray-200 bg-transparent px-2 text-sm text-gray-800 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                                    >
+                                      <option value="sale">Sale</option>
+                                      <option value="conversion">Conversion</option>
+                                    </select>
+                                    <select
+                                      value={task.condition.operator}
+                                      onChange={(e) => patchEditTask(index, {
+                                        condition: { ...(task.condition as QuestTaskCondition), operator: e.target.value as ConditionOperator },
+                                      })}
+                                      className="h-11 rounded-lg border border-gray-200 bg-transparent px-2 text-sm text-gray-800 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                                    >
+                                      {CONDITION_OPERATORS.map((op) => (
+                                        <option key={op.value} value={op.value}>{op.label}</option>
+                                      ))}
+                                    </select>
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      value={String(task.condition.amount)}
+                                      onChange={(e) => patchEditTask(index, {
+                                        condition: { ...(task.condition as QuestTaskCondition), amount: Number.parseFloat(e.target.value) || 0 },
+                                      })}
+                                    />
+                                    <select
+                                      value={task.condition.currency}
+                                      onChange={(e) => patchEditTask(index, {
+                                        condition: { ...(task.condition as QuestTaskCondition), currency: e.target.value },
+                                      })}
+                                      className="h-11 rounded-lg border border-gray-200 bg-transparent px-2 text-sm text-gray-800 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                                    >
+                                      {CONDITION_CURRENCIES.map((c) => (
+                                        <option key={c} value={c}>{c}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                ) : (
+                                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">No condition — task completes regardless of sale/conversion amount.</p>
+                                )}
+                              </div>
+                              <div className="sm:col-span-2">
+                                <Label className="text-xs">Link</Label>
+                                <Input
+                                  type="url"
+                                  value={task.link}
+                                  onChange={(e) => patchEditTask(index, { link: e.target.value })}
+                                  placeholder="https://..."
+                                  className="mt-2"
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            <dl className="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
+                              <div>
+                                <dt className="text-gray-500 dark:text-gray-400">Type</dt>
+                                <dd className="mt-0.5 capitalize text-gray-800 dark:text-white/90">{task.taskType}</dd>
+                              </div>
+                              <div>
+                                <dt className="text-gray-500 dark:text-gray-400">{task.taskType === "offer" ? "Offer" : "Merchant"}</dt>
+                                <dd className="mt-0.5 text-gray-800 dark:text-white/90">
+                                  {task.taskType === "offer" ? (task.offerName ?? task.offerId ?? "—") : (task.merchantName ?? task.merchantId ?? "—")}
+                                </dd>
+                              </div>
+                              <div>
+                                <dt className="text-gray-500 dark:text-gray-400">Points</dt>
+                                <dd className="mt-0.5 text-gray-800 dark:text-white/90">{task.points}</dd>
+                              </div>
+                              <div>
+                                <dt className="text-gray-500 dark:text-gray-400">Completion</dt>
+                                <dd className="mt-0.5 capitalize text-gray-800 dark:text-white/90">{task.completionLimit === "once" ? "Once" : "Multiple"}</dd>
+                              </div>
+                              <div className="sm:col-span-2">
+                                <dt className="text-gray-500 dark:text-gray-400">Condition</dt>
+                                <dd className="mt-0.5 text-gray-800 dark:text-white/90">{formatCondition(task.condition)}</dd>
+                              </div>
+                              <div className="sm:col-span-2">
+                                <dt className="text-gray-500 dark:text-gray-400">Link</dt>
+                                <dd className="mt-0.5">
+                                  {task.link ? (
+                                    <a href={task.link} target="_blank" rel="noopener noreferrer" className="break-all text-brand-600 hover:underline dark:text-brand-400">
+                                      {task.link}
+                                    </a>
+                                  ) : (
+                                    <span className="text-gray-500 dark:text-gray-400">Not set</span>
+                                  )}
+                                </dd>
+                              </div>
+                            </dl>
+                          )}
+                        </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
+              );
+            })()}
           </>
           )}
           </div>
