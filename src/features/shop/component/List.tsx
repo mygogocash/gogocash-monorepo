@@ -19,6 +19,8 @@ import { buildShopExploreCategoryMenu } from "@/features/shop/shopExploreCategor
 import { type ShopExploreSort, sortShopExploreOffers } from "@/features/shop/shopExploreSort";
 import Pagination from "@mui/material/Pagination";
 import { useBreakpointMdUp } from "@/hooks/useBreakpointMdUp";
+import { useUserCountry } from "@/hooks/useUserCountry";
+import { dedupeOffersByBrand } from "@/lib/offer/offerVisibility";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -103,10 +105,13 @@ const List = ({ mode = "shops" }: ListProps) => {
     refetchOnMount: false,
   });
 
+  const { country: userCountry } = useUserCountry();
   const sortedOffers = useMemo(() => {
     if (!offers?.data?.length) return [];
-    return sortShopExploreOffers(offers.data, sortBy);
-  }, [offers, sortBy]);
+    // Hide country-specific brands from users in other countries; global brands always show.
+    const visible = dedupeOffersByBrand(offers.data, userCountry);
+    return sortShopExploreOffers(visible, sortBy);
+  }, [offers, sortBy, userCountry]);
 
   const percentLabel = (offer: DataOffer) => {
     const percent = getPercent(offer.commissions);

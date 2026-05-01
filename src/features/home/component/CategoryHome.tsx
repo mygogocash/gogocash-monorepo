@@ -1,10 +1,12 @@
 import { IResponseOffer } from "@/interfaces/offer";
 import { fetcher } from "@/lib/axios/client";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import CardSlideCategory from "../common/CardSlideCategory";
 import HomeSectionHeader from "../common/HomeSectionHeader";
 import { homeSectionMeta } from "../constants";
+import { useUserCountry } from "@/hooks/useUserCountry";
+import { dedupeOffersByBrand } from "@/lib/offer/offerVisibility";
 
 const CategoryHome = () => {
   const [offerSearch] = useState({
@@ -37,6 +39,16 @@ const CategoryHome = () => {
     refetchOnMount: false,
   });
 
+  const { country } = useUserCountry();
+  const travelVisible = useMemo(
+    () => (travel?.data ? dedupeOffersByBrand(travel.data, country) : travel?.data),
+    [travel, country],
+  );
+  const cosmeticVisible = useMemo(
+    () => (cosmetic?.data ? dedupeOffersByBrand(cosmetic.data, country) : cosmetic?.data),
+    [cosmetic, country],
+  );
+
   const travelSection = homeSectionMeta.travelDeals;
   const makeupSection = homeSectionMeta.makeupMustHave;
 
@@ -54,7 +66,7 @@ const CategoryHome = () => {
             cardVariant="brandLogoBadge"
             showPagination
             maxItems={24}
-            list={travel?.data}
+            list={travelVisible}
             trackingListId={travelSection.trackingListId}
             trackingListName={travelSection.trackingListName}
           />
@@ -73,7 +85,7 @@ const CategoryHome = () => {
             cardVariant="brandLogoBadge"
             showPagination
             maxItems={24}
-            list={cosmetic?.data}
+            list={cosmeticVisible}
             trackingListId={makeupSection.trackingListId}
             trackingListName={makeupSection.trackingListName}
           />

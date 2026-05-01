@@ -1,10 +1,12 @@
 import { IResponseOffer } from "@/interfaces/offer";
 import { fetcher } from "@/lib/axios/client";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import CardSlideCategory from "../common/CardSlideCategory";
 import HomeSectionHeader from "../common/HomeSectionHeader";
 import { homeSectionMeta } from "../constants";
+import { useUserCountry } from "@/hooks/useUserCountry";
+import { dedupeOffersByBrand } from "@/lib/offer/offerVisibility";
 
 const Special = () => {
   const [offerSearch] = useState({
@@ -31,6 +33,12 @@ const Special = () => {
     refetchOnMount: false,
   });
 
+  const { country } = useUserCountry();
+  const visibleOffers = useMemo(
+    () => (offer?.data ? dedupeOffersByBrand(offer.data, country) : offer?.data),
+    [offer, country],
+  );
+
   const section = homeSectionMeta.specialPick;
 
   return (
@@ -43,7 +51,7 @@ const Special = () => {
           slideLayout="cover"
           showNavigation={false}
           staticRowMax={4}
-          list={offer?.data}
+          list={visibleOffers}
           trackingListId={section.trackingListId}
           trackingListName={section.trackingListName}
         />

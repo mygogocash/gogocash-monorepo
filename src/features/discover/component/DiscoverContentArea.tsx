@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 import { Link } from "@/i18n/navigation";
 import { useBreakpointMdUp } from "@/hooks/useBreakpointMdUp";
 import { useUserCountry } from "@/hooks/useUserCountry";
-import { filterOffersByCountry } from "@/lib/offer/offerVisibility";
+import { dedupeOffersByBrand } from "@/lib/offer/offerVisibility";
 import Pagination from "@mui/material/Pagination";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
@@ -81,7 +81,7 @@ function DiscoverProductFeed({
   const allOffers = useMemo(() => {
     const flat = data?.data ?? [];
     // Visibility: country-specific brands only shown to matching customers; global brands shown to everyone.
-    const visible = filterOffersByCountry(flat, userCountry);
+    const visible = dedupeOffersByBrand(flat, userCountry);
     const filtered = visible.filter((o) => (o.commission_store ?? 0) >= filters.minCashback);
     if (filters.sort === "newest") {
       return [...filtered].sort(

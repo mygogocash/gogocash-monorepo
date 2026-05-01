@@ -2,10 +2,12 @@ import ViewAll from "@/components/common/ViewAll";
 import { IResponseOffer } from "@/interfaces/offer";
 import { fetcher } from "@/lib/axios/client";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import SmallImg from "../common/SmallImg";
 import HomeSectionHeader from "../common/HomeSectionHeader";
 import { homeSectionMeta } from "../constants";
+import { useUserCountry } from "@/hooks/useUserCountry";
+import { dedupeOffersByBrand } from "@/lib/offer/offerVisibility";
 
 const Popular = () => {
   const [offerSearch] = useState({
@@ -66,25 +68,40 @@ const Popular = () => {
     refetchOnMount: false,
   });
 
+  const { country } = useUserCountry();
+  // Filter each category's small-rail by user country / global flag.
+  const electronicVisible = useMemo(
+    () => (electronic?.data ? dedupeOffersByBrand(electronic.data, country) : electronic?.data),
+    [electronic, country],
+  );
+  const beautyVisible = useMemo(
+    () => (beauty?.data ? dedupeOffersByBrand(beauty.data, country) : beauty?.data),
+    [beauty, country],
+  );
+  const othersVisible = useMemo(
+    () => (others?.data ? dedupeOffersByBrand(others.data, country) : others?.data),
+    [others, country],
+  );
+
   const section = homeSectionMeta.popularNow;
   const popularPanels = [
     {
       title: "Electronic",
       link: "/category/electronic",
       background: "/popular/Electronic.png",
-      list: electronic?.data,
+      list: electronicVisible,
     },
     {
       title: "Beauty",
       link: "/category/beauty",
       background: "/popular/Beauty.png",
-      list: beauty?.data,
+      list: beautyVisible,
     },
     {
       title: "Others",
       link: "/category/Others",
       background: "/popular/Dinner.png",
-      list: others?.data,
+      list: othersVisible,
     },
   ];
 
