@@ -248,7 +248,7 @@ const CardSlideCategory = ({
       const logoSrc = getOfferSquareLogoSrc(offer, lg);
       const tint = getBrandTileTint(offer._id || offer.offer_name);
       return (
-        <div className="gc-hover-lift relative flex h-full min-h-0 min-w-0 w-full max-w-[280px] flex-col">
+        <div className="gc-hover-lift relative flex h-full min-h-0 min-w-0 w-full max-w-[280px] flex-col rounded-2xl">
           <Link
             href={`/shop/${offer._id}`}
             className="absolute inset-0 z-0"
@@ -284,8 +284,8 @@ const CardSlideCategory = ({
 
     /** CardSpecial contains a favorite `<button>` — avoid nesting interactive content inside `<a>` (stretch-link pattern). */
     const featuredOuterClass = isCover
-      ? "gc-hover-lift relative block h-full w-full max-w-[280px]"
-      : "gc-hover-lift relative flex h-full min-h-0 w-full max-w-[280px] flex-col";
+      ? "gc-hover-lift relative block h-full w-full max-w-[280px] rounded-2xl"
+      : "gc-hover-lift relative flex h-full min-h-0 w-full max-w-[280px] flex-col rounded-2xl";
 
     return (
       <div className={featuredOuterClass}>
@@ -322,7 +322,7 @@ const CardSlideCategory = ({
       });
     };
     return (
-      <div className="gc-hover-lift relative flex w-full min-w-0 justify-center">
+      <div className="gc-hover-lift relative flex w-full min-w-0 justify-center rounded-2xl">
         <Link
           href={`/shop/${offer._id}`}
           className="absolute inset-0 z-0"

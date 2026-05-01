@@ -27,8 +27,12 @@ export type DiscoverShopNowTarget =
 export interface DiscoverProductCardProps {
   banner: string;
   offer_name: string;
-  /** Formatted listing price, e.g. `100 THB`. */
+  /** Formatted listing price (sale price when discounted), e.g. `1,200 THB`. */
   priceLabel: string;
+  /** Pre-discount price; when set, rendered with strike-through next to the sale price. */
+  originalPriceLabel?: string;
+  /** Discount percent (1–99). When > 0, a `-X%` badge shows on the banner. */
+  discountPercent?: number;
   shopNow: DiscoverShopNowTarget;
   /** Fires when user follows Shop Now (analytics). */
   onShopNowNavigate?: () => void;
@@ -41,6 +45,8 @@ export function DiscoverProductCard({
   banner,
   offer_name,
   priceLabel,
+  originalPriceLabel,
+  discountPercent = 0,
   shopNow,
   onShopNowNavigate,
   onOpenTerms,
@@ -80,6 +86,14 @@ export function DiscoverProductCard({
             )}
           />
         </div>
+        {discountPercent > 0 ? (
+          <div
+            className="absolute left-2 top-2 rounded-full bg-(--gc-danger) px-2 py-0.5 text-[11px] font-bold leading-none text-white shadow-[0_2px_6px_rgba(205,13,13,0.25)]"
+            aria-label={`${discountPercent}% off`}
+          >
+            -{discountPercent}%
+          </div>
+        ) : null}
         {/* TODO: wire up favorite toggle (currently a visual placeholder) */}
         <button
           type="button"
@@ -101,7 +115,7 @@ export function DiscoverProductCard({
         </button>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-2.5">
+      <div className="flex min-h-0 flex-1 flex-col gap-1">
         <h2
           className={cn(
             "line-clamp-2 min-h-[2.5em] font-semibold leading-snug tracking-tight text-(--gc-text)",
@@ -115,15 +129,27 @@ export function DiscoverProductCard({
           <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-(--gc-text-soft)">
             {t("discoverCardPriceHint")}
           </span>
-          <span
-            className={cn(
-              "shrink-0 whitespace-nowrap text-right font-bold leading-none tabular-nums",
-              isDesktop ? "text-2xl" : "text-xl",
-              showPrice ? "text-(--gc-primary-strong)" : "text-(--gc-text-soft)"
-            )}
-          >
-            {showPrice ? priceLabel : "—"}
-          </span>
+          <div className="flex shrink-0 flex-col items-end gap-0.5 whitespace-nowrap">
+            <span
+              className={cn(
+                "text-[11px] font-medium leading-none tabular-nums line-through",
+                originalPriceLabel ? "text-(--gc-text-soft)" : "invisible"
+              )}
+              aria-label={originalPriceLabel ? "Original price" : undefined}
+              aria-hidden={!originalPriceLabel}
+            >
+              {originalPriceLabel ?? " "}
+            </span>
+            <span
+              className={cn(
+                "text-right font-bold leading-none tabular-nums",
+                isDesktop ? "text-2xl" : "text-xl",
+                showPrice ? "text-(--gc-primary-strong)" : "text-(--gc-text-soft)"
+              )}
+            >
+              {showPrice ? priceLabel : "—"}
+            </span>
+          </div>
         </div>
 
         <div className="mt-auto flex flex-col gap-1.5">
@@ -148,7 +174,7 @@ export function DiscoverProductCard({
             type="button"
             className={cn(
               interactive,
-              "w-full border-0 bg-transparent p-0 text-center text-[11px] font-medium leading-normal text-(--gc-text-soft) underline decoration-(--gc-text-soft)/30 underline-offset-2 transition-colors hover:text-(--gc-primary-strong) hover:decoration-(--gc-primary-strong)/40"
+              "w-full border-0 bg-transparent p-0 text-center text-[11px] font-normal leading-normal text-(--gc-text-soft) underline decoration-(--gc-text-soft)/30 underline-offset-2 transition-colors hover:text-(--gc-primary-strong) hover:decoration-(--gc-primary-strong)/40"
             )}
             onClick={(e) => {
               e.preventDefault();
