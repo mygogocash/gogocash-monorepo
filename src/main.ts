@@ -9,7 +9,12 @@ import * as path from 'path';
 import { SanitisedExceptionFilter } from './common/sanitised-exception.filter';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // rawBody is required by the Customer.io webhook controller for HMAC
+  // signature verification — NestJS preserves the unparsed buffer on
+  // request.rawBody for any route that needs it.
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    rawBody: true,
+  });
   // Security headers. CSP is disabled because the app serves Swagger UI
   // (inline scripts/styles) and is API-only otherwise. Re-enable CSP only
   // if/when this server starts serving HTML to end-user browsers.

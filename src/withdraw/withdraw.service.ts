@@ -32,6 +32,8 @@ import { RewardList } from './schemas/rewardList.schema';
 import { PointService } from 'src/point/point.service';
 import { Quest } from 'src/point/schemas/quest.schema';
 import { RequestCreateConversionReward } from 'src/user/dto/create-conversion-reward.dto';
+import { CustomerIoService } from 'src/customer-io/customer-io.service';
+import { CIO_EVENTS } from 'src/customer-io/customer-io.types';
 
 @Injectable()
 export class WithdrawService {
@@ -49,6 +51,7 @@ export class WithdrawService {
     private userMyCashbackModel: Model<UserMyCashback>,
     private readonly involveService: InvolveService,
     private readonly pointService: PointService,
+    private readonly customerIo: CustomerIoService,
   ) {}
   async getSign(msg: GETSignDTO): Promise<string> {
     // console.log('Generating EIP-712 signature for message:', msg);
@@ -1138,6 +1141,16 @@ export class WithdrawService {
           : undefined,
       });
     }
+    void this.customerIo.track(
+      user._id.toString(),
+      CIO_EVENTS.withdraw_requested,
+      {
+        amount_total: createWithdrawDto.amount_net || 0,
+        amount_net: createWithdrawDto.amount_net || 0,
+        method: createWithdrawDto.method || '',
+        currency: createWithdrawDto.currency || '',
+      },
+    );
     return { message: 'Withdraw request created', data: dt, status: 'success' };
   }
 
@@ -1277,6 +1290,19 @@ export class WithdrawService {
         },
         { new: true },
       );
+      if (updated?.user_id) {
+        void this.customerIo.track(
+          updated.user_id.toString(),
+          CIO_EVENTS.withdraw_paid,
+          {
+            withdraw_id: withdrawId,
+            amount_net: updated.amount_net,
+            currency: updated.currency,
+            method: updated.method,
+            tx_hash: dto.tx_hash,
+          },
+        );
+      }
       return { success: true, data: updated };
     } catch (err: unknown) {
       if (

@@ -15,10 +15,12 @@ import { PointModule } from './point/point.module';
 import { TelegramBotModule } from './telegram-bot/telegram-bot.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { CustomerIoModule } from './customer-io/customer-io.module';
 @Module({
   imports: [
     ScheduleModule.forRoot(),
     AnalyticsModule,
+    CustomerIoModule,
     ConfigModule.forRoot({
       load: [envConfig],
     }),
