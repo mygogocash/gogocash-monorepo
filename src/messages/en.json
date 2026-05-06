@@ -403,6 +403,7 @@
   "walletTransactionsCopyOrderId": "Copy Order ID",
   "walletTransactionsViewDetail": "View Detail",
   "walletTransactionsCopied": "Copied to clipboard",
+  "walletTransactionsColAction": "Action",
   "walletTransactionsEmptyTitle": "It's been a while since your last wallet visit.",
   "walletTransactionsEmptySubtitle": "Let's go shopping and save cash on every spend!",
   "walletTransactionsFilteredEmpty": "No transactions match your filters.",
