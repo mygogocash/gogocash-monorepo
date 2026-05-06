@@ -60,6 +60,39 @@ describe("isOfferVisibleToCountry", () => {
     const o = offer({ countries: "" });
     expect(isOfferVisibleToCountry(o, "Thailand")).toBe(false);
   });
+
+  // The bug that motivated this helper: user profile stores `country` as the
+  // full English name ("Thailand") set from the country picker label, while
+  // affiliate feeds (Involve Asia, etc.) ship `countries` as ISO-2 ("TH").
+  // The two MUST compare equal or every brand card disappears.
+  it("matches full English name on the user side against ISO-2 on the offer side", () => {
+    const o = offer({ countries: "TH" });
+    expect(isOfferVisibleToCountry(o, "Thailand")).toBe(true);
+    expect(isOfferVisibleToCountry(o, "thailand")).toBe(true);
+    expect(isOfferVisibleToCountry(o, "  THAILAND  ")).toBe(true);
+  });
+
+  it("matches ISO-2 on the user side against full English name on the offer side", () => {
+    const o = offer({ countries: "Thailand" });
+    expect(isOfferVisibleToCountry(o, "TH")).toBe(true);
+    expect(isOfferVisibleToCountry(o, "th")).toBe(true);
+  });
+
+  it("treats mixed-format multi-country lists correctly", () => {
+    const o = offer({ countries: "TH, Singapore, MY" });
+    expect(isOfferVisibleToCountry(o, "Thailand")).toBe(true);
+    expect(isOfferVisibleToCountry(o, "SG")).toBe(true);
+    expect(isOfferVisibleToCountry(o, "Malaysia")).toBe(true);
+    expect(isOfferVisibleToCountry(o, "Vietnam")).toBe(false);
+    expect(isOfferVisibleToCountry(o, "VN")).toBe(false);
+  });
+
+  it("still works for unmapped countries when both sides agree", () => {
+    // Country not in the lookup table — falls back to literal trimmed-uppercased compare.
+    const o = offer({ countries: "Mongolia" });
+    expect(isOfferVisibleToCountry(o, "Mongolia")).toBe(true);
+    expect(isOfferVisibleToCountry(o, "  mongolia  ")).toBe(true);
+  });
 });
 
 describe("filterOffersByCountry", () => {
@@ -117,6 +150,25 @@ describe("pickBrandVariant", () => {
 
   it("returns null for empty input", () => {
     expect(pickBrandVariant([], "Thailand")).toBeNull();
+  });
+
+  it("matches user full-name country against ISO-2 variant.countries", () => {
+    const variants = [
+      offer({ _id: "th-iso", countries: "TH" }),
+      offer({ _id: "sg-iso", countries: "SG" }),
+    ];
+    expect(pickBrandVariant(variants, "Thailand")?._id).toBe("th-iso");
+    expect(pickBrandVariant(variants, "Singapore")?._id).toBe("sg-iso");
+  });
+
+  it("matches user full-name against ISO-2 default_country", () => {
+    const variants = [
+      offer({ _id: "th-iso", countries: "TH", default_country: "TH" }),
+      offer({ _id: "sg-iso", countries: "SG", default_country: "TH" }),
+    ];
+    // User in Vietnam — no exact match; both have default_country=TH; pick the
+    // variant whose `countries` contains TH.
+    expect(pickBrandVariant(variants, "Vietnam")?._id).toBe("th-iso");
   });
 });
 
