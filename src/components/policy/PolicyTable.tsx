@@ -811,7 +811,7 @@ export default function PolicyTable() {
                     ))}
                   </select>
                   <span className="text-gray-400">
-                    — used as the fallback when a user's locale has no translation.
+                    — used as the fallback when a user&apos;s locale has no translation.
                   </span>
                 </div>
 
