@@ -14,6 +14,7 @@ import toast from "react-hot-toast";
 import {
   DEFAULT_POLICY_TEMPLATES,
   POLICY_TRANSLATION_LOCALES,
+  asNonEmptyParsed,
   buildSavePayload,
   composeTemplatePlus,
   emptyParsedPolicy,
@@ -62,6 +63,13 @@ export default function PolicyTable() {
   const [translations, setTranslations] = useState<Record<string, string>>({});
   const [additionalTermsByLocale, setAdditionalTermsByLocale] = useState<Record<string, string>>({});
   const [activeLocale, setActiveLocale] = useState<string>("th");
+  // Phase 3A.2 — banner text editor state (sister of `translations`,
+  // `primaryLocale`, `activeLocale`). Banner has no template machinery,
+  // so we don't need contentSource/templateId/additionalTerms here.
+  // 500-char per-locale soft cap (BA3 in POLICY_MULTILANG_PLAN.md).
+  const [bannerPrimaryLocale, setBannerPrimaryLocale] = useState<string>("th");
+  const [bannerTranslations, setBannerTranslations] = useState<Record<string, string>>({});
+  const [bannerActiveLocale, setBannerActiveLocale] = useState<string>("th");
   const [savedPreview, setSavedPreview] = useState<ParsedPolicy | null>(null);
   const [hasExistingPolicy, setHasExistingPolicy] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -151,6 +159,9 @@ export default function PolicyTable() {
       const parsed = policy?.terms
         ? parseStoredPolicy(policy.terms)
         : emptyParsedPolicy();
+      const bannerParsed = policy?.banner
+        ? parseStoredPolicy(policy.banner)
+        : emptyParsedPolicy();
       setSelectedCategory(category);
       setHasExistingPolicy(Boolean(policy));
       setSavedPreview(parsed);
@@ -159,6 +170,15 @@ export default function PolicyTable() {
       setPrimaryLocale(parsed.primary_locale || "th");
       setTranslations({ ...parsed.translations });
       setAdditionalTermsByLocale({ ...parsed.additionalTerms });
+      // Banner state — Phase 3A.2 — populated from the same Policy doc.
+      setBannerPrimaryLocale(bannerParsed.primary_locale || "th");
+      setBannerTranslations({ ...bannerParsed.translations });
+      const bannerPopulated = Object.entries(bannerParsed.translations)
+        .filter(([, v]) => typeof v === "string" && v.trim().length > 0)
+        .sort((a, b) => b[1].length - a[1].length);
+      setBannerActiveLocale(
+        bannerPopulated[0]?.[0] ?? bannerParsed.primary_locale ?? "th",
+      );
       // Open on the locale that has the most content; falls back to primary.
       const populated = Object.entries(parsed.translations)
         .filter(([, v]) => typeof v === "string" && v.trim().length > 0)
@@ -180,6 +200,9 @@ export default function PolicyTable() {
     setContentSource("custom");
     setPrimaryLocale("th");
     setActiveLocale("th");
+    setBannerPrimaryLocale("th");
+    setBannerTranslations({});
+    setBannerActiveLocale("th");
     setConfirmClear(false);
     setBannerDraft(null);
     setPolicyModalTab("terms");
@@ -254,15 +277,15 @@ export default function PolicyTable() {
 
   const handleSave = async () => {
     if (!selectedCategory) return;
-    if (!hasAnyTranslation) {
-      toast.error("Add at least one non-empty translation before saving.");
-      return;
-    }
     if (isOverLength) {
       toast.error("One or more translations exceed 50,000 characters.");
       return;
     }
-    const termsParsed: ParsedPolicy = {
+    // Phase 3A.2 — `asNonEmptyParsed` decides whether each block is
+    // worth sending. Empty blocks become undefined, which buildSavePayload
+    // omits from the payload, which prevents the backend's $set from
+    // clobbering existing server-side content.
+    const termsParsed = asNonEmptyParsed({
       primary_locale: primaryLocale,
       translations,
       contentSource,
@@ -271,17 +294,26 @@ export default function PolicyTable() {
           ? selectedTemplateId
           : null,
       additionalTerms: additionalTermsByLocale,
-    };
+    });
+    const bannerParsed = asNonEmptyParsed({
+      primary_locale: bannerPrimaryLocale,
+      translations: bannerTranslations,
+      contentSource: "custom",
+      templateId: null,
+      additionalTerms: {},
+    });
+    if (!termsParsed && !bannerParsed) {
+      toast.error("Add at least one non-empty translation to banner or terms before saving.");
+      return;
+    }
     setSaving(true);
     try {
-      // Phase 3A.1: payload construction extracted to `buildSavePayload`
-      // for unit-testability. Today we only send `terms`; Phase 3A.2 wires
-      // the banner editor and adds `bannerParsed` to this call.
       await fetcherPut([
         "/policy",
         {
           data: buildSavePayload({
             categoryId: selectedCategory._id,
+            bannerParsed,
             termsParsed,
           }),
         },
@@ -585,6 +617,95 @@ export default function PolicyTable() {
                   {bannerSaving ? "Uploading…" : "Upload banner"}
                 </Button>
               </div>
+
+              {/* Phase 3A.2 — banner text editor (per-locale, ≤500 chars).
+                  Saved on the same "Save" action as the Terms tab — both
+                  blocks share the modal's Save button. */}
+              <div className="mt-6 border-t border-gray-200 pt-4 dark:border-gray-700">
+                <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                  Banner text (per locale)
+                </h4>
+                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  Optional short caption rendered above the offer grid on the
+                  customer side. Up to 500 characters per locale.
+                </p>
+
+                <div
+                  className="mt-3 flex flex-wrap gap-1 border-b border-gray-200 dark:border-gray-700"
+                  role="tablist"
+                  aria-label="Banner translation locale"
+                >
+                  {POLICY_TRANSLATION_LOCALES.map((l) => {
+                    const filled =
+                      typeof bannerTranslations[l.value] === "string" &&
+                      bannerTranslations[l.value]!.trim().length > 0;
+                    const isActive = bannerActiveLocale === l.value;
+                    return (
+                      <button
+                        key={l.value}
+                        type="button"
+                        role="tab"
+                        aria-selected={isActive}
+                        onClick={() => setBannerActiveLocale(l.value)}
+                        className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
+                          isActive
+                            ? "border-brand-500 text-brand-600 dark:border-brand-400 dark:text-brand-400"
+                            : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400"
+                        }`}
+                      >
+                        <span
+                          aria-hidden
+                          className={`h-1.5 w-1.5 rounded-full ${
+                            filled ? "bg-emerald-500" : "bg-gray-300 dark:bg-gray-600"
+                          }`}
+                        />
+                        {l.label}
+                        {bannerPrimaryLocale === l.value ? (
+                          <span className="ml-1 rounded bg-brand-100 px-1 py-0.5 text-[10px] font-medium text-brand-700 dark:bg-brand-900/40 dark:text-brand-300">
+                            primary
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                  <span>Primary locale:</span>
+                  <select
+                    value={bannerPrimaryLocale}
+                    onChange={(e) => setBannerPrimaryLocale(e.target.value)}
+                    className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800"
+                  >
+                    {POLICY_TRANSLATION_LOCALES.map((l) => (
+                      <option key={l.value} value={l.value}>
+                        {l.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <textarea
+                  value={bannerTranslations[bannerActiveLocale] ?? ""}
+                  onChange={(e) =>
+                    setBannerTranslations((prev) => ({
+                      ...prev,
+                      [bannerActiveLocale]: e.target.value,
+                    }))
+                  }
+                  maxLength={500}
+                  placeholder={
+                    bannerActiveLocale === "th"
+                      ? "เช่น โปรโมชั่นพิเศษเดือนนี้ — รับแคชแบ็กเพิ่ม 5%..."
+                      : "e.g. Special promotion this month — extra 5% cashback..."
+                  }
+                  className="mt-2 min-h-[80px] w-full resize-y rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400"
+                />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {POLICY_TRANSLATION_LOCALES.find((l) => l.value === bannerActiveLocale)?.label}
+                  : {(bannerTranslations[bannerActiveLocale] ?? "").length} / 500 characters
+                </p>
+              </div>
             </section>
           ) : null}
 
@@ -872,9 +993,22 @@ export default function PolicyTable() {
 
           <div className="mt-6 flex shrink-0 flex-wrap items-center justify-end gap-3 border-t border-gray-100 pt-4 dark:border-gray-800">
             {policyModalTab === "banner" ? (
-              <Button variant="outline" onClick={closeModal}>
-                Close
-              </Button>
+              <>
+                <Button variant="outline" onClick={closeModal}>
+                  Close
+                </Button>
+                {/* Phase 3A.2 — Save also available on banner tab so admins
+                    editing only banner text don't have to switch to Terms.
+                    Same handleSave gates apply (asNonEmptyParsed picks up
+                    whichever block has content). */}
+                <Button
+                  variant="primary"
+                  onClick={handleSave}
+                  disabled={saving || isOverLength}
+                >
+                  {saving ? "Saving…" : "Save"}
+                </Button>
+              </>
             ) : confirmClear ? (
               <>
                 <span className="text-sm text-gray-600 dark:text-gray-400">Clear all content?</span>
