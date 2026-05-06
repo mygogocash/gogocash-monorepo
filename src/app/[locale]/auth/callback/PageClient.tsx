@@ -16,7 +16,7 @@ export default function PageClient() {
         email: "",
         referral_id: undefined,
         type: "telegram",
-        country: "Thailand",
+        country: "TH",
         callbackUrl: "/",
         redirect: true,
       });
