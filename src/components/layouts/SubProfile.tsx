@@ -22,6 +22,7 @@ import TermsOfServiceNavIcon from "@/components/icons/TermsOfServiceNavIcon";
 import TermsOfUseNavIcon from "@/components/icons/TermsOfUseNavIcon";
 import LogoutConfirmDialog from "@/components/layouts/LogoutConfirmDialog";
 import AgeVerificationNavIcon from "@/components/icons/AgeVerificationNavIcon";
+import ReferYourFriendsRow from "@/features/referral/component/ReferYourFriendsRow";
 import { Link, usePathname } from "@/i18n/navigation";
 import { useSessionContext } from "@/providers/SessionContext";
 import { useSession } from "next-auth/react";
@@ -286,6 +287,10 @@ const SubProfile = ({ variant = "sidebar", className }: SubProfileProps) => {
                 {row}
               </a>
             );
+          }
+
+          if (item.href === "/referral") {
+            return <ReferYourFriendsRow key={item.translationKey} />;
           }
 
           if (profileHubVariant && item.href === "/profile") {
