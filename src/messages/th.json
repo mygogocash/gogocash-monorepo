@@ -403,6 +403,7 @@
   "walletTransactionsCopyOrderId": "คัดลอก Order ID",
   "walletTransactionsViewDetail": "ดูรายละเอียด",
   "walletTransactionsCopied": "คัดลอกแล้ว",
+  "walletTransactionsColAction": "การดำเนินการ",
   "walletTransactionsEmptyTitle": "นานแล้วที่ไม่ได้แวะกระเป๋าเงินของคุณ",
   "walletTransactionsEmptySubtitle": "ไปช้อปปิ้งและรับเงินคืนทุกครั้งที่ใช้จ่ายกันเถอะ!",
   "walletTransactionsFilteredEmpty": "ไม่พบธุรกรรมที่ตรงกับตัวกรองของคุณ",

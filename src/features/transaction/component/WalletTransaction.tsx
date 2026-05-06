@@ -663,7 +663,7 @@ const WithdrawTransaction = () => {
       {
         field: "status",
         headerName: t("Status"),
-        width: 168,
+        width: 120,
         sortable: false,
         align: "center",
         headerAlign: "center",
@@ -678,7 +678,7 @@ const WithdrawTransaction = () => {
           const statusChip = <Chip label={chipLabel} size="small" sx={chipSxForStatus(status)} />;
           const localDeviceHint = t("walletTransactionsClaimLocalDeviceHint");
           return (
-            <div className="flex w-full flex-col items-center justify-center gap-1.5 py-0.5">
+            <div className="flex w-full justify-center py-0.5">
               {row.rowType === "missingOrderClaim" && statusLower === "submitted" ? (
                 <span className="inline-flex max-w-full cursor-help" title={localDeviceHint}>
                   {statusChip}
@@ -686,8 +686,27 @@ const WithdrawTransaction = () => {
               ) : (
                 statusChip
               )}
-              {(row.rowType === "earn" || row.rowType === "missingOrderClaim") &&
-              row.conversionId ? (
+            </div>
+          );
+        },
+      },
+      {
+        field: "action",
+        headerName: t("walletTransactionsColAction"),
+        width: 152,
+        sortable: false,
+        filterable: false,
+        disableColumnMenu: true,
+        align: "center",
+        headerAlign: "center",
+        renderCell: (params) => {
+          const row = params.row;
+          if (
+            (row.rowType === "earn" || row.rowType === "missingOrderClaim") &&
+            row.conversionId
+          ) {
+            return (
+              <div className="flex w-full justify-center py-0.5">
                 <button
                   type="button"
                   className="inline-flex items-center justify-center gap-1 rounded-lg border border-[#d1fae5] bg-white px-2 py-1 text-xs font-normal text-[#047857] shadow-sm transition hover:bg-emerald-50"
@@ -699,7 +718,12 @@ const WithdrawTransaction = () => {
                   <ContentCopyOutlined sx={{ fontSize: 14 }} aria-hidden />
                   {t("walletTransactionsCopyOrderId")}
                 </button>
-              ) : row.rowType === "withdraw" ? (
+              </div>
+            );
+          }
+          if (row.rowType === "withdraw") {
+            return (
+              <div className="flex w-full justify-center py-0.5">
                 <button
                   type="button"
                   className="text-center text-xs font-normal text-[#2563eb] underline decoration-transparent underline-offset-2 hover:decoration-current"
@@ -707,9 +731,10 @@ const WithdrawTransaction = () => {
                 >
                   {t("walletTransactionsViewDetail")}
                 </button>
-              ) : null}
-            </div>
-          );
+              </div>
+            );
+          }
+          return <span className="text-sm text-[#9ca3af]">—</span>;
         },
       },
     ],
