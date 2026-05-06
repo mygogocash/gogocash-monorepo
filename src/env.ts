@@ -117,6 +117,11 @@ export const env = createEnv({
     NEXT_PUBLIC_GOOGLE_ADSENSE_CLIENT: optionalString,
     /** AdSense slot id for quest rewarded-ad style placement. */
     NEXT_PUBLIC_GOOGLE_ADSENSE_SLOT_QUEST: optionalString,
+    /**
+     * When `1`/`true`/`yes`, render the admin-authored policy terms section
+     * on `/category/[name]`. See docs/POLICY_MULTILANG_PLAN.md Phase 3.
+     */
+    NEXT_PUBLIC_CATEGORY_POLICY_TERMS: optionalString,
   },
   experimental__runtimeEnv: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
@@ -158,6 +163,7 @@ export const env = createEnv({
     NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
     NEXT_PUBLIC_GOOGLE_ADSENSE_CLIENT: process.env.NEXT_PUBLIC_GOOGLE_ADSENSE_CLIENT,
     NEXT_PUBLIC_GOOGLE_ADSENSE_SLOT_QUEST: process.env.NEXT_PUBLIC_GOOGLE_ADSENSE_SLOT_QUEST,
+    NEXT_PUBLIC_CATEGORY_POLICY_TERMS: process.env.NEXT_PUBLIC_CATEGORY_POLICY_TERMS,
   },
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
   emptyStringAsUndefined: true,

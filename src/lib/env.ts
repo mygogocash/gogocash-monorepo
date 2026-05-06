@@ -61,3 +61,12 @@ const truthyPublicFlag = (value: string | undefined): boolean => {
  */
 export const shouldUseMockApi = () =>
   !hasApiBaseUrl() || truthyPublicFlag(env.NEXT_PUBLIC_MOCK_API);
+
+/**
+ * Phase 3 of docs/POLICY_MULTILANG_PLAN.md — show the admin-authored
+ * terms & conditions section on `/category/[name]`. Off until enabled
+ * so the Admin (Phase 2) can ship and admins can populate translations
+ * before the customer side starts rendering them.
+ */
+export const isCategoryPolicyTermsEnabled = () =>
+  truthyPublicFlag(env.NEXT_PUBLIC_CATEGORY_POLICY_TERMS);
