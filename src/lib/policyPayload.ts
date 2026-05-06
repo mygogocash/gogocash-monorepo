@@ -1,4 +1,8 @@
-/** Stored policy document when translation or metadata is present (backward-compatible with plain string). */
+/**
+ * V1 — legacy single-translation document. Kept for the dual-read shim so
+ * any V1 row that survived the Phase-1 cutover is rendered correctly in the
+ * editor. New saves write V2.
+ */
 export type PolicyDocumentV1 = {
   v: 1;
   primary: string;
@@ -11,13 +15,30 @@ export type PolicyDocumentV1 = {
   additionalTerms?: string;
 };
 
+/**
+ * V2 — multi-language. One document per category-block (banner OR terms).
+ * Locale-keyed `translations` map; `primary_locale` marks the canonical
+ * source language. Shape mirrors `PolicyContent` on the NestJS side
+ * (see gogocash_api/src/policy/schemas/policy.schema.ts).
+ */
+export type PolicyDocumentV2 = {
+  v: 2;
+  primary_locale: string;
+  translations: Record<string, string>;
+  content_source?: "template" | "template_plus" | "custom";
+  template_id?: string | null;
+  /** Per-locale "additional terms" — same locale keys as `translations`. */
+  additional_terms?: Record<string, string>;
+};
+
+/** Parsed shape used by the editor. Always represents V2 internally;
+ *  `parseStoredPolicy` converts V1 rows on read. */
 export type ParsedPolicy = {
-  primary: string;
-  translation: string;
-  translationLocale: string;
+  primary_locale: string;
+  translations: Record<string, string>;
   contentSource: PolicyDocumentV1["contentSource"];
   templateId: string | null;
-  additionalTerms: string;
+  additionalTerms: Record<string, string>;
 };
 
 export type PolicyTemplate = {
@@ -27,6 +48,9 @@ export type PolicyTemplate = {
   body: string;
 };
 
+/** Allow-list of locales the editor accepts. MUST mirror
+ *  ALLOWED_POLICY_LOCALES in gogocash_api/src/policy/schemas/policy.schema.ts —
+ *  the backend rejects writes with locales not in its list. */
 export const POLICY_TRANSLATION_LOCALES: { value: string; label: string }[] = [
   { value: "th", label: "Thai (ไทย)" },
   { value: "en", label: "English" },
@@ -34,6 +58,20 @@ export const POLICY_TRANSLATION_LOCALES: { value: string; label: string }[] = [
   { value: "ko", label: "Korean" },
   { value: "zh", label: "Chinese" },
 ];
+
+const POLICY_LOCALE_KEYS = POLICY_TRANSLATION_LOCALES.map((l) => l.value);
+
+/** Empty-state factory — used when opening the editor for a category
+ *  that has no policy document yet. */
+export function emptyParsedPolicy(): ParsedPolicy {
+  return {
+    primary_locale: "th",
+    translations: {},
+    contentSource: "custom",
+    templateId: null,
+    additionalTerms: {},
+  };
+}
 
 export const DEFAULT_POLICY_TEMPLATES: PolicyTemplate[] = [
   {
@@ -74,60 +112,101 @@ For questions, contact support through the app.`,
   },
 ];
 
-export function parseStoredPolicy(raw: string): ParsedPolicy {
+/**
+ * Read a stored policy block (banner OR terms) into the editor's V2 shape.
+ * Inputs we accept (priority order):
+ *   1. New backend response — `PolicyContent` object from
+ *      `GET /policy/category/:id` with `primary_locale` + `translations`.
+ *   2. Legacy V1 JSON string with `v:1, primary, translation?, translationLocale?`.
+ *      Surfaces as `translations: { [translationLocale]: translation, [primary_locale]: primary }`.
+ *   3. Plain string with no JSON — treated as a TH-default custom text.
+ */
+export function parseStoredPolicy(raw: string | unknown): ParsedPolicy {
+  // Path 1 — V2 object from the new backend.
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    const o = raw as Record<string, unknown>;
+    if (
+      typeof o.primary_locale === "string" &&
+      o.translations &&
+      typeof o.translations === "object"
+    ) {
+      const translations = o.translations as Record<string, string>;
+      return {
+        primary_locale: o.primary_locale,
+        translations: { ...translations },
+        contentSource: normaliseContentSource(o.content_source),
+        templateId: typeof o.template_id === "string" ? o.template_id : null,
+        additionalTerms:
+          o.additional_terms && typeof o.additional_terms === "object"
+            ? { ...(o.additional_terms as Record<string, string>) }
+            : {},
+      };
+    }
+  }
+
+  if (typeof raw !== "string") return emptyParsedPolicy();
   const trimmed = raw.trim();
+
+  // Path 2 — V1 JSON shim: synthesise a translations map from the single
+  // (primary, translation, translationLocale) triple. Older docs surface
+  // as a working V2 row in the editor; the next save writes V2 over it.
   if (trimmed.startsWith("{")) {
     try {
       const o = JSON.parse(trimmed) as Record<string, unknown>;
       if (o && o.v === 1 && typeof o.primary === "string") {
-        const doc = o as PolicyDocumentV1;
+        const v1 = o as PolicyDocumentV1;
+        const primaryLocale =
+          typeof v1.translationLocale === "string" && v1.translation
+            ? "en" // assume V1 translation was localised, primary was source
+            : "th";
+        const translations: Record<string, string> = {};
+        if (v1.primary) translations[primaryLocale] = v1.primary;
+        if (typeof v1.translation === "string" && v1.translation.trim() && v1.translationLocale) {
+          translations[v1.translationLocale] = v1.translation;
+        }
         return {
-          primary: doc.primary,
-          translation: typeof doc.translation === "string" ? doc.translation : "",
-          translationLocale:
-            typeof doc.translationLocale === "string" ? doc.translationLocale : "th",
-          contentSource:
-            doc.contentSource === "template" ||
-            doc.contentSource === "template_plus" ||
-            doc.contentSource === "custom"
-              ? doc.contentSource
-              : "custom",
-          templateId:
-            typeof doc.templateId === "string"
-              ? doc.templateId
-              : doc.templateId === null
-                ? null
-                : null,
+          primary_locale: primaryLocale,
+          translations,
+          contentSource: normaliseContentSource(v1.contentSource),
+          templateId: typeof v1.templateId === "string" ? v1.templateId : null,
           additionalTerms:
-            typeof doc.additionalTerms === "string" ? doc.additionalTerms : "",
+            typeof v1.additionalTerms === "string" && v1.additionalTerms
+              ? { [primaryLocale]: v1.additionalTerms }
+              : {},
         };
       }
     } catch {
       /* treat as plain text */
     }
   }
+
+  // Path 3 — plain text or template_plus split.
   const split = trySplitTemplatePlus(raw);
   if (split.additional) {
     const tmpl = DEFAULT_POLICY_TEMPLATES.find((t) => t.body.trim() === split.base.trim());
     if (tmpl) {
       return {
-        primary: raw,
-        translation: "",
-        translationLocale: "th",
+        primary_locale: "th",
+        translations: { th: raw },
         contentSource: "template_plus",
         templateId: tmpl.id,
-        additionalTerms: split.additional,
+        additionalTerms: { th: split.additional },
       };
     }
   }
   return {
-    primary: raw,
-    translation: "",
-    translationLocale: "th",
+    primary_locale: "th",
+    translations: raw ? { th: raw } : {},
     contentSource: "custom",
     templateId: null,
-    additionalTerms: "",
+    additionalTerms: {},
   };
+}
+
+function normaliseContentSource(
+  v: unknown,
+): PolicyDocumentV1["contentSource"] {
+  return v === "template" || v === "template_plus" || v === "custom" ? v : "custom";
 }
 
 /** Best-effort split when legacy saves used composeTemplatePlus separator. */
@@ -138,45 +217,55 @@ function trySplitTemplatePlus(primary: string): { base: string; additional: stri
   return { base: primary.slice(0, i), additional: primary.slice(i + sep.length) };
 }
 
-export function serializePolicyForSave(payload: {
-  primary: string;
-  translation: string;
-  translationLocale: string;
-  contentSource: ParsedPolicy["contentSource"];
-  templateId: string | null;
-  additionalTerms: string;
-}): string {
-  const translation = payload.translation.trim();
-  const hasTranslation = translation.length > 0;
-  const isTemplatePlus = payload.contentSource === "template_plus";
-  const needsJson = hasTranslation || isTemplatePlus;
-
-  let primary = payload.primary.slice(0, 50000).trimEnd();
-  if (isTemplatePlus) {
-    const tmpl = getTemplateById(payload.templateId);
-    if (tmpl) {
-      primary = composeTemplatePlus(tmpl.body, payload.additionalTerms).slice(0, 50000).trimEnd();
+/** Strip empty translations + apply per-locale length cap. Mirrors the
+ *  backend's normalisation in PolicyService so the wire payload matches
+ *  what the database will store. */
+export function buildPolicyContentForSave(payload: ParsedPolicy): {
+  primary_locale: string;
+  translations: Record<string, string>;
+  content_source: "template" | "template_plus" | "custom";
+  template_id?: string | null;
+  additional_terms?: Record<string, string>;
+} {
+  const translations: Record<string, string> = {};
+  for (const [k, v] of Object.entries(payload.translations || {})) {
+    if (typeof v === "string" && v.trim().length > 0) {
+      translations[k] = v.slice(0, 50000);
     }
   }
 
-  if (!needsJson) {
-    return primary;
+  // For template_plus: append the per-locale additional_terms block to each
+  // existing translation so the rendered text on the customer side matches
+  // what the admin authored.
+  const isTemplatePlus = payload.contentSource === "template_plus";
+  const additional: Record<string, string> = {};
+  for (const [k, v] of Object.entries(payload.additionalTerms || {})) {
+    if (typeof v === "string" && v.trim().length > 0) {
+      additional[k] = v;
+    }
   }
 
-  const doc: PolicyDocumentV1 = {
-    v: 1,
-    primary,
-    translationLocale: payload.translationLocale || "th",
-    contentSource: payload.contentSource ?? "custom",
-    templateId: payload.templateId,
+  return {
+    primary_locale: payload.primary_locale || "th",
+    translations,
+    content_source: payload.contentSource ?? "custom",
+    template_id:
+      payload.contentSource === "template" ||
+      payload.contentSource === "template_plus"
+        ? payload.templateId
+        : null,
+    additional_terms: isTemplatePlus && Object.keys(additional).length > 0 ? additional : undefined,
   };
-  if (hasTranslation) {
-    doc.translation = translation;
-  }
-  if (isTemplatePlus) {
-    doc.additionalTerms = payload.additionalTerms;
-  }
-  return JSON.stringify(doc);
+}
+
+/** Total character footprint across all locales — used for the editor's
+ *  "are we within the storage cap" guard. The backend caps each locale
+ *  at 50k independently, so this is just a UX hint. */
+export function totalTranslationLength(translations: Record<string, string>): number {
+  return Object.values(translations || {}).reduce(
+    (sum, v) => sum + (typeof v === "string" ? v.length : 0),
+    0,
+  );
 }
 
 export function getTemplateById(id: string | null | undefined): PolicyTemplate | undefined {
