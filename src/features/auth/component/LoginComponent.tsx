@@ -256,7 +256,7 @@ const LoginComponent = () => {
         ...dataTelegram,
         email,
         referral_id,
-        country: selectCountry?.label || "Thailand",
+        country: selectCountry?.code || "TH",
       })
       .then((response) => response.data);
 
@@ -266,7 +266,7 @@ const LoginComponent = () => {
           jwt: res.token,
           email: res.user.email,
           referral_id,
-          country: selectCountry?.label || "Thailand",
+          country: selectCountry?.code || "TH",
           pathname,
           type: "telegram",
           locale: getAppLocale(),
@@ -335,7 +335,7 @@ const LoginComponent = () => {
         email: mockSignInUser.email,
         mobile_snapshot: mobileSnapshot,
         referral_id: referral_id ?? "",
-        country: selectCountry?.label || "Thailand",
+        country: selectCountry?.code || "TH",
         pathname,
         locale: getAppLocale(),
         posthog_distinct_id: getPostHogDistinctId() || "",

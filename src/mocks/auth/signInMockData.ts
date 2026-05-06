@@ -8,7 +8,7 @@ export const mockSignInUser: User = {
   email: "mock.user@gogocash.test",
   id_twitter: "",
   username: "Mock User",
-  country: "Thailand",
+  country: "TH",
   provider: "google",
   mobile: "+66800000000",
   birthdate: "1990-01-01",

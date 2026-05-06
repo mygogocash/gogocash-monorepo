@@ -1,65 +1,32 @@
 import type { DataOffer } from "@/interfaces/offer";
 
 /**
- * Country format reconciliation.
+ * Country comparison strategy.
  *
- * The system has two writers using different formats for the same field:
- *   - User profile `country` is the full English name ("Thailand"), set on signup
- *     from the country picker label.
- *   - Offer `countries` is the ISO-2 code ("TH"), shipped by Involve Asia and
- *     other affiliate feeds.
+ * Both sides are now canonical ISO-2:
+ *   - User profile `country` is written as ISO-2 by every login/profile flow,
+ *     and `useUserCountry` runs `toIso2` at the read boundary as defence in
+ *     depth for any legacy session/document that pre-dates the migration.
+ *   - Offer `countries` is shipped as ISO-2 by Involve Asia and other affiliate
+ *     feeds.
  *
- * The previous implementation lowercased both sides and string-compared, which
- * meant `"thailand" !== "th"` → every brand card disappeared on every discovery
- * surface for every signed-in user (see docs/SECURITY_REVIEW.md history note).
- *
- * `canonicaliseCountry()` collapses both formats to ISO-2 uppercase so the
- * comparison agrees regardless of which side wrote what. Unknown countries
- * fall through to a trimmed-uppercased value so countries we don't yet map
- * still compare correctly when both sides write the same string.
- *
- * This is the single source of truth for country equality on this surface;
- * extend `COUNTRY_NAME_TO_ISO2` when adding a new market.
+ * That contract lets visibility logic do a literal trimmed-lowercase compare
+ * with no per-call canonicalisation. If a non-ISO-2 user country ever leaks
+ * into this function, brand cards will still render correctly when the offer
+ * uses the same string — the trimmed-lowercase compare is symmetric — but
+ * cross-format pairs will silently miss. That regression mode is the *exact*
+ * bug we just retired; the canonical map lives in `@/lib/countries/canonical`
+ * for any caller that needs label↔code conversion outside this hot path.
  */
-const COUNTRY_NAME_TO_ISO2: Readonly<Record<string, string>> = {
-  thailand: "TH",
-  singapore: "SG",
-  malaysia: "MY",
-  indonesia: "ID",
-  philippines: "PH",
-  vietnam: "VN",
-  japan: "JP",
-  taiwan: "TW",
-  "hong kong": "HK",
-  china: "CN",
-  india: "IN",
-  australia: "AU",
-  "new zealand": "NZ",
-  "united states": "US",
-  "united kingdom": "GB",
-};
-
-function canonicaliseCountry(value: string | null | undefined): string {
+function normaliseForCompare(value: string | null | undefined): string {
   if (!value) return "";
-  const trimmed = value.trim();
-  if (!trimmed) return "";
-  const lower = trimmed.toLowerCase();
-  // ISO-2 short-circuit — already canonical, just normalise case.
-  if (trimmed.length === 2) return trimmed.toUpperCase();
-  // Full English name → ISO-2 from the lookup table.
-  const mapped = COUNTRY_NAME_TO_ISO2[lower];
-  if (mapped) return mapped;
-  // Unknown country: return trimmed-uppercased so equal strings still equal.
-  return trimmed.toUpperCase();
+  return value.trim().toLowerCase();
 }
 
 /**
  * Visibility rule: a customer should see an offer when EITHER
  *   - the offer's `countries` field includes the customer's country, OR
  *   - the offer's brand is flagged `is_global` (visible worldwide).
- *
- * Comparison is format-agnostic (see `canonicaliseCountry`) — `"Thailand"`
- * matches `"TH"` matches `"th"`.
  *
  * When `userCountry` is null/empty (guest, profile not set), only global brands
  * are returned — this avoids leaking country-targeted promos to users whose
@@ -68,14 +35,14 @@ function canonicaliseCountry(value: string | null | undefined): string {
 export function isOfferVisibleToCountry(offer: DataOffer, userCountry: string | null | undefined): boolean {
   if (offer.is_global) return true;
   if (!userCountry) return false;
-  const userIso = canonicaliseCountry(userCountry);
-  if (!userIso) return false;
+  const userKey = normaliseForCompare(userCountry);
+  if (!userKey) return false;
   if (!offer.countries) return false;
   return offer.countries
     .split(",")
-    .map(canonicaliseCountry)
+    .map(normaliseForCompare)
     .filter(Boolean)
-    .includes(userIso);
+    .includes(userKey);
 }
 
 /**
@@ -119,15 +86,15 @@ function brandKey(offer: DataOffer): string {
  */
 export function pickBrandVariant<T extends DataOffer>(variants: readonly T[], userCountry: string | null | undefined): T | null {
   if (variants.length === 0) return null;
-  const userIso = canonicaliseCountry(userCountry);
-  if (userIso) {
+  const userKey = normaliseForCompare(userCountry);
+  if (userKey) {
     const exact = variants.find((v) => {
       if (!v.countries) return false;
       return v.countries
         .split(",")
-        .map(canonicaliseCountry)
+        .map(normaliseForCompare)
         .filter(Boolean)
-        .includes(userIso);
+        .includes(userKey);
     });
     if (exact) return exact;
   }
@@ -136,15 +103,15 @@ export function pickBrandVariant<T extends DataOffer>(variants: readonly T[], us
   // the first one we encounter.
   const variantWithDefault = variants.find((v) => v.default_country);
   if (variantWithDefault?.default_country) {
-    const defIso = canonicaliseCountry(variantWithDefault.default_country);
-    if (defIso) {
+    const defKey = normaliseForCompare(variantWithDefault.default_country);
+    if (defKey) {
       const defaultMatch = variants.find((v) => {
         if (!v.countries) return false;
         return v.countries
           .split(",")
-          .map(canonicaliseCountry)
+          .map(normaliseForCompare)
           .filter(Boolean)
-          .includes(defIso);
+          .includes(defKey);
       });
       if (defaultMatch) return defaultMatch;
     }
