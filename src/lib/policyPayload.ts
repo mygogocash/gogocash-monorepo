@@ -273,6 +273,35 @@ export function getTemplateById(id: string | null | undefined): PolicyTemplate |
   return DEFAULT_POLICY_TEMPLATES.find((t) => t.id === id);
 }
 
+/**
+ * Resolve a template's body for a given user locale.
+ *
+ * Today every template only has English content (see DEFAULT_POLICY_TEMPLATES);
+ * calling this with any locale returns that EN body. The signature is
+ * deliberately locale-aware so when marketing supplies translations (BB3 in
+ * docs/POLICY_MULTILANG_PLAN.md) we can extend the data shape without
+ * touching any caller — they already pass a locale.
+ *
+ * Fallback chain (today: trivial; future: full):
+ *   1. template.body[locale]   ← when bodies become locale-keyed
+ *   2. template.body[en]       ← canonical international fallback (BB1)
+ *   3. ""                       ← unknown template id
+ *
+ * @param id     template id (or null/undefined → "")
+ * @param locale BCP-47 locale code (currently informational only)
+ */
+// `locale` is reserved for future locale-keyed bodies; see BB1/BB3 in
+// POLICY_MULTILANG_PLAN.md. Underscore prefix marks it unused-on-purpose
+// so neither callers nor lint complain when the data shape stays EN-only.
+export function getTemplateBody(
+  id: string | null | undefined,
+  _locale: string,
+): string {
+  if (!id) return "";
+  const tmpl = DEFAULT_POLICY_TEMPLATES.find((t) => t.id === id);
+  return tmpl?.body ?? "";
+}
+
 export function composeTemplatePlus(templateBody: string, additional: string): string {
   const add = additional.trim();
   if (!add) return templateBody.trim();
