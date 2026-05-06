@@ -427,7 +427,7 @@ export class InvolveService {
       );
       if (error.response?.data?.status_code === 401) {
         await this.signIn();
-        return this.getConversionAll(payload);
+        return this.getConversionRange(payload, range, filters);
       }
       throw new Error(error.message || 'Failed to get conversion');
     }
