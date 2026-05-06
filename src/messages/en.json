@@ -1424,5 +1424,6 @@
     "streak_expiredTitle": "Reward expired ⏰",
     "streak_expiredBody": "Your voucher wasn't redeemed in time. Earn it again!",
     "streak_reset": "Streak reset — start again this month!"
-  }
+  },
+  "categoryPolicyTermsTitle": "Terms & conditions"
 }

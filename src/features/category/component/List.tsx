@@ -22,6 +22,7 @@ import Pagination from "@mui/material/Pagination";
 import { useBreakpointMdUp } from "@/hooks/useBreakpointMdUp";
 import { useUserCountry } from "@/hooks/useUserCountry";
 import { dedupeOffersByBrand } from "@/lib/offer/offerVisibility";
+import PolicyTermsSection from "@/features/category/component/PolicyTermsSection";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { useParams } from "next/navigation";
@@ -89,6 +90,16 @@ const List = () => {
     const row = categoryMenuRows.find((r) => normalizeCategoryKey(r.filterName) === norm);
     return row?.filterName ?? rawName;
   }, [name, rawName, categoryMenuRows]);
+
+  // Resolve the active category's _id from the API list (matched by
+  // case/space-normalised name) — needed by `PolicyTermsSection` which
+  // calls `GET /policy/category/:id`.
+  const currentCategoryId = useMemo(() => {
+    if (!categoryList?.length) return null;
+    const norm = normalizeCategoryKey(name);
+    const cat = categoryList.find((c) => normalizeCategoryKey(c.name) === norm);
+    return cat?._id ?? null;
+  }, [categoryList, name]);
 
   const { data: offers, isPending: offersPending } = useQuery<IResponseOffer>({
     queryKey: ["getOfferByCategory", queryCategory, offerSearch],
@@ -268,6 +279,11 @@ const List = () => {
               );
             })}
           </div>
+          {/* Phase 3 — admin-authored terms & conditions, gated by
+              NEXT_PUBLIC_CATEGORY_POLICY_TERMS. Hidden when no policy is
+              authored, when all translations are empty, or when the user's
+              locale + fallback chain finds nothing. */}
+          <PolicyTermsSection categoryId={currentCategoryId} />
           <div className="mt-10 flex justify-center">
             <Pagination
               count={offers?.totalPages ?? 1}

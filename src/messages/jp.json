@@ -311,5 +311,6 @@
   "walletTransactionsStatusPaid": "支払い済み",
   "walletTransactionsStatusRejected": "却下",
   "walletTransactionsStatusFailed": "失敗",
-  "walletTransactionsClaimLocalDeviceHint": "この端末に保存された直近のフォーム送信のみ表示。サーバーでの確定ではありません。"
+  "walletTransactionsClaimLocalDeviceHint": "この端末に保存された直近のフォーム送信のみ表示。サーバーでの確定ではありません。",
+  "categoryPolicyTermsTitle": "利用規約"
 }
