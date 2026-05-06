@@ -219,12 +219,36 @@ const WithdrawDetail = () => {
 
     {
       field: "payout",
-      headerName: "Payout",
+      headerName: "Payout GGC",
       width: 130,
       renderCell: (params) => {
         return (
           <span>
             {params.value} {params?.row?.currency}
+          </span>
+        );
+      },
+    },
+    {
+      // User's net cashback after the system fee is deducted from the gross
+      // payout — same formula used by `totalsByStatusAndCurrency` on the
+      // backend (withdraw.service.ts:657-662): payout − (payout × fee/100).
+      field: "payout_user",
+      headerName: "Payout user",
+      width: 130,
+      sortable: false,
+      valueGetter: (_value, row) => {
+        const gross = Number(row?.payout ?? 0);
+        const feePct = Number(row?.systemFeePct ?? 0);
+        if (!Number.isFinite(gross) || !Number.isFinite(feePct)) return 0;
+        const net = gross - gross * (feePct / 100);
+        return net > 0 ? net : 0;
+      },
+      renderCell: (params) => {
+        const net = Number(params.value ?? 0);
+        return (
+          <span>
+            {net.toFixed(2)} {params?.row?.currency}
           </span>
         );
       },
@@ -378,10 +402,15 @@ const WithdrawDetail = () => {
     [],
   );
 
+  // System fee % (e.g. 30 = 30%) — split between GGC and the user. The same
+  // formula drives the Approved/Pending/Rejected totals lower on this page,
+  // so showing it per-row keeps the table consistent with those numbers.
+  const systemFeePct = Number(withdrawDetail?.fee?.system ?? 0);
   const rowsData =
     withdrawDetail?.allConversions?.map((item, index) => ({
       ...item,
       rowIndex: index + 1,
+      systemFeePct,
     })) || [];
 
   const rowsDataWithdraw =
