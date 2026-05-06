@@ -258,6 +258,24 @@ export function buildPolicyContentForSave(payload: ParsedPolicy): {
   };
 }
 
+/**
+ * Returns the input ParsedPolicy if it has any non-empty translation,
+ * else undefined. Pair with `buildSavePayload`: pass `undefined` to skip
+ * a block entirely so the backend's `$set` doesn't clobber existing
+ * server-side content with an empty value.
+ *
+ * Phase 3A.2 — used by both banner and terms paths in PolicyTable so
+ * an admin editing only one block doesn't wipe the other.
+ */
+export function asNonEmptyParsed(
+  parsed: ParsedPolicy,
+): ParsedPolicy | undefined {
+  const hasAny = Object.values(parsed.translations || {}).some(
+    (v) => typeof v === "string" && v.trim().length > 0,
+  );
+  return hasAny ? parsed : undefined;
+}
+
 type PolicyContentWire = ReturnType<typeof buildPolicyContentForSave>;
 
 /**

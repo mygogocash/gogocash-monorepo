@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_POLICY_TEMPLATES,
+  asNonEmptyParsed,
   buildSavePayload,
   emptyParsedPolicy,
   getTemplateBody,
@@ -110,5 +111,50 @@ describe("buildSavePayload", () => {
   it("given neither > emits payload with only category_id", () => {
     const out = buildSavePayload({ categoryId: CATEGORY_ID });
     expect(out).toEqual({ category_id: CATEGORY_ID });
+  });
+});
+
+/**
+ * Phase 3A.2 — banner editor enablement.
+ *
+ * Backend's PUT /policy uses `$set` per provided block, so sending an
+ * empty banner WOULD clobber existing banner content on the server.
+ * `asNonEmptyParsed` is the gate that decides "is there any content
+ * worth sending?" — pass undefined to buildSavePayload when not, and
+ * the wire payload omits that block entirely.
+ */
+describe("asNonEmptyParsed", () => {
+  it("given all-empty translations > returns undefined", () => {
+    const result = asNonEmptyParsed({
+      ...emptyParsedPolicy(),
+      translations: { th: "", en: "   ", ja: "" },
+    });
+    expect(result).toBeUndefined();
+  });
+
+  it("given no translations key at all > returns undefined", () => {
+    const result = asNonEmptyParsed({
+      ...emptyParsedPolicy(),
+      translations: {},
+    });
+    expect(result).toBeUndefined();
+  });
+
+  it("given at least one non-empty translation > returns the input unchanged", () => {
+    const input: ParsedPolicy = {
+      ...emptyParsedPolicy(),
+      primary_locale: "th",
+      translations: { th: "  ", en: "Hello" }, // en non-empty after trim
+    };
+    const result = asNonEmptyParsed(input);
+    expect(result).toBe(input);
+  });
+
+  it("given a single space-padded value > treats it as empty", () => {
+    const result = asNonEmptyParsed({
+      ...emptyParsedPolicy(),
+      translations: { th: "   \n  " },
+    });
+    expect(result).toBeUndefined();
   });
 });
