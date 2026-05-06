@@ -23,6 +23,7 @@ import { useBreakpointMdUp } from "@/hooks/useBreakpointMdUp";
 import { useUserCountry } from "@/hooks/useUserCountry";
 import { dedupeOffersByBrand } from "@/lib/offer/offerVisibility";
 import PolicyTermsSection from "@/features/category/component/PolicyTermsSection";
+import PolicyBannerSection from "@/features/category/component/PolicyBannerSection";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { useParams } from "next/navigation";
@@ -189,6 +190,11 @@ const List = () => {
         />
 
         <div className="flex min-w-0 flex-1 flex-col gap-6">
+          {/* Phase 4A — admin-authored banner caption, gated by
+              NEXT_PUBLIC_CATEGORY_POLICY_TERMS. Hidden by default; shows
+              above the search bar / filters once admins author content
+              and the flag is enabled. */}
+          <PolicyBannerSection categoryId={currentCategoryId} />
           <div className="gc-surface-card flex flex-col gap-3 px-4 py-3">
             <div className="relative w-full min-w-0">
               <SearchIcon
