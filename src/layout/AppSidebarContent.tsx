@@ -109,6 +109,7 @@ export const navItems: NavItem[] = [
     subItems: [
       { name: "Quest", path: "/quest", pro: false },
       { name: "Create Reward", path: "/reward", pro: false },
+      { name: "Create Points", path: "/points", pro: false },
     ],
   },
 ];
