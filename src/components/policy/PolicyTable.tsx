@@ -14,7 +14,7 @@ import toast from "react-hot-toast";
 import {
   DEFAULT_POLICY_TEMPLATES,
   POLICY_TRANSLATION_LOCALES,
-  buildPolicyContentForSave,
+  buildSavePayload,
   composeTemplatePlus,
   emptyParsedPolicy,
   getTemplateBody,
@@ -262,7 +262,7 @@ export default function PolicyTable() {
       toast.error("One or more translations exceed 50,000 characters.");
       return;
     }
-    const parsed: ParsedPolicy = {
+    const termsParsed: ParsedPolicy = {
       primary_locale: primaryLocale,
       translations,
       contentSource,
@@ -274,15 +274,16 @@ export default function PolicyTable() {
     };
     setSaving(true);
     try {
-      // PUT /policy expects { category_id, banner?, terms? }. We only edit
-      // `terms` here (banner is the image-upload UI).
+      // Phase 3A.1: payload construction extracted to `buildSavePayload`
+      // for unit-testability. Today we only send `terms`; Phase 3A.2 wires
+      // the banner editor and adds `bannerParsed` to this call.
       await fetcherPut([
         "/policy",
         {
-          data: {
-            category_id: selectedCategory._id,
-            terms: buildPolicyContentForSave(parsed),
-          },
+          data: buildSavePayload({
+            categoryId: selectedCategory._id,
+            termsParsed,
+          }),
         },
       ]);
       await queryClient.invalidateQueries({ queryKey: ["policyList"] });
