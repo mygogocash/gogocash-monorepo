@@ -19,7 +19,9 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "migrate:brands": "ts-node -r tsconfig-paths/register scripts/migrate-brands.ts",
-    "migrate:brands:dry": "ts-node -r tsconfig-paths/register scripts/migrate-brands.ts --dry-run"
+    "migrate:brands:dry": "ts-node -r tsconfig-paths/register scripts/migrate-brands.ts --dry-run",
+    "migrate:country": "ts-node -r tsconfig-paths/register scripts/migrate-country.ts",
+    "migrate:country:dry": "ts-node -r tsconfig-paths/register scripts/migrate-country.ts --dry-run"
   },
   "dependencies": {
     "@crossmint/server-sdk": "^1.2.41",
@@ -43,6 +45,7 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "cookie-parser": "^1.4.7",
+    "customerio-node": "^4.4.0",
     "ethers": "^6.15.0",
     "express": "^5.1.0",
     "firebase-admin": "^13.6.0",

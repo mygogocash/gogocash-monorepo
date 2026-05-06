@@ -1,5 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsOptional, IsString, Matches } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+} from 'class-validator';
 
 export class SignInDto {
   @ApiProperty()
@@ -52,9 +59,17 @@ export class SignInFirebaseDto {
   @IsOptional()
   referral_id: string;
 
-  @ApiProperty()
+  /**
+   * Country preference. Canonical form is ISO-3166-1 alpha-2 ("TH"); the
+   * service normalises legacy clients that still send full English names
+   * ("Thailand") via `toIso2Server`. We keep the wire format permissive
+   * (string up to 64 chars) until the migration burns in and all clients
+   * are confirmed sending canonical values, then this becomes `@Length(2,2)`.
+   */
+  @ApiProperty({ example: 'TH', description: 'ISO-3166-1 alpha-2 country code' })
   @IsString()
   @IsOptional()
+  @MaxLength(64)
   country?: string;
 
   @ApiProperty()

@@ -23,7 +23,18 @@ export class User {
   @Prop()
   id_twitter: string;
 
-  @Prop({ default: 'Thailand' })
+  /**
+   * ISO-3166-1 alpha-2 country code (uppercase). Stored as plain string for
+   * portability. Default `'TH'` matches the historical bias of the user base
+   * and keeps the field non-empty for legacy doc paths that depend on truthy
+   * country.
+   *
+   * Writers must canonicalise to ISO-2 before persisting (see
+   * `auth.service.ts` and `user.service.ts` — they call `toIso2Server`).
+   * Pre-migration documents may still hold full English names; the
+   * `migrate-country.ts` script converts them in one pass.
+   */
+  @Prop({ default: 'TH' })
   country: string;
 
   @Prop()

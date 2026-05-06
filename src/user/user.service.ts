@@ -6,6 +6,17 @@ import { InjectModel } from '@nestjs/mongoose';
 import { User } from './schemas/user.schema';
 import { Model, Types } from 'mongoose';
 import { UserMyCashback } from './schemas/user-my-cashback.schema';
+import { toIso2Server } from 'src/utils/country';
+
+/**
+ * Coerce any `country` field on an arbitrary DTO to canonical ISO-2 in place
+ * (returns a new object — never mutates the input). Defence-in-depth: even if
+ * a caller forgets to canonicalise upstream, persisted documents stay clean.
+ */
+function withCanonicalCountry<T extends { country?: string | null }>(dto: T): T {
+  if (dto?.country === undefined) return dto;
+  return { ...dto, country: toIso2Server(dto.country) };
+}
 
 @Injectable()
 export class UserService {
@@ -19,7 +30,7 @@ export class UserService {
     // Find or create the user in the database
     const user = await this.userModel.findOneAndUpdate(
       { id_crossmint: createUserDto.id_crossmint },
-      createUserDto,
+      withCanonicalCountry(createUserDto),
       { upsert: true, new: true },
     );
 
@@ -29,7 +40,7 @@ export class UserService {
     // Find or create the user in the database
     const user = await this.userModel.findOneAndUpdate(
       { id_firebase: createUserDto.id_firebase },
-      createUserDto,
+      withCanonicalCountry(createUserDto),
       { upsert: true, new: true },
     );
 
@@ -73,13 +84,17 @@ export class UserService {
   }
   async update(id: Types.ObjectId, updateUserDto: UpdateUserDto) {
     // delete updateUserDto.mobile; // prevent updating mobile directly;
-    return this.userModel.findByIdAndUpdate(id, updateUserDto, { new: true });
+    return this.userModel.findByIdAndUpdate(
+      id,
+      withCanonicalCountry(updateUserDto),
+      { new: true },
+    );
   }
 
   updateCountry(updateCountryDto: UpdateCountryDto, id: string) {
     return this.userModel.findOneAndUpdate(
       { _id: new Types.ObjectId(id) },
-      { country: updateCountryDto.country },
+      { country: toIso2Server(updateCountryDto.country) },
       { new: true },
     );
   }
