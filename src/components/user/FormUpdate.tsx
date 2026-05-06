@@ -8,6 +8,8 @@ import { useDataSession } from "@/hooks/useDataSession";
 import { UserForm } from "@/types/user";
 import { formatPhone, validatePhone } from "@/utils/helper";
 import { devError } from "@/lib/devConsole";
+import { useMemo } from "react";
+import { getFeeCountrySelectOptions } from "@/data/feeCountrySelectOptions";
 
 interface IProp {
   fetchData: () => void;
@@ -49,6 +51,24 @@ const FormUpdate = ({
   const formatted = formatPhone(form.mobile, "TH");
   const isValid = validatePhone(formatted, "TH");
 
+  // Curated ISO-3166-1 alpha-2 picker — matches the customer-app picker so
+  // the storage format stays consistent across all writers. The free-text
+  // input we used to have here was the second writer that could leak
+  // non-canonical strings; this closes that hole.
+  const countryOptions = useMemo(() => getFeeCountrySelectOptions(), []);
+  const normaliseCountryToIso2 = (raw: string): string => {
+    const trimmed = (raw || "").trim();
+    if (trimmed.length === 2) return trimmed.toUpperCase();
+    // Legacy users may still hold full English names ("Thailand") until the
+    // backend migration runs — match by display name so the picker selects
+    // the right row instead of showing blank.
+    const match = countryOptions.find(
+      (o) => o.name.toLowerCase() === trimmed.toLowerCase(),
+    );
+    return match?.code ?? trimmed.toUpperCase();
+  };
+  const currentCountryIso2 = normaliseCountryToIso2(form.country ?? "");
+
   const handleRequestClose = () => {
     if (!isLoading) setOpenModal(false);
   };
@@ -65,7 +85,12 @@ const FormUpdate = ({
     if (form.email !== undefined) formData.append("email", form.email);
     if (form.address !== undefined) formData.append("address", form.address);
     if (form.birthdate !== undefined) formData.append("birthdate", form.birthdate);
-    if (form.country !== undefined) formData.append("country", form.country);
+    if (form.country !== undefined) {
+      // Always ship canonical ISO-2 — even if `form.country` was hydrated
+      // from a legacy full-name value, the picker's `value` is already ISO-2;
+      // re-normalise here to defend against any hand-edited form state.
+      formData.append("country", normaliseCountryToIso2(form.country));
+    }
     if (form.gender !== undefined) formData.append("gender", form.gender);
     if (form.bank_account_name !== undefined) formData.append("bank_account_name", form.bank_account_name);
     if (form.bank_name !== undefined) formData.append("bank_name", form.bank_name);
@@ -218,14 +243,20 @@ const FormUpdate = ({
                   >
                     Country
                   </label>
-                  <Input
+                  <select
                     id="edit-user-country"
-                    type="text"
                     name="country"
-                    value={form.country ?? ""}
+                    value={currentCountryIso2}
                     onChange={(e) => setForm({ ...form, country: e.target.value })}
-                    placeholder="TH, US, …"
-                  />
+                    className="h-11 w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:focus:border-brand-400 dark:focus:ring-brand-400/20"
+                  >
+                    <option value="">Not specified</option>
+                    {countryOptions.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label
