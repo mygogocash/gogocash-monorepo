@@ -258,6 +258,43 @@ export function buildPolicyContentForSave(payload: ParsedPolicy): {
   };
 }
 
+type PolicyContentWire = ReturnType<typeof buildPolicyContentForSave>;
+
+/**
+ * Build the wire payload for `PUT /policy`. Centralises the rule that
+ * empty banner / terms blocks are omitted (rather than sent as nulls)
+ * so the backend doesn't clobber the other side's existing content
+ * when the admin only edits one block at a time.
+ *
+ * Backend contract (gogocash_api/src/policy/policy.controller.ts):
+ *   PUT /policy { category_id, banner?, terms? }
+ *
+ * Phase 3A.1 of POLICY_MULTILANG_PLAN.md — extracted from PolicyTable
+ * so the wire shape is testable as a pure function.
+ */
+export function buildSavePayload(input: {
+  categoryId: string;
+  bannerParsed?: ParsedPolicy;
+  termsParsed?: ParsedPolicy;
+}): {
+  category_id: string;
+  banner?: PolicyContentWire;
+  terms?: PolicyContentWire;
+} {
+  const out: {
+    category_id: string;
+    banner?: PolicyContentWire;
+    terms?: PolicyContentWire;
+  } = { category_id: input.categoryId };
+  if (input.bannerParsed) {
+    out.banner = buildPolicyContentForSave(input.bannerParsed);
+  }
+  if (input.termsParsed) {
+    out.terms = buildPolicyContentForSave(input.termsParsed);
+  }
+  return out;
+}
+
 /** Total character footprint across all locales — used for the editor's
  *  "are we within the storage cap" guard. The backend caps each locale
  *  at 50k independently, so this is just a UX hint. */
