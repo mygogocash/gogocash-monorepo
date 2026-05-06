@@ -33,10 +33,15 @@ describe("isInternalHrefActive", () => {
 });
 
 describe("isMenuBarItemActive", () => {
-  it("marks digital services from encoded path using nav href", () => {
-    const item = desktopMenuBarNav.find((i) => i.id === "digital-services");
+  // Originally pointed at `digital-services`; that item was removed from
+  // desktopMenuBarNav in commit fb03097 ("drop Digital Services from
+  // desktop menu bar"). Switched to `health-beauty` which has the same
+  // encoding shape (space + `&` in the href) so the test still covers
+  // the encoded-segment matching logic the original asserted.
+  it("marks an encoded-href nav item as active for its encoded URL", () => {
+    const item = desktopMenuBarNav.find((i) => i.id === "health-beauty");
     expect(item).toBeDefined();
-    expect(isMenuBarItemActive("/category/Digital%20Services", item!)).toBe(true);
+    expect(isMenuBarItemActive("/category/Health%20%26%20Beauty", item!)).toBe(true);
   });
 
   it("is false for product discover tab (popover, not a route)", () => {
