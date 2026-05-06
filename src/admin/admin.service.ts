@@ -520,7 +520,7 @@ export class AdminService {
   }
 
   async updateConversionDataByConversionId(id: string) {
-    return this.jobService.syncConversion(id);
+    return this.jobService.syncConversionByConversionId(id);
   }
 
   async getDeepLinkList() {
