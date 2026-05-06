@@ -17,6 +17,7 @@ import {
   buildPolicyContentForSave,
   composeTemplatePlus,
   emptyParsedPolicy,
+  getTemplateBody,
   getTemplateById,
   parseStoredPolicy,
   totalTranslationLength,
@@ -117,7 +118,7 @@ export default function PolicyTable() {
     const txt = translations[activeLocale] ?? "";
     if (contentSource === "template_plus" && selectedTemplate) {
       return composeTemplatePlus(
-        selectedTemplate.body,
+        getTemplateBody(selectedTemplate.id, activeLocale),
         additionalTermsByLocale[activeLocale] ?? "",
       ).length;
     }
@@ -228,13 +229,16 @@ export default function PolicyTable() {
     const tid = selectedTemplateId;
     const tmpl = getTemplateById(tid);
     if (next === "custom" && contentSource === "template_plus" && tmpl) {
-      const merged = composeTemplatePlus(tmpl.body, additionalTermsByLocale[activeLocale] ?? "");
+      const merged = composeTemplatePlus(
+        getTemplateBody(tmpl.id, activeLocale),
+        additionalTermsByLocale[activeLocale] ?? "",
+      );
       setTranslations((prev) => ({ ...prev, [activeLocale]: merged }));
       setAdditionalTermsByLocale((prev) => ({ ...prev, [activeLocale]: "" }));
     }
     setContentSource(next);
     if (next === "template" && tmpl) {
-      setTranslations((prev) => ({ ...prev, [activeLocale]: tmpl.body }));
+      setTranslations((prev) => ({ ...prev, [activeLocale]: getTemplateBody(tmpl.id, activeLocale) }));
       setAdditionalTermsByLocale((prev) => ({ ...prev, [activeLocale]: "" }));
     }
   };
@@ -244,7 +248,7 @@ export default function PolicyTable() {
     const tmpl = getTemplateById(id);
     if (!tmpl) return;
     if (contentSource === "template") {
-      setTranslations((prev) => ({ ...prev, [activeLocale]: tmpl.body }));
+      setTranslations((prev) => ({ ...prev, [activeLocale]: getTemplateBody(tmpl.id, activeLocale) }));
     }
   };
 
@@ -690,7 +694,7 @@ export default function PolicyTable() {
                 <div>
                   <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Template preview (included in saved policy)</p>
                   <pre className="mt-1 max-h-36 overflow-auto whitespace-pre-wrap rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-800 dark:border-gray-600 dark:bg-gray-900/50 dark:text-gray-200">
-                    {selectedTemplate.body}
+                    {getTemplateBody(selectedTemplate.id, activeLocale)}
                   </pre>
                 </div>
                 <div>
