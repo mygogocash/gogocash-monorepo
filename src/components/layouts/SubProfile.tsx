@@ -73,6 +73,12 @@ const baseMenuHead: MenuEntry[] = [
     activePrefix: "/profile",
   },
   {
+    translationKey: "profilePopperReferYourFriends",
+    href: "/referral",
+    icon: ProfileAddIcon,
+    activePrefix: "/referral",
+  },
+  {
     translationKey: "My Wallet",
     href: "/wallet",
     icon: WalletIcon,
@@ -118,12 +124,6 @@ const baseMenuTail: MenuEntry[] = [
     activePrefix: "/quest/history",
   },
   ageVerificationMenuItem,
-  {
-    translationKey: "profilePopperReferYourFriends",
-    href: "/referral",
-    icon: ProfileAddIcon,
-    activePrefix: "/referral",
-  },
   {
     translationKey: "navPrivacyPolicy",
     href: "/privacy-center",
