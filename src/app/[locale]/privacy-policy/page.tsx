@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { getTranslations } from "next-intl/server";
+import { renderLegalMarkdown } from "@/lib/markdown/renderLegalMarkdown";
 
 export default async function PrivacyPolicyPage({
   params,
@@ -23,12 +24,17 @@ export default async function PrivacyPolicyPage({
     content = "Privacy policy file is missing.";
   }
 
+  /**
+   * The source markdown still owns the H1 ("# Privacy Policy"), so we render the
+   * file as-is. The `privacyPolicyPageTitle` translation that previously sat above
+   * the body became a duplicate once headings were styled — drop the second header
+   * and let the markdown's own H1 carry the page title.
+   */
   return (
     <div className="gc-page-block mx-auto w-full max-w-[800px] px-4 py-10 md:px-6">
-      <h1 className="mb-6 text-2xl font-semibold text-[#1a1a1a]">{t("privacyPolicyPageTitle")}</h1>
-      <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-[#3b3b3b]">
-        {content}
-      </pre>
+      <article aria-label={t("privacyPolicyPageTitle")}>
+        {renderLegalMarkdown(content)}
+      </article>
     </div>
   );
 }
