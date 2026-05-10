@@ -132,12 +132,20 @@ export class AuthService {
         });
       }
 
+      if (!userExist && data.mobile) {
+        userExist = await this.userService.findOne({
+          mobile: data.mobile,
+        });
+      }
+
       if (userExist) {
         const user = await this.userService.update(userExist._id, {
-          email: data.email,
-          username: data?.twitter
-            ? data.twitter.username
-            : data?.name || data?.email?.split('@')[0],
+          email: userExist?.email || data.email,
+          username: userExist?.username
+            ? userExist?.username
+            : data?.twitter
+              ? data.twitter.username
+              : data?.name || data?.email?.split('@')[0],
           id_twitter: data?.twitter ? data.twitter.id : '',
           address:
             payload?.address && payload?.address !== 'undefined'
@@ -174,6 +182,7 @@ export class AuthService {
         id_twitter: data?.twitter ? data.twitter?.id : '',
         id_firebase: data.uid,
         country: payload?.country ? payload?.country : '',
+        mobile: data?.mobile ? data.mobile : '',
         provider: data?.firebase?.sign_in_provider,
       });
       if (payload?.referral_id && payload.referral_id !== 'undefined') {
@@ -199,7 +208,7 @@ export class AuthService {
         firebaseId: user.id_firebase,
       });
       return { user, token: accessToken };
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(error?.message || 'Invalid Firebase token');
     }
   }
@@ -278,7 +287,7 @@ export class AuthService {
         firebaseId: user.id_firebase,
       });
       return { user, token: accessToken };
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(error?.message || 'Invalid Firebase token');
     }
   }
@@ -313,7 +322,7 @@ export class AuthService {
         });
       }
       return user;
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(error?.message || 'Invalid Firebase token');
     }
   }
@@ -450,7 +459,7 @@ export class AuthService {
       }
 
       return { email: decoded.email };
-    } catch (_error) {
+    } catch (_error: any) {
       throw new UnauthorizedException('Invalid or expired temporary token');
     }
   }
@@ -483,8 +492,7 @@ export class AuthService {
               'LINE User ID mismatch - token does not belong to claimed user',
             );
           }
-
-        } catch (verifyError) {
+        } catch (verifyError: any) {
           throw new Error(verifyError?.message || 'Invalid LINE access token');
         }
       } else {
@@ -509,7 +517,6 @@ export class AuthService {
               'Email mismatch in verification token',
             );
           }
-
         } catch (error) {
           if (error instanceof BadRequestException) {
             throw error;
