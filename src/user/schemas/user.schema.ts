@@ -52,6 +52,27 @@ export class User {
 
   @Prop({ default: false })
   email_verified: boolean;
+
+  @Prop({ default: false })
+  id_card: boolean;
+
+  @Prop({ default: false })
+  passport: boolean;
+
+  @Prop({ default: '' })
+  legal_address: string;
+
+  @Prop({ default: '' })
+  state: string;
+
+  @Prop({ default: '' })
+  city: string;
+
+  @Prop({ default: '' })
+  zip: string;
+
+  @Prop({ default: '' })
+  email_mcb: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
