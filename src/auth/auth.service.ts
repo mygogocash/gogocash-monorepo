@@ -146,7 +146,8 @@ export class AuthService {
             : data?.twitter
               ? data.twitter.username
               : data?.name || data?.email?.split('@')[0],
-          id_twitter: data?.twitter ? data.twitter.id : '',
+          id_twitter:
+            userExist?.id_twitter || (data?.twitter ? data.twitter.id : ''),
           address:
             payload?.address && payload?.address !== 'undefined'
               ? payload?.address
@@ -182,7 +183,7 @@ export class AuthService {
         id_twitter: data?.twitter ? data.twitter?.id : '',
         id_firebase: data.uid,
         country: payload?.country ? payload?.country : '',
-        mobile: data?.mobile ? data.mobile : '',
+        mobile: data?.phone_number ? data.phone_number : '',
         provider: data?.firebase?.sign_in_provider,
       });
       if (payload?.referral_id && payload.referral_id !== 'undefined') {
