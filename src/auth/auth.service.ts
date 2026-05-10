@@ -138,6 +138,12 @@ export class AuthService {
         });
       }
 
+      if (!userExist && data.mobile) {
+        userExist = await this.userService.findOne({
+          mobile: data.mobile,
+        });
+      }
+
       if (userExist) {
         const user = await this.userService.update(userExist._id, {
           email: userExist?.email || data.email,
