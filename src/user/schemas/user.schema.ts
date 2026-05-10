@@ -53,11 +53,11 @@ export class User {
   @Prop({ default: false })
   email_verified: boolean;
 
-  @Prop({ default: false })
-  id_card: boolean;
+  @Prop({ default: '' })
+  id_card: string;
 
-  @Prop({ default: false })
-  passport: boolean;
+  @Prop({ default: '' })
+  passport: string;
 
   @Prop({ default: '' })
   legal_address: string;

@@ -56,14 +56,15 @@ export class UserController {
   @Put('profile')
   async updateProfile(
     @Req() req: Request,
-    @Body() updateUserDto: { data: UpdateUserDto },
+    // @Body() updateUserDto: { data: UpdateUserDto },
+    @Body() updateUserDto: UpdateUserDto,
   ) {
     const user = req['user'] as any;
     const id = user?.sub;
     const userData = await this.userService.findOne({
       _id: new Types.ObjectId(id),
     });
-    return this.userService.update(userData._id, updateUserDto.data);
+    return this.userService.update(userData._id, updateUserDto);
   }
 
   @UseGuards(AuthAdminGuard)
