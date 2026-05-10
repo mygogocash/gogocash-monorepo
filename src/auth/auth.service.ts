@@ -132,9 +132,9 @@ export class AuthService {
         });
       }
 
-      if (!userExist && data.mobile) {
+      if (!userExist && data.phone_number) {
         userExist = await this.userService.findOne({
-          mobile: data.mobile,
+          mobile: data.phone_number,
         });
       }
 
