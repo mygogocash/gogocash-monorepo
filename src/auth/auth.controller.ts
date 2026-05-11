@@ -280,15 +280,4 @@ export class AuthController {
   //   );
   //   return cookies[key] || null;
   // }
-  @Post('send-otp')
-  @ApiBody({ type: SendOtpDto })
-  async sendOtp(@Body('email') email: string) {
-    return this.otpService.sendOtpToEmail(email);
-  }
-
-  @Post('verify-otp')
-  @ApiBody({ type: VerifyOtpDto })
-  async verifyOtpNew(@Body('email') email: string, @Body('otp') otp: string) {
-    return this.otpService.verifyOtpAndCreateToken(email, otp);
-  }
 }
