@@ -73,6 +73,10 @@ export class UserService {
   }
   async update(id: Types.ObjectId, updateUserDto: UpdateUserDto) {
     // delete updateUserDto.mobile; // prevent updating mobile directly;
+    // old version
+    if (updateUserDto && 'data' in updateUserDto && updateUserDto.data) {
+      updateUserDto = updateUserDto.data;
+    }
     return this.userModel.findByIdAndUpdate(id, updateUserDto, { new: true });
   }
 

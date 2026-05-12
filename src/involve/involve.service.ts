@@ -537,7 +537,10 @@ export class InvolveService {
     //   allConversions = allConversions.concat(nextConversions.data.data);
     //   conversions.data.nextPage = nextConversions.data.nextPage;
     // }
-
+   // old version
+    if (payload && 'data' in payload && payload.data) {
+      payload = payload.data as RequestGetConversion;
+    }
     const user = await this.userModel.findOne({ _id: new Types.ObjectId(id) });
     if (!user) {
       throw new Error('User not found');
