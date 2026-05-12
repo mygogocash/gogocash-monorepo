@@ -659,10 +659,10 @@ export class InvolveService {
       totalTHB: { pending: totalTHBPending, approved: totalTHBApproved },
       pagination: {
         total: conversationByUser.length,
-        limit: payload.limit || 10,
-        page: payload.page || 1,
+        limit: payload?.limit || 10,
+        page: payload?.page || 1,
         totalPages: Math.ceil(
-          conversationByUser.length / Number(payload.limit || 10),
+          conversationByUser.length / Number(payload?.limit || 10),
         ),
       },
     };
