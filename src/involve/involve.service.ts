@@ -1,5 +1,5 @@
 /* eslint-disable prettier/prettier */
-import { Inject, Injectable } from '@nestjs/common';
+import { HttpException, Inject, Injectable } from '@nestjs/common';
 import {
   CreateAffiliateAiDto,
   CreateAffiliateDto,
@@ -94,7 +94,7 @@ export class InvolveService {
       );
       // return deeplink;
     } else {
-          // create deeplink on Involve Asia
+      // create deeplink on Involve Asia
       const deep = await this.createDeeplinkInvolve({
         ...createInvolveDto,
         user_id: user._id.toString(),
@@ -103,7 +103,6 @@ export class InvolveService {
         ...createInvolveDto,
         user_id: user._id.toString(),
         deeplink: deep.data.tracking_link as string,
-        
       });
       return deeplink;
     }
@@ -537,7 +536,7 @@ export class InvolveService {
     //   allConversions = allConversions.concat(nextConversions.data.data);
     //   conversions.data.nextPage = nextConversions.data.nextPage;
     // }
-   // old version
+    // old version
     if (payload && 'data' in payload && payload.data) {
       payload = payload.data as RequestGetConversion;
     }
@@ -545,33 +544,139 @@ export class InvolveService {
     if (!user) {
       throw new Error('User not found');
     }
-    const allConversions = await this.conversionModel
-      .find({
-        aff_sub1: { $regex: `user_id:${id}` },
-      })
-      .sort({ datetime_conversion: -1 })
-      .lean();
     const fee = await this.feeRateModel.findOne().exec();
-
-    const conversationByUser = [];
-    for (const conversion of allConversions) {
-      const payout =
-        conversion.offer_name === 'reward_conversion_quest'
-          ? conversion.payout
-          : conversion.payout >= fee.max_cap
-            ? fee.max_cap
-            : conversion.payout;
-      // @TODO ลบ feePercent ออก 30%
-      conversationByUser.push({ ...conversion, payout: payout });
+    if (!fee) {
+      throw new HttpException({ message: 'Fee rate not found' }, 400);
     }
-    const totalUSDApproved = await conversationByUser
+    // const allConversions = await this.conversionModel
+    //   .find({
+    //     aff_sub1: { $regex: `user_id:${id}` },
+    //   })
+    //   .sort({ datetime_conversion: -1 })
+    //   .lean();
+    const allConversions = await this.conversionModel
+      .aggregate([
+        {
+          $match: {
+            aff_sub1: { $regex: `user_id:${user._id.toString()}` },
+          },
+        },
+        {
+          $lookup: {
+            from: 'offers',
+            localField: 'offer_id',
+            foreignField: 'offer_id',
+            as: 'offer',
+          },
+        },
+        { $unwind: { path: '$offer', preserveNullAndEmptyArrays: true } },
+        {
+          $addFields: {
+            max_cap: { $ifNull: ['$offer.max_cap', fee.max_cap] },
+          },
+        },
+        {
+          $addFields: {
+            payoutNew: {
+              $cond: [
+                { $eq: ['$offer_name', 'reward_conversion_quest'] },
+                '$payout',
+                {
+                  $let: {
+                    vars: {
+                      payoutAfterFee: {
+                        $subtract: [
+                          '$payout',
+                          {
+                            $divide: [
+                              { $multiply: ['$payout', fee.system] },
+                              100,
+                            ],
+                          },
+                        ],
+                      },
+                    },
+                    in: {
+                      $cond: [
+                        { $gt: ['$$payoutAfterFee', '$max_cap'] },
+                        '$max_cap',
+                        '$$payoutAfterFee',
+                      ],
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        },
+        {
+          $project: {
+            conversion_id: 1,
+            adv_sub1: 1,
+            adv_sub2: 1,
+            adv_sub3: 1,
+            adv_sub4: 1,
+            adv_sub5: 1,
+            aff_sub1: 1,
+            aff_sub2: 1,
+            aff_sub3: 1,
+            aff_sub4: 1,
+            aff_sub5: 1,
+            affiliate_remarks: 1,
+            base_payout: 1,
+            bonus_payout: 1,
+            conversion_status: 1,
+            currency: 1,
+            datetime_conversion: 1,
+            merchant_id: 1,
+            offer_id: 1,
+            offer_name: 1,
+            payout: 1,
+            sale_amount: 1,
+            add_point: 1,
+            payoutNew: 1,
+            _id: 1,
+          },
+        },
+        // {
+        //   $group: {
+        //     _id: {
+        //       merchant_id: '$merchant_id',
+        //       offer_name: '$offer.offer_name',
+        //     },
+        //     count: { $sum: 1 },
+        //     totalPayout: { $sum: '$payoutNew' },
+        //   },
+        // },
+        {
+          $sort: { createdAt: -1 },
+        },
+      ])
+      .exec();
+    // const fee = await this.feeRateModel.findOne().exec();
+
+    // const conversationByUser = [];
+    // for (const conversion of allConversions) {
+    //   // const payout =
+    //   //   conversion.offer_name === 'reward_conversion_quest'
+    //   //     ? conversion.payout
+    //   //     : conversion.payout >= fee.max_cap
+    //   //       ? fee.max_cap
+    //   //       : conversion.payout;
+    //   // @TODO ลบ feePercent ออก 30%
+
+    //   const payout = conversion.payoutNew || 0;
+    //   conversationByUser.push({ ...conversion, payout: payout });
+    // }
+    const totalUSDApproved = await allConversions
       ?.filter((ele) => ele.conversion_status === 'approved')
       ?.reduce(async (accPromise, item) => {
         const acc = await accPromise;
-        const payout =
-          Number(item.payout || 0) >= fee.max_cap
-            ? Number(fee.max_cap)
-            : Number(item.payout || 0);
+        // const payout =
+        //   Number(item.payout || 0) >= fee.max_cap
+        //     ? Number(fee.max_cap)
+        //     : Number(item.payout || 0);
+        const payout = item.payoutNew || 0;
         if (item.currency === 'USD') {
           return acc + payout;
         } else {
@@ -587,14 +692,15 @@ export class InvolveService {
         }
       }, 0);
 
-    const totalUSDPending = await conversationByUser
+    const totalUSDPending = await allConversions
       ?.filter((ele) => ele.conversion_status === 'pending')
       .reduce(async (accPromise, item) => {
         const acc = await accPromise;
-        const payout =
-          Number(item.payout || 0) >= fee.max_cap
-            ? Number(fee.max_cap)
-            : Number(item.payout || 0);
+        // const payout =
+        //   Number(item.payout || 0) >= fee.max_cap
+        //     ? Number(fee.max_cap)
+        //     : Number(item.payout || 0);
+        const payout = item.payoutNew || 0;
         if (item.currency === 'USD') {
           return acc + payout;
         } else {
@@ -610,14 +716,15 @@ export class InvolveService {
         }
       }, 0);
 
-    const totalTHBPending = await conversationByUser
+    const totalTHBPending = await allConversions
       ?.filter((ele) => ele.conversion_status === 'pending')
       .reduce(async (accPromise, item) => {
         const acc = await accPromise;
-        const payout =
-          Number(item.payout || 0) >= fee.max_cap
-            ? Number(fee.max_cap)
-            : Number(item.payout || 0);
+        // const payout =
+        //   Number(item.payout || 0) >= fee.max_cap
+        //     ? Number(fee.max_cap)
+        //     : Number(item.payout || 0);
+        const payout = item.payoutNew || 0;
         if (item.currency === 'THB') {
           return acc + payout;
         } else {
@@ -633,14 +740,11 @@ export class InvolveService {
         }
       }, 0);
 
-    const totalTHBApproved = await conversationByUser
+    const totalTHBApproved = await allConversions
       ?.filter((ele) => ele.conversion_status === 'approved')
       .reduce(async (accPromise, item) => {
         const acc = await accPromise;
-        const payout =
-          Number(item.payout || 0) >= fee.max_cap
-            ? Number(fee.max_cap)
-            : Number(item.payout || 0);
+        const payout = item.payoutNew || 0;
         if (item.currency === 'THB') {
           return acc + payout;
         } else {
@@ -657,15 +761,15 @@ export class InvolveService {
       }, 0);
 
     return {
-      data: conversationByUser,
+      data: allConversions,
       totalUSD: { pending: totalUSDPending, approved: totalUSDApproved },
       totalTHB: { pending: totalTHBPending, approved: totalTHBApproved },
       pagination: {
-        total: conversationByUser.length,
+        total: allConversions.length,
         limit: payload?.limit || 10,
         page: payload?.page || 1,
         totalPages: Math.ceil(
-          conversationByUser.length / Number(payload?.limit || 10),
+          allConversions.length / Number(payload?.limit || 10),
         ),
       },
     };

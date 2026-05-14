@@ -23,7 +23,7 @@ import {
 import { ApiBearerAuth, ApiBody, ApiQuery, ApiSecurity } from '@nestjs/swagger';
 import { Request } from 'express';
 import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
-import { extractAnalyticsContext } from 'src/analytics/analytics-context';
+// import { extractAnalyticsContext } from 'src/analytics/analytics-context';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
 import { RequestCreateConversionReward } from 'src/user/dto/create-conversion-reward.dto';
 @Controller('withdraw')
@@ -61,12 +61,14 @@ export class WithdrawController {
   listCheckWithdraw(@Req() req: Request) {
     const user = req['user'] as any;
     const id = user?.sub;
-    return this.withdrawService.listCheckWithdraw(id);
+    // return this.withdrawService.listCheckWithdraw(id);
+
+    return this.withdrawService.listCheckWithdrawNew(id);
   }
 
   @Post('list-check-admin/:userId')
   listCheckWithdrawAdmin(@Req() req: Request, @Param('userId') userId: string) {
-    return this.withdrawService.listCheckWithdraw(userId);
+    return this.withdrawService.listCheckWithdrawNew(userId);
   }
 
   @UseGuards(FirebaseAuthGuard)
@@ -95,9 +97,9 @@ export class WithdrawController {
   create(@Req() req: Request, @Body() createWithdrawDto: CreateWithdrawDto) {
     const user = req['user'] as any;
     const id = user?.sub;
-    const analyticsContext = extractAnalyticsContext(req, {
-      userId: id,
-    });
+    // const analyticsContext = extractAnalyticsContext(req, {
+    //   userId: id,
+    // });
     return this.withdrawService.create(createWithdrawDto, id);
   }
 
@@ -112,9 +114,9 @@ export class WithdrawController {
   ) {
     const user = req['user'] as any;
     const id = user?.sub;
-    const analyticsContext = extractAnalyticsContext(req, {
-      userId: id,
-    });
+    // const analyticsContext = extractAnalyticsContext(req, {
+    //   userId: id,
+    // });
     return this.withdrawService.createBankTransfer(createWithdrawDto, id);
   }
 
@@ -179,9 +181,9 @@ export class WithdrawController {
   ) {
     const user = req['user'] as any;
     const id = user?.sub;
-    const analyticsContext = extractAnalyticsContext(req, {
-      userId: id,
-    });
+    // const analyticsContext = extractAnalyticsContext(req, {
+    //   userId: id,
+    // });
     return this.withdrawService.createWithdrawMethod(createWithdrawMethod, id);
   }
 
