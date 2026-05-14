@@ -10,6 +10,8 @@ import { AnalyticsService } from 'src/analytics/analytics.service';
 export class JobService {
   private start_date = new Date().setDate(new Date().getDate() - 30);
   private end_date = new Date().setDate(new Date().getDate());
+  // private start_date = new Date('2026-02-01'); //
+  // private end_date = new Date('2026-02-28'); //
   private start: string;
   private end: string;
 
