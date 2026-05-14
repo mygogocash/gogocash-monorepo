@@ -37,9 +37,10 @@ export class TasksController {
         .find({
           aff_sub1: { $regex: '^user_id:' },
           datetime_conversion: {
-            $gte: new Date(new Date().setDate(new Date().getDate() - 10)),
+            $gte: new Date(new Date().setDate(new Date().getDate() - 30)),
             $lt: new Date(),
           },
+          payout: { $gt: 0 },
           // conversion_status: 'approved',
           // add_point: { $exists: false },
         })
@@ -59,6 +60,10 @@ export class TasksController {
           userId,
           calculatedPoints,
           conversion.conversion_id,
+        );
+        await this.conversionModel.updateOne(
+          { _id: conversion._id },
+          { $set: { add_point: true } },
         );
         // await delay(1000);
       }
