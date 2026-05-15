@@ -25,14 +25,18 @@ export class JobService {
   }
 
   async syncConversion(conversion_ids?: string) {
+    const start_date = new Date().setDate(new Date().getDate() - 30);
+    const end_date = new Date().setDate(new Date().getDate());
+    const start = new Date(start_date).toISOString().split('T')[0];
+    const end = new Date(end_date).toISOString().split('T')[0];
     const allOffers = await this.involveService.getConversionRange(
       {
         page: 1,
         limit: 100,
       },
       {
-        start_date: this.start,
-        end_date: this.end,
+        start_date: start,
+        end_date: end,
       },
       conversion_ids ? { conversion_id: conversion_ids } : undefined,
     );
@@ -48,8 +52,8 @@ export class JobService {
           limit: 100,
         },
         {
-          start_date: this.start,
-          end_date: this.end,
+          start_date: start,
+          end_date: end,
         },
         conversion_ids ? { conversion_id: conversion_ids } : undefined,
       );
@@ -117,6 +121,10 @@ export class JobService {
 
       // await delay(1000);
     }
+    await this.conversionModel.updateMany(
+      { conversion_status: 'paid' },
+      { $set: { conversion_status: 'approved' } },
+    );
     console.log('done', allConversions?.length);
   }
 

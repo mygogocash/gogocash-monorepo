@@ -91,4 +91,22 @@ export class TasksController {
       return { message: 'error' };
     }
   }
+
+  @Get('update-conversions-paid-to-approved/:id')
+  async changeConversionPaid(@Param('id') id: string) {
+    if (id == process.env.FIREBASE_API_KEY) {
+      await this.tasksService.changeConversionPaid();
+    } else {
+      return { message: 'error' };
+    }
+  }
+
+  @Get('update-status-conversions-is-pending/:id')
+  async updateStatusConversionIsPending(@Param('id') id: string) {
+    if (id == process.env.FIREBASE_API_KEY) {
+      return await this.tasksService.updateStatusConversionIsPending();
+    } else {
+      return { message: 'error' };
+    }
+  }
 }

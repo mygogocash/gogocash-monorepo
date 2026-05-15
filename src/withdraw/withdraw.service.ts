@@ -1085,6 +1085,14 @@ export class WithdrawService {
 
     return groupedByCurrency;
   }
+
+  async detailWithdraw(id: string) {
+    return await this.withdrawModel
+      .findOne({ _id: new Types.ObjectId(id) })
+      .populate('user_id', 'email mobile')
+      .lean();
+  }
+  
   async checkWithdrawMyCashback(id: string) {
     const user = await this.userModel.findOne({
       _id: new Types.ObjectId(id),

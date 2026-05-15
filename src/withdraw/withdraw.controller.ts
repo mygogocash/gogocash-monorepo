@@ -151,6 +151,14 @@ export class WithdrawController {
   }
 
   @UseGuards(FirebaseAuthGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth()
+  @Get('detail/:id')
+  withdrawDetail(@Req() req: Request, @Param('id') id: string) {
+    return this.withdrawService.detailWithdraw(id);
+  }
+
+  @UseGuards(FirebaseAuthGuard)
   @ApiBody({ type: GETSignDTO })
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth()
