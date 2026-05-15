@@ -737,6 +737,102 @@ export class WithdrawService {
         },
         {} as Record<string, { netAmount: number; count: number }>,
       );
+
+    const withdrawSumThbApproved = await Object.entries(
+      withdrawSumByCurrencyApproved,
+    ).reduce(
+      async (accPromise, [currency, item]) => {
+        const acc = await accPromise;
+        if (currency === 'THB') {
+          acc.netAmount += item.netAmount || 0;
+          acc.count += item.count || 0;
+        } else if (
+          currency === 'USD' ||
+          currency === 'USDT' ||
+          currency === 'USDC'
+        ) {
+          const toThb = await this.convertCurrencyThb(currency, item.netAmount);
+          acc.netAmount += toThb.amount || 0;
+          acc.count += item.count || 0;
+        } else if (currency === 'CNY') {
+          const toThb = await this.convertCurrencyThb(currency, item.netAmount);
+          acc.netAmount += toThb.amount || 0;
+          acc.count += item.count || 0;
+        }
+        return acc;
+      },
+      Promise.resolve({ netAmount: 0, count: 0 }),
+    );
+
+    const withdrawSumUsdApproved = await Object.entries(
+      withdrawSumByCurrencyApproved,
+    ).reduce(
+      async (accPromise, [currency, item]) => {
+        const acc = await accPromise;
+        if (currency === 'USD' || currency === 'USDT' || currency === 'USDC') {
+          acc.netAmount += item.netAmount || 0;
+          acc.count += item.count || 0;
+        } else if (currency === 'THB') {
+          const toUsd = await this.convertCurrencyUsd(currency, item.netAmount);
+          acc.netAmount += toUsd.usdAmount || 0;
+          acc.count += item.count || 0;
+        } else if (currency === 'CNY') {
+          const toUsd = await this.convertCurrencyUsd(currency, item.netAmount);
+          acc.netAmount += toUsd.usdAmount || 0;
+          acc.count += item.count || 0;
+        }
+        return acc;
+      },
+      Promise.resolve({ netAmount: 0, count: 0 }),
+    );
+
+    const withdrawSumThbPending = await Object.entries(
+      withdrawSumByCurrencyPending,
+    ).reduce(
+      async (accPromise, [currency, item]) => {
+        const acc = await accPromise;
+        if (currency === 'THB') {
+          acc.netAmount += item.netAmount || 0;
+          acc.count += item.count || 0;
+        } else if (
+          currency === 'USD' ||
+          currency === 'USDT' ||
+          currency === 'USDC'
+        ) {
+          const toThb = await this.convertCurrencyThb(currency, item.netAmount);
+          acc.netAmount += toThb.amount || 0;
+          acc.count += item.count || 0;
+        } else if (currency === 'CNY') {
+          const toThb = await this.convertCurrencyThb(currency, item.netAmount);
+          acc.netAmount += toThb.amount || 0;
+          acc.count += item.count || 0;
+        }
+        return acc;
+      },
+      Promise.resolve({ netAmount: 0, count: 0 }),
+    );
+
+    const withdrawSumUsdPending = await Object.entries(
+      withdrawSumByCurrencyPending,
+    ).reduce(
+      async (accPromise, [currency, item]) => {
+        const acc = await accPromise;
+        if (currency === 'USD' || currency === 'USDT' || currency === 'USDC') {
+          acc.netAmount += item.netAmount || 0;
+          acc.count += item.count || 0;
+        } else if (currency === 'THB') {
+          const toUsd = await this.convertCurrencyUsd(currency, item.netAmount);
+          acc.netAmount += toUsd.usdAmount || 0;
+          acc.count += item.count || 0;
+        } else if (currency === 'CNY') {
+          const toUsd = await this.convertCurrencyUsd(currency, item.netAmount);
+          acc.netAmount += toUsd.usdAmount || 0;
+          acc.count += item.count || 0;
+        }
+        return acc;
+      },
+      Promise.resolve({ netAmount: 0, count: 0 }),
+    );
     return {
       totalsByStatusAndCurrency,
       data: groupedByStatus,
@@ -751,6 +847,10 @@ export class WithdrawService {
         email: user.email,
         mobile: user.mobile,
       },
+      withdrawSumThbApproved,
+      withdrawSumUsdApproved,
+      withdrawSumThbPending,
+      withdrawSumUsdPending,
     };
   }
 
@@ -1009,6 +1109,102 @@ export class WithdrawService {
         },
         {} as Record<string, { netAmount: number; count: number }>,
       );
+
+       const withdrawSumThbApproved = await Object.entries(
+      withdrawSumByCurrencyApproved,
+    ).reduce(
+      async (accPromise, [currency, item]) => {
+        const acc = await accPromise;
+        if (currency === 'THB') {
+          acc.netAmount += item.netAmount || 0;
+          acc.count += item.count || 0;
+        } else if (
+          currency === 'USD' ||
+          currency === 'USDT' ||
+          currency === 'USDC'
+        ) {
+          const toThb = await this.convertCurrencyThb(currency, item.netAmount);
+          acc.netAmount += toThb.amount || 0;
+          acc.count += item.count || 0;
+        } else if (currency === 'CNY') {
+          const toThb = await this.convertCurrencyThb(currency, item.netAmount);
+          acc.netAmount += toThb.amount || 0;
+          acc.count += item.count || 0;
+        }
+        return acc;
+      },
+      Promise.resolve({ netAmount: 0, count: 0 }),
+    );
+
+    const withdrawSumUsdApproved = await Object.entries(
+      withdrawSumByCurrencyApproved,
+    ).reduce(
+      async (accPromise, [currency, item]) => {
+        const acc = await accPromise;
+        if (currency === 'USD' || currency === 'USDT' || currency === 'USDC') {
+          acc.netAmount += item.netAmount || 0;
+          acc.count += item.count || 0;
+        } else if (currency === 'THB') {
+          const toUsd = await this.convertCurrencyUsd(currency, item.netAmount);
+          acc.netAmount += toUsd.usdAmount || 0;
+          acc.count += item.count || 0;
+        } else if (currency === 'CNY') {
+          const toUsd = await this.convertCurrencyUsd(currency, item.netAmount);
+          acc.netAmount += toUsd.usdAmount || 0;
+          acc.count += item.count || 0;
+        }
+        return acc;
+      },
+      Promise.resolve({ netAmount: 0, count: 0 }),
+    );
+
+    const withdrawSumThbPending = await Object.entries(
+      withdrawSumByCurrencyPending,
+    ).reduce(
+      async (accPromise, [currency, item]) => {
+        const acc = await accPromise;
+        if (currency === 'THB') {
+          acc.netAmount += item.netAmount || 0;
+          acc.count += item.count || 0;
+        } else if (
+          currency === 'USD' ||
+          currency === 'USDT' ||
+          currency === 'USDC'
+        ) {
+          const toThb = await this.convertCurrencyThb(currency, item.netAmount);
+          acc.netAmount += toThb.amount || 0;
+          acc.count += item.count || 0;
+        } else if (currency === 'CNY') {
+          const toThb = await this.convertCurrencyThb(currency, item.netAmount);
+          acc.netAmount += toThb.amount || 0;
+          acc.count += item.count || 0;
+        }
+        return acc;
+      },
+      Promise.resolve({ netAmount: 0, count: 0 }),
+    );
+
+    const withdrawSumUsdPending = await Object.entries(
+      withdrawSumByCurrencyPending,
+    ).reduce(
+      async (accPromise, [currency, item]) => {
+        const acc = await accPromise;
+        if (currency === 'USD' || currency === 'USDT' || currency === 'USDC') {
+          acc.netAmount += item.netAmount || 0;
+          acc.count += item.count || 0;
+        } else if (currency === 'THB') {
+          const toUsd = await this.convertCurrencyUsd(currency, item.netAmount);
+          acc.netAmount += toUsd.usdAmount || 0;
+          acc.count += item.count || 0;
+        } else if (currency === 'CNY') {
+          const toUsd = await this.convertCurrencyUsd(currency, item.netAmount);
+          acc.netAmount += toUsd.usdAmount || 0;
+          acc.count += item.count || 0;
+        }
+        return acc;
+      },
+      Promise.resolve({ netAmount: 0, count: 0 }),
+    );
     return {
       totalsByStatusAndCurrency,
       data: groupedByStatus,
@@ -1023,6 +1219,10 @@ export class WithdrawService {
         email: user.email,
         mobile: user.mobile,
       },
+      withdrawSumThbApproved,
+      withdrawSumUsdApproved,
+      withdrawSumThbPending,
+      withdrawSumUsdPending,
     };
   }
   async getConversionByUser(id: string) {
@@ -1092,7 +1292,7 @@ export class WithdrawService {
       .populate('user_id', 'email mobile')
       .lean();
   }
-  
+
   async checkWithdrawMyCashback(id: string) {
     const user = await this.userModel.findOne({
       _id: new Types.ObjectId(id),
