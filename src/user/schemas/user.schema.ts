@@ -3,6 +3,19 @@ import { HydratedDocument } from 'mongoose';
 
 export type UserDocument = HydratedDocument<User>;
 
+export class ConsentData {
+  @Prop({ required: false })
+  marketing_communications: boolean;
+
+  @Prop({ required: false })
+  analytics: boolean;
+
+  @Prop({ required: false })
+  b2b_aggregated_insights: boolean;
+
+  @Prop({ required: false })
+  ai_credit_scoring: boolean;
+}
 @Schema({ timestamps: true })
 export class User {
   @Prop({ required: false, unique: false, default: '' })
@@ -75,20 +88,8 @@ export class User {
   email_mcb: string;
 
   @Prop()
-  consent: ConsentData;
+  consent?: ConsentData;
 }
 
-export class ConsentData {
-  @Prop({ required: false })
-  marketing_communications: boolean;
 
-  @Prop({ required: false })
-  analytics: boolean;
-
-  @Prop({ required: false })
-  b2b_aggregated_insights: boolean;
-
-  @Prop({ required: false })
-  ai_credit_scoring: boolean;
-}
 export const UserSchema = SchemaFactory.createForClass(User);
