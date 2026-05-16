@@ -73,6 +73,22 @@ export class User {
 
   @Prop({ default: '' })
   email_mcb: string;
+
+  @Prop()
+  consent: ConsentData;
 }
 
+export class ConsentData {
+  @Prop({ required: false })
+  marketing_communications: boolean;
+
+  @Prop({ required: false })
+  analytics: boolean;
+
+  @Prop({ required: false })
+  b2b_aggregated_insights: boolean;
+
+  @Prop({ required: false })
+  ai_credit_scoring: boolean;
+}
 export const UserSchema = SchemaFactory.createForClass(User);
