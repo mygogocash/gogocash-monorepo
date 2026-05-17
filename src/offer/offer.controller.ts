@@ -13,7 +13,7 @@ import {
 import { OfferService } from './offer.service';
 import { ApiBearerAuth, ApiBody, ApiQuery, ApiSecurity } from '@nestjs/swagger';
 import { Request } from 'express';
-import { GetMyOfferDto, SaveMissingOrderDto } from './dto/create-offer.dto';
+import { GetMissingOrderDto, GetMyOfferDto, SaveMissingOrderDto } from './dto/create-offer.dto';
 import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
 import { UpdateCouponDto } from './dto/update-offer.dto';
@@ -258,18 +258,16 @@ export class OfferController {
     return this.offerService.saveMissingOrder(id, body, files);
   }
 
+
   @UseGuards(FirebaseAuthGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
-  @Get('missing-order')
-  async getMissingOrder(
-    @Req() request: any,
-    @Param('page') page: number,
-    @Param('limit') limit: number,
-    @Param('search') search: string,
-  ) {
+  @Post('missing-order')
+  @ApiBody({ type: GetMissingOrderDto })
+  async getMissingOrder(@Req() request: any, @Body() body: GetMissingOrderDto) {
     const user = request.user as any;
     const id = user.sub;
+    const { page, limit, search } = body;
     return this.offerService.getMissingOrder(page, limit, search, id);
   }
 }
