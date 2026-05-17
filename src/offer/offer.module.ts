@@ -21,6 +21,11 @@ import {
 } from 'src/withdraw/schemas/conversion.schema';
 import { Coupon, CouponSchema } from './schemas/coupon.schema';
 import { FeeRate, FeeRateSchema } from 'src/withdraw/schemas/feeRate.schema';
+import {
+  MissionOrder,
+  MissionOrderSchema,
+} from './schemas/missing-order.schema';
+import { GoogleDriveService } from 'src/google-drive/google-drive.service';
 
 @Module({
   imports: [
@@ -38,9 +43,16 @@ import { FeeRate, FeeRateSchema } from 'src/withdraw/schemas/feeRate.schema';
       { name: Conversion.name, schema: ConversionSchema },
       { name: Coupon.name, schema: CouponSchema },
       { name: FeeRate.name, schema: FeeRateSchema },
+      { name: MissionOrder.name, schema: MissionOrderSchema },
     ]),
   ],
   controllers: [OfferController],
-  providers: [OfferService, JwtService, TasksService, InvolveService],
+  providers: [
+    OfferService,
+    JwtService,
+    TasksService,
+    InvolveService,
+    GoogleDriveService,
+  ],
 })
 export class OfferModule {}
