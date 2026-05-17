@@ -25,6 +25,9 @@ export class MissionOrder {
 
   @Prop({ required: true, default: 'pending' })
   status: string;
+
+  @Prop({ required: true })
+  amount: string;
 }
 
 export const MissionOrderSchema = SchemaFactory.createForClass(MissionOrder);
