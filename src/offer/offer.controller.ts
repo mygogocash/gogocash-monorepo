@@ -6,15 +6,18 @@ import {
   Post,
   Query,
   Req,
+  UploadedFiles,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { OfferService } from './offer.service';
 import { ApiBearerAuth, ApiBody, ApiQuery, ApiSecurity } from '@nestjs/swagger';
 import { Request } from 'express';
-import { GetMyOfferDto } from './dto/create-offer.dto';
+import { GetMyOfferDto, SaveMissingOrderDto } from './dto/create-offer.dto';
 import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
 import { UpdateCouponDto } from './dto/update-offer.dto';
+import { FilesInterceptor } from '@nestjs/platform-express';
 @Controller('offer')
 export class OfferController {
   constructor(private readonly offerService: OfferService) {}
@@ -238,5 +241,35 @@ export class OfferController {
     const user = request.user as any;
     const id = user.sub;
     return this.offerService.getFavoriteOfferByUser(id, page, limit);
+  }
+
+  @UseInterceptors(FilesInterceptor('documents', 10))
+  @UseGuards(FirebaseAuthGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
+  @Post('saveMissingOrder')
+  async saveMissingOrder(
+    @Req() request: any,
+    @Body() body: SaveMissingOrderDto,
+    @UploadedFiles() files: Express.Multer.File[],
+  ) {
+    const user = request.user as any;
+    const id = user.sub;
+    return this.offerService.saveMissingOrder(id, body, files);
+  }
+
+  @UseGuards(FirebaseAuthGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
+  @Get('missing-order')
+  async getMissingOrder(
+    @Req() request: any,
+    @Param('page') page: number,
+    @Param('limit') limit: number,
+    @Param('search') search: string,
+  ) {
+    const user = request.user as any;
+    const id = user.sub;
+    return this.offerService.getMissingOrder(page, limit, search, id);
   }
 }

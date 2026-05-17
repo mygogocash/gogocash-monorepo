@@ -9,3 +9,10 @@ export class GetMyOfferDto {
   @IsNumber()
   page: number;
 }
+
+export class SaveMissingOrderDto {
+  offer_id: string;
+  orderId: string;
+  purchaseDate: string;
+  note: string;
+}

@@ -4,7 +4,7 @@ import { Model, Types } from 'mongoose';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
 import { Offer } from 'src/offer/schemas/offer.schema';
 import { User } from 'src/user/schemas/user.schema';
-import { GetMyOfferDto } from './dto/create-offer.dto';
+import { GetMyOfferDto, SaveMissingOrderDto } from './dto/create-offer.dto';
 import { join } from 'path';
 import { promises as fs } from 'fs';
 import { Category } from './schemas/category.schema';
@@ -12,6 +12,8 @@ import { FavoriteOffer } from './schemas/favorite-offer.schema';
 import { Banner } from './schemas/banner.schema';
 import { Coupon } from './schemas/coupon.schema';
 import { UpdateCouponDto } from './dto/update-offer.dto';
+import { MissionOrder } from './schemas/missing-order.schema';
+import { GoogleDriveService } from 'src/google-drive/google-drive.service';
 @Injectable()
 export class OfferService {
   private filePath = join(process.cwd(), 'uploads', 'data', 'offers.json');
@@ -26,6 +28,9 @@ export class OfferService {
     private favoriteOfferModel: Model<FavoriteOffer>,
     @InjectModel(Banner.name)
     private bannerModel: Model<Banner>,
+    @InjectModel(MissionOrder.name)
+    private missionOrderModel: Model<MissionOrder>,
+    private readonly googleDriveService: GoogleDriveService,
   ) {}
   async findAll(
     page: number,
@@ -230,5 +235,59 @@ export class OfferService {
 
   async getOfferExtraPoint() {
     return this.offerModel.find({ extra_point: { $gt: 1 } }).lean();
+  }
+
+  async saveMissingOrder(
+    user_id: string,
+    payload: SaveMissingOrderDto,
+    files: Express.Multer.File[],
+  ) {
+    // console.log('payload', payload);
+    // console.log('files', files);
+    // console.log('user_id', user_id);
+    // return true;
+    const folderId = '17kyG-ASOfywnANw4IHegvUcRAi8ZYO8k';
+    const fileId = [];
+    if (files.length > 0) {
+      for (const file of files) {
+        // console.log('file', file);
+        const upload = await this.googleDriveService.uploadFile(file, folderId);
+        fileId.push(upload.id);
+      }
+    }
+    const missingOrder = new this.missionOrderModel({
+      user_id: new Types.ObjectId(user_id),
+      offer_id: new Types.ObjectId(payload.offer_id),
+      attachments: fileId,
+      orderId: payload.orderId,
+      purchaseDate: payload.purchaseDate,
+      note: payload.note,
+      status: 'pending',
+    });
+    return missingOrder.save();
+  }
+
+  async getMissingOrder(
+    page: number,
+    limit: number,
+    search: string,
+    user_id: string,
+  ) {
+    const filter = {
+      user_id: new Types.ObjectId(user_id),
+      $or: [{ orderId: { $regex: search, $options: 'i' } }],
+    };
+    const data = await this.missionOrderModel
+      .find(filter)
+      .populate('offer_id', ['offer_name'])
+      .populate('user_id', ['name', 'email'])
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec();
+
+    const total = await this.missionOrderModel.countDocuments(filter);
+    const totalPages = Math.ceil(total / limit);
+
+    return { page, limit, total, totalPages, data };
   }
 }
