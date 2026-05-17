@@ -16,6 +16,7 @@ export class SaveMissingOrderDto {
   orderId: string;
   purchaseDate: string;
   note: string;
+  amount: string;
 }
 
 export class GetMissingOrderDto {

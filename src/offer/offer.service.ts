@@ -262,6 +262,7 @@ export class OfferService {
       orderId: payload.orderId,
       purchaseDate: payload.purchaseDate,
       note: payload.note,
+      amount: payload.amount,
       status: 'pending',
     });
     return missingOrder.save();
