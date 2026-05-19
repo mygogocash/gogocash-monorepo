@@ -769,4 +769,30 @@ export class PointService {
     // console.log('re', result);
     return result;
   }
+
+  async getQuestAll() {
+    const quest = await this.questModel.find().lean();
+    if (!quest || quest.length === 0) {
+      throw new HttpException('No open quest available', 400);
+    }
+    return quest;
+  }
+
+  async getQuestEndTRound(startDate: string, endDate: string) {
+    const consversion = await this.conversionModel
+      .find({
+        // datetime_conversion: {
+        //   $gte: new Date(startDate),
+        //   $lte: new Date(endDate),
+        // },
+        offer_name: 'reward_conversion_quest',
+        adv_sub2: `Reward Quest ${startDate} - ${endDate}`,
+      })
+      .sort({ createdAt: 1 })
+      .lean();
+    if (!consversion || consversion.length === 0) {
+      throw new HttpException('No open quest available', 400);
+    }
+    return consversion;
+  }
 }

@@ -160,6 +160,19 @@ export class PointController {
     return this.pointService.getQuestSocial(id);
   }
 
+  @Get('get-quest-all')
+  getQuestAll() {
+    return this.pointService.getQuestAll();
+  }
+
+  @Get('get-quest-all/:startDate/:endDate')
+  getQuestEndToRound(
+    @Param('startDate') startDate: string,
+    @Param('endDate') endDate: string,
+  ) {
+    return this.pointService.getQuestEndTRound(startDate, endDate);
+  }
+
   @UseGuards(FirebaseAuthGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
