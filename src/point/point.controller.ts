@@ -196,4 +196,22 @@ export class PointController {
     const userId = user?.sub;
     return this.pointService.updateQuestSocial(userId, id);
   }
+
+  @UseGuards(FirebaseAuthGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth() // This directly applies Bearer authentication
+  @Get('get-my-point-sum-all-month')
+  getMyPointSumAllMonth(@Req() req: Request) {
+    const user = req['user'] as any;
+    const id = user?.sub;
+    return this.pointService.getMyPointSumEveryMonth(id);
+  }
+
+  @Get('get-spacial-point-next-round/:startDate/:endDate')
+  getSpacialPointNextRound(
+    @Param('startDate') startDate: string,
+    @Param('endDate') endDate: string,
+  ) {
+    return this.pointService.getSpacialPointNextRound(startDate, endDate);
+  }
 }
