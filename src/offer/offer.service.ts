@@ -72,7 +72,10 @@ export class OfferService {
     filter.extra_store = true;
     // filter.countries = { $regex: 'Thailand', $options: 'i' };
 
-    const dataExtra = await this.offerModel.find(filter).lean();
+    const dataExtra = await this.offerModel
+      .find(filter)
+      .sort({ extra_store_sort: 1 })
+      .lean();
 
     return dataExtra;
   }
