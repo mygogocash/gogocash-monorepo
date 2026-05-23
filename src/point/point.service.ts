@@ -393,14 +393,22 @@ export class PointService {
         },
       },
       {
-        $unwind: '$conversion_id',
+        $unwind: {
+          path: '$conversion_id',
+          // preserveNullAndEmptyArrays: true,
+        },
       },
       {
         $match: {
-          'conversion_id.datetime_conversion': {
-            $gte: new Date(startDate),
-            $lte: new Date(endDate),
-          },
+          $or: [
+            {
+              'conversion_id.datetime_conversion': {
+                $gte: new Date(startDate),
+                $lte: new Date(endDate),
+              },
+            },
+            // { conversion_id: { $eq: null } },
+          ],
         },
       },
       {
@@ -794,5 +802,139 @@ export class PointService {
       throw new HttpException('No open quest available', 400);
     }
     return consversion;
+  }
+
+  async getMyPointSumEveryMonth(userId: string) {
+    const quest = await this.questModel.find({}).lean();
+    const rangeDate = quest.map((item) => {
+      const start = item.start_date.toISOString().split('T')[0];
+      const end = item.end_date.toISOString().split('T')[0];
+      return { start, end, sumPoint: 0 };
+    });
+
+    const data = rangeDate.map(async (item) => {
+      const point = await this.pointModel.aggregate([
+        {
+          $match: {
+            user_id: new Types.ObjectId(userId),
+            type: 'add',
+          },
+        },
+        {
+          $lookup: {
+            from: 'conversion',
+            localField: 'conversion_id',
+            foreignField: 'conversion_id',
+            as: 'conversion',
+          },
+        },
+        {
+          $unwind: {
+            path: '$conversion',
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $match: {
+            $or: [
+              {
+                'conversion.datetime_conversion': {
+                  $gte: new Date(item.start),
+                  $lte: new Date(item.end),
+                },
+              },
+              {
+                conversion: { $eq: null },
+                createdAt: {
+                  $gte: new Date(item.start),
+                  $lte: new Date(item.end),
+                },
+              },
+            ],
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            totalPoints: { $sum: '$point' },
+            list_of_point: {
+              $push: {
+                point: '$point',
+                conversion_id: '$conversion_id',
+                action: '$action',
+                createdAt: '$createdAt',
+              },
+            },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            totalPoints: 1,
+            list_of_point: 1,
+          },
+        },
+      ]);
+
+      return {
+        ...item,
+        sumPoint: point.length > 0 ? point[0].totalPoints : 0,
+        list_of_point: point.length > 0 ? point[0].list_of_point : [],
+      };
+    });
+    const point = await Promise.all(data);
+
+    // if (!point || point.length === 0) {
+    //   throw new HttpException('No point found', 404);
+    // }
+    return {
+      point,
+    };
+  }
+
+  async getSpacialPointNextRound(startDate: string, endDate: string) {
+    // ดึง leaderboard ของ round ปัจจุบัน (เรียงจากมากไปน้อยแล้ว)
+    const leaderboard = await this.getQuestRankListOfPoint(startDate, endDate);
+
+    const result = leaderboard.map((user, index) => {
+      const rank = index + 1;
+      let specialPoint = 0;
+      const breakdown = {
+        rank_bonus: 0,
+        social_bonus: 0,
+        spend_bonus: 0,
+      };
+
+      // 1. ถ้าอยู่อันดับ 1-10 ได้ 80 point
+      if (rank <= 10) {
+        breakdown.rank_bonus = 80;
+        specialPoint += 80;
+      }
+
+      // 2. ถ้ามี action reward_quest_social ได้ 80 point
+      if (user.point_social_reward && user.point_social_reward > 0) {
+        breakdown.social_bonus = 80;
+        specialPoint += 80;
+      }
+
+      // 3. ถ้าใช้จ่ายเกิน 300 ได้ 30 point
+      if (user.point >= 300) {
+        breakdown.spend_bonus = 30;
+        specialPoint += 30;
+      }
+
+      return {
+        user_id: user.user_id,
+        username: user.username,
+        email: user.email,
+        rank,
+        current_point: user.point,
+        special_point_next_round: specialPoint,
+        breakdown,
+      };
+    });
+
+    // กรองเฉพาะคนที่ได้ special point
+    return result.filter((item) => item.special_point_next_round > 0);
   }
 }
