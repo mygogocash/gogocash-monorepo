@@ -109,4 +109,13 @@ export class TasksController {
       return { message: 'error' };
     }
   }
+
+  @Get('get-spacial-point-next-round/:id')
+  async getSpacialPointNextRound(@Param('id') id: string) {
+    if (id == process.env.FIREBASE_API_KEY) {
+      return this.tasksService.getSpacialPointNextRound();
+    } else {
+      return { message: 'error' };
+    }
+  }
 }
