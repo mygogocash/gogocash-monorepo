@@ -1,0 +1,112 @@
+import type { MobileSessionStore } from "@mobile/auth/session";
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly code?: string
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+export type MobileApiClientOptions = {
+  baseUrl: string;
+  fetchImpl?: typeof fetch;
+  onUnauthorized?: () => void;
+  sessionStore: MobileSessionStore;
+};
+
+export function createMobileApiClient(options: MobileApiClientOptions) {
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const baseUrl = normalizeBaseUrl(options.baseUrl);
+
+  async function request<TResponse>(
+    method: "GET" | "POST",
+    path: string,
+    body?: unknown,
+    customHeaders: Record<string, string> = {}
+  ): Promise<TResponse> {
+    const session = await options.sessionStore.getSession();
+    const token = typeof session?.access_token === "string" ? session.access_token : "";
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...customHeaders,
+    };
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    const init: RequestInit = {
+      headers,
+      method,
+    };
+
+    if (body !== undefined) {
+      init.body = JSON.stringify(body);
+    }
+
+    try {
+      const response = await fetchImpl(buildUrl(baseUrl, path), init);
+      const responseBody = await parseResponseBody(response);
+
+      if (!response.ok) {
+        const errorMessage =
+          responseBody && typeof responseBody === "object" && "message" in responseBody
+            ? String(responseBody.message)
+            : `Request failed with status ${response.status}`;
+
+        if (response.status === 401) {
+          await options.sessionStore.clearSession();
+          options.onUnauthorized?.();
+        }
+
+        throw new ApiError(errorMessage, response.status);
+      }
+
+      return responseBody as TResponse;
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+
+      throw new ApiError("Network request failed", 0, "NETWORK_ERROR");
+    }
+  }
+
+  return {
+    get<TResponse = unknown>(path: string) {
+      return request<TResponse>("GET", path);
+    },
+    post<TResponse = unknown>(path: string, body?: unknown, headers?: Record<string, string>) {
+      return request<TResponse>("POST", path, body, headers);
+    },
+  };
+}
+
+function normalizeBaseUrl(baseUrl: string): string {
+  return baseUrl.replace(/\/+$/, "");
+}
+
+function buildUrl(baseUrl: string, path: string): string {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+
+  return `${baseUrl}${normalizedPath}`;
+}
+
+async function parseResponseBody(response: Response): Promise<unknown> {
+  const text = await response.text();
+
+  if (!text) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
