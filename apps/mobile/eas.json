@@ -1,0 +1,41 @@
+{
+  "cli": {
+    "version": ">= 16.0.1",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "autoIncrement": true,
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api-staging.gogocash.co",
+        "EXPO_PUBLIC_APP_ENV": "staging",
+        "EXPO_PUBLIC_ACCOUNT_DATA_SOURCE": "fixtures",
+        "EXPO_PUBLIC_FRONTEND_URL": "https://app-staging.gogocash.co"
+      }
+    },
+    "preview": {
+      "autoIncrement": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api-staging.gogocash.co",
+        "EXPO_PUBLIC_APP_ENV": "staging",
+        "EXPO_PUBLIC_ACCOUNT_DATA_SOURCE": "fixtures",
+        "EXPO_PUBLIC_FRONTEND_URL": "https://app-staging.gogocash.co"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.gogocash.co",
+        "EXPO_PUBLIC_APP_ENV": "production",
+        "EXPO_PUBLIC_ACCOUNT_DATA_SOURCE": "disabled",
+        "EXPO_PUBLIC_FRONTEND_URL": "https://app.gogocash.co"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
