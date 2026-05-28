@@ -2,12 +2,13 @@
 
 This plan tracks the native Expo app work needed to match the current GoGoCash customer web UI without using a WebView.
 
-## Current Progress Snapshot (2026-05-27)
+## Current Progress Snapshot (2026-05-28)
 
-Status: the Expo customer app is past the scaffold phase. The conversion matrix now marks the customer route catalog as migrated, and tests assert there are no remaining `parity_shell` or `backend_migration` customer routes.
+Status: the Expo customer app is past the scaffold phase and has been handed off to GitHub on branch `expo-module`. The conversion matrix now marks the customer route catalog as migrated, and tests assert there are no remaining `parity_shell` or `backend_migration` customer routes.
 
 Recently completed:
 
+- The Expo customer app parity implementation was committed and pushed to GitHub as `e605c59 feat(mobile): add Expo customer app parity implementation` on branch `expo-module`; the earlier temporary remote branch `codex/expo-desktop-navbar-footer` was removed.
 - Dedicated Expo screens now cover home, auth, public discovery/directories, account/profile, money actions, legal/support, metadata, and billing shell routes.
 - The deep-scan generic-shell gaps are now closed: MyCashback sign-in, Firebase auth callback, PDPA age verification, GoGoPass membership/pricing/billing, profile offers, phone/OTP routes, and `/profile/my-rating` redirect have dedicated Expo behavior.
 - Desktop parity now includes header/category nav, cookie banner, GoGoLink banner, footer, login/register phone and OTP contract, web metadata, sitemap, and production app-link/env contracts.
@@ -25,6 +26,7 @@ Recently completed:
 
 Verification run for this update:
 
+- 2026-05-28 GitHub handoff: branch `expo-module` tracks `origin/expo-module` at commit `e605c59`; the old remote branch `codex/expo-desktop-navbar-footer` was deleted. This was a repository/docs handoff step, so no new runtime gate was run after the previously recorded green checks.
 - `npm run mobile:test:flows`: passed, 9 tests.
 - `npm run mobile:test:full`: passed, 30 files / 204 tests / 10 todo, typecheck, and Expo web export.
 - `MOBILE_PLAYWRIGHT_NO_SERVER=1 npm run mobile:design-qa`: passed, 77 tests / 3 skipped across desktop and iPhone projects.
@@ -43,6 +45,7 @@ Verification run for this update:
 
 Not verified in this update:
 
+- New runtime validation after the 2026-05-28 docs-only progress refresh.
 - Full side-by-side screenshot comparison for every route against a clean Next.js reference server
 - EAS preview/production builds
 - iOS simulator, Android emulator, or physical-device smoke
