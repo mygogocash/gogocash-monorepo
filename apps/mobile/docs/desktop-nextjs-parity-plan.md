@@ -23,9 +23,11 @@ Align the Expo customer web desktop experience with the local Next.js reference 
 5. Tests include a RED parity contract before implementation, then focused green tests, full mobile tests, typecheck, Expo web export, and browser screenshots.
 6. Visual QA records screenshots for reference and Expo with filenames that include route, viewport, and app.
 
-## Current Status (2026-05-26)
+## Current Status (2026-05-28)
 
 The desktop parity work has moved beyond the initial shell/auth gap. Current tests cover the desktop shell, footer, cookie banner, GoGoLink banner, auth phone/social/OTP contract, public directory pages, shop/category detail pages, account/profile surfaces, metadata, production env, app links, and typography.
+
+GitHub handoff is complete on branch `expo-module` at commit `e605c59 feat(mobile): add Expo customer app parity implementation`. The temporary branch `codex/expo-desktop-navbar-footer` was deleted after `expo-module` was pushed and set to track `origin/expo-module`.
 
 The selected `/link-mycashback` intro surface now has a dedicated Expo parity contract and live proof: desktop header/nav, light-blue sign-in band, connector assets, exact copy, Skip / Link Account CTAs, desktop footer, and clean desktop/mobile browser checks.
 
@@ -50,6 +52,8 @@ Sign-in header graphic pass on `2026-05-27`: matched the unauthenticated Next.js
 Desktop route chrome pass on `2026-05-27`: added root desktop navbar coverage for routes that do not own a public shell and added shared desktop footer slots to the route shells that own scroll content. Self-owned public pages (`/`, `/login`, `/register`, `/account-setup`, `/privacy-policy`, `/link-mycashback`, and `/link-mycashback/my-cashback-sign-in`) keep their local desktop shell but now include both navbar and footer. Validation passed with RED parity coverage, `npm run test:full` (35 files / 232 tests / 7 todo, typecheck, Expo web export), and Browser smoke on `/brand`, `/login`, and `/privacy-policy` with no captured console issues. Screenshot evidence: `/tmp/gogocash-desktop-chrome-brand-top.png`, `/tmp/gogocash-desktop-chrome-brand-footer.png`, `/tmp/gogocash-desktop-chrome-login-footer.png`, `/tmp/gogocash-desktop-chrome-privacy-adjusted.png`.
 
 Remaining desktop-launch work is now external-proof heavy: refresh the Next.js reference server to remove the stale chunk 404, capture desktop/mobile screenshots beside the clean reference route matrix, and confirm production-like API/auth/billing behavior. Backend-bound routes now have guarded non-ready states, but live authenticated success-payload mapping and real API proof are still required before production sign-off, plus EAS and iOS/Android device smoke.
+
+No new runtime validation was run for the 2026-05-28 docs-only progress refresh; the latest recorded green gates remain the desktop route chrome pass, `npm run test:full` with 35 files / 232 tests / 7 todo, typecheck, Expo web export, and Browser smoke on `/brand`, `/login`, and `/privacy-policy`.
 
 ## Workstreams
 
