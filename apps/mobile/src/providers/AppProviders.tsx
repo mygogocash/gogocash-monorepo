@@ -7,6 +7,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthRouteGuard } from "@mobile/auth/AuthRouteGuard";
 import { CustomerRouteState } from "@mobile/components/CustomerRouteState";
 import { getObservabilityConfig, initObservability } from "@mobile/observability/client";
+import { PrivacyScreenGuard } from "@mobile/security/PrivacyScreenGuard";
 import { gogoCashRuntimeFonts } from "@mobile/theme/appFonts";
 
 export function AppProviders({ children }: PropsWithChildren) {
@@ -41,9 +42,11 @@ export function AppProviders({ children }: PropsWithChildren) {
 
   const appTree = (
     <SafeAreaProvider>
-      <QueryClientProvider client={queryClient}>
-        <AuthRouteGuard>{children}</AuthRouteGuard>
-      </QueryClientProvider>
+      <PrivacyScreenGuard>
+        <QueryClientProvider client={queryClient}>
+          <AuthRouteGuard>{children}</AuthRouteGuard>
+        </QueryClientProvider>
+      </PrivacyScreenGuard>
     </SafeAreaProvider>
   );
 
