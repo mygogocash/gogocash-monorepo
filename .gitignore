@@ -65,3 +65,6 @@ next-env.d.ts
 .kiro/
 .windsurf/
 skills/
+
+# local research scratch
+docs/research/
