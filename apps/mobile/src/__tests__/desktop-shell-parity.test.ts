@@ -112,4 +112,20 @@ describe("desktop route shell parity", () => {
       );
     }
   });
+
+  it("desktop subnav underline > given an inactive category tab > then Expo always renders the underline and fades it in on hover, matching web SubHeader", () => {
+    const header = readMobileFile("src/components/CustomerDesktopHeader.tsx");
+
+    // Web SubHeader renders the underline for every tab and toggles opacity
+    // (active = 1, inactive hover = 0.4 via group-hover:opacity-40). The old Expo
+    // conditional-mount must be gone.
+    expect(header).toContain("DesktopCategoryTab");
+    expect(header).toContain("onHoverIn={() => setHovered(true)}");
+    expect(header).toContain("onHoverOut={() => setHovered(false)}");
+    expect(header).toContain("const webSubNavHoverUnderlineOpacity = 0.4;");
+    expect(header).not.toContain(
+      "item.active ? <View style={styles.desktopCategoryUnderline} /> : null"
+    );
+  });
+
 });
