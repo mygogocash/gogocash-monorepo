@@ -291,7 +291,7 @@ function CategoryNavItem({
   category: string;
   isDesktop: boolean;
 }) {
-  const Icon = categoryIcons[category] ?? StoreIcon;
+  const Icon = getCategoryIcon(category);
   const iconColor = active ? colors.white : colors.accent;
 
   return (
