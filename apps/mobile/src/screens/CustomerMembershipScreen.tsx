@@ -5,7 +5,7 @@ import {
   Headphones as HeadphonesIcon,
   Sparkles as SparklesIcon,
   Wallet as WalletIcon,
-} from "lucide-react-native";
+} from "@mobile/theme/icons";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";

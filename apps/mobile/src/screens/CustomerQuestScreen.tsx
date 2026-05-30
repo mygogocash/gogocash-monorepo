@@ -3,7 +3,7 @@ import {
   CircleDollarSign as CoinIcon,
   MousePointerClick as MousePointerClickIcon,
   Trophy as TrophyIcon,
-} from "lucide-react-native";
+} from "@mobile/theme/icons";
 import { useState } from "react";
 import { Image, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 

@@ -17,7 +17,7 @@ import {
   Sparkles as SparklesIcon,
   Store as StoreIcon,
   Utensils as UtensilsIcon,
-} from "lucide-react-native";
+} from "@mobile/theme/icons";
 import {
   Image,
   type ImageSourcePropType,

@@ -5,7 +5,7 @@ import {
   Link2 as LinkIcon,
   Trophy as TrophyIcon,
   WalletCards as WalletIcon,
-} from "lucide-react-native";
+} from "@mobile/theme/icons";
 import { type ComponentType } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 

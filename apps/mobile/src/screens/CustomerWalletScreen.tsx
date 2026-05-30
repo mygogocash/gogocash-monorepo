@@ -10,7 +10,7 @@ import {
   Hourglass as HourglassIcon,
   Search as SearchIcon,
   WalletCards as WalletCardsIcon,
-} from "lucide-react-native";
+} from "@mobile/theme/icons";
 import { Image, StyleSheet, Text, View } from "react-native";
 
 import walletNoDataImage from "../../assets/wallet-no-data.png";

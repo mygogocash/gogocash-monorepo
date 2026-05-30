@@ -1,5 +1,5 @@
 import { Link } from "expo-router";
-import { ChevronLeft as ChevronLeftIcon } from "lucide-react-native";
+import { ChevronLeft as ChevronLeftIcon } from "@mobile/theme/icons";
 import type { ReactNode } from "react";
 import type { DimensionValue } from "react-native";
 import { Pressable, StyleSheet, Text, View } from "react-native";

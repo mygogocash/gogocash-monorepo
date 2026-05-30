@@ -15,7 +15,8 @@ describe("Account hub route parity", () => {
     const bottomNavFile = readMobileFile("src/components/CustomerMobileBottomNav.tsx");
 
     expect(bottomNavFile).toContain("webMobileBottomNavItems");
-    expect(bottomNavFile).toContain("lucide-react-native");
+    expect(bottomNavFile).toContain('from "@mobile/theme/icons"');
+    expect(bottomNavFile).not.toContain("lucide-react-native");
     expect(bottomNavFile).toContain("activeRouteId");
     expect(bottomNavFile).toContain("mobileShellLayout.bottomNavMaxWidth");
     expect(bottomNavFile).toContain("shadows.bottomNavCss");

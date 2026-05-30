@@ -1,5 +1,5 @@
 import { Link } from "expo-router";
-import { ChevronLeft as ChevronLeftIcon, Copy as CopyIcon } from "lucide-react-native";
+import { ChevronLeft as ChevronLeftIcon, Copy as CopyIcon } from "@mobile/theme/icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";

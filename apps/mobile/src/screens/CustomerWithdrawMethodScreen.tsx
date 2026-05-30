@@ -3,7 +3,7 @@ import {
   ChevronLeft as ChevronLeftIcon,
   Landmark as BankIcon,
   SquarePlus as AddIcon,
-} from "lucide-react-native";
+} from "@mobile/theme/icons";
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 

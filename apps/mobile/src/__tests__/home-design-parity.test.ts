@@ -95,10 +95,15 @@ describe("Expo home design parity", () => {
       fs.readFileSync(path.join(mobileRoot, "package.json"), "utf8")
     ) as { dependencies?: Record<string, string> };
 
+    // Icons are standardized on phosphor for web + native, sourced through the
+    // shared adapter (src/theme/icons.tsx) — screens never import an icon
+    // library directly. The desktop category nav uses phosphor glyph components
+    // (via the adapter), not the legacy PNG menu-bar icons.
     expect(packageJson.dependencies?.["phosphor-react-native"]).toBe("^2.3.1");
     for (const sourceFile of [homeFile, desktopHeaderFile]) {
-      expect(sourceFile).toContain('from "phosphor-react-native/lib/module/icons/Globe"');
-      expect(sourceFile).toContain("Globe");
+      expect(sourceFile).toContain('from "@mobile/theme/icons"');
+      expect(sourceFile).not.toContain("lucide-react-native");
+      expect(sourceFile).not.toContain('from "phosphor-react-native');
       expect(sourceFile).toContain("Storefront");
       expect(sourceFile).toContain("SquaresFour");
       expect(sourceFile).toContain("Tag");
@@ -106,7 +111,6 @@ describe("Expo home design parity", () => {
       expect(sourceFile).toContain("DeviceMobile");
       expect(sourceFile).toContain("Heartbeat");
       expect(sourceFile).toContain("desktopNavIcons");
-      expect(sourceFile).toContain('weight="regular"');
       expect(sourceFile).not.toContain("menu-bar/electronics.png");
       expect(sourceFile).not.toContain("menu-bar/health.png");
       expect(sourceFile).not.toContain("menu-bar/promotion.png");
@@ -427,7 +431,8 @@ describe("Expo home design parity", () => {
       "utf8"
     );
 
-    expect(homeFile).toContain("lucide-react-native");
+    expect(homeFile).toContain('from "@mobile/theme/icons"');
+    expect(homeFile).not.toContain("lucide-react-native");
     expect(homeFile).toContain("ShortcutIcon");
     expect(homeFile).toContain("BottomNavIcon");
     expect(homeFile).not.toContain("getShortcutGlyph");

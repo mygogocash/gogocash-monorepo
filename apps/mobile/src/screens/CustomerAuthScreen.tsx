@@ -1,5 +1,5 @@
 import { Link } from "expo-router";
-import { ChevronDown as ChevronDownIcon } from "lucide-react-native";
+import { ChevronDown as ChevronDownIcon } from "@mobile/theme/icons";
 import { useMemo, useState } from "react";
 import {
   Image,

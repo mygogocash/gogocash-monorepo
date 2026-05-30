@@ -3,7 +3,7 @@ import {
   ChevronDown as ChevronDownIcon,
   ChevronLeft as ChevronLeftIcon,
   Copy as ContentCopyIcon,
-} from "lucide-react-native";
+} from "@mobile/theme/icons";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { Image, Linking, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";

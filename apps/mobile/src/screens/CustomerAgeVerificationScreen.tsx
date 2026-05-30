@@ -2,7 +2,7 @@ import { Link } from "expo-router";
 import {
   ChevronLeft as ChevronLeftIcon,
   ShieldCheck as ShieldCheckIcon,
-} from "lucide-react-native";
+} from "@mobile/theme/icons";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
