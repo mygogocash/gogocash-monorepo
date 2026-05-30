@@ -14,28 +14,174 @@ type Brand = {
 };
 
 const BRANDS: Brand[] = [
-  { id: "1001", name: "Grocery Galaxy", slug: "grocery-galaxy", category: "Others", cashbackPct: 12.5, hasCoupon: true, logoSlug: "instacart", tint: "#16a34a" },
-  { id: "1002", name: "Pocket Pantry", slug: "pocket-pantry", category: "Others", cashbackPct: 10.0, hasCoupon: true, logoSlug: "target", tint: "#0ea5e9" },
-  { id: "1003", name: "Orbit Airways", slug: "orbit-airways", category: "Travel", cashbackPct: 8.5, hasCoupon: false, logoSlug: "americanairlines", tint: "#0284c7" },
-  { id: "1004", name: "PixelPort", slug: "pixelport", category: "Electronics", cashbackPct: 6.5, hasCoupon: false, logoSlug: "apple", tint: "#0f172a" },
-  { id: "1005", name: "Glow Atelier", slug: "glow-atelier", category: "Health & Beauty", cashbackPct: 9.0, hasCoupon: true, logoSlug: "mac", tint: "#ec4899" },
-  { id: "1006", name: "WalletBoost", slug: "walletboost", category: "Others", cashbackPct: 5.0, hasCoupon: true, logoSlug: "paypal", tint: "#2563eb" },
-  { id: "1007", name: "Chronos Lab", slug: "chronos-lab", category: "Electronics", cashbackPct: 7.5, hasCoupon: true, logoSlug: "samsung", tint: "#6366f1" },
-  { id: "1008", name: "ShopQuest", slug: "shopquest", category: "Travel", cashbackPct: 11.0, hasCoupon: false, logoSlug: "airbnb", tint: "#eab308" },
-  { id: "1009", name: "NeonDeals", slug: "neondeals", category: "Others", cashbackPct: 4.0, hasCoupon: false, logoSlug: "shopee", tint: "#f97316" },
-  { id: "1010", name: "Flux Foods", slug: "flux-foods", category: "Others", cashbackPct: 13.5, hasCoupon: true, logoSlug: "ubereats", tint: "#0f766e" },
-  { id: "1011", name: "SkyTunes", slug: "skytunes", category: "Digital Services", cashbackPct: 3.0, hasCoupon: false, logoSlug: "spotify", tint: "#065f46" },
-  { id: "1012", name: "NovaMart", slug: "novamart", category: "Electronics", cashbackPct: 6.0, hasCoupon: true, logoSlug: "amazon", tint: "#111827" },
-  { id: "1013", name: "Trip Nest", slug: "trip-nest", category: "Travel", cashbackPct: 7.0, hasCoupon: false, logoSlug: "tripadvisor", tint: "#1d4ed8" },
-  { id: "1014", name: "Stream+", slug: "stream-plus", category: "Digital Services", cashbackPct: 4.5, hasCoupon: true, logoSlug: "netflix", tint: "#7f1d1d" },
-  { id: "1015", name: "Bright Gym", slug: "bright-gym", category: "Health & Beauty", cashbackPct: 8.0, hasCoupon: false, logoSlug: "nike", tint: "#1f2937" },
-  { id: "1016", name: "Cozy Stays", slug: "cozy-stays", category: "Travel", cashbackPct: 9.5, hasCoupon: true, logoSlug: "expedia", tint: "#facc15" },
+  {
+    id: "1001",
+    name: "Grocery Galaxy",
+    slug: "grocery-galaxy",
+    category: "Others",
+    cashbackPct: 12.5,
+    hasCoupon: true,
+    logoSlug: "instacart",
+    tint: "#16a34a",
+  },
+  {
+    id: "1002",
+    name: "Pocket Pantry",
+    slug: "pocket-pantry",
+    category: "Others",
+    cashbackPct: 10.0,
+    hasCoupon: true,
+    logoSlug: "target",
+    tint: "#0ea5e9",
+  },
+  {
+    id: "1003",
+    name: "Orbit Airways",
+    slug: "orbit-airways",
+    category: "Travel",
+    cashbackPct: 8.5,
+    hasCoupon: false,
+    logoSlug: "americanairlines",
+    tint: "#0284c7",
+  },
+  {
+    id: "1004",
+    name: "PixelPort",
+    slug: "pixelport",
+    category: "Electronics",
+    cashbackPct: 6.5,
+    hasCoupon: false,
+    logoSlug: "apple",
+    tint: "#0f172a",
+  },
+  {
+    id: "1005",
+    name: "Glow Atelier",
+    slug: "glow-atelier",
+    category: "Health & Beauty",
+    cashbackPct: 9.0,
+    hasCoupon: true,
+    logoSlug: "etsy",
+    tint: "#ec4899",
+  },
+  {
+    id: "1006",
+    name: "WalletBoost",
+    slug: "walletboost",
+    category: "Others",
+    cashbackPct: 5.0,
+    hasCoupon: true,
+    logoSlug: "paypal",
+    tint: "#2563eb",
+  },
+  {
+    id: "1007",
+    name: "Chronos Lab",
+    slug: "chronos-lab",
+    category: "Electronics",
+    cashbackPct: 7.5,
+    hasCoupon: true,
+    logoSlug: "samsung",
+    tint: "#6366f1",
+  },
+  {
+    id: "1008",
+    name: "ShopQuest",
+    slug: "shopquest",
+    category: "Travel",
+    cashbackPct: 11.0,
+    hasCoupon: false,
+    logoSlug: "airbnb",
+    tint: "#eab308",
+  },
+  {
+    id: "1009",
+    name: "NeonDeals",
+    slug: "neondeals",
+    category: "Others",
+    cashbackPct: 4.0,
+    hasCoupon: false,
+    logoSlug: "shopee",
+    tint: "#f97316",
+  },
+  {
+    id: "1010",
+    name: "Flux Foods",
+    slug: "flux-foods",
+    category: "Others",
+    cashbackPct: 13.5,
+    hasCoupon: true,
+    logoSlug: "ubereats",
+    tint: "#0f766e",
+  },
+  {
+    id: "1011",
+    name: "SkyTunes",
+    slug: "skytunes",
+    category: "Digital Services",
+    cashbackPct: 3.0,
+    hasCoupon: false,
+    logoSlug: "spotify",
+    tint: "#065f46",
+  },
+  {
+    id: "1012",
+    name: "NovaMart",
+    slug: "novamart",
+    category: "Electronics",
+    cashbackPct: 6.0,
+    hasCoupon: true,
+    logoSlug: "ebay",
+    tint: "#111827",
+  },
+  {
+    id: "1013",
+    name: "Trip Nest",
+    slug: "trip-nest",
+    category: "Travel",
+    cashbackPct: 7.0,
+    hasCoupon: false,
+    logoSlug: "tripadvisor",
+    tint: "#1d4ed8",
+  },
+  {
+    id: "1014",
+    name: "Stream+",
+    slug: "stream-plus",
+    category: "Digital Services",
+    cashbackPct: 4.5,
+    hasCoupon: true,
+    logoSlug: "netflix",
+    tint: "#7f1d1d",
+  },
+  {
+    id: "1015",
+    name: "Bright Gym",
+    slug: "bright-gym",
+    category: "Health & Beauty",
+    cashbackPct: 8.0,
+    hasCoupon: false,
+    logoSlug: "nike",
+    tint: "#1f2937",
+  },
+  {
+    id: "1016",
+    name: "Cozy Stays",
+    slug: "cozy-stays",
+    category: "Travel",
+    cashbackPct: 9.5,
+    hasCoupon: true,
+    logoSlug: "expedia",
+    tint: "#facc15",
+  },
 ];
 
 function CouponPill() {
   return (
     <div className="absolute left-2 top-2 flex h-6 items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2 py-1 text-xs font-normal leading-none text-gray-800 shadow-[0px_2px_2px_0px_rgba(0,0,0,0.05)]">
-      <span aria-hidden="true" className="text-[13px] leading-none">🧧</span>
+      <span aria-hidden="true" className="text-[13px] leading-none">
+        🧧
+      </span>
       <span className="min-w-0 truncate">Grab Coupon</span>
     </div>
   );
@@ -56,7 +202,13 @@ function HeartButton() {
       aria-label="Save to favorites"
       className="ml-auto flex size-7 shrink-0 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-rose-500"
     >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="size-4">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        className="size-4"
+      >
         <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z" />
       </svg>
     </button>
@@ -102,7 +254,9 @@ function BrandCard({
       {dense ? (
         <div className="flex min-h-0 flex-1 flex-col gap-0.5 pt-2">
           <h3 className="truncate text-xs font-semibold text-gray-900">{brand.name}</h3>
-          <span className="text-sm font-bold text-emerald-600">{brand.cashbackPct.toFixed(1)}%</span>
+          <span className="text-sm font-bold text-emerald-600">
+            {brand.cashbackPct.toFixed(1)}%
+          </span>
         </div>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col gap-1 pt-3">

@@ -66,7 +66,8 @@ const BRAND_SLUG_KEYWORDS: Array<[RegExp, string]> = [
   [/neon|deal|discount/i, "target"],
   [/flux|uber|food|eats|delivery/i, "ubereats"],
   [/sky|music|tune|stream/i, "spotify"],
-  [/nova|amazon|prime/i, "amazon"],
+  // Simple Icons removed Amazon (trademark complaint) - use eBay slug to avoid runtime 404.
+  [/nova|amazon|prime/i, "ebay"],
   [/netflix|movie|cinema/i, "netflix"],
   [/gym|fitness|sport|nike/i, "nike"],
   [/stay|hotel|cozy|booking/i, "airbnb"],
@@ -81,7 +82,7 @@ const GENERIC_BRAND_SLUGS = [
   "apple",
   "samsung",
   "google",
-  "amazon",
+  "ebay",
   "netflix",
   "spotify",
   "airbnb",

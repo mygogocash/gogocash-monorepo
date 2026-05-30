@@ -33,10 +33,7 @@ export default function PolicyBannerSection({
   if (!text) return null;
 
   return (
-    <section
-      aria-label="Category banner"
-      className="gc-home-section-y w-full"
-    >
+    <section aria-label="Category banner" className="gc-home-section-y w-full">
       <div className="rounded-2xl border border-(--gc-border) bg-(--gc-surface-muted) px-4 py-3 text-sm leading-relaxed text-(--gc-text-soft)">
         {text}
       </div>

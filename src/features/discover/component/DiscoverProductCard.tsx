@@ -108,10 +108,7 @@ export function DiscoverProductCard({
             e.stopPropagation();
           }}
         >
-          <FavoriteBorder
-            sx={{ fontSize: 16, color: "var(--gc-primary-strong)" }}
-            aria-hidden
-          />
+          <FavoriteBorder sx={{ fontSize: 16, color: "var(--gc-primary-strong)" }} aria-hidden />
         </button>
       </div>
 

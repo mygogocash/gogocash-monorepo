@@ -9,7 +9,14 @@ const eslintConfig = defineConfig([
   ...nextTs,
   ...tanstackQuery.configs["flat/recommended"],
   eslintConfigPrettier,
-  globalIgnores([".next/**", "out/**", "build/**", "coverage/**", "next-env.d.ts"]),
+  globalIgnores([
+    ".next/**",
+    "out/**",
+    "build/**",
+    "coverage/**",
+    "apps/mobile/dist/**",
+    "next-env.d.ts",
+  ]),
   {
     files: ["src/features/auth/component/link-mycashback/**/*.{ts,tsx}"],
     rules: {

@@ -36,7 +36,7 @@ const Special = () => {
   const { country } = useUserCountry();
   const visibleOffers = useMemo(
     () => (offer?.data ? dedupeOffersByBrand(offer.data, country) : offer?.data),
-    [offer, country],
+    [offer, country]
   );
 
   const section = homeSectionMeta.specialPick;

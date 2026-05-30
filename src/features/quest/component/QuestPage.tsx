@@ -134,6 +134,7 @@ const QuestPage = () => {
         alt={t("questPageBannerAlt")}
         width={1200}
         height={675}
+        loading="eager"
         className="rounded-3xl w-full h-auto mb-5"
       />
       <div className="w-full h-full md:hidden flex flex-col gap-5 mt-5 ">

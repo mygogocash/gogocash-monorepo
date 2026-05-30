@@ -10,10 +10,7 @@ import { IResponseCategory } from "@/interfaces/shop";
 import { fetcher } from "@/lib/axios/client";
 import { cn, getPercent } from "@/lib/utils";
 import { trackMerchantSelect } from "@/lib/analytics";
-import {
-  getBrandTileTint,
-  getOfferSquareLogoSrc,
-} from "@/lib/offer/offerCardVisuals";
+import { getBrandTileTint, getOfferSquareLogoSrc } from "@/lib/offer/offerCardVisuals";
 import ShopExploreCategoryAside from "@/features/shop/component/ShopExploreCategoryAside";
 import { buildShopExploreCategoryMenu } from "@/features/shop/shopExploreCategoryMenu";
 import { type ShopExploreSort, sortShopExploreOffers } from "@/features/shop/shopExploreSort";
@@ -155,7 +152,9 @@ const List = ({ mode = "shops" }: ListProps) => {
             role="note"
             className="mt-4 flex max-w-2xl items-start gap-2 rounded-2xl border border-(--gc-border) bg-(--gc-surface-muted) px-3 py-2 text-xs leading-relaxed text-[var(--gc-text-muted)]"
           >
-            <span aria-hidden className="text-base leading-none">⏱️</span>
+            <span aria-hidden className="text-base leading-none">
+              ⏱️
+            </span>
             <p>{t("shopTrackingNotice")}</p>
           </div>
         ) : null}
@@ -268,7 +267,9 @@ const List = ({ mode = "shops" }: ListProps) => {
                     onClick={() =>
                       trackMerchantSelect({
                         merchant: offer,
-                        listId: isShopsMode ? "merchant_directory_shops" : "merchant_directory_brands",
+                        listId: isShopsMode
+                          ? "merchant_directory_shops"
+                          : "merchant_directory_brands",
                         listName: isShopsMode ? "All Shops" : "All Brands",
                         position: index + 1,
                         source: "shop_directory",

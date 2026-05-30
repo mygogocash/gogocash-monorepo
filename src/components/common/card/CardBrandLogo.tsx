@@ -68,7 +68,9 @@ const CardBrandLogo = ({
 
         {!isCompact && showGrabCoupon ? (
           <div className="absolute left-1.5 top-1.5 flex h-5 max-w-[calc(100%-12px)] items-center gap-1 rounded-full border border-(--gc-border) bg-white px-1.5 py-0.5 text-[10px] font-normal leading-none text-(--gc-text) shadow-[0px_2px_2px_0px_rgba(0,0,0,0.05)]">
-            <span aria-hidden className="text-[11px] leading-none">🧧</span>
+            <span aria-hidden className="text-[11px] leading-none">
+              🧧
+            </span>
             <span className="min-w-0 truncate">{t("Grab Coupon")}</span>
           </div>
         ) : null}
@@ -91,6 +93,12 @@ const CardBrandLogo = ({
         </div>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col gap-1">
+          <CategoryChip
+            label={categoryLabel}
+            iconIndex={iconIndex}
+            size="sm"
+            className="min-w-0 max-w-full self-start"
+          />
           <h3 className="line-clamp-2 min-h-[2.5em] text-sm font-semibold leading-tight text-(--gc-text)">
             {offer_name}
           </h3>
@@ -111,10 +119,7 @@ const CardBrandLogo = ({
               e.stopPropagation();
             }}
           >
-            <FavoriteBorder
-              sx={{ fontSize: 16, color: "var(--gc-primary-strong)" }}
-              aria-hidden
-            />
+            <FavoriteBorder sx={{ fontSize: 16, color: "var(--gc-primary-strong)" }} aria-hidden />
           </button>
         </div>
       )}

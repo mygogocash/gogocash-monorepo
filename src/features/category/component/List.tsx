@@ -14,10 +14,7 @@ import { IResponseCategory } from "@/interfaces/shop";
 import { fetcher } from "@/lib/axios/client";
 import { cn, getPercent } from "@/lib/utils";
 import { trackMerchantSearch, trackMerchantSelect } from "@/lib/analytics";
-import {
-  getBrandTileTint,
-  getOfferSquareLogoSrc,
-} from "@/lib/offer/offerCardVisuals";
+import { getBrandTileTint, getOfferSquareLogoSrc } from "@/lib/offer/offerCardVisuals";
 import Pagination from "@mui/material/Pagination";
 import { useBreakpointMdUp } from "@/hooks/useBreakpointMdUp";
 import { useUserCountry } from "@/hooks/useUserCountry";

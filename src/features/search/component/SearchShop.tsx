@@ -130,11 +130,11 @@ const SearchShop = ({ variant = "header" }: SearchShopProps) => {
   // Country-specific brands are hidden from users in other countries; global brands always show.
   const trendingList = useMemo(
     () => dedupeOffersByBrand(trendingOffers?.data ?? [], country),
-    [trendingOffers?.data, country],
+    [trendingOffers?.data, country]
   );
   const matchList = useMemo(
     () => dedupeOffersByBrand(searchOffers?.data ?? [], country),
-    [searchOffers?.data, country],
+    [searchOffers?.data, country]
   );
 
   const [popperWidthPx, setPopperWidthPx] = useState<number | null>(null);

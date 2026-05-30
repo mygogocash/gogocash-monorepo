@@ -32,5 +32,5 @@
     "**/*.mts",
     "src/i18n.js"
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "apps/mobile"]
 }

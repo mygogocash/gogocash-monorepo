@@ -110,10 +110,7 @@ export default function ReferYourFriendsRow() {
         <span className="whitespace-nowrap leading-normal">
           {t("profileReferInviteCopyLinkButton")}
         </span>
-        <ContentCopyOutlinedIcon
-          sx={{ fontSize: 14, color: "#fff", flexShrink: 0 }}
-          aria-hidden
-        />
+        <ContentCopyOutlinedIcon sx={{ fontSize: 14, color: "#fff", flexShrink: 0 }} aria-hidden />
       </button>
     </div>
   );

@@ -11,9 +11,7 @@ import { pickPolicyText, type PolicyContent } from "./useCategoryPolicy";
  *   5. "" → renderer hides the section
  */
 
-const content = (
-  overrides: Partial<PolicyContent>,
-): PolicyContent => ({
+const content = (overrides: Partial<PolicyContent>): PolicyContent => ({
   primary_locale: "th",
   translations: {},
   ...overrides,

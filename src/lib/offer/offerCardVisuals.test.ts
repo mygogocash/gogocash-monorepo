@@ -3,6 +3,7 @@ import type { DataOffer } from "@/interfaces/offer";
 import {
   formatOfferListingCondition,
   getDiscoverProductOutboundUrl,
+  getMockBrandLogoUrl,
   getOfferBannerSrc,
   getOfferCashbackPercentLabel,
   getOfferCategoryRowVisual,
@@ -17,6 +18,14 @@ describe("getOfferBannerSrc", () => {
   it("returns fallback when no banners", () => {
     expect(getOfferBannerSrc(stubOffer({ banner: "", banner_mobile: "" }), true)).toBe(
       "/home/banner.webp"
+    );
+  });
+});
+
+describe("getMockBrandLogoUrl", () => {
+  it("given an Amazon-like mock brand then avoids the removed Amazon simpleicons slug", () => {
+    expect(getMockBrandLogoUrl("Amazon Prime Nova")).toBe(
+      "https://cdn.simpleicons.org/ebay/ffffff"
     );
   });
 });

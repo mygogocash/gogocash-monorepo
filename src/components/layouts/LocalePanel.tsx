@@ -24,8 +24,24 @@ const REGIONS = [
   { code: "SEA", label: "Southeast Asia", flag: "🌏" },
 ] as const;
 
-type LangCode = (typeof LANGUAGES)[number]["code"];
 type RegionCode = (typeof REGIONS)[number]["code"];
+
+export function buildLocaleHref(
+  pathname: string,
+  currentLocale: string,
+  nextLocale: string
+): string {
+  const normalizedPathname = pathname.startsWith("/") ? pathname : `/${pathname}`;
+  const activeLocalePrefix = `/${currentLocale}`;
+  const pathWithoutLocale =
+    normalizedPathname === activeLocalePrefix
+      ? ""
+      : normalizedPathname.startsWith(`${activeLocalePrefix}/`)
+        ? normalizedPathname.slice(activeLocalePrefix.length)
+        : normalizedPathname;
+
+  return `/${nextLocale}${pathWithoutLocale}`;
+}
 
 /* ─── Shared option button ──────────────────────────────────────────── */
 
@@ -64,17 +80,13 @@ export default function LocalePanel() {
   const [region, setRegion] = useState<RegionCode>("TH");
   const rootRef = useRef<HTMLDivElement>(null);
 
-  const switchLocale = useCallback((locale: string) => {
-    setOpen(false);
-    const currentLoc =
-      document.cookie
-        .split("; ")
-        .find((c) => c.startsWith("NEXT_LOCALE="))
-        ?.split("=")[1] || "en";
-    const pathname = window.location.pathname;
-    const old = pathname.replace(`/${currentLoc}`, "");
-    window.location.href = `/${locale}${old}`;
-  }, []);
+  const switchLocale = useCallback(
+    (locale: string) => {
+      setOpen(false);
+      window.location.href = buildLocaleHref(window.location.pathname, currentLocale, locale);
+    },
+    [currentLocale]
+  );
 
   /* close on outside click / escape */
   useEffect(() => {

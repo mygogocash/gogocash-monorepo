@@ -31,10 +31,7 @@ export default function PolicyTermsSection({
   if (!text) return null;
 
   return (
-    <section
-      aria-labelledby="category-policy-terms-heading"
-      className="gc-home-section-y w-full"
-    >
+    <section aria-labelledby="category-policy-terms-heading" className="gc-home-section-y w-full">
       <details className="rounded-2xl border border-(--gc-border) bg-white p-4 shadow-sm dark:bg-white/[0.03]">
         <summary
           id="category-policy-terms-heading"

@@ -108,8 +108,6 @@ const nextConfig: NextConfig = {
         splitChunks: false,
       };
 
-      // Enable source maps for better debugging
-      config.devtool = "eval-cheap-module-source-map";
     }
     // Optimize bundle size
     config.optimization = {
