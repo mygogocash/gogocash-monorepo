@@ -556,6 +556,18 @@ export const webQuestLeaderboardRows = [
   { name: "Cash...fan", points: "680", rank: 5 },
 ] as const;
 
+export const webQuestMyRank = {
+  rankLabel: "My Rank",
+  rankValue: "12th",
+  pointsLabel: "My Total Points",
+  pointsValue: "1,250",
+  viewPointsLabel: "View Points",
+  spendingLabel: "Your Spending",
+  spendingValue: "950",
+  specialTasksLabel: "Your Special Tasks",
+  specialTasksValue: "300",
+} as const;
+
 export const webProfileSectionOrder = [
   "profileTitle",
   "walletSummaryHeroCard",

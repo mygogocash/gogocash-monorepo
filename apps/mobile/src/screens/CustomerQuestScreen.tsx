@@ -4,6 +4,7 @@ import {
   MousePointerClick as MousePointerClickIcon,
   Trophy as TrophyIcon,
 } from "@mobile/theme/icons";
+import { ChevronUp as ChevronUpIcon } from "@mobile/theme/icons";
 import { useState } from "react";
 import { Image, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
@@ -18,6 +19,7 @@ import {
   webAccountPageSurface,
   webHomePromoSections,
   webQuestLeaderboardRows,
+  webQuestMyRank,
   webQuestTaskRows,
   webQuestTabs,
 } from "@mobile/design/webDesignParity";
@@ -171,6 +173,55 @@ function TaskPointsPill({ points }: { points: string }) {
   );
 }
 
+function QuestMyRankCard() {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <View>
+      <View style={styles.myRankCard}>
+        <View style={styles.myRankColumn}>
+          <Text style={styles.myRankLabel}>{webQuestMyRank.rankLabel}</Text>
+          <View style={styles.myRankValueWrap}>
+            <Text style={styles.myRankValue}>{webQuestMyRank.rankValue}</Text>
+          </View>
+        </View>
+        <View style={styles.myRankColumn}>
+          <Text style={styles.myRankLabel}>{webQuestMyRank.pointsLabel}</Text>
+          <View style={styles.myRankValueWrap}>
+            <Text style={styles.myRankValue}>{webQuestMyRank.pointsValue}</Text>
+          </View>
+        </View>
+      </View>
+      <MotionPressable
+        hoverLift={false}
+        onPress={() => setExpanded((prev) => !prev)}
+        pressScale={0.98}
+        style={styles.viewPointsButton}
+      >
+        <Text style={styles.viewPointsText}>{webQuestMyRank.viewPointsLabel}</Text>
+        <ChevronUpIcon
+          color={colors.primary}
+          size={18}
+          strokeWidth={typography.iconStrokeWidth}
+          style={expanded ? undefined : styles.viewPointsIconCollapsed}
+        />
+      </MotionPressable>
+      {expanded ? (
+        <View style={styles.myRankBreakdown}>
+          <View style={styles.myRankBreakdownColumn}>
+            <Text style={styles.myRankBreakdownLabel}>{webQuestMyRank.spendingLabel}</Text>
+            <Text style={styles.myRankBreakdownValue}>{webQuestMyRank.spendingValue}</Text>
+          </View>
+          <Text style={styles.myRankBreakdownPlus}>+</Text>
+          <View style={styles.myRankBreakdownColumn}>
+            <Text style={styles.myRankBreakdownLabel}>{webQuestMyRank.specialTasksLabel}</Text>
+            <Text style={styles.myRankBreakdownValue}>{webQuestMyRank.specialTasksValue}</Text>
+          </View>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 function QuestLeaderboardPanel({ mediaColumnWidth }: { mediaColumnWidth: number }) {
   return (
     <View style={styles.leaderboardPanel}>
@@ -180,6 +231,7 @@ function QuestLeaderboardPanel({ mediaColumnWidth }: { mediaColumnWidth: number 
         source={questPromoImage}
         style={[styles.promoImage, { height: mediaColumnWidth / (484 / 320) }]}
       />
+      <QuestMyRankCard />
       <View style={styles.leaderboardCard}>
         <View style={styles.leaderboardHeader}>
           <View style={styles.leaderboardTitleRow}>
@@ -431,6 +483,83 @@ const styles = StyleSheet.create({
   },
   leaderboardCard: {
     gap: spacing.sm,
+  },
+  myRankCard: {
+    backgroundColor: "#F1FFFC",
+    borderColor: colors.primary,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginTop: spacing.lg,
+    padding: spacing.md,
+  },
+  myRankColumn: {
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  myRankLabel: {
+    color: colors.muted,
+    fontFamily: typography.family,
+    fontSize: typography.caption,
+    textAlign: "center",
+  },
+  myRankValueWrap: {
+    alignItems: "center",
+    height: 65,
+    justifyContent: "center",
+  },
+  myRankValue: {
+    color: colors.accentSoft,
+    fontFamily: typography.family,
+    fontSize: 40,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  viewPointsButton: {
+    alignItems: "center",
+    alignSelf: "flex-end",
+    flexDirection: "row",
+    gap: spacing.xs,
+    marginVertical: spacing.sm,
+  },
+  viewPointsText: {
+    color: colors.primary,
+    fontFamily: typography.family,
+    fontSize: typography.body,
+    fontWeight: "500",
+  },
+  viewPointsIconCollapsed: {
+    transform: [{ rotate: "90deg" }],
+  },
+  myRankBreakdown: {
+    alignItems: "center",
+    borderColor: "#CECBCB",
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    padding: spacing.md,
+  },
+  myRankBreakdownColumn: {
+    gap: spacing.xs,
+  },
+  myRankBreakdownLabel: {
+    color: colors.muted,
+    fontFamily: typography.family,
+    fontSize: typography.caption,
+  },
+  myRankBreakdownValue: {
+    color: "#000000",
+    fontFamily: typography.family,
+    fontSize: 24,
+    fontWeight: "500",
+  },
+  myRankBreakdownPlus: {
+    color: colors.muted,
+    fontFamily: typography.family,
+    fontSize: 24,
+    marginHorizontal: spacing.md,
   },
   leaderboardHeader: {
     alignItems: "center",

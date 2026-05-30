@@ -117,6 +117,18 @@ describe("Account hub route parity", () => {
     expect(designFile).toContain("Que...Kid");
     expect(designFile).toContain("1,590");
     expect(questFile).toContain("QuestLeaderboardPanel");
+
+    // Web Quest ListRank renders a MyRank summary card above the rank list (MyRank.tsx):
+    // #F1FFFC card, #00CC99 border, two columns My Rank / My Total Points, plus a View Points
+    // expander revealing Your Spending + Your Special Tasks. Expo had none.
+    expect(questFile).toContain("QuestMyRankCard");
+    expect(questFile).toContain("webQuestMyRank");
+    expect(questFile).toContain("#F1FFFC");
+    expect(designFile).toContain("webQuestMyRank");
+    expect(designFile).toContain("My Rank");
+    expect(designFile).toContain("My Total Points");
+    expect(designFile).toContain("View Points");
+    expect(designFile).toContain("Your Spending");
     expect(questFile).toContain('activeTab === "leaderboard"');
     expect(questFile).toContain("questPromoImage");
     expect(questFile).toContain("GoGoQuest History");
