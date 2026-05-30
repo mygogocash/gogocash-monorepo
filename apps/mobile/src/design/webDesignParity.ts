@@ -134,6 +134,24 @@ function getCompactBrandGrid(viewportWidth: number) {
   };
 }
 
+export function getDesktopFooterGrid(viewportWidth: number) {
+  // Mirrors web Footer.tsx grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-3 lg:gap-16:
+  // columns collapse 3 -> 2 -> 1 and the gap steps 64 (lg) down to 32 on narrower widths.
+  if (viewportWidth >= 1024) {
+    return { columns: 3, gap: 64, columnBasis: "auto" as const };
+  }
+
+  if (viewportWidth >= 768) {
+    return { columns: 3, gap: 32, columnBasis: "auto" as const };
+  }
+
+  if (viewportWidth >= 640) {
+    return { columns: 2, gap: 32, columnBasis: "45%" as const };
+  }
+
+  return { columns: 1, gap: 32, columnBasis: "100%" as const };
+}
+
 export function getResponsiveHomeLayoutMetrics(viewportWidth: number) {
   const isDesktop = viewportWidth >= mobileShellLayout.desktopBreakpoint;
   const contentMaxWidth = mobileShellLayout.contentMaxWidth;
