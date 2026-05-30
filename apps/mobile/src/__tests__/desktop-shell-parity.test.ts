@@ -78,4 +78,38 @@ describe("desktop route shell parity", () => {
       expect(screenFile, `${screenPath} desktop footer slot`).toContain("CustomerDesktopFooterSlot");
     }
   });
+
+  // Regression guard: every directory sub-screen inside CustomerDiscoveryScreen
+  // must render the mobile bottom nav at mobile width, matching the sibling
+  // CategoryDetail/ShopDetail routes. Previously /brand, /discover, /shops
+  // reserved nav clearance (homeLayout.pageBottomPadding) but never rendered the
+  // nav, so the bottom nav appeared on /category and /shop/[id] but vanished on
+  // the directory routes — inconsistent chrome across sibling routes.
+  it("mobile bottom nav > given every Discovery directory sub-screen > then each renders CustomerMobileBottomNav at mobile width", () => {
+    const discovery = readMobileFile("src/screens/CustomerDiscoveryScreen.tsx");
+
+    // Slice each function's true body: from its `function Xxx()` definition up to
+    // the next top-level `function ` definition (or the styles block).
+    function functionBody(name: string): string {
+      const defMarker = `function ${name}(`;
+      const start = discovery.indexOf(defMarker);
+      expect(start, `${defMarker} definition not found`).toBeGreaterThan(-1);
+      const after = discovery.indexOf("\nfunction ", start + defMarker.length);
+      const stylesAt = discovery.indexOf("\nconst styles = StyleSheet.create(", start);
+      const candidates = [after, stylesAt].filter((n) => n > start);
+      const end = candidates.length ? Math.min(...candidates) : discovery.length;
+      return discovery.slice(start, end);
+    }
+
+    for (const name of [
+      "BrandDirectoryScreen",
+      "ProductDiscoveryScreen",
+      "ShopDirectoryScreen",
+      "CategoryDirectoryScreen",
+    ]) {
+      expect(functionBody(name), `${name} should render CustomerMobileBottomNav`).toContain(
+        "CustomerMobileBottomNav"
+      );
+    }
+  });
 });
