@@ -248,7 +248,12 @@ function ReferralInvitationTable() {
         <View key={`${row.date}-${row.user}`} style={styles.tableRow}>
           <Text style={styles.tableCell}>{row.date}</Text>
           <Text style={styles.tableCell}>{row.user}</Text>
-          <Text style={[styles.tableCell, styles.tableCellRight]}>{row.point}</Text>
+          <Text style={styles.tableCell}>{row.point}</Text>
+          <View style={styles.tableCell}>
+            <View style={styles.invitationStatusPill}>
+              <Text style={styles.invitationStatusPillText}>{row.status}</Text>
+            </View>
+          </View>
         </View>
       ))}
     </View>
@@ -584,6 +589,20 @@ const styles = StyleSheet.create({
   },
   tableCellRight: {
     textAlign: "right",
+  },
+  invitationStatusPill: {
+    alignSelf: "flex-start",
+    backgroundColor: "#E6F7ED",
+    borderRadius: 30,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+  invitationStatusPillText: {
+    color: "#00B14F",
+    fontFamily: typography.family,
+    fontSize: typography.label,
+    fontWeight: typography.labelWeight,
+    lineHeight: typography.labelLineHeight,
   },
   stepsBanner: {
     aspectRatio: 924 / 472,
