@@ -159,4 +159,19 @@ describe("Brand directory parity", () => {
       "Browse cashback partners and open the best available tracking route."
     );
   });
+
+  // Regression guard: directory category asides render a per-category icon via
+  // getCategoryIcon (web shows a distinct glyph per category), not a single
+  // uniform SlidersHorizontal filter glyph on every row.
+  it("category aside icons > given directory category rows > then each uses getCategoryIcon, not a uniform filter glyph", () => {
+    const screenSource = fs.readFileSync(
+      path.join(mobileRoot, "src/screens/CustomerDiscoveryScreen.tsx"),
+      "utf8"
+    );
+
+    expect(screenSource).toContain('from "@mobile/theme/categoryIcons"');
+    const lookups = screenSource.match(/getCategoryIcon\(/g) ?? [];
+    expect(lookups.length).toBeGreaterThanOrEqual(3);
+    expect(screenSource).not.toContain("SlidersIcon");
+  });
 });
