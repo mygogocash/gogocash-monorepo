@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { useRouter } from "expo-router";
-import { Cookie as CookieIcon } from "lucide-react-native";
+import { Cookie as CookieIcon } from "@mobile/theme/icons";
 import { StyleSheet, Text, View } from "react-native";
 
 import { webCookieConsentBanner } from "@mobile/design/webDesignParity";

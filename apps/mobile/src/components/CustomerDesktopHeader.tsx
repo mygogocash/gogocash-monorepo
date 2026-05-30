@@ -1,12 +1,4 @@
 import { Link } from "expo-router";
-import AirplaneTilt from "phosphor-react-native/lib/module/icons/AirplaneTilt";
-import DeviceMobile from "phosphor-react-native/lib/module/icons/DeviceMobile";
-import Heartbeat from "phosphor-react-native/lib/module/icons/Heartbeat";
-import SquaresFour from "phosphor-react-native/lib/module/icons/SquaresFour";
-import Storefront from "phosphor-react-native/lib/module/icons/Storefront";
-import Tag from "phosphor-react-native/lib/module/icons/Tag";
-import type { PhosphorIconProps } from "phosphor-react-native/lib/module/icons/Globe";
-import type { ComponentType } from "react";
 import { useState } from "react";
 import { Image, ScrollView, StyleSheet, Text, View } from "react-native";
 
@@ -21,13 +13,20 @@ import {
   mobileShellLayout,
   webDesktopHeaderNavItems,
 } from "@mobile/design/webDesignParity";
+import {
+  AirplaneTilt,
+  DeviceMobile,
+  Heartbeat,
+  SquaresFour,
+  Storefront,
+  Tag,
+  type IconComponent,
+} from "@mobile/theme/icons";
 import { motion } from "@mobile/theme/motion";
 import { colors, radii, spacing, typography } from "@mobile/theme/tokens";
 
-type PhosphorIconComponent = ComponentType<PhosphorIconProps>;
-
 const desktopNavIcons: Partial<
-  Record<(typeof webDesktopHeaderNavItems)[number]["icon"], PhosphorIconComponent>
+  Record<(typeof webDesktopHeaderNavItems)[number]["icon"], IconComponent>
 > = {
   electronics: DeviceMobile,
   health: Heartbeat,

@@ -3,34 +3,33 @@ import {
   useEffect,
   useMemo,
   useState,
-  type ComponentType,
   type ReactNode,
 } from "react";
 import { Link, useRouter } from "expo-router";
 import {
+  AirplaneTilt,
   BookOpen as BookOpenIcon,
   ChevronRight as ChevronRightIcon,
   CircleUserRound as ProfileIcon,
+  DeviceMobile,
   Grid2X2 as GridIcon,
   Heart as HeartIcon,
+  Heartbeat,
   Home as HomeIcon,
+  type IconComponent,
   Info as InfoIcon,
   Link2 as LinkIcon,
   Search as SearchIcon,
   ShoppingBag as ShoppingBagIcon,
+  SquaresFour,
   Store as StoreIcon,
+  Storefront,
+  Tag,
   Tags as TagsIcon,
   TrendingUp as TrendingUpIcon,
   Trophy as TrophyIcon,
   WalletCards as WalletIcon,
-} from "lucide-react-native";
-import AirplaneTilt from "phosphor-react-native/lib/module/icons/AirplaneTilt";
-import DeviceMobile from "phosphor-react-native/lib/module/icons/DeviceMobile";
-import Heartbeat from "phosphor-react-native/lib/module/icons/Heartbeat";
-import SquaresFour from "phosphor-react-native/lib/module/icons/SquaresFour";
-import Storefront from "phosphor-react-native/lib/module/icons/Storefront";
-import Tag from "phosphor-react-native/lib/module/icons/Tag";
-import type { PhosphorIconProps } from "phosphor-react-native/lib/module/icons/Globe";
+} from "@mobile/theme/icons";
 import {
   Animated,
   Image,
@@ -95,13 +94,7 @@ import { isValidGoLinkUrl } from "@mobile/features/golink";
 import { motion } from "@mobile/theme/motion";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
-type HomeIconComponent = ComponentType<{
-  color?: string;
-  size?: number;
-  strokeWidth?: number;
-}>;
-
-type PhosphorIconComponent = ComponentType<PhosphorIconProps>;
+type HomeIconComponent = IconComponent;
 
 const heroBannerAssets: Record<string, ImageSourcePropType> = {
   "home-banner": homeBannerImage,
@@ -122,7 +115,7 @@ const shortcutIcons: Record<string, HomeIconComponent> = {
   shops: GridIcon,
 };
 
-const desktopNavIcons: Record<string, PhosphorIconComponent> = {
+const desktopNavIcons: Record<string, IconComponent> = {
   electronics: DeviceMobile,
   health: Heartbeat,
   promotion: Tag,

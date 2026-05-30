@@ -5,7 +5,7 @@ import {
   Hourglass as HourglassIcon,
   Info as InfoIcon,
   WalletCards as WalletCardsIcon,
-} from "lucide-react-native";
+} from "@mobile/theme/icons";
 import type { ReactNode } from "react";
 import {
   Image,

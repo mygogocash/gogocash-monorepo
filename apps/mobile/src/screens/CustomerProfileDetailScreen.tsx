@@ -15,7 +15,7 @@ import {
   Save as SaveIcon,
   User as UserIcon,
   WalletCards as WalletIcon,
-} from "lucide-react-native";
+} from "@mobile/theme/icons";
 
 import { AccountPageShell, AccountWalletHeroCard } from "@mobile/components/AccountPageShell";
 import {

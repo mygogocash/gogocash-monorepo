@@ -4,7 +4,7 @@ import {
   Phone as PhoneIcon,
   ShieldCheck as ShieldCheckIcon,
   Wallet as CryptoIcon,
-} from "lucide-react-native";
+} from "@mobile/theme/icons";
 import { useState } from "react";
 import {
   Image,

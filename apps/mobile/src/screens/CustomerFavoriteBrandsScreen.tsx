@@ -3,7 +3,7 @@ import {
   ChevronLeft as ChevronLeftIcon,
   Search as SearchIcon,
   ShoppingCart as ShoppingCartIcon,
-} from "lucide-react-native";
+} from "@mobile/theme/icons";
 import type { ReactNode } from "react";
 import { Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 

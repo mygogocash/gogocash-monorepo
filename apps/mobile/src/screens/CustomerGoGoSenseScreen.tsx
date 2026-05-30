@@ -10,7 +10,7 @@ import {
   Settings as SettingsIcon,
   ShieldCheck as ShieldIcon,
   Store as StoreIcon,
-} from "lucide-react-native";
+} from "@mobile/theme/icons";
 import type { ComponentType } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";

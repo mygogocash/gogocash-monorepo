@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import Globe from "phosphor-react-native/lib/module/icons/Globe";
 import { Animated, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { Globe } from "@mobile/theme/icons";
 import { webLocaleRegionPanel } from "@mobile/design/webDesignParity";
 import { motion } from "@mobile/theme/motion";
 import { colors, radii, typography } from "@mobile/theme/tokens";

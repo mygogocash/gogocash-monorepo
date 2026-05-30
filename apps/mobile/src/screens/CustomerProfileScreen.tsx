@@ -18,7 +18,7 @@ import {
   UserPlus as InviteIcon,
   UserRound as ProfileIcon,
   WalletCards as WalletIcon,
-} from "lucide-react-native";
+} from "@mobile/theme/icons";
 import type { ComponentType } from "react";
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";

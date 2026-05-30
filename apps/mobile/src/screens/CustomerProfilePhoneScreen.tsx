@@ -1,5 +1,5 @@
 import { Link, useRouter } from "expo-router";
-import { ChevronLeft as ChevronLeftIcon, Smartphone as PhoneIcon } from "lucide-react-native";
+import { ChevronLeft as ChevronLeftIcon, Smartphone as PhoneIcon } from "@mobile/theme/icons";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";

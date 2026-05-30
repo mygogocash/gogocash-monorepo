@@ -6,7 +6,7 @@ import {
   Info as InfoIcon,
   Link2 as LinkIcon,
   X as CloseIcon,
-} from "lucide-react-native";
+} from "@mobile/theme/icons";
 import {
   Animated,
   Image,

@@ -21,7 +21,7 @@ import {
   Heart as HeartIcon,
   Search as SearchIcon,
   SlidersHorizontal as SlidersIcon,
-} from "lucide-react-native";
+} from "@mobile/theme/icons";
 
 import homeBannerImage from "../../assets/home-banner.png";
 import popularBeautyImage from "../../assets/popular-beauty.png";

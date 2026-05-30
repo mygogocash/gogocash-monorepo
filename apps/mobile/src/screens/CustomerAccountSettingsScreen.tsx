@@ -3,7 +3,7 @@ import {
   ChevronLeft as ChevronLeftIcon,
   Mail as MailIcon,
   MessageCircle as LineIcon,
-} from "lucide-react-native";
+} from "@mobile/theme/icons";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import {

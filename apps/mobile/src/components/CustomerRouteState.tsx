@@ -5,7 +5,7 @@ import {
   Inbox as EmptyIcon,
   Lock as LockIcon,
   WifiOff as OfflineIcon,
-} from "lucide-react-native";
+} from "@mobile/theme/icons";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";

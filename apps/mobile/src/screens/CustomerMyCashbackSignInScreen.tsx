@@ -3,7 +3,7 @@ import {
   CheckCircle2 as CheckCircleIcon,
   ChevronLeft as ChevronLeftIcon,
   Link as LinkIcon,
-} from "lucide-react-native";
+} from "@mobile/theme/icons";
 import {
   Image,
   Pressable,

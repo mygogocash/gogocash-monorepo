@@ -8,7 +8,7 @@ import {
   Shirt as ShirtIcon,
   ShoppingBag as ShoppingBagIcon,
   Share2 as ShareIcon,
-} from "lucide-react-native";
+} from "@mobile/theme/icons";
 import { Image, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 

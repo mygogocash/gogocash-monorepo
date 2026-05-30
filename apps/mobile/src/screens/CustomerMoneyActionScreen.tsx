@@ -18,7 +18,7 @@ import {
   AlertCircle as AlertIcon,
   CheckCircle2 as SuccessIcon,
   Coins as CoinIcon,
-} from "lucide-react-native";
+} from "@mobile/theme/icons";
 
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { mobileShellLayout } from "@mobile/design/webDesignParity";
