@@ -4,8 +4,10 @@ import { handleMockApiRequest } from "@/lib/mockApiCore";
 
 const isFirebaseStaticExport = process.env.BUILD_FOR_FIREBASE === "1";
 
-/** Use literal so Next can parse segment config; Firebase static export sets BUILD_FOR_FIREBASE=1. */
-export const dynamic = "auto";
+/** Next 16 requires `dynamic` to be a static literal. "force-dynamic" prevents
+ *  DYNAMIC_SERVER_USAGE errors on Railway/Node deploys. If Firebase static
+ *  export is re-enabled, change this to "auto" and rebuild. */
+export const dynamic = "force-dynamic";
 
 /**
  * Enumerate mock API paths for static export. Deduplicated because GET/POST/PUT may share paths.
