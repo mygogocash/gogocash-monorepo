@@ -105,9 +105,7 @@ export function CustomerProfileOffersScreen() {
 }
 
 function copyOfferLink(deeplink: string) {
-  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-    void navigator.clipboard.writeText(deeplink).catch(() => undefined);
-  }
+  void copyToClipboard(deeplink);
 }
 
 const styles = StyleSheet.create({
