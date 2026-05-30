@@ -460,6 +460,14 @@ describe("Account hub route parity", () => {
     expect(referralFile).toContain("ReferralInvitationPanel");
     expect(referralFile).toContain("ReferralInvitationTabs");
     expect(referralFile).toContain("ReferralInvitationTable");
+
+    // Web ReferralInvitationPanel renders a 4th Status column with a green Success pill.
+    expect(designFile).toContain('"Point", "Status"');
+    expect(designFile).toContain('status: "Success"');
+    expect(referralFile).toContain("{row.status}");
+    expect(referralFile).toContain("invitationStatusPill");
+    expect(referralFile).toContain("#E6F7ED");
+    expect(referralFile).toContain("#00B14F");
     expect(referralFile).toContain("ReferralStepsSection");
     expect(referralFile).toContain("ReferralFaqsSection");
     expect(referralFile).toContain("referralHeroBannerImage");

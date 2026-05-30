@@ -679,8 +679,8 @@ export const webReferralPage = {
   invitation: {
     title: "Invitation",
     tabs: ["All Invitations", "Created Account", "Shopped with Us"],
-    columns: ["Date", "User", "Point"],
-    rows: [{ date: "3/28/2026", user: "FriendInvite", point: "120 pts" }],
+    columns: ["Date", "User", "Point", "Status"],
+    rows: [{ date: "3/28/2026", user: "FriendInvite", point: "120 pts", status: "Success" }],
   },
   steps: {
     title: "Share with Friends and Get Rewards",
