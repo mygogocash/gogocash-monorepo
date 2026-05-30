@@ -100,6 +100,51 @@ export function CustomerDesktopHeader({ viewportWidth }: { viewportWidth: number
   );
 }
 
+// Web SubHeader fades the underline in on hover for inactive tabs (group-hover:opacity-40).
+const webSubNavHoverUnderlineOpacity = 0.4;
+
+function DesktopCategoryTab({ item }: { item: (typeof webDesktopHeaderNavItems)[number] }) {
+  const [hovered, setHovered] = useState(false);
+  const underlineOpacity = item.active ? 1 : hovered ? webSubNavHoverUnderlineOpacity : 0;
+
+  return (
+  <Link asChild href={item.href as never} key={item.id}>
+                <MotionPressable
+                  onHoverIn={() => setHovered(true)}
+                  onHoverOut={() => setHovered(false)}
+                  pressScale={motion.scale.subtlePress}
+                  style={StyleSheet.flatten([
+                    styles.desktopCategoryNavItem,
+                    "menuTypography" in item && item.menuTypography === "lead"
+                      ? styles.desktopCategoryNavItemLead
+                      : null,
+                  ])}
+                >
+                  <DesktopCategoryNavIcon name={item.icon} active={Boolean(item.active)} />
+                  <Text
+                    style={[
+                      styles.desktopCategoryNavText,
+                      "menuTypography" in item && item.menuTypography === "lead"
+                        ? styles.desktopCategoryNavTextLead
+                        : null,
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
+                  {"showFire" in item && item.showFire ? (
+                    <Image
+                      alt=""
+                      resizeMode="cover"
+                      source={menuFireImage}
+                      style={styles.desktopCategoryFire}
+                    />
+                  ) : null}
+                  <View style={[styles.desktopCategoryUnderline, { opacity: underlineOpacity }]} />
+                </MotionPressable>
+              </Link>
+  );
+}
+
 function DesktopCategoryNav({
   shellContentWidth,
   shellPadding,
@@ -122,38 +167,7 @@ function DesktopCategoryNav({
           style={styles.desktopCategoryNavScroller}
         >
           {webDesktopHeaderNavItems.map((item) => (
-            <Link asChild href={item.href as never} key={item.id}>
-              <MotionPressable
-                pressScale={motion.scale.subtlePress}
-                style={StyleSheet.flatten([
-                  styles.desktopCategoryNavItem,
-                  "menuTypography" in item && item.menuTypography === "lead"
-                    ? styles.desktopCategoryNavItemLead
-                    : null,
-                ])}
-              >
-                <DesktopCategoryNavIcon name={item.icon} active={Boolean(item.active)} />
-                <Text
-                  style={[
-                    styles.desktopCategoryNavText,
-                    "menuTypography" in item && item.menuTypography === "lead"
-                      ? styles.desktopCategoryNavTextLead
-                      : null,
-                  ]}
-                >
-                  {item.label}
-                </Text>
-                {"showFire" in item && item.showFire ? (
-                  <Image
-                    alt=""
-                    resizeMode="cover"
-                    source={menuFireImage}
-                    style={styles.desktopCategoryFire}
-                  />
-                ) : null}
-                {item.active ? <View style={styles.desktopCategoryUnderline} /> : null}
-              </MotionPressable>
-            </Link>
+            <DesktopCategoryTab item={item} key={item.id} />
           ))}
         </ScrollView>
       </View>
