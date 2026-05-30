@@ -23,8 +23,8 @@ import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottom
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import {
   getResponsiveHomeLayoutMetrics,
+  getShopDirectoryResults,
   mobileShellLayout,
-  webDiscoverProductCards,
   webShopDetailGroceryGalaxy,
 } from "@mobile/design/webDesignParity";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
@@ -345,8 +345,8 @@ function ShopTermsPanel({ shop }: { shop: ShopDetail }) {
 }
 
 function ShopExploreRelated() {
-  const related = webDiscoverProductCards.filter(
-    (card) => card.id !== webShopDetailGroceryGalaxy.id
+  const related = getShopDirectoryResults().filter(
+    (store) => store.id !== webShopDetailGroceryGalaxy.id
   );
 
   return (
@@ -357,18 +357,39 @@ function ShopExploreRelated() {
         horizontal
         showsHorizontalScrollIndicator={false}
       >
-        {related.slice(0, 6).map((card) => (
-          <Link asChild href={`/shop/${card.id}` as never} key={card.id}>
+        {related.slice(0, 6).map((store) => (
+          <Link asChild href={`/shop/${store.id}` as never} key={store.id}>
             <MotionPressable pressScale={0.98} style={styles.relatedCard}>
-              <View style={[styles.relatedVisual, { backgroundColor: card.tint }]}>
-                <Text style={styles.relatedLogo}>{card.brand.slice(0, 2).toUpperCase()}</Text>
+              <View style={[styles.relatedVisual, { backgroundColor: store.tint }]}>
+                <Image
+                  alt={`${store.brand} logo`}
+                  accessibilityLabel={`${store.brand} logo`}
+                  resizeMode="contain"
+                  source={{ uri: store.logoUri }}
+                  style={styles.relatedLogoImage}
+                />
+                {store.showGrabCoupon ? (
+                  <View style={styles.relatedCouponBadge}>
+                    <Text style={styles.relatedCouponIcon}>🧧</Text>
+                    <Text numberOfLines={1} style={styles.relatedCouponText}>
+                      {store.label}
+                    </Text>
+                  </View>
+                ) : null}
+                <View accessibilityLabel="Add to favorites" style={styles.relatedFavoriteButton}>
+                  <HeartIcon
+                    color={colors.primaryDark}
+                    size={16}
+                    strokeWidth={typography.iconStrokeWidth}
+                  />
+                </View>
               </View>
               <Text numberOfLines={1} style={styles.relatedName}>
-                {card.brand}
+                {store.brand}
               </Text>
               <View style={styles.relatedCashbackRow}>
                 <Text style={styles.relatedCashbackCaption}>Cashback up to</Text>
-                <Text style={styles.relatedCashbackValue}>{card.cashback}</Text>
+                <Text style={styles.relatedCashbackValue}>{store.cashback}</Text>
               </View>
             </MotionPressable>
           </Link>
@@ -901,13 +922,52 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     height: 112,
     justifyContent: "center",
+    overflow: "hidden",
+    padding: 12,
+    position: "relative",
     width: "100%",
   },
-  relatedLogo: {
-    color: colors.white,
+  relatedLogoImage: {
+    height: 56,
+    width: 96,
+  },
+  relatedCouponBadge: {
+    alignItems: "center",
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 4,
+    left: 8,
+    maxWidth: 120,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    position: "absolute",
+    top: 8,
+  },
+  relatedCouponIcon: {
+    fontSize: 11,
+    lineHeight: 13,
+  },
+  relatedCouponText: {
+    color: colors.ink,
+    flexShrink: 1,
     fontFamily: typography.family,
-    fontSize: 30,
-    fontWeight: "700",
+    fontSize: 10,
+  },
+  relatedFavoriteButton: {
+    alignItems: "center",
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 28,
+    justifyContent: "center",
+    position: "absolute",
+    right: 8,
+    top: 8,
+    width: 28,
   },
   relatedName: {
     color: colors.ink,
