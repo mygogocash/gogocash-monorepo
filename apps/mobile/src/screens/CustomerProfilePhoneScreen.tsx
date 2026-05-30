@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   title: {
-    color: colors.primaryDark,
+    color: "#00B14F",
     fontFamily: typography.family,
     fontSize: 26,
     fontWeight: "800",

@@ -154,6 +154,7 @@ describe("Remaining customer route parity", () => {
     expect(phoneScreen).toContain("Verification Code");
     expect(phoneScreen).toContain("Invalid phone number");
     expect(phoneScreen).toContain("/profile/cf-phone");
+    expect(phoneScreen).toContain("#00B14F");
   });
 
   it("rn web warnings > given account image screens > then resizeMode is passed as an Image prop", () => {
