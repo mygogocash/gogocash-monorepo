@@ -1,14 +1,14 @@
 # GoGoCash Expo Migration — Live Context
 
-_Last updated: 2026-05-31. Branch `expo-module`, HEAD `4f0e2a9` (pushed to origin, synced)._
+_Last updated: 2026-05-31. Branch `expo-module`, HEAD `8d119f9` (pushed to origin, synced)._
 
 What's done / what's left in the Next.js → Expo migration for `apps/mobile`. See `agent.md` for workflow, `design.md` for the design system, `project.md` for the repo map.
 
 ## Scope
 Visual/structural parity with the frozen Next.js reference (`gogocash_app-staging`). Live-data wiring, auth, i18n, analytics, web3, and Stripe checkout remain parked. Audit caveat: the gap audit had a **~50% false-positive rate** — always ground-truth against BOTH the real web file and the real Expo file before fixing.
 
-## State: everything below is committed AND pushed to `origin/expo-module` (HEAD 4f0e2a9)
-Full suite **250 passed / 0 failed / 0 todo**, tsc 0 errors.
+## State: everything below is committed AND pushed to `origin/expo-module` (HEAD 8d119f9)
+Full suite **250 passed / 0 failed / 0 todo**, tsc **0 errors** (verify tsc separately — source-string parity tests do not compile components, so the suite can be green while tsc is red; a StyleSheet.absoluteFillObject TS2551 slipped through once and was fixed in 6de020e).
 
 Visual-parity fixes:
 1. Referral invitation table — 4th "Status" column + green Success pill (#E6F7ED / #00B14F, radius 30).
