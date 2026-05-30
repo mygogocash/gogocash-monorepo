@@ -10,6 +10,7 @@ import { Image, Linking, Pressable, StyleSheet, Text, useWindowDimensions, View 
 
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
+import { copyToClipboard } from "@mobile/lib/clipboard";
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { mobileShellLayout, profileInviteUrl, webReferralPage } from "@mobile/design/webDesignParity";
@@ -135,9 +136,7 @@ function ReferralEarnCard({ isDesktop }: { isDesktop: boolean }) {
 }
 
 function copyReferralLink() {
-  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-    void navigator.clipboard.writeText(profileInviteUrl).catch(() => undefined);
-  }
+  void copyToClipboard(profileInviteUrl);
 }
 
 function shareUrlEncoded(url: string): string {

@@ -29,6 +29,7 @@ import { AccountPageShell, AccountWalletHeroCard } from "@mobile/components/Acco
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { clearMobileAppSession } from "@mobile/auth/session";
 import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
+import { copyToClipboard } from "@mobile/lib/clipboard";
 import {
   profileInviteUrl,
   profileHubMenuItems,
@@ -251,9 +252,7 @@ function InviteFriendsRow({ href }: { href: string }) {
 }
 
 function copyInviteLink() {
-  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-    void navigator.clipboard.writeText(profileInviteUrl);
-  }
+  void copyToClipboard(profileInviteUrl);
 }
 
 function ProfileNavRow({
