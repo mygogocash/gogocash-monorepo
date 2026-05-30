@@ -141,6 +141,26 @@ describe("Remaining customer route parity", () => {
     expect(subscriptionScreen).not.toContain("Ready");
   });
 
+  it("membership landing > given the Next savings + social-proof sections > then Expo renders the proof card and stat row", () => {
+    const membershipScreen = readMobileFile("src/screens/CustomerMembershipScreen.tsx");
+    const parityFixture = readMobileFile("src/design/webDesignParity.ts");
+
+    expect(parityFixture).toContain("webMembershipLanding");
+    expect(parityFixture).toContain("Annual saves you real money");
+    expect(parityFixture).toContain("฿588");
+    expect(parityFixture).toContain("฿490");
+    expect(parityFixture).toContain("฿98 (~16%)");
+    expect(parityFixture).toContain("220+");
+    expect(parityFixture).toContain("Built for real shopping in Thailand");
+    expect(parityFixture).toContain("per month on the flexible monthly plan");
+
+    expect(membershipScreen).toContain("webMembershipLanding");
+    expect(membershipScreen).toContain("styles.savingsSection");
+    expect(membershipScreen).toContain("styles.socialSection");
+    expect(membershipScreen).toContain("webMembershipLanding.savings.youSaveValue");
+    expect(membershipScreen).toContain("webMembershipLanding.socialProof.stats.map");
+  });
+
   it("profile detail routes > given offer and phone flows > then Expo keeps the Next data and OTP contracts visible", () => {
     const offerScreen = readMobileFile("src/screens/CustomerProfileOffersScreen.tsx");
     const phoneScreen = readMobileFile("src/screens/CustomerProfilePhoneScreen.tsx");

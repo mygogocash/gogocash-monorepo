@@ -11,7 +11,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
-import { mobileShellLayout } from "@mobile/design/webDesignParity";
+import { mobileShellLayout, webMembershipLanding } from "@mobile/design/webDesignParity";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 const memberBenefits = [
@@ -133,6 +133,39 @@ export function CustomerMembershipScreen() {
               title="Priority support"
               body="Member requests move through the support queue first."
             />
+          </View>
+
+          <View style={styles.savingsSection}>
+            <Text style={styles.sectionTitle}>{webMembershipLanding.savings.heading}</Text>
+            <Text style={styles.sectionBody}>{webMembershipLanding.savings.subtitle}</Text>
+            <View style={styles.savingsCard}>
+              <View style={styles.savingsRow}>
+                <Text style={styles.savingsRowLabel}>{webMembershipLanding.savings.monthlyLine}</Text>
+                <Text style={styles.savingsRowValue}>{webMembershipLanding.savings.monthlyValue}</Text>
+              </View>
+              <View style={styles.savingsRow}>
+                <Text style={styles.savingsRowLabel}>{webMembershipLanding.savings.annualLine}</Text>
+                <Text style={styles.savingsRowValue}>{webMembershipLanding.savings.annualValue}</Text>
+              </View>
+              <View style={[styles.savingsRow, styles.savingsRowTotal]}>
+                <Text style={styles.savingsRowLabel}>{webMembershipLanding.savings.youSaveLabel}</Text>
+                <Text style={styles.savingsRowAccent}>{webMembershipLanding.savings.youSaveValue}</Text>
+              </View>
+              <Text style={styles.savingsFootnote}>{webMembershipLanding.savings.footnote}</Text>
+            </View>
+          </View>
+
+          <View style={styles.socialSection}>
+            <Text style={styles.sectionTitle}>{webMembershipLanding.socialProof.heading}</Text>
+            <Text style={styles.sectionBody}>{webMembershipLanding.socialProof.subtitle}</Text>
+            <View style={styles.statsRow}>
+              {webMembershipLanding.socialProof.stats.map((stat) => (
+                <View key={stat.caption} style={styles.statCard}>
+                  <Text style={styles.statValue}>{stat.value}</Text>
+                  <Text style={styles.statCaption}>{stat.caption}</Text>
+                </View>
+              ))}
+            </View>
           </View>
 
           <View style={styles.faqSection}>
@@ -397,5 +430,83 @@ const styles = StyleSheet.create({
     fontFamily: typography.family,
     fontSize: typography.caption,
     lineHeight: 19,
+  },
+  savingsSection: {
+    gap: spacing.md,
+  },
+  savingsCard: {
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    boxShadow: shadows.cardCss,
+    gap: spacing.sm,
+    padding: spacing.lg,
+  },
+  savingsRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  savingsRowTotal: {
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    marginTop: spacing.xs,
+    paddingTop: spacing.sm,
+  },
+  savingsRowLabel: {
+    color: colors.ink,
+    flex: 1,
+    fontFamily: typography.family,
+    fontSize: typography.body,
+  },
+  savingsRowValue: {
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: typography.body,
+    fontWeight: "700",
+  },
+  savingsRowAccent: {
+    color: colors.primaryDark,
+    fontFamily: typography.family,
+    fontSize: typography.title,
+    fontWeight: "800",
+  },
+  savingsFootnote: {
+    color: colors.muted,
+    fontFamily: typography.family,
+    fontSize: typography.caption,
+    lineHeight: 18,
+    marginTop: spacing.xs,
+  },
+  socialSection: {
+    gap: spacing.md,
+  },
+  statsRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  statCard: {
+    alignItems: "center",
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flex: 1,
+    gap: spacing.xs,
+    padding: spacing.md,
+  },
+  statValue: {
+    color: colors.primaryDark,
+    fontFamily: typography.family,
+    fontSize: 24,
+    fontWeight: "800",
+  },
+  statCaption: {
+    color: colors.muted,
+    fontFamily: typography.family,
+    fontSize: typography.caption,
+    lineHeight: 16,
+    textAlign: "center",
   },
 });
