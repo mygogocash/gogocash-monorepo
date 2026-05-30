@@ -18,6 +18,7 @@ import {
   mobileShellLayout,
   webAccountPageSurface,
   webHomePromoSections,
+  webQuestHistory,
   webQuestLeaderboardRows,
   webQuestMyRank,
   webQuestTaskRows,
@@ -44,6 +45,14 @@ export function CustomerQuestScreen({ history = false }: { history?: boolean }) 
       : mobileShellLayout.contentHorizontalPadding * 2);
   const heroHeight = contentWidth / (1200 / 675);
   const mediaColumnWidth = isDesktop ? (contentWidth - spacing.lg) / 2 : contentWidth;
+
+  if (history) {
+    return (
+      <AccountPageShell activeRouteId="quest" title="Quest History">
+        <QuestHistoryView />
+      </AccountPageShell>
+    );
+  }
 
   return (
     <AccountPageShell activeRouteId="quest" title={history ? "Quest History" : "Quest"}>
@@ -319,7 +328,252 @@ function ExploreOtherShops() {
   );
 }
 
+function QuestHistoryView() {
+  return (
+    <View style={styles.historyView}>
+      {/* Hero + plan card */}
+      <View style={styles.historyHero}>
+        <Text style={styles.historyKicker}>{webQuestHistory.heroKicker}</Text>
+        <Text style={styles.historyHeroTitle}>{webQuestHistory.heroTitle}</Text>
+        <Text style={styles.historyIntro}>{webQuestHistory.pageIntro}</Text>
+        <View style={styles.historyPlanCard}>
+          <Text style={styles.historyPlanTitle}>{webQuestHistory.planTitle}</Text>
+          {webQuestHistory.planSteps.map((step, index) => (
+            <View key={step} style={styles.historyPlanStepRow}>
+              <Text style={styles.historyPlanStepNumber}>{index + 1}.</Text>
+              <Text style={styles.historyPlanStepText}>{step}</Text>
+            </View>
+          ))}
+          <View style={styles.historyPlanCtaRow}>
+            <Link asChild href="/quest">
+              <MotionPressable pressScale={0.98} style={styles.historyPlanCtaSecondary}>
+                <Text style={styles.historyPlanCtaSecondaryText}>
+                  {webQuestHistory.viewQuestHubShort}
+                </Text>
+              </MotionPressable>
+            </Link>
+            <Link asChild href="/brand">
+              <MotionPressable pressScale={0.98} style={styles.historyPlanCtaPrimary}>
+                <Text style={styles.historyPlanCtaPrimaryText}>
+                  {webQuestHistory.planCtaBrowseShort}
+                </Text>
+              </MotionPressable>
+            </Link>
+          </View>
+        </View>
+      </View>
+
+      {/* This round — campaign card */}
+      <View style={styles.historySection}>
+        <Text style={styles.historySectionTitle}>{webQuestHistory.currentCampaign}</Text>
+        <Text style={styles.historySectionHint}>{webQuestHistory.roundShopHint}</Text>
+        <View style={styles.historyCampaignCard}>
+          <View style={styles.historyCampaignColumn}>
+            <Text style={styles.historyCampaignLabel}>{webQuestHistory.periodLabel}</Text>
+            <Text style={styles.historyCampaignPeriod}>{webQuestHistory.periodPending}</Text>
+          </View>
+          <View style={styles.historyScoreCard}>
+            <Text style={styles.historyCampaignLabel}>{webQuestHistory.yourScoreLabel}</Text>
+            <Text style={styles.historySignInHint}>{webQuestHistory.signInHint}</Text>
+            <Text style={styles.historyScoreFootnote}>{webQuestHistory.scoreFootnote}</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Monthly points — empty state */}
+      <View style={styles.historySection}>
+        <Text style={styles.historySectionTitle}>{webQuestHistory.monthlySection}</Text>
+        <Text style={styles.historySectionHint}>{webQuestHistory.monthlySectionHint}</Text>
+        <View style={styles.historyEmptyCard}>
+          <Text style={styles.historyEmptyText}>{webQuestHistory.emptyMonthly}</Text>
+        </View>
+      </View>
+
+      {/* Rewards — empty state */}
+      <View style={styles.historySection}>
+        <Text style={styles.historySectionTitle}>{webQuestHistory.rewardsSection}</Text>
+        <Text style={styles.historySectionHint}>{webQuestHistory.rewardsSectionHint}</Text>
+        <View style={styles.historyEmptyCard}>
+          <Text style={styles.historyEmptyText}>{webQuestHistory.emptyRewards}</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  historyView: {
+    gap: spacing.xl,
+  },
+  historyHero: {
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.border,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    gap: spacing.md,
+    padding: spacing.lg,
+  },
+  historyKicker: {
+    color: colors.primaryDark,
+    fontFamily: typography.family,
+    fontSize: typography.caption,
+    fontWeight: "600",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  historyHeroTitle: {
+    color: colors.accent,
+    fontFamily: typography.family,
+    fontSize: typography.title,
+    fontWeight: "700",
+    lineHeight: 28,
+  },
+  historyIntro: {
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: typography.body,
+    lineHeight: 22,
+  },
+  historyPlanCard: {
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    gap: spacing.sm,
+    padding: spacing.md,
+  },
+  historyPlanTitle: {
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: typography.body,
+    fontWeight: "600",
+  },
+  historyPlanStepRow: {
+    flexDirection: "row",
+    gap: spacing.xs,
+  },
+  historyPlanStepNumber: {
+    color: colors.primaryDark,
+    fontFamily: typography.family,
+    fontSize: typography.body,
+    fontWeight: "700",
+  },
+  historyPlanStepText: {
+    color: colors.muted,
+    flex: 1,
+    fontFamily: typography.family,
+    fontSize: typography.body,
+    lineHeight: 21,
+  },
+  historyPlanCtaRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  historyPlanCtaSecondary: {
+    alignItems: "center",
+    backgroundColor: colors.white,
+    borderColor: colors.primaryDark,
+    borderRadius: radii.chip,
+    borderWidth: 1,
+    flex: 1,
+    justifyContent: "center",
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+  },
+  historyPlanCtaSecondaryText: {
+    color: colors.primaryDark,
+    fontFamily: typography.family,
+    fontSize: typography.body,
+    fontWeight: "600",
+  },
+  historyPlanCtaPrimary: {
+    alignItems: "center",
+    backgroundColor: colors.primaryDark,
+    borderRadius: radii.chip,
+    flex: 1,
+    justifyContent: "center",
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+  },
+  historyPlanCtaPrimaryText: {
+    color: colors.white,
+    fontFamily: typography.family,
+    fontSize: typography.body,
+    fontWeight: "600",
+  },
+  historySection: {
+    gap: spacing.sm,
+  },
+  historySectionTitle: {
+    color: colors.accent,
+    fontFamily: typography.family,
+    fontSize: typography.title,
+    fontWeight: "700",
+  },
+  historySectionHint: {
+    color: colors.muted,
+    fontFamily: typography.family,
+    fontSize: typography.caption,
+    lineHeight: 18,
+  },
+  historyCampaignCard: {
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    gap: spacing.md,
+    marginTop: spacing.xs,
+    padding: spacing.lg,
+  },
+  historyCampaignColumn: {
+    gap: spacing.xs,
+  },
+  historyCampaignLabel: {
+    color: colors.textSoft,
+    fontFamily: typography.family,
+    fontSize: typography.caption,
+    fontWeight: "500",
+  },
+  historyCampaignPeriod: {
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: typography.body,
+    fontWeight: "600",
+  },
+  historyScoreCard: {
+    backgroundColor: colors.background,
+    borderRadius: radii.md,
+    gap: spacing.xs,
+    padding: spacing.md,
+  },
+  historySignInHint: {
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: typography.body,
+  },
+  historyScoreFootnote: {
+    color: colors.textSoft,
+    fontFamily: typography.family,
+    fontSize: typography.caption,
+    lineHeight: 16,
+  },
+  historyEmptyCard: {
+    backgroundColor: colors.background,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    borderStyle: "dashed",
+    borderWidth: 1,
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.lg,
+  },
+  historyEmptyText: {
+    color: colors.muted,
+    fontFamily: typography.family,
+    fontSize: typography.body,
+    lineHeight: 21,
+  },
   heroBanner: {
     borderRadius: radii.lg,
     width: "100%",

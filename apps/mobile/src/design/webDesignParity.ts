@@ -2948,3 +2948,31 @@ export const webPrivacyCenterPage = {
       "We track eligible purchases and cashback while your account is active so we can credit rewards and meet merchant agreements. This is not optional while you use the service.",
   },
 } as const;
+
+export const webQuestHistory = {
+  heroKicker: "GoGoQuest",
+  heroTitle: "See your points, rewards, and how you rank—then plan your next shop.",
+  pageIntro: "Earn quest points when you shop through GoGoCash during an active round. Here you can check your score, look back month by month, see bonuses you unlocked, and peek at the leaderboard. Use it to decide when to shop next and which tasks or stores to hit.",
+  planTitle: "Plan your next round",
+  planSteps: [
+    "Open Quest to see time-limited tasks and stores that give extra points.",
+    "Start from GoGoCash, then complete checkout at the partner store so your order counts.",
+    "Check this page again to watch your points grow and grab bonuses when you qualify."
+  ],
+  viewQuestHubShort: "Quest",
+  planCtaBrowseShort: "Stores",
+  currentCampaign: "This quest round",
+  roundShopHint: "These are the dates when eligible shopping and tasks can add to your quest score.",
+  periodLabel: "Shop & earn during",
+  periodPending: "The next quest round is not open yet. We will show the dates here when it starts.",
+  yourScoreLabel: "Your quest points",
+  signInHint: "Sign in to see your quest points and history.",
+  scoreFootnote: "From this round only. Older months are listed below.",
+  monthlySection: "Your points by month",
+  monthlySectionHint: "Taller bars mean a stronger month—use it to spot when you shopped most.",
+  emptyMonthly: "Once you earn quest points, you will see each month here with a simple bar so you can compare at a glance.",
+  pointsSuffix: "pts",
+  rewardsSection: "Bonuses you earned",
+  rewardsSectionHint: "Extra points or perks unlocked from quests—great to review before the next round.",
+  emptyRewards: "No bonuses yet—complete quest tasks during a round to unlock extra points and perks."
+} as const;
