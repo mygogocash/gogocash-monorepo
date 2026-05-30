@@ -1,23 +1,7 @@
-import { useMemo, useState, type ComponentType } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "expo-router";
-import {
-  BookOpen as BookOpenIcon,
-  CircleEllipsis as MoreIcon,
-  Cloud as CloudIcon,
-  CreditCard as CreditCardIcon,
-  Gift as GiftIcon,
-  Heart as HeartIcon,
-  Home as HomeIcon,
-  List as ListIcon,
-  Monitor as MonitorIcon,
-  Plane as PlaneIcon,
-  Search as SearchIcon,
-  Shirt as ShirtIcon,
-  ShoppingBag as ShoppingBagIcon,
-  Sparkles as SparklesIcon,
-  Store as StoreIcon,
-  Utensils as UtensilsIcon,
-} from "@mobile/theme/icons";
+import { Heart as HeartIcon, Search as SearchIcon } from "@mobile/theme/icons";
+import { getCategoryIcon } from "@mobile/theme/categoryIcons";
 import {
   Image,
   type ImageSourcePropType,
@@ -45,29 +29,7 @@ import {
 import { motion } from "@mobile/theme/motion";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
-type CategoryIconComponent = ComponentType<{
-  color?: string;
-  size?: number;
-  strokeWidth?: number;
-}>;
 type CategoryStore = ReturnType<typeof getCategoryExploreResults>[number];
-
-const categoryIcons: Record<string, CategoryIconComponent> = {
-  All: ListIcon,
-  "Digital Services": CloudIcon,
-  Education: BookOpenIcon,
-  Electronics: MonitorIcon,
-  Fashion: ShirtIcon,
-  Finance: CreditCardIcon,
-  "Food & Grocery": UtensilsIcon,
-  "Gifting & Crafts": GiftIcon,
-  "Health & Beauty": SparklesIcon,
-  "Home & Living": HomeIcon,
-  Marketplace: StoreIcon,
-  Travel: PlaneIcon,
-  "Top-up / Recharge": ShoppingBagIcon,
-  Others: MoreIcon,
-};
 
 const webSearchInputFocusReset = {
   outlineStyle: "none",
