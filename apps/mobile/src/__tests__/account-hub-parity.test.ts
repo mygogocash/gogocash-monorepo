@@ -172,7 +172,7 @@ describe("Account hub route parity", () => {
     expect(profileFile).toContain("ProfilePanelHeader");
     expect(profileFile).toContain("InviteFriendsRow");
     expect(profileFile).toContain("copyInviteLink");
-    expect(profileFile).toContain("navigator.clipboard.writeText");
+    expect(profileFile).toContain("copyToClipboard");
     expect(profileFile).toContain("Invited : 2");
     expect(profileFile).toContain("Copy Link");
     expect(profileFile).toContain("profileMenuIcons");

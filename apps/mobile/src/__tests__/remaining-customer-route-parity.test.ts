@@ -148,7 +148,7 @@ describe("Remaining customer route parity", () => {
     expect(offerScreen).toContain("offer_id");
     expect(offerScreen).toContain("deeplink");
     expect(offerScreen).toContain("createdAt");
-    expect(offerScreen).toContain("navigator.clipboard.writeText");
+    expect(offerScreen).toContain("copyToClipboard");
 
     expect(phoneScreen).toContain("Change Your Phone Number");
     expect(phoneScreen).toContain("Verification Code");
