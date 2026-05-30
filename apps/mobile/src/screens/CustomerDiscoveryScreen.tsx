@@ -20,8 +20,8 @@ import {
   Clock3 as ClockIcon,
   Heart as HeartIcon,
   Search as SearchIcon,
-  SlidersHorizontal as SlidersIcon,
 } from "@mobile/theme/icons";
+import { getCategoryIcon } from "@mobile/theme/categoryIcons";
 
 import homeBannerImage from "../../assets/home-banner.png";
 import popularBeautyImage from "../../assets/popular-beauty.png";
@@ -369,6 +369,7 @@ function BrandDirectoryCategoryAside({
       >
         {webBrandDirectory.categories.map((category) => {
           const active = activeCategory === category;
+          const CategoryIcon = getCategoryIcon(category);
 
           return (
             <MotionPressable
@@ -383,7 +384,7 @@ function BrandDirectoryCategoryAside({
               ]}
             >
               <View style={styles.shopDirectoryCategoryIconCell}>
-                <SlidersIcon
+                <CategoryIcon
                   color={active ? colors.white : colors.accent}
                   size={isDesktop ? 18 : 16}
                   strokeWidth={typography.iconStrokeWidth}
@@ -792,6 +793,7 @@ function ProductDiscoverySidebar({
       <View style={styles.productDiscoverySidebarList}>
         {webProductDiscovery.categories.map((category) => {
           const active = activeCategory === category.value;
+          const CategoryIcon = getCategoryIcon(category.label);
 
           return (
             <MotionPressable
@@ -805,7 +807,7 @@ function ProductDiscoverySidebar({
               ]}
             >
               <View style={styles.productDiscoverySidebarIconCell}>
-                <SlidersIcon
+                <CategoryIcon
                   color={active ? colors.white : colors.accent}
                   size={18}
                   strokeWidth={typography.iconStrokeWidth}
@@ -1323,6 +1325,7 @@ function ShopDirectoryCategoryAside({
       >
         {webShopDirectory.categories.map((category) => {
           const active = activeCategory === category;
+          const CategoryIcon = getCategoryIcon(category);
 
           return (
             <MotionPressable
@@ -1337,7 +1340,7 @@ function ShopDirectoryCategoryAside({
               ]}
             >
               <View style={styles.shopDirectoryCategoryIconCell}>
-                <SlidersIcon
+                <CategoryIcon
                   color={active ? colors.white : colors.accent}
                   size={isDesktop ? 18 : 16}
                   strokeWidth={typography.iconStrokeWidth}
