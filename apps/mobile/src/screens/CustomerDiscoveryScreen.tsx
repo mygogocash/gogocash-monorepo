@@ -325,6 +325,7 @@ function BrandDirectoryScreen() {
             style={styles.desktopFooter}
           />
         </ScrollView>
+        {homeLayout.isDesktop ? null : <CustomerMobileBottomNav bottomInset={insets.bottom} />}
       </View>
     </View>
   );
@@ -693,6 +694,7 @@ function ProductDiscoveryScreen() {
           onClose={closeTerms}
           visible={termsVisible}
         />
+        {homeLayout.isDesktop ? null : <CustomerMobileBottomNav bottomInset={insets.bottom} />}
       </View>
     </View>
   );
@@ -1201,6 +1203,7 @@ function ShopDirectoryScreen() {
             style={styles.desktopFooter}
           />
         </ScrollView>
+        {homeLayout.isDesktop ? null : <CustomerMobileBottomNav bottomInset={insets.bottom} />}
       </View>
     </View>
   );
