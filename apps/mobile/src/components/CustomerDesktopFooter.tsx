@@ -5,7 +5,11 @@ import Svg, { Path } from "react-native-svg";
 import cloudflareLogoImage from "../../assets/branding/cloudflare-logo.png";
 import logoMarkImage from "../../assets/nav/logo.png";
 import { MotionPressable } from "@mobile/components/MotionPressable";
-import { mobileShellLayout, webDesktopFooter } from "@mobile/design/webDesignParity";
+import {
+  getDesktopFooterGrid,
+  mobileShellLayout,
+  webDesktopFooter,
+} from "@mobile/design/webDesignParity";
 import { motion } from "@mobile/theme/motion";
 import { colors, radii, typography } from "@mobile/theme/tokens";
 
@@ -21,6 +25,7 @@ export function CustomerDesktopFooter({
   const shellContentWidth = Math.min(viewportWidth, mobileShellLayout.desktopContentMaxWidth);
   const shellOffset = Math.max(0, (viewportWidth - shellContentWidth) / 2);
   const contentWidth = Math.min(1200, viewportWidth);
+  const footerGrid = getDesktopFooterGrid(viewportWidth);
   const copyright = webDesktopFooter.copyrightTemplate.replace(
     "{year}",
     String(new Date().getFullYear())
@@ -58,9 +63,12 @@ export function CustomerDesktopFooter({
             </Link>
           </View>
 
-          <View style={styles.sectionGrid}>
+          <View style={[styles.sectionGrid, { gap: footerGrid.gap }]}>
             {webDesktopFooter.sections.map((section) => (
-              <View key={section.title} style={styles.footerColumn}>
+              <View
+                key={section.title}
+                style={[styles.footerColumn, { flexBasis: footerGrid.columnBasis }]}
+              >
                 <Text style={styles.columnHeading}>{section.title}</Text>
                 <View style={styles.linkList}>
                   {section.items.map((item) => (
@@ -231,6 +239,7 @@ const styles = StyleSheet.create({
   },
   sectionGrid: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 64,
   },
   footerColumn: {

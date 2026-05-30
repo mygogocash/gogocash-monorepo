@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   getCarouselActiveIndex,
   getCarouselDotCount,
+  getDesktopFooterGrid,
   getDesktopShellHorizontalPadding,
   getHomeSearchMatches,
   getResponsiveHomeLayoutMetrics,
@@ -557,5 +558,25 @@ describe("GoGoCash web design parity", () => {
       { label: "Help Center", href: "https://lin.ee/7om5sAr", external: true },
       { label: "Connect with GoGoCash", href: "https://linktr.ee/gogocash", external: true },
     ]);
+  });
+
+  it("desktop footer grid > given web Footer breakpoints > then columns and gap collapse responsively", () => {
+    // Web Footer.tsx: grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-3 lg:gap-16.
+    // Columns collapse 3 -> 2 -> 1 and the gap steps 64 (lg) down to 32 on narrow widths.
+    expect(getDesktopFooterGrid(1440)).toEqual({ columns: 3, gap: 64, columnBasis: "auto" });
+    expect(getDesktopFooterGrid(820)).toEqual({ columns: 3, gap: 32, columnBasis: "auto" });
+    expect(getDesktopFooterGrid(700)).toEqual({ columns: 2, gap: 32, columnBasis: "45%" });
+    expect(getDesktopFooterGrid(400)).toEqual({ columns: 1, gap: 32, columnBasis: "100%" });
+
+    const fs = require("node:fs") as typeof import("node:fs");
+    const path = require("node:path") as typeof import("node:path");
+    const footerSource = fs.readFileSync(
+      path.resolve(__dirname, "../components/CustomerDesktopFooter.tsx"),
+      "utf8"
+    );
+    expect(footerSource).toContain("getDesktopFooterGrid(viewportWidth)");
+    expect(footerSource).toContain('flexWrap: "wrap"');
+    expect(footerSource).toContain("gap: footerGrid.gap");
+    expect(footerSource).toContain("flexBasis: footerGrid.columnBasis");
   });
 });
