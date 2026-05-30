@@ -175,7 +175,10 @@ describe("Account hub route parity", () => {
     expect(designFile).toContain("Invite your Friends");
     expect(designFile).not.toContain("Credit Score");
     expect(designFile).not.toContain("Refer Your Friends");
-    expect(designFile).not.toContain("Membership");
+    // Profile hub menu labels the /membership row "GoGoPass", never "Membership".
+    // (Scoped to the menu-item label so it doesn't trip on the unrelated
+    // webMembershipLanding landing-page fixture, which is correct to exist.)
+    expect(designFile).not.toContain('label: "Membership"');
     expect(designFile).toContain("walletSummaryHeroCard");
     expect(designFile).toContain("profileNavigationPanel");
     expect(shellFile).toContain("CustomerMobileBottomNav");

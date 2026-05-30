@@ -750,6 +750,29 @@ export const webReferralPage = {
   },
 } as const;
 
+export const webMembershipLanding = {
+  savings: {
+    heading: "Annual saves you real money",
+    subtitle: "Simple math in THB — no hidden FX.",
+    monthlyLine: "12 × ฿49 monthly",
+    monthlyValue: "฿588",
+    annualLine: "Annual plan",
+    annualValue: "฿490",
+    youSaveLabel: "You save",
+    youSaveValue: "฿98 (~16%)",
+    footnote: "That is ฿98 less than paying month-by-month — about 16% off.",
+  },
+  socialProof: {
+    heading: "Built for real shopping in Thailand",
+    subtitle: "Straightforward pricing and partners you already use.",
+    stats: [
+      { value: "220+", caption: "partner brands where your membership and rewards count" },
+      { value: "16%", caption: "typical savings when you pick annual vs twelve monthly payments" },
+      { value: "฿49", caption: "per month on the flexible monthly plan" },
+    ],
+  },
+} as const;
+
 export const webPrivacyPolicyPage = {
   title: "Privacy Policy",
   articleLabel: "Privacy Policy",
