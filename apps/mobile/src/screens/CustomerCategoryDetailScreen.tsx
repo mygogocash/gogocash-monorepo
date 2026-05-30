@@ -88,7 +88,9 @@ function getCategoryGridMetrics({
   const preferredColumns = isDesktop
     ? viewportWidth >= 1280
       ? 6
-      : 4
+      : viewportWidth >= 1024
+        ? 5
+        : 4
     : viewportWidth >= 768
       ? 4
       : viewportWidth >= 640
