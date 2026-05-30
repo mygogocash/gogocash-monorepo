@@ -83,7 +83,7 @@ const frontendFlowContracts: FrontendFlowContract[] = [
   },
   {
     appFile: "app/shop/[id].tsx",
-    expectedLinks: ["`/category/${shop.category}`", "`/shop/${card.id}`"],
+    expectedLinks: ["`/category/${shop.category}`", "`/shop/${store.id}`"],
     landmarks: ["webShopDetailGroceryGalaxy", "ShopHero", "ShopCashbackRail", "ShopTermsPanel"],
     routeId: "shopDetail",
     routeMarkers: ["useLocalSearchParams", "CustomerShopDetailScreen", "shopId"],
