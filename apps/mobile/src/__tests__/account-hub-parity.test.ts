@@ -20,6 +20,15 @@ describe("Account hub route parity", () => {
     expect(bottomNavFile).toContain("activeRouteId");
     expect(bottomNavFile).toContain("mobileShellLayout.bottomNavMaxWidth");
     expect(bottomNavFile).toContain("shadows.bottomNavCss");
+
+    // Emphasized (Wallet) center button mirrors web FooterMobile: 64x64 (h-[64px] w-[64px])
+    // lifted -32px (-mt-8), and the active profile avatar is h-7 w-7 (28px) — not 72/-22/34.
+    expect(bottomNavFile).toContain("marginTop: -32,");
+    expect(bottomNavFile).not.toContain("marginTop: -22,");
+    expect(bottomNavFile).not.toContain("height: 72,");
+    expect(bottomNavFile).not.toContain("width: 72,");
+    expect(bottomNavFile).not.toContain("height: 34,");
+    expect(bottomNavFile).not.toContain("width: 34,");
   });
 
   it("wallet page > given migrated account screen > then it renders support banner, cashback summary, transactions, and bottom nav", () => {
