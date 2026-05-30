@@ -1,8 +1,9 @@
 export type PdpaDataExportRequest = {
   // Locale only — the subject is the authenticated caller. There is deliberately
-  // NO userId/accountId/subjectId field: a caller must never be able to request
-  // another person's data export by passing an identifier. The backend resolves
-  // the subject from the bearer token on the session-bound endpoint below.
+  // no caller-supplied subject-identifier field on this request: a caller must
+  // never be able to request another person's data export by passing an id. The
+  // backend resolves the subject from the bearer token on the session-bound
+  // endpoint below.
   locale?: "en" | "th";
 };
 
