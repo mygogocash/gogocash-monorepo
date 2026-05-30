@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySoft,
   },
   bottomNavItemEmphasized: {
-    marginTop: -22,
+    marginTop: -32,
   },
   bottomNavIcon: {
     alignItems: "center",
@@ -164,13 +164,13 @@ const styles = StyleSheet.create({
     borderColor: colors.primarySoft,
     borderRadius: radii.chip,
     borderWidth: 8,
-    height: 72,
-    width: 72,
+    height: 64,
+    width: 64,
   },
   bottomNavProfileAvatar: {
     borderRadius: radii.chip,
-    height: 34,
-    width: 34,
+    height: 28,
+    width: 28,
   },
   bottomNavLabel: {
     color: colors.muted,
