@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import { env } from "@/env";
 import {
@@ -17,11 +17,21 @@ function shouldShowInternalConsentTrigger(): boolean {
 }
 
 function readDismissed(): boolean {
+  if (typeof window === "undefined") return false;
   try {
     return localStorage.getItem(PDPA_CONSENT_BANNER_DISMISSED_KEY) === "1";
   } catch {
     return false;
   }
+}
+
+function subscribeToDismissalChanges(onStoreChange: () => void): () => void {
+  window.addEventListener(CONSENT_BANNER_DISMISSED_EVENT, onStoreChange);
+  window.addEventListener(CONSENT_BANNER_OPEN_EVENT, onStoreChange);
+  return () => {
+    window.removeEventListener(CONSENT_BANNER_DISMISSED_EVENT, onStoreChange);
+    window.removeEventListener(CONSENT_BANNER_OPEN_EVENT, onStoreChange);
+  };
 }
 
 /**
@@ -31,19 +41,7 @@ function readDismissed(): boolean {
  */
 export default function ConsentBannerInternalTrigger() {
   const t = useTranslations();
-  const [dismissed, setDismissed] = useState(false);
-
-  useEffect(() => {
-    setDismissed(readDismissed());
-    const onDismissed = () => setDismissed(true);
-    const onOpen = () => setDismissed(false);
-    window.addEventListener(CONSENT_BANNER_DISMISSED_EVENT, onDismissed);
-    window.addEventListener(CONSENT_BANNER_OPEN_EVENT, onOpen);
-    return () => {
-      window.removeEventListener(CONSENT_BANNER_DISMISSED_EVENT, onDismissed);
-      window.removeEventListener(CONSENT_BANNER_OPEN_EVENT, onOpen);
-    };
-  }, []);
+  const dismissed = useSyncExternalStore(subscribeToDismissalChanges, readDismissed, () => false);
 
   if (!shouldShowInternalConsentTrigger() || dismissed) {
     return null;

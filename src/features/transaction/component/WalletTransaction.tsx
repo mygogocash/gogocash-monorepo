@@ -701,10 +701,7 @@ const WithdrawTransaction = () => {
         headerAlign: "center",
         renderCell: (params) => {
           const row = params.row;
-          if (
-            (row.rowType === "earn" || row.rowType === "missingOrderClaim") &&
-            row.conversionId
-          ) {
+          if ((row.rowType === "earn" || row.rowType === "missingOrderClaim") && row.conversionId) {
             return (
               <div className="flex w-full justify-center py-0.5">
                 <button

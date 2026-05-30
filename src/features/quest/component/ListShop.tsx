@@ -114,6 +114,7 @@ const ListShop = ({
         alt="point"
         width={640}
         height={800}
+        loading="eager"
         className={`w-full h-auto mb-3 ${activeTab === 1 ? "hidden lg:block" : " block"}`}
       />
       <div className={`${activeTab === 0 ? "hidden" : " lg:block "} w-full`}>

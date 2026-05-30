@@ -30,6 +30,7 @@ const ListRank = ({
             alt="Quest Image 2"
             width={484}
             height={320}
+            loading="eager"
             className="rounded-lg w-full h-auto"
           />
         </Link>

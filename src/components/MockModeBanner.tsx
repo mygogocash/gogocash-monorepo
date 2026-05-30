@@ -25,7 +25,7 @@ export default function MockModeBanner() {
         padding: "6px 12px",
         background: "#ff8a00",
         color: "#000",
-        font: '600 12px/1.4 system-ui, -apple-system, sans-serif',
+        font: "600 12px/1.4 system-ui, -apple-system, sans-serif",
         textAlign: "center",
         letterSpacing: "0.02em",
         boxShadow: "0 1px 4px rgba(0,0,0,0.2)",

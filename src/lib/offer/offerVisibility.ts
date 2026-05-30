@@ -32,24 +32,26 @@ function normaliseForCompare(value: string | null | undefined): string {
  * are returned — this avoids leaking country-targeted promos to users whose
  * locale we can't verify.
  */
-export function isOfferVisibleToCountry(offer: DataOffer, userCountry: string | null | undefined): boolean {
+export function isOfferVisibleToCountry(
+  offer: DataOffer,
+  userCountry: string | null | undefined
+): boolean {
   if (offer.is_global) return true;
   if (!userCountry) return false;
   const userKey = normaliseForCompare(userCountry);
   if (!userKey) return false;
   if (!offer.countries) return false;
-  return offer.countries
-    .split(",")
-    .map(normaliseForCompare)
-    .filter(Boolean)
-    .includes(userKey);
+  return offer.countries.split(",").map(normaliseForCompare).filter(Boolean).includes(userKey);
 }
 
 /**
  * Filter a list of offers down to what's visible to the given customer country.
  * See {@link isOfferVisibleToCountry} for the per-offer rule.
  */
-export function filterOffersByCountry<T extends DataOffer>(offers: readonly T[], userCountry: string | null | undefined): T[] {
+export function filterOffersByCountry<T extends DataOffer>(
+  offers: readonly T[],
+  userCountry: string | null | undefined
+): T[] {
   return offers.filter((o) => isOfferVisibleToCountry(o, userCountry));
 }
 
@@ -84,17 +86,16 @@ function brandKey(offer: DataOffer): string {
  *
  * Returns `null` only if `variants` is empty.
  */
-export function pickBrandVariant<T extends DataOffer>(variants: readonly T[], userCountry: string | null | undefined): T | null {
+export function pickBrandVariant<T extends DataOffer>(
+  variants: readonly T[],
+  userCountry: string | null | undefined
+): T | null {
   if (variants.length === 0) return null;
   const userKey = normaliseForCompare(userCountry);
   if (userKey) {
     const exact = variants.find((v) => {
       if (!v.countries) return false;
-      return v.countries
-        .split(",")
-        .map(normaliseForCompare)
-        .filter(Boolean)
-        .includes(userKey);
+      return v.countries.split(",").map(normaliseForCompare).filter(Boolean).includes(userKey);
     });
     if (exact) return exact;
   }
@@ -107,11 +108,7 @@ export function pickBrandVariant<T extends DataOffer>(variants: readonly T[], us
     if (defKey) {
       const defaultMatch = variants.find((v) => {
         if (!v.countries) return false;
-        return v.countries
-          .split(",")
-          .map(normaliseForCompare)
-          .filter(Boolean)
-          .includes(defKey);
+        return v.countries.split(",").map(normaliseForCompare).filter(Boolean).includes(defKey);
       });
       if (defaultMatch) return defaultMatch;
     }
@@ -130,7 +127,10 @@ export function pickBrandVariant<T extends DataOffer>(variants: readonly T[], us
  *
  * Order is stable: each brand appears at the position of the first offer in its group.
  */
-export function dedupeOffersByBrand<T extends DataOffer>(offers: readonly T[], userCountry: string | null | undefined): T[] {
+export function dedupeOffersByBrand<T extends DataOffer>(
+  offers: readonly T[],
+  userCountry: string | null | undefined
+): T[] {
   const visible = offers.filter((o) => isOfferVisibleToCountry(o, userCountry));
   const groups = new Map<string, T[]>();
   const order: string[] = [];

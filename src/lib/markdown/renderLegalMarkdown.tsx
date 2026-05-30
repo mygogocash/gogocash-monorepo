@@ -109,9 +109,7 @@ function renderInlineSegment(text: string, keyPrefix: string): ReactNode[] {
     }
     const [whole, bold, url] = match;
     if (bold) {
-      out.push(
-        <strong key={`${keyPrefix}-b-${tokenIdx}`}>{bold.slice(2, -2)}</strong>
-      );
+      out.push(<strong key={`${keyPrefix}-b-${tokenIdx}`}>{bold.slice(2, -2)}</strong>);
     } else if (url) {
       out.push(
         <a
@@ -150,7 +148,10 @@ function renderParagraphInline(text: string, keyPrefix: string): ReactNode[] {
     }
     // Replace remaining soft newlines with spaces and strip stray trailing
     // single spaces so we don't double-space when inputs are messy.
-    const flat = segment.replace(/\n/g, " ").replace(/[ \t]+/g, " ").trim();
+    const flat = segment
+      .replace(/\n/g, " ")
+      .replace(/[ \t]+/g, " ")
+      .trim();
     out.push(...renderInlineSegment(flat, `${keyPrefix}-l${lineIdx}`));
   });
   return out;
@@ -203,10 +204,7 @@ function renderBlock(block: Block, key: string): ReactNode {
       );
     case "paragraph":
       return (
-        <p
-          key={key}
-          className="my-3 text-sm leading-relaxed text-[#3b3b3b] md:text-base"
-        >
+        <p key={key} className="my-3 text-sm leading-relaxed text-[#3b3b3b] md:text-base">
           {renderParagraphInline(block.text, key)}
         </p>
       );
@@ -221,9 +219,5 @@ function renderBlock(block: Block, key: string): ReactNode {
  */
 export function renderLegalMarkdown(md: string): ReactNode {
   const blocks = blockify(md);
-  return (
-    <Fragment>
-      {blocks.map((block, idx) => renderBlock(block, `b${idx}`))}
-    </Fragment>
-  );
+  return <Fragment>{blocks.map((block, idx) => renderBlock(block, `b${idx}`))}</Fragment>;
 }

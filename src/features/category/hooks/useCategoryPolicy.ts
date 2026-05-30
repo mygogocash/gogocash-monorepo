@@ -55,17 +55,8 @@ export function useCategoryPolicy(categoryId: string | null | undefined) {
  *   4. English (international fallback)
  *   5. "" → renderer hides the section
  */
-export function pickPolicyText(
-  content: PolicyContent | undefined,
-  userLocale: string,
-): string {
+export function pickPolicyText(content: PolicyContent | undefined, userLocale: string): string {
   if (!content?.translations) return "";
   const tr = content.translations;
-  return (
-    tr[userLocale] ??
-    tr[content.primary_locale] ??
-    tr.th ??
-    tr.en ??
-    ""
-  );
+  return tr[userLocale] ?? tr[content.primary_locale] ?? tr.th ?? tr.en ?? "";
 }

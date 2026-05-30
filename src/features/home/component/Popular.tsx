@@ -72,15 +72,15 @@ const Popular = () => {
   // Filter each category's small-rail by user country / global flag.
   const electronicVisible = useMemo(
     () => (electronic?.data ? dedupeOffersByBrand(electronic.data, country) : electronic?.data),
-    [electronic, country],
+    [electronic, country]
   );
   const beautyVisible = useMemo(
     () => (beauty?.data ? dedupeOffersByBrand(beauty.data, country) : beauty?.data),
-    [beauty, country],
+    [beauty, country]
   );
   const othersVisible = useMemo(
     () => (others?.data ? dedupeOffersByBrand(others.data, country) : others?.data),
-    [others, country],
+    [others, country]
   );
 
   const section = homeSectionMeta.popularNow;

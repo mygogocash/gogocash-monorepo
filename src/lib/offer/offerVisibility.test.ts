@@ -176,8 +176,20 @@ describe("pickBrandVariant", () => {
 describe("dedupeOffersByBrand", () => {
   it("collapses multiple country variants of the same brand to one", () => {
     const offers = [
-      offer({ _id: "apple-th", merchant_id: 100, countries: "TH", is_global: true, default_country: "TH" }),
-      offer({ _id: "apple-sg", merchant_id: 100, countries: "SG", is_global: true, default_country: "TH" }),
+      offer({
+        _id: "apple-th",
+        merchant_id: 100,
+        countries: "TH",
+        is_global: true,
+        default_country: "TH",
+      }),
+      offer({
+        _id: "apple-sg",
+        merchant_id: 100,
+        countries: "SG",
+        is_global: true,
+        default_country: "TH",
+      }),
       offer({ _id: "lazada-th", merchant_id: 200, countries: "TH" }),
     ];
     const out = dedupeOffersByBrand(offers, "TH");
@@ -189,7 +201,13 @@ describe("dedupeOffersByBrand", () => {
       offer({ _id: "apple-th", merchant_id: 100, countries: "TH" }),
       offer({ _id: "apple-sg", merchant_id: 100, countries: "SG" }),
       // Apple TH and SG are NOT global — TH user sees only Apple TH; SG variant is hidden.
-      offer({ _id: "spotify", merchant_id: 300, countries: "TH", is_global: true, default_country: "TH" }),
+      offer({
+        _id: "spotify",
+        merchant_id: 300,
+        countries: "TH",
+        is_global: true,
+        default_country: "TH",
+      }),
     ];
     const out = dedupeOffersByBrand(offers, "TH");
     expect(out.map((o) => o._id)).toEqual(["apple-th", "spotify"]);
@@ -197,8 +215,20 @@ describe("dedupeOffersByBrand", () => {
 
   it("groups by lookup_value stem when merchant_id is missing", () => {
     const offers = [
-      offer({ _id: "1", lookup_value: "nike_th", countries: "TH", is_global: true, default_country: "TH" }),
-      offer({ _id: "2", lookup_value: "nike_sg", countries: "SG", is_global: true, default_country: "TH" }),
+      offer({
+        _id: "1",
+        lookup_value: "nike_th",
+        countries: "TH",
+        is_global: true,
+        default_country: "TH",
+      }),
+      offer({
+        _id: "2",
+        lookup_value: "nike_sg",
+        countries: "SG",
+        is_global: true,
+        default_country: "TH",
+      }),
     ];
     const out = dedupeOffersByBrand(offers, "VN"); // no exact match → falls to default_country=TH
     expect(out).toHaveLength(1);

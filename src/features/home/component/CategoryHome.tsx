@@ -42,11 +42,11 @@ const CategoryHome = () => {
   const { country } = useUserCountry();
   const travelVisible = useMemo(
     () => (travel?.data ? dedupeOffersByBrand(travel.data, country) : travel?.data),
-    [travel, country],
+    [travel, country]
   );
   const cosmeticVisible = useMemo(
     () => (cosmetic?.data ? dedupeOffersByBrand(cosmetic.data, country) : cosmetic?.data),
-    [cosmetic, country],
+    [cosmetic, country]
   );
 
   const travelSection = homeSectionMeta.travelDeals;

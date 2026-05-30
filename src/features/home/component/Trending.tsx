@@ -38,7 +38,7 @@ const Trending = () => {
   // Hide country-specific brands from users in other countries; global brands stay visible.
   const visibleOffers = useMemo(
     () => (offers?.data ? dedupeOffersByBrand(offers.data, country) : offers?.data),
-    [offers, country],
+    [offers, country]
   );
 
   const section = homeSectionMeta.trendingBrands;

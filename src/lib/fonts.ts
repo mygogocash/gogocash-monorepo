@@ -6,6 +6,7 @@ export const dmSans = DM_Sans({
   subsets: ["latin"],
   display: "swap",
   adjustFontFallback: true,
+  preload: false,
 });
 
 /** Figma `typography/font-family/th` — Thai + Latin fallback */
@@ -14,4 +15,5 @@ export const anuphan = Anuphan({
   subsets: ["latin", "thai"],
   display: "swap",
   adjustFontFallback: true,
+  preload: false,
 });

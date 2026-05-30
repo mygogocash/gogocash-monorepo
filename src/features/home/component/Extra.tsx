@@ -13,7 +13,7 @@ function CustomNavSwiper() {
   // Top-brands rail respects the same per-country visibility rule as discovery surfaces.
   const visibleOffers = useMemo(
     () => (offers ? dedupeOffersByBrand(offers, country) : offers),
-    [offers, country],
+    [offers, country]
   );
 
   const section = homeSectionMeta.topBrands;

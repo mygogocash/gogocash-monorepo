@@ -46,7 +46,7 @@ if (
 ) {
   throw new Error(
     "[gogocash-web] Refusing to start in production without NEXT_PUBLIC_API_URL. " +
-      "Without it the app silently serves mock data. Set it in your hosting env.",
+      "Without it the app silently serves mock data. Set it in your hosting env."
   );
 }
 

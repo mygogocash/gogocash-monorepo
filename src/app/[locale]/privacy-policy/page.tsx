@@ -32,9 +32,7 @@ export default async function PrivacyPolicyPage({
    */
   return (
     <div className="gc-page-block mx-auto w-full max-w-[800px] px-4 py-10 md:px-6">
-      <article aria-label={t("privacyPolicyPageTitle")}>
-        {renderLegalMarkdown(content)}
-      </article>
+      <article aria-label={t("privacyPolicyPageTitle")}>{renderLegalMarkdown(content)}</article>
     </div>
   );
 }
