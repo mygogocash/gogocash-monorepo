@@ -6,6 +6,7 @@ import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountRes
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { copyToClipboard } from "@mobile/lib/clipboard";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 const myOfferRows = [
