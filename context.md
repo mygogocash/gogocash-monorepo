@@ -1,16 +1,16 @@
 # GoGoCash Expo Migration — Live Context
 
-_Last updated: 2026-05-31. Branch `expo-module`, HEAD `4347e9a` (pushed to origin, synced)._
+_Last updated: 2026-05-31. Branch `expo-module`, HEAD `4d31564` (pushed to origin, synced)._
 
 What's done / what's left in the Next.js → Expo migration for `apps/mobile`. See `agent.md` for workflow, `design.md` for the design system, `project.md` for the repo map.
 
 ## Scope
 Visual/structural parity with the frozen Next.js reference (`gogocash_app-staging`). Live-data wiring, auth, i18n, analytics, web3, and Stripe checkout remain parked. Audit caveat: the gap audit had a **~50% false-positive rate** — always ground-truth against BOTH the real web file and the real Expo file before fixing.
 
-## State: everything below is committed AND pushed to `origin/expo-module` (HEAD 4347e9a)
+## State: everything below is committed AND pushed to `origin/expo-module` (HEAD 4d31564)
 Source-string suite **252 passed / 0 failed / 0 todo** (37 files, `npm test`), tsc **0 errors** (verify tsc separately — source-string parity tests do not compile components, so the suite can be green while tsc is red; a StyleSheet.absoluteFillObject TS2551 slipped through once and was fixed in 6de020e).
 
-NEW: render-test harness (`npm run test:render`, commit 5e8f9c2) — actually mounts components in happy-dom (react-native→react-native-web), 5 passing render tests for CustomerRouteState. Separate `vitest.render.config.ts` + `*.render.test.tsx` glob; stubs for phosphor-react-native + expo-router in `src/test-support/`. Render test bodies must avoid TS type annotations (rolldown/oxc SSR parser rejects them; tsc still checks via typecheck). See memory `gogocash-expo-render-test-harness`. This is the FIRST slice of audit #2 (render depth) — most screens still lack render coverage.
+NEW: render-test harness (`npm run test:render`, commit 4d31564) — actually mounts components in happy-dom (react-native→react-native-web), 5 passing render tests for CustomerRouteState. Separate `vitest.render.config.ts` + `*.render.test.tsx` glob; stubs for phosphor-react-native + expo-router in `src/test-support/`. Render test bodies must avoid TS type annotations (rolldown/oxc SSR parser rejects them; tsc still checks via typecheck). See memory `gogocash-expo-render-test-harness`. This is the FIRST slice of audit #2 (render depth) — most screens still lack render coverage.
 
 Visual-parity fixes:
 1. Referral invitation table — 4th "Status" column + green Success pill (#E6F7ED / #00B14F, radius 30).
