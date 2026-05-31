@@ -46,6 +46,14 @@ export default defineConfig({
         find: "@mobile/components/CustomerDesktopFooterSlot",
         replacement: stub("desktopFooterSlotStub.tsx"),
       },
+      // react-native-safe-area-context ships a value-position `typeof` type alias
+      // the transform rejects; imported by AccountPageShell (-> the 14 shell
+      // screens) + others. Stub passes children through, hooks return zero insets.
+      // Must precede "react-native" (prefix) and the broad "@mobile" alias.
+      {
+        find: "react-native-safe-area-context",
+        replacement: stub("safeAreaContextStub.tsx"),
+      },
       // react-native is Flow-typed; render against react-native-web instead.
       { find: "react-native", replacement: path.resolve(__dirname, "./node_modules/react-native-web") },
       { find: "@mobile", replacement: path.resolve(__dirname, "./src") },
