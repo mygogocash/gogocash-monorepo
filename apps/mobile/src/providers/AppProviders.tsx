@@ -4,6 +4,7 @@ import { PostHogProvider } from "posthog-react-native";
 import { PropsWithChildren, useEffect, useMemo } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { RouteAnalyticsTracker } from "@mobile/analytics/RouteAnalyticsTracker";
 import { AuthRouteGuard } from "@mobile/auth/AuthRouteGuard";
 import { CustomerRouteState } from "@mobile/components/CustomerRouteState";
 import { getObservabilityConfig, initObservability } from "@mobile/observability/client";
@@ -44,6 +45,7 @@ export function AppProviders({ children }: PropsWithChildren) {
     <SafeAreaProvider>
       <PrivacyScreenGuard>
         <QueryClientProvider client={queryClient}>
+          <RouteAnalyticsTracker />
           <AuthRouteGuard>{children}</AuthRouteGuard>
         </QueryClientProvider>
       </PrivacyScreenGuard>
