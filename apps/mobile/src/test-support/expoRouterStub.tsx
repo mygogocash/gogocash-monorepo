@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { createElement, Fragment, type ReactNode } from "react";
 
 // Test stub for expo-router used ONLY by the render-test config
 // (vitest.render.config.ts aliases "expo-router" here). The real module ships a
@@ -7,32 +7,36 @@ import type { ReactNode } from "react";
 // enough to mount screens: Link/navigators render their children; hooks return
 // inert values. It is never bundled into the app.
 
-type Children = { children?: ReactNode };
+type StubProps = { children?: ReactNode } & Record<string, unknown>;
 
-export function Link({ children }: { href?: unknown; asChild?: boolean } & Children) {
-  return <>{children}</>;
+function passthrough({ children }: StubProps) {
+  return createElement(Fragment, null, children);
 }
 
-export function Redirect(_props: { href?: unknown }) {
+export function Link(props: StubProps) {
+  return passthrough(props);
+}
+
+export function Redirect(_props: StubProps) {
   return null;
 }
 
-export function Stack({ children }: Children) {
-  return <>{children}</>;
+export function Stack(props: StubProps) {
+  return passthrough(props);
 }
-Stack.Screen = function StackScreen(_props: Record<string, unknown>) {
-  return null;
-};
-
-export function Tabs({ children }: Children) {
-  return <>{children}</>;
-}
-Tabs.Screen = function TabsScreen(_props: Record<string, unknown>) {
+Stack.Screen = function StackScreen(_props: StubProps) {
   return null;
 };
 
-export function Slot({ children }: Children) {
-  return <>{children}</>;
+export function Tabs(props: StubProps) {
+  return passthrough(props);
+}
+Tabs.Screen = function TabsScreen(_props: StubProps) {
+  return null;
+};
+
+export function Slot(props: StubProps) {
+  return passthrough(props);
 }
 
 const noop = () => undefined;
