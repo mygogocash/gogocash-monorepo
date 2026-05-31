@@ -3,16 +3,14 @@ import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { CustomerRouteState } from "@mobile/components/CustomerRouteState";
+import type { CustomerRouteStateVariant } from "@mobile/components/CustomerRouteState";
 
 // Render coverage (audit #2): unlike the source-string *.test.ts suite, this
 // actually mounts the component (react-native -> react-native-web, happy-dom) and
 // asserts rendered output — catching runtime breaks the string suite cannot.
-// NOTE: kept free of TS type annotations in the test body — the render config's
-// parser (rolldown/oxc SSR transform) rejects some type syntax that tsc accepts,
-// and tsc still type-checks this file separately via `npm run typecheck`.
 describe("CustomerRouteState (render)", () => {
   it("renders default copy for each variant without throwing", () => {
-    const cases = [
+    const cases: { variant: CustomerRouteStateVariant; title: string }[] = [
       { variant: "empty", title: "No activity yet" },
       { variant: "error", title: "We could not load this page" },
       { variant: "loading", title: "Loading GoGoCash" },

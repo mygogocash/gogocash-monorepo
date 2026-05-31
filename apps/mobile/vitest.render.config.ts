@@ -27,12 +27,21 @@ export default defineConfig({
       // static assets (png/jpg/svg/...) cannot be parsed as modules by rolldown;
       // map every asset extension to an opaque stub. MUST be first so it wins
       // before the broad source aliases.
-      { find: /\.(png|jpe?g|gif|webp|avif|svg)$/, replacement: stub("assetStub.ts") },
+      { find: /^.*\.(png|jpe?g|gif|webp|avif|svg)(\?.*)?$/, replacement: stub("assetStub.ts") },
       // phosphor-react-native (root or any deep path) -> single icon stub
       { find: /^phosphor-react-native(\/.*)?$/, replacement: stub("phosphorReactNativeStub.tsx") },
       // expo-router's native router resolves to a non-component object under
       // happy-dom and breaks rendering; swap it for a passthrough test stub.
       { find: "expo-router", replacement: stub("expoRouterStub.tsx") },
+      // CustomerDesktopFooterSlot -> CustomerDesktopFooter, whose line-16 type
+      // alias uses a value-position `typeof` the rolldown/oxc transform rejects
+      // ("Unexpected token 'typeof'", though tsc accepts it). The desktop footer
+      // is presentational chrome irrelevant to render smoke tests, so stub it.
+      // Exact path (must precede the broad "@mobile" alias).
+      {
+        find: "@mobile/components/CustomerDesktopFooterSlot",
+        replacement: stub("desktopFooterSlotStub.tsx"),
+      },
       // react-native is Flow-typed; render against react-native-web instead.
       { find: "react-native", replacement: path.resolve(__dirname, "./node_modules/react-native-web") },
       { find: "@mobile", replacement: path.resolve(__dirname, "./src") },
