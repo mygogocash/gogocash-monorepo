@@ -1,6 +1,6 @@
-import { Link } from "expo-router";
+import { Link, usePathname } from "expo-router";
 import { useState } from "react";
-import { Image, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, ScrollView, StyleSheet, Text, View, type ViewStyle } from "react-native";
 
 import logoMarkImage from "../../assets/nav/logo.png";
 import menuFireImage from "../../assets/nav/menu-fire.png";
@@ -36,6 +36,36 @@ const desktopNavIcons: Partial<
   travel: AirplaneTilt,
 };
 
+// react-native-web renders a persistent CSS focus outline on Pressable/anchor elements after a
+// MOUSE click (it does not gate the ring behind :focus-visible like the web reference). Suppressing
+// the outline on these nav pressables removes the unwanted highlight box on the logo and nav tabs
+// while keeping accessibilityRole/Label intact for assistive tech.
+const webPressableFocusReset = {
+  outlineStyle: "none",
+  outlineWidth: 0,
+} as unknown as ViewStyle;
+
+// The web SubHeader marks a tab active by matching the current route, not a hardcoded flag.
+function isDesktopNavItemActive(pathname: string, href: string): boolean {
+  const decode = (value: string) => {
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return value;
+    }
+  };
+  const normalize = (value: string) => {
+    const base = decode(value).split("?")[0].split("#")[0].replace(/\/+$/, "");
+    return base === "" ? "/" : base;
+  };
+  const current = normalize(pathname);
+  const target = normalize(href);
+  if (target === "/") {
+    return current === "/";
+  }
+  return current === target;
+}
+
 export function CustomerDesktopHeader({ viewportWidth }: { viewportWidth: number }) {
   const shellPadding = getDesktopShellHorizontalPadding(viewportWidth);
   const shellContentWidth = Math.min(viewportWidth, mobileShellLayout.desktopContentMaxWidth);
@@ -56,7 +86,10 @@ export function CustomerDesktopHeader({ viewportWidth }: { viewportWidth: number
           ]}
         >
           <Link asChild href="/">
-            <MotionPressable pressScale={motion.scale.subtlePress} style={styles.desktopLogoLink}>
+            <MotionPressable
+              pressScale={motion.scale.subtlePress}
+              style={StyleSheet.flatten([styles.desktopLogoLink, webPressableFocusReset])}
+            >
               <Image
                 alt="GoGoCash logo"
                 accessibilityLabel="GoGoCash logo"
@@ -71,7 +104,7 @@ export function CustomerDesktopHeader({ viewportWidth }: { viewportWidth: number
               <MotionPressable
                 accessibilityLabel="Quest"
                 pressScale={motion.scale.subtlePress}
-                style={styles.desktopQuestPill}
+                style={StyleSheet.flatten([styles.desktopQuestPill, webPressableFocusReset])}
               >
                 <Image
                   alt="Quest"
@@ -86,7 +119,7 @@ export function CustomerDesktopHeader({ viewportWidth }: { viewportWidth: number
               <MotionPressable
                 accessibilityLabel="Sign in"
                 pressScale={motion.scale.subtlePress}
-                style={styles.desktopSignIn}
+                style={StyleSheet.flatten([styles.desktopSignIn, webPressableFocusReset])}
               >
                 <CustomerSignInNavGraphic />
               </MotionPressable>
@@ -103,9 +136,15 @@ export function CustomerDesktopHeader({ viewportWidth }: { viewportWidth: number
 // Web SubHeader fades the underline in on hover for inactive tabs (group-hover:opacity-40).
 const webSubNavHoverUnderlineOpacity = 0.4;
 
-function DesktopCategoryTab({ item }: { item: (typeof webDesktopHeaderNavItems)[number] }) {
+function DesktopCategoryTab({
+  active,
+  item,
+}: {
+  active: boolean;
+  item: (typeof webDesktopHeaderNavItems)[number];
+}) {
   const [hovered, setHovered] = useState(false);
-  const underlineOpacity = item.active ? 1 : hovered ? webSubNavHoverUnderlineOpacity : 0;
+  const underlineOpacity = active ? 1 : hovered ? webSubNavHoverUnderlineOpacity : 0;
 
   return (
   <Link asChild href={item.href as never} key={item.id}>
@@ -118,9 +157,10 @@ function DesktopCategoryTab({ item }: { item: (typeof webDesktopHeaderNavItems)[
                     "menuTypography" in item && item.menuTypography === "lead"
                       ? styles.desktopCategoryNavItemLead
                       : null,
+                    webPressableFocusReset,
                   ])}
                 >
-                  <DesktopCategoryNavIcon name={item.icon} active={Boolean(item.active)} />
+                  <DesktopCategoryNavIcon name={item.icon} active={active} />
                   <Text
                     style={[
                       styles.desktopCategoryNavText,
@@ -152,6 +192,7 @@ function DesktopCategoryNav({
   shellContentWidth: number;
   shellPadding: number;
 }) {
+  const pathname = usePathname();
   return (
     <View accessibilityLabel="Category navigation" style={styles.desktopCategoryNav}>
       <View
@@ -167,7 +208,11 @@ function DesktopCategoryNav({
           style={styles.desktopCategoryNavScroller}
         >
           {webDesktopHeaderNavItems.map((item) => (
-            <DesktopCategoryTab item={item} key={item.id} />
+            <DesktopCategoryTab
+              active={isDesktopNavItemActive(pathname, item.href)}
+              item={item}
+              key={item.id}
+            />
           ))}
         </ScrollView>
       </View>
