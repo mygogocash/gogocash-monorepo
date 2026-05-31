@@ -11,9 +11,10 @@
     "prepare:web-metadata": "node scripts/generate-web-metadata.mjs",
     "export:web": "npm run prepare:web-metadata && expo export --platform web",
     "test": "vitest run --config vitest.config.ts",
-    "test:full": "npm run test && npm run typecheck && npm run export:web -- --output-dir /tmp/gogocash-expo-full-test-export",
+    "test:full": "npm run test && npm run test:render && npm run typecheck && npm run export:web -- --output-dir /tmp/gogocash-expo-full-test-export",
     "test:flows": "vitest run --config vitest.config.ts src/__tests__/frontend-user-flow-parity.test.ts",
     "test:security": "vitest run --config vitest.config.ts src/__tests__/security-pentest.test.ts",
+    "test:render": "vitest run --config vitest.render.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
     "typecheck": "tsc --noEmit",
     "build:preview": "eas build --profile preview",
@@ -45,10 +46,12 @@
     "react-native-web": "^0.21.2"
   },
   "devDependencies": {
+    "@testing-library/react": "^16.3.2",
     "@testing-library/react-native": "13.3.3",
     "@types/node": "latest",
     "@types/react": "latest",
     "babel-preset-expo": "~56.0.0",
+    "happy-dom": "^20.9.0",
     "react-test-renderer": "19.2.0",
     "typescript": "~6.0.3",
     "vitest": "latest"
