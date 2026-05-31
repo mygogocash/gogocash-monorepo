@@ -1,0 +1,37 @@
+import path from "node:path";
+import { defineConfig } from "vitest/config";
+
+// Render-test harness (audit item #2): proves routed screens/components mount
+// without throwing — coverage the source-string *.test.ts suite cannot give.
+// React Native is Flow-typed and cannot be parsed by vitest, so we alias it to
+// react-native-web (compiled JS) and render to a happy-dom DOM via
+// @testing-library/react. Kept in a SEPARATE config + *.render.test.tsx glob so
+// the source-string suite (vitest.config.ts) stays untouched.
+//
+// Array alias form (not object) so we can use a regex for phosphor: the icon
+// adapter imports ~90 deep default paths (phosphor-react-native/lib/module/
+// icons/<Name>) that ship unresolvable ESM, so every phosphor path maps to one
+// stub. Order matters — first match wins; the more specific package aliases come
+// before the broad "@mobile" source alias.
+const stub = (file: string) => path.resolve(__dirname, "./src/test-support", file);
+
+export default defineConfig({
+  root: __dirname,
+  test: {
+    environment: "happy-dom",
+    include: ["src/**/*.render.test.tsx"],
+    setupFiles: ["./vitest.render.setup.ts"],
+  },
+  resolve: {
+    alias: [
+      // phosphor-react-native (root or any deep path) -> single icon stub
+      { find: /^phosphor-react-native(\/.*)?$/, replacement: stub("phosphorReactNativeStub.tsx") },
+      // expo-router's native router resolves to a non-component object under
+      // happy-dom and breaks rendering; swap it for a passthrough test stub.
+      { find: "expo-router", replacement: stub("expoRouterStub.tsx") },
+      // react-native is Flow-typed; render against react-native-web instead.
+      { find: "react-native", replacement: path.resolve(__dirname, "./node_modules/react-native-web") },
+      { find: "@mobile", replacement: path.resolve(__dirname, "./src") },
+    ],
+  },
+});
