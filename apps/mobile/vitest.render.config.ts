@@ -30,6 +30,10 @@ export default defineConfig({
       { find: /^.*\.(png|jpe?g|gif|webp|avif|svg)(\?.*)?$/, replacement: stub("assetStub.ts") },
       // phosphor-react-native (root or any deep path) -> single icon stub
       { find: /^phosphor-react-native(\/.*)?$/, replacement: stub("phosphorReactNativeStub.tsx") },
+      // posthog-react-native ships a value-position `typeof` type alias the
+      // rolldown/oxc transform rejects ("Unexpected token 'typeof'"); stub it.
+      // usePostHog()->undefined exercises the production "no key" branch.
+      { find: "posthog-react-native", replacement: stub("posthogReactNativeStub.tsx") },
       // expo-router's native router resolves to a non-component object under
       // happy-dom and breaks rendering; swap it for a passthrough test stub.
       { find: "expo-router", replacement: stub("expoRouterStub.tsx") },
