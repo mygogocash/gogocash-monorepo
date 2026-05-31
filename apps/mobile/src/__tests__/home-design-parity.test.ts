@@ -67,9 +67,10 @@ describe("Expo home design parity", () => {
     expect(homeFile).toContain("StyleSheet.flatten([");
     expect(homeFile).toContain("styles.desktopCategoryNavItem");
     expect(homeFile).toContain("styles.desktopCategoryNavItemLead");
-    expect(homeFile).toContain(
-      "homeLayout.isDesktop ? <CustomerDesktopHeader viewportWidth={width} /> : null"
-    );
+    // Desktop home renders a full-bleed header inside the `homeLayout.isDesktop`
+    // branch so the header bar spans the full viewport (content stays capped at 1440).
+    expect(homeFile).toContain("if (homeLayout.isDesktop) {");
+    expect(homeFile).toContain("<CustomerDesktopHeader viewportWidth={width} />");
     expect(homeFile).toContain('webHomeSectionOrder.includes("browseShortcuts")');
     expect(homeFile).toContain("<BrowseShortcuts />");
     const cookieBannerFile = fs.readFileSync(
