@@ -1,14 +1,22 @@
 # GoGoCash Expo Migration — Live Context
 
-_Last updated: 2026-05-31. Branch `expo-module`, HEAD `e53236c` (pushed to origin, synced)._
+_Last updated: 2026-05-31. Branch `expo-module`, HEAD `a91c601` (pushed to origin, synced)._
 
 What's done / what's left in the Next.js → Expo migration for `apps/mobile`. See `agent.md` for workflow, `design.md` for the design system, `project.md` for the repo map.
 
 ## Scope
-Visual/structural parity with the frozen Next.js reference (`gogocash_app-staging`). Live-data wiring, auth, i18n, analytics, web3, and Stripe checkout remain parked. Audit caveat: the gap audit had a **~50% false-positive rate** — always ground-truth against BOTH the real web file and the real Expo file before fixing.
+Visual/structural parity with the frozen Next.js reference (`gogocash_app-staging`). i18n, web3, and Stripe checkout remain parked (verified genuinely absent). Audit caveat: the gap audit had a **~50% false-positive rate** — always ground-truth against BOTH the real web file and the real Expo file before fixing.
 
-## State: everything below is committed AND pushed to `origin/expo-module` (HEAD e53236c)
-Source-string suite **252 passed / 0 failed / 0 todo** (37 files, `npm test`), tsc **0 errors** (verify tsc separately — source-string parity tests do not compile components, so the suite can be green while tsc is red; a StyleSheet.absoluteFillObject TS2551 slipped through once and was fixed in 6de020e).
+## BACKLOG TRUTH (adversarially deep-verified 2026-05-31 — supersedes the old "parked" framing)
+A workflow verified every "parked by design" claim against real code. The old blanket "live-data, auth, i18n, analytics, web3, Stripe all parked" was WRONG for 3 of 6 — they understated shipped work. See memory `gogocash-expo-backlog-deepverify`. Corrected status:
+- **auth = partially-wired** (NOT parked): session store + route guard + OAuth callback all RUN; only the login FORM is fake (hardcoded OTP `123456`). Finish-the-wiring.
+- **live-data = partially-wired** (NOT parked): 6 account screens wire `useQuery` to real endpoints, dormant because `accountDataSource='fixtures'`. Home+Discovery truly fixture-only.
+- **analytics = infra fully-wired**; SLICE 1 DONE (a91c601): `src/analytics/events.ts` event vocabulary mirrors web GA4/PostHog names exactly (page_view, merchant_category_select, select_promotion, quest_started, cashback_withdraw_success, complete_registration + identify/reset, platform:"mobile"). 11 tests. SLICE 2 PENDING: per-screen wiring (useAnalytics() hook bridging usePostHog() + .capture() in Banner/MissionList/withdraw/login). view_item/select_item/add_to_wishlist deferred (need parked merchant/offer model).
+- **Stripe / web3 / i18n = correctly parked** (no deps even installed; `src/web3` does not exist).
+- **HIDDEN pending (not previously tracked):** GoGoSense detector is a permanent no-op stub behind a full 8-route surface; credit-score renders fabricated numbers as real (`my-rating` is a bare redirect); `NativeParityScreen.tsx` (1615 lines) is dead/unrouted; control docs drift (agent.md 243/7 stale vs real 263/0; project.md repo map omits ~14 of 21 src dirs).
+
+## State: everything below is committed AND pushed to `origin/expo-module` (HEAD a91c601)
+Source suite **263 passed / 0 failed / 0 todo** (38 files, `npm test`) — was 252, +11 from the analytics event vocabulary. Render suite **5 passed** (`npm run test:render`). tsc **0 errors** (verify tsc separately — source-string parity tests do not compile components, so the suite can be green while tsc is red; a StyleSheet.absoluteFillObject TS2551 slipped through once and was fixed in 6de020e). NOTE: bash stdout/exit-codes were corrupted this session (rtk) — counts here were confirmed via the Read tool on raw vitest result files + JSON reporter, not bash echo.
 
 Render-test harness (`npm run test:render`, audit #2 first slice): **5 passed / 0 failed** — actually mounts `CustomerRouteState` in happy-dom (`react-native`→`react-native-web`). Separate `vitest.render.config.ts` + `*.render.test.tsx` glob; `src/test-support/` stubs for phosphor-react-native, expo-router, static assets, and CustomerDesktopFooterSlot (the footer's line-16 value-position `typeof` type alias breaks the rolldown/oxc transform — stubbed, NOT changed in source). Render test bodies use the variant union via a type-only import; deeper TS in test bodies can still trip the transform. NOTE: the harness was committed broken first (false "5 passed" claims in earlier commits) and only genuinely passes as of **e53236c**. See memory `gogocash-expo-render-test-harness`.
 
