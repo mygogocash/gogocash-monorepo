@@ -226,83 +226,147 @@ export function CustomerHomeScreen() {
     router.push(homeGoLinkShopNowRoute as never);
   }, [router]);
 
+  const homeSections = (
+    <>
+      {webHomeSectionOrder.includes("browseShortcuts") ? (
+        homeLayout.isDesktop ? null : (
+          <BrowseShortcuts />
+        )
+      ) : null}
+      {webHomeSectionOrder.includes("banner") ? (
+        <HomeHeroBanners homeLayout={homeLayout} />
+      ) : null}
+      {homeLayout.isDesktop ? (
+        <DesktopGoLinkBanner
+          onOpenGuideline={() => setDesktopGoLinkGuidelineOpen(true)}
+          onResultHref={setDesktopGoLinkResultHref}
+        />
+      ) : null}
+      {webHomeSectionOrder.includes("extra") ? (
+        <TopBrandSection homeLayout={homeLayout} />
+      ) : null}
+      {webHomePromoSections.map((section) => (
+        <PromoSection homeLayout={homeLayout} key={section.id} {...section} />
+      ))}
+    </>
+  );
+
+  // DESKTOP: full-bleed chrome. The header and footer span the full viewport
+  // width; only the content sections are capped at contentMaxWidth and centered.
+  if (homeLayout.isDesktop) {
+    return (
+      <View style={styles.viewport}>
+        <View style={styles.desktopShellFrame}>
+          <CustomerDesktopHeader viewportWidth={width} />
+          <ScrollView
+            contentContainerStyle={[
+              styles.page,
+              styles.pageDesktop,
+              styles.pageDesktopFullBleed,
+              {
+                paddingBottom: homeLayout.pageBottomPadding,
+                paddingTop: mobileShellLayout.desktopHomeTopGap,
+              },
+            ]}
+            showsVerticalScrollIndicator={false}
+          >
+            <View
+              style={[
+                styles.desktopContentCap,
+                {
+                  maxWidth: homeLayout.contentMaxWidth,
+                  paddingHorizontal: homeLayout.contentHorizontalPadding,
+                },
+              ]}
+            >
+              {homeSections}
+            </View>
+            <View
+              style={[styles.desktopFooterCap, { maxWidth: homeLayout.contentMaxWidth }]}
+            >
+              <CustomerDesktopFooter horizontalPadding={0} viewportWidth={width} />
+            </View>
+          </ScrollView>
+        </View>
+        {searchPopoverMounted ? (
+          <HomeSearchPopularPopover
+            horizontalPadding={homeLayout.contentHorizontalPadding}
+            onClose={closeSearchPopover}
+            onExited={handleSearchPopoverExited}
+            query={searchQuery}
+            top={searchPopoverTop}
+            visible={searchPopoverOpen}
+          />
+        ) : null}
+        {goLinkSheetOpen ? (
+          <CustomerGoLinkScreen
+            onClose={() => setGoLinkSheetOpen(false)}
+            presentation="homeSheet"
+          />
+        ) : null}
+        {desktopGoLinkGuidelineOpen ? (
+          <GoLinkGuidelineDialog onClose={() => setDesktopGoLinkGuidelineOpen(false)} />
+        ) : null}
+        {desktopGoLinkResultHref ? (
+          <GoLinkResultDialog
+            href={desktopGoLinkResultHref}
+            onClose={() => setDesktopGoLinkResultHref("")}
+            onShopNow={handleDesktopGoLinkShopNow}
+          />
+        ) : null}
+        <CustomerCookieConsentBanner isDesktop />
+        <CustomerLineOfficialFab />
+      </View>
+    );
+  }
+
+  // MOBILE: unchanged — capped phoneFrame with sticky search and bottom nav.
   return (
     <View style={styles.viewport}>
       <View style={[styles.phoneFrame, { maxWidth: homeLayout.contentMaxWidth }]}>
-        {homeLayout.isDesktop ? <CustomerDesktopHeader viewportWidth={width} /> : null}
-        {homeLayout.isDesktop ? null : (
-          <View
-            style={[
-              styles.stickySearch,
-              {
-                paddingHorizontal: homeLayout.contentHorizontalPadding,
-                paddingTop: searchTopPadding,
-              },
-            ]}
+        <View
+          style={[
+            styles.stickySearch,
+            {
+              paddingHorizontal: homeLayout.contentHorizontalPadding,
+              paddingTop: searchTopPadding,
+            },
+          ]}
+        >
+          <MotionPressable
+            onPress={openSearchPopover}
+            pressScale={motion.scale.subtlePress}
+            style={[styles.searchPill, searchPopoverOpen ? styles.searchPillActive : null]}
           >
-            <MotionPressable
-              onPress={openSearchPopover}
-              pressScale={motion.scale.subtlePress}
-              style={[styles.searchPill, searchPopoverOpen ? styles.searchPillActive : null]}
-            >
-              <SearchIcon color={colors.primaryDark} size={20} strokeWidth={homeIconStrokeWidth} />
-              <TextInput
-                accessibilityLabel="Search brands, stores, products, and cashback offers"
-                nativeID="home-search-input"
-                onBlur={() => undefined}
-                onChangeText={setSearchQuery}
-                onFocus={openSearchPopover}
-                onPressIn={openSearchPopover}
-                placeholder={webHomeSearchPlaceholder}
-                placeholderTextColor={colors.textSoft}
-                style={[styles.searchInput, webSearchInputFocusReset]}
-                testID="home-search-input"
-                value={searchQuery}
-              />
-            </MotionPressable>
-          </View>
-        )}
+            <SearchIcon color={colors.primaryDark} size={20} strokeWidth={homeIconStrokeWidth} />
+            <TextInput
+              accessibilityLabel="Search brands, stores, products, and cashback offers"
+              nativeID="home-search-input"
+              onBlur={() => undefined}
+              onChangeText={setSearchQuery}
+              onFocus={openSearchPopover}
+              onPressIn={openSearchPopover}
+              placeholder={webHomeSearchPlaceholder}
+              placeholderTextColor={colors.textSoft}
+              style={[styles.searchInput, webSearchInputFocusReset]}
+              testID="home-search-input"
+              value={searchQuery}
+            />
+          </MotionPressable>
+        </View>
 
         <ScrollView
           contentContainerStyle={[
             styles.page,
-            homeLayout.isDesktop ? styles.pageDesktop : null,
             {
               paddingBottom: homeLayout.pageBottomPadding,
               paddingHorizontal: homeLayout.contentHorizontalPadding,
-              paddingTop: homeLayout.isDesktop
-                ? mobileShellLayout.desktopHomeTopGap
-                : mobileShellLayout.contentTopGap,
+              paddingTop: mobileShellLayout.contentTopGap,
             },
           ]}
           showsVerticalScrollIndicator={false}
         >
-          {webHomeSectionOrder.includes("browseShortcuts") ? (
-            homeLayout.isDesktop ? null : (
-              <BrowseShortcuts />
-            )
-          ) : null}
-          {webHomeSectionOrder.includes("banner") ? (
-            <HomeHeroBanners homeLayout={homeLayout} />
-          ) : null}
-          {homeLayout.isDesktop ? (
-            <DesktopGoLinkBanner
-              onOpenGuideline={() => setDesktopGoLinkGuidelineOpen(true)}
-              onResultHref={setDesktopGoLinkResultHref}
-            />
-          ) : null}
-          {webHomeSectionOrder.includes("extra") ? (
-            <TopBrandSection homeLayout={homeLayout} />
-          ) : null}
-          {webHomePromoSections.map((section) => (
-            <PromoSection homeLayout={homeLayout} key={section.id} {...section} />
-          ))}
-          {homeLayout.isDesktop ? (
-            <CustomerDesktopFooter
-              horizontalPadding={homeLayout.contentHorizontalPadding}
-              viewportWidth={width}
-            />
-          ) : null}
+          {homeSections}
         </ScrollView>
 
         {homeLayout.showBottomNav ? (
@@ -327,19 +391,8 @@ export function CustomerHomeScreen() {
             presentation="homeSheet"
           />
         ) : null}
-        {homeLayout.isDesktop && desktopGoLinkGuidelineOpen ? (
-          <GoLinkGuidelineDialog onClose={() => setDesktopGoLinkGuidelineOpen(false)} />
-        ) : null}
-        {homeLayout.isDesktop && desktopGoLinkResultHref ? (
-          <GoLinkResultDialog
-            href={desktopGoLinkResultHref}
-            onClose={() => setDesktopGoLinkResultHref("")}
-            onShopNow={handleDesktopGoLinkShopNow}
-          />
-        ) : null}
       </View>
-      <CustomerCookieConsentBanner isDesktop={homeLayout.isDesktop} />
-      {homeLayout.isDesktop ? <CustomerLineOfficialFab /> : null}
+      <CustomerCookieConsentBanner isDesktop={false} />
     </View>
   );
 }
@@ -1417,6 +1470,24 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     flex: 1,
     position: "relative",
+    width: "100%",
+  },
+  desktopShellFrame: {
+    backgroundColor: colors.background,
+    flex: 1,
+    position: "relative",
+    width: "100%",
+  },
+  desktopContentCap: {
+    alignSelf: "center",
+    gap: mobileShellLayout.desktopHomeStackGap,
+    width: "100%",
+  },
+  pageDesktopFullBleed: {
+    paddingHorizontal: 0,
+  },
+  desktopFooterCap: {
+    alignSelf: "center",
     width: "100%",
   },
   desktopShell: {
