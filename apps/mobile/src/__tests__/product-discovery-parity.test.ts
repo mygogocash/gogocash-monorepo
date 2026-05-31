@@ -77,7 +77,7 @@ describe("Product discovery parity", () => {
     expect(parity.webProductDiscovery?.sortPills).toEqual([
       { label: "Popular", value: "popular" },
       { label: "Latest", value: "newest" },
-      { label: "High Cashback", value: "highCashback" },
+      { label: "Highest Cashback", value: "highCashback" },
     ]);
     expect(parity.webProductDiscovery?.products).toHaveLength(30);
     expect(parity.webProductDiscovery?.products.slice(0, 3)).toEqual([

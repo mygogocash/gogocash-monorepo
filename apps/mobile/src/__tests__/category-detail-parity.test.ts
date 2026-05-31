@@ -57,7 +57,7 @@ describe("Category detail parity", () => {
       sortPills: [
         { label: "Popular", value: "popular" },
         { label: "Latest", value: "newest" },
-        { label: "High Cashback", value: "highest_cashback" },
+        { label: "Highest Cashback", value: "highest_cashback" },
         { label: "Lowest Cashback", value: "lowest_cashback" },
       ],
       stores: [

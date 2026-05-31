@@ -12,6 +12,7 @@ import {
   type TextStyle,
   useWindowDimensions,
   View,
+  type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -35,6 +36,13 @@ const webSearchInputFocusReset = {
   outlineStyle: "none",
   outlineWidth: 0,
 } as unknown as TextStyle;
+
+// react-native-web leaves a persistent focus outline box on Pressable/anchor elements after a mouse
+// click; suppress it on the category sidebar items and sort pills (a11y role/label are unaffected).
+const webPressableFocusReset = {
+  outlineStyle: "none",
+  outlineWidth: 0,
+} as unknown as ViewStyle;
 
 function safeDecodeCategoryName(categoryName?: string): string {
   if (!categoryName) {
@@ -205,6 +213,7 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
                           styles.sortPill,
                           active ? styles.sortPillActive : null,
                           pill.value === "lowest_cashback" ? styles.lowestSortPill : null,
+                          webPressableFocusReset,
                         ]}
                       >
                         <Text style={[styles.sortPillText, active ? styles.sortPillTextActive : null]}>
@@ -305,6 +314,7 @@ function CategoryNavItem({
           styles.categoryNavItem,
           isDesktop ? styles.categoryNavItemDesktop : styles.categoryNavItemMobile,
           active ? styles.categoryNavItemActive : null,
+          webPressableFocusReset,
         ])}
       >
         <View style={styles.categoryIconCell}>
@@ -565,20 +575,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     justifyContent: "center",
     minHeight: 34,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
   },
   sortPillActive: {
     backgroundColor: colors.primaryDark,
     borderColor: colors.primaryDark,
   },
   lowestSortPill: {
-    paddingHorizontal: 22,
+    paddingHorizontal: 16,
   },
   sortPillText: {
     color: colors.ink,
     fontFamily: typography.family,
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: 14,
+    fontWeight: "600",
     lineHeight: 20,
   },
   sortPillTextActive: {
