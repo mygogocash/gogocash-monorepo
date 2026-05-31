@@ -90,6 +90,8 @@ import {
   webTopBrandCards,
 } from "@mobile/design/webDesignParity";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { trackPromotionSelect } from "@mobile/analytics/events";
+import { useAnalytics } from "@mobile/analytics/useAnalytics";
 import { isValidGoLinkUrl } from "@mobile/features/golink";
 import { motion } from "@mobile/theme/motion";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
@@ -970,8 +972,21 @@ function HeroBannerLink({
   children: ReactNode;
   style: StyleProp<ViewStyle>;
 }) {
+  const analytics = useAnalytics();
+
   return (
-    <Link asChild href={banner.href as never}>
+    <Link
+      asChild
+      href={banner.href as never}
+      onPress={() =>
+        trackPromotionSelect(analytics, {
+          promotionId: banner.id,
+          promotionName: banner.id,
+          creativeSlot: banner.placement,
+          destination: banner.href,
+        })
+      }
+    >
       <MotionPressable pressScale={motion.scale.subtlePress} style={StyleSheet.flatten(style)}>
         {children}
       </MotionPressable>
