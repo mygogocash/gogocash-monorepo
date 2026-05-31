@@ -24,6 +24,10 @@ export default defineConfig({
   },
   resolve: {
     alias: [
+      // static assets (png/jpg/svg/...) cannot be parsed as modules by rolldown;
+      // map every asset extension to an opaque stub. MUST be first so it wins
+      // before the broad source aliases.
+      { find: /\.(png|jpe?g|gif|webp|avif|svg)$/, replacement: stub("assetStub.ts") },
       // phosphor-react-native (root or any deep path) -> single icon stub
       { find: /^phosphor-react-native(\/.*)?$/, replacement: stub("phosphorReactNativeStub.tsx") },
       // expo-router's native router resolves to a non-component object under
