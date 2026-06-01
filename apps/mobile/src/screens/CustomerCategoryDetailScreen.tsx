@@ -17,6 +17,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import shopeeLogo from "../../assets/partner-shopee.png";
+import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
 import { MotionPressable } from "@mobile/components/MotionPressable";
@@ -140,6 +141,146 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
   const subtitle = `Find cashback deals from stores in ${category}. Search and sort to narrow results.`;
   const searchPlaceholder = `Search within ${category}`;
 
+  const categoryContent = (
+    <>
+      <View style={styles.header}>
+        <Text style={[styles.title, isDesktop ? styles.titleDesktop : null]}>
+          {title}
+          <Text style={styles.titleIcon}> 🔎</Text>
+        </Text>
+        <Text style={styles.subtitle}>{subtitle}</Text>
+      </View>
+
+      <View style={[styles.categoryLayout, isDesktop ? styles.categoryLayoutDesktop : null]}>
+        <CategoryAside activeCategory={category} isDesktop={isDesktop} />
+
+        <View
+          style={[
+            styles.resultsColumn,
+            isDesktop
+              ? {
+                  gap: spacing.lg,
+                  width: gridMetrics.gridWidth,
+                }
+              : null,
+          ]}
+        >
+          <View style={styles.filterCard}>
+            <View style={styles.searchBox}>
+              <SearchIcon
+                color={colors.textSoft}
+                size={18}
+                strokeWidth={typography.iconStrokeWidth}
+              />
+              <TextInput
+                accessibilityLabel={searchPlaceholder}
+                autoCapitalize="none"
+                autoCorrect={false}
+                inputMode="search"
+                onChangeText={setSearchQuery}
+                placeholder={searchPlaceholder}
+                placeholderTextColor={colors.textSoft}
+                returnKeyType="search"
+                style={[styles.searchInput, webSearchInputFocusReset]}
+                value={searchQuery}
+              />
+            </View>
+
+            <View style={styles.sortRow}>
+              <Text style={styles.sortLabel}>{webCategoryExploreHealthBeauty.sortLabel}</Text>
+              {webCategoryExploreHealthBeauty.sortPills.map((pill) => {
+                const active = sortBy === pill.value;
+                return (
+                  <MotionPressable
+                    accessibilityRole="button"
+                    key={pill.value}
+                    onPress={() => setSortBy(pill.value)}
+                    pressScale={motion.scale.subtlePress}
+                    style={[
+                      styles.sortPill,
+                      active ? styles.sortPillActive : null,
+                      pill.value === "lowest_cashback" ? styles.lowestSortPill : null,
+                      webPressableFocusReset,
+                    ]}
+                  >
+                    <Text style={[styles.sortPillText, active ? styles.sortPillTextActive : null]}>
+                      {pill.label}
+                    </Text>
+                  </MotionPressable>
+                );
+              })}
+              <Text style={styles.storeCount}>{getVisibleStoreCountLabel(stores.length)}</Text>
+            </View>
+          </View>
+
+          {stores.length > 0 ? (
+            <View style={[styles.storeGrid, { gap: gridMetrics.gap }]}>
+              {stores.map((store, index) => (
+                <CategoryStoreCard
+                  cardHeight={gridMetrics.cardHeight}
+                  cardWidth={gridMetrics.cardWidth}
+                  index={index}
+                  key={store.brand}
+                  store={store}
+                />
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyTitle}>No stores match that search.</Text>
+              <Text style={styles.emptyBody}>Try another brand or clear the search field.</Text>
+            </View>
+          )}
+        </View>
+      </View>
+    </>
+  );
+
+  // DESKTOP: full-bleed shell so the footer's negative-margin breakout reaches the
+  // viewport edge. Page content stays capped + centered at contentMaxWidth via an
+  // inner cap; only the footer escapes the cap. Mirrors CustomerHomeScreen.
+  if (isDesktop) {
+    return (
+      <View style={styles.viewport}>
+        <View style={styles.desktopShellFrame}>
+          <ScrollView
+            contentContainerStyle={[
+              styles.page,
+              styles.pageDesktopFullBleed,
+              {
+                paddingBottom: mobileShellLayout.desktopBottomClearance,
+                paddingTop: Math.max(spacing.lg, insets.top + spacing.lg),
+              },
+            ]}
+            showsVerticalScrollIndicator={false}
+          >
+            <View
+              style={[
+                styles.desktopContentCap,
+                {
+                  maxWidth: homeLayout.contentMaxWidth,
+                  paddingHorizontal: homeLayout.contentHorizontalPadding,
+                },
+              ]}
+            >
+              {categoryContent}
+            </View>
+            <View
+              style={[
+                styles.desktopFooterCap,
+                styles.desktopFooter,
+                { maxWidth: homeLayout.contentMaxWidth },
+              ]}
+            >
+              <CustomerDesktopFooter horizontalPadding={0} viewportWidth={width} />
+            </View>
+          </ScrollView>
+        </View>
+      </View>
+    );
+  }
+
+  // MOBILE: unchanged — capped phoneFrame, padded ScrollView, bottom nav.
   return (
     <View style={styles.viewport}>
       <View style={[styles.phoneFrame, { maxWidth: homeLayout.contentMaxWidth }]}>
@@ -156,96 +297,7 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
           ]}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.header}>
-            <Text style={[styles.title, isDesktop ? styles.titleDesktop : null]}>
-              {title}
-              <Text style={styles.titleIcon}> 🔎</Text>
-            </Text>
-            <Text style={styles.subtitle}>{subtitle}</Text>
-          </View>
-
-          <View style={[styles.categoryLayout, isDesktop ? styles.categoryLayoutDesktop : null]}>
-            <CategoryAside activeCategory={category} isDesktop={isDesktop} />
-
-            <View
-              style={[
-                styles.resultsColumn,
-                isDesktop
-                  ? {
-                      gap: spacing.lg,
-                      width: gridMetrics.gridWidth,
-                    }
-                  : null,
-              ]}
-            >
-              <View style={styles.filterCard}>
-                <View style={styles.searchBox}>
-                  <SearchIcon
-                    color={colors.textSoft}
-                    size={18}
-                    strokeWidth={typography.iconStrokeWidth}
-                  />
-                  <TextInput
-                    accessibilityLabel={searchPlaceholder}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    inputMode="search"
-                    onChangeText={setSearchQuery}
-                    placeholder={searchPlaceholder}
-                    placeholderTextColor={colors.textSoft}
-                    returnKeyType="search"
-                    style={[styles.searchInput, webSearchInputFocusReset]}
-                    value={searchQuery}
-                  />
-                </View>
-
-                <View style={styles.sortRow}>
-                  <Text style={styles.sortLabel}>{webCategoryExploreHealthBeauty.sortLabel}</Text>
-                  {webCategoryExploreHealthBeauty.sortPills.map((pill) => {
-                    const active = sortBy === pill.value;
-                    return (
-                      <MotionPressable
-                        accessibilityRole="button"
-                        key={pill.value}
-                        onPress={() => setSortBy(pill.value)}
-                        pressScale={motion.scale.subtlePress}
-                        style={[
-                          styles.sortPill,
-                          active ? styles.sortPillActive : null,
-                          pill.value === "lowest_cashback" ? styles.lowestSortPill : null,
-                          webPressableFocusReset,
-                        ]}
-                      >
-                        <Text style={[styles.sortPillText, active ? styles.sortPillTextActive : null]}>
-                          {pill.label}
-                        </Text>
-                      </MotionPressable>
-                    );
-                  })}
-                  <Text style={styles.storeCount}>{getVisibleStoreCountLabel(stores.length)}</Text>
-                </View>
-              </View>
-
-              {stores.length > 0 ? (
-                <View style={[styles.storeGrid, { gap: gridMetrics.gap }]}>
-                  {stores.map((store, index) => (
-                    <CategoryStoreCard
-                      cardHeight={gridMetrics.cardHeight}
-                      cardWidth={gridMetrics.cardWidth}
-                      index={index}
-                      key={store.brand}
-                      store={store}
-                    />
-                  ))}
-                </View>
-              ) : (
-                <View style={styles.emptyState}>
-                  <Text style={styles.emptyTitle}>No stores match that search.</Text>
-                  <Text style={styles.emptyBody}>Try another brand or clear the search field.</Text>
-                </View>
-              )}
-            </View>
-          </View>
+          {categoryContent}
           <CustomerDesktopFooterSlot
             horizontalPadding={homeLayout.contentHorizontalPadding}
             style={styles.desktopFooter}
@@ -397,6 +449,23 @@ const styles = StyleSheet.create({
     flex: 1,
     position: "relative",
     width: "100%",
+  },
+  desktopShellFrame: {
+    backgroundColor: colors.background,
+    flex: 1,
+    position: "relative",
+    width: "100%",
+  },
+  desktopContentCap: {
+    alignSelf: "center",
+    width: "100%",
+  },
+  desktopFooterCap: {
+    alignSelf: "center",
+    width: "100%",
+  },
+  pageDesktopFullBleed: {
+    paddingHorizontal: 0,
   },
   page: {
     minHeight: "100%",
