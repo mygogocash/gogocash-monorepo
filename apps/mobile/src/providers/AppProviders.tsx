@@ -1,6 +1,6 @@
 import { useFonts } from "expo-font";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { PostHogProvider } from "posthog-react-native";
+import { type PostHog, PostHogProvider } from "posthog-react-native";
 import { PropsWithChildren, useEffect, useMemo } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
@@ -10,6 +10,24 @@ import { CustomerRouteState } from "@mobile/components/CustomerRouteState";
 import { getObservabilityConfig, initObservability } from "@mobile/observability/client";
 import { PrivacyScreenGuard } from "@mobile/security/PrivacyScreenGuard";
 import { gogoCashRuntimeFonts } from "@mobile/theme/appFonts";
+
+// A no-op PostHog client used when no posthogKey is configured (local/web dev).
+// We mount <PostHogProvider> in BOTH cases so usePostHog() always resolves a
+// client from context; otherwise posthog-react-native console.error()s
+// "usePostHog was called without a PostHog client..." once per caller, which
+// surfaces as a dev error overlay. The provider only calls debug() on the client
+// when autocapture is disabled, so a minimal stub is sufficient — capture/
+// identify/reset are present so any consumer no-ops cleanly.
+const noOpPostHogClient = {
+  capture: () => undefined,
+  identify: () => undefined,
+  reset: () => undefined,
+  screen: () => undefined,
+  debug: () => undefined,
+  flush: () => undefined,
+  optIn: () => undefined,
+  optOut: () => undefined,
+} as unknown as PostHog;
 
 export function AppProviders({ children }: PropsWithChildren) {
   const [fontsLoaded, fontError] = useFonts(gogoCashRuntimeFonts);
@@ -52,8 +70,15 @@ export function AppProviders({ children }: PropsWithChildren) {
     </SafeAreaProvider>
   );
 
+  // Keyless (local/web dev): still mount the provider with a no-op client and
+  // autocapture disabled so usePostHog() resolves a client (no warning overlay)
+  // without creating a real PostHog instance or sending any network traffic.
   if (!posthogConfig?.posthogKey) {
-    return appTree;
+    return (
+      <PostHogProvider autocapture={false} client={noOpPostHogClient}>
+        {appTree}
+      </PostHogProvider>
+    );
   }
 
   return (
