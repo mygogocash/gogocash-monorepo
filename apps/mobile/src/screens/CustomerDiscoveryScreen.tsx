@@ -31,6 +31,7 @@ import sideGroceryImage from "../../assets/home-side-grocery.png";
 import sideWatchImage from "../../assets/home-side-watch.png";
 import questBannerImage from "../../assets/quest-banner-en.png";
 import shopPromoGogoQuestImage from "../../assets/shop-promo-gogoquest.png";
+import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
 import {
@@ -169,29 +170,186 @@ function BrandDirectoryScreen() {
     setCurrentPage(1);
   };
 
+  const stickySearchHeader = (
+    <View
+      style={[
+        styles.stickySearch,
+        {
+          paddingHorizontal: homeLayout.contentHorizontalPadding,
+          paddingTop: Math.max(8, insets.top + 8),
+        },
+      ]}
+    >
+      <View style={styles.searchPill}>
+        <SearchIcon color={colors.primaryDark} size={20} strokeWidth={typography.iconStrokeWidth} />
+        <Text numberOfLines={1} style={styles.searchText}>
+          {webHomeSearchPlaceholder}
+        </Text>
+      </View>
+    </View>
+  );
+
+  const brandContent = (
+    <>
+      <ShopDirectoryPromo
+        contentWidth={homeLayout.contentWidth}
+        isDesktop={homeLayout.isDesktop}
+        promo={webBrandDirectory.promo}
+      />
+
+      <View style={styles.shopDirectoryHeader}>
+        <View style={styles.shopDirectoryTitleRow}>
+          <Text
+            style={[
+              styles.shopDirectoryTitle,
+              homeLayout.isDesktop ? styles.shopDirectoryTitleDesktop : null,
+            ]}
+          >
+            {webBrandDirectory.title}
+          </Text>
+          <Text
+            accessibilityElementsHidden
+            importantForAccessibility="no"
+            style={styles.shopDirectoryTitleIcon}
+          >
+            {webBrandDirectory.titleIcon}
+          </Text>
+        </View>
+        <Text style={styles.shopDirectorySubtitle}>{webBrandDirectory.subtitle}</Text>
+      </View>
+
+      <View
+        style={[
+          styles.shopDirectoryLayout,
+          homeLayout.isDesktop ? styles.shopDirectoryLayoutDesktop : null,
+          { gap: layoutGap },
+        ]}
+      >
+        <BrandDirectoryCategoryAside
+          activeCategory={selectedCategory}
+          isDesktop={homeLayout.isDesktop}
+          onSelectCategory={updateCategory}
+          width={sidebarWidth}
+        />
+
+        <View style={[styles.shopDirectoryMain, { width: gridContentWidth }]}>
+          <View style={styles.shopDirectoryFilterPanel}>
+            <View style={styles.shopDirectorySearchBox}>
+              <SearchIcon color={colors.muted} size={18} strokeWidth={typography.iconStrokeWidth} />
+              <TextInput
+                accessibilityLabel={webBrandDirectory.searchLabel}
+                autoCapitalize="none"
+                autoCorrect={false}
+                inputMode="search"
+                onChangeText={updateSearchQuery}
+                placeholder={webBrandDirectory.searchPlaceholder}
+                placeholderTextColor={colors.textSoft}
+                returnKeyType="search"
+                style={[styles.shopDirectorySearchInput, webSearchInputFocusReset]}
+                value={searchQuery}
+              />
+            </View>
+
+            <View style={styles.shopDirectorySortBlock}>
+              <Text style={styles.shopDirectorySortLabel}>{webBrandDirectory.sortLabel}</Text>
+              <View style={styles.shopDirectorySortRow}>
+                {webBrandDirectory.sortPills.map((pill) => (
+                  <MotionPressable
+                    accessibilityRole="button"
+                    key={pill.value}
+                    onPress={() => setSortBy(pill.value as WebBrandDirectorySort)}
+                    pressScale={motion.scale.subtlePress}
+                    style={[
+                      styles.shopDirectoryPill,
+                      sortBy === pill.value ? styles.shopDirectoryPillActive : null,
+                    ]}
+                  >
+                    <Text
+                      numberOfLines={1}
+                      style={[
+                        styles.shopDirectoryPillText,
+                        sortBy === pill.value ? styles.shopDirectoryPillTextActive : null,
+                      ]}
+                    >
+                      {pill.label}
+                    </Text>
+                  </MotionPressable>
+                ))}
+                <Text style={styles.shopDirectoryResultsCount}>{resultsLabel}</Text>
+              </View>
+            </View>
+          </View>
+
+          {visibleBrands.length > 0 ? (
+            <View style={[styles.brandDirectoryGrid, { gap: gridMetrics.gap }]}>
+              {visibleBrands.map((store) => (
+                <BrandDirectoryStoreCard
+                  cardWidth={gridMetrics.cardWidth}
+                  key={store.id}
+                  store={store}
+                />
+              ))}
+            </View>
+          ) : (
+            <View style={styles.shopDirectoryEmptyState}>
+              <Text style={styles.shopDirectoryEmptyTitle}>{webBrandDirectory.emptyTitle}</Text>
+              <Text style={styles.shopDirectoryEmptyBody}>{webBrandDirectory.emptyBody}</Text>
+            </View>
+          )}
+
+          <ShopDirectoryPagination
+            activePage={activePage}
+            onChangePage={setCurrentPage}
+            totalPages={totalPages}
+          />
+        </View>
+      </View>
+    </>
+  );
+
+  if (homeLayout.isDesktop) {
+    return (
+      <View style={styles.viewport}>
+        <View style={styles.desktopShellFrame}>
+          <ScrollView
+            contentContainerStyle={[
+              styles.shopDirectoryPage,
+              styles.pageDesktopFullBleed,
+              { paddingBottom: homeLayout.pageBottomPadding },
+            ]}
+            showsVerticalScrollIndicator={false}
+          >
+            <View
+              style={[
+                styles.desktopContentCap,
+                {
+                  maxWidth: homeLayout.contentMaxWidth,
+                  paddingHorizontal: homeLayout.contentHorizontalPadding,
+                },
+              ]}
+            >
+              {stickySearchHeader}
+              {brandContent}
+            </View>
+            <View
+              style={[
+                styles.desktopFooterCap,
+                styles.desktopFooter,
+                { maxWidth: homeLayout.contentMaxWidth },
+              ]}
+            >
+              <CustomerDesktopFooter horizontalPadding={0} viewportWidth={width} />
+            </View>
+          </ScrollView>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.viewport}>
       <View style={[styles.phoneFrame, { maxWidth: homeLayout.contentMaxWidth }]}>
-        <View
-          style={[
-            styles.stickySearch,
-            {
-              paddingHorizontal: homeLayout.contentHorizontalPadding,
-              paddingTop: Math.max(8, insets.top + 8),
-            },
-          ]}
-        >
-          <View style={styles.searchPill}>
-            <SearchIcon
-              color={colors.primaryDark}
-              size={20}
-              strokeWidth={typography.iconStrokeWidth}
-            />
-            <Text numberOfLines={1} style={styles.searchText}>
-              {webHomeSearchPlaceholder}
-            </Text>
-          </View>
-        </View>
+        {stickySearchHeader}
 
         <ScrollView
           contentContainerStyle={[
@@ -203,123 +361,7 @@ function BrandDirectoryScreen() {
           ]}
           showsVerticalScrollIndicator={false}
         >
-          <ShopDirectoryPromo
-            contentWidth={homeLayout.contentWidth}
-            isDesktop={homeLayout.isDesktop}
-            promo={webBrandDirectory.promo}
-          />
-
-          <View style={styles.shopDirectoryHeader}>
-            <View style={styles.shopDirectoryTitleRow}>
-              <Text
-                style={[
-                  styles.shopDirectoryTitle,
-                  homeLayout.isDesktop ? styles.shopDirectoryTitleDesktop : null,
-                ]}
-              >
-                {webBrandDirectory.title}
-              </Text>
-              <Text
-                accessibilityElementsHidden
-                importantForAccessibility="no"
-                style={styles.shopDirectoryTitleIcon}
-              >
-                {webBrandDirectory.titleIcon}
-              </Text>
-            </View>
-            <Text style={styles.shopDirectorySubtitle}>{webBrandDirectory.subtitle}</Text>
-          </View>
-
-          <View
-            style={[
-              styles.shopDirectoryLayout,
-              homeLayout.isDesktop ? styles.shopDirectoryLayoutDesktop : null,
-              { gap: layoutGap },
-            ]}
-          >
-            <BrandDirectoryCategoryAside
-              activeCategory={selectedCategory}
-              isDesktop={homeLayout.isDesktop}
-              onSelectCategory={updateCategory}
-              width={sidebarWidth}
-            />
-
-            <View style={[styles.shopDirectoryMain, { width: gridContentWidth }]}>
-              <View style={styles.shopDirectoryFilterPanel}>
-                <View style={styles.shopDirectorySearchBox}>
-                  <SearchIcon
-                    color={colors.muted}
-                    size={18}
-                    strokeWidth={typography.iconStrokeWidth}
-                  />
-                  <TextInput
-                    accessibilityLabel={webBrandDirectory.searchLabel}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    inputMode="search"
-                    onChangeText={updateSearchQuery}
-                    placeholder={webBrandDirectory.searchPlaceholder}
-                    placeholderTextColor={colors.textSoft}
-                    returnKeyType="search"
-                    style={[styles.shopDirectorySearchInput, webSearchInputFocusReset]}
-                    value={searchQuery}
-                  />
-                </View>
-
-                <View style={styles.shopDirectorySortBlock}>
-                  <Text style={styles.shopDirectorySortLabel}>{webBrandDirectory.sortLabel}</Text>
-                  <View style={styles.shopDirectorySortRow}>
-                    {webBrandDirectory.sortPills.map((pill) => (
-                      <MotionPressable
-                        accessibilityRole="button"
-                        key={pill.value}
-                        onPress={() => setSortBy(pill.value as WebBrandDirectorySort)}
-                        pressScale={motion.scale.subtlePress}
-                        style={[
-                          styles.shopDirectoryPill,
-                          sortBy === pill.value ? styles.shopDirectoryPillActive : null,
-                        ]}
-                      >
-                        <Text
-                          numberOfLines={1}
-                          style={[
-                            styles.shopDirectoryPillText,
-                            sortBy === pill.value ? styles.shopDirectoryPillTextActive : null,
-                          ]}
-                        >
-                          {pill.label}
-                        </Text>
-                      </MotionPressable>
-                    ))}
-                    <Text style={styles.shopDirectoryResultsCount}>{resultsLabel}</Text>
-                  </View>
-                </View>
-              </View>
-
-              {visibleBrands.length > 0 ? (
-                <View style={[styles.brandDirectoryGrid, { gap: gridMetrics.gap }]}>
-                  {visibleBrands.map((store) => (
-                    <BrandDirectoryStoreCard
-                      cardWidth={gridMetrics.cardWidth}
-                      key={store.id}
-                      store={store}
-                    />
-                  ))}
-                </View>
-              ) : (
-                <View style={styles.shopDirectoryEmptyState}>
-                  <Text style={styles.shopDirectoryEmptyTitle}>{webBrandDirectory.emptyTitle}</Text>
-                  <Text style={styles.shopDirectoryEmptyBody}>{webBrandDirectory.emptyBody}</Text>
-                </View>
-              )}
-
-              <ShopDirectoryPagination
-                activePage={activePage}
-                onChangePage={setCurrentPage}
-                totalPages={totalPages}
-              />
-            </View>
-          </View>
+          {brandContent}
           <CustomerDesktopFooterSlot
             horizontalPadding={homeLayout.contentHorizontalPadding}
             style={styles.desktopFooter}
@@ -529,29 +571,197 @@ function ProductDiscoveryScreen() {
     }, motion.duration.fast);
   };
 
+  const stickySearchHeader = (
+    <View
+      style={[
+        styles.stickySearch,
+        {
+          paddingHorizontal: homeLayout.contentHorizontalPadding,
+          paddingTop: Math.max(8, insets.top + 8),
+        },
+      ]}
+    >
+      <View style={styles.searchPill}>
+        <SearchIcon color={colors.primaryDark} size={20} strokeWidth={typography.iconStrokeWidth} />
+        <Text numberOfLines={1} style={styles.searchText}>
+          {webHomeSearchPlaceholder}
+        </Text>
+      </View>
+    </View>
+  );
+
+  const productContent = (
+    <>
+      <View style={styles.productDiscoveryHeader}>
+        <Text
+          style={[
+            styles.productDiscoveryTitle,
+            homeLayout.isDesktop ? styles.productDiscoveryTitleDesktop : null,
+          ]}
+        >
+          {webProductDiscovery.title}
+        </Text>
+        <Text style={styles.productDiscoverySubtitle}>{webProductDiscovery.subtitle}</Text>
+      </View>
+
+      <View
+        style={[
+          styles.productDiscoveryLayout,
+          homeLayout.isDesktop ? styles.productDiscoveryLayoutDesktop : null,
+          { gap: layoutGap },
+        ]}
+      >
+        {homeLayout.isDesktop ? (
+          <ProductDiscoverySidebar
+            activeCategory={selectedCategory}
+            onSelectCategory={updateCategory}
+            width={sidebarWidth}
+          />
+        ) : null}
+
+        <View style={[styles.productDiscoveryMain, { width: gridContentWidth }]}>
+          {!homeLayout.isDesktop ? (
+            <ProductDiscoveryMobileFilters
+              activeCashbackMin={selectedCashbackMin}
+              activeCategory={selectedCategory}
+              onSelectCashback={updateCashbackMin}
+              onSelectCategory={updateCategory}
+            />
+          ) : null}
+
+          <View style={styles.productDiscoveryFilterPanel}>
+            <View style={styles.productDiscoverySearchBox}>
+              <SearchIcon color={colors.muted} size={18} strokeWidth={typography.iconStrokeWidth} />
+              <TextInput
+                accessibilityLabel={webProductDiscovery.searchLabel}
+                autoCapitalize="none"
+                autoCorrect={false}
+                inputMode="search"
+                onChangeText={updateSearchQuery}
+                placeholder={webProductDiscovery.searchPlaceholder}
+                placeholderTextColor={colors.textSoft}
+                returnKeyType="search"
+                style={[styles.productDiscoverySearchInput, webSearchInputFocusReset]}
+                value={searchQuery}
+              />
+            </View>
+
+            <View style={styles.productDiscoverySortRow}>
+              <Text style={styles.productDiscoverySortLabel}>{webProductDiscovery.sortLabel}</Text>
+              {webProductDiscovery.sortPills.map((pill) => (
+                <MotionPressable
+                  accessibilityRole="button"
+                  key={pill.value}
+                  onPress={() => setSortBy(pill.value as WebProductDiscoverySort)}
+                  pressScale={motion.scale.subtlePress}
+                  style={[
+                    styles.productDiscoveryPill,
+                    sortBy === pill.value ? styles.productDiscoveryPillActive : null,
+                  ]}
+                >
+                  <Text
+                    numberOfLines={1}
+                    style={[
+                      styles.productDiscoveryPillText,
+                      sortBy === pill.value ? styles.productDiscoveryPillTextActive : null,
+                    ]}
+                  >
+                    {pill.label}
+                  </Text>
+                </MotionPressable>
+              ))}
+              <Text style={styles.productDiscoveryResultsCount}>{resultsLabel}</Text>
+            </View>
+          </View>
+
+          {visibleProducts.length > 0 ? (
+            <View
+              style={[
+                styles.productDiscoveryGrid,
+                {
+                  gap: gridMetrics.gap,
+                },
+              ]}
+            >
+              {visibleProducts.map((product) => (
+                <ProductDiscoveryCard
+                  cardWidth={gridMetrics.cardWidth}
+                  key={product.id}
+                  onOpenTerms={openTerms}
+                  product={product}
+                />
+              ))}
+            </View>
+          ) : (
+            <View style={styles.productDiscoveryEmptyState}>
+              <Text style={styles.productDiscoveryEmptyTitle}>
+                {webProductDiscovery.emptyTitle}
+              </Text>
+            </View>
+          )}
+
+          <ShopDirectoryPagination
+            activePage={activePage}
+            onChangePage={setCurrentPage}
+            totalPages={totalPages}
+          />
+        </View>
+      </View>
+    </>
+  );
+
+  const termsDialog = (
+    <ProductDiscoveryTermsDialog
+      closing={termsClosing}
+      onClose={closeTerms}
+      visible={termsVisible}
+    />
+  );
+
+  if (homeLayout.isDesktop) {
+    return (
+      <View style={styles.viewport}>
+        <View style={styles.desktopShellFrame}>
+          <ScrollView
+            contentContainerStyle={[
+              styles.productDiscoveryPage,
+              styles.pageDesktopFullBleed,
+              { paddingBottom: homeLayout.pageBottomPadding },
+            ]}
+            showsVerticalScrollIndicator={false}
+          >
+            <View
+              style={[
+                styles.desktopContentCap,
+                {
+                  maxWidth: homeLayout.contentMaxWidth,
+                  paddingHorizontal: homeLayout.contentHorizontalPadding,
+                },
+              ]}
+            >
+              {stickySearchHeader}
+              {productContent}
+            </View>
+            <View
+              style={[
+                styles.desktopFooterCap,
+                styles.desktopFooter,
+                { maxWidth: homeLayout.contentMaxWidth },
+              ]}
+            >
+              <CustomerDesktopFooter horizontalPadding={0} viewportWidth={width} />
+            </View>
+          </ScrollView>
+          {termsDialog}
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.viewport}>
       <View style={[styles.phoneFrame, { maxWidth: homeLayout.contentMaxWidth }]}>
-        <View
-          style={[
-            styles.stickySearch,
-            {
-              paddingHorizontal: homeLayout.contentHorizontalPadding,
-              paddingTop: Math.max(8, insets.top + 8),
-            },
-          ]}
-        >
-          <View style={styles.searchPill}>
-            <SearchIcon
-              color={colors.primaryDark}
-              size={20}
-              strokeWidth={typography.iconStrokeWidth}
-            />
-            <Text numberOfLines={1} style={styles.searchText}>
-              {webHomeSearchPlaceholder}
-            </Text>
-          </View>
-        </View>
+        {stickySearchHeader}
 
         <ScrollView
           contentContainerStyle={[
@@ -563,138 +773,14 @@ function ProductDiscoveryScreen() {
           ]}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.productDiscoveryHeader}>
-            <Text
-              style={[
-                styles.productDiscoveryTitle,
-                homeLayout.isDesktop ? styles.productDiscoveryTitleDesktop : null,
-              ]}
-            >
-              {webProductDiscovery.title}
-            </Text>
-            <Text style={styles.productDiscoverySubtitle}>{webProductDiscovery.subtitle}</Text>
-          </View>
-
-          <View
-            style={[
-              styles.productDiscoveryLayout,
-              homeLayout.isDesktop ? styles.productDiscoveryLayoutDesktop : null,
-              { gap: layoutGap },
-            ]}
-          >
-            {homeLayout.isDesktop ? (
-              <ProductDiscoverySidebar
-                activeCategory={selectedCategory}
-                onSelectCategory={updateCategory}
-                width={sidebarWidth}
-              />
-            ) : null}
-
-            <View style={[styles.productDiscoveryMain, { width: gridContentWidth }]}>
-              {!homeLayout.isDesktop ? (
-                <ProductDiscoveryMobileFilters
-                  activeCashbackMin={selectedCashbackMin}
-                  activeCategory={selectedCategory}
-                  onSelectCashback={updateCashbackMin}
-                  onSelectCategory={updateCategory}
-                />
-              ) : null}
-
-              <View style={styles.productDiscoveryFilterPanel}>
-                <View style={styles.productDiscoverySearchBox}>
-                  <SearchIcon
-                    color={colors.muted}
-                    size={18}
-                    strokeWidth={typography.iconStrokeWidth}
-                  />
-                  <TextInput
-                    accessibilityLabel={webProductDiscovery.searchLabel}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    inputMode="search"
-                    onChangeText={updateSearchQuery}
-                    placeholder={webProductDiscovery.searchPlaceholder}
-                    placeholderTextColor={colors.textSoft}
-                    returnKeyType="search"
-                    style={[styles.productDiscoverySearchInput, webSearchInputFocusReset]}
-                    value={searchQuery}
-                  />
-                </View>
-
-                <View style={styles.productDiscoverySortRow}>
-                  <Text style={styles.productDiscoverySortLabel}>
-                    {webProductDiscovery.sortLabel}
-                  </Text>
-                  {webProductDiscovery.sortPills.map((pill) => (
-                    <MotionPressable
-                      accessibilityRole="button"
-                      key={pill.value}
-                      onPress={() => setSortBy(pill.value as WebProductDiscoverySort)}
-                      pressScale={motion.scale.subtlePress}
-                      style={[
-                        styles.productDiscoveryPill,
-                        sortBy === pill.value ? styles.productDiscoveryPillActive : null,
-                      ]}
-                    >
-                      <Text
-                        numberOfLines={1}
-                        style={[
-                          styles.productDiscoveryPillText,
-                          sortBy === pill.value ? styles.productDiscoveryPillTextActive : null,
-                        ]}
-                      >
-                        {pill.label}
-                      </Text>
-                    </MotionPressable>
-                  ))}
-                  <Text style={styles.productDiscoveryResultsCount}>{resultsLabel}</Text>
-                </View>
-              </View>
-
-              {visibleProducts.length > 0 ? (
-                <View
-                  style={[
-                    styles.productDiscoveryGrid,
-                    {
-                      gap: gridMetrics.gap,
-                    },
-                  ]}
-                >
-                  {visibleProducts.map((product) => (
-                    <ProductDiscoveryCard
-                      cardWidth={gridMetrics.cardWidth}
-                      key={product.id}
-                      onOpenTerms={openTerms}
-                      product={product}
-                    />
-                  ))}
-                </View>
-              ) : (
-                <View style={styles.productDiscoveryEmptyState}>
-                  <Text style={styles.productDiscoveryEmptyTitle}>
-                    {webProductDiscovery.emptyTitle}
-                  </Text>
-                </View>
-              )}
-
-              <ShopDirectoryPagination
-                activePage={activePage}
-                onChangePage={setCurrentPage}
-                totalPages={totalPages}
-              />
-            </View>
-          </View>
+          {productContent}
           <CustomerDesktopFooterSlot
             horizontalPadding={homeLayout.contentHorizontalPadding}
             style={styles.desktopFooter}
           />
         </ScrollView>
 
-        <ProductDiscoveryTermsDialog
-          closing={termsClosing}
-          onClose={closeTerms}
-          visible={termsVisible}
-        />
+        {termsDialog}
         {homeLayout.isDesktop ? null : <CustomerMobileBottomNav bottomInset={insets.bottom} />}
       </View>
     </View>
@@ -1004,29 +1090,225 @@ function ShopDirectoryScreen() {
     setCurrentPage(1);
   };
 
+  const stickySearchHeader = (
+    <View
+      style={[
+        styles.stickySearch,
+        {
+          paddingHorizontal: homeLayout.contentHorizontalPadding,
+          paddingTop: Math.max(8, insets.top + 8),
+        },
+      ]}
+    >
+      <View style={styles.searchPill}>
+        <SearchIcon color={colors.primaryDark} size={20} strokeWidth={typography.iconStrokeWidth} />
+        <Text numberOfLines={1} style={styles.searchText}>
+          {webHomeSearchPlaceholder}
+        </Text>
+      </View>
+    </View>
+  );
+
+  const shopContent = (
+    <>
+      <ShopDirectoryPromo
+        contentWidth={homeLayout.contentWidth}
+        isDesktop={homeLayout.isDesktop}
+      />
+
+      <View style={styles.shopDirectoryHeader}>
+        <View style={styles.shopDirectoryTitleRow}>
+          <Text
+            style={[
+              styles.shopDirectoryTitle,
+              homeLayout.isDesktop ? styles.shopDirectoryTitleDesktop : null,
+            ]}
+          >
+            {webShopDirectory.title}
+          </Text>
+          <Text
+            accessibilityElementsHidden
+            importantForAccessibility="no"
+            style={styles.shopDirectoryTitleIcon}
+          >
+            {webShopDirectory.titleIcon}
+          </Text>
+        </View>
+        <Text style={styles.shopDirectorySubtitle}>{webShopDirectory.subtitle}</Text>
+        <View style={styles.shopDirectoryNotice}>
+          <ClockIcon color={colors.primaryDark} size={18} strokeWidth={typography.iconStrokeWidth} />
+          <Text style={styles.shopDirectoryNoticeText}>{webShopDirectory.trackingNotice}</Text>
+        </View>
+      </View>
+
+      <View
+        style={[
+          styles.shopDirectoryLayout,
+          homeLayout.isDesktop ? styles.shopDirectoryLayoutDesktop : null,
+          { gap: layoutGap },
+        ]}
+      >
+        <ShopDirectoryCategoryAside
+          activeCategory={selectedCategory}
+          isDesktop={homeLayout.isDesktop}
+          onSelectCategory={updateCategory}
+          width={sidebarWidth}
+        />
+
+        <View style={[styles.shopDirectoryMain, { width: gridContentWidth }]}>
+          <View style={styles.shopDirectoryFilterPanel}>
+            <View style={styles.shopDirectorySearchBox}>
+              <SearchIcon color={colors.muted} size={18} strokeWidth={typography.iconStrokeWidth} />
+              <TextInput
+                accessibilityLabel={webShopDirectory.searchLabel}
+                autoCapitalize="none"
+                autoCorrect={false}
+                inputMode="search"
+                onChangeText={updateSearchQuery}
+                placeholder={webShopDirectory.searchPlaceholder}
+                placeholderTextColor={colors.textSoft}
+                returnKeyType="search"
+                style={[styles.shopDirectorySearchInput, webSearchInputFocusReset]}
+                value={searchQuery}
+              />
+            </View>
+
+            <ScrollView
+              contentContainerStyle={styles.shopDirectoryPillRow}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+            >
+              {webShopDirectory.shopTypePills.map((pill) => (
+                <MotionPressable
+                  accessibilityRole="button"
+                  key={pill.value}
+                  onPress={() => updateShopType(pill.value as WebShopType)}
+                  pressScale={motion.scale.subtlePress}
+                  style={[
+                    styles.shopDirectoryPill,
+                    selectedShopType === pill.value ? styles.shopDirectoryPillActive : null,
+                  ]}
+                >
+                  <Text
+                    numberOfLines={1}
+                    style={[
+                      styles.shopDirectoryPillText,
+                      selectedShopType === pill.value ? styles.shopDirectoryPillTextActive : null,
+                    ]}
+                  >
+                    {pill.label}
+                  </Text>
+                </MotionPressable>
+              ))}
+            </ScrollView>
+
+            <View style={styles.shopDirectorySortBlock}>
+              <Text style={styles.shopDirectorySortLabel}>{webShopDirectory.sortLabel}</Text>
+              <View style={styles.shopDirectorySortRow}>
+                {webShopDirectory.sortPills.map((pill) => (
+                  <MotionPressable
+                    accessibilityRole="button"
+                    key={pill.value}
+                    onPress={() => setSortBy(pill.value as WebShopDirectorySort)}
+                    pressScale={motion.scale.subtlePress}
+                    style={[
+                      styles.shopDirectoryPill,
+                      sortBy === pill.value ? styles.shopDirectoryPillActive : null,
+                    ]}
+                  >
+                    <Text
+                      numberOfLines={1}
+                      style={[
+                        styles.shopDirectoryPillText,
+                        sortBy === pill.value ? styles.shopDirectoryPillTextActive : null,
+                      ]}
+                    >
+                      {pill.label}
+                    </Text>
+                  </MotionPressable>
+                ))}
+                <Text style={styles.shopDirectoryResultsCount}>{resultsLabel}</Text>
+              </View>
+            </View>
+          </View>
+
+          {visibleStores.length > 0 ? (
+            <View
+              style={[
+                styles.shopDirectoryGrid,
+                {
+                  gap: gridMetrics.gap,
+                },
+              ]}
+            >
+              {visibleStores.map((store) => (
+                <ShopDirectoryStoreCard
+                  cardWidth={gridMetrics.cardWidth}
+                  key={store.id}
+                  store={store}
+                />
+              ))}
+            </View>
+          ) : (
+            <View style={styles.shopDirectoryEmptyState}>
+              <Text style={styles.shopDirectoryEmptyTitle}>{webShopDirectory.emptyTitle}</Text>
+              <Text style={styles.shopDirectoryEmptyBody}>{webShopDirectory.emptyBody}</Text>
+            </View>
+          )}
+
+          <ShopDirectoryPagination
+            activePage={activePage}
+            onChangePage={setCurrentPage}
+            totalPages={totalPages}
+          />
+        </View>
+      </View>
+    </>
+  );
+
+  if (homeLayout.isDesktop) {
+    return (
+      <View style={styles.viewport}>
+        <View style={styles.desktopShellFrame}>
+          <ScrollView
+            contentContainerStyle={[
+              styles.shopDirectoryPage,
+              styles.pageDesktopFullBleed,
+              { paddingBottom: homeLayout.pageBottomPadding },
+            ]}
+            showsVerticalScrollIndicator={false}
+          >
+            <View
+              style={[
+                styles.desktopContentCap,
+                {
+                  maxWidth: homeLayout.contentMaxWidth,
+                  paddingHorizontal: homeLayout.contentHorizontalPadding,
+                },
+              ]}
+            >
+              {stickySearchHeader}
+              {shopContent}
+            </View>
+            <View
+              style={[
+                styles.desktopFooterCap,
+                styles.desktopFooter,
+                { maxWidth: homeLayout.contentMaxWidth },
+              ]}
+            >
+              <CustomerDesktopFooter horizontalPadding={0} viewportWidth={width} />
+            </View>
+          </ScrollView>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.viewport}>
       <View style={[styles.phoneFrame, { maxWidth: homeLayout.contentMaxWidth }]}>
-        <View
-          style={[
-            styles.stickySearch,
-            {
-              paddingHorizontal: homeLayout.contentHorizontalPadding,
-              paddingTop: Math.max(8, insets.top + 8),
-            },
-          ]}
-        >
-          <View style={styles.searchPill}>
-            <SearchIcon
-              color={colors.primaryDark}
-              size={20}
-              strokeWidth={typography.iconStrokeWidth}
-            />
-            <Text numberOfLines={1} style={styles.searchText}>
-              {webHomeSearchPlaceholder}
-            </Text>
-          </View>
-        </View>
+        {stickySearchHeader}
 
         <ScrollView
           contentContainerStyle={[
@@ -1038,168 +1320,7 @@ function ShopDirectoryScreen() {
           ]}
           showsVerticalScrollIndicator={false}
         >
-          <ShopDirectoryPromo
-            contentWidth={homeLayout.contentWidth}
-            isDesktop={homeLayout.isDesktop}
-          />
-
-          <View style={styles.shopDirectoryHeader}>
-            <View style={styles.shopDirectoryTitleRow}>
-              <Text
-                style={[
-                  styles.shopDirectoryTitle,
-                  homeLayout.isDesktop ? styles.shopDirectoryTitleDesktop : null,
-                ]}
-              >
-                {webShopDirectory.title}
-              </Text>
-              <Text
-                accessibilityElementsHidden
-                importantForAccessibility="no"
-                style={styles.shopDirectoryTitleIcon}
-              >
-                {webShopDirectory.titleIcon}
-              </Text>
-            </View>
-            <Text style={styles.shopDirectorySubtitle}>{webShopDirectory.subtitle}</Text>
-            <View style={styles.shopDirectoryNotice}>
-              <ClockIcon
-                color={colors.primaryDark}
-                size={18}
-                strokeWidth={typography.iconStrokeWidth}
-              />
-              <Text style={styles.shopDirectoryNoticeText}>{webShopDirectory.trackingNotice}</Text>
-            </View>
-          </View>
-
-          <View
-            style={[
-              styles.shopDirectoryLayout,
-              homeLayout.isDesktop ? styles.shopDirectoryLayoutDesktop : null,
-              { gap: layoutGap },
-            ]}
-          >
-            <ShopDirectoryCategoryAside
-              activeCategory={selectedCategory}
-              isDesktop={homeLayout.isDesktop}
-              onSelectCategory={updateCategory}
-              width={sidebarWidth}
-            />
-
-            <View style={[styles.shopDirectoryMain, { width: gridContentWidth }]}>
-              <View style={styles.shopDirectoryFilterPanel}>
-                <View style={styles.shopDirectorySearchBox}>
-                  <SearchIcon
-                    color={colors.muted}
-                    size={18}
-                    strokeWidth={typography.iconStrokeWidth}
-                  />
-                  <TextInput
-                    accessibilityLabel={webShopDirectory.searchLabel}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    inputMode="search"
-                    onChangeText={updateSearchQuery}
-                    placeholder={webShopDirectory.searchPlaceholder}
-                    placeholderTextColor={colors.textSoft}
-                    returnKeyType="search"
-                    style={[styles.shopDirectorySearchInput, webSearchInputFocusReset]}
-                    value={searchQuery}
-                  />
-                </View>
-
-                <ScrollView
-                  contentContainerStyle={styles.shopDirectoryPillRow}
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                >
-                  {webShopDirectory.shopTypePills.map((pill) => (
-                    <MotionPressable
-                      accessibilityRole="button"
-                      key={pill.value}
-                      onPress={() => updateShopType(pill.value as WebShopType)}
-                      pressScale={motion.scale.subtlePress}
-                      style={[
-                        styles.shopDirectoryPill,
-                        selectedShopType === pill.value ? styles.shopDirectoryPillActive : null,
-                      ]}
-                    >
-                      <Text
-                        numberOfLines={1}
-                        style={[
-                          styles.shopDirectoryPillText,
-                          selectedShopType === pill.value
-                            ? styles.shopDirectoryPillTextActive
-                            : null,
-                        ]}
-                      >
-                        {pill.label}
-                      </Text>
-                    </MotionPressable>
-                  ))}
-                </ScrollView>
-
-                <View style={styles.shopDirectorySortBlock}>
-                  <Text style={styles.shopDirectorySortLabel}>{webShopDirectory.sortLabel}</Text>
-                  <View style={styles.shopDirectorySortRow}>
-                    {webShopDirectory.sortPills.map((pill) => (
-                      <MotionPressable
-                        accessibilityRole="button"
-                        key={pill.value}
-                        onPress={() => setSortBy(pill.value as WebShopDirectorySort)}
-                        pressScale={motion.scale.subtlePress}
-                        style={[
-                          styles.shopDirectoryPill,
-                          sortBy === pill.value ? styles.shopDirectoryPillActive : null,
-                        ]}
-                      >
-                        <Text
-                          numberOfLines={1}
-                          style={[
-                            styles.shopDirectoryPillText,
-                            sortBy === pill.value ? styles.shopDirectoryPillTextActive : null,
-                          ]}
-                        >
-                          {pill.label}
-                        </Text>
-                      </MotionPressable>
-                    ))}
-                    <Text style={styles.shopDirectoryResultsCount}>{resultsLabel}</Text>
-                  </View>
-                </View>
-              </View>
-
-              {visibleStores.length > 0 ? (
-                <View
-                  style={[
-                    styles.shopDirectoryGrid,
-                    {
-                      gap: gridMetrics.gap,
-                    },
-                  ]}
-                >
-                  {visibleStores.map((store) => (
-                    <ShopDirectoryStoreCard
-                      cardWidth={gridMetrics.cardWidth}
-                      key={store.id}
-                      store={store}
-                    />
-                  ))}
-                </View>
-              ) : (
-                <View style={styles.shopDirectoryEmptyState}>
-                  <Text style={styles.shopDirectoryEmptyTitle}>{webShopDirectory.emptyTitle}</Text>
-                  <Text style={styles.shopDirectoryEmptyBody}>{webShopDirectory.emptyBody}</Text>
-                </View>
-              )}
-
-              <ShopDirectoryPagination
-                activePage={activePage}
-                onChangePage={setCurrentPage}
-                totalPages={totalPages}
-              />
-            </View>
-          </View>
+          {shopContent}
           <CustomerDesktopFooterSlot
             horizontalPadding={homeLayout.contentHorizontalPadding}
             style={styles.desktopFooter}
@@ -1526,6 +1647,126 @@ function CategoryDirectoryScreen() {
     setCurrentPage(1);
   };
 
+  const categoryDirectoryContent = (
+    <>
+      <View
+        style={[
+          styles.categoryDirectoryHeader,
+          homeLayout.isDesktop ? styles.categoryDirectoryHeaderDesktop : null,
+        ]}
+      >
+        <View style={styles.categoryDirectoryTitleBlock}>
+          <View style={styles.categoryDirectoryTitleRow}>
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.categoryDirectoryTitle,
+                homeLayout.isDesktop ? styles.categoryDirectoryTitleDesktop : null,
+              ]}
+            >
+              {webCategoryDirectory.title}
+            </Text>
+            <Text
+              accessibilityElementsHidden
+              importantForAccessibility="no"
+              style={styles.categoryDirectoryTitleIcon}
+            >
+              {webCategoryDirectory.titleIcon}
+            </Text>
+          </View>
+          <Text style={styles.categoryDirectoryCount}>{availableLabel}</Text>
+        </View>
+
+        <View
+          style={[
+            styles.categorySearchPanel,
+            homeLayout.isDesktop ? styles.categorySearchPanelDesktop : null,
+          ]}
+        >
+          <View style={styles.categorySearchBox}>
+            <TextInput
+              accessibilityLabel={webCategoryDirectory.searchPlaceholder}
+              autoCapitalize="none"
+              autoCorrect={false}
+              inputMode="search"
+              onChangeText={updateSearchQuery}
+              placeholder={webCategoryDirectory.searchPlaceholder}
+              placeholderTextColor={colors.textSoft}
+              returnKeyType="search"
+              style={[styles.categorySearchInput, webSearchInputFocusReset]}
+              value={searchQuery}
+            />
+            <SearchIcon color={colors.muted} size={24} strokeWidth={typography.iconStrokeWidth} />
+          </View>
+        </View>
+      </View>
+
+      {categories.length > 0 ? (
+        <View style={[styles.categoryDirectoryGrid, { gap: gridMetrics.gap }]}>
+          {categories.map((category, index) => (
+            <CategoryDirectoryCard
+              cardWidth={gridMetrics.cardWidth}
+              category={category}
+              index={index}
+              isDesktop={homeLayout.isDesktop}
+              key={category.title}
+            />
+          ))}
+        </View>
+      ) : (
+        <View style={styles.categoryDirectoryEmptyState}>
+          <Text style={styles.categoryDirectoryEmptyTitle}>{webCategoryDirectory.emptyTitle}</Text>
+          <Text style={styles.categoryDirectoryEmptyBody}>{webCategoryDirectory.emptyBody}</Text>
+        </View>
+      )}
+
+      <CategoryDirectoryPagination
+        activePage={categoryPage.activePage}
+        onChangePage={setCurrentPage}
+        totalPages={categoryPage.totalPages}
+      />
+    </>
+  );
+
+  if (homeLayout.isDesktop) {
+    return (
+      <View style={styles.viewport}>
+        <View style={styles.desktopShellFrame}>
+          <ScrollView
+            contentContainerStyle={[
+              styles.categoryDirectoryPage,
+              styles.pageDesktopFullBleed,
+              { paddingBottom: mobileShellLayout.desktopBottomClearance },
+            ]}
+            showsVerticalScrollIndicator={false}
+          >
+            <View
+              style={[
+                styles.desktopContentCap,
+                {
+                  maxWidth: homeLayout.contentMaxWidth,
+                  paddingHorizontal: homeLayout.contentHorizontalPadding,
+                  paddingTop: Math.max(12, insets.top + 12),
+                },
+              ]}
+            >
+              {categoryDirectoryContent}
+            </View>
+            <View
+              style={[
+                styles.desktopFooterCap,
+                styles.desktopFooter,
+                { maxWidth: homeLayout.contentMaxWidth },
+              ]}
+            >
+              <CustomerDesktopFooter horizontalPadding={0} viewportWidth={width} />
+            </View>
+          </ScrollView>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.viewport}>
       <View style={[styles.phoneFrame, { maxWidth: homeLayout.contentMaxWidth }]}>
@@ -1542,90 +1783,7 @@ function CategoryDirectoryScreen() {
           ]}
           showsVerticalScrollIndicator={false}
         >
-          <View
-            style={[
-              styles.categoryDirectoryHeader,
-              homeLayout.isDesktop ? styles.categoryDirectoryHeaderDesktop : null,
-            ]}
-          >
-            <View style={styles.categoryDirectoryTitleBlock}>
-              <View style={styles.categoryDirectoryTitleRow}>
-                <Text
-                  numberOfLines={1}
-                  style={[
-                    styles.categoryDirectoryTitle,
-                    homeLayout.isDesktop ? styles.categoryDirectoryTitleDesktop : null,
-                  ]}
-                >
-                  {webCategoryDirectory.title}
-                </Text>
-                <Text
-                  accessibilityElementsHidden
-                  importantForAccessibility="no"
-                  style={styles.categoryDirectoryTitleIcon}
-                >
-                  {webCategoryDirectory.titleIcon}
-                </Text>
-              </View>
-              <Text style={styles.categoryDirectoryCount}>{availableLabel}</Text>
-            </View>
-
-            <View
-              style={[
-                styles.categorySearchPanel,
-                homeLayout.isDesktop ? styles.categorySearchPanelDesktop : null,
-              ]}
-            >
-              <View style={styles.categorySearchBox}>
-                <TextInput
-                  accessibilityLabel={webCategoryDirectory.searchPlaceholder}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  inputMode="search"
-                  onChangeText={updateSearchQuery}
-                  placeholder={webCategoryDirectory.searchPlaceholder}
-                  placeholderTextColor={colors.textSoft}
-                  returnKeyType="search"
-                  style={[styles.categorySearchInput, webSearchInputFocusReset]}
-                  value={searchQuery}
-                />
-                <SearchIcon
-                  color={colors.muted}
-                  size={24}
-                  strokeWidth={typography.iconStrokeWidth}
-                />
-              </View>
-            </View>
-          </View>
-
-          {categories.length > 0 ? (
-            <View style={[styles.categoryDirectoryGrid, { gap: gridMetrics.gap }]}>
-              {categories.map((category, index) => (
-                <CategoryDirectoryCard
-                  cardWidth={gridMetrics.cardWidth}
-                  category={category}
-                  index={index}
-                  isDesktop={homeLayout.isDesktop}
-                  key={category.title}
-                />
-              ))}
-            </View>
-          ) : (
-            <View style={styles.categoryDirectoryEmptyState}>
-              <Text style={styles.categoryDirectoryEmptyTitle}>
-                {webCategoryDirectory.emptyTitle}
-              </Text>
-              <Text style={styles.categoryDirectoryEmptyBody}>
-                {webCategoryDirectory.emptyBody}
-              </Text>
-            </View>
-          )}
-
-          <CategoryDirectoryPagination
-            activePage={categoryPage.activePage}
-            onChangePage={setCurrentPage}
-            totalPages={categoryPage.totalPages}
-          />
+          {categoryDirectoryContent}
           <CustomerDesktopFooterSlot
             horizontalPadding={homeLayout.contentHorizontalPadding}
             style={styles.desktopFooter}
@@ -1740,6 +1898,23 @@ const styles = StyleSheet.create({
     maxWidth: mobileShellLayout.contentMaxWidth,
     position: "relative",
     width: "100%",
+  },
+  desktopShellFrame: {
+    backgroundColor: colors.background,
+    flex: 1,
+    position: "relative",
+    width: "100%",
+  },
+  desktopContentCap: {
+    alignSelf: "center",
+    width: "100%",
+  },
+  desktopFooterCap: {
+    alignSelf: "center",
+    width: "100%",
+  },
+  pageDesktopFullBleed: {
+    paddingHorizontal: 0,
   },
   stickySearch: {
     backgroundColor: colors.background,
