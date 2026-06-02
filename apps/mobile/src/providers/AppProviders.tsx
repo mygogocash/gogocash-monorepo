@@ -7,6 +7,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { RouteAnalyticsTracker } from "@mobile/analytics/RouteAnalyticsTracker";
 import { AuthRouteGuard } from "@mobile/auth/AuthRouteGuard";
 import { CustomerRouteState } from "@mobile/components/CustomerRouteState";
+import { ToastProvider } from "@mobile/components/Toast";
 import { LocaleProvider } from "@mobile/i18n/LocaleProvider";
 import { getObservabilityConfig, initObservability } from "@mobile/observability/client";
 import { PrivacyScreenGuard } from "@mobile/security/PrivacyScreenGuard";
@@ -70,7 +71,9 @@ export function AppProviders({ children }: PropsWithChildren) {
         <PrivacyScreenGuard>
           <QueryClientProvider client={queryClient}>
             <RouteAnalyticsTracker />
-            <AuthRouteGuard>{children}</AuthRouteGuard>
+            <ToastProvider>
+              <AuthRouteGuard>{children}</AuthRouteGuard>
+            </ToastProvider>
           </QueryClientProvider>
         </PrivacyScreenGuard>
       </SafeAreaProvider>

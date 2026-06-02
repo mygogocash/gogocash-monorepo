@@ -2,10 +2,38 @@
 
 > **AUTO-GENERATED — do not hand-edit.** Run `npm run gen:i18n-review` to regenerate from the overlay.
 
-These 304 strings are **mobile-only** copy with no web-catalog equivalent. Their Thai was **machine-authored** during the Phase 3 i18n pass and needs a native-speaker review. To correct one, edit its value in `src/messages/mobile-overlay.th.json` (match the key), then re-run the generator.
+These 332 strings are **mobile-only** copy with no web-catalog equivalent. Their Thai was **machine-authored** during the Phase 3 i18n pass and needs a native-speaker review. To correct one, edit its value in `src/messages/mobile-overlay.th.json` (match the key), then re-run the generator.
 
 | ✔ | Key | English | Thai (machine-authored) |
 | --- | --- | --- | --- |
+| ☐ | `mobileStateEmptyTitle` | No activity yet | ยังไม่มีความเคลื่อนไหว |
+| ☐ | `mobileStateEmptyBody` | Nothing is available here yet. | ยังไม่มีข้อมูลที่นี่ในขณะนี้ |
+| ☐ | `mobileStateErrorTitle` | We could not load this page | เราไม่สามารถโหลดหน้านี้ได้ |
+| ☐ | `mobileStateErrorBody` | Something went wrong. Please try again. | เกิดข้อผิดพลาดบางอย่าง กรุณาลองใหม่อีกครั้ง |
+| ☐ | `mobileStateLoadingTitle` | Loading GoGoCash | กำลังโหลด GoGoCash |
+| ☐ | `mobileStateLoadingBody` | Preparing your GoGoCash experience. | กำลังเตรียมประสบการณ์ GoGoCash ของคุณ |
+| ☐ | `mobileStateOfflineTitle` | You are offline | คุณออฟไลน์อยู่ |
+| ☐ | `mobileStateOfflineBody` | Reconnect to the internet, then try again. | เชื่อมต่ออินเทอร์เน็ตอีกครั้ง แล้วลองใหม่ |
+| ☐ | `mobileStateSuccessTitle` | Done | เสร็จสิ้น |
+| ☐ | `mobileStateSuccessBody` | Your request was completed. | คำขอของคุณเสร็จสมบูรณ์แล้ว |
+| ☐ | `mobileStateUnauthenticatedTitle` | Sign in required | ต้องเข้าสู่ระบบ |
+| ☐ | `mobileStateUnauthenticatedBody` | Sign in to continue to this GoGoCash page. | เข้าสู่ระบบเพื่อดำเนินการต่อในหน้านี้ของ GoGoCash |
+| ☐ | `mobileResourceLoadingTitle` | Loading {label} | กำลังโหลด{label} |
+| ☐ | `mobileResourceLoadingBody` | Fetching the latest {label} from GoGoCash. | กำลังดึง{label}ล่าสุดจาก GoGoCash |
+| ☐ | `mobileResourceEmptyTitle` | No {label} yet | ยังไม่มี{label} |
+| ☐ | `mobileResourceEmptyBody` | There is no {label} to show yet. | ยังไม่มี{label}ให้แสดง |
+| ☐ | `mobileResourceErrorTitle` | We could not load {label} | เราไม่สามารถโหลด{label}ได้ |
+| ☐ | `mobileResourceErrorBody` | GoGoCash could not load your {label}. | GoGoCash ไม่สามารถโหลด{label}ของคุณได้ |
+| ☐ | `mobileResourceOfflineBody` | Reconnect to the internet, then reload your {label}. | เชื่อมต่ออินเทอร์เน็ตอีกครั้ง แล้วโหลด{label}ของคุณใหม่ |
+| ☐ | `mobileResourceDisabledTitle` | Account data unavailable | ข้อมูลบัญชีไม่พร้อมใช้งาน |
+| ☐ | `mobileResourceDisabledBody` | Backend account data is disabled for this environment. | ข้อมูลบัญชีจากระบบหลังบ้านถูกปิดใช้งานสำหรับสภาพแวดล้อมนี้ |
+| ☐ | `mobileResourceRetry` | Try again | ลองอีกครั้ง |
+| ☐ | `mobileResourceLabelBilling` | billing | การเรียกเก็บเงิน |
+| ☐ | `mobileResourceLabelReferralActivity` | referral activity | กิจกรรมการแนะนำเพื่อน |
+| ☐ | `mobileResourceLabelWallet` | wallet | กระเป๋าเงิน |
+| ☐ | `mobileResourceLabelMerchantDetails` | merchant details | รายละเอียดร้านค้า |
+| ☐ | `mobileResourceLabelProfile` | profile | โปรไฟล์ |
+| ☐ | `mobileResourceLabelOffers` | offers | ข้อเสนอ |
 | ☐ | `mobileFilterDateRange` | Date Range | ช่วงวันที่ |
 | ☐ | `mobileWalletEmptyImageAlt` | Wallet empty state illustration | ภาพประกอบสถานะกระเป๋าเงินว่าง |
 | ☐ | `mobileWalletNotReadyTitle` | No wallet activity yet | ยังไม่มีความเคลื่อนไหวในกระเป๋าเงิน |
