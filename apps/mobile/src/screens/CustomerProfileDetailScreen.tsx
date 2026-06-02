@@ -26,6 +26,33 @@ import {
 } from "@mobile/design/webDesignParity";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
+// Bug-hunt fixes (#6, #7): identity validators were too loose — passport was length-only (accepted
+// "#@!ABC1" despite the "alphanumeric" copy), and birthdate was format-only (accepted "2026-13-45" and
+// future dates). Exported as pure functions for unit testing (mirrors isOver20).
+export function isValidPassportId(input: string): boolean {
+  return /^[A-Za-z0-9]{7,15}$/.test(input.trim());
+}
+
+export function isValidBirthdate(input: string, now: Date = new Date()): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input)) {
+    return false;
+  }
+  const parsed = new Date(`${input}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) {
+    return false;
+  }
+  const [year, month, day] = input.split("-").map(Number);
+  // Reject calendar roll-over (e.g. 2026-13-45 / 2000-02-30 that Date would silently normalize).
+  if (
+    parsed.getUTCFullYear() !== year ||
+    parsed.getUTCMonth() + 1 !== month ||
+    parsed.getUTCDate() !== day
+  ) {
+    return false;
+  }
+  return parsed.getTime() <= now.getTime();
+}
+
 type ProfileDetailMode =
   | "favorite"
   | "info"
@@ -136,7 +163,7 @@ export function CustomerProfileDetailScreen({ mode }: { mode: ProfileDetailMode 
       if (cleaned.length !== 13) {
         nextErrors.push("National ID must be exactly 13 digits.");
       }
-    } else if (idNumber.trim().length < 7 || idNumber.trim().length > 15) {
+    } else if (!isValidPassportId(idNumber)) {
       nextErrors.push("Passport must be between 7 and 15 alphanumeric characters.");
     }
 
@@ -148,7 +175,7 @@ export function CustomerProfileDetailScreen({ mode }: { mode: ProfileDetailMode 
       nextErrors.push("Zip Code must be exactly 5 digits.");
     }
 
-    if (!birthdate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    if (!isValidBirthdate(birthdate)) {
       nextErrors.push("Birthdate must be in YYYY-MM-DD format.");
     }
 

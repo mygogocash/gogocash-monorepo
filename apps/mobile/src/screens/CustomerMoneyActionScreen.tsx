@@ -27,6 +27,42 @@ import { colors, radii, spacing, typography, shadows } from "@mobile/theme/token
 
 type MoneyActionMode = "method" | "methodCreate" | "myCashback" | "withdraw";
 
+// Bug-hunt fixes (#1, #2): parse the withdrawal amount by stripping thousands separators and rejecting
+// junk — raw parseFloat turned "1,500.00" into 1 and "500abc" into 500. `evaluateWithdraw` is a pure
+// decision shared by the submit handler and the button's disabled state so a second tap can't
+// double-deduct after a successful submission.
+export function parseWithdrawAmount(input: string): number {
+  const cleaned = input.replace(/,/g, "").trim();
+  if (!/^\d+(\.\d+)?$/.test(cleaned)) {
+    return Number.NaN;
+  }
+  return Number.parseFloat(cleaned);
+}
+
+export type WithdrawDecision = { ok: true; amount: number } | { ok: false; error: string | null };
+
+export function evaluateWithdraw(
+  input: string,
+  balance: number,
+  hasMethod: boolean,
+  alreadySubmitted: boolean
+): WithdrawDecision {
+  if (alreadySubmitted) {
+    return { ok: false, error: null };
+  }
+  const amount = parseWithdrawAmount(input);
+  if (Number.isNaN(amount) || amount <= 0) {
+    return { ok: false, error: "Please enter a valid withdrawal amount." };
+  }
+  if (amount > balance) {
+    return { ok: false, error: "Insufficient available balance." };
+  }
+  if (!hasMethod) {
+    return { ok: false, error: "Select a payout method before confirming withdrawal." };
+  }
+  return { ok: true, amount };
+}
+
 // Initial local payout methods state
 type PayoutMethod = {
   id: string;
@@ -183,24 +219,22 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
   };
 
   const handleWithdraw = () => {
-    const amountNum = parseFloat(withdrawAmount);
-    if (isNaN(amountNum) || amountNum <= 0) {
-      setErrors([tc("Please enter a valid withdrawal amount.")]);
-      return;
-    }
-    if (amountNum > balance) {
-      setErrors([tc("Insufficient available balance.")]);
+    const decision = evaluateWithdraw(withdrawAmount, balance, !!selectedMethod, !!successMsg);
+    if (!decision.ok) {
+      // error === null means "already submitted" — silently ignore the repeat tap.
+      if (decision.error) {
+        setErrors([tc(decision.error)]);
+      }
       return;
     }
     if (!selectedMethod) {
-      setErrors([tc("Select a payout method before confirming withdrawal.")]);
       return;
     }
 
     setErrors([]);
-    setBalance(balance - amountNum);
+    setBalance(balance - decision.amount);
     setSuccessMsg(
-      `Cashback withdrawal of ${amountNum.toFixed(2)} THB to ${selectedMethod.bankName} submitted successfully!`
+      `Cashback withdrawal of ${decision.amount.toFixed(2)} THB to ${selectedMethod.bankName} submitted successfully!`
     );
   };
 
@@ -553,7 +587,11 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                 </View>
               </View>
 
-              <Pressable onPress={handleWithdraw} style={styles.primaryAction}>
+              <Pressable
+                disabled={!!successMsg}
+                onPress={handleWithdraw}
+                style={[styles.primaryAction, successMsg ? styles.primaryActionDisabled : null]}
+              >
                 <Text style={styles.primaryActionText}>{tc("Confirm & Dispatch")}</Text>
               </Pressable>
             </View>
@@ -658,6 +696,9 @@ const styles = StyleSheet.create({
     gap: 8,
     minHeight: 48,
     justifyContent: "center",
+  },
+  primaryActionDisabled: {
+    opacity: 0.5,
   },
   primaryActionText: {
     color: colors.white,
