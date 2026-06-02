@@ -30,6 +30,8 @@ export default defineConfig({
       { find: /^.*\.(png|jpe?g|gif|webp|avif|svg)(\?.*)?$/, replacement: stub("assetStub.ts") },
       // phosphor-react-native (root or any deep path) -> single icon stub
       { find: /^phosphor-react-native(\/.*)?$/, replacement: stub("phosphorReactNativeStub.tsx") },
+      // react-native-svg ships ESM the rolldown/oxc transform rejects -> passthrough stub.
+      { find: /^react-native-svg(\/.*)?$/, replacement: stub("reactNativeSvgStub.tsx") },
       // posthog-react-native ships a value-position `typeof` type alias the
       // rolldown/oxc transform rejects ("Unexpected token 'typeof'"); stub it.
       // usePostHog()->undefined exercises the production "no key" branch.
@@ -45,6 +47,13 @@ export default defineConfig({
       {
         find: "@mobile/components/CustomerDesktopFooterSlot",
         replacement: stub("desktopFooterSlotStub.tsx"),
+      },
+      // useCopy() calls useIntl(), which needs the IntlProvider that LocaleProvider mounts in the app
+      // tree; screen render tests don't mount providers, so stub it to a passthrough. (translateCopy
+      // is unit-tested in the source suite.) Must precede the broad "@mobile" alias.
+      {
+        find: "@mobile/i18n/useCopy",
+        replacement: stub("useCopyStub.ts"),
       },
       // react-native-safe-area-context ships a value-position `typeof` type alias
       // the transform rejects; imported by AccountPageShell (-> the 14 shell

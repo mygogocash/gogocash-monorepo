@@ -17,6 +17,7 @@ import {
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { useCopy } from "@mobile/i18n/useCopy";
 import { mobileShellLayout, webAccountSettingsPage } from "@mobile/design/webDesignParity";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
@@ -67,39 +68,42 @@ export function CustomerAccountSettingsScreen() {
 }
 
 function AccountSettingsSubPage({ children }: { children: ReactNode }) {
+  const tc = useCopy();
   return (
-    <AccountPageShell activeRouteId="profile" showTitle={false} title={webAccountSettingsPage.title}>
+    <AccountPageShell activeRouteId="profile" showTitle={false} title={tc(webAccountSettingsPage.title)}>
       <View style={[styles.surface, styles.accountSettingsSurfaceBleed]}>{children}</View>
     </AccountPageShell>
   );
 }
 
 function AccountSettingsTopBar() {
+  const tc = useCopy();
   return (
     <Link asChild href="/profile">
       <Pressable accessibilityRole="link" style={styles.topBar}>
         <ChevronLeftIcon color={colors.accent} size={26} strokeWidth={typography.iconStrokeWidth} />
-        <Text style={styles.topBarTitle}>{webAccountSettingsPage.title}</Text>
+        <Text style={styles.topBarTitle}>{tc(webAccountSettingsPage.title)}</Text>
       </Pressable>
     </Link>
   );
 }
 
 function SubscriptionSection() {
+  const tc = useCopy();
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{webAccountSettingsPage.subscription.title}</Text>
+      <Text style={styles.sectionTitle}>{tc(webAccountSettingsPage.subscription.title)}</Text>
       <View style={styles.subscriptionCard}>
         <Text style={styles.subscriptionDescription}>
-          {webAccountSettingsPage.subscription.description}
+          {tc(webAccountSettingsPage.subscription.description)}
         </Text>
         <Pressable disabled style={styles.subscriptionButton}>
           <Text style={styles.subscriptionButtonText}>
-            {webAccountSettingsPage.subscription.actionLabel}
+            {tc(webAccountSettingsPage.subscription.actionLabel)}
           </Text>
         </Pressable>
         <Text style={styles.subscriptionDisabledNote}>
-          {webAccountSettingsPage.subscription.disabledNote}
+          {tc(webAccountSettingsPage.subscription.disabledNote)}
         </Text>
       </View>
     </View>
@@ -107,6 +111,7 @@ function SubscriptionSection() {
 }
 
 function NotificationSection() {
+  const tc = useCopy();
   const [isLineEnabled] = useState(false);
   const [isEmailEnabled] = useState(true);
   const enabledById = {
@@ -116,7 +121,7 @@ function NotificationSection() {
 
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{webAccountSettingsPage.notifications.title}</Text>
+      <Text style={styles.sectionTitle}>{tc(webAccountSettingsPage.notifications.title)}</Text>
       <View style={styles.notificationStack}>
         {webAccountSettingsPage.notifications.rows.map((row) => (
           <NotificationRow enabled={enabledById[row.id]} key={row.id} row={row} />
@@ -133,6 +138,7 @@ function NotificationRow({
   enabled: boolean;
   row: NotificationRowModel;
 }) {
+  const tc = useCopy();
   const Icon = row.id === "line" ? LineIcon : MailIcon;
 
   return (
@@ -140,11 +146,11 @@ function NotificationRow({
       <View style={styles.notificationCopy}>
         <Icon color={colors.muted} size={24} strokeWidth={typography.iconStrokeWidth} />
         <Text numberOfLines={1} style={styles.notificationLabel}>
-          {row.label}
+          {tc(row.label)}
         </Text>
         <View style={styles.comingSoonPill}>
           <Text style={styles.comingSoonText}>
-            {webAccountSettingsPage.notifications.comingSoonLabel}
+            {tc(webAccountSettingsPage.notifications.comingSoonLabel)}
           </Text>
         </View>
       </View>
@@ -162,12 +168,13 @@ function TogglePill({ enabled }: { enabled: boolean }) {
 }
 
 function CommunitySection() {
+  const tc = useCopy();
   const { width } = useWindowDimensions();
   const columns = width >= mobileShellLayout.desktopBreakpoint ? 3 : 2;
 
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{webAccountSettingsPage.community.title}</Text>
+      <Text style={styles.sectionTitle}>{tc(webAccountSettingsPage.community.title)}</Text>
       <View style={styles.communityGrid}>
         {webAccountSettingsPage.community.cards.map((card) => (
           <CommunityCard card={card} columns={columns} key={card.id} />
@@ -184,21 +191,22 @@ function CommunityCard({
   card: CommunityCardModel;
   columns: 2 | 3;
 }) {
+  const tc = useCopy();
   return (
     <MotionPressable
-      accessibilityLabel={`${webAccountSettingsPage.community.joinLabel} ${card.label}`}
+      accessibilityLabel={`${tc(webAccountSettingsPage.community.joinLabel)} ${card.label}`}
       accessibilityRole="link"
       pressScale={0.99}
       style={[styles.communityCard, columns === 3 ? styles.communityCardDesktop : null]}
     >
       <Image
-        alt={`${webAccountSettingsPage.community.joinLabel} ${card.label}`}
+        alt={`${tc(webAccountSettingsPage.community.joinLabel)} ${card.label}`}
         resizeMode="cover"
         source={communityAssets[card.asset]}
         style={styles.communityImage}
       />
       <Text style={styles.communityAccessibleLabel}>
-        {webAccountSettingsPage.community.joinLabel} {card.label}
+        {tc(webAccountSettingsPage.community.joinLabel)} {card.label}
       </Text>
     </MotionPressable>
   );

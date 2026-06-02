@@ -28,6 +28,7 @@ import golinkGuidelineStep3Image from "../../assets/golink-guideline-step-previe
 import golinkResultProductImage from "../../assets/golink-result-product-demo.png";
 import golinkResultShopBadgeImage from "../../assets/golink-result-shop-badge.png";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
+import { useCopy } from "@mobile/i18n/useCopy";
 import {
   mobileShellLayout,
   webGoLinkFeature,
@@ -143,6 +144,7 @@ export function CustomerGoLinkScreen({
   onClose?: () => void;
   presentation?: GoLinkPresentation;
 }) {
+  const tc = useCopy();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -204,7 +206,7 @@ export function CustomerGoLinkScreen({
         style={[styles.scrim, { opacity: backdropOpacity, pointerEvents: "none" }]}
       />
       <Pressable
-        accessibilityLabel="Close GoGoLink backdrop"
+        accessibilityLabel={tc("Close GoGoLink backdrop")}
         accessibilityRole="button"
         onPress={() => runExitAnimation()}
         style={styles.scrimHitArea}
@@ -229,7 +231,7 @@ export function CustomerGoLinkScreen({
               <View style={styles.handle} />
               <View style={styles.toolbarSide}>
                 <MotionPressable
-                  accessibilityLabel="Close GoGoLink"
+                  accessibilityLabel={tc("Close GoGoLink")}
                   accessibilityRole="button"
                   onPress={() => runExitAnimation()}
                   pressScale={motion.scale.subtlePress}
@@ -249,7 +251,7 @@ export function CustomerGoLinkScreen({
               <View style={styles.modalHeroCard}>
                 <View style={[styles.modalHeroBackdrop, { pointerEvents: "none" }]} />
                 <MotionPressable
-                  accessibilityLabel="GoGoLink information"
+                  accessibilityLabel={tc("GoGoLink information")}
                   accessibilityRole="button"
                   onPress={() => setGuidelineOpen(true)}
                   pressScale={motion.scale.subtlePress}
@@ -265,7 +267,7 @@ export function CustomerGoLinkScreen({
                 <View style={[styles.heroContent, isDesktop && styles.desktopHeroContent]}>
                   <View style={styles.modalIllustrationWrap}>
                     <Image
-                      alt="GoGoLink cashback link illustration"
+                      alt={tc("GoGoLink cashback link illustration")}
                       accessibilityIgnoresInvertColors
                       resizeMode="contain"
                       source={golinkBannerIllustrationImage}
@@ -274,7 +276,7 @@ export function CustomerGoLinkScreen({
                   </View>
 
                   <View style={styles.formArea}>
-                    <Text style={styles.title}>{webGoLinkFeature.title}</Text>
+                    <Text style={styles.title}>{tc(webGoLinkFeature.title)}</Text>
                     <View
                       style={[styles.inputShell, Boolean(goLinkError) && styles.inputShellError]}
                     >
@@ -284,7 +286,7 @@ export function CustomerGoLinkScreen({
                         strokeWidth={typography.iconStrokeWidth}
                       />
                       <TextInput
-                        accessibilityLabel={webGoLinkFeature.inputLabel}
+                        accessibilityLabel={tc(webGoLinkFeature.inputLabel)}
                         autoCapitalize="none"
                         autoCorrect={false}
                         inputMode="url"
@@ -295,33 +297,33 @@ export function CustomerGoLinkScreen({
                           }
                         }}
                         onSubmitEditing={handlePasteAndGo}
-                        placeholder={webGoLinkFeature.inputPlaceholder}
+                        placeholder={tc(webGoLinkFeature.inputPlaceholder)}
                         placeholderTextColor="#93A8B5"
                         returnKeyType="go"
                         style={styles.input}
                         value={goLinkInput}
                       />
                     </View>
-                    {goLinkError ? <Text style={styles.errorText}>{goLinkError}</Text> : null}
+                    {goLinkError ? <Text style={styles.errorText}>{tc(goLinkError)}</Text> : null}
                     <MotionPressable
                       accessibilityRole="button"
                       onPress={handlePasteAndGo}
                       style={styles.primaryAction}
                     >
-                      <Text style={styles.primaryActionText}>{webGoLinkFeature.ctaLabel}</Text>
+                      <Text style={styles.primaryActionText}>{tc(webGoLinkFeature.ctaLabel)}</Text>
                     </MotionPressable>
                   </View>
                 </View>
               </View>
 
               <View style={[styles.card, styles.offscreenGuideCard]}>
-                <Text style={styles.sectionTitle}>How it works</Text>
+                <Text style={styles.sectionTitle}>{tc("How it works")}</Text>
                 {guidelineSteps.map((step, index) => (
                   <View key={step.text} style={styles.stepRow}>
                     <View style={styles.stepBadge}>
                       <Text style={styles.stepBadgeText}>{index + 1}</Text>
                     </View>
-                    <Text style={styles.stepText}>{step.text}</Text>
+                    <Text style={styles.stepText}>{tc(step.text)}</Text>
                   </View>
                 ))}
               </View>
@@ -350,12 +352,13 @@ export function CustomerGoLinkScreen({
 }
 
 export function GoLinkGuidelineDialog({ onClose }: { onClose: () => void }) {
+  const tc = useCopy();
   const { contentTranslateY, isClosing, overlayOpacity, runExitAnimation } =
     useDismissableOverlayMotion({ onDismiss: onClose });
 
   return (
     <View
-      accessibilityLabel="Easy to earn cashback by GoGoLink"
+      accessibilityLabel={tc("Easy to earn cashback by GoGoLink")}
       accessibilityViewIsModal
       style={[styles.guidelineOverlay, { pointerEvents: isClosing ? "none" : "auto" }]}
     >
@@ -363,7 +366,7 @@ export function GoLinkGuidelineDialog({ onClose }: { onClose: () => void }) {
         style={[styles.guidelineBackdrop, { opacity: overlayOpacity, pointerEvents: "none" }]}
       />
       <Pressable
-        accessibilityLabel="Close GoLink guide backdrop"
+        accessibilityLabel={tc("Close GoLink guide backdrop")}
         accessibilityRole="button"
         onPress={() => runExitAnimation()}
         style={styles.overlayHitArea}
@@ -375,7 +378,7 @@ export function GoLinkGuidelineDialog({ onClose }: { onClose: () => void }) {
         ]}
       >
         <MotionPressable
-          accessibilityLabel="Close GoLink guide"
+          accessibilityLabel={tc("Close GoLink guide")}
           accessibilityRole="button"
           onPress={() => runExitAnimation()}
           pressScale={motion.scale.subtlePress}
@@ -386,7 +389,7 @@ export function GoLinkGuidelineDialog({ onClose }: { onClose: () => void }) {
 
         <View style={styles.guidelineFlowWrap}>
           <Image
-            alt="Copy · Paste"
+            alt={tc("Copy · Paste")}
             accessibilityIgnoresInvertColors
             resizeMode="contain"
             source={golinkGuidelineFlowImage}
@@ -395,9 +398,9 @@ export function GoLinkGuidelineDialog({ onClose }: { onClose: () => void }) {
         </View>
 
         <View style={styles.guidelineCopyBlock}>
-          <Text style={styles.guidelineTitle}>Easy to earn cashback by GoGoLink</Text>
+          <Text style={styles.guidelineTitle}>{tc("Easy to earn cashback by GoGoLink")}</Text>
           <Text style={styles.guidelineSubtitle}>
-            Follow these 3 steps to shop and earn with GoGoCash
+            {tc("Follow these 3 steps to shop and earn with GoGoCash")}
           </Text>
         </View>
 
@@ -409,14 +412,14 @@ export function GoLinkGuidelineDialog({ onClose }: { onClose: () => void }) {
             >
               <View style={styles.guidelineStepThumb}>
                 <Image
-                  alt="Step illustration for GoLink how it works"
+                  alt={tc("Step illustration for GoLink how it works")}
                   accessibilityIgnoresInvertColors
                   resizeMode="contain"
                   source={step.image}
                   style={styles.guidelineStepImage}
                 />
               </View>
-              <Text style={styles.guidelineStepText}>{step.text}</Text>
+              <Text style={styles.guidelineStepText}>{tc(step.text)}</Text>
             </View>
           ))}
         </View>
@@ -434,6 +437,7 @@ export function GoLinkResultDialog({
   onClose: () => void;
   onShopNow: () => void;
 }) {
+  const tc = useCopy();
   const sourceHost = getGoLinkSourceHost(href);
   const [termsPanelOpen, setTermsPanelOpen] = useState(false);
   const { contentTranslateY, isClosing, overlayOpacity, runExitAnimation } =
@@ -441,7 +445,7 @@ export function GoLinkResultDialog({
 
   return (
     <View
-      accessibilityLabel="GoGoLink link preview"
+      accessibilityLabel={tc("GoGoLink link preview")}
       accessibilityViewIsModal
       style={[styles.resultOverlay, { pointerEvents: isClosing ? "none" : "auto" }]}
     >
@@ -449,7 +453,7 @@ export function GoLinkResultDialog({
         style={[styles.resultBackdrop, { opacity: overlayOpacity, pointerEvents: "none" }]}
       />
       <Pressable
-        accessibilityLabel="Close link preview backdrop"
+        accessibilityLabel={tc("Close link preview backdrop")}
         accessibilityRole="button"
         onPress={() => runExitAnimation()}
         style={styles.overlayHitArea}
@@ -461,7 +465,7 @@ export function GoLinkResultDialog({
         ]}
       >
         <MotionPressable
-          accessibilityLabel="Close link preview"
+          accessibilityLabel={tc("Close link preview")}
           accessibilityRole="button"
           onPress={() => runExitAnimation()}
           pressScale={motion.scale.subtlePress}
@@ -479,14 +483,14 @@ export function GoLinkResultDialog({
           >
             <View style={styles.resultProductWrap}>
               <Image
-                alt="Example product image for illustration"
+                alt={tc("Example product image for illustration")}
                 accessibilityIgnoresInvertColors
                 resizeMode="cover"
                 source={golinkResultProductImage}
                 style={styles.resultProductImage}
               />
               <Image
-                alt="Example marketplace badge"
+                alt={tc("Example marketplace badge")}
                 accessibilityIgnoresInvertColors
                 resizeMode="contain"
                 source={golinkResultShopBadgeImage}
@@ -500,7 +504,7 @@ export function GoLinkResultDialog({
               </Text>
               {sourceHost ? (
                 <Text numberOfLines={1} style={styles.resultHost}>
-                  Link from {sourceHost}
+                  {tc("Link from")} {sourceHost}
                 </Text>
               ) : null}
               <View style={styles.resultPriceRow}>
@@ -511,7 +515,7 @@ export function GoLinkResultDialog({
 
             <View style={styles.resultCashbackBox}>
               <View style={styles.resultCashbackLine}>
-                <Text style={styles.resultCashbackText}>Earn cashback</Text>
+                <Text style={styles.resultCashbackText}>{tc("Earn cashback")}</Text>
                 <Text style={styles.resultCashbackText}>5.80</Text>
                 <Text style={styles.resultCashbackText}>THB</Text>
                 <Text style={styles.resultCashbackText}>(2%)</Text>
@@ -528,7 +532,7 @@ export function GoLinkResultDialog({
                     size={16}
                     strokeWidth={typography.iconStrokeWidth}
                   />
-                  <Text style={styles.resultTermsText}>Check exclusions and T&Cs</Text>
+                  <Text style={styles.resultTermsText}>{tc("Check exclusions and T&Cs")}</Text>
                 </View>
                 <ExternalLinkIcon
                   color={colors.primaryDark}
@@ -539,8 +543,9 @@ export function GoLinkResultDialog({
             </View>
 
             <Text style={styles.resultDisclaimer}>
-              Product image, price, and cashback shown here are examples only. Actual rewards depend
-              on the shop and offer terms.
+              {tc(
+                "Product image, price, and cashback shown here are examples only. Actual rewards depend on the shop and offer terms."
+              )}
             </Text>
 
             <View style={styles.successBar}>
@@ -549,9 +554,9 @@ export function GoLinkResultDialog({
                 size={18}
                 strokeWidth={typography.iconStrokeWidth}
               />
-              <Text style={styles.successText}>Link pasted successfully!</Text>
+              <Text style={styles.successText}>{tc("Link pasted successfully!")}</Text>
               <MotionPressable
-                accessibilityLabel="Dismiss success message"
+                accessibilityLabel={tc("Dismiss success message")}
                 accessibilityRole="button"
                 onPress={() => undefined}
                 pressScale={motion.scale.subtlePress}
@@ -567,7 +572,7 @@ export function GoLinkResultDialog({
               pressScale={motion.scale.press}
               style={styles.shopNowButton}
             >
-              <Text style={styles.shopNowText}>Shop Now</Text>
+              <Text style={styles.shopNowText}>{tc("Shop Now")}</Text>
             </MotionPressable>
           </ScrollView>
         )}
@@ -577,6 +582,7 @@ export function GoLinkResultDialog({
 }
 
 function GoLinkTermsPanel({ onBack }: { onBack: () => void }) {
+  const tc = useCopy();
   const terms = [
     {
       title: "Exclusions",
@@ -603,7 +609,7 @@ function GoLinkTermsPanel({ onBack }: { onBack: () => void }) {
     >
       <View style={styles.termsHeader}>
         <MotionPressable
-          accessibilityLabel="Back to link preview"
+          accessibilityLabel={tc("Back to link preview")}
           accessibilityRole="button"
           onPress={onBack}
           pressScale={motion.scale.subtlePress}
@@ -611,7 +617,7 @@ function GoLinkTermsPanel({ onBack }: { onBack: () => void }) {
         >
           <Text style={styles.termsBackText}>‹</Text>
         </MotionPressable>
-        <Text style={styles.termsTitle}>Terms and Exclusions</Text>
+        <Text style={styles.termsTitle}>{tc("Terms and Exclusions")}</Text>
       </View>
 
       <View style={styles.termsList}>
@@ -621,16 +627,16 @@ function GoLinkTermsPanel({ onBack }: { onBack: () => void }) {
               <View style={styles.termsHelpDot}>
                 <Text style={styles.termsHelpText}>?</Text>
               </View>
-              <Text style={styles.termsItemTitle}>{term.title}</Text>
+              <Text style={styles.termsItemTitle}>{tc(term.title)}</Text>
             </View>
-            {index === 0 ? <Text style={styles.termsItemBody}>{term.body}</Text> : null}
+            {index === 0 ? <Text style={styles.termsItemBody}>{tc(term.body)}</Text> : null}
           </View>
         ))}
       </View>
 
       <View style={styles.cashbackTipsBlock}>
-        <Text style={styles.cashbackTipsTitle}>💡 Cashback Tips</Text>
-        <Text style={styles.cashbackTipsText}>Scroll down to read all tips.</Text>
+        <Text style={styles.cashbackTipsTitle}>{tc("💡 Cashback Tips")}</Text>
+        <Text style={styles.cashbackTipsText}>{tc("Scroll down to read all tips.")}</Text>
       </View>
     </ScrollView>
   );

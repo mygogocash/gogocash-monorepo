@@ -5,6 +5,7 @@ import Svg, { Path } from "react-native-svg";
 import cloudflareLogoImage from "../../assets/branding/cloudflare-logo.png";
 import logoMarkImage from "../../assets/nav/logo.png";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { useCopy } from "@mobile/i18n/useCopy";
 import {
   getDesktopFooterGrid,
   mobileShellLayout,
@@ -26,7 +27,8 @@ export function CustomerDesktopFooter({
   const shellOffset = Math.max(0, (viewportWidth - shellContentWidth) / 2);
   const contentWidth = Math.min(1200, viewportWidth);
   const footerGrid = getDesktopFooterGrid(viewportWidth);
-  const copyright = webDesktopFooter.copyrightTemplate.replace(
+  const tc = useCopy();
+  const copyright = tc(webDesktopFooter.copyrightTemplate).replace(
     "{year}",
     String(new Date().getFullYear())
   );
@@ -69,7 +71,7 @@ export function CustomerDesktopFooter({
                 key={section.title}
                 style={[styles.footerColumn, { flexBasis: footerGrid.columnBasis }]}
               >
-                <Text style={styles.columnHeading}>{section.title}</Text>
+                <Text style={styles.columnHeading}>{tc(section.title)}</Text>
                 <View style={styles.linkList}>
                   {section.items.map((item) => (
                     <FooterTextLink
@@ -109,7 +111,7 @@ export function CustomerDesktopFooter({
           </View>
         </View>
 
-        <Text style={styles.disclaimer}>{webDesktopFooter.disclaimer}</Text>
+        <Text style={styles.disclaimer}>{tc(webDesktopFooter.disclaimer)}</Text>
       </View>
     </View>
   );
@@ -124,6 +126,7 @@ function FooterTextLink({
   href: string;
   label: string;
 }) {
+  const tc = useCopy();
   return (
     <Link
       asChild
@@ -132,11 +135,11 @@ function FooterTextLink({
       target={external ? "_blank" : undefined}
     >
       <MotionPressable
-        accessibilityLabel={label}
+        accessibilityLabel={tc(label)}
         pressScale={motion.scale.subtlePress}
         style={styles.textLinkPressable}
       >
-        <Text style={styles.textLink}>{label}</Text>
+        <Text style={styles.textLink}>{tc(label)}</Text>
       </MotionPressable>
     </Link>
   );

@@ -9,6 +9,7 @@ import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-na
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { useCopy } from "@mobile/i18n/useCopy";
 import { mobileShellLayout, webWithdrawMethodPage } from "@mobile/design/webDesignParity";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
@@ -27,32 +28,35 @@ export function CustomerWithdrawMethodScreen() {
 }
 
 function WithdrawMethodSubPage({ children }: { children: ReactNode }) {
+  const tc = useCopy();
   return (
-    <AccountPageShell activeRouteId="profile" showTitle={false} title={webWithdrawMethodPage.title}>
+    <AccountPageShell activeRouteId="profile" showTitle={false} title={tc(webWithdrawMethodPage.title)}>
       <View style={[styles.surface, styles.withdrawMethodSurfaceBleed]}>{children}</View>
     </AccountPageShell>
   );
 }
 
 function WithdrawMethodTopBar() {
+  const tc = useCopy();
   return (
     <Link asChild href="/profile">
       <Pressable accessibilityRole="link" style={styles.topBar}>
         <ChevronLeftIcon color={colors.accent} size={26} strokeWidth={typography.iconStrokeWidth} />
-        <Text style={styles.topBarTitle}>{webWithdrawMethodPage.title}</Text>
+        <Text style={styles.topBarTitle}>{tc(webWithdrawMethodPage.title)}</Text>
       </Pressable>
     </Link>
   );
 }
 
 function WithdrawMethodHeader() {
+  const tc = useCopy();
   return (
     <View style={styles.headerRow}>
-      <Text style={styles.heading}>{webWithdrawMethodPage.heading}</Text>
+      <Text style={styles.heading}>{tc(webWithdrawMethodPage.heading)}</Text>
       <Link asChild href="/method/create">
         <MotionPressable pressScale={0.98} style={styles.addButton}>
           <AddIcon color={colors.white} size={16} strokeWidth={typography.iconStrokeWidth} />
-          <Text style={styles.addButtonText}>{webWithdrawMethodPage.addLabel}</Text>
+          <Text style={styles.addButtonText}>{tc(webWithdrawMethodPage.addLabel)}</Text>
         </MotionPressable>
       </Link>
     </View>
@@ -104,9 +108,10 @@ function WithdrawMethodBankCard({
 }
 
 function DefaultBadge() {
+  const tc = useCopy();
   return (
     <View style={styles.defaultBadge}>
-      <Text style={styles.defaultBadgeText}>{webWithdrawMethodPage.defaultLabel}</Text>
+      <Text style={styles.defaultBadgeText}>{tc(webWithdrawMethodPage.defaultLabel)}</Text>
     </View>
   );
 }

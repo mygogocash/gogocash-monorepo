@@ -5,6 +5,7 @@ import type { DimensionValue } from "react-native";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
+import { useCopy } from "@mobile/i18n/useCopy";
 import { webCreditScorePage } from "@mobile/design/webDesignParity";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
@@ -25,49 +26,53 @@ export function CustomerCreditScoreScreen() {
 }
 
 function CreditScoreSubPage({ children }: { children: ReactNode }) {
+  const tc = useCopy();
   return (
-    <AccountPageShell activeRouteId="profile" showTitle={false} title={webCreditScorePage.title}>
+    <AccountPageShell activeRouteId="profile" showTitle={false} title={tc(webCreditScorePage.title)}>
       <View style={[styles.surface, styles.creditScoreSurfaceBleed]}>{children}</View>
     </AccountPageShell>
   );
 }
 
 function CreditScoreTopBar() {
+  const tc = useCopy();
   return (
     <Link asChild href="/profile">
       <Pressable accessibilityRole="link" style={styles.topBar}>
         <ChevronLeftIcon color={colors.accent} size={26} strokeWidth={typography.iconStrokeWidth} />
-        <Text style={styles.topBarTitle}>{webCreditScorePage.title}</Text>
+        <Text style={styles.topBarTitle}>{tc(webCreditScorePage.title)}</Text>
       </Pressable>
     </Link>
   );
 }
 
 function CreditScoreHero() {
+  const tc = useCopy();
   const heroProgress = `${webCreditScorePage.score}%` as DimensionValue;
 
   return (
     <View style={styles.heroCard}>
       <View style={styles.cardTopStrip} />
-      <Text style={styles.heroLabel}>{webCreditScorePage.heroLabel}</Text>
+      <Text style={styles.heroLabel}>{tc(webCreditScorePage.heroLabel)}</Text>
       <View style={styles.scoreStack}>
         <Text style={styles.scoreEmoji}>{webCreditScorePage.scoreEmoji}</Text>
         <Text style={styles.scoreValue}>{webCreditScorePage.score}</Text>
       </View>
       <ProgressTrack progress={heroProgress} slim />
-      <Text style={styles.tierLabel}>{webCreditScorePage.tier}</Text>
-      <Text style={styles.mutedCenter}>{webCreditScorePage.pointsToTrusted}</Text>
+      <Text style={styles.tierLabel}>{tc(webCreditScorePage.tier)}</Text>
+      <Text style={styles.mutedCenter}>{tc(webCreditScorePage.pointsToTrusted)}</Text>
     </View>
   );
 }
 
 function CreditScoreProgressCard() {
+  const tc = useCopy();
   return (
     <View style={styles.progressCard}>
-      <Text style={styles.progressTitle}>{webCreditScorePage.progressTitle}</Text>
+      <Text style={styles.progressTitle}>{tc(webCreditScorePage.progressTitle)}</Text>
       <ProgressTrack progress="50%" />
       <Text style={styles.progressLabel}>{webCreditScorePage.progressLabel}</Text>
-      <Text style={styles.mutedCenter}>{webCreditScorePage.pointsToTrusted}</Text>
+      <Text style={styles.mutedCenter}>{tc(webCreditScorePage.pointsToTrusted)}</Text>
     </View>
   );
 }
@@ -81,17 +86,18 @@ function ProgressTrack({ progress, slim = false }: { progress: DimensionValue; s
 }
 
 function CreditScoreBreakdown() {
+  const tc = useCopy();
   return (
     <View style={styles.breakdownSection}>
-      <Text style={styles.breakdownTitle}>{webCreditScorePage.breakdownTitle}</Text>
-      <Text style={styles.sectionLabel}>{webCreditScorePage.completeSectionLabel}</Text>
+      <Text style={styles.breakdownTitle}>{tc(webCreditScorePage.breakdownTitle)}</Text>
+      <Text style={styles.sectionLabel}>{tc(webCreditScorePage.completeSectionLabel)}</Text>
       <View style={styles.rowStack}>
         {webCreditScorePage.completeRows.map((row) => (
           <ScoreRow complete key={row.label} label={row.label} points={row.points} />
         ))}
       </View>
 
-      <Text style={[styles.sectionLabel, styles.todoLabel]}>{webCreditScorePage.todoSectionLabel}</Text>
+      <Text style={[styles.sectionLabel, styles.todoLabel]}>{tc(webCreditScorePage.todoSectionLabel)}</Text>
       <View style={styles.rowStack}>
         {webCreditScorePage.todoRows.map((row) => (
           <ScoreRow
@@ -120,21 +126,22 @@ function ScoreRow({
   points: string;
   subLabel?: string;
 }) {
+  const tc = useCopy();
   return (
     <View style={[styles.scoreRow, complete ? styles.scoreRowComplete : styles.scoreRowTodo]}>
       <View style={styles.scoreRowCopy}>
         <Text style={styles.scoreRowTitle}>
           {complete ? "✅ " : "🔒 "}
-          {label}
+          {tc(label)}
         </Text>
-        {subLabel ? <Text style={styles.scoreRowSub}>{subLabel}</Text> : null}
+        {subLabel ? <Text style={styles.scoreRowSub}>{tc(subLabel)}</Text> : null}
       </View>
       <View style={styles.pointsWrap}>
         <Text style={styles.pointsText}>{points}</Text>
         {cta ? (
           <Link asChild href={label === "Profile complete" ? "/profile/info" : "/"}>
             <Pressable style={styles.rowCta}>
-              <Text style={styles.rowCtaText}>{cta}</Text>
+              <Text style={styles.rowCtaText}>{tc(cta)}</Text>
             </Pressable>
           </Link>
         ) : null}
@@ -144,9 +151,10 @@ function ScoreRow({
 }
 
 function CreditScoreBenefits() {
+  const tc = useCopy();
   return (
     <View style={styles.benefitsSection}>
-      <Text style={styles.benefitsTitle}>{webCreditScorePage.benefitsTitle}</Text>
+      <Text style={styles.benefitsTitle}>{tc(webCreditScorePage.benefitsTitle)}</Text>
       <BenefitGroup label={webCreditScorePage.activeBenefitsLabel}>
         {webCreditScorePage.activeBenefits.map((item) => (
           <BenefitCard active item={item} key={item.label} />
@@ -167,9 +175,10 @@ function CreditScoreBenefits() {
 }
 
 function BenefitGroup({ children, label }: { children: ReactNode; label: string }) {
+  const tc = useCopy();
   return (
     <View style={styles.benefitGroup}>
-      <Text style={styles.sectionLabel}>{label}</Text>
+      <Text style={styles.sectionLabel}>{tc(label)}</Text>
       <View style={styles.rowStack}>{children}</View>
     </View>
   );
@@ -184,19 +193,20 @@ function BenefitCard({
   item: { icon: string; label: string; note?: string; status?: string };
   locked?: boolean;
 }) {
+  const tc = useCopy();
   return (
     <View style={[styles.benefitCard, locked ? styles.benefitCardLocked : null]}>
       <View style={styles.benefitCopy}>
         <Text style={styles.benefitTitle}>
           <Text style={styles.benefitIcon}>{item.icon}</Text>
           {"  "}
-          {item.label}
+          {tc(item.label)}
         </Text>
-        {item.note ? <Text style={styles.benefitNote}>{item.note}</Text> : null}
+        {item.note ? <Text style={styles.benefitNote}>{tc(item.note)}</Text> : null}
       </View>
       {active || item.status ? (
         <Text style={[styles.statusPill, active ? styles.statusPillActive : null]}>
-          {item.status ?? "Active"}
+          {tc(item.status ?? "Active")}
         </Text>
       ) : (
         <Text style={styles.lockIcon}>🔒</Text>
@@ -206,23 +216,30 @@ function BenefitCard({
 }
 
 function CreditScoreStreakCard() {
+  const tc = useCopy();
   return (
     <View style={styles.streakCard}>
-      <Text style={styles.streakTitle}>{webCreditScorePage.streakTitle}</Text>
-      <Text style={styles.streakSubtitle}>{webCreditScorePage.streakSubtitle}</Text>
+      <Text style={styles.streakTitle}>{tc(webCreditScorePage.streakTitle)}</Text>
+      <Text style={styles.streakSubtitle}>{tc(webCreditScorePage.streakSubtitle)}</Text>
       <View style={styles.monthTrack}>
         {[1, 2, 3].map((month) => (
           <View key={month} style={styles.monthItem}>
             <View style={styles.monthDot} />
-            <Text style={styles.monthLabel}>Month {month}</Text>
+            <Text style={styles.monthLabel}>
+              {tc("Month")} {month}
+            </Text>
           </View>
         ))}
       </View>
       <View style={styles.monthRows}>
         {[1, 2, 3].map((month) => (
           <View key={month} style={styles.monthRow}>
-            <Text style={styles.monthRowText}>Month {month}</Text>
-            <Text style={styles.monthStatus}>{month === 2 ? "🔥 In progress" : "🔒 Locked"}</Text>
+            <Text style={styles.monthRowText}>
+              {tc("Month")} {month}
+            </Text>
+            <Text style={styles.monthStatus}>
+              {month === 2 ? `🔥 ${tc("In progress")}` : `🔒 ${tc("Locked")}`}
+            </Text>
           </View>
         ))}
       </View>
@@ -231,13 +248,14 @@ function CreditScoreStreakCard() {
 }
 
 function CreditScoreBoostCard() {
+  const tc = useCopy();
   return (
     <View style={styles.boostCard}>
-      <Text style={styles.boostTitle}>{webCreditScorePage.boostTitle}</Text>
-      <Text style={styles.boostBody}>{webCreditScorePage.boostBody}</Text>
+      <Text style={styles.boostTitle}>{tc(webCreditScorePage.boostTitle)}</Text>
+      <Text style={styles.boostBody}>{tc(webCreditScorePage.boostBody)}</Text>
       <Link asChild href="/">
         <Pressable style={styles.boostButton}>
-          <Text style={styles.boostButtonText}>{webCreditScorePage.boostCta}</Text>
+          <Text style={styles.boostButtonText}>{tc(webCreditScorePage.boostCta)}</Text>
         </Pressable>
       </Link>
     </View>

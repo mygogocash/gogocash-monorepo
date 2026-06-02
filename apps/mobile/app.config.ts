@@ -61,6 +61,7 @@ const mobileExpoConfig = ({ config }: ConfigContext): ExpoConfig => ({
   plugins: [
     "expo-router",
     "expo-secure-store",
+    "expo-localization",
     [
       "expo-font",
       {

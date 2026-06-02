@@ -23,6 +23,7 @@ import logoMarkImage from "../../assets/nav/logo.png";
 import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
 import { CustomerDesktopHeader } from "@mobile/components/CustomerDesktopHeader";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { useCopy } from "@mobile/i18n/useCopy";
 import { mobileShellLayout, webAccountSetupFlow } from "@mobile/design/webDesignParity";
 import {
   canonicalThaiMobile,
@@ -47,6 +48,7 @@ type SavedPromptPayMethod = {
 };
 
 export function CustomerAccountSetupScreen() {
+  const tc = useCopy();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -75,7 +77,7 @@ export function CustomerAccountSetupScreen() {
 
   const submitPromptPay = (method: SavedPromptPayMethod) => {
     setSavedMethod(method);
-    setStatusMessage(webAccountSetupFlow.status.submitSuccess);
+    setStatusMessage(tc(webAccountSetupFlow.status.submitSuccess));
     router.replace("/");
   };
 
@@ -84,7 +86,7 @@ export function CustomerAccountSetupScreen() {
 
     if (form.choice === "registered_phone") {
       if (!hasRegisteredPhone) {
-        setStatusMessage(webAccountSetupFlow.status.noRegisteredPhone);
+        setStatusMessage(tc(webAccountSetupFlow.status.noRegisteredPhone));
         return;
       }
 
@@ -108,7 +110,7 @@ export function CustomerAccountSetupScreen() {
 
   const handleOtherPhoneNext = () => {
     if (!isThaiMobileValid(form.otherPhoneDigits)) {
-      setPhoneError(webAccountSetupFlow.steps.otherPhone.invalid);
+      setPhoneError(tc(webAccountSetupFlow.steps.otherPhone.invalid));
       return;
     }
 
@@ -120,7 +122,7 @@ export function CustomerAccountSetupScreen() {
 
   const handleOtpNext = () => {
     if (!isOtpValid(form.otpInput)) {
-      setOtpError(webAccountSetupFlow.steps.otp.invalid);
+      setOtpError(tc(webAccountSetupFlow.steps.otp.invalid));
       return;
     }
 
@@ -145,7 +147,7 @@ export function CustomerAccountSetupScreen() {
 
   const handleCitizenIdNext = () => {
     if (!isCitizenIdValid(form.citizenIdDigits)) {
-      setCitizenIdError(webAccountSetupFlow.steps.citizenId.invalid);
+      setCitizenIdError(tc(webAccountSetupFlow.steps.citizenId.invalid));
       return;
     }
 
@@ -194,9 +196,9 @@ export function CustomerAccountSetupScreen() {
             {isWideDesktop ? (
               <View style={styles.heroFrame}>
                 <Image
-                  alt={webAccountSetupFlow.heroAlt}
+                  alt={tc(webAccountSetupFlow.heroAlt)}
                   accessibilityIgnoresInvertColors
-                  accessibilityLabel={webAccountSetupFlow.heroAlt}
+                  accessibilityLabel={tc(webAccountSetupFlow.heroAlt)}
                   resizeMode="cover"
                   source={authHeroImage}
                   style={styles.heroImage}
@@ -287,6 +289,7 @@ export function CustomerAccountSetupScreen() {
 }
 
 function AccountSetupHeader() {
+  const tc = useCopy();
   return (
     <View style={styles.brandBlock}>
       <Image
@@ -296,8 +299,8 @@ function AccountSetupHeader() {
         source={logoMarkImage}
         style={styles.formLogo}
       />
-      <Text style={styles.formTitle}>{webAccountSetupFlow.title}</Text>
-      <Text style={styles.formSubtitle}>{webAccountSetupFlow.subtitle}</Text>
+      <Text style={styles.formTitle}>{tc(webAccountSetupFlow.title)}</Text>
+      <Text style={styles.formSubtitle}>{tc(webAccountSetupFlow.subtitle)}</Text>
       <PromptPayBadge />
     </View>
   );
@@ -334,18 +337,19 @@ function IntroStep({
   setChoice: (choice: PromptPayChoice) => void;
   statusMessage: string;
 }) {
+  const tc = useCopy();
   const registeredLabel = hasRegisteredPhone
     ? webAccountSetupFlow.options.registeredPhone.replace("{tail}", maskedTail)
-    : webAccountSetupFlow.options.registeredPhoneUnavailable;
+    : tc(webAccountSetupFlow.options.registeredPhoneUnavailable);
 
   return (
     <View style={styles.stack}>
       <SectionHeading
-        description={webAccountSetupFlow.sectionDescription}
-        title={webAccountSetupFlow.sectionTitle}
+        description={tc(webAccountSetupFlow.sectionDescription)}
+        title={tc(webAccountSetupFlow.sectionTitle)}
       />
 
-      <View accessibilityLabel={webAccountSetupFlow.sectionTitle} style={styles.radioGroup}>
+      <View accessibilityLabel={tc(webAccountSetupFlow.sectionTitle)} style={styles.radioGroup}>
         <RadioCard
           checked={choice === "registered_phone"}
           disabled={!hasRegisteredPhone}
@@ -356,13 +360,13 @@ function IntroStep({
         <RadioCard
           checked={choice === "other_phone"}
           icon={<PhoneIcon color="#00AA80" size={22} strokeWidth={2} />}
-          label={webAccountSetupFlow.options.otherPhone}
+          label={tc(webAccountSetupFlow.options.otherPhone)}
           onPress={() => setChoice("other_phone")}
         />
         <RadioCard
           checked={choice === "citizen_id"}
           icon={<ShieldCheckIcon color="#00AA80" size={22} strokeWidth={2} />}
-          label={webAccountSetupFlow.options.citizenId}
+          label={tc(webAccountSetupFlow.options.citizenId)}
           onPress={() => setChoice("citizen_id")}
         />
       </View>
@@ -374,25 +378,25 @@ function IntroStep({
       ) : null}
 
       <View style={styles.actionRow}>
-        <SecondaryButton label={webAccountSetupFlow.actions.notNow} onPress={onNotNow} />
-        <PrimaryButton label={webAccountSetupFlow.actions.next} onPress={onNext} />
+        <SecondaryButton label={tc(webAccountSetupFlow.actions.notNow)} onPress={onNotNow} />
+        <PrimaryButton label={tc(webAccountSetupFlow.actions.next)} onPress={onNext} />
       </View>
 
       <View style={styles.dividerRow}>
         <View style={styles.dividerLine} />
-        <Text style={styles.dividerText}>{webAccountSetupFlow.actions.divider}</Text>
+        <Text style={styles.dividerText}>{tc(webAccountSetupFlow.actions.divider)}</Text>
         <View style={styles.dividerLine} />
       </View>
 
       <View style={styles.altGrid}>
         <AltMethodButton
           icon={<BankIcon color="#00AA80" size={30} strokeWidth={2} />}
-          label={webAccountSetupFlow.actions.bank}
+          label={tc(webAccountSetupFlow.actions.bank)}
           onPress={onChooseBank}
         />
         <AltMethodButton
           icon={<CryptoIcon color="#00AA80" size={30} strokeWidth={2} />}
-          label={webAccountSetupFlow.actions.crypto}
+          label={tc(webAccountSetupFlow.actions.crypto)}
           onPress={onChooseCrypto}
         />
       </View>
@@ -413,22 +417,23 @@ function PhoneInputStep({
   setValue: (value: string) => void;
   value: string;
 }) {
+  const tc = useCopy();
   return (
     <View style={styles.stack}>
       <SectionHeading
-        description={webAccountSetupFlow.steps.otherPhone.description}
-        title={webAccountSetupFlow.steps.otherPhone.title}
+        description={tc(webAccountSetupFlow.steps.otherPhone.description)}
+        title={tc(webAccountSetupFlow.steps.otherPhone.title)}
       />
       <FieldInput
-        accessibilityLabel={webAccountSetupFlow.steps.otherPhone.ariaLabel}
+        accessibilityLabel={tc(webAccountSetupFlow.steps.otherPhone.ariaLabel)}
         error={error}
         keyboardType="phone-pad"
         maxLength={10}
         onChangeText={setValue}
-        placeholder={webAccountSetupFlow.steps.otherPhone.placeholder}
+        placeholder={tc(webAccountSetupFlow.steps.otherPhone.placeholder)}
         value={value}
       />
-      <StepFooter onBack={onBack} onNext={onNext} nextLabel={webAccountSetupFlow.actions.next} />
+      <StepFooter onBack={onBack} onNext={onNext} nextLabel={tc(webAccountSetupFlow.actions.next)} />
     </View>
   );
 }
@@ -448,11 +453,13 @@ function OtpStep({
   setValue: (value: string) => void;
   value: string;
 }) {
+  const tc = useCopy();
+  // Interpolated template ("...{tail}...") — left untranslated; no clean static sub-part to wrap.
   const description = webAccountSetupFlow.steps.otp.description.replace("{tail}", phoneTail);
 
   return (
     <View style={styles.stack}>
-      <SectionHeading description={description} title={webAccountSetupFlow.steps.otp.title} />
+      <SectionHeading description={description} title={tc(webAccountSetupFlow.steps.otp.title)} />
       <View style={styles.otpBoxRow}>
         {Array.from({ length: 6 }).map((_, index) => (
           <View key={index} style={[styles.otpBox, error ? styles.fieldError : null]}>
@@ -461,15 +468,15 @@ function OtpStep({
         ))}
       </View>
       <FieldInput
-        accessibilityLabel={webAccountSetupFlow.steps.otp.ariaLabel}
+        accessibilityLabel={tc(webAccountSetupFlow.steps.otp.ariaLabel)}
         error={error}
         keyboardType="number-pad"
         maxLength={6}
         onChangeText={setValue}
-        placeholder={webAccountSetupFlow.steps.otp.placeholder}
+        placeholder={tc(webAccountSetupFlow.steps.otp.placeholder)}
         value={value}
       />
-      <StepFooter onBack={onBack} onNext={onNext} nextLabel={webAccountSetupFlow.actions.next} />
+      <StepFooter onBack={onBack} onNext={onNext} nextLabel={tc(webAccountSetupFlow.actions.next)} />
     </View>
   );
 }
@@ -487,22 +494,23 @@ function CitizenIdStep({
   setValue: (value: string) => void;
   value: string;
 }) {
+  const tc = useCopy();
   return (
     <View style={styles.stack}>
       <SectionHeading
-        description={webAccountSetupFlow.steps.citizenId.description}
-        title={webAccountSetupFlow.steps.citizenId.title}
+        description={tc(webAccountSetupFlow.steps.citizenId.description)}
+        title={tc(webAccountSetupFlow.steps.citizenId.title)}
       />
       <FieldInput
-        accessibilityLabel={webAccountSetupFlow.steps.citizenId.ariaLabel}
+        accessibilityLabel={tc(webAccountSetupFlow.steps.citizenId.ariaLabel)}
         error={error}
         keyboardType="number-pad"
         maxLength={13}
         onChangeText={setValue}
-        placeholder={webAccountSetupFlow.steps.citizenId.placeholder}
+        placeholder={tc(webAccountSetupFlow.steps.citizenId.placeholder)}
         value={value}
       />
-      <StepFooter onBack={onBack} onNext={onNext} nextLabel={webAccountSetupFlow.actions.next} />
+      <StepFooter onBack={onBack} onNext={onNext} nextLabel={tc(webAccountSetupFlow.actions.next)} />
     </View>
   );
 }
@@ -524,35 +532,36 @@ function NameStep({
   setFirstName: (value: string) => void;
   setLastName: (value: string) => void;
 }) {
+  const tc = useCopy();
   const firstNameError =
-    nameSubmitted && !isNameValid(firstName) ? webAccountSetupFlow.steps.name.required : "";
+    nameSubmitted && !isNameValid(firstName) ? tc(webAccountSetupFlow.steps.name.required) : "";
   const lastNameError =
-    nameSubmitted && !isNameValid(lastName) ? webAccountSetupFlow.steps.name.required : "";
+    nameSubmitted && !isNameValid(lastName) ? tc(webAccountSetupFlow.steps.name.required) : "";
 
   return (
     <View style={styles.stack}>
       <SectionHeading
-        description={webAccountSetupFlow.steps.name.description}
-        title={webAccountSetupFlow.steps.name.title}
+        description={tc(webAccountSetupFlow.steps.name.description)}
+        title={tc(webAccountSetupFlow.steps.name.title)}
       />
       <FieldInput
-        accessibilityLabel={webAccountSetupFlow.steps.name.firstNameAriaLabel}
+        accessibilityLabel={tc(webAccountSetupFlow.steps.name.firstNameAriaLabel)}
         error={firstNameError}
         onChangeText={setFirstName}
-        placeholder={webAccountSetupFlow.steps.name.firstNamePlaceholder}
+        placeholder={tc(webAccountSetupFlow.steps.name.firstNamePlaceholder)}
         value={firstName}
       />
       <FieldInput
-        accessibilityLabel={webAccountSetupFlow.steps.name.lastNameAriaLabel}
+        accessibilityLabel={tc(webAccountSetupFlow.steps.name.lastNameAriaLabel)}
         error={lastNameError}
         onChangeText={setLastName}
-        placeholder={webAccountSetupFlow.steps.name.lastNamePlaceholder}
+        placeholder={tc(webAccountSetupFlow.steps.name.lastNamePlaceholder)}
         value={lastName}
       />
       <StepFooter
         onBack={onBack}
         onNext={onNext}
-        nextLabel={webAccountSetupFlow.actions.confirm}
+        nextLabel={tc(webAccountSetupFlow.actions.confirm)}
       />
     </View>
   );
@@ -651,9 +660,10 @@ function StepFooter({
   onBack: () => void;
   onNext: () => void;
 }) {
+  const tc = useCopy();
   return (
     <View style={styles.actionRow}>
-      <SecondaryButton label={webAccountSetupFlow.actions.back} onPress={onBack} />
+      <SecondaryButton label={tc(webAccountSetupFlow.actions.back)} onPress={onBack} />
       <PrimaryButton label={nextLabel} onPress={onNext} />
     </View>
   );

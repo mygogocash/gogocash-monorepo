@@ -69,6 +69,7 @@ import { CustomerLocaleRegionControl } from "@mobile/components/CustomerLocaleRe
 import { CustomerSignInNavGraphic } from "@mobile/components/CustomerSignInNavGraphic";
 import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
 import { CustomerCookieConsentBanner } from "@mobile/components/CustomerCookieConsentBanner";
+import { IntroAfterLoginModal } from "@mobile/components/IntroAfterLoginModal";
 import { CustomerLineOfficialFab } from "@mobile/components/CustomerLineOfficialFab";
 import {
   getCarouselActiveIndex,
@@ -90,6 +91,7 @@ import {
   webTopBrandCards,
 } from "@mobile/design/webDesignParity";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { useCopy } from "@mobile/i18n/useCopy";
 import { trackPromotionSelect } from "@mobile/analytics/events";
 import { useAnalytics } from "@mobile/analytics/useAnalytics";
 import { isValidGoLinkUrl } from "@mobile/features/golink";
@@ -199,6 +201,7 @@ function getPagedScrollIndex(
 }
 
 export function CustomerHomeScreen() {
+  const tc = useCopy();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -314,6 +317,7 @@ export function CustomerHomeScreen() {
             onShopNow={handleDesktopGoLinkShopNow}
           />
         ) : null}
+        <IntroAfterLoginModal />
         <CustomerCookieConsentBanner isDesktop />
         <CustomerLineOfficialFab />
       </View>
@@ -340,13 +344,13 @@ export function CustomerHomeScreen() {
           >
             <SearchIcon color={colors.primaryDark} size={20} strokeWidth={homeIconStrokeWidth} />
             <TextInput
-              accessibilityLabel="Search brands, stores, products, and cashback offers"
+              accessibilityLabel={tc("Search brands, stores, products, and cashback offers")}
               nativeID="home-search-input"
               onBlur={() => undefined}
               onChangeText={setSearchQuery}
               onFocus={openSearchPopover}
               onPressIn={openSearchPopover}
-              placeholder={webHomeSearchPlaceholder}
+              placeholder={tc(webHomeSearchPlaceholder)}
               placeholderTextColor={colors.textSoft}
               style={[styles.searchInput, webSearchInputFocusReset]}
               testID="home-search-input"
@@ -392,6 +396,7 @@ export function CustomerHomeScreen() {
           />
         ) : null}
       </View>
+      <IntroAfterLoginModal />
       <CustomerCookieConsentBanner isDesktop={false} />
     </View>
   );
@@ -412,6 +417,7 @@ function HomeSearchPopularPopover({
   top: number;
   visible: boolean;
 }) {
+  const tc = useCopy();
   const searchMatches = getHomeSearchMatches(query);
   const hasSearchQuery = query.trim().length > 0;
   const popoverOpacity = useMemo(() => new Animated.Value(0), []);
@@ -471,7 +477,7 @@ function HomeSearchPopularPopover({
   return (
     <View style={[styles.searchPopoverLayer, { pointerEvents: visible ? "box-none" : "none" }]}>
       <Pressable
-        accessibilityLabel="Close search suggestions"
+        accessibilityLabel={tc("Close search suggestions")}
         accessibilityRole="button"
         onPress={onClose}
         style={styles.searchPopoverBackdrop}
@@ -500,10 +506,10 @@ function HomeSearchPopularPopover({
                   <>
                     <View style={styles.searchResultsHeading}>
                       <Text style={styles.searchResultsTitle}>
-                        {webHomeSearchPopularPanel.resultsTitle}
+                        {tc(webHomeSearchPopularPanel.resultsTitle)}
                       </Text>
                       <Text style={styles.searchResultsSubtitle}>
-                        {webHomeSearchPopularPanel.resultsSubtitle}
+                        {tc(webHomeSearchPopularPanel.resultsSubtitle)}
                       </Text>
                     </View>
                     <View style={styles.searchResultListCompact}>
@@ -515,7 +521,7 @@ function HomeSearchPopularPopover({
                   </>
                 ) : (
                   <Text style={styles.searchNoMatchCard}>
-                    {webHomeSearchPopularPanel.noMatches}
+                    {tc(webHomeSearchPopularPanel.noMatches)}
                   </Text>
                 )}
                 <HomeSearchIntro variant="compact" />
@@ -543,6 +549,7 @@ function HomeSearchPopularPopover({
 }
 
 function HomeSearchIntro({ variant }: { variant: "compact" | "large" }) {
+  const tc = useCopy();
   const compact = variant === "compact";
 
   return (
@@ -554,7 +561,7 @@ function HomeSearchIntro({ variant }: { variant: "compact" | "large" }) {
         <Text
           style={[styles.searchPopoverTitle, compact ? styles.searchPopoverTitleCompact : null]}
         >
-          {webHomeSearchPopularPanel.title}
+          {tc(webHomeSearchPopularPanel.title)}
         </Text>
         <Text
           style={[
@@ -562,7 +569,7 @@ function HomeSearchIntro({ variant }: { variant: "compact" | "large" }) {
             compact ? styles.searchPopoverSubtitleCompact : null,
           ]}
         >
-          {webHomeSearchPopularPanel.subtitle}
+          {tc(webHomeSearchPopularPanel.subtitle)}
         </Text>
       </View>
     </View>
@@ -576,6 +583,7 @@ function HomeSearchResultRow({
   item: HomeSearchPanelItem;
   variant: "compact" | "large";
 }) {
+  const tc = useCopy();
   const compact = variant === "compact";
 
   return (
@@ -619,7 +627,7 @@ function HomeSearchResultRow({
                 compact ? styles.searchResultCaptionCompact : null,
               ]}
             >
-              Cashback up to
+              {tc("Cashback up to")}
             </Text>
             <Text
               style={[
@@ -640,7 +648,7 @@ function HomeSearchResultRow({
               compact ? styles.searchResultActionTextCompact : null,
             ]}
           >
-            {webHomeSearchPopularPanel.actionLabel}
+            {tc(webHomeSearchPopularPanel.actionLabel)}
           </Text>
         </View>
       </MotionPressable>
@@ -649,6 +657,7 @@ function HomeSearchResultRow({
 }
 
 function DesktopHeader({ viewportWidth }: { viewportWidth: number }) {
+  const tc = useCopy();
   const shellPadding = getDesktopShellHorizontalPadding(viewportWidth);
   const shellContentWidth = Math.min(viewportWidth, mobileShellLayout.desktopContentMaxWidth);
   const shellOffset = Math.max(0, (viewportWidth - shellContentWidth) / 2);
@@ -690,13 +699,13 @@ function DesktopHeader({ viewportWidth }: { viewportWidth: number }) {
           <View style={styles.desktopHeaderActions}>
             <Link asChild href="/quest">
               <MotionPressable
-                accessibilityLabel="Quest"
+                accessibilityLabel={tc("Quest")}
                 pressScale={motion.scale.subtlePress}
                 style={styles.desktopQuestPill}
               >
                 <Image
-                  alt="Quest"
-                  accessibilityLabel="Quest"
+                  alt={tc("Quest")}
+                  accessibilityLabel={tc("Quest")}
                   resizeMode="cover"
                   source={questHeaderImage}
                   style={styles.desktopQuestImage}
@@ -705,7 +714,7 @@ function DesktopHeader({ viewportWidth }: { viewportWidth: number }) {
             </Link>
             <Link asChild href="/login">
               <MotionPressable
-                accessibilityLabel="Sign in"
+                accessibilityLabel={tc("Sign in")}
                 pressScale={motion.scale.subtlePress}
                 style={styles.desktopSignIn}
               >
@@ -728,8 +737,9 @@ function DesktopCategoryNav({
   shellContentWidth: number;
   shellPadding: number;
 }) {
+  const tc = useCopy();
   return (
-    <View accessibilityLabel="Category navigation" style={styles.desktopCategoryNav}>
+    <View accessibilityLabel={tc("Category navigation")} style={styles.desktopCategoryNav}>
       <View
         style={[
           styles.desktopCategoryNavInner,
@@ -762,7 +772,7 @@ function DesktopCategoryNav({
                       : null,
                   ]}
                 >
-                  {item.label}
+                  {tc(item.label)}
                 </Text>
                 {"showFire" in item && item.showFire ? (
                   <Image
@@ -812,6 +822,7 @@ function DesktopCategoryNavIcon({
 function DesktopGoLinkBanner({ onOpenGuideline, onResultHref }: DesktopGoLinkBannerProps) {
   const [goLinkError, setGoLinkError] = useState("");
   const [goLinkInput, setGoLinkInput] = useState("");
+  const tc = useCopy();
 
   const handlePasteAndGo = () => {
     const nextGoLinkInput = goLinkInput.trim();
@@ -833,14 +844,14 @@ function DesktopGoLinkBanner({ onOpenGuideline, onResultHref }: DesktopGoLinkBan
 
   return (
     <View
-      accessibilityLabel="GoGoLink desktop banner"
+      accessibilityLabel={tc("GoGoLink desktop banner")}
       style={styles.desktopGoLinkBanner}
       testID="desktop-golink-banner"
     >
       <View style={[styles.desktopGoLinkBackdrop, { pointerEvents: "none" }]} />
       <View style={[styles.desktopGoLinkAccentGlow, { pointerEvents: "none" }]} />
       <MotionPressable
-        accessibilityLabel="About GoLink"
+        accessibilityLabel={tc("About GoLink")}
         accessibilityRole="button"
         onPress={onOpenGuideline}
         pressScale={motion.scale.subtlePress}
@@ -850,7 +861,7 @@ function DesktopGoLinkBanner({ onOpenGuideline, onResultHref }: DesktopGoLinkBan
       </MotionPressable>
       <View style={styles.desktopGoLinkIllustrationWrap}>
         <Image
-          alt="GoGoLink cashback link illustration"
+          alt={tc("GoGoLink cashback link illustration")}
           accessibilityIgnoresInvertColors
           resizeMode="contain"
           source={golinkBannerIllustrationImage}
@@ -859,7 +870,7 @@ function DesktopGoLinkBanner({ onOpenGuideline, onResultHref }: DesktopGoLinkBan
       </View>
       <View style={styles.desktopGoLinkForm}>
         <Text nativeID="golink-banner-heading" style={styles.desktopGoLinkTitle}>
-          {webGoLinkFeature.title}
+          {tc(webGoLinkFeature.title)}
         </Text>
         <View style={styles.desktopGoLinkControls}>
           <View
@@ -870,7 +881,7 @@ function DesktopGoLinkBanner({ onOpenGuideline, onResultHref }: DesktopGoLinkBan
           >
             <LinkIcon color="rgba(0, 170, 128, 0.48)" size={18} strokeWidth={homeIconStrokeWidth} />
             <TextInput
-              accessibilityLabel={webGoLinkFeature.inputLabel}
+              accessibilityLabel={tc(webGoLinkFeature.inputLabel)}
               autoCapitalize="none"
               autoCorrect={false}
               inputMode="url"
@@ -881,7 +892,7 @@ function DesktopGoLinkBanner({ onOpenGuideline, onResultHref }: DesktopGoLinkBan
                 }
               }}
               onSubmitEditing={handlePasteAndGo}
-              placeholder={webGoLinkFeature.inputPlaceholder}
+              placeholder={tc(webGoLinkFeature.inputPlaceholder)}
               placeholderTextColor="rgba(92, 114, 107, 0.55)"
               returnKeyType="go"
               style={[styles.desktopGoLinkInput, webSearchInputFocusReset]}
@@ -894,16 +905,17 @@ function DesktopGoLinkBanner({ onOpenGuideline, onResultHref }: DesktopGoLinkBan
             pressScale={motion.scale.subtlePress}
             style={styles.desktopGoLinkAction}
           >
-            <Text style={styles.desktopGoLinkActionText}>{webGoLinkFeature.ctaLabel}</Text>
+            <Text style={styles.desktopGoLinkActionText}>{tc(webGoLinkFeature.ctaLabel)}</Text>
           </MotionPressable>
         </View>
-        {goLinkError ? <Text style={styles.desktopGoLinkError}>{goLinkError}</Text> : null}
+        {goLinkError ? <Text style={styles.desktopGoLinkError}>{tc(goLinkError)}</Text> : null}
       </View>
     </View>
   );
 }
 
 function BrowseShortcuts() {
+  const tc = useCopy();
   return (
     <ScrollView
       contentContainerStyle={styles.shortcutRow}
@@ -914,7 +926,7 @@ function BrowseShortcuts() {
         <Link asChild href={shortcut.href as never} key={shortcut.id}>
           <MotionPressable pressScale={motion.scale.subtlePress} style={styles.shortcutPill}>
             <ShortcutIcon name={shortcut.icon} />
-            <Text style={styles.shortcutText}>{shortcut.label}</Text>
+            <Text style={styles.shortcutText}>{tc(shortcut.label)}</Text>
           </MotionPressable>
         </Link>
       ))}
@@ -1062,6 +1074,7 @@ function HeroArrow({ size }: { size: "large" | "small" }) {
 }
 
 function TopBrandSection({ homeLayout }: { homeLayout: HomeLayoutMetrics }) {
+  const tc = useCopy();
   const topBrandPages = chunkTopBrandCards(webTopBrandCards, homeLayout.topBrandCardsPerPage);
   const [activeTopBrandPage, setActiveTopBrandPage] = useState(0);
   const topBrandDotCount = getCarouselDotCount(
@@ -1075,12 +1088,12 @@ function TopBrandSection({ homeLayout }: { homeLayout: HomeLayoutMetrics }) {
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
         <View style={styles.titleRow}>
-          <Text style={styles.sectionTitle}>Top Brands</Text>
+          <Text style={styles.sectionTitle}>{tc("Top Brands")}</Text>
           <Text style={styles.topBrandEmoji}>🔥</Text>
         </View>
         <Link asChild href="/brand">
           <MotionPressable pressScale={motion.scale.subtlePress}>
-            <Text style={styles.sectionAction}>{viewAllLabel}</Text>
+            <Text style={styles.sectionAction}>{tc(viewAllLabel)}</Text>
           </MotionPressable>
         </Link>
       </View>
@@ -1163,6 +1176,7 @@ function BrandLogoOfferCard({
   cardHeight: number;
   cardWidth: number;
 }) {
+  const tc = useCopy();
   const large = cardWidth >= 200;
   const logoSource = logoUri ? { uri: logoUri } : shopeeLogo;
 
@@ -1196,7 +1210,7 @@ function BrandLogoOfferCard({
         </Text>
         <View style={styles.brandCashbackRow}>
           <Text numberOfLines={1} style={styles.brandCashbackCaption}>
-            Cashback up to
+            {tc("Cashback up to")}
           </Text>
           <Text style={[styles.brandCashback, large ? styles.brandCashbackLarge : null]}>
             {cashback}
@@ -1222,6 +1236,7 @@ function PromoSection({
   link: string;
   title: string;
 }) {
+  const tc = useCopy();
   const promoPages = chunkCompactBrandCards(cards, homeLayout.compactBrandCardsPerPage);
   const sectionDotCount = homeLayout.isDesktop
     ? promoPages.length
@@ -1234,12 +1249,12 @@ function PromoSection({
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
         <View style={styles.titleRow}>
-          <Text style={styles.sectionTitleSmall}>{title}</Text>
+          <Text style={styles.sectionTitleSmall}>{tc(title)}</Text>
           {icon ? <Text style={styles.sectionEmoji}>{icon}</Text> : null}
         </View>
         <Link asChild href={link as never}>
           <MotionPressable pressScale={motion.scale.subtlePress}>
-            <Text style={styles.sectionAction}>{viewAllLabel}</Text>
+            <Text style={styles.sectionAction}>{tc(viewAllLabel)}</Text>
           </MotionPressable>
         </Link>
       </View>
@@ -1318,6 +1333,7 @@ function CompactBrandLogoOfferCard(
     logoVisualHeight: number;
   }
 ) {
+  const tc = useCopy();
   const logoSource = card.logoUri
     ? { uri: card.logoUri }
     : card.logoAsset
@@ -1357,7 +1373,7 @@ function CompactBrandLogoOfferCard(
         </Text>
         <View style={styles.compactCashbackRow}>
           <Text numberOfLines={1} style={styles.compactCashbackCaption}>
-            Cashback up to
+            {tc("Cashback up to")}
           </Text>
           <Text style={styles.compactCashbackValue}>{card.cashback}</Text>
         </View>
@@ -1373,6 +1389,7 @@ function CustomerMobileBottomNav({
   bottomInset: number;
   onGoLinkPress: () => void;
 }) {
+  const tc = useCopy();
   return (
     <View
       style={[
@@ -1406,7 +1423,7 @@ function CustomerMobileBottomNav({
                   active ? styles.bottomNavTextActive : null,
                 ]}
               >
-                {item.label}
+                {tc(item.label)}
               </Text>
             </>
           );

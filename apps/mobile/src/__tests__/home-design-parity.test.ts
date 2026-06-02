@@ -196,7 +196,8 @@ describe("Expo home design parity", () => {
     expect(signInGraphicFile).toContain('fill="white"');
     for (const sourceFile of [homeFile, desktopHeaderFile]) {
       expect(sourceFile).toContain("CustomerSignInNavGraphic");
-      expect(sourceFile).toContain('accessibilityLabel="Sign in"');
+      // The sign-in a11y label may be a literal or i18n-wrapped (tc("Sign in")) — both are valid.
+      expect(sourceFile).toMatch(/accessibilityLabel=(?:"Sign in"|\{tc\("Sign in"\)\})/);
       expect(sourceFile).not.toContain("<Text style={styles.desktopSignInText}>Sign in</Text>");
       expect(sourceFile).not.toContain("desktopSignInText:");
     }
@@ -449,7 +450,7 @@ describe("Expo home design parity", () => {
     expect(webHomeSearchPlaceholder).toContain("brands, stores, products");
     expect(homeFile).toContain("webHomeSearchPlaceholder");
     expect(homeFile).toContain(
-      'accessibilityLabel="Search brands, stores, products, and cashback offers"'
+      'accessibilityLabel={tc("Search brands, stores, products, and cashback offers")}'
     );
     expect(homeFile).toContain('nativeID="home-search-input"');
     expect(homeFile).not.toContain("Search shops, brands, cashback");

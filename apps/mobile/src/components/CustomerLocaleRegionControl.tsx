@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { Animated, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { useLocale } from "@mobile/i18n/LocaleProvider";
 import { Globe } from "@mobile/theme/icons";
 import { webLocaleRegionPanel } from "@mobile/design/webDesignParity";
 import { motion } from "@mobile/theme/motion";
 import { colors, radii, typography } from "@mobile/theme/tokens";
 
-type LocaleLanguageCode = (typeof webLocaleRegionPanel.languages)[number]["code"];
 type LocaleRegionCode = (typeof webLocaleRegionPanel.regions)[number]["code"];
 
 type CustomerLocaleRegionControlProps = {
@@ -19,9 +19,7 @@ export function CustomerLocaleRegionControl({
 }: CustomerLocaleRegionControlProps) {
   const [localePanelOpen, setLocalePanelOpen] = useState(false);
   const [localePanelMounted, setLocalePanelMounted] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState<LocaleLanguageCode>(
-    webLocaleRegionPanel.defaultLanguage
-  );
+  const { locale, setLocale } = useLocale();
   const [selectedRegion, setSelectedRegion] = useState<LocaleRegionCode>(
     webLocaleRegionPanel.defaultRegion
   );
@@ -127,8 +125,8 @@ export function CustomerLocaleRegionControl({
                 flag={language.flag}
                 key={language.code}
                 label={language.label}
-                selected={selectedLanguage === language.code}
-                onPress={() => setSelectedLanguage(language.code)}
+                selected={locale === language.code}
+                onPress={() => setLocale(language.code)}
               />
             ))}
           </View>

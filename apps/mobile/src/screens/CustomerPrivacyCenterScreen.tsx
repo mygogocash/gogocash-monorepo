@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { useCopy } from "@mobile/i18n/useCopy";
 import { webPrivacyCenterPage } from "@mobile/design/webDesignParity";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
@@ -20,6 +21,7 @@ const initialOptionalConsentState: Record<OptionalPurposeId, boolean> = {
 };
 
 export function CustomerPrivacyCenterScreen() {
+  const tc = useCopy();
   const [optionalConsents, setOptionalConsents] = useState(initialOptionalConsentState);
 
   const setOptionalConsent = (id: OptionalPurposeId, enabled: boolean) => {
@@ -36,8 +38,8 @@ export function CustomerPrivacyCenterScreen() {
         <PrivacyCenterTopBar />
         <View style={styles.content}>
           <View style={styles.sectionIntro}>
-            <Text style={styles.sectionTitle}>{webPrivacyCenterPage.sectionTitle}</Text>
-            <Text style={styles.microNotice}>{webPrivacyCenterPage.microNotice}</Text>
+            <Text style={styles.sectionTitle}>{tc(webPrivacyCenterPage.sectionTitle)}</Text>
+            <Text style={styles.microNotice}>{tc(webPrivacyCenterPage.microNotice)}</Text>
           </View>
           <ConsentHeroCard
             allOptionalEnabled={allOptionalEnabled}
@@ -50,7 +52,7 @@ export function CustomerPrivacyCenterScreen() {
             }}
           />
           <View style={styles.optionalSection}>
-            <Text style={styles.optionalTitle}>{webPrivacyCenterPage.optionalTitle}</Text>
+            <Text style={styles.optionalTitle}>{tc(webPrivacyCenterPage.optionalTitle)}</Text>
             <View style={styles.optionalStack}>
               {webPrivacyCenterPage.optionalPurposes.map((purpose) => (
                 <OptionalConsentCard
@@ -70,19 +72,21 @@ export function CustomerPrivacyCenterScreen() {
 }
 
 function PrivacyCenterSubPage({ children }: { children: ReactNode }) {
+  const tc = useCopy();
   return (
-    <AccountPageShell activeRouteId="profile" showTitle={false} title={webPrivacyCenterPage.title}>
+    <AccountPageShell activeRouteId="profile" showTitle={false} title={tc(webPrivacyCenterPage.title)}>
       <View style={[styles.surface, styles.privacyCenterSurfaceBleed]}>{children}</View>
     </AccountPageShell>
   );
 }
 
 function PrivacyCenterTopBar() {
+  const tc = useCopy();
   return (
     <Link asChild href="/profile">
       <Pressable accessibilityRole="link" style={styles.topBar}>
         <ChevronLeftIcon color={colors.accent} size={28} strokeWidth={typography.iconStrokeWidth} />
-        <Text style={styles.topBarTitle}>{webPrivacyCenterPage.title}</Text>
+        <Text style={styles.topBarTitle}>{tc(webPrivacyCenterPage.title)}</Text>
       </Pressable>
     </Link>
   );
@@ -95,11 +99,12 @@ function ConsentHeroCard({
   allOptionalEnabled: boolean;
   onAcceptAll: () => void;
 }) {
+  const tc = useCopy();
   return (
     <View style={styles.heroCard}>
       <View style={styles.heroCopy}>
-        <Text style={styles.heroTitle}>{webPrivacyCenterPage.hero.title}</Text>
-        <Text style={styles.heroBody}>{webPrivacyCenterPage.hero.body}</Text>
+        <Text style={styles.heroTitle}>{tc(webPrivacyCenterPage.hero.title)}</Text>
+        <Text style={styles.heroBody}>{tc(webPrivacyCenterPage.hero.body)}</Text>
       </View>
       <MotionPressable
         accessibilityRole="button"
@@ -110,11 +115,11 @@ function ConsentHeroCard({
       >
         <Text style={styles.acceptButtonText}>
           {allOptionalEnabled
-            ? webPrivacyCenterPage.hero.allEnabledLabel
-            : webPrivacyCenterPage.hero.actionLabel}
+            ? tc(webPrivacyCenterPage.hero.allEnabledLabel)
+            : tc(webPrivacyCenterPage.hero.actionLabel)}
         </Text>
       </MotionPressable>
-      <Text style={styles.heroHint}>{webPrivacyCenterPage.hero.hint}</Text>
+      <Text style={styles.heroHint}>{tc(webPrivacyCenterPage.hero.hint)}</Text>
     </View>
   );
 }
@@ -128,21 +133,22 @@ function OptionalConsentCard({
   onToggle: () => void;
   purpose: OptionalPurpose;
 }) {
+  const tc = useCopy();
   return (
     <View style={styles.optionalCard}>
       <View style={styles.optionalCopy}>
-        <Text style={styles.optionalCardTitle}>{purpose.title}</Text>
-        <Text style={styles.optionalCardDescription}>{purpose.description}</Text>
+        <Text style={styles.optionalCardTitle}>{tc(purpose.title)}</Text>
+        <Text style={styles.optionalCardDescription}>{tc(purpose.description)}</Text>
       </View>
       <Pressable
-        accessibilityLabel={purpose.title}
+        accessibilityLabel={tc(purpose.title)}
         accessibilityRole="switch"
         accessibilityState={{ checked: enabled }}
         onPress={onToggle}
         style={styles.toggleRow}
       >
         <Text style={styles.toggleLabel}>
-          {enabled ? webPrivacyCenterPage.onLabel : webPrivacyCenterPage.offLabel}
+          {enabled ? tc(webPrivacyCenterPage.onLabel) : tc(webPrivacyCenterPage.offLabel)}
         </Text>
         <View style={[styles.toggleTrack, enabled ? styles.toggleTrackOn : null]}>
           <View style={[styles.toggleThumb, enabled ? styles.toggleThumbOn : null]} />
@@ -153,16 +159,17 @@ function OptionalConsentCard({
 }
 
 function RequiredConsentCard() {
+  const tc = useCopy();
   return (
     <View style={styles.requiredCard}>
       <View style={styles.requiredHeader}>
         <LockIcon color={colors.primaryDark} size={22} strokeWidth={typography.iconStrokeWidth} />
-        <Text style={styles.requiredTitle}>{webPrivacyCenterPage.required.title}</Text>
+        <Text style={styles.requiredTitle}>{tc(webPrivacyCenterPage.required.title)}</Text>
         <View style={styles.requiredBadge}>
-          <Text style={styles.requiredBadgeText}>{webPrivacyCenterPage.required.badge}</Text>
+          <Text style={styles.requiredBadgeText}>{tc(webPrivacyCenterPage.required.badge)}</Text>
         </View>
       </View>
-      <Text style={styles.requiredBody}>{webPrivacyCenterPage.required.description}</Text>
+      <Text style={styles.requiredBody}>{tc(webPrivacyCenterPage.required.description)}</Text>
     </View>
   );
 }

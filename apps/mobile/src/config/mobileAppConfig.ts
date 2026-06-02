@@ -39,6 +39,7 @@ export const mobileSessionFields = [
   "is_new_user",
   "auth_flow",
   "avatar_url",
+  "membership_tier",
 ] as const;
 
 export type MobileSessionField = (typeof mobileSessionFields)[number];

@@ -107,13 +107,12 @@ describe("Remaining customer route parity", () => {
     expect(callbackScreen).not.toContain("lineHeight: 22");
   });
 
-  it("mycashback sign-in > given the Next desktop reference > then Expo renders a dedicated selection screen", () => {
+  it("mycashback sign-in > given the Next desktop reference > then Expo renders the method/verify/success linking flow", () => {
     const signInScreen = readMobileFile("src/screens/CustomerMyCashbackSignInScreen.tsx");
 
-    expect(signInScreen).toContain("MyCashback sign-in screen (desktop reference)");
     expect(signInScreen).toContain("Select Your Preferred Link");
-    expect(signInScreen).toContain("Link Selected Account");
-    expect(signInScreen).toContain("Connected account");
+    expect(signInScreen).toContain("LinkOtpBoxes");
+    expect(signInScreen).toContain("Verification successful");
     expect(signInScreen).toContain("CustomerDesktopHeader");
     expect(signInScreen).toContain("CustomerDesktopFooter");
   });

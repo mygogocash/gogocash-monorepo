@@ -213,7 +213,7 @@ describe("GoGoCash web design parity", () => {
   it("home responsive layout > given desktop viewport > then expands content and removes mobile bottom nav", () => {
     expect(getResponsiveHomeLayoutMetrics(1440)).toMatchObject({
       compactBrandColumns: 8,
-      contentHorizontalPadding: 57.6,
+      contentHorizontalPadding: 80,
       contentMaxWidth: 1440,
       isDesktop: true,
       pageBottomPadding: 40,
@@ -222,10 +222,10 @@ describe("GoGoCash web design parity", () => {
       topBrandColumns: 6,
       topBrandDotCount: 3,
     });
-    expect(getResponsiveHomeLayoutMetrics(1440).compactBrandCardWidth).toBeCloseTo(151.6, 1);
-    expect(getResponsiveHomeLayoutMetrics(1440).compactBrandCardHeight).toBeCloseTo(194.6, 1);
-    expect(getResponsiveHomeLayoutMetrics(1440).topBrandCardWidth).toBeCloseTo(200.8, 1);
-    expect(getResponsiveHomeLayoutMetrics(1440).topBrandCardHeight).toBeCloseTo(266.8, 1);
+    expect(getResponsiveHomeLayoutMetrics(1440).compactBrandCardWidth).toBeCloseTo(146, 1);
+    expect(getResponsiveHomeLayoutMetrics(1440).compactBrandCardHeight).toBeCloseTo(189, 1);
+    expect(getResponsiveHomeLayoutMetrics(1440).topBrandCardWidth).toBeCloseTo(193.33, 1);
+    expect(getResponsiveHomeLayoutMetrics(1440).topBrandCardHeight).toBeCloseTo(259.33, 1);
   });
 
   it("desktop shell parity > given the Next desktop nav reference > then Expo keeps the same category nav order and cookie copy", () => {

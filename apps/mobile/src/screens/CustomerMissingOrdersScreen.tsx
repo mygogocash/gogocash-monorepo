@@ -19,6 +19,7 @@ import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-na
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { useCopy } from "@mobile/i18n/useCopy";
 import { mobileShellLayout, webMissingOrdersPage } from "@mobile/design/webDesignParity";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
@@ -40,41 +41,44 @@ export function CustomerMissingOrdersScreen() {
 }
 
 function MissingOrdersSubPage({ children }: { children: ReactNode }) {
+  const tc = useCopy();
   return (
-    <AccountPageShell activeRouteId="profile" showTitle={false} title={webMissingOrdersPage.title}>
+    <AccountPageShell activeRouteId="profile" showTitle={false} title={tc(webMissingOrdersPage.title)}>
       <View style={[styles.surface, styles.missingOrdersSurfaceBleed]}>{children}</View>
     </AccountPageShell>
   );
 }
 
 function MissingOrdersTopBar() {
+  const tc = useCopy();
   return (
     <Link asChild href="/profile">
       <Pressable accessibilityRole="link" style={styles.topBar}>
         <ChevronLeftIcon color={colors.accent} size={26} strokeWidth={typography.iconStrokeWidth} />
-        <Text style={styles.topBarTitle}>{webMissingOrdersPage.title}</Text>
+        <Text style={styles.topBarTitle}>{tc(webMissingOrdersPage.title)}</Text>
       </Pressable>
     </Link>
   );
 }
 
 function MissingOrdersFormPanel() {
+  const tc = useCopy();
   return (
     <View style={styles.formPanel}>
       <View style={styles.formHeader}>
         <View style={styles.formHeaderCopy}>
-          <Text style={styles.formTitle}>{webMissingOrdersPage.title}</Text>
-          <Text style={styles.formIntro}>{webMissingOrdersPage.intro}</Text>
+          <Text style={styles.formTitle}>{tc(webMissingOrdersPage.title)}</Text>
+          <Text style={styles.formIntro}>{tc(webMissingOrdersPage.intro)}</Text>
         </View>
         <View style={styles.headerActions}>
           <Pressable disabled style={[styles.outlineButton, styles.disabledButton]}>
             <Text style={[styles.outlineButtonText, styles.disabledButtonText]}>
-              {webMissingOrdersPage.clearActionLabel}
+              {tc(webMissingOrdersPage.clearActionLabel)}
             </Text>
           </Pressable>
           <MotionPressable pressScale={0.98} style={styles.lineButton}>
             <SupportIcon color="#06C755" size={18} strokeWidth={typography.iconStrokeWidth} />
-            <Text style={styles.lineButtonText}>{webMissingOrdersPage.supportActionLabel}</Text>
+            <Text style={styles.lineButtonText}>{tc(webMissingOrdersPage.supportActionLabel)}</Text>
           </MotionPressable>
         </View>
       </View>
@@ -89,24 +93,25 @@ function MissingOrdersFormPanel() {
         {webMissingOrdersPage.bullets.map((bullet) => (
           <View key={bullet} style={styles.bulletRow}>
             <Text style={styles.bulletDot}>{"•"}</Text>
-            <Text style={styles.bulletText}>{bullet}</Text>
+            <Text style={styles.bulletText}>{tc(bullet)}</Text>
           </View>
         ))}
       </View>
 
       <MotionPressable pressScale={0.98} style={styles.submitButton}>
-        <Text style={styles.submitButtonText}>{webMissingOrdersPage.submitActionLabel}</Text>
+        <Text style={styles.submitButtonText}>{tc(webMissingOrdersPage.submitActionLabel)}</Text>
       </MotionPressable>
     </View>
   );
 }
 
 function MissingOrdersFormSection({ section }: { section: MissingOrdersSection }) {
+  const tc = useCopy();
   return (
     <View style={styles.formSection}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>{section.title}</Text>
-        <Text style={styles.sectionHelp}>{section.help}</Text>
+        <Text style={styles.sectionTitle}>{tc(section.title)}</Text>
+        <Text style={styles.sectionHelp}>{tc(section.help)}</Text>
       </View>
       <View style={styles.fieldStack}>
         {section.fields.map((field) => (
@@ -118,6 +123,7 @@ function MissingOrdersFormSection({ section }: { section: MissingOrdersSection }
 }
 
 function MissingOrdersFieldRow({ field }: { field: MissingOrdersField }) {
+  const tc = useCopy();
   const isAttachment = field.icon === "image";
 
   return (
@@ -126,11 +132,11 @@ function MissingOrdersFieldRow({ field }: { field: MissingOrdersField }) {
         {renderFieldIcon(field.icon)}
       </View>
       <View style={styles.fieldCopy}>
-        <Text style={styles.fieldLabel}>{field.label}</Text>
+        <Text style={styles.fieldLabel}>{tc(field.label)}</Text>
         <Text style={[styles.fieldValue, isAttachment ? styles.attachmentValue : null]}>
-          {field.value}
+          {tc(field.value)}
         </Text>
-        <Text style={styles.fieldHelper}>{field.helper}</Text>
+        <Text style={styles.fieldHelper}>{tc(field.helper)}</Text>
       </View>
       {field.icon === "store" ? (
         <ChevronDownIcon color={colors.muted} size={18} strokeWidth={typography.iconStrokeWidth} />
@@ -159,9 +165,10 @@ function MissingOrdersQuickCard({
   card: MissingOrdersQuickCard;
   desktop: boolean;
 }) {
+  const tc = useCopy();
   return (
     <MotionPressable
-      accessibilityLabel={`${card.title} ${card.accent}`}
+      accessibilityLabel={`${tc(card.title)} ${tc(card.accent)}`}
       accessibilityRole="link"
       pressScale={0.99}
       style={[styles.quickCard, desktop ? styles.quickCardDesktop : null]}
@@ -170,30 +177,31 @@ function MissingOrdersQuickCard({
         {renderQuickCardIcon(card.icon, desktop ? 42 : 36)}
       </View>
       <View style={styles.quickCardCopy}>
-        <Text style={styles.quickCardTitle}>{card.title}</Text>
-        <Text style={styles.quickCardAccent}>{card.accent}</Text>
+        <Text style={styles.quickCardTitle}>{tc(card.title)}</Text>
+        <Text style={styles.quickCardAccent}>{tc(card.accent)}</Text>
       </View>
     </MotionPressable>
   );
 }
 
 function MissingOrdersFaqSection() {
+  const tc = useCopy();
   return (
     <View style={styles.faqSection}>
-      <Text style={styles.faqTitle}>{webMissingOrdersPage.faqTitle}</Text>
+      <Text style={styles.faqTitle}>{tc(webMissingOrdersPage.faqTitle)}</Text>
       <View style={styles.faqStack}>
         {webMissingOrdersPage.faqs.map((faq, index) => (
           <View key={faq.question} style={styles.faqCard}>
             <View style={styles.faqQuestionRow}>
               <HelpIcon color={colors.primaryDark} size={21} strokeWidth={typography.iconStrokeWidth} />
-              <Text style={styles.faqQuestion}>{faq.question}</Text>
+              <Text style={styles.faqQuestion}>{tc(faq.question)}</Text>
               <ChevronDownIcon
                 color={colors.ink}
                 size={16}
                 strokeWidth={typography.iconStrokeWidth}
               />
             </View>
-            {index === 0 ? <Text style={styles.faqAnswer}>{faq.answer}</Text> : null}
+            {index === 0 ? <Text style={styles.faqAnswer}>{tc(faq.answer)}</Text> : null}
           </View>
         ))}
       </View>

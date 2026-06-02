@@ -158,8 +158,8 @@ const frontendFlowContracts: FrontendFlowContract[] = [
   },
   {
     appFile: "app/link-mycashback/my-cashback-sign-in.tsx",
-    expectedLinks: ["/link-mycashback", "/method/create"],
-    landmarks: ["mycashbackSignIn", "Select Your Preferred Link", "Link Selected Account"],
+    expectedLinks: ["/link-mycashback", "/account-setup"],
+    landmarks: ["mycashbackSignIn", "Select Your Preferred Link", "LinkOtpBoxes"],
     routeId: "linkMycashbackSignIn",
     routeMarkers: ["CustomerMyCashbackSignInScreen"],
     screenFiles: ["src/screens/CustomerMyCashbackSignInScreen.tsx"],

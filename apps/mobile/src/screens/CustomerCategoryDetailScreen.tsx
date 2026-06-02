@@ -21,6 +21,7 @@ import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter"
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { useCopy } from "@mobile/i18n/useCopy";
 import {
   getCategoryExploreResults,
   getResponsiveHomeLayoutMetrics,
@@ -120,6 +121,7 @@ function getCategoryGridMetrics({
 }
 
 export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: string }) {
+  const tc = useCopy();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const homeLayout = getResponsiveHomeLayoutMetrics(width);
@@ -137,9 +139,14 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
     isDesktop,
     viewportWidth: width,
   });
-  const title = `Explore your Favorite ${category}`;
-  const subtitle = `Find cashback deals from stores in ${category}. Search and sort to narrow results.`;
-  const searchPlaceholder = `Search within ${category}`;
+  // Interpolated with a dynamic category; wrapped as whole catalog units so the Health & Beauty
+  // variant hits the shared catalog (webCategoryExploreHealthBeauty.title/subtitle/searchPlaceholder)
+  // and other categories fall back to English. Not split into fragments (would be ungrammatical in Thai).
+  const title = tc(`Explore your Favorite ${category}`);
+  const subtitle = tc(
+    `Find cashback deals from stores in ${category}. Search and sort to narrow results.`
+  );
+  const searchPlaceholder = tc(`Search within ${category}`);
 
   const categoryContent = (
     <>
@@ -187,7 +194,7 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
             </View>
 
             <View style={styles.sortRow}>
-              <Text style={styles.sortLabel}>{webCategoryExploreHealthBeauty.sortLabel}</Text>
+              <Text style={styles.sortLabel}>{tc(webCategoryExploreHealthBeauty.sortLabel)}</Text>
               {webCategoryExploreHealthBeauty.sortPills.map((pill) => {
                 const active = sortBy === pill.value;
                 return (
@@ -204,12 +211,12 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
                     ]}
                   >
                     <Text style={[styles.sortPillText, active ? styles.sortPillTextActive : null]}>
-                      {pill.label}
+                      {tc(pill.label)}
                     </Text>
                   </MotionPressable>
                 );
               })}
-              <Text style={styles.storeCount}>{getVisibleStoreCountLabel(stores.length)}</Text>
+              <Text style={styles.storeCount}>{tc(getVisibleStoreCountLabel(stores.length))}</Text>
             </View>
           </View>
 
@@ -227,8 +234,8 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
             </View>
           ) : (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>No stores match that search.</Text>
-              <Text style={styles.emptyBody}>Try another brand or clear the search field.</Text>
+              <Text style={styles.emptyTitle}>{tc("No stores match that search.")}</Text>
+              <Text style={styles.emptyBody}>{tc("Try another brand or clear the search field.")}</Text>
             </View>
           )}
         </View>
@@ -317,10 +324,11 @@ function CategoryAside({
   activeCategory: string;
   isDesktop: boolean;
 }) {
+  const tc = useCopy();
   return (
     <View style={[styles.categoryAside, isDesktop ? styles.categoryAsideDesktop : null]}>
       <Text style={[styles.categoryHeading, isDesktop ? styles.categoryHeadingDesktop : null]}>
-        Categories
+        {tc("Categories")}
       </Text>
       {isDesktop ? <View style={styles.desktopDivider} /> : null}
       <ScrollView
@@ -354,6 +362,7 @@ function CategoryNavItem({
   category: string;
   isDesktop: boolean;
 }) {
+  const tc = useCopy();
   const Icon = getCategoryIcon(category);
   const iconColor = active ? colors.white : colors.accent;
 
@@ -376,7 +385,7 @@ function CategoryNavItem({
           numberOfLines={1}
           style={[styles.categoryNavText, active ? styles.categoryNavTextActive : null]}
         >
-          {category}
+          {tc(category)}
         </Text>
       </MotionPressable>
     </Link>
@@ -394,6 +403,7 @@ function CategoryStoreCard({
   index: number;
   store: CategoryStore;
 }) {
+  const tc = useCopy();
   const logoSource: ImageSourcePropType = store.logoUri ? { uri: store.logoUri } : shopeeLogo;
   const visualHeight = Math.max(96, cardWidth - 16);
 
@@ -410,7 +420,7 @@ function CategoryStoreCard({
           <View style={styles.couponChip}>
             <Text style={styles.couponIcon}>🧧</Text>
             <Text numberOfLines={1} style={styles.couponText}>
-              Grab Coupon
+              {tc("Grab Coupon")}
             </Text>
           </View>
           <View style={styles.favoriteButton}>
@@ -429,7 +439,7 @@ function CategoryStoreCard({
         </Text>
         <View style={styles.cashbackRow}>
           <Text numberOfLines={1} style={styles.cashbackCaption}>
-            Cashback up to
+            {tc("Cashback up to")}
           </Text>
           <Text style={styles.cashbackValue}>{store.cashback}</Text>
         </View>

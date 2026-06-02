@@ -13,6 +13,7 @@ import { useCustomerAccountResource } from "@mobile/account/customerAccountResou
 import { copyToClipboard } from "@mobile/lib/clipboard";
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { useCopy } from "@mobile/i18n/useCopy";
 import { mobileShellLayout, profileInviteUrl, webReferralPage } from "@mobile/design/webDesignParity";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 import referralGiftImage from "../../assets/referral-gift.png";
@@ -25,6 +26,7 @@ type SocialLinkId = SocialLink["id"];
 type FaqItem = (typeof webReferralPage.faq.items)[number];
 
 export function CustomerReferralScreen() {
+  const tc = useCopy();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
   const referralResource = useCustomerAccountResource({
@@ -35,8 +37,8 @@ export function CustomerReferralScreen() {
   if (referralResource.status !== "ready") {
     return (
       <CustomerAccountResourceState
-        emptyBody="Invite friends to start building referral activity."
-        emptyTitle="No referral activity yet"
+        emptyBody={tc("Invite friends to start building referral activity.")}
+        emptyTitle={tc("No referral activity yet")}
         resource={referralResource}
         resourceLabel="referral activity"
       />
@@ -60,19 +62,21 @@ export function CustomerReferralScreen() {
 }
 
 function ReferralSubPage({ children }: { children: ReactNode }) {
+  const tc = useCopy();
   return (
-    <AccountPageShell activeRouteId="profile" showTitle={false} title={webReferralPage.title}>
+    <AccountPageShell activeRouteId="profile" showTitle={false} title={tc(webReferralPage.title)}>
       <View style={[styles.surface, styles.referralSurfaceBleed]}>{children}</View>
     </AccountPageShell>
   );
 }
 
 function ReferralTopBar() {
+  const tc = useCopy();
   return (
     <Link asChild href="/profile">
       <Pressable accessibilityRole="link" style={styles.topBar}>
         <ChevronLeftIcon color={colors.accent} size={28} strokeWidth={typography.iconStrokeWidth} />
-        <Text style={styles.topBarTitle}>{webReferralPage.title}</Text>
+        <Text style={styles.topBarTitle}>{tc(webReferralPage.title)}</Text>
       </Pressable>
     </Link>
   );
@@ -91,6 +95,7 @@ function ReferralHeroBanner({ isDesktop }: { isDesktop: boolean }) {
 }
 
 function ReferralEarnCard({ isDesktop }: { isDesktop: boolean }) {
+  const tc = useCopy();
   return (
     <View style={[styles.earnCard, isDesktop ? styles.earnCardDesktop : null]}>
       <Image
@@ -101,20 +106,20 @@ function ReferralEarnCard({ isDesktop }: { isDesktop: boolean }) {
       />
       <View style={styles.earnContent}>
         <View style={styles.earnHeader}>
-          <Text style={styles.earnTitle}>{webReferralPage.earn.title}</Text>
-          <Text style={styles.earnSubtitle}>{webReferralPage.earn.subtitle}</Text>
+          <Text style={styles.earnTitle}>{tc(webReferralPage.earn.title)}</Text>
+          <Text style={styles.earnSubtitle}>{tc(webReferralPage.earn.subtitle)}</Text>
         </View>
         <View style={styles.copySection}>
-          <Text style={styles.shareTitle}>{webReferralPage.earn.shareTitle}</Text>
+          <Text style={styles.shareTitle}>{tc(webReferralPage.earn.shareTitle)}</Text>
           <MotionPressable
-            accessibilityLabel="Copy referral link"
+            accessibilityLabel={tc("Copy referral link")}
             accessibilityRole="button"
             onPress={copyReferralLink}
             pressScale={0.99}
             style={styles.copyButton}
           >
             <View style={styles.copyLabelRow}>
-              <Text style={styles.copyLabel}>{webReferralPage.earn.inviteLinkLabel} :</Text>
+              <Text style={styles.copyLabel}>{tc(webReferralPage.earn.inviteLinkLabel)} :</Text>
               <ContentCopyIcon color={colors.white} size={24} strokeWidth={typography.iconStrokeWidth} />
             </View>
             <Text numberOfLines={1} style={styles.copyLink}>
@@ -123,7 +128,7 @@ function ReferralEarnCard({ isDesktop }: { isDesktop: boolean }) {
           </MotionPressable>
         </View>
         <View style={styles.socialSection}>
-          <Text style={styles.socialTitle}>{webReferralPage.earn.socialTitle}</Text>
+          <Text style={styles.socialTitle}>{tc(webReferralPage.earn.socialTitle)}</Text>
           <View accessibilityRole="list" style={styles.socialRow}>
             {webReferralPage.earn.socialLinks.map((link) => (
               <SocialIconButton key={link.id} link={link} />
@@ -203,9 +208,10 @@ function XIcon({ color }: { color: string }) {
 }
 
 function ReferralInvitationPanel() {
+  const tc = useCopy();
   return (
     <View style={styles.invitationSection}>
-      <Text style={styles.invitationTitle}>{webReferralPage.invitation.title}</Text>
+      <Text style={styles.invitationTitle}>{tc(webReferralPage.invitation.title)}</Text>
       <ReferralInvitationTabs />
       <ReferralInvitationTable />
     </View>
@@ -213,6 +219,7 @@ function ReferralInvitationPanel() {
 }
 
 function ReferralInvitationTabs() {
+  const tc = useCopy();
   return (
     <View accessibilityRole="tablist" style={styles.tabs}>
       {webReferralPage.invitation.tabs.map((tab, index) => (
@@ -226,7 +233,7 @@ function ReferralInvitationTabs() {
             numberOfLines={1}
             style={[styles.tabText, index === 0 ? styles.tabTextActive : styles.tabTextInactive]}
           >
-            {tab}
+            {tc(tab)}
           </Text>
         </Pressable>
       ))}
@@ -235,12 +242,13 @@ function ReferralInvitationTabs() {
 }
 
 function ReferralInvitationTable() {
+  const tc = useCopy();
   return (
     <View style={styles.tableCard}>
       <View style={styles.tableHeader}>
         {webReferralPage.invitation.columns.map((column) => (
           <Text key={column} style={styles.tableHeaderText}>
-            {column}
+            {tc(column)}
           </Text>
         ))}
       </View>
@@ -251,7 +259,7 @@ function ReferralInvitationTable() {
           <Text style={styles.tableCell}>{row.point}</Text>
           <View style={styles.tableCell}>
             <View style={styles.invitationStatusPill}>
-              <Text style={styles.invitationStatusPillText}>{row.status}</Text>
+              <Text style={styles.invitationStatusPillText}>{tc(row.status)}</Text>
             </View>
           </View>
         </View>
@@ -275,11 +283,12 @@ function ReferralStepsSection() {
 }
 
 function ReferralFaqsSection() {
+  const tc = useCopy();
   const [expandedFaqIndex, setExpandedFaqIndex] = useState(0);
 
   return (
     <View style={styles.faqSection}>
-      <Text style={styles.faqTitle}>{webReferralPage.faq.title}</Text>
+      <Text style={styles.faqTitle}>{tc(webReferralPage.faq.title)}</Text>
       <View style={styles.faqStack}>
         {webReferralPage.faq.items.map((item, index) => (
           <ReferralFaqItem
@@ -303,12 +312,13 @@ function ReferralFaqItem({
   item: FaqItem;
   onPress: () => void;
 }) {
+  const tc = useCopy();
   return (
     <View style={styles.faqCard}>
       <Pressable accessibilityRole="button" onPress={onPress} style={styles.faqQuestionRow}>
         <View style={styles.faqQuestionCopy}>
           <Image alt="" source={helpBubbleIconImage} style={styles.helpBubbleIcon} />
-          <Text style={styles.faqQuestion}>{item.question}</Text>
+          <Text style={styles.faqQuestion}>{tc(item.question)}</Text>
         </View>
         <ChevronDownIcon
           color="#3B3B3B"
@@ -317,7 +327,7 @@ function ReferralFaqItem({
           style={expanded ? styles.faqChevronExpanded : null}
         />
       </Pressable>
-      {expanded ? <Text style={styles.faqAnswer}>{item.answer}</Text> : null}
+      {expanded ? <Text style={styles.faqAnswer}>{tc(item.answer)}</Text> : null}
     </View>
   );
 }

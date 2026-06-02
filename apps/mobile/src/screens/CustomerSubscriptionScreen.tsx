@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
+import { useCopy } from "@mobile/i18n/useCopy";
 import { mobileShellLayout } from "@mobile/design/webDesignParity";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
@@ -63,6 +64,7 @@ const pageModels = {
 >;
 
 export function CustomerSubscriptionScreen({ mode }: { mode: SubscriptionMode }) {
+  const tc = useCopy();
   const insets = useSafeAreaInsets();
   const [period, setPeriod] = useState<BillingPeriod>("annual");
   const model = pageModels[mode];
@@ -74,8 +76,8 @@ export function CustomerSubscriptionScreen({ mode }: { mode: SubscriptionMode })
   if (billingResource.status !== "ready") {
     return (
       <CustomerAccountResourceState
-        emptyBody="You do not have an active GoGoPass subscription yet."
-        emptyTitle="No subscription yet"
+        emptyBody={tc("You do not have an active GoGoPass subscription yet.")}
+        emptyTitle={tc("No subscription yet")}
         resource={billingResource}
         resourceLabel="billing"
       />
@@ -93,13 +95,13 @@ export function CustomerSubscriptionScreen({ mode }: { mode: SubscriptionMode })
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.hero}>
-            <Text style={styles.kicker}>GoGo Membership</Text>
-            <Text style={styles.title}>{model.title}</Text>
-            <Text style={styles.body}>{model.body}</Text>
+            <Text style={styles.kicker}>{tc("GoGo Membership")}</Text>
+            <Text style={styles.title}>{tc(model.title)}</Text>
+            <Text style={styles.body}>{tc(model.body)}</Text>
             <DisabledStripeNotice />
             <Link asChild href={model.ctaHref}>
               <Pressable accessibilityRole="link" style={styles.primaryAction}>
-                <Text style={styles.primaryActionText}>{model.ctaLabel}</Text>
+                <Text style={styles.primaryActionText}>{tc(model.ctaLabel)}</Text>
               </Pressable>
             </Link>
           </View>
@@ -115,10 +117,11 @@ export function CustomerSubscriptionScreen({ mode }: { mode: SubscriptionMode })
 }
 
 function DisabledStripeNotice() {
+  const tc = useCopy();
   return (
     <View style={styles.disabledNotice}>
       <AlertIcon color={colors.primaryDark} size={20} strokeWidth={typography.iconStrokeWidth} />
-      <Text style={styles.disabledText}>{stripeDisabled}</Text>
+      <Text style={styles.disabledText}>{tc(stripeDisabled)}</Text>
     </View>
   );
 }
@@ -130,24 +133,25 @@ function PricingPanel({
   period: BillingPeriod;
   setPeriod: (period: BillingPeriod) => void;
 }) {
+  const tc = useCopy();
   return (
     <View style={styles.card}>
-      <Text style={styles.cardTitle}>Pricing</Text>
-      <View accessibilityLabel="Billing period" style={styles.toggleRow}>
+      <Text style={styles.cardTitle}>{tc("Pricing")}</Text>
+      <View accessibilityLabel={tc("Billing period")} style={styles.toggleRow}>
         <Pressable
           accessibilityState={{ selected: period === "monthly" }}
           onPress={() => setPeriod("monthly")}
           style={[styles.toggleButton, period === "monthly" ? styles.toggleButtonActive : null]}
         >
-          <Text style={styles.toggleText}>Monthly</Text>
+          <Text style={styles.toggleText}>{tc("Monthly")}</Text>
         </Pressable>
         <Pressable
           accessibilityState={{ selected: period === "annual" }}
           onPress={() => setPeriod("annual")}
           style={[styles.toggleButton, period === "annual" ? styles.toggleButtonActive : null]}
         >
-          <Text style={styles.toggleText}>Annual</Text>
-          <Text style={styles.saveBadge}>Save ~16%</Text>
+          <Text style={styles.toggleText}>{tc("Annual")}</Text>
+          <Text style={styles.saveBadge}>{tc("Save ~16%")}</Text>
         </Pressable>
       </View>
       <View style={styles.planStack}>
@@ -160,16 +164,16 @@ function PricingPanel({
               period === "monthly" && plan.id === "thb_monthly_49" ? styles.planCardActive : null,
             ]}
           >
-            <Text style={styles.planName}>{plan.name}</Text>
+            <Text style={styles.planName}>{tc(plan.name)}</Text>
             <Text style={styles.planPrice}>{plan.period}</Text>
             {plan.benefits.map((benefit) => (
               <View key={benefit} style={styles.planBenefitRow}>
                 <CheckIcon color={colors.primaryDark} size={16} strokeWidth={2.2} />
-                <Text style={styles.planBenefitText}>{benefit}</Text>
+                <Text style={styles.planBenefitText}>{tc(benefit)}</Text>
               </View>
             ))}
             <View style={styles.disabledPlanButton}>
-              <Text style={styles.disabledPlanButtonText}>{plan.cta}</Text>
+              <Text style={styles.disabledPlanButtonText}>{tc(plan.cta)}</Text>
             </View>
           </View>
         ))}
@@ -184,6 +188,7 @@ function PricingPanel({
 }
 
 function SubscriptionStatusPanel() {
+  const tc = useCopy();
   return (
     <View style={styles.card}>
       <View style={styles.statusHeader}>
@@ -193,16 +198,16 @@ function SubscriptionStatusPanel() {
           strokeWidth={typography.iconStrokeWidth}
         />
         <View style={styles.statusCopy}>
-          <Text style={styles.cardTitle}>Subscription</Text>
-          <Text style={styles.mutedText}>No active subscription</Text>
+          <Text style={styles.cardTitle}>{tc("Subscription")}</Text>
+          <Text style={styles.mutedText}>{tc("No active subscription")}</Text>
         </View>
       </View>
       <Text style={styles.body}>
-        Unlock GoGoPass to access exclusive benefits and manage future renewals from Billing.
+        {tc("Unlock GoGoPass to access exclusive benefits and manage future renewals from Billing.")}
       </Text>
       <Link asChild href="/pricing">
         <Pressable accessibilityRole="link" style={styles.secondaryAction}>
-          <Text style={styles.secondaryActionText}>Change Plan</Text>
+          <Text style={styles.secondaryActionText}>{tc("Change Plan")}</Text>
           <SwapIcon color={colors.primaryDark} size={18} strokeWidth={typography.iconStrokeWidth} />
         </Pressable>
       </Link>
@@ -211,6 +216,7 @@ function SubscriptionStatusPanel() {
 }
 
 function BillingPanel() {
+  const tc = useCopy();
   return (
     <View style={styles.card}>
       <View style={styles.statusHeader}>
@@ -220,19 +226,19 @@ function BillingPanel() {
           strokeWidth={typography.iconStrokeWidth}
         />
         <View style={styles.statusCopy}>
-          <Text style={styles.cardTitle}>Your subscription</Text>
-          <Text style={styles.mutedText}>Status: No active subscription</Text>
+          <Text style={styles.cardTitle}>{tc("Your subscription")}</Text>
+          <Text style={styles.mutedText}>{tc("Status: No active subscription")}</Text>
         </View>
       </View>
       <Text style={styles.body}>
-        Billing portal access appears here after GoGoPass checkout creates a Stripe customer.
+        {tc("Billing portal access appears here after GoGoPass checkout creates a Stripe customer.")}
       </Text>
       <View style={styles.disabledPlanButton}>
-        <Text style={styles.disabledPlanButtonText}>Manage Subscription</Text>
+        <Text style={styles.disabledPlanButtonText}>{tc("Manage Subscription")}</Text>
       </View>
       <Link asChild href="/pricing">
         <Pressable accessibilityRole="link" style={styles.secondaryAction}>
-          <Text style={styles.secondaryActionText}>View Plans</Text>
+          <Text style={styles.secondaryActionText}>{tc("View Plans")}</Text>
         </Pressable>
       </Link>
     </View>
