@@ -11,6 +11,7 @@ import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
 import profileAvatarImage from "../../assets/profile-avatar.png";
 import { mobileShellLayout, webMobileBottomNavItems } from "@mobile/design/webDesignParity";
+import { useCopy } from "@mobile/i18n/useCopy";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 type BottomNavRouteId = "home" | "golink" | "wallet" | "quest" | "profile";
@@ -35,6 +36,7 @@ export function CustomerMobileBottomNav({
   activeRouteId?: BottomNavRouteId;
   bottomInset: number;
 }) {
+  const tc = useCopy();
   return (
     <View
       style={[
@@ -71,7 +73,7 @@ export function CustomerMobileBottomNav({
                     active ? styles.bottomNavTextActive : null,
                   ]}
                 >
-                  {item.label}
+                  {tc(item.label)}
                 </Text>
               </Pressable>
             </Link>

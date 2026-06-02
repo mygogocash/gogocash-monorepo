@@ -7,6 +7,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { RouteAnalyticsTracker } from "@mobile/analytics/RouteAnalyticsTracker";
 import { AuthRouteGuard } from "@mobile/auth/AuthRouteGuard";
 import { CustomerRouteState } from "@mobile/components/CustomerRouteState";
+import { LocaleProvider } from "@mobile/i18n/LocaleProvider";
 import { getObservabilityConfig, initObservability } from "@mobile/observability/client";
 import { PrivacyScreenGuard } from "@mobile/security/PrivacyScreenGuard";
 import { gogoCashRuntimeFonts } from "@mobile/theme/appFonts";
@@ -50,24 +51,30 @@ export function AppProviders({ children }: PropsWithChildren) {
   }, []);
 
   if (!fontsLoaded && !fontError) {
+    // LocaleProvider must wrap this branch too — CustomerRouteState renders the desktop chrome
+    // (incl. the footer, which now calls useCopy/useIntl), so it needs the IntlProvider ancestry.
     return (
-      <CustomerRouteState
-        body="Preparing your GoGoCash experience."
-        title="Loading GoGoCash"
-        variant="loading"
-      />
+      <LocaleProvider>
+        <CustomerRouteState
+          body="Preparing your GoGoCash experience."
+          title="Loading GoGoCash"
+          variant="loading"
+        />
+      </LocaleProvider>
     );
   }
 
   const appTree = (
-    <SafeAreaProvider>
-      <PrivacyScreenGuard>
-        <QueryClientProvider client={queryClient}>
-          <RouteAnalyticsTracker />
-          <AuthRouteGuard>{children}</AuthRouteGuard>
-        </QueryClientProvider>
-      </PrivacyScreenGuard>
-    </SafeAreaProvider>
+    <LocaleProvider>
+      <SafeAreaProvider>
+        <PrivacyScreenGuard>
+          <QueryClientProvider client={queryClient}>
+            <RouteAnalyticsTracker />
+            <AuthRouteGuard>{children}</AuthRouteGuard>
+          </QueryClientProvider>
+        </PrivacyScreenGuard>
+      </SafeAreaProvider>
+    </LocaleProvider>
   );
 
   // Keyless (local/web dev): still mount the provider with a no-op client and

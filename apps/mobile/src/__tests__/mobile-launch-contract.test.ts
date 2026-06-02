@@ -209,6 +209,7 @@ describe("GoGoCash mobile launch contract", () => {
       "is_new_user",
       "auth_flow",
       "avatar_url",
+      "membership_tier",
     ]);
   });
 

@@ -18,6 +18,7 @@ import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountRes
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { useCopy } from "@mobile/i18n/useCopy";
 import {
   webWalletAccessibleSummary,
   webWalletCashbackSummary,
@@ -30,6 +31,7 @@ import { colors, radii, shadows, spacing, typography } from "@mobile/theme/token
 type WalletMetric = (typeof webWalletCashbackSummary.metrics)[number];
 
 export function CustomerWalletScreen() {
+  const tc = useCopy();
   const walletResource = useCustomerAccountResource({
     fixtureData: webWalletCashbackSummary,
     resourceId: "wallet",
@@ -38,8 +40,8 @@ export function CustomerWalletScreen() {
   if (walletResource.status !== "ready") {
     return (
       <CustomerAccountResourceState
-        emptyBody="Your cashback wallet does not have any backend activity yet."
-        emptyTitle="No wallet activity yet"
+        emptyBody={tc("Your cashback wallet does not have any backend activity yet.")}
+        emptyTitle={tc("No wallet activity yet")}
         resource={walletResource}
         resourceLabel="wallet"
       />
@@ -47,7 +49,7 @@ export function CustomerWalletScreen() {
   }
 
   return (
-    <AccountPageShell activeRouteId="wallet" showProfileRail showTitle={false} title="My Wallet">
+    <AccountPageShell activeRouteId="wallet" showProfileRail showTitle={false} title={tc("My Wallet")}>
       <WalletHeader />
       <WalletSupportBanner />
       <WalletCashbackSummary />
@@ -55,7 +57,7 @@ export function CustomerWalletScreen() {
         <View style={styles.tabStrip}>
           {webWalletTransactionTabs.map((tab, index) => (
             <Text key={tab} style={[styles.tabButton, index === 0 ? styles.tabButtonActive : null]}>
-              {tab}
+              {tc(tab)}
             </Text>
           ))}
         </View>
@@ -67,13 +69,13 @@ export function CustomerWalletScreen() {
         <View style={styles.tableShell}>
           <View style={styles.emptyWallet}>
             <Image
-              alt="Wallet empty state illustration"
+              alt={tc("Wallet empty state illustration")}
               resizeMode="contain"
               source={walletNoDataImage}
               style={styles.emptyImage}
             />
-            <Text style={styles.emptyTitle}>{webWalletEmptyState.title}</Text>
-            <Text style={styles.emptySubtitle}>{webWalletEmptyState.subtitle}</Text>
+            <Text style={styles.emptyTitle}>{tc(webWalletEmptyState.title)}</Text>
+            <Text style={styles.emptySubtitle}>{tc(webWalletEmptyState.subtitle)}</Text>
           </View>
         </View>
       </View>
@@ -82,11 +84,12 @@ export function CustomerWalletScreen() {
 }
 
 function WalletHeader() {
+  const tc = useCopy();
   return (
     <View style={styles.walletHeader}>
       <Link asChild href="/profile">
         <MotionPressable
-          accessibilityLabel="Back to profile"
+          accessibilityLabel={tc("Back to Profile")}
           pressScale={0.98}
           style={styles.backButton}
         >
@@ -97,18 +100,19 @@ function WalletHeader() {
           />
         </MotionPressable>
       </Link>
-      <Text style={styles.walletHeaderTitle}>My Wallet</Text>
+      <Text style={styles.walletHeaderTitle}>{tc("My Wallet")}</Text>
     </View>
   );
 }
 
 function WalletSupportBanner() {
+  const tc = useCopy();
   return (
     <View style={styles.supportBanner}>
       <HeadphonesIcon color={colors.ink} size={32} strokeWidth={typography.iconStrokeWidth} />
       <View style={styles.supportCopy}>
-        <Text style={styles.supportLine}>{webWalletSupportBanner.line1}</Text>
-        <Text style={styles.supportLine}>{webWalletSupportBanner.line2}</Text>
+        <Text style={styles.supportLine}>{tc(webWalletSupportBanner.line1)}</Text>
+        <Text style={styles.supportLine}>{tc(webWalletSupportBanner.line2)}</Text>
       </View>
       <Link asChild href="https://lin.ee/7om5sAr">
         <MotionPressable pressScale={0.98} style={styles.supportContactCard}>
@@ -116,8 +120,8 @@ function WalletSupportBanner() {
             <Text style={styles.lineBadgeText}>LINE</Text>
           </View>
           <View style={styles.supportContactCopy}>
-            <Text style={styles.supportContactTitle}>{webWalletSupportBanner.title}</Text>
-            <Text style={styles.supportContactSubtitle}>{webWalletSupportBanner.subtitle}</Text>
+            <Text style={styles.supportContactTitle}>{tc(webWalletSupportBanner.title)}</Text>
+            <Text style={styles.supportContactSubtitle}>{tc(webWalletSupportBanner.subtitle)}</Text>
           </View>
           <ExternalLinkIcon color="#7EA3CA" size={20} strokeWidth={typography.iconStrokeWidth} />
         </MotionPressable>
@@ -127,12 +131,13 @@ function WalletSupportBanner() {
 }
 
 function WalletCashbackSummary() {
+  const tc = useCopy();
   return (
     <View accessibilityLabel={webWalletAccessibleSummary} style={styles.cashbackSummaryCard}>
       <View style={styles.cashbackHeader}>
         <View style={styles.cashbackHeaderCopy}>
-          <Text style={styles.cashbackTitle}>{webWalletCashbackSummary.title}</Text>
-          <Text style={styles.cashbackSubtitle}>{webWalletCashbackSummary.subtitle}</Text>
+          <Text style={styles.cashbackTitle}>{tc(webWalletCashbackSummary.title)}</Text>
+          <Text style={styles.cashbackSubtitle}>{tc(webWalletCashbackSummary.subtitle)}</Text>
         </View>
         <HelpCircleIcon color="#7089A5" size={28} strokeWidth={2.4} />
       </View>
@@ -146,6 +151,8 @@ function WalletCashbackSummary() {
 }
 
 function WalletMetricCard({ metric }: { metric: WalletMetric }) {
+  const tc = useCopy();
+  // Icon selection keys off the raw English label (a stable discriminant), not the translated copy.
   const Icon =
     metric.label === "Total Cashback"
       ? WalletCardsIcon
@@ -164,8 +171,8 @@ function WalletMetricCard({ metric }: { metric: WalletMetric }) {
           />
         </View>
         <View style={styles.metricCopy}>
-          <Text style={styles.metricLabel}>{metric.label}</Text>
-          <Text style={styles.metricHint}>{metric.hint}</Text>
+          <Text style={styles.metricLabel}>{tc(metric.label)}</Text>
+          <Text style={styles.metricHint}>{tc(metric.hint)}</Text>
         </View>
       </View>
       <View style={styles.metricAmountRow}>
@@ -177,13 +184,14 @@ function WalletMetricCard({ metric }: { metric: WalletMetric }) {
 }
 
 function FilterPill({ icon, label }: { icon: "calendar" | "search" | "status"; label: string }) {
+  const tc = useCopy();
   const Icon =
     icon === "search" ? SearchIcon : icon === "calendar" ? CalendarIcon : ChevronDownIcon;
 
   return (
     <View style={styles.filterPill}>
       <Icon color={colors.textSoft} size={18} strokeWidth={typography.iconStrokeWidth} />
-      <Text style={styles.filterText}>{label}</Text>
+      <Text style={styles.filterText}>{tc(label)}</Text>
     </View>
   );
 }

@@ -1,4 +1,5 @@
 import { Link } from "expo-router";
+import { useState } from "react";
 import {
   BadgePercent as BadgePercentIcon,
   Banknote as BanknoteIcon,
@@ -9,7 +10,7 @@ import {
   ShoppingBag as ShoppingBagIcon,
   Share2 as ShareIcon,
 } from "@mobile/theme/icons";
-import { Image, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { Image, Linking, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import sideWatchImage from "../../assets/home-side-watch.png";
@@ -21,6 +22,7 @@ import { useCustomerAccountResource } from "@mobile/account/customerAccountResou
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { ShopRedirectOverlay } from "@mobile/components/ShopRedirectOverlay";
 import {
   getResponsiveHomeLayoutMetrics,
   getShopDirectoryResults,
@@ -47,6 +49,7 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
   const showBottomNav = !isDesktop;
   const shop = webShopDetailGroceryGalaxy;
+  const [redirecting, setRedirecting] = useState(false);
   const merchantResource = useCustomerAccountResource({
     fixtureData: shop,
     merchantId: shopId ?? shop.id,
@@ -80,7 +83,7 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
           ]}
           showsVerticalScrollIndicator={false}
         >
-          <ShopHero shop={shop} />
+          <ShopHero onShopNow={() => setRedirecting(true)} shop={shop} />
           <View style={[styles.detailGrid, isDesktop ? styles.detailGridDesktop : null]}>
             <View style={[styles.leftColumn, isDesktop ? styles.leftColumnDesktop : null]}>
               <ShopCashbackRail shop={shop} />
@@ -105,11 +108,25 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
           <CustomerMobileBottomNav activeRouteId={undefined} bottomInset={insets.bottom} />
         ) : null}
       </View>
+      {redirecting ? (
+        <ShopRedirectOverlay
+          brand={shop.brand}
+          onComplete={() => {
+            setRedirecting(false);
+            // Hand the user off to the merchant (web: new tab). The mock has no real
+            // affiliate URL, so we resolve the brand's merchant page via search. If the
+            // open fails, the user simply remains on the shop page — no error surface needed.
+            void Linking.openURL(
+              `https://www.google.com/search?q=${encodeURIComponent(shop.brand)}`
+            ).catch(() => undefined);
+          }}
+        />
+      ) : null}
     </View>
   );
 }
 
-function ShopHero({ shop }: { shop: ShopDetail }) {
+function ShopHero({ onShopNow, shop }: { onShopNow: () => void; shop: ShopDetail }) {
   return (
     <View style={styles.heroWrap}>
       <View style={styles.heroBanner}>
@@ -124,12 +141,12 @@ function ShopHero({ shop }: { shop: ShopDetail }) {
           <Text style={styles.logoText}>{shop.logoText}</Text>
         </View>
       </View>
-      <ShopHeroSummaryCard shop={shop} />
+      <ShopHeroSummaryCard onShopNow={onShopNow} shop={shop} />
     </View>
   );
 }
 
-function ShopHeroSummaryCard({ shop }: { shop: ShopDetail }) {
+function ShopHeroSummaryCard({ onShopNow, shop }: { onShopNow: () => void; shop: ShopDetail }) {
   return (
     <View style={styles.summaryCard}>
       <Text numberOfLines={1} style={styles.summaryTitle}>
@@ -142,7 +159,13 @@ function ShopHeroSummaryCard({ shop }: { shop: ShopDetail }) {
       >
         <HeartIcon color={colors.primaryDark} fill={colors.primaryDark} size={20} strokeWidth={0} />
       </MotionPressable>
-      <MotionPressable accessibilityRole="button" pressScale={0.98} style={styles.shopNowButton}>
+      <MotionPressable
+        accessibilityLabel={`Shop now at ${shop.brand}`}
+        accessibilityRole="button"
+        onPress={onShopNow}
+        pressScale={0.98}
+        style={styles.shopNowButton}
+      >
         <Text style={styles.shopNowText}>{shop.shopNowLabel}</Text>
       </MotionPressable>
     </View>

@@ -27,6 +27,7 @@ import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountRes
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { AccountPageShell, AccountWalletHeroCard } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { useCopy } from "@mobile/i18n/useCopy";
 import { clearMobileAppSession } from "@mobile/auth/session";
 import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
 import { copyToClipboard } from "@mobile/lib/clipboard";
@@ -63,6 +64,7 @@ const profileMenuIcons: Record<string, ProfileMenuIcon> = {
 };
 
 export function CustomerProfileScreen() {
+  const tc = useCopy();
   const session = useMobileSessionSnapshot();
   const sessionWalletSummary = getSessionWalletSummary(session);
   const [profileSubNavOpen, setProfileSubNavOpen] = useState(true);
@@ -86,8 +88,8 @@ export function CustomerProfileScreen() {
   if (profileResource.status !== "ready") {
     return (
       <CustomerAccountResourceState
-        emptyBody="Complete your profile setup to unlock account actions."
-        emptyTitle="No profile details yet"
+        emptyBody={tc("Complete your profile setup to unlock account actions.")}
+        emptyTitle={tc("No profile details yet")}
         resource={profileResource}
         resourceLabel="profile"
       />
@@ -95,13 +97,14 @@ export function CustomerProfileScreen() {
   }
 
   return (
-    <AccountPageShell activeRouteId="profile" showProfileRail showTitle={false} title="Profile">
+    <AccountPageShell activeRouteId="profile" showProfileRail showTitle={false} title={tc("Profile")}>
       <View style={styles.profileHubStack}>
         <AccountWalletHeroCard
           amount={sessionWalletSummary.amount}
           currency={sessionWalletSummary.currency}
           lastUpdated={sessionWalletSummary.lastUpdated}
           maskedId={sessionWalletSummary.maskedId}
+          tier={sessionWalletSummary.tier}
           title={sessionWalletSummary.username}
         />
         <View style={styles.profilePanelShell}>
@@ -114,7 +117,7 @@ export function CustomerProfileScreen() {
               {profileHubSubNavItems.map((item) => (
                 <Link asChild href={item.href as never} key={item.href}>
                   <MotionPressable pressScale={0.98} style={styles.profileSubNavRow}>
-                    <Text style={styles.profileSubNavText}>{item.label}</Text>
+                    <Text style={styles.profileSubNavText}>{tc(item.label)}</Text>
                   </MotionPressable>
                 </Link>
               ))}
@@ -137,7 +140,7 @@ export function CustomerProfileScreen() {
                 )
               )}
             <MotionPressable
-              accessibilityLabel="Log Out"
+              accessibilityLabel={tc("Log Out")}
               accessibilityRole="button"
               onPress={() => setLogoutConfirmOpen(true)}
               pressScale={0.98}
@@ -148,13 +151,13 @@ export function CustomerProfileScreen() {
                 size={24}
                 strokeWidth={typography.iconStrokeWidth}
               />
-              <Text style={styles.profileRowText}>Log Out</Text>
+              <Text style={styles.profileRowText}>{tc("Log Out")}</Text>
             </MotionPressable>
             {logoutConfirmOpen ? (
               <View style={styles.logoutConfirmCard}>
-                <Text style={styles.logoutConfirmTitle}>Log out of GoGoCash?</Text>
+                <Text style={styles.logoutConfirmTitle}>{tc("Log out of GoGoCash?")}</Text>
                 <Text style={styles.logoutConfirmBody}>
-                  This clears your saved session on this device before returning to sign in.
+                  {tc("This clears your saved session on this device before returning to sign in.")}
                 </Text>
                 <View style={styles.logoutConfirmActions}>
                   <MotionPressable
@@ -164,7 +167,7 @@ export function CustomerProfileScreen() {
                     pressScale={0.98}
                     style={styles.logoutCancelButton}
                   >
-                    <Text style={styles.logoutCancelText}>Cancel</Text>
+                    <Text style={styles.logoutCancelText}>{tc("Cancel")}</Text>
                   </MotionPressable>
                   <MotionPressable
                     accessibilityRole="button"
@@ -174,7 +177,7 @@ export function CustomerProfileScreen() {
                     style={styles.logoutConfirmButton}
                   >
                     <Text style={styles.logoutConfirmText}>
-                      {logoutPending ? "Logging out" : "Log out"}
+                      {logoutPending ? tc("Logging out") : tc("Log out")}
                     </Text>
                   </MotionPressable>
                 </View>
@@ -194,6 +197,7 @@ function ProfilePanelHeader({
   onPress: () => void;
   profileSubNavOpen: boolean;
 }) {
+  const tc = useCopy();
   return (
     <MotionPressable
       {...({ "aria-expanded": profileSubNavOpen } as { "aria-expanded": boolean })}
@@ -206,7 +210,7 @@ function ProfilePanelHeader({
       <View style={styles.profilePanelHeaderIconRing}>
         <ProfileIcon color={colors.white} size={24} strokeWidth={typography.iconStrokeWidth} />
       </View>
-      <Text style={styles.profilePanelTitle}>Profile</Text>
+      <Text style={styles.profilePanelTitle}>{tc("Profile")}</Text>
       {profileSubNavOpen ? (
         <ChevronUpIcon color={colors.white} size={22} strokeWidth={typography.iconStrokeWidth} />
       ) : (
@@ -217,12 +221,13 @@ function ProfilePanelHeader({
 }
 
 function InviteFriendsRow({ href }: { href: string }) {
+  const tc = useCopy();
   const router = useRouter();
 
   return (
     <View style={styles.inviteRow}>
       <MotionPressable
-        accessibilityLabel="Open referral page"
+        accessibilityLabel={tc("Open referral page")}
         accessibilityRole="button"
         onPress={() => router.push(href as never)}
         pressScale={0.98}
@@ -231,9 +236,9 @@ function InviteFriendsRow({ href }: { href: string }) {
         <InviteIcon color={colors.primaryDark} size={24} strokeWidth={typography.iconStrokeWidth} />
         <View style={styles.inviteCopy}>
           <Text numberOfLines={1} style={styles.inviteTitle}>
-            Invite your Friends
+            {tc("Invite your Friends")}
           </Text>
-          <Text style={styles.inviteSubtitle}>Invited : 2</Text>
+          <Text style={styles.inviteSubtitle}>{tc("Invited : 2")}</Text>
         </View>
       </MotionPressable>
       <MotionPressable
@@ -242,7 +247,7 @@ function InviteFriendsRow({ href }: { href: string }) {
         pressScale={0.98}
         style={styles.copyButton}
       >
-        <Text style={styles.copyButtonText}>Copy Link</Text>
+        <Text style={styles.copyButtonText}>{tc("Copy Link")}</Text>
         <View style={styles.copyButtonIcon}>
           <CopyIcon color={colors.white} size={16} strokeWidth={typography.iconStrokeWidth} />
         </View>
@@ -266,6 +271,7 @@ function ProfileNavRow({
   icon: ProfileMenuIcon;
   label: string;
 }) {
+  const tc = useCopy();
   return (
     <Link
       asChild
@@ -275,7 +281,7 @@ function ProfileNavRow({
     >
       <MotionPressable pressScale={0.98} style={styles.profileRow}>
         <Icon color={colors.primaryDark} size={24} strokeWidth={typography.iconStrokeWidth} />
-        <Text style={styles.profileRowText}>{label}</Text>
+        <Text style={styles.profileRowText}>{tc(label)}</Text>
         {external ? (
           <ExternalLinkIcon
             color={colors.primaryDark}
@@ -301,6 +307,10 @@ function getSessionWalletSummary(session: ReturnType<typeof useMobileSessionSnap
       typeof session?.username === "string" && session.username
         ? session.username
         : webProfileWalletSummary.username,
+    tier:
+      typeof session?.membership_tier === "string" && session.membership_tier
+        ? session.membership_tier
+        : webProfileWalletSummary.membershipTier,
   };
 }
 

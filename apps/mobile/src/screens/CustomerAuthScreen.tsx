@@ -1,8 +1,11 @@
-import { Link } from "expo-router";
-import { ChevronDown as ChevronDownIcon } from "@mobile/theme/icons";
-import { useMemo, useState } from "react";
+import { Link, useRouter } from "expo-router";
+import { useCopy } from "@mobile/i18n/useCopy";
+import { Check, ChevronDown as ChevronDownIcon } from "@mobile/theme/icons";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Animated,
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,6 +13,7 @@ import {
   TextInput,
   useWindowDimensions,
   View,
+  type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Defs, LinearGradient, Path, Rect, Stop } from "react-native-svg";
@@ -20,24 +24,135 @@ import { CustomerCookieConsentBanner } from "@mobile/components/CustomerCookieCo
 import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
 import { CustomerDesktopHeader } from "@mobile/components/CustomerDesktopHeader";
 import { MotionPressable } from "@mobile/components/MotionPressable";
-import { mobileShellLayout, webAuthPage } from "@mobile/design/webDesignParity";
+import { markIntroModalPending } from "@mobile/features/introModal/introModalSession";
+import {
+  getDesktopShellHorizontalPadding,
+  mobileShellLayout,
+  webAuthPage,
+} from "@mobile/design/webDesignParity";
 import { motion } from "@mobile/theme/motion";
 import { colors, radii, typography } from "@mobile/theme/tokens";
 
+// Premium polish for the consent checkbox checked state (web-only smoothing + brand-green glow).
+const webConsentCheckboxMotionStyle = {
+  transitionDuration: motion.cssTransition.duration,
+  transitionProperty: "background-color, border-color, box-shadow",
+  transitionTimingFunction: motion.cssTransition.timingFunction,
+} as unknown as ViewStyle;
+
+const webConsentCheckboxGlowStyle = {
+  boxShadow: "0 4px 12px rgba(0, 204, 153, 0.45)",
+} as unknown as ViewStyle;
+
+// Premium OTP cell motion + focus ring (web-only smoothing; native shows the states instantly).
+const webOtpBoxMotionStyle = {
+  transitionDuration: motion.cssTransition.duration,
+  transitionProperty: "transform, border-color, box-shadow, background-color",
+  transitionTimingFunction: motion.cssTransition.timingFunction,
+} as unknown as ViewStyle;
+
+const webOtpBoxActiveGlowStyle = {
+  boxShadow: "0 0 0 4px rgba(86, 212, 170, 0.18), 0 6px 16px rgba(0, 204, 153, 0.18)",
+} as unknown as ViewStyle;
+
+// Faint resting elevation so the social provider cards feel like they float.
+const webSocialButtonRestStyle = {
+  boxShadow: "0 1px 2px rgba(16, 24, 40, 0.05)",
+} as unknown as ViewStyle;
+
+// Floating country dropdown — soft elevation so the menu reads as an overlay above the form.
+const webCountryMenuShadowStyle = {
+  boxShadow: "0 16px 40px rgba(16, 24, 40, 0.18)",
+} as unknown as ViewStyle;
+
 type AuthPhase = "phone" | "otp";
 type SocialProvider = (typeof webAuthPage.socialProviders)[number];
+type AuthCountry = (typeof webAuthPage.countries)[number];
 
 export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { width } = useWindowDimensions();
   const [authPhase, setAuthPhase] = useState<AuthPhase>("phone");
   const [otpError, setOtpError] = useState(false);
   const [otpInput, setOtpInput] = useState("");
   const [phoneLocal, setPhoneLocal] = useState("");
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [selectedCountry, setSelectedCountry] = useState<AuthCountry>(webAuthPage.countries[0]);
+  const [countryMenuOpen, setCountryMenuOpen] = useState(false);
+  const countryWrapRef = useRef<View>(null);
+  const consentCheckProgress = useMemo(() => new Animated.Value(0), []);
+  useEffect(() => {
+    Animated.timing(consentCheckProgress, {
+      duration: privacyAccepted ? motion.duration.base : motion.duration.fast,
+      easing: privacyAccepted ? motion.easing.spring : motion.easing.in,
+      toValue: privacyAccepted ? 1 : 0,
+      useNativeDriver: motion.useNativeDriver,
+    }).start();
+  }, [consentCheckProgress, privacyAccepted]);
+  const consentCheckmarkMotion = {
+    opacity: consentCheckProgress,
+    transform: [
+      { scale: consentCheckProgress.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) },
+    ],
+  };
+  // Premium country dropdown: one progress value rotates the caret AND fades/slides/settles the
+  // menu, so the trigger and panel can never desync. Spring easing on open gives a subtle bounce.
+  const countryMenuProgress = useMemo(() => new Animated.Value(0), []);
+  useEffect(() => {
+    Animated.timing(countryMenuProgress, {
+      duration: countryMenuOpen ? motion.duration.base : motion.duration.fast,
+      easing: countryMenuOpen ? motion.easing.spring : motion.easing.in,
+      toValue: countryMenuOpen ? 1 : 0,
+      useNativeDriver: motion.useNativeDriver,
+    }).start();
+  }, [countryMenuOpen, countryMenuProgress]);
+  const countryCaretRotate = countryMenuProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "180deg"],
+  });
+  const countryMenuMotion = {
+    opacity: countryMenuProgress,
+    transform: [
+      { translateY: countryMenuProgress.interpolate({ inputRange: [0, 1], outputRange: [-8, 0] }) },
+      { scale: countryMenuProgress.interpolate({ inputRange: [0, 1], outputRange: [0.97, 1] }) },
+    ],
+  };
+  // Dismiss the country menu on outside-click or Escape. These are web-only document listeners
+  // (the app runs on Expo web); native relies on the trigger toggle + select-to-close. The
+  // pointerdown is captured so an outside click closes the menu before it lands on a field.
+  useEffect(() => {
+    if (Platform.OS !== "web" || !countryMenuOpen) {
+      return undefined;
+    }
+    const onPointerDown = (event: Event) => {
+      const node = countryWrapRef.current as unknown as HTMLElement | null;
+      if (node && event.target instanceof Node && !node.contains(event.target)) {
+        setCountryMenuOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setCountryMenuOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [countryMenuOpen]);
   const isDesktopShell = width >= mobileShellLayout.desktopBreakpoint;
   const isWideDesktop = width >= 1280;
-  const title = webAuthPage.titleByMode[mode];
+  // Match the auth content to the header's content box (row max width minus the same gutters) so
+  // the hero/form never extend past the navbar's logo and actions.
+  const desktopContentWidth =
+    mobileShellLayout.desktopContentMaxWidth - 2 * getDesktopShellHorizontalPadding(width);
+  // i18n: all auth copy resolves through useCopy — a reverse-lookup into the reused web ICU catalogs
+  // that falls back to the webDesignParity English when no catalog key matches the string.
+  const tc = useCopy();
+  const title = tc(webAuthPage.titleByMode[mode]);
   const phoneDigits = phoneLocal.replace(/\D/g, "");
   const canSubmitPhone = privacyAccepted && phoneDigits.length >= 9;
   const dividerText = webAuthPage.socialDividerByMode[mode];
@@ -45,17 +160,17 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   const secondarySocialProviders = webAuthPage.socialProviders.slice(4);
   const maskedPhone = useMemo(() => {
     if (!phoneDigits) {
-      return webAuthPage.defaultCountry.dialCode;
+      return selectedCountry.dialCode;
     }
 
     if (phoneDigits.length <= 4) {
-      return `${webAuthPage.defaultCountry.dialCode} ${phoneDigits}`;
+      return `${selectedCountry.dialCode} ${phoneDigits}`;
     }
 
-    return `${webAuthPage.defaultCountry.dialCode} ${"*".repeat(
+    return `${selectedCountry.dialCode} ${"*".repeat(
       Math.max(2, phoneDigits.length - 4)
     )}${phoneDigits.slice(-4)}`;
-  }, [phoneDigits]);
+  }, [phoneDigits, selectedCountry.dialCode]);
 
   const handlePhoneChange = (nextValue: string) => {
     setPhoneLocal(nextValue.replace(/\D/g, "").slice(0, 10));
@@ -85,7 +200,14 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   };
 
   const handleOtpSubmit = () => {
-    setOtpError(otpInput.length !== 6 || otpInput !== "123456");
+    const isValid = otpInput.length === 6 && otpInput === "123456";
+    setOtpError(!isValid);
+    if (isValid) {
+      // Mirror the web post-login flow: queue the first-visit intro modal (shown when home mounts),
+      // then land on the MyCashback linking step.
+      markIntroModalPending();
+      router.push("/link-mycashback");
+    }
   };
 
   return (
@@ -104,7 +226,13 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={[styles.authLayout, isWideDesktop ? styles.authLayoutDesktop : null]}>
+          <View
+            style={[
+              styles.authLayout,
+              isWideDesktop ? styles.authLayoutDesktop : null,
+              isDesktopShell ? { maxWidth: desktopContentWidth } : null,
+            ]}
+          >
             {isWideDesktop ? (
               <View style={styles.heroFrame}>
                 <Image
@@ -132,46 +260,104 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                     style={[styles.formLogo, !isDesktopShell ? styles.formLogoMobile : null]}
                   />
                   <Text style={styles.formTitle}>{title}</Text>
-                  <Text style={styles.formSubtitle}>{webAuthPage.subtitle}</Text>
+                  <Text style={styles.formSubtitle}>{tc(webAuthPage.subtitle)}</Text>
                 </View>
 
                 {authPhase === "phone" ? (
                   <View style={[styles.formStack, !isDesktopShell ? styles.formStackMobile : null]}>
+                    {countryMenuOpen && Platform.OS !== "web" ? (
+                      <Pressable
+                        accessibilityLabel="Close country menu"
+                        accessibilityRole="button"
+                        onPress={() => setCountryMenuOpen(false)}
+                        style={styles.countryMenuBackdrop}
+                      />
+                    ) : null}
                     <View
                       style={[styles.countryRow, !isDesktopShell ? styles.countryRowMobile : null]}
                     >
-                      <Text style={styles.fieldLabel}>{webAuthPage.selectCountryLabel}</Text>
-                      <MotionPressable
-                        accessibilityLabel={webAuthPage.countryPlaceholder}
-                        accessibilityRole="button"
-                        hoverLift={false}
-                        pressScale={motion.scale.subtlePress}
+                      <Text style={styles.fieldLabel}>{tc(webAuthPage.selectCountryLabel)}</Text>
+                      <View
+                        ref={countryWrapRef}
                         style={[
-                          styles.countrySelect,
-                          !isDesktopShell ? styles.countrySelectMobile : null,
+                          styles.countrySelectWrap,
+                          !isDesktopShell ? styles.countrySelectWrapMobile : null,
                         ]}
                       >
-                        <Text style={styles.countryFlag}>{webAuthPage.defaultCountry.flag}</Text>
-                        <Text style={styles.countryText}>{webAuthPage.defaultCountry.label}</Text>
-                        <ChevronDownIcon color="#2B6454" size={16} strokeWidth={2} />
-                      </MotionPressable>
+                        <MotionPressable
+                          accessibilityLabel={webAuthPage.countryPlaceholder}
+                          accessibilityRole="button"
+                          accessibilityState={{ expanded: countryMenuOpen }}
+                          hoverLift={false}
+                          onPress={() => setCountryMenuOpen((open) => !open)}
+                          pressScale={motion.scale.subtlePress}
+                          style={[
+                            styles.countrySelect,
+                            !isDesktopShell ? styles.countrySelectMobile : null,
+                            countryMenuOpen ? styles.countrySelectOpen : null,
+                          ]}
+                        >
+                          <Text style={styles.countryFlag}>{selectedCountry.flag}</Text>
+                          <Text style={styles.countryText}>{selectedCountry.label}</Text>
+                          <Animated.View style={{ transform: [{ rotate: countryCaretRotate }] }}>
+                            <ChevronDownIcon color="#2B6454" size={16} strokeWidth={2} />
+                          </Animated.View>
+                        </MotionPressable>
+                        {countryMenuOpen ? (
+                          <Animated.View
+                            accessibilityRole="menu"
+                            style={[styles.countryMenu, webCountryMenuShadowStyle, countryMenuMotion]}
+                          >
+                            {webAuthPage.countries.map((country) => {
+                              const isSelected = country.code === selectedCountry.code;
+                              return (
+                                <MotionPressable
+                                  accessibilityLabel={`${country.label} ${country.dialCode}`}
+                                  accessibilityRole="menuitem"
+                                  accessibilityState={{ selected: isSelected }}
+                                  hoverLift={false}
+                                  key={country.code}
+                                  onPress={() => {
+                                    setSelectedCountry(country);
+                                    setCountryMenuOpen(false);
+                                  }}
+                                  pressScale={motion.scale.subtlePress}
+                                  style={[
+                                    styles.countryMenuItem,
+                                    isSelected ? styles.countryMenuItemSelected : null,
+                                  ]}
+                                >
+                                  <Text style={styles.countryMenuFlag}>{country.flag}</Text>
+                                  <Text style={styles.countryMenuLabel}>{country.label}</Text>
+                                  <Text style={styles.countryMenuDial}>{country.dialCode}</Text>
+                                  {isSelected ? (
+                                    <Check color="#0E9F6E" size={16} weight="bold" />
+                                  ) : (
+                                    <View style={styles.countryMenuCheckSpacer} />
+                                  )}
+                                </MotionPressable>
+                              );
+                            })}
+                          </Animated.View>
+                        ) : null}
+                      </View>
                     </View>
 
                     <View style={styles.fieldGroup}>
-                      <Text style={styles.fieldLabel}>{webAuthPage.phoneLabelByMode[mode]}</Text>
+                      <Text style={styles.fieldLabel}>{tc(webAuthPage.phoneLabelByMode[mode])}</Text>
                       <View style={styles.phoneRow}>
                         <View style={styles.dialCodeBox}>
                           <Text style={styles.dialCodeText}>
-                            {webAuthPage.defaultCountry.dialCode}
+                            {selectedCountry.dialCode}
                           </Text>
                         </View>
                         <TextInput
-                          accessibilityLabel={webAuthPage.phonePlaceholder}
+                          accessibilityLabel={tc(webAuthPage.phonePlaceholder)}
                           autoComplete="tel"
                           keyboardType="phone-pad"
                           onChangeText={handlePhoneChange}
                           onSubmitEditing={handlePhoneSubmit}
-                          placeholder={webAuthPage.phonePlaceholder}
+                          placeholder={tc(webAuthPage.phonePlaceholder)}
                           placeholderTextColor="#B9B9B9"
                           returnKeyType="done"
                           style={styles.phoneInput}
@@ -180,34 +366,36 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                       </View>
                     </View>
 
-                    <View
-                      style={[
-                        styles.privacyWrap,
-                        !isDesktopShell ? styles.privacyWrapMobile : null,
-                      ]}
+                    <MotionPressable
+                      accessibilityLabel={webAuthPage.privacyLead}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: privacyAccepted }}
+                      hoverLift={false}
+                      onPress={() => setPrivacyAccepted((accepted) => !accepted)}
+                      pressScale={motion.scale.subtlePress}
+                      style={[styles.privacyWrap, !isDesktopShell ? styles.privacyWrapMobile : null]}
                     >
-                      <MotionPressable
-                        accessibilityLabel={webAuthPage.privacyLead}
-                        accessibilityRole="checkbox"
-                        accessibilityState={{ checked: privacyAccepted }}
-                        hoverLift={false}
-                        onPress={() => setPrivacyAccepted((accepted) => !accepted)}
-                        pressScale={motion.scale.subtlePress}
-                        style={styles.checkboxHitArea}
-                      >
+                      <View style={styles.checkboxHitArea}>
                         <View
-                          style={[styles.checkbox, privacyAccepted ? styles.checkboxChecked : null]}
+                          style={[
+                            styles.checkbox,
+                            webConsentCheckboxMotionStyle,
+                            privacyAccepted ? styles.checkboxChecked : null,
+                            privacyAccepted ? webConsentCheckboxGlowStyle : null,
+                          ]}
                         >
-                          {privacyAccepted ? <View style={styles.checkboxDot} /> : null}
+                          <Animated.View style={consentCheckmarkMotion}>
+                            <Check color={colors.white} size={14} weight="bold" />
+                          </Animated.View>
                         </View>
-                      </MotionPressable>
-                      <Text style={styles.privacyText}>{webAuthPage.privacyLead} </Text>
+                      </View>
+                      <Text style={styles.privacyText}>{tc(webAuthPage.privacyLead)} </Text>
                       <Link asChild href="/privacy-policy">
-                        <Pressable>
-                          <Text style={styles.privacyLink}>{webAuthPage.privacyPolicyLabel}</Text>
+                        <Pressable onPress={(event) => event.stopPropagation()}>
+                          <Text style={styles.privacyLink}>{tc(webAuthPage.privacyPolicyLabel)}</Text>
                         </Pressable>
                       </Link>
-                    </View>
+                    </MotionPressable>
 
                     <MotionPressable
                       accessibilityRole="button"
@@ -234,7 +422,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                   </View>
                 ) : (
                   <View style={styles.otpStack}>
-                    <Text style={styles.otpIntro}>{webAuthPage.otp.intro}</Text>
+                    <Text style={styles.otpIntro}>{tc(webAuthPage.otp.intro)}</Text>
                     <View style={styles.otpPhoneRow}>
                       <Text style={styles.otpSentTo}>{webAuthPage.otp.sentTo}</Text>
                       <Text style={styles.otpPhone}>{maskedPhone}</Text>
@@ -246,7 +434,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                       pressScale={motion.scale.subtlePress}
                       style={styles.changePhoneButton}
                     >
-                      <Text style={styles.changePhoneText}>{webAuthPage.otp.changeNumber}</Text>
+                      <Text style={styles.changePhoneText}>{tc(webAuthPage.otp.changeNumber)}</Text>
                     </MotionPressable>
                     <PhoneOtpBoxes
                       hasError={otpError}
@@ -268,7 +456,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                         }}
                         pressScale={motion.scale.subtlePress}
                       >
-                        <Text style={styles.resendText}>{webAuthPage.otp.resend}</Text>
+                        <Text style={styles.resendText}>{tc(webAuthPage.otp.resend)}</Text>
                       </MotionPressable>
                       <Text style={styles.resendCountdown}>00:59</Text>
                     </View>
@@ -282,7 +470,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                         !isDesktopShell ? styles.primaryActionMobile : null,
                       ]}
                     >
-                      <Text style={styles.primaryActionText}>{webAuthPage.otp.next}</Text>
+                      <Text style={styles.primaryActionText}>{tc(webAuthPage.otp.next)}</Text>
                     </MotionPressable>
                   </View>
                 )}
@@ -357,7 +545,9 @@ function PhoneOtpBoxes({
   onChangeText: (value: string) => void;
   value: string;
 }) {
+  const [isFocused, setIsFocused] = useState(false);
   const otpDigits = Array.from({ length: 6 }, (_, index) => value[index] ?? "");
+  const activeIndex = isFocused && value.length < otpDigits.length ? value.length : -1;
 
   return (
     <View style={styles.otpInputWrap}>
@@ -366,20 +556,33 @@ function PhoneOtpBoxes({
         accessibilityLabel={webAuthPage.otp.label}
         keyboardType="number-pad"
         maxLength={6}
+        onBlur={() => setIsFocused(false)}
         onChangeText={onChangeText}
+        onFocus={() => setIsFocused(true)}
         returnKeyType="done"
         style={styles.otpHiddenInput}
         value={value}
       />
       <View style={styles.otpBoxRow}>
-        {otpDigits.map((digit, index) => (
-          <View
-            key={`${index}-${digit}`}
-            style={[styles.otpBox, hasError ? styles.otpBoxError : null]}
-          >
-            <Text style={styles.otpBoxText}>{digit}</Text>
-          </View>
-        ))}
+        {otpDigits.map((digit, index) => {
+          const isFilled = index < value.length;
+          const isActive = index === activeIndex;
+          return (
+            <View
+              key={index}
+              style={[
+                styles.otpBox,
+                webOtpBoxMotionStyle,
+                isFilled ? styles.otpBoxFilled : null,
+                isActive && !hasError ? styles.otpBoxActive : null,
+                isActive && !hasError ? webOtpBoxActiveGlowStyle : null,
+                hasError ? styles.otpBoxError : null,
+              ]}
+            >
+              <Text style={styles.otpBoxText}>{digit}</Text>
+            </View>
+          );
+        })}
       </View>
     </View>
   );
@@ -392,13 +595,20 @@ function SocialProviderButton({
   isMobile?: boolean;
   provider: SocialProvider;
 }) {
+  const [hovered, setHovered] = useState(false);
   return (
     <MotionPressable
       accessibilityLabel={provider.label}
       accessibilityRole="button"
-      hoverLift={false}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
       pressScale={motion.scale.subtlePress}
-      style={[styles.socialButton, isMobile ? styles.socialButtonMobile : null]}
+      style={[
+        styles.socialButton,
+        webSocialButtonRestStyle,
+        isMobile ? styles.socialButtonMobile : null,
+        hovered ? styles.socialButtonHovered : null,
+      ]}
     >
       <SocialProviderIcon provider={provider} />
       <Text numberOfLines={1} style={styles.socialLabel}>
@@ -666,6 +876,9 @@ const styles = StyleSheet.create({
   formStack: {
     gap: 14,
     width: "100%",
+    // Lift the whole phone-form container above its sibling sections (divider, social buttons)
+    // so the country menu — trapped inside this stacking context — can overlay the items below it.
+    zIndex: 20,
   },
   formStackMobile: {
     gap: 20,
@@ -676,6 +889,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     minHeight: 56,
     width: "100%",
+    // Lift the whole row (a flex item) above later fields so the floating country
+    // menu wins hit-testing — not just paint order — over the phone field below it.
+    zIndex: 30,
   },
   countryRowMobile: {
     alignItems: "stretch",
@@ -710,6 +926,75 @@ const styles = StyleSheet.create({
   },
   countrySelectMobile: {
     width: "100%",
+  },
+  countrySelectWrap: {
+    position: "relative",
+    zIndex: 50,
+  },
+  // Tap-catcher behind the country menu (sits above the form fields at z:0, below the
+  // country row at z:30 so menu items stay tappable). Closes the menu on outside tap —
+  // the native counterpart to the web document listeners.
+  countryMenuBackdrop: {
+    bottom: 0,
+    left: 0,
+    position: "absolute",
+    right: 0,
+    top: 0,
+    zIndex: 25,
+  },
+  countrySelectWrapMobile: {
+    width: "100%",
+  },
+  countrySelectOpen: {
+    borderColor: "#00CC99",
+  },
+  countryMenu: {
+    backgroundColor: colors.white,
+    borderColor: "#E6E8EC",
+    borderRadius: 16,
+    borderWidth: 1.5,
+    elevation: 12,
+    left: 0,
+    paddingVertical: 6,
+    position: "absolute",
+    right: 0,
+    top: 64,
+    zIndex: 50,
+  },
+  countryMenuItem: {
+    alignItems: "center",
+    borderRadius: 12,
+    flexDirection: "row",
+    gap: 10,
+    marginHorizontal: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+  },
+  countryMenuItemSelected: {
+    backgroundColor: "#ECFDF5",
+  },
+  countryMenuFlag: {
+    fontSize: 20,
+    lineHeight: 22,
+  },
+  countryMenuLabel: {
+    color: "#1F2937",
+    flex: 1,
+    fontFamily: typography.family,
+    fontSize: 15,
+    fontWeight: "500",
+    lineHeight: 20,
+  },
+  countryMenuDial: {
+    color: "#6B7280",
+    fontFamily: typography.family,
+    fontSize: 13,
+    fontWeight: "500",
+    lineHeight: 18,
+  },
+  countryMenuCheckSpacer: {
+    height: 16,
+    width: 16,
   },
   countryFlag: {
     fontSize: 20,
@@ -783,22 +1068,16 @@ const styles = StyleSheet.create({
   checkbox: {
     alignItems: "center",
     backgroundColor: colors.white,
-    borderColor: "#BDBDBD",
-    borderRadius: 2,
-    borderWidth: 1.8,
-    height: 16,
+    borderColor: "#D0D5DD",
+    borderRadius: 7,
+    borderWidth: 2,
+    height: 22,
     justifyContent: "center",
-    width: 16,
+    width: 22,
   },
   checkboxChecked: {
-    backgroundColor: "#55C99E",
-    borderColor: "#55C99E",
-  },
-  checkboxDot: {
-    backgroundColor: colors.white,
-    borderRadius: 2,
-    height: 7,
-    width: 7,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   privacyText: {
     color: "#3B3B3B",
@@ -816,6 +1095,7 @@ const styles = StyleSheet.create({
   },
   primaryAction: {
     alignItems: "center",
+    alignSelf: "center",
     backgroundColor: "#55C99E",
     borderRadius: radii.chip,
     height: 48,
@@ -905,10 +1185,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: colors.white,
     borderColor: "#E4E4E4",
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1.5,
     flex: 1,
     justifyContent: "center",
+  },
+  otpBoxFilled: {
+    borderColor: colors.primary,
+  },
+  otpBoxActive: {
+    borderColor: "#56D4AA",
+    borderWidth: 2,
   },
   otpBoxError: {
     borderColor: colors.danger,
@@ -916,7 +1203,7 @@ const styles = StyleSheet.create({
   otpBoxText: {
     color: colors.ink,
     fontFamily: typography.family,
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "800",
   },
   otpError: {
@@ -1005,7 +1292,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: colors.white,
     borderColor: "#E8E8E8",
-    borderRadius: 10,
+    borderRadius: 14,
     borderWidth: 1.5,
     gap: 4,
     height: 60,
@@ -1013,6 +1300,9 @@ const styles = StyleSheet.create({
     minWidth: 0,
     paddingHorizontal: 10,
     width: 112,
+  },
+  socialButtonHovered: {
+    borderColor: "#56D4AA",
   },
   socialButtonMobile: {
     height: 72,

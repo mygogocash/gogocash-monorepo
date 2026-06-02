@@ -15,6 +15,7 @@ import linkMyCashbackImage from "../../assets/link-mycashback-shop.png";
 import logoMarkImage from "../../assets/nav/logo.png";
 import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
 import { CustomerDesktopHeader } from "@mobile/components/CustomerDesktopHeader";
+import { useCopy } from "@mobile/i18n/useCopy";
 import {
   getDesktopShellHorizontalPadding,
   mobileShellLayout,
@@ -23,13 +24,15 @@ import {
 import { colors, radii, spacing, typography } from "@mobile/theme/tokens";
 
 export function CustomerLinkCashbackScreen({ mode }: { mode: "link" | "signIn" }) {
+  const tc = useCopy();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
   const shellPadding = isDesktop
     ? getDesktopShellHorizontalPadding(width)
     : mobileShellLayout.contentHorizontalPadding;
-  const routeLabel = mode === "signIn" ? "MyCashback sign in reference" : "Link MyCashback intro";
+  const routeLabel =
+    mode === "signIn" ? tc("MyCashback sign in reference") : tc("Link MyCashback intro");
 
   return (
     <View style={styles.viewport}>
@@ -60,8 +63,8 @@ export function CustomerLinkCashbackScreen({ mode }: { mode: "link" | "signIn" }
                 source={logoMarkImage}
                 style={styles.logoMark}
               />
-              <Text style={styles.title}>{webLinkMyCashbackIntro.title}</Text>
-              <Text style={styles.subtitle}>{webLinkMyCashbackIntro.subtitle}</Text>
+              <Text style={styles.title}>{tc(webLinkMyCashbackIntro.title)}</Text>
+              <Text style={styles.subtitle}>{tc(webLinkMyCashbackIntro.subtitle)}</Text>
 
               <View style={styles.connectorRow}>
                 <View style={styles.connectorImageFrame}>
@@ -96,25 +99,25 @@ export function CustomerLinkCashbackScreen({ mode }: { mode: "link" | "signIn" }
                 </View>
               </View>
 
-              <Text style={styles.cardTitle}>{webLinkMyCashbackIntro.cardTitle}</Text>
-              <Text style={styles.cardDescription}>{webLinkMyCashbackIntro.cardDescription}</Text>
+              <Text style={styles.cardTitle}>{tc(webLinkMyCashbackIntro.cardTitle)}</Text>
+              <Text style={styles.cardDescription}>{tc(webLinkMyCashbackIntro.cardDescription)}</Text>
 
               <View style={[styles.introActions, isDesktop ? null : styles.introActionsMobile]}>
                 <Link asChild href="/method/create">
                   <Pressable
-                    accessibilityLabel={webLinkMyCashbackIntro.skipLabel}
+                    accessibilityLabel={tc(webLinkMyCashbackIntro.skipLabel)}
                     style={StyleSheet.flatten([styles.actionButton, styles.skipAction])}
                   >
-                    <Text style={styles.skipActionText}>{webLinkMyCashbackIntro.skipLabel}</Text>
+                    <Text style={styles.skipActionText}>{tc(webLinkMyCashbackIntro.skipLabel)}</Text>
                   </Pressable>
                 </Link>
                 <Link asChild href="/link-mycashback/my-cashback-sign-in">
                   <Pressable
-                    accessibilityLabel={webLinkMyCashbackIntro.linkAccountLabel}
+                    accessibilityLabel={tc(webLinkMyCashbackIntro.linkAccountLabel)}
                     style={StyleSheet.flatten([styles.actionButton, styles.linkAction])}
                   >
                     <Text style={styles.linkActionText}>
-                      {webLinkMyCashbackIntro.linkAccountLabel}
+                      {tc(webLinkMyCashbackIntro.linkAccountLabel)}
                     </Text>
                   </Pressable>
                 </Link>

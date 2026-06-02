@@ -1,28 +1,31 @@
 import { Link, usePathname } from "expo-router";
 import { useState } from "react";
-import { Image, ScrollView, StyleSheet, Text, View, type ViewStyle } from "react-native";
+import { Image, ScrollView, StyleSheet, Text, TextInput, View, type ViewStyle } from "react-native";
 
 import logoMarkImage from "../../assets/nav/logo.png";
 import menuFireImage from "../../assets/nav/menu-fire.png";
 import questHeaderImage from "../../assets/nav/quest-header.png";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { useCopy } from "@mobile/i18n/useCopy";
 import { CustomerLocaleRegionControl } from "@mobile/components/CustomerLocaleRegionControl";
 import { CustomerSignInNavGraphic } from "@mobile/components/CustomerSignInNavGraphic";
 import {
   getDesktopShellHorizontalPadding,
   mobileShellLayout,
   webDesktopHeaderNavItems,
+  webHomeSearchPlaceholder,
 } from "@mobile/design/webDesignParity";
 import {
   AirplaneTilt,
   DeviceMobile,
   Heartbeat,
+  Search,
   SquaresFour,
   Storefront,
   Tag,
   type IconComponent,
 } from "@mobile/theme/icons";
-import { motion } from "@mobile/theme/motion";
+import { getInteractionTransformStyle, motion } from "@mobile/theme/motion";
 import { colors, radii, spacing, typography } from "@mobile/theme/tokens";
 
 const desktopNavIcons: Partial<
@@ -43,6 +46,20 @@ const desktopNavIcons: Partial<
 const webPressableFocusReset = {
   outlineStyle: "none",
   outlineWidth: 0,
+} as unknown as ViewStyle;
+
+// Web-only smooth transition for the logo mark. Scoping the hover lift + shadow to this wrapper
+// (instead of the whole link) keeps the "GoGoCash" wordmark static while only the icon reacts.
+const webLogoMarkMotionStyle = {
+  borderRadius: 16,
+  transitionDuration: motion.cssTransition.duration,
+  transitionProperty: motion.cssTransition.property,
+  transitionTimingFunction: motion.cssTransition.timingFunction,
+  willChange: "transform",
+} as unknown as ViewStyle;
+
+const webLogoMarkHoverStyle = {
+  boxShadow: "0 4px 10px rgba(0, 0, 0, 0.1)",
 } as unknown as ViewStyle;
 
 // The web SubHeader marks a tab active by matching the current route, not a hardcoded flag.
@@ -66,10 +83,46 @@ function isDesktopNavItemActive(pathname: string, href: string): boolean {
   return current === target;
 }
 
+// The brand link stays one clickable anchor (logo + wordmark), but hover is detected only on the
+// icon wrapper via pointer events. Hovering "GoGoCash" never lifts the row; clicking either part
+// still navigates home. A plain View (not a nested Pressable) is used so it cannot swallow clicks.
+function DesktopLogoLink() {
+  const [logoHovered, setLogoHovered] = useState(false);
+
+  return (
+    <Link asChild href="/">
+      <MotionPressable
+        hoverLift={false}
+        pressScale={motion.scale.subtlePress}
+        style={StyleSheet.flatten([styles.desktopLogoLink, webPressableFocusReset])}
+      >
+        <View
+          onPointerEnter={() => setLogoHovered(true)}
+          onPointerLeave={() => setLogoHovered(false)}
+          style={[
+            webLogoMarkMotionStyle,
+            getInteractionTransformStyle({ hovered: logoHovered, hoverLift: true }),
+            logoHovered ? webLogoMarkHoverStyle : null,
+          ]}
+        >
+          <Image
+            alt="GoGoCash logo"
+            accessibilityLabel="GoGoCash logo"
+            source={logoMarkImage}
+            style={styles.desktopLogoMark}
+          />
+        </View>
+        <Text style={styles.desktopLogoText}>GoGoCash</Text>
+      </MotionPressable>
+    </Link>
+  );
+}
+
 export function CustomerDesktopHeader({ viewportWidth }: { viewportWidth: number }) {
   const shellPadding = getDesktopShellHorizontalPadding(viewportWidth);
   const shellContentWidth = Math.min(viewportWidth, mobileShellLayout.desktopContentMaxWidth);
   const [localePanelOpen, setLocalePanelOpen] = useState(false);
+  const tc = useCopy();
 
   return (
     <View style={[styles.desktopShell, { width: viewportWidth }]}>
@@ -85,30 +138,30 @@ export function CustomerDesktopHeader({ viewportWidth }: { viewportWidth: number
             { paddingHorizontal: shellPadding, width: shellContentWidth },
           ]}
         >
-          <Link asChild href="/">
-            <MotionPressable
-              pressScale={motion.scale.subtlePress}
-              style={StyleSheet.flatten([styles.desktopLogoLink, webPressableFocusReset])}
-            >
-              <Image
-                alt="GoGoCash logo"
-                accessibilityLabel="GoGoCash logo"
-                source={logoMarkImage}
-                style={styles.desktopLogoMark}
-              />
-              <Text style={styles.desktopLogoText}>GoGoCash</Text>
-            </MotionPressable>
-          </Link>
+          <DesktopLogoLink />
+          <View style={styles.desktopHeaderSearch}>
+            <Search
+              color={colors.primaryDark}
+              size={20}
+              strokeWidth={typography.iconStrokeWidth}
+            />
+            <TextInput
+              accessibilityLabel={tc(webHomeSearchPlaceholder)}
+              placeholder={tc(webHomeSearchPlaceholder)}
+              placeholderTextColor={colors.muted}
+              style={StyleSheet.flatten([styles.desktopHeaderSearchInput, webPressableFocusReset])}
+            />
+          </View>
           <View style={styles.desktopHeaderActions}>
             <Link asChild href="/quest">
               <MotionPressable
-                accessibilityLabel="Quest"
+                accessibilityLabel={tc("Quest")}
                 pressScale={motion.scale.subtlePress}
                 style={StyleSheet.flatten([styles.desktopQuestPill, webPressableFocusReset])}
               >
                 <Image
                   alt="Quest"
-                  accessibilityLabel="Quest"
+                  accessibilityLabel={tc("Quest")}
                   resizeMode="cover"
                   source={questHeaderImage}
                   style={styles.desktopQuestImage}
@@ -117,7 +170,7 @@ export function CustomerDesktopHeader({ viewportWidth }: { viewportWidth: number
             </Link>
             <Link asChild href="/login">
               <MotionPressable
-                accessibilityLabel="Sign in"
+                accessibilityLabel={tc("Sign in")}
                 pressScale={motion.scale.subtlePress}
                 style={StyleSheet.flatten([styles.desktopSignIn, webPressableFocusReset])}
               >
@@ -144,6 +197,7 @@ function DesktopCategoryTab({
   item: (typeof webDesktopHeaderNavItems)[number];
 }) {
   const [hovered, setHovered] = useState(false);
+  const tc = useCopy();
   const underlineOpacity = active ? 1 : hovered ? webSubNavHoverUnderlineOpacity : 0;
 
   return (
@@ -169,7 +223,7 @@ function DesktopCategoryTab({
                         : null,
                     ]}
                   >
-                    {item.label}
+                    {tc(item.label)}
                   </Text>
                   {"showFire" in item && item.showFire ? (
                     <Image
@@ -296,6 +350,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
     gap: 16,
+  },
+  desktopHeaderSearch: {
+    alignItems: "center",
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: radii.chip,
+    borderWidth: 1,
+    flex: 1,
+    flexDirection: "row",
+    gap: spacing.sm,
+    maxWidth: 560,
+    minHeight: 44,
+    minWidth: 0,
+    paddingHorizontal: spacing.md,
+  },
+  desktopHeaderSearchInput: {
+    color: colors.ink,
+    flex: 1,
+    fontFamily: typography.family,
+    fontSize: 15,
+    minWidth: 0,
   },
   desktopQuestPill: {
     alignItems: "center",

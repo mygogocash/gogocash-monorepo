@@ -17,7 +17,6 @@ import {
   ArrowRight as ArrowRightIcon,
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
-  Clock3 as ClockIcon,
   Heart as HeartIcon,
   Search as SearchIcon,
 } from "@mobile/theme/icons";
@@ -61,6 +60,7 @@ import {
 } from "@mobile/design/webDesignParity";
 import { type MobileRouteId } from "@mobile/navigation/routes";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { useCopy } from "@mobile/i18n/useCopy";
 import { motion } from "@mobile/theme/motion";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
@@ -130,6 +130,7 @@ export function CustomerDiscoveryScreen({ routeId }: { routeId: DiscoveryVariant
 }
 
 function BrandDirectoryScreen() {
+  const tc = useCopy();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const homeLayout = getResponsiveHomeLayoutMetrics(width);
@@ -170,7 +171,8 @@ function BrandDirectoryScreen() {
     setCurrentPage(1);
   };
 
-  const stickySearchHeader = (
+  // Desktop search lives in the header (CustomerDesktopHeader); only mobile needs the sticky search.
+  const stickySearchHeader = homeLayout.isDesktop ? null : (
     <View
       style={[
         styles.stickySearch,
@@ -205,7 +207,7 @@ function BrandDirectoryScreen() {
               homeLayout.isDesktop ? styles.shopDirectoryTitleDesktop : null,
             ]}
           >
-            {webBrandDirectory.title}
+            {tc(webBrandDirectory.title)}
           </Text>
           <Text
             accessibilityElementsHidden
@@ -215,7 +217,7 @@ function BrandDirectoryScreen() {
             {webBrandDirectory.titleIcon}
           </Text>
         </View>
-        <Text style={styles.shopDirectorySubtitle}>{webBrandDirectory.subtitle}</Text>
+        <Text style={styles.shopDirectorySubtitle}>{tc(webBrandDirectory.subtitle)}</Text>
       </View>
 
       <View
@@ -237,12 +239,12 @@ function BrandDirectoryScreen() {
             <View style={styles.shopDirectorySearchBox}>
               <SearchIcon color={colors.muted} size={18} strokeWidth={typography.iconStrokeWidth} />
               <TextInput
-                accessibilityLabel={webBrandDirectory.searchLabel}
+                accessibilityLabel={tc(webBrandDirectory.searchLabel)}
                 autoCapitalize="none"
                 autoCorrect={false}
                 inputMode="search"
                 onChangeText={updateSearchQuery}
-                placeholder={webBrandDirectory.searchPlaceholder}
+                placeholder={tc(webBrandDirectory.searchPlaceholder)}
                 placeholderTextColor={colors.textSoft}
                 returnKeyType="search"
                 style={[styles.shopDirectorySearchInput, webSearchInputFocusReset]}
@@ -251,7 +253,7 @@ function BrandDirectoryScreen() {
             </View>
 
             <View style={styles.shopDirectorySortBlock}>
-              <Text style={styles.shopDirectorySortLabel}>{webBrandDirectory.sortLabel}</Text>
+              <Text style={styles.shopDirectorySortLabel}>{tc(webBrandDirectory.sortLabel)}</Text>
               <View style={styles.shopDirectorySortRow}>
                 {webBrandDirectory.sortPills.map((pill) => (
                   <MotionPressable
@@ -271,7 +273,7 @@ function BrandDirectoryScreen() {
                         sortBy === pill.value ? styles.shopDirectoryPillTextActive : null,
                       ]}
                     >
-                      {pill.label}
+                      {tc(pill.label)}
                     </Text>
                   </MotionPressable>
                 ))}
@@ -292,8 +294,8 @@ function BrandDirectoryScreen() {
             </View>
           ) : (
             <View style={styles.shopDirectoryEmptyState}>
-              <Text style={styles.shopDirectoryEmptyTitle}>{webBrandDirectory.emptyTitle}</Text>
-              <Text style={styles.shopDirectoryEmptyBody}>{webBrandDirectory.emptyBody}</Text>
+              <Text style={styles.shopDirectoryEmptyTitle}>{tc(webBrandDirectory.emptyTitle)}</Text>
+              <Text style={styles.shopDirectoryEmptyBody}>{tc(webBrandDirectory.emptyBody)}</Text>
             </View>
           )}
 
@@ -384,6 +386,7 @@ function BrandDirectoryCategoryAside({
   onSelectCategory: (category: string) => void;
   width: number;
 }) {
+  const tc = useCopy();
   return (
     <View
       style={[
@@ -398,7 +401,7 @@ function BrandDirectoryCategoryAside({
           isDesktop ? styles.shopDirectoryCategoryTitleDesktop : null,
         ]}
       >
-        {webBrandDirectory.categoryHeading}
+        {tc(webBrandDirectory.categoryHeading)}
       </Text>
       {isDesktop ? <View style={styles.shopDirectoryCategoryDivider} /> : null}
       <ScrollView
@@ -439,7 +442,7 @@ function BrandDirectoryCategoryAside({
                   active ? styles.shopDirectoryCategoryTextActive : null,
                 ]}
               >
-                {category}
+                {tc(category)}
               </Text>
             </MotionPressable>
           );
@@ -456,6 +459,7 @@ function BrandDirectoryStoreCard({
   cardWidth: number;
   store: BrandDirectoryStore;
 }) {
+  const tc = useCopy();
   return (
     <Link asChild href={store.href as never}>
       <MotionPressable
@@ -477,11 +481,11 @@ function BrandDirectoryStoreCard({
             <View style={styles.shopDirectoryCouponBadge}>
               <Text style={styles.shopDirectoryCouponIcon}>🧧</Text>
               <Text numberOfLines={1} style={styles.shopDirectoryCouponText}>
-                {store.label}
+                {tc(store.label)}
               </Text>
             </View>
           ) : null}
-          <View accessibilityLabel="Add to favorites" style={styles.shopDirectoryFavoriteButton}>
+          <View accessibilityLabel={tc("Add to favorites")} style={styles.shopDirectoryFavoriteButton}>
             <HeartIcon
               color={colors.primaryDark}
               size={16}
@@ -495,14 +499,14 @@ function BrandDirectoryStoreCard({
           </Text>
           <View style={styles.shopDirectoryCashbackRow}>
             <Text numberOfLines={1} style={styles.shopDirectoryCashbackCaption}>
-              Cashback up to
+              {tc("Cashback up to")}
             </Text>
             <Text numberOfLines={1} style={styles.shopDirectoryCashbackValue}>
               {store.cashback}
             </Text>
           </View>
           <Text numberOfLines={1} style={styles.shopDirectoryStoreCategory}>
-            {store.category}
+            {tc(store.category)}
           </Text>
         </View>
       </MotionPressable>
@@ -511,6 +515,7 @@ function BrandDirectoryStoreCard({
 }
 
 function ProductDiscoveryScreen() {
+  const tc = useCopy();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const homeLayout = getResponsiveHomeLayoutMetrics(width);
@@ -571,7 +576,8 @@ function ProductDiscoveryScreen() {
     }, motion.duration.fast);
   };
 
-  const stickySearchHeader = (
+  // Desktop search lives in the header (CustomerDesktopHeader); only mobile needs the sticky search.
+  const stickySearchHeader = homeLayout.isDesktop ? null : (
     <View
       style={[
         styles.stickySearch,
@@ -599,9 +605,9 @@ function ProductDiscoveryScreen() {
             homeLayout.isDesktop ? styles.productDiscoveryTitleDesktop : null,
           ]}
         >
-          {webProductDiscovery.title}
+          {tc(webProductDiscovery.title)}
         </Text>
-        <Text style={styles.productDiscoverySubtitle}>{webProductDiscovery.subtitle}</Text>
+        <Text style={styles.productDiscoverySubtitle}>{tc(webProductDiscovery.subtitle)}</Text>
       </View>
 
       <View
@@ -633,12 +639,12 @@ function ProductDiscoveryScreen() {
             <View style={styles.productDiscoverySearchBox}>
               <SearchIcon color={colors.muted} size={18} strokeWidth={typography.iconStrokeWidth} />
               <TextInput
-                accessibilityLabel={webProductDiscovery.searchLabel}
+                accessibilityLabel={tc(webProductDiscovery.searchLabel)}
                 autoCapitalize="none"
                 autoCorrect={false}
                 inputMode="search"
                 onChangeText={updateSearchQuery}
-                placeholder={webProductDiscovery.searchPlaceholder}
+                placeholder={tc(webProductDiscovery.searchPlaceholder)}
                 placeholderTextColor={colors.textSoft}
                 returnKeyType="search"
                 style={[styles.productDiscoverySearchInput, webSearchInputFocusReset]}
@@ -647,7 +653,7 @@ function ProductDiscoveryScreen() {
             </View>
 
             <View style={styles.productDiscoverySortRow}>
-              <Text style={styles.productDiscoverySortLabel}>{webProductDiscovery.sortLabel}</Text>
+              <Text style={styles.productDiscoverySortLabel}>{tc(webProductDiscovery.sortLabel)}</Text>
               {webProductDiscovery.sortPills.map((pill) => (
                 <MotionPressable
                   accessibilityRole="button"
@@ -666,7 +672,7 @@ function ProductDiscoveryScreen() {
                       sortBy === pill.value ? styles.productDiscoveryPillTextActive : null,
                     ]}
                   >
-                    {pill.label}
+                    {tc(pill.label)}
                   </Text>
                 </MotionPressable>
               ))}
@@ -695,7 +701,7 @@ function ProductDiscoveryScreen() {
           ) : (
             <View style={styles.productDiscoveryEmptyState}>
               <Text style={styles.productDiscoveryEmptyTitle}>
-                {webProductDiscovery.emptyTitle}
+                {tc(webProductDiscovery.emptyTitle)}
               </Text>
             </View>
           )}
@@ -798,6 +804,7 @@ function ProductDiscoveryMobileFilters({
   onSelectCashback: (cashback: WebProductDiscoveryCashbackMin) => void;
   onSelectCategory: (category: string) => void;
 }) {
+  const tc = useCopy();
   return (
     <View style={styles.productDiscoveryMobileFilters}>
       <ScrollView
@@ -823,7 +830,7 @@ function ProductDiscoveryMobileFilters({
                 activeCategory === category.value ? styles.productDiscoveryPillTextActive : null,
               ]}
             >
-              {category.label}
+              {tc(category.label)}
             </Text>
           </MotionPressable>
         ))}
@@ -872,9 +879,10 @@ function ProductDiscoverySidebar({
   onSelectCategory: (category: string) => void;
   width: number;
 }) {
+  const tc = useCopy();
   return (
     <View style={[styles.productDiscoverySidebar, { width }]}>
-      <Text style={styles.productDiscoverySidebarTitle}>All Categories</Text>
+      <Text style={styles.productDiscoverySidebarTitle}>{tc("All Categories")}</Text>
       <View style={styles.productDiscoverySidebarDivider} />
       <View style={styles.productDiscoverySidebarList}>
         {webProductDiscovery.categories.map((category) => {
@@ -906,7 +914,7 @@ function ProductDiscoverySidebar({
                   active ? styles.productDiscoverySidebarTextActive : null,
                 ]}
               >
-                {category.label}
+                {tc(category.label)}
               </Text>
             </MotionPressable>
           );
@@ -925,6 +933,7 @@ function ProductDiscoveryCard({
   onOpenTerms: () => void;
   product: WebProductDiscoveryProduct;
 }) {
+  const tc = useCopy();
   const imageSource = productImageAssets[product.imageAsset] ?? homeBannerImage;
 
   return (
@@ -957,7 +966,7 @@ function ProductDiscoveryCard({
         </Text>
         <View style={styles.productDiscoveryPriceRow}>
           <Text numberOfLines={1} style={styles.productDiscoveryPriceHint}>
-            {webProductDiscovery.priceHint}
+            {tc(webProductDiscovery.priceHint)}
           </Text>
           <View style={styles.productDiscoveryPriceStack}>
             <Text numberOfLines={1} style={styles.productDiscoveryOriginalPrice}>
@@ -974,7 +983,7 @@ function ProductDiscoveryCard({
             pressScale={motion.scale.subtlePress}
             style={StyleSheet.flatten([styles.productDiscoveryShopNowButton])}
           >
-            <Text style={styles.productDiscoveryShopNowText}>{product.shopNowLabel}</Text>
+            <Text style={styles.productDiscoveryShopNowText}>{tc(product.shopNowLabel)}</Text>
             <ArrowRightIcon
               color={colors.white}
               size={16}
@@ -988,7 +997,7 @@ function ProductDiscoveryCard({
           pressScale={motion.scale.subtlePress}
           style={styles.productDiscoveryTermsButton}
         >
-          <Text style={styles.productDiscoveryTermsText}>{webProductDiscovery.termsLabel}</Text>
+          <Text style={styles.productDiscoveryTermsText}>{tc(webProductDiscovery.termsLabel)}</Text>
         </MotionPressable>
       </View>
     </View>
@@ -1004,6 +1013,7 @@ function ProductDiscoveryTermsDialog({
   onClose: () => void;
   visible: boolean;
 }) {
+  const tc = useCopy();
   if (!visible) {
     return null;
   }
@@ -1011,7 +1021,7 @@ function ProductDiscoveryTermsDialog({
   return (
     <View style={styles.productDiscoveryTermsLayer}>
       <MotionPressable
-        accessibilityLabel="Close terms dialog"
+        accessibilityLabel={tc("Close terms dialog")}
         accessibilityRole="button"
         onPress={onClose}
         pressScale={1}
@@ -1028,15 +1038,15 @@ function ProductDiscoveryTermsDialog({
           closing ? styles.productDiscoveryTermsCardClosing : null,
         ]}
       >
-        <Text style={styles.productDiscoveryTermsTitle}>{webProductDiscovery.termsTitle}</Text>
-        <Text style={styles.productDiscoveryTermsBody}>{webProductDiscovery.termsBody}</Text>
+        <Text style={styles.productDiscoveryTermsTitle}>{tc(webProductDiscovery.termsTitle)}</Text>
+        <Text style={styles.productDiscoveryTermsBody}>{tc(webProductDiscovery.termsBody)}</Text>
         <MotionPressable
           accessibilityRole="button"
           onPress={onClose}
           pressScale={motion.scale.subtlePress}
           style={styles.productDiscoveryTermsCloseButton}
         >
-          <Text style={styles.productDiscoveryTermsCloseText}>Close</Text>
+          <Text style={styles.productDiscoveryTermsCloseText}>{tc("Close")}</Text>
         </MotionPressable>
       </View>
     </View>
@@ -1044,6 +1054,7 @@ function ProductDiscoveryTermsDialog({
 }
 
 function ShopDirectoryScreen() {
+  const tc = useCopy();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const homeLayout = getResponsiveHomeLayoutMetrics(width);
@@ -1090,7 +1101,8 @@ function ShopDirectoryScreen() {
     setCurrentPage(1);
   };
 
-  const stickySearchHeader = (
+  // Desktop search lives in the header (CustomerDesktopHeader); only mobile needs the sticky search.
+  const stickySearchHeader = homeLayout.isDesktop ? null : (
     <View
       style={[
         styles.stickySearch,
@@ -1124,7 +1136,7 @@ function ShopDirectoryScreen() {
               homeLayout.isDesktop ? styles.shopDirectoryTitleDesktop : null,
             ]}
           >
-            {webShopDirectory.title}
+            {tc(webShopDirectory.title)}
           </Text>
           <Text
             accessibilityElementsHidden
@@ -1134,11 +1146,7 @@ function ShopDirectoryScreen() {
             {webShopDirectory.titleIcon}
           </Text>
         </View>
-        <Text style={styles.shopDirectorySubtitle}>{webShopDirectory.subtitle}</Text>
-        <View style={styles.shopDirectoryNotice}>
-          <ClockIcon color={colors.primaryDark} size={18} strokeWidth={typography.iconStrokeWidth} />
-          <Text style={styles.shopDirectoryNoticeText}>{webShopDirectory.trackingNotice}</Text>
-        </View>
+        <Text style={styles.shopDirectorySubtitle}>{tc(webShopDirectory.subtitle)}</Text>
       </View>
 
       <View
@@ -1160,12 +1168,12 @@ function ShopDirectoryScreen() {
             <View style={styles.shopDirectorySearchBox}>
               <SearchIcon color={colors.muted} size={18} strokeWidth={typography.iconStrokeWidth} />
               <TextInput
-                accessibilityLabel={webShopDirectory.searchLabel}
+                accessibilityLabel={tc(webShopDirectory.searchLabel)}
                 autoCapitalize="none"
                 autoCorrect={false}
                 inputMode="search"
                 onChangeText={updateSearchQuery}
-                placeholder={webShopDirectory.searchPlaceholder}
+                placeholder={tc(webShopDirectory.searchPlaceholder)}
                 placeholderTextColor={colors.textSoft}
                 returnKeyType="search"
                 style={[styles.shopDirectorySearchInput, webSearchInputFocusReset]}
@@ -1196,14 +1204,14 @@ function ShopDirectoryScreen() {
                       selectedShopType === pill.value ? styles.shopDirectoryPillTextActive : null,
                     ]}
                   >
-                    {pill.label}
+                    {tc(pill.label)}
                   </Text>
                 </MotionPressable>
               ))}
             </ScrollView>
 
             <View style={styles.shopDirectorySortBlock}>
-              <Text style={styles.shopDirectorySortLabel}>{webShopDirectory.sortLabel}</Text>
+              <Text style={styles.shopDirectorySortLabel}>{tc(webShopDirectory.sortLabel)}</Text>
               <View style={styles.shopDirectorySortRow}>
                 {webShopDirectory.sortPills.map((pill) => (
                   <MotionPressable
@@ -1223,7 +1231,7 @@ function ShopDirectoryScreen() {
                         sortBy === pill.value ? styles.shopDirectoryPillTextActive : null,
                       ]}
                     >
-                      {pill.label}
+                      {tc(pill.label)}
                     </Text>
                   </MotionPressable>
                 ))}
@@ -1251,8 +1259,8 @@ function ShopDirectoryScreen() {
             </View>
           ) : (
             <View style={styles.shopDirectoryEmptyState}>
-              <Text style={styles.shopDirectoryEmptyTitle}>{webShopDirectory.emptyTitle}</Text>
-              <Text style={styles.shopDirectoryEmptyBody}>{webShopDirectory.emptyBody}</Text>
+              <Text style={styles.shopDirectoryEmptyTitle}>{tc(webShopDirectory.emptyTitle)}</Text>
+              <Text style={styles.shopDirectoryEmptyBody}>{tc(webShopDirectory.emptyBody)}</Text>
             </View>
           )}
 
@@ -1341,6 +1349,7 @@ function ShopDirectoryPromo({
   isDesktop: boolean;
   promo?: DirectoryPromo;
 }) {
+  const tc = useCopy();
   const [activeIndex, setActiveIndex] = useState(0);
   const slideGap = 24;
   const slideWidth = isDesktop ? Math.min(800, contentWidth) : Math.min(800, contentWidth * 0.85);
@@ -1356,7 +1365,7 @@ function ShopDirectoryPromo({
             isDesktop ? styles.shopDirectoryPromoTitleDesktop : null,
           ]}
         >
-          {promo.title}
+          {tc(promo.title)}
         </Text>
       </View>
       <ScrollView
@@ -1383,8 +1392,8 @@ function ShopDirectoryPromo({
             ]}
           >
             <Image
-              alt={promo.title}
-              accessibilityLabel={promo.title}
+              alt={tc(promo.title)}
+              accessibilityLabel={tc(promo.title)}
               resizeMode="cover"
               source={promoImage}
               style={styles.shopDirectoryPromoImage}
@@ -1419,6 +1428,7 @@ function ShopDirectoryCategoryAside({
   onSelectCategory: (category: string) => void;
   width: number;
 }) {
+  const tc = useCopy();
   return (
     <View
       style={[
@@ -1433,7 +1443,7 @@ function ShopDirectoryCategoryAside({
           isDesktop ? styles.shopDirectoryCategoryTitleDesktop : null,
         ]}
       >
-        {webShopDirectory.categoryHeading}
+        {tc(webShopDirectory.categoryHeading)}
       </Text>
       {isDesktop ? <View style={styles.shopDirectoryCategoryDivider} /> : null}
       <ScrollView
@@ -1474,7 +1484,7 @@ function ShopDirectoryCategoryAside({
                   active ? styles.shopDirectoryCategoryTextActive : null,
                 ]}
               >
-                {category}
+                {tc(category)}
               </Text>
             </MotionPressable>
           );
@@ -1491,6 +1501,7 @@ function ShopDirectoryStoreCard({
   cardWidth: number;
   store: ShopDirectoryStore;
 }) {
+  const tc = useCopy();
   return (
     <Link asChild href={store.href as never}>
       <MotionPressable
@@ -1511,7 +1522,7 @@ function ShopDirectoryStoreCard({
             <View style={styles.shopDirectoryCouponBadge}>
               <Text style={styles.shopDirectoryCouponIcon}>🧧</Text>
               <Text numberOfLines={1} style={styles.shopDirectoryCouponText}>
-                {store.label}
+                {tc(store.label)}
               </Text>
             </View>
           ) : null}
@@ -1529,14 +1540,14 @@ function ShopDirectoryStoreCard({
           </Text>
           <View style={styles.shopDirectoryCashbackRow}>
             <Text numberOfLines={1} style={styles.shopDirectoryCashbackCaption}>
-              Cashback up to
+              {tc("Cashback up to")}
             </Text>
             <Text numberOfLines={1} style={styles.shopDirectoryCashbackValue}>
               {store.cashback}
             </Text>
           </View>
           <Text numberOfLines={1} style={styles.shopDirectoryStoreCategory}>
-            {store.category} · {getShopTypeLabel(store.shopType)}
+            {tc(store.category)} · {tc(getShopTypeLabel(store.shopType))}
           </Text>
         </View>
       </MotionPressable>
@@ -1553,12 +1564,13 @@ function ShopDirectoryPagination({
   onChangePage: (page: number) => void;
   totalPages: number;
 }) {
+  const tc = useCopy();
   const pages = Array.from({ length: totalPages }).map((_, index) => index + 1);
 
   return (
     <View style={styles.shopDirectoryPagination}>
       <MotionPressable
-        accessibilityLabel="Previous page"
+        accessibilityLabel={tc("Previous page")}
         accessibilityRole="button"
         disabled={activePage <= 1}
         onPress={() => onChangePage(Math.max(1, activePage - 1))}
@@ -1596,7 +1608,7 @@ function ShopDirectoryPagination({
         </MotionPressable>
       ))}
       <MotionPressable
-        accessibilityLabel="Next page"
+        accessibilityLabel={tc("Next page")}
         accessibilityRole="button"
         disabled={activePage >= totalPages}
         onPress={() => onChangePage(Math.min(totalPages, activePage + 1))}
@@ -1623,6 +1635,7 @@ function getShopTypeLabel(shopType: string) {
 }
 
 function CategoryDirectoryScreen() {
+  const tc = useCopy();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const homeLayout = getResponsiveHomeLayoutMetrics(width);
@@ -1664,7 +1677,7 @@ function CategoryDirectoryScreen() {
                 homeLayout.isDesktop ? styles.categoryDirectoryTitleDesktop : null,
               ]}
             >
-              {webCategoryDirectory.title}
+              {tc(webCategoryDirectory.title)}
             </Text>
             <Text
               accessibilityElementsHidden
@@ -1685,12 +1698,12 @@ function CategoryDirectoryScreen() {
         >
           <View style={styles.categorySearchBox}>
             <TextInput
-              accessibilityLabel={webCategoryDirectory.searchPlaceholder}
+              accessibilityLabel={tc(webCategoryDirectory.searchPlaceholder)}
               autoCapitalize="none"
               autoCorrect={false}
               inputMode="search"
               onChangeText={updateSearchQuery}
-              placeholder={webCategoryDirectory.searchPlaceholder}
+              placeholder={tc(webCategoryDirectory.searchPlaceholder)}
               placeholderTextColor={colors.textSoft}
               returnKeyType="search"
               style={[styles.categorySearchInput, webSearchInputFocusReset]}
@@ -1715,8 +1728,8 @@ function CategoryDirectoryScreen() {
         </View>
       ) : (
         <View style={styles.categoryDirectoryEmptyState}>
-          <Text style={styles.categoryDirectoryEmptyTitle}>{webCategoryDirectory.emptyTitle}</Text>
-          <Text style={styles.categoryDirectoryEmptyBody}>{webCategoryDirectory.emptyBody}</Text>
+          <Text style={styles.categoryDirectoryEmptyTitle}>{tc(webCategoryDirectory.emptyTitle)}</Text>
+          <Text style={styles.categoryDirectoryEmptyBody}>{tc(webCategoryDirectory.emptyBody)}</Text>
         </View>
       )}
 
@@ -1807,6 +1820,7 @@ function CategoryDirectoryCard({
   index: number;
   isDesktop: boolean;
 }) {
+  const tc = useCopy();
   const imageSource = categoryDirectoryImageAssets[category.imageAsset] ?? homeBannerImage;
 
   return (
@@ -1833,7 +1847,7 @@ function CategoryDirectoryCard({
             style={styles.categoryDirectoryImage}
           />
           <View style={styles.categoryDirectoryBadge}>
-            <Text style={styles.categoryDirectoryBadgeText}>{webCategoryDirectory.cardEyebrow}</Text>
+            <Text style={styles.categoryDirectoryBadgeText}>{tc(webCategoryDirectory.cardEyebrow)}</Text>
           </View>
         </View>
 
@@ -1845,11 +1859,11 @@ function CategoryDirectoryCard({
               isDesktop ? styles.categoryDirectoryCardTitleDesktop : null,
             ]}
           >
-            {category.title}
+            {tc(category.title)}
           </Text>
           <View style={styles.categoryDirectoryCardFooter}>
             <Text style={styles.categoryDirectoryCardCta}>
-              {webCategoryDirectory.cardCta}
+              {tc(webCategoryDirectory.cardCta)}
             </Text>
             <View style={styles.categoryDirectoryArrowCircle}>
               <ArrowRightIcon
@@ -2427,26 +2441,6 @@ const styles = StyleSheet.create({
     fontSize: typography.body,
     fontWeight: typography.bodyWeight,
     lineHeight: 24,
-  },
-  shopDirectoryNotice: {
-    alignItems: "flex-start",
-    backgroundColor: "#FAFAFA",
-    borderColor: colors.border,
-    borderRadius: 16,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: spacing.sm,
-    maxWidth: 672,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  shopDirectoryNoticeText: {
-    color: colors.muted,
-    flex: 1,
-    fontFamily: typography.family,
-    fontSize: 12,
-    fontWeight: typography.bodyWeight,
-    lineHeight: 18,
   },
   shopDirectoryLayout: {
     width: "100%",

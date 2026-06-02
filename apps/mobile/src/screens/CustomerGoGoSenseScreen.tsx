@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { useCopy } from "@mobile/i18n/useCopy";
 import { mobileShellLayout } from "@mobile/design/webDesignParity";
 import { motion } from "@mobile/theme/motion";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
@@ -138,6 +139,7 @@ const settingRows = [
 ] as const;
 
 export function CustomerGoGoSenseScreen({ merchantId, mode }: GoGoSenseScreenProps) {
+  const tc = useCopy();
   const insets = useSafeAreaInsets();
   const copy = gogoSenseFlowCopy[mode];
   const topPadding = Math.max(spacing.md, insets.top + spacing.md);
@@ -167,9 +169,9 @@ export function CustomerGoGoSenseScreen({ merchantId, mode }: GoGoSenseScreenPro
                 strokeWidth={typography.iconStrokeWidth}
               />
             </View>
-            <Text style={styles.eyebrow}>{copy.eyebrow}</Text>
-            <Text style={styles.title}>{copy.title}</Text>
-            <Text style={styles.body}>{copy.body}</Text>
+            <Text style={styles.eyebrow}>{tc(copy.eyebrow)}</Text>
+            <Text style={styles.title}>{tc(copy.title)}</Text>
+            <Text style={styles.body}>{tc(copy.body)}</Text>
             {merchantId ? (
               <View style={styles.merchantIdPill}>
                 <Text style={styles.merchantIdLabel}>merchantId</Text>
@@ -231,6 +233,7 @@ function HubContent() {
 }
 
 function OnboardingContent() {
+  const tc = useCopy();
   return (
     <>
       <View style={styles.card}>
@@ -242,7 +245,7 @@ function OnboardingContent() {
         {setupRows.map((step, index) => (
           <View key={step} style={styles.stepRow}>
             <Text style={styles.stepIndex}>{index + 1}</Text>
-            <Text style={styles.stepText}>{step}</Text>
+            <Text style={styles.stepText}>{tc(step)}</Text>
           </View>
         ))}
       </View>
@@ -296,6 +299,7 @@ function TimelineContent() {
 }
 
 function SettingsContent() {
+  const tc = useCopy();
   return (
     <>
       <View style={styles.card}>
@@ -310,8 +314,8 @@ function SettingsContent() {
               <View style={styles.settingSwitchKnob} />
             </View>
             <View style={styles.settingCopy}>
-              <Text style={styles.rowTitle}>{row.title}</Text>
-              <Text style={styles.rowBody}>{row.body}</Text>
+              <Text style={styles.rowTitle}>{tc(row.title)}</Text>
+              <Text style={styles.rowBody}>{tc(row.body)}</Text>
             </View>
           </View>
         ))}
@@ -383,14 +387,15 @@ function SectionHeader({
   subtitle: string;
   title: string;
 }) {
+  const tc = useCopy();
   return (
     <View style={styles.sectionHeader}>
       <View style={styles.sectionIcon}>
         <Icon color={colors.primaryDark} size={20} strokeWidth={typography.iconStrokeWidth} />
       </View>
       <View style={styles.sectionCopy}>
-        <Text style={styles.sectionTitle}>{title}</Text>
-        <Text style={styles.sectionSubtitle}>{subtitle}</Text>
+        <Text style={styles.sectionTitle}>{tc(title)}</Text>
+        <Text style={styles.sectionSubtitle}>{tc(subtitle)}</Text>
       </View>
     </View>
   );
@@ -405,49 +410,53 @@ function InfoRow({
   icon: GoGoSenseIcon;
   title: string;
 }) {
+  const tc = useCopy();
   return (
     <View style={styles.infoRow}>
       <View style={styles.infoIcon}>
         <Icon color={colors.primaryDark} size={18} strokeWidth={typography.iconStrokeWidth} />
       </View>
       <View style={styles.infoCopy}>
-        <Text style={styles.rowTitle}>{title}</Text>
-        <Text style={styles.rowBody}>{body}</Text>
+        <Text style={styles.rowTitle}>{tc(title)}</Text>
+        <Text style={styles.rowBody}>{tc(body)}</Text>
       </View>
     </View>
   );
 }
 
 function TimelineRow({ body, status, title }: { body: string; status: string; title: string }) {
+  const tc = useCopy();
   return (
     <View style={styles.timelineRow}>
       <View style={styles.timelineDot} />
       <View style={styles.timelineCopy}>
         <View style={styles.timelineTitleRow}>
-          <Text style={styles.rowTitle}>{title}</Text>
-          <Text style={styles.timelineStatus}>{status}</Text>
+          <Text style={styles.rowTitle}>{tc(title)}</Text>
+          <Text style={styles.timelineStatus}>{tc(status)}</Text>
         </View>
-        <Text style={styles.rowBody}>{body}</Text>
+        <Text style={styles.rowBody}>{tc(body)}</Text>
       </View>
     </View>
   );
 }
 
 function PrimaryLink({ href, label }: { href: string; label: string }) {
+  const tc = useCopy();
   return (
     <Link asChild href={href as never}>
       <MotionPressable pressScale={motion.scale.subtlePress} style={styles.primaryButton}>
-        <Text style={styles.primaryButtonText}>{label}</Text>
+        <Text style={styles.primaryButtonText}>{tc(label)}</Text>
       </MotionPressable>
     </Link>
   );
 }
 
 function SecondaryLink({ href, label }: { href: string; label: string }) {
+  const tc = useCopy();
   return (
     <Link asChild href={href as never}>
       <MotionPressable pressScale={motion.scale.subtlePress} style={styles.secondaryButton}>
-        <Text style={styles.secondaryButtonText}>{label}</Text>
+        <Text style={styles.secondaryButtonText}>{tc(label)}</Text>
       </MotionPressable>
     </Link>
   );

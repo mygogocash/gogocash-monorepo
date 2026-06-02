@@ -6,6 +6,7 @@ import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountRes
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { useCopy } from "@mobile/i18n/useCopy";
 import { copyToClipboard } from "@mobile/lib/clipboard";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
@@ -27,6 +28,7 @@ const myOfferRows = [
 ] as const;
 
 export function CustomerProfileOffersScreen() {
+  const tc = useCopy();
   const offersResource = useCustomerAccountResource({
     fixtureData: myOfferRows,
     resourceId: "offers",
@@ -35,8 +37,8 @@ export function CustomerProfileOffersScreen() {
   if (offersResource.status !== "ready") {
     return (
       <CustomerAccountResourceState
-        emptyBody="Activate cashback offers to see your personal offer links here."
-        emptyTitle="No activated offers yet"
+        emptyBody={tc("Activate cashback offers to see your personal offer links here.")}
+        emptyTitle={tc("No activated offers yet")}
         resource={offersResource}
         resourceLabel="offers"
       />
@@ -44,7 +46,7 @@ export function CustomerProfileOffersScreen() {
   }
 
   return (
-    <AccountPageShell activeRouteId="profile" showTitle={false} title="My Offer">
+    <AccountPageShell activeRouteId="profile" showTitle={false} title={tc("My Offer")}>
       <View style={styles.surface}>
         <Link asChild href="/profile">
           <Pressable accessibilityRole="link" style={styles.topBar}>
@@ -53,15 +55,16 @@ export function CustomerProfileOffersScreen() {
               size={26}
               strokeWidth={typography.iconStrokeWidth}
             />
-            <Text style={styles.topBarTitle}>My Offer</Text>
+            <Text style={styles.topBarTitle}>{tc("My Offer")}</Text>
           </Pressable>
         </Link>
 
         <View style={styles.content}>
-          <Text style={styles.title}>My Offer</Text>
+          <Text style={styles.title}>{tc("My Offer")}</Text>
           <Text style={styles.body}>
-            Activated cashback offers from your GoGoCash account, including each deeplink and
-            created date.
+            {tc(
+              "Activated cashback offers from your GoGoCash account, including each deeplink and created date.",
+            )}
           </Text>
           <View accessibilityRole="list" style={styles.table}>
             <View style={styles.headerRow}>
@@ -83,7 +86,7 @@ export function CustomerProfileOffersScreen() {
                     {row.deeplink}
                   </Text>
                   <MotionPressable
-                    accessibilityLabel="Copy Link"
+                    accessibilityLabel={tc("Copy Link")}
                     accessibilityRole="button"
                     onPress={() => copyOfferLink(row.deeplink)}
                     pressScale={0.94}

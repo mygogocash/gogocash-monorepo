@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
+import { useCopy } from "@mobile/i18n/useCopy";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 type PhoneMode = "otp" | "phone";
@@ -15,38 +16,40 @@ export function CustomerProfilePhoneScreen({ mode }: { mode: PhoneMode }) {
 
 function PhoneNumberScreen() {
   const router = useRouter();
+  const tc = useCopy();
   const [phone, setPhone] = useState("");
   const normalizedPhone = phone.replace(/\D/g, "");
   const isValid = normalizedPhone.length >= 9 && normalizedPhone.length <= 10;
 
   const helperText = useMemo(() => {
     if (!phone) {
-      return "To keep your account secure, enter the mobile phone number linked to your account.";
+      return tc("To keep your account secure, enter the mobile phone number linked to your account.");
     }
 
     if (!isValid) {
-      return "Invalid phone number";
+      return tc("Invalid phone number");
     }
 
-    return "We will send a verification code to confirm your number.";
-  }, [isValid, phone]);
+    return tc("We will send a verification code to confirm your number.");
+  }, [isValid, phone, tc]);
 
   return (
-    <PhoneSubPage title="Verify Phone">
-      <Text style={styles.title}>Change Your Phone Number</Text>
+    <PhoneSubPage title={tc("Verify Phone")}>
+      <Text style={styles.title}>{tc("Change Your Phone Number")}</Text>
       <Text style={styles.body}>
-        To keep your account secure, please enter current mobile phone number linked to your account
-        before updating your phone number.
+        {tc(
+          "To keep your account secure, please enter current mobile phone number linked to your account before updating your phone number.",
+        )}
       </Text>
       <View style={styles.stepLine} />
       <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Mobile Number</Text>
+        <Text style={styles.inputLabel}>{tc("Mobile Number")}</Text>
         <View style={styles.phoneInputRow}>
           <View style={styles.countrySelect}>
-            <Text style={styles.countrySelectText}>Thailand (TH)</Text>
+            <Text style={styles.countrySelectText}>{tc("Thailand (TH)")}</Text>
           </View>
           <TextInput
-            accessibilityLabel="Mobile Number"
+            accessibilityLabel={tc("Mobile Number")}
             keyboardType="phone-pad"
             onChangeText={setPhone}
             placeholder="08x xxx xxxx"
@@ -62,7 +65,7 @@ function PhoneNumberScreen() {
       <View style={styles.actionRow}>
         <Link asChild href="/profile/info">
           <Pressable style={styles.secondaryAction}>
-            <Text style={styles.secondaryActionText}>Back</Text>
+            <Text style={styles.secondaryActionText}>{tc("Back")}</Text>
           </Pressable>
         </Link>
         <Pressable
@@ -70,7 +73,7 @@ function PhoneNumberScreen() {
           onPress={() => router.push("/profile/cf-phone")}
           style={[styles.primaryAction, !isValid ? styles.primaryActionDisabled : null]}
         >
-          <Text style={styles.primaryActionText}>Continue</Text>
+          <Text style={styles.primaryActionText}>{tc("Continue")}</Text>
         </Pressable>
       </View>
     </PhoneSubPage>
@@ -78,20 +81,21 @@ function PhoneNumberScreen() {
 }
 
 function PhoneOtpScreen() {
+  const tc = useCopy();
   const [code, setCode] = useState("");
   const canSubmit = code.replace(/\D/g, "").length >= 6;
 
   return (
-    <PhoneSubPage title="Verify Phone">
-      <Text style={styles.title}>Verification Code</Text>
+    <PhoneSubPage title={tc("Verify Phone")}>
+      <Text style={styles.title}>{tc("Verification Code")}</Text>
       <View style={styles.copyBlock}>
-        <Text style={styles.sectionTitle}>Enter Current Phone Number</Text>
-        <Text style={styles.body}>We will send a verification code to confirm your number.</Text>
+        <Text style={styles.sectionTitle}>{tc("Enter Current Phone Number")}</Text>
+        <Text style={styles.body}>{tc("We will send a verification code to confirm your number.")}</Text>
       </View>
       <View style={styles.otpPanel}>
         <PhoneIcon color={colors.primaryDark} size={28} strokeWidth={typography.iconStrokeWidth} />
         <TextInput
-          accessibilityLabel="Verification Code"
+          accessibilityLabel={tc("Verification Code")}
           keyboardType="number-pad"
           maxLength={6}
           onChangeText={setCode}
@@ -104,18 +108,18 @@ function PhoneOtpScreen() {
       <View style={styles.actionRow}>
         <Link asChild href="/profile/verify-phone">
           <Pressable style={styles.secondaryAction}>
-            <Text style={styles.secondaryActionText}>Back</Text>
+            <Text style={styles.secondaryActionText}>{tc("Back")}</Text>
           </Pressable>
         </Link>
         <Pressable
           disabled={!canSubmit}
           style={[styles.primaryAction, !canSubmit ? styles.primaryActionDisabled : null]}
         >
-          <Text style={styles.primaryActionText}>Continue</Text>
+          <Text style={styles.primaryActionText}>{tc("Continue")}</Text>
         </Pressable>
       </View>
       <Text style={styles.resendText}>
-        Please wait for 1 minute before requesting another code.
+        {tc("Please wait for 1 minute before requesting another code.")}
       </Text>
     </PhoneSubPage>
   );

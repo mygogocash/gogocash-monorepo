@@ -21,6 +21,7 @@ import {
 } from "@mobile/theme/icons";
 
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
+import { useCopy } from "@mobile/i18n/useCopy";
 import { mobileShellLayout } from "@mobile/design/webDesignParity";
 import { colors, radii, spacing, typography, shadows } from "@mobile/theme/tokens";
 
@@ -56,6 +57,7 @@ const INITIAL_METHODS: PayoutMethod[] = [
 ];
 
 export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
+  const tc = useCopy();
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -93,15 +95,15 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
     let newMethod: PayoutMethod | null = null;
 
     if (createTab === "promptpay") {
-      if (!ppCode.trim()) errs.push("PromptPay phone/ID is required.");
-      if (!ppThaiName.trim()) errs.push("Thai owner name is required.");
-      if (!ppEnglishName.trim()) errs.push("English owner name is required.");
+      if (!ppCode.trim()) errs.push(tc("PromptPay phone/ID is required."));
+      if (!ppThaiName.trim()) errs.push(tc("Thai owner name is required."));
+      if (!ppEnglishName.trim()) errs.push(tc("English owner name is required."));
 
       if (ppIdType === "phone" && ppCode.replace(/\D/g, "").length < 9) {
-        errs.push("PromptPay phone must be at least 9 digits.");
+        errs.push(tc("PromptPay phone must be at least 9 digits."));
       }
       if (ppIdType === "citizen" && ppCode.replace(/\D/g, "").length !== 13) {
-        errs.push("PromptPay Citizen ID must be exactly 13 digits.");
+        errs.push(tc("PromptPay Citizen ID must be exactly 13 digits."));
       }
 
       if (errs.length === 0) {
@@ -115,9 +117,9 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
         };
       }
     } else if (createTab === "bank") {
-      if (!bankName.trim()) errs.push("Bank selection is required.");
-      if (!bankAccountNo.trim()) errs.push("Account number is required.");
-      if (!bankAccountName.trim()) errs.push("Account name is required.");
+      if (!bankName.trim()) errs.push(tc("Bank selection is required."));
+      if (!bankAccountNo.trim()) errs.push(tc("Account number is required."));
+      if (!bankAccountName.trim()) errs.push(tc("Account name is required."));
 
       if (errs.length === 0) {
         newMethod = {
@@ -130,11 +132,11 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
         };
       }
     } else if (createTab === "crypto") {
-      if (!cryptoAddress.trim()) errs.push("Crypto wallet address is required.");
+      if (!cryptoAddress.trim()) errs.push(tc("Crypto wallet address is required."));
 
       const ethRegex = /^0x[a-fA-F0-9]{40}$/;
       if (cryptoAddress.trim() && !ethRegex.test(cryptoAddress.trim())) {
-        errs.push("Must be a valid EVM address (e.g. 0x followed by 40 hex characters).");
+        errs.push(tc("Must be a valid EVM address (e.g. 0x followed by 40 hex characters)."));
       }
 
       if (errs.length === 0) {
@@ -162,7 +164,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
       }
       updatedMethods.push(newMethod);
       setMethods(updatedMethods);
-      setSuccessMsg("Payout method saved successfully!");
+      setSuccessMsg(tc("Payout method saved successfully!"));
       setErrors([]);
 
       // Clear form
@@ -183,15 +185,15 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
   const handleWithdraw = () => {
     const amountNum = parseFloat(withdrawAmount);
     if (isNaN(amountNum) || amountNum <= 0) {
-      setErrors(["Please enter a valid withdrawal amount."]);
+      setErrors([tc("Please enter a valid withdrawal amount.")]);
       return;
     }
     if (amountNum > balance) {
-      setErrors(["Insufficient available balance."]);
+      setErrors([tc("Insufficient available balance.")]);
       return;
     }
     if (!selectedMethod) {
-      setErrors(["Select a payout method before confirming withdrawal."]);
+      setErrors([tc("Select a payout method before confirming withdrawal.")]);
       return;
     }
 
@@ -215,8 +217,8 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
           {/* 1. LIST PAYMENT METHODS */}
           {mode === "method" ? (
             <View style={styles.sectionWrap}>
-              <Text style={styles.infoTitle}>Payout Methods</Text>
-              
+              <Text style={styles.infoTitle}>{tc("Payout Methods")}</Text>
+
               <View style={styles.methodListCard}>
                 {methods.map((item) => (
                   <View key={item.id} style={styles.methodItemRow}>
@@ -235,7 +237,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                     </View>
                     {item.isDefault ? (
                       <View style={styles.defaultPill}>
-                        <Text style={styles.defaultPillText}>Default</Text>
+                        <Text style={styles.defaultPillText}>{tc("Default")}</Text>
                       </View>
                     ) : null}
                   </View>
@@ -245,7 +247,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
               <Link asChild href="/method/create">
                 <Pressable style={styles.primaryAction}>
                   <PlusIcon color={colors.white} size={16} />
-                  <Text style={styles.primaryActionText}>Add Payout Method</Text>
+                  <Text style={styles.primaryActionText}>{tc("Add Payout Method")}</Text>
                 </Pressable>
               </Link>
             </View>
@@ -254,7 +256,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
           {/* 2. CREATE PAYMENT METHOD */}
           {mode === "methodCreate" ? (
             <View style={styles.sectionWrap}>
-              <Text style={styles.infoTitle}>Add Payout Method</Text>
+              <Text style={styles.infoTitle}>{tc("Add Payout Method")}</Text>
 
               {/* Form tabs */}
               <View style={styles.tabStrip}>
@@ -263,7 +265,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                   style={[styles.tabPill, createTab === "bank" && styles.tabPillActive]}
                 >
                   <BankIcon color={createTab === "bank" ? colors.primaryDark : colors.muted} size={16} />
-                  <Text style={[styles.tabText, createTab === "bank" && styles.tabTextActive]}>Bank</Text>
+                  <Text style={[styles.tabText, createTab === "bank" && styles.tabTextActive]}>{tc("Bank")}</Text>
                 </Pressable>
                 <Pressable
                   onPress={() => setCreateTab("promptpay")}
@@ -277,7 +279,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                   style={[styles.tabPill, createTab === "crypto" && styles.tabPillActive]}
                 >
                   <CryptoIcon color={createTab === "crypto" ? colors.primaryDark : colors.muted} size={16} />
-                  <Text style={[styles.tabText, createTab === "crypto" && styles.tabTextActive]}>Crypto</Text>
+                  <Text style={[styles.tabText, createTab === "crypto" && styles.tabTextActive]}>{tc("Crypto")}</Text>
                 </Pressable>
               </View>
 
@@ -307,11 +309,11 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                 {createTab === "bank" ? (
                   <View style={styles.formSection}>
                     <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>Bank Name</Text>
+                      <Text style={styles.inputLabel}>{tc("Bank Name")}</Text>
                       <View style={styles.inputBox}>
                         <TextInput
                           onChangeText={setBankName}
-                          placeholder="Select bank (e.g. SCB, Kasikorn)"
+                          placeholder={tc("Select bank (e.g. SCB, Kasikorn)")}
                           placeholderTextColor={colors.textSoft}
                           style={styles.textInput}
                           value={bankName}
@@ -319,12 +321,12 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                       </View>
                     </View>
                     <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>Account Number</Text>
+                      <Text style={styles.inputLabel}>{tc("Account Number")}</Text>
                       <View style={styles.inputBox}>
                         <TextInput
                           keyboardType="numeric"
                           onChangeText={setBankAccountNo}
-                          placeholder="Account Number"
+                          placeholder={tc("Account Number")}
                           placeholderTextColor={colors.textSoft}
                           style={styles.textInput}
                           value={bankAccountNo}
@@ -332,11 +334,11 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                       </View>
                     </View>
                     <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>Account Owner Name</Text>
+                      <Text style={styles.inputLabel}>{tc("Account Owner Name")}</Text>
                       <View style={styles.inputBox}>
                         <TextInput
                           onChangeText={setBankAccountName}
-                          placeholder="Full Name"
+                          placeholder={tc("Full Name")}
                           placeholderTextColor={colors.textSoft}
                           style={styles.textInput}
                           value={bankAccountName}
@@ -344,7 +346,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                       </View>
                     </View>
                     <View style={styles.defaultRow}>
-                      <Text style={styles.inputLabel}>Set as Default Method</Text>
+                      <Text style={styles.inputLabel}>{tc("Set as Default Method")}</Text>
                       <Pressable
                         onPress={() => setBankIsDefault(!bankIsDefault)}
                         style={[styles.switchOuter, bankIsDefault && styles.switchOuterOn]}
@@ -366,7 +368,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                           {ppIdType === "phone" ? <View style={styles.radioInner} /> : null}
                         </View>
                         <Text style={[styles.idTypeBtnText, ppIdType === "phone" && styles.idTypeBtnTextActive]}>
-                          Phone ID
+                          {tc("Phone ID")}
                         </Text>
                       </Pressable>
                       <Pressable
@@ -377,18 +379,18 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                           {ppIdType === "citizen" ? <View style={styles.radioInner} /> : null}
                         </View>
                         <Text style={[styles.idTypeBtnText, ppIdType === "citizen" && styles.idTypeBtnTextActive]}>
-                          Citizen ID
+                          {tc("Citizen ID")}
                         </Text>
                       </Pressable>
                     </View>
 
                     <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>PromptPay Code</Text>
+                      <Text style={styles.inputLabel}>{tc("PromptPay Code")}</Text>
                       <View style={styles.inputBox}>
                         <TextInput
                           keyboardType="numeric"
                           onChangeText={setPpCode}
-                          placeholder="Phone number or 13-digit ID"
+                          placeholder={tc("Phone number or 13-digit ID")}
                           placeholderTextColor={colors.textSoft}
                           style={styles.textInput}
                           value={ppCode}
@@ -397,11 +399,11 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                     </View>
 
                     <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>Owner Thai Name</Text>
+                      <Text style={styles.inputLabel}>{tc("Owner Thai Name")}</Text>
                       <View style={styles.inputBox}>
                         <TextInput
                           onChangeText={setPpThaiName}
-                          placeholder="ภาษาไทย"
+                          placeholder={tc("ภาษาไทย")}
                           placeholderTextColor={colors.textSoft}
                           style={styles.textInput}
                           value={ppThaiName}
@@ -410,11 +412,11 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                     </View>
 
                     <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>Owner English Name</Text>
+                      <Text style={styles.inputLabel}>{tc("Owner English Name")}</Text>
                       <View style={styles.inputBox}>
                         <TextInput
                           onChangeText={setPpEnglishName}
-                          placeholder="English Name"
+                          placeholder={tc("English Name")}
                           placeholderTextColor={colors.textSoft}
                           style={styles.textInput}
                           value={ppEnglishName}
@@ -423,7 +425,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                     </View>
 
                     <View style={styles.defaultRow}>
-                      <Text style={styles.inputLabel}>Set as Default Method</Text>
+                      <Text style={styles.inputLabel}>{tc("Set as Default Method")}</Text>
                       <Pressable
                         onPress={() => setPpIsDefault(!ppIsDefault)}
                         style={[styles.switchOuter, ppIsDefault && styles.switchOuterOn]}
@@ -437,7 +439,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                 {createTab === "crypto" ? (
                   <View style={styles.formSection}>
                     <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>Crypto Wallet Address</Text>
+                      <Text style={styles.inputLabel}>{tc("Crypto Wallet Address")}</Text>
                       <View style={styles.inputBox}>
                         <TextInput
                           onChangeText={setCryptoAddress}
@@ -449,7 +451,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                       </View>
                     </View>
                     <View style={styles.defaultRow}>
-                      <Text style={styles.inputLabel}>Set as Default Method</Text>
+                      <Text style={styles.inputLabel}>{tc("Set as Default Method")}</Text>
                       <Pressable
                         onPress={() => setCryptoIsDefault(!cryptoIsDefault)}
                         style={[styles.switchOuter, cryptoIsDefault && styles.switchOuterOn]}
@@ -463,7 +465,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
 
               <Pressable onPress={handleSaveMethod} style={styles.primaryAction}>
                 <SaveIcon color={colors.white} size={16} />
-                <Text style={styles.primaryActionText}>Save Payout Method</Text>
+                <Text style={styles.primaryActionText}>{tc("Save Payout Method")}</Text>
               </Pressable>
             </View>
           ) : null}
@@ -471,11 +473,11 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
           {/* 3. CASHBACK WITHDRAWAL ACTION */}
           {mode === "withdraw" ? (
             <View style={styles.sectionWrap}>
-              <Text style={styles.infoTitle}>Withdraw Rewards</Text>
+              <Text style={styles.infoTitle}>{tc("Withdraw Rewards")}</Text>
 
               {/* Wallet Summary metrics card */}
               <View style={styles.summaryCard}>
-                <Text style={styles.summaryLabel}>Total Cashback Available</Text>
+                <Text style={styles.summaryLabel}>{tc("Total Cashback Available")}</Text>
                 <View style={styles.amountRow}>
                   <Text style={styles.amountText}>{balance.toFixed(2)}</Text>
                   <Text style={styles.currencyText}>THB</Text>
@@ -506,7 +508,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
 
               <View style={styles.formCard}>
                 <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Withdrawal Amount</Text>
+                  <Text style={styles.inputLabel}>{tc("Withdrawal Amount")}</Text>
                   <View style={styles.inputBox}>
                     <CoinIcon color={colors.muted} size={16} />
                     <TextInput
@@ -522,7 +524,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
 
                 {/* Payout method select row */}
                 <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Payout Target Method</Text>
+                  <Text style={styles.inputLabel}>{tc("Payout Target Method")}</Text>
                   <View style={styles.payoutPicker}>
                     {methods.map((m) => (
                       <Pressable
@@ -545,14 +547,14 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                   </View>
                   {selectedMethod ? (
                     <Text style={styles.selectedMethodHint}>
-                      Selected payout target: {selectedMethod.bankName}
+                      {tc("Selected payout target:")} {selectedMethod.bankName}
                     </Text>
                   ) : null}
                 </View>
               </View>
 
               <Pressable onPress={handleWithdraw} style={styles.primaryAction}>
-                <Text style={styles.primaryActionText}>Confirm & Dispatch</Text>
+                <Text style={styles.primaryActionText}>{tc("Confirm & Dispatch")}</Text>
               </Pressable>
             </View>
           ) : null}
@@ -561,29 +563,29 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
           {mode === "myCashback" ? (
             <View style={styles.sectionWrap}>
               <View style={styles.hero}>
-                <Text style={styles.kicker}>Rewards</Text>
-                <Text style={styles.title}>My Cashback</Text>
+                <Text style={styles.kicker}>{tc("Rewards")}</Text>
+                <Text style={styles.title}>{tc("My Cashback")}</Text>
                 <Text style={styles.body}>
-                  Track your reward collections, review pending validations, and proceed to withdrawal.
+                  {tc("Track your reward collections, review pending validations, and proceed to withdrawal.")}
                 </Text>
                 <Link asChild href="/withdraw">
                   <Pressable style={styles.primaryAction}>
-                    <Text style={styles.primaryActionText}>View Wallet Options</Text>
+                    <Text style={styles.primaryActionText}>{tc("View Wallet Options")}</Text>
                   </Pressable>
                 </Link>
               </View>
 
               <View style={styles.card}>
                 <View style={styles.row}>
-                  <Text style={styles.rowText}>Total Earning tracked</Text>
+                  <Text style={styles.rowText}>{tc("Total Earning tracked")}</Text>
                   <Text style={styles.rowValue}>3,504.60 THB</Text>
                 </View>
                 <View style={styles.row}>
-                  <Text style={styles.rowText}>Pending validation</Text>
+                  <Text style={styles.rowText}>{tc("Pending validation")}</Text>
                   <Text style={styles.rowValue}>633.60 THB</Text>
                 </View>
                 <View style={styles.row}>
-                  <Text style={styles.rowText}>Available payout balance</Text>
+                  <Text style={styles.rowText}>{tc("Available payout balance")}</Text>
                   <Text style={styles.rowValue}>3,180.24 THB</Text>
                 </View>
               </View>
@@ -593,7 +595,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
           <Link asChild href={mode === "methodCreate" ? "/method" : "/wallet"}>
             <Pressable style={styles.secondaryAction}>
               <Text style={styles.secondaryActionText}>
-                {mode === "methodCreate" ? "Back to methods" : "Back to wallet"}
+                {mode === "methodCreate" ? tc("Back to methods") : tc("Back to wallet")}
               </Text>
             </Pressable>
           </Link>

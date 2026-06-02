@@ -14,6 +14,7 @@ import questHowToEarnImage from "../../assets/quest-how-to-earn-en.png";
 import questPromoImage from "../../assets/quest-banner2.png";
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { useCopy } from "@mobile/i18n/useCopy";
 import {
   mobileShellLayout,
   webAccountPageSurface,
@@ -31,6 +32,7 @@ type QuestTabId = (typeof webQuestTabs)[number]["id"];
 const exploreOtherShops = webHomePromoSections.find((section) => section.id === "travel");
 
 export function CustomerQuestScreen({ history = false }: { history?: boolean }) {
+  const tc = useCopy();
   const [activeTab, setActiveTab] = useState<QuestTabId>(history ? "leaderboard" : "how-to-win");
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
@@ -48,16 +50,16 @@ export function CustomerQuestScreen({ history = false }: { history?: boolean }) 
 
   if (history) {
     return (
-      <AccountPageShell activeRouteId="quest" title="Quest History">
+      <AccountPageShell activeRouteId="quest" title={tc("Quest History")}>
         <QuestHistoryView />
       </AccountPageShell>
     );
   }
 
   return (
-    <AccountPageShell activeRouteId="quest" title={history ? "Quest History" : "Quest"}>
+    <AccountPageShell activeRouteId="quest" title={history ? tc("Quest History") : tc("Quest")}>
       <Image
-        alt="GoGoQuest bonus banner"
+        alt={tc("GoGoQuest bonus banner")}
         resizeMode="cover"
         source={questBannerImage}
         style={[styles.heroBanner, { height: heroHeight }]}
@@ -75,7 +77,7 @@ export function CustomerQuestScreen({ history = false }: { history?: boolean }) 
             >
               <Text style={[styles.tabText, active ? styles.tabTextActive : null]}>
                 {"icon" in tab ? "🏆 " : ""}
-                {tab.label}
+                {tc(tab.label)}
               </Text>
             </MotionPressable>
           );
@@ -90,7 +92,7 @@ export function CustomerQuestScreen({ history = false }: { history?: boolean }) 
         {activeTab === "how-to-win" ? (
           <View style={styles.questColumn}>
             <Image
-              alt="GoGoQuest how to earn illustration"
+              alt={tc("GoGoQuest how to earn illustration")}
               resizeMode="cover"
               source={questHowToEarnImage}
               style={[styles.howToEarnImage, { height: mediaColumnWidth / (1216 / 930) }]}
@@ -115,14 +117,15 @@ export function CustomerQuestScreen({ history = false }: { history?: boolean }) 
 }
 
 function QuestTaskPanel() {
+  const tc = useCopy();
   return (
     <View style={styles.taskPanel}>
-      <Text style={styles.taskTitle}>Let’s Got the Tasks Done!</Text>
+      <Text style={styles.taskTitle}>{tc("Let’s Got the Tasks Done!")}</Text>
       {webQuestTaskRows.map((task) => (
         <View key={task.title} style={styles.taskRow}>
           <TaskLogo task={task} />
           <View style={styles.taskCopy}>
-            <Text style={styles.taskName}>{task.title}</Text>
+            <Text style={styles.taskName}>{tc(task.title)}</Text>
           </View>
           <TaskPointsPill points={task.points} />
         </View>
@@ -183,18 +186,19 @@ function TaskPointsPill({ points }: { points: string }) {
 }
 
 function QuestMyRankCard() {
+  const tc = useCopy();
   const [expanded, setExpanded] = useState(false);
   return (
     <View>
       <View style={styles.myRankCard}>
         <View style={styles.myRankColumn}>
-          <Text style={styles.myRankLabel}>{webQuestMyRank.rankLabel}</Text>
+          <Text style={styles.myRankLabel}>{tc(webQuestMyRank.rankLabel)}</Text>
           <View style={styles.myRankValueWrap}>
             <Text style={styles.myRankValue}>{webQuestMyRank.rankValue}</Text>
           </View>
         </View>
         <View style={styles.myRankColumn}>
-          <Text style={styles.myRankLabel}>{webQuestMyRank.pointsLabel}</Text>
+          <Text style={styles.myRankLabel}>{tc(webQuestMyRank.pointsLabel)}</Text>
           <View style={styles.myRankValueWrap}>
             <Text style={styles.myRankValue}>{webQuestMyRank.pointsValue}</Text>
           </View>
@@ -206,7 +210,7 @@ function QuestMyRankCard() {
         pressScale={0.98}
         style={styles.viewPointsButton}
       >
-        <Text style={styles.viewPointsText}>{webQuestMyRank.viewPointsLabel}</Text>
+        <Text style={styles.viewPointsText}>{tc(webQuestMyRank.viewPointsLabel)}</Text>
         <ChevronUpIcon
           color={colors.primary}
           size={18}
@@ -217,12 +221,12 @@ function QuestMyRankCard() {
       {expanded ? (
         <View style={styles.myRankBreakdown}>
           <View style={styles.myRankBreakdownColumn}>
-            <Text style={styles.myRankBreakdownLabel}>{webQuestMyRank.spendingLabel}</Text>
+            <Text style={styles.myRankBreakdownLabel}>{tc(webQuestMyRank.spendingLabel)}</Text>
             <Text style={styles.myRankBreakdownValue}>{webQuestMyRank.spendingValue}</Text>
           </View>
           <Text style={styles.myRankBreakdownPlus}>+</Text>
           <View style={styles.myRankBreakdownColumn}>
-            <Text style={styles.myRankBreakdownLabel}>{webQuestMyRank.specialTasksLabel}</Text>
+            <Text style={styles.myRankBreakdownLabel}>{tc(webQuestMyRank.specialTasksLabel)}</Text>
             <Text style={styles.myRankBreakdownValue}>{webQuestMyRank.specialTasksValue}</Text>
           </View>
         </View>
@@ -232,10 +236,11 @@ function QuestMyRankCard() {
 }
 
 function QuestLeaderboardPanel({ mediaColumnWidth }: { mediaColumnWidth: number }) {
+  const tc = useCopy();
   return (
     <View style={styles.leaderboardPanel}>
       <Image
-        alt="GoGoQuest leaderboard tips illustration"
+        alt={tc("GoGoQuest leaderboard tips illustration")}
         resizeMode="cover"
         source={questPromoImage}
         style={[styles.promoImage, { height: mediaColumnWidth / (484 / 320) }]}
@@ -254,14 +259,14 @@ function QuestLeaderboardPanel({ mediaColumnWidth }: { mediaColumnWidth: number 
                 size={20}
                 strokeWidth={typography.iconStrokeWidth}
               />
-              <Text style={styles.historyLink}>GoGoQuest History</Text>
+              <Text style={styles.historyLink}>{`GoGoQuest ${tc("History")}`}</Text>
             </MotionPressable>
           </Link>
         </View>
         {webQuestLeaderboardRows.map((row, index) => (
           <View key={row.name} style={styles.rankRow}>
             <Image
-              alt={`${row.name} avatar`}
+              alt={`${row.name} ${tc("avatar")}`}
               source={profileAvatarImage}
               style={styles.rankAvatarImage}
             />
@@ -281,6 +286,7 @@ function QuestLeaderboardPanel({ mediaColumnWidth }: { mediaColumnWidth: number 
 }
 
 function ExploreOtherShops() {
+  const tc = useCopy();
   if (!exploreOtherShops) {
     return null;
   }
@@ -288,10 +294,10 @@ function ExploreOtherShops() {
   return (
     <View style={styles.exploreSection}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Explore other Shops</Text>
+        <Text style={styles.sectionTitle}>{tc("Explore other Shops")}</Text>
         <Link asChild href="/brand">
           <MotionPressable pressScale={0.98}>
-            <Text style={styles.viewAll}>View all →</Text>
+            <Text style={styles.viewAll}>{`${tc("View all")} →`}</Text>
           </MotionPressable>
         </Link>
       </View>
@@ -306,7 +312,7 @@ function ExploreOtherShops() {
               <View style={[styles.shopLogo, { backgroundColor: card.tint }]}>
                 {"logoUri" in card ? (
                   <Image
-                    alt={`${card.brand} logo`}
+                    alt={`${card.brand} ${tc("logo")}`}
                     resizeMode="contain"
                     source={{ uri: card.logoUri }}
                     style={styles.shopLogoImage}
@@ -317,7 +323,7 @@ function ExploreOtherShops() {
                 {card.brand}
               </Text>
               <View style={styles.shopCashbackRow}>
-                <Text style={styles.shopCashbackLabel}>Cashback up to</Text>
+                <Text style={styles.shopCashbackLabel}>{tc("Cashback up to")}</Text>
                 <Text style={styles.shopCashback}>{card.cashback}</Text>
               </View>
             </MotionPressable>
@@ -329,33 +335,34 @@ function ExploreOtherShops() {
 }
 
 function QuestHistoryView() {
+  const tc = useCopy();
   return (
     <View style={styles.historyView}>
       {/* Hero + plan card */}
       <View style={styles.historyHero}>
-        <Text style={styles.historyKicker}>{webQuestHistory.heroKicker}</Text>
-        <Text style={styles.historyHeroTitle}>{webQuestHistory.heroTitle}</Text>
-        <Text style={styles.historyIntro}>{webQuestHistory.pageIntro}</Text>
+        <Text style={styles.historyKicker}>{tc(webQuestHistory.heroKicker)}</Text>
+        <Text style={styles.historyHeroTitle}>{tc(webQuestHistory.heroTitle)}</Text>
+        <Text style={styles.historyIntro}>{tc(webQuestHistory.pageIntro)}</Text>
         <View style={styles.historyPlanCard}>
-          <Text style={styles.historyPlanTitle}>{webQuestHistory.planTitle}</Text>
+          <Text style={styles.historyPlanTitle}>{tc(webQuestHistory.planTitle)}</Text>
           {webQuestHistory.planSteps.map((step, index) => (
             <View key={step} style={styles.historyPlanStepRow}>
               <Text style={styles.historyPlanStepNumber}>{index + 1}.</Text>
-              <Text style={styles.historyPlanStepText}>{step}</Text>
+              <Text style={styles.historyPlanStepText}>{tc(step)}</Text>
             </View>
           ))}
           <View style={styles.historyPlanCtaRow}>
             <Link asChild href="/quest">
               <MotionPressable pressScale={0.98} style={styles.historyPlanCtaSecondary}>
                 <Text style={styles.historyPlanCtaSecondaryText}>
-                  {webQuestHistory.viewQuestHubShort}
+                  {tc(webQuestHistory.viewQuestHubShort)}
                 </Text>
               </MotionPressable>
             </Link>
             <Link asChild href="/brand">
               <MotionPressable pressScale={0.98} style={styles.historyPlanCtaPrimary}>
                 <Text style={styles.historyPlanCtaPrimaryText}>
-                  {webQuestHistory.planCtaBrowseShort}
+                  {tc(webQuestHistory.planCtaBrowseShort)}
                 </Text>
               </MotionPressable>
             </Link>
@@ -365,36 +372,36 @@ function QuestHistoryView() {
 
       {/* This round — campaign card */}
       <View style={styles.historySection}>
-        <Text style={styles.historySectionTitle}>{webQuestHistory.currentCampaign}</Text>
-        <Text style={styles.historySectionHint}>{webQuestHistory.roundShopHint}</Text>
+        <Text style={styles.historySectionTitle}>{tc(webQuestHistory.currentCampaign)}</Text>
+        <Text style={styles.historySectionHint}>{tc(webQuestHistory.roundShopHint)}</Text>
         <View style={styles.historyCampaignCard}>
           <View style={styles.historyCampaignColumn}>
-            <Text style={styles.historyCampaignLabel}>{webQuestHistory.periodLabel}</Text>
-            <Text style={styles.historyCampaignPeriod}>{webQuestHistory.periodPending}</Text>
+            <Text style={styles.historyCampaignLabel}>{tc(webQuestHistory.periodLabel)}</Text>
+            <Text style={styles.historyCampaignPeriod}>{tc(webQuestHistory.periodPending)}</Text>
           </View>
           <View style={styles.historyScoreCard}>
-            <Text style={styles.historyCampaignLabel}>{webQuestHistory.yourScoreLabel}</Text>
-            <Text style={styles.historySignInHint}>{webQuestHistory.signInHint}</Text>
-            <Text style={styles.historyScoreFootnote}>{webQuestHistory.scoreFootnote}</Text>
+            <Text style={styles.historyCampaignLabel}>{tc(webQuestHistory.yourScoreLabel)}</Text>
+            <Text style={styles.historySignInHint}>{tc(webQuestHistory.signInHint)}</Text>
+            <Text style={styles.historyScoreFootnote}>{tc(webQuestHistory.scoreFootnote)}</Text>
           </View>
         </View>
       </View>
 
       {/* Monthly points — empty state */}
       <View style={styles.historySection}>
-        <Text style={styles.historySectionTitle}>{webQuestHistory.monthlySection}</Text>
-        <Text style={styles.historySectionHint}>{webQuestHistory.monthlySectionHint}</Text>
+        <Text style={styles.historySectionTitle}>{tc(webQuestHistory.monthlySection)}</Text>
+        <Text style={styles.historySectionHint}>{tc(webQuestHistory.monthlySectionHint)}</Text>
         <View style={styles.historyEmptyCard}>
-          <Text style={styles.historyEmptyText}>{webQuestHistory.emptyMonthly}</Text>
+          <Text style={styles.historyEmptyText}>{tc(webQuestHistory.emptyMonthly)}</Text>
         </View>
       </View>
 
       {/* Rewards — empty state */}
       <View style={styles.historySection}>
-        <Text style={styles.historySectionTitle}>{webQuestHistory.rewardsSection}</Text>
-        <Text style={styles.historySectionHint}>{webQuestHistory.rewardsSectionHint}</Text>
+        <Text style={styles.historySectionTitle}>{tc(webQuestHistory.rewardsSection)}</Text>
+        <Text style={styles.historySectionHint}>{tc(webQuestHistory.rewardsSectionHint)}</Text>
         <View style={styles.historyEmptyCard}>
-          <Text style={styles.historyEmptyText}>{webQuestHistory.emptyRewards}</Text>
+          <Text style={styles.historyEmptyText}>{tc(webQuestHistory.emptyRewards)}</Text>
         </View>
       </View>
     </View>

@@ -11,6 +11,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
+import { useCopy } from "@mobile/i18n/useCopy";
 import { mobileShellLayout, webMembershipLanding } from "@mobile/design/webDesignParity";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
@@ -40,6 +41,7 @@ const faqItems = [
 ] as const;
 
 export function CustomerMembershipScreen() {
+  const tc = useCopy();
   const insets = useSafeAreaInsets();
   const [billingAnnual, setBillingAnnual] = useState(true);
 
@@ -65,53 +67,53 @@ export function CustomerMembershipScreen() {
           </Link>
 
           <View style={styles.hero}>
-            <Text style={styles.kicker}>Membership offer</Text>
-            <Text style={styles.title}>Go premium for less than a coffee a week.</Text>
-            <Text style={styles.body}>Unlock GoGoPass for ฿49/month or ฿490/year:</Text>
+            <Text style={styles.kicker}>{tc("Membership offer")}</Text>
+            <Text style={styles.title}>{tc("Go premium for less than a coffee a week.")}</Text>
+            <Text style={styles.body}>{tc("Unlock GoGoPass for ฿49/month or ฿490/year:")}</Text>
             <View style={styles.benefitList}>
               {memberBenefits.map((benefit) => (
                 <View key={benefit} style={styles.benefitRow}>
                   <CheckIcon color={colors.primaryDark} size={18} strokeWidth={2.2} />
-                  <Text style={styles.benefitText}>{benefit}</Text>
+                  <Text style={styles.benefitText}>{tc(benefit)}</Text>
                 </View>
               ))}
             </View>
           </View>
 
           <View style={styles.billingSection}>
-            <Text style={styles.sectionTitle}>Choose your billing</Text>
+            <Text style={styles.sectionTitle}>{tc("Choose your billing")}</Text>
             <Text style={styles.sectionBody}>
-              Same membership - pick monthly flexibility or annual savings.
+              {tc("Same membership - pick monthly flexibility or annual savings.")}
             </Text>
-            <View accessibilityLabel="Billing period" style={styles.toggleRow}>
+            <View accessibilityLabel={tc("Billing period")} style={styles.toggleRow}>
               <Pressable
                 accessibilityState={{ selected: !billingAnnual }}
                 onPress={() => setBillingAnnual(false)}
                 style={[styles.billingChoice, !billingAnnual ? styles.billingChoiceActive : null]}
               >
-                <Text style={styles.billingLabel}>Monthly</Text>
+                <Text style={styles.billingLabel}>{tc("Monthly")}</Text>
                 <Text style={styles.billingAmount}>฿49/mo</Text>
-                <Text style={styles.billingHint}>Billed monthly - cancel anytime</Text>
+                <Text style={styles.billingHint}>{tc("Billed monthly - cancel anytime")}</Text>
               </Pressable>
               <Pressable
                 accessibilityState={{ selected: billingAnnual }}
                 onPress={() => setBillingAnnual(true)}
                 style={[styles.billingChoice, billingAnnual ? styles.billingChoiceActive : null]}
               >
-                <Text style={styles.bestValue}>Best value</Text>
-                <Text style={styles.billingLabel}>Annual</Text>
+                <Text style={styles.bestValue}>{tc("Best value")}</Text>
+                <Text style={styles.billingLabel}>{tc("Annual")}</Text>
                 <Text style={styles.billingAmount}>฿490/yr</Text>
-                <Text style={styles.billingHint}>~฿41/mo effective when billed yearly</Text>
+                <Text style={styles.billingHint}>{tc("~฿41/mo effective when billed yearly")}</Text>
               </Pressable>
             </View>
             <View style={styles.disabledNotice}>
               <SparklesIcon color={colors.primaryDark} size={18} strokeWidth={2} />
-              <Text style={styles.disabledText}>Online checkout is not available.</Text>
+              <Text style={styles.disabledText}>{tc("Online checkout is not available.")}</Text>
             </View>
             <Link asChild href="/pricing">
               <Pressable accessibilityRole="link" style={styles.primaryAction}>
                 <Text style={styles.primaryActionText}>
-                  {billingAnnual ? "Get ฿490/year" : "Start for ฿49/month"}
+                  {tc(billingAnnual ? "Get ฿490/year" : "Start for ฿49/month")}
                 </Text>
               </Pressable>
             </Link>
@@ -136,44 +138,44 @@ export function CustomerMembershipScreen() {
           </View>
 
           <View style={styles.savingsSection}>
-            <Text style={styles.sectionTitle}>{webMembershipLanding.savings.heading}</Text>
-            <Text style={styles.sectionBody}>{webMembershipLanding.savings.subtitle}</Text>
+            <Text style={styles.sectionTitle}>{tc(webMembershipLanding.savings.heading)}</Text>
+            <Text style={styles.sectionBody}>{tc(webMembershipLanding.savings.subtitle)}</Text>
             <View style={styles.savingsCard}>
               <View style={styles.savingsRow}>
-                <Text style={styles.savingsRowLabel}>{webMembershipLanding.savings.monthlyLine}</Text>
+                <Text style={styles.savingsRowLabel}>{tc(webMembershipLanding.savings.monthlyLine)}</Text>
                 <Text style={styles.savingsRowValue}>{webMembershipLanding.savings.monthlyValue}</Text>
               </View>
               <View style={styles.savingsRow}>
-                <Text style={styles.savingsRowLabel}>{webMembershipLanding.savings.annualLine}</Text>
+                <Text style={styles.savingsRowLabel}>{tc(webMembershipLanding.savings.annualLine)}</Text>
                 <Text style={styles.savingsRowValue}>{webMembershipLanding.savings.annualValue}</Text>
               </View>
               <View style={[styles.savingsRow, styles.savingsRowTotal]}>
-                <Text style={styles.savingsRowLabel}>{webMembershipLanding.savings.youSaveLabel}</Text>
+                <Text style={styles.savingsRowLabel}>{tc(webMembershipLanding.savings.youSaveLabel)}</Text>
                 <Text style={styles.savingsRowAccent}>{webMembershipLanding.savings.youSaveValue}</Text>
               </View>
-              <Text style={styles.savingsFootnote}>{webMembershipLanding.savings.footnote}</Text>
+              <Text style={styles.savingsFootnote}>{tc(webMembershipLanding.savings.footnote)}</Text>
             </View>
           </View>
 
           <View style={styles.socialSection}>
-            <Text style={styles.sectionTitle}>{webMembershipLanding.socialProof.heading}</Text>
-            <Text style={styles.sectionBody}>{webMembershipLanding.socialProof.subtitle}</Text>
+            <Text style={styles.sectionTitle}>{tc(webMembershipLanding.socialProof.heading)}</Text>
+            <Text style={styles.sectionBody}>{tc(webMembershipLanding.socialProof.subtitle)}</Text>
             <View style={styles.statsRow}>
               {webMembershipLanding.socialProof.stats.map((stat) => (
                 <View key={stat.caption} style={styles.statCard}>
                   <Text style={styles.statValue}>{stat.value}</Text>
-                  <Text style={styles.statCaption}>{stat.caption}</Text>
+                  <Text style={styles.statCaption}>{tc(stat.caption)}</Text>
                 </View>
               ))}
             </View>
           </View>
 
           <View style={styles.faqSection}>
-            <Text style={styles.sectionTitle}>Billing & membership FAQ</Text>
+            <Text style={styles.sectionTitle}>{tc("Billing & membership FAQ")}</Text>
             {faqItems.map((item) => (
               <View key={item.question} style={styles.faqItem}>
-                <Text style={styles.faqQuestion}>{item.question}</Text>
-                <Text style={styles.faqAnswer}>{item.answer}</Text>
+                <Text style={styles.faqQuestion}>{tc(item.question)}</Text>
+                <Text style={styles.faqAnswer}>{tc(item.answer)}</Text>
               </View>
             ))}
           </View>
@@ -194,14 +196,15 @@ function PerkCard({
   title: string;
 }) {
   const Icon = icon === "wallet" ? WalletIcon : icon === "support" ? HeadphonesIcon : SparklesIcon;
+  const tc = useCopy();
 
   return (
     <View style={styles.perkCard}>
       <View style={styles.perkIcon}>
         <Icon color={colors.primaryDark} size={22} strokeWidth={typography.iconStrokeWidth} />
       </View>
-      <Text style={styles.perkTitle}>{title}</Text>
-      <Text style={styles.perkBody}>{body}</Text>
+      <Text style={styles.perkTitle}>{tc(title)}</Text>
+      <Text style={styles.perkBody}>{tc(body)}</Text>
     </View>
   );
 }

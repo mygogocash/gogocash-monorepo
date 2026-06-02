@@ -19,7 +19,10 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { useCopy } from "@mobile/i18n/useCopy";
 import profileAvatarImage from "../../assets/profile-avatar.png";
+import { GoGoPassAvatar } from "@mobile/components/GoGoPassAvatar";
+import { GoGoPassBadge } from "@mobile/components/GoGoPassBadge";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
 import {
@@ -121,6 +124,7 @@ export function AccountPageShell({
 }
 
 function DesktopProfileRail({ activeRouteId }: { activeRouteId: AccountRouteId }) {
+  const tc = useCopy();
   return (
     <View style={styles.desktopRail}>
       {profileHubMenuItems.slice(0, 9).map((item) => {
@@ -130,6 +134,7 @@ function DesktopProfileRail({ activeRouteId }: { activeRouteId: AccountRouteId }
             : activeRouteId === "profile"
               ? item.href === "/profile"
               : false;
+        const label = tc(item.label);
 
         return (
           <Link asChild href={item.href as never} key={item.label}>
@@ -138,11 +143,9 @@ function DesktopProfileRail({ activeRouteId }: { activeRouteId: AccountRouteId }
               style={StyleSheet.flatten([styles.railRow, active ? styles.railRowActive : null])}
             >
               <Text style={[styles.railDot, active ? styles.railDotActive : null]}>
-                {item.label.slice(0, 1)}
+                {label.slice(0, 1)}
               </Text>
-              <Text style={[styles.railLabel, active ? styles.railLabelActive : null]}>
-                {item.label}
-              </Text>
+              <Text style={[styles.railLabel, active ? styles.railLabelActive : null]}>{label}</Text>
             </MotionPressable>
           </Link>
         );
@@ -156,30 +159,38 @@ export function AccountWalletHeroCard({
   currency = "USD",
   lastUpdated = "Last Updated: -",
   maskedId = "****",
+  tier,
   title = "USER",
 }: {
   amount?: string;
   currency?: string;
   lastUpdated?: string;
   maskedId?: string;
+  tier?: string;
   title?: string;
 }) {
+  const tc = useCopy();
   return (
     <View style={styles.walletHeroCard}>
       <View style={styles.walletHeroTopBand}>
         <View style={styles.walletHeroHeader}>
-          <Image
-            alt="Profile avatar"
-            source={profileAvatarImage}
-            style={[styles.walletAvatar, styles.walletAvatarLarge]}
-          />
+          <GoGoPassAvatar size={72} tier={tier}>
+            <Image
+              alt={tc("Profile avatar")}
+              source={profileAvatarImage}
+              style={[styles.walletAvatar, styles.walletAvatarLarge]}
+            />
+          </GoGoPassAvatar>
           <View style={styles.walletHeroUser}>
-            <Text style={styles.walletHeroName}>{title}</Text>
+            <View style={styles.walletHeroNameRow}>
+              <GoGoPassBadge tier={tier} />
+              <Text style={styles.walletHeroName}>{title}</Text>
+            </View>
             <Text style={styles.walletHeroId}>{maskedId}</Text>
           </View>
         </View>
         <View style={[styles.walletHeroGlassPanel, walletHeroGlassGradientStyle]}>
-          <Text style={styles.walletKicker}>Total Cashback Available</Text>
+          <Text style={styles.walletKicker}>{tc("Total Cashback Available")}</Text>
           <View style={styles.walletAmountRow}>
             <Text style={styles.walletAmount}>{amount}</Text>
             <Text style={styles.walletCurrency}>{currency}</Text>
@@ -187,7 +198,7 @@ export function AccountWalletHeroCard({
           <Text style={styles.walletUpdated}>{lastUpdated}</Text>
           <Link asChild href="/withdraw">
             <MotionPressable pressScale={0.98} style={styles.walletWithdrawButton}>
-              <Text style={styles.walletWithdrawText}>Withdraw</Text>
+              <Text style={styles.walletWithdrawText}>{tc("Withdraw")}</Text>
               <ExternalLinkIcon
                 color={colors.white}
                 size={16}
@@ -388,6 +399,11 @@ const styles = StyleSheet.create({
   walletHeroUser: {
     alignItems: "flex-end",
     flex: 1,
+  },
+  walletHeroNameRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 6,
   },
   walletHeroName: {
     color: colors.white,

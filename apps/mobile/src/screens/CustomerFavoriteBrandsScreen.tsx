@@ -9,6 +9,7 @@ import { Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from "r
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { useCopy } from "@mobile/i18n/useCopy";
 import { mobileShellLayout, webFavoriteBrandsPage } from "@mobile/design/webDesignParity";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 import favoriteHeroBagImage from "../../assets/favorite-hero-bag.png";
@@ -26,12 +27,13 @@ const favoriteBrandArtSources = {
 } as const;
 
 export function CustomerFavoriteBrandsScreen() {
+  const tc = useCopy();
   return (
     <FavoriteBrandsSubPage>
       <View style={styles.favoriteBlueShell}>
         <FavoriteBrandsTopBar />
         <View style={styles.content}>
-          <Text style={styles.pageTitle}>{webFavoriteBrandsPage.title}</Text>
+          <Text style={styles.pageTitle}>{tc(webFavoriteBrandsPage.title)}</Text>
           <FavoriteBrandsHero />
           <RecentlyVisitedBrandsGrid />
           <FavoriteBrandsListPreview />
@@ -42,25 +44,28 @@ export function CustomerFavoriteBrandsScreen() {
 }
 
 function FavoriteBrandsSubPage({ children }: { children: ReactNode }) {
+  const tc = useCopy();
   return (
-    <AccountPageShell activeRouteId="profile" showTitle={false} title={webFavoriteBrandsPage.title}>
+    <AccountPageShell activeRouteId="profile" showTitle={false} title={tc(webFavoriteBrandsPage.title)}>
       <View style={[styles.surface, styles.favoriteBrandsSurfaceBleed]}>{children}</View>
     </AccountPageShell>
   );
 }
 
 function FavoriteBrandsTopBar() {
+  const tc = useCopy();
   return (
     <Link asChild href="/profile">
       <Pressable accessibilityRole="link" style={styles.topBar}>
         <ChevronLeftIcon color={colors.accent} size={28} strokeWidth={typography.iconStrokeWidth} />
-        <Text style={styles.topBarTitle}>{webFavoriteBrandsPage.title}</Text>
+        <Text style={styles.topBarTitle}>{tc(webFavoriteBrandsPage.title)}</Text>
       </Pressable>
     </Link>
   );
 }
 
 function FavoriteBrandsHero() {
+  const tc = useCopy();
   return (
     <View style={styles.heroCard}>
       <Image
@@ -68,15 +73,15 @@ function FavoriteBrandsHero() {
         source={favoriteHeroLogoImage}
         style={styles.heroLogo}
       />
-      <Text style={styles.heroTitle}>{webFavoriteBrandsPage.hero.title}</Text>
-      <Text style={styles.heroDescription}>{webFavoriteBrandsPage.hero.description}</Text>
+      <Text style={styles.heroTitle}>{tc(webFavoriteBrandsPage.hero.title)}</Text>
+      <Text style={styles.heroDescription}>{tc(webFavoriteBrandsPage.hero.description)}</Text>
       <Link asChild href="/shops">
         <MotionPressable accessibilityRole="link" pressScale={0.98} style={styles.heroButton}>
-          <Text style={styles.heroButtonText}>{webFavoriteBrandsPage.hero.actionLabel}</Text>
+          <Text style={styles.heroButtonText}>{tc(webFavoriteBrandsPage.hero.actionLabel)}</Text>
         </MotionPressable>
       </Link>
       <Image
-        alt={webFavoriteBrandsPage.hero.illustrationAlt}
+        alt={tc(webFavoriteBrandsPage.hero.illustrationAlt)}
         resizeMode="contain"
         source={favoriteHeroBagImage}
         style={styles.heroBag}
@@ -86,12 +91,13 @@ function FavoriteBrandsHero() {
 }
 
 function RecentlyVisitedBrandsGrid() {
+  const tc = useCopy();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
 
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{webFavoriteBrandsPage.recentTitle}</Text>
+      <Text style={styles.sectionTitle}>{tc(webFavoriteBrandsPage.recentTitle)}</Text>
       <View style={[styles.brandGrid, isDesktop ? styles.brandGridDesktop : null]}>
         {webFavoriteBrandsPage.recentBrands.map((brand) => (
           <FavoriteBrandCard brand={brand} key={brand.id} />
@@ -102,13 +108,14 @@ function RecentlyVisitedBrandsGrid() {
 }
 
 function FavoriteBrandsListPreview() {
+  const tc = useCopy();
   return (
     <View style={styles.section}>
       <View style={styles.favoriteListHeader}>
-        <Text style={styles.sectionTitle}>{webFavoriteBrandsPage.favoritesTitle}</Text>
+        <Text style={styles.sectionTitle}>{tc(webFavoriteBrandsPage.favoritesTitle)}</Text>
         <View style={styles.searchPill}>
           <SearchIcon color={colors.textSoft} size={16} strokeWidth={typography.iconStrokeWidth} />
-          <Text style={styles.searchText}>{webFavoriteBrandsPage.searchPlaceholder}</Text>
+          <Text style={styles.searchText}>{tc(webFavoriteBrandsPage.searchPlaceholder)}</Text>
         </View>
       </View>
       <View style={styles.brandGrid}>
@@ -121,10 +128,11 @@ function FavoriteBrandsListPreview() {
 }
 
 function FavoriteBrandCard({ brand, favorite = false }: { brand: FavoriteBrand; favorite?: boolean }) {
+  const tc = useCopy();
   return (
     <Link asChild href={brand.href as never}>
       <MotionPressable
-        accessibilityLabel={`${brand.name} ${webFavoriteBrandsPage.cashbackLabel} ${brand.cashback}`}
+        accessibilityLabel={`${brand.name} ${tc(webFavoriteBrandsPage.cashbackLabel)} ${brand.cashback}`}
         accessibilityRole="link"
         pressScale={0.985}
         style={styles.brandCard}
@@ -144,7 +152,7 @@ function FavoriteBrandCard({ brand, favorite = false }: { brand: FavoriteBrand; 
                 strokeWidth={typography.iconStrokeWidth}
               />
               <Text numberOfLines={1} style={styles.couponText}>
-                {webFavoriteBrandsPage.grabCouponLabel}
+                {tc(webFavoriteBrandsPage.grabCouponLabel)}
               </Text>
             </View>
           ) : null}
@@ -157,7 +165,7 @@ function FavoriteBrandCard({ brand, favorite = false }: { brand: FavoriteBrand; 
               strokeWidth={typography.iconStrokeWidth}
             />
             <Text numberOfLines={1} style={styles.categoryText}>
-              {brand.category}
+              {tc(brand.category)}
             </Text>
           </View>
           <View style={styles.brandNameRow}>
@@ -165,11 +173,11 @@ function FavoriteBrandCard({ brand, favorite = false }: { brand: FavoriteBrand; 
               <Text numberOfLines={2} style={styles.brandName}>
                 {brand.name}
               </Text>
-              <Text style={styles.cashbackCaption}>{webFavoriteBrandsPage.cashbackLabel}</Text>
+              <Text style={styles.cashbackCaption}>{tc(webFavoriteBrandsPage.cashbackLabel)}</Text>
             </View>
             <Text style={styles.cashbackValue}>{brand.cashback}</Text>
           </View>
-          {favorite ? <Text style={styles.favoriteState}>Saved</Text> : null}
+          {favorite ? <Text style={styles.favoriteState}>{tc("Saved")}</Text> : null}
         </View>
       </MotionPressable>
     </Link>

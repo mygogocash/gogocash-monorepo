@@ -1,17 +1,15 @@
-import { Link } from "expo-router";
-import {
-  CheckCircle2 as CheckCircleIcon,
-  ChevronLeft as ChevronLeftIcon,
-  Link as LinkIcon,
-} from "@mobile/theme/icons";
+import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import {
   Image,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   useWindowDimensions,
   View,
+  type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -24,44 +22,210 @@ import { MotionPressable } from "@mobile/components/MotionPressable";
 import {
   getDesktopShellHorizontalPadding,
   mobileShellLayout,
+  webLinkMyCashbackIntro,
 } from "@mobile/design/webDesignParity";
-import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
+import { Check, CheckCircle } from "@mobile/theme/icons";
+import { motion } from "@mobile/theme/motion";
+import { colors, radii, spacing, typography } from "@mobile/theme/tokens";
 
-const myCashbackSignInAlt = "MyCashback sign-in screen (desktop reference)";
+// Mirrors the web LinkMyCashback copy (web link-mycashback/constants.ts). Mock OTP is 123456.
+const LINK_VERIFY_OTP = "123456";
+const RESEND_COUNTDOWN_SECONDS = 60;
 
-const accountOptions = [
-  {
-    balance: "1,240.00 THB",
-    label: "Connected account",
-    meta: "mycashback.user@example.com",
-    selected: true,
-  },
-  {
-    balance: "320.50 THB",
-    label: "Secondary MyCashback",
-    meta: "Waiting for confirmation",
-    selected: false,
-  },
-] as const;
+const linkCopy = {
+  methodTitle: "Select Your Preferred Linking Method",
+  methodDescription:
+    "Please select 'Email' or 'Phone Number' as registered with MyCashBack to ensure your account is linked correctly.",
+  phoneLabel: "Phone Number",
+  emailLabel: "Email",
+  phonePlaceholder: "Phone Number",
+  emailPlaceholder: "Email",
+  consentPrefix: "I consent to share my MyCashBack information. ",
+  privacyPolicyLabel: "Privacy Policy",
+  back: "Back",
+  next: "Next",
+  verifyTitle: "Verification Code",
+  verifyDescriptionPhone:
+    "A verification code will be sent to your mobile number to confirm this action is being performed by you.",
+  verifyDescriptionEmail:
+    "A verification code will be sent to your email address to confirm this action is being performed by you.",
+  verifySentToPhone: "Code is sent to phone number :",
+  verifySentToEmail: "Code is sent to email :",
+  verifyResend: "Resend ?",
+  verifyOtpAria: "Verification code",
+  verifyInvalidOtp: "That code doesn’t match. Check the code and try again.",
+  successTitle: "Verification successful",
+  successDescription:
+    "Your contact details have been confirmed. Continue to finish linking your MyCashBack account.",
+  successContinue: "Continue",
+  successEditCode: "Change code",
+} as const;
+
+// Web-only smoothing + green focus ring for the OTP cells (instant on native).
+const webOtpCellMotionStyle = {
+  transitionDuration: motion.cssTransition.duration,
+  transitionProperty: "transform, border-color, box-shadow, background-color",
+  transitionTimingFunction: motion.cssTransition.timingFunction,
+} as unknown as ViewStyle;
+
+const webOtpCellActiveGlowStyle = {
+  boxShadow: "0 0 0 4px rgba(86, 212, 170, 0.18), 0 6px 16px rgba(0, 204, 153, 0.18)",
+} as unknown as ViewStyle;
+
+type LinkChannel = "phone" | "email";
+type LinkStep = "method" | "verify" | "success";
+
+function formatCountdown(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+function maskEmailForDisplay(email: string): string {
+  const trimmed = email.trim();
+  const atIndex = trimmed.indexOf("@");
+  if (atIndex <= 0) {
+    return "****";
+  }
+  return `${trimmed.slice(0, 1)}***${trimmed.slice(atIndex)}`;
+}
+
+function LinkOtpBoxes({
+  hasError,
+  onChangeText,
+  value,
+}: {
+  hasError: boolean;
+  onChangeText: (value: string) => void;
+  value: string;
+}) {
+  const [isFocused, setIsFocused] = useState(false);
+  const otpDigits = Array.from({ length: 6 }, (_, index) => value[index] ?? "");
+  const activeIndex = isFocused && value.length < otpDigits.length ? value.length : -1;
+
+  return (
+    <View style={styles.otpWrap}>
+      <TextInput
+        accessibilityLabel={linkCopy.verifyOtpAria}
+        keyboardType="number-pad"
+        maxLength={6}
+        onBlur={() => setIsFocused(false)}
+        onChangeText={onChangeText}
+        onFocus={() => setIsFocused(true)}
+        returnKeyType="done"
+        style={styles.otpHiddenInput}
+        value={value}
+      />
+      <View style={styles.otpRow}>
+        {otpDigits.map((digit, index) => {
+          const isFilled = index < value.length;
+          const isActive = index === activeIndex;
+          return (
+            <View
+              key={index}
+              style={[
+                styles.otpCell,
+                webOtpCellMotionStyle,
+                isFilled ? styles.otpCellFilled : null,
+                isActive && !hasError ? styles.otpCellActive : null,
+                isActive && !hasError ? webOtpCellActiveGlowStyle : null,
+                hasError ? styles.otpCellError : null,
+              ]}
+            >
+              <Text style={styles.otpCellText}>{digit}</Text>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
 
 export function CustomerMyCashbackSignInScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
   const shellPadding = isDesktop
     ? getDesktopShellHorizontalPadding(width)
     : mobileShellLayout.contentHorizontalPadding;
 
+  const [linkStep, setLinkStep] = useState<LinkStep>("method");
+  const [linkChannel, setLinkChannel] = useState<LinkChannel>("phone");
+  const [phoneLocal, setPhoneLocal] = useState("");
+  const [emailValue, setEmailValue] = useState("");
+  const [consentChecked, setConsentChecked] = useState(false);
+  const [otpInput, setOtpInput] = useState("");
+  const [otpError, setOtpError] = useState(false);
+  const [resendSeconds, setResendSeconds] = useState(0);
+
+  const phoneDigits = phoneLocal.replace(/\D/g, "");
+  const otpDigits = otpInput.replace(/\D/g, "");
+  const canSubmitMethod =
+    consentChecked &&
+    (linkChannel === "phone" ? phoneDigits.length >= 9 : emailValue.trim().length > 0);
+  const canSubmitOtp = otpDigits.length === 6;
+
+  useEffect(() => {
+    if (linkStep !== "verify" || resendSeconds <= 0) {
+      return undefined;
+    }
+    const timer = setTimeout(() => setResendSeconds((seconds) => seconds - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [linkStep, resendSeconds]);
+
+  const goToVerify = () => {
+    if (!canSubmitMethod) {
+      return;
+    }
+    setOtpInput("");
+    setOtpError(false);
+    setResendSeconds(RESEND_COUNTDOWN_SECONDS);
+    setLinkStep("verify");
+  };
+
+  const handleOtpChange = (next: string) => {
+    setOtpInput(next.replace(/\D/g, "").slice(0, 6));
+    setOtpError(false);
+  };
+
+  const handleResend = () => {
+    if (resendSeconds > 0) {
+      return;
+    }
+    setOtpInput("");
+    setOtpError(false);
+    setResendSeconds(RESEND_COUNTDOWN_SECONDS);
+  };
+
+  const handleVerifySubmit = () => {
+    if (!canSubmitOtp) {
+      return;
+    }
+    if (otpDigits === LINK_VERIFY_OTP) {
+      setLinkStep("success");
+      return;
+    }
+    setOtpError(true);
+  };
+
+  const maskedDestination =
+    linkChannel === "phone"
+      ? phoneDigits.length >= 4
+        ? `***${phoneDigits.slice(-4)}`
+        : "****"
+      : maskEmailForDisplay(emailValue);
+
   return (
     <View style={styles.viewport}>
       <View style={[styles.shell, isDesktop ? styles.desktopShell : styles.phoneFrame]}>
         {isDesktop ? <CustomerDesktopHeader viewportWidth={width} /> : null}
         <ScrollView
-          contentContainerStyle={[styles.page, isDesktop ? styles.pageDesktop : null]}
+          contentContainerStyle={[styles.page, isDesktop ? styles.pageDesktop : styles.pageMobile]}
           showsVerticalScrollIndicator={false}
         >
           <View
-            accessibilityLabel={myCashbackSignInAlt}
+            accessibilityLabel="Link MyCashback with GoGoCash"
             style={[
               styles.heroBand,
               {
@@ -72,17 +236,7 @@ export function CustomerMyCashbackSignInScreen() {
             ]}
             testID="mycashbackSignIn"
           >
-            <View style={[styles.referenceCard, isDesktop ? styles.referenceCardDesktop : null]}>
-              <Link asChild href="/link-mycashback">
-                <Pressable accessibilityRole="link" style={styles.backLink}>
-                  <ChevronLeftIcon
-                    color={colors.accent}
-                    size={24}
-                    strokeWidth={typography.iconStrokeWidth}
-                  />
-                  <Text style={styles.backLinkText}>Back</Text>
-                </Pressable>
-              </Link>
+            <View style={styles.introContent}>
               <Image
                 alt="GoGoCash"
                 accessibilityIgnoresInvertColors
@@ -90,67 +244,282 @@ export function CustomerMyCashbackSignInScreen() {
                 source={logoMarkImage}
                 style={styles.logoMark}
               />
-              <Text style={styles.title}>Select Your Preferred Link</Text>
-              <Text style={styles.subtitle}>
-                Choose the MyCashback account you want to connect with GoGoCash.
-              </Text>
+              <Text style={styles.title}>{webLinkMyCashbackIntro.title}</Text>
+              <Text style={styles.subtitle}>{webLinkMyCashbackIntro.subtitle}</Text>
 
               <View style={styles.connectorRow}>
                 <View style={styles.connectorImageFrame}>
                   <Image
-                    alt="MyCashback account"
-                    resizeMode="contain"
-                    source={linkMyCashbackImage}
-                    style={styles.connectorImage}
-                  />
-                </View>
-                <View style={styles.connectorLine}>
-                  <LinkIcon color={colors.primaryDark} size={20} strokeWidth={2.2} />
-                </View>
-                <View style={styles.connectorImageFrame}>
-                  <Image
-                    alt="GoGoCash account"
+                    alt={webLinkMyCashbackIntro.goGoCashImageLabel}
+                    accessibilityIgnoresInvertColors
+                    accessibilityLabel={webLinkMyCashbackIntro.goGoCashImageLabel}
                     resizeMode="contain"
                     source={linkGoGoCashImage}
                     style={styles.connectorImage}
                   />
                 </View>
+                <View style={styles.connectorDots}>
+                  {webLinkMyCashbackIntro.connectorDots.map((dotColor, index) => (
+                    <View
+                      key={`${dotColor}-${index}`}
+                      style={[styles.connectorDot, { backgroundColor: dotColor }]}
+                    />
+                  ))}
+                </View>
+                <View style={styles.connectorImageFrame}>
+                  <Image
+                    alt={webLinkMyCashbackIntro.myCashbackImageAlt}
+                    accessibilityIgnoresInvertColors
+                    accessibilityLabel={webLinkMyCashbackIntro.myCashbackImageAlt}
+                    resizeMode="contain"
+                    source={linkMyCashbackImage}
+                    style={styles.connectorImage}
+                  />
+                </View>
               </View>
 
-              <View style={styles.accountList}>
-                {accountOptions.map((account) => (
-                  <View
-                    key={account.label}
-                    style={[styles.accountRow, account.selected ? styles.accountRowSelected : null]}
-                  >
-                    <View style={styles.accountCopy}>
-                      <Text style={styles.accountLabel}>{account.label}</Text>
-                      <Text style={styles.accountMeta}>{account.meta}</Text>
+              {linkStep === "method" ? (
+                <View style={styles.stepBody}>
+                  <View style={styles.stepHeader}>
+                    <Text style={styles.stepTitle}>{linkCopy.methodTitle}</Text>
+                    <Text style={styles.stepDescription}>{linkCopy.methodDescription}</Text>
+                  </View>
+
+                  <View style={styles.radioRow}>
+                    {(
+                      [
+                        { value: "phone", label: linkCopy.phoneLabel },
+                        { value: "email", label: linkCopy.emailLabel },
+                      ] as const
+                    ).map((option) => {
+                      const selected = linkChannel === option.value;
+                      return (
+                        <Pressable
+                          key={option.value}
+                          accessibilityRole="radio"
+                          accessibilityState={{ checked: selected }}
+                          onPress={() => setLinkChannel(option.value)}
+                          style={styles.radioOption}
+                        >
+                          <View
+                            style={[styles.radioOuter, selected ? styles.radioOuterActive : null]}
+                          >
+                            {selected ? <View style={styles.radioInner} /> : null}
+                          </View>
+                          <Text style={styles.radioLabel}>{option.label}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+
+                  {linkChannel === "phone" ? (
+                    <View style={styles.phoneRow}>
+                      <View style={styles.phonePrefix}>
+                        <Text style={styles.phonePrefixText}>+66</Text>
+                      </View>
+                      <TextInput
+                        autoComplete="tel"
+                        inputMode="numeric"
+                        keyboardType="number-pad"
+                        maxLength={10}
+                        onChangeText={(value) =>
+                          setPhoneLocal(value.replace(/\D/g, "").slice(0, 10))
+                        }
+                        placeholder={linkCopy.phonePlaceholder}
+                        placeholderTextColor="#7F7F7F"
+                        style={[styles.input, styles.inputFlex]}
+                        value={phoneLocal}
+                      />
                     </View>
-                    <View style={styles.accountStatus}>
-                      <Text style={styles.accountBalance}>{account.balance}</Text>
-                      {account.selected ? (
-                        <CheckCircleIcon
-                          color={colors.primaryDark}
-                          size={20}
-                          strokeWidth={typography.iconStrokeWidth}
-                        />
-                      ) : null}
+                  ) : (
+                    <TextInput
+                      autoCapitalize="none"
+                      autoComplete="email"
+                      autoCorrect={false}
+                      inputMode="email"
+                      keyboardType="email-address"
+                      onChangeText={setEmailValue}
+                      placeholder={linkCopy.emailPlaceholder}
+                      placeholderTextColor="#7F7F7F"
+                      style={[styles.input, styles.inputFull]}
+                      value={emailValue}
+                    />
+                  )}
+
+                  <Pressable
+                    accessibilityLabel={linkCopy.consentPrefix + linkCopy.privacyPolicyLabel}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: consentChecked }}
+                    onPress={() => setConsentChecked((value) => !value)}
+                    style={styles.consentRow}
+                  >
+                    <View
+                      style={[
+                        styles.consentCheckbox,
+                        consentChecked ? styles.consentCheckboxChecked : null,
+                      ]}
+                    >
+                      {consentChecked ? <Check color={colors.white} size={13} weight="bold" /> : null}
+                    </View>
+                    <Text style={styles.consentText}>
+                      {linkCopy.consentPrefix}
+                      <Text style={styles.consentLink}>{linkCopy.privacyPolicyLabel}</Text>
+                    </Text>
+                  </Pressable>
+
+                  <View style={styles.actionRow}>
+                    <MotionPressable
+                      accessibilityLabel={linkCopy.back}
+                      accessibilityRole="button"
+                      hoverLift={false}
+                      onPress={() => router.push("/link-mycashback")}
+                      pressScale={motion.scale.subtlePress}
+                      style={StyleSheet.flatten([styles.actionButton, styles.backButton])}
+                    >
+                      <Text style={[styles.actionButtonText, styles.backButtonText]}>
+                        {linkCopy.back}
+                      </Text>
+                    </MotionPressable>
+                    <MotionPressable
+                      accessibilityRole="button"
+                      accessibilityState={{ disabled: !canSubmitMethod }}
+                      disabled={!canSubmitMethod}
+                      hoverLift={false}
+                      onPress={goToVerify}
+                      pressScale={motion.scale.subtlePress}
+                      style={StyleSheet.flatten([
+                        styles.actionButton,
+                        canSubmitMethod ? styles.nextButton : styles.nextButtonDisabled,
+                      ])}
+                    >
+                      <Text
+                        style={[
+                          styles.actionButtonText,
+                          canSubmitMethod ? styles.nextButtonText : styles.nextButtonTextDisabled,
+                        ]}
+                      >
+                        {linkCopy.next}
+                      </Text>
+                    </MotionPressable>
+                  </View>
+                </View>
+              ) : linkStep === "verify" ? (
+                <View style={styles.stepBody}>
+                  <View style={styles.stepHeader}>
+                    <Text style={styles.stepTitle}>{linkCopy.verifyTitle}</Text>
+                    <Text style={styles.stepDescription}>
+                      {linkChannel === "phone"
+                        ? linkCopy.verifyDescriptionPhone
+                        : linkCopy.verifyDescriptionEmail}
+                    </Text>
+                    <View style={styles.sentRow}>
+                      <Text style={styles.sentLabel}>
+                        {linkChannel === "phone"
+                          ? linkCopy.verifySentToPhone
+                          : linkCopy.verifySentToEmail}
+                      </Text>
+                      <Text style={styles.sentDestination}>{maskedDestination}</Text>
                     </View>
                   </View>
-                ))}
-              </View>
 
-              <Link asChild href="/method/create">
-                <MotionPressable
-                  accessibilityLabel="Link Selected Account"
-                  accessibilityRole="link"
-                  pressScale={0.98}
-                  style={styles.primaryAction}
-                >
-                  <Text style={styles.primaryActionText}>Link Selected Account</Text>
-                </MotionPressable>
-              </Link>
+                  <LinkOtpBoxes
+                    hasError={otpError}
+                    onChangeText={handleOtpChange}
+                    value={otpInput}
+                  />
+                  {otpError ? (
+                    <Text accessibilityRole="alert" style={styles.otpErrorText}>
+                      {linkCopy.verifyInvalidOtp}
+                    </Text>
+                  ) : null}
+
+                  <View style={styles.resendRow}>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityState={{ disabled: resendSeconds > 0 }}
+                      disabled={resendSeconds > 0}
+                      onPress={handleResend}
+                    >
+                      <Text
+                        style={[
+                          styles.resendText,
+                          resendSeconds > 0 ? styles.resendTextDisabled : null,
+                        ]}
+                      >
+                        {linkCopy.verifyResend}
+                      </Text>
+                    </Pressable>
+                    <Text style={styles.resendCountdown}>{formatCountdown(resendSeconds)}</Text>
+                  </View>
+
+                  <View style={styles.actionRow}>
+                    <MotionPressable
+                      accessibilityLabel={linkCopy.back}
+                      accessibilityRole="button"
+                      hoverLift={false}
+                      onPress={() => {
+                        setLinkStep("method");
+                        setOtpInput("");
+                        setOtpError(false);
+                      }}
+                      pressScale={motion.scale.subtlePress}
+                      style={StyleSheet.flatten([styles.actionButton, styles.backButton])}
+                    >
+                      <Text style={[styles.actionButtonText, styles.backButtonText]}>
+                        {linkCopy.back}
+                      </Text>
+                    </MotionPressable>
+                    <MotionPressable
+                      accessibilityRole="button"
+                      accessibilityState={{ disabled: !canSubmitOtp }}
+                      disabled={!canSubmitOtp}
+                      hoverLift={false}
+                      onPress={handleVerifySubmit}
+                      pressScale={motion.scale.subtlePress}
+                      style={StyleSheet.flatten([
+                        styles.actionButton,
+                        canSubmitOtp ? styles.nextButton : styles.nextButtonDisabled,
+                      ])}
+                    >
+                      <Text
+                        style={[
+                          styles.actionButtonText,
+                          canSubmitOtp ? styles.nextButtonText : styles.nextButtonTextDisabled,
+                        ]}
+                      >
+                        {linkCopy.next}
+                      </Text>
+                    </MotionPressable>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.successBody}>
+                  <CheckCircle color={colors.primary} size={64} weight="fill" />
+                  <Text style={styles.successTitle}>{linkCopy.successTitle}</Text>
+                  <Text style={styles.successDescription}>{linkCopy.successDescription}</Text>
+                  <View style={styles.successActions}>
+                    <MotionPressable
+                      accessibilityRole="button"
+                      hoverLift={false}
+                      onPress={() => router.push("/account-setup")}
+                      pressScale={motion.scale.subtlePress}
+                      style={styles.successContinueButton}
+                    >
+                      <Text style={styles.successContinueText}>{linkCopy.successContinue}</Text>
+                    </MotionPressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => {
+                        setLinkStep("verify");
+                        setOtpInput("");
+                        setOtpError(false);
+                      }}
+                    >
+                      <Text style={styles.successEditCodeText}>{linkCopy.successEditCode}</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              )}
             </View>
           </View>
           {isDesktop ? (
@@ -182,152 +551,408 @@ const styles = StyleSheet.create({
     maxWidth: mobileShellLayout.contentMaxWidth,
   },
   page: {
-    backgroundColor: "#DCEBFF",
     flexGrow: 1,
   },
   pageDesktop: {
     backgroundColor: colors.white,
   },
+  pageMobile: {
+    backgroundColor: webLinkMyCashbackIntro.backgroundColor,
+  },
   heroBand: {
     alignItems: "center",
-    backgroundColor: "#DCEBFF",
-    minHeight: 574,
+    backgroundColor: webLinkMyCashbackIntro.backgroundColor,
+    flexGrow: 1,
+    justifyContent: "center",
+    minHeight: 620,
     width: "100%",
   },
-  referenceCard: {
+  introContent: {
     alignItems: "center",
-    backgroundColor: colors.white,
-    borderColor: "rgba(63, 105, 146, 0.14)",
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    boxShadow: shadows.cardCss,
-    gap: spacing.md,
     maxWidth: 480,
-    padding: spacing.lg,
     width: "100%",
-  },
-  referenceCardDesktop: {
-    minHeight: 574,
-  },
-  backLink: {
-    alignItems: "center",
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    gap: spacing.xs,
-    minHeight: 36,
-  },
-  backLinkText: {
-    color: colors.accent,
-    fontFamily: typography.family,
-    fontSize: typography.body,
-    fontWeight: "700",
   },
   logoMark: {
-    borderRadius: 12,
-    height: 54,
-    width: 54,
+    borderRadius: radii.md,
+    height: 64,
+    width: 64,
   },
   title: {
     color: colors.primaryDark,
     fontFamily: typography.family,
-    fontSize: 26,
-    fontWeight: "800",
+    fontSize: typography.pageTitle,
+    fontWeight: typography.pageTitleWeight,
+    letterSpacing: typography.letterSpacing,
+    lineHeight: typography.pageTitleLineHeight,
+    marginTop: 24,
     textAlign: "center",
   },
   subtitle: {
-    color: "#46667C",
+    color: "#4F6C78",
     fontFamily: typography.family,
     fontSize: typography.body,
-    lineHeight: 22,
-    maxWidth: 360,
+    fontWeight: typography.bodyWeight,
+    lineHeight: typography.bodyLineHeight,
+    marginTop: 10,
     textAlign: "center",
   },
   connectorRow: {
     alignItems: "center",
     flexDirection: "row",
-    gap: spacing.md,
+    gap: 18,
     justifyContent: "center",
-    paddingVertical: spacing.sm,
+    marginTop: 36,
   },
   connectorImageFrame: {
-    alignItems: "center",
-    backgroundColor: "#EAF8FF",
-    borderRadius: 28,
+    borderRadius: 32,
+    boxShadow: "0 1px 4px rgba(16, 34, 23, 0.06)",
     height: 64,
-    justifyContent: "center",
+    overflow: "hidden",
     width: 64,
   },
   connectorImage: {
-    height: 42,
-    width: 42,
-  },
-  connectorLine: {
-    alignItems: "center",
-    backgroundColor: colors.primarySoft,
-    borderRadius: radii.chip,
-    height: 38,
-    justifyContent: "center",
-    width: 54,
-  },
-  accountList: {
-    gap: spacing.sm,
+    height: "100%",
     width: "100%",
   },
-  accountRow: {
+  connectorDots: {
     alignItems: "center",
-    backgroundColor: "#F8FBFF",
-    borderColor: "#D6E7F7",
-    borderRadius: radii.md,
-    borderWidth: 1,
     flexDirection: "row",
-    gap: spacing.md,
-    justifyContent: "space-between",
-    minHeight: 74,
-    padding: spacing.md,
+    gap: 10,
   },
-  accountRowSelected: {
-    backgroundColor: "#E7FBF6",
+  connectorDot: {
+    borderRadius: 3,
+    height: 6,
+    width: 6,
+  },
+  stepBody: {
+    gap: 20,
+    marginTop: 36,
+    width: "100%",
+  },
+  stepHeader: {
+    gap: 4,
+    width: "100%",
+  },
+  stepTitle: {
+    color: "#3B3B3B",
+    fontFamily: typography.family,
+    fontSize: 16,
+    fontWeight: "500",
+    lineHeight: 22,
+  },
+  stepDescription: {
+    color: "#7F7F7F",
+    fontFamily: typography.family,
+    fontSize: 14,
+    fontWeight: "400",
+    lineHeight: 20,
+  },
+  radioRow: {
+    columnGap: 24,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    rowGap: 12,
+    width: "100%",
+  },
+  radioOption: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 8,
+    minHeight: 28,
+  },
+  radioOuter: {
+    alignItems: "center",
+    backgroundColor: colors.white,
+    borderColor: "#989898",
+    borderRadius: 12,
+    borderWidth: 2,
+    height: 24,
+    justifyContent: "center",
+    width: 24,
+  },
+  radioOuterActive: {
+    backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
-  accountCopy: {
-    flex: 1,
-    gap: 4,
+  radioInner: {
+    backgroundColor: colors.white,
+    borderRadius: 5,
+    height: 10,
+    width: 10,
   },
-  accountLabel: {
-    color: colors.ink,
+  radioLabel: {
+    color: "#3B3B3B",
     fontFamily: typography.family,
-    fontSize: typography.body,
-    fontWeight: "800",
+    fontSize: 16,
+    fontWeight: "400",
   },
-  accountMeta: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: typography.caption,
-  },
-  accountStatus: {
-    alignItems: "flex-end",
-    gap: 4,
-  },
-  accountBalance: {
-    color: colors.primaryDark,
-    fontFamily: typography.family,
-    fontSize: typography.caption,
-    fontWeight: "800",
-  },
-  primaryAction: {
-    alignItems: "center",
-    backgroundColor: colors.primaryDark,
-    borderRadius: radii.chip,
-    justifyContent: "center",
-    minHeight: 50,
-    paddingHorizontal: spacing.lg,
+  phoneRow: {
+    flexDirection: "row",
+    gap: 8,
     width: "100%",
   },
-  primaryActionText: {
+  phonePrefix: {
+    alignItems: "center",
+    borderColor: "rgba(169, 169, 169, 0.5)",
+    borderRadius: 16,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 56,
+    paddingHorizontal: 16,
+  },
+  phonePrefixText: {
+    color: "#3B3B3B",
+    fontFamily: typography.family,
+    fontSize: 16,
+  },
+  input: {
+    backgroundColor: colors.white,
+    borderColor: "rgba(152, 152, 152, 0.4)",
+    borderRadius: 16,
+    borderWidth: 1,
+    color: "#3B3B3B",
+    fontFamily: typography.family,
+    fontSize: 16,
+    minHeight: 56,
+    paddingHorizontal: 16,
+  },
+  inputFlex: {
+    flex: 1,
+    minWidth: 0,
+  },
+  inputFull: {
+    width: "100%",
+  },
+  consentRow: {
+    alignItems: "center",
+    borderColor: "#E4E4E4",
+    borderRadius: 14,
+    borderWidth: 1.5,
+    flexDirection: "row",
+    gap: 10,
+    justifyContent: "center",
+    minHeight: 52,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    width: "100%",
+  },
+  consentCheckbox: {
+    alignItems: "center",
+    backgroundColor: colors.white,
+    borderColor: "#D0D5DD",
+    borderRadius: 6,
+    borderWidth: 2,
+    height: 20,
+    justifyContent: "center",
+    width: 20,
+  },
+  consentCheckboxChecked: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  consentText: {
+    color: "#3B3B3B",
+    flexShrink: 1,
+    fontFamily: typography.family,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  consentLink: {
+    color: colors.primaryDark,
+    fontFamily: typography.family,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  sentRow: {
+    alignItems: "center",
+    columnGap: 8,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginTop: 4,
+    rowGap: 2,
+  },
+  sentLabel: {
+    color: "#7F7F7F",
+    fontFamily: typography.family,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  sentDestination: {
+    color: "#3B3B3B",
+    fontFamily: typography.family,
+    fontSize: 14,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "700",
+    lineHeight: 20,
+  },
+  otpWrap: {
+    height: 56,
+    position: "relative",
+    width: "100%",
+  },
+  otpHiddenInput: {
+    bottom: 0,
+    color: "transparent",
+    left: 0,
+    opacity: 0.02,
+    position: "absolute",
+    right: 0,
+    top: 0,
+    zIndex: 2,
+  },
+  otpRow: {
+    flexDirection: "row",
+    gap: 8,
+    height: 56,
+    pointerEvents: "none",
+    width: "100%",
+  },
+  otpCell: {
+    alignItems: "center",
+    backgroundColor: colors.white,
+    borderColor: "#E4E4E4",
+    borderRadius: 14,
+    borderWidth: 1.5,
+    flex: 1,
+    justifyContent: "center",
+  },
+  otpCellFilled: {
+    borderColor: colors.primary,
+  },
+  otpCellActive: {
+    borderColor: "#56D4AA",
+    borderWidth: 2,
+  },
+  otpCellError: {
+    borderColor: colors.danger,
+  },
+  otpCellText: {
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: 20,
+    fontWeight: "800",
+  },
+  otpErrorText: {
+    color: colors.danger,
+    fontFamily: typography.family,
+    fontSize: 12,
+    fontWeight: "600",
+    lineHeight: 18,
+    textAlign: "center",
+  },
+  resendRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 6,
+    justifyContent: "center",
+  },
+  resendText: {
+    color: "#7F7F7F",
+    fontFamily: typography.family,
+    fontSize: 12,
+    textDecorationLine: "underline",
+  },
+  resendTextDisabled: {
+    opacity: 0.5,
+    textDecorationLine: "none",
+  },
+  resendCountdown: {
+    color: "#0064D6",
+    fontFamily: typography.family,
+    fontSize: 12,
+    fontVariant: ["tabular-nums"],
+  },
+  actionRow: {
+    flexDirection: "row",
+    gap: 16,
+    justifyContent: "center",
+    marginTop: 4,
+    width: "100%",
+  },
+  actionButton: {
+    alignItems: "center",
+    borderRadius: radii.chip,
+    justifyContent: "center",
+    minHeight: 48,
+    paddingHorizontal: 12,
+    width: 144,
+  },
+  actionButtonText: {
+    fontFamily: typography.family,
+    fontSize: 14,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  backButton: {
+    backgroundColor: colors.white,
+    borderColor: colors.primary,
+    borderWidth: 1,
+  },
+  backButtonText: {
+    color: colors.primary,
+  },
+  nextButton: {
+    backgroundColor: colors.primary,
+  },
+  nextButtonDisabled: {
+    backgroundColor: "#F6F6F6",
+  },
+  nextButtonText: {
+    color: colors.white,
+  },
+  nextButtonTextDisabled: {
+    color: "#989898",
+  },
+  successBody: {
+    alignItems: "center",
+    gap: 16,
+    marginTop: 36,
+    width: "100%",
+  },
+  successTitle: {
+    color: "#103522",
+    fontFamily: typography.family,
+    fontSize: 20,
+    fontWeight: "700",
+    lineHeight: 26,
+    textAlign: "center",
+  },
+  successDescription: {
+    color: "#5B6B61",
+    fontFamily: typography.family,
+    fontSize: 15,
+    lineHeight: 22,
+    maxWidth: 400,
+    textAlign: "center",
+  },
+  successActions: {
+    alignItems: "center",
+    gap: 12,
+    marginTop: 12,
+    width: "100%",
+  },
+  successContinueButton: {
+    alignItems: "center",
+    backgroundColor: colors.primary,
+    borderRadius: radii.chip,
+    justifyContent: "center",
+    maxWidth: 280,
+    minHeight: 48,
+    paddingHorizontal: 24,
+    width: "100%",
+  },
+  successContinueText: {
     color: colors.white,
     fontFamily: typography.family,
-    fontSize: typography.body,
+    fontSize: 15,
     fontWeight: "800",
+  },
+  successEditCodeText: {
+    color: colors.primaryDark,
+    fontFamily: typography.family,
+    fontSize: 14,
+    fontWeight: "600",
+    textDecorationLine: "underline",
   },
   desktopFooter: {
     backgroundColor: colors.white,

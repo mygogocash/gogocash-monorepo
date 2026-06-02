@@ -7,6 +7,7 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
+import { useCopy } from "@mobile/i18n/useCopy";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 const pdpaAgeVerifyTitle = "Age verification";
@@ -40,6 +41,7 @@ export function isOver20(dateInput: string, now = new Date()) {
 }
 
 export function CustomerAgeVerificationScreen() {
+  const tc = useCopy();
   const [birthDate, setBirthDate] = useState("");
   const [message, setMessage] = useState(pdpaAgeVerifyHint);
   const [status, setStatus] = useState<"idle" | "error" | "success">("idle");
@@ -62,7 +64,7 @@ export function CustomerAgeVerificationScreen() {
   };
 
   return (
-    <AccountPageShell activeRouteId="profile" showTitle={false} title={pdpaAgeVerifyTitle}>
+    <AccountPageShell activeRouteId="profile" showTitle={false} title={tc(pdpaAgeVerifyTitle)}>
       <View style={styles.surface}>
         <Link asChild href="/profile">
           <Pressable accessibilityRole="link" style={styles.topBar}>
@@ -71,11 +73,11 @@ export function CustomerAgeVerificationScreen() {
               size={26}
               strokeWidth={typography.iconStrokeWidth}
             />
-            <Text style={styles.topBarTitle}>{pdpaAgeVerifyTitle}</Text>
+            <Text style={styles.topBarTitle}>{tc(pdpaAgeVerifyTitle)}</Text>
           </Pressable>
         </Link>
 
-        <View accessibilityLabel={pdpaAgeVerifyTitle} style={styles.card}>
+        <View accessibilityLabel={tc(pdpaAgeVerifyTitle)} style={styles.card}>
           <View style={styles.iconFrame}>
             <ShieldCheckIcon
               color={colors.primaryDark}
@@ -84,14 +86,14 @@ export function CustomerAgeVerificationScreen() {
             />
           </View>
           <View style={styles.copy}>
-            <Text style={styles.title}>{pdpaAgeVerifyTitle}</Text>
-            <Text style={styles.body}>{pdpaAgeVerifyBody}</Text>
+            <Text style={styles.title}>{tc(pdpaAgeVerifyTitle)}</Text>
+            <Text style={styles.body}>{tc(pdpaAgeVerifyBody)}</Text>
           </View>
           <View style={styles.formRow}>
             <View style={styles.inputWrap}>
-              <Text style={styles.inputLabel}>{pdpaAgeVerifyPlaceholder}</Text>
+              <Text style={styles.inputLabel}>{tc(pdpaAgeVerifyPlaceholder)}</Text>
               <TextInput
-                accessibilityLabel={pdpaAgeVerifyPlaceholder}
+                accessibilityLabel={tc(pdpaAgeVerifyPlaceholder)}
                 onChangeText={setBirthDate}
                 onSubmitEditing={submit}
                 placeholder="YYYY-MM-DD"
@@ -110,7 +112,7 @@ export function CustomerAgeVerificationScreen() {
               ]}
             >
               <Text style={styles.submitText}>
-                {status === "success" ? pdpaAgeVerifySuccess : pdpaAgeVerifySubmit}
+                {tc(status === "success" ? pdpaAgeVerifySuccess : pdpaAgeVerifySubmit)}
               </Text>
             </Pressable>
           </View>
@@ -122,7 +124,7 @@ export function CustomerAgeVerificationScreen() {
               status === "success" ? styles.hintSuccess : null,
             ]}
           >
-            {message}
+            {tc(message)}
           </Text>
         </View>
       </View>

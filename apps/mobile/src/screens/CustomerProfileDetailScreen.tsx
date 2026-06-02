@@ -18,6 +18,7 @@ import {
 } from "@mobile/theme/icons";
 
 import { AccountPageShell, AccountWalletHeroCard } from "@mobile/components/AccountPageShell";
+import { useCopy } from "@mobile/i18n/useCopy";
 import {
   mobileShellLayout,
   webProfileInfoCashbackCard,
@@ -102,6 +103,7 @@ const models: Record<
 };
 
 export function CustomerProfileDetailScreen({ mode }: { mode: ProfileDetailMode }) {
+  const tc = useCopy();
   const insets = useSafeAreaInsets();
   const model = models[mode];
 
@@ -223,18 +225,18 @@ export function CustomerProfileDetailScreen({ mode }: { mode: ProfileDetailMode 
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.hero}>
-            <Text style={styles.kicker}>Profile</Text>
-            <Text style={styles.title}>{model.title}</Text>
-            <Text style={styles.body}>{model.body}</Text>
+            <Text style={styles.kicker}>{tc("Profile")}</Text>
+            <Text style={styles.title}>{tc(model.title)}</Text>
+            <Text style={styles.body}>{tc(model.body)}</Text>
             <Pressable style={styles.primaryAction}>
-              <Text style={styles.primaryActionText}>{model.action}</Text>
+              <Text style={styles.primaryActionText}>{tc(model.action)}</Text>
             </Pressable>
           </View>
 
           <View style={styles.card}>
             {model.rows.map((row) => (
               <View key={row} style={styles.row}>
-                <Text style={styles.rowText}>{row}</Text>
+                <Text style={styles.rowText}>{tc(row)}</Text>
                 <Text style={styles.rowArrow}>{">"}</Text>
               </View>
             ))}
@@ -242,7 +244,7 @@ export function CustomerProfileDetailScreen({ mode }: { mode: ProfileDetailMode 
 
           <Link asChild href="/profile">
             <Pressable style={styles.secondaryAction}>
-              <Text style={styles.secondaryActionText}>Back to Profile</Text>
+              <Text style={styles.secondaryActionText}>{tc("Back to Profile")}</Text>
             </Pressable>
           </Link>
         </ScrollView>
@@ -252,25 +254,28 @@ export function CustomerProfileDetailScreen({ mode }: { mode: ProfileDetailMode 
 }
 
 function ProfileInfoSubPage({ children }: { children: ReactNode }) {
+  const tc = useCopy();
   return (
-    <AccountPageShell activeRouteId="profile" showTitle={false} title="Profile">
+    <AccountPageShell activeRouteId="profile" showTitle={false} title={tc("Profile")}>
       <View style={styles.profileInfoSubPageSurface}>{children}</View>
     </AccountPageShell>
   );
 }
 
 function ProfileInfoTopBar() {
+  const tc = useCopy();
   return (
     <Link asChild href="/profile">
       <Pressable accessibilityRole="link" style={styles.profileInfoTopBar}>
         <ChevronLeftIcon color={colors.accent} size={26} strokeWidth={typography.iconStrokeWidth} />
-        <Text style={styles.profileInfoTopBarTitle}>Profile</Text>
+        <Text style={styles.profileInfoTopBarTitle}>{tc("Profile")}</Text>
       </Pressable>
     </Link>
   );
 }
 
 function ProfileCashbackSummaryCard() {
+  const tc = useCopy();
   return (
     <View style={styles.profileCashbackCard}>
       <View style={styles.profileCashbackTop}>
@@ -279,20 +284,23 @@ function ProfileCashbackSummaryCard() {
             <WalletIcon color={colors.primaryDark} size={22} strokeWidth={typography.iconStrokeWidth} />
           </View>
           <View style={styles.profileCashbackTitleCopy}>
-            <Text style={styles.profileCashbackTitle}>{webProfileInfoCashbackCard.title}</Text>
-            <Text style={styles.profileCashbackHint}>{webProfileInfoCashbackCard.hint}</Text>
+            <Text style={styles.profileCashbackTitle}>{tc(webProfileInfoCashbackCard.title)}</Text>
+            <Text style={styles.profileCashbackHint}>{tc(webProfileInfoCashbackCard.hint)}</Text>
           </View>
           <Link asChild href="/withdraw">
             <Pressable style={styles.profileCashbackWithdrawButton}>
               <Text style={styles.profileCashbackWithdrawText}>
-                {webProfileInfoCashbackCard.actionLabel}
+                {tc(webProfileInfoCashbackCard.actionLabel)}
               </Text>
             </Pressable>
           </Link>
         </View>
-        <View accessibilityLabel="AVAILABLE TO WITHDRAW" style={styles.profileCashbackAvailableBox}>
+        <View
+          accessibilityLabel={tc("AVAILABLE TO WITHDRAW")}
+          style={styles.profileCashbackAvailableBox}
+        >
           <Text style={styles.profileCashbackAvailableLabel}>
-            {webProfileInfoCashbackCard.availableLabel}
+            {tc(webProfileInfoCashbackCard.availableLabel)}
           </Text>
           <View style={styles.profileCashbackAvailableAmountRow}>
             <Text style={styles.profileCashbackAvailableAmount}>
@@ -306,13 +314,13 @@ function ProfileCashbackSummaryCard() {
       </View>
       <View style={styles.profileCashbackBreakdown}>
         <Text style={styles.profileCashbackBreakdownTitle}>
-          {webProfileInfoCashbackCard.breakdownTitle}
+          {tc(webProfileInfoCashbackCard.breakdownTitle)}
         </Text>
         {webProfileInfoCashbackCard.rows.map((row) => (
           <View key={row.label} style={styles.profileCashbackBreakdownRow}>
             <View style={styles.profileCashbackBreakdownCopy}>
-              <Text style={styles.profileCashbackBreakdownLabel}>{row.label}</Text>
-              <Text style={styles.profileCashbackBreakdownSubtitle}>{row.subtitle}</Text>
+              <Text style={styles.profileCashbackBreakdownLabel}>{tc(row.label)}</Text>
+              <Text style={styles.profileCashbackBreakdownSubtitle}>{tc(row.subtitle)}</Text>
             </View>
             <View style={styles.profileCashbackBreakdownAmountWrap}>
               <Text style={styles.profileCashbackBreakdownAmount}>{row.amount}</Text>
@@ -380,10 +388,11 @@ function ProfilePersonalInformationPanel({
   username: string;
   zip: string;
 }) {
+  const tc = useCopy();
   return (
     <View style={styles.personalInfoPanel}>
       <View style={styles.headerRow}>
-        <Text style={styles.infoTitle}>Personal Information</Text>
+        <Text style={styles.infoTitle}>{tc("Personal Information")}</Text>
         <Pressable
           onPress={onEditOrSave}
           style={[styles.editBtn, isEditing ? styles.saveBtnActive : styles.editBtnActive]}
@@ -394,7 +403,7 @@ function ProfilePersonalInformationPanel({
               isEditing ? styles.saveBtnTextActive : styles.editBtnTextActive,
             ]}
           >
-            {isEditing ? "Save" : "Edit"}
+            {isEditing ? tc("Save") : tc("Edit")}
           </Text>
           {isEditing ? (
             <SaveIcon color={colors.white} size={14} />
@@ -411,7 +420,7 @@ function ProfilePersonalInformationPanel({
             {errors.map((error) => (
               <Text key={error} style={styles.errorText}>
                 {"- "}
-                {error}
+                {tc(error)}
               </Text>
             ))}
           </View>
@@ -421,19 +430,19 @@ function ProfilePersonalInformationPanel({
       {successMsg ? (
         <View style={styles.successBanner}>
           <SuccessIcon color={colors.primaryDark} size={18} />
-          <Text style={styles.successText}>{successMsg}</Text>
+          <Text style={styles.successText}>{tc(successMsg)}</Text>
         </View>
       ) : null}
 
       <View style={styles.formCard}>
         <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Name / Username</Text>
+          <Text style={styles.inputLabel}>{tc("Name / Username")}</Text>
           <View style={[styles.inputBox, !isEditing && styles.inputBoxLocked]}>
             <UserIcon color={colors.muted} size={16} />
             <TextInput
               editable={isEditing}
               onChangeText={setUsername}
-              placeholder="Username"
+              placeholder={tc("Username")}
               placeholderTextColor={colors.textSoft}
               style={styles.textInput}
               value={username}
@@ -442,7 +451,7 @@ function ProfilePersonalInformationPanel({
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Identification Type</Text>
+          <Text style={styles.inputLabel}>{tc("Identification Type")}</Text>
           <View style={styles.idTypeRow}>
             <Pressable
               disabled={!isEditing}
@@ -453,7 +462,7 @@ function ProfilePersonalInformationPanel({
                 {idType === "national" ? <View style={styles.radioInner} /> : null}
               </View>
               <Text style={[styles.idTypeBtnText, idType === "national" && styles.idTypeBtnTextActive]}>
-                National ID
+                {tc("National ID")}
               </Text>
             </Pressable>
             <Pressable
@@ -465,7 +474,7 @@ function ProfilePersonalInformationPanel({
                 {idType === "passport" ? <View style={styles.radioInner} /> : null}
               </View>
               <Text style={[styles.idTypeBtnText, idType === "passport" && styles.idTypeBtnTextActive]}>
-                Passport
+                {tc("Passport")}
               </Text>
             </Pressable>
           </View>
@@ -540,15 +549,16 @@ function ProfileTextField({
   placeholder?: string;
   value: string;
 }) {
+  const tc = useCopy();
   return (
     <View style={styles.inputGroup}>
-      <Text style={styles.inputLabel}>{label}</Text>
+      <Text style={styles.inputLabel}>{tc(label)}</Text>
       <View style={[styles.inputBox, !editable && styles.inputBoxLocked]}>
         {icon}
         <TextInput
           editable={editable}
           onChangeText={onChangeText}
-          placeholder={placeholder}
+          placeholder={placeholder ? tc(placeholder) : placeholder}
           placeholderTextColor={colors.textSoft}
           style={styles.textInput}
           value={value}

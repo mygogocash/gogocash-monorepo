@@ -7,6 +7,7 @@ import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter"
 import { CustomerDesktopHeader } from "@mobile/components/CustomerDesktopHeader";
 import { CustomerLineOfficialFab } from "@mobile/components/CustomerLineOfficialFab";
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
+import { useCopy } from "@mobile/i18n/useCopy";
 import { mobileShellLayout, webPrivacyPolicyPage } from "@mobile/design/webDesignParity";
 import { privacyPolicyMarkdown } from "@mobile/legal/privacyPolicyMarkdown";
 import { colors, spacing, typography } from "@mobile/theme/tokens";
@@ -62,9 +63,10 @@ export function CustomerPrivacyPolicyScreen() {
 }
 
 function PrivacyPolicyArticle({ isDesktop }: { isDesktop: boolean }) {
+  const tc = useCopy();
   return (
     <View
-      accessibilityLabel={webPrivacyPolicyPage.articleLabel}
+      accessibilityLabel={tc(webPrivacyPolicyPage.articleLabel)}
       testID="privacy-policy-article"
       style={[
         styles.legalArticle,

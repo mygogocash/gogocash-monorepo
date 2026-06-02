@@ -12,6 +12,7 @@ import {
   type CustomerRouteStateVariant,
 } from "@mobile/components/CustomerRouteState";
 import { getMobileEnv } from "@mobile/config/env";
+import { useCopy } from "@mobile/i18n/useCopy";
 
 type CallbackState = "error" | "missing" | "pending" | "success";
 
@@ -23,6 +24,7 @@ export function CustomerAuthCallbackScreen() {
     token?: string | string[];
   }>();
   const router = useRouter();
+  const tc = useCopy();
   const [state, setState] = useState<CallbackState>("pending");
   const callbackUrl = useMemo(
     () => sanitizeCallbackPath(normalizeParam(params.callbackUrl)),
@@ -72,11 +74,11 @@ export function CustomerAuthCallbackScreen() {
     <CustomerRouteState
       action={
         state === "error" || state === "missing"
-          ? { href: "/login", label: "Back to sign in" }
+          ? { href: "/login", label: tc("Back to sign in") }
           : undefined
       }
-      body={getBody(state)}
-      title={getTitle(state)}
+      body={tc(getBody(state))}
+      title={tc(getTitle(state))}
       variant={getRouteStateVariant(state)}
     />
   );

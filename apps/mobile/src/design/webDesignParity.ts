@@ -155,13 +155,17 @@ export function getDesktopFooterGrid(viewportWidth: number) {
 export function getResponsiveHomeLayoutMetrics(viewportWidth: number) {
   const isDesktop = viewportWidth >= mobileShellLayout.desktopBreakpoint;
   const contentMaxWidth = mobileShellLayout.contentMaxWidth;
-  const contentHorizontalPadding = roundLayoutValue(
-    clampLayoutValue(
-      viewportWidth * mobileShellLayout.contentHorizontalPaddingRatio,
-      mobileShellLayout.contentHorizontalPadding,
-      mobileShellLayout.contentHorizontalPaddingMax
-    )
-  );
+  // Desktop: reuse the header's gutter so page content lines up with the navbar (logo/nav).
+  // Mobile: keep the viewport-ratio padding.
+  const contentHorizontalPadding = isDesktop
+    ? getDesktopShellHorizontalPadding(viewportWidth)
+    : roundLayoutValue(
+        clampLayoutValue(
+          viewportWidth * mobileShellLayout.contentHorizontalPaddingRatio,
+          mobileShellLayout.contentHorizontalPadding,
+          mobileShellLayout.contentHorizontalPaddingMax
+        )
+      );
   const contentWidth = roundLayoutValue(
     Math.max(0, Math.min(viewportWidth, contentMaxWidth) - contentHorizontalPadding * 2)
   );
@@ -235,6 +239,15 @@ export function getDesktopShellHorizontalPadding(viewportWidth: number) {
 }
 
 export const webHomeSearchPlaceholder = "Search brands, stores, products, or cashback";
+
+// First-visit intro modal (web parity: ModalAfterLogin "Every Purchase Pays You Back.").
+export const webIntroModal = {
+  headingLead: "Every ",
+  headingHighlight: "Purchase Pays",
+  headingTail: " You Back.",
+  closeLabel: "Close",
+  autoDismissMs: 30000,
+} as const;
 
 export const webHomeSearchPopularPanel = {
   title: "Popular right now",
@@ -335,6 +348,18 @@ export const webAuthPage = {
     flag: "🇹🇭",
     label: "Thailand",
   },
+  // Selectable countries for the phone-signup dropdown (label + dial code).
+  countries: [
+    { code: "TH", dialCode: "+66", flag: "🇹🇭", label: "Thailand" },
+    { code: "SG", dialCode: "+65", flag: "🇸🇬", label: "Singapore" },
+    { code: "MY", dialCode: "+60", flag: "🇲🇾", label: "Malaysia" },
+    { code: "ID", dialCode: "+62", flag: "🇮🇩", label: "Indonesia" },
+    { code: "PH", dialCode: "+63", flag: "🇵🇭", label: "Philippines" },
+    { code: "VN", dialCode: "+84", flag: "🇻🇳", label: "Vietnam" },
+    { code: "TW", dialCode: "+886", flag: "🇹🇼", label: "Taiwan" },
+    { code: "JP", dialCode: "+81", flag: "🇯🇵", label: "Japan" },
+    { code: "CN", dialCode: "+86", flag: "🇨🇳", label: "China" },
+  ],
   phoneLabelByMode: {
     login: "Sign in with Phone Number",
     register: "Sign up with Phone Number",
@@ -599,6 +624,8 @@ export const webProfileWalletSummary = {
   amount: "3,180.24",
   currency: "THB",
   lastUpdated: "Last Updated: 28 Mar 2026 07:00",
+  // Demo default: the mock profile is a GoGoPass member (matches the web mock session).
+  membershipTier: "gogopass",
 } as const;
 
 export const webProfileWalletHeroSurface = {

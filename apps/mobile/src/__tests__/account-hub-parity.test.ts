@@ -131,7 +131,7 @@ describe("Account hub route parity", () => {
     expect(designFile).toContain("Your Spending");
     expect(questFile).toContain('activeTab === "leaderboard"');
     expect(questFile).toContain("questPromoImage");
-    expect(questFile).toContain("GoGoQuest History");
+    expect(questFile).toContain('GoGoQuest ${tc("History")}');
     expect(questFile).not.toContain("USER 1");
     expect(questFile).not.toContain("1500 - index * 120");
   });
@@ -488,7 +488,7 @@ describe("Account hub route parity", () => {
     // Web ReferralInvitationPanel renders a 4th Status column with a green Success pill.
     expect(designFile).toContain('"Point", "Status"');
     expect(designFile).toContain('status: "Success"');
-    expect(referralFile).toContain("{row.status}");
+    expect(referralFile).toContain("{tc(row.status)}");
     expect(referralFile).toContain("invitationStatusPill");
     expect(referralFile).toContain("#E6F7ED");
     expect(referralFile).toContain("#00B14F");
