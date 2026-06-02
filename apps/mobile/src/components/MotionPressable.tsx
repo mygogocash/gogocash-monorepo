@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { useState } from "react";
 
+import { useReducedMotion } from "@mobile/hooks/useReducedMotion";
 import { getInteractionTransformStyle, getPressedScaleStyle, motion } from "@mobile/theme/motion";
 
 type MotionPressableProps = PressableProps & {
@@ -52,7 +53,13 @@ export function MotionPressable({
   ...pressableProps
 }: MotionPressableProps) {
   const [hovered, setHovered] = useState(false);
+  const reducedMotion = useReducedMotion();
   const interactive = !disabled;
+  // Reduce-motion (A1): collapse the press-scale to the identity (1) so the press
+  // applies its final state instantly with no scale animation, and drop the
+  // hover-lift translate/shadow. Public props are unchanged — this is internal.
+  const effectivePressScale = reducedMotion ? 1 : pressScale;
+  const effectiveHoverLift = reducedMotion ? false : hoverLift;
 
   const handleHoverIn = (event: MouseEvent) => {
     if (interactive) {
@@ -75,17 +82,17 @@ export function MotionPressable({
       style={(state) =>
         StyleSheet.flatten([
           webInteractiveStyle,
-          hoverLift ? restingHoverStyle : null,
+          effectiveHoverLift ? restingHoverStyle : null,
           typeof style === "function" ? style(state) : style,
-          interactive && hoverLift && hovered ? hoverLiftStyle : null,
-          hoverLift
+          interactive && effectiveHoverLift && hovered ? hoverLiftStyle : null,
+          effectiveHoverLift
             ? getInteractionTransformStyle({
                 hovered: interactive && hovered,
-                hoverLift,
+                hoverLift: effectiveHoverLift,
                 pressed: state.pressed,
-                pressScale,
+                pressScale: effectivePressScale,
               })
-            : getPressedScaleStyle(state.pressed, pressScale),
+            : getPressedScaleStyle(state.pressed, effectivePressScale),
         ])
       }
     />

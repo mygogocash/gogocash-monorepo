@@ -70,9 +70,9 @@ describe("Expo motion interaction parity", () => {
     expect(motionPressableFile).toContain("restingHoverStyle");
     expect(motionPressableFile).toContain("0 0 0 rgba(0, 0, 0, 0)");
     expect(motionPressableFile).toContain("transitionProperty: motion.cssTransition.property");
-    expect(motionPressableFile).toContain("hoverLift ? restingHoverStyle : null");
+    expect(motionPressableFile).toContain("effectiveHoverLift ? restingHoverStyle : null");
     expect(motionPressableFile).toContain(
-      "interactive && hoverLift && hovered ? hoverLiftStyle : null"
+      "interactive && effectiveHoverLift && hovered ? hoverLiftStyle : null"
     );
   });
 

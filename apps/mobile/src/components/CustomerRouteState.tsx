@@ -1,4 +1,6 @@
+import { useContext } from "react";
 import { Link } from "expo-router";
+import { IntlContext, type MessageDescriptor } from "react-intl";
 import {
   AlertCircle as AlertIcon,
   CheckCircle2 as CheckIcon,
@@ -28,32 +30,56 @@ export type CustomerRouteStateAction = {
   onPress?: () => void;
 };
 
+// Resolve a message via react-intl when an IntlProvider is mounted (the real app: LocaleProvider),
+// else fall back to the descriptor's English `defaultMessage`. Reading IntlContext directly (rather
+// than useIntl()) is non-throwing, so the component still renders when mounted in isolation.
+function useSafeFormatMessage(): (descriptor: MessageDescriptor) => string {
+  const intl = useContext(IntlContext);
+  return (descriptor: MessageDescriptor): string =>
+    intl ? intl.formatMessage(descriptor) : (descriptor.defaultMessage as string);
+}
+
+// react-intl message descriptors per variant. `id` resolves against the merged catalog (web + mobile
+// overlay) under the active locale; `defaultMessage` preserves the original English so the copy still
+// renders correctly when no IntlProvider is mounted (e.g. isolated render smoke tests).
 const routeStateCopy = {
   empty: {
-    body: "Nothing is available here yet.",
-    title: "No activity yet",
+    body: { defaultMessage: "Nothing is available here yet.", id: "mobileStateEmptyBody" },
+    title: { defaultMessage: "No activity yet", id: "mobileStateEmptyTitle" },
   },
   error: {
-    body: "Something went wrong. Please try again.",
-    title: "We could not load this page",
+    body: {
+      defaultMessage: "Something went wrong. Please try again.",
+      id: "mobileStateErrorBody",
+    },
+    title: { defaultMessage: "We could not load this page", id: "mobileStateErrorTitle" },
   },
   loading: {
-    body: "Preparing your GoGoCash experience.",
-    title: "Loading GoGoCash",
+    body: { defaultMessage: "Preparing your GoGoCash experience.", id: "mobileStateLoadingBody" },
+    title: { defaultMessage: "Loading GoGoCash", id: "mobileStateLoadingTitle" },
   },
   offline: {
-    body: "Reconnect to the internet, then try again.",
-    title: "You are offline",
+    body: {
+      defaultMessage: "Reconnect to the internet, then try again.",
+      id: "mobileStateOfflineBody",
+    },
+    title: { defaultMessage: "You are offline", id: "mobileStateOfflineTitle" },
   },
   success: {
-    body: "Your request was completed.",
-    title: "Done",
+    body: { defaultMessage: "Your request was completed.", id: "mobileStateSuccessBody" },
+    title: { defaultMessage: "Done", id: "mobileStateSuccessTitle" },
   },
   unauthenticated: {
-    body: "Sign in to continue to this GoGoCash page.",
-    title: "Sign in required",
+    body: {
+      defaultMessage: "Sign in to continue to this GoGoCash page.",
+      id: "mobileStateUnauthenticatedBody",
+    },
+    title: { defaultMessage: "Sign in required", id: "mobileStateUnauthenticatedTitle" },
   },
-} satisfies Record<CustomerRouteStateVariant, { body: string; title: string }>;
+} satisfies Record<
+  CustomerRouteStateVariant,
+  { body: { defaultMessage: string; id: string }; title: { defaultMessage: string; id: string } }
+>;
 
 export function CustomerRouteState({
   action,
@@ -70,6 +96,7 @@ export function CustomerRouteState({
   title?: string;
   variant: CustomerRouteStateVariant;
 }) {
+  const formatMessage = useSafeFormatMessage();
   const copy = routeStateCopy[variant];
   const isAlertVariant = variant === "error" || variant === "offline";
 
@@ -84,8 +111,8 @@ export function CustomerRouteState({
               renderStateIcon(variant)
             )}
           </View>
-          <Text style={styles.title}>{title ?? copy.title}</Text>
-          <Text style={styles.body}>{body ?? copy.body}</Text>
+          <Text style={styles.title}>{title ?? formatMessage(copy.title)}</Text>
+          <Text style={styles.body}>{body ?? formatMessage(copy.body)}</Text>
           {action || secondaryAction ? (
             <View style={styles.actionStack}>
               {action ? <RouteStateAction action={action} emphasis="primary" /> : null}

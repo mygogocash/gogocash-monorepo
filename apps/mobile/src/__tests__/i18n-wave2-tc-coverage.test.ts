@@ -70,7 +70,16 @@ describe("i18n wave-2 tc() literal coverage (source-of-truth)", () => {
 });
 
 describe("i18n mobile-overlay integrity", () => {
-  it("every overlay entry reverse-resolves to its own Thai (not shadowed by the web catalog)", async () => {
+  // Two overlay access patterns:
+  //  - Reverse-lookup entries (the bulk): consumed via tc(), resolved by English value -> key. A web-
+  //    catalog collision shadows them (translateCopy returns the web Thai), so they MUST reverse-resolve
+  //    to their own Thai or they render English silently.
+  //  - Keyed-ICU entries (A6 route/resource states): consumed via formatMessage({ id }), resolved straight
+  //    into MESSAGES.th[key]. The reverse-index is irrelevant, so an English collision with the web catalog
+  //    is harmless — they only need a real (non-empty) Thai value present under their key.
+  const KEYED_BY_ID_PREFIXES = ["mobileState", "mobileResource"];
+
+  it("every overlay entry resolves to its own Thai (reverse-lookup) or has Thai by id (keyed-ICU)", async () => {
     const overlayEn = (await import("@mobile/messages/mobile-overlay.en.json")).default as Record<
       string,
       string
@@ -79,13 +88,20 @@ describe("i18n mobile-overlay integrity", () => {
       string,
       string
     >;
-    const broken: string[] = [];
+    const shadowed: string[] = [];
+    const missingThai: string[] = [];
     for (const [key, en] of Object.entries(overlayEn)) {
       const th = overlayTh[key];
-      // The overlay only helps when its English value isn't already claimed by the web catalog; if it is,
-      // translateCopy returns the web translation instead and this overlay entry is dead weight.
-      if (translateCopy(en, "th") !== th) broken.push(`${key}: ${JSON.stringify(en)}`);
+      if (KEYED_BY_ID_PREFIXES.some((prefix) => key.startsWith(prefix))) {
+        // Keyed-ICU: accessed by id via formatMessage, not by English value. Require a real Thai string.
+        if (typeof th !== "string" || th.length === 0) missingThai.push(key);
+        continue;
+      }
+      // Reverse-lookup: the overlay only helps when its English value isn't already claimed by the web
+      // catalog; if it is, translateCopy returns the web translation and this entry is dead weight.
+      if (translateCopy(en, "th") !== th) shadowed.push(`${key}: ${JSON.stringify(en)}`);
     }
-    expect(broken).toEqual([]);
+    expect(shadowed).toEqual([]);
+    expect(missingThai).toEqual([]);
   });
 });
