@@ -10,7 +10,16 @@ import {
   ShoppingBag as ShoppingBagIcon,
   Share2 as ShareIcon,
 } from "@mobile/theme/icons";
-import { Image, Linking, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import {
+  Image,
+  Linking,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import sideWatchImage from "../../assets/home-side-watch.png";
@@ -23,6 +32,10 @@ import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFoo
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { ShopRedirectOverlay } from "@mobile/components/ShopRedirectOverlay";
+import { Skeleton, SkeletonText } from "@mobile/components/Skeleton";
+import { useToast } from "@mobile/hooks/useToast";
+import { useCopy } from "@mobile/i18n/useCopy";
+import { haptics } from "@mobile/lib/haptics";
 import {
   getResponsiveHomeLayoutMetrics,
   getShopDirectoryResults,
@@ -45,6 +58,8 @@ type TrackingStep = ShopDetail["trackingPeriod"][number];
 export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  const tc = useCopy();
+  const toast = useToast();
   const homeLayout = getResponsiveHomeLayoutMetrics(width);
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
   const showBottomNav = !isDesktop;
@@ -56,11 +71,21 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
     resourceId: "merchant",
   });
 
+  // Share the merchant referral link, then confirm with a transient toast + success haptic.
+  // Reuses the existing translated "Copied to clipboard" string (tc reverse-looks it up to
+  // the walletTransactionsCopied catalog key -> Thai "คัดลอกแล้ว"), so no new copy is added.
+  // The mock has no real shareable URL yet, so this is the affordance + feedback wiring.
+  const handleShareReferral = () => {
+    toast.show(tc("Copied to clipboard"));
+    void haptics.success();
+  };
+
   if (merchantResource.status !== "ready") {
     return (
       <CustomerAccountResourceState
         emptyBody="This merchant does not have active cashback details yet."
         emptyTitle="No merchant details yet"
+        loadingSkeleton={<ShopDetailSkeleton />}
         resource={merchantResource}
         resourceLabel="merchant details"
       />
@@ -81,6 +106,13 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
               paddingTop: Math.max(spacing.md, insets.top + spacing.md),
             },
           ]}
+          refreshControl={
+            <RefreshControl
+              onRefresh={merchantResource.retry}
+              refreshing={false}
+              title={tc("Loading…")}
+            />
+          }
           showsVerticalScrollIndicator={false}
         >
           <ShopHero onShopNow={() => setRedirecting(true)} shop={shop} />
@@ -88,7 +120,7 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
             <View style={[styles.leftColumn, isDesktop ? styles.leftColumnDesktop : null]}>
               <ShopCashbackRail shop={shop} />
               <ShopTrackingPeriod shop={shop} />
-              <ShopReferralCard shop={shop} />
+              <ShopReferralCard onShare={handleShareReferral} shop={shop} />
               {isDesktop ? <ShopTermsPanel shop={shop} /> : null}
             </View>
             <View style={[styles.rightColumn, isDesktop ? styles.rightColumnDesktop : null]}>
@@ -254,18 +286,28 @@ function TrackingIcon({ name }: { name: TrackingStep["icon"] }) {
   return <Icon color={colors.muted} size={24} strokeWidth={typography.iconStrokeWidth} />;
 }
 
-function ShopReferralCard({ shop }: { shop: ShopDetail }) {
+function ShopReferralCard({ onShare, shop }: { onShare: () => void; shop: ShopDetail }) {
   return (
     <View style={styles.referralCard}>
       <View style={styles.referralIcon}>
         <BadgePercentIcon color={colors.primaryDark} size={26} strokeWidth={2} />
       </View>
       <View style={styles.referralCopy}>
-        <Text style={styles.referralTitle}>{shop.referral.title}</Text>
-        <Text style={styles.referralSubtitle}>{shop.referral.subtitle}</Text>
+        <Text numberOfLines={2} style={styles.referralTitle}>
+          {shop.referral.title}
+        </Text>
+        <Text numberOfLines={2} style={styles.referralSubtitle}>
+          {shop.referral.subtitle}
+        </Text>
         <Text style={styles.referralBody}>{shop.referral.body}</Text>
       </View>
-      <MotionPressable pressScale={0.98} style={styles.shareButton}>
+      <MotionPressable
+        accessibilityRole="button"
+        hitSlop={{ bottom: 8, left: 8, right: 8, top: 8 }}
+        onPress={onShare}
+        pressScale={0.98}
+        style={styles.shareButton}
+      >
         <ShareIcon color={colors.white} size={16} strokeWidth={2} />
         <Text style={styles.shareButtonText}>{shop.referral.actionLabel}</Text>
       </MotionPressable>
@@ -422,11 +464,39 @@ function ShopExploreRelated() {
   );
 }
 
+// Content-shaped loading placeholder handed to the shared resource-state guard's opt-in
+// loadingSkeleton prop, so the merchant page's loading state shows a skeleton (hero banner +
+// summary card + a couple of detail blocks) instead of the generic spinner. Primitives
+// (Skeleton/SkeletonText) already hide themselves from screen readers and skip the pulse
+// loop under reduced motion (Wave A).
+function ShopDetailSkeleton() {
+  return (
+    <View style={styles.skeletonWrap} testID="shop-detail-skeleton">
+      <Skeleton height={200} radius={radii.lg} width="100%" />
+      <Skeleton height={68} radius={radii.lg} style={styles.skeletonSummary} width="90%" />
+      <SkeletonText lines={3} style={styles.skeletonBlock} />
+      <SkeletonText lines={4} style={styles.skeletonBlock} />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   viewport: {
     alignItems: "center",
     backgroundColor: colors.background,
     flex: 1,
+  },
+  skeletonWrap: {
+    gap: spacing.md,
+    padding: spacing.lg,
+    width: "100%",
+  },
+  skeletonSummary: {
+    alignSelf: "center",
+    marginTop: -28,
+  },
+  skeletonBlock: {
+    marginTop: spacing.md,
   },
   frame: {
     backgroundColor: colors.background,

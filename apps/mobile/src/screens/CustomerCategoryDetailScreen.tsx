@@ -21,6 +21,7 @@ import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter"
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { haptics } from "@mobile/lib/haptics";
 import { useCopy } from "@mobile/i18n/useCopy";
 import {
   getCategoryExploreResults,
@@ -151,11 +152,13 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
   const categoryContent = (
     <>
       <View style={styles.header}>
-        <Text style={[styles.title, isDesktop ? styles.titleDesktop : null]}>
+        <Text numberOfLines={2} style={[styles.title, isDesktop ? styles.titleDesktop : null]}>
           {title}
           <Text style={styles.titleIcon}> 🔎</Text>
         </Text>
-        <Text style={styles.subtitle}>{subtitle}</Text>
+        <Text numberOfLines={3} style={styles.subtitle}>
+          {subtitle}
+        </Text>
       </View>
 
       <View style={[styles.categoryLayout, isDesktop ? styles.categoryLayoutDesktop : null]}>
@@ -201,7 +204,11 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
                   <MotionPressable
                     accessibilityRole="button"
                     key={pill.value}
-                    onPress={() => setSortBy(pill.value)}
+                    onPress={() => {
+                      // Medium-impact haptic on selection (fire-and-forget; web no-op).
+                      void haptics.impact();
+                      setSortBy(pill.value);
+                    }}
                     pressScale={motion.scale.subtlePress}
                     style={[
                       styles.sortPill,

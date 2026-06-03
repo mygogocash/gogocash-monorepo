@@ -56,7 +56,7 @@ function FavoriteBrandsTopBar() {
   const tc = useCopy();
   return (
     <Link asChild href="/profile">
-      <Pressable accessibilityRole="link" style={styles.topBar}>
+      <Pressable accessibilityRole="link" hitSlop={8} style={styles.topBar}>
         <ChevronLeftIcon color={colors.accent} size={28} strokeWidth={typography.iconStrokeWidth} />
         <Text style={styles.topBarTitle}>{tc(webFavoriteBrandsPage.title)}</Text>
       </Pressable>
@@ -73,7 +73,7 @@ function FavoriteBrandsHero() {
         source={favoriteHeroLogoImage}
         style={styles.heroLogo}
       />
-      <Text style={styles.heroTitle}>{tc(webFavoriteBrandsPage.hero.title)}</Text>
+      <Text numberOfLines={1} style={styles.heroTitle}>{tc(webFavoriteBrandsPage.hero.title)}</Text>
       <Text style={styles.heroDescription}>{tc(webFavoriteBrandsPage.hero.description)}</Text>
       <Link asChild href="/shops">
         <MotionPressable accessibilityRole="link" pressScale={0.98} style={styles.heroButton}>

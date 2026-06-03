@@ -765,6 +765,8 @@ function DesktopCategoryNav({
               >
                 <DesktopCategoryNavIcon name={item.icon} active={Boolean(item.active)} />
                 <Text
+                  ellipsizeMode="tail"
+                  numberOfLines={1}
                   style={[
                     styles.desktopCategoryNavText,
                     "menuTypography" in item && item.menuTypography === "lead"
@@ -926,7 +928,9 @@ function BrowseShortcuts() {
         <Link asChild href={shortcut.href as never} key={shortcut.id}>
           <MotionPressable pressScale={motion.scale.subtlePress} style={styles.shortcutPill}>
             <ShortcutIcon name={shortcut.icon} />
-            <Text style={styles.shortcutText}>{tc(shortcut.label)}</Text>
+            <Text ellipsizeMode="tail" numberOfLines={1} style={styles.shortcutText}>
+              {tc(shortcut.label)}
+            </Text>
           </MotionPressable>
         </Link>
       ))}
@@ -1088,7 +1092,9 @@ function TopBrandSection({ homeLayout }: { homeLayout: HomeLayoutMetrics }) {
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
         <View style={styles.titleRow}>
-          <Text style={styles.sectionTitle}>{tc("Top Brands")}</Text>
+          <Text ellipsizeMode="tail" numberOfLines={1} style={styles.sectionTitle}>
+            {tc("Top Brands")}
+          </Text>
           <Text style={styles.topBrandEmoji}>🔥</Text>
         </View>
         <Link asChild href="/brand">
@@ -1249,7 +1255,9 @@ function PromoSection({
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
         <View style={styles.titleRow}>
-          <Text style={styles.sectionTitleSmall}>{tc(title)}</Text>
+          <Text ellipsizeMode="tail" numberOfLines={1} style={styles.sectionTitleSmall}>
+            {tc(title)}
+          </Text>
           {icon ? <Text style={styles.sectionEmoji}>{icon}</Text> : null}
         </View>
         <Link asChild href={link as never}>
