@@ -1,0 +1,68 @@
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { createElement } from "react";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+
+import { CustomerFavoriteBrandsScreen } from "@mobile/screens/CustomerFavoriteBrandsScreen";
+
+// Render coverage for the Favorite Brands screen (Wave B4). This is an AccountPageShell
+// screen whose content is built entirely from the static `webFavoriteBrandsPage` fixture
+// const — there is NO async account resource (no useCustomerAccountResource / useQuery) and
+// NO inputs — so, unlike CustomerProfileOffersScreen, it needs neither a QueryClientProvider
+// nor a ToastProvider to mount. useCopy is stubbed to a passthrough by the render config.
+function renderScreen() {
+  return render(createElement(CustomerFavoriteBrandsScreen));
+}
+
+// Beyond MOUNTING, we read the screen source to assert a behavior/source signal for the
+// Wave-B treatments that actually apply to THIS screen:
+//   * hitSlop on the icon-only back chevron (the ChevronLeft top-bar control) so its tap
+//     target is comfortable on touch — matches the B-cluster "icon-only buttons" rule.
+//   * numberOfLines on the hero title, which can overflow under Thai (longer strings) —
+//     the Thai-truncation pass. (Brand-card names already carry numberOfLines={2}.)
+// Treatments intentionally NOT applied here are documented in the assertions below:
+//   * NO favorite-toggle haptic/toast: the heart/"Saved" affordance is display-only — a
+//     <Text> gated by a boolean prop, with no onPress toggle handler to wire feedback to.
+//   * NO Skeleton / RefreshControl: the screen renders from a static fixture const, not an
+//     async resource with a refetch, so there is nothing to refresh or skeleton.
+//   * NO KeyboardAwareScreen: the screen has no text inputs.
+const screenSource = readFileSync(
+  resolve(dirname(fileURLToPath(import.meta.url)), "../screens/CustomerFavoriteBrandsScreen.tsx"),
+  "utf8",
+);
+
+describe("CustomerFavoriteBrandsScreen (render)", () => {
+  it("mounts without throwing", () => {
+    expect(() => renderScreen()).not.toThrow();
+  });
+
+  it("renders the page + hero copy from the fixture", () => {
+    renderScreen();
+    // "Favorite Brands" is the shell topbar title AND the page title -> appears multiple times.
+    expect(screen.getAllByText("Favorite Brands").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("Find Your Brands")).toBeTruthy();
+    expect(screen.getByText("Recently Visited Brands")).toBeTruthy();
+  });
+
+  it("renders seeded brand names from the fixture", () => {
+    renderScreen();
+    // Grocery Galaxy is in the recent grid AND the favorites preview (slice(0,2)).
+    expect(screen.getAllByText("Grocery Galaxy").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Orbit Airways")).toBeTruthy();
+  });
+});
+
+describe("CustomerFavoriteBrandsScreen — Wave B treatments (source signals)", () => {
+  it("gives the icon-only back chevron a hitSlop for a comfortable tap target", () => {
+    expect(screenSource).toContain("hitSlop");
+  });
+
+  it("truncates the hero title with numberOfLines so Thai copy does not overflow", () => {
+    // Anchor the assertion to the hero title style so it tracks the real element, not just
+    // the brand-card names that already truncate.
+    expect(screenSource).toMatch(/numberOfLines=\{1\}[\s\S]*?style=\{styles\.heroTitle\}/);
+  });
+});

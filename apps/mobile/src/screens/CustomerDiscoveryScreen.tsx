@@ -1,8 +1,9 @@
 import { Link } from "expo-router";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Image,
   type ImageSourcePropType,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -61,8 +62,12 @@ import {
 import { type MobileRouteId } from "@mobile/navigation/routes";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
+import { haptics } from "@mobile/lib/haptics";
 import { motion } from "@mobile/theme/motion";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
+
+// B4 pull-to-refresh tint — reuse the brand primary so the spinner matches the directory chrome.
+const REFRESH_TINT = colors.primaryDark;
 
 type DiscoveryVariant = Extract<MobileRouteId, "brand" | "category" | "discover" | "shops">;
 type CategoryDirectoryItem = (typeof webCategoryDirectory.cards)[number];
@@ -138,6 +143,7 @@ function BrandDirectoryScreen() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [sortBy, setSortBy] = useState<WebBrandDirectorySort>("highest_cashback");
   const [currentPage, setCurrentPage] = useState(1);
+  const [refreshing, setRefreshing] = useState(false);
   const pageSize = webBrandDirectory.pagination.pageSize;
   const sidebarWidth = homeLayout.isDesktop ? 280 : homeLayout.contentWidth;
   const layoutGap = homeLayout.isDesktop ? 32 : 20;
@@ -167,9 +173,18 @@ function BrandDirectoryScreen() {
     setCurrentPage(1);
   };
   const updateCategory = (value: string) => {
+    haptics.impact();
     setSelectedCategory(value);
     setCurrentPage(1);
   };
+  // Pull-to-refresh re-seeds the directory: this is synchronous design-parity data with no
+  // network refetch, so the meaningful refresh resets pagination to the first page. The flag
+  // toggles off on the next frame (rAF) so the spinner is visible without blocking a fetch.
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setCurrentPage(1);
+    requestAnimationFrame(() => setRefreshing(false));
+  }, []);
 
   // Desktop search lives in the header (CustomerDesktopHeader); only mobile needs the sticky search.
   const stickySearchHeader = homeLayout.isDesktop ? null : (
@@ -253,7 +268,12 @@ function BrandDirectoryScreen() {
             </View>
 
             <View style={styles.shopDirectorySortBlock}>
-              <Text style={styles.shopDirectorySortLabel}>{tc(webBrandDirectory.sortLabel)}</Text>
+              <Text
+                numberOfLines={1}
+                style={styles.shopDirectorySortLabel}
+              >
+                {tc(webBrandDirectory.sortLabel)}
+              </Text>
               <View style={styles.shopDirectorySortRow}>
                 {webBrandDirectory.sortPills.map((pill) => (
                   <MotionPressable
@@ -361,6 +381,9 @@ function BrandDirectoryScreen() {
               paddingHorizontal: homeLayout.contentHorizontalPadding,
             },
           ]}
+          refreshControl={
+            <RefreshControl onRefresh={onRefresh} refreshing={refreshing} tintColor={REFRESH_TINT} />
+          }
           showsVerticalScrollIndicator={false}
         >
           {brandContent}
@@ -525,6 +548,7 @@ function ProductDiscoveryScreen() {
     useState<WebProductDiscoveryCashbackMin>(0);
   const [sortBy, setSortBy] = useState<WebProductDiscoverySort>("popular");
   const [currentPage, setCurrentPage] = useState(1);
+  const [refreshing, setRefreshing] = useState(false);
   const [termsVisible, setTermsVisible] = useState(false);
   const [termsClosing, setTermsClosing] = useState(false);
   const pageSize = webProductDiscovery.pagination.pageSize;
@@ -557,6 +581,7 @@ function ProductDiscoveryScreen() {
     setCurrentPage(1);
   };
   const updateCategory = (value: string) => {
+    haptics.impact();
     setSelectedCategory(value);
     setCurrentPage(1);
   };
@@ -564,6 +589,13 @@ function ProductDiscoveryScreen() {
     setSelectedCashbackMin(value);
     setCurrentPage(1);
   };
+  // Pull-to-refresh re-seeds the directory (synchronous parity data, no network refetch):
+  // reset to the first page and clear the spinner on the next frame.
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setCurrentPage(1);
+    requestAnimationFrame(() => setRefreshing(false));
+  }, []);
   const openTerms = () => {
     setTermsClosing(false);
     setTermsVisible(true);
@@ -653,7 +685,12 @@ function ProductDiscoveryScreen() {
             </View>
 
             <View style={styles.productDiscoverySortRow}>
-              <Text style={styles.productDiscoverySortLabel}>{tc(webProductDiscovery.sortLabel)}</Text>
+              <Text
+                numberOfLines={1}
+                style={styles.productDiscoverySortLabel}
+              >
+                {tc(webProductDiscovery.sortLabel)}
+              </Text>
               {webProductDiscovery.sortPills.map((pill) => (
                 <MotionPressable
                   accessibilityRole="button"
@@ -777,6 +814,9 @@ function ProductDiscoveryScreen() {
               paddingHorizontal: homeLayout.contentHorizontalPadding,
             },
           ]}
+          refreshControl={
+            <RefreshControl onRefresh={onRefresh} refreshing={refreshing} tintColor={REFRESH_TINT} />
+          }
           showsVerticalScrollIndicator={false}
         >
           {productContent}
@@ -882,7 +922,9 @@ function ProductDiscoverySidebar({
   const tc = useCopy();
   return (
     <View style={[styles.productDiscoverySidebar, { width }]}>
-      <Text style={styles.productDiscoverySidebarTitle}>{tc("All Categories")}</Text>
+      <Text numberOfLines={1} style={styles.productDiscoverySidebarTitle}>
+        {tc("All Categories")}
+      </Text>
       <View style={styles.productDiscoverySidebarDivider} />
       <View style={styles.productDiscoverySidebarList}>
         {webProductDiscovery.categories.map((category) => {
@@ -1063,6 +1105,7 @@ function ShopDirectoryScreen() {
   const [selectedShopType, setSelectedShopType] = useState<WebShopType>("all");
   const [sortBy, setSortBy] = useState<WebShopDirectorySort>("highest_cashback");
   const [currentPage, setCurrentPage] = useState(1);
+  const [refreshing, setRefreshing] = useState(false);
   const pageSize = webShopDirectory.pagination.pageSize;
   const sidebarWidth = homeLayout.isDesktop ? 280 : homeLayout.contentWidth;
   const layoutGap = homeLayout.isDesktop ? 32 : 20;
@@ -1093,6 +1136,7 @@ function ShopDirectoryScreen() {
     setCurrentPage(1);
   };
   const updateCategory = (value: string) => {
+    haptics.impact();
     setSelectedCategory(value);
     setCurrentPage(1);
   };
@@ -1100,6 +1144,13 @@ function ShopDirectoryScreen() {
     setSelectedShopType(value);
     setCurrentPage(1);
   };
+  // Pull-to-refresh re-seeds the directory (synchronous parity data, no network refetch):
+  // reset to the first page and clear the spinner on the next frame.
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setCurrentPage(1);
+    requestAnimationFrame(() => setRefreshing(false));
+  }, []);
 
   // Desktop search lives in the header (CustomerDesktopHeader); only mobile needs the sticky search.
   const stickySearchHeader = homeLayout.isDesktop ? null : (
@@ -1211,7 +1262,12 @@ function ShopDirectoryScreen() {
             </ScrollView>
 
             <View style={styles.shopDirectorySortBlock}>
-              <Text style={styles.shopDirectorySortLabel}>{tc(webShopDirectory.sortLabel)}</Text>
+              <Text
+                numberOfLines={1}
+                style={styles.shopDirectorySortLabel}
+              >
+                {tc(webShopDirectory.sortLabel)}
+              </Text>
               <View style={styles.shopDirectorySortRow}>
                 {webShopDirectory.sortPills.map((pill) => (
                   <MotionPressable
@@ -1326,6 +1382,9 @@ function ShopDirectoryScreen() {
               paddingHorizontal: homeLayout.contentHorizontalPadding,
             },
           ]}
+          refreshControl={
+            <RefreshControl onRefresh={onRefresh} refreshing={refreshing} tintColor={REFRESH_TINT} />
+          }
           showsVerticalScrollIndicator={false}
         >
           {shopContent}
@@ -1642,6 +1701,7 @@ function CategoryDirectoryScreen() {
   const showBottomNav = !homeLayout.isDesktop;
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [refreshing, setRefreshing] = useState(false);
   const matchingCategories = useMemo(() => getCategoryDirectoryMatches(searchQuery), [searchQuery]);
   const categoryPage = useMemo(
     () => getCategoryDirectoryPage(searchQuery, currentPage),
@@ -1659,6 +1719,13 @@ function CategoryDirectoryScreen() {
     setSearchQuery(value);
     setCurrentPage(1);
   };
+  // Pull-to-refresh re-seeds the directory (synchronous parity data, no network refetch):
+  // reset to the first page and clear the spinner on the next frame.
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setCurrentPage(1);
+    requestAnimationFrame(() => setRefreshing(false));
+  }, []);
 
   const categoryDirectoryContent = (
     <>
@@ -1794,6 +1861,9 @@ function CategoryDirectoryScreen() {
               paddingTop: Math.max(12, insets.top + 12),
             },
           ]}
+          refreshControl={
+            <RefreshControl onRefresh={onRefresh} refreshing={refreshing} tintColor={REFRESH_TINT} />
+          }
           showsVerticalScrollIndicator={false}
         >
           {categoryDirectoryContent}
