@@ -46,6 +46,7 @@ export default function PartnerLpTemplate({
           </ul>
           <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <LaunchAppLink
+              surface="partner_lp"
               className={`group inline-flex min-h-12 items-center justify-center gap-2 px-8 py-3.5 text-base ${uiCtaPrimarySurfaceRoundedXl} ${twCtaPrimaryMotion}`}
             >
               Open GoGoCash for {partnerName}

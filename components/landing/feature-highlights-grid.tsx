@@ -73,6 +73,7 @@ export function FeatureHighlightsGrid({
               <p className="mt-2 text-sm text-white/80">{ctaCard.bodyLine}</p>
             </div>
             <LaunchAppLink
+              surface="feature"
               className={`group min-h-11 w-fit shrink-0 items-center gap-2 px-6 py-3 text-sm ${uiCtaInvertedOnGradient} ${twTransitionButton} ${twPressSm} ${twFocusRingPrimary}`}
             >
               {ctaCard.ctaLabel}

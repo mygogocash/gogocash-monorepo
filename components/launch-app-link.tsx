@@ -8,6 +8,8 @@ import { sendLineTagConversion } from "@/lib/line-tag";
 type LaunchAppLinkProps = {
   className: string;
   children: React.ReactNode;
+  /** Where on the page this CTA sits (hero, final, feature, header, quests). */
+  surface?: string;
 };
 
 /**
@@ -17,6 +19,7 @@ type LaunchAppLinkProps = {
 export default function LaunchAppLink({
   className,
   children,
+  surface = "unknown",
 }: LaunchAppLinkProps) {
   const external = {
     target: "_blank" as const,
@@ -24,12 +27,12 @@ export default function LaunchAppLink({
   };
 
   const onWeb = useCallback(() => {
-    logLaunchAppClick("web_desktop");
-  }, []);
+    logLaunchAppClick("web_desktop", surface);
+  }, [surface]);
   const onLine = useCallback(() => {
-    logLaunchAppClick("line_mobile");
+    logLaunchAppClick("line_mobile", surface);
     sendLineTagConversion();
-  }, []);
+  }, [surface]);
 
   return (
     <>

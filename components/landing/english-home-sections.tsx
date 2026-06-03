@@ -54,6 +54,7 @@ export function EnglishHomeHeroSection() {
 
           <div className="mt-10 flex w-full max-w-md flex-col gap-3 sm:max-w-none sm:flex-row sm:justify-center sm:gap-4">
             <LaunchAppLink
+              surface="hero"
               className={`group min-h-11 w-full items-center justify-center gap-2 px-4 py-3 text-sm sm:w-auto sm:min-w-[200px] sm:px-6 md:px-8 md:py-3.5 ${uiCtaPrimarySurface} ${twCtaPrimaryMotion}`}
             >
               Start earning

@@ -199,6 +199,7 @@ export default function Header() {
         <div className="flex min-w-0 shrink-0 items-center gap-1.5 sm:gap-2">
           <LocaleDropdown />
           <LaunchAppLink
+            surface="header"
             className={`group max-sm:max-w-[10.5rem] max-sm:gap-1 max-sm:px-3 max-sm:py-2.5 max-sm:text-xs max-sm:leading-snug min-h-11 items-center justify-center gap-2 px-4 py-3 text-sm sm:max-w-none sm:px-6 md:px-8 md:py-3.5 ${uiCtaPrimarySurface} ${twCtaPrimaryMotion}`}
           >
             <span className="min-w-0 text-center">{navLabels.startEarning}</span>
