@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import {
   Image,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -18,7 +17,9 @@ import linkMyCashbackImage from "../../assets/link-mycashback-shop.png";
 import logoMarkImage from "../../assets/nav/logo.png";
 import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
 import { CustomerDesktopHeader } from "@mobile/components/CustomerDesktopHeader";
+import { KeyboardAwareScreen } from "@mobile/components/KeyboardAwareScreen";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { haptics } from "@mobile/lib/haptics";
 import {
   getDesktopShellHorizontalPadding,
   mobileShellLayout,
@@ -203,9 +204,13 @@ export function CustomerMyCashbackSignInScreen() {
       return;
     }
     if (otpDigits === LINK_VERIFY_OTP) {
+      // B1: confirm a successful link/sign-in with a success haptic (no-op on web).
+      void haptics.success();
       setLinkStep("success");
       return;
     }
+    // B1: signal the failed verification with an error haptic.
+    void haptics.error();
     setOtpError(true);
   };
 
@@ -220,9 +225,10 @@ export function CustomerMyCashbackSignInScreen() {
     <View style={styles.viewport}>
       <View style={[styles.shell, isDesktop ? styles.desktopShell : styles.phoneFrame]}>
         {isDesktop ? <CustomerDesktopHeader viewportWidth={width} /> : null}
-        <ScrollView
+        {/* B1: KeyboardAwareScreen keeps the soft keyboard from covering the
+            phone/email/OTP inputs on native; layout no-op on web. */}
+        <KeyboardAwareScreen
           contentContainerStyle={[styles.page, isDesktop ? styles.pageDesktop : styles.pageMobile]}
-          showsVerticalScrollIndicator={false}
         >
           <View
             accessibilityLabel="Link MyCashback with GoGoCash"
@@ -527,7 +533,7 @@ export function CustomerMyCashbackSignInScreen() {
               <CustomerDesktopFooter horizontalPadding={0} viewportWidth={width} />
             </View>
           ) : null}
-        </ScrollView>
+        </KeyboardAwareScreen>
       </View>
     </View>
   );

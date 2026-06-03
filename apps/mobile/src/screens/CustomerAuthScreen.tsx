@@ -7,7 +7,6 @@ import {
   Image,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -23,7 +22,10 @@ import logoMarkImage from "../../assets/nav/logo.png";
 import { CustomerCookieConsentBanner } from "@mobile/components/CustomerCookieConsentBanner";
 import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
 import { CustomerDesktopHeader } from "@mobile/components/CustomerDesktopHeader";
+import { KeyboardAwareScreen } from "@mobile/components/KeyboardAwareScreen";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { useReducedMotion } from "@mobile/hooks/useReducedMotion";
+import { haptics } from "@mobile/lib/haptics";
 import { markIntroModalPending } from "@mobile/features/introModal/introModalSession";
 import {
   getDesktopShellHorizontalPadding,
@@ -73,6 +75,10 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { width } = useWindowDimensions();
+  // A1 — when reduce-motion is on, the screen-local Animated timelines (consent
+  // checkmark, country menu) snap to their end state instantly (duration 0) instead
+  // of easing. MotionPressable already handles its own press-feedback reduction.
+  const reducedMotion = useReducedMotion();
   const [authPhase, setAuthPhase] = useState<AuthPhase>("phone");
   const [otpError, setOtpError] = useState(false);
   const [otpInput, setOtpInput] = useState("");
@@ -84,12 +90,16 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   const consentCheckProgress = useMemo(() => new Animated.Value(0), []);
   useEffect(() => {
     Animated.timing(consentCheckProgress, {
-      duration: privacyAccepted ? motion.duration.base : motion.duration.fast,
+      duration: reducedMotion
+        ? 0
+        : privacyAccepted
+          ? motion.duration.base
+          : motion.duration.fast,
       easing: privacyAccepted ? motion.easing.spring : motion.easing.in,
       toValue: privacyAccepted ? 1 : 0,
       useNativeDriver: motion.useNativeDriver,
     }).start();
-  }, [consentCheckProgress, privacyAccepted]);
+  }, [consentCheckProgress, privacyAccepted, reducedMotion]);
   const consentCheckmarkMotion = {
     opacity: consentCheckProgress,
     transform: [
@@ -101,12 +111,16 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   const countryMenuProgress = useMemo(() => new Animated.Value(0), []);
   useEffect(() => {
     Animated.timing(countryMenuProgress, {
-      duration: countryMenuOpen ? motion.duration.base : motion.duration.fast,
+      duration: reducedMotion
+        ? 0
+        : countryMenuOpen
+          ? motion.duration.base
+          : motion.duration.fast,
       easing: countryMenuOpen ? motion.easing.spring : motion.easing.in,
       toValue: countryMenuOpen ? 1 : 0,
       useNativeDriver: motion.useNativeDriver,
     }).start();
-  }, [countryMenuOpen, countryMenuProgress]);
+  }, [countryMenuOpen, countryMenuProgress, reducedMotion]);
   const countryCaretRotate = countryMenuProgress.interpolate({
     inputRange: [0, 1],
     outputRange: ["0deg", "180deg"],
@@ -194,19 +208,32 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
 
   const handleOtpChange = (nextValue: string) => {
     const nextDigits = nextValue.replace(/\D/g, "").slice(0, 6);
+    const isInvalidFullCode = nextDigits.length === 6 && nextDigits !== "123456";
+
+    // Light tap as each digit lands; an error buzz the moment a full code is wrong.
+    if (nextDigits.length > otpInput.length) {
+      haptics.impact();
+    }
+    if (isInvalidFullCode) {
+      haptics.error();
+    }
 
     setOtpInput(nextDigits);
-    setOtpError(nextDigits.length === 6 && nextDigits !== "123456");
+    setOtpError(isInvalidFullCode);
   };
 
   const handleOtpSubmit = () => {
     const isValid = otpInput.length === 6 && otpInput === "123456";
     setOtpError(!isValid);
     if (isValid) {
-      // Mirror the web post-login flow: queue the first-visit intro modal (shown when home mounts),
-      // then land on the MyCashback linking step.
+      // Success haptic on a verified sign-in, then mirror the web post-login flow:
+      // queue the first-visit intro modal (shown when home mounts), then land on the
+      // MyCashback linking step.
+      haptics.success();
       markIntroModalPending();
       router.push("/link-mycashback");
+    } else {
+      haptics.error();
     }
   };
 
@@ -214,7 +241,11 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
     <View style={styles.viewport}>
       <View style={[styles.shell, isDesktopShell ? styles.desktopShell : styles.phoneFrame]}>
         {isDesktopShell ? <CustomerDesktopHeader viewportWidth={width} /> : null}
-        <ScrollView
+        {/* A4 — KeyboardAwareScreen wraps the phone/OTP form so the on-screen keyboard
+            never covers the focused field (the #1 bug-hunt finding). It supplies the
+            keyboard-avoiding ScrollView and forwards contentContainerStyle, so the
+            existing page padding/layout is unchanged; on web it is a layout no-op. */}
+        <KeyboardAwareScreen
           contentContainerStyle={[
             styles.page,
             isDesktopShell ? styles.pageDesktop : styles.pageMobile,
@@ -223,8 +254,6 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
               paddingTop: isDesktopShell ? 80 : Math.max(64, insets.top + 40),
             },
           ]}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
         >
           <View
             style={[
@@ -429,6 +458,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                     </View>
                     <MotionPressable
                       accessibilityRole="button"
+                      hitSlop={8}
                       hoverLift={false}
                       onPress={handleChangePhone}
                       pressScale={motion.scale.subtlePress}
@@ -449,6 +479,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                     <View style={styles.resendRow}>
                       <MotionPressable
                         accessibilityRole="button"
+                        hitSlop={8}
                         hoverLift={false}
                         onPress={() => {
                           setOtpInput("");
@@ -529,7 +560,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                 <CustomerDesktopFooter horizontalPadding={0} viewportWidth={width} />
               </View>
             ) : null}
-          </ScrollView>
+          </KeyboardAwareScreen>
         </View>
       <CustomerCookieConsentBanner isDesktop={isDesktopShell} />
     </View>
