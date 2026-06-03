@@ -15,7 +15,7 @@ Concise context for coding agents working in this repository. For full setup, ar
 - **ApexCharts:** `postinstall` runs `scripts/patch-apexcharts-border-radius.mjs` so stacked bar radius options behave as expected. After upgrading the `apexcharts` package, re-run `npm install` (or the script manually) and smoke-test bar charts (statistics + any stacked series); if the patch fails to apply, the script logs a warning and may need updating for the new bundle layout.
 - **Data fetching:** TanStack React Query (`src/lib/query/`), Axios client (`src/lib/axios/`, `src/hooks/useApi.ts`).
 - **Auth:** NextAuth v4 (Credentials → JWT). Local mock sign-in is documented in README (`admin@gogocash.co` / `1234` when using mock flow).
-- **RBAC:** tiered roles (`super_admin`/`admin`/`editor`/`viewer`) gate UI, routes (`src/proxy.ts`), and the API. Logic in `src/lib/rbac/`; gate UI with `usePermissions()` / `<Can>`. Demo other roles by signing in as `viewer@…` / `editor@…` / `operator@…` (password `1234`). See [`docs/RBAC.md`](./docs/RBAC.md).
+- **RBAC:** tiered **and dynamic** roles — built-ins `super_admin`/`admin`/`editor`/`viewer` plus custom roles created at runtime in **Role Management** (`/roles`). Gates UI, routes (`src/proxy.ts`), and the API; every non-GET mock route is permission-gated in `mockApiCore.ts` (`requiredWritePermission`, **fail-closed** for unmapped `admin/*` writes). Logic in `src/lib/rbac/`; gate UI with `usePermissions()` / `<Can>`. Demo roles by signing in as `viewer@…` / `editor@…` / `operator@…` (password `1234`). See [`docs/RBAC.md`](./docs/RBAC.md).
 
 ## Data sources
 
@@ -24,15 +24,15 @@ Concise context for coding agents working in this repository. For full setup, ar
 
 ## Where things live
 
-| Area | Location |
-|------|-----------|
-| App routes & layouts | `src/app/` — `(admin)` = shell + sidebar; `(full-width-pages)` = auth, etc. |
-| Sidebar menu items | `src/layout/AppSidebarContent.tsx` (`navItems`, `othersItems`) |
-| Admin chrome | `src/layout/AppHeader.tsx`, sidebar components in `src/layout/` |
-| Feature UI | `src/components/<feature>/` |
-| Shared UI | `src/components/common/`, `src/components/ui/` |
-| Server/client providers | `src/components/providers/ClientProviders.tsx` |
-| Theme / sidebar state | `src/context/` |
+| Area                                         | Location                                                                                                                       |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| App routes & layouts                         | `src/app/` — `(admin)` = shell + sidebar; `(full-width-pages)` = auth, etc.                                                    |
+| Sidebar menu items                           | `src/layout/AppSidebarContent.tsx` (`navItems`, `othersItems`)                                                                 |
+| Admin chrome                                 | `src/layout/AppHeader.tsx`, sidebar components in `src/layout/`                                                                |
+| Feature UI                                   | `src/components/<feature>/`                                                                                                    |
+| Shared UI                                    | `src/components/common/`, `src/components/ui/`                                                                                 |
+| Server/client providers                      | `src/components/providers/ClientProviders.tsx`                                                                                 |
+| Theme / sidebar state                        | `src/context/`                                                                                                                 |
 | Mock merchant logos (offers / pending queue) | `public/images/merchant-logos/` — referenced by `pathImage()` and `src/app/api/mock/data.ts` / `src/data/mockPendingOffers.ts` |
 
 ### Cross-page sub-navigation (pattern)
@@ -66,6 +66,9 @@ npm run build
 
 ## Deeper reference
 
+- [`docs/PROJECT_STATUS.md`](./docs/PROJECT_STATUS.md) — **start here:** current progress, architecture map, caveats, and next steps (handoff doc).
+- [`docs/DESIGN_SYSTEM.md`](./docs/DESIGN_SYSTEM.md) — design tokens, typography scale, color, and shared component inventory.
+- [`docs/RBAC.md`](./docs/RBAC.md) — roles, permission matrix, and how to gate UI/routes/API.
 - [`README.md`](./README.md) — routes, env vars, provider stack, deployment.
 - [`docs/CODE_REVIEW.md`](./docs/CODE_REVIEW.md) — review checklist and technical notes.
 - Other plans and runbooks under [`docs/`](./docs/).
