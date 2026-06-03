@@ -64,6 +64,42 @@ export const LEARN_ARTICLES: LearnArticleMeta[] = [
     hubDesc: "Thresholds, rails, and country-specific nuances.",
     updated: "March 22, 2026",
   },
+  {
+    slug: "how-quests-work",
+    title: "How GoGoCash Quests work",
+    metaTitle: "How GoGoCash Quests Work | GoGoCash Learn",
+    metaDescription:
+      "What Quests are, the common types (spending streaks, category challenges, seasonal boosts), and how they stack on top of your base cashback.",
+    hubDesc: "Optional challenges that stack extra cashback on your base rate.",
+    updated: "June 3, 2026",
+  },
+  {
+    slug: "cashback-lazada-shopee",
+    title: "Earn cashback on Lazada and Shopee with GoGoCash",
+    metaTitle: "Cashback on Lazada & Shopee | GoGoCash Learn",
+    metaDescription:
+      "Step-by-step: open Lazada or Shopee from GoGoCash, check out as usual, and let cashback confirm — plus tips to keep tracking reliable.",
+    hubDesc: "Open the store from GoGoCash so your marketplace order tracks.",
+    updated: "June 3, 2026",
+  },
+  {
+    slug: "choosing-a-cashback-app-sea",
+    title: "How to choose a cashback app in Southeast Asia",
+    metaTitle: "How to Choose a Cashback App (SEA) | GoGoCash Learn",
+    metaDescription:
+      "What to compare across cashback apps — withdrawable cash vs points, supported brands, payout rails, and tracking transparency.",
+    hubDesc: "What actually matters: payouts, brands, transparency.",
+    updated: "June 3, 2026",
+  },
+  {
+    slug: "travel-cashback-sea",
+    title: "Travel cashback: hotels and flights with GoGoCash",
+    metaTitle: "Travel Cashback on Hotels & Flights | GoGoCash Learn",
+    metaDescription:
+      "How travel cashback works on partners like Agoda and Trip.com, why bookings confirm later, and how to keep your trip rewards on track.",
+    hubDesc: "How travel bookings earn — and why they confirm closer to your trip.",
+    updated: "June 3, 2026",
+  },
 ];
 
 const bySlug: Record<string, LearnArticleMeta> = Object.fromEntries(
