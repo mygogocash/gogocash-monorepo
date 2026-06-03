@@ -131,6 +131,7 @@ export function FinalCtaSection({
             </h2>
             <p className="mt-4 text-base text-gray-500">{subtitle}</p>
             <LaunchAppLink
+              surface="final"
               className={`group mt-8 min-h-11 items-center gap-2 px-8 py-3.5 text-sm ${uiCtaPrimarySurface} ${twCtaPrimaryMotion}`}
             >
               {ctaLabel}

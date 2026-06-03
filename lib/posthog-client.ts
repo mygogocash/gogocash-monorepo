@@ -30,7 +30,12 @@ async function initPostHog(): Promise<void> {
       capture_pageview: false, // SPA pageviews fired manually (App Router)
       capture_pageleave: true,
       autocapture: true,
-      disable_session_recording: true, // session replay off by default
+      enable_heatmaps: true, // clickmaps for the landing page
+      disable_session_recording: false, // replay on, masked (consent-gated)
+      session_recording: {
+        maskAllInputs: true,
+        maskTextSelector: "[data-ph-mask]",
+      },
       persistence: "localStorage+cookie",
     });
     client = posthog;
@@ -67,6 +72,19 @@ export function posthogCapturePageView(path: string): void {
       path,
       $current_url: window.location.href,
     });
+  } catch {
+    /* noop */
+  }
+}
+
+/** Capture a custom event, gated on config + consent. Safe before init (no-op). */
+export function posthogCapture(
+  event: string,
+  props?: Record<string, unknown>,
+): void {
+  if (!client || !posthogAllowed()) return;
+  try {
+    client.capture(event, props);
   } catch {
     /* noop */
   }

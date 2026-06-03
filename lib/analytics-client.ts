@@ -1,6 +1,7 @@
 import { getAnalytics, isSupported, logEvent } from "firebase/analytics";
 import { isMarketingAnalyticsEnabled } from "@/lib/app-config";
 import { isAnalyticsAllowed } from "@/lib/cookie-consent";
+import { posthogCapture } from "@/lib/posthog-client";
 import { getFirebaseApp } from "@/lib/firebase";
 
 /**
@@ -30,83 +31,77 @@ function getAnalyticsSafe(): ReturnType<typeof getAnalytics> | undefined {
   }
 }
 
-/** SPA / client navigations — skip duplicating the first load (SDK handles initial hit). */
-export function logPageView(pagePath: string): void {
-  if (typeof document === "undefined" || typeof window === "undefined") return;
+/** Fire a GA4 event when Firebase analytics is available (consent-gated). */
+function logFirebase(name: string, params?: Record<string, unknown>): void {
   const analytics = getAnalyticsSafe();
   if (!analytics) return;
   try {
-    logEvent(analytics, "page_view", {
-      page_path: pagePath.startsWith("/") ? pagePath : `/${pagePath}`,
-      page_title: document.title,
-      page_location: window.location.href,
-    });
+    logEvent(analytics, name, params);
   } catch {
     /* SDK not ready */
   }
 }
 
-/** Site search page (`/search?q=`) — GA4 recommended `search` event. */
+/** SPA / client navigations — skip duplicating the first load (SDK handles initial hit). */
+export function logPageView(pagePath: string): void {
+  if (typeof document === "undefined" || typeof window === "undefined") return;
+  logFirebase("page_view", {
+    page_path: pagePath.startsWith("/") ? pagePath : `/${pagePath}`,
+    page_title: document.title,
+    page_location: window.location.href,
+  });
+}
+
+/** Site search page (`/search?q=`) — GA4 recommended `search` event + PostHog. */
 export function logSiteSearch(searchTerm: string): void {
   const term = searchTerm.trim();
   if (!term) return;
-  const analytics = getAnalyticsSafe();
-  if (!analytics) return;
-  try {
-    logEvent(analytics, "search", { search_term: term });
-  } catch {
-    /* noop */
-  }
+  logFirebase("search", { search_term: term });
+  posthogCapture("site_search", { query: term });
 }
 
 export function logLocaleLanguageSelect(lang: string): void {
-  const analytics = getAnalyticsSafe();
-  if (!analytics) return;
-  try {
-    logEvent(analytics, "select_content", {
-      content_type: "locale_language",
-      item_id: lang,
-    });
-  } catch {
-    /* noop */
-  }
+  logFirebase("select_content", {
+    content_type: "locale_language",
+    item_id: lang,
+  });
+  posthogCapture("locale_language_selected", { lang });
 }
 
 export function logLocaleRegionSelect(region: string): void {
-  const analytics = getAnalyticsSafe();
-  if (!analytics) return;
-  try {
-    logEvent(analytics, "select_content", {
-      content_type: "locale_region",
-      item_id: region,
-    });
-  } catch {
-    /* noop */
-  }
+  logFirebase("select_content", {
+    content_type: "locale_region",
+    item_id: region,
+  });
+  posthogCapture("locale_region_selected", { region });
 }
 
-export function logLaunchAppClick(surface: "web_desktop" | "line_mobile"): void {
-  const analytics = getAnalyticsSafe();
-  if (!analytics) return;
-  try {
-    logEvent(analytics, "select_content", {
-      content_type: "cta_launch_app",
-      item_id: surface,
-    });
-  } catch {
-    /* noop */
-  }
+/**
+ * Primary "launch app" CTA. `destination` is the resolved target (web on desktop,
+ * LINE on mobile); `placement` is where on the page it was clicked (hero, final,
+ * feature, header, quests) — powering CTA-performance breakdowns in PostHog.
+ */
+export function logLaunchAppClick(
+  destination: "web_desktop" | "line_mobile",
+  placement = "unknown",
+): void {
+  logFirebase("select_content", {
+    content_type: "cta_launch_app",
+    item_id: destination,
+  });
+  posthogCapture("cta_clicked", { destination, placement });
 }
 
-export function logBrandsLoadMore(visibleCount: number, totalBrands: number): void {
-  const analytics = getAnalyticsSafe();
-  if (!analytics) return;
-  try {
-    logEvent(analytics, "select_content", {
-      content_type: "brands_load_more",
-      item_id: `${visibleCount}_of_${totalBrands}`,
-    });
-  } catch {
-    /* noop */
-  }
+export function logBrandsLoadMore(
+  visibleCount: number,
+  totalBrands: number,
+): void {
+  logFirebase("select_content", {
+    content_type: "brands_load_more",
+    item_id: `${visibleCount}_of_${totalBrands}`,
+  });
+  posthogCapture("brands_load_more", {
+    visible: visibleCount,
+    total: totalBrands,
+  });
 }
