@@ -6,8 +6,10 @@ import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountRes
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { useToast } from "@mobile/hooks/useToast";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { copyToClipboard } from "@mobile/lib/clipboard";
+import { haptics } from "@mobile/lib/haptics";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 const myOfferRows = [
@@ -29,10 +31,24 @@ const myOfferRows = [
 
 export function CustomerProfileOffersScreen() {
   const tc = useCopy();
+  const toast = useToast();
   const offersResource = useCustomerAccountResource({
     fixtureData: myOfferRows,
     resourceId: "offers",
   });
+
+  // Copy the offer deeplink, then confirm with a transient toast + success haptic.
+  // Reuses the existing translated "Copied to clipboard" string (tc reverse-looks it
+  // up to the walletTransactionsCopied catalog key → Thai), so no new copy is added.
+  const handleCopyLink = (deeplink: string) => {
+    void copyToClipboard(deeplink).then((copied) => {
+      if (!copied) {
+        return;
+      }
+      toast.show(tc("Copied to clipboard"));
+      void haptics.success();
+    });
+  };
 
   if (offersResource.status !== "ready") {
     return (
@@ -88,7 +104,8 @@ export function CustomerProfileOffersScreen() {
                   <MotionPressable
                     accessibilityLabel={tc("Copy Link")}
                     accessibilityRole="button"
-                    onPress={() => copyOfferLink(row.deeplink)}
+                    hitSlop={8}
+                    onPress={() => handleCopyLink(row.deeplink)}
                     pressScale={0.94}
                     style={styles.copyButton}
                   >
@@ -106,10 +123,6 @@ export function CustomerProfileOffersScreen() {
       </View>
     </AccountPageShell>
   );
-}
-
-function copyOfferLink(deeplink: string) {
-  void copyToClipboard(deeplink);
 }
 
 const styles = StyleSheet.create({

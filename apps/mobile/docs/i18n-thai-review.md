@@ -2,10 +2,11 @@
 
 > **AUTO-GENERATED — do not hand-edit.** Run `npm run gen:i18n-review` to regenerate from the overlay.
 
-These 332 strings are **mobile-only** copy with no web-catalog equivalent. Their Thai was **machine-authored** during the Phase 3 i18n pass and needs a native-speaker review. To correct one, edit its value in `src/messages/mobile-overlay.th.json` (match the key), then re-run the generator.
+These 333 strings are **mobile-only** copy with no web-catalog equivalent. Their Thai was **machine-authored** during the Phase 3 i18n pass and needs a native-speaker review. To correct one, edit its value in `src/messages/mobile-overlay.th.json` (match the key), then re-run the generator.
 
 | ✔ | Key | English | Thai (machine-authored) |
 | --- | --- | --- | --- |
+| ☐ | `mobileMissingOrdersImageAdded` | 1 image added | เพิ่มรูปแล้ว 1 รูป |
 | ☐ | `mobileStateEmptyTitle` | No activity yet | ยังไม่มีความเคลื่อนไหว |
 | ☐ | `mobileStateEmptyBody` | Nothing is available here yet. | ยังไม่มีข้อมูลที่นี่ในขณะนี้ |
 | ☐ | `mobileStateErrorTitle` | We could not load this page | เราไม่สามารถโหลดหน้านี้ได้ |

@@ -1,6 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { createElement } from "react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { isValidBirthdate, isValidPassportId } from "@mobile/screens/CustomerProfileDetailScreen";
+import { haptics } from "@mobile/lib/haptics";
+import {
+  CustomerProfileDetailScreen,
+  isValidBirthdate,
+  isValidPassportId,
+} from "@mobile/screens/CustomerProfileDetailScreen";
 
 // Bug-hunt fixes for CustomerProfileDetailScreen identity validation:
 //  #6 — passport was length-only (accepted "#@!ABC1") despite the "alphanumeric" message.
@@ -44,5 +51,54 @@ describe("isValidBirthdate", () => {
 
   it("rejects future dates", () => {
     expect(isValidBirthdate("2999-01-01", now)).toBe(false);
+  });
+});
+
+// Wave B (B2) — per-screen UX adoption for the profile-EDIT form. These cover the
+// native-mobile affordances added on top of the existing validators (no new visible
+// copy): the form is wrapped in KeyboardAwareScreen so the keyboard never covers the
+// focused field, and a save fires a haptic on the same branch the validators already
+// gate — haptics.success on a clean save, haptics.error on a validation rejection.
+describe("CustomerProfileDetailScreen (info edit form) — UX adoption", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("wraps the edit form in KeyboardAwareScreen (keyboard-aware scroll present)", () => {
+    render(createElement(CustomerProfileDetailScreen, { mode: "info" }));
+    // KeyboardAwareScreen tags its inner ScrollView with this stable testID;
+    // under the render harness react-native -> react-native-web, so the testID
+    // surfaces as a data-testid on the rendered node.
+    expect(screen.getByTestId("keyboard-aware-scroll")).toBeTruthy();
+  });
+
+  it("fires haptics.success on a successful save (valid defaults)", () => {
+    const successSpy = vi.spyOn(haptics, "success").mockResolvedValue();
+    const errorSpy = vi.spyOn(haptics, "error").mockResolvedValue();
+    render(createElement(CustomerProfileDetailScreen, { mode: "info" }));
+
+    // Enter edit mode (button toggles "Edit" -> "Save"), then save with the
+    // valid seeded defaults so the validators pass.
+    fireEvent.click(screen.getByText("Edit"));
+    fireEvent.click(screen.getByText("Save"));
+
+    expect(successSpy).toHaveBeenCalledTimes(1);
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it("fires haptics.error on a validation rejection (cleared username)", () => {
+    const successSpy = vi.spyOn(haptics, "success").mockResolvedValue();
+    const errorSpy = vi.spyOn(haptics, "error").mockResolvedValue();
+    render(createElement(CustomerProfileDetailScreen, { mode: "info" }));
+
+    fireEvent.click(screen.getByText("Edit"));
+    // Clear the name/username field -> trips "at least 3 characters" rejection.
+    fireEvent.change(screen.getByDisplayValue("Kunanon Jarat"), {
+      target: { value: "" },
+    });
+    fireEvent.click(screen.getByText("Save"));
+
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    expect(successSpy).not.toHaveBeenCalled();
   });
 });

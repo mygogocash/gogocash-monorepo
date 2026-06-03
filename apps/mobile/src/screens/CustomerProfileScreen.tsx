@@ -27,9 +27,11 @@ import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountRes
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { AccountPageShell, AccountWalletHeroCard } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { useToast } from "@mobile/hooks/useToast";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { clearMobileAppSession } from "@mobile/auth/session";
 import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
+import { haptics } from "@mobile/lib/haptics";
 import { copyToClipboard } from "@mobile/lib/clipboard";
 import {
   profileInviteUrl,
@@ -79,6 +81,9 @@ export function CustomerProfileScreen() {
 
   const handleLogout = async () => {
     setLogoutPending(true);
+    // Confirmed logout — a success haptic acknowledges the destructive action
+    // before the session is torn down (fire-and-forget; no-op on web).
+    void haptics.success();
     await clearMobileAppSession();
     queryClient.clear();
     resetObservabilityIdentity();
@@ -223,6 +228,14 @@ function ProfilePanelHeader({
 function InviteFriendsRow({ href }: { href: string }) {
   const tc = useCopy();
   const router = useRouter();
+  const toast = useToast();
+
+  const handleCopyLink = () => {
+    copyInviteLink();
+    // Confirm the copy with a transient toast, reusing the existing translated
+    // catalog string (key walletTransactionsCopied) so Thai resolves too.
+    toast.show(tc("Copied to clipboard"));
+  };
 
   return (
     <View style={styles.inviteRow}>
@@ -243,7 +256,10 @@ function InviteFriendsRow({ href }: { href: string }) {
       </MotionPressable>
       <MotionPressable
         accessibilityRole="button"
-        onPress={copyInviteLink}
+        // The pill is only 24px tall (styles.copyButton); hitSlop expands the
+        // tap target to a comfortable ~44px without changing the visual layout.
+        hitSlop={{ bottom: 10, left: 10, right: 10, top: 10 }}
+        onPress={handleCopyLink}
         pressScale={0.98}
         style={styles.copyButton}
       >
