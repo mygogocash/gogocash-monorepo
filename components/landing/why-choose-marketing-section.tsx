@@ -1,11 +1,19 @@
 import type { ComponentType, ReactNode } from "react";
+import Link from "next/link";
 import AnimateOnScroll from "@/components/animate-on-scroll";
 import SectionBadge from "@/components/section-badge";
+import { ArrowUpRight } from "@/components/icons";
+import { twFocusRingPrimary } from "@/lib/motion-styles";
 import { uiSectionTitleLg } from "@/lib/ui-classes";
 
 type IconComp = ComponentType<{ className?: string }>;
 
-export type WhyMarketingCard = { title: string; body: string };
+export type WhyMarketingCard = {
+  title: string;
+  body: string;
+  /** Optional "learn more" link, e.g. Saving Plus → its explainer (#8). */
+  link?: { label: string; href: string };
+};
 
 /**
  * “Why us” four-card grid shared by English (`WhyChooseSection`) and locale homes.
@@ -56,6 +64,15 @@ export function WhyChooseMarketingSection({
                   <p className="mt-3 text-sm leading-relaxed text-gray-500">
                     {card.body}
                   </p>
+                  {card.link ? (
+                    <Link
+                      href={card.link.href}
+                      className={`group mt-3 inline-flex items-center gap-1 rounded text-sm font-medium text-primary hover:underline ${twFocusRingPrimary}`}
+                    >
+                      {card.link.label}
+                      <ArrowUpRight className="h-3.5 w-3.5 shrink-0 transition-transform duration-button ease-standard group-hover:translate-x-0.5 motion-reduce:transition-none" />
+                    </Link>
+                  ) : null}
                 </div>
               </AnimateOnScroll>
             );

@@ -1,4 +1,3 @@
-import { FAQ_ITEMS } from "@/lib/faq-data";
 import { siteOrigin } from "@/lib/site";
 import { SITE_FACTS, siteSeoOneLiner } from "@/lib/site-facts";
 
@@ -49,18 +48,8 @@ export default function SchemaMarkup() {
     },
   };
 
-  const faqPage = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: FAQ_ITEMS.map((item) => ({
-      "@type": "Question",
-      name: item.question,
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: item.answer,
-      },
-    })),
-  };
+  // FAQPage JSON-LD is emitted per-locale-route via <FaqJsonLd> (issue #18),
+  // so the localized FAQ matches each page instead of a global English copy.
 
   const website = {
     "@context": "https://schema.org",
@@ -110,7 +99,6 @@ export default function SchemaMarkup() {
   const blocks: { id: string; data: object }[] = [
     { id: "organization", data: organization },
     { id: "financial-service", data: financialService },
-    { id: "faq-page", data: faqPage },
     { id: "website", data: website },
     { id: "breadcrumb-home", data: breadcrumbHome },
     { id: "mobile-app", data: mobileApp },
