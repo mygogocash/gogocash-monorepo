@@ -2650,7 +2650,7 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontFamily: typography.family,
     fontSize: 12,
-    fontWeight: "700",
+    fontWeight: typography.bodyWeight,
     lineHeight: 16,
   },
   shopDirectoryPillTextActive: {
