@@ -6,6 +6,8 @@ import {
   type HowItWorksStep,
 } from "@/components/landing/how-it-works-interactive";
 import WhyChooseSection from "@/components/landing/why-choose-section";
+import QuestsSection from "@/components/landing/quests-section";
+import DifferentiationSection from "@/components/landing/differentiation-section";
 import AppDownloadSection from "@/components/landing/app-download-section";
 import CommunitySection from "@/components/landing/community-section";
 import ContentTeaser from "@/components/landing/content-teaser";
@@ -14,10 +16,7 @@ import {
   SITE_FACTS,
   partnersStripEarnDescription,
 } from "@/lib/site-facts";
-import {
-  EnglishFeatureHighlightsSection,
-  EnglishHomeHeroSection,
-} from "@/components/landing/english-home-sections";
+import { EnglishHomeHeroSection } from "@/components/landing/english-home-sections";
 import {
   FaqSection,
   FinalCtaSection,
@@ -87,7 +86,7 @@ export default function HomePage({ initialPartners }: HomePageProps) {
 
         <WhyChooseSection />
 
-        <EnglishFeatureHighlightsSection />
+        <QuestsSection />
 
         <HowItWorksSection
           title="Cashback in three simple steps"
@@ -95,6 +94,8 @@ export default function HomePage({ initialPartners }: HomePageProps) {
           progressCue="Three steps to your first cashback"
           steps={HOW_IT_WORKS_STEPS}
         />
+
+        <DifferentiationSection />
 
         <AppDownloadSection />
 

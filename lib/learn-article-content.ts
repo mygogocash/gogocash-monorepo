@@ -152,6 +152,107 @@ Open **Wallet** → **Withdraw** (or the equivalent screen). The UI shows **elig
 
 There is **no single global number** — trust the **in-app threshold** for your account, method, and country.
 `,
+  "how-quests-work": `## What Quests are
+
+Quests are **optional challenges** inside GoGoCash that reward you with **extra cashback** on top of the rate you already earn. They are matched to how you shop, and you are never required to join one — your base cashback works the same whether or not you complete a quest.
+
+## Common quest types
+
+- **Spending streaks** — make a few qualifying purchases within a set window to unlock a boost.
+- **Category challenges** — earn extra in a featured category such as travel, electronics, or fashion while the quest is live.
+- **Seasonal boosts** — limited-time multipliers that run during big sales and campaigns.
+
+The exact quests available change over time. Open GoGoCash to see which ones are live for you right now.
+
+## How quests stack with cashback
+
+A quest reward is **added on top** of the normal cashback for a qualifying order — it does not replace it. You still need the underlying purchase to **track and confirm** the usual way: open the brand from GoGoCash, check out as normal, and wait for the merchant to confirm.
+
+## Tips to complete quests reliably
+
+- Start each purchase from **GoGoCash** so the order is attributed to your account.
+- Check the **quest terms** in the app for dates, eligible brands, and any caps.
+- Give orders time to **confirm** — quest progress follows confirmed purchases, not just clicks.
+
+## Related reading
+
+See **How cashback tracking works** for the basics, and **How to withdraw cashback** once your balance is ready.
+`,
+  "cashback-lazada-shopee": `## Start from GoGoCash, not a tab you already had open
+
+Lazada and Shopee are among the most popular partners on GoGoCash. The single most important step is to **open the store from GoGoCash** — the link or mini app — right before you shop. That is what lets GoGoCash attribute your order and confirm cashback later.
+
+## Step by step
+
+1. Open **GoGoCash** (web or a mini app) and find **Lazada** or **Shopee**.
+2. Check the **current rate** shown on the brand tile before you start.
+3. Tap through to the store **from GoGoCash** and shop as usual.
+4. Complete checkout in the **same browsing flow** — your normal account and payment methods are fine.
+5. Wait for the merchant to **confirm** the order; cashback then lands in your wallet.
+
+## Why tracking sometimes misses
+
+Marketplace apps can break attribution if you switch away mid-purchase. To keep tracking reliable:
+
+- Avoid reopening the store from a **different tab or a push notification** after starting from GoGoCash.
+- Pause aggressive **ad or tracker blocking** for the checkout tab.
+- Try to finish in **one session** rather than across devices.
+
+## After you buy
+
+Marketplace orders often confirm within a **few business days**, but returns or cancellations can reduce or remove the reward, since the merchant reverses the commission.
+
+## Related reading
+
+If an order did not track, see **Cashback not tracking? Common fixes**.
+`,
+  "choosing-a-cashback-app-sea": `## Look past the headline rate
+
+A big advertised percentage means little if you can rarely use it or cannot withdraw what you earn. When comparing cashback apps in Southeast Asia, weigh these factors instead of a single number.
+
+## What to compare
+
+- **Cash vs points** — can you withdraw **real money** to a bank or e-wallet, or are you stuck with points that expire or only work in one place?
+- **Brands you actually use** — does it cover the marketplaces, travel sites, and stores you already shop?
+- **Payout rails and minimums** — which banks and e-wallets are supported, and what is the **minimum withdrawal** for your country?
+- **Tracking transparency** — does it explain how attribution works and help when an order does not track?
+- **Where it runs** — web only, or also inside apps you already use day to day?
+
+## How GoGoCash approaches these
+
+GoGoCash pays **withdrawable cashback** (not points) to a bank or e-wallet, shows the rate **before** you shop across 70+ partners in the region, and runs on the **web plus LINE and Telegram mini apps**. There is a minimum withdrawal, which you can always see in your wallet.
+
+## A quick checklist
+
+Before you commit, confirm: real payouts, your brands, a minimum you are comfortable with, and clear tracking support. Those four usually matter more than the loudest percentage.
+
+## Related reading
+
+See **How cashback tracking works** and **Minimum withdrawal and payouts in Southeast Asia**.
+`,
+  "travel-cashback-sea": `## Travel earns like other cashback — with a longer wait
+
+Booking hotels and flights through travel partners such as **Agoda** and **Trip.com** can earn cashback the same way as any other GoGoCash purchase: open the partner **from GoGoCash**, book as usual, and wait for confirmation. The main difference is **timing**.
+
+## Why travel confirms later
+
+Most shopping confirms within a few business days. Travel is different because the booking is usually validated **closer to your stay or trip date** — and sometimes only after check-out or completed travel. That is normal; the reward stays pending until the partner reports a completed, non-cancelled booking.
+
+## Keep travel cashback on track
+
+- Start the booking **from GoGoCash**, not from a price-comparison tab you already had open.
+- Use the **same flow** through to payment; avoid bouncing between apps.
+- Keep your **booking reference** in case you need support to investigate.
+- Remember that **cancellations and changes** can reduce or void the reward.
+
+## Plan around the timeline
+
+Because travel can take longer to confirm, do not expect the cashback to be withdrawable immediately after booking. Track its status in the app; it becomes available once the partner confirms.
+
+## Related reading
+
+See **How cashback tracking works** for the fundamentals and **How to withdraw cashback** for payouts.
+`,
 };
 
 export function learnArticleMarkdownBySlug(slug: string): string | null {
