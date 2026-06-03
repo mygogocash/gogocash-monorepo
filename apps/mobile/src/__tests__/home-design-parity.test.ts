@@ -191,9 +191,12 @@ describe("Expo home design parity", () => {
       "utf8"
     );
 
-    expect(signInGraphicFile).toContain('viewBox="0 0 160 48"');
-    expect(signInGraphicFile).toContain('d="M0 24C0 10.7452');
-    expect(signInGraphicFile).toContain('fill="white"');
+    // The sign-in pill now renders a real localized label (tc("Sign in")) instead of a baked SVG text
+    // path, so it switches with the locale — same brand pill (primary bg, white label, 48 tall).
+    expect(signInGraphicFile).toContain('tc("Sign in")');
+    expect(signInGraphicFile).toContain("backgroundColor: colors.primary");
+    expect(signInGraphicFile).toContain("color: colors.white");
+    expect(signInGraphicFile).toContain("height: 48");
     for (const sourceFile of [homeFile, desktopHeaderFile]) {
       expect(sourceFile).toContain("CustomerSignInNavGraphic");
       // The sign-in a11y label may be a literal or i18n-wrapped (tc("Sign in")) — both are valid.
