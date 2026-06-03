@@ -5,6 +5,7 @@ import { WEB_APP_HREF } from "@/components/social-data";
 import { HOW_IT_WORKS_ILLUSTRATION_PATHS } from "@/lib/how-it-works-illustrations";
 import { type HowItWorksStep } from "@/components/landing/how-it-works-interactive";
 import MerchantOffersStrip from "@/components/landing/merchant-offers-strip";
+import FaqJsonLd from "@/components/faq-json-ld";
 import type { PartnerBrand } from "@/lib/involve-asia";
 import type { LocaleHomeCopy } from "@/lib/locale-home-copy";
 import {
@@ -94,6 +95,7 @@ export default function LocaleHomePage({
           subtitle={copy.faq.subtitleEnHint}
           englishLinkLabel={copy.langNavEnglish}
         />
+        <FaqJsonLd items={faqItems} />
         <FinalCtaSection
           title={copy.finalCta.title}
           subtitle={copy.finalCta.sub}

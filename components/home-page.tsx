@@ -24,6 +24,7 @@ import {
   HowItWorksSection,
 } from "@/components/landing/common-sections";
 import { WEB_APP_HREF } from "@/components/social-data";
+import FaqJsonLd from "@/components/faq-json-ld";
 import { HOW_IT_WORKS_ILLUSTRATION_PATHS } from "@/lib/how-it-works-illustrations";
 
 const HOW_IT_WORKS_STEPS: HowItWorksStep[] = [
@@ -106,6 +107,7 @@ export default function HomePage({ initialPartners }: HomePageProps) {
           title="Frequently Asked Questions"
           items={faqItemsForLocale("en")}
         />
+        <FaqJsonLd items={faqItemsForLocale("en")} />
 
         <FinalCtaSection
           title="Ready to earn on every purchase?"
