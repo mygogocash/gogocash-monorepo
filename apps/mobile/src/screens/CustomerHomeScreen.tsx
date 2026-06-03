@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -947,6 +948,28 @@ function HomeHeroBanners({ homeLayout }: { homeLayout: HomeLayoutMetrics }) {
   const [heroBannerWidth, setHeroBannerWidth] = useState(homeLayout.contentWidth);
   const heroMaxPageIndex = Math.max(0, mainBanners.length - 1);
   const heroScrollX = useMemo(() => new Animated.Value(0), []);
+  const reducedMotion = useReducedMotion();
+  const heroScrollRef = useRef<ScrollView>(null);
+  const heroInteractingRef = useRef(false);
+
+  // Premium auto-advance: cycle the main hero banners on a gentle interval, but stay out of the way —
+  // pause while the user is actively dragging, and disable entirely under reduce-motion.
+  useEffect(() => {
+    if (reducedMotion || mainBanners.length <= 1 || heroBannerWidth <= 0) {
+      return;
+    }
+    const intervalId = setInterval(() => {
+      if (heroInteractingRef.current) {
+        return;
+      }
+      setActiveHeroBannerPage((current) => {
+        const next = (current + 1) % mainBanners.length;
+        heroScrollRef.current?.scrollTo({ animated: true, x: next * heroBannerWidth });
+        return next;
+      });
+    }, 5000);
+    return () => clearInterval(intervalId);
+  }, [heroBannerWidth, mainBanners.length, reducedMotion]);
 
   return (
     <View style={[styles.heroStack, homeLayout.isDesktop ? styles.heroStackDesktop : null]}>
@@ -959,13 +982,18 @@ function HomeHeroBanners({ homeLayout }: { homeLayout: HomeLayoutMetrics }) {
         ]}
       >
         <Animated.ScrollView
+          ref={heroScrollRef}
           contentContainerStyle={styles.heroScrollContent}
           decelerationRate="fast"
           disableIntervalMomentum
           horizontal
-          onMomentumScrollEnd={(event) =>
-            setActiveHeroBannerPage(getPagedScrollIndex(event, heroBannerWidth, heroMaxPageIndex))
-          }
+          onMomentumScrollEnd={(event) => {
+            heroInteractingRef.current = false;
+            setActiveHeroBannerPage(getPagedScrollIndex(event, heroBannerWidth, heroMaxPageIndex));
+          }}
+          onScrollBeginDrag={() => {
+            heroInteractingRef.current = true;
+          }}
           onScroll={Animated.event(
             [{ nativeEvent: { contentOffset: { x: heroScrollX } } }],
             { useNativeDriver: false }
