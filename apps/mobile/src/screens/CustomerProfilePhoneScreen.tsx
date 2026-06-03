@@ -5,8 +5,15 @@ import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
+import { KeyboardAwareScreen } from "@mobile/components/KeyboardAwareScreen";
 import { useCopy } from "@mobile/i18n/useCopy";
+import { haptics } from "@mobile/lib/haptics";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
+
+// Tap-target expansion for icon/text-only buttons shorter than the 44px minimum
+// (chevron back-link + the text-only "Back" buttons). 12px on each side lifts the
+// effective hit area past the threshold without changing the visual layout.
+const TAP_TARGET_HIT_SLOP = { bottom: 12, left: 12, right: 12, top: 12 } as const;
 
 type PhoneMode = "otp" | "phone";
 
@@ -64,13 +71,20 @@ function PhoneNumberScreen() {
       </View>
       <View style={styles.actionRow}>
         <Link asChild href="/profile/info">
-          <Pressable style={styles.secondaryAction}>
+          <Pressable hitSlop={TAP_TARGET_HIT_SLOP} style={styles.secondaryAction}>
             <Text style={styles.secondaryActionText}>{tc("Back")}</Text>
           </Pressable>
         </Link>
         <Pressable
-          disabled={!isValid}
-          onPress={() => router.push("/profile/cf-phone")}
+          onPress={() => {
+            // Invalid numbers give an error cue; a valid one confirms and advances.
+            if (!isValid) {
+              void haptics.error();
+              return;
+            }
+            void haptics.success();
+            router.push("/profile/cf-phone");
+          }}
           style={[styles.primaryAction, !isValid ? styles.primaryActionDisabled : null]}
         >
           <Text style={styles.primaryActionText}>{tc("Continue")}</Text>
@@ -107,12 +121,16 @@ function PhoneOtpScreen() {
       </View>
       <View style={styles.actionRow}>
         <Link asChild href="/profile/verify-phone">
-          <Pressable style={styles.secondaryAction}>
+          <Pressable hitSlop={TAP_TARGET_HIT_SLOP} style={styles.secondaryAction}>
             <Text style={styles.secondaryActionText}>{tc("Back")}</Text>
           </Pressable>
         </Link>
         <Pressable
-          disabled={!canSubmit}
+          onPress={() => {
+            // A complete 6-digit code confirms with a success cue; an incomplete
+            // one gives an error cue instead of silently doing nothing.
+            void (canSubmit ? haptics.success() : haptics.error());
+          }}
           style={[styles.primaryAction, !canSubmit ? styles.primaryActionDisabled : null]}
         >
           <Text style={styles.primaryActionText}>{tc("Continue")}</Text>
@@ -130,7 +148,7 @@ function PhoneSubPage({ children, title }: { children: ReactNode; title: string 
     <AccountPageShell activeRouteId="profile" showTitle={false} title={title}>
       <View style={styles.surface}>
         <Link asChild href="/profile/info">
-          <Pressable accessibilityRole="link" style={styles.topBar}>
+          <Pressable accessibilityRole="link" hitSlop={TAP_TARGET_HIT_SLOP} style={styles.topBar}>
             <ChevronLeftIcon
               color={colors.accent}
               size={26}
@@ -139,7 +157,7 @@ function PhoneSubPage({ children, title }: { children: ReactNode; title: string 
             <Text style={styles.topBarTitle}>{title}</Text>
           </Pressable>
         </Link>
-        <View style={styles.content}>{children}</View>
+        <KeyboardAwareScreen contentContainerStyle={styles.content}>{children}</KeyboardAwareScreen>
       </View>
     </AccountPageShell>
   );

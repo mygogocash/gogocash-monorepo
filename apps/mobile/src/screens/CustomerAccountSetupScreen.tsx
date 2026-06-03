@@ -9,7 +9,6 @@ import { useState } from "react";
 import {
   Image,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -22,7 +21,9 @@ import authHeroImage from "../../assets/auth-login-hero.png";
 import logoMarkImage from "../../assets/nav/logo.png";
 import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
 import { CustomerDesktopHeader } from "@mobile/components/CustomerDesktopHeader";
+import { KeyboardAwareScreen } from "@mobile/components/KeyboardAwareScreen";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { haptics } from "@mobile/lib/haptics";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { mobileShellLayout, webAccountSetupFlow } from "@mobile/design/webDesignParity";
 import {
@@ -78,6 +79,8 @@ export function CustomerAccountSetupScreen() {
   const submitPromptPay = (method: SavedPromptPayMethod) => {
     setSavedMethod(method);
     setStatusMessage(tc(webAccountSetupFlow.status.submitSuccess));
+    // Fire-and-forget success cue on the save funnel (covers all three terminal paths).
+    void haptics.success();
     router.replace("/");
   };
 
@@ -87,6 +90,7 @@ export function CustomerAccountSetupScreen() {
     if (form.choice === "registered_phone") {
       if (!hasRegisteredPhone) {
         setStatusMessage(tc(webAccountSetupFlow.status.noRegisteredPhone));
+        void haptics.error();
         return;
       }
 
@@ -111,6 +115,7 @@ export function CustomerAccountSetupScreen() {
   const handleOtherPhoneNext = () => {
     if (!isThaiMobileValid(form.otherPhoneDigits)) {
       setPhoneError(tc(webAccountSetupFlow.steps.otherPhone.invalid));
+      void haptics.error();
       return;
     }
 
@@ -123,6 +128,7 @@ export function CustomerAccountSetupScreen() {
   const handleOtpNext = () => {
     if (!isOtpValid(form.otpInput)) {
       setOtpError(tc(webAccountSetupFlow.steps.otp.invalid));
+      void haptics.error();
       return;
     }
 
@@ -135,6 +141,7 @@ export function CustomerAccountSetupScreen() {
     setNameSubmitted(true);
 
     if (!isNameValid(form.firstName) || !isNameValid(form.lastName)) {
+      void haptics.error();
       return;
     }
 
@@ -148,6 +155,7 @@ export function CustomerAccountSetupScreen() {
   const handleCitizenIdNext = () => {
     if (!isCitizenIdValid(form.citizenIdDigits)) {
       setCitizenIdError(tc(webAccountSetupFlow.steps.citizenId.invalid));
+      void haptics.error();
       return;
     }
 
@@ -160,6 +168,7 @@ export function CustomerAccountSetupScreen() {
     setNameSubmitted(true);
 
     if (!isNameValid(form.firstName) || !isNameValid(form.lastName)) {
+      void haptics.error();
       return;
     }
 
@@ -181,7 +190,7 @@ export function CustomerAccountSetupScreen() {
     <View style={styles.viewport}>
       <View style={[styles.shell, isDesktopShell ? styles.desktopShell : styles.phoneFrame]}>
         {isDesktopShell ? <CustomerDesktopHeader viewportWidth={width} /> : null}
-        <ScrollView
+        <KeyboardAwareScreen
           contentContainerStyle={[
             styles.page,
             isDesktopShell ? styles.pageDesktop : styles.pageMobile,
@@ -189,8 +198,6 @@ export function CustomerAccountSetupScreen() {
               paddingTop: isDesktopShell ? 48 : Math.max(spacing.md, insets.top + spacing.md),
             },
           ]}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
         >
           <View style={[styles.accountLayout, isWideDesktop ? styles.accountLayoutDesktop : null]}>
             {isWideDesktop ? (
@@ -282,7 +289,7 @@ export function CustomerAccountSetupScreen() {
                 <CustomerDesktopFooter horizontalPadding={0} viewportWidth={width} />
               </View>
             ) : null}
-          </ScrollView>
+          </KeyboardAwareScreen>
         </View>
       </View>
   );

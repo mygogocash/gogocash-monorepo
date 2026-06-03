@@ -15,17 +15,27 @@ import {
   UserRound as UserIcon,
 } from "@mobile/theme/icons";
 import type { ReactNode } from "react";
+import { useState } from "react";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
+import { KeyboardAwareScreen } from "@mobile/components/KeyboardAwareScreen";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
+import { haptics } from "@mobile/lib/haptics";
 import { mobileShellLayout, webMissingOrdersPage } from "@mobile/design/webDesignParity";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 type MissingOrdersSection = (typeof webMissingOrdersPage.sections)[number];
 type MissingOrdersField = MissingOrdersSection["fields"][number];
 type MissingOrdersQuickCard = (typeof webMissingOrdersPage.quickCards)[number];
+
+// The validation message reuses the attachment field's own "Required — add at least 1
+// image…" helper from the existing catalog data — no new visible string is introduced.
+const attachmentField = webMissingOrdersPage.sections
+  .flatMap((section): readonly MissingOrdersField[] => section.fields)
+  .find((field) => field.icon === "image");
+const attachmentRequiredMessage = attachmentField?.helper ?? "";
 
 export function CustomerMissingOrdersScreen() {
   return (
@@ -44,7 +54,14 @@ function MissingOrdersSubPage({ children }: { children: ReactNode }) {
   const tc = useCopy();
   return (
     <AccountPageShell activeRouteId="profile" showTitle={false} title={tc(webMissingOrdersPage.title)}>
-      <View style={[styles.surface, styles.missingOrdersSurfaceBleed]}>{children}</View>
+      {/* Wave B (B2) — KeyboardAwareScreen wraps this long multi-field claim form so the
+          on-screen keyboard never covers the focused input (the keyboard-occlusion fix
+          matters most on a form this tall). It supplies the keyboard-avoiding ScrollView
+          and forwards contentContainerStyle, so the existing surface layout is unchanged;
+          on web it is a layout no-op. */}
+      <KeyboardAwareScreen contentContainerStyle={[styles.surface, styles.missingOrdersSurfaceBleed]}>
+        {children}
+      </KeyboardAwareScreen>
     </AccountPageShell>
   );
 }
@@ -53,7 +70,7 @@ function MissingOrdersTopBar() {
   const tc = useCopy();
   return (
     <Link asChild href="/profile">
-      <Pressable accessibilityRole="link" style={styles.topBar}>
+      <Pressable accessibilityRole="link" hitSlop={8} style={styles.topBar}>
         <ChevronLeftIcon color={colors.accent} size={26} strokeWidth={typography.iconStrokeWidth} />
         <Text style={styles.topBarTitle}>{tc(webMissingOrdersPage.title)}</Text>
       </Pressable>
@@ -63,6 +80,26 @@ function MissingOrdersTopBar() {
 
 function MissingOrdersFormPanel() {
   const tc = useCopy();
+  // The copy declares screenshots/receipts as the one REQUIRED input ("Required — add at
+  // least 1 image"). The rest of this screen simulates entry with static values, so we
+  // mirror that: a single attachment flag the add-image field toggles. Submit validates
+  // it — the smallest honest validation the form's own copy demands.
+  const [hasAttachment, setHasAttachment] = useState(false);
+  const [submitError, setSubmitError] = useState(false);
+
+  const handleSubmit = () => {
+    if (!hasAttachment) {
+      // Validation failure: nothing to send yet → error buzz + inline message.
+      setSubmitError(true);
+      haptics.error();
+      return;
+    }
+
+    // Claim is ready to open LINE and send → success haptic.
+    setSubmitError(false);
+    haptics.success();
+  };
+
   return (
     <View style={styles.formPanel}>
       <View style={styles.formHeader}>
@@ -85,7 +122,15 @@ function MissingOrdersFormPanel() {
 
       <View style={styles.sectionStack}>
         {webMissingOrdersPage.sections.map((section) => (
-          <MissingOrdersFormSection key={section.id} section={section} />
+          <MissingOrdersFormSection
+            hasAttachment={hasAttachment}
+            key={section.id}
+            onToggleAttachment={() => {
+              setHasAttachment((added) => !added);
+              setSubmitError(false);
+            }}
+            section={section}
+          />
         ))}
       </View>
 
@@ -98,14 +143,28 @@ function MissingOrdersFormPanel() {
         ))}
       </View>
 
-      <MotionPressable pressScale={0.98} style={styles.submitButton}>
+      {submitError ? (
+        <Text accessibilityRole="alert" style={styles.submitError}>
+          {tc(attachmentRequiredMessage)}
+        </Text>
+      ) : null}
+
+      <MotionPressable onPress={handleSubmit} pressScale={0.98} style={styles.submitButton}>
         <Text style={styles.submitButtonText}>{tc(webMissingOrdersPage.submitActionLabel)}</Text>
       </MotionPressable>
     </View>
   );
 }
 
-function MissingOrdersFormSection({ section }: { section: MissingOrdersSection }) {
+function MissingOrdersFormSection({
+  hasAttachment,
+  onToggleAttachment,
+  section,
+}: {
+  hasAttachment: boolean;
+  onToggleAttachment: () => void;
+  section: MissingOrdersSection;
+}) {
   const tc = useCopy();
   return (
     <View style={styles.formSection}>
@@ -115,34 +174,66 @@ function MissingOrdersFormSection({ section }: { section: MissingOrdersSection }
       </View>
       <View style={styles.fieldStack}>
         {section.fields.map((field) => (
-          <MissingOrdersFieldRow field={field} key={field.label} />
+          <MissingOrdersFieldRow
+            field={field}
+            hasAttachment={hasAttachment}
+            key={field.label}
+            onToggleAttachment={onToggleAttachment}
+          />
         ))}
       </View>
     </View>
   );
 }
 
-function MissingOrdersFieldRow({ field }: { field: MissingOrdersField }) {
+function MissingOrdersFieldRow({
+  field,
+  hasAttachment,
+  onToggleAttachment,
+}: {
+  field: MissingOrdersField;
+  hasAttachment: boolean;
+  onToggleAttachment: () => void;
+}) {
   const tc = useCopy();
   const isAttachment = field.icon === "image";
 
-  return (
-    <View style={isAttachment ? styles.attachmentField : styles.fieldRow}>
+  const content = (
+    <>
       <View style={styles.fieldIcon}>
         {renderFieldIcon(field.icon)}
       </View>
       <View style={styles.fieldCopy}>
         <Text style={styles.fieldLabel}>{tc(field.label)}</Text>
         <Text style={[styles.fieldValue, isAttachment ? styles.attachmentValue : null]}>
-          {tc(field.value)}
+          {isAttachment && hasAttachment ? tc("1 image added") : tc(field.value)}
         </Text>
         <Text style={styles.fieldHelper}>{tc(field.helper)}</Text>
       </View>
       {field.icon === "store" ? (
         <ChevronDownIcon color={colors.muted} size={18} strokeWidth={typography.iconStrokeWidth} />
       ) : null}
-    </View>
+    </>
   );
+
+  // The attachment row is the only interactive field today: it's an icon-led "add image"
+  // trigger whose icon is 32px (< 44px), so it carries a hitSlop to reach the 44px target.
+  if (isAttachment) {
+    return (
+      <Pressable
+        accessibilityLabel={tc(field.label)}
+        accessibilityRole="button"
+        accessibilityState={{ selected: hasAttachment }}
+        hitSlop={8}
+        onPress={onToggleAttachment}
+        style={styles.attachmentField}
+      >
+        {content}
+      </Pressable>
+    );
+  }
+
+  return <View style={styles.fieldRow}>{content}</View>;
 }
 
 function MissingOrdersQuickCards() {
@@ -469,6 +560,13 @@ const styles = StyleSheet.create({
     fontFamily: typography.family,
     fontSize: 12,
     lineHeight: 19,
+  },
+  submitError: {
+    color: colors.danger,
+    fontFamily: typography.family,
+    fontSize: 12,
+    fontWeight: "600",
+    lineHeight: 18,
   },
   submitButton: {
     alignItems: "center",

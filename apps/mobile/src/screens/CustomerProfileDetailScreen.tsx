@@ -18,6 +18,8 @@ import {
 } from "@mobile/theme/icons";
 
 import { AccountPageShell, AccountWalletHeroCard } from "@mobile/components/AccountPageShell";
+import { KeyboardAwareScreen } from "@mobile/components/KeyboardAwareScreen";
+import { haptics } from "@mobile/lib/haptics";
 import { useCopy } from "@mobile/i18n/useCopy";
 import {
   mobileShellLayout,
@@ -181,19 +183,25 @@ export function CustomerProfileDetailScreen({ mode }: { mode: ProfileDetailMode 
 
     if (nextErrors.length > 0) {
       setErrors(nextErrors);
+      // Wave B: error haptic on the validation-rejection branch (cosmetic, never throws).
+      void haptics.error();
       return;
     }
 
     setErrors([]);
     setSuccessMsg("Personal information updated successfully!");
     setIsEditing(false);
+    // Wave B: success haptic on a clean save (cosmetic, never throws).
+    void haptics.success();
   };
 
   if (mode === "info") {
     return (
       <ProfileInfoSubPage>
         <ProfileInfoTopBar />
-        <View style={styles.profileInfoContent}>
+        {/* Wave B (B2): wrap the edit form in KeyboardAwareScreen so the on-screen
+            keyboard doesn't cover the focused field. No-op layout on web. */}
+        <KeyboardAwareScreen contentContainerStyle={styles.profileInfoContent}>
           <AccountWalletHeroCard
             amount={webProfileWalletSummary.amount}
             currency={webProfileWalletSummary.currency}
@@ -236,7 +244,7 @@ export function CustomerProfileDetailScreen({ mode }: { mode: ProfileDetailMode 
             username={username}
             zip={zip}
           />
-        </View>
+        </KeyboardAwareScreen>
       </ProfileInfoSubPage>
     );
   }
