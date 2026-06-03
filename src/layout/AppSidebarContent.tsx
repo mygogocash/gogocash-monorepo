@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState, startTransition } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState, startTransition } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -18,17 +18,26 @@ import {
   GroupIcon,
   HorizontaLDots,
   ListIcon,
+  LockIcon,
   PieChartIcon,
   ShootingStarIcon,
   TrophyIcon,
   VideoIcon,
 } from "../icons/index";
+import { usePermissions } from "@/hooks/usePermissions";
+import type { Permission } from "@/lib/rbac";
 
 export type NavItem = {
   name: string;
   icon: React.ReactNode;
   path?: string;
-  subItems?: { name: string; path: string; pro?: boolean }[];
+  permission?: Permission;
+  subItems?: {
+    name: string;
+    path: string;
+    pro?: boolean;
+    permission?: Permission;
+  }[];
 };
 
 export const navItems: NavItem[] = [
@@ -36,86 +45,113 @@ export const navItems: NavItem[] = [
     icon: <GridIcon />,
     name: "Platform Dashboard",
     path: "/dashboard",
+    permission: "dashboard:view",
   },
   {
     icon: <GroupIcon />,
     name: "Users Management",
     subItems: [
-      { name: "Users Admin", path: "/admin-users", pro: false },
-      { name: "GoGoCash Users", path: "/users", pro: false },
-      { name: "MyCashBack Users", path: "/users/mycashback", pro: false },
-      { name: "Membership", path: "/membership", pro: false },
-      { name: "Subscription", path: "/subscription", pro: false },
-      { name: "Credit score", path: "/credit-score", pro: false },
-      { name: "Referral", path: "/referral", pro: false },
-      { name: "Wallet", path: "/wallet", pro: false },
+      { name: "GoGoCash Users", path: "/users", pro: false, permission: "users:view" },
+      { name: "MyCashBack Users", path: "/users/mycashback", pro: false, permission: "users:view" },
+      { name: "Membership", path: "/membership", pro: false, permission: "users:view" },
+      { name: "Subscription", path: "/subscription", pro: false, permission: "users:view" },
+      { name: "Credit score", path: "/credit-score", pro: false, permission: "users:view" },
+      { name: "Referral", path: "/referral", pro: false, permission: "users:view" },
+      { name: "Wallet", path: "/wallet", pro: false, permission: "users:view" },
+    ],
+  },
+  {
+    icon: <LockIcon />,
+    name: "Admin Management",
+    subItems: [
+      { name: "Users Admin", path: "/admin-users", pro: false, permission: "adminUsers:view" },
+      { name: "Roles", path: "/roles", pro: false, permission: "adminUsers:manage" },
     ],
   },
   {
     icon: <ShootingStarIcon />,
     name: "Brands Management",
     subItems: [
-      { name: "Create brand", path: "/brands/create-brand", pro: false },
-      { name: "Brands", path: "/brands", pro: false },
-      { name: "Commission Management", path: "/brands?tab=commission", pro: false },
-      { name: "Policy Management", path: "/brands?tab=policy", pro: false },
-      { name: "User tracking link", path: "/brands?tab=deeplink", pro: false },
-      { name: "Top brands", path: "/brands?tab=top-brands", pro: false },
-      { name: "Missing orders", path: "/missing-orders", pro: false },
-      { name: "Search config", path: "/search-config", pro: false },
+      { name: "Create brand", path: "/brands/create-brand", pro: false, permission: "brands:view" },
+      { name: "Brands", path: "/brands", pro: false, permission: "brands:view" },
+      { name: "Commission Management", path: "/brands?tab=commission", pro: false, permission: "brands:view" },
+      { name: "Policy Management", path: "/brands?tab=policy", pro: false, permission: "brands:view" },
+      { name: "User tracking link", path: "/brands?tab=deeplink", pro: false, permission: "brands:view" },
+      { name: "Top brands", path: "/brands?tab=top-brands", pro: false, permission: "brands:view" },
+      { name: "Missing orders", path: "/missing-orders", pro: false, permission: "brands:view" },
+      { name: "Search config", path: "/search-config", pro: false, permission: "brands:view" },
     ],
   },
   {
     icon: <DollarLineIcon />,
     name: "Withdraw Management",
-    subItems: [{ name: "Withdraw", path: "/withdraw", pro: false }],
+    subItems: [{ name: "Withdraw", path: "/withdraw", pro: false, permission: "withdraw:view" }],
   },
   {
     icon: <PieChartIcon />,
     name: "Fee",
-    subItems: [{ name: "Fee Structure", path: "/fee", pro: false }],
+    subItems: [{ name: "Fee Structure", path: "/fee", pro: false, permission: "fee:view" }],
   },
   {
     icon: <ArrowUpIcon />,
     name: "Conversion Management",
     subItems: [
-      { name: "Conversion Lists", path: "/conversion", pro: false },
-      { name: "Created Conversion", path: "/conversion?tab=created", pro: false },
-      { name: "Add conversion", path: "/conversion/add", pro: false },
-      { name: "Transactions", path: "/transactions", pro: false },
+      { name: "Conversion Lists", path: "/conversion", pro: false, permission: "conversion:view" },
+      { name: "Created Conversion", path: "/conversion?tab=created", pro: false, permission: "conversion:view" },
+      { name: "Add conversion", path: "/conversion/add", pro: false, permission: "conversion:view" },
+      { name: "Transactions", path: "/transactions", pro: false, permission: "conversion:view" },
     ],
   },
   {
     icon: <VideoIcon />,
     name: "Banner Management",
     subItems: [
-      { name: "Home Page Banner", path: "/banner", pro: false },
-      { name: "All Brand Page banner", path: "/banner/all-brand-page", pro: false },
-      { name: "Modal popups", path: "/banner/modal-popups", pro: false },
-      { name: "Popup history", path: "/banner/popup-history", pro: false },
+      { name: "Home Page Banner", path: "/banner", pro: false, permission: "banner:view" },
+      { name: "All Brand Page banner", path: "/banner/all-brand-page", pro: false, permission: "banner:view" },
+      { name: "Modal popups", path: "/banner/modal-popups", pro: false, permission: "banner:view" },
+      { name: "Popup history", path: "/banner/popup-history", pro: false, permission: "banner:view" },
     ],
   },
   {
     icon: <ListIcon />,
     name: "Coupon Management",
     subItems: [
-      { name: "Coupon", path: "/coupon", pro: false },
-      { name: "Coupon History", path: "/coupon/history", pro: false },
+      { name: "Coupon", path: "/coupon", pro: false, permission: "coupon:view" },
+      { name: "Coupon History", path: "/coupon/history", pro: false, permission: "coupon:view" },
     ],
   },
   {
     icon: <TrophyIcon />,
     name: "Quest Management",
     subItems: [
-      { name: "Quest", path: "/quest", pro: false },
-      { name: "Create Reward", path: "/reward", pro: false },
-      { name: "Create Points", path: "/points", pro: false },
+      { name: "Quest", path: "/quest", pro: false, permission: "quest:view" },
+      { name: "Create Reward", path: "/reward", pro: false, permission: "quest:view" },
+      { name: "Create Points", path: "/points", pro: false, permission: "quest:view" },
     ],
   },
 ];
 
 /** Secondary sidebar group; keep empty until more items belong under "Others". */
 export const othersItems: NavItem[] = [];
+
+/** Hide nav entries the current role can't view (subitems filtered first; a
+ *  section with subitems disappears once none of them are visible). */
+function filterNav(
+  items: NavItem[],
+  check: (permission: Permission) => boolean,
+): NavItem[] {
+  return items
+    .map((item) => ({
+      ...item,
+      subItems: item.subItems?.filter(
+        (si) => !si.permission || check(si.permission),
+      ),
+    }))
+    .filter((item) => {
+      if (item.subItems) return item.subItems.length > 0;
+      return !item.permission || check(item.permission);
+    });
+}
 
 type SubItem = NonNullable<NavItem["subItems"]>[number];
 
@@ -170,6 +206,8 @@ type Props = {
 export default function AppSidebarContent({ isSubItemActive }: Props) {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered, toggleMobileSidebar } = useSidebar();
   const pathname = usePathname();
+  const { can } = usePermissions();
+  const visibleNavItems = useMemo(() => filterNav(navItems, can), [can]);
 
   const [openSubmenu, setOpenSubmenu] = useState<{
     type: "main" | "others";
@@ -201,7 +239,7 @@ export default function AppSidebarContent({ isSubItemActive }: Props) {
     startTransition(() => {
       let submenuMatched = false;
       (["main", "others"] as const).forEach((menuType) => {
-        const items = menuType === "main" ? navItems : othersItems;
+        const items = menuType === "main" ? visibleNavItems : othersItems;
         items.forEach((nav, index) => {
           if (nav.subItems) {
             nav.subItems.forEach((subItem) => {
@@ -221,7 +259,7 @@ export default function AppSidebarContent({ isSubItemActive }: Props) {
         setOpenSubmenu(null);
       }
     });
-  }, [pathname, isSubItemActive]);
+  }, [pathname, isSubItemActive, visibleNavItems]);
 
   useEffect(() => {
     if (openSubmenu !== null) {
@@ -370,7 +408,7 @@ export default function AppSidebarContent({ isSubItemActive }: Props) {
               >
                 {isExpanded || isHovered || isMobileOpen ? "Menu" : <HorizontaLDots />}
               </h2>
-              {renderMenuItems(navItems, "main")}
+              {renderMenuItems(visibleNavItems, "main")}
             </div>
 
             {othersItems.length > 0 && (

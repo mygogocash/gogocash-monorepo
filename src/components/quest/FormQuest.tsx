@@ -6,6 +6,7 @@ import { devError } from "@/lib/devConsole";
 import toast from "react-hot-toast";
 import Button from "../ui/button/Button";
 import { useDataSession } from "@/hooks/useDataSession";
+import { useObjectUrl } from "@/hooks/useObjectUrl";
 import { ResponseQuestCreateForm, ResponseQuestDate } from "@/types/quest";
 interface IProp {
   fetchData: () => void;
@@ -28,6 +29,18 @@ const FormQuest = ({
   setIsLoading,
 }: IProp) => {
   const session = useDataSession();
+  const bannerEnUrl = useObjectUrl(
+    form.banner_en instanceof File ? form.banner_en : null,
+  );
+  const bannerThUrl = useObjectUrl(
+    form.banner_th instanceof File ? form.banner_th : null,
+  );
+  const subBannerEnUrl = useObjectUrl(
+    form.sub_banner_en instanceof File ? form.sub_banner_en : null,
+  );
+  const subBannerThUrl = useObjectUrl(
+    form.sub_banner_th instanceof File ? form.sub_banner_th : null,
+  );
   // Handle file change
   const handleFileChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -136,9 +149,8 @@ const FormQuest = ({
                 </p>
                 <RemoteOrBlobImage
                   src={
-                    typeof form.banner_en === "object"
-                      ? URL.createObjectURL(form.banner_en as File)
-                      : `${process.env.NEXT_PUBLIC_API_URL}/google-drive/file/${(openModal as ResponseQuestDate).banner_en}`
+                    bannerEnUrl ??
+                    `${process.env.NEXT_PUBLIC_API_URL}/google-drive/file/${(openModal as ResponseQuestDate).banner_en}`
                   }
                   alt="Preview"
                   width={800}
@@ -164,9 +176,8 @@ const FormQuest = ({
                 </p>
                 <RemoteOrBlobImage
                   src={
-                    typeof form.banner_th === "object"
-                      ? URL.createObjectURL(form.banner_th as File)
-                      : `${process.env.NEXT_PUBLIC_API_URL}/google-drive/file/${(openModal as ResponseQuestDate).banner_th}`
+                    bannerThUrl ??
+                    `${process.env.NEXT_PUBLIC_API_URL}/google-drive/file/${(openModal as ResponseQuestDate).banner_th}`
                   }
                   alt="Preview"
                   width={800}
@@ -194,9 +205,8 @@ const FormQuest = ({
                 </p>
                 <RemoteOrBlobImage
                   src={
-                    typeof form.sub_banner_en === "object"
-                      ? URL.createObjectURL(form.sub_banner_en as File)
-                      : `${process.env.NEXT_PUBLIC_API_URL}/google-drive/file/${(openModal as ResponseQuestDate).sub_banner_en}`
+                    subBannerEnUrl ??
+                    `${process.env.NEXT_PUBLIC_API_URL}/google-drive/file/${(openModal as ResponseQuestDate).sub_banner_en}`
                   }
                   alt="Preview"
                   width={800}
@@ -224,9 +234,8 @@ const FormQuest = ({
                 </p>
                 <RemoteOrBlobImage
                   src={
-                    typeof form.sub_banner_th === "object"
-                      ? URL.createObjectURL(form.sub_banner_th as File)
-                      : `${process.env.NEXT_PUBLIC_API_URL}/google-drive/file/${(openModal as ResponseQuestDate).sub_banner_th}`
+                    subBannerThUrl ??
+                    `${process.env.NEXT_PUBLIC_API_URL}/google-drive/file/${(openModal as ResponseQuestDate).sub_banner_th}`
                   }
                   alt="Preview"
                   width={800}

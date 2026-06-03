@@ -59,19 +59,24 @@ export default function RecentActivity() {
     let cancelled = false;
     startTransition(() => setLoading(true));
     const { getConversion, getWithdraws } = apiRef.current;
-    Promise.all([
+    Promise.allSettled([
       getConversion({ limit: LIMIT, page: 1 }, token).then((r) =>
-        (r?.data ?? []).map((c) => ({ type: "conversion" as const, data: c }))
+        (r?.data ?? []).map((c) => ({ type: "conversion" as const, data: c })),
       ),
       getWithdraws({ limit: LIMIT, page: 1 }, token).then((r) =>
-        (r?.data ?? []).map((w) => ({ type: "withdrawal" as const, data: w }))
+        (r?.data ?? []).map((w) => ({ type: "withdrawal" as const, data: w })),
       ),
     ])
-      .then(([convs, withdraws]) => {
+      .then((results) => {
         if (cancelled) return;
+        // Partial success: keep whichever source loaded instead of blanking both.
+        const convs = results[0].status === "fulfilled" ? results[0].value : [];
+        const withdraws =
+          results[1].status === "fulfilled" ? results[1].value : [];
         const merged: ActivityItem[] = [];
         const withDate = (a: ActivityItem) => {
-          const d = a.type === "conversion" ? a.data.createdAt : a.data.createdAt;
+          const d =
+            a.type === "conversion" ? a.data.createdAt : a.data.createdAt;
           return { a, date: new Date(d ?? 0).getTime() };
         };
         [...convs.map((a) => withDate(a)), ...withdraws.map((a) => withDate(a))]
@@ -79,9 +84,6 @@ export default function RecentActivity() {
           .slice(0, LIMIT)
           .forEach(({ a }) => merged.push(a));
         setActivities(merged);
-      })
-      .catch(() => {
-        if (!cancelled) setActivities([]);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -92,7 +94,7 @@ export default function RecentActivity() {
   }, [token]);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-4 pb-3 pt-4 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6">
+    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-4 pt-4 pb-3 sm:px-6 dark:border-gray-800 dark:bg-white/[0.03]">
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
@@ -103,10 +105,10 @@ export default function RecentActivity() {
         <div className="flex items-center gap-3">
           <Link
             href="/conversion"
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-theme-sm font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 hover:text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] dark:hover:text-gray-200"
+            className="text-theme-sm shadow-theme-xs inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] dark:hover:text-gray-200"
           >
             <svg
-              className="stroke-current fill-white dark:fill-gray-800"
+              className="fill-white stroke-current dark:fill-gray-800"
               width="20"
               height="20"
               viewBox="0 0 20 20"
@@ -129,13 +131,11 @@ export default function RecentActivity() {
               />
               <path
                 d="M12.0826 3.33331C13.5024 3.33331 14.6534 4.48431 14.6534 5.90414C14.6534 7.32398 13.5024 8.47498 12.0826 8.47498C10.6627 8.47498 9.51172 7.32398 9.51172 5.90415C9.51172 4.48432 10.6627 3.33331 12.0826 3.33331Z"
-               
                 stroke=""
                 strokeWidth="1.5"
               />
               <path
                 d="M7.91745 11.525C6.49762 11.525 5.34662 12.676 5.34662 14.0959C5.34661 15.5157 6.49762 16.6667 7.91745 16.6667C9.33728 16.6667 10.4883 15.5157 10.4883 14.0959C10.4883 12.676 9.33728 11.525 7.91745 11.525Z"
-               
                 stroke=""
                 strokeWidth="1.5"
               />
@@ -144,7 +144,7 @@ export default function RecentActivity() {
           </Link>
           <Link
             href="/conversion"
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-theme-sm font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 hover:text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] dark:hover:text-gray-200"
+            className="text-theme-sm shadow-theme-xs inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] dark:hover:text-gray-200"
           >
             See all
           </Link>
@@ -156,31 +156,31 @@ export default function RecentActivity() {
             <TableRow>
               <TableCell
                 isHeader
-                className="py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+                className="text-theme-xs py-3 text-start font-medium text-gray-500 dark:text-gray-400"
               >
                 Type
               </TableCell>
               <TableCell
                 isHeader
-                className="py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+                className="text-theme-xs py-3 text-start font-medium text-gray-500 dark:text-gray-400"
               >
                 Activity
               </TableCell>
               <TableCell
                 isHeader
-                className="py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+                className="text-theme-xs py-3 text-start font-medium text-gray-500 dark:text-gray-400"
               >
                 Detail
               </TableCell>
               <TableCell
                 isHeader
-                className="py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+                className="text-theme-xs py-3 text-start font-medium text-gray-500 dark:text-gray-400"
               >
                 Date
               </TableCell>
               <TableCell
                 isHeader
-                className="py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+                className="text-theme-xs py-3 text-start font-medium text-gray-500 dark:text-gray-400"
               >
                 Status
               </TableCell>
@@ -190,13 +190,19 @@ export default function RecentActivity() {
           <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
             {loading ? (
               <TableRow>
-                <TableCell colSpan={5} className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                <TableCell
+                  colSpan={5}
+                  className="py-8 text-center text-sm text-gray-500 dark:text-gray-400"
+                >
                   Loading…
                 </TableCell>
               </TableRow>
             ) : activities.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                <TableCell
+                  colSpan={5}
+                  className="py-8 text-center text-sm text-gray-500 dark:text-gray-400"
+                >
                   No recent activity
                 </TableCell>
               </TableRow>
@@ -204,36 +210,44 @@ export default function RecentActivity() {
               activities.map((item, idx) =>
                 item.type === "conversion" ? (
                   <TableRow key={`c-${item.data.conversion_id}-${idx}`}>
-                    <TableCell className="py-3 text-theme-sm text-gray-700 dark:text-gray-300">
+                    <TableCell className="text-theme-sm py-3 text-gray-700 dark:text-gray-300">
                       Conversion
                     </TableCell>
-                    <TableCell className="py-3 font-medium text-gray-800 text-theme-sm dark:text-white/90">
+                    <TableCell className="text-theme-sm py-3 font-medium text-gray-800 dark:text-white/90">
                       {item.data.offer_name || "—"}
                     </TableCell>
-                    <TableCell className="py-3 text-theme-sm text-gray-600 dark:text-gray-400">
-                      {item.data.payout} {item.data.currency} · {item.data.user?.username ?? item.data.user?.email ?? "—"}
+                    <TableCell className="text-theme-sm py-3 text-gray-600 dark:text-gray-400">
+                      {item.data.payout} {item.data.currency} ·{" "}
+                      {item.data.user?.username ?? item.data.user?.email ?? "—"}
                     </TableCell>
-                    <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">
-                      {formatDate(item.data.createdAt ?? item.data.datetime_conversion)}
+                    <TableCell className="text-theme-sm py-3 text-gray-500 dark:text-gray-400">
+                      {formatDate(
+                        item.data.createdAt ?? item.data.datetime_conversion,
+                      )}
                     </TableCell>
                     <TableCell className="py-3">
-                      <Badge size="sm" color={statusColor(item.data.conversion_status)}>
+                      <Badge
+                        size="sm"
+                        color={statusColor(item.data.conversion_status)}
+                      >
                         {item.data.conversion_status || "—"}
                       </Badge>
                     </TableCell>
                   </TableRow>
                 ) : (
                   <TableRow key={`w-${item.data._id}-${idx}`}>
-                    <TableCell className="py-3 text-theme-sm text-gray-700 dark:text-gray-300">
+                    <TableCell className="text-theme-sm py-3 text-gray-700 dark:text-gray-300">
                       Withdrawal
                     </TableCell>
-                    <TableCell className="py-3 font-medium text-gray-800 text-theme-sm dark:text-white/90">
-                      {item.data.user_id?.username ?? item.data.account_name ?? item.data._id}
+                    <TableCell className="text-theme-sm py-3 font-medium text-gray-800 dark:text-white/90">
+                      {item.data.user_id?.username ??
+                        item.data.account_name ??
+                        item.data._id}
                     </TableCell>
-                    <TableCell className="py-3 text-theme-sm text-gray-600 dark:text-gray-400">
+                    <TableCell className="text-theme-sm py-3 text-gray-600 dark:text-gray-400">
                       {item.data.amount_net} {item.data.currency}
                     </TableCell>
-                    <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">
+                    <TableCell className="text-theme-sm py-3 text-gray-500 dark:text-gray-400">
                       {formatDate(item.data.createdAt)}
                     </TableCell>
                     <TableCell className="py-3">
@@ -242,7 +256,7 @@ export default function RecentActivity() {
                       </Badge>
                     </TableCell>
                   </TableRow>
-                )
+                ),
               )
             )}
           </TableBody>

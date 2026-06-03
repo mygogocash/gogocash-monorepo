@@ -14,10 +14,12 @@ import {
   affiliateNetworkIdForOfferId,
   affiliateNetworkName,
 } from "@/data/affiliateNetworks";
+import { parseCustomRange, parseIsoDateLocal } from "@/lib/insightRange";
 import type {
   DashboardAlert,
   DashboardCommissionHealth,
   DashboardInsightRange,
+  DashboardInsightRangeValue,
   DashboardInsightsResponse,
   DashboardKpiBlock,
   DashboardKpiSnapshot,
@@ -60,17 +62,42 @@ function startOfDay(d: Date): Date {
   return x;
 }
 
-function parseRangeParam(raw: string | null): DashboardInsightRange {
-  const r = (raw ?? "30d").toLowerCase();
+export function parseRangeParam(
+  raw: string | null,
+): DashboardInsightRangeValue {
+  const value = (raw ?? "30d").trim();
+  if (parseCustomRange(value)) return value;
+  const r = value.toLowerCase();
   if (r === "7d" || r === "30d" || r === "90d" || r === "all") return r;
   return "30d";
 }
 
-function rangeWindow(
-  range: DashboardInsightRange,
+export function rangeWindow(
+  range: DashboardInsightRangeValue,
   now: Date,
-): { current: { from: Date; to: Date }; prior: { from: Date; to: Date } | null } {
+): {
+  current: { from: Date; to: Date };
+  prior: { from: Date; to: Date } | null;
+} {
   const to = now;
+
+  const custom = parseCustomRange(range);
+  if (custom) {
+    const cFrom = parseIsoDateLocal(custom.from);
+    const cTo = parseIsoDateLocal(custom.to);
+    if (cFrom && cTo) {
+      const from = startOfDay(cFrom);
+      const end = endOfDay(cTo);
+      const span = end.getTime() - from.getTime();
+      return {
+        current: { from, to: end },
+        // Equal-length window immediately preceding the selection, for deltas.
+        prior: { from: new Date(from.getTime() - span), to: from },
+      };
+    }
+    // Unparseable custom token: fall through to the default preset window.
+  }
+
   if (range === "all") {
     return {
       current: { from: new Date(0), to },
@@ -88,7 +115,10 @@ function rangeWindow(
 }
 
 function inRange(d: Date, from: Date, to: Date): boolean {
-  return d.getTime() >= from.getTime() && d.getTime() <= to.getTime();
+  // Half-open [from, to): the current and prior windows share the boundary
+  // instant (prior.to === current.from), so an upper-inclusive check would
+  // count a conversion landing exactly on it in both periods.
+  return d.getTime() >= from.getTime() && d.getTime() < to.getTime();
 }
 
 function parseQuestUsDate(s: string): Date | null {
@@ -108,7 +138,12 @@ function endOfDay(d: Date): Date {
   return x;
 }
 
-function rangesOverlap(aFrom: Date, aTo: Date, bFrom: Date, bTo: Date): boolean {
+function rangesOverlap(
+  aFrom: Date,
+  aTo: Date,
+  bFrom: Date,
+  bTo: Date,
+): boolean {
   return aFrom.getTime() <= bTo.getTime() && bFrom.getTime() <= aTo.getTime();
 }
 
@@ -194,15 +229,22 @@ function scheduleProgressPct(
 function buildLeaderboardPreview(
   questId: string,
   enrolled: number,
-): { questId: string; questShortId: string; rows: DashboardQuestLeaderboardRow[] } {
+): {
+  questId: string;
+  questShortId: string;
+  rows: DashboardQuestLeaderboardRow[];
+} {
   const questShortId = questId.slice(-8);
   const rows: DashboardQuestLeaderboardRow[] = [];
   for (let rank = 1; rank <= 5; rank += 1) {
     const base = 920 - rank * 130;
-    const points = Math.max(120, base - (simpleHash(`${questId}-${rank}`) % 80));
+    const points = Math.max(
+      120,
+      base - (simpleHash(`${questId}-${rank}`) % 80),
+    );
     rows.push({
       rank,
-      label: `user_${Math.max(1, enrolled - rank * 113 - simpleHash(`${rank}`) % 400)}`,
+      label: `user_${Math.max(1, enrolled - rank * 113 - (simpleHash(`${rank}`) % 400))}`,
       points,
     });
   }
@@ -252,7 +294,10 @@ function emptyFunnel(): DashboardQuestFunnelCounts {
   return { viewed: 0, joined: 0, tasksStarted: 0, fullyCompleted: 0 };
 }
 
-function addFunnel(a: DashboardQuestFunnelCounts, b: DashboardQuestFunnelCounts): DashboardQuestFunnelCounts {
+function addFunnel(
+  a: DashboardQuestFunnelCounts,
+  b: DashboardQuestFunnelCounts,
+): DashboardQuestFunnelCounts {
   return {
     viewed: a.viewed + b.viewed,
     joined: a.joined + b.joined,
@@ -263,7 +308,10 @@ function addFunnel(a: DashboardQuestFunnelCounts, b: DashboardQuestFunnelCounts)
 
 function buildQuestMetrics(
   now: Date,
-  win: { current: { from: Date; to: Date }; prior: { from: Date; to: Date } | null },
+  win: {
+    current: { from: Date; to: Date };
+    prior: { from: Date; to: Date } | null;
+  },
   conversionsInPeriod: ConvRow[],
 ): DashboardQuestMetrics {
   let liveNow = 0;
@@ -277,7 +325,11 @@ function buildQuestMetrics(
   const to = win.current.to;
 
   const periodTotals = sumConversions(conversionsInPeriod);
-  const catalogMix: DashboardQuestTaskMix = { offerTasks: 0, merchantTasks: 0, conditionalTasks: 0 };
+  const catalogMix: DashboardQuestTaskMix = {
+    offerTasks: 0,
+    merchantTasks: 0,
+    conditionalTasks: 0,
+  };
   let questsWithFacebook = 0;
   let questsWithLine = 0;
   let questsWithBanner = 0;
@@ -326,16 +378,20 @@ function buildQuestMetrics(
       enrolled,
       Math.max(
         funnel.tasksStarted,
-        Math.floor(funnel.joined * (0.74 + (simpleHash(`${q.id}a`) % 12) / 200)),
+        Math.floor(
+          funnel.joined * (0.74 + (simpleHash(`${q.id}a`) % 12) / 200),
+        ),
       ),
     );
     const sumPts = sumTaskPoints(q);
     const pointsIssued = Math.floor(
-      funnel.fullyCompleted * sumPts * 0.92 + funnel.tasksStarted * sumPts * 0.22,
+      funnel.fullyCompleted * sumPts * 0.92 +
+        funnel.tasksStarted * sumPts * 0.22,
     );
 
-    let daysUntilEnd: number | null = Math.ceil((endEod.getTime() - now.getTime()) / MS_DAY);
-    if (now.getTime() > endEod.getTime()) daysUntilEnd = Math.ceil((endEod.getTime() - now.getTime()) / MS_DAY);
+    let daysUntilEnd: number | null = Math.ceil(
+      (endEod.getTime() - now.getTime()) / MS_DAY,
+    );
     if (Number.isNaN(daysUntilEnd)) daysUntilEnd = null;
 
     rows.push({
@@ -373,8 +429,11 @@ function buildQuestMetrics(
     const ac = Math.floor(periodTotals.count * 0.09 * w);
     r.attributedConversions = ac;
     if (periodTotals.count > 0) {
-      r.attributedGmv = Math.round((periodTotals.sale * ac) / periodTotals.count * 100) / 100;
-      r.attributedPayout = Math.round((periodTotals.payout * ac) / periodTotals.count * 100) / 100;
+      r.attributedGmv =
+        Math.round(((periodTotals.sale * ac) / periodTotals.count) * 100) / 100;
+      r.attributedPayout =
+        Math.round(((periodTotals.payout * ac) / periodTotals.count) * 100) /
+        100;
     }
   }
 
@@ -382,7 +441,8 @@ function buildQuestMetrics(
     (acc, r) => ({
       enrolledInOverlapping: acc.enrolledInOverlapping + r.participantCount,
       activeInOverlapping: acc.activeInOverlapping + r.activeParticipants,
-      fullCompletesInOverlapping: acc.fullCompletesInOverlapping + r.funnel.fullyCompleted,
+      fullCompletesInOverlapping:
+        acc.fullCompletesInOverlapping + r.funnel.fullyCompleted,
       pointsIssuedInOverlapping: acc.pointsIssuedInOverlapping + r.pointsIssued,
     }),
     {
@@ -395,19 +455,31 @@ function buildQuestMetrics(
 
   const attributionSum = overlappingRows.reduce(
     (acc, r) => ({
-      attributedConversionsInPeriod: acc.attributedConversionsInPeriod + r.attributedConversions,
+      attributedConversionsInPeriod:
+        acc.attributedConversionsInPeriod + r.attributedConversions,
       attributedGmvInPeriod: acc.attributedGmvInPeriod + r.attributedGmv,
-      attributedPayoutInPeriod: acc.attributedPayoutInPeriod + r.attributedPayout,
+      attributedPayoutInPeriod:
+        acc.attributedPayoutInPeriod + r.attributedPayout,
     }),
-    { attributedConversionsInPeriod: 0, attributedGmvInPeriod: 0, attributedPayoutInPeriod: 0 },
+    {
+      attributedConversionsInPeriod: 0,
+      attributedGmvInPeriod: 0,
+      attributedPayoutInPeriod: 0,
+    },
   );
   const attribution: DashboardQuestAttributionTotals = {
     attributedConversionsInPeriod: attributionSum.attributedConversionsInPeriod,
-    attributedGmvInPeriod: Math.round(attributionSum.attributedGmvInPeriod * 100) / 100,
-    attributedPayoutInPeriod: Math.round(attributionSum.attributedPayoutInPeriod * 100) / 100,
+    attributedGmvInPeriod:
+      Math.round(attributionSum.attributedGmvInPeriod * 100) / 100,
+    attributedPayoutInPeriod:
+      Math.round(attributionSum.attributedPayoutInPeriod * 100) / 100,
     shareOfPeriodConversionsPct:
       periodTotals.count > 0
-        ? Math.round((attributionSum.attributedConversionsInPeriod / periodTotals.count) * 1000) / 10
+        ? Math.round(
+            (attributionSum.attributedConversionsInPeriod /
+              periodTotals.count) *
+              1000,
+          ) / 10
         : null,
   };
 
@@ -443,10 +515,15 @@ function buildQuestMetrics(
 
   const leaderboardQuest =
     overlappingRows.length > 0
-      ? [...overlappingRows].sort((a, b) => b.participantCount - a.participantCount)[0]
+      ? [...overlappingRows].sort(
+          (a, b) => b.participantCount - a.participantCount,
+        )[0]
       : null;
   const leaderboardPreview = leaderboardQuest
-    ? buildLeaderboardPreview(leaderboardQuest.id, leaderboardQuest.participantCount)
+    ? buildLeaderboardPreview(
+        leaderboardQuest.id,
+        leaderboardQuest.participantCount,
+      )
     : null;
 
   return {
@@ -492,7 +569,10 @@ function buildKpiBlock(
   gogocashUsers: number,
   mycashbackUsers: number,
   conversionsAll: ConvRow[],
-  win: { current: { from: Date; to: Date }; prior: { from: Date; to: Date } | null },
+  win: {
+    current: { from: Date; to: Date };
+    prior: { from: Date; to: Date } | null;
+  },
   periodStart: Date,
 ): DashboardKpiBlock {
   const curConv =
@@ -503,7 +583,11 @@ function buildKpiBlock(
 
   let prior: DashboardKpiSnapshot | null = null;
   if (win.prior) {
-    const pConv = filterConversions(conversionsAll, win.prior.from, win.prior.to);
+    const pConv = filterConversions(
+      conversionsAll,
+      win.prior.from,
+      win.prior.to,
+    );
     const pS = sumConversions(pConv);
     prior = {
       gogocashUsers,
@@ -532,11 +616,15 @@ function buildKpiBlock(
   };
 }
 
-function offerByNumericId(offerId: number): (typeof mockOffers)[number] | undefined {
+function offerByNumericId(
+  offerId: number,
+): (typeof mockOffers)[number] | undefined {
   return mockOffers.find((o) => Number(o.offer_id) === offerId);
 }
 
-function buildWithdrawBuckets(now: Date): DashboardSummaryResponse["withdrawByStatus"] {
+function buildWithdrawBuckets(
+  now: Date,
+): DashboardSummaryResponse["withdrawByStatus"] {
   const buckets = {
     pending: { count: 0, total: 0, oldestAt: null as string | null },
     approved: { count: 0, total: 0 },
@@ -567,8 +655,10 @@ function withdrawMetrics(
   const approved = buckets.approved.count;
   const rejected = buckets.rejected.count;
   const decided = approved + rejected;
-  const approvalRatePct = decided > 0 ? Math.round((approved / decided) * 1000) / 10 : null;
-  const rejectedSharePct = decided > 0 ? Math.round((rejected / decided) * 1000) / 10 : null;
+  const approvalRatePct =
+    decided > 0 ? Math.round((approved / decided) * 1000) / 10 : null;
+  const rejectedSharePct =
+    decided > 0 ? Math.round((rejected / decided) * 1000) / 10 : null;
 
   const cutoff = now.getTime() - 48 * 60 * 60 * 1000;
   let pendingOver48hCount = 0;
@@ -592,7 +682,14 @@ function conversionsByStatus(rows: ConvRow[]): Record<string, number> {
 function topOffers(rows: ConvRow[], limit: number): DashboardTopOfferRow[] {
   const map = new Map<
     number,
-    { offerName: string; merchantId: number; currency: string; conv: number; gmv: number; payout: number }
+    {
+      offerName: string;
+      merchantId: number;
+      currency: string;
+      conv: number;
+      gmv: number;
+      payout: number;
+    }
   >();
   for (const c of rows) {
     const id = c.offer_id;
@@ -626,7 +723,13 @@ function topOffers(rows: ConvRow[], limit: number): DashboardTopOfferRow[] {
 function networkBreakdown(rows: ConvRow[]): DashboardNetworkRow[] {
   const acc = new Map<
     string,
-    { name: string; conversions: number; gmv: number; payout: number; offers: Set<number> }
+    {
+      name: string;
+      conversions: number;
+      gmv: number;
+      payout: number;
+      offers: Set<number>;
+    }
   >();
   for (const c of rows) {
     const on = offerByNumericId(c.offer_id);
@@ -700,7 +803,10 @@ function buildAlerts(
   if (buckets.pending.count > 0) {
     alerts.push({
       id: "withdraw-pending",
-      severity: buckets.pending.total > 50_000 || buckets.pending.count > 100 ? "high" : "medium",
+      severity:
+        buckets.pending.total > 50_000 || buckets.pending.count > 100
+          ? "high"
+          : "medium",
       title: "Withdrawal queue needs attention",
       body: `${buckets.pending.count} pending requests (${buckets.pending.total.toLocaleString(undefined, { maximumFractionDigits: 2 })} total).`,
       href: "/withdraw?status=pending",
@@ -757,8 +863,14 @@ function insightSentence(
 ): string {
   const parts: string[] = [];
   if (kpis.prior) {
-    const d = deltaPct(kpis.current.conversionCount, kpis.prior.conversionCount);
-    if (d != null) parts.push(`Conversions ${d >= 0 ? "up" : "down"} ${Math.abs(d)}% vs prior period`);
+    const d = deltaPct(
+      kpis.current.conversionCount,
+      kpis.prior.conversionCount,
+    );
+    if (d != null)
+      parts.push(
+        `Conversions ${d >= 0 ? "up" : "down"} ${Math.abs(d)}% vs prior period`,
+      );
   }
   if (ratio != null && Number.isFinite(ratio)) {
     parts.push(`Cashback / GMV ratio ${(ratio * 100).toFixed(2)}%`);
@@ -767,14 +879,19 @@ function insightSentence(
     parts.push(`${buckets.pending.count} payout(s) pending review`);
   }
   if (quests.liveNow > 0) {
-    parts.push(`${quests.liveNow} quest program${quests.liveNow !== 1 ? "s" : ""} live now`);
+    parts.push(
+      `${quests.liveNow} quest program${quests.liveNow !== 1 ? "s" : ""} live now`,
+    );
   }
   if (quests.overlappingSelectedRange > 0) {
     parts.push(
       `${quests.overlappingSelectedRange} quest${quests.overlappingSelectedRange !== 1 ? "s" : ""} overlap the selected window (${quests.totalParticipantsInOverlapping.toLocaleString()} mock participants)`,
     );
   }
-  if (quests.attribution.attributedConversionsInPeriod > 0 && quests.attribution.shareOfPeriodConversionsPct != null) {
+  if (
+    quests.attribution.attributedConversionsInPeriod > 0 &&
+    quests.attribution.shareOfPeriodConversionsPct != null
+  ) {
     parts.push(
       `Quest-attributed conversions (mock): ${quests.attribution.attributedConversionsInPeriod} (${quests.attribution.shareOfPeriodConversionsPct}% of period)`,
     );
@@ -784,9 +901,25 @@ function insightSentence(
     : "Review KPIs and alerts below for the latest operational snapshot.";
 }
 
-function statisticsFromConversions(rows: ConvRow[], now: Date): DashboardStatisticsByTab {
+function statisticsFromConversions(
+  rows: ConvRow[],
+  now: Date,
+): DashboardStatisticsByTab {
   const y = now.getFullYear();
-  const monthLabels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const monthLabels = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
   const monthBuckets = Array.from({ length: 12 }, () => ({
     conv: 0,
     sale: 0,
@@ -795,9 +928,6 @@ function statisticsFromConversions(rows: ConvRow[], now: Date): DashboardStatist
   for (const c of rows) {
     const d = toDate(c.datetime_conversion);
     if (!d) continue;
-    if (d.getFullYear() !== y && d.getFullYear() !== y - 1) {
-      /* still count into month index for current year display */
-    }
     const yr = d.getFullYear();
     if (yr !== y) continue;
     const m = d.getMonth();
@@ -830,14 +960,24 @@ function statisticsFromConversions(rows: ConvRow[], now: Date): DashboardStatist
   };
 
   const weekLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const weekBuckets = Array.from({ length: 7 }, () => ({ conv: 0, sale: 0, payout: 0 }));
+  const weekBuckets = Array.from({ length: 7 }, () => ({
+    conv: 0,
+    sale: 0,
+    payout: 0,
+  }));
   const sod = startOfDay(now);
   const monday = new Date(sod);
   monday.setDate(sod.getDate() - ((sod.getDay() + 6) % 7));
   for (const c of rows) {
     const d = toDate(c.datetime_conversion);
     if (!d || d < monday || d > now) continue;
-    const idx = Math.min(6, Math.max(0, Math.floor((startOfDay(d).getTime() - monday.getTime()) / MS_DAY)));
+    const idx = Math.min(
+      6,
+      Math.max(
+        0,
+        Math.floor((startOfDay(d).getTime() - monday.getTime()) / MS_DAY),
+      ),
+    );
     weekBuckets[idx].conv += 1;
     weekBuckets[idx].sale += Number(c.sale_amount) || 0;
     weekBuckets[idx].payout += Number(c.payout) || 0;
@@ -849,12 +989,22 @@ function statisticsFromConversions(rows: ConvRow[], now: Date): DashboardStatist
       { name: "Clicks", data: weekBuckets.map((b) => b.conv * CLICK_FACTOR) },
       { name: "Conversions", data: weekBuckets.map((b) => b.conv) },
       { name: "Sale Amount", data: weekBuckets.map((b) => Math.round(b.sale)) },
-      { name: "Estimated Earnings", data: weekBuckets.map((b) => Math.round(b.payout)) },
+      {
+        name: "Estimated Earnings",
+        data: weekBuckets.map((b) => Math.round(b.payout)),
+      },
     ],
   };
 
-  const dayLabels = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, "0")}:00`);
-  const dayBuckets = Array.from({ length: 24 }, () => ({ conv: 0, sale: 0, payout: 0 }));
+  const dayLabels = Array.from(
+    { length: 24 },
+    (_, i) => `${String(i).padStart(2, "0")}:00`,
+  );
+  const dayBuckets = Array.from({ length: 24 }, () => ({
+    conv: 0,
+    sale: 0,
+    payout: 0,
+  }));
   const dayStart = startOfDay(now);
   for (const c of rows) {
     const d = toDate(c.datetime_conversion);
@@ -871,7 +1021,10 @@ function statisticsFromConversions(rows: ConvRow[], now: Date): DashboardStatist
       { name: "Clicks", data: dayBuckets.map((b) => b.conv * CLICK_FACTOR) },
       { name: "Conversions", data: dayBuckets.map((b) => b.conv) },
       { name: "Sale Amount", data: dayBuckets.map((b) => Math.round(b.sale)) },
-      { name: "Estimated Earnings", data: dayBuckets.map((b) => Math.round(b.payout)) },
+      {
+        name: "Estimated Earnings",
+        data: dayBuckets.map((b) => Math.round(b.payout)),
+      },
     ],
   };
 
@@ -890,7 +1043,10 @@ function statisticsFromConversions(rows: ConvRow[], now: Date): DashboardStatist
       { name: "Clicks", data: qBuckets.map((b) => b.conv * CLICK_FACTOR) },
       { name: "Conversions", data: qBuckets.map((b) => b.conv) },
       { name: "Sale Amount", data: qBuckets.map((b) => Math.round(b.sale)) },
-      { name: "Estimated Earnings", data: qBuckets.map((b) => Math.round(b.payout)) },
+      {
+        name: "Estimated Earnings",
+        data: qBuckets.map((b) => Math.round(b.payout)),
+      },
     ],
   };
 
@@ -900,12 +1056,15 @@ function statisticsFromConversions(rows: ConvRow[], now: Date): DashboardStatist
   const totalPayout = rows.reduce((s, c) => s + (Number(c.payout) || 0), 0);
   const yearGrowth = [0.72, 0.78, 0.85, 0.93, 1.0];
   const yearSeries: DashboardStatisticsBundle = {
-    description: "Last 5 years (illustrative split from current catalog totals)",
+    description:
+      "Last 5 years (illustrative split from current catalog totals)",
     categories: yearLabels,
     series: [
       {
         name: "Clicks",
-        data: yearGrowth.map((g) => Math.round(totalConv * CLICK_FACTOR * g * 0.95)),
+        data: yearGrowth.map((g) =>
+          Math.round(totalConv * CLICK_FACTOR * g * 0.95),
+        ),
       },
       {
         name: "Conversions",
@@ -959,7 +1118,9 @@ export function buildDashboardSummaryExtended(): DashboardSummaryResponse {
   };
 }
 
-export function buildDashboardInsights(searchParams: URLSearchParams): DashboardInsightsResponse {
+export function buildDashboardInsights(
+  searchParams: URLSearchParams,
+): DashboardInsightsResponse {
   const range = parseRangeParam(searchParams.get("range"));
   const now = new Date();
   const win = rangeWindow(range, now);
@@ -969,7 +1130,11 @@ export function buildDashboardInsights(searchParams: URLSearchParams): Dashboard
   const conversionsInPeriod =
     win.prior === null
       ? [...mockConversions]
-      : filterConversions([...mockConversions], win.current.from, win.current.to);
+      : filterConversions(
+          [...mockConversions],
+          win.current.from,
+          win.current.to,
+        );
 
   const kpis = buildKpiBlock(
     gogocashUsers,
@@ -983,7 +1148,8 @@ export function buildDashboardInsights(searchParams: URLSearchParams): Dashboard
   const wm = withdrawMetrics(buckets, now);
   const ratio =
     kpis.current.conversionTotalSaleAmount > 0
-      ? kpis.current.conversionTotalPayout / kpis.current.conversionTotalSaleAmount
+      ? kpis.current.conversionTotalPayout /
+        kpis.current.conversionTotalSaleAmount
       : null;
 
   const health = commissionHealth();

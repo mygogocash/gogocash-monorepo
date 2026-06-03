@@ -6,7 +6,7 @@ import Button from "../ui/button/Button";
 import { Offer } from "@/types/api";
 import { useDataSession } from "@/hooks/useDataSession";
 import { UserForm } from "@/types/user";
-import { formatPhone, validatePhone } from "@/utils/helper";
+import { validatePhone } from "@/utils/helper";
 import { devError } from "@/lib/devConsole";
 import { useMemo } from "react";
 import { getFeeCountrySelectOptions } from "@/data/feeCountrySelectOptions";
@@ -30,9 +30,13 @@ function SectionTitle({
 }) {
   return (
     <div className="mb-4">
-      <h5 className="text-sm font-semibold text-gray-900 dark:text-white">{title}</h5>
+      <h5 className="text-sm font-semibold text-gray-900 dark:text-white">
+        {title}
+      </h5>
       {description ? (
-        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{description}</p>
+        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+          {description}
+        </p>
       ) : null}
     </div>
   );
@@ -48,8 +52,9 @@ const FormUpdate = ({
   setIsLoading,
 }: IProp) => {
   const session = useDataSession();
-  const formatted = formatPhone(form.mobile, "TH");
-  const isValid = validatePhone(formatted, "TH");
+  // Validate the raw value; guard against undefined (formatPhone/AsYouType
+  // throws on undefined) and treat an empty field as valid (optional).
+  const isValid = form.mobile ? validatePhone(form.mobile, "TH") : true;
 
   // Curated ISO-3166-1 alpha-2 picker — matches the customer-app picker so
   // the storage format stays consistent across all writers. The free-text
@@ -84,7 +89,8 @@ const FormUpdate = ({
     if (form.username !== undefined) formData.append("username", form.username);
     if (form.email !== undefined) formData.append("email", form.email);
     if (form.address !== undefined) formData.append("address", form.address);
-    if (form.birthdate !== undefined) formData.append("birthdate", form.birthdate);
+    if (form.birthdate !== undefined)
+      formData.append("birthdate", form.birthdate);
     if (form.country !== undefined) {
       // Always ship canonical ISO-2 — even if `form.country` was hydrated
       // from a legacy full-name value, the picker's `value` is already ISO-2;
@@ -92,10 +98,14 @@ const FormUpdate = ({
       formData.append("country", normaliseCountryToIso2(form.country));
     }
     if (form.gender !== undefined) formData.append("gender", form.gender);
-    if (form.bank_account_name !== undefined) formData.append("bank_account_name", form.bank_account_name);
-    if (form.bank_name !== undefined) formData.append("bank_name", form.bank_name);
-    if (form.bank_account_number !== undefined) formData.append("bank_account_number", form.bank_account_number);
-    if (form.wallet_info !== undefined) formData.append("wallet_info", form.wallet_info);
+    if (form.bank_account_name !== undefined)
+      formData.append("bank_account_name", form.bank_account_name);
+    if (form.bank_name !== undefined)
+      formData.append("bank_name", form.bank_name);
+    if (form.bank_account_number !== undefined)
+      formData.append("bank_account_number", form.bank_account_number);
+    if (form.wallet_info !== undefined)
+      formData.append("wallet_info", form.wallet_info);
 
     client
       .post(`/admin/update-user/${form.id}`, formData, {
@@ -112,7 +122,9 @@ const FormUpdate = ({
       .catch((err) => {
         devError("Failed to update user:", err);
         setIsLoading(false);
-        toast.error(err?.response?.data?.message || "Could not save changes. Try again.");
+        toast.error(
+          err?.response?.data?.message || "Could not save changes. Try again.",
+        );
       });
   };
 
@@ -124,27 +136,32 @@ const FormUpdate = ({
       onClose={handleRequestClose}
       isFullscreen={false}
       showCloseButton
-      className="flex !max-h-[min(92vh,880px)] !max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden !sm:max-w-2xl lg:!max-w-3xl"
+      className="!sm:max-w-2xl flex !max-h-[min(92vh,880px)] !max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden lg:!max-w-3xl"
     >
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <div className="shrink-0 border-b border-gray-100 px-5 pb-4 pt-12 sm:px-6 sm:pt-14 dark:border-gray-800">
-          <p className="text-xs font-medium uppercase tracking-wide text-brand-600 dark:text-brand-400">
+        <div className="shrink-0 border-b border-gray-100 px-5 pt-12 pb-4 sm:px-6 sm:pt-14 dark:border-gray-800">
+          <p className="text-brand-600 dark:text-brand-400 text-xs font-medium tracking-wide uppercase">
             User management
           </p>
           <h4 className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">
             Edit profile
           </h4>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-            Update details for <span className="font-medium text-gray-900 dark:text-white">{displayName}</span>
+            Update details for{" "}
+            <span className="font-medium text-gray-900 dark:text-white">
+              {displayName}
+            </span>
             {form.id ? (
-              <span className="mt-1 block font-mono text-xs text-gray-400 dark:text-gray-500">ID: {form.id}</span>
+              <span className="mt-1 block font-mono text-xs text-gray-400 dark:text-gray-500">
+                ID: {form.id}
+              </span>
             ) : null}
           </p>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-6">
           <div className="space-y-8">
-            <section className="rounded-xl border border-gray-100 bg-gray-50/50 p-4 dark:border-gray-800 dark:bg-gray-900/40 sm:p-5">
+            <section className="rounded-xl border border-gray-100 bg-gray-50/50 p-4 sm:p-5 dark:border-gray-800 dark:bg-gray-900/40">
               <SectionTitle
                 title="Sign-in & display"
                 description="How the user appears in the app and receives account email."
@@ -162,7 +179,9 @@ const FormUpdate = ({
                     type="text"
                     name="username"
                     value={form.username ?? ""}
-                    onChange={(e) => setForm({ ...form, username: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, username: e.target.value })
+                    }
                     placeholder="Display name"
                   />
                 </div>
@@ -178,7 +197,9 @@ const FormUpdate = ({
                     type="email"
                     name="email"
                     value={form.email ?? ""}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, email: e.target.value })
+                    }
                     placeholder="name@example.com"
                   />
                 </div>
@@ -204,22 +225,35 @@ const FormUpdate = ({
                   value={form.mobile ?? ""}
                   onChange={(e) => setForm({ ...form, mobile: e.target.value })}
                   placeholder="e.g. 0812345678 or +66812345678"
-                  className={form.mobile ? (isValid ? "border-green-500/80" : "border-red-500/80") : ""}
+                  className={
+                    form.mobile
+                      ? isValid
+                        ? "border-green-500/80"
+                        : "border-red-500/80"
+                      : ""
+                  }
                 />
                 {form.mobile && !isValid ? (
                   <p className="mt-1.5 text-xs text-red-600 dark:text-red-400">
                     Enter a valid Thai mobile number.
                   </p>
                 ) : form.mobile && isValid ? (
-                  <p className="mt-1.5 text-xs text-green-600 dark:text-green-400">Looks good.</p>
+                  <p className="mt-1.5 text-xs text-green-600 dark:text-green-400">
+                    Looks good.
+                  </p>
                 ) : (
-                  <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">Optional — leave blank if unknown.</p>
+                  <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    Optional — leave blank if unknown.
+                  </p>
                 )}
               </div>
             </section>
 
             <section>
-              <SectionTitle title="Personal" description="Optional demographic fields." />
+              <SectionTitle
+                title="Personal"
+                description="Optional demographic fields."
+              />
               <div className="grid gap-4 sm:grid-cols-3">
                 <div>
                   <label
@@ -233,7 +267,9 @@ const FormUpdate = ({
                     type="date"
                     name="birthdate"
                     value={form.birthdate ?? ""}
-                    onChange={(e) => setForm({ ...form, birthdate: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, birthdate: e.target.value })
+                    }
                   />
                 </div>
                 <div>
@@ -247,8 +283,10 @@ const FormUpdate = ({
                     id="edit-user-country"
                     name="country"
                     value={currentCountryIso2}
-                    onChange={(e) => setForm({ ...form, country: e.target.value })}
-                    className="h-11 w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:focus:border-brand-400 dark:focus:ring-brand-400/20"
+                    onChange={(e) =>
+                      setForm({ ...form, country: e.target.value })
+                    }
+                    className="focus:border-brand-500 focus:ring-brand-500/20 dark:focus:border-brand-400 dark:focus:ring-brand-400/20 h-11 w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-800 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                   >
                     <option value="">Not specified</option>
                     {countryOptions.map((c) => (
@@ -269,8 +307,10 @@ const FormUpdate = ({
                     id="edit-user-gender"
                     name="gender"
                     value={form.gender ?? ""}
-                    onChange={(e) => setForm({ ...form, gender: e.target.value })}
-                    className="h-11 w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:focus:border-brand-400 dark:focus:ring-brand-400/20"
+                    onChange={(e) =>
+                      setForm({ ...form, gender: e.target.value })
+                    }
+                    className="focus:border-brand-500 focus:ring-brand-500/20 dark:focus:border-brand-400 dark:focus:ring-brand-400/20 h-11 w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-800 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                   >
                     <option value="">Not specified</option>
                     <option value="male">Male</option>
@@ -295,13 +335,15 @@ const FormUpdate = ({
                   type="text"
                   name="address"
                   value={form.address ?? ""}
-                  onChange={(e) => setForm({ ...form, address: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, address: e.target.value })
+                  }
                   placeholder="House number, district, city…"
                 />
               </div>
             </section>
 
-            <section className="rounded-xl border border-amber-200/80 bg-amber-50/40 p-4 dark:border-amber-900/50 dark:bg-amber-950/20 sm:p-5">
+            <section className="rounded-xl border border-amber-200/80 bg-amber-50/40 p-4 sm:p-5 dark:border-amber-900/50 dark:bg-amber-950/20">
               <SectionTitle
                 title="Payout & wallet"
                 description="Used for withdrawals and cashback. Only staff should edit these fields."
@@ -319,7 +361,9 @@ const FormUpdate = ({
                     type="text"
                     name="bank_account_name"
                     value={form.bank_account_name ?? ""}
-                    onChange={(e) => setForm({ ...form, bank_account_name: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, bank_account_name: e.target.value })
+                    }
                     placeholder="As on bank book"
                   />
                 </div>
@@ -335,7 +379,9 @@ const FormUpdate = ({
                     type="text"
                     name="bank_name"
                     value={form.bank_name ?? ""}
-                    onChange={(e) => setForm({ ...form, bank_name: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, bank_name: e.target.value })
+                    }
                     placeholder="e.g. Bangkok Bank, SCB"
                   />
                 </div>
@@ -351,7 +397,9 @@ const FormUpdate = ({
                     type="text"
                     name="bank_account_number"
                     value={form.bank_account_number ?? ""}
-                    onChange={(e) => setForm({ ...form, bank_account_number: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, bank_account_number: e.target.value })
+                    }
                     placeholder="Bank account number"
                   />
                 </div>
@@ -367,7 +415,9 @@ const FormUpdate = ({
                     type="text"
                     name="wallet_info"
                     value={form.wallet_info ?? ""}
-                    onChange={(e) => setForm({ ...form, wallet_info: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, wallet_info: e.target.value })
+                    }
                     placeholder="Wallet address or PromptPay ID"
                   />
                 </div>
@@ -378,12 +428,21 @@ const FormUpdate = ({
 
         <div className="shrink-0 border-t border-gray-100 bg-white px-5 py-4 sm:px-6 dark:border-gray-800 dark:bg-gray-900">
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-center text-xs text-gray-500 dark:text-gray-400 sm:text-left">
-              Press <kbd className="rounded border border-gray-300 bg-gray-100 px-1 font-mono text-[10px] dark:border-gray-600 dark:bg-gray-800">Esc</kbd>{" "}
+            <p className="text-center text-xs text-gray-500 sm:text-left dark:text-gray-400">
+              Press{" "}
+              <kbd className="rounded border border-gray-300 bg-gray-100 px-1 font-mono text-[10px] dark:border-gray-600 dark:bg-gray-800">
+                Esc
+              </kbd>{" "}
               to close without saving.
             </p>
             <div className="flex justify-stretch gap-2 sm:justify-end">
-              <Button size="sm" variant="outline" onClick={handleRequestClose} disabled={isLoading} className="flex-1 sm:flex-none">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleRequestClose}
+                disabled={isLoading}
+                className="flex-1 sm:flex-none"
+              >
                 Cancel
               </Button>
               <Button

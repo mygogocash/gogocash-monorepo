@@ -15,6 +15,7 @@ Concise context for coding agents working in this repository. For full setup, ar
 - **ApexCharts:** `postinstall` runs `scripts/patch-apexcharts-border-radius.mjs` so stacked bar radius options behave as expected. After upgrading the `apexcharts` package, re-run `npm install` (or the script manually) and smoke-test bar charts (statistics + any stacked series); if the patch fails to apply, the script logs a warning and may need updating for the new bundle layout.
 - **Data fetching:** TanStack React Query (`src/lib/query/`), Axios client (`src/lib/axios/`, `src/hooks/useApi.ts`).
 - **Auth:** NextAuth v4 (Credentials → JWT). Local mock sign-in is documented in README (`admin@gogocash.co` / `1234` when using mock flow).
+- **RBAC:** tiered roles (`super_admin`/`admin`/`editor`/`viewer`) gate UI, routes (`src/proxy.ts`), and the API. Logic in `src/lib/rbac/`; gate UI with `usePermissions()` / `<Can>`. Demo other roles by signing in as `viewer@…` / `editor@…` / `operator@…` (password `1234`). See [`docs/RBAC.md`](./docs/RBAC.md).
 
 ## Data sources
 

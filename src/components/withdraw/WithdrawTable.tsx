@@ -72,14 +72,20 @@ export default function WithdrawTable() {
   //     ]),
   // });
 
+  // Guards: ignore out-of-order responses; debounce free-text search.
+  const reqIdRef = useRef(0);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Fetch offers
   const fetchOffers = async (newQuery?: WithdrawQuery) => {
+    const reqId = ++reqIdRef.current;
     try {
       const queryToUse = newQuery || query;
       const response = await getWithdraws(
         queryToUse,
         session?.accessToken || "",
       );
+      if (reqId !== reqIdRef.current) return; // a newer request superseded this
       setLists(response);
       setPagination({
         page: response.pagination.page,
@@ -88,7 +94,8 @@ export default function WithdrawTable() {
         totalPages: response.pagination.totalPages,
       });
     } catch (err) {
-      devError("Failed to fetch withdraws:", err);
+      if (reqId === reqIdRef.current)
+        devError("Failed to fetch withdraws:", err);
     }
   };
 
@@ -102,19 +109,29 @@ export default function WithdrawTable() {
   useEffect(() => {
     if (!openActionsId) return;
     const handleClick = (e: MouseEvent) => {
-      if (actionsDropdownRef.current && !actionsDropdownRef.current.contains(e.target as Node))
+      if (
+        actionsDropdownRef.current &&
+        !actionsDropdownRef.current.contains(e.target as Node)
+      )
         setOpenActionsId(null);
     };
     document.addEventListener("click", handleClick, true);
     return () => document.removeEventListener("click", handleClick, true);
   }, [openActionsId]);
 
-  // Handle search
+  // Handle search (debounced; latest response wins via reqIdRef)
   const handleSearch = (searchValue: string) => {
     const newQuery = { ...query, search: searchValue, page: 1 };
     setQuery(newQuery);
-    fetchOffers(newQuery);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => fetchOffers(newQuery), 300);
   };
+
+  useEffect(() => {
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    };
+  }, []);
 
   const handleStatusFilter = (value: string) => {
     const newQuery: WithdrawQuery = {
@@ -150,7 +167,7 @@ export default function WithdrawTable() {
 
   // Format price
   const formatPrice = (price?: number) => {
-    if (!price) return "N/A";
+    if (price == null || Number.isNaN(price)) return "N/A";
     return price.toLocaleString("en-US", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
@@ -181,31 +198,35 @@ export default function WithdrawTable() {
               Withdrawal requests
             </h3>
             <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-              Status and method narrow the list; search matches text in the rows below.
+              Status and method narrow the list; search matches text in the rows
+              below.
             </p>
           </div>
           <div
             className="flex shrink-0 items-baseline gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 dark:border-gray-700 dark:bg-gray-800/80"
             title="Rows matching current filters"
           >
-            <span className="text-2xl font-semibold tabular-nums text-gray-900 dark:text-white">
+            <span className="text-2xl font-semibold text-gray-900 tabular-nums dark:text-white">
               {pagination.total}
             </span>
-            <span className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            <span className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
               in list
             </span>
           </div>
         </div>
 
-        <section className="rounded-xl border border-gray-200 border-l-4 border-l-gray-400 bg-gray-50/90 p-4 pl-5 dark:border-gray-700 dark:border-l-gray-500 dark:bg-gray-900/50">
+        <section className="rounded-xl border border-l-4 border-gray-200 border-l-gray-400 bg-gray-50/90 p-4 pl-5 dark:border-gray-700 dark:border-l-gray-500 dark:bg-gray-900/50">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
-              <h4 className="text-sm font-semibold text-gray-900 dark:text-white">Filter & search</h4>
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+                Filter & search
+              </h4>
               <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
-                Only changes what you see in the table — nothing is saved automatically.
+                Only changes what you see in the table — nothing is saved
+                automatically.
               </p>
             </div>
-            <span className="rounded-md bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-500 ring-1 ring-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:ring-gray-600">
+            <span className="rounded-md bg-white px-2 py-0.5 text-[10px] font-bold tracking-wider text-gray-500 uppercase ring-1 ring-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:ring-gray-600">
               List
             </span>
           </div>
@@ -222,7 +243,7 @@ export default function WithdrawTable() {
                 id="withdraw-filter-status"
                 value={query.status ?? ""}
                 onChange={(e) => handleStatusFilter(e.target.value)}
-                className="h-11 w-full min-w-0 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 shadow-theme-xs dark:border-gray-600 dark:bg-gray-900 dark:text-white/90"
+                className="shadow-theme-xs h-11 w-full min-w-0 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-white/90"
               >
                 {STATUS_FILTER_OPTIONS.map((opt) => (
                   <option key={opt.label} value={opt.value}>
@@ -242,7 +263,7 @@ export default function WithdrawTable() {
                 id="withdraw-filter-method"
                 value={query.method ?? ""}
                 onChange={(e) => handleMethodFilter(e.target.value)}
-                className="h-11 w-full min-w-0 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 shadow-theme-xs dark:border-gray-600 dark:bg-gray-900 dark:text-white/90"
+                className="shadow-theme-xs h-11 w-full min-w-0 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-white/90"
               >
                 {METHOD_FILTER_OPTIONS.map((opt) => (
                   <option key={opt.label} value={opt.value}>
@@ -266,7 +287,7 @@ export default function WithdrawTable() {
                 value={query.search ?? ""}
                 placeholder="User, bank, amount, reference…"
                 onChange={(e) => handleSearch(e.target.value)}
-                className="h-11 w-full min-w-0 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-base text-gray-800 placeholder:text-gray-400 shadow-theme-xs focus:ring-3 focus:ring-brand-500/20 focus:outline-hidden sm:text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:placeholder:text-gray-500 dark:focus:ring-brand-400/30"
+                className="shadow-theme-xs focus:ring-brand-500/20 dark:focus:ring-brand-400/30 h-11 w-full min-w-0 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-base text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden sm:text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:placeholder:text-gray-500"
               />
             </div>
           </div>
@@ -289,8 +310,10 @@ export default function WithdrawTable() {
 
         {loading && (
           <div className="flex items-center justify-center py-8">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-brand-500 dark:border-gray-700 dark:border-t-brand-400"></div>
-            <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Loading...</span>
+            <div className="border-t-brand-500 dark:border-t-brand-400 h-8 w-8 animate-spin rounded-full border-2 border-gray-200 dark:border-gray-700"></div>
+            <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
+              Loading...
+            </span>
           </div>
         )}
 
@@ -330,7 +353,11 @@ export default function WithdrawTable() {
                       onClick={() => {
                         setOpenActionsId(null);
                         setOpenModal(list);
-                        setForm({ id: list._id, file: null, status: list.status });
+                        setForm({
+                          id: list._id,
+                          file: null,
+                          status: list.status,
+                        });
                       }}
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -344,26 +371,36 @@ export default function WithdrawTable() {
                           <>
                             <p className="flex flex-wrap items-center gap-1 text-sm text-gray-900 dark:text-gray-100">
                               Address: {list.address || "N/A"}
-                              <CopyButton value={list.address?.trim() || "N/A"} />
+                              <CopyButton
+                                value={list.address?.trim() || "N/A"}
+                              />
                             </p>
                             <p className="flex flex-wrap items-center gap-1 text-sm text-gray-900 dark:text-gray-100">
                               Transaction Hash: {list.tx_hash || "N/A"}
-                              <CopyButton value={list.tx_hash?.trim() || "N/A"} />
+                              <CopyButton
+                                value={list.tx_hash?.trim() || "N/A"}
+                              />
                             </p>
                           </>
                         ) : (
                           <>
                             <p className="flex flex-wrap items-center gap-1 text-sm text-gray-900 dark:text-gray-100">
                               Bank Name: {list.bank_name || "N/A"}
-                              <CopyButton value={list.bank_name?.trim() || "N/A"} />
+                              <CopyButton
+                                value={list.bank_name?.trim() || "N/A"}
+                              />
                             </p>
                             <p className="flex flex-wrap items-center gap-1 text-sm text-gray-900 dark:text-gray-100">
                               Account Number: {list.account_number || "N/A"}
-                              <CopyButton value={list.account_number?.trim() || "N/A"} />
+                              <CopyButton
+                                value={list.account_number?.trim() || "N/A"}
+                              />
                             </p>
                             <p className="flex flex-wrap items-center gap-1 text-sm text-gray-900 dark:text-gray-100">
                               Account Name: {list.account_name || "N/A"}
-                              <CopyButton value={list.account_name?.trim() || "N/A"} />
+                              <CopyButton
+                                value={list.account_name?.trim() || "N/A"}
+                              />
                             </p>
                           </>
                         )}
@@ -418,7 +455,11 @@ export default function WithdrawTable() {
                       </td>
                       <td className="relative px-6 py-4 text-sm font-medium whitespace-nowrap">
                         <div
-                          ref={openActionsId === list._id ? actionsDropdownRef : undefined}
+                          ref={
+                            openActionsId === list._id
+                              ? actionsDropdownRef
+                              : undefined
+                          }
                           className="relative inline-block"
                           onClick={(e) => e.stopPropagation()}
                         >
@@ -426,26 +467,46 @@ export default function WithdrawTable() {
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setOpenActionsId((id) => (id === list._id ? null : list._id));
+                              setOpenActionsId((id) =>
+                                id === list._id ? null : list._id,
+                              );
                             }}
                             className="inline-flex min-h-[2rem] items-center justify-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                             aria-expanded={openActionsId === list._id}
                             aria-haspopup="true"
                           >
                             Actions
-                            <svg className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            <svg
+                              className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              aria-hidden
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 9l-7 7-7-7"
+                              />
                             </svg>
                           </button>
                           {openActionsId === list._id && (
-                            <div className="absolute left-0 right-auto top-full z-50 mt-1 min-w-[10rem] max-w-[min(18rem,calc(100vw-1.5rem))] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800 sm:left-auto sm:right-0 sm:max-w-none" role="menu">
+                            <div
+                              className="absolute top-full right-auto left-0 z-50 mt-1 max-w-[min(18rem,calc(100vw-1.5rem))] min-w-[10rem] rounded-lg border border-gray-200 bg-white py-1 shadow-lg sm:right-0 sm:left-auto sm:max-w-none dark:border-gray-600 dark:bg-gray-800"
+                              role="menu"
+                            >
                               <button
                                 type="button"
                                 role="menuitem"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setOpenModal(list);
-                                  setForm({ id: list._id, file: null, status: list.status });
+                                  setForm({
+                                    id: list._id,
+                                    file: null,
+                                    status: list.status,
+                                  });
                                   setOpenActionsId(null);
                                 }}
                                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
@@ -457,7 +518,9 @@ export default function WithdrawTable() {
                                 role="menuitem"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  router.push(`/withdraw/${list.user_id._id}?from=withdraw`);
+                                  router.push(
+                                    `/withdraw/${list.user_id._id}?from=withdraw`,
+                                  );
                                   setOpenActionsId(null);
                                 }}
                                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"

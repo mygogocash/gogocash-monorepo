@@ -4,7 +4,8 @@ import { useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { apiClient } from '@/lib/api';
 import { DEFAULT_MOCK_ACCESS_TOKEN } from '@/lib/authTokens';
-import { ApiError, RegisterRequest, AdminUsersQuery, AdminUsersResponse, UsersQuery, UsersResponse, RegularUser, DashboardStatsResponse, DashboardSummaryResponse, OffersQuery, OffersResponse, Offer, WithdrawQuery, ResponseWithdraws, ResponseConversion, ConversionQuery, ResponseFee, FeeSettingsForm } from '@/types/api';
+import { ApiError, RegisterRequest, AdminUsersQuery, AdminUsersResponse, DataAdminUsers, RoleDef, RolesResponse, UsersQuery, UsersResponse, RegularUser, DashboardStatsResponse, DashboardSummaryResponse, OffersQuery, OffersResponse, Offer, WithdrawQuery, ResponseWithdraws, ResponseConversion, ConversionQuery, ResponseFee, FeeSettingsForm } from '@/types/api';
+import type { Permission } from '@/lib/rbac';
 
 // Hook for authentication operations
 export function useAuth() {
@@ -171,15 +172,15 @@ export function useApi() {
     return apiCall(() => apiClient.getAdminUser(userId, token));
   };
 
-  const createAdminUser = async (userData: Omit<AdminUsersResponse, '_id' | 'createdAt' | 'updatedAt' | '__v'>): Promise<AdminUsersResponse> => {
+  const createAdminUser = async (userData: Omit<DataAdminUsers, '_id' | 'createdAt' | 'updatedAt' | '__v'>): Promise<DataAdminUsers> => {
     const token = getToken();
     return apiCall(() => apiClient.createAdminUser(userData, token));
   };
 
   const updateAdminUser = async (
     userId: string, 
-    userData: Partial<Omit<AdminUsersResponse, '_id' | 'createdAt' | 'updatedAt' | '__v'>>
-  ): Promise<AdminUsersResponse> => {
+    userData: Partial<Omit<DataAdminUsers, '_id' | 'createdAt' | 'updatedAt' | '__v'>>
+  ): Promise<DataAdminUsers> => {
     const token = getToken();
     return apiCall(() => apiClient.updateAdminUser(userId, userData, token));
   };
@@ -189,9 +190,29 @@ export function useApi() {
     return apiCall(() => apiClient.deleteAdminUser(userId, token));
   };
 
-  const inviteAdminUser = async (email: string): Promise<{ message: string }> => {
+  const inviteAdminUser = async (email: string, role?: string): Promise<{ message: string }> => {
     const token = getToken();
-    return apiCall(() => apiClient.inviteAdminUser(email, token));
+    return apiCall(() => apiClient.inviteAdminUser(email, role, token));
+  };
+
+  const getRoles = useCallback(async (): Promise<RolesResponse> => {
+    const token = getToken();
+    return apiClient.getRoles(token);
+  }, [getToken]);
+
+  const createRole = async (input: { label: string; description?: string; permissions: Permission[] }): Promise<RoleDef> => {
+    const token = getToken();
+    return apiCall(() => apiClient.createRole(input, token));
+  };
+
+  const updateRole = async (id: string, input: { label?: string; description?: string; permissions?: Permission[] }): Promise<RoleDef> => {
+    const token = getToken();
+    return apiCall(() => apiClient.updateRole(id, input, token));
+  };
+
+  const deleteRole = async (id: string): Promise<{ message: string }> => {
+    const token = getToken();
+    return apiCall(() => apiClient.deleteRole(id, token));
   };
 
   // Regular user management methods (memoized for stable refs in useEffect deps)
@@ -305,6 +326,10 @@ export function useApi() {
     updateAdminUser,
     deleteAdminUser,
     inviteAdminUser,
+    getRoles,
+    createRole,
+    updateRole,
+    deleteRole,
     // Dashboard
     getDashboardStats,
     getDashboardSummary,

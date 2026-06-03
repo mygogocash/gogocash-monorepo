@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getToken } from "next-auth/jwt";
 import { mockAdminUsers, mockUsers, mockOffers } from "../data";
 import { handleMockApiRequest } from "@/lib/mockApiCore";
 
@@ -77,6 +78,19 @@ function toNextResponse(r: { status: number; body: unknown }) {
   return NextResponse.json(r.body, { status: r.status });
 }
 
+/** Resolve the caller's RBAC role from the NextAuth JWT for API enforcement. */
+async function roleFromRequest(request: NextRequest) {
+  const token = await getToken({
+    req: request,
+    secret: process.env.NEXTAUTH_SECRET,
+  });
+  // Return the raw role id (built-in or custom) so the store-based check can
+  // resolve it; do NOT coerce to a built-in tier (that would treat custom
+  // roles as viewer and mis-enforce permissions).
+  const role = (token as { role?: string } | null)?.role;
+  return typeof role === "string" && role ? role : "viewer";
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ path: string[] }> },
@@ -87,6 +101,7 @@ export async function GET(
     path,
     searchParams: new URL(request.url).searchParams,
     body: undefined,
+    role: await roleFromRequest(request),
   });
   return toNextResponse(r);
 }
@@ -106,7 +121,8 @@ export async function POST(
     for (const [key, value] of formData.entries()) {
       if (value instanceof File) {
         if (value.size === 0) continue;
-        bodyObj[key] = `uploads/${path.join("/")}/${key}/${Date.now()}-${safeName(value.name)}`;
+        bodyObj[key] =
+          `uploads/${path.join("/")}/${key}/${Date.now()}-${safeName(value.name)}`;
       } else {
         bodyObj[key] = String(value);
       }
@@ -121,6 +137,7 @@ export async function POST(
     path,
     searchParams: new URL(request.url).searchParams,
     body,
+    role: await roleFromRequest(request),
   });
   return toNextResponse(r);
 }
@@ -130,12 +147,13 @@ export async function PUT(
   { params }: { params: Promise<{ path: string[] }> },
 ) {
   const { path } = await params;
-  const body = await request.json();
+  const body = await request.json().catch(() => ({}));
   const r = await handleMockApiRequest({
     method: "PUT",
     path,
     searchParams: new URL(request.url).searchParams,
     body,
+    role: await roleFromRequest(request),
   });
   return toNextResponse(r);
 }
@@ -158,16 +176,21 @@ export async function PATCH(
         if (value.size === 0) continue;
         if (path[0] === "admin" && path[1] === "update-category") {
           if (key === "image") {
-            bodyObj[key] = `category/${resourceId}/${Date.now()}-${safeName(value.name)}`;
+            bodyObj[key] =
+              `category/${resourceId}/${Date.now()}-${safeName(value.name)}`;
           } else if (key === "banner") {
-            bodyObj[key] = `category-banner/${resourceId}/${Date.now()}-${safeName(value.name)}`;
+            bodyObj[key] =
+              `category-banner/${resourceId}/${Date.now()}-${safeName(value.name)}`;
           } else {
-            bodyObj[key] = `uploads/category/${resourceId}/${key}/${Date.now()}-${safeName(value.name)}`;
+            bodyObj[key] =
+              `uploads/category/${resourceId}/${key}/${Date.now()}-${safeName(value.name)}`;
           }
         } else if (path[0] === "admin" && path[1] === "update-offer") {
-          bodyObj[key] = `uploads/offer/${resourceId}/${key}/${Date.now()}-${safeName(value.name)}`;
+          bodyObj[key] =
+            `uploads/offer/${resourceId}/${key}/${Date.now()}-${safeName(value.name)}`;
         } else {
-          bodyObj[key] = `uploads/${path.join("/")}/${key}/${Date.now()}-${safeName(value.name)}`;
+          bodyObj[key] =
+            `uploads/${path.join("/")}/${key}/${Date.now()}-${safeName(value.name)}`;
         }
       } else {
         bodyObj[key] = String(value);
@@ -183,6 +206,7 @@ export async function PATCH(
     path,
     searchParams: new URL(request.url).searchParams,
     body,
+    role: await roleFromRequest(request),
   });
   return toNextResponse(r);
 }
@@ -197,6 +221,7 @@ export async function DELETE(
     path,
     searchParams: new URL(request.url).searchParams,
     body: undefined,
+    role: await roleFromRequest(request),
   });
   return toNextResponse(r);
 }

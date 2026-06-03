@@ -30,13 +30,25 @@ import {
   affiliateNetworkName,
   resolveAffiliateNetworkIdForOffer,
 } from "@/data/affiliateNetworks";
-import { bestPercentFromPartnerRates, buildSuggestedAppDeeplink } from "@/lib/offerDeeplink";
+import {
+  bestPercentFromPartnerRates,
+  buildSuggestedAppDeeplink,
+} from "@/lib/offerDeeplink";
 import {
   normalizeOfferDisplayTags,
   normalizeOfferProductTypes,
   type Offer,
 } from "@/types/api";
 import { DEFAULT_MOCK_ACCESS_TOKEN } from "@/lib/authTokens";
+import type { Permission } from "@/lib/rbac";
+import {
+  listRoles,
+  getRoleDef,
+  createRole,
+  updateRole,
+  deleteRole,
+  roleCan,
+} from "@/lib/rbac/roleStore";
 import {
   buildDashboardInsights,
   buildDashboardSummaryExtended,
@@ -49,6 +61,8 @@ export type MockApiInput = {
   searchParams: URLSearchParams;
   /** Parsed JSON body for mutating methods */
   body: unknown | undefined;
+  /** Caller's role id (from the NextAuth JWT), for server-side enforcement. */
+  role?: string;
 };
 
 export type MockApiResult = { status: number; body: unknown };
@@ -87,12 +101,72 @@ type CreatedConversionItem = {
 };
 
 const MOCK_CREATED_CONVERSIONS_BASE = [
-  { offer_id: 1001, offer_name: "Banana IT TH - CPS", aff_sub1: "u1", adv_sub2: "order_mock_001", sale_amount: "1500.00", payout: "75.00", currency: "THB", conversion_status: "approved" as const, remark: "Manual add - campaign" },
-  { offer_id: 1002, offer_name: "Adidas TH - CPS", aff_sub1: "u1", adv_sub2: "order_mock_002", sale_amount: "3200.50", payout: "128.02", currency: "THB", conversion_status: "pending" as const, remark: "" },
-  { offer_id: 1003, offer_name: "AirAsia Travel - CPS", aff_sub1: "u2", adv_sub2: "order_mock_003", sale_amount: "450.00", payout: "27.00", currency: "USD", conversion_status: "approved" as const, remark: "Hotel booking" },
-  { offer_id: 1004, offer_name: "Banana IT TH Food - CPS", aff_sub1: "u2", adv_sub2: "order_mock_004", sale_amount: "280.00", payout: "8.40", currency: "THB", conversion_status: "rejected" as const, remark: "" },
-  { offer_id: 1001, offer_name: "Banana IT TH - CPS", aff_sub1: "68bf99fed9667685c1637607", adv_sub2: "order_mock_005", sale_amount: "890.00", payout: "44.50", currency: "THB", conversion_status: "approved" as const, remark: "Created via admin" },
-  { offer_id: 1002, offer_name: "Adidas TH - CPS", aff_sub1: "u3", adv_sub2: "order_mock_006", sale_amount: "2100.00", payout: "84.00", currency: "THB", conversion_status: "pending" as const, remark: "Flash sale" },
+  {
+    offer_id: 1001,
+    offer_name: "Banana IT TH - CPS",
+    aff_sub1: "u1",
+    adv_sub2: "order_mock_001",
+    sale_amount: "1500.00",
+    payout: "75.00",
+    currency: "THB",
+    conversion_status: "approved" as const,
+    remark: "Manual add - campaign",
+  },
+  {
+    offer_id: 1002,
+    offer_name: "Adidas TH - CPS",
+    aff_sub1: "u1",
+    adv_sub2: "order_mock_002",
+    sale_amount: "3200.50",
+    payout: "128.02",
+    currency: "THB",
+    conversion_status: "pending" as const,
+    remark: "",
+  },
+  {
+    offer_id: 1003,
+    offer_name: "AirAsia Travel - CPS",
+    aff_sub1: "u2",
+    adv_sub2: "order_mock_003",
+    sale_amount: "450.00",
+    payout: "27.00",
+    currency: "USD",
+    conversion_status: "approved" as const,
+    remark: "Hotel booking",
+  },
+  {
+    offer_id: 1004,
+    offer_name: "Banana IT TH Food - CPS",
+    aff_sub1: "u2",
+    adv_sub2: "order_mock_004",
+    sale_amount: "280.00",
+    payout: "8.40",
+    currency: "THB",
+    conversion_status: "rejected" as const,
+    remark: "",
+  },
+  {
+    offer_id: 1001,
+    offer_name: "Banana IT TH - CPS",
+    aff_sub1: "68bf99fed9667685c1637607",
+    adv_sub2: "order_mock_005",
+    sale_amount: "890.00",
+    payout: "44.50",
+    currency: "THB",
+    conversion_status: "approved" as const,
+    remark: "Created via admin",
+  },
+  {
+    offer_id: 1002,
+    offer_name: "Adidas TH - CPS",
+    aff_sub1: "u3",
+    adv_sub2: "order_mock_006",
+    sale_amount: "2100.00",
+    payout: "84.00",
+    currency: "THB",
+    conversion_status: "pending" as const,
+    remark: "Flash sale",
+  },
 ];
 
 function buildMockCreatedConversions(): CreatedConversionItem[] {
@@ -125,7 +199,8 @@ function buildMockCreatedConversions(): CreatedConversionItem[] {
   });
 }
 
-const createdConversionsList: CreatedConversionItem[] = buildMockCreatedConversions();
+const createdConversionsList: CreatedConversionItem[] =
+  buildMockCreatedConversions();
 const policyStore = new Map<string, string>();
 
 /** Mock OTP for admin verification when adding emails / phones on withdraw user (internal demo). */
@@ -133,7 +208,11 @@ const MOCK_USER_CONTACT_OTP = "123456";
 /** Session keys `userId|channel|target` → expiry ms */
 const userContactOtpSessions = new Map<string, number>();
 
-function userContactOtpKey(userId: string, channel: string, normalizedTarget: string) {
+function userContactOtpKey(
+  userId: string,
+  channel: string,
+  normalizedTarget: string,
+) {
   return `${userId}|${channel}|${normalizedTarget}`;
 }
 
@@ -167,9 +246,10 @@ function resolveWithdrawRouteSegmentToUserId(routeSegment: string): string {
   const raw = routeSegment.trim();
   if (raw.startsWith("w")) {
     const row = mockWithdraws.find((x) => x._id === raw);
-    const uid = row?.user_id && typeof row.user_id === "object" && "_id" in row.user_id
-      ? String((row.user_id as { _id: string })._id)
-      : "";
+    const uid =
+      row?.user_id && typeof row.user_id === "object" && "_id" in row.user_id
+        ? String((row.user_id as { _id: string })._id)
+        : "";
     if (uid) return uid;
   }
   /** MyCashBack profile ids (`mcb1` …) align 1:1 with GoGoCash user ids (`u1` …) in mock data. */
@@ -204,7 +284,8 @@ function buildWithdrawDetailUser(userId: string) {
 
 function emptyWithdrawDetailForDeletedUser(userId: string) {
   return {
-    totalsByStatusAndCurrency: [] as typeof mockWithdrawDetail.totalsByStatusAndCurrency,
+    totalsByStatusAndCurrency:
+      [] as typeof mockWithdrawDetail.totalsByStatusAndCurrency,
     data: {
       approved: { count: 0, totalPayout: 0, items: [] as unknown[] },
       pending: { count: 0, totalPayout: 0, items: [] as unknown[] },
@@ -228,7 +309,8 @@ function emptyWithdrawDetailForDeletedUser(userId: string) {
       totalCashbackCurrency: "THB",
       userLog: [] as { action?: string; at?: string; ip?: string }[],
     },
-    withdrawSumByCurrency: {} as typeof mockWithdrawDetail.withdrawSumByCurrency,
+    withdrawSumByCurrency:
+      {} as typeof mockWithdrawDetail.withdrawSumByCurrency,
   };
 }
 
@@ -308,7 +390,11 @@ const commissionAppDeeplinkByOfferId = new Map<string, string>();
 /** Homepage top-brand rail: ordered offer `_id`s (mock; in-memory). */
 let topBrandHomepageOrder: string[] = ["o1", "o2", "o3", "o5"];
 
-function allocateNewOfferIds(): { _id: string; offer_id: number; merchant_id: number } {
+function allocateNewOfferIds(): {
+  _id: string;
+  offer_id: number;
+  merchant_id: number;
+} {
   let maxSeq = 0;
   let maxOfferId = 0;
   let maxMerchant = 0;
@@ -319,7 +405,11 @@ function allocateNewOfferIds(): { _id: string; offer_id: number; merchant_id: nu
     maxMerchant = Math.max(maxMerchant, o.merchant_id);
   }
   const seq = maxSeq + 1;
-  return { _id: `o${seq}`, offer_id: maxOfferId + 1, merchant_id: maxMerchant + 1 };
+  return {
+    _id: `o${seq}`,
+    offer_id: maxOfferId + 1,
+    merchant_id: maxMerchant + 1,
+  };
 }
 
 function paginate<T>(items: T[], page = 1, limit = 10) {
@@ -351,8 +441,11 @@ function handleMockGET(
   joined: string,
   searchParams: URLSearchParams,
 ): MockApiResult {
-  const page = parseInt(searchParams.get("page") || "1");
-  const limit = parseInt(searchParams.get("limit") || "10");
+  const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
+  const limit = Math.min(
+    100,
+    Math.max(1, parseInt(searchParams.get("limit") || "10", 10) || 10),
+  );
   const search = searchParams.get("search") || "";
 
   if (joined === "admin/login") {
@@ -513,8 +606,12 @@ function handleMockGET(
           (w.bank_name && w.bank_name.toLowerCase().includes(s)) ||
           (typeof w.user_id === "object" &&
             w.user_id &&
-            ((w.user_id as { username?: string }).username?.toLowerCase().includes(s) ||
-              (w.user_id as { email?: string }).email?.toLowerCase().includes(s))),
+            ((w.user_id as { username?: string }).username
+              ?.toLowerCase()
+              .includes(s) ||
+              (w.user_id as { email?: string }).email
+                ?.toLowerCase()
+                .includes(s))),
       );
     }
     const statusFilter = searchParams.get("status")?.trim().toLowerCase() ?? "";
@@ -657,7 +754,9 @@ function handleMockGET(
         partnerRates: o.commissions ?? [],
         adminCommission: o.commission_store,
         maxCap: o.max_cap ?? null,
-        partnerMaxCap: Number.isFinite(partnerMaxCapNum) ? partnerMaxCapNum : null,
+        partnerMaxCap: Number.isFinite(partnerMaxCapNum)
+          ? partnerMaxCapNum
+          : null,
         trackingLink: o.tracking_link,
         appDeeplink:
           commissionAppDeeplinkByOfferId.get(o._id) ??
@@ -693,7 +792,9 @@ async function handleMockPOST(
       return jsonErr(401, { message: "Invalid credentials" });
     }
     const email = (b?.email ?? "").trim().toLowerCase();
-    const admin = mockAdminUsers.find((u) => u.email.toLowerCase() === email) ?? mockAdminUsers[0];
+    const admin =
+      mockAdminUsers.find((u) => u.email.toLowerCase() === email) ??
+      mockAdminUsers[0];
     return ok({
       _id: admin._id,
       username: admin.username,
@@ -720,7 +821,9 @@ async function handleMockPOST(
     const b = body as { page?: number; limit?: number; search?: string };
     const page = Math.max(1, Number(b.page) || 1);
     const limit = Math.min(100, Math.max(1, Number(b.limit) || 12));
-    const search = String(b.search ?? "").trim().toLowerCase();
+    const search = String(b.search ?? "")
+      .trim()
+      .toLowerCase();
     let filtered = mockMyCashback;
     if (search) {
       filtered = mockMyCashback.filter((u) => {
@@ -758,7 +861,9 @@ async function handleMockPOST(
     if (!userId) {
       return jsonErr(400, { message: "userId is required" });
     }
-    const patch: WithdrawDetailUserPatch = { ...withdrawDetailUserEdits[userId] };
+    const patch: WithdrawDetailUserPatch = {
+      ...withdrawDetailUserEdits[userId],
+    };
     if (Array.isArray(b.emails)) {
       const list = (b.emails as unknown[])
         .map((x) => String(x).trim())
@@ -785,7 +890,8 @@ async function handleMockPOST(
     if (typeof b.gender === "string") patch.gender = b.gender.trim();
     if (typeof b.birthdate === "string") patch.birthdate = b.birthdate.trim();
     if (typeof b.wallet === "string") patch.wallet = b.wallet.trim();
-    if (typeof b.gogopassActive === "boolean") patch.gogopassActive = b.gogopassActive;
+    if (typeof b.gogopassActive === "boolean")
+      patch.gogopassActive = b.gogopassActive;
     withdrawDetailUserEdits[userId] = patch;
     return ok({
       success: true,
@@ -822,7 +928,9 @@ async function handleMockPOST(
         return jsonErr(400, { message: "Invalid email address" });
       }
     } else if (raw.replace(/\D/g, "").length < 8) {
-      return jsonErr(400, { message: "Enter a valid phone number (at least 8 digits)" });
+      return jsonErr(400, {
+        message: "Enter a valid phone number (at least 8 digits)",
+      });
     }
     const key = userContactOtpKey(userId, channel, target);
     userContactOtpSessions.set(key, Date.now() + 10 * 60 * 1000);
@@ -878,7 +986,10 @@ async function handleMockPOST(
         : joined === "admin/banner-home-small"
           ? mockBannerHomeSmall
           : mockBannerAllBrandPage;
-    const raw = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
+    const raw = (body && typeof body === "object" ? body : {}) as Record<
+      string,
+      unknown
+    >;
     for (let i = 1; i <= 5; i++) {
       const lk = `link_${i}`;
       if (typeof raw[lk] === "string") {
@@ -917,8 +1028,11 @@ async function handleMockPOST(
       if (!isValidDeeplinkStoreId(storeId)) storeId = "global";
       const rawLookup = String(b.lookup_value ?? "").trim();
       const lookup =
-        rawLookup.replace(/[^\w-]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "").toLowerCase() ||
-        `brand_${Date.now()}`;
+        rawLookup
+          .replace(/[^\w-]/g, "_")
+          .replace(/_+/g, "_")
+          .replace(/^_|_$/g, "")
+          .toLowerCase() || `brand_${Date.now()}`;
       const countries = String(b.countries ?? "Thailand").trim() || "Thailand";
       const currency = String(b.currency ?? "THB").trim() || "THB";
       const description =
@@ -927,9 +1041,15 @@ async function handleMockPOST(
       const entryMode = String(b.commission_entry_mode ?? "manual").trim();
       let commissionStore: number | null = null;
       if (entryMode !== "auto") {
-        if (typeof b.commission_store === "number" && !Number.isNaN(b.commission_store)) {
+        if (
+          typeof b.commission_store === "number" &&
+          !Number.isNaN(b.commission_store)
+        ) {
           commissionStore = b.commission_store;
-        } else if (typeof b.commission_store === "string" && b.commission_store.trim()) {
+        } else if (
+          typeof b.commission_store === "string" &&
+          b.commission_store.trim()
+        ) {
           const n = parseFloat(b.commission_store);
           commissionStore = Number.isNaN(n) ? null : n;
         }
@@ -953,10 +1073,13 @@ async function handleMockPOST(
       const extraStore = parseBool(b.extra_store, false);
       const allProductTypes = parseBool(b.all_product_types, true);
 
-      let productTypesParsed: ReturnType<typeof normalizeOfferProductTypes> = [];
+      let productTypesParsed: ReturnType<typeof normalizeOfferProductTypes> =
+        [];
       if (typeof b.product_types === "string" && b.product_types.trim()) {
         try {
-          productTypesParsed = normalizeOfferProductTypes(JSON.parse(b.product_types) as unknown);
+          productTypesParsed = normalizeOfferProductTypes(
+            JSON.parse(b.product_types) as unknown,
+          );
         } catch {
           productTypesParsed = [];
         }
@@ -974,9 +1097,14 @@ async function handleMockPOST(
       const noteToUser = noteToUserRaw.length > 0 ? noteToUserRaw : null;
 
       let offerDisplayTags = normalizeOfferDisplayTags(undefined);
-      if (typeof b.offer_display_tags === "string" && b.offer_display_tags.trim()) {
+      if (
+        typeof b.offer_display_tags === "string" &&
+        b.offer_display_tags.trim()
+      ) {
         try {
-          offerDisplayTags = normalizeOfferDisplayTags(JSON.parse(b.offer_display_tags) as unknown);
+          offerDisplayTags = normalizeOfferDisplayTags(
+            JSON.parse(b.offer_display_tags) as unknown,
+          );
         } catch {
           /* keep default */
         }
@@ -986,7 +1114,8 @@ async function handleMockPOST(
       const customTerms = customTermsRaw.length > 0 ? customTermsRaw : null;
 
       const policyCategoryRaw = String(b.policy_category_id ?? "").trim();
-      const policyCategoryId = policyCategoryRaw.length > 0 ? policyCategoryRaw : null;
+      const policyCategoryId =
+        policyCategoryRaw.length > 0 ? policyCategoryRaw : null;
       let activePolicy: string | null = "Shopping";
       if (policyCategoryId) {
         const cat = mockCategories.find((c) => c._id === policyCategoryId);
@@ -1035,7 +1164,11 @@ async function handleMockPOST(
         deeplink_store_id: storeId,
         offer_display_tags: offerDisplayTags,
         all_product_types: allProductTypes,
-        product_types: allProductTypes ? undefined : productTypesParsed.length ? productTypesParsed : undefined,
+        product_types: allProductTypes
+          ? undefined
+          : productTypesParsed.length
+            ? productTypesParsed
+            : undefined,
         note_to_user: noteToUser,
         policy_category_id: policyCategoryId,
         active_policy: activePolicy,
@@ -1043,7 +1176,9 @@ async function handleMockPOST(
       };
       const pickPath = (key: string) => {
         const v = b[key];
-        return typeof v === "string" && v.trim().length > 0 ? String(v).trim() : undefined;
+        return typeof v === "string" && v.trim().length > 0
+          ? String(v).trim()
+          : undefined;
       };
       const logoDesktopPath = pickPath("logo_desktop");
       const logoMobilePath = pickPath("logo_mobile");
@@ -1103,7 +1238,11 @@ async function handleMockPOST(
     if (!userId) {
       return jsonErr(400, { message: "User ID (aff_sub1) is required" });
     }
-    const conversionId = 600000 + Math.floor(Math.random() * 99999);
+    const conversionId =
+      createdConversionsList.reduce(
+        (max, c) => Math.max(max, c.conversion_id),
+        600105,
+      ) + 1;
     const nowIso = new Date().toISOString();
     createdConversionsList.push({
       conversion_id: conversionId,
@@ -1140,7 +1279,7 @@ async function handleMockPOST(
   }
 
   if (joined === "admin/invite") {
-    const b = body as { email?: string };
+    const b = body as { email?: string; role?: string };
     const email = (b?.email || "").trim();
     if (!email) {
       return jsonErr(400, { message: "Email is required" });
@@ -1158,6 +1297,7 @@ async function handleMockPOST(
       username,
       password: "",
       email,
+      role: typeof b.role === "string" && b.role.trim() ? b.role : "editor",
       status: "pending",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -1213,7 +1353,9 @@ async function handleMockPOST(
         : rawPartnerCap != null && String(rawPartnerCap).trim() !== ""
           ? Number(rawPartnerCap)
           : NaN;
-    const partnerMaxCap = Number.isFinite(partnerMaxCapNum) ? partnerMaxCapNum : null;
+    const partnerMaxCap = Number.isFinite(partnerMaxCapNum)
+      ? partnerMaxCapNum
+      : null;
     return ok({
       bestRatePercent,
       currency: offer.currency,
@@ -1236,7 +1378,10 @@ async function handleMockPUT(
   joined: string,
   body: unknown,
 ): Promise<MockApiResult> {
-  const b = body as Record<string, unknown> & { categoryId?: string; content?: string };
+  const b = body as Record<string, unknown> & {
+    categoryId?: string;
+    content?: string;
+  };
 
   if (joined === "admin/top-brands") {
     const raw = b?.order;
@@ -1259,18 +1404,36 @@ async function handleMockPUT(
   }
 
   if (path[0] === "offer" && path.length === 2) {
-    const offer = mockOffers.find((o) => o._id === path[1]);
-    return ok({ ...offer, ...b });
+    const idx = mockOffers.findIndex((o) => o._id === path[1]);
+    if (idx === -1) return jsonErr(404, { message: "Offer not found" });
+    Object.assign(mockOffers[idx], b, {
+      datetime_updated: new Date().toISOString(),
+    });
+    return ok(mockOffers[idx]);
   }
 
   if (path[0] === "admin" && path.length === 2) {
-    const user = mockAdminUsers.find((u) => u._id === path[1]);
-    return ok({ ...user, ...b });
+    const idx = mockAdminUsers.findIndex((u) => u._id === path[1]);
+    if (idx === -1) return ok({ ...b });
+    const patch: Partial<(typeof mockAdminUsers)[number]> = {};
+    if (typeof b.role === "string") patch.role = b.role;
+    if (typeof b.username === "string") patch.username = b.username;
+    if (typeof b.email === "string") patch.email = b.email;
+    if (typeof b.status === "string")
+      patch.status = b.status as "active" | "pending";
+    mockAdminUsers[idx] = {
+      ...mockAdminUsers[idx],
+      ...patch,
+      updatedAt: new Date().toISOString(),
+    };
+    return ok(mockAdminUsers[idx]);
   }
 
   if (path[0] === "user" && path.length === 2) {
-    const user = mockUsers.find((u) => u._id === path[1]);
-    return ok({ ...user, ...b });
+    const idx = mockUsers.findIndex((u) => u._id === path[1]);
+    if (idx === -1) return jsonErr(404, { message: "User not found" });
+    Object.assign(mockUsers[idx], b, { updatedAt: new Date().toISOString() });
+    return ok(mockUsers[idx]);
   }
 
   if (joined === "policy") {
@@ -1309,13 +1472,18 @@ async function handleMockPATCH(
       remark?: string;
       adv_sub2?: string;
     };
-    const item = createdConversionsList.find((c) => c.conversion_id === conversionId);
+    const item = createdConversionsList.find(
+      (c) => c.conversion_id === conversionId,
+    );
     if (!item) {
       return jsonErr(404, { message: "Conversion not found or not editable" });
     }
-    if (updateBody.conversion_status !== undefined) item.conversion_status = updateBody.conversion_status;
-    if (updateBody.sale_amount !== undefined) item.sale_amount = String(updateBody.sale_amount);
-    if (updateBody.payout !== undefined) item.payout = String(updateBody.payout);
+    if (updateBody.conversion_status !== undefined)
+      item.conversion_status = updateBody.conversion_status;
+    if (updateBody.sale_amount !== undefined)
+      item.sale_amount = String(updateBody.sale_amount);
+    if (updateBody.payout !== undefined)
+      item.payout = String(updateBody.payout);
     if (updateBody.remark !== undefined) item.remark = updateBody.remark;
     if (updateBody.adv_sub2 !== undefined) item.adv_sub2 = updateBody.adv_sub2;
     item.updatedAt = new Date().toISOString();
@@ -1354,7 +1522,9 @@ async function handleMockPATCH(
 
   if (path[0] === "admin" && path[1] === "update-offer" && path[2]) {
     const offerId = path[2];
-    const offer = mockOffers.find((o) => o._id === offerId) as Offer | undefined;
+    const offer = mockOffers.find((o) => o._id === offerId) as
+      | Offer
+      | undefined;
     if (!offer) {
       return jsonErr(404, { message: "Offer not found" });
     }
@@ -1366,10 +1536,12 @@ async function handleMockPATCH(
       offer.disabled = b.disabled === "true";
     }
     if (b.commission_store != null && b.commission_store !== "") {
-      offer.commission_store = Number(b.commission_store);
+      const n = Number(b.commission_store);
+      if (Number.isFinite(n)) offer.commission_store = n;
     }
     if (b.max_cap != null && b.max_cap !== "") {
-      offer.max_cap = Number(b.max_cap);
+      const n = Number(b.max_cap);
+      if (Number.isFinite(n)) offer.max_cap = n;
     }
     if (b.extra_store != null) {
       offer.extra_store = b.extra_store === "true";
@@ -1382,13 +1554,16 @@ async function handleMockPATCH(
     }
     if (b.upsize_special_commission !== undefined) {
       offer.upsize_special_commission =
-        b.upsize_special_commission === "" || b.upsize_special_commission == null
+        b.upsize_special_commission === "" ||
+        b.upsize_special_commission == null
           ? null
           : Number(b.upsize_special_commission);
     }
     if (b.upsize_max_cap !== undefined) {
       offer.upsize_max_cap =
-        b.upsize_max_cap === "" || b.upsize_max_cap == null ? null : Number(b.upsize_max_cap);
+        b.upsize_max_cap === "" || b.upsize_max_cap == null
+          ? null
+          : Number(b.upsize_max_cap);
     }
     if (b.upsize_product_types != null) {
       try {
@@ -1412,7 +1587,9 @@ async function handleMockPATCH(
     if (b.admin_commission_info != null) {
       try {
         const parsed = JSON.parse(b.admin_commission_info) as string[];
-        offer.admin_commission_info = Array.isArray(parsed) ? parsed.map((s) => String(s).trim()).filter(Boolean) : [];
+        offer.admin_commission_info = Array.isArray(parsed)
+          ? parsed.map((s) => String(s).trim()).filter(Boolean)
+          : [];
       } catch {
         /* ignore invalid JSON */
       }
@@ -1466,12 +1643,18 @@ async function handleMockPATCH(
     return ok({ success: true, message: "Offer updated", data: offer });
   }
 
-  if (path[0] === "admin" && path[1] === "commission-management" && path[2] === "deeplink") {
+  if (
+    path[0] === "admin" &&
+    path[1] === "commission-management" &&
+    path[2] === "deeplink"
+  ) {
     const raw = body as { offerId?: string; deeplink?: string };
     const id = (raw.offerId ?? "").trim();
     const deeplink = (raw.deeplink ?? "").trim();
     if (!id || !deeplink) {
-      return jsonErr(400, { message: "offerId and tracking link URL are required" });
+      return jsonErr(400, {
+        message: "offerId and tracking link URL are required",
+      });
     }
     const offer = mockOffers.find((o) => o._id === id);
     if (!offer) {
@@ -1494,20 +1677,205 @@ function handleMockDELETE(path: string[], joined: string): MockApiResult {
     return ok({ message: `Deleted admin ${id}` });
   }
 
-  if (path.length === 2) {
-    return ok({ message: `Deleted ${path[0]} ${path[1]}` });
-  }
-
-  return jsonErr(404, { message: `Mock endpoint not found: DELETE /${joined}` });
+  return jsonErr(404, {
+    message: `Mock endpoint not found: DELETE /${joined}`,
+  });
 }
 
-export async function handleMockApiRequest(input: MockApiInput): Promise<MockApiResult> {
+function tryRolesRequest(input: MockApiInput): MockApiResult | null {
+  const { method, path, body } = input;
+  const m = method.toUpperCase();
+  if (path[0] !== "admin" || path[1] !== "roles") return null;
+  const id = path[2];
+
+  if (m === "GET") {
+    if (id) {
+      const r = getRoleDef(id);
+      return r ? ok(r) : jsonErr(404, { message: "Role not found" });
+    }
+    return ok({ data: listRoles() });
+  }
+
+  const b = (body ?? {}) as {
+    label?: string;
+    description?: string;
+    permissions?: Permission[];
+  };
+  const perms = Array.isArray(b.permissions) ? b.permissions : [];
+
+  if (m === "POST" && !id) {
+    if (!b.label?.trim()) {
+      return jsonErr(400, { message: "Role name is required" });
+    }
+    return ok(
+      createRole({
+        label: b.label,
+        description: b.description,
+        permissions: perms,
+      }),
+    );
+  }
+  if ((m === "PUT" || m === "PATCH") && id) {
+    const updated = updateRole(id, {
+      label: b.label,
+      description: b.description,
+      permissions: b.permissions === undefined ? undefined : perms,
+    });
+    return updated ? ok(updated) : jsonErr(404, { message: "Role not found" });
+  }
+  if (m === "DELETE" && id) {
+    const res = deleteRole(id);
+    if (res.ok) {
+      // Reassign anyone holding the deleted role to viewer (avoids dangling ids).
+      let moved = 0;
+      for (const u of mockAdminUsers) {
+        if (u.role === id) {
+          u.role = "viewer";
+          moved += 1;
+        }
+      }
+      return ok({
+        message: `Deleted role ${id}${moved ? ` — ${moved} user(s) moved to Viewer` : ""}`,
+      });
+    }
+    return jsonErr(res.reason === "system_role" ? 400 : 404, {
+      message:
+        res.reason === "system_role"
+          ? "System roles cannot be deleted"
+          : "Role not found",
+    });
+  }
+  return null;
+}
+
+/**
+ * POST endpoints that are reads or pre-auth — they mutate nothing, so they are
+ * never gated by a write permission.
+ */
+const WRITE_READ_ALLOWLIST = new Set<string>([
+  "admin/login",
+  "admin/list-mycashback-users",
+  "admin/getConversionInWithdraw",
+  "admin/commission-management/fetch-best",
+  "withdraw/list-check-admin",
+  "withdraw/check-my-cashback-admin",
+]);
+
+/**
+ * The permission a mutating request requires, or null when the request is a
+ * read / pre-auth endpoint that shouldn't be gated here. Gating is by resource
+ * (path root) so new sub-routes within a resource are covered automatically.
+ * Unmatched `admin/*` writes fail closed (require adminUsers:manage) so a new
+ * admin mutation can never ship ungated by omission; unknown non-admin writes
+ * fall through to the 404 handler.
+ */
+function requiredWritePermission(
+  m: string,
+  path: string[],
+  joined: string,
+): Permission | null {
+  if (m === "GET") return null;
+  if (WRITE_READ_ALLOWLIST.has(joined)) return null;
+
+  const p0 = path[0];
+  const p1 = path[1];
+
+  // Admin-user & role management (create/invite/register/roles). Note: a bare
+  // `admin/:id` write (editing an admin-user record) is NOT matched here — it
+  // falls through to the fail-closed admin rule below, so it can't shadow the
+  // specific admin verb routes (admin/add-conversion, admin/update-fee-rate…).
+  if (
+    joined === "admin" ||
+    joined === "admin/invite" ||
+    joined === "admin/register" ||
+    (p0 === "admin" && p1 === "roles")
+  ) {
+    return "adminUsers:manage";
+  }
+
+  // Withdrawals: PII edits, deletes, contact-OTP, payouts.
+  if (p0 === "withdraw") return "withdraw:manage";
+
+  // End-user data & lifecycle (incl. credit score, membership, subscription,
+  // referrals, wallets).
+  if (p0 === "user") return "users:manage";
+  if (
+    p0 === "admin" &&
+    (p1 === "credit-scores" ||
+      p1 === "membership" ||
+      p1 === "subscription" ||
+      p1 === "referral" ||
+      p1 === "referrals" ||
+      p1 === "wallets")
+  ) {
+    return "users:manage";
+  }
+
+  // Conversions & transactions.
+  if (
+    p0 === "admin" &&
+    (p1 === "add-conversion" ||
+      p1 === "update-conversion" ||
+      p1 === "transactions")
+  ) {
+    return "conversion:manage";
+  }
+
+  // Fee settings.
+  if (p0 === "admin" && p1 === "update-fee-rate") return "fee:manage";
+
+  // Banners.
+  if (
+    joined === "admin/banner-home" ||
+    joined === "admin/banner-home-small" ||
+    joined === "admin/banner-all-brand-page"
+  ) {
+    return "banner:manage";
+  }
+
+  // Brands domain: offers, categories, top brands, commission management,
+  // policy, missing orders, discover & search config.
+  if (p0 === "offer" || joined === "policy") return "brands:manage";
+  if (
+    p0 === "admin" &&
+    (p1 === "top-brands" ||
+      p1 === "update-offer" ||
+      p1 === "update-category" ||
+      p1 === "commission-management" ||
+      p1 === "missing-orders" ||
+      p1 === "discover" ||
+      p1 === "search")
+  ) {
+    return "brands:manage";
+  }
+
+  // Fail closed for any other admin mutation; let unknown non-admin writes 404.
+  if (p0 === "admin") return "adminUsers:manage";
+  return null;
+}
+
+export async function handleMockApiRequest(
+  input: MockApiInput,
+): Promise<MockApiResult> {
   const { method, path, searchParams, body } = input;
   const joined = path.join("/");
   const m = method.toUpperCase();
 
+  // RBAC: enforce the write permission BEFORE any handler dispatch (including
+  // the admin-features module) so no mutating route can run ungated.
+  const callerRoleId = input.role ?? "viewer";
+  const writePermission = requiredWritePermission(m, path, joined);
+  if (writePermission && !roleCan(callerRoleId, writePermission)) {
+    return jsonErr(403, {
+      message: `Forbidden: this action requires the "${writePermission}" permission.`,
+    });
+  }
+
   const adminFeatureHit = tryMockAdminFeaturesRequest(input);
   if (adminFeatureHit) return adminFeatureHit;
+
+  const rolesHit = tryRolesRequest(input);
+  if (rolesHit) return rolesHit;
 
   switch (m) {
     case "GET":

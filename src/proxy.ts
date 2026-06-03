@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { can, isRole, permissionForRoute } from "@/lib/rbac";
 
 const PUBLIC_PREFIXES = [
   "/signin",
@@ -40,9 +41,26 @@ export async function proxy(req: NextRequest) {
   const secret = process.env.NEXTAUTH_SECRET;
   const token = secret ? await getToken({ req, secret }) : null;
   if (!token) {
+    // API requests should get a 401, not an HTML redirect to the sign-in page.
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
     const url = req.nextUrl.clone();
     url.pathname = "/signin";
     url.searchParams.set("callbackUrl", pathname);
+    return NextResponse.redirect(url);
+  }
+
+  // RBAC: redirect to /403 when the role lacks the route's view permission.
+  // Built-in tiers are enforced here (edge); custom roles can't be resolved from
+  // the edge (no access to the runtime role store) so they're gated client-side
+  // by RoutePermissionGuard + the API. This never wrongly blocks a custom role.
+  const roleId = (token as { role?: string }).role;
+  const permission = permissionForRoute(pathname);
+  if (permission && isRole(roleId) && !can(roleId, permission)) {
+    const url = req.nextUrl.clone();
+    url.pathname = "/403";
+    url.search = "";
     return NextResponse.redirect(url);
   }
 

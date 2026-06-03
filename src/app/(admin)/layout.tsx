@@ -5,6 +5,7 @@ import AppHeader from "@/layout/AppHeader";
 import AppSidebar from "@/layout/AppSidebar";
 import Backdrop from "@/layout/Backdrop";
 import AuthGuard from "@/components/auth/AuthGuard";
+import RoutePermissionGuard from "@/components/auth/RoutePermissionGuard";
 import PageTransition from "@/components/PageTransition";
 import React, { use } from "react";
 
@@ -41,7 +42,9 @@ export default function AdminLayout({
           <AppHeader />
           {/* Page Content — clip horizontal overflow here only */}
           <div className="mx-auto min-w-0 w-full max-w-screen-2xl overflow-x-hidden px-3 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-4 md:px-6 md:py-6">
-            <PageTransition>{children}</PageTransition>
+            <RoutePermissionGuard>
+              <PageTransition>{children}</PageTransition>
+            </RoutePermissionGuard>
           </div>
         </div>
       </div>

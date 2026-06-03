@@ -43,3 +43,6 @@ next-env.d.ts
 .firebase/
 **/.firebase/
 firebase-debug.log
+
+# Claude Code local tooling (preview launch config, plans, etc.)
+.claude/

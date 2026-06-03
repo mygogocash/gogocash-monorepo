@@ -13,6 +13,7 @@ import DatePicker from "../form/date-picker";
 import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
 import { devError } from "@/lib/devConsole";
+import { parseAmount, validateOptionalAmount } from "@/lib/formValidation";
 
 interface IProp {
   fetchData: () => void;
@@ -61,6 +62,26 @@ const FormCoupon = ({
 
   // Handle file change
   const handleSave = () => {
+    const discount = parseAmount(form.discount);
+    if (discount == null || discount < 0) {
+      toast.error("Discount must be a number (0 or greater).");
+      return;
+    }
+    const quantity = parseAmount(form.quantity);
+    if (quantity == null || quantity < 0 || !Number.isInteger(quantity)) {
+      toast.error("Quantity must be a whole number (0 or greater).");
+      return;
+    }
+    const minSpendError = validateOptionalAmount(
+      form.min_spend,
+      "Minimum spend",
+      true,
+    );
+    if (minSpendError) {
+      toast.error(minSpendError);
+      return;
+    }
+
     const formData = new FormData();
     formData.append("name", form.name);
     formData.append("description", form.description);
@@ -70,8 +91,8 @@ const FormCoupon = ({
     formData.append("end_date", form.end_date);
     formData.append("eligibility", form.eligibility);
     formData.append("min_spend", form.min_spend);
-    formData.append("quantity", form.quantity?.toString() || "0");
-    formData.append("discount", form.discount?.toString());
+    formData.append("quantity", String(quantity));
+    formData.append("discount", String(discount));
     formData.append("id", form.id || "");
     formData.append("disabled", form.disabled?.toString() || "false");
     formData.append("link", form.link || "");
@@ -97,18 +118,75 @@ const FormCoupon = ({
       });
   };
 
-  const dataForm: { filedName: string; type: string; placeholder?: string; description?: string }[] = [
-    { filedName: "name", type: "text", description: "Display name of the coupon shown to users in the app." },
-    { filedName: "code", type: "text", description: "The code users enter to redeem (e.g. WELCOME10). Must be unique." },
-    { filedName: "link", type: "text", description: "Optional URL for the coupon or promo page (e.g. adidas.co.th/promo)." },
-    { filedName: "description", type: "textarea", description: "Short text explaining the coupon terms, conditions or offer details." },
-    { filedName: "offer_id", type: "option", description: "The offer or platform this coupon applies to." },
-    { filedName: "start_date", type: "text", placeholder: "YYYY-MM-DD", description: "When the coupon becomes valid. Use YYYY-MM-DD." },
-    { filedName: "end_date", type: "text", placeholder: "YYYY-MM-DD", description: "When the coupon expires. Use YYYY-MM-DD." },
-    { filedName: "eligibility", type: "text", description: "Who can use it (e.g. new users, all users, first order only)." },
-    { filedName: "min_spend", type: "text", description: "Minimum purchase amount required to use the coupon (e.g. 500 THB)." },
-    { filedName: "discount", type: "number", description: "Discount value: amount off (e.g. 50) or percentage (e.g. 10 for 10%)." },
-    { filedName: "quantity", type: "number", description: "Total number of redemptions allowed. Use 0 for unlimited." },
+  const dataForm: {
+    filedName: string;
+    type: string;
+    placeholder?: string;
+    description?: string;
+  }[] = [
+    {
+      filedName: "name",
+      type: "text",
+      description: "Display name of the coupon shown to users in the app.",
+    },
+    {
+      filedName: "code",
+      type: "text",
+      description:
+        "The code users enter to redeem (e.g. WELCOME10). Must be unique.",
+    },
+    {
+      filedName: "link",
+      type: "text",
+      description:
+        "Optional URL for the coupon or promo page (e.g. adidas.co.th/promo).",
+    },
+    {
+      filedName: "description",
+      type: "textarea",
+      description:
+        "Short text explaining the coupon terms, conditions or offer details.",
+    },
+    {
+      filedName: "offer_id",
+      type: "option",
+      description: "The offer or platform this coupon applies to.",
+    },
+    {
+      filedName: "start_date",
+      type: "text",
+      placeholder: "YYYY-MM-DD",
+      description: "When the coupon becomes valid. Use YYYY-MM-DD.",
+    },
+    {
+      filedName: "end_date",
+      type: "text",
+      placeholder: "YYYY-MM-DD",
+      description: "When the coupon expires. Use YYYY-MM-DD.",
+    },
+    {
+      filedName: "eligibility",
+      type: "text",
+      description:
+        "Who can use it (e.g. new users, all users, first order only).",
+    },
+    {
+      filedName: "min_spend",
+      type: "text",
+      description:
+        "Minimum purchase amount required to use the coupon (e.g. 500 THB).",
+    },
+    {
+      filedName: "discount",
+      type: "number",
+      description:
+        "Discount value: amount off (e.g. 50) or percentage (e.g. 10 for 10%).",
+    },
+    {
+      filedName: "quantity",
+      type: "number",
+      description: "Total number of redemptions allowed. Use 0 for unlimited.",
+    },
   ];
 
   const offerOptions =
@@ -164,7 +242,9 @@ const FormCoupon = ({
                 Coupon
               </h4>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Create or edit a coupon. Set the code, offer, dates and discount. Users can redeem the code in the app for the linked offer.
+                Create or edit a coupon. Set the code, offer, dates and
+                discount. Users can redeem the code in the app for the linked
+                offer.
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-3">
@@ -191,57 +271,59 @@ const FormCoupon = ({
             </div>
           </div>
           <div className="min-h-0 flex-1 space-y-6 overflow-y-auto pb-4">
-          {dataForm.map((formItem) => (
-            <div key={formItem.filedName} className="w-full">
-              <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                {formItem.filedName.replace(/_/g, " ").toUpperCase()}
-              </p>
-              {formItem.description && (
-                <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-                  {formItem.description}
+            {dataForm.map((formItem) => (
+              <div key={formItem.filedName} className="w-full">
+                <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {formItem.filedName.replace(/_/g, " ").toUpperCase()}
                 </p>
-              )}
-              {formItem.type === "option" ? (
-                <>
-                  {option()}
-                  <p className="text-black">{offerDetail?.offer_name || "-"}</p>
-                </>
-              ) : formItem.type === "dates" ? (
-                <DatePicker
-                  id={formItem.filedName}
-                  mode="single"
-                  onChange={(e) => {
-                    setForm({
-                      ...form,
-                      [formItem.filedName]: e || "",
-                    });
-                  }}
-                  defaultDate={
-                    form?.[
-                      formItem.filedName as keyof CouponRequestForm
-                    ] as string
-                  }
-                />
-              ) : (
-                <Input
-                  type={formItem.type}
-                  name={formItem.filedName}
-                  onChange={(event) => {
-                    setForm({
-                      ...form,
-                      [formItem.filedName]: event.target.value,
-                    });
-                  }}
-                  placeholder={formItem.placeholder || ""}
-                  defaultValue={
-                    form?.[
-                      formItem.filedName as keyof CouponRequestForm
-                    ] as string
-                  }
-                />
-              )}
-            </div>
-          ))}
+                {formItem.description && (
+                  <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+                    {formItem.description}
+                  </p>
+                )}
+                {formItem.type === "option" ? (
+                  <>
+                    {option()}
+                    <p className="text-black">
+                      {offerDetail?.offer_name || "-"}
+                    </p>
+                  </>
+                ) : formItem.type === "dates" ? (
+                  <DatePicker
+                    id={formItem.filedName}
+                    mode="single"
+                    onChange={(e) => {
+                      setForm({
+                        ...form,
+                        [formItem.filedName]: e || "",
+                      });
+                    }}
+                    defaultDate={
+                      form?.[
+                        formItem.filedName as keyof CouponRequestForm
+                      ] as string
+                    }
+                  />
+                ) : (
+                  <Input
+                    type={formItem.type}
+                    name={formItem.filedName}
+                    onChange={(event) => {
+                      setForm({
+                        ...form,
+                        [formItem.filedName]: event.target.value,
+                      });
+                    }}
+                    placeholder={formItem.placeholder || ""}
+                    defaultValue={
+                      form?.[
+                        formItem.filedName as keyof CouponRequestForm
+                      ] as string
+                    }
+                  />
+                )}
+              </div>
+            ))}
           </div>
         </div>
       </Modal>

@@ -18,7 +18,7 @@ import {
   STATISTICS_SUMMARY_CARD_ACCENTS,
 } from "@/constants/statisticsChartTheme";
 import { useHtmlDarkClass } from "@/hooks/useHtmlDarkClass";
-import type { DashboardInsightRange } from "@/types/api";
+import type { DashboardInsightRangeValue } from "@/types/api";
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), {
   ssr: false,
@@ -44,7 +44,7 @@ const CHART_KIND_LABELS: Record<ChartKind, string> = {
 };
 
 export type StatisticsChartProps = {
-  insightRange?: DashboardInsightRange;
+  insightRange?: DashboardInsightRangeValue;
 };
 
 export default function StatisticsChart({ insightRange = "30d" }: StatisticsChartProps = {}) {

@@ -2,13 +2,18 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useApi } from "@/hooks/useApi";
-import { ConversionQuery, DataConversion, ResponseConversion } from "@/types/api";
+import {
+  ConversionQuery,
+  DataConversion,
+  ResponseConversion,
+} from "@/types/api";
 import { useDataSession } from "@/hooks/useDataSession";
 import client from "@/lib/axios/client";
 import { Modal } from "@/components/ui/modal";
 import Input from "@/components/form/input/InputField";
 import Button from "@/components/ui/button/Button";
 import { devError } from "@/lib/devConsole";
+import { validateOptionalAmount } from "@/lib/formValidation";
 
 const STATUS_OPTIONS = [
   { value: "pending", label: "Pending" },
@@ -23,7 +28,12 @@ export default function CreatedConversionTable() {
   const session = useDataSession();
   const { loading, error, getCreatedConversions, clearError } = useApi();
   const [lists, setLists] = useState<ResponseConversion>();
-  const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 1 });
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 1,
+  });
   const [query] = useState<ConversionQuery>({ limit: 10, page: 1 });
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
   const actionsDropdownRef = useRef<HTMLDivElement>(null);
@@ -62,7 +72,10 @@ export default function CreatedConversionTable() {
   useEffect(() => {
     if (!openActionsId) return;
     const handleClick = (e: MouseEvent) => {
-      if (actionsDropdownRef.current && !actionsDropdownRef.current.contains(e.target as Node))
+      if (
+        actionsDropdownRef.current &&
+        !actionsDropdownRef.current.contains(e.target as Node)
+      )
         setOpenActionsId(null);
     };
     document.addEventListener("click", handleClick, true);
@@ -95,13 +108,22 @@ export default function CreatedConversionTable() {
 
   const handleSaveUpdate = async () => {
     if (!updateModal || !session?.accessToken) return;
+    const amountError =
+      validateOptionalAmount(editForm.sale_amount, "Sale amount") ||
+      validateOptionalAmount(editForm.payout, "Payout", true);
+    if (amountError) {
+      alert(amountError);
+      return;
+    }
     setSaving(true);
     try {
       await client.patch(
         `/admin/update-conversion/${updateModal.conversion_id}`,
         {
           conversion_status: editForm.conversion_status || undefined,
-          sale_amount: editForm.sale_amount ? Number(editForm.sale_amount) : undefined,
+          sale_amount: editForm.sale_amount
+            ? Number(editForm.sale_amount)
+            : undefined,
           payout: editForm.payout ? Number(editForm.payout) : undefined,
           adv_sub2: editForm.adv_sub2 || undefined,
           remark: editForm.remark || undefined,
@@ -150,8 +172,10 @@ export default function CreatedConversionTable() {
         )}
         {loading && (
           <div className="flex items-center justify-center py-8">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-brand-500 dark:border-gray-700 dark:border-t-brand-400" />
-            <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Loading…</span>
+            <div className="border-t-brand-500 dark:border-t-brand-400 h-8 w-8 animate-spin rounded-full border-2 border-gray-200 dark:border-gray-700" />
+            <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
+              Loading…
+            </span>
           </div>
         )}
         {!loading && (
@@ -160,14 +184,30 @@ export default function CreatedConversionTable() {
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-800">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">#</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Offer</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Amount</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">User</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Detail</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Remark</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Actions</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      #
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Offer
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Amount
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      User
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Detail
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Remark
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
@@ -181,8 +221,10 @@ export default function CreatedConversionTable() {
                         openUpdateModal(list);
                       }}
                     >
-                      <td className="whitespace-nowrap px-6 py-4">{index + 1}</td>
-                      <td className="whitespace-nowrap px-6 py-4">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {index + 1}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                           {list.offer_name} ({list.conversion_id})
                         </div>
@@ -192,24 +234,30 @@ export default function CreatedConversionTable() {
                           updated: {formatDate(String(list.updatedAt))}
                         </div>
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4">
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900 dark:text-gray-100">
-                          sale: {formatPrice(Number(list.sale_amount), list.currency)}
+                          sale:{" "}
+                          {formatPrice(Number(list.sale_amount), list.currency)}
                         </div>
                         <div className="text-sm text-gray-900 dark:text-gray-100">
-                          payout: {formatPrice(Number(list.payout), list.currency)}
+                          payout:{" "}
+                          {formatPrice(Number(list.payout), list.currency)}
                         </div>
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
-                        {list.aff_sub1 ?? list?.user?.username ?? list?.user?.email ?? "N/A"}
+                      <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100">
+                        {list.aff_sub1 ??
+                          list?.user?.username ??
+                          list?.user?.email ??
+                          "N/A"}
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
+                      <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100">
                         {list.adv_sub1} / {list.adv_sub2}
                       </td>
                       <td className="max-w-[12rem] px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
-                        {(list as DataConversion & { remark?: string }).remark ?? "—"}
+                        {(list as DataConversion & { remark?: string })
+                          .remark ?? "—"}
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4">
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <span
                           className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${
                             list.conversion_status === "approved"
@@ -224,9 +272,13 @@ export default function CreatedConversionTable() {
                           {list.conversion_status}
                         </span>
                       </td>
-                      <td className="relative whitespace-nowrap px-6 py-4">
+                      <td className="relative px-6 py-4 whitespace-nowrap">
                         <div
-                          ref={openActionsId === String(list.conversion_id) ? actionsDropdownRef : undefined}
+                          ref={
+                            openActionsId === String(list.conversion_id)
+                              ? actionsDropdownRef
+                              : undefined
+                          }
                           className="relative inline-block"
                           onClick={(e) => e.stopPropagation()}
                         >
@@ -235,19 +287,37 @@ export default function CreatedConversionTable() {
                             onClick={(e) => {
                               e.stopPropagation();
                               const id = String(list.conversion_id);
-                              setOpenActionsId((prev) => (prev === id ? null : id));
+                              setOpenActionsId((prev) =>
+                                prev === id ? null : id,
+                              );
                             }}
                             className="inline-flex min-h-[2rem] items-center justify-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                            aria-expanded={openActionsId === String(list.conversion_id)}
+                            aria-expanded={
+                              openActionsId === String(list.conversion_id)
+                            }
                             aria-haspopup="true"
                           >
                             Actions
-                            <svg className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            <svg
+                              className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              aria-hidden
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 9l-7 7-7-7"
+                              />
                             </svg>
                           </button>
                           {openActionsId === String(list.conversion_id) && (
-                            <div className="absolute left-0 right-auto top-full z-50 mt-1 min-w-[10rem] max-w-[min(18rem,calc(100vw-1.5rem))] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800 sm:left-auto sm:right-0 sm:max-w-none" role="menu">
+                            <div
+                              className="absolute top-full right-auto left-0 z-50 mt-1 max-w-[min(18rem,calc(100vw-1.5rem))] min-w-[10rem] rounded-lg border border-gray-200 bg-white py-1 shadow-lg sm:right-0 sm:left-auto sm:max-w-none dark:border-gray-600 dark:bg-gray-800"
+                              role="menu"
+                            >
                               <button
                                 type="button"
                                 role="menuitem"
@@ -273,7 +343,11 @@ export default function CreatedConversionTable() {
               <div className="mt-6 flex items-center justify-between">
                 <div className="text-sm text-gray-500 dark:text-gray-400">
                   Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
-                  {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
+                  {Math.min(
+                    pagination.page * pagination.limit,
+                    pagination.total,
+                  )}{" "}
+                  of {pagination.total}
                 </div>
                 <div className="flex flex-wrap items-center justify-center gap-2">
                   <button
@@ -300,7 +374,8 @@ export default function CreatedConversionTable() {
             )}
             {Number(lists?.pagination?.total) === 0 && !loading && (
               <div className="py-8 text-center text-gray-500 dark:text-gray-400">
-                No created conversions yet. Add one from the Add conversion page.
+                No created conversions yet. Add one from the Add conversion
+                page.
               </div>
             )}
           </>
@@ -317,7 +392,12 @@ export default function CreatedConversionTable() {
             Update conversion
           </h4>
           <div className="flex shrink-0 items-center gap-3">
-            <Button size="sm" variant="outline" onClick={() => setUpdateModal(null)} disabled={saving}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setUpdateModal(null)}
+              disabled={saving}
+            >
               Cancel
             </Button>
             <Button size="sm" onClick={handleSaveUpdate} disabled={saving}>
@@ -327,50 +407,75 @@ export default function CreatedConversionTable() {
         </div>
         <div className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Status
+            </label>
             <select
               value={editForm.conversion_status}
-              onChange={(e) => setEditForm((f) => ({ ...f, conversion_status: e.target.value }))}
-              className="h-11 w-full rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+              onChange={(e) =>
+                setEditForm((f) => ({
+                  ...f,
+                  conversion_status: e.target.value,
+                }))
+              }
+              className="focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:ring-3 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
             >
               {STATUS_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
               ))}
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Sale amount</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Sale amount
+            </label>
             <Input
               type="number"
               step="0.01"
               value={editForm.sale_amount}
-              onChange={(e) => setEditForm((f) => ({ ...f, sale_amount: e.target.value }))}
+              onChange={(e) =>
+                setEditForm((f) => ({ ...f, sale_amount: e.target.value }))
+              }
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Payout</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Payout
+            </label>
             <Input
               type="number"
               step="0.01"
               value={editForm.payout}
-              onChange={(e) => setEditForm((f) => ({ ...f, payout: e.target.value }))}
+              onChange={(e) =>
+                setEditForm((f) => ({ ...f, payout: e.target.value }))
+              }
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Order ID</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Order ID
+            </label>
             <Input
               type="text"
               value={editForm.adv_sub2}
-              onChange={(e) => setEditForm((f) => ({ ...f, adv_sub2: e.target.value }))}
+              onChange={(e) =>
+                setEditForm((f) => ({ ...f, adv_sub2: e.target.value }))
+              }
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Remark</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Remark
+            </label>
             <Input
               type="text"
               placeholder="Optional"
               value={editForm.remark}
-              onChange={(e) => setEditForm((f) => ({ ...f, remark: e.target.value }))}
+              onChange={(e) =>
+                setEditForm((f) => ({ ...f, remark: e.target.value }))
+              }
             />
           </div>
         </div>

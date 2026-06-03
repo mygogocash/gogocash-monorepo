@@ -7,12 +7,12 @@ import {
   DASHBOARD_INSIGHTS_QUERY_KEY,
   fetchDashboardInsights,
 } from "@/lib/query/dashboardQueries";
-import type { DashboardAlert, DashboardInsightRange } from "@/types/api";
+import type { DashboardAlert, DashboardInsightRangeValue } from "@/types/api";
 import { insightRangeLabel } from "@/components/ecommerce/DashboardInsightRangeControl";
 import { DashboardQuestAnalyticsSection } from "@/components/ecommerce/DashboardQuestAnalyticsSection";
 
 type DashboardInsightDetailsProps = {
-  range?: DashboardInsightRange;
+  range?: DashboardInsightRangeValue;
 };
 
 function severityStyles(s: DashboardAlert["severity"]): string {
@@ -134,7 +134,7 @@ export function DashboardInsightDetails({ range = "30d" }: DashboardInsightDetai
       </div>
 
       <section className="min-w-0" aria-label="Quest analytics">
-        <h3 className="mb-4 text-sm font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+        <h3 className="mb-4 text-xl font-semibold tracking-tight text-gray-900 dark:text-white sm:text-2xl">
           Quest analytics
         </h3>
         <DashboardQuestAnalyticsSection quests={data.quests} rangeLabel={insightRangeLabel(range)} />

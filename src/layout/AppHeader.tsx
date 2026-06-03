@@ -6,7 +6,6 @@ import UserDropdown from "@/components/header/UserDropdown";
 import { useSidebar } from "@/context/SidebarContext";
 import { useApi } from "@/hooks/useApi";
 import type { DataWithdrawsList, RegularUser, Offer } from "@/types/api";
-import Image from "next/image";
 import { useDataSession } from "@/hooks/useDataSession";
 import { DEFAULT_MOCK_ACCESS_TOKEN } from "@/lib/authTokens";
 import Link from "next/link";
@@ -201,22 +200,9 @@ const AppHeader: React.FC = () => {
             </button>
 
           <Link href="/dashboard" className="lg:hidden">
-            <Image
-              width={154}
-              height={32}
-              className="dark:hidden"
-              src="/images/logo/logo.svg"
-              alt="Logo"
-              priority
-            />
-            <Image
-              width={154}
-              height={32}
-              className="hidden dark:block"
-              src="/images/logo/logo-dark.svg"
-              alt="Logo"
-              loading="eager"
-            />
+            <span className="text-lg font-semibold tracking-tight whitespace-nowrap text-gray-900 dark:text-white">
+              GoGoCash Admin
+            </span>
           </Link>
 
           <button
