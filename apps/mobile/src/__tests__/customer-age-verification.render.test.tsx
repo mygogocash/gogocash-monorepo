@@ -1,7 +1,8 @@
 import { createElement } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { haptics } from "@mobile/lib/haptics";
 import {
   CustomerAgeVerificationScreen,
   isOver20,
@@ -53,5 +54,59 @@ describe("CustomerAgeVerificationScreen (render)", () => {
 
   it("mounts without throwing (AccountPageShell + decline Link resolve under the harness)", () => {
     expect(() => render(createElement(CustomerAgeVerificationScreen))).not.toThrow();
+  });
+});
+
+// Wave B (B1) per-screen UX adoption: the birth-date form is wrapped in the
+// KeyboardAwareScreen primitive so the soft keyboard never covers the focused
+// input, and the verify outcome fires a haptic cue (success on pass, error on
+// reject/incomplete). These assert the applied affordances without disturbing the
+// validation/copy behavior the suite above already pins.
+describe("CustomerAgeVerificationScreen (Wave B UX adoption)", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("wraps the form in KeyboardAwareScreen (keyboard never covers the input)", () => {
+    render(createElement(CustomerAgeVerificationScreen));
+    // KeyboardAwareScreen renders its inner ScrollView with this testID.
+    expect(screen.getByTestId("keyboard-aware-scroll")).toBeTruthy();
+  });
+
+  it("fires a success haptic when a valid over-20 birth date is verified", () => {
+    const successSpy = vi.spyOn(haptics, "success").mockResolvedValue();
+    const errorSpy = vi.spyOn(haptics, "error").mockResolvedValue();
+    render(createElement(CustomerAgeVerificationScreen));
+
+    const input = screen.getByPlaceholderText("YYYY-MM-DD");
+    fireEvent.change(input, { target: { value: "1990-01-01" } });
+    fireEvent.click(screen.getByText("Verify"));
+
+    expect(successSpy).toHaveBeenCalledTimes(1);
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it("fires an error haptic when an under-20 birth date is rejected", () => {
+    const successSpy = vi.spyOn(haptics, "success").mockResolvedValue();
+    const errorSpy = vi.spyOn(haptics, "error").mockResolvedValue();
+    render(createElement(CustomerAgeVerificationScreen));
+
+    const input = screen.getByPlaceholderText("YYYY-MM-DD");
+    fireEvent.change(input, { target: { value: "2015-01-01" } });
+    fireEvent.click(screen.getByText("Verify"));
+
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    expect(successSpy).not.toHaveBeenCalled();
+  });
+
+  it("fires an error haptic when Verify is pressed with no birth date", () => {
+    const successSpy = vi.spyOn(haptics, "success").mockResolvedValue();
+    const errorSpy = vi.spyOn(haptics, "error").mockResolvedValue();
+    render(createElement(CustomerAgeVerificationScreen));
+
+    fireEvent.click(screen.getByText("Verify"));
+
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    expect(successSpy).not.toHaveBeenCalled();
   });
 });

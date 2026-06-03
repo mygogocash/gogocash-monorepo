@@ -7,7 +7,9 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
+import { KeyboardAwareScreen } from "@mobile/components/KeyboardAwareScreen";
 import { useCopy } from "@mobile/i18n/useCopy";
+import { haptics } from "@mobile/lib/haptics";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 const pdpaAgeVerifyTitle = "Age verification";
@@ -50,84 +52,89 @@ export function CustomerAgeVerificationScreen() {
     if (!birthDate.trim()) {
       setStatus("error");
       setMessage(pdpaAgeVerifyIncompleteCode);
+      void haptics.error();
       return;
     }
 
     if (!isOver20(birthDate)) {
       setStatus("error");
       setMessage(pdpaAgeVerifyUnder20);
+      void haptics.error();
       return;
     }
 
     setStatus("success");
     setMessage(pdpaAgeVerifySuccess);
+    void haptics.success();
   };
 
   return (
     <AccountPageShell activeRouteId="profile" showTitle={false} title={tc(pdpaAgeVerifyTitle)}>
-      <View style={styles.surface}>
-        <Link asChild href="/profile">
-          <Pressable accessibilityRole="link" style={styles.topBar}>
-            <ChevronLeftIcon
-              color={colors.accent}
-              size={26}
-              strokeWidth={typography.iconStrokeWidth}
-            />
-            <Text style={styles.topBarTitle}>{tc(pdpaAgeVerifyTitle)}</Text>
-          </Pressable>
-        </Link>
+      <KeyboardAwareScreen>
+        <View style={styles.surface}>
+          <Link asChild href="/profile">
+            <Pressable accessibilityRole="link" style={styles.topBar}>
+              <ChevronLeftIcon
+                color={colors.accent}
+                size={26}
+                strokeWidth={typography.iconStrokeWidth}
+              />
+              <Text style={styles.topBarTitle}>{tc(pdpaAgeVerifyTitle)}</Text>
+            </Pressable>
+          </Link>
 
-        <View accessibilityLabel={tc(pdpaAgeVerifyTitle)} style={styles.card}>
-          <View style={styles.iconFrame}>
-            <ShieldCheckIcon
-              color={colors.primaryDark}
-              size={30}
-              strokeWidth={typography.iconStrokeWidth}
-            />
-          </View>
-          <View style={styles.copy}>
-            <Text style={styles.title}>{tc(pdpaAgeVerifyTitle)}</Text>
-            <Text style={styles.body}>{tc(pdpaAgeVerifyBody)}</Text>
-          </View>
-          <View style={styles.formRow}>
-            <View style={styles.inputWrap}>
-              <Text style={styles.inputLabel}>{tc(pdpaAgeVerifyPlaceholder)}</Text>
-              <TextInput
-                accessibilityLabel={tc(pdpaAgeVerifyPlaceholder)}
-                onChangeText={setBirthDate}
-                onSubmitEditing={submit}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={colors.textSoft}
-                style={styles.input}
-                value={birthDate}
+          <View accessibilityLabel={tc(pdpaAgeVerifyTitle)} style={styles.card}>
+            <View style={styles.iconFrame}>
+              <ShieldCheckIcon
+                color={colors.primaryDark}
+                size={30}
+                strokeWidth={typography.iconStrokeWidth}
               />
             </View>
-            <Pressable
-              accessibilityRole="button"
-              disabled={status === "success"}
-              onPress={submit}
+            <View style={styles.copy}>
+              <Text style={styles.title}>{tc(pdpaAgeVerifyTitle)}</Text>
+              <Text style={styles.body}>{tc(pdpaAgeVerifyBody)}</Text>
+            </View>
+            <View style={styles.formRow}>
+              <View style={styles.inputWrap}>
+                <Text style={styles.inputLabel}>{tc(pdpaAgeVerifyPlaceholder)}</Text>
+                <TextInput
+                  accessibilityLabel={tc(pdpaAgeVerifyPlaceholder)}
+                  onChangeText={setBirthDate}
+                  onSubmitEditing={submit}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={colors.textSoft}
+                  style={styles.input}
+                  value={birthDate}
+                />
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                disabled={status === "success"}
+                onPress={submit}
+                style={[
+                  styles.submitButton,
+                  status === "success" ? styles.submitButtonSuccess : null,
+                ]}
+              >
+                <Text style={styles.submitText}>
+                  {tc(status === "success" ? pdpaAgeVerifySuccess : pdpaAgeVerifySubmit)}
+                </Text>
+              </Pressable>
+            </View>
+            <Text
+              accessibilityLiveRegion="polite"
               style={[
-                styles.submitButton,
-                status === "success" ? styles.submitButtonSuccess : null,
+                styles.hint,
+                status === "error" ? styles.hintError : null,
+                status === "success" ? styles.hintSuccess : null,
               ]}
             >
-              <Text style={styles.submitText}>
-                {tc(status === "success" ? pdpaAgeVerifySuccess : pdpaAgeVerifySubmit)}
-              </Text>
-            </Pressable>
+              {tc(message)}
+            </Text>
           </View>
-          <Text
-            accessibilityLiveRegion="polite"
-            style={[
-              styles.hint,
-              status === "error" ? styles.hintError : null,
-              status === "success" ? styles.hintSuccess : null,
-            ]}
-          >
-            {tc(message)}
-          </Text>
         </View>
-      </View>
+      </KeyboardAwareScreen>
     </AccountPageShell>
   );
 }

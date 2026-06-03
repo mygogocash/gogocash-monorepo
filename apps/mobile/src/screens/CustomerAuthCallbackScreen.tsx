@@ -13,6 +13,7 @@ import {
 } from "@mobile/components/CustomerRouteState";
 import { getMobileEnv } from "@mobile/config/env";
 import { useCopy } from "@mobile/i18n/useCopy";
+import { haptics } from "@mobile/lib/haptics";
 
 type CallbackState = "error" | "missing" | "pending" | "success";
 
@@ -69,6 +70,18 @@ export function CustomerAuthCallbackScreen() {
       cancelled = true;
     };
   }, [callbackUrl, code, providerState, router, token]);
+
+  // Native haptic feedback, gated to fire once per status transition (this effect
+  // re-runs only when `state` changes, not on every render): a success cue when
+  // the token handoff completes, an error cue on the expired/failed terminal
+  // states. No-op on web; failures are swallowed inside the haptics wrapper.
+  useEffect(() => {
+    if (state === "success") {
+      void haptics.success();
+    } else if (state === "error" || state === "missing") {
+      void haptics.error();
+    }
+  }, [state]);
 
   return (
     <CustomerRouteState
