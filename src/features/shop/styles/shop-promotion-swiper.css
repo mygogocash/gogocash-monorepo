@@ -19,10 +19,16 @@
   height: 8px !important;
   margin: 0 !important;
   background: rgba(255, 255, 255, 0.45);
+  border-radius: 999px;
   opacity: 1;
+  transition:
+    width 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.24s ease;
 }
 
+/* Premium pill indicator (matches the home hero + Expo CarouselDots). */
 .shop-promo-swiper--paginated .swiper-pagination-bullet-active {
+  width: 22px !important;
   background: #ffffff !important;
 }
 

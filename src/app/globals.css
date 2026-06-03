@@ -223,10 +223,16 @@ button {
   height: 8px;
   margin: 0 !important;
   background: rgba(255, 255, 255, 0.5);
+  border-radius: 999px;
   opacity: 1;
+  transition:
+    width 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.24s ease;
 }
 
+/* Premium pill indicator: the active bullet grows into a pill (matches the Expo CarouselDots). */
 .gc-home-hero-swiper .swiper-pagination-bullet-active {
+  width: 22px;
   background: #ffffff !important;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
 }
@@ -265,10 +271,16 @@ html.gc-golink-modal-open {
   height: 12px !important;
   margin: 0 !important;
   background: #c3d1c4;
+  border-radius: 999px;
   opacity: 1;
+  transition:
+    width 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.24s ease;
 }
 
+/* Premium pill indicator: the active bullet grows into a green pill (matches the Expo CarouselDots). */
 .gc-card-slide--paginated .swiper-pagination-bullet-active {
+  width: 28px !important;
   background: #00cc99;
 }
 
