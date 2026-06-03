@@ -53,7 +53,11 @@ const Banner = () => {
               modules={[Pagination, Autoplay, Mousewheel]}
               spaceBetween={0}
               slidesPerView={1}
-              autoplay={showMainPagination ? { delay: 3000 } : false}
+              autoplay={
+                showMainPagination
+                  ? { delay: 5000, disableOnInteraction: false, pauseOnMouseEnter: true }
+                  : false
+              }
               mousewheel={{
                 forceToAxis: true,
                 sensitivity: 1,
