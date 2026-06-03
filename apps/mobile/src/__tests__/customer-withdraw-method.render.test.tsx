@@ -1,3 +1,7 @@
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { createElement } from "react";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
@@ -11,6 +15,21 @@ import { CustomerWithdrawMethodScreen } from "@mobile/screens/CustomerWithdrawMe
 // masked account in ONE <Text> with a "  ·  " separator and a NESTED <Text> for the
 // account tail (screen lines 94-98), so getByText with an exact string fails on
 // those — use substring matchers (`{ exact: false }`) for the split nodes.
+//
+// Wave B (cluster B3) per-screen UX adoption for the payout-method PICKER. This screen
+// lists the saved methods (a static fixture const) + an "Add Methods" link + a back
+// chevron; the add/edit FORM lives on /method/create (a different screen). So the
+// foundations that fit are: a medium-impact haptic when a method option is selected
+// (the card tap), and a hitSlop on the icon-only back chevron (<44px) so its tap target
+// reaches 44px. The remaining describe block reads the screen source to assert a
+// behavior/source signal for each. KeyboardAwareScreen (no inputs here), success/error
+// haptics (no save/validation here), Toast (no save confirmation here), and
+// Skeleton/RefreshControl (renders a static const, not async-fetched data) are
+// intentionally NOT adopted on this screen — see the agent NOTEs.
+const withdrawMethodSource = readFileSync(
+  resolve(dirname(fileURLToPath(import.meta.url)), "../screens/CustomerWithdrawMethodScreen.tsx"),
+  "utf8",
+);
 describe("CustomerWithdrawMethodScreen (render)", () => {
   it("renders the heading and the add-methods control", () => {
     render(createElement(CustomerWithdrawMethodScreen));
@@ -42,5 +61,23 @@ describe("CustomerWithdrawMethodScreen (render)", () => {
 
   it("mounts without throwing (AccountPageShell + safe-area stub resolve)", () => {
     expect(() => render(createElement(CustomerWithdrawMethodScreen))).not.toThrow();
+  });
+});
+
+describe("CustomerWithdrawMethodScreen — Wave B foundations adopted (source signals)", () => {
+  it("imports haptics and fires a medium-impact cue when a method option is selected", () => {
+    expect(withdrawMethodSource).toContain('from "@mobile/lib/haptics"');
+    expect(withdrawMethodSource).toContain("haptics.impact(");
+  });
+
+  it("gives the icon-only back chevron (<44px) a hitSlop so the tap target reaches 44px", () => {
+    expect(withdrawMethodSource).toContain("hitSlop=");
+  });
+
+  it("still renders the seeded payout methods after wiring the select-haptic (regression)", () => {
+    render(createElement(CustomerWithdrawMethodScreen));
+    // Two cards, each showing the holder name — proves the MotionPressable card tap
+    // wiring did not break the list render.
+    expect(screen.getAllByText("Demo Shopper").length).toBe(2);
   });
 });

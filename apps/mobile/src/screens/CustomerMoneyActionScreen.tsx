@@ -2,7 +2,6 @@ import { Link, useRouter } from "expo-router";
 import { useState } from "react";
 import {
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -21,6 +20,8 @@ import {
 } from "@mobile/theme/icons";
 
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
+import { KeyboardAwareScreen } from "@mobile/components/KeyboardAwareScreen";
+import { haptics } from "@mobile/lib/haptics";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { mobileShellLayout } from "@mobile/design/webDesignParity";
 import { colors, radii, spacing, typography, shadows } from "@mobile/theme/tokens";
@@ -221,8 +222,10 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
   const handleWithdraw = () => {
     const decision = evaluateWithdraw(withdrawAmount, balance, !!selectedMethod, !!successMsg);
     if (!decision.ok) {
-      // error === null means "already submitted" — silently ignore the repeat tap.
+      // error === null means "already submitted" — silently ignore the repeat tap (no buzz).
       if (decision.error) {
+        // Error buzz on a rejected attempt (invalid amount / insufficient / no method).
+        haptics.error();
         setErrors([tc(decision.error)]);
       }
       return;
@@ -231,6 +234,8 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
       return;
     }
 
+    // Success haptic on a confirmed withdrawal, then commit the deduction + receipt.
+    haptics.success();
     setErrors([]);
     setBalance(balance - decision.amount);
     setSuccessMsg(
@@ -241,12 +246,15 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
   return (
     <View style={styles.viewport}>
       <View style={styles.phoneFrame}>
-        <ScrollView
+        {/* A4 — KeyboardAwareScreen replaces the plain ScrollView so the numeric keyboard on the
+            withdrawal-amount / method forms pushes content up instead of covering the focused
+            field. It provides its own keyboard-avoiding ScrollView and forwards
+            contentContainerStyle, so the existing page padding/layout is preserved (no-op on web). */}
+        <KeyboardAwareScreen
           contentContainerStyle={[
             styles.page,
             { paddingTop: Math.max(spacing.md, insets.top + spacing.md) },
           ]}
-          showsVerticalScrollIndicator={false}
         >
           {/* 1. LIST PAYMENT METHODS */}
           {mode === "method" ? (
@@ -638,7 +646,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
             </Pressable>
           </Link>
           <CustomerDesktopFooterSlot style={styles.desktopFooter} />
-        </ScrollView>
+        </KeyboardAwareScreen>
       </View>
     </View>
   );

@@ -1,4 +1,4 @@
-import { useContext } from "react";
+import { useContext, type ReactNode } from "react";
 import { IntlContext, type MessageDescriptor } from "react-intl";
 
 import { CustomerRouteState } from "@mobile/components/CustomerRouteState";
@@ -31,11 +31,13 @@ function fillLabel(template: string, label: string): string {
 export function CustomerAccountResourceState({
   emptyBody,
   emptyTitle,
+  loadingSkeleton,
   resource,
   resourceLabel,
 }: {
   emptyBody?: string;
   emptyTitle?: string;
+  loadingSkeleton?: ReactNode;
   resource: CustomerAccountResourceResult<unknown>;
   resourceLabel: string;
 }) {
@@ -65,6 +67,7 @@ export function CustomerAccountResourceState({
           defaultMessage: "Fetching the latest {label} from GoGoCash.",
           id: "mobileResourceLoadingBody",
         })}
+        loadingSkeleton={loadingSkeleton}
         title={format({ defaultMessage: "Loading {label}", id: "mobileResourceLoadingTitle" })}
         variant="loading"
       />
