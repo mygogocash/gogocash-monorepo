@@ -7,12 +7,14 @@ import {
   CreditCard as CreditCardIcon,
 } from "@mobile/theme/icons";
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
+import { Skeleton, SkeletonText } from "@mobile/components/Skeleton";
+import { haptics } from "@mobile/lib/haptics";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { mobileShellLayout } from "@mobile/design/webDesignParity";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
@@ -78,6 +80,7 @@ export function CustomerSubscriptionScreen({ mode }: { mode: SubscriptionMode })
       <CustomerAccountResourceState
         emptyBody={tc("You do not have an active GoGoPass subscription yet.")}
         emptyTitle={tc("No subscription yet")}
+        loadingSkeleton={<SubscriptionSkeleton />}
         resource={billingResource}
         resourceLabel="billing"
       />
@@ -92,6 +95,13 @@ export function CustomerSubscriptionScreen({ mode }: { mode: SubscriptionMode })
             styles.page,
             { paddingTop: Math.max(spacing.md, insets.top + spacing.md) },
           ]}
+          refreshControl={
+            <RefreshControl
+              onRefresh={billingResource.retry}
+              refreshing={false}
+              title={tc("Loading…")}
+            />
+          }
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.hero}>
@@ -100,7 +110,11 @@ export function CustomerSubscriptionScreen({ mode }: { mode: SubscriptionMode })
             <Text style={styles.body}>{tc(model.body)}</Text>
             <DisabledStripeNotice />
             <Link asChild href={model.ctaHref}>
-              <Pressable accessibilityRole="link" style={styles.primaryAction}>
+              <Pressable
+                accessibilityRole="link"
+                onPress={() => haptics.impact()}
+                style={styles.primaryAction}
+              >
                 <Text style={styles.primaryActionText}>{tc(model.ctaLabel)}</Text>
               </Pressable>
             </Link>
@@ -111,6 +125,31 @@ export function CustomerSubscriptionScreen({ mode }: { mode: SubscriptionMode })
           {mode === "billing" ? <BillingPanel /> : null}
           <CustomerDesktopFooterSlot style={styles.desktopFooter} />
         </ScrollView>
+      </View>
+    </View>
+  );
+}
+
+// Content-shaped loading placeholder handed to the shared CustomerAccountResourceState's
+// opt-in loadingSkeleton (B3 enhancement). Approximates the hero block (kicker + title +
+// body lines + CTA) plus one status card so the loading state shows familiar chrome
+// instead of the generic spinner. Decorative — Skeleton hides it from screen readers.
+function SubscriptionSkeleton() {
+  return (
+    <View style={styles.viewport}>
+      <View style={styles.phoneFrame}>
+        <View style={[styles.page, styles.skeletonPage]}>
+          <View style={styles.hero}>
+            <Skeleton height={12} radius={radii.sm} width="35%" />
+            <Skeleton height={28} radius={radii.md} width="70%" />
+            <SkeletonText lines={2} />
+            <Skeleton height={48} radius={radii.chip} style={styles.skeletonCta} width="100%" />
+          </View>
+          <View style={styles.card}>
+            <Skeleton height={20} radius={radii.sm} width="50%" />
+            <SkeletonText lines={2} />
+          </View>
+        </View>
       </View>
     </View>
   );
@@ -164,7 +203,9 @@ function PricingPanel({
               period === "monthly" && plan.id === "thb_monthly_49" ? styles.planCardActive : null,
             ]}
           >
-            <Text style={styles.planName}>{tc(plan.name)}</Text>
+            <Text numberOfLines={1} style={styles.planName}>
+              {tc(plan.name)}
+            </Text>
             <Text style={styles.planPrice}>{plan.period}</Text>
             {plan.benefits.map((benefit) => (
               <View key={benefit} style={styles.planBenefitRow}>
@@ -199,14 +240,21 @@ function SubscriptionStatusPanel() {
         />
         <View style={styles.statusCopy}>
           <Text style={styles.cardTitle}>{tc("Subscription")}</Text>
-          <Text style={styles.mutedText}>{tc("No active subscription")}</Text>
+          <Text numberOfLines={1} style={styles.mutedText}>
+            {tc("No active subscription")}
+          </Text>
         </View>
       </View>
       <Text style={styles.body}>
         {tc("Unlock GoGoPass to access exclusive benefits and manage future renewals from Billing.")}
       </Text>
       <Link asChild href="/pricing">
-        <Pressable accessibilityRole="link" style={styles.secondaryAction}>
+        <Pressable
+          accessibilityRole="link"
+          hitSlop={{ bottom: 8, left: 8, right: 8, top: 8 }}
+          onPress={() => haptics.impact()}
+          style={styles.secondaryAction}
+        >
           <Text style={styles.secondaryActionText}>{tc("Change Plan")}</Text>
           <SwapIcon color={colors.primaryDark} size={18} strokeWidth={typography.iconStrokeWidth} />
         </Pressable>
@@ -227,7 +275,9 @@ function BillingPanel() {
         />
         <View style={styles.statusCopy}>
           <Text style={styles.cardTitle}>{tc("Your subscription")}</Text>
-          <Text style={styles.mutedText}>{tc("Status: No active subscription")}</Text>
+          <Text numberOfLines={1} style={styles.mutedText}>
+            {tc("Status: No active subscription")}
+          </Text>
         </View>
       </View>
       <Text style={styles.body}>
@@ -237,7 +287,12 @@ function BillingPanel() {
         <Text style={styles.disabledPlanButtonText}>{tc("Manage Subscription")}</Text>
       </View>
       <Link asChild href="/pricing">
-        <Pressable accessibilityRole="link" style={styles.secondaryAction}>
+        <Pressable
+          accessibilityRole="link"
+          hitSlop={{ bottom: 8, left: 8, right: 8, top: 8 }}
+          onPress={() => haptics.impact()}
+          style={styles.secondaryAction}
+        >
           <Text style={styles.secondaryActionText}>{tc("View Plans")}</Text>
         </Pressable>
       </Link>
@@ -264,6 +319,12 @@ const styles = StyleSheet.create({
   },
   desktopFooter: {
     marginTop: 64,
+  },
+  skeletonPage: {
+    paddingTop: spacing.lg,
+  },
+  skeletonCta: {
+    marginTop: spacing.sm,
   },
   hero: {
     backgroundColor: colors.primarySoft,

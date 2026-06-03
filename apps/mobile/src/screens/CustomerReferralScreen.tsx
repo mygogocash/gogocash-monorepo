@@ -6,13 +6,26 @@ import {
 } from "@mobile/theme/icons";
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { Image, Linking, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import {
+  Image,
+  Linking,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { copyToClipboard } from "@mobile/lib/clipboard";
+import { haptics } from "@mobile/lib/haptics";
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { WalletSkeleton } from "@mobile/components/Skeleton";
+import { useToast } from "@mobile/hooks/useToast";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { mobileShellLayout, profileInviteUrl, webReferralPage } from "@mobile/design/webDesignParity";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
@@ -33,12 +46,14 @@ export function CustomerReferralScreen() {
     fixtureData: webReferralPage,
     resourceId: "referral",
   });
+  const copyReferralLink = useCopyReferralLink();
 
   if (referralResource.status !== "ready") {
     return (
       <CustomerAccountResourceState
         emptyBody={tc("Invite friends to start building referral activity.")}
         emptyTitle={tc("No referral activity yet")}
+        loadingSkeleton={<WalletSkeleton />}
         resource={referralResource}
         resourceLabel="referral activity"
       />
@@ -49,16 +64,44 @@ export function CustomerReferralScreen() {
     <ReferralSubPage>
       <View style={styles.referralBlueShell}>
         <ReferralTopBar />
-        <View style={[styles.content, isDesktop ? styles.referralContentDesktop : null]}>
+        <ScrollView
+          contentContainerStyle={[styles.content, isDesktop ? styles.referralContentDesktop : null]}
+          refreshControl={
+            <RefreshControl
+              onRefresh={referralResource.retry}
+              refreshing={false}
+              title={tc("Loading referral activity…")}
+            />
+          }
+        >
           <ReferralHeroBanner isDesktop={isDesktop} />
-          <ReferralEarnCard isDesktop={isDesktop} />
+          <ReferralEarnCard isDesktop={isDesktop} onCopyLink={copyReferralLink} />
           <ReferralInvitationPanel />
           <ReferralStepsSection />
           <ReferralFaqsSection />
-        </View>
+        </ScrollView>
       </View>
     </ReferralSubPage>
   );
+}
+
+// Copy the referral link, then confirm with a transient toast + success haptic.
+// Reuses the existing translated "Copied to clipboard" string (tc reverse-looks it
+// up to the walletTransactionsCopied catalog key → Thai "คัดลอกแล้ว"), so no new copy
+// is added. Returns a stable callback shared by the copy button and the Instagram
+// social action (which copies the link rather than opening a share sheet).
+function useCopyReferralLink(): () => void {
+  const tc = useCopy();
+  const toast = useToast();
+  return () => {
+    void copyToClipboard(profileInviteUrl).then((copied) => {
+      if (!copied) {
+        return;
+      }
+      toast.show(tc("Copied to clipboard"));
+      void haptics.success();
+    });
+  };
 }
 
 function ReferralSubPage({ children }: { children: ReactNode }) {
@@ -94,7 +137,13 @@ function ReferralHeroBanner({ isDesktop }: { isDesktop: boolean }) {
   );
 }
 
-function ReferralEarnCard({ isDesktop }: { isDesktop: boolean }) {
+function ReferralEarnCard({
+  isDesktop,
+  onCopyLink,
+}: {
+  isDesktop: boolean;
+  onCopyLink: () => void;
+}) {
   const tc = useCopy();
   return (
     <View style={[styles.earnCard, isDesktop ? styles.earnCardDesktop : null]}>
@@ -106,20 +155,29 @@ function ReferralEarnCard({ isDesktop }: { isDesktop: boolean }) {
       />
       <View style={styles.earnContent}>
         <View style={styles.earnHeader}>
-          <Text style={styles.earnTitle}>{tc(webReferralPage.earn.title)}</Text>
-          <Text style={styles.earnSubtitle}>{tc(webReferralPage.earn.subtitle)}</Text>
+          <Text numberOfLines={2} style={styles.earnTitle}>
+            {tc(webReferralPage.earn.title)}
+          </Text>
+          <Text numberOfLines={2} style={styles.earnSubtitle}>
+            {tc(webReferralPage.earn.subtitle)}
+          </Text>
         </View>
         <View style={styles.copySection}>
-          <Text style={styles.shareTitle}>{tc(webReferralPage.earn.shareTitle)}</Text>
+          <Text numberOfLines={2} style={styles.shareTitle}>
+            {tc(webReferralPage.earn.shareTitle)}
+          </Text>
           <MotionPressable
             accessibilityLabel={tc("Copy referral link")}
             accessibilityRole="button"
-            onPress={copyReferralLink}
+            hitSlop={8}
+            onPress={onCopyLink}
             pressScale={0.99}
             style={styles.copyButton}
           >
             <View style={styles.copyLabelRow}>
-              <Text style={styles.copyLabel}>{tc(webReferralPage.earn.inviteLinkLabel)} :</Text>
+              <Text numberOfLines={1} style={styles.copyLabel}>
+                {tc(webReferralPage.earn.inviteLinkLabel)} :
+              </Text>
               <ContentCopyIcon color={colors.white} size={24} strokeWidth={typography.iconStrokeWidth} />
             </View>
             <Text numberOfLines={1} style={styles.copyLink}>
@@ -128,20 +186,18 @@ function ReferralEarnCard({ isDesktop }: { isDesktop: boolean }) {
           </MotionPressable>
         </View>
         <View style={styles.socialSection}>
-          <Text style={styles.socialTitle}>{tc(webReferralPage.earn.socialTitle)}</Text>
+          <Text numberOfLines={2} style={styles.socialTitle}>
+            {tc(webReferralPage.earn.socialTitle)}
+          </Text>
           <View accessibilityRole="list" style={styles.socialRow}>
             {webReferralPage.earn.socialLinks.map((link) => (
-              <SocialIconButton key={link.id} link={link} />
+              <SocialIconButton key={link.id} link={link} onCopyLink={onCopyLink} />
             ))}
           </View>
         </View>
       </View>
     </View>
   );
-}
-
-function copyReferralLink() {
-  void copyToClipboard(profileInviteUrl);
 }
 
 function shareUrlEncoded(url: string): string {
@@ -165,21 +221,22 @@ function openReferralShare(kind: Exclude<SocialLinkId, "instagram">) {
   void Linking.openURL(url);
 }
 
-function handleSocialPress(id: SocialLinkId) {
+function handleSocialPress(id: SocialLinkId, onCopyLink: () => void) {
   if (id === "instagram") {
-    copyReferralLink();
+    onCopyLink();
     return;
   }
 
   openReferralShare(id);
 }
 
-function SocialIconButton({ link }: { link: SocialLink }) {
+function SocialIconButton({ link, onCopyLink }: { link: SocialLink; onCopyLink: () => void }) {
   return (
     <MotionPressable
       accessibilityLabel={link.label}
       accessibilityRole="button"
-      onPress={() => handleSocialPress(link.id)}
+      hitSlop={8}
+      onPress={() => handleSocialPress(link.id, onCopyLink)}
       pressScale={0.94}
       style={styles.socialButton}
     >
