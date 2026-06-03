@@ -35,6 +35,8 @@ import {
   webGoLinkModalLayout,
 } from "@mobile/design/webDesignParity";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { useReducedMotion } from "@mobile/hooks/useReducedMotion";
+import { haptics } from "@mobile/lib/haptics";
 import { getGoLinkSourceHost, isValidGoLinkUrl } from "@mobile/features/golink";
 import { motion } from "@mobile/theme/motion";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
@@ -69,6 +71,11 @@ function useDismissableOverlayMotion({
   exitTranslateY = 24,
   onDismiss,
 }: DismissableOverlayMotionOptions) {
+  // Wave B (B5): reduce-motion gate for the sheet/popover/overlay motion. When the platform
+  // "reduce motion" flag is on, every enter/exit Animated.timing collapses to a 0ms duration so
+  // overlays appear/dismiss instantly with the SAME end state (opacity 1/0, translateY 0/exit). The
+  // exit's `finished` callback still fires (a 0ms timing completes), so onDismiss is unaffected.
+  const reduced = useReducedMotion();
   const isClosingRef = useRef(false);
   const [isClosing, setIsClosing] = useState(false);
   const overlayOpacity = useMemo(() => new Animated.Value(0), []);
@@ -77,13 +84,13 @@ function useDismissableOverlayMotion({
   useEffect(() => {
     Animated.parallel([
       Animated.timing(overlayOpacity, {
-        duration: motion.duration.base,
+        duration: reduced ? 0 : motion.duration.base,
         easing: motion.easing.out,
         toValue: 1,
         useNativeDriver: motion.useNativeDriver,
       }),
       Animated.timing(contentTranslateY, {
-        duration: motion.duration.emphasis,
+        duration: reduced ? 0 : motion.duration.emphasis,
         easing: motion.easing.out,
         toValue: 0,
         useNativeDriver: motion.useNativeDriver,
@@ -94,7 +101,7 @@ function useDismissableOverlayMotion({
       overlayOpacity.stopAnimation();
       contentTranslateY.stopAnimation();
     };
-  }, [contentTranslateY, overlayOpacity]);
+  }, [contentTranslateY, overlayOpacity, reduced]);
 
   const runExitAnimation = useCallback(
     (afterDismiss?: () => void) => {
@@ -109,13 +116,13 @@ function useDismissableOverlayMotion({
 
       Animated.parallel([
         Animated.timing(overlayOpacity, {
-          duration: motion.duration.fast,
+          duration: reduced ? 0 : motion.duration.fast,
           easing: motion.easing.in,
           toValue: 0,
           useNativeDriver: motion.useNativeDriver,
         }),
         Animated.timing(contentTranslateY, {
-          duration: motion.duration.base,
+          duration: reduced ? 0 : motion.duration.base,
           easing: motion.easing.in,
           toValue: exitTranslateY,
           useNativeDriver: motion.useNativeDriver,
@@ -126,7 +133,7 @@ function useDismissableOverlayMotion({
         }
       });
     },
-    [contentTranslateY, exitTranslateY, onDismiss, overlayOpacity]
+    [contentTranslateY, exitTranslateY, onDismiss, overlayOpacity, reduced]
   );
 
   return {
@@ -253,7 +260,10 @@ export function CustomerGoLinkScreen({
                 <MotionPressable
                   accessibilityLabel={tc("GoGoLink information")}
                   accessibilityRole="button"
-                  onPress={() => setGuidelineOpen(true)}
+                  onPress={() => {
+                    haptics.impact();
+                    setGuidelineOpen(true);
+                  }}
                   pressScale={motion.scale.subtlePress}
                   style={styles.infoButton}
                 >
@@ -276,7 +286,9 @@ export function CustomerGoLinkScreen({
                   </View>
 
                   <View style={styles.formArea}>
-                    <Text style={styles.title}>{tc(webGoLinkFeature.title)}</Text>
+                    <Text numberOfLines={3} style={styles.title}>
+                      {tc(webGoLinkFeature.title)}
+                    </Text>
                     <View
                       style={[styles.inputShell, Boolean(goLinkError) && styles.inputShellError]}
                     >
@@ -380,6 +392,7 @@ export function GoLinkGuidelineDialog({ onClose }: { onClose: () => void }) {
         <MotionPressable
           accessibilityLabel={tc("Close GoLink guide")}
           accessibilityRole="button"
+          hitSlop={8}
           onPress={() => runExitAnimation()}
           pressScale={motion.scale.subtlePress}
           style={styles.guidelineCloseButton}
@@ -467,6 +480,7 @@ export function GoLinkResultDialog({
         <MotionPressable
           accessibilityLabel={tc("Close link preview")}
           accessibilityRole="button"
+          hitSlop={8}
           onPress={() => runExitAnimation()}
           pressScale={motion.scale.subtlePress}
           style={styles.resultCloseButton}
@@ -522,7 +536,10 @@ export function GoLinkResultDialog({
               </View>
               <MotionPressable
                 accessibilityRole="button"
-                onPress={() => setTermsPanelOpen(true)}
+                onPress={() => {
+                  haptics.impact();
+                  setTermsPanelOpen(true);
+                }}
                 pressScale={motion.scale.subtlePress}
                 style={styles.resultTermsButton}
               >
@@ -532,7 +549,9 @@ export function GoLinkResultDialog({
                     size={16}
                     strokeWidth={typography.iconStrokeWidth}
                   />
-                  <Text style={styles.resultTermsText}>{tc("Check exclusions and T&Cs")}</Text>
+                  <Text numberOfLines={2} style={styles.resultTermsText}>
+                    {tc("Check exclusions and T&Cs")}
+                  </Text>
                 </View>
                 <ExternalLinkIcon
                   color={colors.primaryDark}
@@ -558,6 +577,7 @@ export function GoLinkResultDialog({
               <MotionPressable
                 accessibilityLabel={tc("Dismiss success message")}
                 accessibilityRole="button"
+                hitSlop={10}
                 onPress={() => undefined}
                 pressScale={motion.scale.subtlePress}
                 style={styles.successDismissButton}

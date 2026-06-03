@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { useCopy } from "@mobile/i18n/useCopy";
+import { haptics } from "@mobile/lib/haptics";
 import { webCreditScorePage } from "@mobile/design/webDesignParity";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
@@ -59,8 +60,12 @@ function CreditScoreHero() {
         <Text style={styles.scoreValue}>{webCreditScorePage.score}</Text>
       </View>
       <ProgressTrack progress={heroProgress} slim />
-      <Text style={styles.tierLabel}>{tc(webCreditScorePage.tier)}</Text>
-      <Text style={styles.mutedCenter}>{tc(webCreditScorePage.pointsToTrusted)}</Text>
+      <Text numberOfLines={1} style={styles.tierLabel}>
+        {tc(webCreditScorePage.tier)}
+      </Text>
+      <Text numberOfLines={2} style={styles.mutedCenter}>
+        {tc(webCreditScorePage.pointsToTrusted)}
+      </Text>
     </View>
   );
 }
@@ -72,7 +77,9 @@ function CreditScoreProgressCard() {
       <Text style={styles.progressTitle}>{tc(webCreditScorePage.progressTitle)}</Text>
       <ProgressTrack progress="50%" />
       <Text style={styles.progressLabel}>{webCreditScorePage.progressLabel}</Text>
-      <Text style={styles.mutedCenter}>{tc(webCreditScorePage.pointsToTrusted)}</Text>
+      <Text numberOfLines={2} style={styles.mutedCenter}>
+        {tc(webCreditScorePage.pointsToTrusted)}
+      </Text>
     </View>
   );
 }
@@ -130,17 +137,21 @@ function ScoreRow({
   return (
     <View style={[styles.scoreRow, complete ? styles.scoreRowComplete : styles.scoreRowTodo]}>
       <View style={styles.scoreRowCopy}>
-        <Text style={styles.scoreRowTitle}>
+        <Text numberOfLines={2} style={styles.scoreRowTitle}>
           {complete ? "✅ " : "🔒 "}
           {tc(label)}
         </Text>
-        {subLabel ? <Text style={styles.scoreRowSub}>{tc(subLabel)}</Text> : null}
+        {subLabel ? (
+          <Text numberOfLines={1} style={styles.scoreRowSub}>
+            {tc(subLabel)}
+          </Text>
+        ) : null}
       </View>
       <View style={styles.pointsWrap}>
         <Text style={styles.pointsText}>{points}</Text>
         {cta ? (
           <Link asChild href={label === "Profile complete" ? "/profile/info" : "/"}>
-            <Pressable style={styles.rowCta}>
+            <Pressable hitSlop={8} onPress={() => haptics.impact()} style={styles.rowCta}>
               <Text style={styles.rowCtaText}>{tc(cta)}</Text>
             </Pressable>
           </Link>
@@ -197,12 +208,16 @@ function BenefitCard({
   return (
     <View style={[styles.benefitCard, locked ? styles.benefitCardLocked : null]}>
       <View style={styles.benefitCopy}>
-        <Text style={styles.benefitTitle}>
+        <Text numberOfLines={2} style={styles.benefitTitle}>
           <Text style={styles.benefitIcon}>{item.icon}</Text>
           {"  "}
           {tc(item.label)}
         </Text>
-        {item.note ? <Text style={styles.benefitNote}>{tc(item.note)}</Text> : null}
+        {item.note ? (
+          <Text numberOfLines={2} style={styles.benefitNote}>
+            {tc(item.note)}
+          </Text>
+        ) : null}
       </View>
       {active || item.status ? (
         <Text style={[styles.statusPill, active ? styles.statusPillActive : null]}>
@@ -234,10 +249,10 @@ function CreditScoreStreakCard() {
       <View style={styles.monthRows}>
         {[1, 2, 3].map((month) => (
           <View key={month} style={styles.monthRow}>
-            <Text style={styles.monthRowText}>
+            <Text numberOfLines={1} style={styles.monthRowText}>
               {tc("Month")} {month}
             </Text>
-            <Text style={styles.monthStatus}>
+            <Text numberOfLines={1} style={styles.monthStatus}>
               {month === 2 ? `🔥 ${tc("In progress")}` : `🔒 ${tc("Locked")}`}
             </Text>
           </View>
@@ -252,9 +267,11 @@ function CreditScoreBoostCard() {
   return (
     <View style={styles.boostCard}>
       <Text style={styles.boostTitle}>{tc(webCreditScorePage.boostTitle)}</Text>
-      <Text style={styles.boostBody}>{tc(webCreditScorePage.boostBody)}</Text>
+      <Text numberOfLines={3} style={styles.boostBody}>
+        {tc(webCreditScorePage.boostBody)}
+      </Text>
       <Link asChild href="/">
-        <Pressable style={styles.boostButton}>
+        <Pressable onPress={() => haptics.impact()} style={styles.boostButton}>
           <Text style={styles.boostButtonText}>{tc(webCreditScorePage.boostCta)}</Text>
         </Pressable>
       </Link>

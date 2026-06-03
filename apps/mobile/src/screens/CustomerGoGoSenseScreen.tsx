@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { haptics } from "@mobile/lib/haptics";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { mobileShellLayout } from "@mobile/design/webDesignParity";
 import { motion } from "@mobile/theme/motion";
@@ -169,8 +170,18 @@ export function CustomerGoGoSenseScreen({ merchantId, mode }: GoGoSenseScreenPro
                 strokeWidth={typography.iconStrokeWidth}
               />
             </View>
-            <Text style={styles.eyebrow}>{tc(copy.eyebrow)}</Text>
-            <Text style={styles.title}>{tc(copy.title)}</Text>
+            <Text
+              numberOfLines={1}
+              style={styles.eyebrow}
+            >
+              {tc(copy.eyebrow)}
+            </Text>
+            <Text
+              numberOfLines={1}
+              style={styles.title}
+            >
+              {tc(copy.title)}
+            </Text>
             <Text style={styles.body}>{tc(copy.body)}</Text>
             {merchantId ? (
               <View style={styles.merchantIdPill}>
@@ -314,7 +325,12 @@ function SettingsContent() {
               <View style={styles.settingSwitchKnob} />
             </View>
             <View style={styles.settingCopy}>
-              <Text style={styles.rowTitle}>{tc(row.title)}</Text>
+              <Text
+                numberOfLines={1}
+                style={styles.rowTitle}
+              >
+                {tc(row.title)}
+              </Text>
               <Text style={styles.rowBody}>{tc(row.body)}</Text>
             </View>
           </View>
@@ -394,7 +410,12 @@ function SectionHeader({
         <Icon color={colors.primaryDark} size={20} strokeWidth={typography.iconStrokeWidth} />
       </View>
       <View style={styles.sectionCopy}>
-        <Text style={styles.sectionTitle}>{tc(title)}</Text>
+        <Text
+          numberOfLines={1}
+          style={styles.sectionTitle}
+        >
+          {tc(title)}
+        </Text>
         <Text style={styles.sectionSubtitle}>{tc(subtitle)}</Text>
       </View>
     </View>
@@ -417,7 +438,12 @@ function InfoRow({
         <Icon color={colors.primaryDark} size={18} strokeWidth={typography.iconStrokeWidth} />
       </View>
       <View style={styles.infoCopy}>
-        <Text style={styles.rowTitle}>{tc(title)}</Text>
+        <Text
+          numberOfLines={1}
+          style={styles.rowTitle}
+        >
+          {tc(title)}
+        </Text>
         <Text style={styles.rowBody}>{tc(body)}</Text>
       </View>
     </View>
@@ -431,8 +457,18 @@ function TimelineRow({ body, status, title }: { body: string; status: string; ti
       <View style={styles.timelineDot} />
       <View style={styles.timelineCopy}>
         <View style={styles.timelineTitleRow}>
-          <Text style={styles.rowTitle}>{tc(title)}</Text>
-          <Text style={styles.timelineStatus}>{tc(status)}</Text>
+          <Text
+            numberOfLines={1}
+            style={styles.rowTitle}
+          >
+            {tc(title)}
+          </Text>
+          <Text
+            numberOfLines={1}
+            style={styles.timelineStatus}
+          >
+            {tc(status)}
+          </Text>
         </View>
         <Text style={styles.rowBody}>{tc(body)}</Text>
       </View>
@@ -444,8 +480,17 @@ function PrimaryLink({ href, label }: { href: string; label: string }) {
   const tc = useCopy();
   return (
     <Link asChild href={href as never}>
-      <MotionPressable pressScale={motion.scale.subtlePress} style={styles.primaryButton}>
-        <Text style={styles.primaryButtonText}>{tc(label)}</Text>
+      <MotionPressable
+        onPress={() => {
+          // Fire-and-forget selection cue; navigation still flows through Link.
+          void haptics.impact();
+        }}
+        pressScale={motion.scale.subtlePress}
+        style={styles.primaryButton}
+      >
+        <Text numberOfLines={1} style={styles.primaryButtonText}>
+          {tc(label)}
+        </Text>
       </MotionPressable>
     </Link>
   );
@@ -455,8 +500,17 @@ function SecondaryLink({ href, label }: { href: string; label: string }) {
   const tc = useCopy();
   return (
     <Link asChild href={href as never}>
-      <MotionPressable pressScale={motion.scale.subtlePress} style={styles.secondaryButton}>
-        <Text style={styles.secondaryButtonText}>{tc(label)}</Text>
+      <MotionPressable
+        onPress={() => {
+          // Fire-and-forget selection cue; navigation still flows through Link.
+          void haptics.impact();
+        }}
+        pressScale={motion.scale.subtlePress}
+        style={styles.secondaryButton}
+      >
+        <Text numberOfLines={1} style={styles.secondaryButtonText}>
+          {tc(label)}
+        </Text>
       </MotionPressable>
     </Link>
   );

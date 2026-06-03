@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { useCopy } from "@mobile/i18n/useCopy";
+import { haptics } from "@mobile/lib/haptics";
 import { mobileShellLayout, webMembershipLanding } from "@mobile/design/webDesignParity";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
@@ -74,7 +75,7 @@ export function CustomerMembershipScreen() {
               {memberBenefits.map((benefit) => (
                 <View key={benefit} style={styles.benefitRow}>
                   <CheckIcon color={colors.primaryDark} size={18} strokeWidth={2.2} />
-                  <Text style={styles.benefitText}>{tc(benefit)}</Text>
+                  <Text numberOfLines={2} style={styles.benefitText}>{tc(benefit)}</Text>
                 </View>
               ))}
             </View>
@@ -88,22 +89,30 @@ export function CustomerMembershipScreen() {
             <View accessibilityLabel={tc("Billing period")} style={styles.toggleRow}>
               <Pressable
                 accessibilityState={{ selected: !billingAnnual }}
-                onPress={() => setBillingAnnual(false)}
+                onPress={() => {
+                  // Medium-impact haptic on billing-cycle selection (fire-and-forget; web no-op).
+                  void haptics.impact();
+                  setBillingAnnual(false);
+                }}
                 style={[styles.billingChoice, !billingAnnual ? styles.billingChoiceActive : null]}
               >
-                <Text style={styles.billingLabel}>{tc("Monthly")}</Text>
+                <Text numberOfLines={1} style={styles.billingLabel}>{tc("Monthly")}</Text>
                 <Text style={styles.billingAmount}>฿49/mo</Text>
-                <Text style={styles.billingHint}>{tc("Billed monthly - cancel anytime")}</Text>
+                <Text numberOfLines={2} style={styles.billingHint}>{tc("Billed monthly - cancel anytime")}</Text>
               </Pressable>
               <Pressable
                 accessibilityState={{ selected: billingAnnual }}
-                onPress={() => setBillingAnnual(true)}
+                onPress={() => {
+                  // Medium-impact haptic on billing-cycle selection (fire-and-forget; web no-op).
+                  void haptics.impact();
+                  setBillingAnnual(true);
+                }}
                 style={[styles.billingChoice, billingAnnual ? styles.billingChoiceActive : null]}
               >
                 <Text style={styles.bestValue}>{tc("Best value")}</Text>
-                <Text style={styles.billingLabel}>{tc("Annual")}</Text>
+                <Text numberOfLines={1} style={styles.billingLabel}>{tc("Annual")}</Text>
                 <Text style={styles.billingAmount}>฿490/yr</Text>
-                <Text style={styles.billingHint}>{tc("~฿41/mo effective when billed yearly")}</Text>
+                <Text numberOfLines={2} style={styles.billingHint}>{tc("~฿41/mo effective when billed yearly")}</Text>
               </Pressable>
             </View>
             <View style={styles.disabledNotice}>
@@ -111,8 +120,14 @@ export function CustomerMembershipScreen() {
               <Text style={styles.disabledText}>{tc("Online checkout is not available.")}</Text>
             </View>
             <Link asChild href="/pricing">
-              <Pressable accessibilityRole="link" style={styles.primaryAction}>
-                <Text style={styles.primaryActionText}>
+              <Pressable
+                accessibilityRole="link"
+                // Success haptic on the subscribe/checkout CTA (fire-and-forget; web no-op).
+                // Additive: the Link's navigation handler to /pricing still runs.
+                onPress={() => void haptics.success()}
+                style={styles.primaryAction}
+              >
+                <Text numberOfLines={1} style={styles.primaryActionText}>
                   {tc(billingAnnual ? "Get ฿490/year" : "Start for ฿49/month")}
                 </Text>
               </Pressable>
@@ -174,8 +189,8 @@ export function CustomerMembershipScreen() {
             <Text style={styles.sectionTitle}>{tc("Billing & membership FAQ")}</Text>
             {faqItems.map((item) => (
               <View key={item.question} style={styles.faqItem}>
-                <Text style={styles.faqQuestion}>{tc(item.question)}</Text>
-                <Text style={styles.faqAnswer}>{tc(item.answer)}</Text>
+                <Text numberOfLines={2} style={styles.faqQuestion}>{tc(item.question)}</Text>
+                <Text numberOfLines={4} style={styles.faqAnswer}>{tc(item.answer)}</Text>
               </View>
             ))}
           </View>
@@ -203,8 +218,8 @@ function PerkCard({
       <View style={styles.perkIcon}>
         <Icon color={colors.primaryDark} size={22} strokeWidth={typography.iconStrokeWidth} />
       </View>
-      <Text style={styles.perkTitle}>{tc(title)}</Text>
-      <Text style={styles.perkBody}>{tc(body)}</Text>
+      <Text numberOfLines={2} style={styles.perkTitle}>{tc(title)}</Text>
+      <Text numberOfLines={3} style={styles.perkBody}>{tc(body)}</Text>
     </View>
   );
 }

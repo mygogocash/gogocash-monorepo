@@ -15,6 +15,7 @@ import questPromoImage from "../../assets/quest-banner2.png";
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
+import { haptics } from "@mobile/lib/haptics";
 import {
   mobileShellLayout,
   webAccountPageSurface,
@@ -71,7 +72,10 @@ export function CustomerQuestScreen({ history = false }: { history?: boolean }) 
             <MotionPressable
               hoverLift={false}
               key={tab.id}
-              onPress={() => setActiveTab(tab.id)}
+              onPress={() => {
+                haptics.impact();
+                setActiveTab(tab.id);
+              }}
               pressScale={0.98}
               style={[styles.tabButton, active ? styles.tabButtonActive : null]}
             >
@@ -125,7 +129,9 @@ function QuestTaskPanel() {
         <View key={task.title} style={styles.taskRow}>
           <TaskLogo task={task} />
           <View style={styles.taskCopy}>
-            <Text style={styles.taskName}>{tc(task.title)}</Text>
+            <Text numberOfLines={1} style={styles.taskName}>
+              {tc(task.title)}
+            </Text>
           </View>
           <TaskPointsPill points={task.points} />
         </View>
@@ -192,25 +198,35 @@ function QuestMyRankCard() {
     <View>
       <View style={styles.myRankCard}>
         <View style={styles.myRankColumn}>
-          <Text style={styles.myRankLabel}>{tc(webQuestMyRank.rankLabel)}</Text>
+          <Text numberOfLines={1} style={styles.myRankLabel}>
+            {tc(webQuestMyRank.rankLabel)}
+          </Text>
           <View style={styles.myRankValueWrap}>
             <Text style={styles.myRankValue}>{webQuestMyRank.rankValue}</Text>
           </View>
         </View>
         <View style={styles.myRankColumn}>
-          <Text style={styles.myRankLabel}>{tc(webQuestMyRank.pointsLabel)}</Text>
+          <Text numberOfLines={1} style={styles.myRankLabel}>
+            {tc(webQuestMyRank.pointsLabel)}
+          </Text>
           <View style={styles.myRankValueWrap}>
             <Text style={styles.myRankValue}>{webQuestMyRank.pointsValue}</Text>
           </View>
         </View>
       </View>
       <MotionPressable
+        hitSlop={8}
         hoverLift={false}
-        onPress={() => setExpanded((prev) => !prev)}
+        onPress={() => {
+          haptics.impact();
+          setExpanded((prev) => !prev);
+        }}
         pressScale={0.98}
         style={styles.viewPointsButton}
       >
-        <Text style={styles.viewPointsText}>{tc(webQuestMyRank.viewPointsLabel)}</Text>
+        <Text numberOfLines={1} style={styles.viewPointsText}>
+          {tc(webQuestMyRank.viewPointsLabel)}
+        </Text>
         <ChevronUpIcon
           color={colors.primary}
           size={18}
@@ -253,13 +269,13 @@ function QuestLeaderboardPanel({ mediaColumnWidth }: { mediaColumnWidth: number 
             <Text style={styles.leaderboardTitle}>GoGoQuest</Text>
           </View>
           <Link asChild href="/quest/history">
-            <MotionPressable pressScale={0.98} style={styles.historyButton}>
+            <MotionPressable hitSlop={8} pressScale={0.98} style={styles.historyButton}>
               <TrophyIcon
                 color={colors.primaryDark}
                 size={20}
                 strokeWidth={typography.iconStrokeWidth}
               />
-              <Text style={styles.historyLink}>{`GoGoQuest ${tc("History")}`}</Text>
+              <Text numberOfLines={1} style={styles.historyLink}>{`GoGoQuest ${tc("History")}`}</Text>
             </MotionPressable>
           </Link>
         </View>
