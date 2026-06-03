@@ -37,6 +37,10 @@ async function initPostHog(): Promise<void> {
         maskTextSelector: "[data-ph-mask]",
       },
       persistence: "localStorage+cookie",
+      // Share the anonymous id across gogocash.co <-> app.gogocash.co so landing
+      // engagement links to the eventual app signup (#identity). UTM/referrer are
+      // auto-captured by posthog-js. The app must use the same project + setting.
+      cross_subdomain_cookie: true,
     });
     client = posthog;
     // Capture the page the visitor is on at init (route listener handles the rest).
