@@ -521,7 +521,12 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
               <View style={styles.summaryCard}>
                 <Text style={styles.summaryLabel}>{tc("Total Cashback Available")}</Text>
                 <View style={styles.amountRow}>
-                  <Text style={styles.amountText}>{balance.toFixed(2)}</Text>
+                  <Text style={styles.amountText}>
+                    {balance.toLocaleString("en-US", {
+                      maximumFractionDigits: 2,
+                      minimumFractionDigits: 2,
+                    })}
+                  </Text>
                   <Text style={styles.currencyText}>THB</Text>
                 </View>
                 <Text style={styles.updateLabel}>Last Updated: 28 May 2026 07:00</Text>

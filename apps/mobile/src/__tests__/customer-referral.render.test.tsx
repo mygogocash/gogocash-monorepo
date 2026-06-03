@@ -85,6 +85,13 @@ describe("CustomerReferralScreen (render)", () => {
     renderScreen();
     expect(screen.getByText("Invitation")).toBeTruthy();
   });
+
+  it("shows a production-domain invite link (not a dev localhost host)", () => {
+    renderScreen();
+    // Mirrors the web's origin-based, …-truncated referral URL — not http://localhost:3001/...
+    expect(screen.getByText("https://gogocash.co/?r…f86cd799439011")).toBeTruthy();
+    expect(screen.queryByText(/localhost/i)).toBeNull();
+  });
 });
 
 describe("CustomerReferralScreen — Wave B foundations adopted (source signals)", () => {

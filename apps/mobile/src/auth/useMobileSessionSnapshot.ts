@@ -1,7 +1,17 @@
 import { useEffect, useState } from "react";
 
-import { createAvailableSessionStore, type MobileSession } from "@mobile/auth/session";
+import {
+  createAvailableSessionStore,
+  subscribeMobileSessionChange,
+  type MobileSession,
+} from "@mobile/auth/session";
 
+/**
+ * Live snapshot of the mobile session. Reads on mount AND re-reads whenever the
+ * session is written/cleared (via `subscribeMobileSessionChange`), so the UI —
+ * e.g. the header's Sign-in vs account affordance — reflects login/logout without
+ * needing a remount.
+ */
 export function useMobileSessionSnapshot(): MobileSession | null {
   const [session, setSession] = useState<MobileSession | null>(null);
 
@@ -18,9 +28,13 @@ export function useMobileSessionSnapshot(): MobileSession | null {
     }
 
     void readSession();
+    const unsubscribe = subscribeMobileSessionChange(() => {
+      void readSession();
+    });
 
     return () => {
       cancelled = true;
+      unsubscribe();
     };
   }, []);
 

@@ -9,6 +9,8 @@ import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { CustomerLocaleRegionControl } from "@mobile/components/CustomerLocaleRegionControl";
 import { CustomerSignInNavGraphic } from "@mobile/components/CustomerSignInNavGraphic";
+import { CustomerProfileNav } from "@mobile/components/CustomerProfileNav";
+import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
 import {
   getDesktopShellHorizontalPadding,
   mobileShellLayout,
@@ -122,14 +124,16 @@ export function CustomerDesktopHeader({ viewportWidth }: { viewportWidth: number
   const shellPadding = getDesktopShellHorizontalPadding(viewportWidth);
   const shellContentWidth = Math.min(viewportWidth, mobileShellLayout.desktopContentMaxWidth);
   const [localePanelOpen, setLocalePanelOpen] = useState(false);
+  const [profilePanelOpen, setProfilePanelOpen] = useState(false);
   const tc = useCopy();
+  const session = useMobileSessionSnapshot();
 
   return (
     <View style={[styles.desktopShell, { width: viewportWidth }]}>
       <View
         style={[
           styles.desktopHeader,
-          localePanelOpen ? styles.desktopHeaderOverlayLayer : null,
+          localePanelOpen || profilePanelOpen ? styles.desktopHeaderOverlayLayer : null,
         ]}
       >
         <View
@@ -168,15 +172,19 @@ export function CustomerDesktopHeader({ viewportWidth }: { viewportWidth: number
                 />
               </MotionPressable>
             </Link>
-            <Link asChild href="/login">
-              <MotionPressable
-                accessibilityLabel={tc("Sign in")}
-                pressScale={motion.scale.subtlePress}
-                style={StyleSheet.flatten([styles.desktopSignIn, webPressableFocusReset])}
-              >
-                <CustomerSignInNavGraphic />
-              </MotionPressable>
-            </Link>
+            {session ? (
+              <CustomerProfileNav onExpandedChange={setProfilePanelOpen} session={session} />
+            ) : (
+              <Link asChild href="/login">
+                <MotionPressable
+                  accessibilityLabel={tc("Sign in")}
+                  pressScale={motion.scale.subtlePress}
+                  style={StyleSheet.flatten([styles.desktopSignIn, webPressableFocusReset])}
+                >
+                  <CustomerSignInNavGraphic />
+                </MotionPressable>
+              </Link>
+            )}
             <CustomerLocaleRegionControl onExpandedChange={setLocalePanelOpen} />
           </View>
         </View>
