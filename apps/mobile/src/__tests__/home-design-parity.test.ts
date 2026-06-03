@@ -173,7 +173,10 @@ describe("Expo home design parity", () => {
     expect(localeControlFile).toContain("accessibilityLabel={webLocaleRegionPanel.ariaLabel}");
     for (const sourceFile of [homeFile, desktopHeaderFile]) {
       expect(sourceFile).toContain("CustomerLocaleRegionControl");
-      expect(sourceFile).toContain("localePanelOpen ? styles.desktopHeaderOverlayLayer : null");
+      expect(sourceFile).toContain("CustomerProfileNav");
+      expect(sourceFile).toContain(
+        "localePanelOpen || profilePanelOpen ? styles.desktopHeaderOverlayLayer : null"
+      );
     }
   });
 

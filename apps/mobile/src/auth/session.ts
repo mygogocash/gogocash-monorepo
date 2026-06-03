@@ -16,6 +16,43 @@ export type SecureStoreLike = {
 
 export const mobileSessionStorageKey = "gogocash.mobile.session.v1";
 
+type MobileSessionChangeListener = () => void;
+const mobileSessionChangeListeners = new Set<MobileSessionChangeListener>();
+
+/** Announce a session write/clear so reactive consumers (e.g. the header) re-read. */
+export function notifyMobileSessionChange(): void {
+  for (const listener of [...mobileSessionChangeListeners]) {
+    listener();
+  }
+}
+
+/**
+ * Subscribe to session changes; returns an unsubscribe fn. On web it also reacts
+ * to cross-tab `storage` events so sign-in/out in one tab updates the others.
+ */
+export function subscribeMobileSessionChange(
+  listener: MobileSessionChangeListener
+): () => void {
+  mobileSessionChangeListeners.add(listener);
+
+  let onStorage: ((event: StorageEvent) => void) | undefined;
+  if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+    onStorage = (event) => {
+      if (event.key === null || event.key === mobileSessionStorageKey) {
+        listener();
+      }
+    };
+    window.addEventListener("storage", onStorage);
+  }
+
+  return () => {
+    mobileSessionChangeListeners.delete(listener);
+    if (onStorage && typeof window !== "undefined") {
+      window.removeEventListener("storage", onStorage);
+    }
+  };
+}
+
 type WebStorageLike = {
   getItem?: (key: string) => string | null;
   removeItem: (key: string) => void;
@@ -45,11 +82,13 @@ export function createSecureSessionStore(secureStore: SecureStoreLike): MobileSe
         return null;
       }
     },
-    setSession(session) {
-      return secureStore.setItemAsync(mobileSessionStorageKey, JSON.stringify(session));
+    async setSession(session) {
+      await secureStore.setItemAsync(mobileSessionStorageKey, JSON.stringify(session));
+      notifyMobileSessionChange();
     },
-    clearSession() {
-      return secureStore.deleteItemAsync(mobileSessionStorageKey);
+    async clearSession() {
+      await secureStore.deleteItemAsync(mobileSessionStorageKey);
+      notifyMobileSessionChange();
     },
   };
 }
@@ -88,6 +127,7 @@ export function createWebSessionStore(
   return {
     async clearSession() {
       storage.removeItem(mobileSessionStorageKey);
+      notifyMobileSessionChange();
     },
     async getSession() {
       const storedValue = storage.getItem?.(mobileSessionStorageKey);
@@ -108,6 +148,7 @@ export function createWebSessionStore(
     },
     async setSession(session) {
       storage.setItem?.(mobileSessionStorageKey, JSON.stringify(session));
+      notifyMobileSessionChange();
     },
   };
 }

@@ -15,10 +15,12 @@ function isPremiumTier(tier?: string): boolean {
 
 export function GoGoPassAvatar({
   children,
+  ringWidth = RING_WIDTH,
   size,
   tier,
 }: {
   children: ReactNode;
+  ringWidth?: number;
   size: number;
   tier?: string;
 }) {
@@ -45,9 +47,9 @@ export function GoGoPassAvatar({
     return <View style={{ height: size, width: size }}>{children}</View>;
   }
 
-  const outerSize = size + RING_WIDTH * 2 + 2;
+  const outerSize = size + ringWidth * 2 + 2;
   const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
-  const radius = (outerSize - RING_WIDTH) / 2;
+  const radius = (outerSize - ringWidth) / 2;
 
   return (
     <View
@@ -74,7 +76,7 @@ export function GoGoPassAvatar({
             fill="none"
             r={radius}
             stroke="url(#gogopassRing)"
-            strokeWidth={RING_WIDTH}
+            strokeWidth={ringWidth}
           />
         </Svg>
       </Animated.View>

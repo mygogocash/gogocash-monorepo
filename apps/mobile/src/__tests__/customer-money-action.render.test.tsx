@@ -115,4 +115,11 @@ describe("CustomerMoneyActionScreen — Wave B foundations adopted (source signa
     expect(moneyActionSource).toContain("haptics.success(");
     expect(moneyActionSource).toContain("haptics.error(");
   });
+
+  it("formats the available balance with thousands separators (web parity: 3,180.24 not 3180.24)", () => {
+    // Web money display is comma-grouped via formatCashDisplay; the withdraw hero must
+    // group too — guard against a regression back to a bare balance.toFixed(2).
+    expect(moneyActionSource).toContain('toLocaleString("en-US"');
+    expect(moneyActionSource).toContain("minimumFractionDigits: 2");
+  });
 });

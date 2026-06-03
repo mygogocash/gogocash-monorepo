@@ -724,7 +724,10 @@ export const webReferralPage = {
     subtitle: "For each friend that you invite",
     shareTitle: "Share your referral link",
     inviteLinkLabel: "invite link",
-    displayLink: "http://localhost:3001/...f86cd799439011",
+    // Mirrors the web's formatInviteLinkDisplay(url, 22, 14) output for a referral
+    // URL ({origin}/?referral_id=...) — production domain + middle "…" truncation,
+    // not a dev localhost host.
+    displayLink: "https://gogocash.co/?r…f86cd799439011",
     socialTitle: "Share referral link on social media",
     socialLinks: [
       { id: "facebook", label: "Facebook", color: "#1877F2" },
