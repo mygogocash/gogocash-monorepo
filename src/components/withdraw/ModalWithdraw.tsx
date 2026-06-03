@@ -8,6 +8,7 @@ import { formatPrice, pathImage } from "@/utils/helper";
 import { WithdrawRequestForm } from "./WithdrawTable";
 import { DataWithdrawsList } from "@/types/api";
 import { useDataSession } from "@/hooks/useDataSession";
+import { useObjectUrl } from "@/hooks/useObjectUrl";
 import { ManualWithdrawMarkPaid } from "./ManualWithdrawMarkPaid";
 import type { WithdrawList } from "@/types/withdraw";
 import { useState } from "react";
@@ -31,6 +32,7 @@ const ModalWithdraw = ({
 }: DataWithdrawsModal) => {
   const session = useDataSession();
   const [isLoading, setIsLoading] = useState(false);
+  const fileUrl = useObjectUrl(form.file);
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
     setForm((prev) => ({ ...prev, file }));
@@ -77,7 +79,8 @@ const ModalWithdraw = ({
               Check Request Withdraw
             </h4>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Review this withdrawal request, set the status, and optionally attach a payment slip. Save to update the request.
+              Review this withdrawal request, set the status, and optionally
+              attach a payment slip. Save to update the request.
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-3">
@@ -113,19 +116,19 @@ const ModalWithdraw = ({
           </div>
         </div>
         <div className="min-h-0 flex-1 space-y-6 overflow-y-auto pb-4">
-        {/* MiniPay / manual-payout admin action. Renders only when the row is
+          {/* MiniPay / manual-payout admin action. Renders only when the row is
             `withdraw_mode === "manual"` and `status === "pending"`. */}
-        {session?.accessToken ? (
-          <ManualWithdrawMarkPaid
-            withdraw={openModal as unknown as WithdrawList}
-            token={session.accessToken}
-            onMarkedPaid={() => {
-              setOpenModal(false);
-              fetchData();
-            }}
-          />
-        ) : null}
-        {/* <div className="overflow-auto">
+          {session?.accessToken ? (
+            <ManualWithdrawMarkPaid
+              withdraw={openModal as unknown as WithdrawList}
+              token={session.accessToken}
+              onMarkedPaid={() => {
+                setOpenModal(false);
+                fetchData();
+              }}
+            />
+          ) : null}
+          {/* <div className="overflow-auto">
               <table>
                 <thead>
                   <tr>
@@ -177,79 +180,81 @@ const ModalWithdraw = ({
                 </tbody>
               </table>
             </div> */}
-        <div>
-          <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-            Total Payout
-          </p>
-          <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-            Amount to be paid for this withdrawal request.
-          </p>
-          <p className="text-lg font-semibold text-gray-800 dark:text-white/90">
-            {(openModal as DataWithdrawsList).currency !== "USDC" &&
-            (openModal as DataWithdrawsList).currency !== "USDT"
-              ? formatPrice((openModal as DataWithdrawsList)?.amount_net)
-              : (openModal as DataWithdrawsList)?.amount_net +
-                " " +
-                (openModal as DataWithdrawsList)?.currency}
-          </p>
-        </div>
-        <div>
-          <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-            Payment slip (optional)
-          </p>
-          <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-            Upload proof of payment if you have already processed this withdrawal.
-          </p>
-          <Input type="file" name="file" onChange={handleFileChange} />
-        </div>
-        {(form.file || (openModal as DataWithdrawsList).slip_file) && (
-          <div className="mt-4 mb-4">
+          <div>
             <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-              Preview
+              Total Payout
             </p>
             <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-              Uploaded or existing slip image.
+              Amount to be paid for this withdrawal request.
             </p>
-            <RemoteOrBlobImage
-              src={
-                form.file
-                  ? URL.createObjectURL(form.file)
-                  : pathImage((openModal as DataWithdrawsList).slip_file)
+            <p className="text-lg font-semibold text-gray-800 dark:text-white/90">
+              {(openModal as DataWithdrawsList).currency !== "USDC" &&
+              (openModal as DataWithdrawsList).currency !== "USDT"
+                ? formatPrice((openModal as DataWithdrawsList)?.amount_net)
+                : (openModal as DataWithdrawsList)?.amount_net +
+                  " " +
+                  (openModal as DataWithdrawsList)?.currency}
+            </p>
+          </div>
+          <div>
+            <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+              Payment slip (optional)
+            </p>
+            <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+              Upload proof of payment if you have already processed this
+              withdrawal.
+            </p>
+            <Input type="file" name="file" onChange={handleFileChange} />
+          </div>
+          {(form.file || (openModal as DataWithdrawsList).slip_file) && (
+            <div className="mt-4 mb-4">
+              <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                Preview
+              </p>
+              <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+                Uploaded or existing slip image.
+              </p>
+              <RemoteOrBlobImage
+                src={
+                  fileUrl ??
+                  pathImage((openModal as DataWithdrawsList).slip_file)
+                }
+                alt="Preview"
+                width={800}
+                height={512}
+                className="h-auto max-h-64 max-w-full rounded-lg border border-gray-200 dark:border-gray-600"
+                style={{ width: "auto", height: "auto" }}
+              />
+            </div>
+          )}
+          <div>
+            <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+              Status
+            </p>
+            <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+              Set the request status: Approve when paid, Reject to decline, or
+              leave Pending.
+            </p>
+            <Select
+              options={[
+                { label: "Approve", value: "approved" },
+                { label: "Reject", value: "rejected" },
+                { label: "Pending", value: "pending" },
+              ]}
+              onChange={(e) => {
+                setForm((prev) => ({
+                  ...prev,
+                  status: e,
+                }));
+              }}
+              defaultValue={
+                form.status ||
+                ((openModal &&
+                  (openModal as DataWithdrawsList).status) as string)
               }
-              alt="Preview"
-              width={800}
-              height={512}
-              className="h-auto max-h-64 max-w-full rounded-lg border border-gray-200 dark:border-gray-600"
-              style={{ width: "auto", height: "auto" }}
+              placeholder="Select Status"
             />
           </div>
-        )}
-        <div>
-          <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-            Status
-          </p>
-          <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-            Set the request status: Approve when paid, Reject to decline, or leave Pending.
-          </p>
-          <Select
-            options={[
-              { label: "Approve", value: "approved" },
-              { label: "Reject", value: "rejected" },
-              { label: "Pending", value: "pending" },
-            ]}
-            onChange={(e) => {
-              setForm((prev) => ({
-                ...prev,
-                status: e,
-              }));
-            }}
-            defaultValue={
-              form.status ||
-              ((openModal && (openModal as DataWithdrawsList).status) as string)
-            }
-            placeholder="Select Status"
-          />
-        </div>
         </div>
       </div>
     </Modal>

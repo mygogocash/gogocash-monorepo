@@ -24,7 +24,7 @@ export default async function DashboardPage(props: DefaultAppPageProps) {
 
       {/* Withdrawals & cash flow */}
       <section className="min-w-0">
-        <h2 className="mb-4 text-sm font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+        <h2 className="mb-4 text-xl font-semibold tracking-tight text-gray-900 dark:text-white sm:text-2xl">
           Withdrawals & cash flow
         </h2>
         <div className="grid min-w-0 grid-cols-12 gap-4 md:gap-6">
@@ -36,7 +36,7 @@ export default async function DashboardPage(props: DefaultAppPageProps) {
 
       {/* Recent activity: conversions & withdrawals */}
       <section className="min-w-0">
-        <h2 className="mb-4 text-sm font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+        <h2 className="mb-4 text-xl font-semibold tracking-tight text-gray-900 dark:text-white sm:text-2xl">
           Recent activity
         </h2>
         <div className="grid min-w-0 grid-cols-12 gap-4 md:gap-6">

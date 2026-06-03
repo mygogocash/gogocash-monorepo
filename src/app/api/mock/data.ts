@@ -12,14 +12,17 @@ export const mockAdminUsers: Array<{
   username: string;
   password: string;
   email: string;
+  /** Role id — built-in tier or custom role id. */
+  role: string;
   status?: "active" | "pending";
   createdAt: string;
   updatedAt: string;
   __v: number;
 }> = [
-  { _id: "a1", username: "admin", password: "hashed", email: "admin@gogocash.co", status: "active", createdAt: lastWeek, updatedAt: now, __v: 0 },
-  { _id: "a2", username: "moderator", password: "hashed", email: "mod@gogocash.co", status: "active", createdAt: lastWeek, updatedAt: now, __v: 0 },
-  { _id: "a3", username: "support", password: "hashed", email: "support@gogocash.co", status: "active", createdAt: lastWeek, updatedAt: yesterday, __v: 0 },
+  { _id: "a1", username: "admin", password: "hashed", email: "admin@gogocash.co", role: "super_admin", status: "active", createdAt: lastWeek, updatedAt: now, __v: 0 },
+  { _id: "a2", username: "moderator", password: "hashed", email: "mod@gogocash.co", role: "admin", status: "active", createdAt: lastWeek, updatedAt: now, __v: 0 },
+  { _id: "a3", username: "support", password: "hashed", email: "support@gogocash.co", role: "editor", status: "active", createdAt: lastWeek, updatedAt: yesterday, __v: 0 },
+  { _id: "a4", username: "analyst", password: "hashed", email: "analyst@gogocash.co", role: "viewer", status: "active", createdAt: lastWeek, updatedAt: yesterday, __v: 0 },
 ];
 
 const userFirstNames = ["Alice", "Bob", "Charlie", "Diana", "Erica", "Frank", "Grace", "Henry", "Ivy", "Jack", "Kate", "Leo", "Mia", "Noah", "Olivia", "Paul", "Quinn", "Ryan", "Sara", "Tom", "Uma", "Victor", "Wendy", "Xavier", "Yuki", "Zara"];

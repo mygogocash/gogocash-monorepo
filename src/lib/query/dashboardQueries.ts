@@ -1,6 +1,6 @@
 import { apiClient } from "@/lib/api";
 import type {
-  DashboardInsightRange,
+  DashboardInsightRangeValue,
   DashboardInsightsResponse,
   DashboardStatsResponse,
   DashboardSummaryResponse,
@@ -44,7 +44,7 @@ export async function fetchDashboardWithdrawSummary(): Promise<DashboardSummaryR
 export const DASHBOARD_INSIGHTS_QUERY_KEY = ["dashboard", "insights"] as const;
 
 export async function fetchDashboardInsights(
-  range: DashboardInsightRange = "30d",
+  range: DashboardInsightRangeValue = "30d",
 ): Promise<DashboardInsightsResponse> {
   return apiClient.getDashboardInsights({ range });
 }

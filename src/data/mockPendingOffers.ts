@@ -67,7 +67,8 @@ export function getDefaultMockPendingOffers(): PendingOfferRow[] {
       currency: "IDR",
       datetime_created: MOCK_NOW,
       datetime_updated: MOCK_NOW,
-      description: "New brand onboarding — Adidas logo assets uploaded by partner for review.",
+      description:
+        "New brand onboarding — Adidas logo assets uploaded by partner for review.",
       directory_page: "https://www.adidas.co.id",
       is_require_approval: 1,
       logo: "/images/merchant-logos/stylemart-id.png",
@@ -108,7 +109,8 @@ export function getDefaultMockPendingOffers(): PendingOfferRow[] {
       currency: "USD",
       datetime_created: MOCK_YESTERDAY,
       datetime_updated: MOCK_NOW,
-      description: "Cross-border travel offer — confirm country list and commission cap (AirAsia).",
+      description:
+        "Cross-border travel offer — confirm country list and commission cap (AirAsia).",
       directory_page: "https://www.airasia.com",
       is_require_approval: 1,
       logo: "/images/merchant-logos/stayplus-travel.png",
@@ -164,12 +166,20 @@ export function getMockPendingOffers(): PendingOfferRow[] {
 
 export function persistMockPendingOffers(rows: PendingOfferRow[]): void {
   if (typeof window === "undefined") return;
-  sessionStorage.setItem(MOCK_PENDING_SESSION_KEY, JSON.stringify(rows));
+  try {
+    sessionStorage.setItem(MOCK_PENDING_SESSION_KEY, JSON.stringify(rows));
+  } catch {
+    // private mode / quota exceeded — ignore (matches the read path).
+  }
 }
 
 export function clearMockPendingOffersSession(): void {
   if (typeof window === "undefined") return;
-  sessionStorage.removeItem(MOCK_PENDING_SESSION_KEY);
+  try {
+    sessionStorage.removeItem(MOCK_PENDING_SESSION_KEY);
+  } catch {
+    // storage unavailable — ignore.
+  }
 }
 
 export function resetMockPendingOffersToDefault(): PendingOfferRow[] {
@@ -192,7 +202,10 @@ export const COUNTRY_FILTER_TO_CODES: Record<string, string[]> = {
   Myanmar: ["MM"],
 };
 
-export function offerMatchesCountryFilter(offer: Offer, filterLabel: string): boolean {
+export function offerMatchesCountryFilter(
+  offer: Offer,
+  filterLabel: string,
+): boolean {
   if (!filterLabel.trim()) return true;
   const codes = COUNTRY_FILTER_TO_CODES[filterLabel];
   const raw = (offer.countries ?? "")

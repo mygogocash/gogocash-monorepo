@@ -40,7 +40,10 @@ function parseNum(raw: string): number {
 }
 
 function newRegionId(): string {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
     return crypto.randomUUID();
   }
   return `r-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
@@ -63,7 +66,8 @@ function newRegion(overrides?: Partial<FeeWithdrawRegion>): FeeWithdrawRegion {
   return {
     ...merged,
     currency: cur,
-    max_cap_currency: (merged.max_cap_currency ?? cur).trim().toUpperCase() || cur,
+    max_cap_currency:
+      (merged.max_cap_currency ?? cur).trim().toUpperCase() || cur,
   };
 }
 
@@ -86,7 +90,9 @@ export default function FeeForm() {
 
   const [presetValue, setPresetValue] = useState("");
   /** Row ids where the user chose "enter ISO code manually" (environments without full country list). */
-  const [countryManualByRow, setCountryManualByRow] = useState<Record<string, boolean>>({});
+  const [countryManualByRow, setCountryManualByRow] = useState<
+    Record<string, boolean>
+  >({});
   const [fetching, setFetching] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -102,30 +108,29 @@ export default function FeeForm() {
 
   const token = session?.accessToken ?? DEFAULT_MOCK_ACCESS_TOKEN;
 
-  const applyFeeResponse = useCallback(
-    (res: ResponseFee) => {
-      const fromApi = res.withdraw_regions?.length
-        ? ensureRegionIds(res.withdraw_regions, legacyRegionsFromResponse(res))
-        : legacyRegionsFromResponse(res);
-      const legacy = deriveLegacyWithdrawFields(fromApi);
-      const capMode: GlobalMaxCapMode =
-        res.global_max_cap_mode === "fixed" ? "fixed" : "percent";
-      setForms({
-        system: res.system,
-        fee_withdraw_usd: legacy.fee_withdraw_usd,
-        fee_withdraw_thb: legacy.fee_withdraw_thb,
-        minimum_withdraw_thb: legacy.minimum_withdraw_thb,
-        minimum_withdraw_usd: legacy.minimum_withdraw_usd,
-        id: res._id,
-        withdraw_regions: fromApi,
-        global_max_cap_mode: capMode,
-        global_max_cap_percent: res.global_max_cap_percent ?? 0,
-        global_max_cap_amount: res.global_max_cap_amount ?? 0,
-        global_max_cap_currency: (res.global_max_cap_currency ?? "THB").toUpperCase(),
-      });
-    },
-    [],
-  );
+  const applyFeeResponse = useCallback((res: ResponseFee) => {
+    const fromApi = res.withdraw_regions?.length
+      ? ensureRegionIds(res.withdraw_regions, legacyRegionsFromResponse(res))
+      : legacyRegionsFromResponse(res);
+    const legacy = deriveLegacyWithdrawFields(fromApi);
+    const capMode: GlobalMaxCapMode =
+      res.global_max_cap_mode === "fixed" ? "fixed" : "percent";
+    setForms({
+      system: res.system,
+      fee_withdraw_usd: legacy.fee_withdraw_usd,
+      fee_withdraw_thb: legacy.fee_withdraw_thb,
+      minimum_withdraw_thb: legacy.minimum_withdraw_thb,
+      minimum_withdraw_usd: legacy.minimum_withdraw_usd,
+      id: res._id,
+      withdraw_regions: fromApi,
+      global_max_cap_mode: capMode,
+      global_max_cap_percent: res.global_max_cap_percent ?? 0,
+      global_max_cap_amount: res.global_max_cap_amount ?? 0,
+      global_max_cap_currency: (
+        res.global_max_cap_currency ?? "THB"
+      ).toUpperCase(),
+    });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -215,7 +220,11 @@ export default function FeeForm() {
           currency: preset.currency,
         }),
       ];
-      return { ...f, withdraw_regions: next, ...deriveLegacyWithdrawFields(next) };
+      return {
+        ...f,
+        withdraw_regions: next,
+        ...deriveLegacyWithdrawFields(next),
+      };
     });
     setPresetValue("");
   };
@@ -255,7 +264,9 @@ export default function FeeForm() {
       }
       const cur = forms.global_max_cap_currency.trim().toUpperCase();
       if (cur.length < 3) {
-        toast.error("Select or enter a valid currency (ISO 4217) for the fixed max cap.");
+        toast.error(
+          "Select or enter a valid currency (ISO 4217) for the fixed max cap.",
+        );
         return;
       }
     }
@@ -289,7 +300,7 @@ export default function FeeForm() {
             aria-live="polite"
           >
             <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-brand-500 dark:border-gray-600 dark:border-t-brand-400" />
+              <div className="border-t-brand-500 dark:border-t-brand-400 h-8 w-8 animate-spin rounded-full border-2 border-gray-200 dark:border-gray-600" />
               Loading fee settings…
             </div>
           </div>
@@ -304,9 +315,9 @@ export default function FeeForm() {
                 System
               </h3>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Global platform fee and optional platform-wide max cap for offers and
-                brands. Regional rules may still override where your backend supports
-                it.
+                Global platform fee and optional platform-wide max cap for
+                offers and brands. Regional rules may still override where your
+                backend supports it.
               </p>
             </div>
             <div>
@@ -314,12 +325,13 @@ export default function FeeForm() {
                 System <span className="text-error-500">*</span>
               </Label>
               <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-                Platform fee percentage applied to transactions (e.g. 2.5 for 2.5%).
+                Platform fee percentage applied to transactions (e.g. 2.5 for
+                2.5%).
               </p>
               <div className="mt-2 flex max-w-md items-center gap-3">
                 <Input
                   placeholder="0.00"
-                  type="text"
+                  type="number"
                   value={forms.system}
                   min="0"
                   onChange={(e) =>
@@ -329,25 +341,30 @@ export default function FeeForm() {
                     })
                   }
                 />
-                <span className="text-xs text-gray-500 dark:text-gray-400">%</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  %
+                </span>
               </div>
             </div>
             <div>
               <Label>Max cap</Label>
               <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-                Upper limit applied across offers and brands: a percentage of the
-                tracked amount or a fixed amount in the currency you choose. Your API
-                decides how this combines with per-offer caps.
+                Upper limit applied across offers and brands: a percentage of
+                the tracked amount or a fixed amount in the currency you choose.
+                Your API decides how this combines with per-offer caps.
               </p>
               <div className="mt-3 flex flex-wrap gap-4">
                 <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
                   <input
                     type="radio"
                     name="global_max_cap_mode"
-                    className="h-4 w-4 border-gray-300 text-brand-600 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-800"
+                    className="text-brand-600 focus:ring-brand-500 h-4 w-4 border-gray-300 dark:border-gray-600 dark:bg-gray-800"
                     checked={forms.global_max_cap_mode === "percent"}
                     onChange={() =>
-                      setForms((f) => ({ ...f, global_max_cap_mode: "percent" }))
+                      setForms((f) => ({
+                        ...f,
+                        global_max_cap_mode: "percent",
+                      }))
                     }
                   />
                   Percentage
@@ -356,7 +373,7 @@ export default function FeeForm() {
                   <input
                     type="radio"
                     name="global_max_cap_mode"
-                    className="h-4 w-4 border-gray-300 text-brand-600 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-800"
+                    className="text-brand-600 focus:ring-brand-500 h-4 w-4 border-gray-300 dark:border-gray-600 dark:bg-gray-800"
                     checked={forms.global_max_cap_mode === "fixed"}
                     onChange={() =>
                       setForms((f) => ({ ...f, global_max_cap_mode: "fixed" }))
@@ -369,7 +386,7 @@ export default function FeeForm() {
                 <div className="mt-2 flex max-w-md items-center gap-3">
                   <Input
                     placeholder="0.00"
-                    type="text"
+                    type="number"
                     value={forms.global_max_cap_percent}
                     min="0"
                     onChange={(e) =>
@@ -379,7 +396,9 @@ export default function FeeForm() {
                       })
                     }
                   />
-                  <span className="text-xs text-gray-500 dark:text-gray-400">%</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    %
+                  </span>
                 </div>
               ) : (
                 <div className="mt-2 flex max-w-md flex-col gap-3 sm:flex-row sm:items-end">
@@ -389,7 +408,7 @@ export default function FeeForm() {
                     </p>
                     <Input
                       placeholder="0.00"
-                      type="text"
+                      type="number"
                       value={forms.global_max_cap_amount}
                       min="0"
                       onChange={(e) =>
@@ -413,7 +432,10 @@ export default function FeeForm() {
                       onChange={(e) => {
                         const v = e.target.value;
                         if (v === "__custom__") {
-                          setForms((f) => ({ ...f, global_max_cap_currency: "" }));
+                          setForms((f) => ({
+                            ...f,
+                            global_max_cap_currency: "",
+                          }));
                           return;
                         }
                         setForms((f) => ({ ...f, global_max_cap_currency: v }));
@@ -435,11 +457,12 @@ export default function FeeForm() {
                         onChange={(e) =>
                           setForms({
                             ...forms,
-                            global_max_cap_currency: e.target.value.toUpperCase(),
+                            global_max_cap_currency:
+                              e.target.value.toUpperCase(),
                           })
                         }
                         placeholder="XXX"
-                        className="mt-2 h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm uppercase text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                        className="mt-2 h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 uppercase dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                       />
                     )}
                   </div>
@@ -454,9 +477,9 @@ export default function FeeForm() {
                 Withdrawal fees by country
               </h3>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Fixed withdrawal fee, minimum withdrawal, and optional regional max cap
-                per country and currency. Legacy THB/USD fields are kept in sync for
-                older APIs (first THB and first USD row).
+                Fixed withdrawal fee, minimum withdrawal, and optional regional
+                max cap per country and currency. Legacy THB/USD fields are kept
+                in sync for older APIs (first THB and first USD row).
               </p>
             </div>
 
@@ -527,7 +550,9 @@ export default function FeeForm() {
                     : "New region";
                 const regionMetaLine = [
                   cc.length === 2 ? cc : null,
-                  row.currency?.trim() ? row.currency.trim().toUpperCase() : null,
+                  row.currency?.trim()
+                    ? row.currency.trim().toUpperCase()
+                    : null,
                 ]
                   .filter(Boolean)
                   .join(" · ");
@@ -540,7 +565,7 @@ export default function FeeForm() {
                     key={row.id}
                     className="overflow-hidden rounded-xl border border-gray-200 bg-gray-50/50 dark:border-gray-700 dark:bg-gray-900/30"
                   >
-                    <div className="flex flex-col gap-3 border-b border-gray-200 bg-white/70 px-4 py-4 dark:border-gray-700 dark:bg-gray-950/25 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                    <div className="flex flex-col gap-3 border-b border-gray-200 bg-white/70 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5 dark:border-gray-700 dark:bg-gray-950/25">
                       <div className="min-w-0 flex-1">
                         <p className="text-[11px] font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
                           Region
@@ -574,7 +599,7 @@ export default function FeeForm() {
                           type="button"
                           onClick={() => removeRegion(row.id)}
                           disabled={saving}
-                          className="h-11 w-full rounded-lg border border-red-200 bg-white px-3 text-sm font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900/50 dark:bg-gray-800 dark:text-red-300 dark:hover:bg-red-950/40 sm:w-auto"
+                          className="h-11 w-full rounded-lg border border-red-200 bg-white px-3 text-sm font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto dark:border-red-900/50 dark:bg-gray-800 dark:text-red-300 dark:hover:bg-red-950/40"
                         >
                           Remove row
                         </button>
@@ -599,7 +624,8 @@ export default function FeeForm() {
                               autoComplete="country"
                               title={
                                 cc.length === 2
-                                  ? feeCountryOptions.find((o) => o.code === cc)?.label
+                                  ? feeCountryOptions.find((o) => o.code === cc)
+                                      ?.label
                                   : undefined
                               }
                               onChange={(e) => {
@@ -628,7 +654,9 @@ export default function FeeForm() {
                               }}
                               className={fieldSelectClass}
                             >
-                              <option value="">Search or choose country…</option>
+                              <option value="">
+                                Search or choose country…
+                              </option>
                               {feeCountryOptions.map((o) => (
                                 <option key={o.code} value={o.code}>
                                   {o.label}
@@ -639,7 +667,9 @@ export default function FeeForm() {
                                   {countryCodeToFlagEmoji(cc)} {cc} (from API)
                                 </option>
                               )}
-                              <option value="__manual__">Other — type 2-letter code…</option>
+                              <option value="__manual__">
+                                Other — type 2-letter code…
+                              </option>
                             </select>
                             {isManual && (
                               <input
@@ -656,7 +686,7 @@ export default function FeeForm() {
                                   })
                                 }
                                 placeholder="e.g. TH"
-                                className="mt-2 h-11 w-full min-w-0 rounded-lg border border-gray-200 bg-white px-3 text-sm uppercase text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:ring-brand-500/20 focus:outline-hidden dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                                className="focus:ring-brand-500/20 mt-2 h-11 w-full min-w-0 rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 uppercase placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                               />
                             )}
                           </div>
@@ -699,7 +729,7 @@ export default function FeeForm() {
                                   })
                                 }
                                 placeholder="XXX"
-                                className="mt-2 h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm uppercase text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                                className="mt-2 h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 uppercase dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                               />
                             )}
                           </div>
@@ -718,7 +748,8 @@ export default function FeeForm() {
                         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-8">
                           <div className="min-w-0">
                             <Label className="mb-1">
-                              Withdrawal fee <span className="text-error-500">*</span>
+                              Withdrawal fee{" "}
+                              <span className="text-error-500">*</span>
                             </Label>
                             <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
                               Fixed fee charged each time a user withdraws.
@@ -726,7 +757,7 @@ export default function FeeForm() {
                             <div className="flex min-w-0 items-stretch gap-2">
                               <div className="min-w-0 flex-1">
                                 <Input
-                                  type="text"
+                                  type="number"
                                   placeholder="0.00"
                                   value={row.feeWithdraw}
                                   min="0"
@@ -744,15 +775,17 @@ export default function FeeForm() {
                           </div>
                           <div className="min-w-0">
                             <Label className="mb-1">
-                              Minimum withdrawal <span className="text-error-500">*</span>
+                              Minimum withdrawal{" "}
+                              <span className="text-error-500">*</span>
                             </Label>
                             <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-                              Smallest amount a user can cash out in one request.
+                              Smallest amount a user can cash out in one
+                              request.
                             </p>
                             <div className="flex min-w-0 items-stretch gap-2">
                               <div className="min-w-0 flex-1">
                                 <Input
-                                  type="text"
+                                  type="number"
                                   placeholder="0.00"
                                   value={row.minimumWithdraw}
                                   min="0"
@@ -771,24 +804,26 @@ export default function FeeForm() {
                         </div>
                       </section>
 
-                      <section className="rounded-xl border border-dashed border-gray-300 bg-white/80 p-4 dark:border-gray-600 dark:bg-gray-900/45 sm:p-5">
-                        <h4 className="text-xs font-semibold tracking-wide text-brand-600 uppercase dark:text-brand-400">
+                      <section className="rounded-xl border border-dashed border-gray-300 bg-white/80 p-4 sm:p-5 dark:border-gray-600 dark:bg-gray-900/45">
+                        <h4 className="text-brand-600 dark:text-brand-400 text-xs font-semibold tracking-wide uppercase">
                           Max cap (offers / brands)
                         </h4>
                         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                          Optional ceiling for this market. Use a percentage of tracked
-                          volume or a fixed amount; your API decides how this stacks with
-                          global and per-offer caps.
+                          Optional ceiling for this market. Use a percentage of
+                          tracked volume or a fixed amount; your API decides how
+                          this stacks with global and per-offer caps.
                         </p>
                         <div className="mt-4 flex flex-wrap gap-4">
                           <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
                             <input
                               type="radio"
                               name={`region_max_cap_mode_${row.id}`}
-                              className="h-4 w-4 border-gray-300 text-brand-600 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-800"
+                              className="text-brand-600 focus:ring-brand-500 h-4 w-4 border-gray-300 dark:border-gray-600 dark:bg-gray-800"
                               checked={row.max_cap_mode !== "fixed"}
                               onChange={() =>
-                                updateRegion(row.id, { max_cap_mode: "percent" })
+                                updateRegion(row.id, {
+                                  max_cap_mode: "percent",
+                                })
                               }
                             />
                             Percentage
@@ -797,7 +832,7 @@ export default function FeeForm() {
                             <input
                               type="radio"
                               name={`region_max_cap_mode_${row.id}`}
-                              className="h-4 w-4 border-gray-300 text-brand-600 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-800"
+                              className="text-brand-600 focus:ring-brand-500 h-4 w-4 border-gray-300 dark:border-gray-600 dark:bg-gray-800"
                               checked={row.max_cap_mode === "fixed"}
                               onChange={() =>
                                 updateRegion(row.id, { max_cap_mode: "fixed" })
@@ -813,7 +848,7 @@ export default function FeeForm() {
                                 Amount
                               </p>
                               <Input
-                                type="text"
+                                type="number"
                                 placeholder="0.00"
                                 value={row.max_cap_amount ?? 0}
                                 min="0"
@@ -831,13 +866,17 @@ export default function FeeForm() {
                               <select
                                 value={
                                   isCommonCurrency(row.max_cap_currency ?? "")
-                                    ? (row.max_cap_currency ?? "THB").toUpperCase()
+                                    ? (
+                                        row.max_cap_currency ?? "THB"
+                                      ).toUpperCase()
                                     : "__custom__"
                                 }
                                 onChange={(e) => {
                                   const v = e.target.value;
                                   if (v === "__custom__") {
-                                    updateRegion(row.id, { max_cap_currency: "" });
+                                    updateRegion(row.id, {
+                                      max_cap_currency: "",
+                                    });
                                     return;
                                   }
                                   updateRegion(row.id, { max_cap_currency: v });
@@ -851,18 +890,21 @@ export default function FeeForm() {
                                 ))}
                                 <option value="__custom__">Other…</option>
                               </select>
-                              {!isCommonCurrency(row.max_cap_currency ?? "") && (
+                              {!isCommonCurrency(
+                                row.max_cap_currency ?? "",
+                              ) && (
                                 <input
                                   type="text"
                                   maxLength={8}
                                   value={row.max_cap_currency ?? ""}
                                   onChange={(e) =>
                                     updateRegion(row.id, {
-                                      max_cap_currency: e.target.value.toUpperCase(),
+                                      max_cap_currency:
+                                        e.target.value.toUpperCase(),
                                     })
                                   }
                                   placeholder="XXX"
-                                  className="mt-2 h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm uppercase text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                                  className="mt-2 h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 uppercase dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                                 />
                               )}
                             </div>
@@ -871,7 +913,7 @@ export default function FeeForm() {
                           <div className="mt-4 flex max-w-sm items-center gap-2">
                             <div className="min-w-0 flex-1">
                               <Input
-                                type="text"
+                                type="number"
                                 placeholder="0.00"
                                 value={row.max_cap_percent ?? 0}
                                 min="0"

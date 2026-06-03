@@ -1,7 +1,7 @@
 import {
   parsePhoneNumberFromString,
   AsYouType,
-  CountryCode
+  CountryCode,
 } from "libphonenumber-js";
 export function formatPhone(value: string, country?: string) {
   return new AsYouType(country as CountryCode).input(value);
@@ -46,7 +46,7 @@ export const pathImage = (
 };
 
 export const formatPrice = (price?: number) => {
-  if (!price) return "N/A";
+  if (price == null || Number.isNaN(price)) return "N/A";
   return price.toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,

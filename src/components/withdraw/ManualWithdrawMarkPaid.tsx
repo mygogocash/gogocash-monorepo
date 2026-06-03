@@ -14,6 +14,7 @@
  */
 
 import { apiClient } from "@/lib/api";
+import { isValidTxHash } from "@/lib/formValidation";
 import { Status, type WithdrawList } from "@/types/withdraw";
 import { useState } from "react";
 
@@ -25,13 +26,20 @@ type Props = {
   onMarkedPaid?: () => void;
 };
 
-export function ManualWithdrawMarkPaid({ withdraw, token, onMarkedPaid }: Props) {
+export function ManualWithdrawMarkPaid({
+  withdraw,
+  token,
+  onMarkedPaid,
+}: Props) {
   const [txHash, setTxHash] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmStep, setConfirmStep] = useState(false);
 
-  if (withdraw.withdraw_mode !== "manual" || withdraw.status !== Status.Pending) {
+  if (
+    withdraw.withdraw_mode !== "manual" ||
+    withdraw.status !== Status.Pending
+  ) {
     return null;
   }
 
@@ -41,8 +49,10 @@ export function ManualWithdrawMarkPaid({ withdraw, token, onMarkedPaid }: Props)
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!txHash.trim()) {
-      setError("Enter the on-chain tx hash");
+    if (!isValidTxHash(txHash)) {
+      setError(
+        "Enter a valid on-chain tx hash (0x followed by 64 hex characters).",
+      );
       return;
     }
     setError(null);
@@ -60,10 +70,10 @@ export function ManualWithdrawMarkPaid({ withdraw, token, onMarkedPaid }: Props)
   return (
     <div className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-4 md:p-6 dark:border-amber-400/40 dark:bg-amber-900/20">
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <span className="rounded-full bg-amber-500 px-2.5 py-0.5 text-xs font-bold uppercase text-white">
+        <span className="rounded-full bg-amber-500 px-2.5 py-0.5 text-xs font-bold text-white uppercase">
           Manual payout
         </span>
-        <span className="rounded-full bg-[#00AA80] px-2.5 py-0.5 text-xs font-bold uppercase text-white">
+        <span className="rounded-full bg-[#00AA80] px-2.5 py-0.5 text-xs font-bold text-white uppercase">
           {tokenLabel}
         </span>
         <span className="text-xs text-amber-700 dark:text-amber-300">
@@ -73,15 +83,15 @@ export function ManualWithdrawMarkPaid({ withdraw, token, onMarkedPaid }: Props)
 
       <dl className="mb-4 grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
         <div>
-          <dt className="text-xs font-medium uppercase text-gray-500 dark:text-gray-400">
+          <dt className="text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
             Recipient wallet
           </dt>
-          <dd className="break-all font-mono text-gray-900 dark:text-gray-100">
+          <dd className="font-mono break-all text-gray-900 dark:text-gray-100">
             {recipient || "—"}
           </dd>
         </div>
         <div>
-          <dt className="text-xs font-medium uppercase text-gray-500 dark:text-gray-400">
+          <dt className="text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
             Amount to send
           </dt>
           <dd className="font-semibold text-gray-900 dark:text-gray-100">

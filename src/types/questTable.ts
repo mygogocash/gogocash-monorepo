@@ -10,6 +10,8 @@ export interface QuestTaskCondition {
 
 /** Task summary for display in Quest details (no logo/file fields) */
 export interface QuestTaskDisplay {
+  /** Stable client id used as the React key while editing (reorder/remove). */
+  id?: string;
   taskType: QuestTaskType;
   offerId?: string;
   merchantId?: string;

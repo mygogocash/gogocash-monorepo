@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import type { DashboardInsightRange } from "@/types/api";
+import type { DashboardInsightRangeValue } from "@/types/api";
 import { DashboardInsightRangeControl } from "@/components/ecommerce/DashboardInsightRangeControl";
 import { ExecutiveSummary } from "@/components/ecommerce/ExecutiveSummary";
 import { DashboardInsightDetails } from "@/components/ecommerce/DashboardInsightDetails";
 import StatisticsChart from "@/components/ecommerce/StatisticsChart";
 
 export function DashboardInsightsAnalytics() {
-  const [range, setRange] = useState<DashboardInsightRange>("30d");
+  const [range, setRange] = useState<DashboardInsightRangeValue>("30d");
 
   return (
     <div className="min-w-0 w-full space-y-8">
@@ -19,21 +19,14 @@ export function DashboardInsightsAnalytics() {
       </div>
 
       <section className="min-w-0">
-        <h2 className="mb-4 text-sm font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+        <h2 className="mb-4 text-xl font-semibold tracking-tight text-gray-900 dark:text-white sm:text-2xl">
           Executive summary
         </h2>
         <ExecutiveSummary range={range} />
       </section>
 
       <section className="min-w-0">
-        <h2 className="mb-4 text-sm font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-          Insights &amp; analytics
-        </h2>
-        <DashboardInsightDetails range={range} />
-      </section>
-
-      <section className="min-w-0">
-        <h2 className="mb-4 text-sm font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+        <h2 className="mb-4 text-xl font-semibold tracking-tight text-gray-900 dark:text-white sm:text-2xl">
           Performance
         </h2>
         <div className="grid min-w-0 grid-cols-12 gap-4 md:gap-6">
@@ -41,6 +34,13 @@ export function DashboardInsightsAnalytics() {
             <StatisticsChart insightRange={range} />
           </div>
         </div>
+      </section>
+
+      <section className="min-w-0">
+        <h2 className="mb-4 text-xl font-semibold tracking-tight text-gray-900 dark:text-white sm:text-2xl">
+          Insights &amp; analytics
+        </h2>
+        <DashboardInsightDetails range={range} />
       </section>
     </div>
   );

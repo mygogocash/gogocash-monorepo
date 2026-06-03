@@ -6,6 +6,9 @@ import {
   ApiError,
   AdminUsersQuery,
   AdminUsersResponse,
+  DataAdminUsers,
+  RoleDef,
+  RolesResponse,
   RegularUser,
   UsersQuery,
   UsersResponse,
@@ -25,6 +28,7 @@ import {
   ResponseFee,
   FeeSettingsForm,
 } from "@/types/api";
+import type { Permission } from "@/lib/rbac";
 import { isStaticHostingClient } from "@/lib/isStaticHostingClient";
 import { AxiosRequestConfig } from "axios";
 
@@ -37,7 +41,9 @@ class ApiClient {
     if (typeof window !== "undefined") {
       return `${window.location.origin}/api/mock`;
     }
-    const appOrigin = (process.env.NEXTAUTH_URL || "http://localhost:3000").replace(/\/$/, "");
+    const appOrigin = (
+      process.env.NEXTAUTH_URL || "http://localhost:3000"
+    ).replace(/\/$/, "");
     return `${appOrigin}/api/mock`;
   }
 
@@ -47,12 +53,12 @@ class ApiClient {
 
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
   ): Promise<T> {
-    const axios = await import('axios');
+    const axios = await import("axios");
     const baseURL = this.getBaseURL();
     const url = `${baseURL}${endpoint}`;
-    
+
     const method = (options.method || "GET").toUpperCase();
     let parsedBody: unknown = undefined;
     if (options.body) {
@@ -74,7 +80,11 @@ class ApiClient {
       data: parsedBody,
     };
 
-    if (!this.isRealApi && typeof window !== "undefined" && isStaticHostingClient()) {
+    if (
+      !this.isRealApi &&
+      typeof window !== "undefined" &&
+      isStaticHostingClient()
+    ) {
       const { handleMockApiRequest } = await import("@/lib/mockApiCore");
       const u = new URL(url);
       const prefix = "/api/mock";
@@ -321,18 +331,15 @@ class ApiClient {
   }
 
   async createAdminUser(
-    userData: Omit<
-      AdminUsersResponse,
-      "_id" | "createdAt" | "updatedAt" | "__v"
-    >,
+    userData: Omit<DataAdminUsers, "_id" | "createdAt" | "updatedAt" | "__v">,
     token?: string,
-  ): Promise<AdminUsersResponse> {
+  ): Promise<DataAdminUsers> {
     const headers: Record<string, string> = {};
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
 
-    return this.request<AdminUsersResponse>("/admin", {
+    return this.request<DataAdminUsers>("/admin", {
       method: "POST",
       headers,
       body: JSON.stringify(userData),
@@ -342,16 +349,16 @@ class ApiClient {
   async updateAdminUser(
     userId: string,
     userData: Partial<
-      Omit<AdminUsersResponse, "_id" | "createdAt" | "updatedAt" | "__v">
+      Omit<DataAdminUsers, "_id" | "createdAt" | "updatedAt" | "__v">
     >,
     token?: string,
-  ): Promise<AdminUsersResponse> {
+  ): Promise<DataAdminUsers> {
     const headers: Record<string, string> = {};
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
 
-    return this.request<AdminUsersResponse>(`/admin/${userId}`, {
+    return this.request<DataAdminUsers>(`/admin/${userId}`, {
       method: "PUT",
       headers,
       body: JSON.stringify(userData),
@@ -375,6 +382,7 @@ class ApiClient {
 
   async inviteAdminUser(
     email: string,
+    role?: string,
     token?: string,
   ): Promise<{ message: string }> {
     const headers: Record<string, string> = {};
@@ -385,7 +393,53 @@ class ApiClient {
     return this.request<{ message: string }>("/admin/invite", {
       method: "POST",
       headers,
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email, role }),
+    });
+  }
+
+  // Role Management (from /admin/roles endpoint)
+  async getRoles(token?: string): Promise<RolesResponse> {
+    const headers: Record<string, string> = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
+    return this.request<RolesResponse>("/admin/roles", {
+      method: "GET",
+      headers,
+    });
+  }
+
+  async createRole(
+    input: { label: string; description?: string; permissions: Permission[] },
+    token?: string,
+  ): Promise<RoleDef> {
+    const headers: Record<string, string> = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
+    return this.request<RoleDef>("/admin/roles", {
+      method: "POST",
+      headers,
+      body: JSON.stringify(input),
+    });
+  }
+
+  async updateRole(
+    id: string,
+    input: { label?: string; description?: string; permissions?: Permission[] },
+    token?: string,
+  ): Promise<RoleDef> {
+    const headers: Record<string, string> = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
+    return this.request<RoleDef>(`/admin/roles/${id}`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify(input),
+    });
+  }
+
+  async deleteRole(id: string, token?: string): Promise<{ message: string }> {
+    const headers: Record<string, string> = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
+    return this.request<{ message: string }>(`/admin/roles/${id}`, {
+      method: "DELETE",
+      headers,
     });
   }
 
@@ -532,7 +586,9 @@ class ApiClient {
     if (query.country) params.append("country", query.country);
 
     const queryString = params.toString();
-    const endpoint = queryString ? `/offer/admin?${queryString}` : "/offer/admin";
+    const endpoint = queryString
+      ? `/offer/admin?${queryString}`
+      : "/offer/admin";
 
     return this.request<OffersResponse>(endpoint, {
       method: "GET",
@@ -630,8 +686,11 @@ class ApiClient {
     token: string,
   ): Promise<ResponseConversion> {
     const params = new URLSearchParams();
+    if (query.search) params.append("search", query.search);
     if (query.limit) params.append("limit", query.limit.toString());
     if (query.page) params.append("page", query.page.toString());
+    if (query.status) params.append("status", query.status);
+    if (query.key) params.append("key", query.key);
     const queryString = params.toString();
     const endpoint = queryString
       ? `/admin/created-conversions?${queryString}`
@@ -705,7 +764,10 @@ class ApiClient {
    * Use `FormData`: text fields (brand_name, affiliate_network_id, …) plus optional files
    * `logo_desktop`, `logo_mobile`, `logo_circle`, `banner`, `banner_mobile` (same keys as offer edit).
    */
-  async createBrandFromAffiliate(formData: FormData, token?: string): Promise<Offer> {
+  async createBrandFromAffiliate(
+    formData: FormData,
+    token?: string,
+  ): Promise<Offer> {
     const baseURL = this.getBaseURL();
     const endpoint = "/offer";
     const headers: Record<string, string> = { Accept: "application/json" };
@@ -721,7 +783,8 @@ class ApiClient {
         if (value instanceof File) {
           if (value.size === 0) continue;
           fileSeq += 1;
-          bodyObj[key] = `uploads/offer/create/${key}/${Date.now()}-${fileSeq}-${safeName(value.name)}`;
+          bodyObj[key] =
+            `uploads/offer/create/${key}/${Date.now()}-${fileSeq}-${safeName(value.name)}`;
         } else {
           bodyObj[key] = String(value);
         }
@@ -751,10 +814,31 @@ class ApiClient {
     }
 
     const axios = await import("axios");
-    const response = await axios.default.post<Offer>(`${baseURL}${endpoint}`, formData, {
-      headers,
-    });
-    return response.data;
+    try {
+      const response = await axios.default.post<Offer>(
+        `${baseURL}${endpoint}`,
+        formData,
+        {
+          headers,
+        },
+      );
+      return response.data;
+    } catch (err) {
+      // Normalize to the same ApiError shape the rest of the client throws,
+      // instead of leaking a raw AxiosError on this one endpoint.
+      if (axios.isAxiosError(err)) {
+        const data = err.response?.data as
+          | { message?: string; errors?: unknown }
+          | undefined;
+        const apiError: ApiError = {
+          message: data?.message || err.message || "Request failed",
+          status: err.response?.status ?? 0,
+          errors: data?.errors as ApiError["errors"],
+        };
+        throw apiError;
+      }
+      throw err;
+    }
   }
 
   async updateOffer(

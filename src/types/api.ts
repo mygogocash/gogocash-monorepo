@@ -1,3 +1,5 @@
+import type { Permission } from "@/lib/rbac/permissions";
+
 // API Types
 export interface LoginRequest {
   email: string;
@@ -61,10 +63,25 @@ export interface DataAdminUsers {
   username: string;
   password: string;
   email: string;
+  /** Role id — a built-in tier (`super_admin`…) or a custom role id. */
+  role?: string;
   status?: "active" | "pending";
   createdAt: Date;
   updatedAt: Date;
   __v: number;
+}
+
+/** A role definition (built-in tier or custom) with its granted permissions. */
+export interface RoleDef {
+  id: string;
+  label: string;
+  description?: string;
+  system: boolean;
+  permissions: Permission[];
+}
+
+export interface RolesResponse {
+  data: RoleDef[];
 }
 
 export interface Pagination {
@@ -163,6 +180,12 @@ export type DashboardStatisticsByTab = Record<
 >;
 
 export type DashboardInsightRange = "7d" | "30d" | "90d" | "all";
+
+/**
+ * A selectable insight range: either a preset, or a custom window encoded as the
+ * token `custom:<YYYY-MM-DD>:<YYYY-MM-DD>` (see `@/lib/insightRange`).
+ */
+export type DashboardInsightRangeValue = DashboardInsightRange | string;
 
 export interface DashboardKpiSnapshot {
   gogocashUsers: number;

@@ -55,14 +55,20 @@ export default function UsersTable() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Guards: ignore out-of-order responses; debounce free-text search.
+  const reqIdRef = useRef(0);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Fetch users
   const fetchUsersWithQuery = async (queryToUse: UsersQuery) => {
+    const reqId = ++reqIdRef.current;
     try {
       const response = await getUsers(queryToUse);
+      if (reqId !== reqIdRef.current) return; // a newer request superseded this
       setUsers(response.data);
       setPagination(response.pagination);
     } catch (err) {
-      devError("Failed to fetch users:", err);
+      if (reqId === reqIdRef.current) devError("Failed to fetch users:", err);
     }
   };
 
@@ -84,12 +90,19 @@ export default function UsersTable() {
     return () => document.removeEventListener("click", handleClick, true);
   }, [openActionsId]);
 
-  // Handle search
+  // Handle search (debounced; latest response wins via reqIdRef)
   const handleSearch = (searchValue: string) => {
     const newQuery = { ...query, search: searchValue, page: 1 };
     setQuery(newQuery);
-    fetchUsers(newQuery);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => fetchUsers(newQuery), 300);
   };
+
+  useEffect(() => {
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    };
+  }, []);
 
   // Handle pagination
   const handlePageChange = (newPage: number) => {

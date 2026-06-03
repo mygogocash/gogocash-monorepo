@@ -8,8 +8,11 @@ import {
   DASHBOARD_INSIGHTS_QUERY_KEY,
   fetchDashboardInsights,
 } from "@/lib/query/dashboardQueries";
-import type { DashboardInsightRange, DashboardInsightsResponse } from "@/types/api";
-import { insightRangeLabel } from "@/components/ecommerce/DashboardInsightRangeControl";
+import type { DashboardInsightRangeValue, DashboardInsightsResponse } from "@/types/api";
+import {
+  insightRangeLabel,
+  insightRangeShortLabel,
+} from "@/components/ecommerce/DashboardInsightRangeControl";
 
 function formatPayoutAmount(value: number): string {
   return value.toLocaleString(undefined, {
@@ -44,7 +47,7 @@ function DeltaText({
 }
 
 type ExecutiveSummaryProps = {
-  range?: DashboardInsightRange;
+  range?: DashboardInsightRangeValue;
 };
 
 export function ExecutiveSummary({ range = "30d" }: ExecutiveSummaryProps = {}) {
@@ -60,10 +63,10 @@ export function ExecutiveSummary({ range = "30d" }: ExecutiveSummaryProps = {}) 
         {[1, 2, 3, 4, 5, 6, 7].map((i) => (
           <div
             key={i}
-            className="min-w-0 animate-pulse rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6"
+            className="min-w-0 animate-pulse rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]"
           >
             <div className="h-12 w-12 rounded-xl bg-gray-100 dark:bg-gray-800" />
-            <div className="mt-5 h-4 w-24 rounded bg-gray-200 dark:bg-gray-700" />
+            <div className="mt-3 h-4 w-24 rounded bg-gray-200 dark:bg-gray-700" />
             <div className="mt-2 h-8 w-20 rounded bg-gray-200 dark:bg-gray-700" />
           </div>
         ))}
@@ -109,7 +112,15 @@ export function ExecutiveSummary({ range = "30d" }: ExecutiveSummaryProps = {}) 
       href: "/users/mycashback",
     },
     {
-      label: `Conversions (${range})`,
+      label: "Quests live",
+      sublabel: `${insights.quests.overlappingSelectedRange} in window · ${insights.quests.engagement.pointsIssuedInOverlapping.toLocaleString()} pts (mock)`,
+      value: String(insights.quests.liveNow),
+      icon: <TrophyIcon className="size-6 text-amber-600 dark:text-amber-400" />,
+      bgIcon: "bg-amber-50 dark:bg-amber-500/10",
+      href: "/quest",
+    },
+    {
+      label: `Conversions (${insightRangeShortLabel(range)})`,
       value: k.conversionCount.toLocaleString(),
       icon: <BoxIconLine className="size-6 text-gray-800 dark:text-white/90" />,
       bgIcon: "bg-gray-100 dark:bg-gray-800",
@@ -117,7 +128,7 @@ export function ExecutiveSummary({ range = "30d" }: ExecutiveSummaryProps = {}) 
       delta: { current: k.conversionCount, prior: p?.conversionCount },
     },
     {
-      label: `GMV (${range})`,
+      label: `GMV (${insightRangeShortLabel(range)})`,
       value: formatPayoutAmount(k.conversionTotalSaleAmount),
       icon: <DollarLineIcon className="size-6 text-gray-800 dark:text-white/90" />,
       bgIcon: "bg-gray-100 dark:bg-gray-800",
@@ -125,7 +136,7 @@ export function ExecutiveSummary({ range = "30d" }: ExecutiveSummaryProps = {}) 
       delta: { current: k.conversionTotalSaleAmount, prior: p?.conversionTotalSaleAmount },
     },
     {
-      label: `Cashback / payout (${range})`,
+      label: `Cashback / payout (${insightRangeShortLabel(range)})`,
       value: formatPayoutAmount(k.conversionTotalPayout),
       icon: <DollarLineIcon className="size-6 text-success-600 dark:text-success-400" />,
       bgIcon: "bg-success-50 dark:bg-success-500/10",
@@ -139,14 +150,6 @@ export function ExecutiveSummary({ range = "30d" }: ExecutiveSummaryProps = {}) 
       icon: <DollarLineIcon className="size-6 text-warning-600 dark:text-warning-400" />,
       bgIcon: "bg-warning-50 dark:bg-warning-500/10",
       href: "/withdraw?status=pending",
-    },
-    {
-      label: "Quests live",
-      sublabel: `${insights.quests.overlappingSelectedRange} in window · ${insights.quests.engagement.pointsIssuedInOverlapping.toLocaleString()} pts (mock)`,
-      value: String(insights.quests.liveNow),
-      icon: <TrophyIcon className="size-6 text-amber-600 dark:text-amber-400" />,
-      bgIcon: "bg-amber-50 dark:bg-amber-500/10",
-      href: "/quest",
     },
   ];
 
@@ -183,7 +186,7 @@ export function ExecutiveSummary({ range = "30d" }: ExecutiveSummaryProps = {}) 
               >
                 {card.icon}
               </div>
-              <div className="mt-5 min-w-0">
+              <div className="mt-3 min-w-0">
                 <span className="text-sm text-gray-500 dark:text-gray-400">{card.label}</span>
                 <p className="mt-2 break-words font-bold text-gray-800 text-title-sm dark:text-white/90">
                   {card.value}
@@ -202,7 +205,7 @@ export function ExecutiveSummary({ range = "30d" }: ExecutiveSummaryProps = {}) 
             </>
           );
           const className =
-            "group min-w-0 rounded-2xl border border-gray-200 bg-white p-5 transition-all duration-200 ease-out hover:border-brand-200 hover:bg-gray-50 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:border-gray-800 dark:bg-white/[0.03] dark:hover:border-brand-800 dark:hover:bg-white/[0.06] dark:focus-visible:ring-offset-gray-900 md:p-6";
+            "group min-w-0 rounded-2xl border border-gray-200 bg-white p-4 transition-all duration-200 ease-out hover:border-brand-200 hover:bg-gray-50 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:border-gray-800 dark:bg-white/[0.03] dark:hover:border-brand-800 dark:hover:bg-white/[0.06] dark:focus-visible:ring-offset-gray-900";
           const ariaLabel = [card.label, card.value, card.sublabel].filter(Boolean).join(". ");
           if (card.href) {
             return (
