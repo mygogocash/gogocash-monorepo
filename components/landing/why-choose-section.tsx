@@ -7,6 +7,7 @@ const WHY_CARDS = [
     title: "Cashback you can feel in your wallet",
     body:
       "Balance goes up after the brand confirms — spend it or grow it with Saving Plus.",
+    link: { label: "What is Saving Plus?", href: "/learn/saving-plus-explained" },
   },
   {
     title: "Brands you already trust",
