@@ -81,6 +81,7 @@ export function LocaleHomeHeroSection({
 
         <div className="mt-10 flex w-full max-w-md flex-col gap-3 sm:max-w-none sm:flex-row sm:justify-center sm:gap-4">
           <LaunchAppLink
+            surface="hero"
             className={`group min-h-12 w-full items-center justify-center gap-2 px-8 py-3.5 text-base sm:w-auto sm:min-w-[200px] ${uiCtaPrimarySurfaceRoundedXl} ${twCtaPrimaryMotion}`}
           >
             {copy.hero.ctaLaunch}

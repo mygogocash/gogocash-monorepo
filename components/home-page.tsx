@@ -24,6 +24,7 @@ import {
 } from "@/components/landing/common-sections";
 import { WEB_APP_HREF } from "@/components/social-data";
 import FaqJsonLd from "@/components/faq-json-ld";
+import SectionViewTracker from "@/components/section-view-tracker";
 import { HOW_IT_WORKS_ILLUSTRATION_PATHS } from "@/lib/how-it-works-illustrations";
 
 const HOW_IT_WORKS_STEPS: HowItWorksStep[] = [
@@ -75,6 +76,7 @@ export default function HomePage({ initialPartners }: HomePageProps) {
   return (
     <>
       <Header />
+      <SectionViewTracker />
       <main role="main">
         <EnglishHomeHeroSection />
 

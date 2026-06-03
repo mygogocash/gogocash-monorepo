@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ChevronDown } from "@/components/icons";
+import { logFaqOpen } from "@/lib/analytics-client";
 import {
   twDurSection,
   twEaseStandard,
@@ -33,7 +34,10 @@ export default function FAQAccordion({ items }: FAQAccordionProps) {
           >
             <button
               type="button"
-              onClick={() => setOpenIndex(isOpen ? null : index)}
+              onClick={() => {
+                if (!isOpen) logFaqOpen(item.question);
+                setOpenIndex(isOpen ? null : index);
+              }}
               className={`flex min-h-11 w-full items-center justify-between gap-4 px-6 py-5 text-left ${twTransitionButton} ${twPressSm} rounded-2xl ${twFocusRingPrimary}`}
               aria-expanded={isOpen}
             >
