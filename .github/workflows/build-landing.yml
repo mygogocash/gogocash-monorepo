@@ -46,6 +46,8 @@ jobs:
           # Optional: Involve Asia (server-side at build time for partner data)
           INVOLVE_ASIA_API_KEY: ${{ secrets.INVOLVE_ASIA_API_KEY }}
           INVOLVE_ASIA_API_SECRET: ${{ secrets.INVOLVE_ASIA_API_SECRET }}
+          # PostHog publishable project key — loads only after cookie consent.
+          NEXT_PUBLIC_POSTHOG_KEY: ${{ vars.NEXT_PUBLIC_POSTHOG_KEY }}
 
       # WebKit needs GTK/GStreamer/etc. on Ubuntu; without --with-deps, launch fails with missing .so (CI).
       - name: Install Playwright (browsers + system dependencies)
