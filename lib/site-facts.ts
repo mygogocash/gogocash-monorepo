@@ -19,7 +19,7 @@ export const SITE_FACTS = {
 
 /** One-line hero supporting sentence: keywords without stuffing. */
 export function heroSeoSupportingLine(): string {
-  return `Earn ${SITE_FACTS.maxCashbackPhrase} cashback at ${SITE_FACTS.partnerCountLabel} brands — ${SITE_FACTS.keyMerchantsShort}, and more across ${SITE_FACTS.regionLabel}.`;
+  return `Earn ${SITE_FACTS.maxCashbackPhrase} cashback at ${SITE_FACTS.partnerCountLabel} partners — ${SITE_FACTS.keyMerchantsShort}, and more across ${SITE_FACTS.regionLabel}.`;
 }
 
 /** Hero body: earn framing + optional quests line (English home). */
