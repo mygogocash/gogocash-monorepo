@@ -33,7 +33,7 @@ export const FAQ_ITEMS: FaqEntry[] = [
   {
     question: "Which brands are available?",
     answer:
-      "GoGoCash partners with 70+ brands across Southeast Asia, including Lazada, Shopee, Agoda, Samsung, and Trip.com. New merchants join over time — check the app or homepage partner list for the latest lineup.",
+      "GoGoCash works with 70+ cashback partners across Southeast Asia, including Lazada, Shopee, Agoda, Samsung, and Trip.com — and the in-app brand directory keeps growing. New merchants join over time; check the app or homepage partner list for the latest lineup.",
   },
   {
     question: "Which brands offer the highest cashback on GoGoCash?",

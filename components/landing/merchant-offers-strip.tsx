@@ -71,7 +71,7 @@ function PartnerLogo({
   );
 }
 
-const DEFAULT_DESCRIPTION = `Browse and search ${SITE_FACTS.partnerCountLabel} cashback brands across ${SITE_FACTS.regionLabel}. Open each brand from ${SITE_FACTS.brandName} before you checkout so your visit can be tracked and cashback confirmed after the merchant validates your order.`;
+const DEFAULT_DESCRIPTION = `Browse and search cashback brands across ${SITE_FACTS.regionLabel}. Open each brand from ${SITE_FACTS.brandName} before you checkout so your visit can be tracked and cashback confirmed after the merchant validates your order.`;
 
 const DEFAULT_SEARCH_LABEL = "Search brands";
 const DEFAULT_SEARCH_PLACEHOLDER = "Search by brand name or category";
