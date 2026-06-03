@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import { useId, useState } from "react";
 import { ArrowUpRight, CheckCircle2 } from "@/components/icons";
+import { logHowItWorksTab } from "@/lib/analytics-client";
 import { usePrefersReducedMotionAfterMount } from "@/hooks/use-prefers-reduced-motion";
 import { uiCtaPrimarySurface } from "@/lib/ui-classes";
 import {
@@ -64,7 +65,10 @@ export default function HowItWorksInteractive({
               aria-selected={selected}
               aria-controls={panelId}
               tabIndex={selected ? 0 : -1}
-              onClick={() => setActive(i)}
+              onClick={() => {
+                setActive(i);
+                logHowItWorksTab(i, step.summary);
+              }}
               className={`inline-flex min-h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-full border px-3 py-2 text-xs font-medium shadow-sm sm:px-5 sm:text-sm ${twTransitionButton} ${twPressSm} ${twFocusRingPrimary} md:text-base ${
                 selected
                   ? "border-primary bg-surface-green text-primary"

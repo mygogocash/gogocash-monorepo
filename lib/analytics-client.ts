@@ -105,3 +105,20 @@ export function logBrandsLoadMore(
     total: totalBrands,
   });
 }
+
+// --- Engagement events (PostHog-focused; drive scroll-depth + content interest) ---
+
+/** A FAQ question was expanded. */
+export function logFaqOpen(question: string): void {
+  posthogCapture("faq_opened", { question });
+}
+
+/** A "How it works" tab was selected. */
+export function logHowItWorksTab(step: number, label: string): void {
+  posthogCapture("how_it_works_tab", { step, label });
+}
+
+/** A page section first scrolled into view (once per section). */
+export function logSectionView(section: string): void {
+  posthogCapture("section_viewed", { section });
+}
