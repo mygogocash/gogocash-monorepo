@@ -90,6 +90,38 @@ export function shouldLoadLineTag(): boolean {
   return isMarketingAnalyticsEnabled();
 }
 
+const DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com";
+
+/**
+ * PostHog project key (publishable). No default — PostHog stays off until set.
+ * Read via STATIC `process.env.NEXT_PUBLIC_*` so Next inlines it into the client
+ * bundle (computed `process.env[name]` is not inlined and would be undefined in
+ * the browser; that is why Firebase/LINE rely on hardcoded defaults instead).
+ */
+export function publicPostHogKey(): string | null {
+  const value = process.env.NEXT_PUBLIC_POSTHOG_KEY?.trim();
+  return value ? value : null;
+}
+
+/** PostHog ingestion host; defaults to US cloud. */
+export function publicPostHogHost(): string {
+  const value = process.env.NEXT_PUBLIC_POSTHOG_HOST?.trim();
+  return value ? value : DEFAULT_POSTHOG_HOST;
+}
+
+/**
+ * Load PostHog when a key is configured and either marketing analytics is on or
+ * `NEXT_PUBLIC_POSTHOG_ENABLED=true`. Force off with `false`. Runtime capture is
+ * additionally gated on cookie consent (see `lib/posthog-client.ts`).
+ */
+export function shouldLoadPostHog(): boolean {
+  if (!publicPostHogKey()) return false;
+  const override = process.env.NEXT_PUBLIC_POSTHOG_ENABLED?.trim();
+  if (override === "false") return false;
+  if (override === "true") return true;
+  return isMarketingAnalyticsEnabled();
+}
+
 export function publicFirebaseMeasurementId(): string {
   return (
     readTrimmedEnv("NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID") ??

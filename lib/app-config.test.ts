@@ -8,6 +8,8 @@ import {
   publicFirebaseConfig,
   publicFirebaseMeasurementId,
   publicLineTagId,
+  publicPostHogHost,
+  shouldLoadPostHog,
   strapiBaseUrl,
 } from "./app-config";
 
@@ -80,5 +82,33 @@ describe("app-config", () => {
 
     process.env.INVOLVE_ASIA_MAX_OFFER_PAGES = "0";
     assert.equal(involveAsiaConfig().maxOfferPages, 5);
+  });
+
+  it("loads PostHog only when a key is set, honoring overrides", () => {
+    delete process.env.NEXT_PUBLIC_POSTHOG_KEY;
+    assert.equal(shouldLoadPostHog(), false);
+
+    process.env.NEXT_PUBLIC_POSTHOG_KEY = "phc_test";
+    process.env.NEXT_PUBLIC_POSTHOG_ENABLED = "true";
+    process.env = { ...process.env, NODE_ENV: "development" };
+    assert.equal(shouldLoadPostHog(), true);
+
+    process.env.NEXT_PUBLIC_POSTHOG_ENABLED = "false";
+    assert.equal(shouldLoadPostHog(), false);
+
+    delete process.env.NEXT_PUBLIC_POSTHOG_ENABLED;
+    process.env = { ...process.env, NODE_ENV: "production" };
+    assert.equal(shouldLoadPostHog(), true);
+
+    process.env = { ...process.env, NODE_ENV: "development" };
+    assert.equal(shouldLoadPostHog(), false);
+  });
+
+  it("defaults the PostHog host to US and allows override", () => {
+    delete process.env.NEXT_PUBLIC_POSTHOG_HOST;
+    assert.equal(publicPostHogHost(), "https://us.i.posthog.com");
+
+    process.env.NEXT_PUBLIC_POSTHOG_HOST = "https://eu.i.posthog.com";
+    assert.equal(publicPostHogHost(), "https://eu.i.posthog.com");
   });
 });
