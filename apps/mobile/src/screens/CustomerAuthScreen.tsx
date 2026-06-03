@@ -83,6 +83,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   const [otpError, setOtpError] = useState(false);
   const [otpInput, setOtpInput] = useState("");
   const [phoneLocal, setPhoneLocal] = useState("");
+  const [phoneFocused, setPhoneFocused] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState<AuthCountry>(webAuthPage.countries[0]);
   const [countryMenuOpen, setCountryMenuOpen] = useState(false);
@@ -384,12 +385,14 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                           accessibilityLabel={tc(webAuthPage.phonePlaceholder)}
                           autoComplete="tel"
                           keyboardType="phone-pad"
+                          onBlur={() => setPhoneFocused(false)}
                           onChangeText={handlePhoneChange}
+                          onFocus={() => setPhoneFocused(true)}
                           onSubmitEditing={handlePhoneSubmit}
                           placeholder={tc(webAuthPage.phonePlaceholder)}
                           placeholderTextColor="#B9B9B9"
                           returnKeyType="done"
-                          style={styles.phoneInput}
+                          style={[styles.phoneInput, phoneFocused ? styles.phoneInputFocused : null]}
                           value={phoneLocal}
                         />
                       </View>
@@ -803,7 +806,6 @@ const styles = StyleSheet.create({
   },
   pageDesktop: {
     alignItems: "center",
-    paddingBottom: 80,
     paddingHorizontal: 56,
   },
   pageMobile: {
@@ -827,7 +829,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   desktopFooter: {
-    marginTop: 64,
+    // Push the footer to the bottom of the (flex-grow) scroll content so there's no grey shell gap
+    // below it when the auth content is shorter than the viewport — absorbs free space above instead.
+    marginTop: "auto",
     width: "100%",
   },
   heroFrame: {
@@ -1074,7 +1078,14 @@ const styles = StyleSheet.create({
     height: 48,
     lineHeight: 23,
     minWidth: 0,
+    // Web: kill the browser's default focus ring (the OS-accent-tinted UA outline that renders orange);
+    // focus is conveyed by the brand-green border below instead.
+    outlineColor: "transparent",
+    outlineWidth: 0,
     paddingHorizontal: 16,
+  },
+  phoneInputFocused: {
+    borderColor: "#00CC99",
   },
   privacyWrap: {
     alignItems: "center",
