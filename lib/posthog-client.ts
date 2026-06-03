@@ -2,6 +2,7 @@ import { type PostHog } from "posthog-js";
 import {
   publicPostHogHost,
   publicPostHogKey,
+  publicPostHogUiHost,
   shouldLoadPostHog,
 } from "@/lib/app-config";
 import { isAnalyticsAllowed } from "@/lib/cookie-consent";
@@ -27,6 +28,7 @@ async function initPostHog(): Promise<void> {
     const { default: posthog } = await import("posthog-js");
     posthog.init(key, {
       api_host: publicPostHogHost(),
+      ui_host: publicPostHogUiHost(), // correct toolbar/links when proxied
       capture_pageview: false, // SPA pageviews fired manually (App Router)
       capture_pageleave: true,
       autocapture: true,

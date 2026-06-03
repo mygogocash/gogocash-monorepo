@@ -103,10 +103,20 @@ export function publicPostHogKey(): string | null {
   return value ? value : null;
 }
 
-/** PostHog ingestion host; defaults to US cloud. */
+/**
+ * PostHog ingestion host; defaults to US cloud. Point this at a same-origin
+ * reverse proxy (e.g. `https://gogocash.co/ingest`) to dodge ad-blockers —
+ * see docs/posthog-reverse-proxy.md.
+ */
 export function publicPostHogHost(): string {
   const value = process.env.NEXT_PUBLIC_POSTHOG_HOST?.trim();
   return value ? value : DEFAULT_POSTHOG_HOST;
+}
+
+/** PostHog UI/app host (toolbar, links). Stays the real cloud host when proxying. */
+export function publicPostHogUiHost(): string {
+  const value = process.env.NEXT_PUBLIC_POSTHOG_UI_HOST?.trim();
+  return value ? value : "https://us.posthog.com";
 }
 
 /**
