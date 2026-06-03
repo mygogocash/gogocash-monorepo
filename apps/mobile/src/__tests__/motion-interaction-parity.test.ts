@@ -89,7 +89,7 @@ describe("Expo motion interaction parity", () => {
     expect(homeFile).toContain("activeTopBrandDot");
     expect(homeFile).toContain("activePromoPage");
     expect(homeFile).toContain("activePromoDot");
-    expect(homeFile).toContain("onScroll={(event) =>");
+    expect(homeFile).toContain("onScroll={Animated.event(");
     expect(homeFile).toContain("onMomentumScrollEnd");
     expect(homeFile).toContain("activeIndex={activeTopBrandDot}");
     expect(homeFile).toContain("activeIndex={activePromoDot}");

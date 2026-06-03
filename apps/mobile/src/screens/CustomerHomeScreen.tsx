@@ -71,6 +71,8 @@ import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter"
 import { CustomerCookieConsentBanner } from "@mobile/components/CustomerCookieConsentBanner";
 import { IntroAfterLoginModal } from "@mobile/components/IntroAfterLoginModal";
 import { CustomerLineOfficialFab } from "@mobile/components/CustomerLineOfficialFab";
+import { CarouselDots, getCarouselPageMotionStyle } from "@mobile/components/CarouselDots";
+import { useReducedMotion } from "@mobile/hooks/useReducedMotion";
 import {
   getCarouselActiveIndex,
   getCarouselDotCount,
@@ -944,6 +946,7 @@ function HomeHeroBanners({ homeLayout }: { homeLayout: HomeLayoutMetrics }) {
   const [activeHeroBannerPage, setActiveHeroBannerPage] = useState(0);
   const [heroBannerWidth, setHeroBannerWidth] = useState(homeLayout.contentWidth);
   const heroMaxPageIndex = Math.max(0, mainBanners.length - 1);
+  const heroScrollX = useMemo(() => new Animated.Value(0), []);
 
   return (
     <View style={[styles.heroStack, homeLayout.isDesktop ? styles.heroStackDesktop : null]}>
@@ -955,7 +958,7 @@ function HomeHeroBanners({ homeLayout }: { homeLayout: HomeLayoutMetrics }) {
           homeLayout.isDesktop ? styles.mainHeroFrameDesktop : null,
         ]}
       >
-        <ScrollView
+        <Animated.ScrollView
           contentContainerStyle={styles.heroScrollContent}
           decelerationRate="fast"
           disableIntervalMomentum
@@ -963,9 +966,10 @@ function HomeHeroBanners({ homeLayout }: { homeLayout: HomeLayoutMetrics }) {
           onMomentumScrollEnd={(event) =>
             setActiveHeroBannerPage(getPagedScrollIndex(event, heroBannerWidth, heroMaxPageIndex))
           }
-          onScroll={(event) =>
-            setActiveHeroBannerPage(getPagedScrollIndex(event, heroBannerWidth, heroMaxPageIndex))
-          }
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { x: heroScrollX } } }],
+            { useNativeDriver: false }
+          )}
           pagingEnabled
           scrollEventThrottle={16}
           showsHorizontalScrollIndicator={false}
@@ -988,9 +992,17 @@ function HomeHeroBanners({ homeLayout }: { homeLayout: HomeLayoutMetrics }) {
               />
             </HeroBannerLink>
           ))}
-        </ScrollView>
+        </Animated.ScrollView>
         <HeroArrow size="large" />
-        <HeroBannerDots activeIndex={activeHeroBannerPage} count={mainBanners.length} />
+        <CarouselDots
+          activeIndex={activeHeroBannerPage}
+          color={colors.white}
+          containerStyle={styles.heroDots}
+          count={mainBanners.length}
+          pageWidth={heroBannerWidth}
+          scrollX={heroScrollX}
+          size={8}
+        />
       </View>
 
       <View style={[styles.sideHeroRow, homeLayout.isDesktop ? styles.sideHeroRowDesktop : null]}>
@@ -1015,19 +1027,6 @@ function HomeHeroBanners({ homeLayout }: { homeLayout: HomeLayoutMetrics }) {
           </HeroBannerLink>
         ))}
       </View>
-    </View>
-  );
-}
-
-function HeroBannerDots({ activeIndex, count }: { activeIndex: number; count: number }) {
-  return (
-    <View style={styles.heroDots}>
-      {Array.from({ length: count }, (_, index) => (
-        <View
-          key={`hero-dot-${index}`}
-          style={[styles.heroDot, index === activeIndex ? styles.heroDotActive : null]}
-        />
-      ))}
     </View>
   );
 }
@@ -1087,6 +1086,8 @@ function TopBrandSection({ homeLayout }: { homeLayout: HomeLayoutMetrics }) {
   );
   const topBrandMaxPageIndex = Math.max(0, topBrandPages.length - 1);
   const activeTopBrandDot = Math.min(activeTopBrandPage, topBrandDotCount - 1);
+  const topBrandScrollX = useMemo(() => new Animated.Value(0), []);
+  const reducedMotion = useReducedMotion();
 
   return (
     <View style={styles.section}>
@@ -1105,16 +1106,15 @@ function TopBrandSection({ homeLayout }: { homeLayout: HomeLayoutMetrics }) {
       </View>
 
       <View style={styles.topBrandPager}>
-        <ScrollView
+        <Animated.ScrollView
           contentContainerStyle={styles.topBrandPagerContent}
           decelerationRate="fast"
           disableIntervalMomentum
           horizontal
-          onScroll={(event) =>
-            setActiveTopBrandPage(
-              getPagedScrollIndex(event, homeLayout.contentWidth, topBrandMaxPageIndex)
-            )
-          }
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { x: topBrandScrollX } } }],
+            { useNativeDriver: false }
+          )}
           onMomentumScrollEnd={(event) =>
             setActiveTopBrandPage(
               getPagedScrollIndex(event, homeLayout.contentWidth, topBrandMaxPageIndex)
@@ -1128,7 +1128,7 @@ function TopBrandSection({ homeLayout }: { homeLayout: HomeLayoutMetrics }) {
           style={styles.topBrandScroll}
         >
           {topBrandPages.map((pageCards, pageIndex) => (
-            <View
+            <Animated.View
               key={`top-brand-page-${pageIndex}`}
               style={[
                 styles.topBrandPage,
@@ -1137,6 +1137,12 @@ function TopBrandSection({ homeLayout }: { homeLayout: HomeLayoutMetrics }) {
                   gap: homeLayout.topBrandGap,
                   width: homeLayout.contentWidth,
                 },
+                getCarouselPageMotionStyle(
+                  topBrandScrollX,
+                  pageIndex,
+                  homeLayout.contentWidth,
+                  reducedMotion
+                ),
               ]}
             >
               {pageCards.map((card) => (
@@ -1147,24 +1153,19 @@ function TopBrandSection({ homeLayout }: { homeLayout: HomeLayoutMetrics }) {
                   {...card}
                 />
               ))}
-            </View>
+            </Animated.View>
           ))}
-        </ScrollView>
-        <TopBrandDots activeIndex={activeTopBrandDot} count={topBrandDotCount} />
-      </View>
-    </View>
-  );
-}
-
-function TopBrandDots({ activeIndex, count }: { activeIndex: number; count: number }) {
-  return (
-    <View style={styles.topBrandDots}>
-      {Array.from({ length: count }, (_, index) => (
-        <View
-          key={`top-brand-dot-${index}`}
-          style={[styles.topBrandDot, index === activeIndex ? styles.topBrandDotActive : null]}
+        </Animated.ScrollView>
+        <CarouselDots
+          activeIndex={activeTopBrandDot}
+          color={colors.primary}
+          containerStyle={styles.topBrandDots}
+          count={topBrandDotCount}
+          pageWidth={homeLayout.contentWidth}
+          scrollX={topBrandScrollX}
+          size={12}
         />
-      ))}
+      </View>
     </View>
   );
 }
@@ -1250,6 +1251,8 @@ function PromoSection({
   const [activePromoPage, setActivePromoPage] = useState(0);
   const promoMaxPageIndex = Math.max(0, promoPages.length - 1);
   const activePromoDot = Math.min(activePromoPage, sectionDotCount - 1);
+  const promoScrollX = useMemo(() => new Animated.Value(0), []);
+  const reducedMotion = useReducedMotion();
 
   return (
     <View style={styles.section}>
@@ -1267,16 +1270,15 @@ function PromoSection({
         </Link>
       </View>
       <View style={styles.promoSectionBody}>
-        <ScrollView
+        <Animated.ScrollView
           contentContainerStyle={styles.promoPagerContent}
           decelerationRate="fast"
           disableIntervalMomentum
           horizontal
-          onScroll={(event) =>
-            setActivePromoPage(
-              getPagedScrollIndex(event, homeLayout.contentWidth, promoMaxPageIndex)
-            )
-          }
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { x: promoScrollX } } }],
+            { useNativeDriver: false }
+          )}
           onMomentumScrollEnd={(event) =>
             setActivePromoPage(
               getPagedScrollIndex(event, homeLayout.contentWidth, promoMaxPageIndex)
@@ -1290,7 +1292,7 @@ function PromoSection({
           style={[styles.promoScroll, { width: homeLayout.contentWidth }]}
         >
           {promoPages.map((pageCards, pageIndex) => (
-            <View
+            <Animated.View
               key={`${title}-promo-page-${pageIndex}`}
               style={[
                 styles.promoPage,
@@ -1299,6 +1301,12 @@ function PromoSection({
                   gap: homeLayout.compactBrandGap,
                   width: homeLayout.contentWidth,
                 },
+                getCarouselPageMotionStyle(
+                  promoScrollX,
+                  pageIndex,
+                  homeLayout.contentWidth,
+                  reducedMotion
+                ),
               ]}
             >
               {pageCards.map((card) => (
@@ -1310,26 +1318,21 @@ function PromoSection({
                   {...card}
                 />
               ))}
-            </View>
+            </Animated.View>
           ))}
-        </ScrollView>
+        </Animated.ScrollView>
         {sectionDotCount > 1 ? (
-          <PromoSectionDots activeIndex={activePromoDot} count={sectionDotCount} />
+          <CarouselDots
+            activeIndex={activePromoDot}
+            color={colors.primary}
+            containerStyle={styles.promoSectionDots}
+            count={sectionDotCount}
+            pageWidth={homeLayout.contentWidth}
+            scrollX={promoScrollX}
+            size={12}
+          />
         ) : null}
       </View>
-    </View>
-  );
-}
-
-function PromoSectionDots({ activeIndex, count }: { activeIndex: number; count: number }) {
-  return (
-    <View style={styles.promoSectionDots}>
-      {Array.from({ length: count }, (_, index) => (
-        <View
-          key={`promo-section-dot-${index}`}
-          style={[styles.topBrandDot, index === activeIndex ? styles.topBrandDotActive : null]}
-        />
-      ))}
     </View>
   );
 }

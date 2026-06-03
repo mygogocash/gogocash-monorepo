@@ -290,11 +290,11 @@ describe("Expo home design parity", () => {
     expect(homeFile).toContain("mainBanners.map");
     expect(homeFile).toContain("setHeroBannerWidth");
     expect(homeFile).toContain("styles.heroScroll");
-    expect(homeFile).toContain("HeroBannerDots");
+    expect(homeFile).toContain("CarouselDots");
     expect(homeFile).toContain("activeIndex={activeHeroBannerPage}");
     expect(homeFile).toContain("snapToInterval={heroBannerWidth}");
     expect(homeFile).toContain("pagingEnabled");
-    expect(homeFile).toContain("onScroll={(event) =>");
+    expect(homeFile).toContain("onScroll={Animated.event(");
   });
 
   it("home design parity > given top brands section > then uses real logo-style brand cards", () => {
@@ -366,7 +366,7 @@ describe("Expo home design parity", () => {
     expect(homeFile).toContain("useWindowDimensions");
     expect(homeFile).toContain("getResponsiveHomeLayoutMetrics");
     expect(homeFile).toContain("styles.brandGrid");
-    expect(homeFile).toContain("TopBrandDots");
+    expect(homeFile).toContain("activeIndex={activeTopBrandDot}");
     expect(homeFile).toContain("topBrandPages");
     expect(homeFile).toContain("homeLayout.topBrandCardsPerPage");
     expect(homeFile).toContain("homeLayout.contentWidth");
@@ -682,7 +682,7 @@ describe("Expo home design parity", () => {
     );
 
     expect(homeFile).toContain("CompactBrandLogoOfferCard");
-    expect(homeFile).toContain("PromoSectionDots");
+    expect(homeFile).toContain("activeIndex={activePromoDot}");
     expect(homeFile).toContain("compactBrandLogoFallback");
     expect(homeFile).toContain("sectionDotCount");
     expect(homeFile).toContain("const sectionDotCount = homeLayout.isDesktop");
