@@ -1,13 +1,14 @@
 import { getAnalytics, isSupported, logEvent } from "firebase/analytics";
 import { isMarketingAnalyticsEnabled } from "@/lib/app-config";
+import { isAnalyticsAllowed } from "@/lib/cookie-consent";
 import { getFirebaseApp } from "@/lib/firebase";
 
 /**
  * One-time Analytics bootstrap (browser, after `getFirebaseApp()`).
- * Call from `FirebaseClientInit` only.
+ * Call from `FirebaseClientInit` only. No-op until cookie consent is granted (#7).
  */
 export function initFirebaseAnalytics(): void {
-  if (!isMarketingAnalyticsEnabled()) return;
+  if (!isMarketingAnalyticsEnabled() || !isAnalyticsAllowed()) return;
   const app = getFirebaseApp();
   if (!app) return;
 
@@ -19,7 +20,7 @@ export function initFirebaseAnalytics(): void {
 
 function getAnalyticsSafe(): ReturnType<typeof getAnalytics> | undefined {
   if (typeof window === "undefined") return undefined;
-  if (!isMarketingAnalyticsEnabled()) return undefined;
+  if (!isMarketingAnalyticsEnabled() || !isAnalyticsAllowed()) return undefined;
   const app = getFirebaseApp();
   if (!app) return undefined;
   try {

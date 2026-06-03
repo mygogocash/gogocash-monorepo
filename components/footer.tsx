@@ -8,49 +8,10 @@ import {
   twPressSm,
   twTransitionButton,
 } from "@/lib/motion-styles";
-import {
-  LINE_MINI_APP_HREF,
-  LINE_OFFICIAL_ACCOUNT_HREF,
-  SOCIAL_ICONS,
-  WEB_APP_HREF,
-} from "@/components/social-data";
+import { SOCIAL_ICONS } from "@/components/social-data";
 import SocialIcon from "@/components/social-icon";
-
-const FOOTER_LINKS = {
-  "Live on Platform": [
-    { label: "Website", href: WEB_APP_HREF },
-    { label: "Telegram Mini App", href: "https://t.me/GoGoCashAppBot" },
-    {
-      label: "Line Mini App",
-      href: LINE_MINI_APP_HREF,
-    },
-  ],
-  Products: [
-    {
-      label: "Business Inquiries",
-      href: LINE_OFFICIAL_ACCOUNT_HREF,
-    },
-    {
-      label: "Careers",
-      href: LINE_OFFICIAL_ACCOUNT_HREF,
-    },
-  ],
-  Resources: [
-    { label: "Privacy Policy", href: "/privacy-policy" },
-    { label: "Terms of Use", href: "/term-of-use" },
-    { label: "Terms of Service", href: "/terms-of-service" },
-    {
-      label: "How GoGoCash Makes Money",
-      href: "/how-gogocash-makes-money",
-    },
-    { label: "Learn", href: "/learn" },
-    {
-      label: "System Status",
-      href: "https://status.gogocash.co/",
-    },
-    { label: "Cookie Settings", href: "/privacy-policy" },
-  ],
-};
+import { CookieSettingsButton } from "@/components/cookie-settings-button";
+import { FOOTER_LINKS, FOOTER_TRUST_ROW_COLUMN } from "@/lib/footer-links";
 
 export default function Footer() {
   const year = new Date().getFullYear();
@@ -83,7 +44,13 @@ export default function Footer() {
                     const className = `text-sm text-[#6b7280] hover:text-[#1f2937] ${twNavTextMotion}`;
                     return (
                       <li key={link.label}>
-                        {external ? (
+                        {link.label === "Cookie Settings" ? (
+                          <CookieSettingsButton
+                            className={`${className} text-left`}
+                          >
+                            {link.label}
+                          </CookieSettingsButton>
+                        ) : external ? (
                           <a
                             href={link.href}
                             className={className}
@@ -101,9 +68,9 @@ export default function Footer() {
                     );
                   })}
                 </ul>
-                {/* Trust row appended to the Products column so the footer
+                {/* Trust row appended to the Company column so the footer
                     matches the customer app (gogocash_app Footer.tsx). */}
-                {title === "Products" ? (
+                {title === FOOTER_TRUST_ROW_COLUMN ? (
                   <div className="mt-6 flex flex-col items-start gap-2">
                     <span className="text-xs font-medium text-[#6b7280]">
                       Secured by
