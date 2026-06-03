@@ -46,13 +46,13 @@ export function FeatureHighlightsGrid({
           </div>
         </AnimateOnScroll>
 
-        <div className="mt-12 grid gap-4 md:grid-cols-2 lg:gap-6">
+        <div className="mt-12 grid gap-4 md:grid-cols-3 lg:gap-6">
           {cards.map((card, index) => {
             const Icon = icons[index];
             return (
               <AnimateOnScroll key={card.title} delay={(index + 1) * 100}>
                 <div
-                  className={`relative min-h-[280px] overflow-hidden rounded-3xl p-8 lg:p-10 ${FEATURE_CARD_BGS[index]}`}
+                  className={`relative h-full min-h-[280px] overflow-hidden rounded-3xl p-8 lg:p-10 ${FEATURE_CARD_BGS[index]}`}
                 >
                   <Icon className="mb-4 h-8 w-8 text-primary" />
                   <h3 className="text-xl font-bold text-gray-800">{card.title}</h3>
@@ -63,20 +63,23 @@ export function FeatureHighlightsGrid({
               </AnimateOnScroll>
             );
           })}
+        </div>
 
-          <AnimateOnScroll delay={400}>
-            <div className="relative flex min-h-[280px] flex-col justify-end rounded-3xl bg-gradient-to-br from-primary to-primary-dark p-8 lg:p-10">
+        {/* CTA is a full-width band below the grid — not a feature tile (#6). */}
+        <AnimateOnScroll delay={400}>
+          <div className="relative mt-4 flex flex-col gap-6 overflow-hidden rounded-3xl bg-gradient-to-br from-primary to-primary-dark p-8 md:flex-row md:items-center md:justify-between lg:mt-6 lg:p-10">
+            <div className="max-w-xl">
               <h3 className="text-2xl font-bold text-white">{ctaCard.title}</h3>
               <p className="mt-2 text-sm text-white/80">{ctaCard.bodyLine}</p>
-              <LaunchAppLink
-                className={`group mt-4 w-fit min-h-11 items-center gap-2 px-6 py-3 text-sm ${uiCtaInvertedOnGradient} ${twTransitionButton} ${twPressSm} ${twFocusRingPrimary}`}
-              >
-                {ctaCard.ctaLabel}
-                <ArrowUpRight className="h-4 w-4 transition-transform duration-button ease-standard group-hover:translate-x-0.5 motion-reduce:transition-none" />
-              </LaunchAppLink>
             </div>
-          </AnimateOnScroll>
-        </div>
+            <LaunchAppLink
+              className={`group min-h-11 w-fit shrink-0 items-center gap-2 px-6 py-3 text-sm ${uiCtaInvertedOnGradient} ${twTransitionButton} ${twPressSm} ${twFocusRingPrimary}`}
+            >
+              {ctaCard.ctaLabel}
+              <ArrowUpRight className="h-4 w-4 transition-transform duration-button ease-standard group-hover:translate-x-0.5 motion-reduce:transition-none" />
+            </LaunchAppLink>
+          </div>
+        </AnimateOnScroll>
       </div>
     </section>
   );
