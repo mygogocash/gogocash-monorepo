@@ -1,4 +1,4 @@
-import { useContext } from "react";
+import { useContext, type ReactNode } from "react";
 import { Link } from "expo-router";
 import { IntlContext, type MessageDescriptor } from "react-intl";
 import {
@@ -84,6 +84,7 @@ const routeStateCopy = {
 export function CustomerRouteState({
   action,
   body,
+  loadingSkeleton,
   secondaryAction,
   testID,
   title,
@@ -91,6 +92,7 @@ export function CustomerRouteState({
 }: {
   action?: CustomerRouteStateAction;
   body?: string;
+  loadingSkeleton?: ReactNode;
   secondaryAction?: CustomerRouteStateAction;
   testID?: string;
   title?: string;
@@ -99,6 +101,17 @@ export function CustomerRouteState({
   const formatMessage = useSafeFormatMessage();
   const copy = routeStateCopy[variant];
   const isAlertVariant = variant === "error" || variant === "offline";
+
+  // Wave B (B3): when a loading skeleton is supplied, render it in place of the spinner card so data
+  // screens show a content-shaped placeholder. Opt-in — without it the spinner card is unchanged.
+  if (variant === "loading" && loadingSkeleton) {
+    return (
+      <View style={styles.viewport} testID={testID}>
+        <View style={styles.phoneFrame}>{loadingSkeleton}</View>
+        <CustomerDesktopFooterSlot style={styles.desktopFooter} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.viewport} testID={testID}>

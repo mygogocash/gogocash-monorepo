@@ -11,10 +11,11 @@ import {
   Search as SearchIcon,
   WalletCards as WalletCardsIcon,
 } from "@mobile/theme/icons";
-import { Image, StyleSheet, Text, View } from "react-native";
+import { Image, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import walletNoDataImage from "../../assets/wallet-no-data.png";
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
+import { WalletSkeleton } from "@mobile/components/Skeleton";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
@@ -42,6 +43,7 @@ export function CustomerWalletScreen() {
       <CustomerAccountResourceState
         emptyBody={tc("Your cashback wallet does not have any backend activity yet.")}
         emptyTitle={tc("No wallet activity yet")}
+        loadingSkeleton={<WalletSkeleton />}
         resource={walletResource}
         resourceLabel="wallet"
       />
@@ -53,33 +55,55 @@ export function CustomerWalletScreen() {
       <WalletHeader />
       <WalletSupportBanner />
       <WalletCashbackSummary />
-      <View style={styles.transactionArea}>
-        <View style={styles.tabStrip}>
-          {webWalletTransactionTabs.map((tab, index) => (
-            <Text key={tab} style={[styles.tabButton, index === 0 ? styles.tabButtonActive : null]}>
-              {tc(tab)}
-            </Text>
-          ))}
-        </View>
-        <View style={styles.filterRow}>
-          <FilterPill icon="search" label="Search" />
-          <FilterPill icon="calendar" label="Date Range" />
-          <FilterPill icon="status" label="Status" />
-        </View>
-        <View style={styles.tableShell}>
-          <View style={styles.emptyWallet}>
-            <Image
-              alt={tc("Wallet empty state illustration")}
-              resizeMode="contain"
-              source={walletNoDataImage}
-              style={styles.emptyImage}
-            />
-            <Text style={styles.emptyTitle}>{tc(webWalletEmptyState.title)}</Text>
-            <Text style={styles.emptySubtitle}>{tc(webWalletEmptyState.subtitle)}</Text>
-          </View>
-        </View>
-      </View>
+      <WalletTransactions onRefresh={walletResource.retry} />
     </AccountPageShell>
+  );
+}
+
+// Transactions list with pull-to-refresh. The wallet dashboard re-reads the same
+// fixture today (mock build), so onRefresh wires straight to the resource's existing
+// refetch (walletResource.retry) — the affordance + wiring is the deliverable. The
+// RefreshControl label reuses the existing catalog string `walletTransactionsLoading`
+// ("Loading transactions…" -> Thai via reverse-lookup), so no new copy is introduced.
+function WalletTransactions({ onRefresh }: { onRefresh: () => void }) {
+  const tc = useCopy();
+  return (
+    <View style={styles.transactionArea}>
+      <View style={styles.tabStrip}>
+        {webWalletTransactionTabs.map((tab, index) => (
+          <Text key={tab} style={[styles.tabButton, index === 0 ? styles.tabButtonActive : null]}>
+            {tc(tab)}
+          </Text>
+        ))}
+      </View>
+      <View style={styles.filterRow}>
+        <FilterPill icon="search" label="Search" />
+        <FilterPill icon="calendar" label="Date Range" />
+        <FilterPill icon="status" label="Status" />
+      </View>
+      <ScrollView
+        contentContainerStyle={styles.tableScrollContent}
+        refreshControl={
+          <RefreshControl
+            onRefresh={onRefresh}
+            refreshing={false}
+            title={tc("Loading transactions…")}
+          />
+        }
+        style={styles.tableShell}
+      >
+        <View style={styles.emptyWallet}>
+          <Image
+            alt={tc("Wallet empty state illustration")}
+            resizeMode="contain"
+            source={walletNoDataImage}
+            style={styles.emptyImage}
+          />
+          <Text style={styles.emptyTitle}>{tc(webWalletEmptyState.title)}</Text>
+          <Text style={styles.emptySubtitle}>{tc(webWalletEmptyState.subtitle)}</Text>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -90,6 +114,7 @@ function WalletHeader() {
       <Link asChild href="/profile">
         <MotionPressable
           accessibilityLabel={tc("Back to Profile")}
+          hitSlop={{ bottom: 8, left: 8, right: 8, top: 8 }}
           pressScale={0.98}
           style={styles.backButton}
         >
@@ -429,6 +454,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     boxShadow: shadows.cardCss,
     overflow: "hidden",
+  },
+  tableScrollContent: {
+    flexGrow: 1,
   },
   emptyWallet: {
     alignItems: "center",

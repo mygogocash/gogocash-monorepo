@@ -9,6 +9,7 @@ import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-na
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { haptics } from "@mobile/lib/haptics";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { mobileShellLayout, webWithdrawMethodPage } from "@mobile/design/webDesignParity";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
@@ -40,7 +41,9 @@ function WithdrawMethodTopBar() {
   const tc = useCopy();
   return (
     <Link asChild href="/profile">
-      <Pressable accessibilityRole="link" style={styles.topBar}>
+      {/* Wave B (B3) — icon-only back chevron (26px) carries a hitSlop so its
+          tappable area reaches the 44px minimum target. */}
+      <Pressable accessibilityRole="link" hitSlop={8} style={styles.topBar}>
         <ChevronLeftIcon color={colors.accent} size={26} strokeWidth={typography.iconStrokeWidth} />
         <Text style={styles.topBarTitle}>{tc(webWithdrawMethodPage.title)}</Text>
       </Pressable>
@@ -89,7 +92,16 @@ function WithdrawMethodBankCard({
 }) {
   return (
     <Link asChild href={`/method/create?id=${method.id}` as never}>
-      <MotionPressable pressScale={0.99} style={StyleSheet.flatten([styles.methodCard, style])}>
+      {/* Wave B (B3) — selecting a saved payout method is a meaningful pick, so a
+          medium-impact haptic acknowledges the tap before navigating to edit it
+          (fire-and-forget; no-op on web). Navigation stays owned by the Link. */}
+      <MotionPressable
+        onPress={() => {
+          void haptics.impact();
+        }}
+        pressScale={0.99}
+        style={StyleSheet.flatten([styles.methodCard, style])}
+      >
         {method.isDefault ? <DefaultBadge /> : null}
         <View style={styles.methodCardContent}>
           <BankIcon color={colors.primaryDark} size={32} strokeWidth={1.5} />

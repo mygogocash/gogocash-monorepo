@@ -2,13 +2,33 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { createElement } from "react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { evaluateWithdraw, parseWithdrawAmount } from "@mobile/screens/CustomerMoneyActionScreen";
+import {
+  CustomerMoneyActionScreen,
+  evaluateWithdraw,
+  parseWithdrawAmount,
+} from "@mobile/screens/CustomerMoneyActionScreen";
 
 // Bug-hunt fixes for CustomerMoneyActionScreen:
 //  #2 — withdrawal amount was parsed with raw parseFloat ("1,500.00" -> 1, "500abc" -> 500).
 //  #1 — Confirm action had no guard after a successful submit -> a second tap deducted again.
+
+// Wave B (B3) per-screen UX adoption for the withdraw/money-action form. This file keeps the
+// existing pure-logic + source-guard tests above, and ADDS: (a) a render mount proving the
+// withdraw form still mounts after being wrapped in KeyboardAwareScreen (react-native ->
+// react-native-web, happy-dom), and (b) source-signal assertions for the applied Wave A
+// foundations — KeyboardAwareScreen around the amount form and haptics fired on the existing
+// evaluateWithdraw decision branches (success on ok:true, error on an invalid attempt).
+// Skeleton/RefreshControl are intentionally NOT adopted: this is a form/action surface, not a
+// data list. The screen has no Animated timelines and no icon-only sub-44px button (the back
+// control is a full-width >=44px text action), so reduce-motion + hitSlop have no target here.
+const moneyActionSource = readFileSync(
+  resolve(dirname(fileURLToPath(import.meta.url)), "../screens/CustomerMoneyActionScreen.tsx"),
+  "utf8"
+);
 
 describe("parseWithdrawAmount", () => {
   it("parses a plain decimal", () => {
@@ -66,5 +86,33 @@ describe("withdraw confirm button is guarded after success (source)", () => {
   );
   it("disables the Confirm & Dispatch action once a withdrawal has succeeded", () => {
     expect(src).toContain("disabled={!!successMsg}");
+  });
+});
+
+describe("CustomerMoneyActionScreen (render)", () => {
+  it("mounts the withdraw form without throwing", () => {
+    expect(() => render(createElement(CustomerMoneyActionScreen, { mode: "withdraw" }))).not.toThrow();
+    // The amount form's primary action label proves the withdraw surface rendered.
+    expect(screen.getAllByText("Confirm & Dispatch").length).toBeGreaterThan(0);
+  });
+
+  it("renders the withdrawal amount field so the keyboard-avoidance wrapper has a target", () => {
+    render(createElement(CustomerMoneyActionScreen, { mode: "withdraw" }));
+    expect(screen.getAllByPlaceholderText("0.00").length).toBeGreaterThan(0);
+  });
+});
+
+describe("CustomerMoneyActionScreen — Wave B foundations adopted (source signals)", () => {
+  it("wraps the amount form in KeyboardAwareScreen so the numeric keyboard never covers the field", () => {
+    expect(moneyActionSource).toContain('from "@mobile/components/KeyboardAwareScreen"');
+    expect(moneyActionSource).toContain("<KeyboardAwareScreen");
+  });
+
+  it("imports haptics and fires success on a confirmed withdrawal + error on an invalid attempt", () => {
+    // Wired onto the EXISTING evaluateWithdraw decision (ok:true -> success, error branch -> error),
+    // not a duplicated validation path.
+    expect(moneyActionSource).toContain('from "@mobile/lib/haptics"');
+    expect(moneyActionSource).toContain("haptics.success(");
+    expect(moneyActionSource).toContain("haptics.error(");
   });
 });
