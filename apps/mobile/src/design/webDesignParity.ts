@@ -780,6 +780,26 @@ export const webReferralPage = {
   },
 } as const;
 
+// Profile hero parity with the web `CardProfile`
+// (src/features/profile/component/CardProfile.tsx): name + GOGOPASS badge, a
+// "User ID" row + copy, and a mint "invite link" chip + copy. The web derives the
+// 9-digit id from the session via `nineDigitUserIdDisplay`; here we keep a fixed
+// mock display value (visual parity with mock data, per the plan). The invite-link
+// value reuses `webReferralPage.earn.displayLink` so the hero and the referral
+// page can't drift.
+export const webProfileHeroCard = {
+  userIdLabel: "User ID",
+  // Mock 9-digit display id (mirrors the web `nineDigitUserIdDisplay` output shape).
+  userId: "204815963",
+  userIdCopyAria: "Copy User ID",
+  userIdCopiedToast: "User ID copied",
+  inviteLinkLabel: "invite link",
+  inviteLink: webReferralPage.earn.displayLink,
+  inviteLinkCopyAria: "Copy invite link",
+  inviteLinkCopiedToast: "Invite link copied",
+  copyFailedToast: "Copy failed. Please try again.",
+} as const;
+
 export const webMembershipLanding = {
   savings: {
     heading: "Annual saves you real money",

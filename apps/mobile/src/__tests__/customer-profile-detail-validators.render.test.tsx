@@ -1,13 +1,21 @@
-import { createElement } from "react";
+import { createElement, type ReactElement } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { ToastProvider } from "@mobile/components/Toast";
 import { haptics } from "@mobile/lib/haptics";
 import {
   CustomerProfileDetailScreen,
   isValidBirthdate,
   isValidPassportId,
 } from "@mobile/screens/CustomerProfileDetailScreen";
+
+// Wave 3: the info screen now mounts the shared ProfileInfoPanel -> ProfileHeroCard,
+// whose copy buttons call useToast() and therefore need a ToastProvider in the tree
+// (same provider AppProviders supplies in the real app). Wrap every mount here.
+function renderInfoScreen(element: ReactElement) {
+  return render(createElement(ToastProvider, {}, element));
+}
 
 // Bug-hunt fixes for CustomerProfileDetailScreen identity validation:
 //  #6 — passport was length-only (accepted "#@!ABC1") despite the "alphanumeric" message.
@@ -65,7 +73,7 @@ describe("CustomerProfileDetailScreen (info edit form) — UX adoption", () => {
   });
 
   it("wraps the edit form in KeyboardAwareScreen (keyboard-aware scroll present)", () => {
-    render(createElement(CustomerProfileDetailScreen, { mode: "info" }));
+    renderInfoScreen(createElement(CustomerProfileDetailScreen, { mode: "info" }));
     // KeyboardAwareScreen tags its inner ScrollView with this stable testID;
     // under the render harness react-native -> react-native-web, so the testID
     // surfaces as a data-testid on the rendered node.
@@ -75,7 +83,7 @@ describe("CustomerProfileDetailScreen (info edit form) — UX adoption", () => {
   it("fires haptics.success on a successful save (valid defaults)", () => {
     const successSpy = vi.spyOn(haptics, "success").mockResolvedValue();
     const errorSpy = vi.spyOn(haptics, "error").mockResolvedValue();
-    render(createElement(CustomerProfileDetailScreen, { mode: "info" }));
+    renderInfoScreen(createElement(CustomerProfileDetailScreen, { mode: "info" }));
 
     // Enter edit mode (button toggles "Edit" -> "Save"), then save with the
     // valid seeded defaults so the validators pass.
@@ -89,7 +97,7 @@ describe("CustomerProfileDetailScreen (info edit form) — UX adoption", () => {
   it("fires haptics.error on a validation rejection (cleared username)", () => {
     const successSpy = vi.spyOn(haptics, "success").mockResolvedValue();
     const errorSpy = vi.spyOn(haptics, "error").mockResolvedValue();
-    render(createElement(CustomerProfileDetailScreen, { mode: "info" }));
+    renderInfoScreen(createElement(CustomerProfileDetailScreen, { mode: "info" }));
 
     fireEvent.click(screen.getByText("Edit"));
     // Clear the name/username field -> trips "at least 3 characters" rejection.

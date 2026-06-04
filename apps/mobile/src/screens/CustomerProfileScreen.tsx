@@ -10,12 +10,13 @@ import {
   UserRound as ProfileIcon,
 } from "@mobile/theme/icons";
 import { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { AccountPageShell, AccountWalletHeroCard } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { ProfileInfoPanel } from "@mobile/components/ProfileInfoPanel";
 import { useToast } from "@mobile/hooks/useToast";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { clearMobileAppSession } from "@mobile/auth/session";
@@ -23,6 +24,7 @@ import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot"
 import { haptics } from "@mobile/lib/haptics";
 import { copyToClipboard } from "@mobile/lib/clipboard";
 import {
+  mobileShellLayout,
   profileInviteUrl,
   profileHubMenuItems,
   profileHubSubNavItems,
@@ -35,6 +37,8 @@ import { getProfileMenuIcon, type ProfileMenuIcon } from "@mobile/components/pro
 export function CustomerProfileScreen() {
   const tc = useCopy();
   const session = useMobileSessionSnapshot();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
   const sessionWalletSummary = getSessionWalletSummary(session);
   const [profileSubNavOpen, setProfileSubNavOpen] = useState(true);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
@@ -70,6 +74,9 @@ export function CustomerProfileScreen() {
 
   return (
     <AccountPageShell activeRouteId="profile" showProfileRail showTitle={false} title={tc("Profile")}>
+      {isDesktop ? (
+        <ProfileInfoPanel session={session ?? {}} />
+      ) : (
       <View style={styles.profileHubStack}>
         <AccountWalletHeroCard
           amount={sessionWalletSummary.amount}
@@ -158,6 +165,7 @@ export function CustomerProfileScreen() {
           </View>
         </View>
       </View>
+      )}
     </AccountPageShell>
   );
 }
