@@ -28,7 +28,8 @@ import { CustomerAccountSettingsScreen } from "@mobile/screens/CustomerAccountSe
 // not forgotten):
 //   - KeyboardAwareScreen: SKIPPED — there is no TextInput on the screen.
 //   - haptics.impact (setting change): SKIPPED — the Line/Email toggles are display-only
-//     "Coming soon" placeholders (no onPress, no state setter), so there is no setting
+//     "Coming soon" placeholders. They render a real react-native Switch for web parity,
+//     but each is permanently `disabled` with no state setter, so there is no setting
 //     change to confirm.
 //   - haptics.success (save): SKIPPED — the only save-like control is the subscription
 //     button, which is permanently `disabled`.
@@ -71,9 +72,10 @@ describe("CustomerAccountSettingsScreen — Wave B foundations deliberately not 
   });
 
   it("keeps the toggles display-only — no interactive setting-change handler exists to hook a haptic onto", () => {
-    // TogglePill is a presentational View and the rows carry no onPress; the only
-    // state is read-only (no setter is wired), confirming there is no setting change.
-    expect(settingsSource).toContain("function TogglePill");
+    // The rows render a disabled react-native Switch (web parity) and carry no onPress;
+    // the only state is read-only (no setter is wired), confirming there is no setting change.
+    expect(settingsSource).toContain("<Switch");
+    expect(settingsSource).toContain("disabled");
     expect(settingsSource).not.toContain("setIsLineEnabled");
     expect(settingsSource).not.toContain("setIsEmailEnabled");
   });

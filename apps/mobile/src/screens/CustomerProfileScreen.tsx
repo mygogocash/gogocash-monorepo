@@ -1,5 +1,4 @@
 import { Link, useRouter } from "expo-router";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   ChevronDown as ChevronDownIcon,
   ChevronUp as ChevronUpIcon,
@@ -19,9 +18,8 @@ import { MotionPressable } from "@mobile/components/MotionPressable";
 import { ProfileInfoPanel } from "@mobile/components/ProfileInfoPanel";
 import { useToast } from "@mobile/hooks/useToast";
 import { useCopy } from "@mobile/i18n/useCopy";
-import { clearMobileAppSession } from "@mobile/auth/session";
+import { useMobileLogout } from "@mobile/auth/useMobileLogout";
 import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
-import { haptics } from "@mobile/lib/haptics";
 import { copyToClipboard } from "@mobile/lib/clipboard";
 import {
   mobileShellLayout,
@@ -30,8 +28,8 @@ import {
   profileHubSubNavItems,
   webProfileWalletSummary,
 } from "@mobile/design/webDesignParity";
-import { resetObservabilityIdentity } from "@mobile/observability/client";
 import { colors, radii, spacing, typography } from "@mobile/theme/tokens";
+import { LogoutConfirmCard } from "@mobile/components/LogoutConfirmCard";
 import { getProfileMenuIcon, type ProfileMenuIcon } from "@mobile/components/profileMenuIcons";
 
 export function CustomerProfileScreen() {
@@ -42,24 +40,11 @@ export function CustomerProfileScreen() {
   const sessionWalletSummary = getSessionWalletSummary(session);
   const [profileSubNavOpen, setProfileSubNavOpen] = useState(true);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
-  const [logoutPending, setLogoutPending] = useState(false);
-  const queryClient = useQueryClient();
-  const router = useRouter();
+  const { logout: handleLogout, pending: logoutPending } = useMobileLogout();
   const profileResource = useCustomerAccountResource({
     fixtureData: webProfileWalletSummary,
     resourceId: "profile",
   });
-
-  const handleLogout = async () => {
-    setLogoutPending(true);
-    // Confirmed logout — a success haptic acknowledges the destructive action
-    // before the session is torn down (fire-and-forget; no-op on web).
-    void haptics.success();
-    await clearMobileAppSession();
-    queryClient.clear();
-    resetObservabilityIdentity();
-    router.replace("/login" as never);
-  };
 
   if (profileResource.status !== "ready") {
     return (
@@ -133,34 +118,11 @@ export function CustomerProfileScreen() {
               <Text style={styles.profileRowText}>{tc("Log Out")}</Text>
             </MotionPressable>
             {logoutConfirmOpen ? (
-              <View style={styles.logoutConfirmCard}>
-                <Text style={styles.logoutConfirmTitle}>{tc("Log out of GoGoCash?")}</Text>
-                <Text style={styles.logoutConfirmBody}>
-                  {tc("This clears your saved session on this device before returning to sign in.")}
-                </Text>
-                <View style={styles.logoutConfirmActions}>
-                  <MotionPressable
-                    accessibilityRole="button"
-                    disabled={logoutPending}
-                    onPress={() => setLogoutConfirmOpen(false)}
-                    pressScale={0.98}
-                    style={styles.logoutCancelButton}
-                  >
-                    <Text style={styles.logoutCancelText}>{tc("Cancel")}</Text>
-                  </MotionPressable>
-                  <MotionPressable
-                    accessibilityRole="button"
-                    disabled={logoutPending}
-                    onPress={handleLogout}
-                    pressScale={0.98}
-                    style={styles.logoutConfirmButton}
-                  >
-                    <Text style={styles.logoutConfirmText}>
-                      {logoutPending ? tc("Logging out") : tc("Log out")}
-                    </Text>
-                  </MotionPressable>
-                </View>
-              </View>
+              <LogoutConfirmCard
+                onCancel={() => setLogoutConfirmOpen(false)}
+                onConfirm={handleLogout}
+                pending={logoutPending}
+              />
             ) : null}
           </View>
         </View>
@@ -453,58 +415,5 @@ const styles = StyleSheet.create({
     maxHeight: 52,
     minHeight: 52,
     paddingHorizontal: 16,
-  },
-  logoutConfirmCard: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    gap: spacing.sm,
-    padding: spacing.md,
-  },
-  logoutConfirmTitle: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: typography.body,
-    fontWeight: "800",
-  },
-  logoutConfirmBody: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: typography.caption,
-    lineHeight: 18,
-  },
-  logoutConfirmActions: {
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  logoutCancelButton: {
-    alignItems: "center",
-    borderColor: colors.borderStrong,
-    borderRadius: radii.chip,
-    borderWidth: 1,
-    flex: 1,
-    justifyContent: "center",
-    minHeight: 40,
-  },
-  logoutCancelText: {
-    color: colors.accent,
-    fontFamily: typography.family,
-    fontSize: typography.caption,
-    fontWeight: "700",
-  },
-  logoutConfirmButton: {
-    alignItems: "center",
-    backgroundColor: colors.primary,
-    borderRadius: radii.chip,
-    flex: 1,
-    justifyContent: "center",
-    minHeight: 40,
-  },
-  logoutConfirmText: {
-    color: colors.white,
-    fontFamily: typography.family,
-    fontSize: typography.caption,
-    fontWeight: "800",
   },
 });

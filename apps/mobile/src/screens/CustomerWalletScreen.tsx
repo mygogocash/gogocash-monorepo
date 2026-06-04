@@ -11,7 +11,7 @@ import {
   Search as SearchIcon,
   WalletCards as WalletCardsIcon,
 } from "@mobile/theme/icons";
-import { Image, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
 import walletNoDataImage from "../../assets/wallet-no-data.png";
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
@@ -21,6 +21,7 @@ import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
 import {
+  mobileShellLayout,
   webWalletAccessibleSummary,
   webWalletCashbackSummary,
   webWalletEmptyState,
@@ -33,6 +34,8 @@ type WalletMetric = (typeof webWalletCashbackSummary.metrics)[number];
 
 export function CustomerWalletScreen() {
   const tc = useCopy();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
   const walletResource = useCustomerAccountResource({
     fixtureData: webWalletCashbackSummary,
     resourceId: "wallet",
@@ -52,7 +55,8 @@ export function CustomerWalletScreen() {
 
   return (
     <AccountPageShell activeRouteId="wallet" showProfileRail showTitle={false} title={tc("My Wallet")}>
-      <WalletHeader />
+      {/* Mobile-only back link + title — on desktop the persistent sidebar replaces it (web parity). */}
+      {isDesktop ? null : <WalletHeader />}
       <WalletSupportBanner />
       <WalletCashbackSummary />
       <WalletTransactions onRefresh={walletResource.retry} />

@@ -1,11 +1,12 @@
 import { Link } from "expo-router";
 import { ChevronLeft as ChevronLeftIcon, Copy as CopyIcon } from "@mobile/theme/icons";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { mobileShellLayout } from "@mobile/design/webDesignParity";
 import { useToast } from "@mobile/hooks/useToast";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { copyToClipboard } from "@mobile/lib/clipboard";
@@ -32,6 +33,8 @@ const myOfferRows = [
 export function CustomerProfileOffersScreen() {
   const tc = useCopy();
   const toast = useToast();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
   const offersResource = useCustomerAccountResource({
     fixtureData: myOfferRows,
     resourceId: "offers",
@@ -64,16 +67,20 @@ export function CustomerProfileOffersScreen() {
   return (
     <AccountPageShell activeRouteId="profile" showTitle={false} title={tc("My Offer")}>
       <View style={styles.surface}>
-        <Link asChild href="/profile">
-          <Pressable accessibilityRole="link" style={styles.topBar}>
-            <ChevronLeftIcon
-              color={colors.accent}
-              size={26}
-              strokeWidth={typography.iconStrokeWidth}
-            />
-            <Text style={styles.topBarTitle}>{tc("My Offer")}</Text>
-          </Pressable>
-        </Link>
+        {/* Mobile-only back link — on desktop the persistent sidebar handles navigation
+            (web parity: the SubPage topbar is md:hidden). */}
+        {isDesktop ? null : (
+          <Link asChild href="/profile">
+            <Pressable accessibilityRole="link" style={styles.topBar}>
+              <ChevronLeftIcon
+                color={colors.accent}
+                size={26}
+                strokeWidth={typography.iconStrokeWidth}
+              />
+              <Text style={styles.topBarTitle}>{tc("My Offer")}</Text>
+            </Pressable>
+          </Link>
+        )}
 
         <View style={styles.content}>
           <Text style={styles.title}>{tc("My Offer")}</Text>

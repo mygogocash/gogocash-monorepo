@@ -60,6 +60,11 @@ const profileSource = readFileSync(
   resolve(dirname(fileURLToPath(import.meta.url)), "../screens/CustomerProfileScreen.tsx"),
   "utf8"
 );
+// Logout teardown (incl. the success haptic) is centralized in the shared hook.
+const logoutSource = readFileSync(
+  resolve(dirname(fileURLToPath(import.meta.url)), "../auth/useMobileLogout.ts"),
+  "utf8"
+);
 
 // Mount inside QueryClientProvider (useCustomerAccountResource calls useQuery
 // unconditionally — same as the offers screen) and the real ToastProvider (the
@@ -98,8 +103,10 @@ describe("CustomerProfileScreen (render)", () => {
 
 describe("CustomerProfileScreen — Wave B foundations adopted (source signals)", () => {
   it("fires a success haptic on the confirmed logout", () => {
-    expect(profileSource).toContain('from "@mobile/lib/haptics"');
-    expect(profileSource).toContain("haptics.success(");
+    // The screen drives logout through the shared hook, which fires the haptic.
+    expect(profileSource).toContain("useMobileLogout");
+    expect(logoutSource).toContain('from "@mobile/lib/haptics"');
+    expect(logoutSource).toContain("haptics.success(");
   });
 
   it("shows a toast confirmation on copy, reusing an existing translated string", () => {

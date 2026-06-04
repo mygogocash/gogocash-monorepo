@@ -7,10 +7,9 @@ import {
   Wallet as WalletIcon,
 } from "@mobile/theme/icons";
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
-import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
+import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { haptics } from "@mobile/lib/haptics";
 import { mobileShellLayout, webMembershipLanding } from "@mobile/design/webDesignParity";
@@ -43,29 +42,27 @@ const faqItems = [
 
 export function CustomerMembershipScreen() {
   const tc = useCopy();
-  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
   const [billingAnnual, setBillingAnnual] = useState(true);
 
   return (
-    <View style={styles.viewport}>
-      <View style={styles.phoneFrame}>
-        <ScrollView
-          contentContainerStyle={[
-            styles.page,
-            { paddingTop: Math.max(spacing.md, insets.top + spacing.md) },
-          ]}
-          showsVerticalScrollIndicator={false}
-        >
-          <Link asChild href="/profile">
-            <Pressable accessibilityRole="link" style={styles.backLink}>
-              <ChevronLeftIcon
-                color={colors.accent}
-                size={26}
-                strokeWidth={typography.iconStrokeWidth}
-              />
-              <Text style={styles.backLinkText}>GoGoPass</Text>
-            </Pressable>
-          </Link>
+    <AccountPageShell activeRouteId="profile" showTitle={false} title={tc("GoGoPass")}>
+      <View style={styles.membershipStack}>
+          {/* Mobile-only back link — on desktop the persistent sidebar handles navigation
+              (web parity: the SubPage topbar is md:hidden). */}
+          {isDesktop ? null : (
+            <Link asChild href="/profile">
+              <Pressable accessibilityRole="link" style={styles.backLink}>
+                <ChevronLeftIcon
+                  color={colors.accent}
+                  size={26}
+                  strokeWidth={typography.iconStrokeWidth}
+                />
+                <Text style={styles.backLinkText}>GoGoPass</Text>
+              </Pressable>
+            </Link>
+          )}
 
           <View style={styles.hero}>
             <Text style={styles.kicker}>{tc("Membership offer")}</Text>
@@ -194,10 +191,8 @@ export function CustomerMembershipScreen() {
               </View>
             ))}
           </View>
-          <CustomerDesktopFooterSlot style={styles.desktopFooter} />
-        </ScrollView>
       </View>
-    </View>
+    </AccountPageShell>
   );
 }
 
@@ -225,24 +220,9 @@ function PerkCard({
 }
 
 const styles = StyleSheet.create({
-  viewport: {
-    alignItems: "center",
-    backgroundColor: colors.background,
-    flex: 1,
-  },
-  phoneFrame: {
-    backgroundColor: colors.background,
-    flex: 1,
-    maxWidth: mobileShellLayout.contentMaxWidth,
-    width: "100%",
-  },
-  page: {
+  membershipStack: {
     gap: spacing.homeStackGap,
-    paddingBottom: mobileShellLayout.bottomNavClearance,
-    paddingHorizontal: mobileShellLayout.contentHorizontalPadding,
-  },
-  desktopFooter: {
-    marginTop: 64,
+    width: "100%",
   },
   backLink: {
     alignItems: "center",
