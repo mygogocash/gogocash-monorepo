@@ -2,6 +2,7 @@
 
 import React from "react";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
+import { formatDateTime } from "@/lib/dateFormat";
 import Button from "@/components/ui/button/Button";
 import {
   affiliateNetworkName,
@@ -30,14 +31,7 @@ export function displayAffiliatePartner(offer: Offer): string {
 }
 
 export function formatSubmitted(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString(undefined, {
-      dateStyle: "medium",
-      timeStyle: "short",
-    });
-  } catch {
-    return iso;
-  }
+  return formatDateTime(iso, { seconds: false, fallback: iso });
 }
 
 function formatPartnerMaxCap(offer: Offer | null): string {
@@ -70,10 +64,18 @@ function formatPartnerRatesMinMax(offer: Offer | null): string {
   return `Min ${min}% · Max ${max}%`;
 }
 
-function FieldLabel({ label, description }: { label: string; description: string }) {
+function FieldLabel({
+  label,
+  description,
+}: {
+  label: string;
+  description: string;
+}) {
   return (
     <div className="mb-1.5">
-      <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{label}</p>
+      <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+        {label}
+      </p>
       <p className="text-xs text-gray-500 dark:text-gray-400">{description}</p>
     </div>
   );
@@ -95,11 +97,13 @@ function DetailRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="grid gap-1 border-b border-gray-100 py-3 last:border-0 dark:border-gray-800 sm:grid-cols-[minmax(0,200px)_1fr] sm:gap-4">
-      <div className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+    <div className="grid gap-1 border-b border-gray-100 py-3 last:border-0 sm:grid-cols-[minmax(0,200px)_1fr] sm:gap-4 dark:border-gray-800">
+      <div className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
         {label}
       </div>
-      <div className="min-w-0 text-sm text-gray-900 dark:text-gray-100">{children}</div>
+      <div className="min-w-0 text-sm text-gray-900 dark:text-gray-100">
+        {children}
+      </div>
     </div>
   );
 }
@@ -112,9 +116,12 @@ export function PendingOfferDetailBody({ offer }: { offer: PendingOfferRow }) {
 
   return (
     <>
-      <section id="pending-offer-section-basic" className={`space-y-4 ${PENDING_OFFER_SCROLL_CLASS}`}>
+      <section
+        id="pending-offer-section-basic"
+        className={`space-y-4 ${PENDING_OFFER_SCROLL_CLASS}`}
+      >
         <div className="flex flex-wrap items-center gap-3">
-          <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+          <h4 className="text-sm font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
             Basic info
           </h4>
           <span className="inline-flex rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-900 dark:bg-amber-900/40 dark:text-amber-200">
@@ -133,33 +140,49 @@ export function PendingOfferDetailBody({ offer }: { offer: PendingOfferRow }) {
             label="Display name"
             description="Display name shown to users in the app."
           />
-          <ReadOnlyValue>{offer.offer_name_display?.trim() || "—"}</ReadOnlyValue>
+          <ReadOnlyValue>
+            {offer.offer_name_display?.trim() || "—"}
+          </ReadOnlyValue>
         </div>
         <div>
-          <FieldLabel label="Submitted" description="When the merchant sent this for review." />
+          <FieldLabel
+            label="Submitted"
+            description="When the merchant sent this for review."
+          />
           <ReadOnlyValue>{formatSubmitted(offer.submitted_at)}</ReadOnlyValue>
         </div>
       </section>
 
-      <section id="pending-offer-section-media" className={`space-y-3 ${PENDING_OFFER_SCROLL_CLASS}`}>
-        <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+      <section
+        id="pending-offer-section-media"
+        className={`space-y-3 ${PENDING_OFFER_SCROLL_CLASS}`}
+      >
+        <h4 className="text-sm font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
           Media
         </h4>
         <div className="flex flex-wrap gap-4 rounded-xl border border-gray-200 bg-gray-50/50 p-4 dark:border-gray-700 dark:bg-gray-800/30">
           <div className="flex flex-col items-center gap-2">
-            <span className="text-xs text-gray-500 dark:text-gray-400">Main logo</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              Main logo
+            </span>
             <div className="h-20 w-20 overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700">
               {offer.logo ? (
                 <RemoteOrBlobImage
                   className="h-full w-full object-contain p-1"
                   src={offer.logo}
-                  alt={offer.offer_name_display?.trim() || offer.offer_name || "Offer logo"}
+                  alt={
+                    offer.offer_name_display?.trim() ||
+                    offer.offer_name ||
+                    "Offer logo"
+                  }
                   width={80}
                   height={80}
                   sizes={OFFER_REVIEW_MEDIA_SIZES}
                 />
               ) : (
-                <div className="flex h-full w-full items-center justify-center text-sm text-gray-400">—</div>
+                <div className="flex h-full w-full items-center justify-center text-sm text-gray-400">
+                  —
+                </div>
               )}
             </div>
           </div>
@@ -170,7 +193,9 @@ export function PendingOfferDetailBody({ offer }: { offer: PendingOfferRow }) {
             { label: "Circle", src: logoCircleSrc },
           ].map(({ label, src }) => (
             <div key={label} className="flex flex-col items-center gap-2">
-              <span className="text-xs text-gray-500 dark:text-gray-400">{label}</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {label}
+              </span>
               <div className="h-20 w-20 overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700">
                 {hasNonEmptyString(src) ? (
                   <RemoteOrBlobImage
@@ -182,7 +207,9 @@ export function PendingOfferDetailBody({ offer }: { offer: PendingOfferRow }) {
                     sizes={OFFER_REVIEW_MEDIA_SIZES}
                   />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">—</div>
+                  <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">
+                    —
+                  </div>
                 )}
               </div>
             </div>
@@ -192,17 +219,18 @@ export function PendingOfferDetailBody({ offer }: { offer: PendingOfferRow }) {
 
       <section
         id="pending-offer-section-partner"
-        className={`rounded-xl border border-dashed border-brand-200/80 bg-brand-50/50 p-4 dark:border-brand-800/60 dark:bg-brand-950/25 ${PENDING_OFFER_SCROLL_CLASS}`}
+        className={`border-brand-200/80 bg-brand-50/50 dark:border-brand-800/60 dark:bg-brand-950/25 rounded-xl border border-dashed p-4 ${PENDING_OFFER_SCROLL_CLASS}`}
       >
-        <h4 className="text-sm font-semibold text-brand-900 dark:text-brand-100">
+        <h4 className="text-brand-900 dark:text-brand-100 text-sm font-semibold">
           Commission info from partner
         </h4>
-        <p className="mt-1 text-xs text-brand-800/80 dark:text-brand-200/80">
-          Structured terms as supplied by the partner or affiliate network. Partner commission details below are read-only (from the network).
+        <p className="text-brand-800/80 dark:text-brand-200/80 mt-1 text-xs">
+          Structured terms as supplied by the partner or affiliate network.
+          Partner commission details below are read-only (from the network).
         </p>
         <dl className="mt-4 grid gap-3 sm:grid-cols-2">
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
               Affiliate partner
             </dt>
             <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
@@ -210,15 +238,17 @@ export function PendingOfferDetailBody({ offer }: { offer: PendingOfferRow }) {
             </dd>
           </div>
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
               Tracking model
             </dt>
             <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
-              {offer.commission_tracking?.trim() ? offer.commission_tracking : "—"}
+              {offer.commission_tracking?.trim()
+                ? offer.commission_tracking
+                : "—"}
             </dd>
           </div>
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
               Min / Max
             </dt>
             <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
@@ -226,7 +256,7 @@ export function PendingOfferDetailBody({ offer }: { offer: PendingOfferRow }) {
             </dd>
           </div>
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
               Max cap (partner)
             </dt>
             <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
@@ -234,7 +264,7 @@ export function PendingOfferDetailBody({ offer }: { offer: PendingOfferRow }) {
             </dd>
           </div>
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
               Currency (partner)
             </dt>
             <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
@@ -242,35 +272,46 @@ export function PendingOfferDetailBody({ offer }: { offer: PendingOfferRow }) {
             </dd>
           </div>
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
               Payment terms
             </dt>
             <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
-              {typeof offer.payment_terms === "number" ? `${offer.payment_terms} days` : "—"}
+              {typeof offer.payment_terms === "number"
+                ? `${offer.payment_terms} days`
+                : "—"}
             </dd>
           </div>
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
               Validation terms
             </dt>
             <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
-              {typeof offer.validation_terms === "number" ? `${offer.validation_terms} days` : "—"}
+              {typeof offer.validation_terms === "number"
+                ? `${offer.validation_terms} days`
+                : "—"}
             </dd>
           </div>
         </dl>
-        {Array.isArray(offer.special_commissions) && offer.special_commissions.length > 0 ? (
+        {Array.isArray(offer.special_commissions) &&
+        offer.special_commissions.length > 0 ? (
           <p className="mt-3 text-xs text-gray-600 dark:text-gray-400">
-            <span className="font-medium text-gray-700 dark:text-gray-300">Special commissions: </span>
-            {offer.special_commissions.length} tier(s) — see partner portal for full rules.
+            <span className="font-medium text-gray-700 dark:text-gray-300">
+              Special commissions:{" "}
+            </span>
+            {offer.special_commissions.length} tier(s) — see partner portal for
+            full rules.
           </p>
         ) : null}
       </section>
 
-      <section id="pending-offer-section-admin" className={`space-y-3 ${PENDING_OFFER_SCROLL_CLASS}`}>
-        <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+      <section
+        id="pending-offer-section-admin"
+        className={`space-y-3 ${PENDING_OFFER_SCROLL_CLASS}`}
+      >
+        <h4 className="text-sm font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
           Admin &amp; coverage (submission)
         </h4>
-        <div className="divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white p-4 dark:divide-gray-800 dark:border-gray-700 dark:bg-gray-900/40 sm:px-5">
+        <div className="divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white p-4 sm:px-5 dark:divide-gray-800 dark:border-gray-700 dark:bg-gray-900/40">
           <DetailRow label="Countries">
             {offer.countries
               ? offer.countries
@@ -281,19 +322,29 @@ export function PendingOfferDetailBody({ offer }: { offer: PendingOfferRow }) {
               : "—"}
           </DetailRow>
           <DetailRow label="Category">{offer.categories || "—"}</DetailRow>
-          <DetailRow label="Currency (offer)">{offer.currency || "—"}</DetailRow>
-          <DetailRow label="Description">
-            <span className="whitespace-pre-wrap">{offer.description || "—"}</span>
+          <DetailRow label="Currency (offer)">
+            {offer.currency || "—"}
           </DetailRow>
-          <DetailRow label="Active policy">{offer.active_policy ?? offer.categories ?? "—"}</DetailRow>
+          <DetailRow label="Description">
+            <span className="whitespace-pre-wrap">
+              {offer.description || "—"}
+            </span>
+          </DetailRow>
+          <DetailRow label="Active policy">
+            {offer.active_policy ?? offer.categories ?? "—"}
+          </DetailRow>
           <DetailRow label="Max cap (admin)">
             {offer.max_cap != null ? offer.max_cap.toLocaleString() : "—"}
           </DetailRow>
           <DetailRow label="Max commission (store)">
-            {offer.commission_store != null ? `${offer.commission_store}%` : "—"}
+            {offer.commission_store != null
+              ? `${offer.commission_store}%`
+              : "—"}
           </DetailRow>
           <DetailRow label="Commissions (partner lines)">
-            {(offer.commissions ?? []).length ? offer.commissions.join(" · ") : "—"}
+            {(offer.commissions ?? []).length
+              ? offer.commissions.join(" · ")
+              : "—"}
           </DetailRow>
           <DetailRow label="Tracking link">
             {offer.tracking_link ? (
@@ -301,7 +352,7 @@ export function PendingOfferDetailBody({ offer }: { offer: PendingOfferRow }) {
                 href={offer.tracking_link}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="break-all text-brand-600 underline hover:text-brand-700 dark:text-brand-400"
+                className="text-brand-600 hover:text-brand-700 dark:text-brand-400 break-all underline"
               >
                 {offer.tracking_link}
               </a>
@@ -315,7 +366,7 @@ export function PendingOfferDetailBody({ offer }: { offer: PendingOfferRow }) {
                 href={offer.preview_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="break-all text-brand-600 underline hover:text-brand-700 dark:text-brand-400"
+                className="text-brand-600 hover:text-brand-700 dark:text-brand-400 break-all underline"
               >
                 {offer.preview_url}
               </a>
@@ -323,14 +374,26 @@ export function PendingOfferDetailBody({ offer }: { offer: PendingOfferRow }) {
               "—"
             )}
           </DetailRow>
-          <DetailRow label="Directory / store page">{offer.directory_page || "—"}</DetailRow>
-          <DetailRow label="Tracking link store id">{offer.deeplink_store_id ?? "—"}</DetailRow>
-          <DetailRow label="Offer ID (system)">{String(offer.offer_id)}</DetailRow>
+          <DetailRow label="Directory / store page">
+            {offer.directory_page || "—"}
+          </DetailRow>
+          <DetailRow label="Tracking link store id">
+            {offer.deeplink_store_id ?? "—"}
+          </DetailRow>
+          <DetailRow label="Offer ID (system)">
+            {String(offer.offer_id)}
+          </DetailRow>
           <DetailRow label="Internal ID">{offer._id}</DetailRow>
-          <DetailRow label="Lookup value">{offer.lookup_value || "—"}</DetailRow>
+          <DetailRow label="Lookup value">
+            {offer.lookup_value || "—"}
+          </DetailRow>
           <DetailRow label="Merchant ID">{String(offer.merchant_id)}</DetailRow>
-          <DetailRow label="Disabled">{offer.disabled ? "Yes" : "No"}</DetailRow>
-          <DetailRow label="Requires approval (flag)">{String(offer.is_require_approval)}</DetailRow>
+          <DetailRow label="Disabled">
+            {offer.disabled ? "Yes" : "No"}
+          </DetailRow>
+          <DetailRow label="Requires approval (flag)">
+            {String(offer.is_require_approval)}
+          </DetailRow>
         </div>
       </section>
     </>
@@ -363,7 +426,9 @@ export function PendingOfferReviewPage({
               Review new offer
             </h3>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              Check basic info, policy source, promo period, and media. Partner commission details below are read-only (from the network). Approve to publish or reject to send back.
+              Check basic info, policy source, promo period, and media. Partner
+              commission details below are read-only (from the network). Approve
+              to publish or reject to send back.
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-3">
@@ -373,14 +438,14 @@ export function PendingOfferReviewPage({
             <button
               type="button"
               onClick={() => onReject(offer)}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-300 bg-white px-4 py-3 text-sm font-medium text-red-700 ring-1 ring-inset ring-red-200 hover:bg-red-50 dark:border-red-800 dark:bg-gray-900 dark:text-red-400 dark:ring-red-900/50 dark:hover:bg-red-950/40"
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-300 bg-white px-4 py-3 text-sm font-medium text-red-700 ring-1 ring-red-200 ring-inset hover:bg-red-50 dark:border-red-800 dark:bg-gray-900 dark:text-red-400 dark:ring-red-900/50 dark:hover:bg-red-950/40"
             >
               Reject
             </button>
             <button
               type="button"
               onClick={() => onApprove(offer)}
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-3 text-sm font-medium text-white shadow-theme-xs hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600"
+              className="shadow-theme-xs inline-flex items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-3 text-sm font-medium text-white hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600"
             >
               Approve
             </button>

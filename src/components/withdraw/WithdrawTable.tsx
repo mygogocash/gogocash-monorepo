@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, startTransition } from "react";
 import { useApi } from "@/hooks/useApi";
+import { formatDateTime } from "@/lib/dateFormat";
 import {
   DataWithdrawsList,
   ResponseWithdraws,
@@ -160,10 +161,8 @@ export default function WithdrawTable() {
     fetchOffers(newQuery);
   };
 
-  // Format date
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
-  };
+  // Format date as dd/mm/yyyy HH:mm:ss
+  const formatDate = (dateString: string) => formatDateTime(dateString);
 
   // Format price
   const formatPrice = (price?: number) => {

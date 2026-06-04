@@ -74,6 +74,15 @@ describe("add-conversion id allocation", () => {
   });
 });
 
+describe("withdraw detail user", () => {
+  it("exposes username on the detail user (read-only identity)", async () => {
+    const res = await call("POST", ["withdraw", "list-check-admin", "u1"]);
+    expect(res.status).toBe(200);
+    const body = res.body as { user: { username?: string } };
+    expect(body.user.username).toBe("alice_smith_1");
+  });
+});
+
 describe("update-offer numeric guard", () => {
   it("ignores a non-numeric commission_store instead of storing NaN", async () => {
     await call("PATCH", ["admin", "update-offer", "o1"], {

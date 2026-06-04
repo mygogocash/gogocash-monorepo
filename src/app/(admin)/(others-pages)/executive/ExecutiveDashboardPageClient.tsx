@@ -25,9 +25,9 @@ const SECTIONS = [
 ] as const;
 
 function fmtUsd(n: number) {
-  if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
-  if (Math.abs(n) >= 1000) return `$${(n / 1000).toFixed(1)}k`;
-  return `$${n.toLocaleString()}`;
+  if (Math.abs(n) >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M USD`;
+  if (Math.abs(n) >= 1000) return `${(n / 1000).toFixed(1)}k USD`;
+  return `${n.toLocaleString()} USD`;
 }
 
 function fmtNum(n: number) {

@@ -9,6 +9,7 @@ import {
 } from "../ui/table";
 import Badge from "../ui/badge/Badge";
 import { useApi } from "@/hooks/useApi";
+import { formatDateTime } from "@/lib/dateFormat";
 import type { DataConversion, DataWithdrawsList } from "@/types/api";
 import { useDataSession } from "@/hooks/useDataSession";
 import Link from "next/link";
@@ -21,15 +22,7 @@ type ActivityItem =
   | { type: "withdrawal"; data: DataWithdrawsList };
 
 function formatDate(d: Date | string | undefined): string {
-  if (!d) return "—";
-  const date = typeof d === "string" ? new Date(d) : d;
-  if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatDateTime(d, { seconds: false });
 }
 
 function statusColor(status: string): "success" | "warning" | "error" {

@@ -153,7 +153,7 @@ type UserMembership = {
   startDate: string;
   expiryDate: string;
   autoRenew: boolean;
-  status: "active" | "expired" | "cancelled" | "pending";
+  status: "active" | "expired" | "cancelled" | "pending" | "paused";
 };
 
 let userMemberships: UserMembership[] = mockUsers.slice(0, 35).map((u, i) => ({
@@ -209,6 +209,7 @@ type SubscriptionRow = {
   id: string;
   userId: string;
   userName: string;
+  email: string;
   planId: string;
   planName: string;
   startDate: string;
@@ -216,20 +217,31 @@ type SubscriptionRow = {
   amount: number;
   paymentMethod: string;
   status: "active" | "trialing" | "past_due" | "cancelled" | "paused";
+  autoRenew: boolean;
 };
 
-let subscriptions: SubscriptionRow[] = mockUsers.slice(20, 55).map((u, i) => ({
-  id: `sub_${u._id}`,
-  userId: u._id,
-  userName: u.username,
-  planId: i % 2 === 0 ? "plan_monthly" : "plan_annual",
-  planName: i % 2 === 0 ? "Monthly Premium" : "Annual Premium",
-  startDate: new Date(Date.now() - i * 86400000 * 6).toISOString().slice(0, 10),
-  nextBillingDate: new Date(Date.now() + 86400000 * (15 + i)).toISOString().slice(0, 10),
-  amount: i % 2 === 0 ? 149 : 1490,
-  paymentMethod: i % 3 === 0 ? "card" : "promptpay",
-  status: i % 9 === 0 ? "past_due" : i % 7 === 0 ? "paused" : "active",
-}));
+let subscriptions: SubscriptionRow[] = mockUsers.slice(20, 55).map((u, i) => {
+  const status: SubscriptionRow["status"] =
+    i % 9 === 0 ? "past_due" : i % 7 === 0 ? "paused" : "active";
+  return {
+    id: `sub_${u._id}`,
+    userId: u._id,
+    userName: u.username,
+    email: u.email,
+    planId: i % 2 === 0 ? "plan_monthly" : "plan_annual",
+    planName: i % 2 === 0 ? "Monthly Premium" : "Annual Premium",
+    startDate: new Date(Date.now() - i * 86400000 * 6)
+      .toISOString()
+      .slice(0, 10),
+    nextBillingDate: new Date(Date.now() + 86400000 * (15 + i))
+      .toISOString()
+      .slice(0, 10),
+    amount: i % 2 === 0 ? 149 : 1490,
+    paymentMethod: i % 3 === 0 ? "card" : "promptpay",
+    status,
+    autoRenew: status === "active",
+  };
+});
 
 let referralConfig = {
   referrerRewardType: "fixed" as const,
@@ -619,11 +631,22 @@ export function tryMockAdminFeaturesRequest(input: AdminFeatureMockInput): MockA
       );
       return ok({ success: true });
     }
-    if (m === "PUT" && path[2] === "users" && path[4] === "cancel") {
+    if (m === "PUT" && path[2] === "users" && path[4]) {
       const uid = path[3];
-      userMemberships = userMemberships.map((r) =>
-        r.userId === uid ? { ...r, status: "cancelled" as const } : r,
-      );
+      const action = path[4];
+      userMemberships = userMemberships.map((r) => {
+        if (r.userId !== uid) return r;
+        if (action === "cancel") return { ...r, status: "cancelled" as const };
+        if (action === "pause") return { ...r, status: "paused" as const };
+        if (action === "resume") return { ...r, status: "active" as const };
+        if (action === "extend") {
+          const days = Number((body as { days?: number }).days ?? 30);
+          const d = new Date(r.expiryDate);
+          d.setDate(d.getDate() + days);
+          return { ...r, expiryDate: d.toISOString().slice(0, 10) };
+        }
+        return r;
+      });
       return ok({ success: true });
     }
     return null;

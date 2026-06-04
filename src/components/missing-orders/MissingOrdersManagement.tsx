@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { formatMoney } from "@/lib/currencyFormat";
 import {
   getMissingOrderDetail,
   getMissingOrders,
@@ -129,7 +130,9 @@ export default function MissingOrdersManagement() {
                     <td className="px-4 py-3 font-mono text-xs">{c.id}</td>
                     <td className="px-4 py-3">{c.userName}</td>
                     <td className="px-4 py-3">{c.merchantName}</td>
-                    <td className="px-4 py-3 tabular-nums">฿{c.orderAmount}</td>
+                    <td className="px-4 py-3 tabular-nums">
+                      {formatMoney(c.orderAmount)}
+                    </td>
                     <td className="px-4 py-3 capitalize">{c.status.replace("_", " ")}</td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-2">
@@ -161,7 +164,9 @@ export default function MissingOrdersManagement() {
         {detailQ.data ? (
           <div className="space-y-4 text-sm text-gray-800 dark:text-gray-200">
             <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Claim {detailQ.data.id}</h4>
-            <p>Expected cashback: ฿{detailQ.data.expectedCashback}</p>
+            <p>
+              Expected cashback: {formatMoney(detailQ.data.expectedCashback)}
+            </p>
             <div className="flex flex-wrap gap-2">
               {detailQ.data.evidence.map((src, i) => (
                 // eslint-disable-next-line @next/next/no-img-element

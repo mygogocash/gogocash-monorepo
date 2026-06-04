@@ -63,9 +63,13 @@ export function ExecutiveRoadmap({ milestones, targets }: Props) {
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-medium text-gray-800 dark:text-gray-200">{t.label}</span>
                   <span className="font-mono text-xs tabular-nums text-gray-600 dark:text-gray-300">
-                    {t.unit === "usd" ? `$${t.current.toLocaleString()}` : t.current.toLocaleString()}
+                    {t.unit === "usd"
+                      ? `${t.current.toLocaleString()} USD`
+                      : t.current.toLocaleString()}
                     {" / "}
-                    {t.unit === "usd" ? `$${t.target.toLocaleString()}` : t.target.toLocaleString()}
+                    {t.unit === "usd"
+                      ? `${t.target.toLocaleString()} USD`
+                      : t.target.toLocaleString()}
                   </span>
                 </div>
                 <div className="mt-2 h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">

@@ -72,7 +72,7 @@ export const REVENUE_WATERFALL: RevenueWaterfallStep[] = [
   { label: "Gross affiliate commission", value: 1_850_000, type: "start" },
   { label: "Platform take (10%)", value: 185_000, type: "positive" },
   { label: "Advertising", value: 96_000, type: "positive" },
-  { label: "Premium ($1.49+)", value: 72_000, type: "positive" },
+  { label: "Premium (1.49 USD+)", value: 72_000, type: "positive" },
   { label: "B2B insights", value: 48_000, type: "positive" },
   { label: "Cashback & ops allocation", value: -973_000, type: "negative" },
   { label: "Net revenue (operating)", value: 428_000, type: "end" },

@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRightIcon } from "@/icons";
+import { formatDateTime } from "@/lib/dateFormat";
 import {
   MOCK_DASHBOARD_SUMMARY,
   fetchDashboardWithdrawSummary,
@@ -22,11 +23,14 @@ export function DashboardWithdrawSummary() {
 
   if (isLoading) {
     return (
-      <div className="animate-pulse rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] sm:p-6">
+      <div className="animate-pulse rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 dark:border-gray-800 dark:bg-white/[0.03]">
         <div className="h-5 w-32 rounded bg-gray-200 dark:bg-gray-700" />
         <div className="mt-4 grid grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-16 rounded-lg bg-gray-100 dark:bg-gray-800" />
+            <div
+              key={i}
+              className="h-16 rounded-lg bg-gray-100 dark:bg-gray-800"
+            />
           ))}
         </div>
       </div>
@@ -71,33 +75,40 @@ export function DashboardWithdrawSummary() {
       {showAttention && (
         <Link
           href="/withdraw"
-          className="flex items-center justify-between rounded-xl border border-warning-200 bg-warning-50 px-4 py-3 transition-all duration-200 ease-out hover:border-warning-300 hover:shadow-sm dark:border-warning-800 dark:bg-warning-500/10 dark:hover:border-warning-700"
+          className="border-warning-200 bg-warning-50 hover:border-warning-300 dark:border-warning-800 dark:bg-warning-500/10 dark:hover:border-warning-700 flex items-center justify-between rounded-xl border px-4 py-3 transition-all duration-200 ease-out hover:shadow-sm"
         >
-          <span className="text-sm font-medium text-warning-800 dark:text-warning-200">
-            {pendingCount} pending withdrawal{pendingCount !== 1 ? "s" : ""} need review
+          <span className="text-warning-800 dark:text-warning-200 text-sm font-medium">
+            {pendingCount} pending withdrawal{pendingCount !== 1 ? "s" : ""}{" "}
+            need review
             {displaySummary?.withdrawByStatus?.pending?.oldestAt ? (
-              <span className="mt-0.5 block text-xs font-normal text-warning-700/90 dark:text-warning-300/90">
+              <span className="text-warning-700/90 dark:text-warning-300/90 mt-0.5 block text-xs font-normal">
                 Oldest pending:{" "}
-                {new Date(displaySummary.withdrawByStatus.pending.oldestAt).toLocaleString(undefined, {
-                  dateStyle: "medium",
-                  timeStyle: "short",
-                })}
+                {formatDateTime(
+                  displaySummary.withdrawByStatus.pending.oldestAt,
+                  {
+                    seconds: false,
+                  },
+                )}
               </span>
             ) : null}
           </span>
-          <ArrowRightIcon className="size-5 shrink-0 text-warning-600 dark:text-warning-400" />
+          <ArrowRightIcon className="text-warning-600 dark:text-warning-400 size-5 shrink-0" />
         </Link>
       )}
 
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] sm:p-6">
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 dark:border-gray-800 dark:bg-white/[0.03]">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">Withdrawals at a glance</h3>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Count and total amount by status</p>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
+              Withdrawals at a glance
+            </h3>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              Count and total amount by status
+            </p>
           </div>
           <Link
             href="/withdraw"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-500 transition-colors duration-200 ease-out hover:text-brand-600 dark:text-brand-400 dark:hover:text-brand-300"
+            className="text-brand-500 hover:text-brand-600 dark:text-brand-400 dark:hover:text-brand-300 inline-flex items-center gap-1.5 text-sm font-medium transition-colors duration-200 ease-out"
           >
             View all
             <ArrowRightIcon className="size-4" />
@@ -110,7 +121,9 @@ export function DashboardWithdrawSummary() {
               key={row.status}
               className={`rounded-xl border border-gray-100 p-4 transition-all duration-200 ease-out hover:shadow-sm dark:border-gray-800 ${row.bg}`}
             >
-              <p className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">{row.label}</p>
+              <p className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                {row.label}
+              </p>
               <p className="mt-1 font-bold text-gray-800 dark:text-white/90">
                 {row.count} request{row.count !== 1 ? "s" : ""}
               </p>

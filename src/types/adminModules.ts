@@ -50,7 +50,7 @@ export interface UserMembership {
   startDate: string;
   expiryDate: string;
   autoRenew: boolean;
-  status: "active" | "expired" | "cancelled" | "pending";
+  status: "active" | "expired" | "cancelled" | "pending" | "paused";
 }
 
 export interface SubscriptionPlan {
@@ -69,6 +69,7 @@ export interface Subscription {
   id: string;
   userId: string;
   userName: string;
+  email: string;
   planId: string;
   planName: string;
   startDate: string;
@@ -76,6 +77,7 @@ export interface Subscription {
   amount: number;
   paymentMethod: string;
   status: "active" | "trialing" | "past_due" | "cancelled" | "paused";
+  autoRenew: boolean;
 }
 
 export interface ReferralConfig {

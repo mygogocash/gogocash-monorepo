@@ -3,6 +3,7 @@
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import Button from "@/components/ui/button/Button";
 import client from "@/lib/axios/client";
+import { formatMoney } from "@/lib/currencyFormat";
 import type { AffiliateNetwork } from "@/data/affiliateNetworks";
 import { isAxiosError } from "axios";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -41,17 +42,7 @@ export type FetchBestResponse = {
 };
 
 function formatMoneyCap(amount: number | null | undefined, currency: string): string {
-  if (amount == null || Number.isNaN(Number(amount))) return "—";
-  const code = (currency || "USD").trim() || "USD";
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: code,
-      maximumFractionDigits: 0,
-    }).format(Number(amount));
-  } catch {
-    return `${amount} ${code}`;
-  }
+  return formatMoney(amount, currency || "USD", { decimals: 0, fallback: "—" });
 }
 
 async function getNetworks(): Promise<{ data: AffiliateNetwork[] }> {

@@ -25,14 +25,24 @@ function WithdrawDetailPageHeaderInner() {
     }
   }
 
-  if (from === "users") {
+  // Origin-aware breadcrumb: the middle crumb links back to where the user
+  // came from (Users / MyCashBack Users), so the flow is reversible.
+  const origin: BreadcrumbItem | null =
+    from === "users"
+      ? { label: "GoGoCash Users", href: "/users" }
+      : from === "mycashback"
+        ? { label: "MyCashBack Users", href: "/users/mycashback" }
+        : null;
+
+  if (origin) {
     const items: BreadcrumbItem[] = [
       { label: "Home", href: "/" },
-      { label: "Users", href: "/users" },
+      origin,
       { label: "Detail" },
     ];
-    const pageTitle = displayName ? `${displayName}` : "User detail";
-    return <PageBreadcrumb pageTitle={pageTitle} items={items} />;
+    return (
+      <PageBreadcrumb pageTitle={displayName ?? "User detail"} items={items} />
+    );
   }
 
   return <PageBreadcrumb pageTitle="Detail" items={DEFAULT_ITEMS} />;

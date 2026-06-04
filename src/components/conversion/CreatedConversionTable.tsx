@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useApi } from "@/hooks/useApi";
+import { formatDateTime } from "@/lib/dateFormat";
+import { formatMoney } from "@/lib/currencyFormat";
 import {
   ConversionQuery,
   DataConversion,
@@ -82,18 +84,11 @@ export default function CreatedConversionTable() {
     return () => document.removeEventListener("click", handleClick, true);
   }, [openActionsId]);
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleString();
-  };
+  const formatDate = (dateString?: string) =>
+    formatDateTime(dateString, { fallback: "N/A" });
 
-  const formatPrice = (price?: number, currency?: string) => {
-    if (price == null || isNaN(price)) return "N/A";
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currency || "USD",
-    }).format(price);
-  };
+  const formatPrice = (price?: number, currency?: string) =>
+    formatMoney(price, currency || "USD", { decimals: 2 });
 
   const openUpdateModal = (row: DataConversion) => {
     setUpdateModal(row);

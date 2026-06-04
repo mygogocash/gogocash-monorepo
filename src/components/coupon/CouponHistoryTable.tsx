@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import { Modal } from "@/components/ui/modal";
+import { formatDateTime } from "@/lib/dateFormat";
 import Button from "@/components/ui/button/Button";
 
 export interface CouponHistoryEntry {
@@ -18,14 +19,94 @@ export interface CouponHistoryEntry {
 
 // Mock data for coupon usage history
 const MOCK_HISTORY: CouponHistoryEntry[] = [
-  { id: "1", couponCode: "BANANA10", couponName: "Banana IT 10% Off", userId: "u1", userEmail: "user1@example.com", usedAt: "2026-03-15T10:30:00Z", offerName: "Banana IT TH - CPS", discount: "10%", status: "redeemed" },
-  { id: "2", couponCode: "ADIDAS50", couponName: "Adidas 50 THB", userId: "u2", userEmail: "user2@example.com", usedAt: "2026-03-14T14:20:00Z", offerName: "Adidas TH - CPS", discount: "50 THB", status: "redeemed" },
-  { id: "3", couponCode: "BANANA10", couponName: "Banana IT 10% Off", userId: "u3", userEmail: "user3@example.com", usedAt: "2026-03-13T09:15:00Z", offerName: "Banana IT TH - CPS", discount: "10%", status: "redeemed" },
-  { id: "4", couponCode: "AIRASIA5", couponName: "AirAsia Welcome 5%", userId: "u4", userEmail: "user4@example.com", usedAt: "2026-03-12T16:45:00Z", offerName: "AirAsia Travel - CPS", discount: "5%", status: "redeemed" },
-  { id: "5", couponCode: "EXPIRED20", couponName: "Expired Promo", userId: "u5", userEmail: "user5@example.com", usedAt: "2026-03-10T11:00:00Z", offerName: "Banana IT TH - CPS", discount: "20%", status: "expired" },
-  { id: "6", couponCode: "ADIDAS50", couponName: "Adidas 50 THB", userId: "u1", userEmail: "user1@example.com", usedAt: "2026-03-11T08:30:00Z", offerName: "Adidas TH - CPS", discount: "50 THB", status: "redeemed" },
-  { id: "7", couponCode: "BANANA10", couponName: "Banana IT 10% Off", userId: "u6", userEmail: "user6@example.com", usedAt: "2026-03-09T13:20:00Z", offerName: "Banana IT TH - CPS", discount: "10%", status: "cancelled" },
-  { id: "8", couponCode: "AIRASIA5", couponName: "AirAsia Welcome 5%", userId: "u2", userEmail: "user2@example.com", usedAt: "2026-03-08T17:00:00Z", offerName: "AirAsia Travel - CPS", discount: "5%", status: "redeemed" },
+  {
+    id: "1",
+    couponCode: "BANANA10",
+    couponName: "Banana IT 10% Off",
+    userId: "u1",
+    userEmail: "user1@example.com",
+    usedAt: "2026-03-15T10:30:00Z",
+    offerName: "Banana IT TH - CPS",
+    discount: "10%",
+    status: "redeemed",
+  },
+  {
+    id: "2",
+    couponCode: "ADIDAS50",
+    couponName: "Adidas 50 THB",
+    userId: "u2",
+    userEmail: "user2@example.com",
+    usedAt: "2026-03-14T14:20:00Z",
+    offerName: "Adidas TH - CPS",
+    discount: "50 THB",
+    status: "redeemed",
+  },
+  {
+    id: "3",
+    couponCode: "BANANA10",
+    couponName: "Banana IT 10% Off",
+    userId: "u3",
+    userEmail: "user3@example.com",
+    usedAt: "2026-03-13T09:15:00Z",
+    offerName: "Banana IT TH - CPS",
+    discount: "10%",
+    status: "redeemed",
+  },
+  {
+    id: "4",
+    couponCode: "AIRASIA5",
+    couponName: "AirAsia Welcome 5%",
+    userId: "u4",
+    userEmail: "user4@example.com",
+    usedAt: "2026-03-12T16:45:00Z",
+    offerName: "AirAsia Travel - CPS",
+    discount: "5%",
+    status: "redeemed",
+  },
+  {
+    id: "5",
+    couponCode: "EXPIRED20",
+    couponName: "Expired Promo",
+    userId: "u5",
+    userEmail: "user5@example.com",
+    usedAt: "2026-03-10T11:00:00Z",
+    offerName: "Banana IT TH - CPS",
+    discount: "20%",
+    status: "expired",
+  },
+  {
+    id: "6",
+    couponCode: "ADIDAS50",
+    couponName: "Adidas 50 THB",
+    userId: "u1",
+    userEmail: "user1@example.com",
+    usedAt: "2026-03-11T08:30:00Z",
+    offerName: "Adidas TH - CPS",
+    discount: "50 THB",
+    status: "redeemed",
+  },
+  {
+    id: "7",
+    couponCode: "BANANA10",
+    couponName: "Banana IT 10% Off",
+    userId: "u6",
+    userEmail: "user6@example.com",
+    usedAt: "2026-03-09T13:20:00Z",
+    offerName: "Banana IT TH - CPS",
+    discount: "10%",
+    status: "cancelled",
+  },
+  {
+    id: "8",
+    couponCode: "AIRASIA5",
+    couponName: "AirAsia Welcome 5%",
+    userId: "u2",
+    userEmail: "user2@example.com",
+    usedAt: "2026-03-08T17:00:00Z",
+    offerName: "AirAsia Travel - CPS",
+    discount: "5%",
+    status: "redeemed",
+  },
 ];
 
 const PAGE_SIZE = 10;
@@ -78,7 +159,10 @@ const MOCK_ENGAGEMENT: CouponEngagementRow[] = [
   },
 ];
 
-const STATUS_OPTIONS: { value: "" | CouponHistoryEntry["status"]; label: string }[] = [
+const STATUS_OPTIONS: {
+  value: "" | CouponHistoryEntry["status"];
+  label: string;
+}[] = [
   { value: "", label: "All" },
   { value: "redeemed", label: "Redeemed" },
   { value: "expired", label: "Expired" },
@@ -89,10 +173,14 @@ export default function CouponHistoryTable() {
   const [activeTab, setActiveTab] = useState<HistoryTab>("redemptions");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState<"" | CouponHistoryEntry["status"]>("");
+  const [statusFilter, setStatusFilter] = useState<
+    "" | CouponHistoryEntry["status"]
+  >("");
   const [engagementSearch, setEngagementSearch] = useState("");
   const [engagementPage, setEngagementPage] = useState(1);
-  const [quickView, setQuickView] = useState<CouponHistoryQuickView | null>(null);
+  const [quickView, setQuickView] = useState<CouponHistoryQuickView | null>(
+    null,
+  );
 
   const statusCounts = useMemo(() => {
     const tallies: Record<CouponHistoryEntry["status"], number> = {
@@ -115,7 +203,7 @@ export default function CouponHistoryTable() {
           e.couponCode.toLowerCase().includes(q) ||
           e.couponName.toLowerCase().includes(q) ||
           e.userEmail.toLowerCase().includes(q) ||
-          e.offerName.toLowerCase().includes(q)
+          e.offerName.toLowerCase().includes(q),
       );
     }
     if (statusFilter) {
@@ -149,7 +237,10 @@ export default function CouponHistoryTable() {
     );
   }, [engagementFiltered]);
 
-  const engagementPages = Math.max(1, Math.ceil(engagementFiltered.length / PAGE_SIZE));
+  const engagementPages = Math.max(
+    1,
+    Math.ceil(engagementFiltered.length / PAGE_SIZE),
+  );
   const engagementPaginated = useMemo(
     () =>
       engagementFiltered.slice(
@@ -162,16 +253,10 @@ export default function CouponHistoryTable() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = useMemo(
     () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-    [filtered, page]
+    [filtered, page],
   );
 
-  const formatDate = (iso: string) => {
-    try {
-      return new Date(iso).toLocaleString();
-    } catch {
-      return iso;
-    }
-  };
+  const formatDate = (iso: string) => formatDateTime(iso, { fallback: iso });
 
   const statusClass = (status: string) => {
     switch (status) {
@@ -228,7 +313,7 @@ export default function CouponHistoryTable() {
               id="coupon-history-tab-redemptions"
               aria-controls="coupon-history-panel-redemptions"
               onClick={() => setActiveTab("redemptions")}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-brand-400 dark:focus-visible:ring-offset-gray-900 ${
+              className={`focus-visible:ring-brand-500 dark:focus-visible:ring-brand-400 rounded-lg px-4 py-2 text-sm font-medium transition focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none dark:focus-visible:ring-offset-gray-900 ${
                 activeTab === "redemptions"
                   ? "bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white"
                   : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
@@ -243,7 +328,7 @@ export default function CouponHistoryTable() {
               id="coupon-history-tab-engagement"
               aria-controls="coupon-history-panel-engagement"
               onClick={() => setActiveTab("engagement")}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-brand-400 dark:focus-visible:ring-offset-gray-900 ${
+              className={`focus-visible:ring-brand-500 dark:focus-visible:ring-brand-400 rounded-lg px-4 py-2 text-sm font-medium transition focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none dark:focus-visible:ring-offset-gray-900 ${
                 activeTab === "engagement"
                   ? "bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white"
                   : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
@@ -261,7 +346,7 @@ export default function CouponHistoryTable() {
             <div>
               <p
                 id="coupon-history-status-label"
-                className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400"
+                className="mb-2 text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400"
               >
                 Status
               </p>
@@ -283,7 +368,7 @@ export default function CouponHistoryTable() {
                       role="radio"
                       aria-checked={selected}
                       onClick={() => setStatus(opt.value)}
-                      className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-brand-400 dark:focus-visible:ring-offset-gray-900 ${
+                      className={`focus-visible:ring-brand-500 dark:focus-visible:ring-brand-400 inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-sm font-medium transition focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none dark:focus-visible:ring-offset-gray-900 ${
                         selected
                           ? "border-brand-500 bg-brand-50 text-brand-800 dark:border-brand-400 dark:bg-brand-950/50 dark:text-brand-100"
                           : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800/50 dark:text-gray-200 dark:hover:border-gray-500 dark:hover:bg-gray-800"
@@ -291,9 +376,9 @@ export default function CouponHistoryTable() {
                     >
                       {opt.label}
                       <span
-                        className={`tabular-nums rounded-md px-1.5 py-0.5 text-xs ${
+                        className={`rounded-md px-1.5 py-0.5 text-xs tabular-nums ${
                           selected
-                            ? "bg-white/80 text-brand-900 dark:bg-black/20 dark:text-brand-50"
+                            ? "text-brand-900 dark:text-brand-50 bg-white/80 dark:bg-black/20"
                             : "bg-gray-100 text-gray-600 dark:bg-gray-900 dark:text-gray-400"
                         }`}
                       >
@@ -308,15 +393,28 @@ export default function CouponHistoryTable() {
             <div>
               <label
                 htmlFor="coupon-history-search"
-                className="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400"
+                className="mb-2 block text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400"
               >
                 Search
               </label>
               <div className="flex flex-wrap items-center gap-3">
-                <div className="relative min-w-0 flex-1 max-w-xl">
-                  <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-400 dark:text-gray-500" aria-hidden>
-                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                <div className="relative max-w-xl min-w-0 flex-1">
+                  <span
+                    className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-400 dark:text-gray-500"
+                    aria-hidden
+                  >
+                    <svg
+                      className="h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
                     </svg>
                   </span>
                   <input
@@ -329,7 +427,7 @@ export default function CouponHistoryTable() {
                       setSearch(e.target.value);
                       setPage(1);
                     }}
-                    className="h-12 w-full rounded-xl border border-gray-200 bg-gray-50/80 py-2.5 pr-4 pl-11 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-500/20 focus:outline-none dark:border-gray-600 dark:bg-gray-900/50 dark:text-white dark:placeholder:text-gray-500 dark:focus:border-brand-400 dark:focus:bg-gray-900 dark:focus:ring-brand-400/25"
+                    className="focus:border-brand-500 focus:ring-brand-500/20 dark:focus:border-brand-400 dark:focus:ring-brand-400/25 h-12 w-full rounded-xl border border-gray-200 bg-gray-50/80 py-2.5 pr-4 pl-11 text-sm text-gray-900 placeholder:text-gray-400 focus:bg-white focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-900/50 dark:text-white dark:placeholder:text-gray-500 dark:focus:bg-gray-900"
                   />
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
@@ -337,7 +435,7 @@ export default function CouponHistoryTable() {
                     className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/80"
                     title="Rows matching your filters"
                   >
-                    <span className="text-2xl font-semibold tabular-nums text-gray-900 dark:text-white">
+                    <span className="text-2xl font-semibold text-gray-900 tabular-nums dark:text-white">
                       {filtered.length}
                     </span>
                     <span className="text-left text-xs leading-tight text-gray-500 dark:text-gray-400">
@@ -345,7 +443,9 @@ export default function CouponHistoryTable() {
                         <>
                           match
                           <br />
-                          <span className="text-[0.65rem]">of {totalDataset}</span>
+                          <span className="text-[0.65rem]">
+                            of {totalDataset}
+                          </span>
                         </>
                       ) : (
                         <>
@@ -380,14 +480,30 @@ export default function CouponHistoryTable() {
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-800">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">#</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Coupon Code</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Coupon Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">User</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Used At</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Offer</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Discount</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      #
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Coupon Code
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Coupon Name
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      User
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Used At
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Offer
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Discount
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Status
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
@@ -396,33 +512,38 @@ export default function CouponHistoryTable() {
                       key={entry.id}
                       title="Click row for quick view"
                       className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
-                      onClick={() => setQuickView({ kind: "redemption", entry })}
+                      onClick={() =>
+                        setQuickView({ kind: "redemption", entry })
+                      }
                     >
-                      <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900 dark:text-gray-100">
+                      <td className="px-6 py-4 text-sm font-medium whitespace-nowrap text-gray-900 dark:text-gray-100">
                         {(page - 1) * PAGE_SIZE + index + 1}
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm font-mono text-gray-800 dark:text-gray-200">
+                      <td className="px-6 py-4 font-mono text-sm whitespace-nowrap text-gray-800 dark:text-gray-200">
                         {entry.couponCode}
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
+                      <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300">
                         {entry.couponName}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
                         <div>{entry.userId}</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[160px]" title={entry.userEmail}>
+                        <div
+                          className="max-w-[160px] truncate text-xs text-gray-500 dark:text-gray-400"
+                          title={entry.userEmail}
+                        >
                           {entry.userEmail}
                         </div>
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-xs text-gray-600 dark:text-gray-400">
+                      <td className="px-6 py-4 text-xs whitespace-nowrap text-gray-600 dark:text-gray-400">
                         {formatDate(entry.usedAt)}
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
+                      <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300">
                         {entry.offerName}
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
+                      <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300">
                         {entry.discount ?? "—"}
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4">
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <span
                           className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${statusClass(entry.status)}`}
                         >
@@ -445,7 +566,8 @@ export default function CouponHistoryTable() {
               <div className="mt-6 flex items-center justify-between">
                 <div className="text-sm text-gray-500 dark:text-gray-400">
                   Showing {(page - 1) * PAGE_SIZE + 1} to{" "}
-                  {Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
+                  {Math.min(page * PAGE_SIZE, filtered.length)} of{" "}
+                  {filtered.length}
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -477,41 +599,66 @@ export default function CouponHistoryTable() {
           <div className="space-y-5 border-b border-gray-100 px-4 py-5 sm:px-6 dark:border-gray-800">
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="rounded-xl border border-gray-200 bg-gray-50/80 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/50">
-                <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                <p className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
                   Detail views (filtered)
                 </p>
-                <p className="mt-1 text-2xl font-semibold tabular-nums text-gray-900 dark:text-white">
+                <p className="mt-1 text-2xl font-semibold text-gray-900 tabular-nums dark:text-white">
                   {engagementTotals.views.toLocaleString()}
                 </p>
-                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Opens of coupon detail</p>
+                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  Opens of coupon detail
+                </p>
               </div>
               <div className="rounded-xl border border-gray-200 bg-gray-50/80 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/50">
-                <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                <p className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
                   Code copies (filtered)
                 </p>
-                <p className="mt-1 text-2xl font-semibold tabular-nums text-gray-900 dark:text-white">
+                <p className="mt-1 text-2xl font-semibold text-gray-900 tabular-nums dark:text-white">
                   {engagementTotals.copies.toLocaleString()}
                 </p>
-                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Copy-to-clipboard taps</p>
+                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  Copy-to-clipboard taps
+                </p>
               </div>
               <div className="rounded-xl border border-gray-200 bg-gray-50/80 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/50">
-                <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                <p className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
                   Copy rate (filtered)
                 </p>
-                <p className="mt-1 text-2xl font-semibold tabular-nums text-gray-900 dark:text-white">
-                  {copyRatePercent(engagementTotals.views, engagementTotals.copies)}
+                <p className="mt-1 text-2xl font-semibold text-gray-900 tabular-nums dark:text-white">
+                  {copyRatePercent(
+                    engagementTotals.views,
+                    engagementTotals.copies,
+                  )}
                 </p>
-                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Copies ÷ detail views</p>
+                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  Copies ÷ detail views
+                </p>
               </div>
             </div>
             <div>
-              <label htmlFor="coupon-engagement-search" className="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              <label
+                htmlFor="coupon-engagement-search"
+                className="mb-2 block text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400"
+              >
                 Search coupons
               </label>
               <div className="relative max-w-xl">
-                <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-400 dark:text-gray-500" aria-hidden>
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                <span
+                  className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-400 dark:text-gray-500"
+                  aria-hidden
+                >
+                  <svg
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
                   </svg>
                 </span>
                 <input
@@ -524,7 +671,7 @@ export default function CouponHistoryTable() {
                     setEngagementSearch(e.target.value);
                     setEngagementPage(1);
                   }}
-                  className="h-12 w-full rounded-xl border border-gray-200 bg-gray-50/80 py-2.5 pr-4 pl-11 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-500/20 focus:outline-none dark:border-gray-600 dark:bg-gray-900/50 dark:text-white dark:placeholder:text-gray-500 dark:focus:border-brand-400 dark:focus:bg-gray-900 dark:focus:ring-brand-400/25"
+                  className="focus:border-brand-500 focus:ring-brand-500/20 dark:focus:border-brand-400 dark:focus:ring-brand-400/25 h-12 w-full rounded-xl border border-gray-200 bg-gray-50/80 py-2.5 pr-4 pl-11 text-sm text-gray-900 placeholder:text-gray-400 focus:bg-white focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-900/50 dark:text-white dark:placeholder:text-gray-500 dark:focus:bg-gray-900"
                 />
               </div>
             </div>
@@ -540,22 +687,22 @@ export default function CouponHistoryTable() {
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-800">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                       Coupon code
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                       Coupon name
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                       Offer
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    <th className="px-6 py-3 text-right text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                       Detail views
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    <th className="px-6 py-3 text-right text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                       Copies
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    <th className="px-6 py-3 text-right text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                       Copy rate
                     </th>
                   </tr>
@@ -568,22 +715,25 @@ export default function CouponHistoryTable() {
                       className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
                       onClick={() => setQuickView({ kind: "engagement", row })}
                     >
-                      <td className="whitespace-nowrap px-6 py-4 text-sm font-mono text-gray-800 dark:text-gray-200">
+                      <td className="px-6 py-4 font-mono text-sm whitespace-nowrap text-gray-800 dark:text-gray-200">
                         {row.couponCode}
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
+                      <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300">
                         {row.couponName}
                       </td>
-                      <td className="max-w-[200px] truncate px-6 py-4 text-sm text-gray-600 dark:text-gray-400" title={row.offerName}>
+                      <td
+                        className="max-w-[200px] truncate px-6 py-4 text-sm text-gray-600 dark:text-gray-400"
+                        title={row.offerName}
+                      >
                         {row.offerName}
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-right text-sm tabular-nums text-gray-900 dark:text-gray-100">
+                      <td className="px-6 py-4 text-right text-sm whitespace-nowrap text-gray-900 tabular-nums dark:text-gray-100">
                         {row.detailViews.toLocaleString()}
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-right text-sm tabular-nums text-gray-900 dark:text-gray-100">
+                      <td className="px-6 py-4 text-right text-sm whitespace-nowrap text-gray-900 tabular-nums dark:text-gray-100">
                         {row.copies.toLocaleString()}
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-right text-sm tabular-nums text-gray-600 dark:text-gray-400">
+                      <td className="px-6 py-4 text-right text-sm whitespace-nowrap text-gray-600 tabular-nums dark:text-gray-400">
                         {copyRatePercent(row.detailViews, row.copies)}
                       </td>
                     </tr>
@@ -602,8 +752,11 @@ export default function CouponHistoryTable() {
               <div className="mt-6 flex items-center justify-between">
                 <div className="text-sm text-gray-500 dark:text-gray-400">
                   Showing {(engagementPage - 1) * PAGE_SIZE + 1} to{" "}
-                  {Math.min(engagementPage * PAGE_SIZE, engagementFiltered.length)} of{" "}
-                  {engagementFiltered.length}
+                  {Math.min(
+                    engagementPage * PAGE_SIZE,
+                    engagementFiltered.length,
+                  )}{" "}
+                  of {engagementFiltered.length}
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -619,7 +772,9 @@ export default function CouponHistoryTable() {
                   </span>
                   <button
                     type="button"
-                    onClick={() => setEngagementPage((p) => Math.min(engagementPages, p + 1))}
+                    onClick={() =>
+                      setEngagementPage((p) => Math.min(engagementPages, p + 1))
+                    }
                     disabled={engagementPage >= engagementPages}
                     className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800/50 dark:text-gray-300 dark:hover:bg-gray-700 dark:disabled:opacity-40"
                   >
@@ -639,85 +794,152 @@ export default function CouponHistoryTable() {
       >
         {quickView?.kind === "redemption" ? (
           <div className="p-2 sm:p-4">
-            <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Redemption</h4>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Read-only row detail.</p>
+            <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Redemption
+            </h4>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              Read-only row detail.
+            </p>
             <dl className="mt-4 space-y-3 text-sm">
               <div>
-                <dt className="font-medium text-gray-500 dark:text-gray-400">Coupon code</dt>
-                <dd className="mt-0.5 font-mono text-gray-900 dark:text-gray-100">{quickView.entry.couponCode}</dd>
-              </div>
-              <div>
-                <dt className="font-medium text-gray-500 dark:text-gray-400">Coupon name</dt>
-                <dd className="mt-0.5 text-gray-900 dark:text-gray-100">{quickView.entry.couponName}</dd>
-              </div>
-              <div>
-                <dt className="font-medium text-gray-500 dark:text-gray-400">User</dt>
-                <dd className="mt-0.5 break-all text-gray-900 dark:text-gray-100">
-                  {quickView.entry.userId}
-                  <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">{quickView.entry.userEmail}</span>
+                <dt className="font-medium text-gray-500 dark:text-gray-400">
+                  Coupon code
+                </dt>
+                <dd className="mt-0.5 font-mono text-gray-900 dark:text-gray-100">
+                  {quickView.entry.couponCode}
                 </dd>
               </div>
               <div>
-                <dt className="font-medium text-gray-500 dark:text-gray-400">Used at</dt>
-                <dd className="mt-0.5 text-gray-900 dark:text-gray-100">{formatDate(quickView.entry.usedAt)}</dd>
+                <dt className="font-medium text-gray-500 dark:text-gray-400">
+                  Coupon name
+                </dt>
+                <dd className="mt-0.5 text-gray-900 dark:text-gray-100">
+                  {quickView.entry.couponName}
+                </dd>
               </div>
               <div>
-                <dt className="font-medium text-gray-500 dark:text-gray-400">Offer</dt>
-                <dd className="mt-0.5 text-gray-900 dark:text-gray-100">{quickView.entry.offerName}</dd>
+                <dt className="font-medium text-gray-500 dark:text-gray-400">
+                  User
+                </dt>
+                <dd className="mt-0.5 break-all text-gray-900 dark:text-gray-100">
+                  {quickView.entry.userId}
+                  <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
+                    {quickView.entry.userEmail}
+                  </span>
+                </dd>
               </div>
               <div>
-                <dt className="font-medium text-gray-500 dark:text-gray-400">Discount</dt>
-                <dd className="mt-0.5 text-gray-900 dark:text-gray-100">{quickView.entry.discount ?? "—"}</dd>
+                <dt className="font-medium text-gray-500 dark:text-gray-400">
+                  Used at
+                </dt>
+                <dd className="mt-0.5 text-gray-900 dark:text-gray-100">
+                  {formatDate(quickView.entry.usedAt)}
+                </dd>
               </div>
               <div>
-                <dt className="font-medium text-gray-500 dark:text-gray-400">Status</dt>
-                <dd className="mt-0.5 capitalize text-gray-900 dark:text-gray-100">{quickView.entry.status}</dd>
+                <dt className="font-medium text-gray-500 dark:text-gray-400">
+                  Offer
+                </dt>
+                <dd className="mt-0.5 text-gray-900 dark:text-gray-100">
+                  {quickView.entry.offerName}
+                </dd>
+              </div>
+              <div>
+                <dt className="font-medium text-gray-500 dark:text-gray-400">
+                  Discount
+                </dt>
+                <dd className="mt-0.5 text-gray-900 dark:text-gray-100">
+                  {quickView.entry.discount ?? "—"}
+                </dd>
+              </div>
+              <div>
+                <dt className="font-medium text-gray-500 dark:text-gray-400">
+                  Status
+                </dt>
+                <dd className="mt-0.5 text-gray-900 capitalize dark:text-gray-100">
+                  {quickView.entry.status}
+                </dd>
               </div>
             </dl>
             <div className="mt-6 flex justify-end">
-              <Button size="sm" variant="outline" type="button" onClick={() => setQuickView(null)}>
+              <Button
+                size="sm"
+                variant="outline"
+                type="button"
+                onClick={() => setQuickView(null)}
+              >
                 Close
               </Button>
             </div>
           </div>
         ) : quickView?.kind === "engagement" ? (
           <div className="p-2 sm:p-4">
-            <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Coupon engagement</h4>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Sample metrics for this coupon.</p>
+            <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Coupon engagement
+            </h4>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              Sample metrics for this coupon.
+            </p>
             <dl className="mt-4 space-y-3 text-sm">
               <div>
-                <dt className="font-medium text-gray-500 dark:text-gray-400">Coupon code</dt>
-                <dd className="mt-0.5 font-mono text-gray-900 dark:text-gray-100">{quickView.row.couponCode}</dd>
+                <dt className="font-medium text-gray-500 dark:text-gray-400">
+                  Coupon code
+                </dt>
+                <dd className="mt-0.5 font-mono text-gray-900 dark:text-gray-100">
+                  {quickView.row.couponCode}
+                </dd>
               </div>
               <div>
-                <dt className="font-medium text-gray-500 dark:text-gray-400">Coupon name</dt>
-                <dd className="mt-0.5 text-gray-900 dark:text-gray-100">{quickView.row.couponName}</dd>
+                <dt className="font-medium text-gray-500 dark:text-gray-400">
+                  Coupon name
+                </dt>
+                <dd className="mt-0.5 text-gray-900 dark:text-gray-100">
+                  {quickView.row.couponName}
+                </dd>
               </div>
               <div>
-                <dt className="font-medium text-gray-500 dark:text-gray-400">Offer</dt>
-                <dd className="mt-0.5 text-gray-900 dark:text-gray-100">{quickView.row.offerName}</dd>
+                <dt className="font-medium text-gray-500 dark:text-gray-400">
+                  Offer
+                </dt>
+                <dd className="mt-0.5 text-gray-900 dark:text-gray-100">
+                  {quickView.row.offerName}
+                </dd>
               </div>
               <div>
-                <dt className="font-medium text-gray-500 dark:text-gray-400">Detail views</dt>
-                <dd className="mt-0.5 tabular-nums text-gray-900 dark:text-gray-100">
+                <dt className="font-medium text-gray-500 dark:text-gray-400">
+                  Detail views
+                </dt>
+                <dd className="mt-0.5 text-gray-900 tabular-nums dark:text-gray-100">
                   {quickView.row.detailViews.toLocaleString()}
                 </dd>
               </div>
               <div>
-                <dt className="font-medium text-gray-500 dark:text-gray-400">Copies</dt>
-                <dd className="mt-0.5 tabular-nums text-gray-900 dark:text-gray-100">
+                <dt className="font-medium text-gray-500 dark:text-gray-400">
+                  Copies
+                </dt>
+                <dd className="mt-0.5 text-gray-900 tabular-nums dark:text-gray-100">
                   {quickView.row.copies.toLocaleString()}
                 </dd>
               </div>
               <div>
-                <dt className="font-medium text-gray-500 dark:text-gray-400">Copy rate</dt>
-                <dd className="mt-0.5 tabular-nums text-gray-900 dark:text-gray-100">
-                  {copyRatePercent(quickView.row.detailViews, quickView.row.copies)}
+                <dt className="font-medium text-gray-500 dark:text-gray-400">
+                  Copy rate
+                </dt>
+                <dd className="mt-0.5 text-gray-900 tabular-nums dark:text-gray-100">
+                  {copyRatePercent(
+                    quickView.row.detailViews,
+                    quickView.row.copies,
+                  )}
                 </dd>
               </div>
             </dl>
             <div className="mt-6 flex justify-end">
-              <Button size="sm" variant="outline" type="button" onClick={() => setQuickView(null)}>
+              <Button
+                size="sm"
+                variant="outline"
+                type="button"
+                onClick={() => setQuickView(null)}
+              >
                 Close
               </Button>
             </div>
