@@ -85,8 +85,13 @@ describe("Remaining customer route parity", () => {
     expect(rootLayout).toContain("Stack.Protected");
     expect(rootLayout).toContain("guard={isAuthed}");
     expect(rootLayout).toContain('"wallet"');
-    expect(tabsLayout).toContain("Tabs.Protected");
+
+    // The /profile tab self-guards: a Tabs.Protected fallback can only reach a sibling
+    // tab, so unauthenticated access is redirected to /login from the screen instead.
+    const profileRoute = readMobileFile("app/(tabs)/profile.tsx");
     expect(tabsLayout).toContain('name="profile"');
+    expect(profileRoute).toContain("Redirect");
+    expect(profileRoute).toContain("buildProtectedLoginRedirect");
 
     // The guard signal is synchronous-correct on web (localStorage) and async on native.
     expect(guardSession).toContain("createAvailableSessionStore");
