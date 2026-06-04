@@ -302,7 +302,7 @@ export default function CreditScoreManagement() {
       <Modal
         isOpen={Boolean(userId)}
         onClose={() => setUserId(null)}
-        className="max-h-[90vh] max-w-2xl overflow-y-auto p-6"
+        className="max-w-2xl p-6"
       >
         {detailQ.isLoading ? (
           <p className="text-sm text-gray-500">Loading…</p>
