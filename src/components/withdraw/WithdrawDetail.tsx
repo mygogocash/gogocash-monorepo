@@ -959,6 +959,9 @@ const WithdrawDetail = () => {
                     if (!wu) return null;
                     const fmtIso = (s?: string) =>
                       s ? formatDateTime(s, { fallback: s }) : "—";
+                    const fullName = [wu.firstName, wu.lastName]
+                      .filter(Boolean)
+                      .join(" ");
                     return (
                       <div>
                         <h3 className="mb-3 text-sm font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400">
@@ -970,16 +973,23 @@ const WithdrawDetail = () => {
                             <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
                               <span className="font-medium">First name:</span>{" "}
                               {wu.firstName ?? "—"}
+                              {wu.firstName ? (
+                                <CopyButton value={wu.firstName} />
+                              ) : null}
                             </p>
                             <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
                               <span className="font-medium">Last name:</span>{" "}
                               {wu.lastName ?? "—"}
-                              {wu.firstName || wu.lastName ? (
+                              {wu.lastName ? (
+                                <CopyButton value={wu.lastName} />
+                              ) : null}
+                            </p>
+                            <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                              <span className="font-medium">Full name:</span>{" "}
+                              {fullName || "—"}
+                              {fullName ? (
                                 <CopyButton
-                                  value={[wu.firstName, wu.lastName]
-                                    .filter(Boolean)
-                                    .join(" ")}
-                                  label="Copy full name"
+                                  value={fullName}
                                   title="Copy first and last name"
                                 />
                               ) : null}

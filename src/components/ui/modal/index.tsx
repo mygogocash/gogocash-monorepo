@@ -106,13 +106,14 @@ export const Modal: React.FC<ModalProps> = ({
     </div>
   );
 
-  if (isFullscreen && mounted) {
-    return createPortal(modalTree, document.body);
-  }
-
-  if (isFullscreen && !mounted) {
+  // Always portal to <body> on the client. The overlay is `position: fixed`, but
+  // an ancestor transform (e.g. the page-transition wrapper's identity matrix)
+  // would otherwise become its containing block — pinning the modal to the page
+  // box instead of the viewport, which clips tall modals and breaks scrolling.
+  // Returning null on the server avoids an SSR/hydration mismatch.
+  if (!mounted) {
     return null;
   }
 
-  return modalTree;
+  return createPortal(modalTree, document.body);
 };

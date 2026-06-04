@@ -148,6 +148,12 @@ export const mockUsers = Array.from({ length: 550 }, (_, i) => {
     country,
     gender,
     membershipTier: i % 3 === 0 ? "GoGoPass Plus" : "Basic",
+    subscriptionPlan:
+      i % 4 === 0
+        ? "Monthly Premium"
+        : i % 4 === 2
+          ? "Annual Premium"
+          : undefined,
   };
 });
 
