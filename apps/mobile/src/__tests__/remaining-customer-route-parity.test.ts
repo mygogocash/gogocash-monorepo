@@ -75,20 +75,30 @@ describe("Remaining customer route parity", () => {
     expect(callbackScreen).not.toContain("GoGoCash is completing the secure session handoff.");
   });
 
-  it("protected route loading > given session verification states > then Expo uses the shared Next typography tokens", () => {
-    const guardFile = readMobileFile("src/auth/AuthRouteGuard.tsx");
+  it("protected route gating > given native route protection > then Expo gates via Stack.Protected and a synchronous session read", () => {
+    const rootLayout = readMobileFile("app/_layout.tsx");
+    const tabsLayout = readMobileFile("app/(tabs)/_layout.tsx");
+    const guardSession = readMobileFile("src/auth/useAuthGuardSession.ts");
     const stateFile = readMobileFile("src/components/CustomerRouteState.tsx");
 
-    expect(guardFile).toContain("CustomerRouteState");
+    // Protected routes are gated natively, so the navigator stays mounted across navigations.
+    expect(rootLayout).toContain("Stack.Protected");
+    expect(rootLayout).toContain("guard={isAuthed}");
+    expect(rootLayout).toContain('"wallet"');
+    expect(tabsLayout).toContain("Tabs.Protected");
+    expect(tabsLayout).toContain('name="profile"');
+
+    // The guard signal is synchronous-correct on web (localStorage) and async on native.
+    expect(guardSession).toContain("createAvailableSessionStore");
+    expect(guardSession).toContain("window.localStorage.getItem");
+    expect(guardSession).toContain("subscribeMobileSessionChange");
+
+    // The shared route-state component still uses the Next typography tokens.
     expect(stateFile).toContain("ActivityIndicator");
-    expect(guardFile).toContain("Checking session");
-    expect(guardFile).toContain("Sign in required");
     expect(stateFile).toContain("fontWeight: typography.titleWeight");
     expect(stateFile).toContain("lineHeight: typography.titleLineHeight");
     expect(stateFile).toContain("fontWeight: typography.bodyWeight");
     expect(stateFile).toContain("lineHeight: typography.bodyLineHeight");
-    expect(guardFile).not.toContain('fontWeight: "700"');
-    expect(guardFile).not.toContain("lineHeight: 22");
   });
 
   it("auth callback loading > given Firebase session handoff states > then Expo uses the shared Next typography tokens", () => {

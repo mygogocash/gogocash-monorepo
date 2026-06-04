@@ -5,7 +5,7 @@ import { PropsWithChildren, useEffect, useMemo } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { RouteAnalyticsTracker } from "@mobile/analytics/RouteAnalyticsTracker";
-import { AuthRouteGuard } from "@mobile/auth/AuthRouteGuard";
+import { useAuthGuardSession } from "@mobile/auth/useAuthGuardSession";
 import { CustomerRouteState } from "@mobile/components/CustomerRouteState";
 import { ToastProvider } from "@mobile/components/Toast";
 import { LocaleProvider } from "@mobile/i18n/LocaleProvider";
@@ -33,6 +33,7 @@ const noOpPostHogClient = {
 
 export function AppProviders({ children }: PropsWithChildren) {
   const [fontsLoaded, fontError] = useFonts(gogoCashRuntimeFonts);
+  const { ready: sessionReady } = useAuthGuardSession();
   const queryClient = useMemo(
     () =>
       new QueryClient({
@@ -51,9 +52,12 @@ export function AppProviders({ children }: PropsWithChildren) {
     initObservability();
   }, []);
 
-  if (!fontsLoaded && !fontError) {
-    // LocaleProvider must wrap this branch too — CustomerRouteState renders the desktop chrome
-    // (incl. the footer, which now calls useCopy/useIntl), so it needs the IntlProvider ancestry.
+  if ((!fontsLoaded && !fontError) || !sessionReady) {
+    // Gate on BOTH the runtime fonts AND the initial session read (one-time bootstrap on app
+    // start) so `Stack.Protected` mounts with a correct, synchronous guard and is never unmounted
+    // mid-navigation. LocaleProvider must wrap this branch too — CustomerRouteState renders the
+    // desktop chrome (incl. the footer, which now calls useCopy/useIntl), so it needs the
+    // IntlProvider ancestry.
     return (
       <LocaleProvider>
         <CustomerRouteState
@@ -71,9 +75,7 @@ export function AppProviders({ children }: PropsWithChildren) {
         <PrivacyScreenGuard>
           <QueryClientProvider client={queryClient}>
             <RouteAnalyticsTracker />
-            <ToastProvider>
-              <AuthRouteGuard>{children}</AuthRouteGuard>
-            </ToastProvider>
+            <ToastProvider>{children}</ToastProvider>
           </QueryClientProvider>
         </PrivacyScreenGuard>
       </SafeAreaProvider>

@@ -17,7 +17,7 @@ export function RouteAnalyticsTracker() {
   const lastTrackedRef = useRef("");
 
   // MobileSession is a Partial<Record<MobileSessionField,...>>; the token field is
-  // "access_token" (snake_case) — same key AuthRouteGuard gates on.
+  // "access_token" (snake_case) — same key the route guard (useAuthGuardSession) gates on.
   const isAuthenticated = Boolean(session?.["access_token"]);
 
   useEffect(() => {
