@@ -38,17 +38,20 @@ describe("Protected route state parity", () => {
     expect(providersFile).not.toContain("return null;");
   });
 
-  it("auth_boundary_states__given_guard_and_callback_flows__then_expo_reuses_route_state", () => {
-    const guardFile = readMobileFile("src/auth/AuthRouteGuard.tsx");
+  it("auth_boundary_states__given_stack_protected_and_callback_flows__then_expo_gates_natively", () => {
+    const rootLayout = readMobileFile("app/_layout.tsx");
     const callbackFile = readMobileFile("src/screens/CustomerAuthCallbackScreen.tsx");
 
-    expect(guardFile).toContain("CustomerRouteState");
-    expect(guardFile).toContain('variant="loading"');
-    expect(guardFile).toContain('variant="unauthenticated"');
-    expect(guardFile).toContain('variant="offline"');
-    expect(guardFile).toContain("isWebRuntimeOffline");
-    expect(guardFile).not.toContain("ProtectedRouteStateScreen");
+    // Native route protection replaces the old Stack-unmounting guard: protected
+    // screens are wrapped in Stack.Protected (guard={isAuthed}); login is gated by
+    // !isAuthed and declared first so an unauthenticated tap falls back to /login.
+    expect(rootLayout).toContain("Stack.Protected");
+    expect(rootLayout).toContain("guard={isAuthed}");
+    expect(rootLayout).toContain("guard={!isAuthed}");
+    expect(rootLayout).toContain("useAuthGuardSession");
+    expect(rootLayout).toContain('name="login"');
 
+    // The auth callback flow still reuses the shared route-state component.
     expect(callbackFile).toContain("CustomerRouteState");
     expect(callbackFile).toContain("getRouteStateVariant");
     expect(callbackFile).not.toContain("<ActivityIndicator");
