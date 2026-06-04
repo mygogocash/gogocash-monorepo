@@ -19,6 +19,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { getProfileMenuIcon } from "@mobile/components/profileMenuIcons";
 import { useCopy } from "@mobile/i18n/useCopy";
 import profileAvatarImage from "../../assets/profile-avatar.png";
 import { GoGoPassAvatar } from "@mobile/components/GoGoPassAvatar";
@@ -135,6 +136,7 @@ function DesktopProfileRail({ activeRouteId }: { activeRouteId: AccountRouteId }
               ? item.href === "/profile"
               : false;
         const label = tc(item.label);
+        const Icon = getProfileMenuIcon(item.label);
 
         return (
           <Link asChild href={item.href as never} key={item.label}>
@@ -142,9 +144,11 @@ function DesktopProfileRail({ activeRouteId }: { activeRouteId: AccountRouteId }
               pressScale={0.98}
               style={StyleSheet.flatten([styles.railRow, active ? styles.railRowActive : null])}
             >
-              <Text style={[styles.railDot, active ? styles.railDotActive : null]}>
-                {label.slice(0, 1)}
-              </Text>
+              <Icon
+                color={active ? colors.white : colors.primaryDark}
+                size={22}
+                strokeWidth={typography.iconStrokeWidth}
+              />
               <Text style={[styles.railLabel, active ? styles.railLabelActive : null]}>{label}</Text>
             </MotionPressable>
           </Link>
@@ -312,16 +316,6 @@ const styles = StyleSheet.create({
   },
   railRowActive: {
     backgroundColor: colors.primary,
-  },
-  railDot: {
-    color: colors.primaryDark,
-    fontFamily: typography.family,
-    fontSize: typography.body,
-    fontWeight: "700",
-    width: 24,
-  },
-  railDotActive: {
-    color: colors.white,
   },
   railLabel: {
     color: colors.ink,

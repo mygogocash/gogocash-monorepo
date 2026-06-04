@@ -1,51 +1,15 @@
-import { type ComponentType } from "react";
 import { Link } from "expo-router";
 import { Linking, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { AccountWalletHeroCard } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { getProfileMenuIcon, type ProfileMenuIcon } from "@mobile/components/profileMenuIcons";
 import { clearMobileAppSession, type MobileSession } from "@mobile/auth/session";
 import { webProfileWalletSummary } from "@mobile/design/webDesignParity";
 import { profileHubMenuItems } from "@mobile/design/webDesignParity";
 import { useCopy } from "@mobile/i18n/useCopy";
-import {
-  BadgeCheck as BadgeCheckIcon,
-  ExternalLink as ExternalLinkIcon,
-  FileQuestion as MissingOrdersIcon,
-  FileText as FileTextIcon,
-  Globe2 as GlobeIcon,
-  Heart as HeartIcon,
-  CircleHelp as HelpIcon,
-  LogOut as LogOutIcon,
-  ShieldCheck as ShieldCheckIcon,
-  Star as GoGoPassIcon,
-  Trophy as QuestIcon,
-  UserPlus as InviteIcon,
-  UserRound as ProfileIcon,
-  WalletCards as WalletIcon,
-} from "@mobile/theme/icons";
+import { ExternalLink as ExternalLinkIcon, LogOut as LogOutIcon } from "@mobile/theme/icons";
 import { colors, typography } from "@mobile/theme/tokens";
-
-type MenuIcon = ComponentType<{ color?: string; size?: number; strokeWidth?: number }>;
-
-// Mirror of CustomerProfileScreen's label -> icon map so the popover and the
-// /profile page stay visually in sync (kept local to avoid touching the screen).
-const PROFILE_MENU_ICONS: Record<string, MenuIcon> = {
-  "Age Verification": BadgeCheckIcon,
-  "Connect with GoGoCash": GlobeIcon,
-  "Consent Preferences": ShieldCheckIcon,
-  "Favorite Brands": HeartIcon,
-  "GoGoQuest History": QuestIcon,
-  "Help Center": HelpIcon,
-  GoGoPass: GoGoPassIcon,
-  "Invite your Friends": InviteIcon,
-  "Missing Orders": MissingOrdersIcon,
-  "My Wallet": WalletIcon,
-  Profile: ProfileIcon,
-  "Privacy Policy": ShieldCheckIcon,
-  "Terms of Service": FileTextIcon,
-  "Terms of Use": FileTextIcon,
-};
 
 function deriveSummary(session: MobileSession) {
   const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
@@ -80,7 +44,7 @@ function MenuRow({
 }: {
   external?: boolean;
   href: string;
-  icon: MenuIcon;
+  icon: ProfileMenuIcon;
   label: string;
   onClose: () => void;
 }) {
@@ -160,7 +124,7 @@ export function CustomerProfileMenu({
           <MenuRow
             external={"external" in item && item.external === true}
             href={item.href}
-            icon={PROFILE_MENU_ICONS[item.label] ?? FileTextIcon}
+            icon={getProfileMenuIcon(item.label)}
             key={item.label}
             label={item.label}
             onClose={onNavigate}
