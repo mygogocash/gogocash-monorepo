@@ -110,6 +110,8 @@ export interface RegularUser {
   gender: string | null;
   /** Membership tier name (e.g. "Basic", "GoGoPass Plus"). */
   membershipTier?: string;
+  /** Subscription plan name (e.g. "Monthly Premium"); absent if not subscribed. */
+  subscriptionPlan?: string;
 }
 export interface UsersQuery {
   limit?: number;

@@ -14,7 +14,7 @@ import {
 import type { Subscription, SubscriptionPlan } from "@/types/adminModules";
 import { formatDate } from "@/lib/dateFormat";
 import { formatMoney } from "@/lib/currencyFormat";
-import { planCycle, CYCLE_LABEL } from "@/lib/subscriptionCycle";
+import { planCycle, CYCLE_LABEL, CYCLE_BADGE } from "@/lib/subscriptionCycle";
 import { STATUS_BADGE_BASE } from "@/lib/statusBadge";
 import Button from "@/components/ui/button/Button";
 import { Modal } from "@/components/ui/modal";
@@ -45,15 +45,6 @@ const CYCLE_UNIT: Record<SubscriptionPlan["billingCycle"], string> = {
   monthly: "month",
   quarterly: "quarter",
   annual: "year",
-};
-
-/** Colored pill per billing cycle (matches the plan-card accent colors). */
-const CYCLE_BADGE: Record<SubscriptionPlan["billingCycle"], string> = {
-  monthly: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200",
-  quarterly:
-    "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200",
-  annual:
-    "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-200",
 };
 
 /** Colored pill per subscription status. */

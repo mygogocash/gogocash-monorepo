@@ -9,6 +9,7 @@ import ViewMyCashback from "./ViewMyCashback";
 import { useRouter, useSearchParams } from "next/navigation";
 import { devError } from "@/lib/devConsole";
 import CopyButton from "@/components/ui/CopyButton";
+import { planCycle, CYCLE_LABEL, CYCLE_BADGE } from "@/lib/subscriptionCycle";
 
 export default function UsersTable() {
   const searchParams = useSearchParams();
@@ -203,7 +204,10 @@ export default function UsersTable() {
                       Role
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
-                      Membership Tier
+                      Membership
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Subscription
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                       Actions
@@ -275,6 +279,15 @@ export default function UsersTable() {
                           >
                             {user.membershipTier ?? "—"}
                           </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {user.subscriptionPlan ? (
+                            <span
+                              className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${CYCLE_BADGE[planCycle(user.subscriptionPlan)]}`}
+                            >
+                              {CYCLE_LABEL[planCycle(user.subscriptionPlan)]}
+                            </span>
+                          ) : null}
                         </td>
                         <td className="relative px-6 py-4 text-sm font-medium whitespace-nowrap">
                           <div

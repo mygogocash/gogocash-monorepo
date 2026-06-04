@@ -22,6 +22,7 @@ import { AdminQueryError } from "@/components/common/AdminQueryError";
 import { AdminTableSkeleton } from "@/components/common/AdminTableSkeleton";
 import toast from "react-hot-toast";
 import { validateBoundedAmount } from "@/lib/formValidation";
+import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import { useState } from "react";
 import {
   CartesianGrid,
@@ -32,6 +33,15 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+
+/** Metal-themed badge colors per credit tier. */
+const CREDIT_TIER_BADGE: Record<CreditTier, string> = {
+  bronze:
+    "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-200",
+  silver: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+  gold: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-200",
+  platinum: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-200",
+};
 
 export default function CreditScoreManagement() {
   const qc = useQueryClient();
@@ -254,9 +264,15 @@ export default function CreditScoreManagement() {
                       <div className="text-xs text-gray-500">{r.email}</div>
                     </td>
                     <td className="px-4 py-3 tabular-nums">{r.currentScore}</td>
-                    <td className="px-4 py-3 capitalize">{r.tier}</td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize ${CREDIT_TIER_BADGE[r.tier]}`}
+                      >
+                        {r.tier}
+                      </span>
+                    </td>
                     <td className="px-4 py-3 text-xs text-gray-500">
-                      {r.lastUpdated.slice(0, 10)}
+                      {formatDate(r.lastUpdated)}
                     </td>
                     <td className="px-4 py-3">
                       <Button
@@ -369,8 +385,8 @@ export default function CreditScoreManagement() {
                     key={i}
                     className="border-b border-gray-100 py-1 dark:border-gray-800"
                   >
-                    {a.timestamp}: {a.fromScore} → {a.toScore} ({a.reason}) by{" "}
-                    {a.adminId}
+                    {formatDateTime(a.timestamp)}: {a.fromScore} → {a.toScore} (
+                    {a.reason}) by {a.adminId}
                   </div>
                 ))}
               </div>
