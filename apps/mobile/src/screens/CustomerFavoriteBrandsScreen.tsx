@@ -28,10 +28,12 @@ const favoriteBrandArtSources = {
 
 export function CustomerFavoriteBrandsScreen() {
   const tc = useCopy();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
   return (
     <FavoriteBrandsSubPage>
       <View style={styles.favoriteBlueShell}>
-        <FavoriteBrandsTopBar />
+        {isDesktop ? null : <FavoriteBrandsTopBar />}
         <View style={styles.content}>
           <Text style={styles.pageTitle}>{tc(webFavoriteBrandsPage.title)}</Text>
           <FavoriteBrandsHero />

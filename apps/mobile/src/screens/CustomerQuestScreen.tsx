@@ -1,10 +1,15 @@
 import { Link } from "expo-router";
 import {
   CircleDollarSign as CoinIcon,
+  DeviceMobile as DeviceMobileIcon,
   MousePointerClick as MousePointerClickIcon,
+  Plane as PlaneIcon,
+  Sparkles as SparklesIcon,
+  Storefront as StorefrontIcon,
   Trophy as TrophyIcon,
 } from "@mobile/theme/icons";
 import { ChevronUp as ChevronUpIcon } from "@mobile/theme/icons";
+import type { IconComponent } from "@mobile/theme/icons";
 import { useState } from "react";
 import { Image, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
@@ -112,7 +117,9 @@ export function CustomerQuestScreen({ history = false }: { history?: boolean }) 
           <QuestLeaderboardPanel mediaColumnWidth={contentWidth} />
         ) : null}
         {isDesktop && activeTab !== "leaderboard" ? (
-          <QuestLeaderboardPanel mediaColumnWidth={mediaColumnWidth} />
+          <View style={styles.questColumn}>
+            <QuestLeaderboardPanel mediaColumnWidth={mediaColumnWidth} />
+          </View>
         ) : null}
       </View>
       <ExploreOtherShops />
@@ -140,42 +147,22 @@ function QuestTaskPanel() {
   );
 }
 
+// Web renders every task row with a circular mint bubble (bg #E8FBF5). Map each task's icon
+// kind to a clean glyph so the column reads as an intentional, uniform list (the way the web
+// merchant logos do) instead of mismatched colored boxes.
+const taskGlyphByIcon: Record<string, IconComponent> = {
+  watchAds: MousePointerClickIcon,
+  orbit: PlaneIcon,
+  pixel: DeviceMobileIcon,
+  glow: SparklesIcon,
+  go: StorefrontIcon,
+};
+
 function TaskLogo({ task }: { task: (typeof webQuestTaskRows)[number] }) {
-  if (task.icon === "watchAds") {
-    return (
-      <View style={[styles.taskLogo, styles.taskLogoSoft]}>
-        <MousePointerClickIcon
-          color={colors.primaryDark}
-          size={28}
-          strokeWidth={typography.iconStrokeWidth}
-        />
-      </View>
-    );
-  }
-
-  if (task.icon === "pixel") {
-    return <View style={[styles.taskLogo, styles.pixelLogo]} />;
-  }
-
-  if (task.icon === "orbit") {
-    return (
-      <View style={[styles.taskLogo, styles.orbitLogo]}>
-        <Text style={styles.orbitLogoText}>◐</Text>
-      </View>
-    );
-  }
-
-  if (task.icon === "glow") {
-    return (
-      <View style={[styles.taskLogo, styles.glowLogo]}>
-        <Text style={styles.glowLogoText}>G</Text>
-      </View>
-    );
-  }
-
+  const Glyph = taskGlyphByIcon[task.icon] ?? StorefrontIcon;
   return (
-    <View style={[styles.taskLogo, styles.goLogo]}>
-      <Text style={styles.goLogoText}>GO</Text>
+    <View style={styles.taskLogo}>
+      <Glyph color={colors.primaryDark} size={26} strokeWidth={typography.iconStrokeWidth} />
     </View>
   );
 }
@@ -183,10 +170,10 @@ function TaskLogo({ task }: { task: (typeof webQuestTaskRows)[number] }) {
 function TaskPointsPill({ points }: { points: string }) {
   return (
     <View style={styles.taskPointsPill}>
-      <Text style={styles.taskPointsText}>{points}</Text>
-      <View style={styles.taskCoin}>
-        <CoinIcon color={colors.white} size={14} strokeWidth={typography.iconStrokeWidth} />
-      </View>
+      <Text numberOfLines={1} style={styles.taskPointsText}>
+        {points}
+      </Text>
+      <CoinIcon color={colors.white} size={18} strokeWidth={typography.iconStrokeWidth} />
     </View>
   );
 }
@@ -289,7 +276,7 @@ function QuestLeaderboardPanel({ mediaColumnWidth }: { mediaColumnWidth: number 
             <Text numberOfLines={1} style={styles.rankName}>
               {row.name}
             </Text>
-            <Text style={styles.rankTrophy}>{index === 0 ? "🏆" : index === 1 ? "🏆" : "🏆"}</Text>
+            <RankTrophy index={index} />
             <View style={styles.rankPointRow}>
               <CoinIcon color={colors.primary} size={18} strokeWidth={typography.iconStrokeWidth} />
               <Text style={styles.rankPoint}>{row.points}</Text>
@@ -297,6 +284,19 @@ function QuestLeaderboardPanel({ mediaColumnWidth }: { mediaColumnWidth: number 
           </View>
         ))}
       </View>
+    </View>
+  );
+}
+
+// Web shows distinct rank trophies per place (rank1/2/3 = gold/silver/bronze medal PNGs, then
+// rank4/5). Mirror that hierarchy with tinted trophies so the podium reads at a glance.
+const rankTrophyTints = ["#F4B740", "#A9B4C2", "#C8803D"] as const;
+
+function RankTrophy({ index }: { index: number }) {
+  const tint = rankTrophyTints[index] ?? colors.textSoft;
+  return (
+    <View style={styles.rankTrophy}>
+      <TrophyIcon color={tint} size={24} strokeWidth={typography.iconStrokeWidth} />
     </View>
   );
 }
@@ -662,10 +662,10 @@ const styles = StyleSheet.create({
   taskTitle: {
     color: colors.accent,
     fontFamily: typography.family,
-    fontSize: 27,
-    fontWeight: "700",
-    lineHeight: 34,
-    marginBottom: spacing.lg,
+    fontSize: 24,
+    fontWeight: "600",
+    lineHeight: 32,
+    marginBottom: spacing.md,
   },
   taskRow: {
     alignItems: "center",
@@ -673,51 +673,17 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     flexDirection: "row",
     gap: spacing.md,
-    minHeight: 78,
+    minHeight: 72,
     paddingVertical: spacing.md,
   },
   taskLogo: {
     alignItems: "center",
+    backgroundColor: "#E8FBF5",
     borderRadius: radii.chip,
     height: 52,
     justifyContent: "center",
     overflow: "hidden",
     width: 52,
-  },
-  taskLogoSoft: {
-    backgroundColor: "#E8FBF5",
-  },
-  goLogo: {
-    backgroundColor: "#D9F8EF",
-  },
-  goLogoText: {
-    color: colors.primaryDark,
-    fontFamily: typography.family,
-    fontSize: 27,
-    fontWeight: "700",
-    letterSpacing: 0,
-  },
-  orbitLogo: {
-    backgroundColor: "#607287",
-  },
-  orbitLogoText: {
-    color: "#EAF3FB",
-    fontSize: 40,
-    lineHeight: 42,
-  },
-  pixelLogo: {
-    backgroundColor: "#637486",
-    borderRadius: 16,
-    height: 44,
-  },
-  glowLogo: {
-    backgroundColor: "#F3F4F6",
-  },
-  glowLogoText: {
-    color: "#4285F4",
-    fontFamily: typography.family,
-    fontSize: 36,
-    fontWeight: "700",
   },
   taskCopy: {
     flex: 1,
@@ -725,10 +691,11 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   taskName: {
-    color: "#14233A",
+    color: "#000000",
     fontFamily: typography.family,
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: typography.bodyWeight,
+    lineHeight: 24,
   },
   taskPointsPill: {
     alignItems: "center",
@@ -737,26 +704,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: spacing.xs,
     justifyContent: "center",
-    minHeight: 48,
-    minWidth: 148,
-    paddingLeft: spacing.md,
-    paddingRight: spacing.xs,
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
   },
   taskPointsText: {
     color: colors.white,
     fontFamily: typography.family,
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "500",
-  },
-  taskCoin: {
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.28)",
-    borderColor: "rgba(255,255,255,0.35)",
-    borderRadius: radii.chip,
-    borderWidth: 1,
-    height: 26,
-    justifyContent: "center",
-    width: 26,
   },
   leaderboardCard: {
     gap: spacing.sm,
@@ -860,7 +816,7 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontFamily: typography.family,
     fontSize: 28,
-    fontWeight: "700",
+    fontWeight: "600",
   },
   historyButton: {
     alignItems: "center",
@@ -876,11 +832,12 @@ const styles = StyleSheet.create({
   },
   rankRow: {
     alignItems: "center",
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
+    borderBottomColor: "#E0E0E0",
+    borderBottomWidth: 1,
     flexDirection: "row",
     gap: spacing.md,
     minHeight: 72,
+    paddingVertical: spacing.md,
   },
   rankAvatarImage: {
     borderRadius: radii.chip,
@@ -888,27 +845,32 @@ const styles = StyleSheet.create({
     width: 46,
   },
   rankName: {
-    color: "#14233A",
+    color: "#000000",
     flex: 1,
     fontFamily: typography.family,
-    fontSize: 22,
+    fontSize: 18,
     minWidth: 0,
   },
   rankTrophy: {
-    fontSize: 24,
-    lineHeight: 28,
+    alignItems: "center",
+    justifyContent: "center",
   },
   rankPointRow: {
     alignItems: "center",
+    backgroundColor: "#F6F6F6",
+    borderRadius: radii.chip,
     flexDirection: "row",
     gap: spacing.xs,
+    justifyContent: "center",
     minWidth: 88,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
   },
   rankPoint: {
     color: colors.primary,
     fontFamily: typography.family,
-    fontSize: 24,
-    fontWeight: typography.bodyWeight,
+    fontSize: 18,
+    fontWeight: "500",
   },
   exploreSection: {
     borderTopColor: colors.border,

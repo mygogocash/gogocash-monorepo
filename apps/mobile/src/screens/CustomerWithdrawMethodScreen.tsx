@@ -17,9 +17,14 @@ import { colors, radii, shadows, spacing, typography } from "@mobile/theme/token
 type WithdrawMethod = (typeof webWithdrawMethodPage.methods)[number];
 
 export function CustomerWithdrawMethodScreen() {
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
+
   return (
     <WithdrawMethodSubPage>
-      <WithdrawMethodTopBar />
+      {/* Mobile-only back link — on desktop the persistent sidebar handles navigation
+          (web parity: the SubPage topbar is md:hidden). */}
+      {isDesktop ? null : <WithdrawMethodTopBar />}
       <View style={styles.content}>
         <WithdrawMethodHeader />
         <WithdrawMethodGrid />

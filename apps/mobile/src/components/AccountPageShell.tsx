@@ -1,12 +1,15 @@
-import { Link } from "expo-router";
+import { Link, usePathname } from "expo-router";
 import {
   Banknote as BanknoteIcon,
+  ChevronDown as ChevronDownIcon,
+  ChevronUp as ChevronUpIcon,
   ExternalLink as ExternalLinkIcon,
   Hourglass as HourglassIcon,
   Info as InfoIcon,
+  LogOut as LogOutIcon,
   WalletCards as WalletCardsIcon,
 } from "@mobile/theme/icons";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   Image,
   ScrollView,
@@ -20,7 +23,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { getProfileMenuIcon } from "@mobile/components/profileMenuIcons";
+import { LogoutConfirmCard } from "@mobile/components/LogoutConfirmCard";
 import { useCopy } from "@mobile/i18n/useCopy";
+import { useMobileLogout } from "@mobile/auth/useMobileLogout";
+import {
+  isProfileMenuItemActive,
+  isProfileSectionPath,
+  isProfileSubNavItemActive,
+  shouldAutoExpandProfileSubNav,
+} from "@mobile/navigation/profileSectionNav";
 import profileAvatarImage from "../../assets/profile-avatar.png";
 import { GoGoPassAvatar } from "@mobile/components/GoGoPassAvatar";
 import { GoGoPassBadge } from "@mobile/components/GoGoPassBadge";
@@ -29,6 +40,7 @@ import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottom
 import {
   mobileShellLayout,
   profileHubMenuItems,
+  profileHubSubNavItems,
   webAccountPageSurface,
   webProfileWalletHeroSurface,
   webWalletSummaryMetrics,
@@ -59,6 +71,13 @@ export function AccountPageShell({
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
   const showBottomNav = !isDesktop;
+  const pathname = usePathname();
+  // Desktop: every profile-section route renders the persistent sidebar (rail),
+  // not just the hub screens that explicitly opt in via showProfileRail.
+  const showDesktopRail = isDesktop && (showProfileRail || isProfileSectionPath(pathname));
+  // The rounded surface card wraps content whenever the rail shows, plus the
+  // mobile hub screens (profile/wallet) that opt in via showProfileRail.
+  const useProfileSurface = showDesktopRail || (!isDesktop && showProfileRail);
 
   return (
     <View style={styles.viewport}>
@@ -87,14 +106,14 @@ export function AccountPageShell({
           ]}
           showsVerticalScrollIndicator={false}
         >
-          {showProfileRail ? (
+          {useProfileSurface ? (
             <View
               style={[
                 styles.profileSurface,
                 isDesktop ? styles.profileSurfaceDesktop : styles.profileSurfaceMobile,
               ]}
             >
-              {isDesktop ? <DesktopProfileRail activeRouteId={activeRouteId} /> : null}
+              {showDesktopRail ? <DesktopProfileRail /> : null}
               <View
                 style={[
                   styles.profileContent,
@@ -124,19 +143,94 @@ export function AccountPageShell({
   );
 }
 
-function DesktopProfileRail({ activeRouteId }: { activeRouteId: AccountRouteId }) {
+/**
+ * Persistent desktop profile sidebar (web parity with `SubProfile`). Renders the
+ * full menu, the "Profile" accordion sub-nav, external links (new tab), and Log
+ * Out. Active state is derived from the current route via `usePathname`.
+ */
+function DesktopProfileRail() {
   const tc = useCopy();
+  const pathname = usePathname();
+  const [profileSubOpen, setProfileSubOpen] = useState(() => shouldAutoExpandProfileSubNav(pathname));
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
+  const { logout, pending: logoutPending } = useMobileLogout();
+
   return (
     <View style={styles.desktopRail}>
-      {profileHubMenuItems.slice(0, 9).map((item) => {
-        const active =
-          activeRouteId === "wallet"
-            ? item.href === "/wallet"
-            : activeRouteId === "profile"
-              ? item.href === "/profile"
-              : false;
+      {profileHubMenuItems.map((item) => {
+        const isExternal = "external" in item && item.external === true;
+        const active = isProfileMenuItemActive(item, pathname);
         const label = tc(item.label);
         const Icon = getProfileMenuIcon(item.label);
+        const iconColor = active ? colors.white : colors.primaryDark;
+
+        // "Profile" is an accordion that reveals the hub sub-nav.
+        if (item.href === "/profile") {
+          return (
+            <View key={item.label} style={styles.railAccordion}>
+              <MotionPressable
+                accessibilityRole="button"
+                accessibilityState={{ expanded: profileSubOpen }}
+                onPress={() => setProfileSubOpen((open) => !open)}
+                pressScale={0.98}
+                style={StyleSheet.flatten([styles.railRow, active ? styles.railRowActive : null])}
+              >
+                <Icon color={iconColor} size={22} strokeWidth={typography.iconStrokeWidth} />
+                <Text style={[styles.railLabel, active ? styles.railLabelActive : null]}>{label}</Text>
+                {profileSubOpen ? (
+                  <ChevronUpIcon color={iconColor} size={20} strokeWidth={typography.iconStrokeWidth} />
+                ) : (
+                  <ChevronDownIcon color={iconColor} size={20} strokeWidth={typography.iconStrokeWidth} />
+                )}
+              </MotionPressable>
+              {profileSubOpen ? (
+                <View style={styles.railSubNav}>
+                  {profileHubSubNavItems.map((sub) => {
+                    const subActive = isProfileSubNavItemActive(pathname, sub.href);
+                    return (
+                      <Link asChild href={sub.href as never} key={sub.href}>
+                        <MotionPressable
+                          pressScale={0.98}
+                          style={StyleSheet.flatten([
+                            styles.railSubRow,
+                            subActive ? styles.railSubRowActive : null,
+                          ])}
+                        >
+                          <Text style={[styles.railSubLabel, subActive ? styles.railSubLabelActive : null]}>
+                            {tc(sub.label)}
+                          </Text>
+                        </MotionPressable>
+                      </Link>
+                    );
+                  })}
+                </View>
+              ) : null}
+            </View>
+          );
+        }
+
+        // External destinations open in a new tab and are never "active".
+        if (isExternal) {
+          return (
+            <Link
+              asChild
+              href={item.href as never}
+              key={item.label}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              <MotionPressable pressScale={0.98} style={styles.railRow}>
+                <Icon color={colors.primaryDark} size={22} strokeWidth={typography.iconStrokeWidth} />
+                <Text style={styles.railLabel}>{label}</Text>
+                <ExternalLinkIcon
+                  color={colors.primaryDark}
+                  size={16}
+                  strokeWidth={typography.iconStrokeWidth}
+                />
+              </MotionPressable>
+            </Link>
+          );
+        }
 
         return (
           <Link asChild href={item.href as never} key={item.label}>
@@ -144,16 +238,30 @@ function DesktopProfileRail({ activeRouteId }: { activeRouteId: AccountRouteId }
               pressScale={0.98}
               style={StyleSheet.flatten([styles.railRow, active ? styles.railRowActive : null])}
             >
-              <Icon
-                color={active ? colors.white : colors.primaryDark}
-                size={22}
-                strokeWidth={typography.iconStrokeWidth}
-              />
+              <Icon color={iconColor} size={22} strokeWidth={typography.iconStrokeWidth} />
               <Text style={[styles.railLabel, active ? styles.railLabelActive : null]}>{label}</Text>
             </MotionPressable>
           </Link>
         );
       })}
+
+      <MotionPressable
+        accessibilityLabel={tc("Log Out")}
+        accessibilityRole="button"
+        onPress={() => setLogoutConfirmOpen(true)}
+        pressScale={0.98}
+        style={styles.railRow}
+      >
+        <LogOutIcon color={colors.primaryDark} size={22} strokeWidth={typography.iconStrokeWidth} />
+        <Text style={styles.railLabel}>{tc("Log Out")}</Text>
+      </MotionPressable>
+      {logoutConfirmOpen ? (
+        <LogoutConfirmCard
+          onCancel={() => setLogoutConfirmOpen(false)}
+          onConfirm={logout}
+          pending={logoutPending}
+        />
+      ) : null}
     </View>
   );
 }
@@ -321,10 +429,42 @@ const styles = StyleSheet.create({
     color: colors.ink,
     flex: 1,
     fontFamily: typography.family,
-    fontSize: typography.body,
+    // Web parity: SubProfile menu rows use `text-base` (16px) + leading-normal.
+    fontSize: 16,
     fontWeight: typography.bodyWeight,
+    lineHeight: 24,
   },
   railLabelActive: {
+    color: colors.white,
+    fontWeight: "600",
+  },
+  railAccordion: {
+    gap: spacing.sm,
+  },
+  railSubNav: {
+    gap: spacing.xs,
+    paddingLeft: spacing.lg,
+  },
+  railSubRow: {
+    alignItems: "center",
+    borderRadius: radii.md,
+    flexDirection: "row",
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+  },
+  railSubRowActive: {
+    backgroundColor: colors.primary,
+  },
+  railSubLabel: {
+    color: colors.ink,
+    flex: 1,
+    fontFamily: typography.family,
+    // Web parity: SubProfile accordion sub-items use `text-sm` (14px).
+    fontSize: typography.label,
+    fontWeight: typography.bodyWeight,
+    lineHeight: 20,
+  },
+  railSubLabelActive: {
     color: colors.white,
     fontWeight: "600",
   },

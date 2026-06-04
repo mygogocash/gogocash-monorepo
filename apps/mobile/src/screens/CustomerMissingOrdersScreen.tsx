@@ -38,9 +38,11 @@ const attachmentField = webMissingOrdersPage.sections
 const attachmentRequiredMessage = attachmentField?.helper ?? "";
 
 export function CustomerMissingOrdersScreen() {
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
   return (
     <MissingOrdersSubPage>
-      <MissingOrdersTopBar />
+      {isDesktop ? null : <MissingOrdersTopBar />}
       <View style={styles.content}>
         <MissingOrdersFormPanel />
         <MissingOrdersQuickCards />

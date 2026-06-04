@@ -31,6 +31,9 @@ const selfChromeScreens = [
   "src/screens/CustomerHomeScreen.tsx",
 ];
 
+// Screens that render the desktop footer slot directly (i.e. not via AccountPageShell).
+// CustomerMembershipScreen now renders inside AccountPageShell, so it inherits the
+// footer from the shell and is intentionally not listed here.
 const rootChromeFooterSlotOwners = [
   "src/components/AccountPageShell.tsx",
   "src/components/CustomerRouteState.tsx",
@@ -38,7 +41,6 @@ const rootChromeFooterSlotOwners = [
   "src/screens/CustomerDiscoveryScreen.tsx",
   "src/screens/CustomerGoGoSenseScreen.tsx",
   "src/screens/CustomerGoLinkScreen.tsx",
-  "src/screens/CustomerMembershipScreen.tsx",
   "src/screens/CustomerMoneyActionScreen.tsx",
   "src/screens/CustomerShopDetailScreen.tsx",
   "src/screens/CustomerSubscriptionScreen.tsx",

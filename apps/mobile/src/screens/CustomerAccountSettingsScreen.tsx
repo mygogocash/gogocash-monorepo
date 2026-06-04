@@ -7,9 +7,9 @@ import {
 import type { ReactNode } from "react";
 import { useState } from "react";
 import {
-  Image,
   Pressable,
   StyleSheet,
+  Switch,
   Text,
   useWindowDimensions,
   View,
@@ -21,43 +21,49 @@ import { useCopy } from "@mobile/i18n/useCopy";
 import { mobileShellLayout, webAccountSettingsPage } from "@mobile/design/webDesignParity";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
-import angellistCommunityImage from "../../assets/account-settings-community/angellist.png";
-import crunchbaseCommunityImage from "../../assets/account-settings-community/crunchbase.png";
-import discordCommunityImage from "../../assets/account-settings-community/discord.png";
-import facebookCommunityImage from "../../assets/account-settings-community/facebook.png";
-import githubCommunityImage from "../../assets/account-settings-community/github.png";
-import instagramCommunityImage from "../../assets/account-settings-community/instagram.png";
-import lineCommunityImage from "../../assets/account-settings-community/line.png";
-import linkedinCommunityImage from "../../assets/account-settings-community/linkedin.png";
-import lumaCommunityImage from "../../assets/account-settings-community/luma.png";
-import questnCommunityImage from "../../assets/account-settings-community/questn.png";
-import telegramCommunityImage from "../../assets/account-settings-community/telegram.png";
-import xCommunityImage from "../../assets/account-settings-community/x.png";
-import youtubeCommunityImage from "../../assets/account-settings-community/youtube.png";
-
-const communityAssets = {
-  angellist: angellistCommunityImage,
-  crunchbase: crunchbaseCommunityImage,
-  discord: discordCommunityImage,
-  facebook: facebookCommunityImage,
-  github: githubCommunityImage,
-  instagram: instagramCommunityImage,
-  line: lineCommunityImage,
-  linkedin: linkedinCommunityImage,
-  luma: lumaCommunityImage,
-  questn: questnCommunityImage,
-  telegram: telegramCommunityImage,
-  x: xCommunityImage,
-  youtube: youtubeCommunityImage,
-} as const;
-
 type CommunityCardModel = (typeof webAccountSettingsPage.community.cards)[number];
 type NotificationRowModel = (typeof webAccountSettingsPage.notifications.rows)[number];
 
+// Local-only brand styling for the "Join our Community" cards. The shared
+// `webAccountSettingsPage.community.cards` constant only carries { id, label, asset };
+// the web renders full banner images, but on mobile we approximate each brand with a
+// solid brand-colored surface + a short text/letter glyph (no image assets required).
+// Defined LOCALLY here per the screen brief — webDesignParity.ts is not edited.
+type CommunityBrandStyle = {
+  background: string;
+  foreground: string;
+  glyph: string;
+};
+
+const communityBrandStyles: Record<CommunityCardModel["id"], CommunityBrandStyle> = {
+  facebook: { background: "#1877F2", foreground: "#FFFFFF", glyph: "f" },
+  instagram: { background: "#E1306C", foreground: "#FFFFFF", glyph: "◎" },
+  line: { background: "#06C755", foreground: "#FFFFFF", glyph: "LINE" },
+  youtube: { background: "#FF0000", foreground: "#FFFFFF", glyph: "▶" },
+  x: { background: "#0F1419", foreground: "#FFFFFF", glyph: "𝕏" },
+  telegram: { background: "#229ED9", foreground: "#FFFFFF", glyph: "✈" },
+  luma: { background: "#161616", foreground: "#FFFFFF", glyph: "lu" },
+  linkedin: { background: "#0A66C2", foreground: "#FFFFFF", glyph: "in" },
+  discord: { background: "#5865F2", foreground: "#FFFFFF", glyph: "✺" },
+  questn: { background: "#6D28D9", foreground: "#FFFFFF", glyph: "Q" },
+  github: { background: "#181717", foreground: "#FFFFFF", glyph: "⌥" },
+  angellist: { background: "#000000", foreground: "#FFFFFF", glyph: "A∙" },
+  crunchbase: { background: "#0288D1", foreground: "#FFFFFF", glyph: "cb" },
+};
+
+function getCommunityBrandStyle(id: CommunityCardModel["id"]): CommunityBrandStyle {
+  return communityBrandStyles[id] ?? { background: colors.ink, foreground: colors.white, glyph: "•" };
+}
+
 export function CustomerAccountSettingsScreen() {
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
+
   return (
     <AccountSettingsSubPage>
-      <AccountSettingsTopBar />
+      {/* Mobile-only back link — on desktop the persistent sidebar handles navigation
+          (web parity: the SubPage topbar is md:hidden). */}
+      {isDesktop ? null : <AccountSettingsTopBar />}
       <View style={styles.content}>
         <SubscriptionSection />
         <NotificationSection />
@@ -112,9 +118,11 @@ function SubscriptionSection() {
 
 function NotificationSection() {
   const tc = useCopy();
+  // Defaults match the web (Figma): Line off, Email on. The toggles are display-only
+  // ("Coming soon"), so the value is fixed — there is no setter wired.
   const [isLineEnabled] = useState(false);
   const [isEmailEnabled] = useState(true);
-  const enabledById = {
+  const enabledById: Record<NotificationRowModel["id"], boolean> = {
     email: isEmailEnabled,
     line: isLineEnabled,
   };
@@ -154,15 +162,14 @@ function NotificationRow({
           </Text>
         </View>
       </View>
-      <TogglePill enabled={enabled} />
-    </View>
-  );
-}
-
-function TogglePill({ enabled }: { enabled: boolean }) {
-  return (
-    <View style={[styles.toggleTrack, enabled ? styles.toggleTrackOn : null]}>
-      <View style={[styles.toggleThumb, enabled ? styles.toggleThumbOn : null]} />
+      <Switch
+        accessibilityLabel={tc(row.label)}
+        disabled
+        ios_backgroundColor="#F0F0F0"
+        thumbColor={colors.white}
+        trackColor={{ false: "#F0F0F0", true: colors.primary }}
+        value={enabled}
+      />
     </View>
   );
 }
@@ -192,21 +199,30 @@ function CommunityCard({
   columns: 2 | 3;
 }) {
   const tc = useCopy();
+  const brand = getCommunityBrandStyle(card.id);
+  const joinLabel = tc(webAccountSettingsPage.community.joinLabel);
+
   return (
     <MotionPressable
-      accessibilityLabel={`${tc(webAccountSettingsPage.community.joinLabel)} ${card.label}`}
+      accessibilityLabel={`${joinLabel} ${card.label}`}
       accessibilityRole="link"
       pressScale={0.99}
-      style={[styles.communityCard, columns === 3 ? styles.communityCardDesktop : null]}
+      style={[
+        styles.communityCard,
+        columns === 3 ? styles.communityCardDesktop : null,
+        { backgroundColor: brand.background },
+      ]}
     >
-      <Image
-        alt={`${tc(webAccountSettingsPage.community.joinLabel)} ${card.label}`}
-        resizeMode="cover"
-        source={communityAssets[card.asset]}
-        style={styles.communityImage}
-      />
-      <Text style={styles.communityAccessibleLabel}>
-        {tc(webAccountSettingsPage.community.joinLabel)} {card.label}
+      <View style={styles.communityCardCopy}>
+        <Text numberOfLines={1} style={[styles.communityJoinLabel, { color: brand.foreground }]}>
+          {joinLabel}
+        </Text>
+        <Text numberOfLines={1} style={[styles.communityBrandName, { color: brand.foreground }]}>
+          {card.label}
+        </Text>
+      </View>
+      <Text numberOfLines={1} style={[styles.communityGlyph, { color: brand.foreground }]}>
+        {brand.glyph}
       </Text>
     </MotionPressable>
   );
@@ -338,31 +354,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "500",
   },
-  toggleTrack: {
-    alignItems: "center",
-    backgroundColor: "#F0F0F0",
-    borderRadius: radii.chip,
-    height: 20,
-    justifyContent: "center",
-    opacity: 0.5,
-    paddingHorizontal: 2,
-    width: 36,
-  },
-  toggleTrackOn: {
-    backgroundColor: colors.primary,
-    opacity: 1,
-  },
-  toggleThumb: {
-    alignSelf: "flex-start",
-    backgroundColor: colors.white,
-    borderRadius: radii.chip,
-    boxShadow: "0 1px 2px rgba(0,0,0,0.12)",
-    height: 16,
-    width: 16,
-  },
-  toggleThumbOn: {
-    alignSelf: "flex-end",
-  },
   communityGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -370,30 +361,38 @@ const styles = StyleSheet.create({
   },
   communityCard: {
     aspectRatio: 224 / 117,
-    backgroundColor: colors.card,
-    borderColor: "rgba(0,0,0,0.12)",
+    alignItems: "flex-start",
     borderRadius: radii.md,
-    borderWidth: 1,
-    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
     flexGrow: 1,
     flexShrink: 1,
+    justifyContent: "space-between",
     overflow: "hidden",
+    padding: spacing.md,
     width: "47%",
   },
   communityCardDesktop: {
     width: "31%",
   },
-  communityImage: {
-    height: "100%",
+  communityCardCopy: {
+    gap: 2,
     width: "100%",
   },
-  communityAccessibleLabel: {
-    height: 1,
-    left: 1,
-    opacity: 0,
-    overflow: "hidden",
-    position: "absolute",
-    top: 1,
-    width: 1,
+  communityJoinLabel: {
+    fontFamily: typography.family,
+    fontSize: 12,
+    fontWeight: "500",
+    opacity: 0.85,
+  },
+  communityBrandName: {
+    fontFamily: typography.family,
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  communityGlyph: {
+    alignSelf: "flex-end",
+    fontFamily: typography.family,
+    fontSize: 28,
+    fontWeight: "700",
+    lineHeight: 32,
   },
 });

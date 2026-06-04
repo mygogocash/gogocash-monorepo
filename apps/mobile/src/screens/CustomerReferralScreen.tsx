@@ -1,8 +1,10 @@
 import { Link } from "expo-router";
 import {
+  ArrowRight as ArrowRightIcon,
   ChevronDown as ChevronDownIcon,
   ChevronLeft as ChevronLeftIcon,
   Copy as ContentCopyIcon,
+  Heart as HeartIcon,
 } from "@mobile/theme/icons";
 import type { ReactNode } from "react";
 import { useState } from "react";
@@ -63,7 +65,7 @@ export function CustomerReferralScreen() {
   return (
     <ReferralSubPage>
       <View style={styles.referralBlueShell}>
-        <ReferralTopBar />
+        {isDesktop ? null : <ReferralTopBar />}
         <ScrollView
           contentContainerStyle={[styles.content, isDesktop ? styles.referralContentDesktop : null]}
           refreshControl={
@@ -79,6 +81,7 @@ export function CustomerReferralScreen() {
           <ReferralInvitationPanel />
           <ReferralStepsSection />
           <ReferralFaqsSection />
+          <ReferralExploreShopsSection isDesktop={isDesktop} />
         </ScrollView>
       </View>
     </ReferralSubPage>
@@ -385,6 +388,106 @@ function ReferralFaqItem({
         />
       </Pressable>
       {expanded ? <Text style={styles.faqAnswer}>{tc(item.answer)}</Text> : null}
+    </View>
+  );
+}
+
+// Local mock shops for the "Explore other Shops" parity section. Defined here on
+// purpose: the web pulls these from a live offer list, but this screen has no
+// merchant resource wired in, so we keep the sample data local rather than
+// editing shared design-parity modules.
+type ExploreShop = {
+  readonly id: string;
+  readonly name: string;
+  readonly cashback: string;
+};
+
+const exploreShops: readonly ExploreShop[] = [
+  { id: "orbit-airways", name: "Orbit Airways", cashback: "8.5%" },
+  { id: "nova-travel-club", name: "Nova Travel Club", cashback: "9.2%" },
+  { id: "horizon-escapes", name: "Horizon Escapes", cashback: "8.8%" },
+  { id: "cloudline-getaways", name: "Cloudline Getaways", cashback: "7.9%" },
+];
+
+function ReferralExploreShopsSection({ isDesktop }: { isDesktop: boolean }) {
+  const tc = useCopy();
+  return (
+    <View style={styles.exploreSection}>
+      <View style={styles.exploreHeader}>
+        <Text style={[styles.exploreTitle, isDesktop ? styles.exploreTitleDesktop : null]}>
+          {tc("Explore other Shops")}
+        </Text>
+        {isDesktop ? (
+          <Link asChild href="/brand">
+            <Pressable accessibilityRole="link" style={styles.exploreViewAll}>
+              <Text style={styles.exploreViewAllText}>{tc("View all")}</Text>
+              <ArrowRightIcon
+                color={colors.accent}
+                size={18}
+                strokeWidth={typography.iconStrokeWidth}
+              />
+            </Pressable>
+          </Link>
+        ) : null}
+      </View>
+      <View style={[styles.exploreGrid, isDesktop ? styles.exploreGridDesktop : null]}>
+        {exploreShops.map((shop) => (
+          <ExploreShopCard isDesktop={isDesktop} key={shop.id} shop={shop} />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function ExploreShopCard({ isDesktop, shop }: { isDesktop: boolean; shop: ExploreShop }) {
+  const tc = useCopy();
+  const [isFavorite, setIsFavorite] = useState(false);
+  return (
+    <View style={[styles.exploreCard, isDesktop ? styles.exploreCardDesktop : styles.exploreCardMobile]}>
+      <View style={styles.exploreCardBanner} />
+      <View style={[styles.exploreCardBody, isDesktop ? styles.exploreCardBodyDesktop : null]}>
+        <View style={styles.exploreCardCopy}>
+          <Text
+            numberOfLines={2}
+            style={[styles.exploreCardName, isDesktop ? styles.exploreCardNameDesktop : null]}
+          >
+            {shop.name}
+          </Text>
+          <View style={styles.exploreCashbackRow}>
+            <Text
+              style={[
+                styles.exploreCashbackLabel,
+                isDesktop ? styles.exploreCashbackLabelDesktop : null,
+              ]}
+            >
+              {tc("Cashback up to")}
+            </Text>
+            <Text
+              style={[
+                styles.exploreCashbackValue,
+                isDesktop ? styles.exploreCashbackValueDesktop : null,
+              ]}
+            >
+              {shop.cashback}
+            </Text>
+          </View>
+        </View>
+        <Pressable
+          accessibilityLabel={tc("favoritePageAddFavorite")}
+          accessibilityRole="button"
+          accessibilityState={{ selected: isFavorite }}
+          hitSlop={8}
+          onPress={() => setIsFavorite((previous) => !previous)}
+          style={styles.exploreFavoriteButton}
+        >
+          <HeartIcon
+            color={isFavorite ? colors.primary : "#686868"}
+            fill={isFavorite ? colors.primary : undefined}
+            size={22}
+            strokeWidth={isFavorite ? 0 : typography.iconStrokeWidth}
+          />
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -738,5 +841,139 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     paddingLeft: 45,
     paddingRight: 16,
+  },
+  exploreSection: {
+    borderTopColor: "#F0F0F0",
+    borderTopWidth: 1,
+    gap: 24,
+    marginTop: 48,
+    paddingTop: 48,
+    width: "100%",
+  },
+  exploreHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 16,
+    justifyContent: "space-between",
+  },
+  exploreTitle: {
+    color: "#3B3B3B",
+    flex: 1,
+    fontFamily: typography.family,
+    fontSize: 24,
+    fontWeight: "600",
+    lineHeight: 31,
+  },
+  exploreTitleDesktop: {
+    fontSize: 26,
+    lineHeight: 34,
+  },
+  exploreViewAll: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexShrink: 0,
+    gap: 6,
+  },
+  exploreViewAllText: {
+    color: colors.accent,
+    fontFamily: typography.family,
+    fontSize: 16,
+    fontWeight: "600",
+    lineHeight: 22,
+  },
+  exploreGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 16,
+  },
+  exploreGridDesktop: {
+    gap: 20,
+  },
+  exploreCard: {
+    backgroundColor: colors.white,
+    borderColor: "#E4E4E4",
+    borderRadius: 16,
+    borderWidth: 1,
+    boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+    flexGrow: 1,
+    overflow: "hidden",
+  },
+  exploreCardMobile: {
+    flexBasis: "47%",
+  },
+  exploreCardDesktop: {
+    flexBasis: "22%",
+  },
+  exploreCardBanner: {
+    aspectRatio: 16 / 10,
+    backgroundColor: "#F6F6F6",
+    width: "100%",
+  },
+  exploreCardBody: {
+    alignItems: "flex-start",
+    borderTopColor: "#F0F0F0",
+    borderTopWidth: 1,
+    flexDirection: "row",
+    gap: 8,
+    padding: 12,
+  },
+  exploreCardBodyDesktop: {
+    padding: 16,
+  },
+  exploreCardCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  exploreCardName: {
+    color: "#3B3B3B",
+    fontFamily: typography.family,
+    fontSize: 15,
+    fontWeight: "600",
+    lineHeight: 20,
+  },
+  exploreCardNameDesktop: {
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  exploreCashbackRow: {
+    alignItems: "flex-end",
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "space-between",
+    marginTop: 8,
+  },
+  exploreCashbackLabel: {
+    color: "#7F7F7F",
+    flexShrink: 1,
+    fontFamily: typography.family,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  exploreCashbackLabelDesktop: {
+    fontSize: 14,
+    lineHeight: 18,
+  },
+  exploreCashbackValue: {
+    color: "#00CC99",
+    flexShrink: 0,
+    fontFamily: typography.family,
+    fontSize: 18,
+    fontWeight: "700",
+    lineHeight: 24,
+  },
+  exploreCashbackValueDesktop: {
+    fontSize: 20,
+    lineHeight: 26,
+  },
+  exploreFavoriteButton: {
+    alignItems: "center",
+    backgroundColor: "#E6F7ED",
+    borderColor: "#E6F7ED",
+    borderRadius: 999,
+    borderWidth: 1,
+    flexShrink: 0,
+    height: 40,
+    justifyContent: "center",
+    width: 40,
   },
 });

@@ -1,16 +1,11 @@
-import type { ReactNode } from "react";
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import {
   AlertCircle as AlertIcon,
-  Calendar as DateIcon,
   CheckCircle2 as SuccessIcon,
+  ChevronDown,
   Edit2 as EditIcon,
-  Mail as MailIcon,
-  MapPin as MapIcon,
-  Phone as PhoneIcon,
   Save as SaveIcon,
-  User as UserIcon,
   WalletCards as WalletIcon,
 } from "@mobile/theme/icons";
 import { Link } from "expo-router";
@@ -19,7 +14,7 @@ import { ProfileHeroCard } from "@mobile/components/ProfileHeroCard";
 import type { MobileSession } from "@mobile/auth/session";
 import { haptics } from "@mobile/lib/haptics";
 import { useCopy } from "@mobile/i18n/useCopy";
-import { webProfileInfoCashbackCard } from "@mobile/design/webDesignParity";
+import { mobileShellLayout, webProfileInfoCashbackCard } from "@mobile/design/webDesignParity";
 import { colors, radii, spacing, typography } from "@mobile/theme/tokens";
 
 // Identity validators were too loose — passport was length-only (accepted "#@!ABC1" despite the
@@ -58,18 +53,20 @@ export function isValidBirthdate(input: string, now: Date = new Date()): boolean
  */
 export function ProfileInfoPanel({ session }: { session: MobileSession }) {
   const [isEditing, setIsEditing] = useState(false);
-  const [username, setUsername] = useState("Kunanon Jarat");
+  const [username, setUsername] = useState(
+    typeof session.username === "string" && session.username ? session.username : "Mock User",
+  );
   const [idType, setIdType] = useState<"national" | "passport">("national");
-  const [idNumber, setIdNumber] = useState("1100800999999");
-  const [address, setAddress] = useState("123 Sukhumvit Rd, Khlong Toei");
-  const [country] = useState("Thailand");
-  const [state, setState] = useState("Bangkok");
-  const [city, setCity] = useState("Khlong Toei");
-  const [zip, setZip] = useState("10110");
-  const [gender, setGender] = useState("Male");
-  const [birthdate, setBirthdate] = useState("1996-05-23");
-  const [email] = useState("kunanon@gogocash.co");
-  const [phone] = useState("+66 89 123 4567");
+  const [idNumber, setIdNumber] = useState("");
+  const [address, setAddress] = useState("");
+  const [country] = useState("");
+  const [state] = useState("");
+  const [city] = useState("");
+  const [zip, setZip] = useState("");
+  const [gender] = useState("");
+  const [birthdate, setBirthdate] = useState("");
+  const [email] = useState("mock.user@gogocash.test");
+  const [phone] = useState("+66123456789");
   const [errors, setErrors] = useState<string[]>([]);
   const [successMsg, setSuccessMsg] = useState("");
 
@@ -142,11 +139,8 @@ export function ProfileInfoPanel({ session }: { session: MobileSession }) {
         phone={phone}
         setAddress={setAddress}
         setBirthdate={setBirthdate}
-        setCity={setCity}
-        setGender={setGender}
         setIdNumber={setIdNumber}
         setIdType={setIdType}
-        setState={setState}
         setUsername={setUsername}
         setZip={setZip}
         state={state}
@@ -234,11 +228,8 @@ function ProfilePersonalInformationPanel({
   phone,
   setAddress,
   setBirthdate,
-  setCity,
-  setGender,
   setIdNumber,
   setIdType,
-  setState,
   setUsername,
   setZip,
   state,
@@ -260,11 +251,8 @@ function ProfilePersonalInformationPanel({
   phone: string;
   setAddress: (value: string) => void;
   setBirthdate: (value: string) => void;
-  setCity: (value: string) => void;
-  setGender: (value: string) => void;
   setIdNumber: (value: string) => void;
   setIdType: (value: "national" | "passport") => void;
-  setState: (value: string) => void;
   setUsername: (value: string) => void;
   setZip: (value: string) => void;
   state: string;
@@ -273,6 +261,10 @@ function ProfilePersonalInformationPanel({
   zip: string;
 }) {
   const tc = useCopy();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
+  const cellStyle = isDesktop ? styles.gridCellHalf : styles.gridCellFull;
+
   return (
     <View style={styles.personalInfoPanel}>
       <View style={styles.headerRow}>
@@ -319,138 +311,173 @@ function ProfilePersonalInformationPanel({
       ) : null}
 
       <View style={styles.formCard}>
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>{tc("Name / Username")}</Text>
-          <View style={[styles.inputBox, !isEditing && styles.inputBoxLocked]}>
-            <UserIcon color={colors.muted} size={16} />
-            <TextInput
-              editable={isEditing}
-              onChangeText={setUsername}
-              placeholder={tc("Username")}
-              placeholderTextColor={colors.textSoft}
-              style={styles.textInput}
-              value={username}
-            />
-          </View>
-        </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>{tc("Identification Type")}</Text>
-          <View style={styles.idTypeRow}>
-            <Pressable
-              disabled={!isEditing}
-              onPress={() => setIdType("national")}
-              style={styles.idTypeBtn}
-            >
-              <View style={[styles.radioOuter, idType === "national" && styles.radioOuterActive]}>
-                {idType === "national" ? <View style={styles.radioInner} /> : null}
-              </View>
-              <Text style={[styles.idTypeBtnText, idType === "national" && styles.idTypeBtnTextActive]}>
-                {tc("National ID")}
-              </Text>
-            </Pressable>
-            <Pressable
-              disabled={!isEditing}
-              onPress={() => setIdType("passport")}
-              style={styles.idTypeBtn}
-            >
-              <View style={[styles.radioOuter, idType === "passport" && styles.radioOuterActive]}>
-                {idType === "passport" ? <View style={styles.radioInner} /> : null}
-              </View>
-              <Text style={[styles.idTypeBtnText, idType === "passport" && styles.idTypeBtnTextActive]}>
-                {tc("Passport")}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-
-        <ProfileTextField
-          editable={isEditing}
-          label={idType === "national" ? "National ID Number" : "Passport ID Number"}
-          onChangeText={setIdNumber}
-          placeholder={idType === "national" ? "13-digit ID" : "Passport ID"}
-          value={idNumber}
-        />
-        <ProfileTextField
-          editable={isEditing}
-          icon={<MapIcon color={colors.muted} size={16} />}
-          label="Legal Address"
-          onChangeText={setAddress}
-          placeholder="Legal Address"
-          value={address}
-        />
-
-        <View style={styles.gridContainer}>
-          <ProfileTextField editable={false} label="Country" value={country} />
-          <ProfileTextField editable={isEditing} label="State" onChangeText={setState} value={state} />
-        </View>
-        <View style={styles.gridContainer}>
-          <ProfileTextField editable={isEditing} label="City" onChangeText={setCity} value={city} />
-          <ProfileTextField editable={isEditing} label="Zip Code" onChangeText={setZip} value={zip} />
-        </View>
-
-        <ProfileTextField
-          editable={false}
-          icon={<MailIcon color={colors.textSoft} size={16} />}
-          label="Email Address"
-          value={email}
-        />
-        <ProfileTextField
-          editable={false}
-          icon={<PhoneIcon color={colors.textSoft} size={16} />}
-          label="Phone Number"
-          value={phone}
-        />
-
-        <View style={styles.gridContainer}>
-          <ProfileTextField editable={isEditing} label="Gender" onChangeText={setGender} value={gender} />
-          <ProfileTextField
+        {/* Name — placeholder-only input, no label, no icon */}
+        <View style={styles.inputBox}>
+          <TextInput
             editable={isEditing}
-            icon={<DateIcon color={colors.muted} size={16} />}
-            label="Birthdate"
-            onChangeText={setBirthdate}
-            placeholder="YYYY-MM-DD"
-            value={birthdate}
+            onChangeText={setUsername}
+            placeholder={tc("Name")}
+            placeholderTextColor={FIELD_PLACEHOLDER}
+            style={styles.textInput}
+            value={username}
           />
         </View>
+
+        {/* National ID / Passport ID radio row */}
+        <View style={styles.idTypeRow}>
+          <Pressable
+            disabled={!isEditing}
+            onPress={() => setIdType("national")}
+            style={styles.idTypeBtn}
+          >
+            <View style={[styles.radioOuter, idType === "national" && styles.radioOuterActive]}>
+              {idType === "national" ? <View style={styles.radioInner} /> : null}
+            </View>
+            <Text style={styles.idTypeBtnText}>{tc("National ID")}</Text>
+          </Pressable>
+          <Pressable
+            disabled={!isEditing}
+            onPress={() => setIdType("passport")}
+            style={styles.idTypeBtn}
+          >
+            <View style={[styles.radioOuter, idType === "passport" && styles.radioOuterActive]}>
+              {idType === "passport" ? <View style={styles.radioInner} /> : null}
+            </View>
+            <Text style={styles.idTypeBtnText}>{tc("Passport ID")}</Text>
+          </Pressable>
+        </View>
+
+        {/* Citizen or Passport ID — placeholder-only input */}
+        <View style={styles.inputBox}>
+          <TextInput
+            editable={isEditing}
+            onChangeText={setIdNumber}
+            placeholder={tc("Citizen or Passport ID")}
+            placeholderTextColor={FIELD_PLACEHOLDER}
+            style={styles.textInput}
+            value={idNumber}
+          />
+        </View>
+
+        {/* Legal Address — placeholder-only input */}
+        <View style={styles.inputBox}>
+          <TextInput
+            editable={isEditing}
+            onChangeText={setAddress}
+            placeholder={tc("Legal Address")}
+            placeholderTextColor={FIELD_PLACEHOLDER}
+            style={styles.textInput}
+            value={address}
+          />
+        </View>
+
+        {/* Country & region grouped box */}
+        <View style={styles.regionSection}>
+          <Text style={styles.regionHeading}>{tc("Country & region")}</Text>
+          <View style={styles.regionBox}>
+            <View style={styles.regionGrid}>
+              <View style={[styles.regionCell, cellStyle]}>
+                <Text style={styles.regionLabel}>{tc("Country")}</Text>
+                <ProfileDropdownDisplay placeholder={tc("Country")} value={country} />
+              </View>
+              <View style={[styles.regionCell, cellStyle]}>
+                <Text style={styles.regionLabel}>{tc("State")}</Text>
+                <ProfileDropdownDisplay placeholder={tc("State")} value={state} />
+              </View>
+              <View style={[styles.regionCell, cellStyle]}>
+                <Text style={styles.regionLabel}>{tc("City")}</Text>
+                <ProfileDropdownDisplay placeholder={tc("City")} value={city} />
+              </View>
+              <View style={[styles.regionCell, cellStyle]}>
+                <Text style={styles.regionLabel}>{tc("Zip Code")}</Text>
+                <View style={styles.inputBox}>
+                  <TextInput
+                    editable={isEditing}
+                    onChangeText={setZip}
+                    placeholder={tc("Zip Code")}
+                    placeholderTextColor={FIELD_PLACEHOLDER}
+                    style={styles.textInput}
+                    value={zip}
+                  />
+                </View>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Link Email / Link Phone Number */}
+        <View style={styles.linkGrid}>
+          <View style={[styles.linkCell, cellStyle]}>
+            <Link asChild href="/profile/info">
+              <Text style={styles.linkText}>{tc("Link Email")}</Text>
+            </Link>
+            <View style={styles.inputBox}>
+              <TextInput
+                editable={false}
+                placeholder={tc("Email")}
+                placeholderTextColor={FIELD_PLACEHOLDER}
+                style={styles.textInput}
+                value={email}
+              />
+            </View>
+          </View>
+          <View style={[styles.linkCell, cellStyle]}>
+            <Link asChild href="/profile/verify-phone">
+              <Text style={styles.linkText}>{tc("Link Phone Number")}</Text>
+            </Link>
+            <View style={styles.inputBox}>
+              <TextInput
+                editable={false}
+                placeholder={tc("Phone Number")}
+                placeholderTextColor={FIELD_PLACEHOLDER}
+                style={styles.textInput}
+                value={phone}
+              />
+            </View>
+          </View>
+        </View>
+
+        {/* Gender / Birthdate */}
+        <View style={styles.linkGrid}>
+          <View style={cellStyle}>
+            <ProfileDropdownDisplay placeholder={tc("Gender (Optional)")} value={gender} />
+          </View>
+          <View style={cellStyle}>
+            <View style={styles.inputBox}>
+              <TextInput
+                editable={isEditing}
+                onChangeText={setBirthdate}
+                placeholder={tc("YYYY-MM-DD")}
+                placeholderTextColor={FIELD_PLACEHOLDER}
+                style={styles.textInput}
+                value={birthdate}
+              />
+            </View>
+          </View>
+        </View>
+
+        <Text style={styles.privacyDisclaimer}>
+          {tc(
+            "We use this information only to verify your identity and process withdrawals, as described in our Privacy Policy.",
+          )}
+        </Text>
       </View>
     </View>
   );
 }
 
-function ProfileTextField({
-  editable,
-  icon,
-  label,
-  onChangeText,
-  placeholder,
-  value,
-}: {
-  editable: boolean;
-  icon?: ReactNode;
-  label: string;
-  onChangeText?: (value: string) => void;
-  placeholder?: string;
-  value: string;
-}) {
-  const tc = useCopy();
+function ProfileDropdownDisplay({ placeholder, value }: { placeholder: string; value: string }) {
   return (
-    <View style={styles.inputGroup}>
-      <Text style={styles.inputLabel}>{tc(label)}</Text>
-      <View style={[styles.inputBox, !editable && styles.inputBoxLocked]}>
-        {icon}
-        <TextInput
-          editable={editable}
-          onChangeText={onChangeText}
-          placeholder={placeholder ? tc(placeholder) : placeholder}
-          placeholderTextColor={colors.textSoft}
-          style={styles.textInput}
-          value={value}
-        />
-      </View>
+    <View style={styles.dropdownBox}>
+      <Text style={value ? styles.dropdownValue : styles.dropdownPlaceholder}>
+        {value || placeholder}
+      </Text>
+      <ChevronDown color={colors.muted} size={20} />
     </View>
   );
 }
+
+const FIELD_PLACEHOLDER = "#7F7F7F";
 
 const styles = StyleSheet.create({
   profileCashbackCard: {
@@ -621,7 +648,7 @@ const styles = StyleSheet.create({
   infoTitle: {
     color: colors.ink,
     fontFamily: typography.family,
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: "500",
   },
   editBtn: {
@@ -654,43 +681,28 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   formCard: {
-    gap: spacing.md,
-  },
-  inputGroup: {
-    flex: 1,
-    gap: 6,
-  },
-  inputLabel: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 13,
-    fontWeight: "700",
+    gap: spacing.lg,
   },
   inputBox: {
     alignItems: "center",
-    borderColor: colors.border,
-    borderRadius: radii.md,
+    backgroundColor: colors.white,
+    borderColor: "rgba(152,152,152,0.4)",
+    borderRadius: 16,
     borderWidth: 1,
     flexDirection: "row",
-    gap: 12,
-    minHeight: 52,
+    minHeight: 56,
     paddingHorizontal: 16,
-  },
-  inputBoxLocked: {
-    backgroundColor: "#F9F9F9",
-    borderColor: colors.border,
   },
   textInput: {
     color: colors.ink,
     flex: 1,
     fontFamily: typography.family,
-    fontSize: 14,
-    minHeight: 48,
+    fontSize: 16,
+    minHeight: 52,
   },
   idTypeRow: {
     flexDirection: "row",
-    gap: 16,
-    marginVertical: 4,
+    gap: 40,
   },
   idTypeBtn: {
     alignItems: "center",
@@ -717,17 +729,93 @@ const styles = StyleSheet.create({
     width: 12,
   },
   idTypeBtnText: {
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: 16,
+  },
+  regionSection: {
+    gap: 12,
+  },
+  regionHeading: {
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  regionBox: {
+    backgroundColor: "#FAFAFA",
+    borderColor: "#E4E4E4",
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+  },
+  regionGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    columnGap: spacing.lg,
+    rowGap: spacing.lg,
+  },
+  regionCell: {
+    gap: 6,
+    minWidth: 0,
+  },
+  gridCellFull: {
+    width: "100%",
+  },
+  gridCellHalf: {
+    flexBasis: 0,
+    flexGrow: 1,
+    minWidth: 0,
+  },
+  regionLabel: {
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  dropdownBox: {
+    alignItems: "center",
+    backgroundColor: colors.white,
+    borderColor: "rgba(152,152,152,0.4)",
+    borderRadius: 16,
+    borderWidth: 1,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    minHeight: 56,
+    paddingHorizontal: 16,
+  },
+  dropdownValue: {
+    color: colors.ink,
+    flex: 1,
+    fontFamily: typography.family,
+    fontSize: 16,
+  },
+  dropdownPlaceholder: {
+    color: "#7F7F7F",
+    flex: 1,
+    fontFamily: typography.family,
+    fontSize: 16,
+  },
+  linkGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    columnGap: spacing.md,
+    rowGap: spacing.md,
+  },
+  linkCell: {
+    gap: 4,
+  },
+  linkText: {
+    color: "#0064D6",
+    fontFamily: typography.family,
+    fontSize: 14,
+    textAlign: "right",
+  },
+  privacyDisclaimer: {
     color: colors.muted,
     fontFamily: typography.family,
     fontSize: 14,
-  },
-  idTypeBtnTextActive: {
-    color: colors.ink,
-    fontWeight: "600",
-  },
-  gridContainer: {
-    flexDirection: "row",
-    gap: spacing.md,
+    lineHeight: 20,
   },
   errorBanner: {
     backgroundColor: "rgba(205,13,13,0.06)",

@@ -468,10 +468,11 @@ describe("Account hub route parity", () => {
     expect(settingsFile).toContain("accountSettingsSurfaceBleed");
     expect(settingsFile).toContain('activeRouteId="profile"');
     expect(settingsFile).toContain('href="/profile"');
-    expect(settingsFile).toContain("facebookCommunityImage");
-    expect(settingsFile).toContain("instagramCommunityImage");
-    expect(settingsFile).toContain("lineCommunityImage");
-    expect(settingsFile).toContain("youtubeCommunityImage");
+    // Community cards render brand-colored glyph tiles. (The prior PNG imports pointed at
+    // an assets dir that doesn't exist in the Expo bundle and broke runtime bundling.)
+    expect(settingsFile).toContain("communityBrandStyles");
+    expect(settingsFile).toContain("getCommunityBrandStyle");
+    expect(settingsFile).toContain("communityGlyph");
     expect(settingsFile).toContain("isEmailEnabled");
     expect(settingsFile).toContain("isLineEnabled");
     expect(settingsFile).toMatch(/accountSettingsSurfaceBleed:[\s\S]*marginTop: 8/);

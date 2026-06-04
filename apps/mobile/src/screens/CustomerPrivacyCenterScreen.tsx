@@ -2,12 +2,12 @@ import { Link } from "expo-router";
 import { ChevronLeft as ChevronLeftIcon, Lock as LockIcon } from "@mobile/theme/icons";
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
-import { webPrivacyCenterPage } from "@mobile/design/webDesignParity";
+import { mobileShellLayout, webPrivacyCenterPage } from "@mobile/design/webDesignParity";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 type OptionalPurpose = (typeof webPrivacyCenterPage.optionalPurposes)[number];
@@ -22,6 +22,8 @@ const initialOptionalConsentState: Record<OptionalPurposeId, boolean> = {
 
 export function CustomerPrivacyCenterScreen() {
   const tc = useCopy();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
   const [optionalConsents, setOptionalConsents] = useState(initialOptionalConsentState);
 
   const setOptionalConsent = (id: OptionalPurposeId, enabled: boolean) => {
@@ -35,7 +37,9 @@ export function CustomerPrivacyCenterScreen() {
   return (
     <PrivacyCenterSubPage>
       <View style={styles.privacyBlueShell}>
-        <PrivacyCenterTopBar />
+        {/* Mobile-only back link — on desktop the persistent sidebar handles navigation
+            (web parity: the SubPage topbar is md:hidden). */}
+        {isDesktop ? null : <PrivacyCenterTopBar />}
         <View style={styles.content}>
           <View style={styles.sectionIntro}>
             <Text style={styles.sectionTitle}>{tc(webPrivacyCenterPage.sectionTitle)}</Text>

@@ -4,12 +4,13 @@ import {
   ShieldCheck as ShieldCheckIcon,
 } from "@mobile/theme/icons";
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { KeyboardAwareScreen } from "@mobile/components/KeyboardAwareScreen";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { haptics } from "@mobile/lib/haptics";
+import { mobileShellLayout } from "@mobile/design/webDesignParity";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 const pdpaAgeVerifyTitle = "Age verification";
@@ -44,6 +45,8 @@ export function isOver20(dateInput: string, now = new Date()) {
 
 export function CustomerAgeVerificationScreen() {
   const tc = useCopy();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
   const [birthDate, setBirthDate] = useState("");
   const [message, setMessage] = useState(pdpaAgeVerifyHint);
   const [status, setStatus] = useState<"idle" | "error" | "success">("idle");
@@ -72,16 +75,20 @@ export function CustomerAgeVerificationScreen() {
     <AccountPageShell activeRouteId="profile" showTitle={false} title={tc(pdpaAgeVerifyTitle)}>
       <KeyboardAwareScreen>
         <View style={styles.surface}>
-          <Link asChild href="/profile">
-            <Pressable accessibilityRole="link" style={styles.topBar}>
-              <ChevronLeftIcon
-                color={colors.accent}
-                size={26}
-                strokeWidth={typography.iconStrokeWidth}
-              />
-              <Text style={styles.topBarTitle}>{tc(pdpaAgeVerifyTitle)}</Text>
-            </Pressable>
-          </Link>
+          {/* Mobile-only back link — on desktop the persistent sidebar handles navigation
+              (web parity: the SubPage topbar is md:hidden). */}
+          {isDesktop ? null : (
+            <Link asChild href="/profile">
+              <Pressable accessibilityRole="link" style={styles.topBar}>
+                <ChevronLeftIcon
+                  color={colors.accent}
+                  size={26}
+                  strokeWidth={typography.iconStrokeWidth}
+                />
+                <Text style={styles.topBarTitle}>{tc(pdpaAgeVerifyTitle)}</Text>
+              </Pressable>
+            </Link>
+          )}
 
           <View accessibilityLabel={tc(pdpaAgeVerifyTitle)} style={styles.card}>
             <View style={styles.iconFrame}>

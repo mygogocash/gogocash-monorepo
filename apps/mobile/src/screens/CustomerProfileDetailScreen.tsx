@@ -1,6 +1,6 @@
 import { Link } from "expo-router";
 import type { ReactNode } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChevronLeft as ChevronLeftIcon } from "@mobile/theme/icons";
 
@@ -95,13 +95,16 @@ const models: Record<
 export function CustomerProfileDetailScreen({ mode }: { mode: ProfileDetailMode }) {
   const tc = useCopy();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
   const session = useMobileSessionSnapshot();
   const model = models[mode];
 
   if (mode === "info") {
     return (
       <ProfileInfoSubPage>
-        <ProfileInfoTopBar />
+        {/* Mobile-only back link — desktop uses the persistent sidebar (web parity). */}
+        {isDesktop ? null : <ProfileInfoTopBar />}
         {/* Wrap the rich panel in KeyboardAwareScreen so the on-screen keyboard
             doesn't cover the focused field. No-op layout on web. */}
         <KeyboardAwareScreen contentContainerStyle={styles.profileInfoContent}>

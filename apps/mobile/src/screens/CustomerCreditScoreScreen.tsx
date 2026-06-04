@@ -2,18 +2,23 @@ import { Link } from "expo-router";
 import { ChevronLeft as ChevronLeftIcon } from "@mobile/theme/icons";
 import type { ReactNode } from "react";
 import type { DimensionValue } from "react-native";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { haptics } from "@mobile/lib/haptics";
-import { webCreditScorePage } from "@mobile/design/webDesignParity";
+import { mobileShellLayout, webCreditScorePage } from "@mobile/design/webDesignParity";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 export function CustomerCreditScoreScreen() {
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
+
   return (
     <CreditScoreSubPage>
-      <CreditScoreTopBar />
+      {/* Mobile-only back link — on desktop the persistent sidebar handles navigation
+          (web parity: the SubPage topbar is md:hidden). */}
+      {isDesktop ? null : <CreditScoreTopBar />}
       <View style={styles.content}>
         <CreditScoreHero />
         <CreditScoreProgressCard />
