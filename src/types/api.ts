@@ -108,6 +108,8 @@ export interface RegularUser {
   birthdate: Date | null;
   country: string | null;
   gender: string | null;
+  /** Membership tier name (e.g. "Basic", "GoGoPass Plus"). */
+  membershipTier?: string;
 }
 export interface UsersQuery {
   limit?: number;
@@ -421,7 +423,9 @@ export interface OfferProductTypeEntry {
 /**
  * Coerce API/mock payloads to typed rows. Older data may still use `string[]`.
  */
-export function normalizeOfferProductTypes(value: unknown): OfferProductTypeEntry[] {
+export function normalizeOfferProductTypes(
+  value: unknown,
+): OfferProductTypeEntry[] {
   if (!Array.isArray(value)) return [];
   return value.map((item): OfferProductTypeEntry => {
     if (typeof item === "string") {
@@ -727,7 +731,6 @@ export interface DataConversion {
   remark?: string;
 }
 
-
 /** Max-cap mode for global or per-region fee rules. */
 export type GlobalMaxCapMode = "percent" | "fixed";
 
@@ -748,40 +751,40 @@ export interface FeeWithdrawRegion {
 }
 
 export interface ResponseFee {
-    _id:              string;
-    system:           number;
-    // store:            number;
-    createdAt:        Date;
-    updatedAt:        Date;
-    __v:              number;
-    minimum_withdraw_thb: number;
-    minimum_withdraw_usd: number;
-    fee_withdraw_usd: number;
-    fee_withdraw_thb: number;
-    /** When present, preferred source for multi-country configuration. */
-    withdraw_regions?: FeeWithdrawRegion[];
-    /** Platform-wide max cap mode (optional until API returns it). */
-    global_max_cap_mode?: GlobalMaxCapMode;
-    /** When mode is `percent`, cap as a percentage (e.g. 10 for 10%). */
-    global_max_cap_percent?: number;
-    /** When mode is `fixed`, cap as a monetary amount in `global_max_cap_currency`. */
-    global_max_cap_amount?: number;
-    /** ISO 4217; used when mode is `fixed`. */
-    global_max_cap_currency?: string;
+  _id: string;
+  system: number;
+  // store:            number;
+  createdAt: Date;
+  updatedAt: Date;
+  __v: number;
+  minimum_withdraw_thb: number;
+  minimum_withdraw_usd: number;
+  fee_withdraw_usd: number;
+  fee_withdraw_thb: number;
+  /** When present, preferred source for multi-country configuration. */
+  withdraw_regions?: FeeWithdrawRegion[];
+  /** Platform-wide max cap mode (optional until API returns it). */
+  global_max_cap_mode?: GlobalMaxCapMode;
+  /** When mode is `percent`, cap as a percentage (e.g. 10 for 10%). */
+  global_max_cap_percent?: number;
+  /** When mode is `fixed`, cap as a monetary amount in `global_max_cap_currency`. */
+  global_max_cap_amount?: number;
+  /** ISO 4217; used when mode is `fixed`. */
+  global_max_cap_currency?: string;
 }
 
 export interface FeeSettingsForm {
-    system:           number;
-    // store:            number;
-    // minimum_withdraw: number;
-    id: string;
-    minimum_withdraw_thb: number;
-    minimum_withdraw_usd: number;
-    fee_withdraw_usd: number;
-    fee_withdraw_thb: number;
-    withdraw_regions?: FeeWithdrawRegion[];
-    global_max_cap_mode: GlobalMaxCapMode;
-    global_max_cap_percent: number;
-    global_max_cap_amount: number;
-    global_max_cap_currency: string;
+  system: number;
+  // store:            number;
+  // minimum_withdraw: number;
+  id: string;
+  minimum_withdraw_thb: number;
+  minimum_withdraw_usd: number;
+  fee_withdraw_usd: number;
+  fee_withdraw_thb: number;
+  withdraw_regions?: FeeWithdrawRegion[];
+  global_max_cap_mode: GlobalMaxCapMode;
+  global_max_cap_percent: number;
+  global_max_cap_amount: number;
+  global_max_cap_currency: string;
 }

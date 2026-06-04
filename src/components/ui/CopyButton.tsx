@@ -3,7 +3,17 @@
 import React, { useCallback } from "react";
 import toast from "react-hot-toast";
 
-export default function CopyButton({ value }: { value: string | null | undefined }) {
+export default function CopyButton({
+  value,
+  label,
+  title,
+}: {
+  value: string | null | undefined;
+  /** Optional visible text shown next to the icon (e.g. "Copy full name"). */
+  label?: string;
+  /** Optional tooltip; defaults to "Copy to clipboard". */
+  title?: string;
+}) {
   const text = value == null ? "" : String(value);
   const handleCopy = useCallback(
     (e: React.MouseEvent) => {
@@ -21,8 +31,10 @@ export default function CopyButton({ value }: { value: string | null | undefined
   return (
     <button
       onClick={handleCopy}
-      title="Copy to clipboard"
-      className="ml-1.5 inline-flex items-center rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+      title={title ?? (label ? label : "Copy to clipboard")}
+      className={`ml-1.5 inline-flex items-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300 ${
+        label ? "gap-1 px-1.5 py-0.5 text-xs font-medium" : "p-0.5"
+      }`}
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -33,6 +45,7 @@ export default function CopyButton({ value }: { value: string | null | undefined
         <path d="M7 3.5A1.5 1.5 0 0 1 8.5 2h3.879a1.5 1.5 0 0 1 1.06.44l3.122 3.12A1.5 1.5 0 0 1 17 6.622V12.5a1.5 1.5 0 0 1-1.5 1.5h-1v-3.379a3 3 0 0 0-.879-2.121L10.5 5.379A3 3 0 0 0 8.379 4.5H7v-1Z" />
         <path d="M4.5 6A1.5 1.5 0 0 0 3 7.5v9A1.5 1.5 0 0 0 4.5 18h7a1.5 1.5 0 0 0 1.5-1.5v-5.879a1.5 1.5 0 0 0-.44-1.06L9.44 6.439A1.5 1.5 0 0 0 8.378 6H4.5Z" />
       </svg>
+      {label ? <span>{label}</span> : null}
     </button>
   );
 }

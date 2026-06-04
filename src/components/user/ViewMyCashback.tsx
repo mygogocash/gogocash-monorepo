@@ -1,4 +1,5 @@
 import { fetcher } from "@/lib/axios/client";
+import { formatDate } from "@/lib/dateFormat";
 import { useQuery } from "@tanstack/react-query";
 import { Modal } from "../ui/modal";
 import { MyCashbackResponse } from "@/types/user";
@@ -39,7 +40,7 @@ const ViewMyCashback = ({ id, openModal, setOpenModal }: IProp) => {
                 BuyerId: {cashback.buyerId}
               </p>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Created At: {new Date(cashback.createdAt).toLocaleDateString()}
+                Created At: {formatDate(cashback.createdAt)}
               </p>
               {cashback.balance?.map((balance) => (
                 <div key={balance._id} className="mt-2 ml-4">

@@ -32,10 +32,10 @@ export function ExecutiveWaterfallTable({ steps, title }: Props) {
               <span className={`font-mono tabular-nums ${color}`}>
                 {sign}
                 {s.type === "start" || s.type === "end" || s.type === "positive"
-                  ? `$${Math.abs(s.value).toLocaleString()}`
+                  ? `${Math.abs(s.value).toLocaleString()} USD`
                   : s.value < 0
-                    ? `-$${Math.abs(s.value).toLocaleString()}`
-                    : `$${s.value.toLocaleString()}`}
+                    ? `-${Math.abs(s.value).toLocaleString()} USD`
+                    : `${s.value.toLocaleString()} USD`}
               </span>
             </li>
           );

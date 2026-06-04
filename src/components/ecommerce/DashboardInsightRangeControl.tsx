@@ -11,6 +11,7 @@ import {
   parseIsoDateLocal,
   presetRangeDates,
 } from "@/lib/insightRange";
+import { formatDate } from "@/lib/dateFormat";
 
 const OPTIONS: { value: DashboardInsightRange; label: string }[] = [
   { value: "7d", label: "7d" },
@@ -23,13 +24,7 @@ function formatCustomLabel(from: string, to: string): string {
   const f = parseIsoDateLocal(from);
   const t = parseIsoDateLocal(to);
   if (!f || !t) return "Custom range";
-  const fmt = (d: Date) =>
-    d.toLocaleDateString(undefined, {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  return `${fmt(f)} – ${fmt(t)}`;
+  return `${formatDate(f)} – ${formatDate(t)}`;
 }
 
 /** Full, human-readable label for a range (used for the KPI window line). */

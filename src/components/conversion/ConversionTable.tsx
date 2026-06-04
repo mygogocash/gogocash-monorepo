@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useApi } from "@/hooks/useApi";
+import { formatDateTime } from "@/lib/dateFormat";
+import { formatMoney } from "@/lib/currencyFormat";
 import {
   ConversionQuery,
   DataConversion,
@@ -138,19 +140,12 @@ export default function ConversionTable() {
     fetchOffers(newQuery);
   };
 
-  // Format date
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
-  };
+  // Format date as dd/mm/yyyy HH:mm:ss
+  const formatDate = (dateString: string) => formatDateTime(dateString);
 
-  // Format price
-  const formatPrice = (price?: number, currency?: string) => {
-    if (price == null || Number.isNaN(price)) return "N/A";
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currency || "USD",
-    }).format(price);
-  };
+  // Format price as "<amount> <CODE>" (suffix code, 2 decimals)
+  const formatPrice = (price?: number, currency?: string) =>
+    formatMoney(price, currency || "USD", { decimals: 2 });
 
   const hasNextPage = pagination.page < pagination.totalPages;
   const hasPrevPage = pagination.page > 1;

@@ -12,6 +12,10 @@ import {
   putSubscriptionPlan,
 } from "@/lib/api/adminModulesApi";
 import type { Subscription, SubscriptionPlan } from "@/types/adminModules";
+import { formatDate } from "@/lib/dateFormat";
+import { formatMoney } from "@/lib/currencyFormat";
+import { planCycle, CYCLE_LABEL } from "@/lib/subscriptionCycle";
+import { STATUS_BADGE_BASE } from "@/lib/statusBadge";
 import Button from "@/components/ui/button/Button";
 import { Modal } from "@/components/ui/modal";
 import Input from "@/components/form/input/InputField";
@@ -20,6 +24,48 @@ import { AdminQueryError } from "@/components/common/AdminQueryError";
 import { AdminTableSkeleton } from "@/components/common/AdminTableSkeleton";
 import toast from "react-hot-toast";
 import { useState } from "react";
+
+/** Colored top-border accent per billing cycle (mirrors Membership tier colors). */
+const PLAN_ACCENT: Record<SubscriptionPlan["billingCycle"], string> = {
+  monthly: "#3b82f6", // blue-500
+  quarterly: "#f59e0b", // amber-500
+  annual: "#8b5cf6", // violet-500
+};
+
+/** Status pill colors (same palette as the Membership status badge). */
+const PLAN_STATUS_BADGE: Record<SubscriptionPlan["status"], string> = {
+  active:
+    "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200",
+  draft: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200",
+  archived: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300",
+};
+
+/** Per-cycle unit word for the price line ("149 THB / month"). */
+const CYCLE_UNIT: Record<SubscriptionPlan["billingCycle"], string> = {
+  monthly: "month",
+  quarterly: "quarter",
+  annual: "year",
+};
+
+/** Colored pill per billing cycle (matches the plan-card accent colors). */
+const CYCLE_BADGE: Record<SubscriptionPlan["billingCycle"], string> = {
+  monthly: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200",
+  quarterly:
+    "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200",
+  annual:
+    "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-200",
+};
+
+/** Colored pill per subscription status. */
+const SUB_STATUS_BADGE: Record<Subscription["status"], string> = {
+  active:
+    "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200",
+  trialing: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200",
+  past_due: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300",
+  cancelled: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200",
+  paused:
+    "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200",
+};
 
 export default function SubscriptionManagement() {
   const qc = useQueryClient();
@@ -101,6 +147,26 @@ export default function SubscriptionManagement() {
     },
   });
 
+  // Dispatch a row action chosen from the Actions dropdown.
+  const runAction = (id: string, action: string) => {
+    switch (action) {
+      case "view":
+        setDetailId(id);
+        break;
+      case "pause":
+      case "resume":
+        void act.mutateAsync({ id, action });
+        break;
+      case "extend":
+        void act.mutateAsync({ id, action: "extend", days: 30 });
+        break;
+      case "cancel":
+        if (confirm("Cancel subscription?"))
+          void act.mutateAsync({ id, action: "cancel" });
+        break;
+    }
+  };
+
   if (statsQ.isLoading || plansQ.isLoading) return <AdminTableSkeleton />;
 
   if (statsQ.isError || plansQ.isError) {
@@ -120,7 +186,7 @@ export default function SubscriptionManagement() {
   return (
     <div className="space-y-8">
       {statsQ.data && (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
             { label: "Volume today", value: statsQ.data.totalVolumeToday.toLocaleString() },
             { label: "Volume MTD", value: statsQ.data.totalVolumeMtd.toLocaleString() },
@@ -165,16 +231,57 @@ export default function SubscriptionManagement() {
             <div
               key={p.id}
               className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]"
+              style={{
+                borderTopColor: PLAN_ACCENT[p.billingCycle],
+                borderTopWidth: 4,
+              }}
             >
-              <div className="flex justify-between gap-2">
-                <h3 className="font-semibold text-gray-900 dark:text-white">{p.name}</h3>
-                <span className="text-xs capitalize text-gray-500">{p.status}</span>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <h3 className="font-semibold text-gray-900 dark:text-white">
+                    {p.name}
+                  </h3>
+                  <p className="mt-1 text-sm capitalize text-gray-600 dark:text-gray-400">
+                    {p.billingCycle} plan
+                  </p>
+                </div>
+                <span
+                  className={`${STATUS_BADGE_BASE} ${PLAN_STATUS_BADGE[p.status]}`}
+                >
+                  {p.status}
+                </span>
               </div>
-              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                {p.billingCycle} · ฿{p.price} · trial {p.trialDays}d
-              </p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">{p.subscriberCount} subscribers</p>
-              <div className="mt-3 flex gap-2">
+              <dl className="mt-3 space-y-1.5 text-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-gray-500 dark:text-gray-400">Price</dt>
+                  <dd className="font-medium text-gray-800 dark:text-gray-200">
+                    {formatMoney(p.price)} / {CYCLE_UNIT[p.billingCycle]}
+                  </dd>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-gray-500 dark:text-gray-400">Trial</dt>
+                  <dd className="font-medium text-gray-800 dark:text-gray-200">
+                    {p.trialDays} days
+                  </dd>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-gray-500 dark:text-gray-400">
+                    Grace period
+                  </dt>
+                  <dd className="font-medium text-gray-800 dark:text-gray-200">
+                    {p.gracePeriodDays} days
+                  </dd>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-gray-500 dark:text-gray-400">
+                    Subscribers
+                  </dt>
+                  <dd className="font-medium text-gray-800 dark:text-gray-200">
+                    {p.subscriberCount.toLocaleString()}
+                  </dd>
+                </div>
+              </dl>
+              <div className="mt-4 flex gap-2">
                 <Button
                   size="sm"
                   variant="outline"
@@ -216,8 +323,7 @@ export default function SubscriptionManagement() {
                   <tr>
                     <th className="pb-2 pr-3 font-medium">User</th>
                     <th className="pb-2 pr-3 font-medium">Plan</th>
-                    <th className="pb-2 pr-3 font-medium">Next bill</th>
-                    <th className="pb-2 pr-3 font-medium">Amount</th>
+                    <th className="pb-2 pr-3 font-medium">Dates</th>
                     <th className="pb-2 pr-3 font-medium">Status</th>
                     <th className="pb-2 font-medium">Actions</th>
                   </tr>
@@ -225,35 +331,57 @@ export default function SubscriptionManagement() {
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                   {subsQ.data.data.map((s: Subscription) => (
                     <tr key={s.id} className="text-gray-800 dark:text-gray-200">
-                      <td className="py-3 pr-3">{s.userName}</td>
-                      <td className="py-3 pr-3">{s.planName}</td>
-                      <td className="py-3 pr-3">{s.nextBillingDate}</td>
-                      <td className="py-3 pr-3">฿{s.amount}</td>
-                      <td className="py-3 pr-3 capitalize">{s.status}</td>
-                      <td className="py-3">
-                        <div className="flex flex-wrap gap-2">
-                          <Button size="sm" variant="outline" onClick={() => setDetailId(s.id)}>
-                            View
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => void act.mutateAsync({ id: s.id, action: "pause" })}>
-                            Pause
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => void act.mutateAsync({ id: s.id, action: "resume" })}>
-                            Resume
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => void act.mutateAsync({ id: s.id, action: "extend", days: 30 })}>
-                            +30d
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              if (confirm("Cancel subscription?")) void act.mutateAsync({ id: s.id, action: "cancel" });
-                            }}
-                          >
-                            Cancel
-                          </Button>
+                      <td className="py-3 pr-3">
+                        <div className="font-medium">{s.userName}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          {s.email}
                         </div>
+                      </td>
+                      <td className="py-3 pr-3">
+                        <span
+                          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${CYCLE_BADGE[planCycle(s.planName)]}`}
+                        >
+                          {CYCLE_LABEL[planCycle(s.planName)]}
+                        </span>
+                      </td>
+                      <td className="py-3 pr-3 text-xs">
+                        {formatDate(s.startDate)} to{" "}
+                        {formatDate(s.nextBillingDate)}
+                        <div>
+                          <span className="text-gray-500 dark:text-gray-400">
+                            Auto-renew:
+                          </span>{" "}
+                          {s.autoRenew ? (
+                            <span className="font-medium text-blue-600 dark:text-blue-400">
+                              Yes
+                            </span>
+                          ) : (
+                            "No"
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3 pr-3">
+                        <span
+                          className={`${STATUS_BADGE_BASE} ${SUB_STATUS_BADGE[s.status]}`}
+                        >
+                          {s.status.replace(/_/g, " ")}
+                        </span>
+                      </td>
+                      <td className="py-3">
+                        <select
+                          className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900"
+                          value=""
+                          onChange={(e) => runAction(s.id, e.target.value)}
+                        >
+                          <option value="" disabled hidden>
+                            Actions
+                          </option>
+                          <option value="view">View</option>
+                          <option value="pause">Pause</option>
+                          <option value="resume">Resume</option>
+                          <option value="extend">+30 days</option>
+                          <option value="cancel">Cancel</option>
+                        </select>
                       </td>
                     </tr>
                   ))}
@@ -336,7 +464,7 @@ export default function SubscriptionManagement() {
             <ul className="list-disc pl-5">
               {detailQ.data.billingHistory?.map((b, i) => (
                 <li key={i}>
-                  {b.date} — ฿{b.amount} ({b.status})
+                  {formatDate(b.date)} — {formatMoney(b.amount)} ({b.status})
                 </li>
               ))}
             </ul>

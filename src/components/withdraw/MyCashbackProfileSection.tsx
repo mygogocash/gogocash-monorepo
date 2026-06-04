@@ -3,19 +3,16 @@
 import type { ReactNode } from "react";
 import CopyButton from "@/components/ui/CopyButton";
 import type { MyCashbackResponse } from "@/types/user";
+import { formatDate, formatDateTime, type DateInput } from "@/lib/dateFormat";
 
 function fmtDateTime(v: unknown): string {
   if (v == null || v === "") return "—";
-  const d =
-    v instanceof Date ? v : new Date(typeof v === "string" || typeof v === "number" ? v : String(v));
-  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString();
+  return formatDateTime(v as DateInput);
 }
 
 function fmtDateOnly(v: unknown): string {
   if (v == null || v === "") return "—";
-  const d =
-    v instanceof Date ? v : new Date(typeof v === "string" || typeof v === "number" ? v : String(v));
-  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString();
+  return formatDate(v as DateInput);
 }
 
 function strPublisherId(v: unknown): string {
@@ -84,15 +81,20 @@ export default function MyCashbackProfileSection({
   const m = user.metadata;
   const token = user.buyerToken?.trim() ?? "";
   const tokenPreview =
-    token.length > 14 ? `${token.slice(0, 8)}…${token.slice(-4)}` : token || "—";
+    token.length > 14
+      ? `${token.slice(0, 8)}…${token.slice(-4)}`
+      : token || "—";
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white/90 p-4 dark:border-gray-700 dark:bg-gray-900/50">
-      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+      <h3 className="mb-3 text-sm font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400">
         MyCashBack profile
       </h3>
       <p className="mb-4 text-xs text-gray-500 dark:text-gray-500">
-        Sourced from <code className="rounded bg-gray-100 px-1 dark:bg-gray-800">/admin/get-mycashback-user</code>
+        Sourced from{" "}
+        <code className="rounded bg-gray-100 px-1 dark:bg-gray-800">
+          /admin/get-mycashback-user
+        </code>
       </p>
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -106,25 +108,41 @@ export default function MyCashbackProfileSection({
           <FieldRow label="Publisher ID">
             <>
               {strPublisherId(user.publisherId as unknown)}
-              {user.publisherId ? <CopyButton value={strPublisherId(user.publisherId as unknown)} /> : null}
+              {user.publisherId ? (
+                <CopyButton
+                  value={strPublisherId(user.publisherId as unknown)}
+                />
+              ) : null}
             </>
           </FieldRow>
           <FieldRow label="First / last name">
             {[user.firstName, user.lastName].filter(Boolean).join(" ") || "—"}
           </FieldRow>
-          <FieldRow label="Email verified">{YesNo(user.emailVerified)}</FieldRow>
-          <FieldRow label="Phone verified">{YesNo(user.phoneNumberVerified)}</FieldRow>
+          <FieldRow label="Email verified">
+            {YesNo(user.emailVerified)}
+          </FieldRow>
+          <FieldRow label="Phone verified">
+            {YesNo(user.phoneNumberVerified)}
+          </FieldRow>
           <FieldRow label="Binded">{YesNo(user.binded)}</FieldRow>
           <FieldRow label="Banned">
             {user.banned ? (
-              <span className="font-medium text-red-700 dark:text-red-400">Yes</span>
+              <span className="font-medium text-red-700 dark:text-red-400">
+                Yes
+              </span>
             ) : (
               "No"
             )}
           </FieldRow>
-          <FieldRow label="Banned note">{user.bannedNote?.trim() ? user.bannedNote : "—"}</FieldRow>
-          <FieldRow label="Admin note">{user.note?.trim() ? user.note : "—"}</FieldRow>
-          <FieldRow label="Rating">{user.rating != null ? String(user.rating) : "—"}</FieldRow>
+          <FieldRow label="Banned note">
+            {user.bannedNote?.trim() ? user.bannedNote : "—"}
+          </FieldRow>
+          <FieldRow label="Admin note">
+            {user.note?.trim() ? user.note : "—"}
+          </FieldRow>
+          <FieldRow label="Rating">
+            {user.rating != null ? String(user.rating) : "—"}
+          </FieldRow>
           <FieldRow label="Credit score type">
             {user.creditScoreType != null ? String(user.creditScoreType) : "—"}
           </FieldRow>
@@ -138,35 +156,67 @@ export default function MyCashbackProfileSection({
               {token ? <CopyButton value={token} /> : null}
             </>
           </FieldRow>
-          <FieldRow label="Address">{user.address?.trim() ? user.address : "—"}</FieldRow>
-          <FieldRow label="City">{user.city?.trim() ? user.city : "—"}</FieldRow>
-          <FieldRow label="Zip code">{user.zipCode?.trim() ? user.zipCode : "—"}</FieldRow>
-          <FieldRow label="Date of birth">{fmtDateOnly(user.dateOfBirth as unknown)}</FieldRow>
-          <FieldRow label="Line">{user.lineIdentity?.trim() ? user.lineIdentity : "—"}</FieldRow>
-          <FieldRow label="Facebook">{user.facebookIdentity?.trim() ? user.facebookIdentity : "—"}</FieldRow>
-          <FieldRow label="Instagram">{user.instagramIdentity?.trim() ? user.instagramIdentity : "—"}</FieldRow>
-          <FieldRow label="Twitter">{user.twitterIdentity?.trim() ? user.twitterIdentity : "—"}</FieldRow>
-          <FieldRow label="Flags: TNGD token">{YesNo(user.flags?.hasRequestTNGDToken)}</FieldRow>
-          <FieldRow label="Flags: browser redirect">{YesNo(user.flags?.isRedirectedFromBrowser)}</FieldRow>
+          <FieldRow label="Address">
+            {user.address?.trim() ? user.address : "—"}
+          </FieldRow>
+          <FieldRow label="City">
+            {user.city?.trim() ? user.city : "—"}
+          </FieldRow>
+          <FieldRow label="Zip code">
+            {user.zipCode?.trim() ? user.zipCode : "—"}
+          </FieldRow>
+          <FieldRow label="Date of birth">
+            {fmtDateOnly(user.dateOfBirth as unknown)}
+          </FieldRow>
+          <FieldRow label="Line">
+            {user.lineIdentity?.trim() ? user.lineIdentity : "—"}
+          </FieldRow>
+          <FieldRow label="Facebook">
+            {user.facebookIdentity?.trim() ? user.facebookIdentity : "—"}
+          </FieldRow>
+          <FieldRow label="Instagram">
+            {user.instagramIdentity?.trim() ? user.instagramIdentity : "—"}
+          </FieldRow>
+          <FieldRow label="Twitter">
+            {user.twitterIdentity?.trim() ? user.twitterIdentity : "—"}
+          </FieldRow>
+          <FieldRow label="Flags: TNGD token">
+            {YesNo(user.flags?.hasRequestTNGDToken)}
+          </FieldRow>
+          <FieldRow label="Flags: browser redirect">
+            {YesNo(user.flags?.isRedirectedFromBrowser)}
+          </FieldRow>
           <FieldRow label="Created">{fmtDateTime(user.createdAt)}</FieldRow>
           <FieldRow label="Updated">{fmtDateTime(user.updatedAt)}</FieldRow>
         </div>
       </div>
 
       <div className="mt-4 border-t border-gray-100 pt-4 dark:border-gray-700">
-        <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+        <h4 className="mb-2 text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
           Bonuses & metadata
         </h4>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <FieldRow label="First-time bonus amount">
-            {m?.firstTimeBonusAmount != null ? String(m.firstTimeBonusAmount) : "—"}
+            {m?.firstTimeBonusAmount != null
+              ? String(m.firstTimeBonusAmount)
+              : "—"}
           </FieldRow>
-          <FieldRow label="Got first-time bonus">{YesNo(m?.gotFirstTimeBonus)}</FieldRow>
-          <FieldRow label="Stair sequence bonus">{YesNo(m?.joinedStairSequenceBonus)}</FieldRow>
-          <FieldRow label="Stair joined at">{fmtDateTime(m?.joinedStairSequenceBonusAt as unknown)}</FieldRow>
+          <FieldRow label="Got first-time bonus">
+            {YesNo(m?.gotFirstTimeBonus)}
+          </FieldRow>
+          <FieldRow label="Stair sequence bonus">
+            {YesNo(m?.joinedStairSequenceBonus)}
+          </FieldRow>
+          <FieldRow label="Stair joined at">
+            {fmtDateTime(m?.joinedStairSequenceBonusAt as unknown)}
+          </FieldRow>
           <FieldRow label="VIP bonus">{YesNo(m?.joinedVipBonus)}</FieldRow>
-          <FieldRow label="VIP joined at">{fmtDateTime(m?.joinedVipBonusAt as unknown)}</FieldRow>
-          <FieldRow label="VIP expired at">{fmtDateTime(m?.expiredVipBonusAt as unknown)}</FieldRow>
+          <FieldRow label="VIP joined at">
+            {fmtDateTime(m?.joinedVipBonusAt as unknown)}
+          </FieldRow>
+          <FieldRow label="VIP expired at">
+            {fmtDateTime(m?.expiredVipBonusAt as unknown)}
+          </FieldRow>
           <FieldRow label="Current language">
             {m?.currentLanguage != null && String(m.currentLanguage).length > 0
               ? String(m.currentLanguage)
@@ -176,11 +226,13 @@ export default function MyCashbackProfileSection({
       </div>
 
       <div className="mt-4 border-t border-gray-100 pt-4 dark:border-gray-700">
-        <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+        <h4 className="mb-2 text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
           Balances
         </h4>
         {!user.balance?.length ? (
-          <p className="text-sm text-gray-500 dark:text-gray-400">No balance rows</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            No balance rows
+          </p>
         ) : (
           <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
             <table className="min-w-full text-sm">
@@ -195,10 +247,18 @@ export default function MyCashbackProfileSection({
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                 {user.balance.map((b) => (
                   <tr key={b._id} className="bg-white dark:bg-gray-900/40">
-                    <td className="px-3 py-2 font-mono tabular-nums">{b.amount}</td>
+                    <td className="px-3 py-2 font-mono tabular-nums">
+                      {b.amount}
+                    </td>
                     <td className="px-3 py-2">{b.currency}</td>
-                    <td className="px-3 py-2">{"countryCode" in b && b.countryCode ? b.countryCode : "—"}</td>
-                    <td className="px-3 py-2 whitespace-nowrap">{fmtDateTime(b.lastUpdated)}</td>
+                    <td className="px-3 py-2">
+                      {"countryCode" in b && b.countryCode
+                        ? b.countryCode
+                        : "—"}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      {fmtDateTime(b.lastUpdated)}
+                    </td>
                   </tr>
                 ))}
               </tbody>

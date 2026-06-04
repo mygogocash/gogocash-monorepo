@@ -8,6 +8,7 @@ import { UserForm } from "@/types/user";
 import ViewMyCashback from "./ViewMyCashback";
 import { useRouter, useSearchParams } from "next/navigation";
 import { devError } from "@/lib/devConsole";
+import CopyButton from "@/components/ui/CopyButton";
 
 export default function UsersTable() {
   const searchParams = useSearchParams();
@@ -82,7 +83,10 @@ export default function UsersTable() {
     if (!openActionsId) return;
     const handleClick = (e: MouseEvent) => {
       const target = e.target as Node;
-      if (actionsDropdownRef.current && !actionsDropdownRef.current.contains(target)) {
+      if (
+        actionsDropdownRef.current &&
+        !actionsDropdownRef.current.contains(target)
+      ) {
         setOpenActionsId(null);
       }
     };
@@ -143,12 +147,12 @@ export default function UsersTable() {
         openModal={Boolean(openModalView)}
         setOpenModal={setOpenModalView}
       />
-      <div className="flex items-center justify-between px-6 py-5">
-        <div>
+      <div className="flex items-center justify-between gap-20 px-6 py-5">
+        <div className="flex shrink-0 items-baseline gap-2">
           <h3 className="text-base font-medium text-gray-800 dark:text-white/90">
             Users
           </h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          <p className="text-sm whitespace-nowrap text-gray-500 dark:text-gray-400">
             Total: {pagination.total} users
           </p>
         </div>
@@ -157,7 +161,7 @@ export default function UsersTable() {
           placeholder="Search users..."
           value={query.search}
           onChange={(e) => handleSearch(e.target.value)}
-          className="h-11 w-full rounded-lg border border-gray-200 bg-transparent px-5 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:ring-brand-500/20 focus:outline-hidden xl:w-[300px] dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400 dark:focus:ring-brand-400/30"
+          className="focus:ring-brand-500/20 dark:focus:ring-brand-400/30 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-5 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden xl:w-[300px] dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400"
         />
       </div>
 
@@ -199,6 +203,9 @@ export default function UsersTable() {
                       Role
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Membership Tier
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                       Actions
                     </th>
                   </tr>
@@ -225,37 +232,25 @@ export default function UsersTable() {
                               <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                                 {user.username}
                               </div>
-                              <div className="text-sm text-gray-500 dark:text-gray-400">
-                                {user._id && `ID: ${user._id}`}
+                              <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
+                                <span>
+                                  {user._id ? `ID: ${user._id}` : "ID: -"}
+                                </span>
+                                <CopyButton
+                                  value={user._id}
+                                  title="Copy user ID"
+                                />
                               </div>
-                              <div className="text-sm text-gray-500 dark:text-gray-400">
-                                {user.address
-                                  ? `Address: ${user.address}`
-                                  : `Address: -`}
-                              </div>
-                              <div className="text-sm text-gray-500 dark:text-gray-400">
-                                Mobile: {user.mobile ? user.mobile : "-"}
-                              </div>
-                              <div className="text-sm text-gray-500 dark:text-gray-400">
-                                birthdate:{" "}
-                                {user.birthdate
-                                  ? user.birthdate.toString()
-                                  : "-"}
-                              </div>
-                              <div className="text-sm text-gray-500 dark:text-gray-400">
-                                gender: {user.gender ? user.gender : "-"}
-                              </div>
-                              <div className="text-sm text-gray-500 dark:text-gray-400">
-                                Date Login:{" "}
-                                {user.updatedAt
-                                  ? new Date(
-                                      user.updatedAt,
-                                    ).toLocaleDateString() +
-                                    " " +
-                                    new Date(
-                                      user.updatedAt,
-                                    ).toLocaleTimeString()
-                                  : "-"}
+                              <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
+                                <span>
+                                  {user.address
+                                    ? `Wallet: ${user.address}`
+                                    : "Wallet: -"}
+                                </span>
+                                <CopyButton
+                                  value={user.address}
+                                  title="Copy wallet address"
+                                />
                               </div>
                             </div>
                           </div>
@@ -270,9 +265,24 @@ export default function UsersTable() {
                             {"User"}
                           </span>
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
+                            className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
+                              user.membershipTier === "GoGoPass Plus"
+                                ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
+                                : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                            }`}
+                          >
+                            {user.membershipTier ?? "—"}
+                          </span>
+                        </td>
                         <td className="relative px-6 py-4 text-sm font-medium whitespace-nowrap">
                           <div
-                            ref={openActionsId === user._id ? actionsDropdownRef : undefined}
+                            ref={
+                              openActionsId === user._id
+                                ? actionsDropdownRef
+                                : undefined
+                            }
                             className="relative inline-block"
                             onClick={(e) => e.stopPropagation()}
                           >
@@ -289,13 +299,24 @@ export default function UsersTable() {
                               aria-haspopup="true"
                             >
                               Actions
-                              <svg className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              <svg
+                                className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                aria-hidden
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 9l-7 7-7-7"
+                                />
                               </svg>
                             </button>
                             {openActionsId === user._id && (
                               <div
-                                className="absolute left-0 right-auto top-full z-50 mt-1 min-w-[10rem] max-w-[min(18rem,calc(100vw-1.5rem))] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800 sm:left-auto sm:right-0 sm:max-w-none"
+                                className="absolute top-full right-auto left-0 z-50 mt-1 max-w-[min(18rem,calc(100vw-1.5rem))] min-w-[10rem] rounded-lg border border-gray-200 bg-white py-1 shadow-lg sm:right-0 sm:left-auto sm:max-w-none dark:border-gray-600 dark:bg-gray-800"
                                 role="menu"
                               >
                                 <button
@@ -303,7 +324,9 @@ export default function UsersTable() {
                                   role="menuitem"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    navigateToUserInfo(user, { editUser: true });
+                                    navigateToUserInfo(user, {
+                                      editUser: true,
+                                    });
                                     setOpenActionsId(null);
                                   }}
                                   className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"

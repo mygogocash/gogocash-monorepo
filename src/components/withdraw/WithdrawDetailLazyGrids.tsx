@@ -8,6 +8,8 @@ import { getWithdrawDetailDataGridSx } from "./withdrawDataGridSx";
 export type WithdrawDetailGridProps = {
   rows: Record<string, unknown>[];
   columns: GridColDef[];
+  /** Override the fixed row height (px). Omit to use the MUI default (52). */
+  rowHeight?: number;
 };
 
 function rowIdFromWithdrawGridRow(row: Record<string, unknown>): string {
@@ -21,13 +23,20 @@ function rowIdFromWithdrawGridRow(row: Record<string, unknown>): string {
   return "withdraw-detail-row";
 }
 
-export default function WithdrawDetailDataGrid({ rows, columns }: WithdrawDetailGridProps) {
+export default function WithdrawDetailDataGrid({
+  rows,
+  columns,
+  rowHeight,
+}: WithdrawDetailGridProps) {
   return (
-    <div className="w-full min-w-0 overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] -mx-4 px-4 sm:mx-0 sm:px-0">
+    <div className="-mx-4 w-full min-w-0 overflow-x-auto overscroll-x-contain px-4 [-webkit-overflow-scrolling:touch] sm:mx-0 sm:px-0">
       <DataGrid
         rows={rows}
         columns={columns}
-        getRowId={(row) => rowIdFromWithdrawGridRow(row as Record<string, unknown>)}
+        rowHeight={rowHeight}
+        getRowId={(row) =>
+          rowIdFromWithdrawGridRow(row as Record<string, unknown>)
+        }
         initialState={{ pagination: { paginationModel } }}
         pageSizeOptions={[5, 10]}
         sx={(muiTheme) => getWithdrawDetailDataGridSx(muiTheme)}

@@ -89,6 +89,27 @@ export function rowNeedsOtp(
   return !row.otpVerified;
 }
 
+/**
+ * Whether a contact row should display a "Verified" mark.
+ *
+ * - An **on-file** value (present when editing started) is verified when its
+ *   channel was already verified on the user record (`initialChannelVerified`).
+ * - A **newly added** value is verified once it has passed OTP this session
+ *   (`row.otpVerified`).
+ */
+export function contactRowVerified(
+  row: UserContactRow,
+  initialSet: ReadonlySet<string>,
+  kind: "email" | "mobile",
+  initialChannelVerified: boolean,
+): boolean {
+  const v = row.value.trim();
+  if (!v) return false;
+  const key = kind === "email" ? v.toLowerCase() : v;
+  if (initialSet.has(key)) return initialChannelVerified;
+  return row.otpVerified;
+}
+
 export function allContactsVerifiedForSave(
   rows: UserContactRow[],
   initialSet: ReadonlySet<string>,

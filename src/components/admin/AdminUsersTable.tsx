@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useApi, useAuth } from "@/hooks/useApi";
+import { formatDate } from "@/lib/dateFormat";
 import { AdminUsersQuery, DataAdminUsers } from "@/types/api";
 import { Modal } from "@/components/ui/modal";
 import { devError } from "@/lib/devConsole";
@@ -251,10 +252,7 @@ export default function AdminUsersTable() {
     }
   };
 
-  // Format date
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
-  };
+  // Date formatting now comes from @/lib/dateFormat (dd/mm/yyyy).
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">

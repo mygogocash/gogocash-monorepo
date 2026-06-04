@@ -270,6 +270,7 @@ function buildWithdrawDetailUser(userId: string) {
   const next = {
     ...base,
     _id: u._id,
+    username: u.username,
     email: u.email,
     mobile: u.mobile,
     emails: [u.email],

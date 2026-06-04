@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import client, { fetcher, fetcherPost } from "@/lib/axios/client";
+import { formatDate, formatTime, formatDateTime } from "@/lib/dateFormat";
 import type { Subscription } from "@/types/adminModules";
 import type { GridColDef } from "@mui/x-data-grid";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -14,10 +15,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Label from "@/components/form/Label";
 import Input from "@/components/form/input/InputField";
 import { MOCK_DEEPLINKS, filterDeeplinksForUser } from "@/data/mockDeeplinks";
-import {
-  normalizeUserEmails,
-  normalizeUserMobiles,
-} from "@/lib/userContact";
+import { normalizeUserEmails, normalizeUserMobiles } from "@/lib/userContact";
+import { conversionAdvSummary } from "@/lib/conversionFormat";
 import { getSubscriptions } from "@/lib/api/adminModulesApi";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import { shouldShowMockOtpHint } from "@/lib/mockOtpHint";
@@ -45,6 +44,7 @@ import { WithdrawRequestForm } from "./WithdrawTable";
 import { DataWithdrawsList } from "@/types/api";
 import CopyButton from "@/components/ui/CopyButton";
 import MyCashbackProfileSection from "@/components/withdraw/MyCashbackProfileSection";
+import { VerifiedPill } from "@/components/withdraw/VerifiedPill";
 import type { MyCashbackResponse } from "@/types/user";
 import toast from "react-hot-toast";
 
@@ -79,6 +79,64 @@ const TABS: { id: DetailTab; label: string }[] = [
   { id: "deleteData", label: "Delete user data" },
 ];
 
+/** Frame color + status icon for the withdraw summary stat cards (keyed by
+ * status name). Unknown statuses fall back to a neutral gray card. */
+type StatusCardStyle = {
+  card: string;
+  head: string;
+  value: string;
+  icon: string;
+};
+const WITHDRAW_STATUS_STYLE: Record<string, StatusCardStyle> = {
+  approved: {
+    card: "border-emerald-200 bg-emerald-50 dark:border-emerald-500/25 dark:bg-emerald-500/10",
+    head: "text-emerald-700 dark:text-emerald-400",
+    value: "text-emerald-800 dark:text-emerald-300",
+    icon: "M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z",
+  },
+  pending: {
+    card: "border-amber-200 bg-amber-50 dark:border-amber-500/25 dark:bg-amber-500/10",
+    head: "text-amber-700 dark:text-amber-400",
+    value: "text-amber-800 dark:text-amber-300",
+    icon: "M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm.75-13a.75.75 0 0 0-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 0 0 0-1.5h-3.25V5Z",
+  },
+  rejected: {
+    card: "border-red-200 bg-red-50 dark:border-red-500/25 dark:bg-red-500/10",
+    head: "text-red-700 dark:text-red-400",
+    value: "text-red-800 dark:text-red-300",
+    icon: "M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM8.28 7.22a.75.75 0 0 0-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 1 0 1.06 1.06L10 11.06l1.72 1.72a.75.75 0 1 0 1.06-1.06L11.06 10l1.72-1.72a.75.75 0 0 0-1.06-1.06L10 8.94 8.28 7.22Z",
+  },
+};
+const WITHDRAW_STATUS_STYLE_FALLBACK: StatusCardStyle = {
+  card: "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/40",
+  head: "text-gray-600 dark:text-gray-400",
+  value: "text-gray-800 dark:text-gray-200",
+  icon: "M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm0-12a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 6Zm0 8a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z",
+};
+
+/** Two-line date display: date on top, 24-hour time below (secondary). Used by
+ * the conversion/withdraw grids and the tracking-links Created/Updated cells. */
+function StackedDateTime({
+  value,
+}: {
+  value: string | number | Date | null | undefined;
+}) {
+  const d = value ? new Date(value) : null;
+  if (!d || Number.isNaN(d.getTime())) {
+    return <span className="text-gray-800 dark:text-gray-200">—</span>;
+  }
+  return (
+    <div className="flex h-full w-full min-w-0 flex-col justify-center leading-tight">
+      <span className="block truncate text-gray-800 dark:text-gray-200">
+        {formatDate(d)}
+      </span>
+      <span className="block truncate text-xs text-gray-500 dark:text-gray-400">
+        {formatTime(d)}
+      </span>
+    </div>
+  );
+}
+
 const WithdrawDetail = () => {
   const queryClient = useQueryClient();
   const { id } = useParams();
@@ -101,7 +159,9 @@ const WithdrawDetail = () => {
   const [userSaveError, setUserSaveError] = useState<string | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleteUserDataLoading, setDeleteUserDataLoading] = useState(false);
-  const [deleteUserDataError, setDeleteUserDataError] = useState<string | null>(null);
+  const [deleteUserDataError, setDeleteUserDataError] = useState<string | null>(
+    null,
+  );
   const [userDraft, setUserDraft] = useState<WithdrawUserEditDraft>(() =>
     emptyWithdrawUserEditDraft(),
   );
@@ -159,246 +219,251 @@ const WithdrawDetail = () => {
   });
 
   const myCashbackUser = useMemo(() => {
-    if (!Array.isArray(myCashbackRows) || myCashbackRows.length === 0) return null;
+    if (!Array.isArray(myCashbackRows) || myCashbackRows.length === 0)
+      return null;
     return myCashbackRows[0] as MyCashbackResponse;
   }, [myCashbackRows]);
 
   const column = useMemo<GridColDef[]>(
     () => [
-    { field: "rowIndex", headerName: "#", width: 44, sortable: false },
-    { field: "conversion_id", headerName: "Conversion ID", width: 120 },
-    {
-      field: "offer_name",
-      headerName: "Offer name",
-      width: 140,
-      renderCell: (params) => (
-        <span className="text-gray-800 dark:text-gray-200">
-          {params.value ?? "—"}
-        </span>
-      ),
-    },
-    {
-      field: "adv_sub1",
-      headerName: "Description",
-      width: 100,
-      renderCell: (params) => {
-        return (
-          <span>
-            {params.value} , {params?.row?.adv_sub2} , {params?.row?.adv_sub3} ,{" "}
-            {params?.row?.adv_sub4}
-          </span>
-        );
+      { field: "rowIndex", headerName: "#", width: 44, sortable: false },
+      { field: "conversion_id", headerName: "Conversion ID", width: 120 },
+      {
+        field: "offer_name",
+        headerName: "Offer name",
+        width: 240,
+        renderCell: (params) => {
+          const description = conversionAdvSummary(params.row);
+          return (
+            <div className="flex h-full w-full min-w-0 flex-col justify-center leading-tight">
+              <span className="block truncate font-semibold text-gray-800 dark:text-gray-200">
+                {params.value ?? "—"}
+              </span>
+              {description ? (
+                <span
+                  className="block truncate text-xs text-gray-500 dark:text-gray-400"
+                  title={description}
+                >
+                  {description}
+                </span>
+              ) : null}
+            </div>
+          );
+        },
       },
-    },
-    {
-      field: "conversion_status",
-      headerName: "Status",
-      width: 100,
-      renderCell: (params) => {
-        return (
-          <span
-            className={`${params.value === "approved" ? "text-green-600" : params.value === "pending" ? "text-yellow-600" : "text-red-600"} `}
-          >
-            {params.value}
-          </span>
-        );
+      {
+        field: "conversion_status",
+        headerName: "Status",
+        width: 100,
+        renderCell: (params) => {
+          return (
+            <span
+              className={`${params.value === "approved" ? "text-green-600" : params.value === "pending" ? "text-yellow-600" : "text-red-600"} `}
+            >
+              {params.value}
+            </span>
+          );
+        },
       },
-    },
-    {
-      field: "affiliate_remarks",
-      headerName: "Affiliate Remarks",
-    },
-    {
-      field: "datetime_conversion",
-      headerName: "Date",
-      width: 180,
-      renderCell: (params) => {
-        return <span>{new Date(params.value).toLocaleString()}</span>;
+      {
+        field: "sale_amount",
+        headerName: "Sale Amount",
+        width: 130,
+        renderCell: (params) => {
+          return (
+            <span>
+              {params.value} {params?.row?.currency}
+            </span>
+          );
+        },
       },
-    },
-
-    {
-      field: "payout",
-      headerName: "Payout GGC",
-      width: 130,
-      renderCell: (params) => {
-        return (
-          <span>
-            {params.value} {params?.row?.currency}
-          </span>
-        );
+      {
+        field: "payout",
+        headerName: "Total Payout",
+        width: 130,
+        renderCell: (params) => {
+          return (
+            <span>
+              {params.value} {params?.row?.currency}
+            </span>
+          );
+        },
       },
-    },
-    {
-      // User's net cashback after the system fee is deducted from the gross
-      // payout — same formula used by `totalsByStatusAndCurrency` on the
-      // backend (withdraw.service.ts:657-662): payout − (payout × fee/100).
-      field: "payout_user",
-      headerName: "Payout user",
-      width: 130,
-      sortable: false,
-      valueGetter: (_value, row) => {
-        const gross = Number(row?.payout ?? 0);
-        const feePct = Number(row?.systemFeePct ?? 0);
-        if (!Number.isFinite(gross) || !Number.isFinite(feePct)) return 0;
-        const net = gross - gross * (feePct / 100);
-        return net > 0 ? net : 0;
+      {
+        // User's net cashback after the system fee is deducted from the gross
+        // payout — same formula used by `totalsByStatusAndCurrency` on the
+        // backend (withdraw.service.ts:657-662): payout − (payout × fee/100).
+        field: "payout_user",
+        headerName: "User Earning",
+        width: 130,
+        sortable: false,
+        valueGetter: (_value, row) => {
+          const gross = Number(row?.payout ?? 0);
+          const feePct = Number(row?.systemFeePct ?? 0);
+          if (!Number.isFinite(gross) || !Number.isFinite(feePct)) return 0;
+          const net = gross - gross * (feePct / 100);
+          return net > 0 ? net : 0;
+        },
+        renderCell: (params) => {
+          const net = Number(params.value ?? 0);
+          return (
+            <span>
+              {net.toFixed(2)} {params?.row?.currency}
+            </span>
+          );
+        },
       },
-      renderCell: (params) => {
-        const net = Number(params.value ?? 0);
-        return (
-          <span>
-            {net.toFixed(2)} {params?.row?.currency}
-          </span>
-        );
+      {
+        field: "datetime_conversion",
+        headerName: "Date",
+        width: 100,
+        renderCell: (params) => <StackedDateTime value={params.value} />,
       },
-    },
-    {
-      field: "sale_amount",
-      headerName: "Sale Amount",
-      width: 130,
-      renderCell: (params) => {
-        return (
-          <span>
-            {params.value} {params?.row?.currency}
-          </span>
-        );
+      {
+        field: "affiliate_remarks",
+        headerName: "Affiliate Remarks",
+        width: 180,
       },
-    },
-  ],
+    ],
     [],
   );
 
   const columnWithdraw = useMemo<GridColDef[]>(
     () => [
-    { field: "rowIndex", headerName: "#", width: 44, sortable: false },
+      { field: "rowIndex", headerName: "#", width: 44, sortable: false },
 
-    {
-      field: "mycashback_id",
-      headerName: "Company",
-      width: 60,
-      renderCell: (params) => (
-        <span>{params?.row?.mycashback_id?.length > 0 ? "GGC" : "MCB"}</span>
-      ),
-    },
-    {
-      field: "bank_name",
-      headerName: "Bank Name",
-      width: 100,
-    },
-    {
-      field: "account_number",
-      headerName: "Account Number",
-      width: 100,
-    },
-    {
-      field: "account_name",
-      headerName: "Account Name",
-      width: 100,
-    },
-    {
-      field: "amount_total",
-      headerName: "Amount Total",
-      width: 130,
-      renderCell: (params) => {
-        return (
-          <span>
-            {params.value?.toFixed(2)} {params?.row?.currency}
-          </span>
-        );
-      },
-    },
-    {
-      field: "amount_net",
-      headerName: "Amount Net",
-      width: 130,
-      renderCell: (params) => {
-        return (
-          <span>
-            {params.value?.toFixed(2)} {params?.row?.currency}
-          </span>
-        );
-      },
-    },
-    {
-      field: "method",
-      headerName: "Method",
-      width: 130,
-      renderCell: (params) => {
-        return <span>{params.value}</span>;
-      },
-    },
-    {
-      field: "status",
-      headerName: "Status",
-      width: 100,
-      renderCell: (params) => {
-        return (
-          <span
-            className={`${params.value === "approved" ? "text-green-600" : params.value === "pending" ? "text-yellow-600" : "text-red-600"} `}
-          >
-            {params.value}
-          </span>
-        );
-      },
-    },
-
-    {
-      field: "createdAt",
-      headerName: "Date",
-      width: 180,
-      renderCell: (params) => {
-        return <span>{new Date(params.value).toLocaleString()}</span>;
-      },
-    },
-    {
-      field: "slip_file",
-      headerName: "Slip File",
-      width: 100,
-      renderCell: (params) =>
-        params.value ? (
-          <a
-            href={pathImage(params.value)}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            View
-          </a>
-        ) : (
-          <span>N/A</span>
+      {
+        field: "mycashback_id",
+        headerName: "Wallet",
+        width: 60,
+        renderCell: (params) => (
+          <span>{params?.row?.mycashback_id?.length > 0 ? "GGC" : "MCB"}</span>
         ),
-    },
-    {
-      field: "address",
-      headerName: "Address",
-      width: 100,
-    },
-    {
-      field: "tx_hash",
-      headerName: "Tx Hash",
-      width: 180,
-    },
-    {
-      field: "_id",
-      headerName: "Action",
-      width: 180,
-      renderCell: (params) => (
-        <button
-          onClick={() => {
-            setOpenModal(params.row);
-            setForm({
-              id: params.row._id,
-              file: null,
-              status: params.row.status,
-            });
-          }}
-          className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
-        >
-          {params.row.status === "pending" ? "Update" : "View"}
-        </button>
-      ),
-    },
-  ],
+      },
+      {
+        field: "amount_total",
+        headerName: "Requested Amount",
+        width: 130,
+        renderCell: (params) => {
+          return (
+            <span>
+              {params.value?.toFixed(2)} {params?.row?.currency}
+            </span>
+          );
+        },
+      },
+      {
+        field: "amount_net",
+        headerName: "Net Amount",
+        width: 130,
+        renderCell: (params) => {
+          return (
+            <span>
+              {params.value?.toFixed(2)} {params?.row?.currency}
+            </span>
+          );
+        },
+      },
+      {
+        field: "status",
+        headerName: "Status",
+        width: 100,
+        renderCell: (params) => {
+          return (
+            <span
+              className={`${params.value === "approved" ? "text-green-600" : params.value === "pending" ? "text-yellow-600" : "text-red-600"} `}
+            >
+              {params.value}
+            </span>
+          );
+        },
+      },
+      {
+        field: "method",
+        headerName: "Method",
+        width: 130,
+        renderCell: (params) => {
+          return <span>{params.value}</span>;
+        },
+      },
+      {
+        field: "method_details",
+        headerName: "Details",
+        width: 240,
+        sortable: false,
+        renderCell: (params) => {
+          const row = params.row;
+          const pairs =
+            row?.method === "crypto"
+              ? ([
+                  ["Address", row?.address],
+                  ["Tx Hash", row?.tx_hash],
+                ] as const)
+              : ([
+                  ["Bank name", row?.bank_name],
+                  ["Ac. number", row?.account_number],
+                  ["Ac. name", row?.account_name],
+                ] as const);
+          return (
+            <div className="flex h-full w-full min-w-0 flex-col justify-center">
+              {pairs.map(([label, value]) => (
+                <div key={label} className="flex min-w-0 gap-1 text-sm">
+                  <span className="shrink-0 text-gray-500 dark:text-gray-400">
+                    {label}:
+                  </span>
+                  <span className="truncate font-medium text-gray-800 dark:text-gray-100">
+                    {value || "—"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          );
+        },
+      },
+      {
+        field: "slip_file",
+        headerName: "Slip File",
+        width: 100,
+        renderCell: (params) =>
+          params.value ? (
+            <a
+              href={pathImage(params.value)}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Attached
+            </a>
+          ) : (
+            <span>N/A</span>
+          ),
+      },
+      {
+        field: "createdAt",
+        headerName: "Date",
+        width: 100,
+        renderCell: (params) => <StackedDateTime value={params.value} />,
+      },
+      {
+        field: "_id",
+        headerName: "Action",
+        width: 180,
+        renderCell: (params) => (
+          <button
+            onClick={() => {
+              setOpenModal(params.row);
+              setForm({
+                id: params.row._id,
+                file: null,
+                status: params.row.status,
+              });
+            }}
+            className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+          >
+            {params.row.status === "pending" ? "Update" : "View"}
+          </button>
+        ),
+      },
+    ],
     [],
   );
 
@@ -437,12 +502,16 @@ const WithdrawDetail = () => {
   const withdrawUserId =
     withdrawDetail?.user?._id ?? (typeof id === "string" ? id : "") ?? "";
 
-  const { data: userSubscriptions, isLoading: userSubsLoading, isError: userSubsError } =
-    useQuery({
-      queryKey: ["admin", "subscription", "withdraw-detail", withdrawUserId],
-      queryFn: () => getSubscriptions({ page: 1, limit: 20, search: withdrawUserId }),
-      enabled: Boolean(withdrawUserId) && activeTab === "subscription",
-    });
+  const {
+    data: userSubscriptions,
+    isLoading: userSubsLoading,
+    isError: userSubsError,
+  } = useQuery({
+    queryKey: ["admin", "subscription", "withdraw-detail", withdrawUserId],
+    queryFn: () =>
+      getSubscriptions({ page: 1, limit: 20, search: withdrawUserId }),
+    enabled: Boolean(withdrawUserId) && activeTab === "subscription",
+  });
 
   const beginEditUser = useCallback(() => {
     const u = withdrawDetail?.user;
@@ -465,11 +534,17 @@ const WithdrawDetail = () => {
     initialEmailsRef.current = new Set(
       emails.map((e) => e.trim().toLowerCase()).filter(Boolean),
     );
-    initialMobilesRef.current = new Set(mobiles.map((m) => m.trim()).filter(Boolean));
+    initialMobilesRef.current = new Set(
+      mobiles.map((m) => m.trim()).filter(Boolean),
+    );
     const emailRows =
-      emails.length > 0 ? emails.map((value) => createContactRow(value)) : [createContactRow("")];
+      emails.length > 0
+        ? emails.map((value) => createContactRow(value))
+        : [createContactRow("")];
     const mobileRows =
-      mobiles.length > 0 ? mobiles.map((value) => createContactRow(value)) : [createContactRow("")];
+      mobiles.length > 0
+        ? mobiles.map((value) => createContactRow(value))
+        : [createContactRow("")];
     setUserDraft({
       emailRows,
       mobileRows,
@@ -493,11 +568,7 @@ const WithdrawDetail = () => {
     openedEditFromQueryRef.current = true;
     setActiveTab("user");
     beginEditUser();
-  }, [
-    editUserFromQuery,
-    withdrawDetail?.user,
-    beginEditUser,
-  ]);
+  }, [editUserFromQuery, withdrawDetail?.user, beginEditUser]);
 
   const cancelEditUser = () => {
     setEditingUser(false);
@@ -510,7 +581,11 @@ const WithdrawDetail = () => {
     const emailRows = ensureUserContactRows(userDraft.emailRows);
     const mobileRows = ensureUserContactRows(userDraft.mobileRows);
     if (
-      !withdrawUserContactsReady(userDraft, initialEmailsRef.current, initialMobilesRef.current)
+      !withdrawUserContactsReady(
+        userDraft,
+        initialEmailsRef.current,
+        initialMobilesRef.current,
+      )
     ) {
       setUserSaveError(
         "Send OTP and verify every new email and phone number before saving.",
@@ -519,8 +594,12 @@ const WithdrawDetail = () => {
     }
     setSavingUser(true);
     try {
-      const emailsPayload = emailRows.map((r) => r.value.trim()).filter(Boolean);
-      const mobilesPayload = mobileRows.map((r) => r.value.trim()).filter(Boolean);
+      const emailsPayload = emailRows
+        .map((r) => r.value.trim())
+        .filter(Boolean);
+      const mobilesPayload = mobileRows
+        .map((r) => r.value.trim())
+        .filter(Boolean);
       await updateWithdrawUserProfile({
         userId: withdrawUserId,
         emails: emailsPayload,
@@ -533,6 +612,7 @@ const WithdrawDetail = () => {
       });
       await fetchWithdrawDetail();
       setEditingUser(false);
+      toast.success("Changes saved.");
     } catch (e: unknown) {
       setUserSaveError(getApiErrorMessage(e, "Failed to save changes"));
     } finally {
@@ -546,7 +626,8 @@ const WithdrawDetail = () => {
     initialMobilesRef.current,
   );
 
-  const isUserDataDeleted = withdrawDetail?.user?.fullName === "User data deleted";
+  const isUserDataDeleted =
+    withdrawDetail?.user?.fullName === "User data deleted";
 
   const handleDeleteUserData = async () => {
     if (!withdrawUserId) return;
@@ -563,7 +644,9 @@ const WithdrawDetail = () => {
         queryKey: ["admin", "subscription", "withdraw-detail", withdrawUserId],
       });
     } catch (e: unknown) {
-      setDeleteUserDataError(getApiErrorMessage(e, "Failed to delete user data"));
+      setDeleteUserDataError(
+        getApiErrorMessage(e, "Failed to delete user data"),
+      );
     } finally {
       setDeleteUserDataLoading(false);
     }
@@ -571,7 +654,7 @@ const WithdrawDetail = () => {
 
   return (
     <>
-      <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03] sm:p-5">
+      <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 dark:border-gray-800 dark:bg-white/[0.03]">
         {/* Tabs */}
         <div className="border-b border-gray-200 dark:border-gray-700">
           <nav
@@ -586,7 +669,7 @@ const WithdrawDetail = () => {
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`whitespace-nowrap rounded-t-lg border-b-2 px-4 py-3 text-sm font-medium transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 ${
+                  className={`rounded-t-lg border-b-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors duration-150 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none dark:focus:ring-offset-gray-900 ${
                     isActive
                       ? danger
                         ? "border-red-600 bg-red-50/90 text-red-800 hover:bg-red-50 hover:text-red-900 dark:border-red-500 dark:bg-red-950/40 dark:text-red-200 dark:hover:bg-red-950/60 dark:hover:text-red-100"
@@ -609,7 +692,7 @@ const WithdrawDetail = () => {
             <div className="space-y-6 rounded-lg bg-gray-50 p-4 dark:bg-gray-800/50">
               <div>
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                  <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  <h3 className="text-sm font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400">
                     User Info
                   </h3>
                   {!editingUser ? (
@@ -639,7 +722,7 @@ const WithdrawDetail = () => {
                           !withdrawUserId ||
                           !userContactsReadyForSave
                         }
-                        className="rounded-lg border border-brand-600 bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500"
+                        className="border-brand-600 bg-brand-600 hover:bg-brand-700 dark:border-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500 rounded-lg border px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {savingUser ? "Saving…" : "Save changes"}
                       </button>
@@ -655,21 +738,52 @@ const WithdrawDetail = () => {
 
                 {!editingUser ? (
                   <div className="space-y-4">
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
-                        <span className="min-w-[100px] font-medium">User ID:</span>{" "}
-                        {withdrawDetail?.user?._id ?? (id as string) ?? "—"}
-                        <CopyButton value={withdrawDetail?.user?._id ?? (id as string) ?? ""} />
-                      </p>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div className="rounded-lg border border-gray-200 bg-white/80 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+                        <h4 className="mb-3 text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                          User ID
+                        </h4>
+                        <div className="flex flex-wrap items-center gap-2 text-sm text-gray-800 dark:text-gray-200">
+                          <span className="min-w-0 font-mono break-all">
+                            {withdrawDetail?.user?._id ?? (id as string) ?? "—"}
+                          </span>
+                          <CopyButton
+                            value={
+                              withdrawDetail?.user?._id ?? (id as string) ?? ""
+                            }
+                          />
+                        </div>
+                      </div>
+                      <div className="rounded-lg border border-gray-200 bg-white/80 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+                        <h4 className="mb-3 text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                          Wallet
+                        </h4>
+                        <div className="flex flex-wrap items-center gap-2 text-sm text-gray-800 dark:text-gray-200">
+                          <span className="min-w-0 font-mono break-all">
+                            {withdrawDetail?.user?.wallet ?? "—"}
+                          </span>
+                          <CopyButton
+                            value={withdrawDetail?.user?.wallet || ""}
+                          />
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div className="rounded-lg border border-gray-200 bg-white/80 p-4 dark:border-gray-700 dark:bg-gray-900/40">
-                        <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                          Email addresses
-                        </h4>
+                        <div className="mb-3 flex items-center justify-between gap-2">
+                          <h4 className="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                            Email addresses
+                          </h4>
+                          <VerifiedPill
+                            verified={withdrawDetail?.user?.emailVerified}
+                            label="Email"
+                          />
+                        </div>
                         {viewEmails.length === 0 ? (
-                          <p className="text-sm text-gray-500 dark:text-gray-400">—</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            —
+                          </p>
                         ) : (
                           <ol className="list-none space-y-2.5 p-0">
                             {viewEmails.map((em, i) => (
@@ -688,11 +802,19 @@ const WithdrawDetail = () => {
                         )}
                       </div>
                       <div className="rounded-lg border border-gray-200 bg-white/80 p-4 dark:border-gray-700 dark:bg-gray-900/40">
-                        <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                          Phone numbers
-                        </h4>
+                        <div className="mb-3 flex items-center justify-between gap-2">
+                          <h4 className="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                            Phone numbers
+                          </h4>
+                          <VerifiedPill
+                            verified={withdrawDetail?.user?.phoneVerified}
+                            label="Phone"
+                          />
+                        </div>
                         {viewMobiles.length === 0 ? (
-                          <p className="text-sm text-gray-500 dark:text-gray-400">—</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            —
+                          </p>
                         ) : (
                           <ol className="list-none space-y-2.5 p-0">
                             {viewMobiles.map((m, i) => (
@@ -703,7 +825,9 @@ const WithdrawDetail = () => {
                                 <span className="inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded bg-gray-100 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300">
                                   {i + 1}
                                 </span>
-                                <span className="min-w-0 break-all font-mono">{m}</span>
+                                <span className="min-w-0 font-mono break-all">
+                                  {m}
+                                </span>
                                 <CopyButton value={m} />
                               </li>
                             ))}
@@ -711,171 +835,14 @@ const WithdrawDetail = () => {
                         )}
                       </div>
                     </div>
-
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
-                        <span className="min-w-[100px] font-medium">Full name:</span>{" "}
-                        {withdrawDetail?.user?.fullName ?? "—"}
-                        <CopyButton value={withdrawDetail?.user?.fullName ?? ""} />
-                      </p>
-                      <p className="flex items-center text-sm text-gray-800 dark:text-gray-200">
-                        <span className="min-w-[100px] font-medium">Gender:</span>{" "}
-                        {withdrawDetail?.user?.gender ?? "—"}
-                      </p>
-                      <p className="flex items-center text-sm text-gray-800 dark:text-gray-200">
-                        <span className="min-w-[100px] font-medium">Birth date:</span>{" "}
-                        {withdrawDetail?.user?.birthdate
-                          ? new Date(withdrawDetail.user.birthdate).toLocaleDateString()
-                          : "—"}
-                      </p>
-                      <p className="flex items-center text-sm text-gray-800 dark:text-gray-200">
-                        <span className="min-w-[130px] shrink-0 font-medium">GoGoPass status:</span>{" "}
-                        {withdrawDetail?.user?.gogopassActive === true ? (
-                          <span className="font-medium text-emerald-600 dark:text-emerald-400">
-                            Active
-                          </span>
-                        ) : withdrawDetail?.user?.gogopassActive === false ? (
-                          <span className="text-gray-500 dark:text-gray-400">Not Active</span>
-                        ) : (
-                          "—"
-                        )}
-                      </p>
-                      <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200 sm:col-span-2">
-                        <span className="min-w-[100px] font-medium">Wallet:</span>{" "}
-                        {withdrawDetail?.user?.wallet ?? "—"}
-                        <CopyButton value={withdrawDetail?.user?.wallet || ""} />
-                      </p>
-                    </div>
-
-                    {(() => {
-                      const wu = withdrawDetail?.user;
-                      const hasExtended =
-                        wu &&
-                        (wu.firstName ||
-                          wu.lastName ||
-                          wu.createdAt ||
-                          wu.updatedAt ||
-                          wu.buyerId ||
-                          wu.publisherId ||
-                          wu.streetAddress ||
-                          wu.city ||
-                          wu.zipCode ||
-                          wu.rating != null ||
-                          wu.creditScoreType != null ||
-                          wu.emailVerified != null ||
-                          wu.phoneVerified != null);
-                      if (!hasExtended || !wu) return null;
-                      const fmtIso = (s?: string) =>
-                        s
-                          ? (() => {
-                              const d = new Date(s);
-                              return Number.isNaN(d.getTime())
-                                ? s
-                                : d.toLocaleString();
-                            })()
-                          : "—";
-                      const yn = (v: boolean | undefined) =>
-                        v === true ? "Yes" : v === false ? "No" : "—";
-                      return (
-                        <div className="rounded-lg border border-gray-200 bg-white/80 p-4 dark:border-gray-700 dark:bg-gray-900/40">
-                          <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                            Extended profile
-                          </h4>
-                          <p className="mb-3 text-xs text-gray-500 dark:text-gray-500">
-                            Optional fields returned by{" "}
-                            <code className="rounded bg-gray-100 px-1 dark:bg-gray-800">
-                              /withdraw/list-check-admin
-                            </code>
-                            .
-                          </p>
-                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                            {wu.firstName ? (
-                              <p className="text-sm text-gray-800 dark:text-gray-200">
-                                <span className="font-medium">First name:</span> {wu.firstName}
-                              </p>
-                            ) : null}
-                            {wu.lastName ? (
-                              <p className="text-sm text-gray-800 dark:text-gray-200">
-                                <span className="font-medium">Last name:</span> {wu.lastName}
-                              </p>
-                            ) : null}
-                            {wu.createdAt ? (
-                              <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
-                                <span className="font-medium">Account created:</span>{" "}
-                                {fmtIso(wu.createdAt)}
-                              </p>
-                            ) : null}
-                            {wu.updatedAt ? (
-                              <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
-                                <span className="font-medium">Last updated:</span>{" "}
-                                {fmtIso(wu.updatedAt)}
-                              </p>
-                            ) : null}
-                            {wu.buyerId ? (
-                              <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
-                                <span className="font-medium">Buyer ID:</span> {wu.buyerId}
-                                <CopyButton value={wu.buyerId} />
-                              </p>
-                            ) : null}
-                            {wu.publisherId ? (
-                              <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
-                                <span className="font-medium">Publisher ID:</span> {wu.publisherId}
-                                <CopyButton value={wu.publisherId} />
-                              </p>
-                            ) : null}
-                            {wu.streetAddress ? (
-                              <p className="text-sm text-gray-800 dark:text-gray-200 sm:col-span-2">
-                                <span className="font-medium">Address:</span> {wu.streetAddress}
-                              </p>
-                            ) : null}
-                            {wu.city ? (
-                              <p className="text-sm text-gray-800 dark:text-gray-200">
-                                <span className="font-medium">City:</span> {wu.city}
-                              </p>
-                            ) : null}
-                            {wu.zipCode ? (
-                              <p className="text-sm text-gray-800 dark:text-gray-200">
-                                <span className="font-medium">Zip code:</span> {wu.zipCode}
-                              </p>
-                            ) : null}
-                            {wu.rating != null ? (
-                              <p className="text-sm text-gray-800 dark:text-gray-200">
-                                <span className="font-medium">Rating:</span> {wu.rating}
-                              </p>
-                            ) : null}
-                            {wu.creditScoreType != null ? (
-                              <p className="text-sm text-gray-800 dark:text-gray-200">
-                                <span className="font-medium">Credit score type:</span>{" "}
-                                {wu.creditScoreType}
-                              </p>
-                            ) : null}
-                            {wu.emailVerified != null ? (
-                              <p className="text-sm text-gray-800 dark:text-gray-200">
-                                <span className="font-medium">Email verified:</span> {yn(wu.emailVerified)}
-                              </p>
-                            ) : null}
-                            {wu.phoneVerified != null ? (
-                              <p className="text-sm text-gray-800 dark:text-gray-200">
-                                <span className="font-medium">Phone verified:</span>{" "}
-                                {yn(wu.phoneVerified)}
-                              </p>
-                            ) : null}
-                          </div>
-                        </div>
-                      );
-                    })()}
-
-                    <MyCashbackProfileSection
-                      loading={myCashbackLoading}
-                      error={myCashbackError}
-                      user={myCashbackUser}
-                    />
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="sm:col-span-2">
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        <span className="font-medium text-gray-800 dark:text-gray-200">User ID:</span>{" "}
+                        <span className="font-medium text-gray-800 dark:text-gray-200">
+                          User ID:
+                        </span>{" "}
                         {withdrawUserId || "—"}
                         <CopyButton value={withdrawUserId} />
                       </p>
@@ -891,6 +858,12 @@ const WithdrawDetail = () => {
                       setUserDraft={setUserDraft}
                       initialEmails={initialEmailsRef.current}
                       initialMobiles={initialMobilesRef.current}
+                      initialEmailVerified={
+                        withdrawDetail?.user?.emailVerified === true
+                      }
+                      initialMobileVerified={
+                        withdrawDetail?.user?.phoneVerified === true
+                      }
                     />
 
                     <div>
@@ -898,19 +871,36 @@ const WithdrawDetail = () => {
                       <Input
                         id="wd-user-fullname"
                         value={userDraft.fullName}
-                        onChange={(e) => setUserDraft((d) => ({ ...d, fullName: e.target.value }))}
+                        onChange={(e) =>
+                          setUserDraft((d) => ({
+                            ...d,
+                            fullName: e.target.value,
+                          }))
+                        }
                         className="h-11"
                       />
                     </div>
                     <div>
                       <Label htmlFor="wd-user-gender">Gender</Label>
-                      <Input
+                      <select
                         id="wd-user-gender"
                         value={userDraft.gender}
-                        onChange={(e) => setUserDraft((d) => ({ ...d, gender: e.target.value }))}
-                        placeholder="e.g. Female"
-                        className="h-11"
-                      />
+                        onChange={(e) =>
+                          setUserDraft((d) => ({
+                            ...d,
+                            gender: e.target.value,
+                          }))
+                        }
+                        className="focus:border-brand-500 focus:ring-brand-500/20 dark:focus:border-brand-400 dark:focus:ring-brand-400/25 h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                      >
+                        <option value="">Select gender</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="LGBTQIA+">LGBTQIA+</option>
+                        <option value="Prefer not to say">
+                          Prefer not to say
+                        </option>
+                      </select>
                     </div>
                     <div>
                       <Label htmlFor="wd-user-birthdate">Birth date</Label>
@@ -918,7 +908,12 @@ const WithdrawDetail = () => {
                         id="wd-user-birthdate"
                         type="date"
                         value={userDraft.birthdate}
-                        onChange={(e) => setUserDraft((d) => ({ ...d, birthdate: e.target.value }))}
+                        onChange={(e) =>
+                          setUserDraft((d) => ({
+                            ...d,
+                            birthdate: e.target.value,
+                          }))
+                        }
                         className="h-11"
                       />
                     </div>
@@ -927,7 +922,12 @@ const WithdrawDetail = () => {
                       <Input
                         id="wd-user-wallet"
                         value={userDraft.wallet}
-                        onChange={(e) => setUserDraft((d) => ({ ...d, wallet: e.target.value }))}
+                        onChange={(e) =>
+                          setUserDraft((d) => ({
+                            ...d,
+                            wallet: e.target.value,
+                          }))
+                        }
                         className="h-11 font-mono text-sm"
                       />
                     </div>
@@ -942,7 +942,7 @@ const WithdrawDetail = () => {
                             gogopassActive: e.target.value === "active",
                           }))
                         }
-                        className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:focus:border-brand-400 dark:focus:ring-brand-400/25"
+                        className="focus:border-brand-500 focus:ring-brand-500/20 dark:focus:border-brand-400 dark:focus:ring-brand-400/25 h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                       >
                         <option value="active">Active</option>
                         <option value="inactive">Not Active</option>
@@ -952,142 +952,357 @@ const WithdrawDetail = () => {
                 )}
               </div>
 
-              <div>
-                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Bank accounts
-                </h3>
-                {withdrawDetail?.withdrawList && withdrawDetail.withdrawList.length > 0 ? (
-                  <div className="space-y-4">
-                    {withdrawDetail.withdrawList.map((bank, idx) => (
-                      <div
-                        key={bank._id}
-                        className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900/50"
-                      >
-                        {withdrawDetail.withdrawList.length > 1 && (
-                          <p className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">
-                            Account {idx + 1}
-                          </p>
-                        )}
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                          <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
-                            <span className="min-w-[120px] font-medium">Bank:</span>{" "}
-                            {bank.bank_name || "N/A"}
-                            <CopyButton value={bank.bank_name?.trim() || "N/A"} />
-                          </p>
-                          <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
-                            <span className="min-w-[120px] font-medium">Account Number:</span>{" "}
-                            {bank.account_number || "N/A"}
-                            <CopyButton value={bank.account_number?.trim() || "N/A"} />
-                          </p>
-                          <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
-                            <span className="min-w-[120px] font-medium">Account Name:</span>{" "}
-                            {bank.account_name || "N/A"}
-                            <CopyButton value={bank.account_name?.trim() || "N/A"} />
-                          </p>
-                          {bank.method && bank.method !== "bank_transfer" && (
+              {!editingUser && (
+                <>
+                  {(() => {
+                    const wu = withdrawDetail?.user;
+                    if (!wu) return null;
+                    const fmtIso = (s?: string) =>
+                      s ? formatDateTime(s, { fallback: s }) : "—";
+                    return (
+                      <div>
+                        <h3 className="mb-3 text-sm font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                          General information
+                        </h3>
+                        <div className="rounded-lg border border-gray-200 bg-white/80 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+                          {/* Part 1 — Identity & address */}
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                             <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
-                              <span className="min-w-[120px] font-medium">Address:</span>{" "}
-                              {bank.address || "N/A"}
-                              <CopyButton value={bank.address?.trim() || "N/A"} />
+                              <span className="font-medium">First name:</span>{" "}
+                              {wu.firstName ?? "—"}
                             </p>
-                          )}
+                            <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                              <span className="font-medium">Last name:</span>{" "}
+                              {wu.lastName ?? "—"}
+                              {wu.firstName || wu.lastName ? (
+                                <CopyButton
+                                  value={[wu.firstName, wu.lastName]
+                                    .filter(Boolean)
+                                    .join(" ")}
+                                  label="Copy full name"
+                                  title="Copy first and last name"
+                                />
+                              ) : null}
+                            </p>
+                            <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                              <span className="font-medium">Username:</span>{" "}
+                              {wu.username ?? "—"}
+                              {wu.username ? (
+                                <CopyButton value={wu.username} />
+                              ) : null}
+                            </p>
+                            <p className="text-sm text-gray-800 dark:text-gray-200">
+                              <span className="font-medium">Birth date:</span>{" "}
+                              {formatDate(wu.birthdate)}
+                            </p>
+                            <p className="text-sm text-gray-800 dark:text-gray-200">
+                              <span className="font-medium">Gender:</span>{" "}
+                              {wu.gender ?? "—"}
+                            </p>
+                            <p className="text-sm text-gray-800 sm:col-span-2 dark:text-gray-200">
+                              <span className="font-medium">Address:</span>{" "}
+                              {wu.streetAddress ?? "—"}
+                            </p>
+                            <p className="text-sm text-gray-800 dark:text-gray-200">
+                              <span className="font-medium">City:</span>{" "}
+                              {wu.city ?? "—"}
+                            </p>
+                            <p className="text-sm text-gray-800 dark:text-gray-200">
+                              <span className="font-medium">Zip code:</span>{" "}
+                              {wu.zipCode ?? "—"}
+                            </p>
+                          </div>
+
+                          <hr className="my-4 border-gray-200 dark:border-gray-700" />
+
+                          {/* Part 2 — Standing */}
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                            <p className="text-sm text-gray-800 dark:text-gray-200">
+                              <span className="font-medium">Rating:</span>{" "}
+                              {wu.rating != null ? wu.rating : "—"}
+                            </p>
+                            <p className="text-sm text-gray-800 dark:text-gray-200">
+                              <span className="font-medium">
+                                Credit score type:
+                              </span>{" "}
+                              {wu.creditScoreType ?? "—"}
+                            </p>
+                            <p className="flex items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                              <span className="font-medium">
+                                GoGoPass status:
+                              </span>{" "}
+                              {wu.gogopassActive === true ? (
+                                <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                                  Active
+                                </span>
+                              ) : wu.gogopassActive === false ? (
+                                <span className="text-gray-500 dark:text-gray-400">
+                                  Not Active
+                                </span>
+                              ) : (
+                                "—"
+                              )}
+                            </p>
+                          </div>
+
+                          <hr className="my-4 border-gray-200 dark:border-gray-700" />
+
+                          {/* Part 3 — Account metadata */}
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                            <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                              <span className="font-medium">
+                                Account created:
+                              </span>{" "}
+                              {fmtIso(wu.createdAt)}
+                            </p>
+                            <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                              <span className="font-medium">Last updated:</span>{" "}
+                              {fmtIso(wu.updatedAt)}
+                            </p>
+                            <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                              <span className="font-medium">Buyer ID:</span>{" "}
+                              {wu.buyerId ?? "—"}
+                              {wu.buyerId ? (
+                                <CopyButton value={wu.buyerId} />
+                              ) : null}
+                            </p>
+                            <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                              <span className="font-medium">Publisher ID:</span>{" "}
+                              {wu.publisherId ?? "—"}
+                              {wu.publisherId ? (
+                                <CopyButton value={wu.publisherId} />
+                              ) : null}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-500 dark:text-gray-400">No bank accounts</p>
-                )}
-              </div>
+                    );
+                  })()}
 
-              {withdrawDetail?.user?.userLog && withdrawDetail.user.userLog.length > 0 && (
-                <div>
-                  <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                    User log
-                  </h3>
-                  <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-                    <table className="min-w-full text-sm">
-                      <thead className="bg-gray-100 dark:bg-gray-800">
-                        <tr>
-                          <th className="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-300">
-                            Action
-                          </th>
-                          <th className="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-300">
-                            Date and time
-                          </th>
-                          <th className="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-300">
-                            IP
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                        {withdrawDetail.user.userLog.map((entry, i) => (
-                          <tr key={i} className="bg-white dark:bg-gray-900/50">
-                            <td className="px-3 py-2 text-gray-800 dark:text-gray-200">
-                              {entry.action ?? "—"}
-                            </td>
-                            <td className="px-3 py-2 text-gray-600 dark:text-gray-400">
-                              {entry.at
-                                ? new Date(entry.at).toLocaleString()
-                                : "—"}
-                            </td>
-                            <td className="px-3 py-2 text-gray-600 dark:text-gray-400">
-                              {entry.ip ?? "—"}
-                            </td>
-                          </tr>
+                  <MyCashbackProfileSection
+                    loading={myCashbackLoading}
+                    error={myCashbackError}
+                    user={myCashbackUser}
+                  />
+
+                  <div>
+                    <h3 className="mb-3 text-sm font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Cashback summary
+                    </h3>
+                    <div className="rounded-lg border border-gray-200 bg-white/80 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+                      <p className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                        Total earned cashback
+                      </p>
+                      <p className="mt-1 text-base font-semibold text-gray-900 dark:text-white">
+                        {withdrawDetail?.user?.totalCashback != null
+                          ? `${Number(withdrawDetail.user.totalCashback).toLocaleString()} ${withdrawDetail.user.totalCashbackCurrency ?? "THB"}`
+                          : MCBDetail != null
+                            ? `${MCBDetail.totalMyCashbackTHB?.toFixed(2) ?? "0"} THB`
+                            : "—"}
+                      </p>
+                      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-500/25 dark:bg-amber-500/10">
+                          <div className="flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                              className="h-4 w-4"
+                              aria-hidden="true"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm.75-13a.75.75 0 0 0-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 0 0 0-1.5h-3.25V5Z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                            Pending
+                          </div>
+                          <p className="mt-1 text-base font-semibold text-amber-800 dark:text-amber-300">
+                            {withdrawDetail?.totalsByStatusAndCurrency
+                              ?.find((t) => t.status === "pending")
+                              ?.totalTHB?.toFixed(2) ?? "0"}{" "}
+                            THB
+                          </p>
+                        </div>
+                        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-500/25 dark:bg-emerald-500/10">
+                          <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                              className="h-4 w-4"
+                              aria-hidden="true"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                            Approved
+                          </div>
+                          <p className="mt-1 text-base font-semibold text-emerald-800 dark:text-emerald-300">
+                            {withdrawDetail?.totalsByStatusAndCurrency
+                              ?.find((t) => t.status === "approved")
+                              ?.totalTHB?.toFixed(2) ?? "0"}{" "}
+                            THB
+                          </p>
+                        </div>
+                        <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-500/25 dark:bg-blue-500/10">
+                          <div className="flex items-center gap-1.5 text-xs font-medium text-blue-700 dark:text-blue-400">
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                              className="h-4 w-4"
+                              aria-hidden="true"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM10 7a.75.75 0 0 1 .55.24l2.5 2.69a.75.75 0 1 1-1.1 1.02l-1.2-1.29V13a.75.75 0 0 1-1.5 0V9.66l-1.2 1.29a.75.75 0 1 1-1.1-1.02l2.5-2.69A.75.75 0 0 1 10 7Z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                            Withdrawn
+                          </div>
+                          <p className="mt-1 text-base font-semibold text-blue-800 dark:text-blue-300">
+                            {withdrawDetail?.withdrawList
+                              ?.filter((w) => w.status === "approved")
+                              .reduce((sum, w) => sum + (w.amount_net ?? 0), 0)
+                              .toFixed(2) ?? "0"}{" "}
+                            THB
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="mb-3 text-sm font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Bank accounts
+                    </h3>
+                    {withdrawDetail?.withdrawList &&
+                    withdrawDetail.withdrawList.length > 0 ? (
+                      <div className="space-y-4">
+                        {withdrawDetail.withdrawList.map((bank, idx) => (
+                          <div
+                            key={bank._id}
+                            className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900/50"
+                          >
+                            {withdrawDetail.withdrawList.length > 1 && (
+                              <p className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+                                Account {idx + 1}
+                              </p>
+                            )}
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                              <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                                <span className="min-w-[120px] font-medium">
+                                  Bank:
+                                </span>{" "}
+                                {bank.bank_name || "N/A"}
+                                <CopyButton
+                                  value={bank.bank_name?.trim() || "N/A"}
+                                />
+                              </p>
+                              <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                                <span className="min-w-[120px] font-medium">
+                                  Account Number:
+                                </span>{" "}
+                                {bank.account_number || "N/A"}
+                                <CopyButton
+                                  value={bank.account_number?.trim() || "N/A"}
+                                />
+                              </p>
+                              <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                                <span className="min-w-[120px] font-medium">
+                                  Account Name:
+                                </span>{" "}
+                                {bank.account_name || "N/A"}
+                                <CopyButton
+                                  value={bank.account_name?.trim() || "N/A"}
+                                />
+                              </p>
+                              {bank.method &&
+                                bank.method !== "bank_transfer" && (
+                                  <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                                    <span className="min-w-[120px] font-medium">
+                                      Address:
+                                    </span>{" "}
+                                    {bank.address || "N/A"}
+                                    <CopyButton
+                                      value={bank.address?.trim() || "N/A"}
+                                    />
+                                  </p>
+                                )}
+                            </div>
+                          </div>
                         ))}
-                      </tbody>
-                    </table>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        No bank accounts
+                      </p>
+                    )}
                   </div>
-                </div>
-              )}
 
-              <div>
-                <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Total cashback
-                </h3>
-                <p className="mb-3 text-sm font-medium text-gray-800 dark:text-gray-200">
-                  {withdrawDetail?.user?.totalCashback != null
-                    ? `${Number(withdrawDetail.user.totalCashback).toLocaleString()} ${withdrawDetail.user.totalCashbackCurrency ?? "THB"}`
-                    : MCBDetail != null
-                      ? `${MCBDetail.totalMyCashbackTHB?.toFixed(2) ?? "0"} THB`
-                      : "—"}
-                </p>
-                <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
-                  <span className="text-amber-600 dark:text-amber-400">
-                    Pending:{" "}
-                    {withdrawDetail?.totalsByStatusAndCurrency
-                      ?.find((t) => t.status === "pending")
-                      ?.totalTHB?.toFixed(2) ?? "0"}{" "}
-                    THB
-                  </span>
-                  <span className="text-emerald-600 dark:text-emerald-400">
-                    Approved:{" "}
-                    {withdrawDetail?.totalsByStatusAndCurrency
-                      ?.find((t) => t.status === "approved")
-                      ?.totalTHB?.toFixed(2) ?? "0"}{" "}
-                    THB
-                  </span>
-                  <span className="text-blue-600 dark:text-blue-400">
-                    Withdrawn:{" "}
-                    {withdrawDetail?.withdrawList
-                      ?.filter((w) => w.status === "approved")
-                      .reduce((sum, w) => sum + (w.amount_net ?? 0), 0)
-                      .toFixed(2) ?? "0"}{" "}
-                    THB
-                  </span>
-                </div>
-              </div>
+                  {withdrawDetail?.user?.userLog &&
+                    withdrawDetail.user.userLog.length > 0 && (
+                      <div>
+                        <h3 className="mb-3 text-sm font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                          User log
+                        </h3>
+                        <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+                          <table className="min-w-full text-sm">
+                            <thead className="bg-gray-100 dark:bg-gray-800">
+                              <tr>
+                                <th className="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-300">
+                                  Action
+                                </th>
+                                <th className="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-300">
+                                  Date and time
+                                </th>
+                                <th className="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-300">
+                                  IP
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                              {withdrawDetail.user.userLog.map((entry, i) => (
+                                <tr
+                                  key={i}
+                                  className="bg-white dark:bg-gray-900/50"
+                                >
+                                  <td className="px-3 py-2 text-gray-800 dark:text-gray-200">
+                                    {entry.action ?? "—"}
+                                  </td>
+                                  <td className="px-3 py-2 text-gray-600 dark:text-gray-400">
+                                    {formatDateTime(entry.at)}
+                                  </td>
+                                  <td className="px-3 py-2 text-gray-600 dark:text-gray-400">
+                                    {entry.ip ?? "—"}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                </>
+              )}
             </div>
           )}
 
           {activeTab === "subscription" && (
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Subscription</h2>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Subscription
+                </h2>
                 <Link
                   href="/subscription"
-                  className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
+                  className="text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 text-sm font-medium"
                 >
                   Open subscription admin →
                 </Link>
@@ -1108,8 +1323,8 @@ const WithdrawDetail = () => {
                     No subscription rows match this user in admin data.
                   </p>
                   <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                    Managed subscriptions use mock users; this withdraw profile may not appear in
-                    that list until the backend links them.
+                    Managed subscriptions use mock users; this withdraw profile
+                    may not appear in that list until the backend links them.
                   </p>
                 </div>
               ) : (
@@ -1125,15 +1340,24 @@ const WithdrawDetail = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                      {(userSubscriptions?.data ?? []).map((s: Subscription) => (
-                        <tr key={s.id} className="text-gray-800 dark:text-gray-200">
-                          <td className="px-4 py-3">{s.planName}</td>
-                          <td className="px-4 py-3 capitalize">{s.status}</td>
-                          <td className="px-4 py-3 tabular-nums">{s.amount}</td>
-                          <td className="px-4 py-3 whitespace-nowrap">{s.nextBillingDate}</td>
-                          <td className="px-4 py-3">{s.paymentMethod}</td>
-                        </tr>
-                      ))}
+                      {(userSubscriptions?.data ?? []).map(
+                        (s: Subscription) => (
+                          <tr
+                            key={s.id}
+                            className="text-gray-800 dark:text-gray-200"
+                          >
+                            <td className="px-4 py-3">{s.planName}</td>
+                            <td className="px-4 py-3 capitalize">{s.status}</td>
+                            <td className="px-4 py-3 tabular-nums">
+                              {s.amount}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              {s.nextBillingDate}
+                            </td>
+                            <td className="px-4 py-3">{s.paymentMethod}</td>
+                          </tr>
+                        ),
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -1146,30 +1370,81 @@ const WithdrawDetail = () => {
               <h2 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
                 Conversion All
               </h2>
-              <WithdrawDetailDataGrid rows={rowsData} columns={column} />
-              <div className="mt-4 space-y-1 text-sm text-gray-700 dark:text-gray-300">
-                <p>
-                  Approved:{" "}
-                  {withdrawDetail?.totalsByStatusAndCurrency
-                    ?.find((item) => item.status === "approved")
-                    ?.totalTHB?.toFixed(2) ?? "0"}{" "}
-                  THB
-                </p>
-                <p>
-                  Pending:{" "}
-                  {withdrawDetail?.totalsByStatusAndCurrency
-                    ?.find((item) => item.status === "pending")
-                    ?.totalTHB?.toFixed(2) ?? "0"}{" "}
-                  THB
-                </p>
-                <p>
-                  Rejected:{" "}
-                  {withdrawDetail?.totalsByStatusAndCurrency
-                    ?.find((item) => item.status === "rejected")
-                    ?.totalTHB?.toFixed(2) ?? "0"}{" "}
-                  THB
-                </p>
+              <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-500/25 dark:bg-emerald-500/10">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      className="h-4 w-4"
+                      aria-hidden="true"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    Approved
+                  </div>
+                  <p className="mt-1 text-base font-semibold text-emerald-800 dark:text-emerald-300">
+                    {withdrawDetail?.totalsByStatusAndCurrency
+                      ?.find((item) => item.status === "approved")
+                      ?.totalTHB?.toFixed(2) ?? "0"}{" "}
+                    THB
+                  </p>
+                </div>
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-500/25 dark:bg-amber-500/10">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      className="h-4 w-4"
+                      aria-hidden="true"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm.75-13a.75.75 0 0 0-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 0 0 0-1.5h-3.25V5Z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    Pending
+                  </div>
+                  <p className="mt-1 text-base font-semibold text-amber-800 dark:text-amber-300">
+                    {withdrawDetail?.totalsByStatusAndCurrency
+                      ?.find((item) => item.status === "pending")
+                      ?.totalTHB?.toFixed(2) ?? "0"}{" "}
+                    THB
+                  </p>
+                </div>
+                <div className="rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-500/25 dark:bg-red-500/10">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-red-700 dark:text-red-400">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      className="h-4 w-4"
+                      aria-hidden="true"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM8.28 7.22a.75.75 0 0 0-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 1 0 1.06 1.06L10 11.06l1.72 1.72a.75.75 0 1 0 1.06-1.06L11.06 10l1.72-1.72a.75.75 0 0 0-1.06-1.06L10 8.94 8.28 7.22Z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    Rejected
+                  </div>
+                  <p className="mt-1 text-base font-semibold text-red-800 dark:text-red-300">
+                    {withdrawDetail?.totalsByStatusAndCurrency
+                      ?.find((item) => item.status === "rejected")
+                      ?.totalTHB?.toFixed(2) ?? "0"}{" "}
+                    THB
+                  </p>
+                </div>
               </div>
+              <WithdrawDetailDataGrid rows={rowsData} columns={column} />
               <Divider className="!my-5 !border-amber-700" />
               <h2 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
                 MCB Detail
@@ -1188,27 +1463,58 @@ const WithdrawDetail = () => {
               <h2 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
                 Withdraw All
               </h2>
-              <WithdrawDetailDataGrid rows={rowsDataWithdraw} columns={columnWithdraw} />
-              <div className="mt-4 space-y-1 text-sm text-gray-700 dark:text-gray-300">
+              <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {Object.keys(withdrawDetail?.withdrawSumByCurrency || {}).map(
-                  (status) => (
-                    <p key={status}>
-                      {status}:{" "}
-                      {withdrawDetail?.withdrawSumByCurrency?.[status] ? (
-                        Object.keys(
-                          withdrawDetail.withdrawSumByCurrency[status],
-                        ).map((currency) => (
-                          <span key={currency}>
-                            {`${withdrawDetail.withdrawSumByCurrency?.[status]?.[currency]?.netAmount?.toFixed(2)} ${currency} `}
-                          </span>
-                        ))
-                      ) : (
-                        <span>-</span>
-                      )}
-                    </p>
-                  ),
+                  (status) => {
+                    const style =
+                      WITHDRAW_STATUS_STYLE[status] ??
+                      WITHDRAW_STATUS_STYLE_FALLBACK;
+                    const byCurrency =
+                      withdrawDetail?.withdrawSumByCurrency?.[status];
+                    return (
+                      <div
+                        key={status}
+                        className={`rounded-lg border p-3 ${style.card}`}
+                      >
+                        <div
+                          className={`flex items-center gap-1.5 text-xs font-medium ${style.head}`}
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                            className="h-4 w-4"
+                            aria-hidden="true"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d={style.icon}
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          <span className="capitalize">{status}</span>
+                        </div>
+                        <p
+                          className={`mt-1 text-base font-semibold ${style.value}`}
+                        >
+                          {byCurrency
+                            ? Object.keys(byCurrency).map((currency) => (
+                                <span key={currency}>
+                                  {`${byCurrency[currency]?.netAmount?.toFixed(2)} ${currency} `}
+                                </span>
+                              ))
+                            : "—"}
+                        </p>
+                      </div>
+                    );
+                  },
                 )}
               </div>
+              <WithdrawDetailDataGrid
+                rows={rowsDataWithdraw}
+                columns={columnWithdraw}
+                rowHeight={80}
+              />
             </>
           )}
 
@@ -1219,7 +1525,8 @@ const WithdrawDetail = () => {
                   Tracking links from offers, shops & brands
                 </h2>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  Tracking links associated with this user (mock data). Replace with API when available.
+                  Tracking links associated with this user (mock data). Replace
+                  with API when available.
                 </p>
               </div>
               {!withdrawDetail ? (
@@ -1233,54 +1540,47 @@ const WithdrawDetail = () => {
                     Global tracking link admin:{" "}
                     <Link
                       href="/brands?tab=deeplink"
-                      className="text-brand-600 underline dark:text-brand-400"
+                      className="text-brand-600 dark:text-brand-400 underline"
                     >
                       User tracking link
-                    </Link>
-                    {" "}
+                    </Link>{" "}
                     <span className="text-gray-400 dark:text-gray-500">
                       (Brands Management → User tracking link)
                     </span>
                   </p>
                 </div>
               ) : (
-                <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
-                  <Table className="min-w-[820px]">
+                <div className="overflow-x-auto rounded-xl border border-gray-200 px-4 py-1 dark:border-gray-700">
+                  <Table className="min-w-[820px] [&_td]:px-1 [&_th]:px-1">
                     <TableHeader className="border-gray-100 dark:border-gray-800">
                       <TableRow>
                         <TableCell
                           isHeader
-                          className="py-3 text-left text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+                          className="text-theme-xs py-3 text-left font-medium text-gray-500 dark:text-gray-400"
                         >
                           Source
                         </TableCell>
                         <TableCell
                           isHeader
-                          className="py-3 text-left text-theme-xs font-medium text-gray-500 dark:text-gray-400"
-                        >
-                          Offer / shop / brand
-                        </TableCell>
-                        <TableCell
-                          isHeader
-                          className="py-3 text-left text-theme-xs font-medium text-gray-500 dark:text-gray-400"
-                        >
-                          Tracking link
-                        </TableCell>
-                        <TableCell
-                          isHeader
-                          className="py-3 text-center text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+                          className="text-theme-xs py-3 text-center font-medium text-gray-500 dark:text-gray-400"
                         >
                           Clicks
                         </TableCell>
                         <TableCell
                           isHeader
-                          className="py-3 text-left text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+                          className="text-theme-xs py-3 text-left font-medium text-gray-500 dark:text-gray-400"
+                        >
+                          Tracking link
+                        </TableCell>
+                        <TableCell
+                          isHeader
+                          className="text-theme-xs py-3 text-left font-medium text-gray-500 dark:text-gray-400"
                         >
                           Created
                         </TableCell>
                         <TableCell
                           isHeader
-                          className="py-3 text-left text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+                          className="text-theme-xs py-3 text-left font-medium text-gray-500 dark:text-gray-400"
                         >
                           Updated
                         </TableCell>
@@ -1289,32 +1589,34 @@ const WithdrawDetail = () => {
                     <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
                       {userDeeplinks.map((d, idx) => (
                         <TableRow key={`${d.deeplink}-${idx}`}>
-                          <TableCell className="py-3 text-theme-sm text-gray-700 dark:text-gray-200">
-                            <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-theme-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">
-                              {d.sourceType}
-                            </span>
+                          <TableCell className="text-theme-sm py-3 text-gray-700 dark:text-gray-200">
+                            <div className="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-2">
+                              <span className="text-theme-xs inline-flex rounded-full bg-gray-100 px-2 py-0.5 font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                                {d.sourceType}
+                              </span>
+                              <span className="whitespace-nowrap text-gray-800 dark:text-white/90">
+                                {d.offerName}
+                              </span>
+                            </div>
                           </TableCell>
-                          <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90">
-                            {d.offerName}
+                          <TableCell className="text-theme-sm py-3 text-center font-medium text-gray-800 dark:text-gray-200">
+                            {d.clicks}
                           </TableCell>
-                          <TableCell className="max-w-[280px] py-3 text-theme-sm">
+                          <TableCell className="text-theme-sm w-full py-3">
                             <a
                               href={d.deeplink}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="break-all text-brand-600 hover:underline dark:text-brand-400"
+                              className="text-brand-600 dark:text-brand-400 break-all hover:underline"
                             >
                               {d.deeplink}
                             </a>
                           </TableCell>
-                          <TableCell className="py-3 text-center text-theme-sm font-medium text-gray-800 dark:text-gray-200">
-                            {d.clicks}
+                          <TableCell className="text-theme-sm py-3 whitespace-nowrap">
+                            <StackedDateTime value={d.createDate} />
                           </TableCell>
-                          <TableCell className="whitespace-nowrap py-3 text-theme-sm text-gray-600 dark:text-gray-300">
-                            {d.createDate}
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap py-3 text-theme-sm text-gray-600 dark:text-gray-300">
-                            {d.updateDate}
+                          <TableCell className="text-theme-sm py-3 whitespace-nowrap">
+                            <StackedDateTime value={d.updateDate} />
                           </TableCell>
                         </TableRow>
                       ))}
@@ -1337,28 +1639,30 @@ const WithdrawDetail = () => {
           )}
 
           {activeTab === "deleteData" && (
-            <div className="space-y-5 rounded-xl border border-red-200 bg-red-50/40 p-4 dark:border-red-900/50 dark:bg-red-950/20 sm:p-6">
+            <div className="space-y-5 rounded-xl border border-red-200 bg-red-50/40 p-4 sm:p-6 dark:border-red-900/50 dark:bg-red-950/20">
               <div>
                 <h2 className="text-lg font-semibold text-red-900 dark:text-red-200">
                   Delete user data
                 </h2>
                 <p className="mt-1 text-sm text-red-800/90 dark:text-red-300/90">
-                  Permanently remove this user&apos;s personal data and activity from the admin view.
-                  When wired to a real backend, this should follow your retention policy and legal
-                  requirements.
+                  Permanently remove this user&apos;s personal data and activity
+                  from the admin view. When wired to a real backend, this should
+                  follow your retention policy and legal requirements.
                 </p>
               </div>
 
               {isUserDataDeleted ? (
                 <div className="rounded-lg border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
-                  User data for this profile has already been removed. Lists and profile fields below
-                  are cleared in the mock environment.
+                  User data for this profile has already been removed. Lists and
+                  profile fields below are cleared in the mock environment.
                 </div>
               ) : (
                 <>
                   <ul className="list-inside list-disc space-y-1.5 text-sm text-gray-700 dark:text-gray-300">
                     <li>Profile contacts, wallet, and login history (mock)</li>
-                    <li>Conversion and withdrawal rows shown on this page (mock)</li>
+                    <li>
+                      Conversion and withdrawal rows shown on this page (mock)
+                    </li>
                     <li>Tracking link rows for this user (mock)</li>
                   </ul>
                   <div>
@@ -1382,14 +1686,17 @@ const WithdrawDetail = () => {
                     />
                   </div>
                   {deleteUserDataError ? (
-                    <p className="text-sm text-red-600 dark:text-red-400">{deleteUserDataError}</p>
+                    <p className="text-sm text-red-600 dark:text-red-400">
+                      {deleteUserDataError}
+                    </p>
                   ) : null}
                   <button
                     type="button"
                     disabled={
                       deleteUserDataLoading ||
                       !withdrawUserId ||
-                      deleteConfirmText.trim() !== DELETE_USER_DATA_CONFIRM_PHRASE
+                      deleteConfirmText.trim() !==
+                        DELETE_USER_DATA_CONFIRM_PHRASE
                     }
                     onClick={() => void handleDeleteUserData()}
                     className="rounded-lg border border-red-600 bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-500 dark:bg-red-600 dark:hover:bg-red-500"

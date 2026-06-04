@@ -5,6 +5,8 @@ import { Dropdown } from "../ui/dropdown/Dropdown";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
 import { Modal } from "../ui/modal";
 import { MoreDotIcon } from "@/icons";
+import { formatDate, formatTime } from "@/lib/dateFormat";
+import { formatMoney } from "@/lib/currencyFormat";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 
 export type ProductTimeFrame = {
@@ -102,24 +104,11 @@ const MOCK_TOP_PRODUCTS: TopProductRow[] = [
 ];
 
 function formatPrice(value: number, currency: string): string {
-  return `${currency} ${value.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+  return formatMoney(value, currency, { decimals: 0 });
 }
 
 function formatDateTime(iso: string): { date: string; time: string } {
-  const d = new Date(iso);
-  return {
-    date: d.toLocaleDateString("en-GB", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    }),
-    time: d.toLocaleTimeString("en-GB", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-    }),
-  };
+  return { date: formatDate(iso), time: formatTime(iso) };
 }
 
 export default function TopProducts() {
@@ -129,14 +118,15 @@ export default function TopProducts() {
   return (
     <>
       <div className="rounded-2xl border border-gray-200 bg-gray-100 dark:border-gray-800 dark:bg-white/[0.03]">
-        <div className="rounded-2xl bg-white px-5 pb-5 pt-5 shadow-default dark:bg-gray-900 sm:px-6 sm:pt-6">
+        <div className="shadow-default rounded-2xl bg-white px-5 pt-5 pb-5 sm:px-6 sm:pt-6 dark:bg-gray-900">
           <div className="flex justify-between gap-3">
             <div className="min-w-0">
               <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
                 Top products
               </h3>
-              <p className="mt-1 text-theme-sm font-normal text-gray-500 dark:text-gray-400">
-                Best-performing offers by brand — open View for time &amp; date windows
+              <p className="text-theme-sm mt-1 font-normal text-gray-500 dark:text-gray-400">
+                Best-performing offers by brand — open View for time &amp; date
+                windows
               </p>
             </div>
             <div className="relative inline-block shrink-0">
@@ -149,7 +139,11 @@ export default function TopProducts() {
               >
                 <MoreDotIcon className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-300" />
               </button>
-              <Dropdown isOpen={menuOpen} onClose={() => setMenuOpen(false)} className="w-40 p-2">
+              <Dropdown
+                isOpen={menuOpen}
+                onClose={() => setMenuOpen(false)}
+                className="w-40 p-2"
+              >
                 <DropdownItem
                   tag="button"
                   onItemClick={() => setMenuOpen(false)}
@@ -169,15 +163,17 @@ export default function TopProducts() {
           </div>
 
           <div className="mt-5 overflow-x-auto rounded-xl border border-gray-100 dark:border-gray-800">
-            <table className="min-w-[640px] w-full table-fixed border-collapse text-left">
+            <table className="w-full min-w-[640px] table-fixed border-collapse text-left">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50 text-theme-xs font-semibold uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-white/[0.04] dark:text-gray-400">
+                <tr className="text-theme-xs border-b border-gray-100 bg-gray-50 font-semibold tracking-wide text-gray-500 uppercase dark:border-gray-800 dark:bg-white/[0.04] dark:text-gray-400">
                   <th className="px-3 py-3 sm:px-4">Brand</th>
-                  <th className="px-3 py-3 sm:px-4 w-[88px]">Image</th>
+                  <th className="w-[88px] px-3 py-3 sm:px-4">Image</th>
                   <th className="px-3 py-3 sm:px-4">Product</th>
                   <th className="px-3 py-3 sm:px-4">Type</th>
                   <th className="px-3 py-3 sm:px-4">Price</th>
-                  <th className="px-3 py-3 sm:px-4 w-[100px] text-center">View</th>
+                  <th className="w-[100px] px-3 py-3 text-center sm:px-4">
+                    View
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -201,17 +197,17 @@ export default function TopProducts() {
                     <td className="px-3 py-3 align-middle sm:px-4">
                       <span className="line-clamp-2">{row.name}</span>
                     </td>
-                    <td className="px-3 py-3 align-middle text-gray-600 dark:text-gray-300 sm:px-4">
+                    <td className="px-3 py-3 align-middle text-gray-600 sm:px-4 dark:text-gray-300">
                       {row.productType}
                     </td>
                     <td className="px-3 py-3 align-middle font-medium sm:px-4">
                       {formatPrice(row.price, row.currency)}
                     </td>
-                    <td className="px-3 py-3 align-middle text-center sm:px-4">
+                    <td className="px-3 py-3 text-center align-middle sm:px-4">
                       <button
                         type="button"
                         onClick={() => setDetail(row)}
-                        className="inline-flex items-center justify-center rounded-lg border border-brand-500 bg-white px-3 py-1.5 text-xs font-semibold text-brand-600 shadow-theme-xs hover:bg-brand-50 dark:border-brand-600 dark:bg-gray-900 dark:text-brand-400 dark:hover:bg-brand-950/40"
+                        className="border-brand-500 text-brand-600 shadow-theme-xs hover:bg-brand-50 dark:border-brand-600 dark:text-brand-400 dark:hover:bg-brand-950/40 inline-flex items-center justify-center rounded-lg border bg-white px-3 py-1.5 text-xs font-semibold dark:bg-gray-900"
                       >
                         View
                       </button>
@@ -224,13 +220,18 @@ export default function TopProducts() {
         </div>
 
         <div className="flex items-center justify-center gap-2 px-6 py-3.5 sm:py-4">
-          <p className="text-center text-theme-xs text-gray-500 dark:text-gray-400 sm:text-sm">
-            Mock data for internal dashboard — wire to API when product analytics is available.
+          <p className="text-theme-xs text-center text-gray-500 sm:text-sm dark:text-gray-400">
+            Mock data for internal dashboard — wire to API when product
+            analytics is available.
           </p>
         </div>
       </div>
 
-      <Modal isOpen={detail !== null} onClose={() => setDetail(null)} className="sm:max-w-lg">
+      <Modal
+        isOpen={detail !== null}
+        onClose={() => setDetail(null)}
+        className="sm:max-w-lg"
+      >
         {detail && (
           <div className="p-6 pt-14 sm:p-8 sm:pt-16">
             <div className="flex gap-4 border-b border-gray-100 pb-5 dark:border-gray-800">
@@ -242,11 +243,15 @@ export default function TopProducts() {
                 className="size-20 shrink-0 rounded-xl object-cover ring-1 ring-gray-100 dark:ring-gray-700"
               />
               <div className="min-w-0">
-                <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                <p className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
                   {detail.brand}
                 </p>
-                <h4 className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{detail.name}</h4>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{detail.productType}</p>
+                <h4 className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">
+                  {detail.name}
+                </h4>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  {detail.productType}
+                </p>
                 <p className="mt-2 text-base font-semibold text-gray-800 dark:text-white/90">
                   {formatPrice(detail.price, detail.currency)}
                 </p>
@@ -254,7 +259,9 @@ export default function TopProducts() {
             </div>
 
             <div className="mt-6">
-              <h5 className="text-sm font-semibold text-gray-800 dark:text-white/90">Time frames</h5>
+              <h5 className="text-sm font-semibold text-gray-800 dark:text-white/90">
+                Time frames
+              </h5>
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 Reporting and promotional windows (date &amp; time, GMT+7).
               </p>
@@ -267,21 +274,37 @@ export default function TopProducts() {
                       key={`${detail.id}-${tf.label}`}
                       className="rounded-xl border border-gray-100 bg-gray-50/80 p-4 dark:border-gray-800 dark:bg-white/[0.04]"
                     >
-                      <p className="text-xs font-semibold uppercase tracking-wide text-brand-600 dark:text-brand-400">
+                      <p className="text-brand-600 dark:text-brand-400 text-xs font-semibold tracking-wide uppercase">
                         {tf.label}
                       </p>
                       <dl className="mt-3 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
                         <div>
-                          <dt className="text-xs text-gray-500 dark:text-gray-400">From (date)</dt>
-                          <dd className="mt-0.5 font-medium text-gray-800 dark:text-white/90">{start.date}</dd>
-                          <dt className="mt-2 text-xs text-gray-500 dark:text-gray-400">From (time)</dt>
-                          <dd className="mt-0.5 font-mono text-gray-700 dark:text-gray-300">{start.time}</dd>
+                          <dt className="text-xs text-gray-500 dark:text-gray-400">
+                            From (date)
+                          </dt>
+                          <dd className="mt-0.5 font-medium text-gray-800 dark:text-white/90">
+                            {start.date}
+                          </dd>
+                          <dt className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                            From (time)
+                          </dt>
+                          <dd className="mt-0.5 font-mono text-gray-700 dark:text-gray-300">
+                            {start.time}
+                          </dd>
                         </div>
                         <div>
-                          <dt className="text-xs text-gray-500 dark:text-gray-400">To (date)</dt>
-                          <dd className="mt-0.5 font-medium text-gray-800 dark:text-white/90">{end.date}</dd>
-                          <dt className="mt-2 text-xs text-gray-500 dark:text-gray-400">To (time)</dt>
-                          <dd className="mt-0.5 font-mono text-gray-700 dark:text-gray-300">{end.time}</dd>
+                          <dt className="text-xs text-gray-500 dark:text-gray-400">
+                            To (date)
+                          </dt>
+                          <dd className="mt-0.5 font-medium text-gray-800 dark:text-white/90">
+                            {end.date}
+                          </dd>
+                          <dt className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                            To (time)
+                          </dt>
+                          <dd className="mt-0.5 font-mono text-gray-700 dark:text-gray-300">
+                            {end.time}
+                          </dd>
                         </div>
                       </dl>
                     </li>

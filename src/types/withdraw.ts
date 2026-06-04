@@ -66,6 +66,8 @@ export interface UserLogEntry {
 
 export interface User {
   _id?: string;
+  /** Login handle / display username (read-only; not editable from admin). */
+  username?: string;
   /** Legacy primary email; mirrors first entry of `emails` when present */
   email?: string;
   /** Legacy primary phone; mirrors first entry of `mobiles` when present */
@@ -224,11 +226,10 @@ export interface CurrencyBreakdown {
   thbAmount: number;
 }
 
-
 export interface ResMCBDetail {
-    totalMyCashbackTHB:     number;
-    totalMyCashbackUSD:     number;
-    availableUSD:           number;
-    availableTHB:           number;
-    conversionIdMyCashback: string[];
+  totalMyCashbackTHB: number;
+  totalMyCashbackUSD: number;
+  availableUSD: number;
+  availableTHB: number;
+  conversionIdMyCashback: string[];
 }

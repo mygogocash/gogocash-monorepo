@@ -1,5 +1,6 @@
 "use client";
 import React, { useMemo, useState } from "react";
+import { formatMoney } from "@/lib/currencyFormat";
 import { ApexOptions } from "apexcharts";
 import { useQuery } from "@tanstack/react-query";
 import ChartTab, { type ChartTabId } from "../common/ChartTab";
@@ -33,7 +34,7 @@ const ReactApexChart = dynamic(() => import("react-apexcharts"), {
 });
 
 function formatThb(value: number): string {
-  return `฿${Number(value).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+  return formatMoney(value, "THB", { decimals: 0 });
 }
 
 type ChartKind = "column" | "line";

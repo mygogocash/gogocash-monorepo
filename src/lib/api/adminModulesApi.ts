@@ -131,6 +131,18 @@ export async function putMembershipUserCancel(userId: string) {
   return data;
 }
 
+export async function putMembershipUserAction(
+  userId: string,
+  action: "cancel" | "pause" | "resume" | "extend",
+  body?: { days?: number },
+) {
+  const { data } = await client.put(
+    `/admin/membership/users/${userId}/${action}`,
+    body ?? {},
+  );
+  return data;
+}
+
 /* Subscription */
 export async function getSubscriptionStats() {
   const { data } = await client.get<{

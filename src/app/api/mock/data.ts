@@ -19,14 +19,102 @@ export const mockAdminUsers: Array<{
   updatedAt: string;
   __v: number;
 }> = [
-  { _id: "a1", username: "admin", password: "hashed", email: "admin@gogocash.co", role: "super_admin", status: "active", createdAt: lastWeek, updatedAt: now, __v: 0 },
-  { _id: "a2", username: "moderator", password: "hashed", email: "mod@gogocash.co", role: "admin", status: "active", createdAt: lastWeek, updatedAt: now, __v: 0 },
-  { _id: "a3", username: "support", password: "hashed", email: "support@gogocash.co", role: "editor", status: "active", createdAt: lastWeek, updatedAt: yesterday, __v: 0 },
-  { _id: "a4", username: "analyst", password: "hashed", email: "analyst@gogocash.co", role: "viewer", status: "active", createdAt: lastWeek, updatedAt: yesterday, __v: 0 },
+  {
+    _id: "a1",
+    username: "admin",
+    password: "hashed",
+    email: "admin@gogocash.co",
+    role: "super_admin",
+    status: "active",
+    createdAt: lastWeek,
+    updatedAt: now,
+    __v: 0,
+  },
+  {
+    _id: "a2",
+    username: "moderator",
+    password: "hashed",
+    email: "mod@gogocash.co",
+    role: "admin",
+    status: "active",
+    createdAt: lastWeek,
+    updatedAt: now,
+    __v: 0,
+  },
+  {
+    _id: "a3",
+    username: "support",
+    password: "hashed",
+    email: "support@gogocash.co",
+    role: "editor",
+    status: "active",
+    createdAt: lastWeek,
+    updatedAt: yesterday,
+    __v: 0,
+  },
+  {
+    _id: "a4",
+    username: "analyst",
+    password: "hashed",
+    email: "analyst@gogocash.co",
+    role: "viewer",
+    status: "active",
+    createdAt: lastWeek,
+    updatedAt: yesterday,
+    __v: 0,
+  },
 ];
 
-const userFirstNames = ["Alice", "Bob", "Charlie", "Diana", "Erica", "Frank", "Grace", "Henry", "Ivy", "Jack", "Kate", "Leo", "Mia", "Noah", "Olivia", "Paul", "Quinn", "Ryan", "Sara", "Tom", "Uma", "Victor", "Wendy", "Xavier", "Yuki", "Zara"];
-const userLastNames = ["Smith", "Johnson", "Lee", "Kim", "Chen", "Davis", "Wilson", "Brown", "Taylor", "Martinez", "Garcia", "Miller", "Jones", "Williams", "Anderson", "Thomas", "Jackson", "White", "Harris", "Clark"];
+const userFirstNames = [
+  "Alice",
+  "Bob",
+  "Charlie",
+  "Diana",
+  "Erica",
+  "Frank",
+  "Grace",
+  "Henry",
+  "Ivy",
+  "Jack",
+  "Kate",
+  "Leo",
+  "Mia",
+  "Noah",
+  "Olivia",
+  "Paul",
+  "Quinn",
+  "Ryan",
+  "Sara",
+  "Tom",
+  "Uma",
+  "Victor",
+  "Wendy",
+  "Xavier",
+  "Yuki",
+  "Zara",
+];
+const userLastNames = [
+  "Smith",
+  "Johnson",
+  "Lee",
+  "Kim",
+  "Chen",
+  "Davis",
+  "Wilson",
+  "Brown",
+  "Taylor",
+  "Martinez",
+  "Garcia",
+  "Miller",
+  "Jones",
+  "Williams",
+  "Anderson",
+  "Thomas",
+  "Jackson",
+  "White",
+  "Harris",
+  "Clark",
+];
 
 export const mockUsers = Array.from({ length: 550 }, (_, i) => {
   const first = userFirstNames[i % userFirstNames.length];
@@ -37,22 +125,29 @@ export const mockUsers = Array.from({ length: 550 }, (_, i) => {
   const countries = ["TH", "US", "TH", "TH", "US"];
   const country = countries[i % 5];
   const gender = i % 3 === 0 ? "female" : i % 3 === 1 ? "male" : null;
-  const birthdate = i % 4 === 0 ? null : `${1985 + (i % 25)}-${String((i % 12) + 1).padStart(2, "0")}-${String((i % 28) + 1).padStart(2, "0")}`;
+  const birthdate =
+    i % 4 === 0
+      ? null
+      : `${1985 + (i % 25)}-${String((i % 12) + 1).padStart(2, "0")}-${String((i % 28) + 1).padStart(2, "0")}`;
   return {
     _id: `u${i + 1}`,
-    address: `0x${(0xABC123 + i).toString(16).toUpperCase().padStart(6, "0")}`,
+    address: `0x${(0xabc123 + i).toString(16).toUpperCase().padStart(6, "0")}`,
     __v: 0,
     email,
     id_crossmint: i % 2 === 0 ? `cm_${i + 1}` : "",
     id_twitter: i % 3 !== 0 ? `tw_${uname}` : "",
     username: uname,
-    mobile: country === "TH" ? `+668${String(10000000 + i).slice(-8)}` : `+1${String(2000000000 + i).slice(-10)}`,
+    mobile:
+      country === "TH"
+        ? `+668${String(10000000 + i).slice(-8)}`
+        : `+1${String(2000000000 + i).slice(-10)}`,
     id_firebase: `fb_${i + 1}`,
     createdAt: dt,
     updatedAt: now,
     birthdate,
     country,
     gender,
+    membershipTier: i % 3 === 0 ? "GoGoPass Plus" : "Basic",
   };
 });
 
@@ -86,7 +181,8 @@ const offerTemplates = [
     commissions: ["5%", "3%"],
     countries: "TH",
     currency: "THB",
-    description: "Cashback on gadgets, accessories, and IT retail at Banana IT (Thailand).",
+    description:
+      "Cashback on gadgets, accessories, and IT retail at Banana IT (Thailand).",
     directory_page: "https://www.banana.co.th",
     is_require_approval: 0,
     ...MERCHANT_GADGETHUB,
@@ -166,7 +262,8 @@ const offerTemplates = [
     commissions: ["3%"],
     countries: "TH",
     currency: "THB",
-    description: "Mock inactive line — same merchant logo as Banana IT (TH) shopping.",
+    description:
+      "Mock inactive line — same merchant logo as Banana IT (TH) shopping.",
     directory_page: "https://www.banana.co.th",
     is_require_approval: 0,
     ...MERCHANT_GADGETHUB,
@@ -190,8 +287,18 @@ export const mockOffers = Array.from({ length: 550 }, (_, i) => {
   const t = offerTemplates[i % 4];
   const offerId = 1001 + i;
   const merchantId = 2001 + (i % 4);
-  const names = ["Banana IT TH - CPS", "Adidas TH - CPS", "AirAsia Travel - CPS", "Banana IT TH Food - CPS"];
-  const lookups = ["banana_it_th", "adidas_th", "airasia_travel", "banana_it_food"];
+  const names = [
+    "Banana IT TH - CPS",
+    "Adidas TH - CPS",
+    "AirAsia Travel - CPS",
+    "Banana IT TH Food - CPS",
+  ];
+  const lookups = [
+    "banana_it_th",
+    "adidas_th",
+    "airasia_travel",
+    "banana_it_food",
+  ];
   const _id = `o${i + 1}`;
   return {
     _id,
@@ -215,14 +322,27 @@ const userRefs = mockUsers.map((u) => ({
   username: u.username,
 }));
 
-const bankNames = ["Bangkok Bank", "Kasikorn Bank", "Krungthai Bank", "SCB", "BBL", "KBank"];
-const statuses: Array<"approved" | "pending" | "rejected"> = ["approved", "approved", "pending", "rejected"];
+const bankNames = [
+  "Bangkok Bank",
+  "Kasikorn Bank",
+  "Krungthai Bank",
+  "SCB",
+  "BBL",
+  "KBank",
+];
+const statuses: Array<"approved" | "pending" | "rejected"> = [
+  "approved",
+  "approved",
+  "pending",
+  "rejected",
+];
 
 export const mockWithdraws = Array.from({ length: 550 }, (_, i) => {
   const u = userRefs[i % userRefs.length];
   const amountTotal = 500 + (i % 50) * 200;
   const percentFee = 5;
-  const amountNet = Math.round(amountTotal * (1 - percentFee / 100) * 100) / 100;
+  const amountNet =
+    Math.round(amountTotal * (1 - percentFee / 100) * 100) / 100;
   const status = statuses[i % 4] as "approved" | "pending" | "rejected";
   const method = i % 5 === 0 ? "crypto" : "bank_transfer";
   const currency = i % 3 === 0 ? "USD" : "THB";
@@ -231,28 +351,82 @@ export const mockWithdraws = Array.from({ length: 550 }, (_, i) => {
     _id: `w${i + 1}`,
     user_id: u,
     address: u.address,
-    account_number: method === "bank_transfer" ? `${100 + (i % 900)}-${100 + (i % 900)}-${100 + (i % 900)}` : "",
+    account_number:
+      method === "bank_transfer"
+        ? `${100 + (i % 900)}-${100 + (i % 900)}-${100 + (i % 900)}`
+        : "",
     account_name: method === "bank_transfer" ? `User ${i + 1}` : "",
-    bank_name: method === "bank_transfer" ? bankNames[i % bankNames.length] : "",
+    bank_name:
+      method === "bank_transfer" ? bankNames[i % bankNames.length] : "",
     amount_total: amountTotal,
     amount_net: amountNet,
     percent_fee: percentFee,
     status,
     method,
     tx_hash: status === "approved" && i % 2 === 0 ? `0xhash${i + 1}` : "",
-    conversion_id: Array.from({ length: 2 + (i % 5) }, (__, j) => 5001 + i * 3 + j),
+    conversion_id: Array.from(
+      { length: 2 + (i % 5) },
+      (__, j) => 5001 + i * 3 + j,
+    ),
     currency,
     createdAt: dt,
     updatedAt: now,
     __v: 0,
     slip_file: "",
   };
-});
+}).concat([
+  // Hand-crafted bank-transfer withdrawal for u1 so the demo shows a fully
+  // populated row (bank columns, slip file, etc.) alongside the crypto one.
+  {
+    _id: "w-u1-bank",
+    user_id: userRefs[0], // u1
+    address: userRefs[0].address,
+    account_number: "012-3-45678-9",
+    account_name: "Alice Smith",
+    bank_name: "Kasikorn Bank",
+    amount_total: 2000,
+    amount_net: 1900,
+    percent_fee: 5,
+    status: "approved",
+    method: "bank_transfer",
+    tx_hash: "BANKREF-2026-000128",
+    conversion_id: [5001, 5002],
+    currency: "THB",
+    createdAt: yesterday,
+    updatedAt: now,
+    __v: 0,
+    slip_file: "slips/withdraw-u1-bank.jpg",
+  },
+]);
 const conversionOffers = [
-  { offer_id: 1001, merchant_id: 2001, offer_name: "Banana IT TH - CPS", currency: "THB", adv_sub1: "banana_it" },
-  { offer_id: 1002, merchant_id: 2002, offer_name: "Adidas TH - CPS", currency: "THB", adv_sub1: "adidas" },
-  { offer_id: 1003, merchant_id: 2003, offer_name: "AirAsia Travel - CPS", currency: "USD", adv_sub1: "airasia" },
-  { offer_id: 1004, merchant_id: 2004, offer_name: "Banana IT TH Food - CPS", currency: "THB", adv_sub1: "banana_it_food" },
+  {
+    offer_id: 1001,
+    merchant_id: 2001,
+    offer_name: "Banana IT TH - CPS",
+    currency: "THB",
+    adv_sub1: "banana_it",
+  },
+  {
+    offer_id: 1002,
+    merchant_id: 2002,
+    offer_name: "Adidas TH - CPS",
+    currency: "THB",
+    adv_sub1: "adidas",
+  },
+  {
+    offer_id: 1003,
+    merchant_id: 2003,
+    offer_name: "AirAsia Travel - CPS",
+    currency: "USD",
+    adv_sub1: "airasia",
+  },
+  {
+    offer_id: 1004,
+    merchant_id: 2004,
+    offer_name: "Banana IT TH Food - CPS",
+    currency: "THB",
+    adv_sub1: "banana_it_food",
+  },
 ];
 
 export const mockConversions = Array.from({ length: 550 }, (_, i) => {
@@ -262,7 +436,12 @@ export const mockConversions = Array.from({ length: 550 }, (_, i) => {
   const saleAmount = (500 + (i % 20) * 250).toFixed(2);
   const payoutVal = Number(saleAmount) * (0.03 + (i % 4) * 0.01);
   const payout = payoutVal.toFixed(2);
-  const convStatuses: Array<"approved" | "pending" | "rejected"> = ["approved", "approved", "pending", "rejected"];
+  const convStatuses: Array<"approved" | "pending" | "rejected"> = [
+    "approved",
+    "approved",
+    "pending",
+    "rejected",
+  ];
   const conversion_status = convStatuses[i % 4];
   const dt = i % 3 === 0 ? lastWeek : i % 3 === 1 ? yesterday : now;
   return {
@@ -386,10 +565,38 @@ export const mockCategories = [
     createdAt: lastWeek,
     updatedAt: now,
   },
-  { _id: "cat2", name: "Travel", image: "", banner: "", createdAt: lastWeek, updatedAt: now },
-  { _id: "cat3", name: "Food & Drink", image: "", banner: "", createdAt: lastWeek, updatedAt: now },
-  { _id: "cat4", name: "Finance", image: "", banner: "", createdAt: yesterday, updatedAt: now },
-  { _id: "cat5", name: "Entertainment", image: "", banner: "", createdAt: yesterday, updatedAt: now },
+  {
+    _id: "cat2",
+    name: "Travel",
+    image: "",
+    banner: "",
+    createdAt: lastWeek,
+    updatedAt: now,
+  },
+  {
+    _id: "cat3",
+    name: "Food & Drink",
+    image: "",
+    banner: "",
+    createdAt: lastWeek,
+    updatedAt: now,
+  },
+  {
+    _id: "cat4",
+    name: "Finance",
+    image: "",
+    banner: "",
+    createdAt: yesterday,
+    updatedAt: now,
+  },
+  {
+    _id: "cat5",
+    name: "Entertainment",
+    image: "",
+    banner: "",
+    createdAt: yesterday,
+    updatedAt: now,
+  },
 ];
 
 const couponOfferRefs = [
@@ -400,15 +607,68 @@ const couponOfferRefs = [
 ];
 
 const couponTemplates = [
-  { name: "Welcome 10%", description: "10% off for new users", codePrefix: "WELCOME", eligibility: "new_users", min_spend: "500", discount: 10, linkPath: "promo" },
-  { name: "Flash Sale 15%", description: "Limited time flash sale discount", codePrefix: "FLASH", eligibility: "all", min_spend: "1000", discount: 15, linkPath: "flash" },
-  { name: "Travel Bonus", description: "Extra cashback on hotel bookings", codePrefix: "TRAVEL", eligibility: "all", min_spend: "2000", discount: 5, linkPath: "deals" },
-  { name: "First Order", description: "First order discount", codePrefix: "FIRST", eligibility: "new_users", min_spend: "300", discount: 20, linkPath: "first" },
-  { name: "Weekend Deal", description: "Weekend special offer", codePrefix: "WEEKEND", eligibility: "all", min_spend: "800", discount: 12, linkPath: "weekend" },
-  { name: "Member Exclusive", description: "Members only discount", codePrefix: "MEMBER", eligibility: "members", min_spend: "1500", discount: 8, linkPath: "member" },
+  {
+    name: "Welcome 10%",
+    description: "10% off for new users",
+    codePrefix: "WELCOME",
+    eligibility: "new_users",
+    min_spend: "500",
+    discount: 10,
+    linkPath: "promo",
+  },
+  {
+    name: "Flash Sale 15%",
+    description: "Limited time flash sale discount",
+    codePrefix: "FLASH",
+    eligibility: "all",
+    min_spend: "1000",
+    discount: 15,
+    linkPath: "flash",
+  },
+  {
+    name: "Travel Bonus",
+    description: "Extra cashback on hotel bookings",
+    codePrefix: "TRAVEL",
+    eligibility: "all",
+    min_spend: "2000",
+    discount: 5,
+    linkPath: "deals",
+  },
+  {
+    name: "First Order",
+    description: "First order discount",
+    codePrefix: "FIRST",
+    eligibility: "new_users",
+    min_spend: "300",
+    discount: 20,
+    linkPath: "first",
+  },
+  {
+    name: "Weekend Deal",
+    description: "Weekend special offer",
+    codePrefix: "WEEKEND",
+    eligibility: "all",
+    min_spend: "800",
+    discount: 12,
+    linkPath: "weekend",
+  },
+  {
+    name: "Member Exclusive",
+    description: "Members only discount",
+    codePrefix: "MEMBER",
+    eligibility: "members",
+    min_spend: "1500",
+    discount: 8,
+    linkPath: "member",
+  },
 ];
 
-const couponDomains = ["www.bananastore.com", "www.adidas.co.th", "www.airasia.com", "www.bananastore.com"];
+const couponDomains = [
+  "www.bananastore.com",
+  "www.adidas.co.th",
+  "www.airasia.com",
+  "www.bananastore.com",
+];
 
 export const mockCoupons = Array.from({ length: 550 }, (_, i) => {
   const t = couponTemplates[i % couponTemplates.length];
@@ -416,7 +676,9 @@ export const mockCoupons = Array.from({ length: 550 }, (_, i) => {
   const domain = couponDomains[i % couponDomains.length];
   const code = `${t.codePrefix}${String(i + 1).padStart(3, "0")}`;
   const startDate = i % 3 === 0 ? lastWeek : i % 3 === 1 ? yesterday : now;
-  const endDate = new Date(Date.now() + (90 + (i % 180)) * 86400000).toISOString();
+  const endDate = new Date(
+    Date.now() + (90 + (i % 180)) * 86400000,
+  ).toISOString();
   return {
     _id: `cp${i + 1}`,
     name: `${t.name} #${i + 1}`,
@@ -436,8 +698,30 @@ export const mockCoupons = Array.from({ length: 550 }, (_, i) => {
   };
 });
 
-const mcbFirstNames = ["Alice", "Bob", "Charlie", "Diana", "Erica", "Frank", "Grace", "Henry", "Ivy", "Jack"];
-const mcbLastNames = ["Smith", "Johnson", "Lee", "Kim", "Chen", "Davis", "Wilson", "Brown", "Taylor", "Martinez"];
+const mcbFirstNames = [
+  "Alice",
+  "Bob",
+  "Charlie",
+  "Diana",
+  "Erica",
+  "Frank",
+  "Grace",
+  "Henry",
+  "Ivy",
+  "Jack",
+];
+const mcbLastNames = [
+  "Smith",
+  "Johnson",
+  "Lee",
+  "Kim",
+  "Chen",
+  "Davis",
+  "Wilson",
+  "Brown",
+  "Taylor",
+  "Martinez",
+];
 
 export const mockMyCashback = Array.from({ length: 550 }, (_, i) => {
   const first = mcbFirstNames[i % mcbFirstNames.length];
@@ -448,7 +732,16 @@ export const mockMyCashback = Array.from({ length: 550 }, (_, i) => {
   const amount = 500 + (i % 100) * 50;
   return {
     _id: `mcb${i + 1}`,
-    metadata: { currentLanguage: null, firstTimeBonusAmount: 50, gotFirstTimeBonus: i % 2 === 0, joinedStairSequenceBonus: false, joinedStairSequenceBonusAt: null, joinedVipBonus: i % 5 === 0, joinedVipBonusAt: null, expiredVipBonusAt: null },
+    metadata: {
+      currentLanguage: null,
+      firstTimeBonusAmount: 50,
+      gotFirstTimeBonus: i % 2 === 0,
+      joinedStairSequenceBonus: false,
+      joinedStairSequenceBonusAt: null,
+      joinedVipBonus: i % 5 === 0,
+      joinedVipBonusAt: null,
+      expiredVipBonusAt: null,
+    },
     flags: { hasRequestTNGDToken: false, isRedirectedFromBrowser: false },
     buyerToken: `bt_${i + 1}`,
     pictureProfile: null,
@@ -477,7 +770,15 @@ export const mockMyCashback = Array.from({ length: 550 }, (_, i) => {
     isReSeller: i % 20 === 0,
     buyerId: `b_${i + 1}`,
     publisherId: `p_${(i % 10) + 1}`,
-    balance: [{ amount, currency: "THB", countryCode: "TH", lastUpdated: now, _id: `bal${i + 1}` }],
+    balance: [
+      {
+        amount,
+        currency: "THB",
+        countryCode: "TH",
+        lastUpdated: now,
+        _id: `bal${i + 1}`,
+      },
+    ],
     createdAt: dt,
     updatedAt: now,
     __v: 0,
@@ -486,23 +787,176 @@ export const mockMyCashback = Array.from({ length: 550 }, (_, i) => {
 
 export const mockWithdrawDetail = {
   totalsByStatusAndCurrency: [
-    { status: "approved", count: 2, totalPayout: 165, currencyBreakdown: [{ currency: "THB", amount: 165, usdAmount: 4.7, thbAmount: 165 }], totalUSD: 4.7, totalTHB: 165 },
-    { status: "pending", count: 1, totalPayout: 200, currencyBreakdown: [{ currency: "THB", amount: 200, usdAmount: 5.7, thbAmount: 200 }], totalUSD: 5.7, totalTHB: 200 },
+    {
+      status: "approved",
+      count: 2,
+      totalPayout: 165,
+      currencyBreakdown: [
+        { currency: "THB", amount: 165, usdAmount: 4.7, thbAmount: 165 },
+      ],
+      totalUSD: 4.7,
+      totalTHB: 165,
+    },
+    {
+      status: "pending",
+      count: 1,
+      totalPayout: 200,
+      currencyBreakdown: [
+        { currency: "THB", amount: 200, usdAmount: 5.7, thbAmount: 200 },
+      ],
+      totalUSD: 5.7,
+      totalTHB: 200,
+    },
   ],
   data: {
     approved: { count: 2, totalPayout: 165, items: [] },
     pending: { count: 1, totalPayout: 200, items: [] },
     rejected: { count: 0, totalPayout: 0, items: [] },
   },
-  fee: { _id: "f1", system: 5, store: 0, createdAt: lastWeek, updatedAt: now, __v: 0, fee_withdraw_usd: 1, fee_withdraw_thb: 30, minimum_withdraw_thb: 100, minimum_withdraw_usd: 5, minimum_withdraw: 100 },
+  fee: {
+    _id: "f1",
+    system: 5,
+    store: 0,
+    createdAt: lastWeek,
+    updatedAt: now,
+    __v: 0,
+    fee_withdraw_usd: 1,
+    fee_withdraw_thb: 30,
+    minimum_withdraw_thb: 100,
+    minimum_withdraw_usd: 5,
+    minimum_withdraw: 100,
+  },
   withdrawList: [
-    { _id: "w1", address: "0xABC123", account_number: "123-456-789", account_name: "Alice Smith", bank_name: "Bangkok Bank", amount_total: 1500, amount_net: 1425, percent_fee: 5, status: "approved", method: "bank_transfer", tx_hash: "0xhash1", tx_hash_record: "", user_id: "u1", conversion_id: [5001, 5002], currency: "THB", mycashback_id: [], createdAt: yesterday, updatedAt: now, __v: 0, slip_file: "" },
-    { _id: "w2", address: "0xABC123", account_number: "123-456-789", account_name: "Alice Smith", bank_name: "Bangkok Bank", amount_total: 800, amount_net: 760, percent_fee: 5, status: "pending", method: "bank_transfer", tx_hash: "", tx_hash_record: "", user_id: "u1", conversion_id: [5003], currency: "THB", mycashback_id: ["mcb1"], createdAt: now, updatedAt: now, __v: 0, slip_file: "" },
+    {
+      _id: "w1",
+      address: "0xABC123",
+      account_number: "123-456-789",
+      account_name: "Alice Smith",
+      bank_name: "Bangkok Bank",
+      amount_total: 1500,
+      amount_net: 1425,
+      percent_fee: 5,
+      status: "approved",
+      method: "bank_transfer",
+      tx_hash: "0xhash1",
+      tx_hash_record: "",
+      user_id: "u1",
+      conversion_id: [5001, 5002],
+      currency: "THB",
+      mycashback_id: [],
+      createdAt: yesterday,
+      updatedAt: now,
+      __v: 0,
+      slip_file: "",
+    },
+    {
+      _id: "w2",
+      address: "0xABC123",
+      account_number: "123-456-789",
+      account_name: "Alice Smith",
+      bank_name: "Bangkok Bank",
+      amount_total: 800,
+      amount_net: 760,
+      percent_fee: 5,
+      status: "pending",
+      method: "bank_transfer",
+      tx_hash: "",
+      tx_hash_record: "",
+      user_id: "u1",
+      conversion_id: [5003],
+      currency: "THB",
+      mycashback_id: ["mcb1"],
+      createdAt: now,
+      updatedAt: now,
+      __v: 0,
+      slip_file: "",
+    },
   ],
   allConversions: [
-    { _id: "ac1", conversion_id: 5001, __v: 0, adv_sub1: "banana_it", adv_sub2: "order_001", adv_sub3: "TH", adv_sub4: "", adv_sub5: "mobile", aff_sub1: "u1", aff_sub2: null, aff_sub3: null, aff_sub4: null, aff_sub5: null, affiliate_remarks: "", base_payout: 125, bonus_payout: 0, conversion_status: "approved", createdAt: yesterday, currency: "THB", datetime_conversion: yesterday, merchant_id: 2001, offer_id: 1001, offer_name: "Banana IT TH - CPS", payout: 125, sale_amount: 2500, updatedAt: now },
-    { _id: "ac2", conversion_id: 5002, __v: 0, adv_sub1: "banana_it", adv_sub2: "order_002", adv_sub3: "TH", adv_sub4: "", adv_sub5: "desktop", aff_sub1: "u1", aff_sub2: null, aff_sub3: null, aff_sub4: null, aff_sub5: null, affiliate_remarks: "", base_payout: 40, bonus_payout: 0, conversion_status: "approved", createdAt: yesterday, currency: "THB", datetime_conversion: yesterday, merchant_id: 2001, offer_id: 1001, offer_name: "Banana IT TH - CPS", payout: 40, sale_amount: 800, updatedAt: now },
-    { _id: "ac3", conversion_id: 5003, __v: 0, adv_sub1: "adidas", adv_sub2: "order_003", adv_sub3: "TH", adv_sub4: "flash_sale", adv_sub5: "mobile", aff_sub1: "u1", aff_sub2: null, aff_sub3: null, aff_sub4: null, aff_sub5: null, affiliate_remarks: "Pending validation", base_payout: 200, bonus_payout: 0, conversion_status: "pending", createdAt: now, currency: "THB", datetime_conversion: now, merchant_id: 2002, offer_id: 1002, offer_name: "Adidas TH - CPS", payout: 200, sale_amount: 5000, updatedAt: now },
+    {
+      _id: "ac1",
+      conversion_id: 5001,
+      __v: 0,
+      adv_sub1: "banana_it",
+      adv_sub2: "order_001",
+      adv_sub3: "TH",
+      adv_sub4: "",
+      adv_sub5: "mobile",
+      aff_sub1: "u1",
+      aff_sub2: null,
+      aff_sub3: null,
+      aff_sub4: null,
+      aff_sub5: null,
+      affiliate_remarks: "",
+      base_payout: 125,
+      bonus_payout: 0,
+      conversion_status: "approved",
+      createdAt: yesterday,
+      currency: "THB",
+      datetime_conversion: yesterday,
+      merchant_id: 2001,
+      offer_id: 1001,
+      offer_name: "Banana IT TH - CPS",
+      payout: 125,
+      sale_amount: 2500,
+      updatedAt: now,
+    },
+    {
+      _id: "ac2",
+      conversion_id: 5002,
+      __v: 0,
+      adv_sub1: "banana_it",
+      adv_sub2: "order_002",
+      adv_sub3: "TH",
+      adv_sub4: "",
+      adv_sub5: "desktop",
+      aff_sub1: "u1",
+      aff_sub2: null,
+      aff_sub3: null,
+      aff_sub4: null,
+      aff_sub5: null,
+      affiliate_remarks: "",
+      base_payout: 40,
+      bonus_payout: 0,
+      conversion_status: "approved",
+      createdAt: yesterday,
+      currency: "THB",
+      datetime_conversion: yesterday,
+      merchant_id: 2001,
+      offer_id: 1001,
+      offer_name: "Banana IT TH - CPS",
+      payout: 40,
+      sale_amount: 800,
+      updatedAt: now,
+    },
+    {
+      _id: "ac3",
+      conversion_id: 5003,
+      __v: 0,
+      adv_sub1: "adidas",
+      adv_sub2: "order_003",
+      adv_sub3: "TH",
+      adv_sub4: "flash_sale",
+      adv_sub5: "mobile",
+      aff_sub1: "u1",
+      aff_sub2: null,
+      aff_sub3: null,
+      aff_sub4: null,
+      aff_sub5: null,
+      affiliate_remarks: "Pending validation",
+      base_payout: 200,
+      bonus_payout: 0,
+      conversion_status: "pending",
+      createdAt: now,
+      currency: "THB",
+      datetime_conversion: now,
+      merchant_id: 2002,
+      offer_id: 1002,
+      offer_name: "Adidas TH - CPS",
+      payout: 200,
+      sale_amount: 5000,
+      updatedAt: now,
+    },
   ],
   user: {
     _id: "u1",
@@ -536,7 +990,11 @@ export const mockWithdrawDetail = {
     totalCashbackCurrency: "THB",
     userLog: [
       { action: "Login", at: "2026-03-14T10:30:00Z", ip: "192.168.1.1" },
-      { action: "Withdraw requested", at: "2026-03-13T15:00:00Z", ip: "192.168.1.1" },
+      {
+        action: "Withdraw requested",
+        at: "2026-03-13T15:00:00Z",
+        ip: "192.168.1.1",
+      },
       { action: "Login", at: "2026-03-12T09:15:00Z", ip: "192.168.1.2" },
     ],
   },

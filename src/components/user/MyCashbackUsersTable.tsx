@@ -7,6 +7,7 @@ import type { MyCashbackResponse } from "@/types/user";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import CopyButton from "@/components/ui/CopyButton";
 
 const PAGE_SIZE = 12;
 
@@ -72,7 +73,9 @@ export default function MyCashbackUsersTable() {
   const navigateToWithdrawDetail = useCallback(
     (u: MyCashbackResponse) => {
       const displayName =
-        [u.firstName, u.lastName].filter(Boolean).join(" ").trim() || u.email || "User";
+        [u.firstName, u.lastName].filter(Boolean).join(" ").trim() ||
+        u.email ||
+        "User";
       const params = new URLSearchParams({
         from: "mycashback",
         name: displayName,
@@ -99,7 +102,7 @@ export default function MyCashbackUsersTable() {
           placeholder="Search by name, email, phone, buyer ID…"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
-          className="h-11 w-full rounded-lg border border-gray-200 bg-transparent px-5 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:ring-brand-500/20 focus:outline-hidden xl:w-[320px] dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400 dark:focus:ring-brand-400/30"
+          className="focus:ring-brand-500/20 dark:focus:ring-brand-400/30 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-5 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden xl:w-[320px] dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400"
         />
       </div>
 
@@ -135,9 +138,6 @@ export default function MyCashbackUsersTable() {
                       Phone
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
-                      Buyer ID
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                       Balance
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
@@ -152,7 +152,7 @@ export default function MyCashbackUsersTable() {
                   {rows.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={7}
+                        colSpan={6}
                         className="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400"
                       >
                         No MyCashBack users match your search.
@@ -177,31 +177,16 @@ export default function MyCashbackUsersTable() {
                             </div>
                             <div className="ml-4">
                               <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                {[u.firstName, u.lastName].filter(Boolean).join(" ") || u.email}
+                                {[u.firstName, u.lastName]
+                                  .filter(Boolean)
+                                  .join(" ") || u.email}
                               </div>
-                              <div className="text-sm text-gray-500 dark:text-gray-400">
-                                ID: {u._id}
-                              </div>
-                              <div className="text-sm text-gray-500 dark:text-gray-400">
-                                Address: {u.address ? u.address : "-"}
-                              </div>
-                              <div className="text-sm text-gray-500 dark:text-gray-400">
-                                Mobile: {u.phoneNumber ? u.phoneNumber : "-"}
-                              </div>
-                              <div className="text-sm text-gray-500 dark:text-gray-400">
-                                birthdate:{" "}
-                                {u.dateOfBirth
-                                  ? String(u.dateOfBirth)
-                                  : "-"}
-                              </div>
-                              <div className="text-sm text-gray-500 dark:text-gray-400">
-                                gender: {u.gender ? u.gender : "-"}
-                              </div>
-                              <div className="text-sm text-gray-500 dark:text-gray-400">
-                                Date Login:{" "}
-                                {u.updatedAt
-                                  ? `${new Date(u.updatedAt).toLocaleDateString()} ${new Date(u.updatedAt).toLocaleTimeString()}`
-                                  : "-"}
+                              <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
+                                <span>ID: {u._id}</span>
+                                <CopyButton
+                                  value={u._id}
+                                  title="Copy user ID"
+                                />
                               </div>
                             </div>
                           </div>
@@ -209,13 +194,10 @@ export default function MyCashbackUsersTable() {
                         <td className="max-w-[200px] truncate px-6 py-4 text-sm text-gray-800 dark:text-gray-200">
                           {u.email}
                         </td>
-                        <td className="whitespace-nowrap px-6 py-4 font-mono text-sm text-gray-800 dark:text-gray-200">
+                        <td className="px-6 py-4 font-mono text-sm whitespace-nowrap text-gray-800 dark:text-gray-200">
                           {u.phoneNumber}
                         </td>
-                        <td className="whitespace-nowrap px-6 py-4 font-mono text-xs text-gray-700 dark:text-gray-300">
-                          {u.buyerId}
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-800 dark:text-gray-200">
+                        <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-800 dark:text-gray-200">
                           {primaryBalance(u)}
                         </td>
                         <td className="px-6 py-4">
@@ -236,7 +218,7 @@ export default function MyCashbackUsersTable() {
                               e.stopPropagation();
                               navigateToWithdrawDetail(u);
                             }}
-                            className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                            className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium whitespace-nowrap text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                           >
                             View info
                           </button>

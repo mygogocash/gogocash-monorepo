@@ -16,6 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import Badge from "@/components/ui/badge/Badge";
+import { formatDate } from "@/lib/dateFormat";
 import { Modal } from "@/components/ui/modal";
 import Label from "@/components/form/Label";
 import Input from "@/components/form/input/InputField";
@@ -488,7 +489,7 @@ export default function QuestTable() {
     if (!pointsModalQuest || !pointsModalPrepared) return;
     const rows = pointsModalPrepared.sorted;
     const slug = pointsModalQuest.id.slice(-8);
-    const questTitle = `Quest ${pointsModalQuest.id} (${pointsModalQuest.startDate} – ${pointsModalQuest.endDate})`;
+    const questTitle = `Quest ${pointsModalQuest.id} (${formatDate(pointsModalQuest.startDate)} – ${formatDate(pointsModalQuest.endDate)})`;
     if (format === "markdown") {
       const text = exportAsMarkdown(rows, questTitle);
       downloadBlob(
@@ -589,10 +590,10 @@ export default function QuestTable() {
                   </span>
                 </TableCell>
                 <TableCell className="text-theme-sm py-3 text-center whitespace-nowrap text-gray-600 dark:text-gray-300">
-                  {q.startDate}
+                  {formatDate(q.startDate)}
                 </TableCell>
                 <TableCell className="text-theme-sm py-3 text-center whitespace-nowrap text-gray-600 dark:text-gray-300">
-                  {q.endDate}
+                  {formatDate(q.endDate)}
                 </TableCell>
                 <TableCell className="py-3 text-center whitespace-nowrap">
                   <Badge
@@ -656,12 +657,12 @@ export default function QuestTable() {
                 className="mt-1 max-w-full text-sm break-words text-gray-500 dark:text-gray-400"
                 title={
                   pointsModalQuest
-                    ? `Quest ${pointsModalQuest.id} (${pointsModalQuest.startDate} – ${pointsModalQuest.endDate})`
+                    ? `Quest ${pointsModalQuest.id} (${formatDate(pointsModalQuest.startDate)} – ${formatDate(pointsModalQuest.endDate)})`
                     : undefined
                 }
               >
                 {pointsModalQuest
-                  ? `Quest ${pointsModalQuest.id} (${pointsModalQuest.startDate} – ${pointsModalQuest.endDate})`
+                  ? `Quest ${pointsModalQuest.id} (${formatDate(pointsModalQuest.startDate)} – ${formatDate(pointsModalQuest.endDate)})`
                   : ""}
               </p>
             </div>
@@ -1071,7 +1072,7 @@ export default function QuestTable() {
                       />
                     ) : (
                       <dd className="mt-1 text-gray-800 dark:text-white/90">
-                        {detailsModalQuest.startDate}
+                        {formatDate(detailsModalQuest.startDate)}
                       </dd>
                     )}
                   </div>
@@ -1095,7 +1096,7 @@ export default function QuestTable() {
                       />
                     ) : (
                       <dd className="mt-1 text-gray-800 dark:text-white/90">
-                        {detailsModalQuest.endDate}
+                        {formatDate(detailsModalQuest.endDate)}
                       </dd>
                     )}
                   </div>
