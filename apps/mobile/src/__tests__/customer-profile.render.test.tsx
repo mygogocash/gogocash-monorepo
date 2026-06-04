@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { createElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // CustomerProfileScreen pulls in AccountPageShell -> CustomerDesktopHeader ->
 // CustomerLocaleRegionControl -> i18n/LocaleProvider, which reaches expo-localization
@@ -27,8 +27,25 @@ vi.mock("@mobile/observability/client", () => ({
   resetObservabilityIdentity: vi.fn(),
 }));
 
+// Wave 3: /profile is now responsive — the rich ProfileInfoPanel renders on desktop
+// (useWindowDimensions().width >= mobileShellLayout.desktopBreakpoint, =1024), the hub
+// otherwise. Both CustomerProfileScreen AND AccountPageShell read useWindowDimensions,
+// so to drive the desktop branch deterministically we mock that ONE react-native export
+// (keeping every other export real -> react-native-web), then mutate `viewport.width`
+// per-test. Defaults to a mobile width so the existing hub tests are unaffected.
+const viewport = { width: 375, height: 812, scale: 2, fontScale: 1 };
+vi.mock("react-native", async () => {
+  const actual = await vi.importActual<typeof import("react-native")>("react-native");
+  return {
+    ...actual,
+    useWindowDimensions: () => viewport,
+  };
+});
+
 import { ToastProvider } from "@mobile/components/Toast";
-import { CustomerProfileScreen } from "@mobile/screens/CustomerProfileScreen";
+// Imported AFTER the react-native mock is registered (vi.mock is hoisted, so this
+// dynamic import still sees the mocked useWindowDimensions).
+const { CustomerProfileScreen } = await import("@mobile/screens/CustomerProfileScreen");
 
 // Wave B (B2) per-screen UX adoption for the account-hub screen. RENDER suite: it
 // MOUNTS the screen (react-native -> react-native-web, happy-dom) to prove the hub
@@ -58,6 +75,12 @@ function renderScreen() {
     )
   );
 }
+
+// Each test starts at the mobile width so the responsive branch is deterministic and
+// the desktop test cannot leak its 1440 width into the hub tests.
+beforeEach(() => {
+  viewport.width = 375;
+});
 
 describe("CustomerProfileScreen (render)", () => {
   it("mounts the account hub without throwing inside a QueryClientProvider", () => {
@@ -92,5 +115,29 @@ describe("CustomerProfileScreen — Wave B foundations adopted (source signals)"
     // The Copy Link MotionPressable is only 24px tall (styles.copyButton height: 24);
     // hitSlop expands the tappable area to a comfortable touch target.
     expect(profileSource).toContain("hitSlop=");
+  });
+});
+
+describe("CustomerProfileScreen — responsive desktop panel (render)", () => {
+  it("renders the rich ProfileInfoPanel cashback breakdown rows at desktop width (>= 1024)", () => {
+    // Drive the desktop branch: width 1440 >= mobileShellLayout.desktopBreakpoint (1024),
+    // so CustomerProfileScreen mounts <ProfileInfoPanel> instead of the account hub. The
+    // panel's cashback card renders the BALANCE BREAKDOWN rows from webProfileInfoCashbackCard.
+    // (useCopy is stubbed to a passthrough in the render harness, so labels render verbatim.)
+    viewport.width = 1440;
+    renderScreen();
+
+    expect(screen.getByText("Linked My Cashback")).toBeTruthy();
+    expect(screen.getByText("GoGoCash balance")).toBeTruthy();
+  });
+
+  it("renders the hub (not the desktop panel) at mobile width", () => {
+    // Counterpart guard: at the default mobile width the hub renders and the desktop-only
+    // breakdown rows are absent — proving the branch is width-driven, not always-on.
+    viewport.width = 375;
+    renderScreen();
+
+    expect(screen.getByText("Invite your Friends")).toBeTruthy();
+    expect(screen.queryByText("Linked My Cashback")).toBeNull();
   });
 });

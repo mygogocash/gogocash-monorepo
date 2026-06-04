@@ -310,8 +310,14 @@ describe("Account hub route parity", () => {
     expect(bottomNavFile).toContain('name === "profile" && active');
   });
 
-  it("profile info page > given staging mobile subpage > then Expo renders wallet summary cashback summary and personal information", () => {
+  it("profile info page > given staging mobile subpage > then Expo renders the shared rich panel (cashback summary + personal information)", () => {
+    // Wave 3 (panel extraction): the cashback-summary + personal-info sections — and
+    // their strings — moved OUT of CustomerProfileDetailScreen into the shared
+    // src/components/ProfileInfoPanel.tsx so /profile (desktop) and /profile/info can't
+    // drift. The detail screen now just mounts <ProfileInfoPanel> inside its shell +
+    // top bar, so the moved-string assertions read the panel module, not the screen.
     const detailFile = readMobileFile("src/screens/CustomerProfileDetailScreen.tsx");
+    const panelFile = readMobileFile("src/components/ProfileInfoPanel.tsx");
     const designFile = readMobileFile("src/design/webDesignParity.ts");
 
     expect(designFile).toContain("webProfileInfoCashbackCard");
@@ -321,20 +327,48 @@ describe("Account hub route parity", () => {
     expect(designFile).toContain("675.00");
     expect(designFile).toContain("GoGoCash balance");
     expect(designFile).toContain("2,505.24");
+
+    // Detail screen: keeps the sub-page shell + back top bar and now delegates the
+    // rich body to the shared panel.
     expect(detailFile).toContain("ProfileInfoSubPage");
     expect(detailFile).toContain("ProfileInfoTopBar");
-    expect(detailFile).toContain("ProfileCashbackSummaryCard");
-    expect(detailFile).toContain("ProfilePersonalInformationPanel");
+    expect(detailFile).toContain("ProfileInfoPanel");
     expect(detailFile).toContain("AccountPageShell");
     expect(detailFile).toContain('activeRouteId="profile"');
-    expect(detailFile).toContain("AccountWalletHeroCard");
-    expect(detailFile).toContain("webProfileWalletSummary");
-    expect(detailFile).toContain("webProfileInfoCashbackCard");
     expect(detailFile).toContain('href="/profile"');
-    expect(detailFile).toContain("Personal Information");
-    expect(detailFile).toContain("AVAILABLE TO WITHDRAW");
     expect(detailFile).not.toContain("<Text style={styles.infoTitle}>Personal Info</Text>");
     expect(detailFile).not.toContain("Back to profile");
+
+    // Shared panel: now owns the cashback-summary + personal-information sections and
+    // their parity strings (moved here from the detail screen).
+    expect(panelFile).toContain("ProfileCashbackSummaryCard");
+    expect(panelFile).toContain("ProfilePersonalInformationPanel");
+    expect(panelFile).toContain("webProfileInfoCashbackCard");
+    expect(panelFile).toContain("Personal Information");
+    expect(panelFile).toContain("AVAILABLE TO WITHDRAW");
+    // The new hero replaces the generic AccountWalletHeroCard on this surface; the
+    // panel composes ProfileHeroCard, which carries the wallet-summary fallback.
+    expect(panelFile).toContain("ProfileHeroCard");
+    const heroFile = readMobileFile("src/components/ProfileHeroCard.tsx");
+    expect(heroFile).toContain("webProfileWalletSummary");
+  });
+
+  it("profile desktop panel > given web responsive /profile > then CustomerProfileScreen renders ProfileInfoPanel on desktop and the hub otherwise", () => {
+    // Wave 3 wiring: /profile is now responsive like the web — the rich ProfileInfoPanel
+    // on desktop (width >= mobileShellLayout.desktopBreakpoint), the existing account hub
+    // on mobile.
+    const profileFile = readMobileFile("src/screens/CustomerProfileScreen.tsx");
+
+    expect(profileFile).toContain("useWindowDimensions");
+    expect(profileFile).toContain("mobileShellLayout.desktopBreakpoint");
+    expect(profileFile).toContain("const isDesktop = width >= mobileShellLayout.desktopBreakpoint");
+    expect(profileFile).toContain("ProfileInfoPanel");
+    expect(profileFile).toContain('from "@mobile/components/ProfileInfoPanel"');
+    // Desktop branch renders the shared panel; the falsy branch keeps the hub stack.
+    expect(profileFile).toContain("isDesktop ? (");
+    expect(profileFile).toContain("<ProfileInfoPanel");
+    expect(profileFile).toContain("profileHubStack");
+    expect(profileFile).toContain("AccountWalletHeroCard");
   });
 
   it("credit score page > given staging GoGoPass score screen > then Expo renders the real rating score flow", () => {

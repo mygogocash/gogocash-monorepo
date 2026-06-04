@@ -185,7 +185,14 @@ const frontendFlowContracts: FrontendFlowContract[] = [
     ],
     routeId: "profileInfo",
     routeMarkers: ["CustomerProfileDetailScreen", 'mode="info"'],
-    screenFiles: ["src/screens/CustomerProfileDetailScreen.tsx"],
+    // Wave 3: the personal-info + cashback-summary sections and the /withdraw link moved
+    // out of the detail screen into the shared ProfileInfoPanel (so /profile desktop and
+    // /profile/info share one source). Include the panel here so these landmarks/links
+    // resolve at their new home; the detail screen still carries the /profile back link.
+    screenFiles: [
+      "src/screens/CustomerProfileDetailScreen.tsx",
+      "src/components/ProfileInfoPanel.tsx",
+    ],
     userFlow:
       "Customer views and edits personal information, cashback summary, tax ID, and profile details.",
   },
