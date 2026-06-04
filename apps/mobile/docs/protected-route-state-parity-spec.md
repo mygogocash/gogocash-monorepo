@@ -1,6 +1,14 @@
 # Executive Summary
 Expo protected routes need one shared state surface for startup loading, guarded route checks, unauthenticated redirects, offline retry, backend-data blocking, and auth callback handoff states.
 
+> **Update (June 2026):** Protected-route gating moved from the `AuthRouteGuard` wrapper
+> (which unmounted the navigator and collapsed protected-route taps back to home) to
+> expo-router native `Stack.Protected` in `app/_layout.tsx` (commit `5886012`), with the
+> `/profile` tab self-guarding via `<Redirect>`. `AuthRouteGuard` is retired; its
+> offline-retry and unauthenticated route-state variants are no longer rendered —
+> unauthenticated access now redirects to `/login`. `CustomerRouteState` is still used for
+> the startup splash and the auth-callback states. The sections below describe the original slice.
+
 # Business Goals
 Keep customer account flows aligned with the Next.js reference by preventing blank screens and inconsistent protected-route copy while session state is being resolved.
 
@@ -22,7 +30,7 @@ Keep customer account flows aligned with the Next.js reference by preventing bla
 - No redesign of content-specific empty states such as wallet transactions.
 
 # Architecture
-`CustomerRouteState` owns the visual contract. `AppProviders`, `AuthRouteGuard`, and `CustomerAuthCallbackScreen` consume it instead of duplicating local loading cards.
+`CustomerRouteState` owns the visual contract. `AppProviders` (startup loading) and `CustomerAuthCallbackScreen` consume it instead of duplicating local loading cards. (Protected-route gating later moved from the `AuthRouteGuard` wrapper to native `Stack.Protected` — see the Update note above.)
 
 # Data Models
 No persisted data model changes.
@@ -45,7 +53,7 @@ Protected routes continue to redirect through sanitized internal callback paths 
 - Full mobile gate after implementation.
 
 # Rollback Plan
-Revert `CustomerRouteState` usage in `AppProviders`, `AuthRouteGuard`, and `CustomerAuthCallbackScreen`; the previous local cards and null font-loading state can be restored without data migration.
+Revert `CustomerRouteState` usage in `AppProviders` and `CustomerAuthCallbackScreen`; the previous local cards and null font-loading state can be restored without data migration.
 
 # Milestones
 - Milestone 1: Add RED route-state parity coverage.
