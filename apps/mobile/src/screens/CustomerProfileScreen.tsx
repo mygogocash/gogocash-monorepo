@@ -1,25 +1,14 @@
 import { Link, useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  BadgeCheck as BadgeCheckIcon,
   ChevronDown as ChevronDownIcon,
   ChevronUp as ChevronUpIcon,
-  CircleHelp as HelpIcon,
   Copy as CopyIcon,
   ExternalLink as ExternalLinkIcon,
-  FileQuestion as MissingOrdersIcon,
-  FileText as FileTextIcon,
-  Globe2 as GlobeIcon,
-  Heart as HeartIcon,
   LogOut as LogOutIcon,
-  ShieldCheck as ShieldCheckIcon,
-  Star as GoGoPassIcon,
-  Trophy as QuestIcon,
   UserPlus as InviteIcon,
   UserRound as ProfileIcon,
-  WalletCards as WalletIcon,
 } from "@mobile/theme/icons";
-import type { ComponentType } from "react";
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
@@ -41,29 +30,7 @@ import {
 } from "@mobile/design/webDesignParity";
 import { resetObservabilityIdentity } from "@mobile/observability/client";
 import { colors, radii, spacing, typography } from "@mobile/theme/tokens";
-
-type ProfileMenuIcon = ComponentType<{
-  color?: string;
-  size?: number;
-  strokeWidth?: number;
-}>;
-
-const profileMenuIcons: Record<string, ProfileMenuIcon> = {
-  "Age Verification": BadgeCheckIcon,
-  "Connect with GoGoCash": GlobeIcon,
-  "Consent Preferences": ShieldCheckIcon,
-  "Favorite Brands": HeartIcon,
-  "GoGoQuest History": QuestIcon,
-  "Help Center": HelpIcon,
-  GoGoPass: GoGoPassIcon,
-  "Invite your Friends": InviteIcon,
-  "Missing Orders": MissingOrdersIcon,
-  "My Wallet": WalletIcon,
-  Profile: ProfileIcon,
-  "Privacy Policy": ShieldCheckIcon,
-  "Terms of Service": FileTextIcon,
-  "Terms of Use": FileTextIcon,
-};
+import { getProfileMenuIcon, type ProfileMenuIcon } from "@mobile/components/profileMenuIcons";
 
 export function CustomerProfileScreen() {
   const tc = useCopy();
@@ -308,10 +275,6 @@ function ProfileNavRow({
       </MotionPressable>
     </Link>
   );
-}
-
-function getProfileMenuIcon(label: string): ProfileMenuIcon {
-  return profileMenuIcons[label] ?? FileTextIcon;
 }
 
 function getSessionWalletSummary(session: ReturnType<typeof useMobileSessionSnapshot>) {
