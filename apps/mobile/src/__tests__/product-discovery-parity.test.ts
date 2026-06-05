@@ -47,7 +47,7 @@ describe("Product discovery parity", () => {
       subtitle: "Find the best cashback deals by products.",
       searchLabel: "Search partners",
       searchPlaceholder: "Search by store or product…",
-      resultsUnit: "products",
+      resultsUnit: "brands",
       termsLabel: "Learn more about T&C",
       emptyTitle: "No partners found. Try adjusting your filters.",
       pagination: { pageSize: 60 },

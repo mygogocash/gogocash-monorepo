@@ -80,7 +80,7 @@ function getVisibleStoreCountLabel(count: number) {
     return webCategoryExploreHealthBeauty.storeCountLabel;
   }
 
-  return `${count} ${count === 1 ? "store" : "stores"} in this category`;
+  return `${count} ${count === 1 ? "brand" : "brands"} in this category`;
 }
 
 function getCategoryGridMetrics({
@@ -145,7 +145,7 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
   // and other categories fall back to English. Not split into fragments (would be ungrammatical in Thai).
   const title = tc(`Explore your Favorite ${category}`);
   const subtitle = tc(
-    `Find cashback deals from stores in ${category}. Search and sort to narrow results.`
+    `Find cashback deals from brands in ${category}. Search and sort to narrow results.`
   );
   const searchPlaceholder = tc(`Search within ${category}`);
 

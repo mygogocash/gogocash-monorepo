@@ -34,10 +34,10 @@ describe("Category detail parity", () => {
       category: "Health & Beauty",
       title: "Explore your Favorite Health & Beauty",
       subtitle:
-        "Find cashback deals from stores in Health & Beauty. Search and sort to narrow results.",
+        "Find cashback deals from brands in Health & Beauty. Search and sort to narrow results.",
       searchPlaceholder: "Search within Health & Beauty",
       sortLabel: "Sort by:",
-      storeCountLabel: "13 stores in this category",
+      storeCountLabel: "13 brands in this category",
       categories: [
         "All",
         "Digital Services",
@@ -158,5 +158,28 @@ describe("Category detail parity", () => {
     );
     // Guard against regression to the old 4 -> 6 jump that skipped the lg 5-col tier.
     expect(screenFile).not.toMatch(/viewportWidth >= 1280\s*\?\s*6\s*:\s*4\b/);
+  });
+
+  it("category detail copy > given the rendered subtitle and count > then they say 'brands' (not 'stores') and the subtitle matches the fixture", () => {
+    const screenFile = fs.readFileSync(
+      path.join(mobileRoot, "src/screens/CustomerCategoryDetailScreen.tsx"),
+      "utf8"
+    );
+    // The screen renders an INLINE tc() template for the subtitle and an inline template for the
+    // filtered count — NOT the fixture. Pin both so the user-facing copy says "brands" and cannot
+    // silently drift from the fixture (asserting the fixture alone missed exactly this).
+    expect(screenFile).toContain("Find cashback deals from brands in ${category}");
+    expect(screenFile).not.toContain("Find cashback deals from stores in");
+    expect(screenFile).toContain('count === 1 ? "brand" : "brands"');
+    expect(screenFile).not.toContain('"store" : "stores"');
+
+    // tc() only resolves the localized Health & Beauty subtitle when the inline template's output
+    // (category interpolated) equals this fixture — so they must stay in lockstep.
+    const fixture = (
+      webDesignParity as { webCategoryExploreHealthBeauty: { subtitle: string } }
+    ).webCategoryExploreHealthBeauty;
+    expect(fixture.subtitle).toBe(
+      "Find cashback deals from brands in Health & Beauty. Search and sort to narrow results."
+    );
   });
 });
