@@ -2359,7 +2359,7 @@ export const webProductDiscovery = {
       title: store.brand,
     };
   }),
-  resultsUnit: "products",
+  resultsUnit: "brands",
   searchLabel: "Search partners",
   searchPlaceholder: "Search by store or product…",
   sortLabel: "Sort by:",
@@ -2447,10 +2447,10 @@ export const webCategoryExploreHealthBeauty = {
   category: "Health & Beauty",
   title: "Explore your Favorite Health & Beauty",
   subtitle:
-    "Find cashback deals from stores in Health & Beauty. Search and sort to narrow results.",
+    "Find cashback deals from brands in Health & Beauty. Search and sort to narrow results.",
   searchPlaceholder: "Search within Health & Beauty",
   sortLabel: "Sort by:",
-  storeCountLabel: "13 stores in this category",
+  storeCountLabel: "13 brands in this category",
   categories: [
     "All",
     "Digital Services",
