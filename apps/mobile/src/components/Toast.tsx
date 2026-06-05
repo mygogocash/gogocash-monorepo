@@ -142,7 +142,9 @@ const styles = StyleSheet.create({
     maxWidth: 480,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
-    ...shadows.card,
+    // Use the boxShadow token (cross-platform on RN 0.85; react-native-web
+    // deprecates the spread-in shadow* props) to match the app-wide card pattern.
+    boxShadow: shadows.cardCss,
   },
   text: {
     color: colors.white,
