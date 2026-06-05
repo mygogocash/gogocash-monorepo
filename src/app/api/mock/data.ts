@@ -154,6 +154,10 @@ export const mockUsers = Array.from({ length: 550 }, (_, i) => {
         : i % 4 === 2
           ? "Annual Premium"
           : undefined,
+    // First 80 users carry a credit score (single source consumed by buildCreditRows
+    // in mockAdminFeatures); the tier is derived via tierFromScore so the Users table
+    // matches the Credit Score module.
+    creditScore: i < 80 ? 200 + ((i * 13) % 650) : undefined,
   };
 });
 

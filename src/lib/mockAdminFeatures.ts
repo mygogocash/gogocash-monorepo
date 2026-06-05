@@ -3,6 +3,7 @@
  * Routed from `handleMockApiRequest` when path starts with `admin/<feature>/...`.
  */
 import { mockUsers } from "@/app/api/mock/data";
+import { tierFromScore } from "@/lib/creditTier";
 
 /** Same shape as `MockApiInput` in mockApiCore (avoid circular import). */
 export type AdminFeatureMockInput = {
@@ -46,20 +47,16 @@ export type CreditScoreRow = {
   factors: { name: string; weight: number; contribution: number }[];
 };
 
-function tierFromScore(s: number): CreditTier {
-  if (s >= 800) return "platinum";
-  if (s >= 600) return "gold";
-  if (s >= 300) return "silver";
-  return "bronze";
-}
-
 function buildCreditRows(): CreditScoreRow[] {
   return mockUsers.slice(0, 80).map((u, i) => {
-    const base = 200 + (i * 13) % 650;
+    const base = u.creditScore ?? 200 + ((i * 13) % 650);
     const history = Array.from({ length: 12 }, (_, m) => {
       const d = new Date();
       d.setMonth(d.getMonth() - (11 - m));
-      return { date: d.toISOString().slice(0, 10), score: Math.max(0, base - 20 + (m * 3) % 40) };
+      return {
+        date: d.toISOString().slice(0, 10),
+        score: Math.max(0, base - 20 + ((m * 3) % 40)),
+      };
     });
     return {
       userId: u._id,
@@ -92,7 +89,13 @@ let scoringConfig = {
 };
 const creditAuditByUser: Record<
   string,
-  { adminId: string; fromScore: number; toScore: number; reason: string; timestamp: string }[]
+  {
+    adminId: string;
+    fromScore: number;
+    toScore: number;
+    reason: string;
+    timestamp: string;
+  }[]
 > = {};
 
 type MembershipTier = {
@@ -163,7 +166,9 @@ let userMemberships: UserMembership[] = mockUsers.slice(0, 35).map((u, i) => ({
   tierId: i % 3 === 0 ? "tier_plus" : "tier_basic",
   tierName: i % 3 === 0 ? "GoGoPass Plus" : "Basic",
   startDate: new Date(Date.now() - i * 86400000 * 4).toISOString().slice(0, 10),
-  expiryDate: new Date(Date.now() + (90 - i) * 86400000).toISOString().slice(0, 10),
+  expiryDate: new Date(Date.now() + (90 - i) * 86400000)
+    .toISOString()
+    .slice(0, 10),
   autoRenew: i % 2 === 0,
   status: i % 11 === 0 ? "pending" : i % 13 === 0 ? "cancelled" : "active",
 }));
@@ -220,28 +225,34 @@ type SubscriptionRow = {
   autoRenew: boolean;
 };
 
-let subscriptions: SubscriptionRow[] = mockUsers.slice(20, 55).map((u, i) => {
-  const status: SubscriptionRow["status"] =
-    i % 9 === 0 ? "past_due" : i % 7 === 0 ? "paused" : "active";
-  return {
-    id: `sub_${u._id}`,
-    userId: u._id,
-    userName: u.username,
-    email: u.email,
-    planId: i % 2 === 0 ? "plan_monthly" : "plan_annual",
-    planName: i % 2 === 0 ? "Monthly Premium" : "Annual Premium",
-    startDate: new Date(Date.now() - i * 86400000 * 6)
-      .toISOString()
-      .slice(0, 10),
-    nextBillingDate: new Date(Date.now() + 86400000 * (15 + i))
-      .toISOString()
-      .slice(0, 10),
-    amount: i % 2 === 0 ? 149 : 1490,
-    paymentMethod: i % 3 === 0 ? "card" : "promptpay",
-    status,
-    autoRenew: status === "active",
-  };
-});
+// Derive subscription records from each user's `subscriptionPlan` (the single
+// source the Users table and user-info page read), so the subscription module,
+// the Users table, and the per-user Benefits section all agree on who is subscribed.
+let subscriptions: SubscriptionRow[] = mockUsers
+  .filter((u) => u.subscriptionPlan)
+  .map((u, i) => {
+    const status: SubscriptionRow["status"] =
+      i % 9 === 0 ? "past_due" : i % 7 === 0 ? "paused" : "active";
+    const isMonthly = u.subscriptionPlan === "Monthly Premium";
+    return {
+      id: `sub_${u._id}`,
+      userId: u._id,
+      userName: u.username,
+      email: u.email,
+      planId: isMonthly ? "plan_monthly" : "plan_annual",
+      planName: u.subscriptionPlan as string,
+      startDate: new Date(Date.now() - i * 86400000 * 6)
+        .toISOString()
+        .slice(0, 10),
+      nextBillingDate: new Date(Date.now() + 86400000 * (15 + i))
+        .toISOString()
+        .slice(0, 10),
+      amount: isMonthly ? 149 : 1490,
+      paymentMethod: i % 3 === 0 ? "card" : "promptpay",
+      status,
+      autoRenew: status === "active",
+    };
+  });
 
 let referralConfig = {
   referrerRewardType: "fixed" as const,
@@ -274,7 +285,14 @@ let referrals: ReferralRow[] = mockUsers.slice(0, 25).map((u, i) => {
     refereeId: ref._id,
     refereeName: ref.username,
     date: new Date(Date.now() - i * 86400000 * 2).toISOString(),
-    status: i % 4 === 0 ? "pending" : i % 4 === 1 ? "qualified" : i % 4 === 2 ? "paid" : "rejected",
+    status:
+      i % 4 === 0
+        ? "pending"
+        : i % 4 === 1
+          ? "qualified"
+          : i % 4 === 2
+            ? "paid"
+            : "rejected",
     referrerRewardPaid: i % 4 === 2 ? 50 : 0,
     refereeRewardPaid: i % 4 === 2 ? 30 : 0,
     qualifyingTransactionId: i % 4 === 0 ? null : `tx_${1000 + i}`,
@@ -291,10 +309,20 @@ type MissingClaim = {
   expectedCashback: number;
   overrideCashback: number | null;
   submittedDate: string;
-  status: "pending" | "under_review" | "approved" | "rejected" | "info_requested";
+  status:
+    | "pending"
+    | "under_review"
+    | "approved"
+    | "rejected"
+    | "info_requested";
   assignedTo: string | null;
   evidence: string[];
-  notes: { adminId: string; adminName: string; note: string; timestamp: string }[];
+  notes: {
+    adminId: string;
+    adminName: string;
+    note: string;
+    timestamp: string;
+  }[];
   rejectionReason: string | null;
 };
 
@@ -308,7 +336,9 @@ let missingClaims: MissingClaim[] = Array.from({ length: 18 }, (_, i) => ({
   expectedCashback: 25 + i * 5,
   overrideCashback: null,
   submittedDate: new Date(Date.now() - i * 86400000).toISOString(),
-  status: ["pending", "under_review", "approved", "rejected"][i % 4] as MissingClaim["status"],
+  status: ["pending", "under_review", "approved", "rejected"][
+    i % 4
+  ] as MissingClaim["status"],
   assignedTo: i % 2 === 0 ? "a1" : null,
   evidence: ["/images/merchant-logos/gadgethub-th.png"],
   notes: [],
@@ -339,7 +369,15 @@ let wallets: WalletRow[] = mockUsers.slice(0, 40).map((u, i) => ({
 
 const walletAdjustments: Record<
   string,
-  { walletId: string; type: "credit" | "debit"; amount: number; currency: string; reason: string; adminId: string; timestamp: string }[]
+  {
+    walletId: string;
+    type: "credit" | "debit";
+    amount: number;
+    currency: string;
+    reason: string;
+    adminId: string;
+    timestamp: string;
+  }[]
 > = {};
 
 type TxRow = {
@@ -364,19 +402,27 @@ let transactions: TxRow[] = Array.from({ length: 60 }, (_, i) => ({
   userId: mockUsers[i % 30]._id,
   userName: mockUsers[i % 30].username,
   merchantId: `m_${i % 5}`,
-  merchantName: ["GadgetHub", "StyleMart", "StayPlus", "FoodMart", "TechWorld"][i % 5],
+  merchantName: ["GadgetHub", "StyleMart", "StayPlus", "FoodMart", "TechWorld"][
+    i % 5
+  ],
   amount: 200 + i * 45,
   cashbackEarned: 10 + (i % 8) * 3,
   type: (["purchase", "refund", "adjustment", "transfer"] as const)[i % 4],
   paymentMethod: i % 2 === 0 ? "card" : "wallet",
-  status: (["completed", "pending", "failed", "disputed"] as const)[i % 6 === 0 ? 3 : 0],
+  status: (["completed", "pending", "failed", "disputed"] as const)[
+    i % 6 === 0 ? 3 : 0
+  ],
   date: new Date(Date.now() - i * 7200000).toISOString(),
   metadata: { channel: "app" },
   isFlagged: i % 11 === 0,
   flagReason: i % 11 === 0 ? "User dispute" : null,
 }));
 
-type DiscoverType = "hero_banner" | "featured_merchant" | "featured_category" | "trending_offer";
+type DiscoverType =
+  | "hero_banner"
+  | "featured_merchant"
+  | "featured_category"
+  | "trending_offer";
 
 type DiscoverItem = {
   id: string;
@@ -497,13 +543,30 @@ type BlackRow = {
   notes: string;
 };
 
-let blacklist: BlackRow[] = [{ id: "bl1", keyword: "scam", addedBy: "a1", addedDate: "2026-03-01", notes: "Fraud pattern" }];
+let blacklist: BlackRow[] = [
+  {
+    id: "bl1",
+    keyword: "scam",
+    addedBy: "a1",
+    addedDate: "2026-03-01",
+    notes: "Fraud pattern",
+  },
+];
 
-function filterCreditRows(search: string, tier: string, minS: number, maxS: number): CreditScoreRow[] {
+function filterCreditRows(
+  search: string,
+  tier: string,
+  minS: number,
+  maxS: number,
+): CreditScoreRow[] {
   return creditScoreRows.filter((r) => {
     if (search) {
       const s = search.toLowerCase();
-      if (!r.email.toLowerCase().includes(s) && !r.userName.toLowerCase().includes(s)) return false;
+      if (
+        !r.email.toLowerCase().includes(s) &&
+        !r.userName.toLowerCase().includes(s)
+      )
+        return false;
     }
     if (tier && r.tier !== tier) return false;
     if (Number.isFinite(minS) && r.currentScore < minS) return false;
@@ -512,7 +575,9 @@ function filterCreditRows(search: string, tier: string, minS: number, maxS: numb
   });
 }
 
-export function tryMockAdminFeaturesRequest(input: AdminFeatureMockInput): MockApiResult | null {
+export function tryMockAdminFeaturesRequest(
+  input: AdminFeatureMockInput,
+): MockApiResult | null {
   const { method, path, searchParams, body } = input;
   const m = method.toUpperCase();
   const joined = path.join("/");
@@ -529,9 +594,12 @@ export function tryMockAdminFeaturesRequest(input: AdminFeatureMockInput): MockA
     }
     if (m === "PUT" && path[2] === "config") {
       const b = (body || {}) as Record<string, unknown>;
-      if (typeof b.transactionWeight === "number") scoringConfig.transactionWeight = b.transactionWeight;
-      if (typeof b.referralWeight === "number") scoringConfig.referralWeight = b.referralWeight;
-      if (typeof b.membershipWeight === "number") scoringConfig.membershipWeight = b.membershipWeight;
+      if (typeof b.transactionWeight === "number")
+        scoringConfig.transactionWeight = b.transactionWeight;
+      if (typeof b.referralWeight === "number")
+        scoringConfig.referralWeight = b.referralWeight;
+      if (typeof b.membershipWeight === "number")
+        scoringConfig.membershipWeight = b.membershipWeight;
       if (Array.isArray(b.tiers)) {
         scoringConfig.tiers = b.tiers as typeof scoringConfig.tiers;
       }
@@ -560,7 +628,11 @@ export function tryMockAdminFeaturesRequest(input: AdminFeatureMockInput): MockA
     }
     if (m === "PUT" && path[3] === "override" && path[2]) {
       const uid = path[2];
-      const b = body as { newScore?: number; reason?: string; adminId?: string };
+      const b = body as {
+        newScore?: number;
+        reason?: string;
+        adminId?: string;
+      };
       const row = creditScoreRows.find((x) => x.userId === uid);
       if (!row) return jsonErr(404, { message: "Not found" });
       const from = row.currentScore;
@@ -584,7 +656,9 @@ export function tryMockAdminFeaturesRequest(input: AdminFeatureMockInput): MockA
   /* ---------- Membership ---------- */
   if (path[1] === "membership") {
     if (m === "GET" && path[2] === "stats") {
-      const active = userMemberships.filter((x) => x.status === "active").length;
+      const active = userMemberships.filter(
+        (x) => x.status === "active",
+      ).length;
       return ok({
         totalActiveMembers: active,
         revenueMtd: 482_000,
@@ -592,7 +666,8 @@ export function tryMockAdminFeaturesRequest(input: AdminFeatureMockInput): MockA
         newThisMonth: 42,
       });
     }
-    if (m === "GET" && path[2] === "tiers") return ok({ data: membershipTiers });
+    if (m === "GET" && path[2] === "tiers")
+      return ok({ data: membershipTiers });
     if (m === "POST" && path[2] === "tiers") {
       const b = body as MembershipTier;
       const id = `tier_${Date.now()}`;
@@ -603,7 +678,9 @@ export function tryMockAdminFeaturesRequest(input: AdminFeatureMockInput): MockA
     if (m === "PUT" && path[2] === "tiers" && path[3]) {
       const id = path[3];
       const b = body as Partial<MembershipTier>;
-      membershipTiers = membershipTiers.map((x) => (x.id === id ? { ...x, ...b, id } : x));
+      membershipTiers = membershipTiers.map((x) =>
+        x.id === id ? { ...x, ...b, id } : x,
+      );
       return ok(membershipTiers.find((x) => x.id === id));
     }
     if (m === "DELETE" && path[2] === "tiers" && path[3]) {
@@ -614,7 +691,11 @@ export function tryMockAdminFeaturesRequest(input: AdminFeatureMockInput): MockA
       let rows = [...userMemberships];
       if (search) {
         const s = search.toLowerCase();
-        rows = rows.filter((r) => r.email.toLowerCase().includes(s) || r.userName.toLowerCase().includes(s));
+        rows = rows.filter(
+          (r) =>
+            r.email.toLowerCase().includes(s) ||
+            r.userName.toLowerCase().includes(s),
+        );
       }
       const st = searchParams.get("status");
       if (st) rows = rows.filter((r) => r.status === st);
@@ -662,7 +743,8 @@ export function tryMockAdminFeaturesRequest(input: AdminFeatureMockInput): MockA
         flaggedCount: transactions.filter((t) => t.isFlagged).length,
       });
     }
-    if (m === "GET" && path[2] === "plans") return ok({ data: subscriptionPlans });
+    if (m === "GET" && path[2] === "plans")
+      return ok({ data: subscriptionPlans });
     if (m === "POST" && path[2] === "plans") {
       const b = body as SubPlan;
       const id = `plan_${Date.now()}`;
@@ -673,7 +755,9 @@ export function tryMockAdminFeaturesRequest(input: AdminFeatureMockInput): MockA
     if (m === "PUT" && path[2] === "plans" && path[3]) {
       const id = path[3];
       const b = body as Partial<SubPlan>;
-      subscriptionPlans = subscriptionPlans.map((x) => (x.id === id ? { ...x, ...b, id } : x));
+      subscriptionPlans = subscriptionPlans.map((x) =>
+        x.id === id ? { ...x, ...b, id } : x,
+      );
       return ok(subscriptionPlans.find((x) => x.id === id));
     }
     if (m === "DELETE" && path[2] === "plans" && path[3]) {
@@ -684,7 +768,9 @@ export function tryMockAdminFeaturesRequest(input: AdminFeatureMockInput): MockA
       let rows = [...subscriptions];
       if (search) {
         const s = search.toLowerCase();
-        rows = rows.filter((r) => r.userName.toLowerCase().includes(s) || r.userId.includes(s));
+        rows = rows.filter(
+          (r) => r.userName.toLowerCase().includes(s) || r.userId.includes(s),
+        );
       }
       const pst = searchParams.get("status");
       if (pst) rows = rows.filter((r) => r.status === pst);
@@ -697,7 +783,11 @@ export function tryMockAdminFeaturesRequest(input: AdminFeatureMockInput): MockA
         ...sub,
         billingHistory: [
           { date: sub.startDate, amount: sub.amount, status: "paid" },
-          { date: sub.nextBillingDate, amount: sub.amount, status: "scheduled" },
+          {
+            date: sub.nextBillingDate,
+            amount: sub.amount,
+            status: "scheduled",
+          },
         ],
       });
     }
@@ -726,7 +816,10 @@ export function tryMockAdminFeaturesRequest(input: AdminFeatureMockInput): MockA
   if (path[1] === "referral" && path[2] === "config") {
     if (m === "GET") return ok(referralConfig);
     if (m === "PUT") {
-      referralConfig = { ...referralConfig, ...(body as object) } as typeof referralConfig;
+      referralConfig = {
+        ...referralConfig,
+        ...(body as object),
+      } as typeof referralConfig;
       return ok(referralConfig);
     }
     return null;
@@ -749,31 +842,45 @@ export function tryMockAdminFeaturesRequest(input: AdminFeatureMockInput): MockA
     }
     if (m === "GET" && path[3] === "tree" && path[2]) {
       const uid = path[2];
-      const children = referrals.filter((r) => r.referrerId === uid).map((r) => ({
-        userId: r.refereeId,
-        name: r.refereeName,
-        referrals: referrals.filter((x) => x.referrerId === r.refereeId).length,
-      }));
+      const children = referrals
+        .filter((r) => r.referrerId === uid)
+        .map((r) => ({
+          userId: r.refereeId,
+          name: r.refereeName,
+          referrals: referrals.filter((x) => x.referrerId === r.refereeId)
+            .length,
+        }));
       return ok({
         userId: uid,
         direct: children,
         summary: {
           totalReferred: children.length,
           qualified: children.length,
-          rewardsPaid: referrals.filter((r) => r.referrerId === uid && r.status === "paid").length * 50,
+          rewardsPaid:
+            referrals.filter((r) => r.referrerId === uid && r.status === "paid")
+              .length * 50,
         },
       });
     }
     if (m === "PUT" && path[3] === "approve" && path[2]) {
       const id = path[2];
       referrals = referrals.map((r) =>
-        r.id === id ? { ...r, status: "paid" as const, referrerRewardPaid: 50, refereeRewardPaid: 30 } : r,
+        r.id === id
+          ? {
+              ...r,
+              status: "paid" as const,
+              referrerRewardPaid: 50,
+              refereeRewardPaid: 30,
+            }
+          : r,
       );
       return ok({ success: true });
     }
     if (m === "PUT" && path[3] === "reject" && path[2]) {
       const id = path[2];
-      referrals = referrals.map((r) => (r.id === id ? { ...r, status: "rejected" as const } : r));
+      referrals = referrals.map((r) =>
+        r.id === id ? { ...r, status: "rejected" as const } : r,
+      );
       return ok({ success: true });
     }
     return null;
@@ -782,7 +889,9 @@ export function tryMockAdminFeaturesRequest(input: AdminFeatureMockInput): MockA
   /* ---------- Missing orders ---------- */
   if (path[1] === "missing-orders") {
     if (m === "GET" && path[2] === "stats") {
-      const pending = missingClaims.filter((c) => c.status === "pending").length;
+      const pending = missingClaims.filter(
+        (c) => c.status === "pending",
+      ).length;
       return ok({
         pendingReview: pending,
         approvedWeek: 4,
@@ -817,7 +926,9 @@ export function tryMockAdminFeaturesRequest(input: AdminFeatureMockInput): MockA
     }
     if (m === "PUT" && path[2] && path[3] === "reject") {
       missingClaims = missingClaims.map((c) =>
-        c.id === path[2] ? { ...c, status: "rejected" as const, rejectionReason: "Other" } : c,
+        c.id === path[2]
+          ? { ...c, status: "rejected" as const, rejectionReason: "Other" }
+          : c,
       );
       return ok({ success: true });
     }
@@ -857,7 +968,12 @@ export function tryMockAdminFeaturesRequest(input: AdminFeatureMockInput): MockA
       let rows = [...wallets];
       if (search) {
         const s = search.toLowerCase();
-        rows = rows.filter((r) => r.email.includes(s) || r.userName.includes(s) || r.userId.includes(s));
+        rows = rows.filter(
+          (r) =>
+            r.email.includes(s) ||
+            r.userName.includes(s) ||
+            r.userId.includes(s),
+        );
       }
       const st = searchParams.get("status");
       if (st) rows = rows.filter((r) => r.status === st);
@@ -869,19 +985,31 @@ export function tryMockAdminFeaturesRequest(input: AdminFeatureMockInput): MockA
     if (m === "GET" && path[2]) {
       const w = wallets.find((x) => x.userId === path[2]);
       if (!w) return jsonErr(404, { message: "Not found" });
-      const recentTx = transactions.filter((t) => t.userId === path[2]).slice(0, 20);
+      const recentTx = transactions
+        .filter((t) => t.userId === path[2])
+        .slice(0, 20);
       return ok({ wallet: w, recentTransactions: recentTx });
     }
     if (m === "PUT" && path[3] === "freeze" && path[2]) {
-      wallets = wallets.map((w) => (w.userId === path[2] ? { ...w, status: "frozen" as const } : w));
+      wallets = wallets.map((w) =>
+        w.userId === path[2] ? { ...w, status: "frozen" as const } : w,
+      );
       return ok({ success: true });
     }
     if (m === "PUT" && path[3] === "unfreeze" && path[2]) {
-      wallets = wallets.map((w) => (w.userId === path[2] ? { ...w, status: "active" as const } : w));
+      wallets = wallets.map((w) =>
+        w.userId === path[2] ? { ...w, status: "active" as const } : w,
+      );
       return ok({ success: true });
     }
     if (m === "POST" && path[3] === "adjust" && path[2]) {
-      const b = body as { type?: string; amount?: number; currency?: string; reason?: string; adminId?: string };
+      const b = body as {
+        type?: string;
+        amount?: number;
+        currency?: string;
+        reason?: string;
+        adminId?: string;
+      };
       const uid = path[2];
       const adj = {
         walletId: uid,
@@ -896,8 +1024,10 @@ export function tryMockAdminFeaturesRequest(input: AdminFeatureMockInput): MockA
       wallets = wallets.map((w) => {
         if (w.userId !== uid) return w;
         const mul = adj.type === "credit" ? 1 : -1;
-        if (adj.currency === "GGC") return { ...w, ggcBalance: w.ggcBalance + mul * adj.amount };
-        if (adj.currency === "points") return { ...w, pointsBalance: w.pointsBalance + mul * adj.amount };
+        if (adj.currency === "GGC")
+          return { ...w, ggcBalance: w.ggcBalance + mul * adj.amount };
+        if (adj.currency === "points")
+          return { ...w, pointsBalance: w.pointsBalance + mul * adj.amount };
         return { ...w, cashbackBalance: w.cashbackBalance + mul * adj.amount };
       });
       return ok({ success: true, adjustment: adj });
@@ -909,7 +1039,9 @@ export function tryMockAdminFeaturesRequest(input: AdminFeatureMockInput): MockA
   if (path[1] === "transactions") {
     if (m === "GET" && path[2] === "export") {
       const header = "id,userId,amount,status,date\n";
-      const lines = transactions.map((t) => `${t.id},${t.userId},${t.amount},${t.status},${t.date}`).join("\n");
+      const lines = transactions
+        .map((t) => `${t.id},${t.userId},${t.amount},${t.status},${t.date}`)
+        .join("\n");
       return ok({ csv: header + lines });
     }
     if (m === "GET" && path.length === 2) {
@@ -937,7 +1069,11 @@ export function tryMockAdminFeaturesRequest(input: AdminFeatureMockInput): MockA
       const b = body as { flagged?: boolean; reason?: string };
       transactions = transactions.map((t) =>
         t.id === path[2]
-          ? { ...t, isFlagged: Boolean(b.flagged), flagReason: String(b.reason || t.flagReason) }
+          ? {
+              ...t,
+              isFlagged: Boolean(b.flagged),
+              flagReason: String(b.reason || t.flagReason),
+            }
           : t,
       );
       return ok({ success: true });
@@ -949,33 +1085,49 @@ export function tryMockAdminFeaturesRequest(input: AdminFeatureMockInput): MockA
   if (path[1] === "discover") {
     if (m === "GET" && path[2] === "sections") {
       return ok({
-        sections: (Object.keys(discoverItems) as DiscoverType[]).map((type) => ({
-          id: type,
-          type,
-          items: discoverItems[type],
-        })),
+        sections: (Object.keys(discoverItems) as DiscoverType[]).map(
+          (type) => ({
+            id: type,
+            type,
+            items: discoverItems[type],
+          }),
+        ),
       });
     }
-    if (m === "PUT" && path[2] === "sections" && path[4] === "reorder" && path[3]) {
+    if (
+      m === "PUT" &&
+      path[2] === "sections" &&
+      path[4] === "reorder" &&
+      path[3]
+    ) {
       const type = path[3] as DiscoverType;
       const b = body as { order?: string[] };
       const order = b.order ?? [];
       const cur = discoverItems[type] ?? [];
       const map = new Map(cur.map((i) => [i.id, i]));
-      discoverItems[type] = order.map((id, idx) => {
-        const it = map.get(id);
-        return it ? { ...it, displayOrder: idx } : it;
-      }).filter(Boolean) as DiscoverItem[];
+      discoverItems[type] = order
+        .map((id, idx) => {
+          const it = map.get(id);
+          return it ? { ...it, displayOrder: idx } : it;
+        })
+        .filter(Boolean) as DiscoverItem[];
       return ok({ success: true, items: discoverItems[type] });
     }
-    if (m === "POST" && path[2] === "sections" && path[3] && path[4] === "items") {
+    if (
+      m === "POST" &&
+      path[2] === "sections" &&
+      path[3] &&
+      path[4] === "items"
+    ) {
       const type = path[3] as DiscoverType;
       const b = body as Partial<DiscoverItem>;
       const item: DiscoverItem = {
         id: `di_${Date.now()}`,
         referenceId: String(b.referenceId || "ref"),
         displayOrder: (discoverItems[type] ?? []).length,
-        imageUrl: String(b.imageUrl || "/images/merchant-logos/gadgethub-th.png"),
+        imageUrl: String(
+          b.imageUrl || "/images/merchant-logos/gadgethub-th.png",
+        ),
         title: String(b.title || "Item"),
         subtitle: b.subtitle,
         ctaLink: b.ctaLink,
@@ -986,17 +1138,33 @@ export function tryMockAdminFeaturesRequest(input: AdminFeatureMockInput): MockA
       discoverItems[type] = [...(discoverItems[type] ?? []), item];
       return ok(item);
     }
-    if (m === "PUT" && path[2] === "sections" && path[4] === "items" && path[5] && path[3]) {
+    if (
+      m === "PUT" &&
+      path[2] === "sections" &&
+      path[4] === "items" &&
+      path[5] &&
+      path[3]
+    ) {
       const type = path[3] as DiscoverType;
       const id = path[5];
       const b = body as Partial<DiscoverItem>;
-      discoverItems[type] = (discoverItems[type] ?? []).map((i) => (i.id === id ? { ...i, ...b, id } : i));
+      discoverItems[type] = (discoverItems[type] ?? []).map((i) =>
+        i.id === id ? { ...i, ...b, id } : i,
+      );
       return ok(discoverItems[type].find((i) => i.id === id));
     }
-    if (m === "DELETE" && path[2] === "sections" && path[4] === "items" && path[5] && path[3]) {
+    if (
+      m === "DELETE" &&
+      path[2] === "sections" &&
+      path[4] === "items" &&
+      path[5] &&
+      path[3]
+    ) {
       const type = path[3] as DiscoverType;
       const id = path[5];
-      discoverItems[type] = (discoverItems[type] ?? []).filter((i) => i.id !== id);
+      discoverItems[type] = (discoverItems[type] ?? []).filter(
+        (i) => i.id !== id,
+      );
       return ok({ success: true });
     }
     return null;
@@ -1004,7 +1172,8 @@ export function tryMockAdminFeaturesRequest(input: AdminFeatureMockInput): MockA
 
   /* ---------- Search ---------- */
   if (path[1] === "search") {
-    if (m === "GET" && path[2] === "featured-terms") return ok({ data: featuredTerms });
+    if (m === "GET" && path[2] === "featured-terms")
+      return ok({ data: featuredTerms });
     if (m === "POST" && path[2] === "featured-terms") {
       const b = body as FeaturedTerm;
       const id = `ft_${Date.now()}`;
@@ -1016,16 +1185,25 @@ export function tryMockAdminFeaturesRequest(input: AdminFeatureMockInput): MockA
       const b = body as { order?: string[] };
       const order = b.order ?? [];
       const m2 = new Map(featuredTerms.map((t) => [t.id, t]));
-      featuredTerms = order.map((id, i) => {
-        const x = m2.get(id);
-        return x ? { ...x, displayOrder: i } : x;
-      }).filter(Boolean) as FeaturedTerm[];
+      featuredTerms = order
+        .map((id, i) => {
+          const x = m2.get(id);
+          return x ? { ...x, displayOrder: i } : x;
+        })
+        .filter(Boolean) as FeaturedTerm[];
       return ok({ data: featuredTerms });
     }
-    if (m === "PUT" && path[2] === "featured-terms" && path[3] && path[3] !== "reorder") {
+    if (
+      m === "PUT" &&
+      path[2] === "featured-terms" &&
+      path[3] &&
+      path[3] !== "reorder"
+    ) {
       const id = path[3];
       const b = body as Partial<FeaturedTerm>;
-      featuredTerms = featuredTerms.map((t) => (t.id === id ? { ...t, ...b, id } : t));
+      featuredTerms = featuredTerms.map((t) =>
+        t.id === id ? { ...t, ...b, id } : t,
+      );
       return ok(featuredTerms.find((t) => t.id === id));
     }
     if (m === "DELETE" && path[2] === "featured-terms" && path[3]) {
@@ -1033,7 +1211,8 @@ export function tryMockAdminFeaturesRequest(input: AdminFeatureMockInput): MockA
       return ok({ success: true });
     }
 
-    if (m === "GET" && path[2] === "boost-rules") return ok({ data: boostRules });
+    if (m === "GET" && path[2] === "boost-rules")
+      return ok({ data: boostRules });
     if (m === "POST" && path[2] === "boost-rules") {
       const b = body as BoostRule;
       const id = `br_${Date.now()}`;
@@ -1044,7 +1223,9 @@ export function tryMockAdminFeaturesRequest(input: AdminFeatureMockInput): MockA
     if (m === "PUT" && path[2] === "boost-rules" && path[3]) {
       const id = path[3];
       const b = body as Partial<BoostRule>;
-      boostRules = boostRules.map((t) => (t.id === id ? { ...t, ...b, id } : t));
+      boostRules = boostRules.map((t) =>
+        t.id === id ? { ...t, ...b, id } : t,
+      );
       return ok(boostRules.find((t) => t.id === id));
     }
     if (m === "DELETE" && path[2] === "boost-rules" && path[3]) {

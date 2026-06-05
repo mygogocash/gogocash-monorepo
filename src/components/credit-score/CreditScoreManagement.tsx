@@ -23,6 +23,7 @@ import { AdminTableSkeleton } from "@/components/common/AdminTableSkeleton";
 import toast from "react-hot-toast";
 import { validateBoundedAmount } from "@/lib/formValidation";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
+import { CREDIT_TIER_BADGE } from "@/lib/creditTier";
 import { useState } from "react";
 import {
   CartesianGrid,
@@ -33,15 +34,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-
-/** Metal-themed badge colors per credit tier. */
-const CREDIT_TIER_BADGE: Record<CreditTier, string> = {
-  bronze:
-    "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-200",
-  silver: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
-  gold: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-200",
-  platinum: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-200",
-};
 
 export default function CreditScoreManagement() {
   const qc = useQueryClient();
@@ -308,12 +300,34 @@ export default function CreditScoreManagement() {
           <p className="text-sm text-gray-500">Loading…</p>
         ) : detailQ.data ? (
           <div className="space-y-6">
+            <div className="pr-10">
+              <div className="flex flex-wrap items-center gap-2">
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  {detailQ.data.userName}
+                </h4>
+                <span
+                  className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize ${CREDIT_TIER_BADGE[detailQ.data.tier]}`}
+                >
+                  {detailQ.data.tier}
+                </span>
+              </div>
+              <p className="mt-0.5 truncate text-sm text-gray-500 dark:text-gray-400">
+                {detailQ.data.email}
+              </p>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {detailQ.data.currentScore}
+                </span>
+                <span className="text-xs text-gray-400 dark:text-gray-500">
+                  Updated {formatDate(detailQ.data.lastUpdated)}
+                </span>
+              </div>
+            </div>
             <div>
-              <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
-                {detailQ.data.userName} — {detailQ.data.currentScore} (
-                {detailQ.data.tier})
-              </h4>
-              <div className="mt-4 h-56 w-full">
+              <p className="mb-2 font-medium text-gray-900 dark:text-white">
+                Score history
+              </p>
+              <div className="h-56 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={detailQ.data.history}>
                     <CartesianGrid
@@ -380,15 +394,21 @@ export default function CreditScoreManagement() {
             <div>
               <p className="font-medium text-gray-900 dark:text-white">Audit</p>
               <div className="mt-2 max-h-40 overflow-y-auto text-xs">
-                {(auditQ.data ?? []).map((a, i) => (
-                  <div
-                    key={i}
-                    className="border-b border-gray-100 py-1 dark:border-gray-800"
-                  >
-                    {formatDateTime(a.timestamp)}: {a.fromScore} → {a.toScore} (
-                    {a.reason}) by {a.adminId}
-                  </div>
-                ))}
+                {(auditQ.data ?? []).length === 0 ? (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    No overrides yet.
+                  </p>
+                ) : (
+                  (auditQ.data ?? []).map((a, i) => (
+                    <div
+                      key={i}
+                      className="border-b border-gray-100 py-1 dark:border-gray-800"
+                    >
+                      {formatDateTime(a.timestamp)}: {a.fromScore} → {a.toScore}{" "}
+                      ({a.reason}) by {a.adminId}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>

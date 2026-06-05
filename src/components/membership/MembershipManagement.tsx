@@ -369,7 +369,7 @@ export default function MembershipManagement() {
                         <span
                           className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
                             u.tierName === "GoGoPass Plus"
-                              ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
+                              ? "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200"
                               : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
                           }`}
                         >
