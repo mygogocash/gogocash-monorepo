@@ -36,6 +36,14 @@ export default defineConfig({
       // rolldown/oxc transform rejects ("Unexpected token 'typeof'"); stub it.
       // usePostHog()->undefined exercises the production "no key" branch.
       { find: "posthog-react-native", replacement: stub("posthogReactNativeStub.tsx") },
+      // @sentry/react-native statically imports the real Flow-typed react-native.
+      // As an externalized dep it is resolved by Node, NOT Vite, so the
+      // react-native -> react-native-web alias below never applies to it; the real
+      // RN then loads react-native/Libraries/Promise.js whose extensionless
+      // `import 'promise/setimmediate/es6-extensions'` the externalized resolver
+      // rejects. Stub the package so @mobile/observability/client (init/setUser
+      // no-op here) stays real while the un-aliased RN path is severed.
+      { find: "@sentry/react-native", replacement: stub("sentryReactNativeStub.ts") },
       // expo-router's native router resolves to a non-component object under
       // happy-dom and breaks rendering; swap it for a passthrough test stub.
       { find: "expo-router", replacement: stub("expoRouterStub.tsx") },

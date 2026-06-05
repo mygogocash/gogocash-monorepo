@@ -80,28 +80,47 @@ describe("CustomerProfileDetailScreen (info edit form) — UX adoption", () => {
     expect(screen.getByTestId("keyboard-aware-scroll")).toBeTruthy();
   });
 
-  it("fires haptics.success on a successful save (valid defaults)", () => {
+  // The web-parity ProfileInfoPanel renders a BLANK form (placeholder-only inputs), so a
+  // clean save requires filling every required field — National ID (13 digits), Legal
+  // Address (>= 10 chars), Zip Code (5 digits), and a valid past Birthdate. Username
+  // defaults to the session value ("Mock User", already >= 3 chars).
+  function enterEditAndFillValid() {
+    fireEvent.click(screen.getByText("Edit"));
+    fireEvent.change(screen.getByPlaceholderText("Citizen or Passport ID"), {
+      target: { value: "1234567890123" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Legal Address"), {
+      target: { value: "123 Example Road, Bangkok" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Zip Code"), {
+      target: { value: "10110" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("YYYY-MM-DD"), {
+      target: { value: "1990-01-01" },
+    });
+  }
+
+  it("fires haptics.success on a clean save (all required fields valid)", () => {
     const successSpy = vi.spyOn(haptics, "success").mockResolvedValue();
     const errorSpy = vi.spyOn(haptics, "error").mockResolvedValue();
     renderInfoScreen(createElement(CustomerProfileDetailScreen, { mode: "info" }));
 
-    // Enter edit mode (button toggles "Edit" -> "Save"), then save with the
-    // valid seeded defaults so the validators pass.
-    fireEvent.click(screen.getByText("Edit"));
+    enterEditAndFillValid();
     fireEvent.click(screen.getByText("Save"));
 
     expect(successSpy).toHaveBeenCalledTimes(1);
     expect(errorSpy).not.toHaveBeenCalled();
   });
 
-  it("fires haptics.error on a validation rejection (cleared username)", () => {
+  it("fires haptics.error on a validation rejection (cleared username, all else valid)", () => {
     const successSpy = vi.spyOn(haptics, "success").mockResolvedValue();
     const errorSpy = vi.spyOn(haptics, "error").mockResolvedValue();
     renderInfoScreen(createElement(CustomerProfileDetailScreen, { mode: "info" }));
 
-    fireEvent.click(screen.getByText("Edit"));
-    // Clear the name/username field -> trips "at least 3 characters" rejection.
-    fireEvent.change(screen.getByDisplayValue("Kunanon Jarat"), {
+    enterEditAndFillValid();
+    // Clear the name field (defaults to the session "Mock User") -> trips the
+    // "at least 3 characters" rejection while every other field stays valid.
+    fireEvent.change(screen.getByDisplayValue("Mock User"), {
       target: { value: "" },
     });
     fireEvent.click(screen.getByText("Save"));
