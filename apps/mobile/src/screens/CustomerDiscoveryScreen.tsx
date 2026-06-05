@@ -289,8 +289,8 @@ function BrandDirectoryScreen() {
                     <Text
                       numberOfLines={1}
                       style={[
-                        styles.shopDirectoryPillText,
-                        sortBy === pill.value ? styles.shopDirectoryPillTextActive : null,
+                        styles.directorySortPillText,
+                        sortBy === pill.value ? styles.directorySortPillTextActive : null,
                       ]}
                     >
                       {tc(pill.label)}
@@ -705,8 +705,8 @@ function ProductDiscoveryScreen() {
                   <Text
                     numberOfLines={1}
                     style={[
-                      styles.productDiscoveryPillText,
-                      sortBy === pill.value ? styles.productDiscoveryPillTextActive : null,
+                      styles.directorySortPillText,
+                      sortBy === pill.value ? styles.directorySortPillTextActive : null,
                     ]}
                   >
                     {tc(pill.label)}
@@ -1283,8 +1283,8 @@ function ShopDirectoryScreen() {
                     <Text
                       numberOfLines={1}
                       style={[
-                        styles.shopDirectoryPillText,
-                        sortBy === pill.value ? styles.shopDirectoryPillTextActive : null,
+                        styles.directorySortPillText,
+                        sortBy === pill.value ? styles.directorySortPillTextActive : null,
                       ]}
                     >
                       {tc(pill.label)}
@@ -2654,6 +2654,18 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   shopDirectoryPillTextActive: {
+    color: colors.white,
+  },
+  // Unified sort-chip text (14 / 600) — mirrors the web app's text-sm font-semibold
+  // sort pills and the category screen's sortPillText so every sort bar reads the same.
+  directorySortPillText: {
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: 14,
+    fontWeight: "600",
+    lineHeight: 20,
+  },
+  directorySortPillTextActive: {
     color: colors.white,
   },
   shopDirectorySortBlock: {
