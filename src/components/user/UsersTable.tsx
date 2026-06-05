@@ -10,6 +10,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { devError } from "@/lib/devConsole";
 import CopyButton from "@/components/ui/CopyButton";
 import { planCycle, CYCLE_LABEL, CYCLE_BADGE } from "@/lib/subscriptionCycle";
+import { tierFromScore, CREDIT_TIER_BADGE } from "@/lib/creditTier";
 
 export default function UsersTable() {
   const searchParams = useSearchParams();
@@ -204,6 +205,9 @@ export default function UsersTable() {
                       Role
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Tier
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                       Membership
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
@@ -270,10 +274,21 @@ export default function UsersTable() {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
+                          {user.creditScore != null ? (
+                            <span
+                              className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold capitalize ${CREDIT_TIER_BADGE[tierFromScore(user.creditScore)]}`}
+                            >
+                              {tierFromScore(user.creditScore)}
+                            </span>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <span
                             className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
                               user.membershipTier === "GoGoPass Plus"
-                                ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
+                                ? "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200"
                                 : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
                             }`}
                           >

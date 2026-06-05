@@ -112,6 +112,8 @@ export interface RegularUser {
   membershipTier?: string;
   /** Subscription plan name (e.g. "Monthly Premium"); absent if not subscribed. */
   subscriptionPlan?: string;
+  /** Credit score (0–1000); drives the credit tier. Absent for users without a score. */
+  creditScore?: number;
 }
 export interface UsersQuery {
   limit?: number;

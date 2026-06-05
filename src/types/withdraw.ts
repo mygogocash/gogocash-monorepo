@@ -99,6 +99,10 @@ export interface User {
   zipCode?: string;
   rating?: number;
   creditScoreType?: number;
+  /** Credit score (same source as the Credit Score module / Users table Tier). */
+  creditScore?: number;
+  /** Subscription plan name (same source as the Users table); cycle is inferred. */
+  subscriptionPlan?: string;
   emailVerified?: boolean;
   phoneVerified?: boolean;
 }

@@ -2,7 +2,11 @@
 import Link from "next/link";
 import client, { fetcher, fetcherPost } from "@/lib/axios/client";
 import { formatDate, formatTime, formatDateTime } from "@/lib/dateFormat";
-import type { Subscription } from "@/types/adminModules";
+import { formatMoney } from "@/lib/currencyFormat";
+import { STATUS_BADGE_BASE } from "@/lib/statusBadge";
+import { planCycle, CYCLE_LABEL, CYCLE_BADGE } from "@/lib/subscriptionCycle";
+import { tierFromScore, CREDIT_TIER_BADGE } from "@/lib/creditTier";
+import type { Subscription, UserMembership } from "@/types/adminModules";
 import type { GridColDef } from "@mui/x-data-grid";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useSearchParams } from "next/navigation";
@@ -17,7 +21,11 @@ import Input from "@/components/form/input/InputField";
 import { MOCK_DEEPLINKS, filterDeeplinksForUser } from "@/data/mockDeeplinks";
 import { normalizeUserEmails, normalizeUserMobiles } from "@/lib/userContact";
 import { conversionAdvSummary } from "@/lib/conversionFormat";
-import { getSubscriptions } from "@/lib/api/adminModulesApi";
+import {
+  getMembershipTiers,
+  getMembershipUsers,
+  getSubscriptions,
+} from "@/lib/api/adminModulesApi";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import { shouldShowMockOtpHint } from "@/lib/mockOtpHint";
 import {
@@ -63,7 +71,6 @@ type DetailTab =
   | "subscription"
   | "conversion"
   | "withdraw"
-  | "deeplink"
   | "login"
   | "deleteData";
 
@@ -71,10 +78,9 @@ const DELETE_USER_DATA_CONFIRM_PHRASE = "DELETE";
 
 const TABS: { id: DetailTab; label: string }[] = [
   { id: "user", label: "User Info" },
-  { id: "subscription", label: "Subscription" },
+  { id: "subscription", label: "Benefits" },
   { id: "conversion", label: "Conversion All" },
   { id: "withdraw", label: "Withdraw All" },
-  { id: "deeplink", label: "Tracking links" },
   { id: "login", label: "Login Tracking" },
   { id: "deleteData", label: "Delete user data" },
 ];
@@ -502,16 +508,83 @@ const WithdrawDetail = () => {
   const withdrawUserId =
     withdrawDetail?.user?._id ?? (typeof id === "string" ? id : "") ?? "";
 
-  const {
-    data: userSubscriptions,
-    isLoading: userSubsLoading,
-    isError: userSubsError,
-  } = useQuery({
+  const { data: userSubscriptions } = useQuery({
     queryKey: ["admin", "subscription", "withdraw-detail", withdrawUserId],
     queryFn: () =>
       getSubscriptions({ page: 1, limit: 20, search: withdrawUserId }),
     enabled: Boolean(withdrawUserId) && activeTab === "subscription",
   });
+
+  // Per-user membership for the User Info tab (looked up by username, matched
+  // back to this user id). Mirrors how Subscription data is fetched per-user.
+  const { data: userMembershipResp } = useQuery({
+    queryKey: ["admin", "membership", "withdraw-detail", withdrawUserId],
+    queryFn: () =>
+      getMembershipUsers({
+        page: 1,
+        limit: 20,
+        search: withdrawDetail?.user?.username ?? "",
+      }),
+    enabled:
+      Boolean(withdrawDetail?.user?.username) &&
+      (activeTab === "user" || activeTab === "subscription"),
+  });
+  const userMembership =
+    (userMembershipResp?.data ?? []).find(
+      (m: UserMembership) => m.userId === withdrawUserId,
+    ) ?? null;
+
+  // Membership billing history, derived from the user's tier price — mirrors the
+  // Membership module's detail view (one paid row at start, one scheduled at renewal).
+  const { data: membershipTiers } = useQuery({
+    queryKey: ["admin", "membership", "tiers"],
+    queryFn: getMembershipTiers,
+    enabled: activeTab === "user" || activeTab === "subscription",
+  });
+  const membershipAmount =
+    (membershipTiers ?? []).find((t) => t.id === userMembership?.tierId)
+      ?.monthlyPrice ?? 0;
+  const membershipBilling = userMembership
+    ? [
+        {
+          date: userMembership.startDate,
+          amount: membershipAmount,
+          status: "paid",
+          method: "Credit card",
+        },
+        {
+          date: userMembership.expiryDate,
+          amount: membershipAmount,
+          status: "scheduled",
+          method: "Cash",
+        },
+      ]
+    : [];
+
+  // Per-user subscription (first record matched by id), shown on the Benefits tab
+  // alongside membership.
+  const userSubscription =
+    (userSubscriptions?.data ?? []).find(
+      (s: Subscription) => s.userId === withdrawUserId,
+    ) ?? null;
+  // Subscription billing history — mirrors the membership view (one paid row at the
+  // start, one scheduled at the next billing date).
+  const subscriptionBilling = userSubscription
+    ? [
+        {
+          date: userSubscription.startDate,
+          amount: userSubscription.amount,
+          status: "paid",
+          method: userSubscription.paymentMethod,
+        },
+        {
+          date: userSubscription.nextBillingDate,
+          amount: userSubscription.amount,
+          status: "scheduled",
+          method: userSubscription.paymentMethod,
+        },
+      ]
+    : [];
 
   const beginEditUser = useCallback(() => {
     const u = withdrawDetail?.user;
@@ -1028,26 +1101,50 @@ const WithdrawDetail = () => {
                           {/* Part 2 — Standing */}
                           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                             <p className="text-sm text-gray-800 dark:text-gray-200">
-                              <span className="font-medium">Rating:</span>{" "}
-                              {wu.rating != null ? wu.rating : "—"}
-                            </p>
-                            <p className="text-sm text-gray-800 dark:text-gray-200">
-                              <span className="font-medium">
-                                Credit score type:
-                              </span>{" "}
-                              {wu.creditScoreType ?? "—"}
+                              <span className="font-medium">Credit Score:</span>{" "}
+                              {wu.creditScore != null ? wu.creditScore : "—"}
                             </p>
                             <p className="flex items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
-                              <span className="font-medium">
-                                GoGoPass status:
-                              </span>{" "}
-                              {wu.gogopassActive === true ? (
-                                <span className="font-medium text-emerald-600 dark:text-emerald-400">
-                                  Active
+                              <span className="font-medium">Credit Tier:</span>{" "}
+                              {wu.creditScore != null ? (
+                                <span
+                                  className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold capitalize ${CREDIT_TIER_BADGE[tierFromScore(wu.creditScore)]}`}
+                                >
+                                  {tierFromScore(wu.creditScore)}
                                 </span>
-                              ) : wu.gogopassActive === false ? (
-                                <span className="text-gray-500 dark:text-gray-400">
-                                  Not Active
+                              ) : (
+                                "—"
+                              )}
+                            </p>
+                            <p className="flex items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                              <span className="font-medium">Membership:</span>{" "}
+                              {userMembership ? (
+                                <span
+                                  className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
+                                    userMembership.tierName === "GoGoPass Plus"
+                                      ? "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200"
+                                      : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                                  }`}
+                                >
+                                  {userMembership.tierName}
+                                </span>
+                              ) : (
+                                "—"
+                              )}
+                            </p>
+                            <p className="flex items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                              <span className="font-medium">Subscription:</span>{" "}
+                              {withdrawDetail?.user?.subscriptionPlan ? (
+                                <span
+                                  className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${CYCLE_BADGE[planCycle(withdrawDetail.user.subscriptionPlan)]}`}
+                                >
+                                  {
+                                    CYCLE_LABEL[
+                                      planCycle(
+                                        withdrawDetail.user.subscriptionPlan,
+                                      )
+                                    ]
+                                  }
                                 </span>
                               ) : (
                                 "—"
@@ -1094,211 +1191,6 @@ const WithdrawDetail = () => {
                     error={myCashbackError}
                     user={myCashbackUser}
                   />
-
-                  <div>
-                    <h3 className="mb-3 text-sm font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400">
-                      Cashback summary
-                    </h3>
-                    <div className="rounded-lg border border-gray-200 bg-white/80 p-4 dark:border-gray-700 dark:bg-gray-900/40">
-                      <p className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                        Total earned cashback
-                      </p>
-                      <p className="mt-1 text-base font-semibold text-gray-900 dark:text-white">
-                        {withdrawDetail?.user?.totalCashback != null
-                          ? `${Number(withdrawDetail.user.totalCashback).toLocaleString()} ${withdrawDetail.user.totalCashbackCurrency ?? "THB"}`
-                          : MCBDetail != null
-                            ? `${MCBDetail.totalMyCashbackTHB?.toFixed(2) ?? "0"} THB`
-                            : "—"}
-                      </p>
-                      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-500/25 dark:bg-amber-500/10">
-                          <div className="flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              viewBox="0 0 20 20"
-                              fill="currentColor"
-                              className="h-4 w-4"
-                              aria-hidden="true"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm.75-13a.75.75 0 0 0-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 0 0 0-1.5h-3.25V5Z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                            Pending
-                          </div>
-                          <p className="mt-1 text-base font-semibold text-amber-800 dark:text-amber-300">
-                            {withdrawDetail?.totalsByStatusAndCurrency
-                              ?.find((t) => t.status === "pending")
-                              ?.totalTHB?.toFixed(2) ?? "0"}{" "}
-                            THB
-                          </p>
-                        </div>
-                        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-500/25 dark:bg-emerald-500/10">
-                          <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              viewBox="0 0 20 20"
-                              fill="currentColor"
-                              className="h-4 w-4"
-                              aria-hidden="true"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                            Approved
-                          </div>
-                          <p className="mt-1 text-base font-semibold text-emerald-800 dark:text-emerald-300">
-                            {withdrawDetail?.totalsByStatusAndCurrency
-                              ?.find((t) => t.status === "approved")
-                              ?.totalTHB?.toFixed(2) ?? "0"}{" "}
-                            THB
-                          </p>
-                        </div>
-                        <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-500/25 dark:bg-blue-500/10">
-                          <div className="flex items-center gap-1.5 text-xs font-medium text-blue-700 dark:text-blue-400">
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              viewBox="0 0 20 20"
-                              fill="currentColor"
-                              className="h-4 w-4"
-                              aria-hidden="true"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM10 7a.75.75 0 0 1 .55.24l2.5 2.69a.75.75 0 1 1-1.1 1.02l-1.2-1.29V13a.75.75 0 0 1-1.5 0V9.66l-1.2 1.29a.75.75 0 1 1-1.1-1.02l2.5-2.69A.75.75 0 0 1 10 7Z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                            Withdrawn
-                          </div>
-                          <p className="mt-1 text-base font-semibold text-blue-800 dark:text-blue-300">
-                            {withdrawDetail?.withdrawList
-                              ?.filter((w) => w.status === "approved")
-                              .reduce((sum, w) => sum + (w.amount_net ?? 0), 0)
-                              .toFixed(2) ?? "0"}{" "}
-                            THB
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="mb-3 text-sm font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400">
-                      Bank accounts
-                    </h3>
-                    {withdrawDetail?.withdrawList &&
-                    withdrawDetail.withdrawList.length > 0 ? (
-                      <div className="space-y-4">
-                        {withdrawDetail.withdrawList.map((bank, idx) => (
-                          <div
-                            key={bank._id}
-                            className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900/50"
-                          >
-                            {withdrawDetail.withdrawList.length > 1 && (
-                              <p className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">
-                                Account {idx + 1}
-                              </p>
-                            )}
-                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                              <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
-                                <span className="min-w-[120px] font-medium">
-                                  Bank:
-                                </span>{" "}
-                                {bank.bank_name || "N/A"}
-                                <CopyButton
-                                  value={bank.bank_name?.trim() || "N/A"}
-                                />
-                              </p>
-                              <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
-                                <span className="min-w-[120px] font-medium">
-                                  Account Number:
-                                </span>{" "}
-                                {bank.account_number || "N/A"}
-                                <CopyButton
-                                  value={bank.account_number?.trim() || "N/A"}
-                                />
-                              </p>
-                              <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
-                                <span className="min-w-[120px] font-medium">
-                                  Account Name:
-                                </span>{" "}
-                                {bank.account_name || "N/A"}
-                                <CopyButton
-                                  value={bank.account_name?.trim() || "N/A"}
-                                />
-                              </p>
-                              {bank.method &&
-                                bank.method !== "bank_transfer" && (
-                                  <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
-                                    <span className="min-w-[120px] font-medium">
-                                      Address:
-                                    </span>{" "}
-                                    {bank.address || "N/A"}
-                                    <CopyButton
-                                      value={bank.address?.trim() || "N/A"}
-                                    />
-                                  </p>
-                                )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        No bank accounts
-                      </p>
-                    )}
-                  </div>
-
-                  {withdrawDetail?.user?.userLog &&
-                    withdrawDetail.user.userLog.length > 0 && (
-                      <div>
-                        <h3 className="mb-3 text-sm font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400">
-                          User log
-                        </h3>
-                        <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-                          <table className="min-w-full text-sm">
-                            <thead className="bg-gray-100 dark:bg-gray-800">
-                              <tr>
-                                <th className="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-300">
-                                  Action
-                                </th>
-                                <th className="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-300">
-                                  Date and time
-                                </th>
-                                <th className="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-300">
-                                  IP
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                              {withdrawDetail.user.userLog.map((entry, i) => (
-                                <tr
-                                  key={i}
-                                  className="bg-white dark:bg-gray-900/50"
-                                >
-                                  <td className="px-3 py-2 text-gray-800 dark:text-gray-200">
-                                    {entry.action ?? "—"}
-                                  </td>
-                                  <td className="px-3 py-2 text-gray-600 dark:text-gray-400">
-                                    {formatDateTime(entry.at)}
-                                  </td>
-                                  <td className="px-3 py-2 text-gray-600 dark:text-gray-400">
-                                    {entry.ip ?? "—"}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
                 </>
               )}
             </div>
@@ -1306,72 +1198,227 @@ const WithdrawDetail = () => {
 
           {activeTab === "subscription" && (
             <div className="space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Subscription
-                </h2>
-                <Link
-                  href="/subscription"
-                  className="text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 text-sm font-medium"
-                >
-                  Open subscription admin →
-                </Link>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Benefits
+              </h2>
+              <div>
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="text-sm font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                    Membership
+                  </h3>
+                  <Link
+                    href="/membership"
+                    className="text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 text-sm font-medium"
+                  >
+                    Open membership admin →
+                  </Link>
+                </div>
+                {userMembership ? (
+                  <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900/50">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                        <span className="min-w-[120px] font-medium">Tier:</span>{" "}
+                        <span
+                          className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
+                            userMembership.tierName === "GoGoPass Plus"
+                              ? "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200"
+                              : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                          }`}
+                        >
+                          {userMembership.tierName}
+                        </span>
+                      </p>
+                      <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                        <span className="min-w-[120px] font-medium">
+                          Status:
+                        </span>{" "}
+                        <span
+                          className={`${STATUS_BADGE_BASE} ${
+                            userMembership.status === "active"
+                              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200"
+                              : userMembership.status === "pending"
+                                ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
+                                : userMembership.status === "cancelled"
+                                  ? "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200"
+                                  : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                          }`}
+                        >
+                          {userMembership.status}
+                        </span>
+                      </p>
+                      <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                        <span className="min-w-[120px] font-medium">
+                          Period:
+                        </span>{" "}
+                        {formatDate(userMembership.startDate)} to{" "}
+                        {formatDate(userMembership.expiryDate)}
+                      </p>
+                      <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                        <span className="min-w-[120px] font-medium">
+                          Auto-renew:
+                        </span>{" "}
+                        {userMembership.autoRenew ? (
+                          <span className="font-medium text-blue-600 dark:text-blue-400">
+                            Yes
+                          </span>
+                        ) : (
+                          "No"
+                        )}
+                      </p>
+                    </div>
+                    <div className="mt-4 border-t border-gray-100 pt-4 dark:border-gray-700">
+                      <h4 className="mb-2 text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                        Billing history
+                      </h4>
+                      <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+                        <table className="min-w-full text-sm">
+                          <thead className="bg-gray-50 text-left text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                            <tr>
+                              <th className="px-3 py-2">Date</th>
+                              <th className="px-3 py-2">Amount</th>
+                              <th className="px-3 py-2">Status</th>
+                              <th className="px-3 py-2">Payment method</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                            {membershipBilling.map((b, i) => (
+                              <tr
+                                key={i}
+                                className="bg-white dark:bg-gray-900/40"
+                              >
+                                <td className="px-3 py-2 whitespace-nowrap">
+                                  {formatDate(b.date)}
+                                </td>
+                                <td className="px-3 py-2 font-mono tabular-nums">
+                                  {formatMoney(b.amount)}
+                                </td>
+                                <td className="px-3 py-2 capitalize">
+                                  {b.status}
+                                </td>
+                                <td className="px-3 py-2 whitespace-nowrap">
+                                  {b.method}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    No membership.
+                  </p>
+                )}
               </div>
-              {!withdrawUserId ? (
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Load user details to view subscription records.
-                </p>
-              ) : userSubsLoading ? (
-                <div className="h-36 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" />
-              ) : userSubsError ? (
-                <p className="text-sm text-red-600 dark:text-red-400">
-                  Could not load subscriptions for this user.
-                </p>
-              ) : (userSubscriptions?.data ?? []).length === 0 ? (
-                <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 py-10 text-center dark:border-gray-600 dark:bg-gray-800/50">
-                  <p className="text-sm text-gray-600 dark:text-gray-300">
-                    No subscription rows match this user in admin data.
-                  </p>
-                  <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                    Managed subscriptions use mock users; this withdraw profile
-                    may not appear in that list until the backend links them.
-                  </p>
+              <div>
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="text-sm font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                    Subscription
+                  </h3>
+                  <Link
+                    href="/subscription"
+                    className="text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 text-sm font-medium"
+                  >
+                    Open subscription admin →
+                  </Link>
                 </div>
-              ) : (
-                <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
-                  <table className="min-w-full text-left text-sm">
-                    <thead className="border-b border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-600 dark:bg-gray-800/80 dark:text-gray-400">
-                      <tr>
-                        <th className="px-4 py-3 font-medium">Plan</th>
-                        <th className="px-4 py-3 font-medium">Status</th>
-                        <th className="px-4 py-3 font-medium">Amount</th>
-                        <th className="px-4 py-3 font-medium">Next billing</th>
-                        <th className="px-4 py-3 font-medium">Payment</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                      {(userSubscriptions?.data ?? []).map(
-                        (s: Subscription) => (
-                          <tr
-                            key={s.id}
-                            className="text-gray-800 dark:text-gray-200"
-                          >
-                            <td className="px-4 py-3">{s.planName}</td>
-                            <td className="px-4 py-3 capitalize">{s.status}</td>
-                            <td className="px-4 py-3 tabular-nums">
-                              {s.amount}
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              {s.nextBillingDate}
-                            </td>
-                            <td className="px-4 py-3">{s.paymentMethod}</td>
-                          </tr>
-                        ),
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                {userSubscription ? (
+                  <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900/50">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                        <span className="min-w-[120px] font-medium">Plan:</span>{" "}
+                        <span
+                          className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${CYCLE_BADGE[planCycle(userSubscription.planName)]}`}
+                        >
+                          {CYCLE_LABEL[planCycle(userSubscription.planName)]}
+                        </span>
+                      </p>
+                      <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                        <span className="min-w-[120px] font-medium">
+                          Status:
+                        </span>{" "}
+                        <span
+                          className={`${STATUS_BADGE_BASE} ${
+                            userSubscription.status === "active"
+                              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200"
+                              : userSubscription.status === "trialing"
+                                ? "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200"
+                                : userSubscription.status === "past_due"
+                                  ? "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                                  : userSubscription.status === "cancelled"
+                                    ? "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200"
+                                    : "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
+                          }`}
+                        >
+                          {userSubscription.status.replace("_", " ")}
+                        </span>
+                      </p>
+                      <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                        <span className="min-w-[120px] font-medium">
+                          Period:
+                        </span>{" "}
+                        {formatDate(userSubscription.startDate)} to{" "}
+                        {formatDate(userSubscription.nextBillingDate)}
+                      </p>
+                      <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                        <span className="min-w-[120px] font-medium">
+                          Auto-renew:
+                        </span>{" "}
+                        {userSubscription.autoRenew ? (
+                          <span className="font-medium text-blue-600 dark:text-blue-400">
+                            Yes
+                          </span>
+                        ) : (
+                          "No"
+                        )}
+                      </p>
+                    </div>
+                    <div className="mt-4 border-t border-gray-100 pt-4 dark:border-gray-700">
+                      <h4 className="mb-2 text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                        Billing history
+                      </h4>
+                      <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+                        <table className="min-w-full text-sm">
+                          <thead className="bg-gray-50 text-left text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                            <tr>
+                              <th className="px-3 py-2">Date</th>
+                              <th className="px-3 py-2">Amount</th>
+                              <th className="px-3 py-2">Status</th>
+                              <th className="px-3 py-2">Payment method</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                            {subscriptionBilling.map((b, i) => (
+                              <tr
+                                key={i}
+                                className="bg-white dark:bg-gray-900/40"
+                              >
+                                <td className="px-3 py-2 whitespace-nowrap">
+                                  {formatDate(b.date)}
+                                </td>
+                                <td className="px-3 py-2 font-mono tabular-nums">
+                                  {formatMoney(b.amount)}
+                                </td>
+                                <td className="px-3 py-2 capitalize">
+                                  {b.status}
+                                </td>
+                                <td className="px-3 py-2 capitalize">
+                                  {b.method}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    No subscription.
+                  </p>
+                )}
+              </div>
             </div>
           )}
 
@@ -1465,6 +1512,113 @@ const WithdrawDetail = () => {
               <p className="text-sm text-gray-700 dark:text-gray-300">
                 Available {MCBDetail?.availableTHB?.toFixed(2) ?? "0"} THB
               </p>
+              <Divider className="!my-5 !border-amber-700" />
+              <div className="space-y-3">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Tracking links from offers, shops & brands
+                  </h2>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Tracking links associated with this user (mock data).
+                    Replace with API when available.
+                  </p>
+                </div>
+                {!withdrawDetail ? (
+                  <div className="h-40 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" />
+                ) : userDeeplinks.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 py-10 text-center dark:border-gray-600 dark:bg-gray-800/50">
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                      No tracking link records for this user in mock data.
+                    </p>
+                    <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                      Global tracking link admin:{" "}
+                      <Link
+                        href="/brands?tab=deeplink"
+                        className="text-brand-600 dark:text-brand-400 underline"
+                      >
+                        User tracking link
+                      </Link>{" "}
+                      <span className="text-gray-400 dark:text-gray-500">
+                        (Brands Management → User tracking link)
+                      </span>
+                    </p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-xl border border-gray-200 px-4 py-1 dark:border-gray-700">
+                    <Table className="min-w-[820px] [&_td]:px-1 [&_th]:px-1">
+                      <TableHeader className="border-gray-100 dark:border-gray-800">
+                        <TableRow>
+                          <TableCell
+                            isHeader
+                            className="text-theme-xs py-3 text-left font-medium text-gray-500 dark:text-gray-400"
+                          >
+                            Source
+                          </TableCell>
+                          <TableCell
+                            isHeader
+                            className="text-theme-xs py-3 text-center font-medium text-gray-500 dark:text-gray-400"
+                          >
+                            Clicks
+                          </TableCell>
+                          <TableCell
+                            isHeader
+                            className="text-theme-xs py-3 text-left font-medium text-gray-500 dark:text-gray-400"
+                          >
+                            Tracking link
+                          </TableCell>
+                          <TableCell
+                            isHeader
+                            className="text-theme-xs py-3 text-left font-medium text-gray-500 dark:text-gray-400"
+                          >
+                            Created
+                          </TableCell>
+                          <TableCell
+                            isHeader
+                            className="text-theme-xs py-3 text-left font-medium text-gray-500 dark:text-gray-400"
+                          >
+                            Updated
+                          </TableCell>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
+                        {userDeeplinks.map((d, idx) => (
+                          <TableRow key={`${d.deeplink}-${idx}`}>
+                            <TableCell className="text-theme-sm py-3 text-gray-700 dark:text-gray-200">
+                              <div className="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-2">
+                                <span className="text-theme-xs inline-flex rounded-full bg-gray-100 px-2 py-0.5 font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                                  {d.sourceType}
+                                </span>
+                                <span className="whitespace-nowrap text-gray-800 dark:text-white/90">
+                                  {d.offerName}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-theme-sm py-3 text-center font-medium text-gray-800 dark:text-gray-200">
+                              {d.clicks}
+                            </TableCell>
+                            <TableCell className="text-theme-sm w-full py-3">
+                              <a
+                                href={d.deeplink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-brand-600 dark:text-brand-400 break-all hover:underline"
+                              >
+                                {d.deeplink}
+                              </a>
+                            </TableCell>
+                            <TableCell className="text-theme-sm py-3 whitespace-nowrap">
+                              <StackedDateTime value={d.createDate} />
+                            </TableCell>
+                            <TableCell className="text-theme-sm py-3 whitespace-nowrap">
+                              <StackedDateTime value={d.updateDate} />
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </div>
             </>
           )}
 
@@ -1473,7 +1627,19 @@ const WithdrawDetail = () => {
               <h2 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
                 Withdraw All
               </h2>
-              <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900/40">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-300">
+                    Total earned cashback
+                  </div>
+                  <p className="mt-1 text-base font-semibold text-gray-900 dark:text-white">
+                    {withdrawDetail?.user?.totalCashback != null
+                      ? `${Number(withdrawDetail.user.totalCashback).toLocaleString()} ${withdrawDetail.user.totalCashbackCurrency ?? "THB"}`
+                      : MCBDetail != null
+                        ? `${MCBDetail.totalMyCashbackTHB?.toFixed(2) ?? "0"} THB`
+                        : "—"}
+                  </p>
+                </div>
                 {Object.keys(withdrawDetail?.withdrawSumByCurrency || {}).map(
                   (status) => {
                     const style =
@@ -1519,132 +1685,156 @@ const WithdrawDetail = () => {
                     );
                   },
                 )}
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-500/25 dark:bg-blue-500/10">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-blue-700 dark:text-blue-400">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      className="h-4 w-4"
+                      aria-hidden="true"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM10 7a.75.75 0 0 1 .55.24l2.5 2.69a.75.75 0 1 1-1.1 1.02l-1.2-1.29V13a.75.75 0 0 1-1.5 0V9.66l-1.2 1.29a.75.75 0 1 1-1.1-1.02l2.5-2.69A.75.75 0 0 1 10 7Z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    Withdrawn
+                  </div>
+                  <p className="mt-1 text-base font-semibold text-blue-800 dark:text-blue-300">
+                    {withdrawDetail?.withdrawList
+                      ?.filter((w) => w.status === "approved")
+                      .reduce((sum, w) => sum + (w.amount_net ?? 0), 0)
+                      .toFixed(2) ?? "0"}{" "}
+                    THB
+                  </p>
+                </div>
               </div>
               <WithdrawDetailDataGrid
                 rows={rowsDataWithdraw}
                 columns={columnWithdraw}
                 rowHeight={80}
               />
+              <Divider className="!my-5 !border-amber-700" />
+              <div>
+                <h3 className="mb-3 text-sm font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                  Bank accounts
+                </h3>
+                {withdrawDetail?.withdrawList &&
+                withdrawDetail.withdrawList.length > 0 ? (
+                  <div className="rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900/50">
+                    {withdrawDetail.withdrawList.map((bank, idx) => (
+                      <div
+                        key={bank._id}
+                        className="border-b border-gray-100 p-4 last:border-b-0 dark:border-gray-800"
+                      >
+                        {withdrawDetail.withdrawList.length > 1 && (
+                          <p className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+                            Account {idx + 1}
+                          </p>
+                        )}
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                            <span className="min-w-[120px] font-medium">
+                              Bank:
+                            </span>{" "}
+                            {bank.bank_name || "N/A"}
+                            <CopyButton
+                              value={bank.bank_name?.trim() || "N/A"}
+                            />
+                          </p>
+                          <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                            <span className="min-w-[120px] font-medium">
+                              Account Number:
+                            </span>{" "}
+                            {bank.account_number || "N/A"}
+                            <CopyButton
+                              value={bank.account_number?.trim() || "N/A"}
+                            />
+                          </p>
+                          <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                            <span className="min-w-[120px] font-medium">
+                              Account Name:
+                            </span>{" "}
+                            {bank.account_name || "N/A"}
+                            <CopyButton
+                              value={bank.account_name?.trim() || "N/A"}
+                            />
+                          </p>
+                          {bank.method && bank.method !== "bank_transfer" && (
+                            <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                              <span className="min-w-[120px] font-medium">
+                                Address:
+                              </span>{" "}
+                              {bank.address || "N/A"}
+                              <CopyButton
+                                value={bank.address?.trim() || "N/A"}
+                              />
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    No bank accounts
+                  </p>
+                )}
+              </div>
             </>
           )}
 
-          {activeTab === "deeplink" && (
-            <div className="space-y-3">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Tracking links from offers, shops & brands
-                </h2>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  Tracking links associated with this user (mock data). Replace
-                  with API when available.
-                </p>
-              </div>
-              {!withdrawDetail ? (
-                <div className="h-40 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" />
-              ) : userDeeplinks.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 py-10 text-center dark:border-gray-600 dark:bg-gray-800/50">
-                  <p className="text-sm text-gray-600 dark:text-gray-300">
-                    No tracking link records for this user in mock data.
-                  </p>
-                  <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                    Global tracking link admin:{" "}
-                    <Link
-                      href="/brands?tab=deeplink"
-                      className="text-brand-600 dark:text-brand-400 underline"
-                    >
-                      User tracking link
-                    </Link>{" "}
-                    <span className="text-gray-400 dark:text-gray-500">
-                      (Brands Management → User tracking link)
-                    </span>
-                  </p>
+          {activeTab === "login" && (
+            <div>
+              <h3 className="mb-3 text-sm font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                User log
+              </h3>
+              {withdrawDetail?.user?.userLog &&
+              withdrawDetail.user.userLog.length > 0 ? (
+                <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-gray-100 dark:bg-gray-800">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-300">
+                          Action
+                        </th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-300">
+                          Date and time
+                        </th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-300">
+                          IP
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                      {withdrawDetail.user.userLog.map((entry, i) => (
+                        <tr key={i} className="bg-white dark:bg-gray-900/50">
+                          <td className="px-3 py-2 text-gray-800 dark:text-gray-200">
+                            {entry.action ?? "—"}
+                          </td>
+                          <td className="px-3 py-2 text-gray-600 dark:text-gray-400">
+                            {formatDateTime(entry.at)}
+                          </td>
+                          <td className="px-3 py-2 text-gray-600 dark:text-gray-400">
+                            {entry.ip ?? "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               ) : (
-                <div className="overflow-x-auto rounded-xl border border-gray-200 px-4 py-1 dark:border-gray-700">
-                  <Table className="min-w-[820px] [&_td]:px-1 [&_th]:px-1">
-                    <TableHeader className="border-gray-100 dark:border-gray-800">
-                      <TableRow>
-                        <TableCell
-                          isHeader
-                          className="text-theme-xs py-3 text-left font-medium text-gray-500 dark:text-gray-400"
-                        >
-                          Source
-                        </TableCell>
-                        <TableCell
-                          isHeader
-                          className="text-theme-xs py-3 text-center font-medium text-gray-500 dark:text-gray-400"
-                        >
-                          Clicks
-                        </TableCell>
-                        <TableCell
-                          isHeader
-                          className="text-theme-xs py-3 text-left font-medium text-gray-500 dark:text-gray-400"
-                        >
-                          Tracking link
-                        </TableCell>
-                        <TableCell
-                          isHeader
-                          className="text-theme-xs py-3 text-left font-medium text-gray-500 dark:text-gray-400"
-                        >
-                          Created
-                        </TableCell>
-                        <TableCell
-                          isHeader
-                          className="text-theme-xs py-3 text-left font-medium text-gray-500 dark:text-gray-400"
-                        >
-                          Updated
-                        </TableCell>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
-                      {userDeeplinks.map((d, idx) => (
-                        <TableRow key={`${d.deeplink}-${idx}`}>
-                          <TableCell className="text-theme-sm py-3 text-gray-700 dark:text-gray-200">
-                            <div className="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-2">
-                              <span className="text-theme-xs inline-flex rounded-full bg-gray-100 px-2 py-0.5 font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">
-                                {d.sourceType}
-                              </span>
-                              <span className="whitespace-nowrap text-gray-800 dark:text-white/90">
-                                {d.offerName}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-theme-sm py-3 text-center font-medium text-gray-800 dark:text-gray-200">
-                            {d.clicks}
-                          </TableCell>
-                          <TableCell className="text-theme-sm w-full py-3">
-                            <a
-                              href={d.deeplink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-brand-600 dark:text-brand-400 break-all hover:underline"
-                            >
-                              {d.deeplink}
-                            </a>
-                          </TableCell>
-                          <TableCell className="text-theme-sm py-3 whitespace-nowrap">
-                            <StackedDateTime value={d.createDate} />
-                          </TableCell>
-                          <TableCell className="text-theme-sm py-3 whitespace-nowrap">
-                            <StackedDateTime value={d.updateDate} />
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 py-12 text-center dark:border-gray-600 dark:bg-gray-800/50">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Login tracking data will appear here.
+                  </p>
+                  <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                    Connect a login/session data source to show history.
+                  </p>
                 </div>
               )}
-            </div>
-          )}
-
-          {activeTab === "login" && (
-            <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 py-12 text-center dark:border-gray-600 dark:bg-gray-800/50">
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Login tracking data will appear here.
-              </p>
-              <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                Connect a login/session data source to show history.
-              </p>
             </div>
           )}
 
