@@ -2,10 +2,12 @@ import { Link } from "expo-router";
 import {
   Image,
   Linking,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   View,
+  type TextStyle,
   type ViewStyle,
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
@@ -351,9 +353,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "500",
     lineHeight: 24,
-    textShadowColor: "rgba(0, 0, 0, 0.3)",
-    textShadowOffset: { height: 2, width: 2 },
-    textShadowRadius: 4,
+    // react-native-web deprecates the per-prop textShadow* in favor of the CSS
+    // `textShadow` shorthand, while RN core's TextStyle only models textShadow*.
+    // Branch per platform: web gets the shorthand (warning-free), native keeps the
+    // valid props. Cast the web-only key since RN's TextStyle type omits it.
+    ...Platform.select<TextStyle>({
+      web: { textShadow: "2px 2px 4px rgba(0, 0, 0, 0.3)" } as unknown as TextStyle,
+      default: {
+        textShadowColor: "rgba(0, 0, 0, 0.3)",
+        textShadowOffset: { height: 2, width: 2 },
+        textShadowRadius: 4,
+      },
+    }),
   },
   heroMaskedId: {
     // text-xs font-normal leading-normal text-[#83F2D6]
