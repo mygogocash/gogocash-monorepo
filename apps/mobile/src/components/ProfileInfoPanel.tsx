@@ -10,6 +10,7 @@ import {
 } from "@mobile/theme/icons";
 import { Link } from "expo-router";
 
+import { BirthDateField } from "@mobile/components/BirthDateField";
 import { ProfileHeroCard } from "@mobile/components/ProfileHeroCard";
 import {
   ProfileSocialBrandIcon,
@@ -17,33 +18,24 @@ import {
 } from "@mobile/components/ProfileSocialBrandIcons";
 import type { MobileSession } from "@mobile/auth/session";
 import { haptics } from "@mobile/lib/haptics";
+import { parseDmyDate } from "@mobile/lib/birthdate";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { useToast } from "@mobile/hooks/useToast";
 import { mobileShellLayout, webProfileInfoCashbackCard } from "@mobile/design/webDesignParity";
 import { colors, radii, spacing, typography } from "@mobile/theme/tokens";
 
 // Identity validators were too loose — passport was length-only (accepted "#@!ABC1" despite the
-// "alphanumeric" copy), and birthdate was format-only (accepted "2026-13-45" and future dates).
+// "alphanumeric" copy), and birthdate was format-only (accepted "45-13-2026" and future dates).
 // Exported as pure functions for unit testing (mirrors isOver20).
 export function isValidPassportId(input: string): boolean {
   return /^[A-Za-z0-9]{7,15}$/.test(input.trim());
 }
 
+// Birthdate is entered as DD-MM-YYYY (Thai-locale format). parseDmyDate handles the strict format +
+// calendar-roll-over rejection; here we only add the "not in the future" rule.
 export function isValidBirthdate(input: string, now: Date = new Date()): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(input)) {
-    return false;
-  }
-  const parsed = new Date(`${input}T00:00:00Z`);
-  if (Number.isNaN(parsed.getTime())) {
-    return false;
-  }
-  const [year, month, day] = input.split("-").map(Number);
-  // Reject calendar roll-over (e.g. 2026-13-45 / 2000-02-30 that Date would silently normalize).
-  if (
-    parsed.getUTCFullYear() !== year ||
-    parsed.getUTCMonth() + 1 !== month ||
-    parsed.getUTCDate() !== day
-  ) {
+  const parsed = parseDmyDate(input);
+  if (!parsed) {
     return false;
   }
   return parsed.getTime() <= now.getTime();
@@ -101,7 +93,7 @@ export function ProfileInfoPanel({ session }: { session: MobileSession }) {
     }
 
     if (!isValidBirthdate(birthdate)) {
-      nextErrors.push("Birthdate must be in YYYY-MM-DD format.");
+      nextErrors.push("Birthdate must be in DD-MM-YYYY format.");
     }
 
     if (nextErrors.length > 0) {
@@ -566,14 +558,12 @@ function ProfilePersonalInformationPanel({
             <View
               style={[styles.inputBox, focusedField === "birthdate" ? styles.inputBoxFocused : null]}
             >
-              <TextInput
+              <BirthDateField
+                accessibilityLabel={tc("Birthdate")}
                 editable={isEditing}
                 onBlur={() => setFocusedField(null)}
-                onChangeText={setBirthdate}
+                onChange={setBirthdate}
                 onFocus={() => setFocusedField("birthdate")}
-                placeholder={tc("YYYY-MM-DD")}
-                placeholderTextColor={FIELD_PLACEHOLDER}
-                style={styles.textInput}
                 value={birthdate}
               />
             </View>

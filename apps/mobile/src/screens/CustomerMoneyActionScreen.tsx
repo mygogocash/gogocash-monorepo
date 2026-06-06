@@ -1078,6 +1078,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 12,
     minHeight: 52,
+    // Clip to the radius so the rounded corners don't rasterize "horns" under the focus layer.
+    overflow: "hidden",
     paddingHorizontal: 16,
   },
   // Brand-green focus ring on the input wrapper (where the resting border lives).
@@ -1328,6 +1330,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     minHeight: 56,
+    // Clip to the radius so the rounded corners don't rasterize "horns" under the focus layer.
+    overflow: "hidden",
     paddingHorizontal: 16,
   },
   selectBarError: {

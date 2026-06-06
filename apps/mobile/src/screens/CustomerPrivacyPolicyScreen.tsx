@@ -2,15 +2,17 @@ import type { ReactNode } from "react";
 import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { CustomerCookieConsentBanner } from "@mobile/components/CustomerCookieConsentBanner";
 import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
 import { CustomerDesktopHeader } from "@mobile/components/CustomerDesktopHeader";
 import { CustomerLineOfficialFab } from "@mobile/components/CustomerLineOfficialFab";
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
+import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { mobileShellLayout, webPrivacyPolicyPage } from "@mobile/design/webDesignParity";
 import { privacyPolicyMarkdown } from "@mobile/legal/privacyPolicyMarkdown";
-import { colors, spacing, typography } from "@mobile/theme/tokens";
+import { colors, radii, spacing, typography } from "@mobile/theme/tokens";
 
 type LegalMarkdownBlock =
   | { kind: "heading"; level: 1 | 2 | 3; text: string }
@@ -25,6 +27,29 @@ export function CustomerPrivacyPolicyScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
+  const tc = useCopy();
+  const session = useMobileSessionSnapshot();
+
+  // Desktop + authenticated → render the policy as a profile subpage (persistent rail), like the
+  // other profile-section pages. Logged-out / public / mobile keep the standalone public legal page
+  // (also reached from the cookie banner, registration, and footer, where no profile rail belongs).
+  if (isDesktop && session) {
+    return (
+      <View style={styles.inShellRoot}>
+        <CustomerDesktopHeader viewportWidth={width} />
+        <AccountPageShell
+          activeRouteId="profile"
+          showProfileRail
+          showTitle={false}
+          title={tc(webPrivacyPolicyPage.title)}
+        >
+          <View style={styles.inShellArticleCard}>
+            <PrivacyPolicyArticle isDesktop />
+          </View>
+        </AccountPageShell>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.viewport}>
@@ -226,6 +251,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: colors.background,
     flex: 1,
+  },
+  // In-profile (logged-in desktop) variant: own header above the AccountPageShell rail.
+  inShellRoot: {
+    flex: 1,
+  },
+  inShellArticleCard: {
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    overflow: "hidden",
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
   },
   shell: {
     backgroundColor: colors.background,

@@ -43,22 +43,24 @@ describe("isValidPassportId", () => {
 describe("isValidBirthdate", () => {
   const now = new Date("2026-06-02T00:00:00Z");
 
-  it("accepts a real past date in YYYY-MM-DD", () => {
-    expect(isValidBirthdate("1990-01-01", now)).toBe(true);
+  it("accepts a real past date in DD-MM-YYYY", () => {
+    expect(isValidBirthdate("01-01-1990", now)).toBe(true);
   });
 
   it("rejects malformed format", () => {
     expect(isValidBirthdate("not-a-date", now)).toBe(false);
-    expect(isValidBirthdate("1990-1-1", now)).toBe(false);
+    expect(isValidBirthdate("1-1-1990", now)).toBe(false);
+    // ISO order (YYYY-MM-DD) is no longer accepted — the input format is DD-MM-YYYY.
+    expect(isValidBirthdate("1990-01-01", now)).toBe(false);
   });
 
   it("rejects impossible calendar dates", () => {
-    expect(isValidBirthdate("2026-13-45", now)).toBe(false);
-    expect(isValidBirthdate("2000-02-30", now)).toBe(false);
+    expect(isValidBirthdate("45-13-2026", now)).toBe(false);
+    expect(isValidBirthdate("30-02-2000", now)).toBe(false);
   });
 
   it("rejects future dates", () => {
-    expect(isValidBirthdate("2999-01-01", now)).toBe(false);
+    expect(isValidBirthdate("01-01-2999", now)).toBe(false);
   });
 });
 
@@ -95,7 +97,7 @@ describe("CustomerProfileDetailScreen (info edit form) — UX adoption", () => {
     fireEvent.change(screen.getByPlaceholderText("Zip Code"), {
       target: { value: "10110" },
     });
-    fireEvent.change(screen.getByPlaceholderText("YYYY-MM-DD"), {
+    fireEvent.change(screen.getByLabelText("Birthdate"), {
       target: { value: "1990-01-01" },
     });
   }

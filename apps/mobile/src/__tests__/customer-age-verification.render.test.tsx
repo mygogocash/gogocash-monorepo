@@ -23,8 +23,8 @@ describe("isOver20 (exported validator)", () => {
 
   it("distinguishes under-20 from over-20 against a fixed 'now'", () => {
     const now = new Date("2026-01-01T00:00:00Z");
-    expect(isOver20("2010-01-01", now)).toBe(false); // ~16
-    expect(isOver20("1990-01-01", now)).toBe(true); // ~36
+    expect(isOver20("01-01-2010", now)).toBe(false); // ~16
+    expect(isOver20("01-01-1990", now)).toBe(true); // ~36
   });
 });
 
@@ -78,7 +78,7 @@ describe("CustomerAgeVerificationScreen (Wave B UX adoption)", () => {
     const errorSpy = vi.spyOn(haptics, "error").mockResolvedValue();
     render(createElement(CustomerAgeVerificationScreen));
 
-    const input = screen.getByPlaceholderText("YYYY-MM-DD");
+    const input = screen.getByLabelText("Birth date");
     fireEvent.change(input, { target: { value: "1990-01-01" } });
     fireEvent.click(screen.getByText("Verify"));
 
@@ -91,7 +91,7 @@ describe("CustomerAgeVerificationScreen (Wave B UX adoption)", () => {
     const errorSpy = vi.spyOn(haptics, "error").mockResolvedValue();
     render(createElement(CustomerAgeVerificationScreen));
 
-    const input = screen.getByPlaceholderText("YYYY-MM-DD");
+    const input = screen.getByLabelText("Birth date");
     fireEvent.change(input, { target: { value: "2015-01-01" } });
     fireEvent.click(screen.getByText("Verify"));
 

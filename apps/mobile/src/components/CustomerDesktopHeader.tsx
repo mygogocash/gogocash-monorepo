@@ -372,6 +372,8 @@ const styles = StyleSheet.create({
     maxWidth: 560,
     minHeight: 44,
     minWidth: 0,
+    // Clip to the radius so the rounded corners don't rasterize "horns" under the focus layer.
+    overflow: "hidden",
     paddingHorizontal: spacing.md,
   },
   desktopHeaderSearchInput: {
