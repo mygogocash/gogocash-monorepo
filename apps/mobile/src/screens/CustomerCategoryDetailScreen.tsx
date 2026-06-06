@@ -675,7 +675,7 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontFamily: typography.family,
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: typography.bodyWeight,
     lineHeight: 20,
   },
   sortPillTextActive: {
