@@ -68,7 +68,7 @@ function ToastView({ message, toastKey }: ToastViewProps) {
   }, [reducedMotion, toastKey]);
 
   return (
-    <View pointerEvents="none" style={styles.overlay}>
+    <View style={styles.overlay}>
       <Animated.View
         accessibilityLiveRegion="polite"
         accessibilityRole="alert"
@@ -130,9 +130,12 @@ const styles = StyleSheet.create({
     left: 0,
     paddingBottom: spacing.xl,
     paddingHorizontal: spacing.lg,
+    // Non-interactive overlay — kept in style (not the deprecated prop) so touches pass
+    // through to the app content below. Cross-platform in RN 0.85 + react-native-web 0.21.
+    pointerEvents: "none",
     position: "absolute",
     right: 0,
-    // Keep above app content; the View's pointerEvents="none" lets touches pass through.
+    // Keep the toast above app content.
     zIndex: 9999,
   },
   toast: {

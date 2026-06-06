@@ -30,7 +30,6 @@ export function PrivacyScreenGuard({ children }: { children: ReactNode }) {
         <View
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
-          pointerEvents="none"
           style={styles.cover}
         >
           <Image alt="" source={logoMarkImage} style={styles.coverLogo} />
@@ -53,6 +52,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: colors.background,
     justifyContent: "center",
+    // In style (not the deprecated prop): the cover is non-interactive on web/native.
+    pointerEvents: "none",
     zIndex: 9999,
   },
   coverLogo: {

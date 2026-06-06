@@ -32,6 +32,19 @@ describe("react-native-web style deprecation warnings stay fixed", () => {
     expect(toast).not.toContain("...shadows.bottomNav");
   });
 
+  it("non-interactive overlays > given Toast + PrivacyScreenGuard > then pointerEvents lives in style, not the deprecated prop", () => {
+    // react-native-web 0.21 deprecates `pointerEvents` as a PROP (logs "props.pointerEvents
+    // is deprecated. Use style.pointerEvents"). RN 0.85 supports `style.pointerEvents` on web
+    // AND native, so the cross-platform fix moves it into the style object.
+    for (const file of ["src/components/Toast.tsx", "src/security/PrivacyScreenGuard.tsx"]) {
+      const source = readMobileFile(file);
+      expect(source, `${file} must not pass pointerEvents as a prop`).not.toMatch(/pointerEvents=/);
+      expect(source, `${file} must keep the non-interactive intent in style`).toContain(
+        'pointerEvents: "none"'
+      );
+    }
+  });
+
   it("profile popover hero name > given the user name shadow > then textShadow is branched per platform (web shorthand, native textShadow*)", () => {
     const menu = readMobileFile("src/components/CustomerProfileMenu.tsx");
     const normalized = normalizeSource(menu);
