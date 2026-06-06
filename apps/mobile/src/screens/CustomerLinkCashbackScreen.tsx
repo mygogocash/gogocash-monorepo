@@ -15,6 +15,7 @@ import linkMyCashbackImage from "../../assets/link-mycashback-shop.png";
 import logoMarkImage from "../../assets/nav/logo.png";
 import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
 import { CustomerDesktopHeader } from "@mobile/components/CustomerDesktopHeader";
+import { LinkMyCashbackConnectorDots } from "@mobile/components/LinkMyCashbackConnectorDots";
 import { useCopy } from "@mobile/i18n/useCopy";
 import {
   getDesktopShellHorizontalPadding,
@@ -78,14 +79,10 @@ export function CustomerLinkCashbackScreen({ mode }: { mode: "link" | "signIn" }
                   />
                 </View>
 
-                <View style={styles.connectorDots} testID="link-mycashback-connector-dots">
-                  {webLinkMyCashbackIntro.connectorDots.map((dotColor, index) => (
-                    <View
-                      key={`${dotColor}-${index}`}
-                      style={[styles.connectorDot, { backgroundColor: dotColor }]}
-                    />
-                  ))}
-                </View>
+                <LinkMyCashbackConnectorDots
+                  colors={webLinkMyCashbackIntro.connectorDots}
+                  testID="link-mycashback-connector-dots"
+                />
 
                 <View style={styles.connectorImageFrame}>
                   <Image
@@ -222,16 +219,6 @@ const styles = StyleSheet.create({
   connectorImage: {
     height: "100%",
     width: "100%",
-  },
-  connectorDots: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 10,
-  },
-  connectorDot: {
-    borderRadius: 3,
-    height: 6,
-    width: 6,
   },
   cardTitle: {
     color: "#103522",
