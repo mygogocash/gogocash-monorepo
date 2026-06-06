@@ -88,6 +88,20 @@ describe("Expo ProfileBar pixel parity", () => {
   });
 });
 
+describe("Expo profile bar hover affordance", () => {
+  const nav = readSource("src/components/CustomerProfileNav.tsx");
+
+  it("account chip > given MotionPressable's hover-lift shadow > then the trigger is rounded so the shadow follows the pill, not a square box", () => {
+    // MotionPressable applies its hover boxShadow to the OUTER trigger. The visible pill
+    // (CustomerProfileBar) is an inner View with borderRadius 999, so without a matching
+    // radius on the trigger the hover shadow renders as a square box around the chip.
+    // Round the trigger to the pill radius (web parity with the sibling header chips,
+    // which all carry their pill radius on the MotionPressable).
+    expect(nav).toContain("borderRadius: radii.chip");
+    expect(nav).toContain("styles.chip");
+  });
+});
+
 describe("Expo profile dropdown menu navigation", () => {
   const menu = readSource("src/components/CustomerProfileMenu.tsx");
 

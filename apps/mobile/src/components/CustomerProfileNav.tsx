@@ -7,7 +7,7 @@ import { CustomerProfileMenu } from "@mobile/components/CustomerProfileMenu";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { motion } from "@mobile/theme/motion";
-import { colors } from "@mobile/theme/tokens";
+import { colors, radii } from "@mobile/theme/tokens";
 
 type CustomerProfileNavProps = {
   readonly session: MobileSession;
@@ -107,6 +107,7 @@ export function CustomerProfileNav({ session, onExpandedChange }: CustomerProfil
           setOpen((value) => !value);
         }}
         pressScale={motion.scale.subtlePress}
+        style={styles.chip}
       >
         <CustomerProfileBar open={open} session={session} />
       </MotionPressable>
@@ -128,6 +129,11 @@ const styles = StyleSheet.create({
   root: {
     position: "relative",
     zIndex: 95,
+  },
+  // Match the CustomerProfileBar pill radius so MotionPressable's hover-lift boxShadow
+  // (and any focus outline) follows the rounded chip instead of rendering a square box.
+  chip: {
+    borderRadius: radii.chip,
   },
   popover: {
     backgroundColor: colors.white,
