@@ -46,6 +46,13 @@ export function formatDate(input: DateInput, fallback = "—"): string {
   return `${pad(p.day)}/${pad(p.month)}/${p.year}`;
 }
 
+/** Format a date as `mm/yyyy` (month granularity). Invalid/empty → `fallback`. */
+export function formatMonthYear(input: DateInput, fallback = "—"): string {
+  const p = toCalendarParts(input);
+  if (!p) return fallback;
+  return `${pad(p.month)}/${p.year}`;
+}
+
 /** Format the time-of-day as 24-hour `HH:mm[:ss]`. Date-only input yields `fallback`. */
 export function formatTime(
   input: DateInput,

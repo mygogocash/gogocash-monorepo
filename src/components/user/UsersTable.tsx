@@ -9,8 +9,38 @@ import ViewMyCashback from "./ViewMyCashback";
 import { useRouter, useSearchParams } from "next/navigation";
 import { devError } from "@/lib/devConsole";
 import CopyButton from "@/components/ui/CopyButton";
+import { SUPPORT_BUTTON_CLASS } from "@/components/ui/button/SupportButton";
+import { AdminPaginationBar } from "@/components/common/AdminPaginationBar";
+import NoData from "@/components/common/NoData";
+import SortByDropdown from "@/components/ui/button/SortByDropdown";
+import SearchBar from "@/components/ui/button/SearchBar";
 import { planCycle, CYCLE_LABEL, CYCLE_BADGE } from "@/lib/subscriptionCycle";
 import { tierFromScore, CREDIT_TIER_BADGE } from "@/lib/creditTier";
+
+/** Users-table filter dimension; each maps to a second-dropdown value set. */
+type FilterDim = "tier" | "membership" | "subscription";
+
+/** Second-dropdown options per dimension ([value, label]); "" = no filter. */
+const FILTER_VALUES: Record<FilterDim, [string, string][]> = {
+  tier: [
+    ["", "All tiers"],
+    ["bronze", "Bronze"],
+    ["silver", "Silver"],
+    ["gold", "Gold"],
+    ["platinum", "Platinum"],
+  ],
+  membership: [
+    ["", "All memberships"],
+    ["Basic", "Basic"],
+    ["GoGoPass Plus", "GoGoPass Plus"],
+  ],
+  subscription: [
+    ["", "All subscriptions"],
+    ["monthly", "Monthly"],
+    ["annual", "Annually"],
+    ["none", "Not subscribed"],
+  ],
+};
 
 export default function UsersTable() {
   const searchParams = useSearchParams();
@@ -38,12 +68,13 @@ export default function UsersTable() {
     total: 0,
     totalPages: 1,
   });
-
   const [query, setQuery] = useState<UsersQuery>({
     limit: 12,
     page: 1,
     search: "",
+    sort: "newest",
   });
+  const [filterDim, setFilterDim] = useState<FilterDim>("tier");
 
   // Apply ?search= from URL on mount (e.g. from Conversion "View user info")
   useEffect(() => {
@@ -110,15 +141,30 @@ export default function UsersTable() {
     };
   }, []);
 
+  // Handle filter change (dimension + value); reset to first page on change.
+  const applyFilter = (dim: FilterDim, value: string) => {
+    const newQuery: UsersQuery = {
+      ...query,
+      tier: undefined,
+      membership: undefined,
+      subscription: undefined,
+      page: 1,
+    };
+    if (value) newQuery[dim] = value;
+    setQuery(newQuery);
+    fetchUsers(newQuery);
+  };
+  const handleDimChange = (dim: FilterDim) => {
+    setFilterDim(dim);
+    applyFilter(dim, ""); // reset to "All" when the dimension changes
+  };
+
   // Handle pagination
   const handlePageChange = (newPage: number) => {
     const newQuery = { ...query, page: newPage };
     setQuery(newQuery);
     fetchUsers(newQuery);
   };
-
-  const hasNextPage = pagination.page < pagination.totalPages;
-  const hasPrevPage = pagination.page > 1;
 
   const navigateToUserInfo = (
     user: RegularUser,
@@ -150,21 +196,44 @@ export default function UsersTable() {
         setOpenModal={setOpenModalView}
       />
       <div className="flex items-center justify-between gap-20 px-6 py-5">
-        <div className="flex shrink-0 items-baseline gap-2">
+        <div className="shrink-0">
           <h3 className="text-base font-medium text-gray-800 dark:text-white/90">
-            Users
+            GoGoCash Users
           </h3>
-          <p className="text-sm whitespace-nowrap text-gray-500 dark:text-gray-400">
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             Total: {pagination.total} users
           </p>
         </div>
-        <input
-          type="text"
-          placeholder="Search users..."
-          value={query.search}
-          onChange={(e) => handleSearch(e.target.value)}
-          className="focus:ring-brand-500/20 dark:focus:ring-brand-400/30 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-5 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden xl:w-[300px] dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400"
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+            Sort by
+            <SortByDropdown
+              value={filterDim}
+              onChange={(e) => handleDimChange(e.target.value as FilterDim)}
+              aria-label="Filter dimension"
+            >
+              <option value="tier">Credit Tier</option>
+              <option value="membership">Membership</option>
+              <option value="subscription">Subscription</option>
+            </SortByDropdown>
+          </label>
+          <SortByDropdown
+            value={query[filterDim] ?? ""}
+            onChange={(e) => applyFilter(filterDim, e.target.value)}
+            aria-label="Filter value"
+          >
+            {FILTER_VALUES[filterDim].map(([value, label]) => (
+              <option key={value || "all"} value={value}>
+                {label}
+              </option>
+            ))}
+          </SortByDropdown>
+          <SearchBar
+            placeholder="Search users..."
+            value={query.search}
+            onChange={(e) => handleSearch(e.target.value)}
+          />
+        </div>
       </div>
 
       {/* Content */}
@@ -322,9 +391,9 @@ export default function UsersTable() {
                                   id === user._id ? null : user._id,
                                 );
                               }}
-                              className="inline-flex min-h-[2rem] items-center justify-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                               aria-expanded={openActionsId === user._id}
                               aria-haspopup="true"
+                              className={`${SUPPORT_BUTTON_CLASS} gap-1`}
                             >
                               Actions
                               <svg
@@ -385,49 +454,17 @@ export default function UsersTable() {
 
             {/* Pagination */}
             {pagination.totalPages > 1 && (
-              <div className="mt-6 flex items-center justify-between">
-                <div className="text-sm text-gray-500 dark:text-gray-400">
-                  Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
-                  {Math.min(
-                    pagination.page * pagination.limit,
-                    pagination.total,
-                  )}{" "}
-                  of {pagination.total} results
-                </div>
-                <div className="flex flex-wrap items-center justify-center gap-2">
-                  <button
-                    onClick={() =>
-                      handlePageChange(Number(pagination.page) - 1)
-                    }
-                    disabled={!hasPrevPage}
-                    className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800/50 dark:text-gray-300 dark:hover:bg-gray-700 dark:disabled:opacity-40"
-                  >
-                    Previous
-                  </button>
-                  <span className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400">
-                    Page {pagination.page} of {pagination.totalPages}
-                  </span>
-                  <button
-                    onClick={() => {
-                      handlePageChange(
-                        Number(pagination.page) + 1 > pagination.totalPages
-                          ? pagination.totalPages
-                          : Number(pagination.page) + 1,
-                      );
-                    }}
-                    disabled={!hasNextPage}
-                    className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800/50 dark:text-gray-300 dark:hover:bg-gray-700 dark:disabled:opacity-40"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
+              <AdminPaginationBar
+                page={pagination.page}
+                totalPages={pagination.totalPages}
+                total={pagination.total}
+                limit={pagination.limit}
+                onPageChange={handlePageChange}
+              />
             )}
 
             {users && users.length === 0 && !loading && (
-              <div className="py-8 text-center text-gray-500 dark:text-gray-400">
-                No users found
-              </div>
+              <NoData>No users found</NoData>
             )}
           </>
         )}

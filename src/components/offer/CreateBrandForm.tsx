@@ -14,6 +14,7 @@ import { defaultLookupFromBrandAndCountry } from "@/lib/createBrandLookupSlug";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import { COMMISSION_MANAGEMENT_BRANDS_ROOT_QUERY_KEY } from "@/lib/query/offersQueries";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
+import NoData from "@/components/common/NoData";
 import { FormSectionJumpNav } from "@/components/form/FormSectionJumpNav";
 import Button from "@/components/ui/button/Button";
 import Switch from "@/components/form/switch/Switch";
@@ -947,9 +948,10 @@ export default function CreateBrandForm() {
                     {policyCategoriesPending ? (
                       <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Loading categories…</p>
                     ) : categoriesForTagSelect.length === 0 ? (
-                      <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-                        No categories in the system yet. Add them under Category Management, or use partner feed.
-                      </p>
+                      <NoData className="mt-1">
+                        No categories in the system yet. Add them under Category
+                        Management, or use partner feed.
+                      </NoData>
                     ) : null}
                   </div>
                 ) : null}

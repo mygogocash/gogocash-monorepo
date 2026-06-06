@@ -6,6 +6,7 @@ import { apiClient } from "@/lib/api";
 import type { Offer } from "@/types/api";
 import { fetchOffersList, offersListQueryKey } from "@/lib/query/offersQueries";
 import { pathImage } from "@/utils/helper";
+import NoData from "@/components/common/NoData";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import Button from "@/components/ui/button/Button";
 import { ArrowDownIcon, ArrowUpIcon } from "@/icons/index";
@@ -285,9 +286,9 @@ export default function TopBrandManagementPanel() {
           </p>
         ) : null}
         {localOrder.length === 0 ? (
-          <p className="text-sm text-gray-500 dark:text-gray-400">
+          <NoData>
             No brands selected yet. Use the form above to add offers.
-          </p>
+          </NoData>
         ) : null}
         <ul className="space-y-2" aria-describedby={localOrder.length > 0 ? "top-brand-dnd-help" : undefined}>
           {localOrder.map((id, index) => {

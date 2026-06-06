@@ -114,6 +114,8 @@ export async function getMembershipUsers(params: {
   search?: string;
   status?: string;
   tierId?: string;
+  sort?: string;
+  autoRenew?: string;
 }) {
   const { data } = await client.get<Paginated<UserMembership>>("/admin/membership/users", {
     params: qp(params),
@@ -179,6 +181,8 @@ export async function getSubscriptions(params: {
   limit?: number;
   search?: string;
   status?: string;
+  plan?: string;
+  autoRenew?: string;
 }) {
   const { data } = await client.get<Paginated<Subscription>>("/admin/subscription/subscriptions", {
     params: qp(params),
@@ -316,6 +320,18 @@ export async function postWalletAdjust(
   },
 ) {
   const { data } = await client.post(`/admin/wallets/${userId}/adjust`, body);
+  return data;
+}
+
+export async function resolveCashbackRequest(
+  conversionId: number,
+  action: "approve" | "reject",
+  reason?: string,
+) {
+  const { data } = await client.post(
+    `/admin/wallets/cashback-request/${conversionId}`,
+    { action, reason },
+  );
   return data;
 }
 

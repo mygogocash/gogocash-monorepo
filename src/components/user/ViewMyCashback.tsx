@@ -2,6 +2,7 @@ import { fetcher } from "@/lib/axios/client";
 import { formatDate } from "@/lib/dateFormat";
 import { useQuery } from "@tanstack/react-query";
 import { Modal } from "../ui/modal";
+import NoData from "@/components/common/NoData";
 import { MyCashbackResponse } from "@/types/user";
 interface IProp {
   id: string;
@@ -26,9 +27,7 @@ const ViewMyCashback = ({ id, openModal, setOpenModal }: IProp) => {
       <h1>My Cashback</h1>
       <div>
         {myCashback && myCashback.length === 0 && (
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            No cashback found.
-          </p>
+          <NoData>No cashback found.</NoData>
         )}
         {myCashback &&
           myCashback?.map((cashback) => (
