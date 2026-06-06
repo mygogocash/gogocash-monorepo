@@ -167,6 +167,35 @@ export async function createAvailableSessionStore(): Promise<MobileSessionStore 
   }
 }
 
+/**
+ * Build a client-side demo sign-in session for the phone-OTP flow.
+ *
+ * The phone screen verifies a fixed demo code (there is no Firebase phone backend yet), so
+ * there is no server-issued token to persist. This stamps a session with a truthy
+ * `access_token` so `useAuthGuardSession` flips to signed-in — mirroring the dev raw-token
+ * session used by the OAuth callback. Replace with the real Firebase token exchange once the
+ * phone-auth backend lands.
+ */
+export function buildDemoMobileSession(overrides: MobileSession = {}): MobileSession {
+  return {
+    access_token: "demo-session",
+    auth_flow: "phone",
+    is_new_user: false,
+    provider: "firebase",
+    ...overrides,
+  } satisfies MobileSession;
+}
+
+/**
+ * Persist a session to whichever store the runtime supports (web localStorage / native secure
+ * store). `setSession` fires `notifyMobileSessionChange()`, so reactive consumers — the auth
+ * guard and the header — re-read and re-render without a navigator remount.
+ */
+export async function persistMobileSession(session: MobileSession): Promise<void> {
+  const store = await createAvailableSessionStore();
+  await store?.setSession(session);
+}
+
 export async function clearMobileAppSession(
   options: {
     secureStore?: MobileSessionStore | null;

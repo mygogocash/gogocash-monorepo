@@ -27,6 +27,7 @@ import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useReducedMotion } from "@mobile/hooks/useReducedMotion";
 import { haptics } from "@mobile/lib/haptics";
 import { markIntroModalPending } from "@mobile/features/introModal/introModalSession";
+import { buildDemoMobileSession, persistMobileSession } from "@mobile/auth/session";
 import {
   getDesktopShellHorizontalPadding,
   mobileShellLayout,
@@ -228,11 +229,23 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
     setOtpError(!isValid);
     if (isValid) {
       // Success haptic on a verified sign-in, then mirror the web post-login flow:
-      // queue the first-visit intro modal (shown when home mounts), then land on the
-      // MyCashback linking step.
+      // queue the first-visit intro modal (shown when home mounts), persist the session
+      // so the auth guard flips to signed-in, then land on the MyCashback linking step.
       haptics.success();
       markIntroModalPending();
-      router.push("/link-mycashback");
+      void (async () => {
+        try {
+          await persistMobileSession(
+            buildDemoMobileSession({ mobile: `${selectedCountry.dialCode}${phoneDigits}` })
+          );
+          router.push("/link-mycashback");
+        } catch {
+          // A failed session write must not silently land the user on a "signed-in"
+          // destination — surface the error and keep them on the OTP step.
+          setOtpError(true);
+          haptics.error();
+        }
+      })();
     } else {
       haptics.error();
     }
