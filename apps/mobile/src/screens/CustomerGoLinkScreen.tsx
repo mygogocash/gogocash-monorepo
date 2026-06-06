@@ -159,6 +159,9 @@ export function CustomerGoLinkScreen({
   const isHomeSheet = presentation === "homeSheet";
   const [goLinkInput, setGoLinkInput] = useState("");
   const [goLinkError, setGoLinkError] = useState("");
+  // Swap the resting border for a brand-green focus ring (and suppress the orange OS-accent UA
+  // outline on web). One flag suffices: there is a single editable input on this screen.
+  const [isInputFocused, setInputFocused] = useState(false);
   const [goLinkResultOpen, setGoLinkResultOpen] = useState(false);
   const [goLinkResultHref, setGoLinkResultHref] = useState("");
   const [guidelineOpen, setGuidelineOpen] = useState(false);
@@ -302,17 +305,19 @@ export function CustomerGoLinkScreen({
                         autoCapitalize="none"
                         autoCorrect={false}
                         inputMode="url"
+                        onBlur={() => setInputFocused(false)}
                         onChangeText={(nextValue) => {
                           setGoLinkInput(nextValue);
                           if (goLinkError) {
                             setGoLinkError("");
                           }
                         }}
+                        onFocus={() => setInputFocused(true)}
                         onSubmitEditing={handlePasteAndGo}
                         placeholder={tc(webGoLinkFeature.inputPlaceholder)}
                         placeholderTextColor="#93A8B5"
                         returnKeyType="go"
-                        style={styles.input}
+                        style={[styles.input, isInputFocused ? styles.inputFocused : null]}
                         value={goLinkInput}
                       />
                     </View>
@@ -840,6 +845,12 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: typography.body,
     minHeight: webGoLinkModalLayout.inputHeight - 2,
+    // Web: suppress the orange OS-accent UA focus outline; focus is conveyed by the green border.
+    outlineColor: "transparent",
+    outlineWidth: 0,
+  },
+  inputFocused: {
+    borderColor: colors.primary,
   },
   errorText: {
     color: "#B91C1C",

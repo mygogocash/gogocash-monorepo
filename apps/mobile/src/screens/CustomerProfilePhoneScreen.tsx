@@ -25,6 +25,9 @@ function PhoneNumberScreen() {
   const router = useRouter();
   const tc = useCopy();
   const [phone, setPhone] = useState("");
+  // Swap the resting border for a brand-green focus ring (and suppress the orange OS-accent UA
+  // outline) while the phone field is focused on web.
+  const [isInputFocused, setInputFocused] = useState(false);
   const normalizedPhone = phone.replace(/\D/g, "");
   const isValid = normalizedPhone.length >= 9 && normalizedPhone.length <= 10;
 
@@ -58,10 +61,12 @@ function PhoneNumberScreen() {
           <TextInput
             accessibilityLabel={tc("Mobile Number")}
             keyboardType="phone-pad"
+            onBlur={() => setInputFocused(false)}
             onChangeText={setPhone}
+            onFocus={() => setInputFocused(true)}
             placeholder="08x xxx xxxx"
             placeholderTextColor={colors.textSoft}
-            style={styles.input}
+            style={[styles.input, isInputFocused ? styles.inputFocused : null]}
             value={phone}
           />
         </View>
@@ -97,6 +102,9 @@ function PhoneNumberScreen() {
 function PhoneOtpScreen() {
   const tc = useCopy();
   const [code, setCode] = useState("");
+  // Swap the resting border for a brand-green focus ring (and suppress the orange OS-accent UA
+  // outline) while the code field is focused on web.
+  const [isInputFocused, setInputFocused] = useState(false);
   const canSubmit = code.replace(/\D/g, "").length >= 6;
 
   return (
@@ -112,10 +120,12 @@ function PhoneOtpScreen() {
           accessibilityLabel={tc("Verification Code")}
           keyboardType="number-pad"
           maxLength={6}
+          onBlur={() => setInputFocused(false)}
           onChangeText={setCode}
+          onFocus={() => setInputFocused(true)}
           placeholder="000000"
           placeholderTextColor={colors.textSoft}
-          style={styles.otpInput}
+          style={[styles.otpInput, isInputFocused ? styles.inputFocused : null]}
           value={code}
         />
       </View>
@@ -255,7 +265,14 @@ const styles = StyleSheet.create({
     fontFamily: typography.family,
     fontSize: typography.body,
     minHeight: 52,
+    // Web: kill the browser's default focus ring (the OS-accent-tinted UA outline that renders
+    // orange); focus is conveyed by the brand-green border (inputFocused) instead.
+    outlineColor: "transparent",
+    outlineWidth: 0,
     paddingHorizontal: spacing.md,
+  },
+  inputFocused: {
+    borderColor: colors.primary,
   },
   helper: {
     color: colors.muted,
@@ -286,6 +303,10 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 4,
     minHeight: 58,
+    // Web: kill the browser's default focus ring (the OS-accent-tinted UA outline that renders
+    // orange); focus is conveyed by the brand-green border (inputFocused) instead.
+    outlineColor: "transparent",
+    outlineWidth: 0,
     paddingHorizontal: spacing.md,
     textAlign: "center",
     width: "100%",
