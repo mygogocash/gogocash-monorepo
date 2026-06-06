@@ -10,6 +10,7 @@ import type {
 import { useDataSession } from "@/hooks/useDataSession";
 import Label from "../form/Label";
 import Input from "../form/input/InputField";
+import NoData from "@/components/common/NoData";
 import apiClient from "@/lib/api";
 import { devError } from "@/lib/devConsole";
 import {
@@ -519,9 +520,9 @@ export default function FeeForm() {
 
             <div className="space-y-6">
               {regions.length === 0 && (
-                <p className="rounded-lg border border-dashed border-gray-200 bg-gray-50/80 px-4 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400">
+                <NoData>
                   No countries yet. Use quick add or add a custom row.
-                </p>
+                </NoData>
               )}
               {regions.map((row) => {
                 const cc = row.countryCode.trim().toUpperCase();

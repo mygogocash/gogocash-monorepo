@@ -8,6 +8,7 @@ import Link from "next/link";
 import FormUpdate from "./FormUpdate";
 import { BANNER_ADMIN_SURFACES } from "@/lib/bannerAdminSurfaces";
 import { getBannerSlotRowFields, getBannerTableStatusCell } from "@/lib/bannerSlotStatus";
+import NoData from "@/components/common/NoData";
 import { pathImage } from "@/utils/helper";
 import type { BannerData, BannerRequestForm, BannerTableVariant } from "@/types/banner";
 
@@ -260,8 +261,8 @@ export default function BannerTable({ variant = "home" }: BannerTableProps) {
                 <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
                   {visibleSlots.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                        No rows match your search.
+                      <td colSpan={5} className="px-4 py-6">
+                        <NoData>No rows match your search.</NoData>
                       </td>
                     </tr>
                   ) : (

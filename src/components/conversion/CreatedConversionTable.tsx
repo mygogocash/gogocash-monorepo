@@ -12,6 +12,7 @@ import {
 import { useDataSession } from "@/hooks/useDataSession";
 import client from "@/lib/axios/client";
 import { Modal } from "@/components/ui/modal";
+import NoData from "@/components/common/NoData";
 import Input from "@/components/form/input/InputField";
 import Button from "@/components/ui/button/Button";
 import { devError } from "@/lib/devConsole";
@@ -368,10 +369,10 @@ export default function CreatedConversionTable() {
               </div>
             )}
             {Number(lists?.pagination?.total) === 0 && !loading && (
-              <div className="py-8 text-center text-gray-500 dark:text-gray-400">
+              <NoData>
                 No created conversions yet. Add one from the Add conversion
                 page.
-              </div>
+              </NoData>
             )}
           </>
         )}

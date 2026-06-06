@@ -12,6 +12,7 @@ import { useDataSession } from "@/hooks/useDataSession";
 import ModalWithdraw from "./ModalWithdraw";
 import { useRouter } from "next/navigation";
 import CopyButton from "@/components/ui/CopyButton";
+import NoData from "@/components/common/NoData";
 import { devError } from "@/lib/devConsole";
 export interface WithdrawRequestForm {
   file: File | null;
@@ -579,9 +580,7 @@ export default function WithdrawTable() {
             )}
 
             {Number(lists?.pagination.total) === 0 && !loading && (
-              <div className="py-8 text-center text-gray-500 dark:text-gray-400">
-                No offers found
-              </div>
+              <NoData>No offers found</NoData>
             )}
           </>
         )}

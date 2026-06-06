@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import CopyButton from "@/components/ui/CopyButton";
+import NoData from "@/components/common/NoData";
 import type { MyCashbackResponse } from "@/types/user";
 import { formatDate, formatDateTime, type DateInput } from "@/lib/dateFormat";
 
@@ -230,9 +231,7 @@ export default function MyCashbackProfileSection({
           Balances
         </h4>
         {!user.balance?.length ? (
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            No balance rows
-          </p>
+          <NoData>No balance rows</NoData>
         ) : (
           <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
             <table className="min-w-full text-sm">

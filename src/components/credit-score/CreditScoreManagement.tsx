@@ -2,38 +2,38 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  getCreditScoreAudit,
   getCreditScoreConfig,
-  getCreditScoreDetail,
   getCreditScores,
   putCreditScoreConfig,
-  putCreditScoreOverride,
 } from "@/lib/api/adminModulesApi";
 import type {
   CreditScore,
   CreditTier,
   ScoringConfig,
 } from "@/types/adminModules";
-import Button from "@/components/ui/button/Button";
-import { Modal } from "@/components/ui/modal";
+import PrimaryButton from "@/components/ui/button/PrimaryButton";
+import SecondaryButton from "@/components/ui/button/SecondaryButton";
 import Input from "@/components/form/input/InputField";
 import { AdminPaginationBar } from "@/components/common/AdminPaginationBar";
 import { AdminQueryError } from "@/components/common/AdminQueryError";
 import { AdminTableSkeleton } from "@/components/common/AdminTableSkeleton";
+import SupportButton from "@/components/ui/button/SupportButton";
+import SortByDropdown from "@/components/ui/button/SortByDropdown";
+import SearchBar from "@/components/ui/button/SearchBar";
 import toast from "react-hot-toast";
-import { validateBoundedAmount } from "@/lib/formValidation";
-import { formatDate, formatDateTime } from "@/lib/dateFormat";
+import { formatDate } from "@/lib/dateFormat";
 import { CREDIT_TIER_BADGE } from "@/lib/creditTier";
 import { useState } from "react";
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+
+// Compact numeric filter input (matches the SearchBar/SortByDropdown header style).
+const SCORE_INPUT =
+  "h-9 w-[72px] rounded-lg border border-gray-300 bg-white px-2 text-xs text-gray-500 placeholder:text-gray-400 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-gray-400 dark:placeholder:text-gray-500";
+
+// WithdrawDetail-style sub-card (read-only info / editable form share the frame).
+const INFO_CARD =
+  "rounded-lg border border-gray-200 bg-white/80 p-4 dark:border-gray-700 dark:bg-gray-900/40";
+const CARD_HEADING =
+  "mb-3 text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400";
 
 export default function CreditScoreManagement() {
   const qc = useQueryClient();
@@ -48,11 +48,9 @@ export default function CreditScoreManagement() {
     minScore: "",
     maxScore: "",
   });
-  const [userId, setUserId] = useState<string | null>(null);
-  const [configOpen, setConfigOpen] = useState(false);
-  const [cfgDraft, setCfgDraft] = useState<ScoringConfig | null>(null);
-  const [overrideScore, setOverrideScore] = useState("");
-  const [overrideReason, setOverrideReason] = useState("support_adjustment");
+  // Local edits to the scoring config; falls back to the loaded server config.
+  const [cfgEdits, setCfgEdits] = useState<ScoringConfig | null>(null);
+  const [editingCfg, setEditingCfg] = useState(false);
 
   const listQ = useQuery({
     queryKey: ["admin", "credit", "list", page, filters],
@@ -66,62 +64,35 @@ export default function CreditScoreManagement() {
         maxScore: filters.maxScore ? Number(filters.maxScore) : undefined,
       }),
   });
-  const detailQ = useQuery({
-    queryKey: ["admin", "credit", "detail", userId],
-    queryFn: () => getCreditScoreDetail(userId!),
-    enabled: Boolean(userId),
+  const configQ = useQuery({
+    queryKey: ["admin", "credit", "config"],
+    queryFn: getCreditScoreConfig,
   });
-  const auditQ = useQuery({
-    queryKey: ["admin", "credit", "audit", userId],
-    queryFn: () => getCreditScoreAudit(userId!),
-    enabled: Boolean(userId),
-  });
-
-  const overrideM = useMutation({
-    mutationFn: () =>
-      putCreditScoreOverride(userId!, {
-        newScore: Number(overrideScore),
-        reason: overrideReason,
-        adminId: "admin",
-      }),
-    onSuccess: () => {
-      toast.success("Override saved");
-      void qc.invalidateQueries({ queryKey: ["admin", "credit"] });
-    },
-    onError: () => toast.error("Override failed"),
-  });
+  // Show local edits if any, otherwise the loaded config (no effect needed).
+  const cfg = cfgEdits ?? configQ.data ?? null;
 
   const saveCfg = useMutation({
-    mutationFn: (cfg: ScoringConfig) => putCreditScoreConfig(cfg),
+    mutationFn: (config: ScoringConfig) => putCreditScoreConfig(config),
     onSuccess: () => {
       toast.success("Config saved");
       void qc.invalidateQueries({ queryKey: ["admin", "credit"] });
-      setConfigOpen(false);
+      setEditingCfg(false);
     },
   });
 
-  const submitOverride = () => {
-    const err = validateBoundedAmount(overrideScore, "Score", 0, 1000);
-    if (err) {
-      toast.error(err);
-      return;
-    }
-    void overrideM.mutateAsync();
-  };
-
   const submitConfig = () => {
-    if (!cfgDraft) return;
+    if (!cfg) return;
     const weights = [
-      cfgDraft.transactionWeight,
-      cfgDraft.referralWeight,
-      cfgDraft.membershipWeight,
+      cfg.transactionWeight,
+      cfg.referralWeight,
+      cfg.membershipWeight,
     ];
     if (weights.some((w) => !Number.isFinite(w) || w < 0)) {
       toast.error("Weights must be numbers (0 or greater).");
       return;
     }
     if (
-      cfgDraft.tiers.some(
+      cfg.tiers.some(
         (t) =>
           !Number.isFinite(t.min) || !Number.isFinite(t.max) || t.min > t.max,
       )
@@ -129,10 +100,13 @@ export default function CreditScoreManagement() {
       toast.error("Each tier needs a valid min ≤ max.");
       return;
     }
-    void saveCfg.mutateAsync(cfgDraft);
+    void saveCfg.mutateAsync(cfg);
   };
 
-  if (listQ.isLoading) return <AdminTableSkeleton />;
+  const cancelEdit = () => {
+    setCfgEdits(null);
+    setEditingCfg(false);
+  };
 
   const rows = listQ.data?.data ?? [];
 
@@ -158,346 +132,316 @@ export default function CreditScoreManagement() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <Input
-          placeholder="Search…"
-          value={searchDraft}
-          onChange={(e) => setSearchDraft(e.target.value)}
-          className="max-w-xs"
-        />
-        <select
-          className="h-11 rounded-lg border border-gray-300 bg-white px-3 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-          value={tierDraft}
-          onChange={(e) => setTierDraft(e.target.value)}
-        >
-          <option value="">All tiers</option>
-          {(["bronze", "silver", "gold", "platinum"] as CreditTier[]).map(
-            (t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ),
+      <section className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-6 dark:border-gray-800 dark:bg-white/[0.03]">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Scoring configuration
+          </h2>
+          {!editingCfg ? (
+            <SecondaryButton
+              onClick={() => setEditingCfg(true)}
+              disabled={!cfg}
+            >
+              Edit
+            </SecondaryButton>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2">
+              <SecondaryButton onClick={cancelEdit}>Cancel</SecondaryButton>
+              <SecondaryButton variant="blue" onClick={submitConfig}>
+                Save
+              </SecondaryButton>
+            </div>
           )}
-        </select>
-        <Input
-          placeholder="Min score"
-          className="w-24"
-          value={minDraft}
-          onChange={(e) => setMinDraft(e.target.value)}
-        />
-        <Input
-          placeholder="Max score"
-          className="w-24"
-          value={maxDraft}
-          onChange={(e) => setMaxDraft(e.target.value)}
-        />
-        <Button
-          size="sm"
-          onClick={() => {
-            setPage(1);
-            setFilters({
-              search: searchDraft,
-              tier: tierDraft,
-              minScore: minDraft,
-              maxScore: maxDraft,
-            });
-          }}
-        >
-          Apply filters
-        </Button>
-        <Button size="sm" variant="outline" onClick={exportCsv}>
-          Export CSV
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => {
-            void (async () => {
-              const c = await getCreditScoreConfig();
-              setCfgDraft(c);
-              setConfigOpen(true);
-            })();
-          }}
-        >
-          Scoring config
-        </Button>
-      </div>
+        </div>
 
-      {listQ.isError ? (
-        <AdminQueryError
-          title="Could not load credit scores"
-          onRetry={() => void listQ.refetch()}
-        />
-      ) : !rows.length ? (
-        <p className="py-12 text-center text-sm text-gray-500 dark:text-gray-400">
-          No rows for this filter.
-        </p>
-      ) : (
-        <>
-          <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
-            <table className="min-w-full text-left text-sm">
-              <thead className="border-b border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400">
-                <tr>
-                  <th className="px-4 py-3 font-medium">User</th>
-                  <th className="px-4 py-3 font-medium">Score</th>
-                  <th className="px-4 py-3 font-medium">Tier</th>
-                  <th className="px-4 py-3 font-medium">Updated</th>
-                  <th className="px-4 py-3 font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                {rows.map((r: CreditScore) => (
-                  <tr
-                    key={r.userId}
-                    className="text-gray-800 dark:text-gray-200"
-                  >
-                    <td className="px-4 py-3">
-                      <div className="font-medium">{r.userName}</div>
-                      <div className="text-xs text-gray-500">{r.email}</div>
-                    </td>
-                    <td className="px-4 py-3 tabular-nums">{r.currentScore}</td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize ${CREDIT_TIER_BADGE[r.tier]}`}
-                      >
-                        {r.tier}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-gray-500">
-                      {formatDate(r.lastUpdated)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setUserId(r.userId)}
-                      >
-                        Details
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {listQ.data && (
-            <AdminPaginationBar
-              page={listQ.data.page}
-              totalPages={listQ.data.totalPages}
-              total={listQ.data.total}
-              onPageChange={setPage}
-            />
-          )}
-        </>
-      )}
-
-      <Modal
-        isOpen={Boolean(userId)}
-        onClose={() => setUserId(null)}
-        className="max-w-2xl p-6"
-      >
-        {detailQ.isLoading ? (
-          <p className="text-sm text-gray-500">Loading…</p>
-        ) : detailQ.data ? (
-          <div className="space-y-6">
-            <div className="pr-10">
-              <div className="flex flex-wrap items-center gap-2">
-                <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {detailQ.data.userName}
-                </h4>
-                <span
-                  className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize ${CREDIT_TIER_BADGE[detailQ.data.tier]}`}
-                >
-                  {detailQ.data.tier}
-                </span>
-              </div>
-              <p className="mt-0.5 truncate text-sm text-gray-500 dark:text-gray-400">
-                {detailQ.data.email}
-              </p>
-              <div className="mt-2 flex items-baseline gap-2">
-                <span className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {detailQ.data.currentScore}
-                </span>
-                <span className="text-xs text-gray-400 dark:text-gray-500">
-                  Updated {formatDate(detailQ.data.lastUpdated)}
-                </span>
-              </div>
-            </div>
-            <div>
-              <p className="mb-2 font-medium text-gray-900 dark:text-white">
-                Score history
-              </p>
-              <div className="h-56 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={detailQ.data.history}>
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      className="stroke-gray-200 dark:stroke-gray-700"
-                    />
-                    <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                    <YAxis tick={{ fontSize: 10 }} />
-                    <Tooltip />
-                    <Line
-                      type="monotone"
-                      dataKey="score"
-                      stroke="#7c3aed"
-                      strokeWidth={2}
-                      dot={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-            <div>
-              <p className="font-medium text-gray-900 dark:text-white">
-                Factors
-              </p>
-              <ul className="mt-2 space-y-1 text-sm text-gray-600 dark:text-gray-400">
-                {detailQ.data.factors.map((f) => (
-                  <li key={f.name}>
-                    {f.name}: weight {f.weight} · contribution{" "}
-                    {Math.round(f.contribution)}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-              <p className="font-medium text-gray-900 dark:text-white">
-                Manual override
-              </p>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <Input
-                  type="number"
-                  placeholder="New score"
-                  value={overrideScore}
-                  onChange={(e) => setOverrideScore(e.target.value)}
-                />
-                <select
-                  className="h-11 rounded-lg border border-gray-300 bg-white px-3 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-                  value={overrideReason}
-                  onChange={(e) => setOverrideReason(e.target.value)}
-                >
-                  <option value="support_adjustment">Support adjustment</option>
-                  <option value="fraud_review">Fraud review</option>
-                  <option value="goodwill">Goodwill</option>
-                </select>
-              </div>
-              <Button
-                className="mt-3"
-                size="sm"
-                onClick={submitOverride}
-                disabled={!overrideScore}
-              >
-                Apply override
-              </Button>
-            </div>
-            <div>
-              <p className="font-medium text-gray-900 dark:text-white">Audit</p>
-              <div className="mt-2 max-h-40 overflow-y-auto text-xs">
-                {(auditQ.data ?? []).length === 0 ? (
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    No overrides yet.
-                  </p>
-                ) : (
-                  (auditQ.data ?? []).map((a, i) => (
-                    <div
-                      key={i}
-                      className="border-b border-gray-100 py-1 dark:border-gray-800"
-                    >
-                      {formatDateTime(a.timestamp)}: {a.fromScore} → {a.toScore}{" "}
-                      ({a.reason}) by {a.adminId}
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-        ) : null}
-      </Modal>
-
-      <Modal
-        isOpen={configOpen}
-        onClose={() => setConfigOpen(false)}
-        className="max-w-lg p-6"
-      >
-        {!cfgDraft ? (
-          <p className="text-sm text-gray-500">Loading…</p>
+        {!cfg ? (
+          <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+            Loading…
+          </p>
         ) : (
-          <div className="space-y-3">
-            <h4 className="font-semibold text-gray-900 dark:text-white">
-              Scoring weights (%)
-            </h4>
-            <label className="text-sm text-gray-600 dark:text-gray-400">
-              Transactions
-            </label>
-            <Input
-              type="number"
-              value={String(cfgDraft.transactionWeight)}
-              onChange={(e) =>
-                setCfgDraft({
-                  ...cfgDraft,
-                  transactionWeight: Number(e.target.value),
-                })
-              }
-            />
-            <label className="text-sm text-gray-600 dark:text-gray-400">
-              Referrals
-            </label>
-            <Input
-              type="number"
-              value={String(cfgDraft.referralWeight)}
-              onChange={(e) =>
-                setCfgDraft({
-                  ...cfgDraft,
-                  referralWeight: Number(e.target.value),
-                })
-              }
-            />
-            <label className="text-sm text-gray-600 dark:text-gray-400">
-              Membership
-            </label>
-            <Input
-              type="number"
-              value={String(cfgDraft.membershipWeight)}
-              onChange={(e) =>
-                setCfgDraft({
-                  ...cfgDraft,
-                  membershipWeight: Number(e.target.value),
-                })
-              }
-            />
-            <p className="text-sm font-medium text-gray-900 dark:text-white">
-              Tier thresholds
-            </p>
-            {cfgDraft.tiers.map((t, idx) => (
-              <div key={t.name} className="grid grid-cols-3 gap-2 text-xs">
-                <span className="py-2 text-gray-600 capitalize dark:text-gray-400">
-                  {t.name}
-                </span>
-                <Input
-                  type="number"
-                  value={String(t.min)}
-                  onChange={(e) => {
-                    const tiers = [...cfgDraft.tiers];
-                    tiers[idx] = { ...tiers[idx], min: Number(e.target.value) };
-                    setCfgDraft({ ...cfgDraft, tiers });
-                  }}
-                />
-                <Input
-                  type="number"
-                  value={String(t.max)}
-                  onChange={(e) => {
-                    const tiers = [...cfgDraft.tiers];
-                    tiers[idx] = { ...tiers[idx], max: Number(e.target.value) };
-                    setCfgDraft({ ...cfgDraft, tiers });
-                  }}
-                />
-              </div>
-            ))}
-            <Button onClick={submitConfig}>Save config</Button>
+          <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className={INFO_CARD}>
+              <h4 className={CARD_HEADING}>Scoring weights (%)</h4>
+              {editingCfg ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="text-sm text-gray-600 dark:text-gray-400">
+                      Transactions
+                    </label>
+                    <div className="w-24">
+                      <Input
+                        type="number"
+                        value={String(cfg.transactionWeight)}
+                        onChange={(e) =>
+                          setCfgEdits({
+                            ...cfg,
+                            transactionWeight: Number(e.target.value),
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="text-sm text-gray-600 dark:text-gray-400">
+                      Referrals
+                    </label>
+                    <div className="w-24">
+                      <Input
+                        type="number"
+                        value={String(cfg.referralWeight)}
+                        onChange={(e) =>
+                          setCfgEdits({
+                            ...cfg,
+                            referralWeight: Number(e.target.value),
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="text-sm text-gray-600 dark:text-gray-400">
+                      Membership
+                    </label>
+                    <div className="w-24">
+                      <Input
+                        type="number"
+                        value={String(cfg.membershipWeight)}
+                        onChange={(e) =>
+                          setCfgEdits({
+                            ...cfg,
+                            membershipWeight: Number(e.target.value),
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1.5 text-sm">
+                  {(
+                    [
+                      { label: "Transactions", value: cfg.transactionWeight },
+                      { label: "Referrals", value: cfg.referralWeight },
+                      { label: "Membership", value: cfg.membershipWeight },
+                    ] as const
+                  ).map((w) => (
+                    <div
+                      key={w.label}
+                      className="flex items-center justify-between gap-2"
+                    >
+                      <span className="text-gray-600 dark:text-gray-400">
+                        {w.label}
+                      </span>
+                      <span className="text-lg font-medium text-gray-900 tabular-nums dark:text-white">
+                        {w.value}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className={INFO_CARD}>
+              <h4 className={CARD_HEADING}>Tier thresholds</h4>
+              {editingCfg ? (
+                <div className="space-y-2">
+                  {cfg.tiers.map((t, idx) => (
+                    <div
+                      key={t.name}
+                      className="grid grid-cols-[5rem_1fr_1fr] items-center gap-2 text-xs"
+                    >
+                      <span className="text-gray-600 capitalize dark:text-gray-400">
+                        {t.name}
+                      </span>
+                      <Input
+                        type="number"
+                        value={String(t.min)}
+                        onChange={(e) => {
+                          const tiers = [...cfg.tiers];
+                          tiers[idx] = {
+                            ...tiers[idx],
+                            min: Number(e.target.value),
+                          };
+                          setCfgEdits({ ...cfg, tiers });
+                        }}
+                      />
+                      <Input
+                        type="number"
+                        value={String(t.max)}
+                        onChange={(e) => {
+                          const tiers = [...cfg.tiers];
+                          tiers[idx] = {
+                            ...tiers[idx],
+                            max: Number(e.target.value),
+                          };
+                          setCfgEdits({ ...cfg, tiers });
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-1.5 text-sm">
+                  {cfg.tiers.map((t) => (
+                    <div
+                      key={t.name}
+                      className="flex items-center justify-between gap-2"
+                    >
+                      <span className="text-gray-600 capitalize dark:text-gray-400">
+                        {t.name}
+                      </span>
+                      <span className="font-medium text-gray-900 tabular-nums dark:text-white">
+                        {t.min} – {t.max}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
-      </Modal>
+      </section>
+
+      <section className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-6 dark:border-gray-800 dark:bg-white/[0.03]">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Credit scores
+          </h2>
+          <div className="flex items-center gap-2">
+            <PrimaryButton onClick={exportCsv}>Export CSV</PrimaryButton>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <SearchBar
+            placeholder="Search name or email…"
+            value={searchDraft}
+            onChange={(e) => setSearchDraft(e.target.value)}
+          />
+          <SortByDropdown
+            aria-label="Filter by tier"
+            value={tierDraft}
+            onChange={(e) => setTierDraft(e.target.value)}
+          >
+            <option value="">All tiers</option>
+            {(["bronze", "silver", "gold", "platinum"] as CreditTier[]).map(
+              (t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ),
+            )}
+          </SortByDropdown>
+          <input
+            className={SCORE_INPUT}
+            placeholder="Min score"
+            value={minDraft}
+            onChange={(e) => setMinDraft(e.target.value)}
+          />
+          <input
+            className={SCORE_INPUT}
+            placeholder="Max score"
+            value={maxDraft}
+            onChange={(e) => setMaxDraft(e.target.value)}
+          />
+          <SecondaryButton
+            variant="blue"
+            onClick={() => {
+              setPage(1);
+              setFilters({
+                search: searchDraft,
+                tier: tierDraft,
+                minScore: minDraft,
+                maxScore: maxDraft,
+              });
+            }}
+          >
+            Apply filters
+          </SecondaryButton>
+        </div>
+
+        {listQ.isLoading ? (
+          <AdminTableSkeleton rows={5} />
+        ) : listQ.isError ? (
+          <AdminQueryError
+            title="Could not load credit scores"
+            onRetry={() => void listQ.refetch()}
+          />
+        ) : !rows.length ? (
+          <p className="mt-8 text-center text-sm text-gray-500 dark:text-gray-400">
+            No rows for this filter.
+          </p>
+        ) : (
+          <>
+            <div className="mt-4 overflow-x-auto">
+              <table className="min-w-full text-left text-sm">
+                <thead className="bg-gray-50 dark:bg-gray-800">
+                  <tr>
+                    <th className="px-3 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      User
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Score
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Tier
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Updated
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {rows.map((r: CreditScore) => (
+                    <tr
+                      key={r.userId}
+                      className="text-gray-800 dark:text-gray-200"
+                    >
+                      <td className="px-3 py-3">
+                        <div className="font-medium">{r.userName}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          {r.email}
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 tabular-nums">
+                        {r.currentScore}
+                      </td>
+                      <td className="px-3 py-3">
+                        <span
+                          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize ${CREDIT_TIER_BADGE[r.tier]}`}
+                        >
+                          {r.tier}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 text-xs text-gray-500 dark:text-gray-400">
+                        {formatDate(r.lastUpdated)}
+                      </td>
+                      <td className="px-3 py-3">
+                        <SupportButton
+                          href={`/withdraw/${r.userId}?tab=subscription&section=scoring`}
+                        >
+                          View
+                        </SupportButton>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {listQ.data && (
+              <AdminPaginationBar
+                page={listQ.data.page}
+                totalPages={listQ.data.totalPages}
+                total={listQ.data.total}
+                limit={listQ.data.limit}
+                onPageChange={setPage}
+              />
+            )}
+          </>
+        )}
+      </section>
     </div>
   );
 }

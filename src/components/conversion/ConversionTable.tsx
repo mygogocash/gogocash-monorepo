@@ -14,6 +14,7 @@ import {
 import { useDataSession } from "@/hooks/useDataSession";
 import client from "@/lib/axios/client";
 import { Modal } from "@/components/ui/modal";
+import NoData from "@/components/common/NoData";
 import { devError } from "@/lib/devConsole";
 
 export default function ConversionTable() {
@@ -792,9 +793,7 @@ export default function ConversionTable() {
             )}
 
             {Number(lists?.pagination.total) === 0 && !loading && (
-              <div className="py-8 text-center text-gray-500 dark:text-gray-400">
-                No offers found
-              </div>
+              <NoData>No offers found</NoData>
             )}
           </>
         )}

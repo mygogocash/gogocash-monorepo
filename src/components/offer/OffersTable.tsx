@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import NoData from "@/components/common/NoData";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import {
   keepPreviousData,
@@ -930,9 +931,7 @@ export default function OffersTable() {
             )}
 
             {offers.length === 0 && !offersLoading && (
-              <div className="py-8 text-center text-gray-500 dark:text-gray-400">
-                No brands found
-              </div>
+              <NoData>No brands found</NoData>
             )}
           </>
         )}

@@ -40,6 +40,13 @@ import {
   type Offer,
 } from "@/types/api";
 import { DEFAULT_MOCK_ACCESS_TOKEN } from "@/lib/authTokens";
+import { sortUsers, type UserSort } from "@/lib/userSort";
+import { filterUsers } from "@/lib/userFilter";
+import {
+  filterMyCashbackByStatus,
+  sortMyCashback,
+  type MyCashbackSort,
+} from "@/lib/myCashbackList";
 import type { Permission } from "@/lib/rbac";
 import {
   listRoles,
@@ -517,7 +524,16 @@ function handleMockGET(
           u.email.toLowerCase().includes(s),
       );
     }
-    return ok(paginate(filtered, page, limit));
+    filtered = filterUsers(filtered, {
+      tier: searchParams.get("tier") || undefined,
+      membership: searchParams.get("membership") || undefined,
+      subscription: searchParams.get("subscription") || undefined,
+    });
+    const sorted = sortUsers(
+      filtered,
+      (searchParams.get("sort") as UserSort) || "newest",
+    );
+    return ok(paginate(sorted, page, limit));
   }
 
   if (path[0] === "user" && path.length === 2) {
@@ -821,7 +837,13 @@ async function handleMockPOST(
   }
 
   if (joined === "admin/list-mycashback-users") {
-    const b = body as { page?: number; limit?: number; search?: string };
+    const b = body as {
+      page?: number;
+      limit?: number;
+      search?: string;
+      sort?: string;
+      status?: string;
+    };
     const page = Math.max(1, Number(b.page) || 1);
     const limit = Math.min(100, Math.max(1, Number(b.limit) || 12));
     const search = String(b.search ?? "")
@@ -845,6 +867,8 @@ async function handleMockPOST(
         return hay.includes(search);
       });
     }
+    filtered = filterMyCashbackByStatus(filtered, String(b.status ?? ""));
+    filtered = sortMyCashback(filtered, (b.sort as MyCashbackSort) || "newest");
     return ok({
       status: "success",
       message: "ok",
