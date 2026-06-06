@@ -4,7 +4,14 @@ import { fileURLToPath } from "node:url";
 
 import { createElement } from "react";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// The withdraw mode now renders inside AccountPageShell, whose chrome reaches
+// expo-localization (the native `expo` global is absent under happy-dom). Device locale is
+// not under test — stub it at the seam (same pattern as customer-wallet.render.test.tsx).
+vi.mock("expo-localization", () => ({
+  getLocales: () => [{ languageTag: "en-US", languageCode: "en" }],
+}));
 
 import {
   CustomerMoneyActionScreen,
@@ -77,6 +84,19 @@ describe("evaluateWithdraw", () => {
   it("blocks a second submission once already submitted (no double-deduct)", () => {
     expect(evaluateWithdraw("500.00", 3180.24, true, true)).toEqual({ ok: false, error: null });
   });
+
+  it("rejects an amount below the minimum withdrawal (web parity: 300 THB floor)", () => {
+    // Assert the specific min-floor error so the test fails if the `amount < min` branch is
+    // removed (a bare `ok:false` could pass via another guard and false-green).
+    expect(evaluateWithdraw("100", 3180.24, true, false, 300)).toEqual({
+      ok: false,
+      error: "Minimum withdrawal is 300.00 THB.",
+    });
+  });
+
+  it("approves an amount at the minimum withdrawal", () => {
+    expect(evaluateWithdraw("300", 3180.24, true, false, 300)).toEqual({ ok: true, amount: 300 });
+  });
 });
 
 describe("withdraw confirm button is guarded after success (source)", () => {
@@ -92,8 +112,8 @@ describe("withdraw confirm button is guarded after success (source)", () => {
 describe("CustomerMoneyActionScreen (render)", () => {
   it("mounts the withdraw form without throwing", () => {
     expect(() => render(createElement(CustomerMoneyActionScreen, { mode: "withdraw" }))).not.toThrow();
-    // The amount form's primary action label proves the withdraw surface rendered.
-    expect(screen.getAllByText("Confirm & Dispatch").length).toBeGreaterThan(0);
+    // The web-parity "Withdraw" CTA proves the withdraw surface rendered.
+    expect(screen.getByRole("button", { name: "Withdraw" })).toBeTruthy();
   });
 
   it("renders the withdrawal amount field so the keyboard-avoidance wrapper has a target", () => {
