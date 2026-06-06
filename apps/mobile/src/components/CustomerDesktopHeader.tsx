@@ -211,6 +211,7 @@ function DesktopCategoryTab({
   return (
   <Link asChild href={item.href as never} key={item.id}>
                 <MotionPressable
+                  hoverLift={false}
                   onHoverIn={() => setHovered(true)}
                   onHoverOut={() => setHovered(false)}
                   pressScale={motion.scale.subtlePress}
