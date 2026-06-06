@@ -11,9 +11,14 @@ import {
 import { Link } from "expo-router";
 
 import { ProfileHeroCard } from "@mobile/components/ProfileHeroCard";
+import {
+  ProfileSocialBrandIcon,
+  type ProfileSocialBrand,
+} from "@mobile/components/ProfileSocialBrandIcons";
 import type { MobileSession } from "@mobile/auth/session";
 import { haptics } from "@mobile/lib/haptics";
 import { useCopy } from "@mobile/i18n/useCopy";
+import { useToast } from "@mobile/hooks/useToast";
 import { mobileShellLayout, webProfileInfoCashbackCard } from "@mobile/design/webDesignParity";
 import { colors, radii, spacing, typography } from "@mobile/theme/tokens";
 
@@ -148,7 +153,111 @@ export function ProfileInfoPanel({ session }: { session: MobileSession }) {
         username={username}
         zip={zip}
       />
+      <ProfileMyCashbackLinkSection />
+      <ProfileSocialLinkSection />
     </>
+  );
+}
+
+// Web parity (ProfileDesktopPersonalPanel): the linked MyCashBack account(s) below the
+// personal form. Mock-data app → a single linked account shown masked, like the web demo.
+const PROFILE_LINKED_MYCASHBACK = [{ id: "mc-5678", masked: "***5678" }] as const;
+
+const PROFILE_SOCIAL_PROVIDERS: { brand: ProfileSocialBrand; label: string }[] = [
+  { brand: "google", label: "Link with Gmail" },
+  { brand: "facebook", label: "Link with Facebook" },
+  { brand: "line", label: "Link with Line" },
+  { brand: "x", label: "Link with X" },
+  { brand: "telegram", label: "Link with Telegram" },
+  { brand: "apple", label: "Link with Apple" },
+];
+
+/**
+ * "Have you ever had an account(s) with MyCashBack?" — link/unlink block (web parity).
+ * Linking routes to /link-mycashback; unlink is a placeholder (toast) like the web demo.
+ */
+function ProfileMyCashbackLinkSection() {
+  const tc = useCopy();
+  const toast = useToast();
+  return (
+    <View style={styles.linkSectionCard}>
+      <View style={styles.myCashbackHeaderRow}>
+        <Text style={styles.myCashbackQuestion}>
+          {tc("Have you ever had an account(s) with MyCashBack?")}
+        </Text>
+        <Link asChild href="/link-mycashback">
+          <Pressable accessibilityRole="link" style={styles.linkInline}>
+            <Text style={styles.myCashbackLinkCta}>{tc("Link your account here !!")}</Text>
+          </Pressable>
+        </Link>
+      </View>
+      <Text style={styles.myCashbackDescription}>
+        {tc(
+          "For users with multiple MyCashBack accounts, you may link all of them to your GoGoCash profile here to manage your balances and activities from one centralized location.",
+        )}
+      </Text>
+      {PROFILE_LINKED_MYCASHBACK.map((account) => (
+        <View key={account.id} style={styles.linkedAccountRow}>
+          <View style={styles.linkedAccountInfo}>
+            <Text style={styles.linkedAccountName}>MyCashBack</Text>
+            <Text style={styles.linkedAccountMasked}>{account.masked}</Text>
+          </View>
+          <View style={styles.linkedAccountActions}>
+            <View style={styles.linkedPill}>
+              <Text style={styles.linkedPillText}>{tc("Linked")}</Text>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => toast.show(tc("This sign-in method is not available yet."))}
+              style={styles.linkInline}
+            >
+              <Text style={styles.unlinkText}>{tc("Unlink")}</Text>
+            </Pressable>
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/**
+ * "Link to your Social Media for Easy in One-click!" — one row per provider with the brand
+ * mark + a green Link pill. Linking is a placeholder (toast) like the web demo. 2-col on desktop.
+ */
+function ProfileSocialLinkSection() {
+  const tc = useCopy();
+  const toast = useToast();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
+  return (
+    <View style={styles.linkSectionCard}>
+      <Text style={styles.socialHeading}>
+        {tc("Link to your Social Media for Easy in One-click!")}
+      </Text>
+      <View style={styles.socialGrid}>
+        {PROFILE_SOCIAL_PROVIDERS.map((provider) => (
+          <View
+            key={provider.brand}
+            style={[styles.socialRow, isDesktop ? styles.socialRowDesktop : null]}
+          >
+            <View style={styles.socialRowLeft}>
+              <ProfileSocialBrandIcon brand={provider.brand} />
+              <Text numberOfLines={1} style={styles.socialRowLabel}>
+                {tc(provider.label)}
+              </Text>
+            </View>
+            <Pressable
+              accessibilityLabel={tc(provider.label)}
+              accessibilityRole="button"
+              onPress={() => toast.show(tc("This sign-in method is not available yet."))}
+              style={styles.socialLinkButton}
+            >
+              <Text style={styles.socialLinkButtonText}>{tc("Link")}</Text>
+            </Pressable>
+          </View>
+        ))}
+      </View>
+    </View>
   );
 }
 
@@ -313,7 +422,7 @@ function ProfilePersonalInformationPanel({
 
       <View style={styles.formCard}>
         {/* Name — placeholder-only input, no label, no icon */}
-        <View style={styles.inputBox}>
+        <View style={[styles.inputBox, focusedField === "name" ? styles.inputBoxFocused : null]}>
           <TextInput
             editable={isEditing}
             onBlur={() => setFocusedField(null)}
@@ -321,7 +430,7 @@ function ProfilePersonalInformationPanel({
             onFocus={() => setFocusedField("name")}
             placeholder={tc("Name")}
             placeholderTextColor={FIELD_PLACEHOLDER}
-            style={[styles.textInput, focusedField === "name" ? styles.textInputFocused : null]}
+            style={styles.textInput}
             value={username}
           />
         </View>
@@ -351,7 +460,7 @@ function ProfilePersonalInformationPanel({
         </View>
 
         {/* Citizen or Passport ID — placeholder-only input */}
-        <View style={styles.inputBox}>
+        <View style={[styles.inputBox, focusedField === "id" ? styles.inputBoxFocused : null]}>
           <TextInput
             editable={isEditing}
             onBlur={() => setFocusedField(null)}
@@ -359,13 +468,13 @@ function ProfilePersonalInformationPanel({
             onFocus={() => setFocusedField("id")}
             placeholder={tc("Citizen or Passport ID")}
             placeholderTextColor={FIELD_PLACEHOLDER}
-            style={[styles.textInput, focusedField === "id" ? styles.textInputFocused : null]}
+            style={styles.textInput}
             value={idNumber}
           />
         </View>
 
         {/* Legal Address — placeholder-only input */}
-        <View style={styles.inputBox}>
+        <View style={[styles.inputBox, focusedField === "address" ? styles.inputBoxFocused : null]}>
           <TextInput
             editable={isEditing}
             onBlur={() => setFocusedField(null)}
@@ -373,7 +482,7 @@ function ProfilePersonalInformationPanel({
             onFocus={() => setFocusedField("address")}
             placeholder={tc("Legal Address")}
             placeholderTextColor={FIELD_PLACEHOLDER}
-            style={[styles.textInput, focusedField === "address" ? styles.textInputFocused : null]}
+            style={styles.textInput}
             value={address}
           />
         </View>
@@ -397,7 +506,9 @@ function ProfilePersonalInformationPanel({
               </View>
               <View style={[styles.regionCell, cellStyle]}>
                 <Text style={styles.regionLabel}>{tc("Zip Code")}</Text>
-                <View style={styles.inputBox}>
+                <View
+                  style={[styles.inputBox, focusedField === "zip" ? styles.inputBoxFocused : null]}
+                >
                   <TextInput
                     editable={isEditing}
                     onBlur={() => setFocusedField(null)}
@@ -405,7 +516,7 @@ function ProfilePersonalInformationPanel({
                     onFocus={() => setFocusedField("zip")}
                     placeholder={tc("Zip Code")}
                     placeholderTextColor={FIELD_PLACEHOLDER}
-                    style={[styles.textInput, focusedField === "zip" ? styles.textInputFocused : null]}
+                    style={styles.textInput}
                     value={zip}
                   />
                 </View>
@@ -452,7 +563,9 @@ function ProfilePersonalInformationPanel({
             <ProfileDropdownDisplay placeholder={tc("Gender (Optional)")} value={gender} />
           </View>
           <View style={cellStyle}>
-            <View style={styles.inputBox}>
+            <View
+              style={[styles.inputBox, focusedField === "birthdate" ? styles.inputBoxFocused : null]}
+            >
               <TextInput
                 editable={isEditing}
                 onBlur={() => setFocusedField(null)}
@@ -460,7 +573,7 @@ function ProfilePersonalInformationPanel({
                 onFocus={() => setFocusedField("birthdate")}
                 placeholder={tc("YYYY-MM-DD")}
                 placeholderTextColor={FIELD_PLACEHOLDER}
-                style={[styles.textInput, focusedField === "birthdate" ? styles.textInputFocused : null]}
+                style={styles.textInput}
                 value={birthdate}
               />
             </View>
@@ -650,6 +763,160 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
     padding: spacing.lg,
   },
+  // --- MyCashBack link + social link sections (web ProfileDesktopPersonalPanel parity) ---
+  linkSectionCard: {
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: 24,
+    borderWidth: 1,
+    gap: spacing.md,
+    padding: spacing.lg,
+  },
+  myCashbackHeaderRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    justifyContent: "space-between",
+  },
+  myCashbackQuestion: {
+    color: colors.ink,
+    flex: 1,
+    fontFamily: typography.family,
+    fontSize: 16,
+    fontWeight: "500",
+    minWidth: 220,
+  },
+  linkInline: {
+    // Web: suppress the orange UA focus outline (these are text/link affordances).
+    outlineColor: "transparent",
+    outlineWidth: 0,
+  },
+  myCashbackLinkCta: {
+    color: "#0064D6",
+    fontFamily: typography.family,
+    fontSize: 16,
+    fontWeight: "500",
+    textDecorationLine: "underline",
+  },
+  myCashbackDescription: {
+    color: "#7F7F7F",
+    fontFamily: typography.family,
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  linkedAccountRow: {
+    alignItems: "center",
+    borderColor: "rgba(152, 152, 152, 0.4)",
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    justifyContent: "space-between",
+    minHeight: 56,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  linkedAccountInfo: {
+    alignItems: "center",
+    flex: 1,
+    flexDirection: "row",
+    gap: 8,
+    minWidth: 0,
+  },
+  linkedAccountName: {
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: 16,
+  },
+  linkedAccountMasked: {
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: 16,
+  },
+  linkedAccountActions: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12,
+  },
+  linkedPill: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.chip,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  linkedPillText: {
+    color: colors.white,
+    fontFamily: typography.family,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  unlinkText: {
+    color: "#0064D6",
+    fontFamily: typography.family,
+    fontSize: 12,
+    fontWeight: "500",
+    textDecorationLine: "underline",
+  },
+  socialHeading: {
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: 20,
+    fontWeight: "500",
+  },
+  socialGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  socialRow: {
+    alignItems: "center",
+    backgroundColor: colors.white,
+    borderColor: "#E4E4E4",
+    borderRadius: radii.chip,
+    borderWidth: 1,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    minHeight: 48,
+    paddingLeft: 12,
+    paddingRight: 8,
+    width: "100%",
+  },
+  socialRowDesktop: {
+    width: "48%",
+  },
+  socialRowLeft: {
+    alignItems: "center",
+    flex: 1,
+    flexDirection: "row",
+    gap: 12,
+    minWidth: 0,
+  },
+  socialRowLabel: {
+    color: colors.ink,
+    flex: 1,
+    fontFamily: typography.family,
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  socialLinkButton: {
+    alignItems: "center",
+    backgroundColor: colors.primary,
+    borderRadius: radii.chip,
+    justifyContent: "center",
+    minHeight: 32,
+    // Web: suppress the orange UA focus outline; the green pill conveys the action.
+    outlineColor: "transparent",
+    outlineWidth: 0,
+    paddingHorizontal: 18,
+  },
+  socialLinkButtonText: {
+    color: colors.white,
+    fontFamily: typography.family,
+    fontSize: 13,
+    fontWeight: "600",
+  },
   headerRow: {
     alignItems: "center",
     flexDirection: "row",
@@ -702,7 +969,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: "row",
     minHeight: 56,
+    // Clip to the radius so the rounded corners don't rasterize "horns" under the focus layer.
+    overflow: "hidden",
     paddingHorizontal: 16,
+  },
+  inputBoxFocused: {
+    // Focus highlights the rounded wrapper (web parity) — the green border follows the box,
+    // instead of a phantom border on the square inner <TextInput>.
+    borderColor: colors.primary,
   },
   textInput: {
     color: colors.ink,
@@ -712,9 +986,6 @@ const styles = StyleSheet.create({
     minHeight: 52,
     outlineColor: "transparent",
     outlineWidth: 0,
-  },
-  textInputFocused: {
-    borderColor: colors.primary,
   },
   idTypeRow: {
     flexDirection: "row",
@@ -798,6 +1069,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     minHeight: 56,
+    // Clip to the radius (same fix as inputBox) so rounded corners render cleanly.
+    overflow: "hidden",
     paddingHorizontal: 16,
   },
   dropdownValue: {

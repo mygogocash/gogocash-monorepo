@@ -57,7 +57,9 @@ const INPUT_SCREENS = [
   {
     file: "src/components/ProfileInfoPanel.tsx",
     inputStyles: ["textInput"],
-    focusStyle: "textInputFocused",
+    // Focus border lives on the rounded wrapper (inputBoxFocused), not the square inner input —
+    // so the brand-green border follows the box and the rounded corners stay clean.
+    focusStyle: "inputBoxFocused",
   },
 ] as const;
 
