@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { formatDate, formatDateTime, formatTime } from "@/lib/dateFormat";
+import {
+  formatDate,
+  formatDateTime,
+  formatMonthYear,
+  formatTime,
+} from "@/lib/dateFormat";
 
 describe("formatDate", () => {
   it("given a yyyy-mm-dd string > then returns dd/mm/yyyy", () => {
@@ -33,6 +38,30 @@ describe("formatDate", () => {
 
   it("honours a custom fallback", () => {
     expect(formatDate(null, "")).toBe("");
+  });
+});
+
+describe("formatMonthYear", () => {
+  it("given a yyyy-mm-dd string > then returns mm/yyyy", () => {
+    expect(formatMonthYear("2025-07-05")).toBe("07/2025");
+  });
+
+  it("pads a single-digit month", () => {
+    expect(formatMonthYear("2026-03-09")).toBe("03/2026");
+  });
+
+  it("given a Date object > then formats its local month/year", () => {
+    expect(formatMonthYear(new Date(2026, 5, 15))).toBe("06/2026");
+  });
+
+  it("given null/undefined/empty > then returns the fallback", () => {
+    expect(formatMonthYear(null)).toBe("—");
+    expect(formatMonthYear(undefined)).toBe("—");
+    expect(formatMonthYear("")).toBe("—");
+  });
+
+  it("honours a custom fallback for unparseable input", () => {
+    expect(formatMonthYear("not-a-date", "")).toBe("");
   });
 });
 

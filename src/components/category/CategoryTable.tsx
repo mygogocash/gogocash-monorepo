@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import NoData from "@/components/common/NoData";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import { OffersQuery } from "@/types/api";
 import Form from "./FormCategory";
@@ -223,9 +224,7 @@ export default function CategoryTable() {
             </div>
 
             {categoryData?.length === 0 && !isLoadingCategory && (
-              <div className="py-8 text-center text-gray-500 dark:text-gray-400">
-                No categories found
-              </div>
+              <NoData>No categories found</NoData>
             )}
           </>
         )}

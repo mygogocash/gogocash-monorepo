@@ -93,8 +93,10 @@ export interface Referral {
   id: string;
   referrerId: string;
   referrerName: string;
+  referrerEmail: string;
   refereeId: string;
   refereeName: string;
+  refereeEmail: string;
   date: string;
   status: "pending" | "qualified" | "paid" | "rejected";
   referrerRewardPaid: number;

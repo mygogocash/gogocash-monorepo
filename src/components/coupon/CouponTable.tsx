@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { ConversionQuery } from "@/types/api";
+import NoData from "@/components/common/NoData";
 import FormCoupon from "./FormCoupon";
 import { CouponData, CouponRequestForm, ResponseCoupon } from "@/types/coupon";
 import { useQuery } from "@tanstack/react-query";
@@ -359,9 +360,7 @@ export default function CouponTable() {
             )}
 
             {Number(couponData?.total) === 0 && !isLoadingCoupon && (
-              <div className="py-8 text-center text-gray-500 dark:text-gray-400">
-                No coupons found
-              </div>
+              <NoData>No coupons found</NoData>
             )}
           </>
         )}

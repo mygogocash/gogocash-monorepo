@@ -8,24 +8,38 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import CopyButton from "@/components/ui/CopyButton";
+import SortByDropdown from "@/components/ui/button/SortByDropdown";
+import SearchBar from "@/components/ui/button/SearchBar";
+import { AdminPaginationBar } from "@/components/common/AdminPaginationBar";
+import NoData from "@/components/common/NoData";
+import StatusTag from "@/components/ui/StatusTag";
 
 const PAGE_SIZE = 12;
 
-type ListQuery = { page: number; search: string };
+type ListQuery = {
+  page: number;
+  search: string;
+  sort: string;
+  status: string;
+};
 
 export default function MyCashbackUsersTable() {
   const router = useRouter();
   const [searchInput, setSearchInput] = useState("");
-  const [{ page, search: searchQuery }, setListQuery] = useState<ListQuery>({
-    page: 1,
-    search: "",
-  });
+  const [{ page, search: searchQuery, sort, status }, setListQuery] =
+    useState<ListQuery>({
+      page: 1,
+      search: "",
+      sort: "newest",
+      status: "",
+    });
 
   useEffect(() => {
     const trimmed = searchInput.trim();
     const delay = trimmed === "" ? 0 : 300;
     const id = setTimeout(() => {
       setListQuery((prev) => ({
+        ...prev,
         search: trimmed,
         page: prev.search === trimmed ? prev.page : 1,
       }));
@@ -34,12 +48,14 @@ export default function MyCashbackUsersTable() {
   }, [searchInput]);
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["myCashbackUsers", page, searchQuery],
+    queryKey: ["myCashbackUsers", page, searchQuery, sort, status],
     queryFn: () =>
       listMyCashbackUsers({
         page,
         limit: PAGE_SIZE,
         search: searchQuery,
+        sort,
+        status,
       }),
   });
 
@@ -61,9 +77,12 @@ export default function MyCashbackUsersTable() {
   const handlePageChange = (newPage: number) => {
     setListQuery((prev) => ({ ...prev, page: newPage }));
   };
-
-  const hasNextPage = page < pagination.totalPages;
-  const hasPrevPage = page > 1;
+  const handleSort = (value: string) => {
+    setListQuery((prev) => ({ ...prev, sort: value, page: 1 }));
+  };
+  const handleStatus = (value: string) => {
+    setListQuery((prev) => ({ ...prev, status: value, page: 1 }));
+  };
 
   const primaryBalance = (u: MyCashbackResponse) => {
     const b = u.balance?.[0];
@@ -87,23 +106,44 @@ export default function MyCashbackUsersTable() {
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
-      <div className="flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+      <div className="flex items-center justify-between gap-20 px-6 py-5">
+        <div className="shrink-0">
           <h3 className="text-base font-medium text-gray-800 dark:text-white/90">
             MyCashBack Users
           </h3>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            App users on the MyCashBack program. Total:{" "}
-            {pagination.total.toLocaleString()}
+            Total: {pagination.total.toLocaleString()} users
           </p>
         </div>
-        <input
-          type="search"
-          placeholder="Search by name, email, phone, buyer ID…"
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          className="focus:ring-brand-500/20 dark:focus:ring-brand-400/30 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-5 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden xl:w-[320px] dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400"
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+            Sort by
+            <SortByDropdown
+              value={sort}
+              onChange={(e) => handleSort(e.target.value)}
+              aria-label="Sort users"
+            >
+              <option value="newest">Newest</option>
+              <option value="name">Name (A–Z)</option>
+              <option value="balance">Balance</option>
+            </SortByDropdown>
+          </label>
+          <SortByDropdown
+            value={status}
+            onChange={(e) => handleStatus(e.target.value)}
+            aria-label="Filter by status"
+          >
+            <option value="">All statuses</option>
+            <option value="active">Active</option>
+            <option value="banned">Banned</option>
+          </SortByDropdown>
+          <SearchBar
+            type="search"
+            placeholder="Search by name, email, phone, buyer ID…"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+          />
+        </div>
       </div>
 
       <div className="border-t border-gray-100 p-4 sm:p-6 dark:border-gray-700 dark:bg-white/[0.02]">
@@ -151,11 +191,8 @@ export default function MyCashbackUsersTable() {
                 <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
                   {rows.length === 0 ? (
                     <tr>
-                      <td
-                        colSpan={6}
-                        className="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400"
-                      >
-                        No MyCashBack users match your search.
+                      <td colSpan={6} className="px-4 py-6">
+                        <NoData>No MyCashBack users match your search.</NoData>
                       </td>
                     </tr>
                   ) : (
@@ -202,13 +239,13 @@ export default function MyCashbackUsersTable() {
                         </td>
                         <td className="px-6 py-4">
                           {u.banned ? (
-                            <span className="inline-flex rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800 dark:bg-red-900/40 dark:text-red-200">
+                            <StatusTag className="bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200">
                               Banned
-                            </span>
+                            </StatusTag>
                           ) : (
-                            <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200">
+                            <StatusTag className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200">
                               Active
-                            </span>
+                            </StatusTag>
                           )}
                         </td>
                         <td className="px-6 py-4 text-right">
@@ -231,34 +268,13 @@ export default function MyCashbackUsersTable() {
             </div>
 
             {pagination.totalPages > 1 && (
-              <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-                <div className="text-sm text-gray-500 dark:text-gray-400">
-                  Showing {(page - 1) * pagination.limit + 1} to{" "}
-                  {Math.min(page * pagination.limit, pagination.total)} of{" "}
-                  {pagination.total.toLocaleString()}
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handlePageChange(page - 1)}
-                    disabled={!hasPrevPage}
-                    className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800/50 dark:text-gray-300 dark:hover:bg-gray-700"
-                  >
-                    Previous
-                  </button>
-                  <span className="px-2 text-sm text-gray-600 dark:text-gray-400">
-                    Page {page} of {pagination.totalPages}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handlePageChange(page + 1)}
-                    disabled={!hasNextPage}
-                    className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800/50 dark:text-gray-300 dark:hover:bg-gray-700"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
+              <AdminPaginationBar
+                page={page}
+                totalPages={pagination.totalPages}
+                total={pagination.total}
+                limit={pagination.limit}
+                onPageChange={handlePageChange}
+              />
             )}
           </>
         )}

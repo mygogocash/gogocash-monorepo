@@ -8,27 +8,40 @@ import {
   getMembershipUsers,
   postMembershipTier,
   putMembershipTier,
-  putMembershipUserAction,
 } from "@/lib/api/adminModulesApi";
 import type { MembershipTier, UserMembership } from "@/types/adminModules";
 import { formatDate } from "@/lib/dateFormat";
-import { formatMoney } from "@/lib/currencyFormat";
-import { STATUS_BADGE_BASE } from "@/lib/statusBadge";
+import StatusTag from "@/components/ui/StatusTag";
 import Button from "@/components/ui/button/Button";
+import PrimaryButton from "@/components/ui/button/PrimaryButton";
+import SortByDropdown from "@/components/ui/button/SortByDropdown";
+import SearchBar from "@/components/ui/button/SearchBar";
 import { Modal } from "@/components/ui/modal";
 import Input from "@/components/form/input/InputField";
 import { AdminPaginationBar } from "@/components/common/AdminPaginationBar";
 import { AdminQueryError } from "@/components/common/AdminQueryError";
 import { AdminTableSkeleton } from "@/components/common/AdminTableSkeleton";
+import NoData from "@/components/common/NoData";
+import MemberAdminCard from "@/components/membership/MemberAdminCard";
+import SupportButton from "@/components/ui/button/SupportButton";
 import toast from "react-hot-toast";
 import { useEffect, useState } from "react";
 
 const qk = {
   stats: ["admin", "membership", "stats"] as const,
   tiers: ["admin", "membership", "tiers"] as const,
-  users: (p: number, s: string) =>
-    ["admin", "membership", "users", p, s] as const,
+  users: (
+    p: number,
+    s: string,
+    tier: string | undefined,
+    filter: string,
+    status: string,
+  ) => ["admin", "membership", "users", p, s, tier, filter, status] as const,
 };
+
+// The Members table is scoped to GoGoPass Plus members who are active, paused, or
+// previously purchased (cancelled/expired) — i.e. everyone except "pending".
+const MEMBER_STATUSES = "active,paused,cancelled,expired";
 
 const emptyTier: Omit<MembershipTier, "id" | "memberCount"> = {
   name: "",
@@ -48,6 +61,9 @@ export default function MembershipManagement() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  // Members table filter: by auto-renew (yes/no) or by status (with sub-select).
+  const [memberFilter, setMemberFilter] = useState("status");
+  const [memberStatus, setMemberStatus] = useState("");
   useEffect(() => {
     const t = setTimeout(() => {
       setDebouncedSearch(search);
@@ -59,14 +75,38 @@ export default function MembershipManagement() {
     false,
   );
   const [draft, setDraft] = useState(emptyTier);
-  const [detailUser, setDetailUser] = useState<UserMembership | null>(null);
 
   const statsQ = useQuery({ queryKey: qk.stats, queryFn: getMembershipStats });
   const tiersQ = useQuery({ queryKey: qk.tiers, queryFn: getMembershipTiers });
+  const plusTierId = (tiersQ.data ?? []).find(
+    (t) => t.name === "GoGoPass Plus",
+  )?.id;
   const usersQ = useQuery({
-    queryKey: qk.users(page, debouncedSearch),
+    queryKey: qk.users(
+      page,
+      debouncedSearch,
+      plusTierId,
+      memberFilter,
+      memberStatus,
+    ),
     queryFn: () =>
-      getMembershipUsers({ page, limit: 10, search: debouncedSearch }),
+      getMembershipUsers({
+        page,
+        limit: 10,
+        search: debouncedSearch,
+        tierId: plusTierId,
+        status:
+          memberFilter === "status"
+            ? memberStatus || MEMBER_STATUSES
+            : MEMBER_STATUSES,
+        autoRenew:
+          memberFilter === "autorenew-yes"
+            ? "true"
+            : memberFilter === "autorenew-no"
+              ? "false"
+              : undefined,
+      }),
+    enabled: Boolean(plusTierId),
   });
 
   const saveTier = useMutation({
@@ -94,51 +134,6 @@ export default function MembershipManagement() {
     onError: () => toast.error("Delete failed"),
   });
 
-  const memberAct = useMutation({
-    mutationFn: ({
-      userId,
-      action,
-      days,
-    }: {
-      userId: string;
-      action: "cancel" | "pause" | "resume" | "extend";
-      days?: number;
-    }) =>
-      putMembershipUserAction(
-        userId,
-        action,
-        action === "extend" ? { days } : undefined,
-      ),
-    onSuccess: () => {
-      toast.success("Updated");
-      void qc.invalidateQueries({ queryKey: ["admin", "membership", "users"] });
-    },
-  });
-
-  // Dispatch a row action chosen from the Actions dropdown.
-  const runMemberAction = (u: UserMembership, action: string) => {
-    switch (action) {
-      case "view":
-        setDetailUser(u);
-        break;
-      case "pause":
-      case "resume":
-        void memberAct.mutateAsync({ userId: u.userId, action });
-        break;
-      case "extend":
-        void memberAct.mutateAsync({
-          userId: u.userId,
-          action: "extend",
-          days: 30,
-        });
-        break;
-      case "cancel":
-        if (confirm("Cancel membership?"))
-          void memberAct.mutateAsync({ userId: u.userId, action: "cancel" });
-        break;
-    }
-  };
-
   if (statsQ.isLoading || tiersQ.isLoading) return <AdminTableSkeleton />;
 
   if (statsQ.isError || tiersQ.isError) {
@@ -155,16 +150,6 @@ export default function MembershipManagement() {
 
   const stats = statsQ.data;
   const tiers = tiersQ.data ?? [];
-
-  // Mock billing history for the View modal (mirrors the subscription detail):
-  // a paid charge at period start and a scheduled one at expiry, at the tier price.
-  const billingHistoryFor = (u: UserMembership) => {
-    const amount = tiers.find((t) => t.id === u.tierId)?.monthlyPrice ?? 0;
-    return [
-      { date: u.startDate, amount, status: "paid" },
-      { date: u.expiryDate, amount, status: "scheduled" },
-    ];
-  };
 
   return (
     <div className="space-y-8">
@@ -213,122 +198,90 @@ export default function MembershipManagement() {
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             Membership tiers
           </h2>
-          <Button
-            size="sm"
+          <PrimaryButton
+            variant="blue"
             onClick={() => {
               setDraft(emptyTier);
               setTierModal("create");
             }}
           >
             + Add tier
-          </Button>
+          </PrimaryButton>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {tiers.map((t) => (
-            <div
+            <MemberAdminCard
               key={t.id}
-              className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]"
-              style={{ borderTopColor: t.color, borderTopWidth: 4 }}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h3 className="font-semibold text-gray-900 dark:text-white">
-                    {t.name}
-                  </h3>
-                  <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                    {t.description}
-                  </p>
-                </div>
-                <span
-                  className={`${STATUS_BADGE_BASE} ${t.isActive ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200" : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"}`}
-                >
-                  {t.isActive ? "Active" : "Inactive"}
-                </span>
-              </div>
-              <dl className="mt-3 space-y-1.5 text-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <dt className="text-gray-500 dark:text-gray-400">Price</dt>
-                  <dd className="text-right font-medium text-gray-800 dark:text-gray-200">
-                    <div>{t.monthlyPrice.toLocaleString()} THB / month</div>
-                    <div>{t.annualPrice.toLocaleString()} THB / year</div>
-                  </dd>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <dt className="text-gray-500 dark:text-gray-400">Cashback</dt>
-                  <dd className="font-medium text-gray-800 dark:text-gray-200">
-                    {t.cashbackRate}%
-                  </dd>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <dt className="text-gray-500 dark:text-gray-400">
-                    Monthly cap
-                  </dt>
-                  <dd className="font-medium text-gray-800 dark:text-gray-200">
-                    {formatMoney(t.maxCashbackPerMonth)}
-                  </dd>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <dt className="text-gray-500 dark:text-gray-400">Members</dt>
-                  <dd className="font-medium text-gray-800 dark:text-gray-200">
-                    {t.memberCount.toLocaleString()}
-                  </dd>
-                </div>
-              </dl>
-              <div className="mt-4 flex gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setDraft({
-                      name: t.name,
-                      description: t.description,
-                      monthlyPrice: t.monthlyPrice,
-                      annualPrice: t.annualPrice,
-                      color: t.color,
-                      icon: t.icon,
-                      benefits: t.benefits,
-                      cashbackRate: t.cashbackRate,
-                      maxCashbackPerMonth: t.maxCashbackPerMonth,
-                      isActive: t.isActive,
-                    });
-                    setTierModal(t);
-                  }}
-                >
-                  Edit
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    if (confirm(`Delete tier “${t.name}”?`))
-                      void delTier.mutateAsync(t.id);
-                  }}
-                >
-                  Delete
-                </Button>
-              </div>
-            </div>
+              tier={t}
+              onEdit={(tier) => {
+                setDraft({
+                  name: tier.name,
+                  description: tier.description,
+                  monthlyPrice: tier.monthlyPrice,
+                  annualPrice: tier.annualPrice,
+                  color: tier.color,
+                  icon: tier.icon,
+                  benefits: tier.benefits,
+                  cashbackRate: tier.cashbackRate,
+                  maxCashbackPerMonth: tier.maxCashbackPerMonth,
+                  isActive: tier.isActive,
+                });
+                setTierModal(tier);
+              }}
+              onDelete={(tier) => {
+                if (confirm(`Delete tier “${tier.name}”?`))
+                  void delTier.mutateAsync(tier.id);
+              }}
+            />
           ))}
         </div>
       </section>
 
       <section className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-6 dark:border-gray-800 dark:bg-white/[0.03]">
-        <div className="flex items-center justify-between gap-20">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex shrink-0 items-baseline gap-2">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Members
+              Membership
             </h2>
-            <p className="text-sm whitespace-nowrap text-gray-500 dark:text-gray-400">
-              Total: {(stats?.totalActiveMembers ?? 0).toLocaleString()} active
-              members
-            </p>
           </div>
-          <Input
-            placeholder="Search name or email…"
-            className="h-11 w-full sm:w-[300px]"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+              Sort by
+              <SortByDropdown
+                value={memberFilter}
+                onChange={(e) => {
+                  setMemberFilter(e.target.value);
+                  setMemberStatus("");
+                  setPage(1);
+                }}
+              >
+                <option value="autorenew-yes">Auto-renew: Yes</option>
+                <option value="autorenew-no">Auto-renew: No</option>
+                <option value="status">Status</option>
+              </SortByDropdown>
+            </label>
+            {memberFilter === "status" && (
+              <SortByDropdown
+                value={memberStatus}
+                onChange={(e) => {
+                  setMemberStatus(e.target.value);
+                  setPage(1);
+                }}
+                aria-label="Filter by status"
+              >
+                <option value="">All statuses</option>
+                <option value="active">Active</option>
+                <option value="paused">Paused</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="expired">Expired</option>
+              </SortByDropdown>
+            )}
+            <SearchBar
+              placeholder="Search name or email…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
         </div>
         {usersQ.isLoading ? (
           <AdminTableSkeleton rows={5} />
@@ -337,20 +290,28 @@ export default function MembershipManagement() {
             Failed to load members.
           </p>
         ) : !usersQ.data?.data.length ? (
-          <p className="mt-8 text-center text-sm text-gray-500 dark:text-gray-400">
-            No members match.
-          </p>
+          <NoData className="mt-8">No members match.</NoData>
         ) : (
           <>
             <div className="mt-4 overflow-x-auto">
               <table className="min-w-full text-left text-sm">
-                <thead className="border-b border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-400">
+                <thead className="bg-gray-50 dark:bg-gray-800">
                   <tr>
-                    <th className="pr-3 pb-2 font-medium">User</th>
-                    <th className="pr-3 pb-2 font-medium">Tier</th>
-                    <th className="pr-3 pb-2 font-medium">Dates</th>
-                    <th className="pr-3 pb-2 font-medium">Status</th>
-                    <th className="pb-2 font-medium">Action</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      User
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Tier
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Dates
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Status
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Action
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -359,13 +320,13 @@ export default function MembershipManagement() {
                       key={u.userId}
                       className="text-gray-800 dark:text-gray-200"
                     >
-                      <td className="py-3 pr-3">
+                      <td className="px-3 py-3">
                         <div className="font-medium">{u.userName}</div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">
                           {u.email}
                         </div>
                       </td>
-                      <td className="py-3 pr-3">
+                      <td className="px-3 py-3">
                         <span
                           className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
                             u.tierName === "GoGoPass Plus"
@@ -376,7 +337,7 @@ export default function MembershipManagement() {
                           {u.tierName}
                         </span>
                       </td>
-                      <td className="py-3 pr-3 text-xs">
+                      <td className="px-3 py-3 text-xs">
                         {formatDate(u.startDate)} to {formatDate(u.expiryDate)}
                         <div>
                           <span className="text-gray-500 dark:text-gray-400">
@@ -391,9 +352,9 @@ export default function MembershipManagement() {
                           )}
                         </div>
                       </td>
-                      <td className="py-3 pr-3">
-                        <span
-                          className={`${STATUS_BADGE_BASE} ${
+                      <td className="px-3 py-3">
+                        <StatusTag
+                          className={
                             u.status === "active"
                               ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200"
                               : u.status === "pending"
@@ -401,25 +362,17 @@ export default function MembershipManagement() {
                                 : u.status === "cancelled"
                                   ? "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200"
                                   : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"
-                          }`}
+                          }
                         >
                           {u.status}
-                        </span>
+                        </StatusTag>
                       </td>
-                      <td className="py-3">
-                        <select
-                          className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900"
-                          value=""
-                          onChange={(e) => runMemberAction(u, e.target.value)}
+                      <td className="px-3 py-3">
+                        <SupportButton
+                          href={`/withdraw/${u.userId}?tab=subscription`}
                         >
-                          <option value="" disabled hidden>
-                            Actions
-                          </option>
-                          <option value="view">View</option>
-                          <option value="pause">Pause</option>
-                          <option value="resume">Resume</option>
-                          <option value="cancel">Cancel</option>
-                        </select>
+                          View
+                        </SupportButton>
                       </td>
                     </tr>
                   ))}
@@ -431,6 +384,7 @@ export default function MembershipManagement() {
                 page={usersQ.data.page}
                 totalPages={usersQ.data.totalPages}
                 total={usersQ.data.total}
+                limit={usersQ.data.limit}
                 onPageChange={(p) => setPage(p)}
               />
             )}
@@ -542,38 +496,6 @@ export default function MembershipManagement() {
             Save
           </Button>
         </div>
-      </Modal>
-
-      <Modal
-        isOpen={Boolean(detailUser)}
-        onClose={() => setDetailUser(null)}
-        className="max-w-lg p-6"
-      >
-        {detailUser && (
-          <div className="space-y-2 text-sm text-gray-800 dark:text-gray-200">
-            <h4 className="font-semibold text-gray-900 dark:text-white">
-              {detailUser.userName}
-            </h4>
-            <p>Email: {detailUser.email}</p>
-            <p>Tier: {detailUser.tierName}</p>
-            <p>Status: {detailUser.status}</p>
-            <p>
-              Period: {formatDate(detailUser.startDate)} to{" "}
-              {formatDate(detailUser.expiryDate)}
-            </p>
-            <p>Auto-renew: {detailUser.autoRenew ? "Yes" : "No"}</p>
-            <p className="font-medium text-gray-900 dark:text-white">
-              Billing history
-            </p>
-            <ul className="list-disc pl-5">
-              {billingHistoryFor(detailUser).map((b, i) => (
-                <li key={i}>
-                  {formatDate(b.date)} — {formatMoney(b.amount)} ({b.status})
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
       </Modal>
     </div>
   );

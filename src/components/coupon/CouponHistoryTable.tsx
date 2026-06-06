@@ -4,6 +4,7 @@ import React, { useState, useMemo } from "react";
 import { Modal } from "@/components/ui/modal";
 import { formatDateTime } from "@/lib/dateFormat";
 import Button from "@/components/ui/button/Button";
+import NoData from "@/components/common/NoData";
 
 export interface CouponHistoryEntry {
   id: string;
@@ -557,9 +558,9 @@ export default function CouponHistoryTable() {
             </div>
 
             {filtered.length === 0 && (
-              <div className="py-12 text-center text-sm text-gray-500 dark:text-gray-400">
+              <NoData>
                 No coupon history found. Try adjusting search or filters.
-              </div>
+              </NoData>
             )}
 
             {totalPages > 1 && (
@@ -743,9 +744,7 @@ export default function CouponHistoryTable() {
             </div>
 
             {engagementFiltered.length === 0 && (
-              <div className="py-12 text-center text-sm text-gray-500 dark:text-gray-400">
-                No coupons match your search.
-              </div>
+              <NoData>No coupons match your search.</NoData>
             )}
 
             {engagementPages > 1 && (

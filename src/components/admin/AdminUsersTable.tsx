@@ -5,6 +5,7 @@ import { useApi, useAuth } from "@/hooks/useApi";
 import { formatDate } from "@/lib/dateFormat";
 import { AdminUsersQuery, DataAdminUsers } from "@/types/api";
 import { Modal } from "@/components/ui/modal";
+import NoData from "@/components/common/NoData";
 import { devError } from "@/lib/devConsole";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useRolesQuery } from "@/hooks/useRoles";
@@ -790,9 +791,7 @@ export default function AdminUsersTable() {
             )}
 
             {users && users?.length === 0 && !loading && (
-              <div className="py-8 text-center text-gray-500 dark:text-gray-400">
-                No users found
-              </div>
+              <NoData>No users found</NoData>
             )}
           </>
         )}

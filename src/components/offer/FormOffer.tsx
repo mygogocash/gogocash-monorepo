@@ -6,6 +6,7 @@ import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
 import type { FetchBestResponse } from "@/components/commission/CommissionManagementClient";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
+import NoData from "@/components/common/NoData";
 import CopyButton from "@/components/ui/CopyButton";
 import { Modal } from "../ui/modal";
 import Input from "../form/input/InputField";
@@ -1344,10 +1345,10 @@ const FormOffer = ({
                             Loading categories…
                           </p>
                         ) : categoriesForTagSelect.length === 0 ? (
-                          <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                          <NoData className="mt-1">
                             No categories in the system yet. Add them under
                             Category Management, or use partner feed.
-                          </p>
+                          </NoData>
                         ) : null}
                       </div>
                     ) : null}

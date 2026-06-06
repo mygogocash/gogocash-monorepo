@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/table";
 import { Modal } from "@/components/ui/modal";
 import Button from "@/components/ui/button/Button";
+import NoData from "@/components/common/NoData";
 import type { MockDeeplinkRow } from "@/data/mockDeeplinks";
 import { MOCK_DEEPLINKS } from "@/data/mockDeeplinks";
 
@@ -120,9 +121,7 @@ export default function DeeplinkTable() {
         </Table>
       </div>
       {filtered.length === 0 && (
-        <div className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-          No tracking links match your search.
-        </div>
+        <NoData>No tracking links match your search.</NoData>
       )}
 
       <Modal

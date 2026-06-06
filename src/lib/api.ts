@@ -460,6 +460,10 @@ class ApiClient {
     if (query.search) params.append("search", query.search);
     if (query.role) params.append("role", query.role);
     if (query.status) params.append("status", query.status);
+    if (query.sort) params.append("sort", query.sort);
+    if (query.tier) params.append("tier", query.tier);
+    if (query.membership) params.append("membership", query.membership);
+    if (query.subscription) params.append("subscription", query.subscription);
 
     const queryString = params.toString();
     const endpoint = queryString ? `/user?${queryString}` : "/user";

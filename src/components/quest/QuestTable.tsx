@@ -23,6 +23,7 @@ import Input from "@/components/form/input/InputField";
 import { fetchOffersList, offersListQueryKey } from "@/lib/query/offersQueries";
 import type { Offer, OffersQuery } from "@/types/api";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
+import NoData from "@/components/common/NoData";
 import { MOCK_QUESTS, mockQuestParticipantTotal } from "@/data/mockQuests";
 import type {
   QuestCompletionLimit,
@@ -934,11 +935,8 @@ export default function QuestTable() {
                 {pointsModalPrepared &&
                   (pointsModalPrepared.display.length === 0 ? (
                     <TableRow>
-                      <TableCell
-                        colSpan={6}
-                        className="text-theme-sm py-10 text-center text-gray-500 dark:text-gray-400"
-                      >
-                        No participants match your search.
+                      <TableCell colSpan={6} className="px-4 py-6">
+                        <NoData>No participants match your search.</NoData>
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -1513,10 +1511,10 @@ export default function QuestTable() {
                         )}
                       </div>
                       {tasksList.length === 0 ? (
-                        <p className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4 text-center text-sm text-gray-500 dark:border-gray-600 dark:bg-gray-800/40 dark:text-gray-400">
+                        <NoData>
                           No tasks yet. Click &quot;Add task&quot; to create
                           one.
-                        </p>
+                        </NoData>
                       ) : (
                         <div className="space-y-4">
                           {tasksList.map((task, index) => {
@@ -2694,9 +2692,9 @@ export default function QuestTable() {
                     </div>
                   ))}
                   {tasks.length === 0 && (
-                    <p className="rounded-lg border border-dashed border-gray-300 py-6 text-center text-sm text-gray-500 dark:border-gray-600 dark:text-gray-400">
+                    <NoData>
                       No tasks yet. Click &quot;Add task&quot; to add one.
-                    </p>
+                    </NoData>
                   )}
                 </div>
               </div>

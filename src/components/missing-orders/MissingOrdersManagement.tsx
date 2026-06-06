@@ -154,6 +154,7 @@ export default function MissingOrdersManagement() {
               page={listQ.data.page}
               totalPages={listQ.data.totalPages}
               total={listQ.data.total}
+              limit={listQ.data.limit}
               onPageChange={setPage}
             />
           )}
