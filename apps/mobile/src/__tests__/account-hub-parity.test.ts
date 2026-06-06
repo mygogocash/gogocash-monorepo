@@ -653,12 +653,17 @@ describe("Account hub route parity", () => {
     expect(privacyCenterFile).not.toContain("CheckIcon");
     expect(privacyCenterFile).toMatch(/heroTitle:[\s\S]*fontSize: 20,[\s\S]*lineHeight: 26/);
     expect(privacyCenterFile).toContain("privacyCenterSurfaceBleed");
-    expect(privacyCenterFile).toContain("privacyBlueShell");
+    expect(privacyCenterFile).toContain("privacyTintShell");
     expect(privacyCenterFile).toContain('activeRouteId="profile"');
     expect(privacyCenterFile).toContain('href="/profile"');
     expect(privacyCenterFile).toContain("setOptionalConsent");
     expect(privacyCenterFile).not.toContain("Update preferences");
     expect(privacyCenterFile).not.toContain("GoGoSense history");
+    // Mint/green palette (matches the Total Cashback card), not the old blue theme.
+    expect(privacyCenterFile).toContain('"#F3FCF9"');
+    expect(privacyCenterFile).not.toContain('"#DCEEFF"');
+    expect(privacyCenterFile).not.toContain('"#10253F"');
+    expect(privacyCenterFile).not.toContain('"#B6D3EC"');
   });
 
   it("favorite brands page > given staging favorite brands screen > then Expo renders the hero and recent brand grid", () => {

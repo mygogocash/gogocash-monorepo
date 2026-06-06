@@ -41,8 +41,10 @@ const INPUT_SCREENS = [
   },
   {
     file: "src/screens/CustomerGoLinkScreen.tsx",
+    // Focus border lives on the rounded inputShell wrapper (the inner <input> is borderless), so the
+    // brand-green border actually shows — and follows the clipped rounded box, like ProfileInfoPanel.
     inputStyles: ["input"],
-    focusStyle: "inputFocused",
+    focusStyle: "inputShellFocused",
   },
   {
     file: "src/screens/CustomerProfilePhoneScreen.tsx",
@@ -89,4 +91,55 @@ describe("input focus parity", () => {
       });
     });
   }
+});
+
+/**
+ * When the rounded border + radius live on a <div> WRAPPER (not the focusable <input>), the wrapper
+ * defaults to overflow:visible on web, so the rounded corners rasterize "horns" under the browser's
+ * focus compositing layer (same root cause + fix as ProfileInfoPanel inputBox/dropdownBox). The fix
+ * is overflow:hidden so the box clips to its radius. The border-on-the-<input> screens above are
+ * exempt: react-native-web's <input> already computes overflow:clip and cannot horn.
+ */
+const WRAPPER_CLIP_FIELD_STYLES = [
+  { file: "src/screens/CustomerGoLinkScreen.tsx", styleName: "inputShell" },
+  { file: "src/screens/CustomerMoneyActionScreen.tsx", styleName: "inputBox" },
+  // App-wide sweep (search boxes + the withdraw select bar) — same rounded-wrapper structure.
+  { file: "src/components/CustomerDesktopHeader.tsx", styleName: "desktopHeaderSearch" },
+  { file: "src/screens/CustomerHomeScreen.tsx", styleName: "searchPill" },
+  { file: "src/screens/CustomerHomeScreen.tsx", styleName: "desktopGoLinkInputShell" },
+  { file: "src/screens/CustomerDiscoveryScreen.tsx", styleName: "shopDirectorySearchBox" },
+  { file: "src/screens/CustomerDiscoveryScreen.tsx", styleName: "productDiscoverySearchBox" },
+  { file: "src/screens/CustomerDiscoveryScreen.tsx", styleName: "categorySearchBox" },
+  { file: "src/screens/CustomerCategoryDetailScreen.tsx", styleName: "searchBox" },
+  { file: "src/screens/CustomerMoneyActionScreen.tsx", styleName: "selectBar" },
+] as const;
+
+describe("rounded input wrappers clip to their radius (no focus-corner horns)", () => {
+  for (const { file, styleName } of WRAPPER_CLIP_FIELD_STYLES) {
+    it(`${file} > ${styleName} > given a rounded wrapper > then it clips to its radius (overflow hidden)`, () => {
+      const block = styleBlock(readMobileFile(file), styleName);
+      expect(block, `${styleName} style block in ${file}`).not.toBe("");
+      expect(block).toContain('overflow: "hidden"');
+    });
+  }
+});
+
+// GoLink's inputShell carries both the focus border (inputShellFocused) and the validation-error
+// border (inputShellError). The error must win when a field is both focused and errored, which on
+// react-native-web means inputShellError is applied AFTER inputShellFocused in the style array.
+describe("CustomerGoLinkScreen.tsx > inputShell focus vs error precedence", () => {
+  const file = readMobileFile("src/screens/CustomerGoLinkScreen.tsx");
+
+  it("focus border > given focus > then it lives on the rounded inputShell wrapper", () => {
+    expect(file).toContain("? styles.inputShellFocused :");
+    expect(styleBlock(file, "inputShellFocused")).toContain("borderColor: colors.primary");
+  });
+
+  it("error border > given both focus and error > then error wins (applied after focus)", () => {
+    const focusIdx = file.indexOf("styles.inputShellFocused");
+    const errorIdx = file.indexOf("styles.inputShellError");
+    expect(focusIdx, "styles.inputShellFocused reference").toBeGreaterThan(-1);
+    expect(errorIdx, "styles.inputShellError reference").toBeGreaterThan(-1);
+    expect(errorIdx).toBeGreaterThan(focusIdx);
+  });
 });

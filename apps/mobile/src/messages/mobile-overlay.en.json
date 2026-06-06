@@ -128,7 +128,7 @@
   "mobileW2_97": "Passport must be between 7 and 15 alphanumeric characters.",
   "mobileW2_98": "Address must be at least 10 characters.",
   "mobileW2_99": "Zip Code must be exactly 5 digits.",
-  "mobileW2_100": "Birthdate must be in YYYY-MM-DD format.",
+  "mobileW2_100": "Birthdate must be in DD-MM-YYYY format.",
   "mobileW2_101": "Personal information updated successfully!",
   "mobileW2_102": "Explore brands",
   "mobileW2_103": "Save merchants you visit often and return to their cashback offers quickly.",

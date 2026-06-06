@@ -36,7 +36,7 @@ export function CustomerPrivacyCenterScreen() {
 
   return (
     <PrivacyCenterSubPage>
-      <View style={styles.privacyBlueShell}>
+      <View style={styles.privacyTintShell}>
         {/* Mobile-only back link — on desktop the persistent sidebar handles navigation
             (web parity: the SubPage topbar is md:hidden). */}
         {isDesktop ? null : <PrivacyCenterTopBar />}
@@ -180,8 +180,8 @@ function RequiredConsentCard() {
 
 const styles = StyleSheet.create({
   surface: {
-    backgroundColor: "#DCEEFF",
-    borderColor: "#B8D4EF",
+    backgroundColor: "#F3FCF9",
+    borderColor: "#E8F5EF",
     borderRadius: 24,
     borderWidth: 1,
     boxShadow: shadows.cardCss,
@@ -192,8 +192,8 @@ const styles = StyleSheet.create({
     marginHorizontal: -8,
     marginTop: 18,
   },
-  privacyBlueShell: {
-    backgroundColor: "#DCEEFF",
+  privacyTintShell: {
+    backgroundColor: "#F3FCF9",
     minHeight: 780,
     width: "100%",
   },
@@ -224,24 +224,24 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   sectionTitle: {
-    color: "#10253F",
+    color: colors.accent,
     fontFamily: typography.family,
     fontSize: 22,
     fontWeight: "700",
     lineHeight: 29,
   },
   microNotice: {
-    color: "#577291",
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: 17,
     lineHeight: 27,
   },
   heroCard: {
-    backgroundColor: "rgba(220, 238, 255, 0.92)",
-    borderColor: "#B6D3EC",
+    backgroundColor: "rgba(243, 252, 249, 0.92)",
+    borderColor: "#D1FAE5",
     borderRadius: 18,
     borderWidth: 1,
-    boxShadow: "0 2px 8px rgba(67, 96, 126, 0.16)",
+    boxShadow: "0 2px 8px rgba(16, 53, 34, 0.12)",
     gap: 18,
     paddingHorizontal: 18,
     paddingVertical: 20,
@@ -250,14 +250,14 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   heroTitle: {
-    color: "#10253F",
+    color: colors.accent,
     fontFamily: typography.family,
     fontSize: 20,
     fontWeight: "800",
     lineHeight: 26,
   },
   heroBody: {
-    color: "#4E647D",
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: 17,
     lineHeight: 27,
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   heroHint: {
-    color: "#577291",
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: 15,
     lineHeight: 22,
@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   optionalTitle: {
-    color: "#10253F",
+    color: colors.accent,
     fontFamily: typography.family,
     fontSize: 21,
     fontWeight: "500",
@@ -301,8 +301,8 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   optionalCard: {
-    backgroundColor: "rgba(220, 238, 255, 0.72)",
-    borderColor: "#B6D3EC",
+    backgroundColor: "rgba(243, 252, 249, 0.72)",
+    borderColor: "#D1FAE5",
     borderRadius: 18,
     borderWidth: 1,
     gap: spacing.lg,
@@ -314,14 +314,14 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   optionalCardTitle: {
-    color: "#10253F",
+    color: colors.accent,
     fontFamily: typography.family,
     fontSize: 17,
     fontWeight: "600",
     lineHeight: 23,
   },
   optionalCardDescription: {
-    color: "#577291",
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: 16,
     lineHeight: 25,
@@ -333,13 +333,13 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   toggleLabel: {
-    color: "#4E647D",
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: 16,
     lineHeight: 22,
   },
   toggleTrack: {
-    backgroundColor: "#879BB4",
+    backgroundColor: "#E4E4E4",
     borderRadius: radii.chip,
     height: 24,
     justifyContent: "center",
@@ -350,7 +350,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryDark,
   },
   toggleThumb: {
-    backgroundColor: "#DDE9F6",
+    backgroundColor: colors.white,
     borderRadius: radii.chip,
     boxShadow: "0 1px 4px rgba(16, 37, 63, 0.2)",
     height: 28,
@@ -361,8 +361,8 @@ const styles = StyleSheet.create({
     marginLeft: 20,
   },
   requiredCard: {
-    backgroundColor: "rgba(220, 238, 255, 0.72)",
-    borderColor: "#B6D3EC",
+    backgroundColor: "rgba(243, 252, 249, 0.72)",
+    borderColor: "#D1FAE5",
     borderRadius: 18,
     borderWidth: 1,
     gap: spacing.sm,
@@ -375,7 +375,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   requiredTitle: {
-    color: "#10253F",
+    color: colors.accent,
     flexShrink: 1,
     fontFamily: typography.family,
     fontSize: 16,
@@ -395,7 +395,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   requiredBody: {
-    color: "#4E647D",
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: 14,
     lineHeight: 21,

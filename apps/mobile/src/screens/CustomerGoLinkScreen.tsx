@@ -293,7 +293,12 @@ export function CustomerGoLinkScreen({
                       {tc(webGoLinkFeature.title)}
                     </Text>
                     <View
-                      style={[styles.inputShell, Boolean(goLinkError) && styles.inputShellError]}
+                      style={[
+                        styles.inputShell,
+                        isInputFocused ? styles.inputShellFocused : null,
+                        // Error border is applied last so it wins when a field is both focused and errored.
+                        Boolean(goLinkError) && styles.inputShellError,
+                      ]}
                     >
                       <LinkIcon
                         color={colors.primaryDark}
@@ -317,7 +322,7 @@ export function CustomerGoLinkScreen({
                         placeholder={tc(webGoLinkFeature.inputPlaceholder)}
                         placeholderTextColor="#93A8B5"
                         returnKeyType="go"
-                        style={[styles.input, isInputFocused ? styles.inputFocused : null]}
+                        style={styles.input}
                         value={goLinkInput}
                       />
                     </View>
@@ -835,6 +840,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: spacing.sm,
     minHeight: webGoLinkModalLayout.inputHeight,
+    // Clip to the radius so the rounded corners don't rasterize "horns" under the focus layer.
+    overflow: "hidden",
     paddingHorizontal: spacing.md,
   },
   inputShellError: {
@@ -849,7 +856,7 @@ const styles = StyleSheet.create({
     outlineColor: "transparent",
     outlineWidth: 0,
   },
-  inputFocused: {
+  inputShellFocused: {
     borderColor: colors.primary,
   },
   errorText: {

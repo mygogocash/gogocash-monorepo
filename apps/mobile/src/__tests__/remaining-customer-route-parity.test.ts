@@ -140,7 +140,9 @@ describe("Remaining customer route parity", () => {
     expect(ageScreen).toContain("pdpaAgeVerifyUnder20");
     expect(ageScreen).toContain("pdpaAgeVerifyIncompleteCode");
     expect(ageScreen).toContain("isOver20");
-    expect(ageScreen).toContain("TextInput");
+    // Birth date is entered via the BirthDateField calendar picker (web: native <input type="date">,
+    // native: @react-native-community/datetimepicker), not a free-text TextInput.
+    expect(ageScreen).toContain("BirthDateField");
   });
 
   it("subscription routes > given Stripe is disabled locally > then Expo shows the real disabled billing contract", () => {

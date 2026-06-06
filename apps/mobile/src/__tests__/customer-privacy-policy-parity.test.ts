@@ -27,6 +27,14 @@ describe("Privacy Policy page parity (/privacy-policy)", () => {
     expect(screenSource).toContain("ScrollView");
   });
 
+  it("renders inside the profile rail when opened from the profile on desktop while logged in", () => {
+    // Authenticated desktop entry from the profile rail shows it as a profile subpage (rail visible);
+    // logged-out / public / mobile keep the standalone public legal page.
+    expect(screenSource).toContain("useMobileSessionSnapshot");
+    expect(screenSource).toContain("AccountPageShell");
+    expect(screenSource).toContain("showProfileRail");
+  });
+
   it("keeps the PDPA legal metadata in webDesignParity", () => {
     expect(designSource).toContain('articleLabel: "Privacy Policy"');
     expect(designSource).toContain('effectiveDate: "Effective Date: 1 April 2026"');

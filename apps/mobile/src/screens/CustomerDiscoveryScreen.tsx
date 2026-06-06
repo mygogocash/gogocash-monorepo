@@ -2150,6 +2150,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: spacing.sm,
     minHeight: 44,
+    // Clip to the radius so the rounded corners don't rasterize "horns" under the focus layer.
+    overflow: "hidden",
     paddingHorizontal: spacing.md,
   },
   productDiscoverySearchInput: {
@@ -2618,6 +2620,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: spacing.sm,
     minHeight: 44,
+    // Clip to the radius so the rounded corners don't rasterize "horns" under the focus layer.
+    overflow: "hidden",
     paddingHorizontal: spacing.md,
   },
   shopDirectorySearchInput: {
@@ -2921,6 +2925,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: spacing.sm,
     minHeight: 48,
+    // Clip to the radius so the rounded corners don't rasterize "horns" under the focus layer.
+    overflow: "hidden",
     paddingHorizontal: spacing.md,
   },
   categorySearchInput: {

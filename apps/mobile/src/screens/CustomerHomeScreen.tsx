@@ -1789,6 +1789,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: spacing.sm,
     minHeight: 48,
+    // Clip to the radius so the rounded corners don't rasterize "horns" under the focus layer.
+    overflow: "hidden",
     paddingHorizontal: spacing.md,
     boxShadow: shadows.cardCss,
   },
@@ -2257,6 +2259,8 @@ const styles = StyleSheet.create({
     gap: 10,
     height: 48,
     minWidth: 0,
+    // Clip to the radius so the rounded corners don't rasterize "horns" under the focus layer.
+    overflow: "hidden",
     paddingLeft: 16,
     paddingRight: 14,
     boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.9)",

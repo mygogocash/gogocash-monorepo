@@ -4,12 +4,14 @@ import {
   ShieldCheck as ShieldCheckIcon,
 } from "@mobile/theme/icons";
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
+import { BirthDateField } from "@mobile/components/BirthDateField";
 import { KeyboardAwareScreen } from "@mobile/components/KeyboardAwareScreen";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { haptics } from "@mobile/lib/haptics";
+import { parseDmyDate } from "@mobile/lib/birthdate";
 import { mobileShellLayout } from "@mobile/design/webDesignParity";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
@@ -25,16 +27,18 @@ const pdpaAgeVerifyIncompleteCode = "Please enter your birth date, then tap Veri
 const pdpaAgeVerifyUnder20 = "You must be over 20 years old to continue.";
 
 export function isOver20(dateInput: string, now = new Date()) {
-  const dob = new Date(dateInput);
+  // Birth date is entered as DD-MM-YYYY (Thai-locale format); parseDmyDate rejects malformed/impossible
+  // dates. Age is computed in UTC to match the parsed UTC date and stay timezone-deterministic.
+  const dob = parseDmyDate(dateInput);
 
-  if (Number.isNaN(dob.getTime())) {
+  if (!dob) {
     return false;
   }
 
-  let age = now.getFullYear() - dob.getFullYear();
+  let age = now.getUTCFullYear() - dob.getUTCFullYear();
   const hasHadBirthdayThisYear =
-    now.getMonth() > dob.getMonth() ||
-    (now.getMonth() === dob.getMonth() && now.getDate() >= dob.getDate());
+    now.getUTCMonth() > dob.getUTCMonth() ||
+    (now.getUTCMonth() === dob.getUTCMonth() && now.getUTCDate() >= dob.getUTCDate());
 
   if (!hasHadBirthdayThisYear) {
     age -= 1;
@@ -108,17 +112,15 @@ export function CustomerAgeVerificationScreen() {
             <View style={styles.formRow}>
               <View style={styles.inputWrap}>
                 <Text style={styles.inputLabel}>{tc(pdpaAgeVerifyPlaceholder)}</Text>
-                <TextInput
-                  accessibilityLabel={tc(pdpaAgeVerifyPlaceholder)}
-                  onBlur={() => setInputFocused(false)}
-                  onChangeText={setBirthDate}
-                  onFocus={() => setInputFocused(true)}
-                  onSubmitEditing={submit}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={colors.textSoft}
-                  style={[styles.input, isInputFocused ? styles.inputFocused : null]}
-                  value={birthDate}
-                />
+                <View style={[styles.input, isInputFocused ? styles.inputFocused : null]}>
+                  <BirthDateField
+                    accessibilityLabel={tc(pdpaAgeVerifyPlaceholder)}
+                    onBlur={() => setInputFocused(false)}
+                    onChange={setBirthDate}
+                    onFocus={() => setInputFocused(true)}
+                    value={birthDate}
+                  />
+                </View>
               </View>
               <Pressable
                 accessibilityRole="button"
@@ -219,6 +221,8 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   input: {
+    alignItems: "center",
+    flexDirection: "row",
     backgroundColor: colors.white,
     borderColor: colors.border,
     borderRadius: radii.md,
