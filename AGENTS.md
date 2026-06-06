@@ -2,6 +2,8 @@
 
 Concise guidance for AI coding agents and contributors. **Deep architecture and feature notes live in [README.md](./README.md).**
 
+> **Monorepo:** this file covers the **web app** (repo root, `gogocash-web`). The Expo customer app is a separate project in **`apps/mobile/`** — see **[apps/mobile/AGENTS.md](./apps/mobile/AGENTS.md)** for its stack, the three test gates, and react-native-web conventions. Root proxies: `npm run mobile:*`.
+
 ## Project
 
 - **Stack:** Next.js 16 (App Router), TypeScript (strict), React, Tailwind CSS v4.
