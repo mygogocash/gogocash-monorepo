@@ -16,9 +16,11 @@ import {
   Save as SaveIcon,
   AlertCircle as AlertIcon,
   CheckCircle2 as SuccessIcon,
-  Coins as CoinIcon,
+  ChevronDown as ChevronDownIcon,
+  HelpCircle as HelpIcon,
 } from "@mobile/theme/icons";
 
+import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { KeyboardAwareScreen } from "@mobile/components/KeyboardAwareScreen";
 import { haptics } from "@mobile/lib/haptics";
@@ -46,7 +48,8 @@ export function evaluateWithdraw(
   input: string,
   balance: number,
   hasMethod: boolean,
-  alreadySubmitted: boolean
+  alreadySubmitted: boolean,
+  min = 0
 ): WithdrawDecision {
   if (alreadySubmitted) {
     return { ok: false, error: null };
@@ -54,6 +57,9 @@ export function evaluateWithdraw(
   const amount = parseWithdrawAmount(input);
   if (Number.isNaN(amount) || amount <= 0) {
     return { ok: false, error: "Please enter a valid withdrawal amount." };
+  }
+  if (amount < min) {
+    return { ok: false, error: `Minimum withdrawal is ${min.toFixed(2)} THB.` };
   }
   if (amount > balance) {
     return { ok: false, error: "Insufficient available balance." };
@@ -93,6 +99,121 @@ const INITIAL_METHODS: PayoutMethod[] = [
   },
 ];
 
+// Web Withdraw page parity (src/features/wallet/component/MyWalletWithdraw.tsx): the flat fee and
+// minimum the form validates against, plus the copy. Kept local to the screen (the shared
+// webDesignParity fixture is under active parallel edits) so this redesign stays self-contained.
+const WITHDRAW_FEE = 20;
+const MIN_WITHDRAW = 300;
+
+const withdrawCopy = {
+  screenTitle: "Withdraw",
+  cardHeading: "Withdraw Your Cashback Earnings",
+  amountLabel: "Enter Amount to Withdraw",
+  availableLabel: "Available Amount",
+  methodLabel: "Withdrawal Method",
+  bankTransfer: "Bank Transfer",
+  bankPlaceholder: "Select your bank",
+  minWithdrawLabel: "Minimum withdrawal",
+  manageMethod: "Manage Method",
+  totalLabel: "Total Withdrawal Amount",
+  activeBalanceLabel: "Active Balance",
+  feeLabel: "Withdraw Fee",
+  receiveLabel: "You will receive",
+  withdrawCta: "Withdraw",
+  backToWallet: "Back to Wallet",
+  helpAria: "Explain total, pending, and withdrawn cashback",
+  helpLines: [
+    "Total is your lifetime confirmed cashback.",
+    "Pending cashback is still being validated by the store.",
+    "Withdrawn is what you have already cashed out.",
+  ],
+} as const;
+
+function formatThb(value: number): string {
+  return value.toLocaleString("en-US", {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 2,
+  });
+}
+
+type SelectOption = { value: string; label: string; sublabel?: string };
+
+/**
+ * Tap-to-expand select that stands in for the web's MUI dropdowns (react-native has no native
+ * <select>). Closed it reads as a bordered bar + chevron (web parity); tapping expands the options
+ * inline below so it never clips inside the scroll view. `hasError` paints the brand-danger border
+ * while nothing is selected — mirrors the web's red "Select your bank" empty state.
+ */
+function MoneyActionSelect({
+  value,
+  options,
+  placeholder,
+  onSelect,
+  accessibilityLabel,
+  hasError = false,
+  testID,
+}: {
+  value: string | null;
+  options: readonly SelectOption[];
+  placeholder: string;
+  onSelect: (value: string) => void;
+  accessibilityLabel?: string;
+  hasError?: boolean;
+  testID?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = options.find((option) => option.value === value) ?? null;
+  const showError = hasError && !selected;
+
+  return (
+    <View style={styles.selectWrap}>
+      <Pressable
+        accessibilityLabel={accessibilityLabel ?? placeholder}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        onPress={() => setOpen((isOpen) => !isOpen)}
+        style={[styles.selectBar, showError ? styles.selectBarError : null]}
+        testID={testID}
+      >
+        <Text
+          numberOfLines={1}
+          style={[styles.selectValue, selected ? null : styles.selectPlaceholder]}
+        >
+          {selected ? selected.label : placeholder}
+        </Text>
+        <ChevronDownIcon color={colors.muted} size={18} />
+      </Pressable>
+      {open ? (
+        <View style={styles.selectMenu}>
+          {options.length === 0 ? (
+            <View style={styles.selectOption}>
+              <Text style={styles.selectOptionSub}>No options available</Text>
+            </View>
+          ) : (
+            options.map((option) => (
+              <Pressable
+                accessibilityLabel={option.label}
+                accessibilityRole="button"
+                key={option.value}
+                onPress={() => {
+                  onSelect(option.value);
+                  setOpen(false);
+                }}
+                style={styles.selectOption}
+              >
+                <Text style={styles.selectOptionLabel}>{option.label}</Text>
+                {option.sublabel ? (
+                  <Text style={styles.selectOptionSub}>{option.sublabel}</Text>
+                ) : null}
+              </Pressable>
+            ))
+          )}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
   const tc = useCopy();
   const insets = useSafeAreaInsets();
@@ -100,8 +221,12 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
 
   // Local state for interactive flows
   const [methods, setMethods] = useState<PayoutMethod[]>(INITIAL_METHODS);
-  const [selectedMethodId, setSelectedMethodId] = useState("1");
-  const [withdrawAmount, setWithdrawAmount] = useState("500.00");
+  // Web parity: the bank starts unselected (the "Select your bank" red empty state) so the
+  // Withdraw button stays disabled until a payout target is chosen.
+  const [selectedMethodId, setSelectedMethodId] = useState("");
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [withdrawMethod, setWithdrawMethod] = useState("bank_transfer");
+  const [helpOpen, setHelpOpen] = useState(false);
   const [balance, setBalance] = useState(3180.24);
 
   // Form states (methodCreate)
@@ -127,6 +252,14 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
   // (and suppress the orange OS-accent UA outline). Keyed per field since several inputs coexist.
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const selectedMethod = methods.find((m) => m.id === selectedMethodId);
+  // "You will receive" = entered amount minus the flat withdraw fee (never negative).
+  // null when no valid positive amount is entered yet, so the row reads "—" instead of a
+  // misleading "0.00 THB" on the empty form.
+  const parsedWithdrawAmount = parseWithdrawAmount(withdrawAmount);
+  const youWillReceive =
+    Number.isNaN(parsedWithdrawAmount) || parsedWithdrawAmount <= 0
+      ? null
+      : Math.max(0, parsedWithdrawAmount - WITHDRAW_FEE);
 
   const handleSaveMethod = () => {
     const errs: string[] = [];
@@ -223,7 +356,13 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
   };
 
   const handleWithdraw = () => {
-    const decision = evaluateWithdraw(withdrawAmount, balance, !!selectedMethod, !!successMsg);
+    const decision = evaluateWithdraw(
+      withdrawAmount,
+      balance,
+      !!selectedMethod,
+      !!successMsg,
+      MIN_WITHDRAW
+    );
     if (!decision.ok) {
       // error === null means "already submitted" — silently ignore the repeat tap (no buzz).
       if (decision.error) {
@@ -245,6 +384,169 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
       `Cashback withdrawal of ${decision.amount.toFixed(2)} THB to ${selectedMethod.bankName} submitted successfully!`
     );
   };
+
+  // Withdraw renders inside the desktop profile shell so it appears as a "My Wallet"
+  // subpage — the persistent left rail/submenu on desktop (web parity with the
+  // SubPage(showSubMenu) wrapper). Other money-action modes keep the standalone
+  // phone-frame + keyboard-aware scroll.
+  if (mode === "withdraw") {
+    return (
+      <AccountPageShell
+        activeRouteId="wallet"
+        showProfileRail
+        showTitle={false}
+        title={tc(withdrawCopy.screenTitle)}
+      >
+        <View style={styles.sectionWrap}>
+          <Text style={styles.withdrawScreenTitle}>{tc(withdrawCopy.screenTitle)}</Text>
+
+          <View style={styles.withdrawCard}>
+            <View style={styles.withdrawHeaderRow}>
+              <Text style={styles.withdrawHeading}>{tc(withdrawCopy.cardHeading)}</Text>
+              <Pressable
+                accessibilityLabel={withdrawCopy.helpAria}
+                accessibilityRole="button"
+                hitSlop={8}
+                onPress={() => setHelpOpen((isOpen) => !isOpen)}
+                style={styles.helpButton}
+              >
+                <HelpIcon color={colors.muted} size={22} />
+              </Pressable>
+            </View>
+
+            {helpOpen ? (
+              <View style={styles.helpPanel}>
+                {withdrawCopy.helpLines.map((line) => (
+                  <Text key={line} style={styles.helpLine}>
+                    • {tc(line)}
+                  </Text>
+                ))}
+              </View>
+            ) : null}
+
+            <View style={styles.innerSection}>
+              {/* Amount block — big centered input with the brand-green underline */}
+              <View style={styles.amountBlock}>
+                <Text style={styles.amountLabel}>{tc(withdrawCopy.amountLabel)}</Text>
+                <View style={styles.amountInputWrap}>
+                  <TextInput
+                    inputMode="decimal"
+                    keyboardType="decimal-pad"
+                    onChangeText={setWithdrawAmount}
+                    placeholder="0.00"
+                    placeholderTextColor={colors.textSoft}
+                    style={styles.amountInput}
+                    value={withdrawAmount}
+                  />
+                </View>
+                <Text style={styles.availableCaption}>
+                  {tc(withdrawCopy.availableLabel)} : {formatThb(balance)} THB
+                </Text>
+              </View>
+
+              {/* Withdrawal method + bank selectors */}
+              <View style={styles.fieldBlock}>
+                <Text style={styles.fieldLabel}>{tc(withdrawCopy.methodLabel)}</Text>
+                {/* Single option today (Bank Transfer); the selector + `withdrawMethod` state are
+                    the seam for adding Cryptocurrency later, matching the web method dropdown. */}
+                <MoneyActionSelect
+                  accessibilityLabel={tc(withdrawCopy.methodLabel)}
+                  onSelect={setWithdrawMethod}
+                  options={[{ value: "bank_transfer", label: tc(withdrawCopy.bankTransfer) }]}
+                  placeholder={tc(withdrawCopy.bankTransfer)}
+                  testID="withdraw-method-select"
+                  value={withdrawMethod}
+                />
+                {/* hasError shows the brand-danger border while empty — web parity with the
+                    red "Select your bank" required-field state shown on the reference design. */}
+                <MoneyActionSelect
+                  accessibilityLabel={tc(withdrawCopy.bankPlaceholder)}
+                  hasError
+                  onSelect={setSelectedMethodId}
+                  options={methods.map((m) => ({
+                    value: m.id,
+                    label: m.bankName,
+                    sublabel: m.accountNo,
+                  }))}
+                  placeholder={tc(withdrawCopy.bankPlaceholder)}
+                  testID="withdraw-bank-select"
+                  value={selectedMethodId || null}
+                />
+                <View style={styles.minRow}>
+                  <Text style={styles.minText}>
+                    {tc(withdrawCopy.minWithdrawLabel)}: {formatThb(MIN_WITHDRAW)} THB
+                  </Text>
+                  <Link asChild href="/method">
+                    <Pressable accessibilityRole="button" style={styles.manageButton}>
+                      <Text style={styles.manageButtonText}>{tc(withdrawCopy.manageMethod)}</Text>
+                    </Pressable>
+                  </Link>
+                </View>
+              </View>
+
+              {/* Total Withdrawal Amount breakdown */}
+              <View style={styles.totalsBlock}>
+                <Text style={styles.fieldLabel}>{tc(withdrawCopy.totalLabel)}</Text>
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalRowLabel}>{tc(withdrawCopy.activeBalanceLabel)}</Text>
+                  <Text style={styles.totalRowValue}>{formatThb(balance)} THB</Text>
+                </View>
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalRowLabel}>{tc(withdrawCopy.feeLabel)}</Text>
+                  <Text style={styles.totalRowValue}>{formatThb(WITHDRAW_FEE)} THB</Text>
+                </View>
+                <View style={styles.totalDivider} />
+                <View style={styles.totalRow}>
+                  <Text style={styles.receiveLabel}>{tc(withdrawCopy.receiveLabel)}</Text>
+                  <Text style={styles.receiveValue}>
+                    {youWillReceive === null ? "—" : `${formatThb(youWillReceive)} THB`}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Notifications */}
+            {errors.length > 0 ? (
+              <View style={styles.errorBanner}>
+                <AlertIcon color={colors.danger} size={18} />
+                <View style={styles.errorContent}>
+                  {errors.map((e, idx) => (
+                    <Text key={idx} style={styles.errorText}>
+                      • {e}
+                    </Text>
+                  ))}
+                </View>
+              </View>
+            ) : null}
+
+            {successMsg ? (
+              <View style={styles.successBanner}>
+                <SuccessIcon color={colors.primaryDark} size={18} />
+                <Text style={styles.successText}>{successMsg}</Text>
+              </View>
+            ) : null}
+
+            {/* Actions: Back to Wallet + Withdraw */}
+            <View style={styles.withdrawActions}>
+              <Link asChild href="/wallet">
+                <Pressable accessibilityRole="button" style={styles.withdrawSecondary}>
+                  <Text style={styles.withdrawSecondaryText}>{tc(withdrawCopy.backToWallet)}</Text>
+                </Pressable>
+              </Link>
+              <Pressable
+                accessibilityRole="button"
+                disabled={!!successMsg}
+                onPress={handleWithdraw}
+                style={[styles.withdrawPrimary, successMsg ? styles.primaryActionDisabled : null]}
+              >
+                <Text style={styles.withdrawPrimaryText}>{tc(withdrawCopy.withdrawCta)}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </AccountPageShell>
+    );
+  }
 
   return (
     <View style={styles.viewport}>
@@ -538,105 +840,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
             </View>
           ) : null}
 
-          {/* 3. CASHBACK WITHDRAWAL ACTION */}
-          {mode === "withdraw" ? (
-            <View style={styles.sectionWrap}>
-              <Text style={styles.infoTitle}>{tc("Withdraw Rewards")}</Text>
-
-              {/* Wallet Summary metrics card */}
-              <View style={styles.summaryCard}>
-                <Text style={styles.summaryLabel}>{tc("Total Cashback Available")}</Text>
-                <View style={styles.amountRow}>
-                  <Text style={styles.amountText}>
-                    {balance.toLocaleString("en-US", {
-                      maximumFractionDigits: 2,
-                      minimumFractionDigits: 2,
-                    })}
-                  </Text>
-                  <Text style={styles.currencyText}>THB</Text>
-                </View>
-                <Text style={styles.updateLabel}>Last Updated: 28 May 2026 07:00</Text>
-              </View>
-
-              {/* Notifications */}
-              {errors.length > 0 ? (
-                <View style={styles.errorBanner}>
-                  <AlertIcon color={colors.danger} size={18} />
-                  <View style={styles.errorContent}>
-                    {errors.map((e, idx) => (
-                      <Text key={idx} style={styles.errorText}>
-                        • {e}
-                      </Text>
-                    ))}
-                  </View>
-                </View>
-              ) : null}
-
-              {successMsg ? (
-                <View style={styles.successBanner}>
-                  <SuccessIcon color={colors.primaryDark} size={18} />
-                  <Text style={styles.successText}>{successMsg}</Text>
-                </View>
-              ) : null}
-
-              <View style={styles.formCard}>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>{tc("Withdrawal Amount")}</Text>
-                  <View style={[styles.inputBox, focusedField === "withdrawAmount" ? styles.inputFocused : null]}>
-                    <CoinIcon color={colors.muted} size={16} />
-                    <TextInput
-                      keyboardType="numeric"
-                      onBlur={() => setFocusedField(null)}
-                      onChangeText={setWithdrawAmount}
-                      onFocus={() => setFocusedField("withdrawAmount")}
-                      placeholder="0.00"
-                      placeholderTextColor={colors.textSoft}
-                      style={styles.textInput}
-                      value={withdrawAmount}
-                    />
-                  </View>
-                </View>
-
-                {/* Payout method select row */}
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>{tc("Payout Target Method")}</Text>
-                  <View style={styles.payoutPicker}>
-                    {methods.map((m) => (
-                      <Pressable
-                        key={m.id}
-                        onPress={() => setSelectedMethodId(m.id)}
-                        style={[
-                          styles.payoutOption,
-                          selectedMethodId === m.id && styles.payoutOptionActive,
-                        ]}
-                      >
-                        <View style={[styles.radioOuter, selectedMethodId === m.id && styles.radioOuterActive]}>
-                          {selectedMethodId === m.id ? <View style={styles.radioInner} /> : null}
-                        </View>
-                        <View style={styles.payoutOptionDetails}>
-                          <Text style={styles.payoutOptionTitle}>{m.bankName}</Text>
-                          <Text style={styles.payoutOptionSub}>{m.accountNo}</Text>
-                        </View>
-                      </Pressable>
-                    ))}
-                  </View>
-                  {selectedMethod ? (
-                    <Text style={styles.selectedMethodHint}>
-                      {tc("Selected payout target:")} {selectedMethod.bankName}
-                    </Text>
-                  ) : null}
-                </View>
-              </View>
-
-              <Pressable
-                disabled={!!successMsg}
-                onPress={handleWithdraw}
-                style={[styles.primaryAction, successMsg ? styles.primaryActionDisabled : null]}
-              >
-                <Text style={styles.primaryActionText}>{tc("Confirm & Dispatch")}</Text>
-              </Pressable>
-            </View>
-          ) : null}
+          {/* 3. Withdraw (mode="withdraw") renders via the AccountPageShell early-return above. */}
 
           {/* 4. MY CASHBACK VIEW */}
           {mode === "myCashback" ? (
@@ -954,78 +1158,6 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontWeight: "600",
   },
-  summaryCard: {
-    backgroundColor: "#E1F8F2",
-    borderColor: "#BDEFE0",
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    gap: 8,
-    padding: spacing.lg,
-  },
-  summaryLabel: {
-    color: colors.primaryDark,
-    fontFamily: typography.family,
-    fontSize: 12,
-    fontWeight: "700",
-    textTransform: "uppercase",
-  },
-  amountRow: {
-    alignItems: "flex-end",
-    flexDirection: "row",
-    gap: 8,
-  },
-  amountText: {
-    color: colors.accent,
-    fontSize: 32,
-    fontWeight: "700",
-    lineHeight: 36,
-  },
-  currencyText: {
-    color: colors.accent,
-    fontSize: 16,
-    fontWeight: "700",
-    lineHeight: 22,
-  },
-  updateLabel: {
-    color: colors.accentSoft,
-    fontSize: 11,
-  },
-  payoutPicker: {
-    gap: 8,
-  },
-  payoutOption: {
-    alignItems: "center",
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: 16,
-    minHeight: 64,
-    paddingHorizontal: 16,
-  },
-  payoutOptionActive: {
-    borderColor: colors.primaryDark,
-    backgroundColor: "#F2FCF9",
-  },
-  payoutOptionDetails: {
-    flex: 1,
-  },
-  payoutOptionTitle: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  payoutOptionSub: {
-    color: colors.muted,
-    fontSize: 11,
-  },
-  selectedMethodHint: {
-    color: colors.primaryDark,
-    fontFamily: typography.family,
-    fontSize: typography.caption,
-    fontWeight: "700",
-  },
   card: {
     backgroundColor: colors.card,
     borderColor: colors.border,
@@ -1085,6 +1217,256 @@ const styles = StyleSheet.create({
     color: colors.primaryDark,
     fontFamily: typography.family,
     fontSize: 14,
+    fontWeight: "600",
+  },
+  // --- Withdraw (web Withdraw page parity) ---
+  withdrawScreenTitle: {
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: 28,
+    fontWeight: "600",
+  },
+  withdrawCard: {
+    backgroundColor: colors.white,
+    borderRadius: radii.lg,
+    gap: spacing.lg,
+    padding: spacing.lg,
+  },
+  withdrawHeaderRow: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: 8,
+  },
+  withdrawHeading: {
+    color: colors.ink,
+    flex: 1,
+    fontFamily: typography.family,
+    fontSize: 22,
+    fontWeight: "500",
+    lineHeight: 28,
+  },
+  helpButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 2,
+  },
+  helpPanel: {
+    backgroundColor: colors.background,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    gap: 6,
+    padding: spacing.md,
+  },
+  helpLine: {
+    color: colors.muted,
+    fontFamily: typography.family,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  innerSection: {
+    borderColor: colors.border,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    gap: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 28,
+  },
+  amountBlock: {
+    alignItems: "center",
+    gap: 8,
+  },
+  amountLabel: {
+    color: colors.muted,
+    fontFamily: typography.family,
+    fontSize: 18,
+    textAlign: "center",
+  },
+  amountInputWrap: {
+    alignSelf: "center",
+    borderBottomColor: colors.primary,
+    borderBottomWidth: 2,
+    maxWidth: 400,
+    width: "100%",
+  },
+  amountInput: {
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: 44,
+    fontWeight: "600",
+    // Web: suppress the orange OS-accent UA focus outline; the green underline conveys focus.
+    outlineColor: "transparent",
+    outlineWidth: 0,
+    paddingVertical: 4,
+    textAlign: "center",
+    width: "100%",
+  },
+  availableCaption: {
+    color: colors.muted,
+    fontFamily: typography.family,
+    fontSize: 15,
+    marginTop: 8,
+    textAlign: "center",
+  },
+  fieldBlock: {
+    gap: 12,
+  },
+  fieldLabel: {
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: 17,
+    fontWeight: "600",
+  },
+  selectWrap: {
+    gap: 6,
+  },
+  selectBar: {
+    alignItems: "center",
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    minHeight: 56,
+    paddingHorizontal: 16,
+  },
+  selectBarError: {
+    borderColor: colors.danger,
+  },
+  selectValue: {
+    color: colors.ink,
+    flex: 1,
+    fontFamily: typography.family,
+    fontSize: 15,
+  },
+  selectPlaceholder: {
+    color: colors.muted,
+  },
+  selectMenu: {
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    overflow: "hidden",
+  },
+  selectOption: {
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    gap: 2,
+    justifyContent: "center",
+    minHeight: 52,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  selectOptionLabel: {
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  selectOptionSub: {
+    color: colors.muted,
+    fontFamily: typography.family,
+    fontSize: 12,
+  },
+  minRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12,
+    justifyContent: "space-between",
+  },
+  minText: {
+    color: colors.muted,
+    flex: 1,
+    fontFamily: typography.family,
+    fontSize: 13,
+  },
+  manageButton: {
+    alignItems: "center",
+    borderColor: colors.primary,
+    borderRadius: radii.chip,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 36,
+    paddingHorizontal: 16,
+  },
+  manageButtonText: {
+    color: colors.primary,
+    fontFamily: typography.family,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  totalsBlock: {
+    gap: 12,
+  },
+  totalRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  totalRowLabel: {
+    color: colors.textSoft,
+    fontFamily: typography.family,
+    fontSize: 15,
+  },
+  totalRowValue: {
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  totalDivider: {
+    backgroundColor: colors.border,
+    height: 1,
+    marginVertical: 4,
+  },
+  receiveLabel: {
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: 15,
+  },
+  receiveValue: {
+    color: colors.primary,
+    fontFamily: typography.family,
+    fontSize: 26,
+    fontWeight: "700",
+  },
+  withdrawActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    justifyContent: "center",
+  },
+  withdrawSecondary: {
+    alignItems: "center",
+    borderColor: colors.muted,
+    borderRadius: radii.chip,
+    borderWidth: 1,
+    flexGrow: 1,
+    justifyContent: "center",
+    minHeight: 52,
+    minWidth: 140,
+    paddingHorizontal: 24,
+  },
+  withdrawSecondaryText: {
+    color: colors.muted,
+    fontFamily: typography.family,
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  withdrawPrimary: {
+    alignItems: "center",
+    backgroundColor: colors.primary,
+    borderRadius: radii.chip,
+    flexGrow: 1,
+    justifyContent: "center",
+    minHeight: 52,
+    minWidth: 160,
+    paddingHorizontal: 24,
+  },
+  withdrawPrimaryText: {
+    color: colors.white,
+    fontFamily: typography.family,
+    fontSize: 16,
     fontWeight: "600",
   },
 });
