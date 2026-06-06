@@ -50,6 +50,9 @@ export function CustomerAgeVerificationScreen() {
   const [birthDate, setBirthDate] = useState("");
   const [message, setMessage] = useState(pdpaAgeVerifyHint);
   const [status, setStatus] = useState<"idle" | "error" | "success">("idle");
+  // Swap the resting border for a brand-green focus ring (and suppress the orange OS-accent UA
+  // outline). One flag suffices: this screen has a single editable input.
+  const [isInputFocused, setInputFocused] = useState(false);
 
   const submit = () => {
     if (!birthDate.trim()) {
@@ -107,11 +110,13 @@ export function CustomerAgeVerificationScreen() {
                 <Text style={styles.inputLabel}>{tc(pdpaAgeVerifyPlaceholder)}</Text>
                 <TextInput
                   accessibilityLabel={tc(pdpaAgeVerifyPlaceholder)}
+                  onBlur={() => setInputFocused(false)}
                   onChangeText={setBirthDate}
+                  onFocus={() => setInputFocused(true)}
                   onSubmitEditing={submit}
                   placeholder="YYYY-MM-DD"
                   placeholderTextColor={colors.textSoft}
-                  style={styles.input}
+                  style={[styles.input, isInputFocused ? styles.inputFocused : null]}
                   value={birthDate}
                 />
               </View>
@@ -222,7 +227,13 @@ const styles = StyleSheet.create({
     fontFamily: typography.family,
     fontSize: typography.body,
     minHeight: 48,
+    // Web: suppress the orange OS-accent UA focus outline; focus is conveyed by the green border.
+    outlineColor: "transparent",
+    outlineWidth: 0,
     paddingHorizontal: spacing.md,
+  },
+  inputFocused: {
+    borderColor: colors.primary,
   },
   submitButton: {
     alignItems: "center",

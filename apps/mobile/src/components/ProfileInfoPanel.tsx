@@ -264,6 +264,7 @@ function ProfilePersonalInformationPanel({
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
   const cellStyle = isDesktop ? styles.gridCellHalf : styles.gridCellFull;
+  const [focusedField, setFocusedField] = useState<string | null>(null);
 
   return (
     <View style={styles.personalInfoPanel}>
@@ -315,10 +316,12 @@ function ProfilePersonalInformationPanel({
         <View style={styles.inputBox}>
           <TextInput
             editable={isEditing}
+            onBlur={() => setFocusedField(null)}
             onChangeText={setUsername}
+            onFocus={() => setFocusedField("name")}
             placeholder={tc("Name")}
             placeholderTextColor={FIELD_PLACEHOLDER}
-            style={styles.textInput}
+            style={[styles.textInput, focusedField === "name" ? styles.textInputFocused : null]}
             value={username}
           />
         </View>
@@ -351,10 +354,12 @@ function ProfilePersonalInformationPanel({
         <View style={styles.inputBox}>
           <TextInput
             editable={isEditing}
+            onBlur={() => setFocusedField(null)}
             onChangeText={setIdNumber}
+            onFocus={() => setFocusedField("id")}
             placeholder={tc("Citizen or Passport ID")}
             placeholderTextColor={FIELD_PLACEHOLDER}
-            style={styles.textInput}
+            style={[styles.textInput, focusedField === "id" ? styles.textInputFocused : null]}
             value={idNumber}
           />
         </View>
@@ -363,10 +368,12 @@ function ProfilePersonalInformationPanel({
         <View style={styles.inputBox}>
           <TextInput
             editable={isEditing}
+            onBlur={() => setFocusedField(null)}
             onChangeText={setAddress}
+            onFocus={() => setFocusedField("address")}
             placeholder={tc("Legal Address")}
             placeholderTextColor={FIELD_PLACEHOLDER}
-            style={styles.textInput}
+            style={[styles.textInput, focusedField === "address" ? styles.textInputFocused : null]}
             value={address}
           />
         </View>
@@ -393,10 +400,12 @@ function ProfilePersonalInformationPanel({
                 <View style={styles.inputBox}>
                   <TextInput
                     editable={isEditing}
+                    onBlur={() => setFocusedField(null)}
                     onChangeText={setZip}
+                    onFocus={() => setFocusedField("zip")}
                     placeholder={tc("Zip Code")}
                     placeholderTextColor={FIELD_PLACEHOLDER}
-                    style={styles.textInput}
+                    style={[styles.textInput, focusedField === "zip" ? styles.textInputFocused : null]}
                     value={zip}
                   />
                 </View>
@@ -446,10 +455,12 @@ function ProfilePersonalInformationPanel({
             <View style={styles.inputBox}>
               <TextInput
                 editable={isEditing}
+                onBlur={() => setFocusedField(null)}
                 onChangeText={setBirthdate}
+                onFocus={() => setFocusedField("birthdate")}
                 placeholder={tc("YYYY-MM-DD")}
                 placeholderTextColor={FIELD_PLACEHOLDER}
-                style={styles.textInput}
+                style={[styles.textInput, focusedField === "birthdate" ? styles.textInputFocused : null]}
                 value={birthdate}
               />
             </View>
@@ -699,6 +710,11 @@ const styles = StyleSheet.create({
     fontFamily: typography.family,
     fontSize: 16,
     minHeight: 52,
+    outlineColor: "transparent",
+    outlineWidth: 0,
+  },
+  textInputFocused: {
+    borderColor: colors.primary,
   },
   idTypeRow: {
     flexDirection: "row",

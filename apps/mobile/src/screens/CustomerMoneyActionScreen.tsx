@@ -123,6 +123,9 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
   // Notifications
   const [errors, setErrors] = useState<string[]>([]);
   const [successMsg, setSuccessMsg] = useState("");
+  // Web: track which editable input has focus so we can swap its wrapper border to brand green
+  // (and suppress the orange OS-accent UA outline). Keyed per field since several inputs coexist.
+  const [focusedField, setFocusedField] = useState<string | null>(null);
   const selectedMethod = methods.find((m) => m.id === selectedMethodId);
 
   const handleSaveMethod = () => {
@@ -303,21 +306,30 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
               {/* Form tabs */}
               <View style={styles.tabStrip}>
                 <Pressable
-                  onPress={() => setCreateTab("bank")}
+                  onPress={() => {
+                    setCreateTab("bank");
+                    setFocusedField(null);
+                  }}
                   style={[styles.tabPill, createTab === "bank" && styles.tabPillActive]}
                 >
                   <BankIcon color={createTab === "bank" ? colors.primaryDark : colors.muted} size={16} />
                   <Text style={[styles.tabText, createTab === "bank" && styles.tabTextActive]}>{tc("Bank")}</Text>
                 </Pressable>
                 <Pressable
-                  onPress={() => setCreateTab("promptpay")}
+                  onPress={() => {
+                    setCreateTab("promptpay");
+                    setFocusedField(null);
+                  }}
                   style={[styles.tabPill, createTab === "promptpay" && styles.tabPillActive]}
                 >
                   <PhoneIcon color={createTab === "promptpay" ? colors.primaryDark : colors.muted} size={16} />
                   <Text style={[styles.tabText, createTab === "promptpay" && styles.tabTextActive]}>PromptPay</Text>
                 </Pressable>
                 <Pressable
-                  onPress={() => setCreateTab("crypto")}
+                  onPress={() => {
+                    setCreateTab("crypto");
+                    setFocusedField(null);
+                  }}
                   style={[styles.tabPill, createTab === "crypto" && styles.tabPillActive]}
                 >
                   <CryptoIcon color={createTab === "crypto" ? colors.primaryDark : colors.muted} size={16} />
@@ -352,9 +364,11 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                   <View style={styles.formSection}>
                     <View style={styles.inputGroup}>
                       <Text style={styles.inputLabel}>{tc("Bank Name")}</Text>
-                      <View style={styles.inputBox}>
+                      <View style={[styles.inputBox, focusedField === "bankName" ? styles.inputFocused : null]}>
                         <TextInput
+                          onBlur={() => setFocusedField(null)}
                           onChangeText={setBankName}
+                          onFocus={() => setFocusedField("bankName")}
                           placeholder={tc("Select bank (e.g. SCB, Kasikorn)")}
                           placeholderTextColor={colors.textSoft}
                           style={styles.textInput}
@@ -364,10 +378,12 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                     </View>
                     <View style={styles.inputGroup}>
                       <Text style={styles.inputLabel}>{tc("Account Number")}</Text>
-                      <View style={styles.inputBox}>
+                      <View style={[styles.inputBox, focusedField === "bankAccountNo" ? styles.inputFocused : null]}>
                         <TextInput
                           keyboardType="numeric"
+                          onBlur={() => setFocusedField(null)}
                           onChangeText={setBankAccountNo}
+                          onFocus={() => setFocusedField("bankAccountNo")}
                           placeholder={tc("Account Number")}
                           placeholderTextColor={colors.textSoft}
                           style={styles.textInput}
@@ -377,9 +393,11 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                     </View>
                     <View style={styles.inputGroup}>
                       <Text style={styles.inputLabel}>{tc("Account Owner Name")}</Text>
-                      <View style={styles.inputBox}>
+                      <View style={[styles.inputBox, focusedField === "bankAccountName" ? styles.inputFocused : null]}>
                         <TextInput
+                          onBlur={() => setFocusedField(null)}
                           onChangeText={setBankAccountName}
+                          onFocus={() => setFocusedField("bankAccountName")}
                           placeholder={tc("Full Name")}
                           placeholderTextColor={colors.textSoft}
                           style={styles.textInput}
@@ -428,10 +446,12 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
 
                     <View style={styles.inputGroup}>
                       <Text style={styles.inputLabel}>{tc("PromptPay Code")}</Text>
-                      <View style={styles.inputBox}>
+                      <View style={[styles.inputBox, focusedField === "ppCode" ? styles.inputFocused : null]}>
                         <TextInput
                           keyboardType="numeric"
+                          onBlur={() => setFocusedField(null)}
                           onChangeText={setPpCode}
+                          onFocus={() => setFocusedField("ppCode")}
                           placeholder={tc("Phone number or 13-digit ID")}
                           placeholderTextColor={colors.textSoft}
                           style={styles.textInput}
@@ -442,9 +462,11 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
 
                     <View style={styles.inputGroup}>
                       <Text style={styles.inputLabel}>{tc("Owner Thai Name")}</Text>
-                      <View style={styles.inputBox}>
+                      <View style={[styles.inputBox, focusedField === "ppThaiName" ? styles.inputFocused : null]}>
                         <TextInput
+                          onBlur={() => setFocusedField(null)}
                           onChangeText={setPpThaiName}
+                          onFocus={() => setFocusedField("ppThaiName")}
                           placeholder={tc("ภาษาไทย")}
                           placeholderTextColor={colors.textSoft}
                           style={styles.textInput}
@@ -455,9 +477,11 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
 
                     <View style={styles.inputGroup}>
                       <Text style={styles.inputLabel}>{tc("Owner English Name")}</Text>
-                      <View style={styles.inputBox}>
+                      <View style={[styles.inputBox, focusedField === "ppEnglishName" ? styles.inputFocused : null]}>
                         <TextInput
+                          onBlur={() => setFocusedField(null)}
                           onChangeText={setPpEnglishName}
+                          onFocus={() => setFocusedField("ppEnglishName")}
                           placeholder={tc("English Name")}
                           placeholderTextColor={colors.textSoft}
                           style={styles.textInput}
@@ -482,9 +506,11 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                   <View style={styles.formSection}>
                     <View style={styles.inputGroup}>
                       <Text style={styles.inputLabel}>{tc("Crypto Wallet Address")}</Text>
-                      <View style={styles.inputBox}>
+                      <View style={[styles.inputBox, focusedField === "cryptoAddress" ? styles.inputFocused : null]}>
                         <TextInput
+                          onBlur={() => setFocusedField(null)}
                           onChangeText={setCryptoAddress}
+                          onFocus={() => setFocusedField("cryptoAddress")}
                           placeholder="0x..."
                           placeholderTextColor={colors.textSoft}
                           style={styles.textInput}
@@ -556,11 +582,13 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
               <View style={styles.formCard}>
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>{tc("Withdrawal Amount")}</Text>
-                  <View style={styles.inputBox}>
+                  <View style={[styles.inputBox, focusedField === "withdrawAmount" ? styles.inputFocused : null]}>
                     <CoinIcon color={colors.muted} size={16} />
                     <TextInput
                       keyboardType="numeric"
+                      onBlur={() => setFocusedField(null)}
                       onChangeText={setWithdrawAmount}
+                      onFocus={() => setFocusedField("withdrawAmount")}
                       placeholder="0.00"
                       placeholderTextColor={colors.textSoft}
                       style={styles.textInput}
@@ -848,12 +876,19 @@ const styles = StyleSheet.create({
     minHeight: 52,
     paddingHorizontal: 16,
   },
+  // Brand-green focus ring on the input wrapper (where the resting border lives).
+  inputFocused: {
+    borderColor: colors.primary,
+  },
   textInput: {
     color: colors.ink,
     flex: 1,
     fontFamily: typography.family,
     fontSize: 14,
     minHeight: 48,
+    // Web: suppress the orange OS-accent UA focus outline; focus is conveyed by the green border.
+    outlineColor: "transparent",
+    outlineWidth: 0,
   },
   defaultRow: {
     alignItems: "center",

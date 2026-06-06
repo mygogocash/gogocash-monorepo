@@ -156,6 +156,9 @@ export function CustomerMyCashbackSignInScreen() {
   const [linkChannel, setLinkChannel] = useState<LinkChannel>("phone");
   const [phoneLocal, setPhoneLocal] = useState("");
   const [emailValue, setEmailValue] = useState("");
+  // Swap the resting border for a brand-green focus ring (and suppress the orange OS-accent UA
+  // outline). One flag suffices: the phone and email inputs are mutually exclusive.
+  const [isInputFocused, setInputFocused] = useState(false);
   const [consentChecked, setConsentChecked] = useState(false);
   const [otpInput, setOtpInput] = useState("");
   const [otpError, setOtpError] = useState(false);
@@ -301,7 +304,10 @@ export function CustomerMyCashbackSignInScreen() {
                           key={option.value}
                           accessibilityRole="radio"
                           accessibilityState={{ checked: selected }}
-                          onPress={() => setLinkChannel(option.value)}
+                          onPress={() => {
+                            setLinkChannel(option.value);
+                            setInputFocused(false);
+                          }}
                           style={styles.radioOption}
                         >
                           <View
@@ -325,12 +331,14 @@ export function CustomerMyCashbackSignInScreen() {
                         inputMode="numeric"
                         keyboardType="number-pad"
                         maxLength={10}
+                        onBlur={() => setInputFocused(false)}
                         onChangeText={(value) =>
                           setPhoneLocal(value.replace(/\D/g, "").slice(0, 10))
                         }
+                        onFocus={() => setInputFocused(true)}
                         placeholder={linkCopy.phonePlaceholder}
                         placeholderTextColor="#7F7F7F"
-                        style={[styles.input, styles.inputFlex]}
+                        style={[styles.input, styles.inputFlex, isInputFocused ? styles.inputFocused : null]}
                         value={phoneLocal}
                       />
                     </View>
@@ -341,10 +349,12 @@ export function CustomerMyCashbackSignInScreen() {
                       autoCorrect={false}
                       inputMode="email"
                       keyboardType="email-address"
+                      onBlur={() => setInputFocused(false)}
                       onChangeText={setEmailValue}
+                      onFocus={() => setInputFocused(true)}
                       placeholder={linkCopy.emailPlaceholder}
                       placeholderTextColor="#7F7F7F"
-                      style={[styles.input, styles.inputFull]}
+                      style={[styles.input, styles.inputFull, isInputFocused ? styles.inputFocused : null]}
                       value={emailValue}
                     />
                   )}
@@ -707,7 +717,13 @@ const styles = StyleSheet.create({
     fontFamily: typography.family,
     fontSize: 16,
     minHeight: 56,
+    // Web: suppress the orange OS-accent UA focus outline; focus is conveyed by the green border.
+    outlineColor: "transparent",
+    outlineWidth: 0,
     paddingHorizontal: 16,
+  },
+  inputFocused: {
+    borderColor: colors.primary,
   },
   inputFlex: {
     flex: 1,
