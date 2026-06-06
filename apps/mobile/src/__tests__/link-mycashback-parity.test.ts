@@ -94,4 +94,20 @@ describe("Link MyCashback parity", () => {
       "lineHeight: typography.actionLineHeight",
     ]);
   });
+
+  it("connector dots > given the shared animated component > then both intro screens use it and it loops with reduce-motion support", () => {
+    const component = readMobileFile("src/components/LinkMyCashbackConnectorDots.tsx");
+    // The dots animate (a looping, staggered pulse) and honor the reduce-motion preference.
+    expect(component).toContain("useReducedMotion");
+    expect(component).toContain("Animated.loop");
+    expect(component).toContain("Animated.stagger");
+
+    // Both intro surfaces render the shared component, not duplicated inline static dots.
+    const linkScreen = readMobileFile("src/screens/CustomerLinkCashbackScreen.tsx");
+    const signInScreen = readMobileFile("src/screens/CustomerMyCashbackSignInScreen.tsx");
+    expect(linkScreen).toContain("<LinkMyCashbackConnectorDots");
+    expect(signInScreen).toContain("<LinkMyCashbackConnectorDots");
+    expect(linkScreen).not.toContain("styles.connectorDot");
+    expect(signInScreen).not.toContain("styles.connectorDot");
+  });
 });

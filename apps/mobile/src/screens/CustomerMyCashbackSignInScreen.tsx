@@ -18,6 +18,7 @@ import logoMarkImage from "../../assets/nav/logo.png";
 import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
 import { CustomerDesktopHeader } from "@mobile/components/CustomerDesktopHeader";
 import { KeyboardAwareScreen } from "@mobile/components/KeyboardAwareScreen";
+import { LinkMyCashbackConnectorDots } from "@mobile/components/LinkMyCashbackConnectorDots";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { haptics } from "@mobile/lib/haptics";
 import {
@@ -264,14 +265,10 @@ export function CustomerMyCashbackSignInScreen() {
                     style={styles.connectorImage}
                   />
                 </View>
-                <View style={styles.connectorDots}>
-                  {webLinkMyCashbackIntro.connectorDots.map((dotColor, index) => (
-                    <View
-                      key={`${dotColor}-${index}`}
-                      style={[styles.connectorDot, { backgroundColor: dotColor }]}
-                    />
-                  ))}
-                </View>
+                <LinkMyCashbackConnectorDots
+                  colors={webLinkMyCashbackIntro.connectorDots}
+                  testID="link-mycashback-connector-dots"
+                />
                 <View style={styles.connectorImageFrame}>
                   <Image
                     alt={webLinkMyCashbackIntro.myCashbackImageAlt}
@@ -619,16 +616,6 @@ const styles = StyleSheet.create({
   connectorImage: {
     height: "100%",
     width: "100%",
-  },
-  connectorDots: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 10,
-  },
-  connectorDot: {
-    borderRadius: 3,
-    height: 6,
-    width: 6,
   },
   stepBody: {
     gap: 20,
