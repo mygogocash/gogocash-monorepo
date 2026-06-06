@@ -101,6 +101,7 @@ export function CustomerDesktopFooter({
               >
                 <MotionPressable
                   accessibilityLabel={social.label}
+                  hoverLift={false}
                   pressScale={motion.scale.subtlePress}
                   style={styles.socialLink}
                 >
@@ -136,6 +137,7 @@ function FooterTextLink({
     >
       <MotionPressable
         accessibilityLabel={tc(label)}
+        hoverLift={false}
         pressScale={motion.scale.subtlePress}
         style={styles.textLinkPressable}
       >
@@ -157,6 +159,7 @@ function FooterCloudflareTrust() {
       >
         <MotionPressable
           accessibilityLabel="Cloudflare"
+          hoverLift={false}
           pressScale={motion.scale.subtlePress}
           style={styles.cloudflareLink}
         >

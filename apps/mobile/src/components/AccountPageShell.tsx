@@ -435,8 +435,9 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   railLabelActive: {
+    // Selected rail item: white text on the green pill, but normal weight (not bold) —
+    // inherits railLabel's typography.bodyWeight.
     color: colors.white,
-    fontWeight: "600",
   },
   railAccordion: {
     gap: spacing.sm,
@@ -465,8 +466,8 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   railSubLabelActive: {
+    // Selected sub-nav item: white text, normal weight (not bold).
     color: colors.white,
-    fontWeight: "600",
   },
   profileContent: {
     flex: 1,
