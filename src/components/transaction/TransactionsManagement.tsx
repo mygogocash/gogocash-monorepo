@@ -119,6 +119,7 @@ export default function TransactionsManagement() {
               page={listQ.data.page}
               totalPages={listQ.data.totalPages}
               total={listQ.data.total}
+              limit={listQ.data.limit}
               onPageChange={setPage}
             />
           )}

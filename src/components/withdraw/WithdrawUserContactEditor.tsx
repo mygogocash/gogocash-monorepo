@@ -3,6 +3,7 @@
 import Label from "@/components/form/Label";
 import Input from "@/components/form/input/InputField";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
+import TextButton from "@/components/ui/button/TextButton";
 import { VerifiedPill } from "@/components/withdraw/VerifiedPill";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import {
@@ -308,8 +309,7 @@ export default function WithdrawUserContactEditor({
             );
           })}
         </div>
-        <button
-          type="button"
+        <TextButton
           disabled={
             ensureUserContactRows(userDraft.emailRows).length >=
             MAX_WITHDRAW_CONTACT_ROWS
@@ -323,10 +323,9 @@ export default function WithdrawUserContactEditor({
               ],
             }))
           }
-          className="text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40"
         >
           + Add email
-        </button>
+        </TextButton>
       </div>
 
       <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-4 sm:col-span-2 dark:border-gray-700 dark:bg-gray-900/50">
@@ -453,8 +452,7 @@ export default function WithdrawUserContactEditor({
             );
           })}
         </div>
-        <button
-          type="button"
+        <TextButton
           disabled={
             ensureUserContactRows(userDraft.mobileRows).length >=
             MAX_WITHDRAW_CONTACT_ROWS
@@ -468,10 +466,9 @@ export default function WithdrawUserContactEditor({
               ],
             }))
           }
-          className="text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40"
         >
           + Add phone
-        </button>
+        </TextButton>
       </div>
 
       <ConfirmDialog

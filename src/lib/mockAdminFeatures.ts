@@ -2,8 +2,13 @@
  * Mock REST handlers for new admin feature modules (credit score, membership, etc.).
  * Routed from `handleMockApiRequest` when path starts with `admin/<feature>/...`.
  */
-import { mockUsers } from "@/app/api/mock/data";
+import {
+  addManualCashbackConversion,
+  mockUsers,
+  setManualCashbackStatus,
+} from "@/app/api/mock/data";
 import { tierFromScore } from "@/lib/creditTier";
+import { sortMembers, type MemberSortKey } from "@/lib/memberSort";
 
 /** Same shape as `MockApiInput` in mockApiCore (avoid circular import). */
 export type AdminFeatureMockInput = {
@@ -134,7 +139,7 @@ let membershipTiers: MembershipTier[] = [
     description: "Premium boost",
     monthlyPrice: 149,
     annualPrice: 1490,
-    color: "#7c3aed",
+    color: "#ec4899", // pink-500 — matches the GoGoPass Plus tag
     icon: "crown",
     benefits: [
       { icon: "bolt", label: "20% boost" },
@@ -267,8 +272,10 @@ type ReferralRow = {
   id: string;
   referrerId: string;
   referrerName: string;
+  referrerEmail: string;
   refereeId: string;
   refereeName: string;
+  refereeEmail: string;
   date: string;
   status: "pending" | "qualified" | "paid" | "rejected";
   referrerRewardPaid: number;
@@ -282,8 +289,10 @@ let referrals: ReferralRow[] = mockUsers.slice(0, 25).map((u, i) => {
     id: `ref_${i + 1}`,
     referrerId: u._id,
     referrerName: u.username,
+    referrerEmail: u.email,
     refereeId: ref._id,
     refereeName: ref.username,
+    refereeEmail: ref.email,
     date: new Date(Date.now() - i * 86400000 * 2).toISOString(),
     status:
       i % 4 === 0
@@ -698,9 +707,17 @@ export function tryMockAdminFeaturesRequest(
         );
       }
       const st = searchParams.get("status");
-      if (st) rows = rows.filter((r) => r.status === st);
+      if (st) {
+        const allowed = st.split(",").map((s) => s.trim());
+        rows = rows.filter((r) => allowed.includes(r.status));
+      }
       const tid = searchParams.get("tierId");
       if (tid) rows = rows.filter((r) => r.tierId === tid);
+      const ar = searchParams.get("autoRenew");
+      if (ar === "true") rows = rows.filter((r) => r.autoRenew === true);
+      else if (ar === "false") rows = rows.filter((r) => r.autoRenew === false);
+      const sort = searchParams.get("sort");
+      if (sort) rows = sortMembers(rows, sort as MemberSortKey);
       return ok(paginate(rows, page, limit));
     }
     if (m === "PUT" && path[2] === "users" && path[4] === "tier") {
@@ -769,11 +786,22 @@ export function tryMockAdminFeaturesRequest(
       if (search) {
         const s = search.toLowerCase();
         rows = rows.filter(
-          (r) => r.userName.toLowerCase().includes(s) || r.userId.includes(s),
+          (r) =>
+            r.userName.toLowerCase().includes(s) ||
+            r.email.toLowerCase().includes(s) ||
+            r.userId.includes(s),
         );
       }
       const pst = searchParams.get("status");
       if (pst) rows = rows.filter((r) => r.status === pst);
+      const ppl = searchParams.get("plan");
+      if (ppl === "monthly")
+        rows = rows.filter((r) => r.planId === "plan_monthly");
+      else if (ppl === "annual")
+        rows = rows.filter((r) => r.planId === "plan_annual");
+      const par = searchParams.get("autoRenew");
+      if (par === "true") rows = rows.filter((r) => r.autoRenew);
+      else if (par === "false") rows = rows.filter((r) => !r.autoRenew);
       return ok(paginate(rows, page, limit));
     }
     if (m === "GET" && path[2] === "subscriptions" && path[3]) {
@@ -1021,16 +1049,42 @@ export function tryMockAdminFeaturesRequest(
         timestamp: new Date().toISOString(),
       };
       walletAdjustments[uid] = [...(walletAdjustments[uid] ?? []), adj];
-      wallets = wallets.map((w) => {
-        if (w.userId !== uid) return w;
-        const mul = adj.type === "credit" ? 1 : -1;
-        if (adj.currency === "GGC")
-          return { ...w, ggcBalance: w.ggcBalance + mul * adj.amount };
-        if (adj.currency === "points")
-          return { ...w, pointsBalance: w.pointsBalance + mul * adj.amount };
-        return { ...w, cashbackBalance: w.cashbackBalance + mul * adj.amount };
-      });
+      const isCashbackRequest =
+        adj.type === "credit" && adj.currency === "cashback";
+      if (isCashbackRequest) {
+        // Pending approval — the balance is credited only when a super-admin
+        // approves the request (surfaced as a pending conversion).
+        addManualCashbackConversion(uid, adj.amount, adj.reason);
+      } else {
+        wallets = wallets.map((w) => {
+          if (w.userId !== uid) return w;
+          const mul = adj.type === "credit" ? 1 : -1;
+          if (adj.currency === "GGC")
+            return { ...w, ggcBalance: w.ggcBalance + mul * adj.amount };
+          if (adj.currency === "points")
+            return { ...w, pointsBalance: w.pointsBalance + mul * adj.amount };
+          return { ...w, cashbackBalance: w.cashbackBalance + mul * adj.amount };
+        });
+      }
       return ok({ success: true, adjustment: adj });
+    }
+    if (m === "POST" && path[2] === "cashback-request" && path[3]) {
+      const conversionId = Number(path[3]);
+      const action =
+        (body as { action?: string })?.action === "reject"
+          ? "rejected"
+          : "approved";
+      const reason = (body as { reason?: string })?.reason;
+      const result = setManualCashbackStatus(conversionId, action, reason);
+      if (!result) return jsonErr(404, { message: "Request not found" });
+      if (action === "approved") {
+        wallets = wallets.map((w) =>
+          w.userId === result.userId
+            ? { ...w, cashbackBalance: w.cashbackBalance + result.amount }
+            : w,
+        );
+      }
+      return ok({ success: true, status: action, reason: reason ?? null });
     }
     return null;
   }

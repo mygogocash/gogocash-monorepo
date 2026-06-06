@@ -3,49 +3,29 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   deleteSubscriptionPlan,
-  getSubscriptionDetail,
   getSubscriptionPlans,
   getSubscriptions,
   getSubscriptionStats,
   postSubscriptionPlan,
-  putSubscriptionAction,
   putSubscriptionPlan,
 } from "@/lib/api/adminModulesApi";
 import type { Subscription, SubscriptionPlan } from "@/types/adminModules";
 import { formatDate } from "@/lib/dateFormat";
-import { formatMoney } from "@/lib/currencyFormat";
 import { planCycle, CYCLE_LABEL, CYCLE_BADGE } from "@/lib/subscriptionCycle";
 import { STATUS_BADGE_BASE } from "@/lib/statusBadge";
 import Button from "@/components/ui/button/Button";
+import PrimaryButton from "@/components/ui/button/PrimaryButton";
 import { Modal } from "@/components/ui/modal";
 import Input from "@/components/form/input/InputField";
 import { AdminPaginationBar } from "@/components/common/AdminPaginationBar";
 import { AdminQueryError } from "@/components/common/AdminQueryError";
 import { AdminTableSkeleton } from "@/components/common/AdminTableSkeleton";
+import SubAdminCard from "@/components/subscription/SubAdminCard";
+import SortByDropdown from "@/components/ui/button/SortByDropdown";
+import SearchBar from "@/components/ui/button/SearchBar";
+import SupportButton from "@/components/ui/button/SupportButton";
 import toast from "react-hot-toast";
-import { useState } from "react";
-
-/** Colored top-border accent per billing cycle (mirrors Membership tier colors). */
-const PLAN_ACCENT: Record<SubscriptionPlan["billingCycle"], string> = {
-  monthly: "#3b82f6", // blue-500
-  quarterly: "#f59e0b", // amber-500
-  annual: "#8b5cf6", // violet-500
-};
-
-/** Status pill colors (same palette as the Membership status badge). */
-const PLAN_STATUS_BADGE: Record<SubscriptionPlan["status"], string> = {
-  active:
-    "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200",
-  draft: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200",
-  archived: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300",
-};
-
-/** Per-cycle unit word for the price line ("149 THB / month"). */
-const CYCLE_UNIT: Record<SubscriptionPlan["billingCycle"], string> = {
-  monthly: "month",
-  quarterly: "quarter",
-  annual: "year",
-};
+import { useEffect, useState } from "react";
 
 /** Colored pill per subscription status. */
 const SUB_STATUS_BADGE: Record<Subscription["status"], string> = {
@@ -61,8 +41,20 @@ const SUB_STATUS_BADGE: Record<Subscription["status"], string> = {
 export default function SubscriptionManagement() {
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  // Subscriptions table filter: by auto-renew (yes/no) or by status (sub-select).
+  const [subFilter, setSubFilter] = useState("status");
+  const [subStatus, setSubStatus] = useState("");
+  const [subPlan, setSubPlan] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [search]);
   const [planModal, setPlanModal] = useState<false | "create" | SubscriptionPlan>(false);
-  const [detailId, setDetailId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Partial<SubscriptionPlan>>({
     name: "",
     billingCycle: "monthly",
@@ -77,13 +69,30 @@ export default function SubscriptionManagement() {
   const statsQ = useQuery({ queryKey: ["admin", "subscription", "stats"], queryFn: getSubscriptionStats });
   const plansQ = useQuery({ queryKey: ["admin", "subscription", "plans"], queryFn: getSubscriptionPlans });
   const subsQ = useQuery({
-    queryKey: ["admin", "subscription", "subs", page],
-    queryFn: () => getSubscriptions({ page, limit: 10 }),
-  });
-  const detailQ = useQuery({
-    queryKey: ["admin", "subscription", "detail", detailId],
-    queryFn: () => getSubscriptionDetail(detailId!),
-    enabled: Boolean(detailId),
+    queryKey: [
+      "admin",
+      "subscription",
+      "subs",
+      page,
+      debouncedSearch,
+      subFilter,
+      subStatus,
+      subPlan,
+    ],
+    queryFn: () =>
+      getSubscriptions({
+        page,
+        limit: 10,
+        search: debouncedSearch,
+        status: subFilter === "status" ? subStatus || undefined : undefined,
+        plan: subFilter === "plan" ? subPlan || undefined : undefined,
+        autoRenew:
+          subFilter === "autorenew-yes"
+            ? "true"
+            : subFilter === "autorenew-no"
+              ? "false"
+              : undefined,
+      }),
   });
 
   const savePlan = useMutation({
@@ -120,43 +129,6 @@ export default function SubscriptionManagement() {
       void qc.invalidateQueries({ queryKey: ["admin", "subscription", "plans"] });
     },
   });
-
-  const act = useMutation({
-    mutationFn: ({
-      id,
-      action,
-      days,
-    }: {
-      id: string;
-      action: "cancel" | "pause" | "resume" | "extend";
-      days?: number;
-    }) => putSubscriptionAction(id, action, action === "extend" ? { days } : undefined),
-    onSuccess: (_, v) => {
-      toast.success("Updated");
-      void qc.invalidateQueries({ queryKey: ["admin", "subscription", "subs"] });
-      if (detailId === v.id) void qc.invalidateQueries({ queryKey: ["admin", "subscription", "detail", v.id] });
-    },
-  });
-
-  // Dispatch a row action chosen from the Actions dropdown.
-  const runAction = (id: string, action: string) => {
-    switch (action) {
-      case "view":
-        setDetailId(id);
-        break;
-      case "pause":
-      case "resume":
-        void act.mutateAsync({ id, action });
-        break;
-      case "extend":
-        void act.mutateAsync({ id, action: "extend", days: 30 });
-        break;
-      case "cancel":
-        if (confirm("Cancel subscription?"))
-          void act.mutateAsync({ id, action: "cancel" });
-        break;
-    }
-  };
 
   if (statsQ.isLoading || plansQ.isLoading) return <AdminTableSkeleton />;
 
@@ -198,8 +170,8 @@ export default function SubscriptionManagement() {
       <section>
         <div className="mb-4 flex justify-between gap-3">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Plans</h2>
-          <Button
-            size="sm"
+          <PrimaryButton
+            variant="blue"
             onClick={() => {
               setDraft({
                 name: "",
@@ -215,91 +187,88 @@ export default function SubscriptionManagement() {
             }}
           >
             + Create plan
-          </Button>
+          </PrimaryButton>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           {plans.map((p) => (
-            <div
+            <SubAdminCard
               key={p.id}
-              className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]"
-              style={{
-                borderTopColor: PLAN_ACCENT[p.billingCycle],
-                borderTopWidth: 4,
+              plan={p}
+              onEdit={(plan) => {
+                setDraft(plan);
+                setPlanModal(plan);
               }}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h3 className="font-semibold text-gray-900 dark:text-white">
-                    {p.name}
-                  </h3>
-                  <p className="mt-1 text-sm capitalize text-gray-600 dark:text-gray-400">
-                    {p.billingCycle} plan
-                  </p>
-                </div>
-                <span
-                  className={`${STATUS_BADGE_BASE} ${PLAN_STATUS_BADGE[p.status]}`}
-                >
-                  {p.status}
-                </span>
-              </div>
-              <dl className="mt-3 space-y-1.5 text-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <dt className="text-gray-500 dark:text-gray-400">Price</dt>
-                  <dd className="font-medium text-gray-800 dark:text-gray-200">
-                    {formatMoney(p.price)} / {CYCLE_UNIT[p.billingCycle]}
-                  </dd>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <dt className="text-gray-500 dark:text-gray-400">Trial</dt>
-                  <dd className="font-medium text-gray-800 dark:text-gray-200">
-                    {p.trialDays} days
-                  </dd>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <dt className="text-gray-500 dark:text-gray-400">
-                    Grace period
-                  </dt>
-                  <dd className="font-medium text-gray-800 dark:text-gray-200">
-                    {p.gracePeriodDays} days
-                  </dd>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <dt className="text-gray-500 dark:text-gray-400">
-                    Subscribers
-                  </dt>
-                  <dd className="font-medium text-gray-800 dark:text-gray-200">
-                    {p.subscriberCount.toLocaleString()}
-                  </dd>
-                </div>
-              </dl>
-              <div className="mt-4 flex gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setDraft(p);
-                    setPlanModal(p);
-                  }}
-                >
-                  Edit
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    if (confirm("Delete plan?")) void delPlan.mutateAsync(p.id);
-                  }}
-                >
-                  Delete
-                </Button>
-              </div>
-            </div>
+              onDelete={(plan) => {
+                if (confirm("Delete plan?")) void delPlan.mutateAsync(plan.id);
+              }}
+            />
           ))}
         </div>
       </section>
 
       <section className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03] sm:p-6">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Subscriptions</h2>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex shrink-0 items-baseline gap-2">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Subscriptions
+            </h2>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+              Sort by
+              <SortByDropdown
+                value={subFilter}
+                onChange={(e) => {
+                  setSubFilter(e.target.value);
+                  setSubStatus("");
+                  setSubPlan("");
+                  setPage(1);
+                }}
+              >
+                <option value="autorenew-yes">Auto-renew: Yes</option>
+                <option value="autorenew-no">Auto-renew: No</option>
+                <option value="status">Status</option>
+                <option value="plan">Plan</option>
+              </SortByDropdown>
+            </label>
+            {subFilter === "status" && (
+              <SortByDropdown
+                value={subStatus}
+                onChange={(e) => {
+                  setSubStatus(e.target.value);
+                  setPage(1);
+                }}
+                aria-label="Filter by status"
+              >
+                <option value="">All statuses</option>
+                <option value="active">Active</option>
+                <option value="trialing">Trialing</option>
+                <option value="past_due">Past due</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="paused">Paused</option>
+              </SortByDropdown>
+            )}
+            {subFilter === "plan" && (
+              <SortByDropdown
+                value={subPlan}
+                onChange={(e) => {
+                  setSubPlan(e.target.value);
+                  setPage(1);
+                }}
+                aria-label="Filter by plan"
+              >
+                <option value="">All plans</option>
+                <option value="monthly">Monthly</option>
+                <option value="annual">Annually</option>
+              </SortByDropdown>
+            )}
+            <SearchBar
+              placeholder="Search name or email…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        </div>
         {subsQ.isLoading ? (
           <AdminTableSkeleton rows={5} />
         ) : subsQ.isError ? (
@@ -310,32 +279,42 @@ export default function SubscriptionManagement() {
           <>
             <div className="mt-4 overflow-x-auto">
               <table className="min-w-full text-left text-sm">
-                <thead className="border-b border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-400">
+                <thead className="bg-gray-50 dark:bg-gray-800">
                   <tr>
-                    <th className="pb-2 pr-3 font-medium">User</th>
-                    <th className="pb-2 pr-3 font-medium">Plan</th>
-                    <th className="pb-2 pr-3 font-medium">Dates</th>
-                    <th className="pb-2 pr-3 font-medium">Status</th>
-                    <th className="pb-2 font-medium">Actions</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      User
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Plan
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Dates
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Status
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                   {subsQ.data.data.map((s: Subscription) => (
                     <tr key={s.id} className="text-gray-800 dark:text-gray-200">
-                      <td className="py-3 pr-3">
+                      <td className="px-3 py-3">
                         <div className="font-medium">{s.userName}</div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">
                           {s.email}
                         </div>
                       </td>
-                      <td className="py-3 pr-3">
+                      <td className="px-3 py-3">
                         <span
                           className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${CYCLE_BADGE[planCycle(s.planName)]}`}
                         >
                           {CYCLE_LABEL[planCycle(s.planName)]}
                         </span>
                       </td>
-                      <td className="py-3 pr-3 text-xs">
+                      <td className="px-3 py-3 text-xs">
                         {formatDate(s.startDate)} to{" "}
                         {formatDate(s.nextBillingDate)}
                         <div>
@@ -351,28 +330,19 @@ export default function SubscriptionManagement() {
                           )}
                         </div>
                       </td>
-                      <td className="py-3 pr-3">
+                      <td className="px-3 py-3">
                         <span
                           className={`${STATUS_BADGE_BASE} ${SUB_STATUS_BADGE[s.status]}`}
                         >
                           {s.status.replace(/_/g, " ")}
                         </span>
                       </td>
-                      <td className="py-3">
-                        <select
-                          className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900"
-                          value=""
-                          onChange={(e) => runAction(s.id, e.target.value)}
+                      <td className="px-3 py-3">
+                        <SupportButton
+                          href={`/withdraw/${s.userId}?tab=subscription`}
                         >
-                          <option value="" disabled hidden>
-                            Actions
-                          </option>
-                          <option value="view">View</option>
-                          <option value="pause">Pause</option>
-                          <option value="resume">Resume</option>
-                          <option value="extend">+30 days</option>
-                          <option value="cancel">Cancel</option>
-                        </select>
+                          View
+                        </SupportButton>
                       </td>
                     </tr>
                   ))}
@@ -384,6 +354,7 @@ export default function SubscriptionManagement() {
                 page={subsQ.data.page}
                 totalPages={subsQ.data.totalPages}
                 total={subsQ.data.total}
+                limit={subsQ.data.limit}
                 onPageChange={setPage}
               />
             )}
@@ -441,26 +412,6 @@ export default function SubscriptionManagement() {
             </Button>
           </div>
         </div>
-      </Modal>
-
-      <Modal isOpen={Boolean(detailId)} onClose={() => setDetailId(null)} className="max-w-lg p-6">
-        {detailQ.isLoading ? (
-          <p className="text-sm text-gray-500">Loading…</p>
-        ) : detailQ.data ? (
-          <div className="space-y-3 text-sm text-gray-800 dark:text-gray-200">
-            <h4 className="font-semibold text-gray-900 dark:text-white">{detailQ.data.planName}</h4>
-            <p>User: {detailQ.data.userName}</p>
-            <p>Status: {detailQ.data.status}</p>
-            <p className="font-medium text-gray-900 dark:text-white">Billing history</p>
-            <ul className="list-disc pl-5">
-              {detailQ.data.billingHistory?.map((b, i) => (
-                <li key={i}>
-                  {formatDate(b.date)} — {formatMoney(b.amount)} ({b.status})
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
       </Modal>
     </div>
   );

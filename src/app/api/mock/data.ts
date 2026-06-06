@@ -469,7 +469,7 @@ export const mockConversions = Array.from({ length: 550 }, (_, i) => {
     adv_sub5: i % 2 === 0 ? "mobile" : "desktop",
     datetime_conversion: dt,
     conversion_status,
-    affiliate_remarks: null,
+    affiliate_remarks: null as string | null,
     currency: o.currency,
     sale_amount: saleAmount,
     payout,
@@ -482,6 +482,71 @@ export const mockConversions = Array.from({ length: 550 }, (_, i) => {
     updatedAt: now,
   };
 });
+
+/**
+ * Append a manual "Add cashback" entry to the conversions list so it surfaces
+ * in the user's All Conversions table. Created as "pending" (an admin reviews it
+ * → approved/rejected afterwards). Returns the new conversion id.
+ */
+export function addManualCashbackConversion(
+  userId: string,
+  amount: number,
+  reason: string,
+): number {
+  const user = userRefs.find((u) => u._id === userId) ?? userRefs[0];
+  const conversionId =
+    mockConversions.reduce((max, c) => Math.max(max, c.conversion_id), 5000) + 1;
+  const ts = new Date().toISOString();
+  mockConversions.push({
+    conversion_id: conversionId,
+    offer_id: 0,
+    aff_sub1: userId,
+    aff_sub2: null,
+    aff_sub3: null,
+    aff_sub4: null,
+    aff_sub5: null,
+    adv_sub1: "Admin manual adding",
+    adv_sub2: "",
+    adv_sub3: "",
+    adv_sub4: null,
+    adv_sub5: "",
+    datetime_conversion: ts,
+    conversion_status: "pending",
+    affiliate_remarks: reason,
+    currency: "THB",
+    sale_amount: "0.00",
+    payout: amount.toFixed(2),
+    base_payout: amount.toFixed(2),
+    bonus_payout: "0.00",
+    merchant_id: 0,
+    offer_name: "Extra cashback",
+    user,
+    createdAt: ts,
+    updatedAt: ts,
+  });
+  return conversionId;
+}
+
+/**
+ * Resolve a pending "Extra cashback" request: set the conversion status and
+ * return the wallet owner + amount so the caller can credit it on approval.
+ * Returns null if no matching extra-cashback conversion exists.
+ */
+export function setManualCashbackStatus(
+  conversionId: number,
+  status: "approved" | "rejected",
+  reason?: string,
+): { userId: string; amount: number } | null {
+  const c = mockConversions.find(
+    (x) => x.conversion_id === conversionId && x.offer_name === "Extra cashback",
+  );
+  if (!c) return null;
+  c.conversion_status = status;
+  if (reason) {
+    (c as { rejection_reason?: string }).rejection_reason = reason;
+  }
+  return { userId: c.aff_sub1, amount: Number(c.payout) };
+}
 
 export const mockFee = [
   {

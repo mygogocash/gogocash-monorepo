@@ -16,6 +16,8 @@ export async function listMyCashbackUsers(params: {
   page: number;
   limit: number;
   search: string;
+  sort?: string;
+  status?: string;
 }): Promise<MyCashbackUsersListResponse> {
   const res = await client.post<MyCashbackUsersListResponse>(
     "/admin/list-mycashback-users",

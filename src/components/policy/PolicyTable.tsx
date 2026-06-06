@@ -7,6 +7,7 @@ import { useDataSession } from "@/hooks/useDataSession";
 import client, { fetcher, fetcherPut } from "@/lib/axios/client";
 import { ResCategoryList } from "@/types/category";
 import { Modal } from "@/components/ui/modal";
+import NoData from "@/components/common/NoData";
 import Button from "@/components/ui/button/Button";
 import { pathImage } from "@/utils/helper";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
@@ -502,7 +503,7 @@ export default function PolicyTable() {
             </div>
 
             {filteredCategories.length === 0 && !loadingCategories && (
-              <div className="py-8 text-center text-gray-500 dark:text-gray-400">No categories found.</div>
+              <NoData>No categories found.</NoData>
             )}
           </>
         )}

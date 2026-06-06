@@ -121,6 +121,14 @@ export interface UsersQuery {
   search?: string;
   role?: string;
   status?: string;
+  /** Sort key: "newest" | "name" | "tier" | "membership" (see lib/userSort). */
+  sort?: string;
+  /** Filter: credit tier id "bronze" | "silver" | "gold" | "platinum". */
+  tier?: string;
+  /** Filter: membership tier name, e.g. "Basic" | "GoGoPass Plus". */
+  membership?: string;
+  /** Filter: subscription "monthly" | "annual" | "none" (see lib/userFilter). */
+  subscription?: string;
 }
 
 export interface UsersResponse {

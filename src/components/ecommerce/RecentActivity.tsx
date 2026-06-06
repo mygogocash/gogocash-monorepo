@@ -8,6 +8,7 @@ import {
   TableRow,
 } from "../ui/table";
 import Badge from "../ui/badge/Badge";
+import NoData from "@/components/common/NoData";
 import { useApi } from "@/hooks/useApi";
 import { formatDateTime } from "@/lib/dateFormat";
 import type { DataConversion, DataWithdrawsList } from "@/types/api";
@@ -192,11 +193,8 @@ export default function RecentActivity() {
               </TableRow>
             ) : activities.length === 0 ? (
               <TableRow>
-                <TableCell
-                  colSpan={5}
-                  className="py-8 text-center text-sm text-gray-500 dark:text-gray-400"
-                >
-                  No recent activity
+                <TableCell colSpan={5} className="px-4 py-6">
+                  <NoData>No recent activity</NoData>
                 </TableCell>
               </TableRow>
             ) : (

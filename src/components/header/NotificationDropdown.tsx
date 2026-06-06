@@ -7,6 +7,7 @@ import {
   formatSubmitted,
 } from "@/components/offer/PendingOfferReviewContent";
 import { getMockPendingOffers, type PendingOfferRow } from "@/data/mockPendingOffers";
+import NoData from "@/components/common/NoData";
 import { Dropdown } from "../ui/dropdown/Dropdown";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
 
@@ -333,13 +334,9 @@ export default function NotificationDropdown() {
                 })}
               </ul>
             ) : inboxFilter === "unread" ? (
-              <p className="mb-2 rounded-lg border border-dashed border-gray-200 px-3 py-2 text-center text-theme-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">
-                No new withdrawal alerts.
-              </p>
+              <NoData className="mb-2">No new withdrawal alerts.</NoData>
             ) : (
-              <p className="mb-2 rounded-lg border border-dashed border-gray-200 px-3 py-2 text-center text-theme-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">
-                No withdrawal notifications.
-              </p>
+              <NoData className="mb-2">No withdrawal notifications.</NoData>
             )}
             {offerRows.length > 0 ? (
               <>
@@ -358,13 +355,11 @@ export default function NotificationDropdown() {
                 </ul>
               </>
             ) : inboxFilter === "unread" && hasPendingOffers ? (
-              <p className="mt-3 rounded-lg border border-dashed border-gray-200 px-3 py-2 text-center text-theme-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">
+              <NoData className="mt-3">
                 No new pending brands in your inbox.
-              </p>
+              </NoData>
             ) : (
-              <p className="mt-3 rounded-lg border border-dashed border-gray-200 px-3 py-2 text-center text-theme-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">
-                No brands awaiting review.
-              </p>
+              <NoData className="mt-3">No brands awaiting review.</NoData>
             )}
           </div>
         </div>

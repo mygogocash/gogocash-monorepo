@@ -1,12 +1,11 @@
 "use client";
 import Link from "next/link";
 import client, { fetcher, fetcherPost } from "@/lib/axios/client";
-import { formatDate, formatTime, formatDateTime } from "@/lib/dateFormat";
-import { formatMoney } from "@/lib/currencyFormat";
-import { STATUS_BADGE_BASE } from "@/lib/statusBadge";
+import { formatDate, formatDateTime } from "@/lib/dateFormat";
+import StackedDateTime from "@/components/common/StackedDateTime";
 import { planCycle, CYCLE_LABEL, CYCLE_BADGE } from "@/lib/subscriptionCycle";
 import { tierFromScore, CREDIT_TIER_BADGE } from "@/lib/creditTier";
-import type { Subscription, UserMembership } from "@/types/adminModules";
+import type { UserMembership } from "@/types/adminModules";
 import type { GridColDef } from "@mui/x-data-grid";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useSearchParams } from "next/navigation";
@@ -15,17 +14,26 @@ import { ResDataWithdrawsListByUser, ResMCBDetail } from "@/types/withdraw";
 import Divider from "@mui/material/Divider";
 import { pathImage } from "@/utils/helper";
 import ModalWithdraw from "./ModalWithdraw";
+import { Modal } from "@/components/ui/modal";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Label from "@/components/form/Label";
 import Input from "@/components/form/input/InputField";
 import { MOCK_DEEPLINKS, filterDeeplinksForUser } from "@/data/mockDeeplinks";
 import { normalizeUserEmails, normalizeUserMobiles } from "@/lib/userContact";
-import { conversionAdvSummary } from "@/lib/conversionFormat";
 import {
-  getMembershipTiers,
+  conversionAdvSummary,
+  conversionGgcEarning,
+  conversionUserEarning,
+} from "@/lib/conversionFormat";
+import {
   getMembershipUsers,
-  getSubscriptions,
+  resolveCashbackRequest,
 } from "@/lib/api/adminModulesApi";
+import { pendingExtraCashbackRequests } from "@/lib/cashbackRequests";
+import { totalEarnedCashback } from "@/lib/cashbackTotals";
+import NoData from "@/components/common/NoData";
+import CashbackApprovalNotice from "@/components/wallet/CashbackApprovalNotice";
+import UserWalletPanel from "@/components/wallet/UserWalletPanel";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import { shouldShowMockOtpHint } from "@/lib/mockOtpHint";
 import {
@@ -51,7 +59,9 @@ import {
 import { WithdrawRequestForm } from "./WithdrawTable";
 import { DataWithdrawsList } from "@/types/api";
 import CopyButton from "@/components/ui/CopyButton";
+import SecondaryButton from "@/components/ui/button/SecondaryButton";
 import MyCashbackProfileSection from "@/components/withdraw/MyCashbackProfileSection";
+import UserActiveBenefits from "@/components/withdraw/UserActiveBenefits";
 import { VerifiedPill } from "@/components/withdraw/VerifiedPill";
 import type { MyCashbackResponse } from "@/types/user";
 import toast from "react-hot-toast";
@@ -78,9 +88,9 @@ const DELETE_USER_DATA_CONFIRM_PHRASE = "DELETE";
 
 const TABS: { id: DetailTab; label: string }[] = [
   { id: "user", label: "User Info" },
-  { id: "subscription", label: "Benefits" },
-  { id: "conversion", label: "Conversion All" },
-  { id: "withdraw", label: "Withdraw All" },
+  { id: "subscription", label: "Benefits & Scoring" },
+  { id: "conversion", label: "Conversions" },
+  { id: "withdraw", label: "Finance" },
   { id: "login", label: "Login Tracking" },
   { id: "deleteData", label: "Delete user data" },
 ];
@@ -120,36 +130,18 @@ const WITHDRAW_STATUS_STYLE_FALLBACK: StatusCardStyle = {
   icon: "M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm0-12a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 6Zm0 8a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z",
 };
 
-/** Two-line date display: date on top, 24-hour time below (secondary). Used by
- * the conversion/withdraw grids and the tracking-links Created/Updated cells. */
-function StackedDateTime({
-  value,
-}: {
-  value: string | number | Date | null | undefined;
-}) {
-  const d = value ? new Date(value) : null;
-  if (!d || Number.isNaN(d.getTime())) {
-    return <span className="text-gray-800 dark:text-gray-200">—</span>;
-  }
-  return (
-    <div className="flex h-full w-full min-w-0 flex-col justify-center leading-tight">
-      <span className="block truncate text-gray-800 dark:text-gray-200">
-        {formatDate(d)}
-      </span>
-      <span className="block truncate text-xs text-gray-500 dark:text-gray-400">
-        {formatTime(d)}
-      </span>
-    </div>
-  );
-}
-
 const WithdrawDetail = () => {
   const queryClient = useQueryClient();
   const { id } = useParams();
   const searchParams = useSearchParams();
   const editUserFromQuery = searchParams.get("editUser") === "1";
   const openedEditFromQueryRef = useRef(false);
-  const [activeTab, setActiveTab] = useState<DetailTab>("user");
+  // Allow deep-linking to a tab via ?tab= (e.g. from the membership /
+  // subscription admin "View" buttons → Benefits & Scoring).
+  const tabParam = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState<DetailTab>(
+    TABS.some((t) => t.id === tabParam) ? (tabParam as DetailTab) : "user",
+  );
   const [openModal, setOpenModal] = useState<DataWithdrawsList | boolean>(
     false,
   );
@@ -161,6 +153,9 @@ const WithdrawDetail = () => {
   });
 
   const [editingUser, setEditingUser] = useState(false);
+  const [showWalletEdit, setShowWalletEdit] = useState(false);
+  const [showMcbDetail, setShowMcbDetail] = useState(false);
+  const [resolvingId, setResolvingId] = useState<number | null>(null);
   const [savingUser, setSavingUser] = useState(false);
   const [userSaveError, setUserSaveError] = useState<string | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
@@ -212,6 +207,34 @@ const WithdrawDetail = () => {
   });
 
   const routeUserId = typeof id === "string" ? id : "";
+
+  // Pending "Extra cashback" requests awaiting super-admin Approve/Reject.
+  const cashbackRequests = pendingExtraCashbackRequests(
+    withdrawDetail?.allConversions ?? [],
+  );
+
+  const resolveRequest = async (
+    conversionId: number,
+    action: "approve" | "reject",
+    reason?: string,
+  ) => {
+    if (resolvingId !== null) return;
+    setResolvingId(conversionId);
+    try {
+      await resolveCashbackRequest(conversionId, action, reason);
+      toast.success(
+        action === "approve"
+          ? "Cashback approved and credited to the wallet"
+          : "Cashback request rejected",
+      );
+      await fetchWithdrawDetail();
+      void queryClient.invalidateQueries({ queryKey: ["admin", "wallet"] });
+    } catch {
+      toast.error("Could not update the request. Please try again.");
+    } finally {
+      setResolvingId(null);
+    }
+  };
 
   const {
     data: myCashbackRows,
@@ -296,20 +319,31 @@ const WithdrawDetail = () => {
         },
       },
       {
+        // GoGoCash's fee earning on the conversion: a flat 30% of gross payout.
+        field: "payout_ggc",
+        headerName: "GGC Earning",
+        width: 130,
+        sortable: false,
+        valueGetter: (_value, row) => conversionGgcEarning(row),
+        renderCell: (params) => {
+          const ggc = Number(params.value ?? 0);
+          return (
+            <span>
+              {ggc.toFixed(2)} {params?.row?.currency}
+            </span>
+          );
+        },
+      },
+      {
         // User's net cashback after the system fee is deducted from the gross
         // payout — same formula used by `totalsByStatusAndCurrency` on the
         // backend (withdraw.service.ts:657-662): payout − (payout × fee/100).
+        // Manually-added "Extra cashback" carries no fee, so it equals payout.
         field: "payout_user",
         headerName: "User Earning",
         width: 130,
         sortable: false,
-        valueGetter: (_value, row) => {
-          const gross = Number(row?.payout ?? 0);
-          const feePct = Number(row?.systemFeePct ?? 0);
-          if (!Number.isFinite(gross) || !Number.isFinite(feePct)) return 0;
-          const net = gross - gross * (feePct / 100);
-          return net > 0 ? net : 0;
-        },
+        valueGetter: (_value, row) => conversionUserEarning(row),
         renderCell: (params) => {
           const net = Number(params.value ?? 0);
           return (
@@ -327,7 +361,7 @@ const WithdrawDetail = () => {
       },
       {
         field: "affiliate_remarks",
-        headerName: "Affiliate Remarks",
+        headerName: "Note",
         width: 180,
       },
     ],
@@ -508,13 +542,6 @@ const WithdrawDetail = () => {
   const withdrawUserId =
     withdrawDetail?.user?._id ?? (typeof id === "string" ? id : "") ?? "";
 
-  const { data: userSubscriptions } = useQuery({
-    queryKey: ["admin", "subscription", "withdraw-detail", withdrawUserId],
-    queryFn: () =>
-      getSubscriptions({ page: 1, limit: 20, search: withdrawUserId }),
-    enabled: Boolean(withdrawUserId) && activeTab === "subscription",
-  });
-
   // Per-user membership for the User Info tab (looked up by username, matched
   // back to this user id). Mirrors how Subscription data is fetched per-user.
   const { data: userMembershipResp } = useQuery({
@@ -533,58 +560,6 @@ const WithdrawDetail = () => {
     (userMembershipResp?.data ?? []).find(
       (m: UserMembership) => m.userId === withdrawUserId,
     ) ?? null;
-
-  // Membership billing history, derived from the user's tier price — mirrors the
-  // Membership module's detail view (one paid row at start, one scheduled at renewal).
-  const { data: membershipTiers } = useQuery({
-    queryKey: ["admin", "membership", "tiers"],
-    queryFn: getMembershipTiers,
-    enabled: activeTab === "user" || activeTab === "subscription",
-  });
-  const membershipAmount =
-    (membershipTiers ?? []).find((t) => t.id === userMembership?.tierId)
-      ?.monthlyPrice ?? 0;
-  const membershipBilling = userMembership
-    ? [
-        {
-          date: userMembership.startDate,
-          amount: membershipAmount,
-          status: "paid",
-          method: "Credit card",
-        },
-        {
-          date: userMembership.expiryDate,
-          amount: membershipAmount,
-          status: "scheduled",
-          method: "Cash",
-        },
-      ]
-    : [];
-
-  // Per-user subscription (first record matched by id), shown on the Benefits tab
-  // alongside membership.
-  const userSubscription =
-    (userSubscriptions?.data ?? []).find(
-      (s: Subscription) => s.userId === withdrawUserId,
-    ) ?? null;
-  // Subscription billing history — mirrors the membership view (one paid row at the
-  // start, one scheduled at the next billing date).
-  const subscriptionBilling = userSubscription
-    ? [
-        {
-          date: userSubscription.startDate,
-          amount: userSubscription.amount,
-          status: "paid",
-          method: userSubscription.paymentMethod,
-        },
-        {
-          date: userSubscription.nextBillingDate,
-          amount: userSubscription.amount,
-          status: "scheduled",
-          method: userSubscription.paymentMethod,
-        },
-      ]
-    : [];
 
   const beginEditUser = useCallback(() => {
     const u = withdrawDetail?.user;
@@ -769,14 +744,12 @@ const WithdrawDetail = () => {
                     User Info
                   </h3>
                   {!editingUser ? (
-                    <button
-                      type="button"
+                    <SecondaryButton
                       onClick={beginEditUser}
                       disabled={!withdrawDetail?.user || isUserDataDeleted}
-                      className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-800 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
                     >
                       Edit user
-                    </button>
+                    </SecondaryButton>
                   ) : (
                     <div className="flex flex-wrap items-center gap-2">
                       <button
@@ -1105,18 +1078,6 @@ const WithdrawDetail = () => {
                               {wu.creditScore != null ? wu.creditScore : "—"}
                             </p>
                             <p className="flex items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
-                              <span className="font-medium">Credit Tier:</span>{" "}
-                              {wu.creditScore != null ? (
-                                <span
-                                  className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold capitalize ${CREDIT_TIER_BADGE[tierFromScore(wu.creditScore)]}`}
-                                >
-                                  {tierFromScore(wu.creditScore)}
-                                </span>
-                              ) : (
-                                "—"
-                              )}
-                            </p>
-                            <p className="flex items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
                               <span className="font-medium">Membership:</span>{" "}
                               {userMembership ? (
                                 <span
@@ -1127,6 +1088,18 @@ const WithdrawDetail = () => {
                                   }`}
                                 >
                                   {userMembership.tierName}
+                                </span>
+                              ) : (
+                                "—"
+                              )}
+                            </p>
+                            <p className="flex items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                              <span className="font-medium">Credit Tier:</span>{" "}
+                              {wu.creditScore != null ? (
+                                <span
+                                  className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold capitalize ${CREDIT_TIER_BADGE[tierFromScore(wu.creditScore)]}`}
+                                >
+                                  {tierFromScore(wu.creditScore)}
                                 </span>
                               ) : (
                                 "—"
@@ -1197,235 +1170,105 @@ const WithdrawDetail = () => {
           )}
 
           {activeTab === "subscription" && (
-            <div className="space-y-4">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Benefits
-              </h2>
-              <div>
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                  <h3 className="text-sm font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400">
-                    Membership
-                  </h3>
-                  <Link
-                    href="/membership"
-                    className="text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 text-sm font-medium"
-                  >
-                    Open membership admin →
-                  </Link>
-                </div>
-                {userMembership ? (
-                  <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900/50">
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                      <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
-                        <span className="min-w-[120px] font-medium">Tier:</span>{" "}
-                        <span
-                          className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                            userMembership.tierName === "GoGoPass Plus"
-                              ? "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200"
-                              : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                          }`}
-                        >
-                          {userMembership.tierName}
-                        </span>
-                      </p>
-                      <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
-                        <span className="min-w-[120px] font-medium">
-                          Status:
-                        </span>{" "}
-                        <span
-                          className={`${STATUS_BADGE_BASE} ${
-                            userMembership.status === "active"
-                              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200"
-                              : userMembership.status === "pending"
-                                ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
-                                : userMembership.status === "cancelled"
-                                  ? "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200"
-                                  : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"
-                          }`}
-                        >
-                          {userMembership.status}
-                        </span>
-                      </p>
-                      <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
-                        <span className="min-w-[120px] font-medium">
-                          Period:
-                        </span>{" "}
-                        {formatDate(userMembership.startDate)} to{" "}
-                        {formatDate(userMembership.expiryDate)}
-                      </p>
-                      <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
-                        <span className="min-w-[120px] font-medium">
-                          Auto-renew:
-                        </span>{" "}
-                        {userMembership.autoRenew ? (
-                          <span className="font-medium text-blue-600 dark:text-blue-400">
-                            Yes
-                          </span>
-                        ) : (
-                          "No"
-                        )}
-                      </p>
-                    </div>
-                    <div className="mt-4 border-t border-gray-100 pt-4 dark:border-gray-700">
-                      <h4 className="mb-2 text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                        Billing history
-                      </h4>
-                      <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-                        <table className="min-w-full text-sm">
-                          <thead className="bg-gray-50 text-left text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-                            <tr>
-                              <th className="px-3 py-2">Date</th>
-                              <th className="px-3 py-2">Amount</th>
-                              <th className="px-3 py-2">Status</th>
-                              <th className="px-3 py-2">Payment method</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                            {membershipBilling.map((b, i) => (
-                              <tr
-                                key={i}
-                                className="bg-white dark:bg-gray-900/40"
-                              >
-                                <td className="px-3 py-2 whitespace-nowrap">
-                                  {formatDate(b.date)}
-                                </td>
-                                <td className="px-3 py-2 font-mono tabular-nums">
-                                  {formatMoney(b.amount)}
-                                </td>
-                                <td className="px-3 py-2 capitalize">
-                                  {b.status}
-                                </td>
-                                <td className="px-3 py-2 whitespace-nowrap">
-                                  {b.method}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    No membership.
-                  </p>
-                )}
-              </div>
-              <div>
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                  <h3 className="text-sm font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400">
-                    Subscription
-                  </h3>
-                  <Link
-                    href="/subscription"
-                    className="text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 text-sm font-medium"
-                  >
-                    Open subscription admin →
-                  </Link>
-                </div>
-                {userSubscription ? (
-                  <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900/50">
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                      <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
-                        <span className="min-w-[120px] font-medium">Plan:</span>{" "}
-                        <span
-                          className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${CYCLE_BADGE[planCycle(userSubscription.planName)]}`}
-                        >
-                          {CYCLE_LABEL[planCycle(userSubscription.planName)]}
-                        </span>
-                      </p>
-                      <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
-                        <span className="min-w-[120px] font-medium">
-                          Status:
-                        </span>{" "}
-                        <span
-                          className={`${STATUS_BADGE_BASE} ${
-                            userSubscription.status === "active"
-                              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200"
-                              : userSubscription.status === "trialing"
-                                ? "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200"
-                                : userSubscription.status === "past_due"
-                                  ? "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"
-                                  : userSubscription.status === "cancelled"
-                                    ? "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200"
-                                    : "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
-                          }`}
-                        >
-                          {userSubscription.status.replace("_", " ")}
-                        </span>
-                      </p>
-                      <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
-                        <span className="min-w-[120px] font-medium">
-                          Period:
-                        </span>{" "}
-                        {formatDate(userSubscription.startDate)} to{" "}
-                        {formatDate(userSubscription.nextBillingDate)}
-                      </p>
-                      <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
-                        <span className="min-w-[120px] font-medium">
-                          Auto-renew:
-                        </span>{" "}
-                        {userSubscription.autoRenew ? (
-                          <span className="font-medium text-blue-600 dark:text-blue-400">
-                            Yes
-                          </span>
-                        ) : (
-                          "No"
-                        )}
-                      </p>
-                    </div>
-                    <div className="mt-4 border-t border-gray-100 pt-4 dark:border-gray-700">
-                      <h4 className="mb-2 text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                        Billing history
-                      </h4>
-                      <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-                        <table className="min-w-full text-sm">
-                          <thead className="bg-gray-50 text-left text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-                            <tr>
-                              <th className="px-3 py-2">Date</th>
-                              <th className="px-3 py-2">Amount</th>
-                              <th className="px-3 py-2">Status</th>
-                              <th className="px-3 py-2">Payment method</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                            {subscriptionBilling.map((b, i) => (
-                              <tr
-                                key={i}
-                                className="bg-white dark:bg-gray-900/40"
-                              >
-                                <td className="px-3 py-2 whitespace-nowrap">
-                                  {formatDate(b.date)}
-                                </td>
-                                <td className="px-3 py-2 font-mono tabular-nums">
-                                  {formatMoney(b.amount)}
-                                </td>
-                                <td className="px-3 py-2 capitalize">
-                                  {b.status}
-                                </td>
-                                <td className="px-3 py-2 capitalize">
-                                  {b.method}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    No subscription.
-                  </p>
-                )}
-              </div>
-            </div>
+            <UserActiveBenefits
+              withdrawUserId={withdrawUserId}
+              username={withdrawDetail?.user?.username ?? ""}
+              scrollToScoring={searchParams.get("section") === "scoring"}
+            />
           )}
 
           {activeTab === "conversion" && (
             <>
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Cashback Wallet
+                </h2>
+                {!showWalletEdit && (
+                  <SecondaryButton onClick={() => setShowWalletEdit(true)}>
+                    Adjust Wallet
+                  </SecondaryButton>
+                )}
+              </div>
+              <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900/40">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-300">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      className="h-4 w-4"
+                      aria-hidden="true"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M1 4a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V4Zm12 4a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM4 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm13-1a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM1.75 14.5a.75.75 0 0 0 0 1.5c4.417 0 8.693.603 12.749 1.73 1.111.309 2.251-.512 2.251-1.696v-.784a.75.75 0 0 0-1.5 0v.784a.272.272 0 0 1-.35.25A49.043 49.043 0 0 0 1.75 14.5Z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    Total earned cashback
+                  </div>
+                  <p className="mt-1 text-base font-semibold text-gray-900 dark:text-white">
+                    {`${totalEarnedCashback(withdrawDetail).toFixed(2)} THB`}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-500/25 dark:bg-emerald-500/10">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      className="h-4 w-4"
+                      aria-hidden="true"
+                    >
+                      <path d="M1 4.25a3.733 3.733 0 0 1 2.25-.75h13.5c.844 0 1.623.279 2.25.75A2.25 2.25 0 0 0 16.75 2H3.25A2.25 2.25 0 0 0 1 4.25ZM1 7.25a3.733 3.733 0 0 1 2.25-.75h13.5c.844 0 1.623.279 2.25.75A2.25 2.25 0 0 0 16.75 5H3.25A2.25 2.25 0 0 0 1 7.25ZM7 8a1 1 0 0 1 1 1 2 2 0 1 0 4 0 1 1 0 0 1 1-1h3.75A2.25 2.25 0 0 1 19 10.25v5.5A2.25 2.25 0 0 1 16.75 18H3.25A2.25 2.25 0 0 1 1 15.75v-5.5A2.25 2.25 0 0 1 3.25 8H7Z" />
+                    </svg>
+                    GoGoCash Wallet
+                  </div>
+                  <p className="mt-1 text-base font-semibold text-emerald-800 dark:text-emerald-300">
+                    {withdrawDetail?.totalsByStatusAndCurrency
+                      ?.find((item) => item.status === "approved")
+                      ?.totalTHB?.toFixed(2) ?? "0"}{" "}
+                    THB
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowMcbDetail(true)}
+                  title="View MCB detail"
+                  className="w-full cursor-pointer rounded-lg border border-blue-200 bg-blue-50 p-3 text-left transition hover:bg-blue-100 dark:border-blue-500/25 dark:bg-blue-500/10 dark:hover:bg-blue-500/15"
+                >
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-blue-700 dark:text-blue-400">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      className="h-4 w-4"
+                      aria-hidden="true"
+                    >
+                      <path d="M1 4.25a3.733 3.733 0 0 1 2.25-.75h13.5c.844 0 1.623.279 2.25.75A2.25 2.25 0 0 0 16.75 2H3.25A2.25 2.25 0 0 0 1 4.25ZM1 7.25a3.733 3.733 0 0 1 2.25-.75h13.5c.844 0 1.623.279 2.25.75A2.25 2.25 0 0 0 16.75 5H3.25A2.25 2.25 0 0 0 1 7.25ZM7 8a1 1 0 0 1 1 1 2 2 0 1 0 4 0 1 1 0 0 1 1-1h3.75A2.25 2.25 0 0 1 19 10.25v5.5A2.25 2.25 0 0 1 16.75 18H3.25A2.25 2.25 0 0 1 1 15.75v-5.5A2.25 2.25 0 0 1 3.25 8H7Z" />
+                    </svg>
+                    MyCashback Wallet
+                  </div>
+                  <p className="mt-1 text-base font-semibold text-blue-800 dark:text-blue-300">
+                    {MCBDetail?.availableTHB?.toFixed(2) ?? "0"} THB
+                  </p>
+                </button>
+              </div>
+              <CashbackApprovalNotice
+                requests={cashbackRequests}
+                resolvingId={resolvingId}
+                onResolve={resolveRequest}
+              />
+              {showWalletEdit && (
+                <UserWalletPanel
+                  userId={routeUserId}
+                  onAdjusted={() => void fetchWithdrawDetail()}
+                  onClose={() => setShowWalletEdit(false)}
+                />
+              )}
+              <Divider className="!my-8 !border-gray-200 dark:!border-gray-700" />
               <h2 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
-                Conversion All
+                All Conversions
               </h2>
               <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-500/25 dark:bg-emerald-500/10">
@@ -1501,18 +1344,12 @@ const WithdrawDetail = () => {
                   </p>
                 </div>
               </div>
-              <WithdrawDetailDataGrid rows={rowsData} columns={column} />
-              <Divider className="!my-5 !border-amber-700" />
-              <h2 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
-                MCB Detail
-              </h2>
-              <p className="text-sm text-gray-700 dark:text-gray-300">
-                Total {MCBDetail?.totalMyCashbackTHB?.toFixed(2) ?? "0"} THB
-              </p>
-              <p className="text-sm text-gray-700 dark:text-gray-300">
-                Available {MCBDetail?.availableTHB?.toFixed(2) ?? "0"} THB
-              </p>
-              <Divider className="!my-5 !border-amber-700" />
+              <WithdrawDetailDataGrid
+                rows={rowsData}
+                columns={column}
+                pageSizeOptions={[5, 10, 15, 20]}
+              />
+              <Divider className="!my-8 !border-gray-200 dark:!border-gray-700" />
               <div className="space-y-3">
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -1526,11 +1363,9 @@ const WithdrawDetail = () => {
                 {!withdrawDetail ? (
                   <div className="h-40 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" />
                 ) : userDeeplinks.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 py-10 text-center dark:border-gray-600 dark:bg-gray-800/50">
-                    <p className="text-sm text-gray-600 dark:text-gray-300">
-                      No tracking link records for this user in mock data.
-                    </p>
-                    <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                  <NoData>
+                    No tracking link records for this user in mock data.
+                    <div className="mt-1">
                       Global tracking link admin:{" "}
                       <Link
                         href="/brands?tab=deeplink"
@@ -1541,8 +1376,8 @@ const WithdrawDetail = () => {
                       <span className="text-gray-400 dark:text-gray-500">
                         (Brands Management → User tracking link)
                       </span>
-                    </p>
-                  </div>
+                    </div>
+                  </NoData>
                 ) : (
                   <div className="overflow-x-auto rounded-xl border border-gray-200 px-4 py-1 dark:border-gray-700">
                     <Table className="min-w-[820px] [&_td]:px-1 [&_th]:px-1">
@@ -1625,28 +1460,19 @@ const WithdrawDetail = () => {
           {activeTab === "withdraw" && (
             <>
               <h2 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
-                Withdraw All
+                Withdraw Transactions
               </h2>
-              <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900/40">
-                  <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-300">
-                    Total earned cashback
-                  </div>
-                  <p className="mt-1 text-base font-semibold text-gray-900 dark:text-white">
-                    {withdrawDetail?.user?.totalCashback != null
-                      ? `${Number(withdrawDetail.user.totalCashback).toLocaleString()} ${withdrawDetail.user.totalCashbackCurrency ?? "THB"}`
-                      : MCBDetail != null
-                        ? `${MCBDetail.totalMyCashbackTHB?.toFixed(2) ?? "0"} THB`
-                        : "—"}
-                  </p>
-                </div>
-                {Object.keys(withdrawDetail?.withdrawSumByCurrency || {}).map(
-                  (status) => {
+              <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                {Object.keys(withdrawDetail?.withdrawSumByCurrency || {})
+                  .filter((status) => status !== "approved")
+                  .map((status) => {
                     const style =
                       WITHDRAW_STATUS_STYLE[status] ??
                       WITHDRAW_STATUS_STYLE_FALLBACK;
                     const byCurrency =
                       withdrawDetail?.withdrawSumByCurrency?.[status];
+                    const label =
+                      status === "pending" ? "Requested Withdraw" : status;
                     return (
                       <div
                         key={status}
@@ -1668,7 +1494,7 @@ const WithdrawDetail = () => {
                               clipRule="evenodd"
                             />
                           </svg>
-                          <span className="capitalize">{status}</span>
+                          <span className="capitalize">{label}</span>
                         </div>
                         <p
                           className={`mt-1 text-base font-semibold ${style.value}`}
@@ -1685,8 +1511,8 @@ const WithdrawDetail = () => {
                     );
                   },
                 )}
-                <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-500/25 dark:bg-blue-500/10">
-                  <div className="flex items-center gap-1.5 text-xs font-medium text-blue-700 dark:text-blue-400">
+                <div className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900/40">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-300">
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       viewBox="0 0 20 20"
@@ -1700,9 +1526,9 @@ const WithdrawDetail = () => {
                         clipRule="evenodd"
                       />
                     </svg>
-                    Withdrawn
+                    Total Withdrawn
                   </div>
-                  <p className="mt-1 text-base font-semibold text-blue-800 dark:text-blue-300">
+                  <p className="mt-1 text-base font-semibold text-gray-900 dark:text-white">
                     {withdrawDetail?.withdrawList
                       ?.filter((w) => w.status === "approved")
                       .reduce((sum, w) => sum + (w.amount_net ?? 0), 0)
@@ -1715,12 +1541,13 @@ const WithdrawDetail = () => {
                 rows={rowsDataWithdraw}
                 columns={columnWithdraw}
                 rowHeight={80}
+                pageSizeOptions={[5, 10, 15, 20]}
               />
-              <Divider className="!my-5 !border-amber-700" />
+              <Divider className="!my-8 !border-gray-200 dark:!border-gray-700" />
               <div>
-                <h3 className="mb-3 text-sm font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400">
-                  Bank accounts
-                </h3>
+                <h2 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
+                  Withdrawal Methods
+                </h2>
                 {withdrawDetail?.withdrawList &&
                 withdrawDetail.withdrawList.length > 0 ? (
                   <div className="rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900/50">
@@ -1729,11 +1556,36 @@ const WithdrawDetail = () => {
                         key={bank._id}
                         className="border-b border-gray-100 p-4 last:border-b-0 dark:border-gray-800"
                       >
-                        {withdrawDetail.withdrawList.length > 1 && (
-                          <p className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">
-                            Account {idx + 1}
-                          </p>
-                        )}
+                        <div className="mb-2 flex items-center justify-between gap-2">
+                          {withdrawDetail.withdrawList.length > 1 ? (
+                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                              Account {idx + 1}
+                            </p>
+                          ) : (
+                            <span />
+                          )}
+                          {idx === 0 && (
+                            <span
+                              title="Default withdrawal method"
+                              className="bg-success-50 text-success-700 dark:bg-success-500/15 dark:text-success-400 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                                className="h-3.5 w-3.5"
+                                aria-hidden="true"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M16.704 5.29a1 1 0 0 1 .006 1.414l-7.5 7.6a1 1 0 0 1-1.42.006l-3.5-3.5a1 1 0 1 1 1.414-1.414l2.79 2.79 6.796-6.89a1 1 0 0 1 1.414-.006Z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                              Default
+                            </span>
+                          )}
+                        </div>
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                           <p className="flex flex-wrap items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
                             <span className="min-w-[120px] font-medium">
@@ -1919,6 +1771,21 @@ const WithdrawDetail = () => {
           fetchMCBDetail();
         }}
       />
+      <Modal
+        isOpen={showMcbDetail}
+        onClose={() => setShowMcbDetail(false)}
+        className="max-w-sm p-6"
+      >
+        <h2 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
+          MCB Detail
+        </h2>
+        <p className="text-sm text-gray-700 dark:text-gray-300">
+          Total {MCBDetail?.totalMyCashbackTHB?.toFixed(2) ?? "0"} THB
+        </p>
+        <p className="text-sm text-gray-700 dark:text-gray-300">
+          Available {MCBDetail?.availableTHB?.toFixed(2) ?? "0"} THB
+        </p>
+      </Modal>
     </>
   );
 };
