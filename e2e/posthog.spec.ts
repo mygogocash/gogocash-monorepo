@@ -28,7 +28,7 @@ test.describe("posthog consent gating", () => {
     expect(posthogRequests).toEqual([]);
   });
 
-  test("calls PostHog after Accept when a key is configured", async ({
+  test("calls PostHog after Accept all when a key is configured", async ({
     page,
   }) => {
     await page.goto("/", { waitUntil: "load", timeout: 90_000 });
@@ -39,7 +39,7 @@ test.describe("posthog consent gating", () => {
         timeout: 6000,
       })
       .catch(() => null);
-    await page.getByRole("button", { name: "Accept", exact: true }).click();
+    await page.getByRole("button", { name: "Accept all" }).click();
     const req = await posthogRequest;
 
     test.skip(

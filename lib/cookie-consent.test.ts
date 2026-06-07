@@ -5,6 +5,7 @@ import {
   COOKIE_CONSENT_VERSION,
   hasDecidedConsent,
   isAnalyticsAllowed,
+  isMarketingAllowed,
   parseConsent,
   persistConsent,
   readConsent,
@@ -28,29 +29,33 @@ describe("cookie-consent parseConsent", () => {
     );
   });
 
-  it("returns null when 'accepted' is missing or not a boolean", () => {
+  it("returns null when preferences are missing or malformed", () => {
     assert.equal(
       parseConsent(JSON.stringify({ version: COOKIE_CONSENT_VERSION })),
       null,
     );
     assert.equal(
       parseConsent(
-        JSON.stringify({ version: COOKIE_CONSENT_VERSION, accepted: "yes" }),
+        JSON.stringify({
+          version: COOKIE_CONSENT_VERSION,
+          preferences: { analytics: "yes", marketing: true },
+        }),
       ),
       null,
     );
   });
 
-  it("parses a valid accepted consent", () => {
+  it("parses valid category preferences", () => {
     const parsed = parseConsent(
       JSON.stringify({
         version: COOKIE_CONSENT_VERSION,
-        accepted: true,
+        preferences: { analytics: true, marketing: false },
         decidedAt: "2026-06-03T00:00:00.000Z",
       }),
     );
     assert.ok(parsed);
-    assert.equal(parsed.accepted, true);
+    assert.equal(parsed.preferences.analytics, true);
+    assert.equal(parsed.preferences.marketing, false);
   });
 });
 
@@ -91,19 +96,34 @@ describe("cookie-consent storage", () => {
     assert.equal(readConsent(), null);
     assert.equal(hasDecidedConsent(), false);
     assert.equal(isAnalyticsAllowed(), false);
+    assert.equal(isMarketingAllowed(), false);
   });
 
-  it("persists acceptance and allows analytics", () => {
+  it("persists accept-all and allows analytics plus marketing", () => {
     persistConsent(true);
     assert.equal(hasDecidedConsent(), true);
     assert.equal(isAnalyticsAllowed(), true);
-    assert.equal(readConsent()?.accepted, true);
+    assert.equal(isMarketingAllowed(), true);
+    assert.equal(readConsent()?.preferences.analytics, true);
+    assert.equal(readConsent()?.preferences.marketing, true);
   });
 
-  it("persists rejection: decided but analytics stays off", () => {
+  it("persists rejection: decided but optional categories stay off", () => {
     persistConsent(false);
     assert.equal(hasDecidedConsent(), true);
     assert.equal(isAnalyticsAllowed(), false);
+    assert.equal(isMarketingAllowed(), false);
+  });
+
+  it("persists custom preferences independently by category", () => {
+    persistConsent({ analytics: true, marketing: false });
+    assert.equal(hasDecidedConsent(), true);
+    assert.equal(isAnalyticsAllowed(), true);
+    assert.equal(isMarketingAllowed(), false);
+    assert.deepEqual(readConsent()?.preferences, {
+      analytics: true,
+      marketing: false,
+    });
   });
 
   it("notifies listeners on decision via a custom event", () => {
