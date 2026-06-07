@@ -31,7 +31,6 @@ export default function NewsletterSignup({
 
     if (!configured) {
       event.preventDefault();
-      setState("error");
       return;
     }
     if (!EMAIL_RE.test(email.trim()) || !consented) {
@@ -57,10 +56,6 @@ export default function NewsletterSignup({
         >
           Get cashback tips and offers
         </h4>
-        <p className="mt-2 text-sm leading-relaxed text-[#6b7280]">
-          A quiet email digest for cashback tips, featured brands, and new
-          GoGoCash offers.
-        </p>
       </div>
 
       <form
@@ -129,15 +124,9 @@ export default function NewsletterSignup({
             <span className="font-medium text-primary">
               You&apos;re on the list. Check your inbox for updates.
             </span>
-          ) : state === "error" ? (
+          ) : state === "error" && configured ? (
             <span className="font-medium text-red-600">
-              {configured
-                ? "Enter a valid email and accept the email consent checkbox."
-                : "Newsletter signup is being connected. Please check back soon."}
-            </span>
-          ) : !configured ? (
-            <span className="text-[#9ca3af]">
-              Newsletter signup is being connected.
+              Enter a valid email and accept the email consent checkbox.
             </span>
           ) : null}
         </p>
