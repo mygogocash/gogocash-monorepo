@@ -46,9 +46,7 @@ test.describe("footer newsletter signup (#10)", () => {
     ).toBeVisible();
   });
 
-  test("allows visitors to enter an email before provider submit is configured", async ({
-    page,
-  }) => {
+  test("enables Subscribe after a valid email and consent", async ({ page }) => {
     await page.goto("/", { waitUntil: "load", timeout: 90_000 });
     await dismissCookieBanner(page);
 
@@ -64,6 +62,12 @@ test.describe("footer newsletter signup (#10)", () => {
     await expect(email).toHaveValue("reader@example.com");
     await consent.check();
     await expect(consent).toBeChecked();
+
+    const submit = form.getByRole("button", { name: "Subscribe" });
+    await expect(submit).toBeEnabled();
+    await submit.click();
+
+    await expect(form).toContainText("newsletter provider is not connected");
   });
 
   test("shows a confirmation after a configured provider submit", async ({

@@ -9,7 +9,7 @@ import {
 } from "@/lib/motion-styles";
 import { uiCtaPrimarySurface } from "@/lib/ui-classes";
 
-type SubmitState = "idle" | "success" | "error";
+type SubmitState = "idle" | "success" | "error" | "unconfigured";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -25,17 +25,20 @@ export default function NewsletterSignup({
   const [consented, setConsented] = useState(false);
   const [state, setState] = useState<SubmitState>("idle");
   const configured = Boolean(config.actionUrl);
+  const validEmail = EMAIL_RE.test(email.trim());
+  const canSubmit = validEmail && consented;
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     setState("idle");
 
-    if (!configured) {
-      event.preventDefault();
-      return;
-    }
-    if (!EMAIL_RE.test(email.trim()) || !consented) {
+    if (!canSubmit) {
       event.preventDefault();
       setState("error");
+      return;
+    }
+    if (!configured) {
+      event.preventDefault();
+      setState("unconfigured");
       return;
     }
 
@@ -82,7 +85,10 @@ export default function NewsletterSignup({
             name={config.emailField}
             type="email"
             value={email}
-            onChange={(event) => setEmail(event.currentTarget.value)}
+            onChange={(event) => {
+              setEmail(event.currentTarget.value);
+              setState("idle");
+            }}
             placeholder="you@example.com"
             autoComplete="email"
             required
@@ -90,7 +96,7 @@ export default function NewsletterSignup({
           />
           <button
             type="submit"
-            disabled={!configured}
+            disabled={!canSubmit}
             className={`inline-flex min-h-11 shrink-0 items-center justify-center px-5 py-2.5 text-sm disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-white disabled:shadow-none ${uiCtaPrimarySurface} ${twTransitionButton} ${twPressSm} ${twFocusRingPrimary}`}
           >
             Subscribe
@@ -107,7 +113,10 @@ export default function NewsletterSignup({
             type="checkbox"
             value="true"
             checked={consented}
-            onChange={(event) => setConsented(event.currentTarget.checked)}
+            onChange={(event) => {
+              setConsented(event.currentTarget.checked);
+              setState("idle");
+            }}
             required
             className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
           />
@@ -122,9 +131,14 @@ export default function NewsletterSignup({
             <span className="font-medium text-primary">
               You&apos;re on the list. Check your inbox for updates.
             </span>
-          ) : state === "error" && configured ? (
+          ) : state === "error" ? (
             <span className="font-medium text-red-600">
               Enter a valid email and accept the email consent checkbox.
+            </span>
+          ) : state === "unconfigured" ? (
+            <span className="font-medium text-[#6b7280]">
+              The newsletter provider is not connected yet, so no email was
+              submitted.
             </span>
           ) : null}
         </p>
