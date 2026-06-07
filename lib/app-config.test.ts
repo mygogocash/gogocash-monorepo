@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 import {
+  customerIoFormsConfig,
   involveAsiaConfig,
   isMarketingAnalyticsEnabled,
   marketingSiteOrigin,
@@ -113,8 +114,20 @@ describe("app-config", () => {
     assert.equal(publicPostHogHost(), "https://eu.i.posthog.com");
   });
 
-  it("leaves newsletter signup disconnected until a provider action is set", () => {
+  it("loads Customer.io connected forms by default", () => {
+    delete process.env.NEXT_PUBLIC_CUSTOMERIO_FORMS_SITE_ID;
+    delete process.env.NEXT_PUBLIC_CUSTOMERIO_FORMS_BASE_URL;
+
+    assert.deepEqual(customerIoFormsConfig(), {
+      siteId: "527b19a2b583c66362d2",
+      baseUrl: "https://customerioforms.com",
+      scriptUrl: "https://customerioforms.com/assets/forms.js",
+    });
+  });
+
+  it("defaults newsletter signup to Customer.io connected forms", () => {
     delete process.env.NEXT_PUBLIC_NEWSLETTER_FORM_ACTION;
+    delete process.env.NEXT_PUBLIC_CUSTOMERIO_FORMS_SITE_ID;
 
     assert.deepEqual(newsletterSignupConfig(), {
       actionUrl: null,
@@ -122,6 +135,7 @@ describe("app-config", () => {
       consentField: "pdpa_consent",
       sourceField: "source",
       sourceValue: "footer",
+      customerIoFormsEnabled: true,
     });
   });
 
@@ -139,6 +153,7 @@ describe("app-config", () => {
       consentField: "consent[gdpr]",
       sourceField: "meta-source",
       sourceValue: "footer-newsletter",
+      customerIoFormsEnabled: true,
     });
   });
 
@@ -154,6 +169,18 @@ describe("app-config", () => {
       consentField: "pdpa_consent",
       sourceField: "source",
       sourceValue: "footer",
+      customerIoFormsEnabled: true,
     });
+  });
+
+  it("can disable Customer.io connected forms with an empty site id", () => {
+    process.env.NEXT_PUBLIC_CUSTOMERIO_FORMS_SITE_ID = "";
+
+    assert.deepEqual(customerIoFormsConfig(), {
+      siteId: null,
+      baseUrl: "https://customerioforms.com",
+      scriptUrl: "https://customerioforms.com/assets/forms.js",
+    });
+    assert.equal(newsletterSignupConfig().customerIoFormsEnabled, false);
   });
 });

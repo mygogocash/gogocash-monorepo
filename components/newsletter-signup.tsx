@@ -24,7 +24,8 @@ export default function NewsletterSignup({
   const [email, setEmail] = useState("");
   const [consented, setConsented] = useState(false);
   const [state, setState] = useState<SubmitState>("idle");
-  const configured = Boolean(config.actionUrl);
+  const hasDirectAction = Boolean(config.actionUrl);
+  const providerConnected = hasDirectAction || config.customerIoFormsEnabled;
   const validEmail = EMAIL_RE.test(email.trim());
   const canSubmit = validEmail && consented;
 
@@ -36,9 +37,14 @@ export default function NewsletterSignup({
       setState("error");
       return;
     }
-    if (!configured) {
+    if (!providerConnected) {
       event.preventDefault();
       setState("unconfigured");
+      return;
+    }
+    if (!hasDirectAction) {
+      event.preventDefault();
+      setState("success");
       return;
     }
 
@@ -67,7 +73,7 @@ export default function NewsletterSignup({
         target={frameName}
         noValidate
         aria-label="Get cashback tips and offers by email"
-        data-configured={configured ? "true" : "false"}
+        data-configured={providerConnected ? "true" : "false"}
         className="mt-4 space-y-3"
         onSubmit={onSubmit}
       >

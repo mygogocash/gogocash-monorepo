@@ -1,4 +1,6 @@
 const DEFAULT_SITE_URL = "https://gogocash.co";
+const DEFAULT_CUSTOMERIO_FORMS_SITE_ID = "527b19a2b583c66362d2";
+const DEFAULT_CUSTOMERIO_FORMS_BASE_URL = "https://customerioforms.com";
 
 /** LINE Tag (LAP) — public id; override with NEXT_PUBLIC_LINE_TAG_ID or disable with empty string. */
 const DEFAULT_LINE_TAG_ID = "d27ab1a2-5e67-48d0-af8d-ca6b30b67452";
@@ -35,6 +37,16 @@ function readValidFormFieldEnv(name: string, fallback: string): string {
   const value = readTrimmedEnv(name);
   if (!value) return fallback;
   return /^[A-Za-z0-9_.[\]-]{1,80}$/.test(value) ? value : fallback;
+}
+
+function readPublicIntegrationIdEnv(
+  name: string,
+  fallback: string,
+): string | null {
+  const raw = process.env[name];
+  if (raw !== undefined && raw.trim() === "") return null;
+  const value = raw?.trim() ?? fallback;
+  return /^[A-Za-z0-9_-]{1,80}$/.test(value) ? value : null;
 }
 
 function firstValidUrl(candidates: Array<string | null>): string {
@@ -156,6 +168,30 @@ export type NewsletterSignupConfig = {
   consentField: string;
   sourceField: string;
   sourceValue: string;
+  customerIoFormsEnabled: boolean;
+};
+
+export type CustomerIoFormsConfig = {
+  siteId: string | null;
+  baseUrl: string;
+  scriptUrl: string;
+};
+
+export function customerIoFormsConfig(): CustomerIoFormsConfig {
+  const baseUrl = firstValidUrl([
+    readTrimmedEnv("NEXT_PUBLIC_CUSTOMERIO_FORMS_BASE_URL"),
+    DEFAULT_CUSTOMERIO_FORMS_BASE_URL,
+  ]).replace(/\/$/, "");
+  const siteId = readPublicIntegrationIdEnv(
+    "NEXT_PUBLIC_CUSTOMERIO_FORMS_SITE_ID",
+    DEFAULT_CUSTOMERIO_FORMS_SITE_ID,
+  );
+
+  return {
+    siteId,
+    baseUrl,
+    scriptUrl: new URL("/assets/forms.js", baseUrl).toString(),
+  };
 };
 
 /**
@@ -164,6 +200,8 @@ export type NewsletterSignupConfig = {
  * browser POSTs; no secret API keys belong in `NEXT_PUBLIC_*` variables.
  */
 export function newsletterSignupConfig(): NewsletterSignupConfig {
+  const customerIoForms = customerIoFormsConfig();
+
   return {
     actionUrl: firstValidOptionalUrl([
       readTrimmedEnv("NEXT_PUBLIC_NEWSLETTER_FORM_ACTION"),
@@ -182,6 +220,7 @@ export function newsletterSignupConfig(): NewsletterSignupConfig {
     ),
     sourceValue:
       readTrimmedEnv("NEXT_PUBLIC_NEWSLETTER_SOURCE_VALUE") ?? "footer",
+    customerIoFormsEnabled: Boolean(customerIoForms.siteId),
   };
 }
 

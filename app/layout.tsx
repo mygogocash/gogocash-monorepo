@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Poppins, Inter } from "next/font/google";
+import { CustomerIoFormsScript } from "@/components/customer-io-forms-script";
 import { LineTagScripts } from "@/components/line-tag-scripts";
 import { AppClientProviders } from "@/components/app-client-providers";
 import SchemaMarkup from "@/components/schema-markup";
@@ -137,6 +138,7 @@ export default function RootLayout({
         <SchemaMarkup />
       </head>
       <body className="font-sans antialiased bg-white text-gray-800">
+        <CustomerIoFormsScript />
         <LineTagScripts />
         <AppClientProviders>{children}</AppClientProviders>
       </body>
