@@ -145,6 +145,16 @@ describe("Remaining customer route parity", () => {
     expect(ageScreen).toContain("BirthDateField");
   });
 
+  it("withdraw method add/edit > given desktop > then Expo renders the AccountPageShell sub-page + wires ?id= edit prefill", () => {
+    const moneyAction = readMobileFile("src/screens/CustomerMoneyActionScreen.tsx");
+    // Desktop-only: the Add/Edit form renders inside the profile shell (rail), like the list + withdraw.
+    expect(moneyAction).toContain('mode === "methodCreate" && isDesktop');
+    expect(moneyAction).toContain("showProfileRail");
+    // Edit reuses /method/create?id=<id>, prefilled from the shared withdraw-method fixture.
+    expect(moneyAction).toContain("useLocalSearchParams");
+    expect(moneyAction).toContain("isEditingMethod");
+  });
+
   it("subscription routes > given Stripe is disabled locally > then Expo shows the real disabled billing contract", () => {
     const subscriptionScreen = readMobileFile("src/screens/CustomerSubscriptionScreen.tsx");
 

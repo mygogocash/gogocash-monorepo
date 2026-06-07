@@ -1,10 +1,11 @@
-import { Link, useRouter } from "expo-router";
-import { useState } from "react";
+import { Link, useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import {
   Pressable,
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -25,7 +26,7 @@ import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFoo
 import { KeyboardAwareScreen } from "@mobile/components/KeyboardAwareScreen";
 import { haptics } from "@mobile/lib/haptics";
 import { useCopy } from "@mobile/i18n/useCopy";
-import { mobileShellLayout } from "@mobile/design/webDesignParity";
+import { mobileShellLayout, webWithdrawMethodPage } from "@mobile/design/webDesignParity";
 import { colors, radii, spacing, typography, shadows } from "@mobile/theme/tokens";
 
 type MoneyActionMode = "method" | "methodCreate" | "myCashback" | "withdraw";
@@ -218,6 +219,15 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
   const tc = useCopy();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
+  // Edit mode: the /method list links here as /method/create?id=<id>. Look the method up in the shared
+  // withdraw-method fixture (display-only mock) to prefill the form + switch to "edit" copy.
+  const { id: editMethodId } = useLocalSearchParams<{ id?: string }>();
+  const editMethod = editMethodId
+    ? webWithdrawMethodPage.methods.find((m) => m.id === editMethodId)
+    : undefined;
+  const isEditingMethod = Boolean(editMethod);
 
   // Local state for interactive flows
   const [methods, setMethods] = useState<PayoutMethod[]>(INITIAL_METHODS);
@@ -260,6 +270,19 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
     Number.isNaN(parsedWithdrawAmount) || parsedWithdrawAmount <= 0
       ? null
       : Math.max(0, parsedWithdrawAmount - WITHDRAW_FEE);
+
+  // Prefill the form when editing an existing method. The mock fixture only carries bank methods and a
+  // MASKED account number, so the account-number field shows the masked value until it is re-entered.
+  useEffect(() => {
+    if (!editMethod) {
+      return;
+    }
+    setCreateTab("bank");
+    setBankName(editMethod.bankName);
+    setBankAccountName(editMethod.accountName);
+    setBankAccountNo(editMethod.maskedAccount);
+    setBankIsDefault(editMethod.isDefault);
+  }, [editMethod]);
 
   const handleSaveMethod = () => {
     const errs: string[] = [];
@@ -337,7 +360,9 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
       }
       updatedMethods.push(newMethod);
       setMethods(updatedMethods);
-      setSuccessMsg(tc("Payout method saved successfully!"));
+      setSuccessMsg(
+        tc(isEditingMethod ? "Payout method updated successfully!" : "Payout method saved successfully!"),
+      );
       setErrors([]);
 
       // Clear form
@@ -548,19 +573,8 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
     );
   }
 
-  return (
-    <View style={styles.viewport}>
-      <View style={styles.phoneFrame}>
-        {/* A4 — KeyboardAwareScreen replaces the plain ScrollView so the numeric keyboard on the
-            withdrawal-amount / method forms pushes content up instead of covering the focused
-            field. It provides its own keyboard-avoiding ScrollView and forwards
-            contentContainerStyle, so the existing page padding/layout is preserved (no-op on web). */}
-        <KeyboardAwareScreen
-          contentContainerStyle={[
-            styles.page,
-            { paddingTop: Math.max(spacing.md, insets.top + spacing.md) },
-          ]}
-        >
+  const moneyActionBlocks = (
+    <>
           {/* 1. LIST PAYMENT METHODS */}
           {mode === "method" ? (
             <View style={styles.sectionWrap}>
@@ -603,7 +617,9 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
           {/* 2. CREATE PAYMENT METHOD */}
           {mode === "methodCreate" ? (
             <View style={styles.sectionWrap}>
-              <Text style={styles.infoTitle}>{tc("Add Payout Method")}</Text>
+              <Text style={styles.infoTitle}>
+                {tc(isEditingMethod ? "Edit Withdrawal Method" : "Add Payout Method")}
+              </Text>
 
               {/* Form tabs */}
               <View style={styles.tabStrip}>
@@ -835,7 +851,9 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
 
               <Pressable onPress={handleSaveMethod} style={styles.primaryAction}>
                 <SaveIcon color={colors.white} size={16} />
-                <Text style={styles.primaryActionText}>{tc("Save Payout Method")}</Text>
+                <Text style={styles.primaryActionText}>
+                  {tc(isEditingMethod ? "Update Payout Method" : "Save Payout Method")}
+                </Text>
               </Pressable>
             </View>
           ) : null}
@@ -882,6 +900,38 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
               </Text>
             </Pressable>
           </Link>
+    </>
+  );
+
+  // Desktop: render the Add/Edit form as a profile sub-page (persistent rail) — web SubPage parity +
+  // the /method list + withdraw. Mobile keeps the standalone phone-frame below (unchanged).
+  if (mode === "methodCreate" && isDesktop) {
+    return (
+      <AccountPageShell
+        activeRouteId="profile"
+        showProfileRail
+        showTitle={false}
+        title={tc(webWithdrawMethodPage.title)}
+      >
+        <View style={styles.methodCreateDesktopWrap}>{moneyActionBlocks}</View>
+      </AccountPageShell>
+    );
+  }
+
+  return (
+    <View style={styles.viewport}>
+      <View style={styles.phoneFrame}>
+        {/* A4 — KeyboardAwareScreen replaces the plain ScrollView so the numeric keyboard on the
+            withdrawal-amount / method forms pushes content up instead of covering the focused
+            field. It provides its own keyboard-avoiding ScrollView and forwards
+            contentContainerStyle, so the existing page padding/layout is preserved (no-op on web). */}
+        <KeyboardAwareScreen
+          contentContainerStyle={[
+            styles.page,
+            { paddingTop: Math.max(spacing.md, insets.top + spacing.md) },
+          ]}
+        >
+          {moneyActionBlocks}
           <CustomerDesktopFooterSlot style={styles.desktopFooter} />
         </KeyboardAwareScreen>
       </View>
@@ -890,6 +940,12 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
 }
 
 const styles = StyleSheet.create({
+  // Desktop "Add/Edit Withdrawal Method" sub-page form column (web parity max-w-[720px]).
+  methodCreateDesktopWrap: {
+    gap: spacing.md,
+    maxWidth: 720,
+    width: "100%",
+  },
   viewport: {
     alignItems: "center",
     backgroundColor: colors.background,
