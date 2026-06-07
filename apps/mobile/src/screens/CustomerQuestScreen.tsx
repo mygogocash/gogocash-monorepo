@@ -266,23 +266,7 @@ function QuestLeaderboardPanel({ mediaColumnWidth }: { mediaColumnWidth: number 
             </MotionPressable>
           </Link>
         </View>
-        {webQuestLeaderboardRows.map((row, index) => (
-          <View key={row.name} style={styles.rankRow}>
-            <Image
-              alt={`${row.name} ${tc("avatar")}`}
-              source={profileAvatarImage}
-              style={styles.rankAvatarImage}
-            />
-            <Text numberOfLines={1} style={styles.rankName}>
-              {row.name}
-            </Text>
-            <RankTrophy index={index} />
-            <View style={styles.rankPointRow}>
-              <CoinIcon color={colors.primary} size={18} strokeWidth={typography.iconStrokeWidth} />
-              <Text style={styles.rankPoint}>{row.points}</Text>
-            </View>
-          </View>
-        ))}
+        <QuestRankRows />
       </View>
     </View>
   );
@@ -350,6 +334,111 @@ function ExploreOtherShops() {
   );
 }
 
+const QUEST_HISTORY_LEADERBOARD_PERIODS = ["This round", "May 2025", "April 2025"] as const;
+
+// Static-mock interpolation for the web's ICU {placeholder} copy (this build has no live quest data).
+function fillTemplate(template: string, vars: Record<string, string>): string {
+  return Object.entries(vars).reduce(
+    (acc, [key, value]) => acc.split(`{${key}}`).join(value),
+    template,
+  );
+}
+
+// Reusable leaderboard rank rows — shared by the /quest tab panel and the history leaderboard.
+function QuestRankRows() {
+  const tc = useCopy();
+  return (
+    <>
+      {webQuestLeaderboardRows.map((row, index) => (
+        <View key={row.name} style={styles.rankRow}>
+          <Image
+            alt={`${row.name} ${tc("avatar")}`}
+            source={profileAvatarImage}
+            style={styles.rankAvatarImage}
+          />
+          <Text numberOfLines={1} style={styles.rankName}>
+            {row.name}
+          </Text>
+          <RankTrophy index={index} />
+          <View style={styles.rankPointRow}>
+            <CoinIcon color={colors.primary} size={18} strokeWidth={typography.iconStrokeWidth} />
+            <Text style={styles.rankPoint}>{row.points}</Text>
+          </View>
+        </View>
+      ))}
+    </>
+  );
+}
+
+// Month-over-month insight (web parity: GogoquestHistoryInsightSection). Static example values
+// since this build has no live monthly data.
+function QuestHistoryInsight() {
+  const tc = useCopy();
+  return (
+    <View style={styles.historyInsightCard}>
+      <Text style={styles.historyInsightTitle}>{tc("A quick read on your months")}</Text>
+      <Text style={styles.historyInsightBody}>
+        {fillTemplate(
+          tc("You earned about {percent}% more points in {recentMonth} than in {olderMonth}."),
+          { percent: "15", recentMonth: "May 2025", olderMonth: "April 2025" },
+        )}
+      </Text>
+      <Text style={styles.historyInsightStrip}>
+        {fillTemplate(tc("You picked up quest points in {active} of the last {total} months."), {
+          active: "2",
+          total: "3",
+        })}
+      </Text>
+    </View>
+  );
+}
+
+// "How shoppers rank" leaderboard: section + period picker + ranking table + my-rank (web parity,
+// static data). The per-player "View" drill-down dialog is intentionally not ported in this pass.
+function QuestHistoryLeaderboard() {
+  const tc = useCopy();
+  const [selectedPeriod, setSelectedPeriod] = useState<string>(QUEST_HISTORY_LEADERBOARD_PERIODS[0]);
+  const periodLabel = (period: string) => (period === "This round" ? tc("This round") : period);
+
+  return (
+    <View style={styles.historySection}>
+      <Text style={styles.historySectionTitle}>{tc("How shoppers rank")}</Text>
+      <Text style={styles.historySectionHint}>
+        {tc(
+          "See how your score compares for the period you picked. Names are shortened to protect privacy. Tap View on a row to see that shopper’s points and rewards for the same dates.",
+        )}
+      </Text>
+      <View style={styles.historyPickerCard}>
+        <Text style={styles.historyPickerLabel}>{tc("Which period do you want to see?")}</Text>
+        <View style={styles.historyPickerChips}>
+          {QUEST_HISTORY_LEADERBOARD_PERIODS.map((period) => {
+            const active = period === selectedPeriod;
+            return (
+              <MotionPressable
+                key={period}
+                onPress={() => setSelectedPeriod(period)}
+                pressScale={0.98}
+                style={[styles.historyChip, active ? styles.historyChipActive : null]}
+              >
+                <Text style={[styles.historyChipText, active ? styles.historyChipTextActive : null]}>
+                  {periodLabel(period)}
+                </Text>
+              </MotionPressable>
+            );
+          })}
+        </View>
+        <Text style={styles.historyPickerSelected}>
+          {fillTemplate(tc("You are viewing: {period}"), { period: periodLabel(selectedPeriod) })}
+        </Text>
+      </View>
+      <QuestMyRankCard />
+      <View style={styles.leaderboardCard}>
+        <QuestRankRows />
+      </View>
+    </View>
+  );
+}
+
 function QuestHistoryView() {
   const tc = useCopy();
   return (
@@ -403,6 +492,9 @@ function QuestHistoryView() {
         </View>
       </View>
 
+      {/* A quick read on your months (web parity: GogoquestHistoryInsightSection) */}
+      <QuestHistoryInsight />
+
       {/* Monthly points — empty state */}
       <View style={styles.historySection}>
         <Text style={styles.historySectionTitle}>{tc(webQuestHistory.monthlySection)}</Text>
@@ -420,6 +512,9 @@ function QuestHistoryView() {
           <Text style={styles.historyEmptyText}>{tc(webQuestHistory.emptyRewards)}</Text>
         </View>
       </View>
+
+      {/* How shoppers rank — leaderboard + period picker (web parity: GogoquestHistory leaderboard) */}
+      <QuestHistoryLeaderboard />
     </View>
   );
 }
@@ -596,6 +691,79 @@ const styles = StyleSheet.create({
     fontFamily: typography.family,
     fontSize: typography.body,
     lineHeight: 21,
+  },
+  historyInsightCard: {
+    backgroundColor: "#F6FDFB",
+    borderColor: "#D8F8EF",
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+    padding: spacing.lg,
+  },
+  historyInsightTitle: {
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: typography.body,
+    fontWeight: "600",
+  },
+  historyInsightBody: {
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  historyInsightStrip: {
+    color: colors.muted,
+    fontFamily: typography.family,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  historyPickerCard: {
+    backgroundColor: colors.background,
+    borderColor: colors.border,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+    padding: spacing.md,
+  },
+  historyPickerLabel: {
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  historyPickerChips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  historyChip: {
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: radii.chip,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+  },
+  historyChipActive: {
+    backgroundColor: colors.primaryDark,
+    borderColor: colors.primaryDark,
+  },
+  historyChipText: {
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  historyChipTextActive: {
+    color: colors.white,
+  },
+  historyPickerSelected: {
+    color: colors.muted,
+    fontFamily: typography.family,
+    fontSize: 13,
   },
   heroBanner: {
     borderRadius: radii.lg,
