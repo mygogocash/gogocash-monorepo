@@ -68,4 +68,19 @@ describe("Quest History parity", () => {
     expect(questScreen).toContain("webQuestHistory.rewardsSection");
     expect(questScreen).toContain("webQuestHistory.emptyRewards");
   });
+
+  it("quest history > given the desktop sub-page > then it adds the leaderboard + month-over-month insight sections", () => {
+    const questScreen = readMobileFile("src/screens/CustomerQuestScreen.tsx");
+    // Month-over-month insight (web parity: GogoquestHistoryInsightSection)
+    expect(questScreen).toContain("QuestHistoryInsight");
+    expect(questScreen).toContain("A quick read on your months");
+    // "How shoppers rank" leaderboard with the period picker + reusable ranking table
+    expect(questScreen).toContain("QuestHistoryLeaderboard");
+    expect(questScreen).toContain("How shoppers rank");
+    expect(questScreen).toContain("Which period do you want to see?");
+    expect(questScreen).toContain("QuestRankRows");
+    // Both new sections are rendered inside the history view
+    expect(questScreen).toContain("<QuestHistoryInsight />");
+    expect(questScreen).toContain("<QuestHistoryLeaderboard />");
+  });
 });

@@ -74,6 +74,13 @@ describe("CustomerQuestScreen (render)", () => {
   it("mounts the quest history view without throwing", () => {
     expect(() => render(createElement(CustomerQuestScreen, { history: true }))).not.toThrow();
   });
+
+  it("renders the quest history leaderboard + month-over-month insight sections", () => {
+    render(createElement(CustomerQuestScreen, { history: true }));
+    expect(screen.getByText("How shoppers rank")).toBeTruthy();
+    expect(screen.getByText("A quick read on your months")).toBeTruthy();
+    expect(screen.getByText("Which period do you want to see?")).toBeTruthy();
+  });
 });
 
 describe("CustomerQuestScreen — Wave B (B5) foundations adopted (source signals)", () => {
