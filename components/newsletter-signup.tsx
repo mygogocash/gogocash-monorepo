@@ -86,8 +86,7 @@ export default function NewsletterSignup({
             placeholder="you@example.com"
             autoComplete="email"
             required
-            disabled={!configured}
-            className={`min-h-11 min-w-0 flex-1 rounded-full border border-gray-200 bg-white px-4 text-sm text-gray-900 placeholder:text-gray-400 disabled:bg-gray-100 disabled:text-gray-400 ${twFocusRingPrimary}`}
+            className={`min-h-11 min-w-0 flex-1 rounded-full border border-gray-200 bg-white px-4 text-sm text-gray-900 placeholder:text-gray-400 ${twFocusRingPrimary}`}
           />
           <button
             type="submit"
@@ -110,8 +109,7 @@ export default function NewsletterSignup({
             checked={consented}
             onChange={(event) => setConsented(event.currentTarget.checked)}
             required
-            disabled={!configured}
-            className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:bg-gray-100"
+            className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
           />
           <span>
             I agree to receive GoGoCash marketing emails and understand I can
