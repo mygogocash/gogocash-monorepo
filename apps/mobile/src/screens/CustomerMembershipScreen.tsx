@@ -3,6 +3,7 @@ import {
   Check as CheckIcon,
   ChevronLeft as ChevronLeftIcon,
   Headphones as HeadphonesIcon,
+  Plus as PlusIcon,
   Sparkles as SparklesIcon,
   Wallet as WalletIcon,
 } from "@mobile/theme/icons";
@@ -40,11 +41,19 @@ const faqItems = [
   },
 ] as const;
 
+// Web parity: the pricing trust strip under the CTA (billed in THB / cancel / access).
+const MEMBERSHIP_TRUST = [
+  "Billed in THB",
+  "Cancel anytime",
+  "Access through the period",
+] as const;
+
 export function CustomerMembershipScreen() {
   const tc = useCopy();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
   const [billingAnnual, setBillingAnnual] = useState(true);
+  const [openFaq, setOpenFaq] = useState(0);
 
   return (
     <AccountPageShell activeRouteId="profile" showTitle={false} title={tc("GoGoPass")}>
@@ -129,6 +138,14 @@ export function CustomerMembershipScreen() {
                 </Text>
               </Pressable>
             </Link>
+            <View style={styles.trustStrip}>
+              {MEMBERSHIP_TRUST.map((item) => (
+                <View key={item} style={styles.trustItem}>
+                  <CheckIcon color={colors.primaryDark} size={14} strokeWidth={2.4} />
+                  <Text style={styles.trustText}>{tc(item)}</Text>
+                </View>
+              ))}
+            </View>
           </View>
 
           <View style={styles.perksGrid}>
@@ -184,12 +201,31 @@ export function CustomerMembershipScreen() {
 
           <View style={styles.faqSection}>
             <Text style={styles.sectionTitle}>{tc("Billing & membership FAQ")}</Text>
-            {faqItems.map((item) => (
-              <View key={item.question} style={styles.faqItem}>
-                <Text numberOfLines={2} style={styles.faqQuestion}>{tc(item.question)}</Text>
-                <Text numberOfLines={4} style={styles.faqAnswer}>{tc(item.answer)}</Text>
-              </View>
-            ))}
+            {faqItems.map((item, index) => {
+              const open = index === openFaq;
+              return (
+                <View key={item.question} style={styles.faqItem}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: open }}
+                    onPress={() => setOpenFaq(open ? -1 : index)}
+                    style={styles.faqQuestionRow}
+                  >
+                    <Text numberOfLines={2} style={styles.faqQuestion}>
+                      {tc(item.question)}
+                    </Text>
+                    <View style={open ? styles.faqIconOpen : null}>
+                      <PlusIcon color={colors.primaryDark} size={20} strokeWidth={2.2} />
+                    </View>
+                  </Pressable>
+                  {open ? (
+                    <Text numberOfLines={4} style={styles.faqAnswer}>
+                      {tc(item.answer)}
+                    </Text>
+                  ) : null}
+                </View>
+              );
+            })}
           </View>
       </View>
     </AccountPageShell>
@@ -372,6 +408,23 @@ const styles = StyleSheet.create({
     fontSize: typography.body,
     fontWeight: "700",
   },
+  trustStrip: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.md,
+    justifyContent: "center",
+    marginTop: spacing.xs,
+  },
+  trustItem: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 5,
+  },
+  trustText: {
+    color: colors.muted,
+    fontFamily: typography.family,
+    fontSize: typography.caption,
+  },
   perksGrid: {
     gap: spacing.md,
   },
@@ -417,8 +470,18 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     paddingTop: spacing.md,
   },
+  faqQuestionRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
+    justifyContent: "space-between",
+  },
+  faqIconOpen: {
+    transform: [{ rotate: "45deg" }],
+  },
   faqQuestion: {
     color: colors.ink,
+    flex: 1,
     fontFamily: typography.family,
     fontSize: typography.body,
     fontWeight: "800",

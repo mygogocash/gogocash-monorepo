@@ -516,7 +516,6 @@ describe("Account hub route parity", () => {
 
     expect(referralFile).toContain("ReferralSubPage");
     expect(referralFile).toContain("ReferralTopBar");
-    expect(referralFile).toContain("ReferralHeroBanner");
     expect(referralFile).toContain("ReferralEarnCard");
     expect(referralFile).toContain("ReferralInvitationPanel");
     expect(referralFile).toContain("ReferralInvitationTabs");
@@ -531,29 +530,35 @@ describe("Account hub route parity", () => {
     expect(referralFile).toContain("#00B14F");
     expect(referralFile).toContain("ReferralStepsSection");
     expect(referralFile).toContain("ReferralFaqsSection");
-    expect(referralFile).toContain("referralHeroBannerImage");
     expect(referralFile).toContain("referralGiftImage");
-    expect(referralFile).toContain("referralStepBannerImage");
+    // Hero marketing banner removed — earn card leads the page.
+    expect(referralFile).not.toContain("referralHeroBannerImage");
     expect(referralFile).toContain("helpBubbleIconImage");
     expect(referralFile).toContain("ContentCopyIcon");
-    expect(referralFile).toContain("FacebookIcon");
-    expect(referralFile).toContain("LinkedinIcon");
-    expect(referralFile).toContain("InstagramIcon");
-    expect(referralFile).toContain("XIcon");
+    // Premium pass: how-it-works renders as numbered step cards, not the flat banner image.
+    expect(referralFile).toContain("stepCard");
+    expect(referralFile).not.toContain("referralStepBannerImage");
+    // Premium pass: real brand SVG marks replace the text-glyph icons.
+    expect(referralFile).toContain("FacebookBrandIcon");
+    expect(referralFile).toContain("LinkedInBrandIcon");
+    expect(referralFile).toContain("InstagramBrandIcon");
+    expect(referralFile).toContain("XBrandIcon");
     expect(referralFile).toContain("shareUrlEncoded");
     expect(referralFile).toContain("openReferralShare");
     expect(referralFile).toContain("handleSocialPress");
     expect(referralFile).toContain("window.open");
-    expect(referralFile).toContain("referralBlueShell");
+    // Web parity: white surface (the old blue shell #DCEEFF was recolored to white).
+    expect(referralFile).toContain("referralShell");
+    expect(referralFile).not.toContain("referralBlueShell");
+    expect(referralFile).not.toContain('"#DCEEFF"');
     expect(referralFile).toContain("referralSurfaceBleed");
     expect(referralFile).toContain("referralContentDesktop");
     expect(referralFile).toContain("earnCardDesktop");
     expect(referralFile).toContain('activeRouteId="profile"');
     expect(referralFile).toContain('href="/profile"');
-    expect(referralFile).toMatch(/heroBanner:[\s\S]*aspectRatio: 924 \/ 184/);
     expect(referralFile).toMatch(/earnTitle:[\s\S]*fontSize: 32,[\s\S]*lineHeight: 40/);
-    expect(referralFile).toMatch(/copyButton:[\s\S]*borderRadius: 16,[\s\S]*minHeight: 105/);
-    expect(referralFile).toMatch(/stepsBanner:[\s\S]*aspectRatio: 924 \/ 472/);
+    expect(referralFile).toMatch(/copyButton:[\s\S]*borderRadius: 16,[\s\S]*minHeight: 56/);
+    expect(referralFile).toMatch(/stepCard:[\s\S]*borderRadius: 16/);
     expect(referralFile).toMatch(/faqTitle:[\s\S]*fontSize: 24,[\s\S]*lineHeight: 31/);
     expect(referralFile).not.toContain("Share GoGoCash and track referral rewards from one place.");
     expect(referralFile).not.toContain("Pending rewards");
@@ -701,7 +706,11 @@ describe("Account hub route parity", () => {
     expect(favoriteFile).toMatch(/heroButton:[\s\S]*minHeight: 48/);
     expect(favoriteFile).toMatch(/heroBag:[\s\S]*height: 200/);
     expect(favoriteFile).toContain("favoriteBrandsSurfaceBleed");
-    expect(favoriteFile).toContain("favoriteBlueShell");
+    // Web parity: mint/white hero on a white surface (not the old blue placeholder) + desktop row layout.
+    expect(favoriteFile).toContain("favoriteShell");
+    expect(favoriteFile).toContain("heroCardDesktop");
+    expect(favoriteFile).not.toContain('"#DCEEFF"');
+    expect(favoriteFile).not.toContain("favoriteBlueShell");
     expect(favoriteFile).toContain('activeRouteId="profile"');
     expect(favoriteFile).toContain('href="/profile"');
     expect(favoriteFile).toContain('href="/shops"');

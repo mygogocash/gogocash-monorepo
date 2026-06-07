@@ -1,10 +1,12 @@
 import { Link } from "expo-router";
 import {
   ChevronLeft as ChevronLeftIcon,
+  Heart as HeartIcon,
   Search as SearchIcon,
   ShoppingCart as ShoppingCartIcon,
 } from "@mobile/theme/icons";
 import type { ReactNode } from "react";
+import { useState } from "react";
 import { Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
@@ -14,31 +16,40 @@ import { mobileShellLayout, webFavoriteBrandsPage } from "@mobile/design/webDesi
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 import favoriteHeroBagImage from "../../assets/favorite-hero-bag.png";
 import favoriteHeroLogoImage from "../../assets/favorite-hero-logo.png";
-import homeBannerImage from "../../assets/home-banner.png";
-import sideGroceryImage from "../../assets/home-side-grocery.png";
-import sideWatchImage from "../../assets/home-side-watch.png";
 
 type FavoriteBrand = (typeof webFavoriteBrandsPage.recentBrands)[number];
 
-const favoriteBrandArtSources = {
-  homeBanner: homeBannerImage,
-  sideGrocery: sideGroceryImage,
-  sideWatch: sideWatchImage,
-} as const;
+// The favorite fixture ships no per-brand color/logo (and webDesignParity.ts is parallel-owned), so the
+// new-card visual uses a locally-derived brand tint + a brand monogram. The heart toggle manages a local
+// saved set (two brands pre-saved) so the Favorites section + empty state are demonstrable.
+const FAVORITE_BRAND_TINTS: Record<string, string> = {
+  "brand-grocery-galaxy-1001": "#2E7D5B",
+  "brand-pocket-pantry-1002": "#C2410C",
+  "brand-orbit-airways-1003": "#1D4ED8",
+  "brand-glow-theory-1005": "#7C3AED",
+};
+const FAVORITE_BRAND_FALLBACK_TINT = "#2E7D5B";
+const INITIAL_FAVORITE_IDS: readonly string[] = [
+  "brand-grocery-galaxy-1001",
+  "brand-glow-theory-1005",
+];
 
 export function CustomerFavoriteBrandsScreen() {
   const tc = useCopy();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
+  const [favoriteIds, setFavoriteIds] = useState<readonly string[]>(INITIAL_FAVORITE_IDS);
+  const toggleFavorite = (id: string) =>
+    setFavoriteIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   return (
     <FavoriteBrandsSubPage>
-      <View style={styles.favoriteBlueShell}>
+      <View style={styles.favoriteShell}>
         {isDesktop ? null : <FavoriteBrandsTopBar />}
         <View style={styles.content}>
           <Text style={styles.pageTitle}>{tc(webFavoriteBrandsPage.title)}</Text>
           <FavoriteBrandsHero />
-          <RecentlyVisitedBrandsGrid />
-          <FavoriteBrandsListPreview />
+          <RecentlyVisitedBrandsGrid favoriteIds={favoriteIds} onToggleFavorite={toggleFavorite} />
+          <FavoriteBrandsListPreview favoriteIds={favoriteIds} onToggleFavorite={toggleFavorite} />
         </View>
       </View>
     </FavoriteBrandsSubPage>
@@ -68,31 +79,48 @@ function FavoriteBrandsTopBar() {
 
 function FavoriteBrandsHero() {
   const tc = useCopy();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
+  // Web parity: on desktop the hero is a row (text block left, illustration right); on mobile it
+  // stacks centered with the illustration below.
   return (
-    <View style={styles.heroCard}>
-      <Image
-        alt={webFavoriteBrandsPage.hero.logoAlt}
-        source={favoriteHeroLogoImage}
-        style={styles.heroLogo}
-      />
-      <Text numberOfLines={1} style={styles.heroTitle}>{tc(webFavoriteBrandsPage.hero.title)}</Text>
-      <Text style={styles.heroDescription}>{tc(webFavoriteBrandsPage.hero.description)}</Text>
-      <Link asChild href="/shops">
-        <MotionPressable accessibilityRole="link" pressScale={0.98} style={styles.heroButton}>
-          <Text style={styles.heroButtonText}>{tc(webFavoriteBrandsPage.hero.actionLabel)}</Text>
-        </MotionPressable>
-      </Link>
+    <View style={[styles.heroCard, isDesktop ? styles.heroCardDesktop : null]}>
+      <View style={[styles.heroTextColumn, isDesktop ? styles.heroTextColumnDesktop : null]}>
+        <Image
+          alt={webFavoriteBrandsPage.hero.logoAlt}
+          source={favoriteHeroLogoImage}
+          style={styles.heroLogo}
+        />
+        <Text numberOfLines={1} style={styles.heroTitle}>{tc(webFavoriteBrandsPage.hero.title)}</Text>
+        <Text style={[styles.heroDescription, isDesktop ? styles.heroDescriptionDesktop : null]}>
+          {tc(webFavoriteBrandsPage.hero.description)}
+        </Text>
+        <Link asChild href="/shops">
+          {/* Single style object (not an array): expo-router's asChild Slot merges the child's
+              style and breaks on an array. Desktop left-alignment comes from the parent column's
+              alignItems instead of a per-button override. */}
+          <MotionPressable accessibilityRole="link" pressScale={0.98} style={styles.heroButton}>
+            <Text style={styles.heroButtonText}>{tc(webFavoriteBrandsPage.hero.actionLabel)}</Text>
+          </MotionPressable>
+        </Link>
+      </View>
       <Image
         alt={tc(webFavoriteBrandsPage.hero.illustrationAlt)}
         resizeMode="contain"
         source={favoriteHeroBagImage}
-        style={styles.heroBag}
+        style={[styles.heroBag, isDesktop ? styles.heroBagDesktop : null]}
       />
     </View>
   );
 }
 
-function RecentlyVisitedBrandsGrid() {
+function RecentlyVisitedBrandsGrid({
+  favoriteIds,
+  onToggleFavorite,
+}: {
+  favoriteIds: readonly string[];
+  onToggleFavorite: (id: string) => void;
+}) {
   const tc = useCopy();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
@@ -102,15 +130,32 @@ function RecentlyVisitedBrandsGrid() {
       <Text style={styles.sectionTitle}>{tc(webFavoriteBrandsPage.recentTitle)}</Text>
       <View style={[styles.brandGrid, isDesktop ? styles.brandGridDesktop : null]}>
         {webFavoriteBrandsPage.recentBrands.map((brand) => (
-          <FavoriteBrandCard brand={brand} key={brand.id} />
+          <FavoriteBrandCard
+            brand={brand}
+            isFavorite={favoriteIds.includes(brand.id)}
+            key={brand.id}
+            onToggleFavorite={onToggleFavorite}
+          />
         ))}
       </View>
     </View>
   );
 }
 
-function FavoriteBrandsListPreview() {
+function FavoriteBrandsListPreview({
+  favoriteIds,
+  onToggleFavorite,
+}: {
+  favoriteIds: readonly string[];
+  onToggleFavorite: (id: string) => void;
+}) {
   const tc = useCopy();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
+  const savedBrands = webFavoriteBrandsPage.recentBrands.filter((brand) =>
+    favoriteIds.includes(brand.id)
+  );
+
   return (
     <View style={styles.section}>
       <View style={styles.favoriteListHeader}>
@@ -120,76 +165,110 @@ function FavoriteBrandsListPreview() {
           <Text style={styles.searchText}>{tc(webFavoriteBrandsPage.searchPlaceholder)}</Text>
         </View>
       </View>
-      <View style={styles.brandGrid}>
-        {webFavoriteBrandsPage.recentBrands.slice(0, 2).map((brand) => (
-          <FavoriteBrandCard brand={brand} favorite key={`favorite-${brand.id}`} />
-        ))}
-      </View>
+      {savedBrands.length === 0 ? (
+        <View style={styles.favoritesEmpty}>
+          <View style={styles.favoritesEmptyHeart}>
+            <HeartIcon color={colors.primaryDark} size={26} strokeWidth={2} />
+          </View>
+          <Text style={styles.favoritesEmptyTitle}>{tc("No saved brands yet")}</Text>
+          <Text style={styles.favoritesEmptyBody}>
+            {tc("Tap the heart on a brand to save it here for quick access.")}
+          </Text>
+        </View>
+      ) : (
+        <View style={[styles.brandGrid, isDesktop ? styles.brandGridDesktop : null]}>
+          {savedBrands.map((brand) => (
+            <FavoriteBrandCard
+              brand={brand}
+              isFavorite
+              key={`favorite-${brand.id}`}
+              onToggleFavorite={onToggleFavorite}
+            />
+          ))}
+        </View>
+      )}
     </View>
   );
 }
 
-function FavoriteBrandCard({ brand, favorite = false }: { brand: FavoriteBrand; favorite?: boolean }) {
+function FavoriteBrandCard({
+  brand,
+  isFavorite = false,
+  onToggleFavorite,
+}: {
+  brand: FavoriteBrand;
+  isFavorite?: boolean;
+  onToggleFavorite: (id: string) => void;
+}) {
   const tc = useCopy();
+  const tint = FAVORITE_BRAND_TINTS[brand.id] ?? FAVORITE_BRAND_FALLBACK_TINT;
   return (
-    <Link asChild href={brand.href as never}>
-      <MotionPressable
-        accessibilityLabel={`${brand.name} ${tc(webFavoriteBrandsPage.cashbackLabel)} ${brand.cashback}`}
-        accessibilityRole="link"
-        pressScale={0.985}
-        style={styles.brandCard}
-      >
-        <View style={styles.brandImageWrap}>
-          <Image
-            alt=""
-            resizeMode="cover"
-            source={favoriteBrandArtSources[brand.artAsset]}
-            style={styles.brandImage}
-          />
-          {brand.showGrabCoupon ? (
-            <View style={styles.couponBadge}>
+    <View style={styles.brandCard}>
+      <Link asChild href={brand.href as never}>
+        <MotionPressable
+          accessibilityLabel={`${brand.name} ${tc(webFavoriteBrandsPage.cashbackLabel)} ${brand.cashback}`}
+          accessibilityRole="link"
+          pressScale={0.985}
+          style={styles.brandCardLink}
+        >
+          <View style={[styles.brandVisual, { backgroundColor: tint }]}>
+            {brand.showGrabCoupon ? (
+              <View style={styles.couponBadge}>
+                <Text style={styles.couponEmoji}>🧧</Text>
+                <Text numberOfLines={1} style={styles.couponText}>
+                  {tc(webFavoriteBrandsPage.grabCouponLabel)}
+                </Text>
+              </View>
+            ) : null}
+            <Text style={styles.brandMonogram}>{brand.name.charAt(0)}</Text>
+          </View>
+          <View style={styles.brandMeta}>
+            <View style={styles.categoryChip}>
               <ShoppingCartIcon
                 color={colors.primaryDark}
-                size={14}
+                size={13}
                 strokeWidth={typography.iconStrokeWidth}
               />
-              <Text numberOfLines={1} style={styles.couponText}>
-                {tc(webFavoriteBrandsPage.grabCouponLabel)}
+              <Text numberOfLines={1} style={styles.categoryText}>
+                {tc(brand.category)}
               </Text>
             </View>
-          ) : null}
-        </View>
-        <View style={styles.brandMeta}>
-          <View style={styles.categoryChip}>
-            <ShoppingCartIcon
-              color={colors.primaryDark}
-              size={13}
-              strokeWidth={typography.iconStrokeWidth}
-            />
-            <Text numberOfLines={1} style={styles.categoryText}>
-              {tc(brand.category)}
-            </Text>
-          </View>
-          <View style={styles.brandNameRow}>
-            <View style={styles.brandCopy}>
-              <Text numberOfLines={2} style={styles.brandName}>
-                {brand.name}
-              </Text>
-              <Text style={styles.cashbackCaption}>{tc(webFavoriteBrandsPage.cashbackLabel)}</Text>
+            <View style={styles.brandNameRow}>
+              <View style={styles.brandCopy}>
+                <Text numberOfLines={2} style={styles.brandName}>
+                  {brand.name}
+                </Text>
+                <Text style={styles.cashbackCaption}>
+                  {tc(webFavoriteBrandsPage.cashbackLabel)}
+                </Text>
+              </View>
+              <Text style={styles.cashbackValue}>{brand.cashback}</Text>
             </View>
-            <Text style={styles.cashbackValue}>{brand.cashback}</Text>
           </View>
-          {favorite ? <Text style={styles.favoriteState}>{tc("Saved")}</Text> : null}
-        </View>
+        </MotionPressable>
+      </Link>
+      <MotionPressable
+        accessibilityLabel={
+          isFavorite
+            ? `${tc("Remove from saved brands")}: ${brand.name}`
+            : `${tc("Save brand")}: ${brand.name}`
+        }
+        accessibilityRole="button"
+        hitSlop={8}
+        onPress={() => onToggleFavorite(brand.id)}
+        pressScale={0.9}
+        style={[styles.heartButton, isFavorite ? styles.heartButtonActive : null]}
+      >
+        <HeartIcon color={isFavorite ? colors.white : colors.muted} size={18} strokeWidth={2.2} />
       </MotionPressable>
-    </Link>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   surface: {
-    backgroundColor: "#DCEEFF",
-    borderColor: "#B8D4EF",
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderRadius: 24,
     borderWidth: 1,
     boxShadow: shadows.cardCss,
@@ -200,8 +279,8 @@ const styles = StyleSheet.create({
     marginHorizontal: -8,
     marginTop: 18,
   },
-  favoriteBlueShell: {
-    backgroundColor: "#DCEEFF",
+  favoriteShell: {
+    backgroundColor: "transparent",
     minHeight: 980,
     width: "100%",
   },
@@ -237,15 +316,32 @@ const styles = StyleSheet.create({
   },
   heroCard: {
     alignItems: "center",
-    backgroundColor: "rgba(224, 246, 255, 0.72)",
-    borderColor: "rgba(184, 212, 239, 0.58)",
+    backgroundColor: "#F2FBF8",
+    borderColor: "#D8F0E8",
     borderRadius: 24,
     borderWidth: 1,
-    boxShadow: "0 4px 16px rgba(67, 96, 126, 0.14)",
+    boxShadow: "0 4px 16px rgba(16, 53, 34, 0.10)",
     gap: 12,
     overflow: "hidden",
     paddingHorizontal: 22,
     paddingTop: 34,
+  },
+  heroCardDesktop: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 40,
+    justifyContent: "space-between",
+    paddingBottom: 40,
+    paddingHorizontal: 40,
+    paddingTop: 40,
+  },
+  heroTextColumn: {
+    alignItems: "center",
+    gap: 12,
+  },
+  heroTextColumnDesktop: {
+    alignItems: "flex-start",
+    flex: 1,
   },
   heroLogo: {
     height: 60,
@@ -267,9 +363,12 @@ const styles = StyleSheet.create({
     maxWidth: 360,
     textAlign: "center",
   },
+  heroDescriptionDesktop: {
+    maxWidth: 400,
+    textAlign: "left",
+  },
   heroButton: {
     alignItems: "center",
-    alignSelf: "center",
     backgroundColor: colors.primary,
     borderRadius: radii.chip,
     justifyContent: "center",
@@ -290,6 +389,12 @@ const styles = StyleSheet.create({
     marginTop: 20,
     width: "100%",
   },
+  heroBagDesktop: {
+    flexShrink: 0,
+    height: 240,
+    marginTop: 0,
+    width: 320,
+  },
   section: {
     gap: 16,
   },
@@ -309,29 +414,36 @@ const styles = StyleSheet.create({
     gap: 18,
   },
   brandCard: {
-    backgroundColor: colors.white,
-    borderColor: "#B8D4EF",
-    borderRadius: 16,
-    borderWidth: 1,
-    boxShadow: "0 3px 8px rgba(67, 96, 126, 0.08)",
     flexBasis: "48%",
     flexGrow: 1,
     maxWidth: 280,
     minWidth: 172,
+    position: "relative",
+  },
+  brandCardLink: {
+    backgroundColor: colors.white,
+    borderColor: "#E4E4E4",
+    borderRadius: 16,
+    borderWidth: 1,
+    boxShadow: "0 3px 8px rgba(16, 53, 34, 0.06)",
     overflow: "hidden",
     padding: 8,
   },
-  brandImageWrap: {
+  brandVisual: {
+    alignItems: "center",
     aspectRatio: 272 / 153,
-    backgroundColor: "#DCEEFF",
     borderRadius: 10,
+    justifyContent: "center",
     overflow: "hidden",
     position: "relative",
     width: "100%",
   },
-  brandImage: {
-    height: "100%",
-    width: "100%",
+  brandMonogram: {
+    color: colors.white,
+    fontFamily: typography.family,
+    fontSize: 46,
+    fontWeight: "800",
+    opacity: 0.96,
   },
   couponBadge: {
     alignItems: "center",
@@ -353,6 +465,9 @@ const styles = StyleSheet.create({
     fontFamily: typography.family,
     fontSize: 12,
     lineHeight: 15,
+  },
+  couponEmoji: {
+    fontSize: 12,
   },
   brandMeta: {
     gap: 7,
@@ -430,11 +545,56 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 20,
   },
-  favoriteState: {
-    color: colors.primaryDark,
+  heartButton: {
+    alignItems: "center",
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    boxShadow: "0 2px 6px rgba(16, 53, 34, 0.16)",
+    height: 32,
+    justifyContent: "center",
+    outlineColor: "transparent",
+    outlineWidth: 0,
+    position: "absolute",
+    right: 16,
+    top: 16,
+    width: 32,
+    zIndex: 2,
+  },
+  heartButtonActive: {
+    backgroundColor: colors.primary,
+  },
+  favoritesEmpty: {
+    alignItems: "center",
+    backgroundColor: colors.white,
+    borderColor: "#E4E4E4",
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 10,
+    paddingHorizontal: 24,
+    paddingVertical: 36,
+  },
+  favoritesEmptyHeart: {
+    alignItems: "center",
+    backgroundColor: colors.primarySoft,
+    borderRadius: 28,
+    height: 56,
+    justifyContent: "center",
+    width: 56,
+  },
+  favoritesEmptyTitle: {
+    color: "#3A4B61",
     fontFamily: typography.family,
-    fontSize: 12,
+    fontSize: 18,
     fontWeight: "700",
-    lineHeight: 16,
+    lineHeight: 24,
+    textAlign: "center",
+  },
+  favoritesEmptyBody: {
+    color: colors.muted,
+    fontFamily: typography.family,
+    fontSize: 14,
+    lineHeight: 20,
+    maxWidth: 320,
+    textAlign: "center",
   },
 });

@@ -88,8 +88,9 @@ describe("CustomerReferralScreen (render)", () => {
 
   it("shows a production-domain invite link (not a dev localhost host)", () => {
     renderScreen();
+    // The invite link now sits inline after the "invite link :" label on one line, so match a substring.
     // Mirrors the web's origin-based, …-truncated referral URL — not http://localhost:3001/...
-    expect(screen.getByText("https://gogocash.co/?r…f86cd799439011")).toBeTruthy();
+    expect(screen.getByText(/gogocash\.co\/\?r…f86cd799439011/)).toBeTruthy();
     expect(screen.queryByText(/localhost/i)).toBeNull();
   });
 });
@@ -124,5 +125,37 @@ describe("CustomerReferralScreen — Wave B foundations adopted (source signals)
 
   it("passes a loadingSkeleton to the shared resource state guard", () => {
     expect(referralSource).toContain("loadingSkeleton=");
+  });
+
+  it("uses a white surface — the blue shell/surface was recolored to white", () => {
+    expect(referralSource).toContain("referralShell");
+    expect(referralSource).not.toContain("referralBlueShell");
+    expect(referralSource).not.toContain('backgroundColor: "#DCEEFF"');
+  });
+
+  it("premium pass: real brand icons, numbered step cards, reward callout, code chip + copied state", () => {
+    // Real brand SVGs replace the f/in/◎/X text glyphs.
+    expect(referralSource).toContain("SocialBrandIcons");
+    expect(referralSource).toContain("FacebookBrandIcon");
+    // How-it-works renders as numbered cards (the flat banner image is gone).
+    expect(referralSource).toContain("stepCard");
+    expect(referralSource).not.toContain("referralStepBannerImage");
+    expect(referralSource).not.toContain("stepsBannerImage");
+    // Reward callout + referral code chip + copy "Copied!" micro-interaction.
+    expect(referralSource).toContain("rewardPill");
+    expect(referralSource).toContain("referralCode");
+    expect(referralSource).toContain("setCopied");
+  });
+
+  it("invitation tabs are interactive (state-driven) + filter the table, with the focus ring suppressed", () => {
+    // Tabs switch via state (not hardcoded index 0) and filter the rows by category, like the web.
+    expect(referralSource).toContain("onSelectTab");
+    expect(referralSource).toContain("setActiveTab");
+    expect(referralSource).toContain("REFERRAL_INVITE_ROWS");
+    expect(referralSource).toContain("REFERRAL_TAB_CATEGORIES");
+    // The orange browser focus ring is suppressed on the tab buttons (web parity: outline-none).
+    expect(referralSource).toContain('outlineColor: "transparent"');
+    // No longer hardcoded to the first tab.
+    expect(referralSource).not.toContain("selected: index === 0");
   });
 });

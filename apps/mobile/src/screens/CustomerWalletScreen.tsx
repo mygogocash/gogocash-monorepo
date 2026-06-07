@@ -11,7 +11,17 @@ import {
   Search as SearchIcon,
   WalletCards as WalletCardsIcon,
 } from "@mobile/theme/icons";
-import { Image, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { useState } from "react";
+import {
+  Image,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View,
+} from "react-native";
 
 import walletNoDataImage from "../../assets/wallet-no-data.png";
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
@@ -69,21 +79,122 @@ export function CustomerWalletScreen() {
 // refetch (walletResource.retry) — the affordance + wiring is the deliverable. The
 // RefreshControl label reuses the existing catalog string `walletTransactionsLoading`
 // ("Loading transactions…" -> Thai via reverse-lookup), so no new copy is introduced.
+// Mock transaction rows (local — the shared webWalletPage fixture ships none and is parallel-owned).
+// Covers every case: earning + withdraw × success / pending / failed, spread across dates so the
+// Date Range filter is demonstrable. Tabs 0/1/2 = All / Earning / Withdraw (webWalletTransactionTabs order).
+type WalletTxKind = "earn" | "withdraw";
+type WalletTxStatus = "success" | "pending" | "failed";
+type WalletTxRow = {
+  id: string;
+  ts: number;
+  dateLabel: string;
+  brand: string;
+  info: string;
+  kind: WalletTxKind;
+  amount: string;
+  currency: string;
+  status: WalletTxStatus;
+  statusLabel: string;
+};
+
+const WALLET_TX_DAY_MS = 86400000;
+const WALLET_TX_BASE_TS = 1774656000000; // ~Mar 28, 2026 — anchor for the Date Range presets.
+
+const WALLET_TX_ROWS: readonly WalletTxRow[] = [
+  { id: "tx-1", ts: WALLET_TX_BASE_TS, dateLabel: "Mar 28, 2026", brand: "Glow Theory", info: "Cashback confirmed", kind: "earn", amount: "+120.00", currency: "THB", status: "success", statusLabel: "Success" },
+  { id: "tx-2", ts: WALLET_TX_BASE_TS - 2 * WALLET_TX_DAY_MS, dateLabel: "Mar 26, 2026", brand: "Withdraw to SCB ***1234", info: "Bank transfer", kind: "withdraw", amount: "-500.00", currency: "THB", status: "pending", statusLabel: "Pending" },
+  { id: "tx-3", ts: WALLET_TX_BASE_TS - 4 * WALLET_TX_DAY_MS, dateLabel: "Mar 24, 2026", brand: "Grocery Galaxy", info: "Cashback confirmed", kind: "earn", amount: "+45.50", currency: "THB", status: "success", statusLabel: "Success" },
+  { id: "tx-4", ts: WALLET_TX_BASE_TS - 8 * WALLET_TX_DAY_MS, dateLabel: "Mar 20, 2026", brand: "Orbit Airways", info: "Awaiting store confirmation", kind: "earn", amount: "+88.00", currency: "THB", status: "pending", statusLabel: "Pending" },
+  { id: "tx-5", ts: WALLET_TX_BASE_TS - 14 * WALLET_TX_DAY_MS, dateLabel: "Mar 14, 2026", brand: "Withdraw to PromptPay", info: "Bank transfer", kind: "withdraw", amount: "-1,000.00", currency: "THB", status: "success", statusLabel: "Success" },
+  { id: "tx-6", ts: WALLET_TX_BASE_TS - 20 * WALLET_TX_DAY_MS, dateLabel: "Mar 8, 2026", brand: "Pocket Pantry", info: "Order cancelled", kind: "earn", amount: "+30.00", currency: "THB", status: "failed", statusLabel: "Failed" },
+  { id: "tx-7", ts: WALLET_TX_BASE_TS - 30 * WALLET_TX_DAY_MS, dateLabel: "Feb 26, 2026", brand: "Withdraw to SCB ***1234", info: "Rejected by bank", kind: "withdraw", amount: "-250.00", currency: "THB", status: "failed", statusLabel: "Failed" },
+  { id: "tx-8", ts: WALLET_TX_BASE_TS - 44 * WALLET_TX_DAY_MS, dateLabel: "Feb 12, 2026", brand: "Bloom & Beam", info: "Cashback confirmed", kind: "earn", amount: "+210.00", currency: "THB", status: "success", statusLabel: "Success" },
+  { id: "tx-9", ts: WALLET_TX_BASE_TS - 59 * WALLET_TX_DAY_MS, dateLabel: "Jan 28, 2026", brand: "Quick Cart", info: "Awaiting store confirmation", kind: "earn", amount: "+15.00", currency: "THB", status: "pending", statusLabel: "Pending" },
+] as const;
+
+const WALLET_TX_MAX_TS = Math.max(...WALLET_TX_ROWS.map((row) => row.ts));
+const WALLET_STATUS_CYCLE: readonly ("all" | WalletTxStatus)[] = ["all", "success", "pending", "failed"];
+const WALLET_DATE_CYCLE = [0, 7, 30] as const;
+
 function WalletTransactions({ onRefresh }: { onRefresh: () => void }) {
   const tc = useCopy();
+  const [activeTab, setActiveTab] = useState(0);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | WalletTxStatus>("all");
+  const [dateDays, setDateDays] = useState<number>(0);
+
+  // Tab → kind, plus the Search / Status / Date Range filters (web parity: substring + status + day window).
+  const rows = WALLET_TX_ROWS.filter((row) => {
+    if (activeTab === 1 && row.kind !== "earn") return false;
+    if (activeTab === 2 && row.kind !== "withdraw") return false;
+    if (statusFilter !== "all" && row.status !== statusFilter) return false;
+    if (dateDays > 0 && row.ts < WALLET_TX_MAX_TS - dateDays * WALLET_TX_DAY_MS) return false;
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      const blob = `${row.brand} ${row.info} ${row.statusLabel} ${row.amount} ${row.currency}`.toLowerCase();
+      if (!blob.includes(q)) return false;
+    }
+    return true;
+  });
+
+  const cycleStatus = () => {
+    const i = WALLET_STATUS_CYCLE.indexOf(statusFilter);
+    setStatusFilter(WALLET_STATUS_CYCLE[(i + 1) % WALLET_STATUS_CYCLE.length]);
+  };
+  const statusPillLabel =
+    statusFilter === "all"
+      ? tc("Status")
+      : statusFilter === "success"
+        ? tc("Success")
+        : statusFilter === "pending"
+          ? tc("Pending")
+          : tc("Failed");
+
+  const cycleDate = () => {
+    const i = WALLET_DATE_CYCLE.indexOf(dateDays as 0 | 7 | 30);
+    setDateDays(WALLET_DATE_CYCLE[(i + 1) % WALLET_DATE_CYCLE.length]);
+  };
+  const datePillLabel =
+    dateDays === 0 ? tc("Date Range") : dateDays === 7 ? tc("Last 7 days") : tc("Last 30 days");
+
   return (
     <View style={styles.transactionArea}>
-      <View style={styles.tabStrip}>
-        {webWalletTransactionTabs.map((tab, index) => (
-          <Text key={tab} style={[styles.tabButton, index === 0 ? styles.tabButtonActive : null]}>
-            {tc(tab)}
-          </Text>
-        ))}
+      <View accessibilityRole="tablist" style={styles.tabStrip}>
+        {webWalletTransactionTabs.map((tab, index) => {
+          const selected = index === activeTab;
+          return (
+            <MotionPressable
+              accessibilityRole="tab"
+              accessibilityState={{ selected }}
+              hoverLift={false}
+              key={tab}
+              onPress={() => setActiveTab(index)}
+              pressScale={0.98}
+              style={[styles.tabButton, selected ? styles.tabButtonActive : null]}
+            >
+              <Text
+                numberOfLines={1}
+                style={[styles.tabButtonText, selected ? styles.tabButtonTextActive : null]}
+              >
+                {tc(tab)}
+              </Text>
+            </MotionPressable>
+          );
+        })}
       </View>
       <View style={styles.filterRow}>
-        <FilterPill icon="search" label="Search" />
-        <FilterPill icon="calendar" label="Date Range" />
-        <FilterPill icon="status" label="Status" />
+        <View style={styles.searchPill}>
+          <SearchIcon color={colors.textSoft} size={18} strokeWidth={typography.iconStrokeWidth} />
+          <TextInput
+            onChangeText={setSearch}
+            placeholder={tc("Search")}
+            placeholderTextColor={colors.muted}
+            style={styles.searchInput}
+            value={search}
+          />
+        </View>
+        <FilterPill icon="calendar" label={datePillLabel} onPress={cycleDate} />
+        <FilterPill icon="status" label={statusPillLabel} onPress={cycleStatus} />
       </View>
       <ScrollView
         contentContainerStyle={styles.tableScrollContent}
@@ -96,19 +207,72 @@ function WalletTransactions({ onRefresh }: { onRefresh: () => void }) {
         }
         style={styles.tableShell}
       >
-        <View style={styles.emptyWallet}>
-          <Image
-            alt={tc("Wallet empty state illustration")}
-            resizeMode="contain"
-            source={walletNoDataImage}
-            style={styles.emptyImage}
-          />
-          <Text style={styles.emptyTitle}>{tc(webWalletEmptyState.title)}</Text>
-          <Text style={styles.emptySubtitle}>{tc(webWalletEmptyState.subtitle)}</Text>
-        </View>
+        {rows.length === 0 ? (
+          <View style={styles.emptyWallet}>
+            <Image
+              alt={tc("Wallet empty state illustration")}
+              resizeMode="contain"
+              source={walletNoDataImage}
+              style={styles.emptyImage}
+            />
+            <Text style={styles.emptyTitle}>{tc(webWalletEmptyState.title)}</Text>
+            <Text style={styles.emptySubtitle}>{tc(webWalletEmptyState.subtitle)}</Text>
+          </View>
+        ) : (
+          <View style={styles.txList}>
+            {rows.map((row) => (
+              <View key={row.id} style={styles.txRow}>
+                <View style={styles.txLeft}>
+                  <Text numberOfLines={1} style={styles.txBrand}>
+                    {row.brand}
+                  </Text>
+                  <Text numberOfLines={1} style={styles.txMeta}>
+                    {`${row.dateLabel} · ${row.kind === "earn" ? tc("Earn") : tc("Withdraw")}`}
+                  </Text>
+                  {row.info ? (
+                    <Text numberOfLines={1} style={styles.txInfo}>
+                      {tc(row.info)}
+                    </Text>
+                  ) : null}
+                </View>
+                <View style={styles.txRight}>
+                  <Text
+                    style={[
+                      styles.txAmount,
+                      row.kind === "earn" ? styles.txAmountEarn : styles.txAmountWithdraw,
+                    ]}
+                  >
+                    {`${row.amount} ${row.currency}`}
+                  </Text>
+                  <View style={[styles.txStatusPill, walletStatusPillStyle(row.status)]}>
+                    <Text style={[styles.txStatusText, walletStatusTextStyle(row.status)]}>
+                      {tc(row.statusLabel)}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
       </ScrollView>
     </View>
   );
+}
+
+function walletStatusPillStyle(status: WalletTxStatus) {
+  return status === "success"
+    ? styles.txStatusPillSuccess
+    : status === "pending"
+      ? styles.txStatusPillPending
+      : styles.txStatusPillFailed;
+}
+
+function walletStatusTextStyle(status: WalletTxStatus) {
+  return status === "success"
+    ? styles.txStatusTextSuccess
+    : status === "pending"
+      ? styles.txStatusTextPending
+      : styles.txStatusTextFailed;
 }
 
 function WalletHeader() {
@@ -212,16 +376,31 @@ function WalletMetricCard({ metric }: { metric: WalletMetric }) {
   );
 }
 
-function FilterPill({ icon, label }: { icon: "calendar" | "search" | "status"; label: string }) {
-  const tc = useCopy();
+function FilterPill({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: "calendar" | "search" | "status";
+  label: string;
+  onPress?: () => void;
+}) {
   const Icon =
     icon === "search" ? SearchIcon : icon === "calendar" ? CalendarIcon : ChevronDownIcon;
 
   return (
-    <View style={styles.filterPill}>
+    <MotionPressable
+      accessibilityRole="button"
+      hitSlop={8}
+      onPress={onPress}
+      pressScale={0.98}
+      style={styles.filterPill}
+    >
       <Icon color={colors.textSoft} size={18} strokeWidth={typography.iconStrokeWidth} />
-      <Text style={styles.filterText}>{tc(label)}</Text>
-    </View>
+      <Text numberOfLines={1} style={styles.filterText}>
+        {label}
+      </Text>
+    </MotionPressable>
   );
 }
 
@@ -250,8 +429,11 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   supportBanner: {
-    backgroundColor: "#CFE6FF",
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderRadius: radii.lg,
+    borderWidth: 1,
+    boxShadow: shadows.cardCss,
     gap: spacing.md,
     padding: spacing.lg,
   },
@@ -266,11 +448,11 @@ const styles = StyleSheet.create({
   },
   supportContactCard: {
     alignItems: "center",
-    backgroundColor: "#E8F3FF",
-    borderColor: "#C8DDF3",
+    backgroundColor: "#F6F6F6",
+    borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,
-    boxShadow: "0 4px 14px rgba(64, 100, 130, 0.12)",
+    boxShadow: "0 4px 14px rgba(16, 53, 34, 0.06)",
     flexDirection: "row",
     gap: spacing.md,
     minHeight: 72,
@@ -306,10 +488,11 @@ const styles = StyleSheet.create({
     fontSize: typography.body,
   },
   cashbackSummaryCard: {
-    backgroundColor: "#DDF0FF",
-    borderColor: "#BCD8EF",
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderRadius: radii.lg,
     borderWidth: 1,
+    boxShadow: shadows.cardCss,
     gap: spacing.lg,
     padding: spacing.lg,
   },
@@ -338,8 +521,8 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   metricCard: {
-    backgroundColor: "rgba(255,255,255,0.72)",
-    borderColor: "#C6D8E9",
+    backgroundColor: "#F9FAFB",
+    borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,
     gap: spacing.md,
@@ -409,25 +592,34 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   tabButton: {
+    alignItems: "center",
     backgroundColor: "#F0F0F0",
+    borderBottomColor: "transparent",
+    borderBottomWidth: 2,
     borderTopLeftRadius: radii.md,
     borderTopRightRadius: radii.md,
-    color: colors.muted,
     flex: 1,
-    fontFamily: typography.family,
-    fontSize: typography.caption,
-    fontWeight: "600",
+    justifyContent: "center",
     minHeight: 44,
+    outlineColor: "transparent",
+    outlineWidth: 0,
     overflow: "hidden",
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.md,
-    textAlign: "center",
   },
   tabButtonActive: {
     backgroundColor: colors.card,
-    color: colors.primaryDark,
     borderBottomColor: colors.primary,
-    borderBottomWidth: 2,
+  },
+  tabButtonText: {
+    color: colors.muted,
+    fontFamily: typography.family,
+    fontSize: typography.caption,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  tabButtonTextActive: {
+    color: colors.primaryDark,
   },
   filterRow: {
     flexDirection: "row",
@@ -444,12 +636,112 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     minHeight: 48,
     minWidth: 120,
+    outlineColor: "transparent",
+    outlineWidth: 0,
     paddingHorizontal: spacing.md,
+  },
+  searchPill: {
+    alignItems: "center",
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: radii.chip,
+    borderWidth: 1,
+    flexBasis: 170,
+    flexDirection: "row",
+    flexGrow: 1,
+    gap: spacing.xs,
+    minHeight: 48,
+    paddingHorizontal: spacing.md,
+  },
+  searchInput: {
+    color: colors.ink,
+    flex: 1,
+    fontFamily: typography.family,
+    fontSize: typography.caption,
+    outlineColor: "transparent",
+    outlineWidth: 0,
+    paddingVertical: 0,
   },
   filterText: {
     color: colors.muted,
     fontFamily: typography.family,
     fontSize: typography.caption,
+  },
+  txList: {
+    backgroundColor: colors.card,
+    width: "100%",
+  },
+  txRow: {
+    alignItems: "center",
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    gap: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 14,
+  },
+  txLeft: {
+    flex: 1,
+    gap: 3,
+  },
+  txBrand: {
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: typography.body,
+    fontWeight: "600",
+  },
+  txMeta: {
+    color: colors.muted,
+    fontFamily: typography.family,
+    fontSize: typography.caption,
+  },
+  txInfo: {
+    color: colors.textSoft,
+    fontFamily: typography.family,
+    fontSize: typography.caption,
+  },
+  txRight: {
+    alignItems: "flex-end",
+    gap: 6,
+  },
+  txAmount: {
+    fontFamily: typography.family,
+    fontSize: typography.body,
+    fontWeight: "700",
+  },
+  txAmountEarn: {
+    color: "#00B14F",
+  },
+  txAmountWithdraw: {
+    color: "#C0392B",
+  },
+  txStatusPill: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  txStatusText: {
+    fontFamily: typography.family,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  txStatusPillSuccess: {
+    backgroundColor: "#E6F7ED",
+  },
+  txStatusTextSuccess: {
+    color: "#00B14F",
+  },
+  txStatusPillPending: {
+    backgroundColor: "#FFF4E5",
+  },
+  txStatusTextPending: {
+    color: "#B26A00",
+  },
+  txStatusPillFailed: {
+    backgroundColor: "#FDECEC",
+  },
+  txStatusTextFailed: {
+    color: "#C0392B",
   },
   tableShell: {
     backgroundColor: "#F9FAFB",

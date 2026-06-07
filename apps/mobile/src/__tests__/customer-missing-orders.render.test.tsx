@@ -3,7 +3,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createElement } from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 // CustomerMissingOrdersScreen -> AccountPageShell -> CustomerDesktopHeader ->
@@ -42,6 +42,16 @@ describe("CustomerMissingOrdersScreen (render)", () => {
     render(createElement(CustomerMissingOrdersScreen));
     expect(screen.getAllByText("Submit claim").length).toBeGreaterThan(0);
   });
+
+  it("FAQ accordion (web parity): first answer open; tapping another question reveals its answer", () => {
+    render(createElement(CustomerMissingOrdersScreen));
+    // The first FAQ is expanded by default → its answer is visible.
+    expect(screen.getByText(/GoGoCash is a cashback platform/)).toBeTruthy();
+    // The second FAQ's answer stays hidden until its question is tapped.
+    expect(screen.queryByText(/Shop via GoGoCash tracked links/)).toBeNull();
+    fireEvent.click(screen.getByText("How to claim cashback?"));
+    expect(screen.getByText(/Shop via GoGoCash tracked links/)).toBeTruthy();
+  });
 });
 
 describe("CustomerMissingOrdersScreen — Wave B foundations adopted (source signals)", () => {
@@ -61,5 +71,17 @@ describe("CustomerMissingOrdersScreen — Wave B foundations adopted (source sig
     // shorter than 44px; hitSlop expands their tappable area.
     const hitSlopCount = (missingOrdersSource.match(/hitSlop=\{/g) ?? []).length;
     expect(hitSlopCount).toBeGreaterThanOrEqual(2);
+  });
+
+  it("aligns to the web design: footer LINE+submit, green pill submit, gradient quick cards, accordion FAQ", () => {
+    // The LINE help button moved from the header into a top-bordered footer next to submit.
+    expect(missingOrdersSource).toContain("formFooter");
+    expect(missingOrdersSource).toContain("borderTopColor: colors.border");
+    // Submit is a green pill (rounded-full), not a md-radius rectangle.
+    expect(missingOrdersSource).toContain("borderRadius: 999");
+    // Quick-card art uses the web's radial mint→white→grey wash.
+    expect(missingOrdersSource).toContain("radial-gradient");
+    // FAQ is a state-driven accordion (web parity), not a static first-answer.
+    expect(missingOrdersSource).toContain("setOpenIndex");
   });
 });

@@ -11,14 +11,21 @@ import {
 import { ChevronUp as ChevronUpIcon } from "@mobile/theme/icons";
 import type { IconComponent } from "@mobile/theme/icons";
 import { useState } from "react";
-import { Image, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { Image, Modal, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
 import profileAvatarImage from "../../assets/profile-avatar.png";
 import questBannerImage from "../../assets/quest-banner-en.png";
 import questHowToEarnImage from "../../assets/quest-how-to-earn-en.png";
 import questPromoImage from "../../assets/quest-banner2.png";
+import questRank1 from "../../assets/quest-rank/rank1.png";
+import questRank2 from "../../assets/quest-rank/rank2.png";
+import questRank3 from "../../assets/quest-rank/rank3.png";
+import questRank4 from "../../assets/quest-rank/rank4.png";
+import questRank5 from "../../assets/quest-rank/rank5.png";
+import questRank6to10 from "../../assets/quest-rank/rank6_10.png";
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { QuestCoinIcon } from "@mobile/components/QuestCoinIcon";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { haptics } from "@mobile/lib/haptics";
 import {
@@ -178,7 +185,19 @@ function TaskPointsPill({ points }: { points: string }) {
   );
 }
 
-function QuestMyRankCard() {
+type QuestMyRankData = {
+  rankLabel: string;
+  rankValue: string;
+  pointsLabel: string;
+  pointsValue: string;
+  viewPointsLabel: string;
+  spendingLabel: string;
+  spendingValue: string;
+  specialTasksLabel: string;
+  specialTasksValue: string;
+};
+
+function QuestMyRankCard({ data = webQuestMyRank }: { data?: QuestMyRankData }) {
   const tc = useCopy();
   const [expanded, setExpanded] = useState(false);
   return (
@@ -186,18 +205,18 @@ function QuestMyRankCard() {
       <View style={styles.myRankCard}>
         <View style={styles.myRankColumn}>
           <Text numberOfLines={1} style={styles.myRankLabel}>
-            {tc(webQuestMyRank.rankLabel)}
+            {tc(data.rankLabel)}
           </Text>
           <View style={styles.myRankValueWrap}>
-            <Text style={styles.myRankValue}>{webQuestMyRank.rankValue}</Text>
+            <Text style={styles.myRankValue}>{data.rankValue}</Text>
           </View>
         </View>
         <View style={styles.myRankColumn}>
           <Text numberOfLines={1} style={styles.myRankLabel}>
-            {tc(webQuestMyRank.pointsLabel)}
+            {tc(data.pointsLabel)}
           </Text>
           <View style={styles.myRankValueWrap}>
-            <Text style={styles.myRankValue}>{webQuestMyRank.pointsValue}</Text>
+            <Text style={styles.myRankValue}>{data.pointsValue}</Text>
           </View>
         </View>
       </View>
@@ -212,7 +231,7 @@ function QuestMyRankCard() {
         style={styles.viewPointsButton}
       >
         <Text numberOfLines={1} style={styles.viewPointsText}>
-          {tc(webQuestMyRank.viewPointsLabel)}
+          {tc(data.viewPointsLabel)}
         </Text>
         <ChevronUpIcon
           color={colors.primary}
@@ -224,13 +243,13 @@ function QuestMyRankCard() {
       {expanded ? (
         <View style={styles.myRankBreakdown}>
           <View style={styles.myRankBreakdownColumn}>
-            <Text style={styles.myRankBreakdownLabel}>{tc(webQuestMyRank.spendingLabel)}</Text>
-            <Text style={styles.myRankBreakdownValue}>{webQuestMyRank.spendingValue}</Text>
+            <Text style={styles.myRankBreakdownLabel}>{tc(data.spendingLabel)}</Text>
+            <Text style={styles.myRankBreakdownValue}>{data.spendingValue}</Text>
           </View>
           <Text style={styles.myRankBreakdownPlus}>+</Text>
           <View style={styles.myRankBreakdownColumn}>
-            <Text style={styles.myRankBreakdownLabel}>{tc(webQuestMyRank.specialTasksLabel)}</Text>
-            <Text style={styles.myRankBreakdownValue}>{webQuestMyRank.specialTasksValue}</Text>
+            <Text style={styles.myRankBreakdownLabel}>{tc(data.specialTasksLabel)}</Text>
+            <Text style={styles.myRankBreakdownValue}>{data.specialTasksValue}</Text>
           </View>
         </View>
       ) : null}
@@ -266,21 +285,32 @@ function QuestLeaderboardPanel({ mediaColumnWidth }: { mediaColumnWidth: number 
             </MotionPressable>
           </Link>
         </View>
-        <QuestRankRows />
+        <QuestRankRows
+          rows={webQuestLeaderboardRows.map((row) => ({
+            key: row.name,
+            name: row.name,
+            points: row.points,
+          }))}
+        />
       </View>
     </View>
   );
 }
 
-// Web shows distinct rank trophies per place (rank1/2/3 = gold/silver/bronze medal PNGs, then
-// rank4/5). Mirror that hierarchy with tinted trophies so the podium reads at a glance.
-const rankTrophyTints = ["#F4B740", "#A9B4C2", "#C8803D"] as const;
+// Web parity: rendered trophy PNGs per place (public/quest/rank{1..5}.png + rank6_10.png),
+// not a tinted flat icon. Index 0-4 map to rank1-5; rank 6+ shares rank6_10.
+const rankTrophyImages = [questRank1, questRank2, questRank3, questRank4, questRank5] as const;
 
 function RankTrophy({ index }: { index: number }) {
-  const tint = rankTrophyTints[index] ?? colors.textSoft;
+  const source = rankTrophyImages[index] ?? questRank6to10;
   return (
     <View style={styles.rankTrophy}>
-      <TrophyIcon color={tint} size={24} strokeWidth={typography.iconStrokeWidth} />
+      <Image
+        alt={`rank ${index + 1} trophy`}
+        resizeMode="contain"
+        source={source}
+        style={styles.rankTrophyImage}
+      />
     </View>
   );
 }
@@ -334,7 +364,101 @@ function ExploreOtherShops() {
   );
 }
 
-const QUEST_HISTORY_LEADERBOARD_PERIODS = ["This round", "May 2025", "April 2025"] as const;
+const QUEST_HISTORY_LEADERBOARD_PERIODS = [
+  "This round",
+  "March 2026",
+  "February 2026",
+  "January 2026",
+] as const;
+
+// Static mock quest-history data (web parity: src/mocks/homeApi.ts mock-mode fixtures). No live data here.
+const QUEST_HISTORY_MOCK = {
+  periodRange: "March 1 – March 31, 2026",
+  daysLeft: "4 days left in this round",
+  score: "940",
+  monthly: [
+    { month: "March 2026", points: 520 },
+    { month: "February 2026", points: 380 },
+    { month: "January 2026", points: 210 },
+  ],
+  rewards: [
+    {
+      id: "reward-1",
+      title: "March top-10 bonus",
+      description: "Campaign leaderboard reward",
+      date: "Mar 20, 2026",
+      points: 80,
+      isNew: true,
+    },
+    {
+      id: "reward-2",
+      title: "Social share milestone",
+      description: "",
+      date: "Mar 12, 2026",
+      points: 25,
+      isNew: false,
+    },
+    {
+      id: "reward-3",
+      title: "Spend bonus over 300",
+      description: "",
+      date: "Feb 28, 2026",
+      points: 30,
+      isNew: false,
+    },
+  ],
+} as const;
+const QUEST_HISTORY_MONTHLY_MAX = Math.max(...QUEST_HISTORY_MOCK.monthly.map((row) => row.points));
+
+// Full mock leaderboard (web parity: src/mocks/homeApi.ts getMockQuestLeaderboard). The active user
+// "Demo Shopper" sits at rank 4 with 940 pts. Usernames are stored in full and truncated at render.
+const QUEST_HISTORY_LEADERBOARD = [
+  { id: "rank-1", name: "StarHunter", points: 2100, rank: 1 },
+  { id: "rank-2", name: "LunaMint", points: 1840, rank: 2 },
+  { id: "rank-3", name: "QuestKid", points: 1590, rank: 3 },
+  { id: "rank-4", name: "Demo Shopper", points: 940, rank: 4 },
+  { id: "rank-5", name: "NeoShop", points: 720, rank: 5 },
+  { id: "rank-6", name: "PixelPilot", points: 695, rank: 6 },
+  { id: "rank-7", name: "CashFlowCat", points: 672, rank: 7 },
+  { id: "rank-8", name: "TurboSaver", points: 648, rank: 8 },
+  { id: "rank-9", name: "MintMarathon", points: 625, rank: 9 },
+  { id: "rank-10", name: "ShopHunter88", points: 601, rank: 10 },
+  { id: "rank-11", name: "BonusBuilder", points: 578, rank: 11 },
+  { id: "rank-12", name: "QuestNova", points: 554, rank: 12 },
+  { id: "rank-13", name: "DealDrifter", points: 531, rank: 13 },
+  { id: "rank-14", name: "RewardRider", points: 508, rank: 14 },
+  { id: "rank-15", name: "TierTrader", points: 484, rank: 15 },
+  { id: "rank-16", name: "CashbackAce", points: 461, rank: 16 },
+  { id: "rank-17", name: "OfferOptIn", points: 438, rank: 17 },
+  { id: "rank-18", name: "StackStar", points: 414, rank: 18 },
+  { id: "rank-19", name: "PointsPanda", points: 391, rank: 19 },
+  { id: "rank-20", name: "SwiftShopper", points: 368, rank: 20 },
+] as const;
+
+type QuestHistoryPlayer = (typeof QUEST_HISTORY_LEADERBOARD)[number];
+
+// Active user's My Rank (web mock: rank 4, 940 pts = 725 spending + 215 special tasks). Labels reuse
+// the shared webQuestMyRank fixture; only the values are overridden for the history view.
+const QUEST_HISTORY_MY_RANK = {
+  ...webQuestMyRank,
+  rankValue: "4th",
+  pointsValue: "940",
+  spendingValue: "725",
+  specialTasksValue: "215",
+};
+
+// Thousands separator (e.g. 2100 -> "2,100").
+function formatPoints(value: number): string {
+  return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+// Privacy-shortened username (web parity: <=11 chars -> first3...last3, else first6...last6).
+function truncateQuestName(username: string): string {
+  const name = username.trim();
+  return name.length <= 11
+    ? `${name.slice(0, 3)}...${name.slice(-3)}`
+    : `${name.slice(0, 6)}...${name.slice(-6)}`;
+}
 
 // Static-mock interpolation for the web's ICU {placeholder} copy (this build has no live quest data).
 function fillTemplate(template: string, vars: Record<string, string>): string {
@@ -344,13 +468,24 @@ function fillTemplate(template: string, vars: Record<string, string>): string {
   );
 }
 
+type QuestRankDisplayRow = { key: string; name: string; points: string };
+
 // Reusable leaderboard rank rows — shared by the /quest tab panel and the history leaderboard.
-function QuestRankRows() {
+// When onView + viewLabel are supplied, each row gets a "View" button (history leaderboard).
+function QuestRankRows({
+  rows,
+  onView,
+  viewLabel,
+}: {
+  rows: QuestRankDisplayRow[];
+  onView?: (index: number) => void;
+  viewLabel?: string;
+}) {
   const tc = useCopy();
   return (
     <>
-      {webQuestLeaderboardRows.map((row, index) => (
-        <View key={row.name} style={styles.rankRow}>
+      {rows.map((row, index) => (
+        <View key={row.key} style={styles.rankRow}>
           <Image
             alt={`${row.name} ${tc("avatar")}`}
             source={profileAvatarImage}
@@ -361,9 +496,20 @@ function QuestRankRows() {
           </Text>
           <RankTrophy index={index} />
           <View style={styles.rankPointRow}>
-            <CoinIcon color={colors.primary} size={18} strokeWidth={typography.iconStrokeWidth} />
+            <QuestCoinIcon size={18} />
             <Text style={styles.rankPoint}>{row.points}</Text>
           </View>
+          {onView && viewLabel ? (
+            <MotionPressable
+              accessibilityRole="button"
+              hitSlop={8}
+              onPress={() => onView(index)}
+              pressScale={0.97}
+              style={styles.rankViewButton}
+            >
+              <Text style={styles.rankViewText}>{viewLabel}</Text>
+            </MotionPressable>
+          ) : null}
         </View>
       ))}
     </>
@@ -374,19 +520,27 @@ function QuestRankRows() {
 // since this build has no live monthly data.
 function QuestHistoryInsight() {
   const tc = useCopy();
+  // Derive the insight from the mock monthly data so it stays consistent (recent vs previous month).
+  const [recentMonth, olderMonth] = QUEST_HISTORY_MOCK.monthly;
+  const percent = Math.round(((recentMonth.points - olderMonth.points) / olderMonth.points) * 100);
+  const activeMonths = QUEST_HISTORY_MOCK.monthly.filter((row) => row.points > 0).length;
   return (
     <View style={styles.historyInsightCard}>
       <Text style={styles.historyInsightTitle}>{tc("A quick read on your months")}</Text>
       <Text style={styles.historyInsightBody}>
         {fillTemplate(
           tc("You earned about {percent}% more points in {recentMonth} than in {olderMonth}."),
-          { percent: "15", recentMonth: "May 2025", olderMonth: "April 2025" },
+          {
+            percent: String(percent),
+            recentMonth: recentMonth.month,
+            olderMonth: olderMonth.month,
+          },
         )}
       </Text>
       <Text style={styles.historyInsightStrip}>
         {fillTemplate(tc("You picked up quest points in {active} of the last {total} months."), {
-          active: "2",
-          total: "3",
+          active: String(activeMonths),
+          total: String(QUEST_HISTORY_MOCK.monthly.length),
         })}
       </Text>
     </View>
@@ -399,6 +553,13 @@ function QuestHistoryLeaderboard() {
   const tc = useCopy();
   const [selectedPeriod, setSelectedPeriod] = useState<string>(QUEST_HISTORY_LEADERBOARD_PERIODS[0]);
   const periodLabel = (period: string) => (period === "This round" ? tc("This round") : period);
+  const [viewPlayer, setViewPlayer] = useState<QuestHistoryPlayer | null>(null);
+  // Web parity: the leaderboard table lists only the top 10 ranks.
+  const rankRows = QUEST_HISTORY_LEADERBOARD.slice(0, 10).map((row) => ({
+    key: row.id,
+    name: truncateQuestName(row.name),
+    points: formatPoints(row.points),
+  }));
 
   return (
     <View style={styles.historySection}>
@@ -428,14 +589,73 @@ function QuestHistoryLeaderboard() {
           })}
         </View>
         <Text style={styles.historyPickerSelected}>
-          {fillTemplate(tc("You are viewing: {period}"), { period: periodLabel(selectedPeriod) })}
+          {fillTemplate(tc("You are viewing: {period}"), {
+            period: selectedPeriod === "This round" ? QUEST_HISTORY_MOCK.periodRange : selectedPeriod,
+          })}
         </Text>
       </View>
-      <QuestMyRankCard />
+      <QuestMyRankCard data={QUEST_HISTORY_MY_RANK} />
       <View style={styles.leaderboardCard}>
-        <QuestRankRows />
+        <QuestRankRows
+          onView={(index) => setViewPlayer(QUEST_HISTORY_LEADERBOARD[index])}
+          rows={rankRows}
+          viewLabel={tc("View")}
+        />
       </View>
+      <QuestPlayerSummaryDialog onClose={() => setViewPlayer(null)} player={viewPlayer} />
     </View>
+  );
+}
+
+// Per-player summary dialog (web parity: GogoquestPlayerSummaryDialog) — an RN Modal opened from a
+// row's "View" button; shows the player's rank, points, and rewards for the selected period.
+function QuestPlayerSummaryDialog({
+  player,
+  onClose,
+}: {
+  player: QuestHistoryPlayer | null;
+  onClose: () => void;
+}) {
+  const tc = useCopy();
+  if (!player) {
+    return null;
+  }
+  return (
+    <Modal animationType="fade" onRequestClose={onClose} transparent visible>
+      <MotionPressable
+        hoverLift={false}
+        onPress={onClose}
+        pressScale={1}
+        style={styles.dialogOverlay}
+      >
+        <View onStartShouldSetResponder={() => true} style={styles.dialogCard}>
+          <View style={styles.dialogHeader}>
+            <Text style={styles.dialogTitle}>{tc("Player quest summary")}</Text>
+            <MotionPressable
+              accessibilityRole="button"
+              hitSlop={8}
+              onPress={onClose}
+              pressScale={0.97}
+            >
+              <Text style={styles.dialogClose}>{tc("Close")}</Text>
+            </MotionPressable>
+          </View>
+          <Text style={styles.dialogPlayerName}>{truncateQuestName(player.name)}</Text>
+          <View style={styles.dialogStatsRow}>
+            <View style={styles.dialogStat}>
+              <Text style={styles.dialogStatLabel}>{tc("Rank")}</Text>
+              <Text style={styles.dialogStatValue}>{player.rank}</Text>
+            </View>
+            <View style={styles.dialogStat}>
+              <Text style={styles.dialogStatLabel}>{tc("Points")}</Text>
+              <Text style={styles.dialogStatValue}>{formatPoints(player.points)}</Text>
+            </View>
+          </View>
+          <Text style={styles.dialogRewardsTitle}>{tc("Rewards this period")}</Text>
+          <Text style={styles.dialogNoRewards}>{tc("No rewards recorded for this period.")}</Text>
+        </View>
+      </MotionPressable>
+    </Modal>
   );
 }
 
@@ -466,9 +686,7 @@ function QuestHistoryView() {
             </Link>
             <Link asChild href="/brand">
               <MotionPressable pressScale={0.98} style={styles.historyPlanCtaPrimary}>
-                <Text style={styles.historyPlanCtaPrimaryText}>
-                  {tc(webQuestHistory.planCtaBrowseShort)}
-                </Text>
+                <Text style={styles.historyPlanCtaPrimaryText}>{tc("Brands")}</Text>
               </MotionPressable>
             </Link>
           </View>
@@ -482,11 +700,14 @@ function QuestHistoryView() {
         <View style={styles.historyCampaignCard}>
           <View style={styles.historyCampaignColumn}>
             <Text style={styles.historyCampaignLabel}>{tc(webQuestHistory.periodLabel)}</Text>
-            <Text style={styles.historyCampaignPeriod}>{tc(webQuestHistory.periodPending)}</Text>
+            <Text style={styles.historyCampaignPeriod}>{QUEST_HISTORY_MOCK.periodRange}</Text>
+            <View style={styles.historyDaysLeftBadge}>
+              <Text style={styles.historyDaysLeftText}>{QUEST_HISTORY_MOCK.daysLeft}</Text>
+            </View>
           </View>
           <View style={styles.historyScoreCard}>
             <Text style={styles.historyCampaignLabel}>{tc(webQuestHistory.yourScoreLabel)}</Text>
-            <Text style={styles.historySignInHint}>{tc(webQuestHistory.signInHint)}</Text>
+            <Text style={styles.historyScoreValue}>{QUEST_HISTORY_MOCK.score}</Text>
             <Text style={styles.historyScoreFootnote}>{tc(webQuestHistory.scoreFootnote)}</Text>
           </View>
         </View>
@@ -495,21 +716,62 @@ function QuestHistoryView() {
       {/* A quick read on your months (web parity: GogoquestHistoryInsightSection) */}
       <QuestHistoryInsight />
 
-      {/* Monthly points — empty state */}
+      {/* Your points by month — mock data with proportional bars (web parity) */}
       <View style={styles.historySection}>
         <Text style={styles.historySectionTitle}>{tc(webQuestHistory.monthlySection)}</Text>
         <Text style={styles.historySectionHint}>{tc(webQuestHistory.monthlySectionHint)}</Text>
-        <View style={styles.historyEmptyCard}>
-          <Text style={styles.historyEmptyText}>{tc(webQuestHistory.emptyMonthly)}</Text>
+        <View style={styles.historyMonthlyCard}>
+          {QUEST_HISTORY_MOCK.monthly.map((row) => (
+            <View key={row.month} style={styles.historyMonthlyRow}>
+              <Text numberOfLines={1} style={styles.historyMonthlyLabel}>
+                {row.month}
+              </Text>
+              <View style={styles.historyMonthlyBarTrack}>
+                <View
+                  style={[
+                    styles.historyMonthlyBarFill,
+                    { width: `${Math.round((row.points / QUEST_HISTORY_MONTHLY_MAX) * 100)}%` },
+                  ]}
+                />
+              </View>
+              <Text style={styles.historyMonthlyPoints}>
+                {`${row.points} ${tc(webQuestHistory.pointsSuffix)}`}
+              </Text>
+            </View>
+          ))}
         </View>
       </View>
 
-      {/* Rewards — empty state */}
+      {/* Bonuses you earned — mock data (web parity) */}
       <View style={styles.historySection}>
         <Text style={styles.historySectionTitle}>{tc(webQuestHistory.rewardsSection)}</Text>
         <Text style={styles.historySectionHint}>{tc(webQuestHistory.rewardsSectionHint)}</Text>
-        <View style={styles.historyEmptyCard}>
-          <Text style={styles.historyEmptyText}>{tc(webQuestHistory.emptyRewards)}</Text>
+        <View style={styles.historyRewardsCard}>
+          {QUEST_HISTORY_MOCK.rewards.map((reward) => (
+            <View key={reward.id} style={styles.historyRewardRow}>
+              <View style={styles.historyRewardInfo}>
+                <View style={styles.historyRewardTitleRow}>
+                  <Text numberOfLines={1} style={styles.historyRewardTitle}>
+                    {reward.title}
+                  </Text>
+                  {reward.isNew ? (
+                    <View style={styles.historyRewardNewBadge}>
+                      <Text style={styles.historyRewardNewText}>{tc("New")}</Text>
+                    </View>
+                  ) : null}
+                </View>
+                {reward.description ? (
+                  <Text style={styles.historyRewardDesc}>{reward.description}</Text>
+                ) : null}
+                <Text style={styles.historyRewardDate}>{reward.date}</Text>
+              </View>
+              <View style={styles.historyRewardPointsPill}>
+                <Text style={styles.historyRewardPoints}>
+                  {`+${reward.points} ${tc(webQuestHistory.pointsSuffix)}`}
+                </Text>
+              </View>
+            </View>
+          ))}
         </View>
       </View>
 
@@ -676,21 +938,130 @@ const styles = StyleSheet.create({
     fontSize: typography.caption,
     lineHeight: 16,
   },
-  historyEmptyCard: {
-    backgroundColor: colors.background,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    borderStyle: "dashed",
-    borderWidth: 1,
-    marginTop: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.lg,
+  historyDaysLeftBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: "#E6FAF5",
+    borderRadius: radii.chip,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
   },
-  historyEmptyText: {
+  historyDaysLeftText: {
+    color: "#007D5E",
+    fontFamily: typography.family,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  historyScoreValue: {
+    color: colors.accent,
+    fontFamily: typography.family,
+    fontSize: 32,
+    fontWeight: "700",
+  },
+  historyMonthlyCard: {
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    gap: spacing.md,
+    marginTop: spacing.xs,
+    padding: spacing.lg,
+  },
+  historyMonthlyRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  historyMonthlyLabel: {
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: 13,
+    width: 96,
+  },
+  historyMonthlyBarTrack: {
+    backgroundColor: colors.background,
+    borderRadius: radii.chip,
+    flex: 1,
+    height: 10,
+    overflow: "hidden",
+  },
+  historyMonthlyBarFill: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.chip,
+    height: "100%",
+  },
+  historyMonthlyPoints: {
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: 13,
+    fontWeight: "600",
+    textAlign: "right",
+    width: 64,
+  },
+  historyRewardsCard: {
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    gap: spacing.md,
+    marginTop: spacing.xs,
+    padding: spacing.lg,
+  },
+  historyRewardRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.md,
+    justifyContent: "space-between",
+  },
+  historyRewardInfo: {
+    flex: 1,
+    gap: 2,
+    minWidth: 0,
+  },
+  historyRewardTitleRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  historyRewardTitle: {
+    color: colors.ink,
+    flexShrink: 1,
+    fontFamily: typography.family,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  historyRewardNewBadge: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.chip,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+  },
+  historyRewardNewText: {
+    color: colors.white,
+    fontFamily: typography.family,
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  historyRewardDesc: {
     color: colors.muted,
     fontFamily: typography.family,
-    fontSize: typography.body,
-    lineHeight: 21,
+    fontSize: 12,
+  },
+  historyRewardDate: {
+    color: colors.textSoft,
+    fontFamily: typography.family,
+    fontSize: 12,
+  },
+  historyRewardPointsPill: {
+    backgroundColor: "#E8FBF5",
+    borderRadius: radii.chip,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+  },
+  historyRewardPoints: {
+    color: colors.primaryDark,
+    fontFamily: typography.family,
+    fontSize: 14,
+    fontWeight: "700",
   },
   historyInsightCard: {
     backgroundColor: "#F6FDFB",
@@ -1022,6 +1393,96 @@ const styles = StyleSheet.create({
   rankTrophy: {
     alignItems: "center",
     justifyContent: "center",
+  },
+  rankTrophyImage: {
+    height: 48,
+    width: 44,
+  },
+  rankViewButton: {
+    borderColor: "rgba(0, 170, 128, 0.4)",
+    borderRadius: radii.md,
+    borderWidth: 1,
+    minHeight: 36,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+  },
+  rankViewText: {
+    color: "#00AA80",
+    fontFamily: typography.family,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  dialogOverlay: {
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
+    flex: 1,
+    justifyContent: "center",
+    padding: spacing.lg,
+  },
+  dialogCard: {
+    backgroundColor: colors.white,
+    borderRadius: radii.lg,
+    gap: spacing.md,
+    maxWidth: 420,
+    padding: spacing.lg,
+    width: "100%",
+  },
+  dialogHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  dialogTitle: {
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  dialogClose: {
+    color: colors.muted,
+    fontFamily: typography.family,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  dialogPlayerName: {
+    color: colors.accent,
+    fontFamily: typography.family,
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  dialogStatsRow: {
+    flexDirection: "row",
+    gap: spacing.md,
+  },
+  dialogStat: {
+    backgroundColor: colors.background,
+    borderRadius: radii.md,
+    flex: 1,
+    gap: spacing.xs,
+    padding: spacing.md,
+  },
+  dialogStatLabel: {
+    color: colors.muted,
+    fontFamily: typography.family,
+    fontSize: 12,
+  },
+  dialogStatValue: {
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: 22,
+    fontWeight: "700",
+  },
+  dialogRewardsTitle: {
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  dialogNoRewards: {
+    color: colors.muted,
+    fontFamily: typography.family,
+    fontSize: 13,
+    lineHeight: 18,
   },
   rankPointRow: {
     alignItems: "center",

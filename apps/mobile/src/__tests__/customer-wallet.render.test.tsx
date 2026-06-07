@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { createElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 // CustomerWalletScreen pulls in AccountPageShell -> CustomerDesktopHeader ->
@@ -59,8 +59,47 @@ describe("CustomerWalletScreen (render)", () => {
     renderScreen();
     // The screen header title appears (WalletHeader + AccountPageShell title both use it).
     expect(screen.getAllByText("My Wallet").length).toBeGreaterThan(0);
-    // The empty-transactions illustration copy (webWalletEmptyState.title) proves the
-    // transactions area — where the RefreshControl lives — actually mounted.
+    // The transactions area now mounts with mock rows on the default "All" tab — a row brand
+    // proves it mounted (the empty-state copy still lives in source for the filtered-to-zero case).
+    expect(screen.getByText("Glow Theory")).toBeTruthy();
+  });
+
+  it("tabs are functional: switching to Earning filters out withdraw rows", () => {
+    renderScreen();
+    // All tab at mount shows a withdraw row.
+    expect(screen.getByText("Withdraw to PromptPay")).toBeTruthy();
+    // Activate the Earning tab → withdraw rows are filtered out, earn rows remain.
+    fireEvent.click(screen.getByText("Earning Transactions"));
+    expect(screen.queryByText("Withdraw to PromptPay")).toBeNull();
+    expect(screen.getByText("Glow Theory")).toBeTruthy();
+    // Switch to Withdraw → only withdraw rows; the earn row is gone.
+    fireEvent.click(screen.getByText("Withdraw Transactions"));
+    expect(screen.getByText("Withdraw to PromptPay")).toBeTruthy();
+    expect(screen.queryByText("Glow Theory")).toBeNull();
+  });
+
+  it("search filters the rows by substring", () => {
+    renderScreen();
+    expect(screen.getByText("Glow Theory")).toBeTruthy();
+    fireEvent.change(screen.getByPlaceholderText("Search"), { target: { value: "Bloom" } });
+    expect(screen.getByText("Bloom & Beam")).toBeTruthy();
+    expect(screen.queryByText("Glow Theory")).toBeNull();
+  });
+
+  it("status filter cycles and filters the rows", () => {
+    renderScreen();
+    // A pending row is visible on All.
+    expect(screen.getByText("Orbit Airways")).toBeTruthy();
+    // Cycle the Status pill once → Success → pending rows drop, success rows remain.
+    fireEvent.click(screen.getByText("Status"));
+    expect(screen.getByText("Glow Theory")).toBeTruthy();
+    expect(screen.queryByText("Orbit Airways")).toBeNull();
+  });
+
+  it("shows the empty state when filters match no rows", () => {
+    renderScreen();
+    fireEvent.change(screen.getByPlaceholderText("Search"), { target: { value: "zzz-no-match" } });
+    expect(screen.queryByText("Glow Theory")).toBeNull();
     expect(screen.getByText("It's been a while since your last wallet visit.")).toBeTruthy();
   });
 });
@@ -95,5 +134,25 @@ describe("CustomerWalletScreen — Wave B foundations adopted (source signals)",
     expect(walletSource).toContain('walletResource.status !== "ready"');
     expect(walletSource).toContain("WalletSkeleton");
     expect(walletSource).toContain("loadingSkeleton={<WalletSkeleton");
+  });
+
+  it("has state-driven transaction tabs + mock rows (all cases) + working Search/Status/Date filters", () => {
+    // Tabs switch via state (not hardcoded index 0) and filter the mock rows by kind.
+    expect(walletSource).toContain("setActiveTab");
+    expect(walletSource).not.toContain("index === 0 ? styles.tabButtonActive");
+    expect(walletSource).toContain("WALLET_TX_ROWS");
+    // Mock covers earning + withdraw × success / pending / failed.
+    expect(walletSource).toContain('kind: "withdraw"');
+    expect(walletSource).toContain('status: "pending"');
+    expect(walletSource).toContain('status: "failed"');
+    // Working Search (TextInput) + Status + Date Range filters.
+    expect(walletSource).toContain("TextInput");
+    expect(walletSource).toContain("setSearch");
+    expect(walletSource).toContain("setStatusFilter");
+    expect(walletSource).toContain("setDateDays");
+    // Tab focus ring suppressed (web parity: outline-none).
+    expect(walletSource).toContain('outlineColor: "transparent"');
+    // Empty-state copy stays in source for the filtered-to-zero case.
+    expect(walletSource).toContain("webWalletEmptyState.title");
   });
 });
