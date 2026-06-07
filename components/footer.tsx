@@ -11,10 +11,14 @@ import {
 import { SOCIAL_ICONS } from "@/components/social-data";
 import SocialIcon from "@/components/social-icon";
 import { CookieSettingsButton } from "@/components/cookie-settings-button";
+import NewsletterSignup from "@/components/newsletter-signup";
 import { FOOTER_LINKS, FOOTER_TRUST_ROW_COLUMN } from "@/lib/footer-links";
+import { newsletterSignupConfig } from "@/lib/app-config";
 
 export default function Footer() {
   const year = new Date().getFullYear();
+  const newsletterConfig = newsletterSignupConfig();
+
   return (
     <footer role="contentinfo" className="bg-white pt-20 pb-8">
       <div className="mx-auto min-w-0 max-w-site px-4 sm:px-6 lg:px-8">
@@ -29,6 +33,9 @@ export default function Footer() {
             >
               <GoGoCashLogo variant="color" />
             </Link>
+            <div className="mt-8">
+              <NewsletterSignup config={newsletterConfig} />
+            </div>
           </div>
 
           {/* Right: Link columns */}

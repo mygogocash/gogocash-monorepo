@@ -57,6 +57,12 @@ jobs:
         env:
           INVOLVE_ASIA_API_KEY: ${{ secrets.INVOLVE_ASIA_API_KEY }}
           INVOLVE_ASIA_API_SECRET: ${{ secrets.INVOLVE_ASIA_API_SECRET }}
+          # Optional footer newsletter provider form endpoint + field mapping.
+          NEXT_PUBLIC_NEWSLETTER_FORM_ACTION: ${{ vars.NEXT_PUBLIC_NEWSLETTER_FORM_ACTION }}
+          NEXT_PUBLIC_NEWSLETTER_EMAIL_FIELD: ${{ vars.NEXT_PUBLIC_NEWSLETTER_EMAIL_FIELD }}
+          NEXT_PUBLIC_NEWSLETTER_CONSENT_FIELD: ${{ vars.NEXT_PUBLIC_NEWSLETTER_CONSENT_FIELD }}
+          NEXT_PUBLIC_NEWSLETTER_SOURCE_FIELD: ${{ vars.NEXT_PUBLIC_NEWSLETTER_SOURCE_FIELD }}
+          NEXT_PUBLIC_NEWSLETTER_SOURCE_VALUE: ${{ vars.NEXT_PUBLIC_NEWSLETTER_SOURCE_VALUE }}
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium webkit

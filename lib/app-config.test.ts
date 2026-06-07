@@ -8,6 +8,7 @@ import {
   publicFirebaseConfig,
   publicFirebaseMeasurementId,
   publicLineTagId,
+  newsletterSignupConfig,
   publicPostHogHost,
   shouldLoadPostHog,
   strapiBaseUrl,
@@ -110,5 +111,49 @@ describe("app-config", () => {
 
     process.env.NEXT_PUBLIC_POSTHOG_HOST = "https://eu.i.posthog.com";
     assert.equal(publicPostHogHost(), "https://eu.i.posthog.com");
+  });
+
+  it("leaves newsletter signup disconnected until a provider action is set", () => {
+    delete process.env.NEXT_PUBLIC_NEWSLETTER_FORM_ACTION;
+
+    assert.deepEqual(newsletterSignupConfig(), {
+      actionUrl: null,
+      emailField: "email",
+      consentField: "pdpa_consent",
+      sourceField: "source",
+      sourceValue: "footer",
+    });
+  });
+
+  it("normalizes newsletter provider action and field names", () => {
+    process.env.NEXT_PUBLIC_NEWSLETTER_FORM_ACTION =
+      " https://email.example.com/forms/signup ";
+    process.env.NEXT_PUBLIC_NEWSLETTER_EMAIL_FIELD = "EMAIL";
+    process.env.NEXT_PUBLIC_NEWSLETTER_CONSENT_FIELD = "consent[gdpr]";
+    process.env.NEXT_PUBLIC_NEWSLETTER_SOURCE_FIELD = "meta-source";
+    process.env.NEXT_PUBLIC_NEWSLETTER_SOURCE_VALUE = "footer-newsletter";
+
+    assert.deepEqual(newsletterSignupConfig(), {
+      actionUrl: "https://email.example.com/forms/signup",
+      emailField: "EMAIL",
+      consentField: "consent[gdpr]",
+      sourceField: "meta-source",
+      sourceValue: "footer-newsletter",
+    });
+  });
+
+  it("rejects invalid newsletter provider config", () => {
+    process.env.NEXT_PUBLIC_NEWSLETTER_FORM_ACTION = "not a url";
+    process.env.NEXT_PUBLIC_NEWSLETTER_EMAIL_FIELD = "bad field";
+    process.env.NEXT_PUBLIC_NEWSLETTER_CONSENT_FIELD = "";
+    process.env.NEXT_PUBLIC_NEWSLETTER_SOURCE_FIELD = "source<script>";
+
+    assert.deepEqual(newsletterSignupConfig(), {
+      actionUrl: null,
+      emailField: "email",
+      consentField: "pdpa_consent",
+      sourceField: "source",
+      sourceValue: "footer",
+    });
   });
 });

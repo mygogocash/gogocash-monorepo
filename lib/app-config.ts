@@ -31,6 +31,12 @@ function readTrimmedEnv(name: string): string | null {
   return value ? value : null;
 }
 
+function readValidFormFieldEnv(name: string, fallback: string): string {
+  const value = readTrimmedEnv(name);
+  if (!value) return fallback;
+  return /^[A-Za-z0-9_.[\]-]{1,80}$/.test(value) ? value : fallback;
+}
+
 function firstValidUrl(candidates: Array<string | null>): string {
   for (const candidate of candidates) {
     if (!candidate) continue;
@@ -41,6 +47,18 @@ function firstValidUrl(candidates: Array<string | null>): string {
     }
   }
   return DEFAULT_SITE_URL;
+}
+
+function firstValidOptionalUrl(candidates: Array<string | null>): string | null {
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    try {
+      return new URL(candidate).toString();
+    } catch {
+      /* try next candidate */
+    }
+  }
+  return null;
 }
 
 export function marketingSiteUrl(): string {
@@ -130,6 +148,41 @@ export function shouldLoadPostHog(): boolean {
   if (override === "false") return false;
   if (override === "true") return true;
   return isMarketingAnalyticsEnabled();
+}
+
+export type NewsletterSignupConfig = {
+  actionUrl: string | null;
+  emailField: string;
+  consentField: string;
+  sourceField: string;
+  sourceValue: string;
+};
+
+/**
+ * Public footer newsletter form config. The action URL should be a hosted
+ * provider form endpoint (Mailchimp, Brevo, Customer.io, etc.) that accepts
+ * browser POSTs; no secret API keys belong in `NEXT_PUBLIC_*` variables.
+ */
+export function newsletterSignupConfig(): NewsletterSignupConfig {
+  return {
+    actionUrl: firstValidOptionalUrl([
+      readTrimmedEnv("NEXT_PUBLIC_NEWSLETTER_FORM_ACTION"),
+    ]),
+    emailField: readValidFormFieldEnv(
+      "NEXT_PUBLIC_NEWSLETTER_EMAIL_FIELD",
+      "email",
+    ),
+    consentField: readValidFormFieldEnv(
+      "NEXT_PUBLIC_NEWSLETTER_CONSENT_FIELD",
+      "pdpa_consent",
+    ),
+    sourceField: readValidFormFieldEnv(
+      "NEXT_PUBLIC_NEWSLETTER_SOURCE_FIELD",
+      "source",
+    ),
+    sourceValue:
+      readTrimmedEnv("NEXT_PUBLIC_NEWSLETTER_SOURCE_VALUE") ?? "footer",
+  };
 }
 
 export function publicFirebaseMeasurementId(): string {
