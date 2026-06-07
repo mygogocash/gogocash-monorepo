@@ -4,8 +4,8 @@ import type { ReactNode } from "react";
 import { openCookiePreferences } from "@/lib/cookie-consent";
 
 /**
- * Footer "Cookie Settings" affordance (#7) — re-opens the consent banner so a
- * visitor can change a prior accept/reject decision.
+ * Footer "Cookie Settings" affordance (#7) — opens the preference centre so a
+ * visitor can change optional cookie categories.
  */
 export function CookieSettingsButton({
   className,

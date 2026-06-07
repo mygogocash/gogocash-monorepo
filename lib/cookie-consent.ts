@@ -1,6 +1,6 @@
 /**
- * Cookie consent state (issue #7 — PDPA/GDPR). Binary accept/reject: a single
- * decision gates all non-essential trackers (Firebase Analytics + LINE Tag).
+ * Cookie consent state (issue #7 — PDPA/GDPR). Category preferences gate
+ * optional trackers: analytics (Firebase + PostHog) and marketing (LINE Tag).
  * Client-only (static export has no server to enforce consent). Mirrors the
  * storage + CustomEvent pattern in `lib/locale-storage.ts`.
  */
@@ -13,14 +13,53 @@ export const COOKIE_CONSENT_EVENT = "gogocash:cookie-consent";
 export const COOKIE_CONSENT_OPEN_EVENT = "gogocash:cookie-consent-open";
 
 /** Bump to re-prompt everyone when the cookie categories materially change. */
-export const COOKIE_CONSENT_VERSION = 1;
+export const COOKIE_CONSENT_VERSION = 2;
+
+export type CookieConsentPreferences = {
+  analytics: boolean;
+  marketing: boolean;
+};
+
+export const DEFAULT_COOKIE_PREFERENCES: CookieConsentPreferences = {
+  analytics: false,
+  marketing: false,
+};
+
+export const ALL_COOKIE_PREFERENCES: CookieConsentPreferences = {
+  analytics: true,
+  marketing: true,
+};
 
 export type CookieConsent = {
   version: number;
-  /** true = analytics + marketing trackers allowed; false = rejected. */
-  accepted: boolean;
+  preferences: CookieConsentPreferences;
   decidedAt: string;
 };
+
+function parsePreferences(
+  value: unknown,
+): CookieConsentPreferences | null {
+  if (!value || typeof value !== "object") return null;
+  const maybe = value as Partial<CookieConsentPreferences>;
+  if (typeof maybe.analytics !== "boolean") return null;
+  if (typeof maybe.marketing !== "boolean") return null;
+  return {
+    analytics: maybe.analytics,
+    marketing: maybe.marketing,
+  };
+}
+
+function preferencesFromDecision(
+  value: boolean | CookieConsentPreferences,
+): CookieConsentPreferences {
+  if (typeof value === "boolean") {
+    return value ? { ...ALL_COOKIE_PREFERENCES } : { ...DEFAULT_COOKIE_PREFERENCES };
+  }
+  return {
+    analytics: value.analytics,
+    marketing: value.marketing,
+  };
+}
 
 /** Pure: validate a stored raw string into consent, or null if undecided/invalid/stale. */
 export function parseConsent(raw: string | null): CookieConsent | null {
@@ -28,10 +67,11 @@ export function parseConsent(raw: string | null): CookieConsent | null {
   try {
     const parsed = JSON.parse(raw) as Partial<CookieConsent>;
     if (parsed.version !== COOKIE_CONSENT_VERSION) return null;
-    if (typeof parsed.accepted !== "boolean") return null;
+    const preferences = parsePreferences(parsed.preferences);
+    if (!preferences) return null;
     return {
       version: COOKIE_CONSENT_VERSION,
-      accepted: parsed.accepted,
+      preferences,
       decidedAt:
         typeof parsed.decidedAt === "string" ? parsed.decidedAt : "",
     };
@@ -59,15 +99,23 @@ export function hasDecidedConsent(): boolean {
  * accepted. Undecided and rejected both return false.
  */
 export function isAnalyticsAllowed(): boolean {
-  return readConsent()?.accepted === true;
+  return readConsent()?.preferences.analytics === true;
+}
+
+/** May marketing pixels run? Opt-in: false unless explicitly enabled. */
+export function isMarketingAllowed(): boolean {
+  return readConsent()?.preferences.marketing === true;
 }
 
 /** Persist a decision and notify trackers/UI. */
-export function persistConsent(accepted: boolean): void {
+export function persistConsent(
+  preferencesOrAccepted: boolean | CookieConsentPreferences,
+): void {
   if (typeof window === "undefined") return;
+  const preferences = preferencesFromDecision(preferencesOrAccepted);
   const value: CookieConsent = {
     version: COOKIE_CONSENT_VERSION,
-    accepted,
+    preferences,
     decidedAt: new Date().toISOString(),
   };
   try {
