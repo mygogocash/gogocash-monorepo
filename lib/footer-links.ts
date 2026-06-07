@@ -32,6 +32,12 @@ export const FOOTER_LINKS: FooterColumns = {
     { label: "System Status", href: "https://status.gogocash.co/" },
     { label: "Cookie Settings", href: "/privacy-policy" },
   ],
+  Agents: [
+    { label: "sitemap.md", href: "/sitemap.md" },
+    { label: "llms.txt", href: "/llms.txt" },
+    { label: "skills.md", href: "/skills.md" },
+    { label: "rss.xml", href: "/rss.xml" },
+  ],
 };
 
 /** Column under which the "Secured by Cloudflare" trust row is rendered. */

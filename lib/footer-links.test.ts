@@ -38,3 +38,14 @@ describe("footer links (#9)", () => {
     }
   });
 });
+
+describe("footer agent discovery links", () => {
+  it("adds the Agents discovery column with root-owned files", () => {
+    assert.deepEqual(FOOTER_LINKS.Agents, [
+      { label: "sitemap.md", href: "/sitemap.md" },
+      { label: "llms.txt", href: "/llms.txt" },
+      { label: "skills.md", href: "/skills.md" },
+      { label: "rss.xml", href: "/rss.xml" },
+    ]);
+  });
+});

@@ -39,7 +39,7 @@ export default function Footer() {
           </div>
 
           {/* Right: Link columns */}
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-3 lg:gap-16">
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 xl:grid-cols-4 lg:gap-12 xl:gap-16">
             {Object.entries(FOOTER_LINKS).map(([title, links]) => (
               <div key={title}>
                 <h4 className="text-sm font-semibold text-[#1f2937]">
