@@ -1,5 +1,8 @@
 import { test, expect } from "@playwright/test";
 
+const CONSENT_KEY = "gogocash.cookie_consent";
+const SPLASH_SEEN_KEY = "gogocash-landing-splash-seen";
+
 /**
  * Regression for issue #4 — "How it works" tabs 2 & 3 rendered no content.
  * The tabpanel must swap its step heading when each tab is activated.
@@ -10,6 +13,23 @@ test.describe("how it works tabs", () => {
     "Shop and pay like you already do",
     "Cashback lands after the brand confirms",
   ] as const;
+
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(
+      ({ consentKey, splashSeenKey }) => {
+        window.localStorage.setItem(
+          consentKey,
+          JSON.stringify({
+            version: 2,
+            preferences: { analytics: false, marketing: false },
+            decidedAt: "2026-06-07T00:00:00.000Z",
+          }),
+        );
+        window.sessionStorage.setItem(splashSeenKey, "1");
+      },
+      { consentKey: CONSENT_KEY, splashSeenKey: SPLASH_SEEN_KEY },
+    );
+  });
 
   test("each tab swaps the panel content (en home)", async ({ page }) => {
     await page.goto("/", { waitUntil: "load", timeout: 90_000 });
