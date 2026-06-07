@@ -68,6 +68,8 @@ export default function NewsletterSignup({
       </div>
 
       <form
+        id="newsletter-signup"
+        name="Newsletter"
         action={config.actionUrl ?? undefined}
         method="post"
         target={frameName}

@@ -61,6 +61,8 @@ test.describe("footer newsletter signup (#10)", () => {
       name: "Get cashback tips and offers by email",
     });
     await expect(form).toBeVisible();
+    await expect(form).toHaveAttribute("id", "newsletter-signup");
+    await expect(form).toHaveAttribute("name", "Newsletter");
     await expect(
       form.getByRole("textbox", { name: "Email address" }),
     ).toBeVisible();
