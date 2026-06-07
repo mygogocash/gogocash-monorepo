@@ -13,10 +13,10 @@ function readMobileFile(relativePath: string) {
   return fs.readFileSync(path.join(mobileRoot, relativePath), "utf8");
 }
 
-// Quest History parity: /quest/history renders <CustomerQuestScreen history />. The
-// dedicated history view mirrors the web GogoquestHistory.tsx minimal slice — hero +
-// plan card, "this round" campaign card, monthly list (empty state), rewards list
-// (empty state). Copy is the EXACT web next-intl gogoquestHistory* English values.
+// Quest History parity: /quest/history renders <CustomerQuestScreen history />. The dedicated
+// history view mirrors the web GogoquestHistory.tsx — hero + plan card, "this round" campaign card
+// (populated with mock-mode data), monthly bars, rewards list, leaderboard + month-over-month
+// insight. Copy is the EXACT web next-intl gogoquestHistory* English values.
 describe("Quest History parity", () => {
   it("quest history fixture > given the web gogoquestHistory copy > then the mobile fixture matches it verbatim", () => {
     expect(webQuestHistory).toMatchObject({
@@ -64,9 +64,7 @@ describe("Quest History parity", () => {
     expect(questScreen).toContain("webQuestHistory.currentCampaign");
     expect(questScreen).toContain("webQuestHistory.yourScoreLabel");
     expect(questScreen).toContain("webQuestHistory.monthlySection");
-    expect(questScreen).toContain("webQuestHistory.emptyMonthly");
     expect(questScreen).toContain("webQuestHistory.rewardsSection");
-    expect(questScreen).toContain("webQuestHistory.emptyRewards");
   });
 
   it("quest history > given the desktop sub-page > then it adds the leaderboard + month-over-month insight sections", () => {
@@ -82,5 +80,40 @@ describe("Quest History parity", () => {
     // Both new sections are rendered inside the history view
     expect(questScreen).toContain("<QuestHistoryInsight />");
     expect(questScreen).toContain("<QuestHistoryLeaderboard />");
+    // Per-rank trophy icons use the web rank PNGs (rank1..5 + rank6_10), not a tinted flat icon.
+    expect(questScreen).toContain("quest-rank/rank1.png");
+    expect(questScreen).toContain("rankTrophyImages");
+    expect(questScreen).not.toContain("rankTrophyTints");
+  });
+
+  it("quest history > given mock mode > then this-round/monthly/rewards show populated mock data", () => {
+    const questScreen = readMobileFile("src/screens/CustomerQuestScreen.tsx");
+    expect(questScreen).toContain("QUEST_HISTORY_MOCK");
+    // This-round shows the campaign date range + days-left + score, not the pending/sign-in states.
+    expect(questScreen).toContain("March 1 – March 31, 2026");
+    expect(questScreen).toContain("historyScoreValue");
+    expect(questScreen).not.toContain("webQuestHistory.periodPending");
+    expect(questScreen).not.toContain("webQuestHistory.signInHint");
+    // Monthly bars + reward rows replace the empty states.
+    expect(questScreen).toContain("historyMonthlyBarFill");
+    expect(questScreen).toContain("March top-10 bonus");
+    expect(questScreen).not.toContain("webQuestHistory.emptyMonthly");
+    expect(questScreen).not.toContain("webQuestHistory.emptyRewards");
+  });
+
+  it("quest history > leaderboard shows the full mock ranking + per-row View player dialog", () => {
+    const questScreen = readMobileFile("src/screens/CustomerQuestScreen.tsx");
+    expect(questScreen).toContain("QUEST_HISTORY_LEADERBOARD");
+    expect(questScreen).toContain("Demo Shopper");
+    // My Rank reflects the web mock (4th / 940).
+    expect(questScreen).toContain("QUEST_HISTORY_MY_RANK");
+    expect(questScreen).toContain('rankValue: "4th"');
+    // Per-row "View" opens the player summary dialog.
+    expect(questScreen).toContain("QuestPlayerSummaryDialog");
+    expect(questScreen).toContain("Player quest summary");
+    expect(questScreen).toContain("truncateQuestName");
+    // Only the top 10 ranks are listed, and the point coin matches the web (bath.svg port).
+    expect(questScreen).toContain("QUEST_HISTORY_LEADERBOARD.slice(0, 10)");
+    expect(questScreen).toContain("QuestCoinIcon");
   });
 });

@@ -1,6 +1,7 @@
 import { Link } from "expo-router";
 import {
   ArrowRight as ArrowRightIcon,
+  Check as CheckIcon,
   ChevronDown as ChevronDownIcon,
   ChevronLeft as ChevronLeftIcon,
   Copy as ContentCopyIcon,
@@ -26,6 +27,12 @@ import { copyToClipboard } from "@mobile/lib/clipboard";
 import { haptics } from "@mobile/lib/haptics";
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import {
+  FacebookBrandIcon,
+  InstagramBrandIcon,
+  LinkedInBrandIcon,
+  XBrandIcon,
+} from "@mobile/components/SocialBrandIcons";
 import { WalletSkeleton } from "@mobile/components/Skeleton";
 import { useToast } from "@mobile/hooks/useToast";
 import { useCopy } from "@mobile/i18n/useCopy";
@@ -33,8 +40,7 @@ import { mobileShellLayout, profileInviteUrl, webReferralPage } from "@mobile/de
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 import referralGiftImage from "../../assets/referral-gift.png";
 import helpBubbleIconImage from "../../assets/referral-help-bubble-icon.png";
-import referralHeroBannerImage from "../../assets/referral-hero-banner.png";
-import referralStepBannerImage from "../../assets/referral-step-banner.png";
+// referral-step-banner.png is no longer used — the steps render as numbered cards.
 
 type SocialLink = (typeof webReferralPage.earn.socialLinks)[number];
 type SocialLinkId = SocialLink["id"];
@@ -64,7 +70,7 @@ export function CustomerReferralScreen() {
 
   return (
     <ReferralSubPage>
-      <View style={styles.referralBlueShell}>
+      <View style={styles.referralShell}>
         {isDesktop ? null : <ReferralTopBar />}
         <ScrollView
           contentContainerStyle={[styles.content, isDesktop ? styles.referralContentDesktop : null]}
@@ -76,7 +82,6 @@ export function CustomerReferralScreen() {
             />
           }
         >
-          <ReferralHeroBanner isDesktop={isDesktop} />
           <ReferralEarnCard isDesktop={isDesktop} onCopyLink={copyReferralLink} />
           <ReferralInvitationPanel />
           <ReferralStepsSection />
@@ -128,18 +133,6 @@ function ReferralTopBar() {
   );
 }
 
-function ReferralHeroBanner({ isDesktop }: { isDesktop: boolean }) {
-  return (
-    <Image
-      accessibilityLabel={webReferralPage.hero.alt}
-      alt={webReferralPage.hero.alt}
-      resizeMode="contain"
-      source={referralHeroBannerImage}
-      style={[styles.heroBanner, isDesktop ? styles.heroBannerDesktop : null]}
-    />
-  );
-}
-
 function ReferralEarnCard({
   isDesktop,
   onCopyLink,
@@ -148,6 +141,14 @@ function ReferralEarnCard({
   onCopyLink: () => void;
 }) {
   const tc = useCopy();
+  const [copied, setCopied] = useState(false);
+  // Referral code = the path segment of the (mock) invite URL — not invented.
+  const referralCode = (profileInviteUrl.split("/").pop() ?? "").toUpperCase();
+  const handleCopy = () => {
+    onCopyLink();
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1600);
+  };
   return (
     <View style={[styles.earnCard, isDesktop ? styles.earnCardDesktop : null]}>
       <Image
@@ -164,6 +165,12 @@ function ReferralEarnCard({
           <Text numberOfLines={2} style={styles.earnSubtitle}>
             {tc(webReferralPage.earn.subtitle)}
           </Text>
+          <View style={styles.rewardPill}>
+            <Text style={styles.rewardPillEmoji}>🎁</Text>
+            <Text numberOfLines={1} style={styles.rewardPillText}>
+              {tc("Earn ฿20 for every friend who joins")}
+            </Text>
+          </View>
         </View>
         <View style={styles.copySection}>
           <Text numberOfLines={2} style={styles.shareTitle}>
@@ -173,20 +180,47 @@ function ReferralEarnCard({
             accessibilityLabel={tc("Copy referral link")}
             accessibilityRole="button"
             hitSlop={8}
-            onPress={onCopyLink}
+            onPress={handleCopy}
             pressScale={0.99}
             style={styles.copyButton}
           >
             <View style={styles.copyLabelRow}>
-              <Text numberOfLines={1} style={styles.copyLabel}>
-                {tc(webReferralPage.earn.inviteLinkLabel)} :
+              <Text numberOfLines={1} style={styles.copyLink}>
+                {copied
+                  ? tc("Copied!")
+                  : `${tc(webReferralPage.earn.inviteLinkLabel)} : ${webReferralPage.earn.displayLink}`}
               </Text>
-              <ContentCopyIcon color={colors.white} size={24} strokeWidth={typography.iconStrokeWidth} />
+              {copied ? (
+                <CheckIcon color={colors.white} size={24} strokeWidth={typography.iconStrokeWidth} />
+              ) : (
+                <ContentCopyIcon
+                  color={colors.white}
+                  size={24}
+                  strokeWidth={typography.iconStrokeWidth}
+                />
+              )}
             </View>
-            <Text numberOfLines={1} style={styles.copyLink}>
-              {webReferralPage.earn.displayLink}
-            </Text>
           </MotionPressable>
+          <View style={styles.codeRow}>
+            <Text style={styles.codeLabel}>{tc("Referral code")}</Text>
+            <MotionPressable
+              accessibilityLabel={tc("Copy referral code")}
+              accessibilityRole="button"
+              hitSlop={8}
+              onPress={handleCopy}
+              pressScale={0.97}
+              style={styles.codeChip}
+            >
+              <Text numberOfLines={1} style={styles.codeChipText}>
+                {referralCode}
+              </Text>
+              <ContentCopyIcon
+                color={colors.primaryDark}
+                size={16}
+                strokeWidth={typography.iconStrokeWidth}
+              />
+            </MotionPressable>
+          </View>
         </View>
         <View style={styles.socialSection}>
           <Text numberOfLines={2} style={styles.socialTitle}>
@@ -240,69 +274,80 @@ function SocialIconButton({ link, onCopyLink }: { link: SocialLink; onCopyLink: 
       accessibilityRole="button"
       hitSlop={8}
       onPress={() => handleSocialPress(link.id, onCopyLink)}
-      pressScale={0.94}
+      pressScale={0.92}
       style={styles.socialButton}
     >
-      {link.id === "facebook" ? <FacebookIcon color={link.color} /> : null}
-      {link.id === "linkedin" ? <LinkedinIcon color={link.color} /> : null}
-      {link.id === "instagram" ? <InstagramIcon color={link.color} /> : null}
-      {link.id === "x" ? <XIcon color={link.color} /> : null}
+      {link.id === "facebook" ? <FacebookBrandIcon color={link.color} size={24} /> : null}
+      {link.id === "linkedin" ? <LinkedInBrandIcon color={link.color} size={24} /> : null}
+      {link.id === "instagram" ? <InstagramBrandIcon color={link.color} size={24} /> : null}
+      {link.id === "x" ? <XBrandIcon color={link.color} size={24} /> : null}
     </MotionPressable>
   );
 }
 
-function FacebookIcon({ color }: { color: string }) {
-  return <Text style={[styles.brandIcon, styles.facebookIcon, { color }]}>f</Text>;
-}
+// Local categorized invite rows so the tabs can FILTER like the web (All / Created Account / Shopped
+// with Us). The shared webReferralPage fixture ships a single uncategorized row and is owned by parallel
+// work, so the demo rows live here. Tab index → row category (null = show all rows).
+const REFERRAL_TAB_CATEGORIES = [null, "account", "shop"] as const;
 
-function LinkedinIcon({ color }: { color: string }) {
-  return <Text style={[styles.brandIcon, styles.linkedinIcon, { color }]}>in</Text>;
-}
-
-function InstagramIcon({ color }: { color: string }) {
-  return <Text style={[styles.brandIcon, { color }]}>◎</Text>;
-}
-
-function XIcon({ color }: { color: string }) {
-  return <Text style={[styles.brandIcon, styles.xIcon, { color }]}>X</Text>;
-}
+const REFERRAL_INVITE_ROWS = [
+  { date: "3/28/2026", user: "FriendInvite", point: "120 pts", status: "Success", category: "account" },
+  { date: "3/24/2026", user: "NeighborJoin", point: "120 pts", status: "Success", category: "account" },
+  { date: "3/19/2026", user: "ShopBuddy", point: "80 pts", status: "Success", category: "shop" },
+  { date: "3/12/2026", user: "DealMate", point: "80 pts", status: "Success", category: "shop" },
+] as const;
 
 function ReferralInvitationPanel() {
   const tc = useCopy();
+  const [activeTab, setActiveTab] = useState(0);
   return (
     <View style={styles.invitationSection}>
       <Text style={styles.invitationTitle}>{tc(webReferralPage.invitation.title)}</Text>
-      <ReferralInvitationTabs />
-      <ReferralInvitationTable />
+      <ReferralInvitationTabs activeTab={activeTab} onSelectTab={setActiveTab} />
+      <ReferralInvitationTable activeTab={activeTab} />
     </View>
   );
 }
 
-function ReferralInvitationTabs() {
+function ReferralInvitationTabs({
+  activeTab,
+  onSelectTab,
+}: {
+  activeTab: number;
+  onSelectTab: (index: number) => void;
+}) {
   const tc = useCopy();
   return (
     <View accessibilityRole="tablist" style={styles.tabs}>
-      {webReferralPage.invitation.tabs.map((tab, index) => (
-        <Pressable
-          accessibilityRole="tab"
-          accessibilityState={{ selected: index === 0 }}
-          key={tab}
-          style={[styles.tabButton, index === 0 ? styles.tabButtonActive : styles.tabButtonInactive]}
-        >
-          <Text
-            numberOfLines={1}
-            style={[styles.tabText, index === 0 ? styles.tabTextActive : styles.tabTextInactive]}
+      {webReferralPage.invitation.tabs.map((tab, index) => {
+        const selected = index === activeTab;
+        return (
+          <Pressable
+            accessibilityRole="tab"
+            accessibilityState={{ selected }}
+            key={tab}
+            onPress={() => onSelectTab(index)}
+            style={[styles.tabButton, selected ? styles.tabButtonActive : styles.tabButtonInactive]}
           >
-            {tc(tab)}
-          </Text>
-        </Pressable>
-      ))}
+            <Text
+              numberOfLines={1}
+              style={[styles.tabText, selected ? styles.tabTextActive : styles.tabTextInactive]}
+            >
+              {tc(tab)}
+            </Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
 
-function ReferralInvitationTable() {
+function ReferralInvitationTable({ activeTab }: { activeTab: number }) {
   const tc = useCopy();
+  const category = REFERRAL_TAB_CATEGORIES[activeTab] ?? null;
+  const rows = category
+    ? REFERRAL_INVITE_ROWS.filter((row) => row.category === category)
+    : REFERRAL_INVITE_ROWS;
   return (
     <View style={styles.tableCard}>
       <View style={styles.tableHeader}>
@@ -312,7 +357,7 @@ function ReferralInvitationTable() {
           </Text>
         ))}
       </View>
-      {webReferralPage.invitation.rows.map((row) => (
+      {rows.map((row) => (
         <View key={`${row.date}-${row.user}`} style={styles.tableRow}>
           <Text style={styles.tableCell}>{row.date}</Text>
           <Text style={styles.tableCell}>{row.user}</Text>
@@ -328,16 +373,24 @@ function ReferralInvitationTable() {
   );
 }
 
+// Premium "how it works": the 3 fixture steps as numbered cards (was a single flat banner image),
+// so the copy → share → earn flow is scannable at a glance.
 function ReferralStepsSection() {
+  const tc = useCopy();
   return (
-    <View style={styles.stepsBanner}>
-      <Image
-        accessibilityLabel={webReferralPage.steps.alt}
-        alt={webReferralPage.steps.alt}
-        resizeMode="contain"
-        source={referralStepBannerImage}
-        style={styles.stepsBannerImage}
-      />
+    <View style={styles.stepsSection}>
+      <Text style={styles.stepsKicker}>{tc(webReferralPage.steps.kicker)}</Text>
+      <Text style={styles.stepsTitle}>{tc(webReferralPage.steps.title)}</Text>
+      <View style={styles.stepsList}>
+        {webReferralPage.steps.bullets.map((bullet, index) => (
+          <View key={bullet} style={styles.stepCard}>
+            <View style={styles.stepNumberBadge}>
+              <Text style={styles.stepNumberText}>{index + 1}</Text>
+            </View>
+            <Text style={styles.stepCardText}>{tc(bullet)}</Text>
+          </View>
+        ))}
+      </View>
     </View>
   );
 }
@@ -494,8 +547,8 @@ function ExploreShopCard({ isDesktop, shop }: { isDesktop: boolean; shop: Explor
 
 const styles = StyleSheet.create({
   surface: {
-    backgroundColor: "#DCEEFF",
-    borderColor: "#B8D4EF",
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderRadius: 24,
     borderWidth: 1,
     boxShadow: shadows.cardCss,
@@ -506,8 +559,8 @@ const styles = StyleSheet.create({
     marginHorizontal: -8,
     marginTop: 18,
   },
-  referralBlueShell: {
-    backgroundColor: "#DCEEFF",
+  referralShell: {
+    backgroundColor: "transparent",
     minHeight: 1040,
     width: "100%",
   },
@@ -539,23 +592,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 32,
   },
-  heroBanner: {
-    aspectRatio: 924 / 184,
-    backgroundColor: "#F8FBFF",
-    borderRadius: 16,
-    height: 88,
-    overflow: "hidden",
-    width: "100%",
-  },
-  heroBannerDesktop: {
-    height: 184,
-  },
   earnCard: {
-    backgroundColor: "rgba(255,255,255,0.72)",
-    borderColor: "rgba(184, 212, 239, 0.46)",
+    backgroundColor: colors.white,
+    borderColor: "#EFEFEF",
     borderRadius: 24,
     borderWidth: 1,
-    boxShadow: "0 4px 22.9px rgba(0,0,0,0.05)",
+    boxShadow: "0 8px 28px rgba(16, 53, 34, 0.08)",
     overflow: "hidden",
     paddingHorizontal: 22,
     paddingVertical: 28,
@@ -606,7 +648,7 @@ const styles = StyleSheet.create({
     color: "#103522",
     fontFamily: typography.family,
     fontSize: 21,
-    fontWeight: "700",
+    fontWeight: "400",
     lineHeight: 27,
   },
   copyButton: {
@@ -614,9 +656,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     gap: 12,
     justifyContent: "center",
-    minHeight: 105,
+    minHeight: 56,
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 14,
   },
   copyLabelRow: {
     alignItems: "center",
@@ -632,9 +674,43 @@ const styles = StyleSheet.create({
   },
   copyLink: {
     color: colors.white,
+    flex: 1,
     fontFamily: typography.family,
-    fontSize: 18,
-    lineHeight: 25,
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  codeRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginTop: 14,
+  },
+  codeLabel: {
+    color: "#6F7E91",
+    fontFamily: typography.family,
+    fontSize: 14,
+    fontWeight: "400",
+  },
+  codeChip: {
+    alignItems: "center",
+    backgroundColor: "#E6F7ED",
+    borderColor: "rgba(0, 170, 128, 0.28)",
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 8,
+    outlineColor: "transparent",
+    outlineWidth: 0,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  codeChipText: {
+    color: colors.primaryDark,
+    fontFamily: typography.family,
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: 0.5,
   },
   socialSection: {
     borderTopColor: "#EAEAEA",
@@ -646,38 +722,28 @@ const styles = StyleSheet.create({
     color: "#1A1A1A",
     fontFamily: typography.family,
     fontSize: 17,
-    fontWeight: "700",
+    fontWeight: "400",
     lineHeight: 23,
   },
   socialRow: {
     alignItems: "center",
     flexDirection: "row",
-    gap: 24,
-    paddingLeft: 4,
+    gap: 16,
+    paddingLeft: 0,
   },
   socialButton: {
     alignItems: "center",
-    height: 44,
+    backgroundColor: colors.white,
+    borderColor: "#EEEEEE",
+    borderRadius: 24,
+    borderWidth: 1,
+    boxShadow: "0 2px 8px rgba(16, 53, 34, 0.08)",
+    height: 48,
     justifyContent: "center",
-    width: 44,
-  },
-  brandIcon: {
-    fontFamily: typography.family,
-    fontSize: 28,
-    fontWeight: "800",
-    lineHeight: 32,
-  },
-  facebookIcon: {
-    fontSize: 34,
-    lineHeight: 36,
-  },
-  linkedinIcon: {
-    fontSize: 20,
-    lineHeight: 24,
-  },
-  xIcon: {
-    fontSize: 30,
-    lineHeight: 34,
+    // Web parity: suppress the browser focus-visible ring (the orange default).
+    outlineColor: "transparent",
+    outlineWidth: 0,
+    width: 48,
   },
   invitationSection: {
     gap: 22,
@@ -690,24 +756,32 @@ const styles = StyleSheet.create({
     lineHeight: 40,
   },
   tabs: {
+    borderBottomColor: "#E4E4E4",
+    borderBottomWidth: 1,
     flexDirection: "row",
     gap: 12,
   },
   tabButton: {
     alignItems: "center",
+    borderBottomColor: "transparent",
+    borderBottomWidth: 3,
+    borderTopLeftRadius: radii.lg,
+    borderTopRightRadius: radii.lg,
     flex: 1,
     justifyContent: "center",
-    minHeight: 62,
+    minHeight: 56,
+    // Web parity: suppress the browser focus-visible ring (the orange default) — the established
+    // Expo pattern; the selected white bg + green underline is the indicator.
+    outlineColor: "transparent",
+    outlineWidth: 0,
     paddingHorizontal: 8,
   },
   tabButtonActive: {
-    borderBottomColor: colors.primaryDark,
-    borderBottomWidth: 3,
+    backgroundColor: colors.white,
+    borderBottomColor: "#00CC99",
   },
   tabButtonInactive: {
-    backgroundColor: "rgba(176, 203, 232, 0.48)",
-    borderTopLeftRadius: radii.lg,
-    borderTopRightRadius: radii.lg,
+    backgroundColor: "#F0F0F0",
   },
   tabText: {
     fontFamily: typography.family,
@@ -717,10 +791,10 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   tabTextActive: {
-    color: colors.primaryDark,
+    color: "#00B89D",
   },
   tabTextInactive: {
-    color: "#6F849C",
+    color: "#7F7F7F",
   },
   tableCard: {
     backgroundColor: "rgba(255,255,255,0.36)",
@@ -774,15 +848,78 @@ const styles = StyleSheet.create({
     fontWeight: typography.labelWeight,
     lineHeight: typography.labelLineHeight,
   },
-  stepsBanner: {
-    aspectRatio: 924 / 472,
-    borderRadius: 16,
-    overflow: "hidden",
-    width: "100%",
+  rewardPill: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: "#E6F7ED",
+    borderRadius: 999,
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 2,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
   },
-  stepsBannerImage: {
-    height: "100%",
-    width: "100%",
+  rewardPillEmoji: {
+    fontSize: 15,
+  },
+  rewardPillText: {
+    color: "#00875A",
+    fontFamily: typography.family,
+    fontSize: 14,
+    fontWeight: "400",
+  },
+  stepsSection: {
+    gap: 14,
+  },
+  stepsKicker: {
+    color: colors.accent,
+    fontFamily: typography.family,
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: 0.3,
+  },
+  stepsTitle: {
+    color: "#3A4B61",
+    fontFamily: typography.family,
+    fontSize: 22,
+    fontWeight: "700",
+    lineHeight: 29,
+  },
+  stepsList: {
+    gap: 12,
+  },
+  stepCard: {
+    alignItems: "center",
+    backgroundColor: colors.white,
+    borderColor: "#EFEFEF",
+    borderRadius: 16,
+    borderWidth: 1,
+    boxShadow: "0 4px 16px rgba(16, 53, 34, 0.06)",
+    flexDirection: "row",
+    gap: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  stepNumberBadge: {
+    alignItems: "center",
+    backgroundColor: "#E6F7ED",
+    borderRadius: 18,
+    height: 36,
+    justifyContent: "center",
+    width: 36,
+  },
+  stepNumberText: {
+    color: "#00875A",
+    fontFamily: typography.family,
+    fontSize: 18,
+    fontWeight: "800",
+  },
+  stepCardText: {
+    color: "#3A4B61",
+    flex: 1,
+    fontFamily: typography.family,
+    fontSize: 15,
+    lineHeight: 22,
   },
   faqSection: {
     gap: 16,

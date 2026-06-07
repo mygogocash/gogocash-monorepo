@@ -17,6 +17,7 @@ import {
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import type { ViewStyle } from "react-native";
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { KeyboardAwareScreen } from "@mobile/components/KeyboardAwareScreen";
@@ -82,6 +83,8 @@ function MissingOrdersTopBar() {
 
 function MissingOrdersFormPanel() {
   const tc = useCopy();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
   // The copy declares screenshots/receipts as the one REQUIRED input ("Required — add at
   // least 1 image"). The rest of this screen simulates entry with static values, so we
   // mirror that: a single attachment flag the add-image field toggles. Submit validates
@@ -115,10 +118,6 @@ function MissingOrdersFormPanel() {
               {tc(webMissingOrdersPage.clearActionLabel)}
             </Text>
           </Pressable>
-          <MotionPressable pressScale={0.98} style={styles.lineButton}>
-            <SupportIcon color="#06C755" size={18} strokeWidth={typography.iconStrokeWidth} />
-            <Text style={styles.lineButtonText}>{tc(webMissingOrdersPage.supportActionLabel)}</Text>
-          </MotionPressable>
         </View>
       </View>
 
@@ -151,9 +150,21 @@ function MissingOrdersFormPanel() {
         </Text>
       ) : null}
 
-      <MotionPressable onPress={handleSubmit} pressScale={0.98} style={styles.submitButton}>
-        <Text style={styles.submitButtonText}>{tc(webMissingOrdersPage.submitActionLabel)}</Text>
-      </MotionPressable>
+      {/* Footer mirrors the web: a top-bordered action row with the LINE help button +
+          the green pill submit, right-aligned on desktop and stacked full-width on mobile. */}
+      <View style={[styles.formFooter, isDesktop ? styles.formFooterDesktop : null]}>
+        <MotionPressable pressScale={0.98} style={styles.lineButton}>
+          <SupportIcon color="#06C755" size={18} strokeWidth={typography.iconStrokeWidth} />
+          <Text style={styles.lineButtonText}>{tc(webMissingOrdersPage.supportActionLabel)}</Text>
+        </MotionPressable>
+        <MotionPressable
+          onPress={handleSubmit}
+          pressScale={0.98}
+          style={[styles.submitButton, isDesktop ? styles.submitButtonDesktop : null]}
+        >
+          <Text style={styles.submitButtonText}>{tc(webMissingOrdersPage.submitActionLabel)}</Text>
+        </MotionPressable>
+      </View>
     </View>
   );
 }
@@ -266,7 +277,7 @@ function MissingOrdersQuickCard({
       pressScale={0.99}
       style={[styles.quickCard, desktop ? styles.quickCardDesktop : null]}
     >
-      <View style={styles.quickCardArt}>
+      <View style={[styles.quickCardArt, quickCardArtGradient]}>
         {renderQuickCardIcon(card.icon, desktop ? 42 : 36)}
       </View>
       <View style={styles.quickCardCopy}>
@@ -279,24 +290,41 @@ function MissingOrdersQuickCard({
 
 function MissingOrdersFaqSection() {
   const tc = useCopy();
+  // Web parity: the FAQ is an Accordion (first item expanded by default); tapping a
+  // question toggles its answer and flips the chevron.
+  const [openIndex, setOpenIndex] = useState(0);
   return (
     <View style={styles.faqSection}>
       <Text style={styles.faqTitle}>{tc(webMissingOrdersPage.faqTitle)}</Text>
       <View style={styles.faqStack}>
-        {webMissingOrdersPage.faqs.map((faq, index) => (
-          <View key={faq.question} style={styles.faqCard}>
-            <View style={styles.faqQuestionRow}>
-              <HelpIcon color={colors.primaryDark} size={21} strokeWidth={typography.iconStrokeWidth} />
-              <Text style={styles.faqQuestion}>{tc(faq.question)}</Text>
-              <ChevronDownIcon
-                color={colors.ink}
-                size={16}
-                strokeWidth={typography.iconStrokeWidth}
-              />
+        {webMissingOrdersPage.faqs.map((faq, index) => {
+          const open = index === openIndex;
+          return (
+            <View key={faq.question} style={styles.faqCard}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ expanded: open }}
+                onPress={() => setOpenIndex(open ? -1 : index)}
+                style={styles.faqQuestionRow}
+              >
+                <HelpIcon
+                  color={colors.primaryDark}
+                  size={21}
+                  strokeWidth={typography.iconStrokeWidth}
+                />
+                <Text style={styles.faqQuestion}>{tc(faq.question)}</Text>
+                <View style={open ? styles.faqChevronOpen : null}>
+                  <ChevronDownIcon
+                    color={colors.ink}
+                    size={16}
+                    strokeWidth={typography.iconStrokeWidth}
+                  />
+                </View>
+              </Pressable>
+              {open ? <Text style={styles.faqAnswer}>{tc(faq.answer)}</Text> : null}
             </View>
-            {index === 0 ? <Text style={styles.faqAnswer}>{tc(faq.answer)}</Text> : null}
-          </View>
-        ))}
+          );
+        })}
       </View>
     </View>
   );
@@ -343,6 +371,13 @@ function renderQuickCardIcon(icon: MissingOrdersQuickCard["icon"], size: number)
       return <SupportIcon {...iconProps} />;
   }
 }
+
+// Web-only radial gradient for the quick-card art (mint→white→grey wash, web parity).
+// Ignored on native, where the solid quickCardArt backgroundColor stands in.
+const quickCardArtGradient = {
+  backgroundImage:
+    "radial-gradient(ellipse at top right, rgba(0,204,153,0.35) 0%, rgba(255,255,255,0.95) 55%, rgb(217,217,217) 100%)",
+} as unknown as ViewStyle;
 
 const styles = StyleSheet.create({
   surface: {
@@ -570,13 +605,28 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     lineHeight: 18,
   },
+  formFooter: {
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    flexDirection: "column",
+    gap: 10,
+    paddingTop: 16,
+  },
+  formFooterDesktop: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "flex-end",
+  },
   submitButton: {
     alignItems: "center",
     backgroundColor: colors.primary,
-    borderRadius: radii.md,
+    borderRadius: 999,
     justifyContent: "center",
     minHeight: 48,
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
+  },
+  submitButtonDesktop: {
+    minWidth: 200,
   },
   submitButtonText: {
     color: colors.white,
@@ -680,5 +730,8 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     paddingLeft: 29,
     paddingTop: 8,
+  },
+  faqChevronOpen: {
+    transform: [{ rotate: "180deg" }],
   },
 });

@@ -80,6 +80,11 @@ describe("CustomerQuestScreen (render)", () => {
     expect(screen.getByText("How shoppers rank")).toBeTruthy();
     expect(screen.getByText("A quick read on your months")).toBeTruthy();
     expect(screen.getByText("Which period do you want to see?")).toBeTruthy();
+    // Populated mock data (web parity mock mode): a reward row renders.
+    expect(screen.getByText("March top-10 bonus")).toBeTruthy();
+    // Leaderboard mock: the current user row + per-row View buttons render.
+    expect(screen.getByText("Demo S...hopper")).toBeTruthy();
+    expect(screen.getAllByText("View").length).toBeGreaterThan(0);
   });
 });
 

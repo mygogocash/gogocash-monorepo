@@ -3,7 +3,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createElement } from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 // CustomerMembershipScreen reaches expo-router (<Link>) and useCopy (both aliased to
@@ -56,6 +56,23 @@ describe("CustomerMembershipScreen (render)", () => {
     // Annual is selected by default → annual CTA label.
     expect(screen.getByText("Get ฿490/year")).toBeTruthy();
   });
+
+  it("shows the web trust strip under the CTA", () => {
+    render(createElement(CustomerMembershipScreen));
+    expect(screen.getByText("Billed in THB")).toBeTruthy();
+    expect(screen.getByText("Cancel anytime")).toBeTruthy();
+    expect(screen.getByText("Access through the period")).toBeTruthy();
+  });
+
+  it("FAQ accordion (web parity): first answer open; tapping another question reveals its answer", () => {
+    render(createElement(CustomerMembershipScreen));
+    // The first FAQ is expanded by default → its answer is visible.
+    expect(screen.getByText(/All membership charges are in Thai Baht/)).toBeTruthy();
+    // The second FAQ's answer is hidden until its question is tapped.
+    expect(screen.queryByText(/Cancel from your account whenever you like/)).toBeNull();
+    fireEvent.click(screen.getByText("Can I cancel anytime?"));
+    expect(screen.getByText(/Cancel from your account whenever you like/)).toBeTruthy();
+  });
 });
 
 describe("CustomerMembershipScreen — Wave B foundations adopted (source signals)", () => {
@@ -73,5 +90,11 @@ describe("CustomerMembershipScreen — Wave B foundations adopted (source signal
 
   it("applies numberOfLines Thai-truncation to overflow-prone labels", () => {
     expect(membershipSource).toContain("numberOfLines=");
+  });
+
+  it("aligns to the web: trust strip + a state-driven FAQ accordion", () => {
+    expect(membershipSource).toContain("trustStrip");
+    expect(membershipSource).toContain("MEMBERSHIP_TRUST");
+    expect(membershipSource).toContain("setOpenFaq");
   });
 });
