@@ -1,5 +1,8 @@
 import { test, expect, type Page } from "@playwright/test";
 
+const CONSENT_KEY = "gogocash.cookie_consent";
+const SPLASH_SEEN_KEY = "gogocash-landing-splash-seen";
+
 async function dismissCookieBanner(page: Page) {
   const reject = page.getByRole("button", { name: "Reject non-essential" });
   if (await reject.isVisible().catch(() => false)) {
@@ -8,6 +11,23 @@ async function dismissCookieBanner(page: Page) {
 }
 
 test.describe("footer newsletter signup (#10)", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(
+      ({ consentKey, splashSeenKey }) => {
+        window.localStorage.setItem(
+          consentKey,
+          JSON.stringify({
+            version: 2,
+            preferences: { analytics: false, marketing: false },
+            decidedAt: "2026-06-07T00:00:00.000Z",
+          }),
+        );
+        window.sessionStorage.setItem(splashSeenKey, "1");
+      },
+      { consentKey: CONSENT_KEY, splashSeenKey: SPLASH_SEEN_KEY },
+    );
+  });
+
   test("renders the secondary email capture with PDPA consent", async ({
     page,
   }) => {
