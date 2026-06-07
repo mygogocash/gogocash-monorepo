@@ -2,6 +2,10 @@ import { test, expect, type Page } from "@playwright/test";
 
 const CONSENT_KEY = "gogocash.cookie_consent";
 const SPLASH_SEEN_KEY = "gogocash-landing-splash-seen";
+const CUSTOMERIO_FORMS_SCRIPT_URL =
+  "https://customerioforms.com/assets/forms.js";
+const CUSTOMERIO_FORMS_SUBMIT_URL =
+  "https://customerioforms.com/custom_forms/submit_snippet";
 
 async function dismissCookieBanner(page: Page) {
   const reject = page.getByRole("button", { name: "Reject non-essential" });
@@ -12,6 +16,25 @@ async function dismissCookieBanner(page: Page) {
 
 test.describe("footer newsletter signup (#10)", () => {
   test.beforeEach(async ({ page }) => {
+    await page.route(CUSTOMERIO_FORMS_SCRIPT_URL, (route) =>
+      route.fulfill({
+        contentType: "application/javascript",
+        body: `
+          document.addEventListener("submit", (event) => {
+            if (!(event.target instanceof HTMLFormElement)) return;
+            if (event.target.getAttribute("aria-label") !== "Get cashback tips and offers by email") return;
+            event.preventDefault();
+            fetch("${CUSTOMERIO_FORMS_SUBMIT_URL}", {
+              method: "POST",
+              body: new FormData(event.target),
+            });
+          });
+        `,
+      }),
+    );
+    await page.route(CUSTOMERIO_FORMS_SUBMIT_URL, (route) =>
+      route.fulfill({ status: 204, body: "" }),
+    );
     await page.addInitScript(
       ({ consentKey, splashSeenKey }) => {
         window.localStorage.setItem(
@@ -44,6 +67,10 @@ test.describe("footer newsletter signup (#10)", () => {
     await expect(
       form.getByRole("checkbox", { name: /I agree to receive/ }),
     ).toBeVisible();
+    await expect(page.locator("script#cio-forms-handler")).toHaveAttribute(
+      "data-site-id",
+      "527b19a2b583c66362d2",
+    );
   });
 
   test("enables Subscribe after a valid email and consent", async ({ page }) => {
@@ -64,10 +91,16 @@ test.describe("footer newsletter signup (#10)", () => {
     await expect(consent).toBeChecked();
 
     const submit = form.getByRole("button", { name: "Subscribe" });
+    const customerIoSubmit = page.waitForRequest(
+      (request) =>
+        request.url() === CUSTOMERIO_FORMS_SUBMIT_URL &&
+        request.method() === "POST",
+    );
     await expect(submit).toBeEnabled();
     await submit.click();
+    await customerIoSubmit;
 
-    await expect(form).toContainText("newsletter provider is not connected");
+    await expect(form).toContainText("You're on the list");
   });
 
   test("shows a confirmation after a configured provider submit", async ({

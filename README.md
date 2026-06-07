@@ -120,6 +120,7 @@ Variables are documented inline in **[`.env.example`](./.env.example)**. Below i
 | `NEXT_PUBLIC_ANALYTICS_ENABLED` | Optional | `true` / `false` — gates marketing analytics defaults. |
 | `NEXT_PUBLIC_LINE_TAG_ID` | Optional | Empty string disables LINE Tag; must look like a UUID when set. |
 | `NEXT_PUBLIC_LINE_TAG_ENABLED` | Optional | Force LINE Tag on/off when an id exists. |
+| `NEXT_PUBLIC_CUSTOMERIO_FORMS_SITE_ID` / `NEXT_PUBLIC_CUSTOMERIO_FORMS_BASE_URL` | Optional | Customer.io Connected Forms config for the footer newsletter form. Defaults to the GoGoCash Customer.io Forms snippet; empty site id disables it. |
 | `NEXT_PUBLIC_NEWSLETTER_FORM_ACTION` | Optional | Hosted footer newsletter form endpoint from Mailchimp, Brevo, Customer.io, etc. Visitors can enter an email and click Subscribe after consent; provider-backed submission shows a setup notice until this is configured. |
 | `NEXT_PUBLIC_NEWSLETTER_EMAIL_FIELD` / `NEXT_PUBLIC_NEWSLETTER_CONSENT_FIELD` | Optional | Provider-specific field names for the footer newsletter email and PDPA consent checkbox. Defaults to `email` and `pdpa_consent`. |
 | `NEXT_PUBLIC_NEWSLETTER_SOURCE_FIELD` / `NEXT_PUBLIC_NEWSLETTER_SOURCE_VALUE` | Optional | Provider-specific source tracking field/value for the footer newsletter form. Defaults to `source=footer`. |
