@@ -119,7 +119,7 @@ describe("app-config", () => {
     delete process.env.NEXT_PUBLIC_CUSTOMERIO_FORMS_BASE_URL;
 
     assert.deepEqual(customerIoFormsConfig(), {
-      siteId: "527b19a2b583c66362d2",
+      siteId: "be2d31cfc0387c58114c",
       baseUrl: "https://customerioforms.com",
       scriptUrl: "https://customerioforms.com/assets/forms.js",
     });

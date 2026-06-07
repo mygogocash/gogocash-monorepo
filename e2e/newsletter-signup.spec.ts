@@ -62,7 +62,7 @@ test.describe("footer newsletter signup (#10)", () => {
     });
     await expect(form).toBeVisible();
     await expect(form).toHaveAttribute("id", "newsletter-signup");
-    await expect(form).toHaveAttribute("name", "Newsletter");
+    await expect(form).toHaveAttribute("name", "newsletter-signup");
     await expect(
       form.getByRole("textbox", { name: "Email address" }),
     ).toBeVisible();
@@ -71,7 +71,7 @@ test.describe("footer newsletter signup (#10)", () => {
     ).toBeVisible();
     await expect(page.locator("script#cio-forms-handler")).toHaveAttribute(
       "data-site-id",
-      "527b19a2b583c66362d2",
+      "be2d31cfc0387c58114c",
     );
   });
 
