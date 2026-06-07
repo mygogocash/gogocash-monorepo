@@ -468,11 +468,13 @@ describe("Account hub route parity", () => {
     expect(settingsFile).toContain("accountSettingsSurfaceBleed");
     expect(settingsFile).toContain('activeRouteId="profile"');
     expect(settingsFile).toContain('href="/profile"');
-    // Community cards render brand-colored glyph tiles. (The prior PNG imports pointed at
-    // an assets dir that doesn't exist in the Expo bundle and broke runtime bundling.)
-    expect(settingsFile).toContain("communityBrandStyles");
-    expect(settingsFile).toContain("getCommunityBrandStyle");
-    expect(settingsFile).toContain("communityGlyph");
+    // Community cards render the web-parity banner PNGs (text + brand logo baked in) from the
+    // Metro-bundled assets dir assets/account-settings-community/<id>.png — matching the web SubPage.
+    expect(settingsFile).toContain("communityBanners");
+    expect(settingsFile).toContain("account-settings-community/facebook.png");
+    expect(settingsFile).toContain("<Image");
+    expect(settingsFile).not.toContain("communityBrandStyles");
+    expect(settingsFile).not.toContain("communityGlyph");
     expect(settingsFile).toContain("isEmailEnabled");
     expect(settingsFile).toContain("isLineEnabled");
     expect(settingsFile).toMatch(/accountSettingsSurfaceBleed:[\s\S]*marginTop: 8/);

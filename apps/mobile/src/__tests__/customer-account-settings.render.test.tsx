@@ -17,6 +17,7 @@ vi.mock("expo-localization", () => ({
 }));
 
 import { CustomerAccountSettingsScreen } from "@mobile/screens/CustomerAccountSettingsScreen";
+import { ToastProvider } from "@mobile/components/Toast";
 
 // Wave B (B2) per-screen UX pass for the account-settings screen. RENDER suite: it
 // MOUNTS the screen (react-native -> react-native-web, happy-dom) to prove it still
@@ -33,7 +34,7 @@ import { CustomerAccountSettingsScreen } from "@mobile/screens/CustomerAccountSe
 //     change to confirm.
 //   - haptics.success (save): SKIPPED — the only save-like control is the subscription
 //     button, which is permanently `disabled`.
-//   - useToast (copy/save): SKIPPED — the screen has no copy or save action.
+//   - useToast: ADOPTED — the PDPA "Request data export / account deletion" actions confirm via toast.
 //   - Skeleton + RefreshControl: SKIPPED — the screen renders a static fixture, not a
 //     backend/fixture resource behind a loading state.
 //   - hitSlop: SKIPPED — the only chevron is the back row, whose Pressable target is the
@@ -43,22 +44,30 @@ const settingsSource = readFileSync(
   "utf8"
 );
 
+// The screen now consumes useToast() (PDPA actions), so mount inside a ToastProvider — the same
+// pattern the other useToast-backed screen render tests use.
+const renderScreen = () =>
+  render(createElement(ToastProvider, {}, createElement(CustomerAccountSettingsScreen)));
+
 describe("CustomerAccountSettingsScreen (render)", () => {
   it("mounts without throwing", () => {
-    expect(() => render(createElement(CustomerAccountSettingsScreen))).not.toThrow();
+    expect(() => renderScreen()).not.toThrow();
   });
 
-  it("renders the subscription, notification, and community sections", () => {
-    render(createElement(CustomerAccountSettingsScreen));
+  it("renders the subscription, notification, community, and PDPA data-rights sections", () => {
+    renderScreen();
     // Section titles (the topbar title duplicates "Account Settings").
     expect(screen.getAllByText("Account Settings").length).toBeGreaterThan(0);
     expect(screen.getByText("Your Subscription")).toBeTruthy();
     expect(screen.getByText("Receive Notifications about Updates")).toBeTruthy();
     expect(screen.getByText("Join our Community")).toBeTruthy();
+    // PDPA data rights (web parity): export + deletion actions.
+    expect(screen.getByText("Request data export")).toBeTruthy();
+    expect(screen.getByText("Request account deletion")).toBeTruthy();
   });
 
   it("renders both notification rows with the Coming soon pill", () => {
-    render(createElement(CustomerAccountSettingsScreen));
+    renderScreen();
     expect(screen.getByText("Notifications via Line")).toBeTruthy();
     expect(screen.getByText("Notifications via Email")).toBeTruthy();
     expect(screen.getAllByText("Coming soon").length).toBe(2);
@@ -78,5 +87,21 @@ describe("CustomerAccountSettingsScreen — Wave B foundations deliberately not 
     expect(settingsSource).toContain("disabled");
     expect(settingsSource).not.toContain("setIsLineEnabled");
     expect(settingsSource).not.toContain("setIsEmailEnabled");
+  });
+
+  it("uses the web LINE brand logo for the Line notification row (not a generic chat bubble)", () => {
+    // Web parity: the Line row uses the ported LineAppIcon SVG, not the phosphor MessageCircle bubble.
+    expect(settingsSource).toContain("LineAppIcon");
+    expect(settingsSource).not.toContain("MessageCircle");
+  });
+
+  it("renders Join-our-Community cards as the web banner images (not flat color + text glyph)", () => {
+    // Web parity: each card is the baked PNG banner from assets/account-settings-community/<id>.png.
+    expect(settingsSource).toContain("account-settings-community/facebook.png");
+    expect(settingsSource).toContain("communityBanners");
+    expect(settingsSource).toContain("<Image");
+    // The old flat-color + letter-glyph approach is gone.
+    expect(settingsSource).not.toContain("communityBrandStyles");
+    expect(settingsSource).not.toContain("communityGlyph");
   });
 });
