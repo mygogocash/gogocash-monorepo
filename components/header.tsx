@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowUpRight } from "@/components/icons";
-import { LINE_MINI_APP_HREF } from "@/components/social-data";
+import { LINE_MINI_APP_HREF, WEB_APP_QUEST_HREF } from "@/components/social-data";
 import GoGoCashLogo from "./gogocash-logo";
 import LaunchAppLink from "@/components/launch-app-link";
 import { LocaleDropdown } from "./locale-menu";
@@ -193,6 +193,14 @@ export default function Header() {
             >
               {navLabels.learn}
             </Link>
+            <a
+              href={WEB_APP_QUEST_HREF}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`flex min-h-10 items-center rounded-full px-3 py-2 text-sm font-medium text-[#6b7280] hover:text-[#1f2937] lg:px-4 ${twNavTextMotion}`}
+            >
+              {navLabels.quest}
+            </a>
           </div>
         </nav>
 
@@ -310,6 +318,17 @@ export default function Header() {
                 >
                   {navLabels.learn}
                 </Link>
+              </motion.div>
+              <motion.div variants={navItemVariants} className="min-w-0">
+                <a
+                  href={WEB_APP_QUEST_HREF}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`block min-h-11 rounded-lg px-4 py-3 text-sm font-medium text-[#6b7280] hover:bg-gray-50 ${twNavTextMotion}`}
+                >
+                  {navLabels.quest}
+                </a>
               </motion.div>
               <motion.div variants={navItemVariants} className="min-w-0">
                 <a

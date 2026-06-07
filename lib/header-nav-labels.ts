@@ -9,6 +9,7 @@ export type HeaderNavLabels = {
   howItWorks: string;
   faq: string;
   learn: string;
+  quest: string;
   startEarning: string;
   mainNavAria: string;
   toggleMenuAria: string;
@@ -21,6 +22,7 @@ const LABELS: Record<"en" | "th" | "tw" | "cn" | "ja" | "id", HeaderNavLabels> =
     howItWorks: "How it works",
     faq: "FAQ",
     learn: "Learn",
+    quest: "Quest",
     startEarning: "Start earning",
     mainNavAria: "Main navigation",
     toggleMenuAria: "Toggle menu",
@@ -31,6 +33,7 @@ const LABELS: Record<"en" | "th" | "tw" | "cn" | "ja" | "id", HeaderNavLabels> =
     howItWorks: "วิธีการทำงาน",
     faq: "คำถามที่พบบ่อย",
     learn: "เรียนรู้",
+    quest: "Quest",
     startEarning: "เริ่มรับเงินคืน",
     mainNavAria: "เมนูนำทางหลัก",
     toggleMenuAria: "เปิดหรือปิดเมนู",
@@ -41,6 +44,7 @@ const LABELS: Record<"en" | "th" | "tw" | "cn" | "ja" | "id", HeaderNavLabels> =
     howItWorks: "運作方式",
     faq: "常見問題",
     learn: "學習專區",
+    quest: "Quest",
     startEarning: "開始賺回饋",
     mainNavAria: "主要導覽",
     toggleMenuAria: "開啟或關閉選單",
@@ -51,6 +55,7 @@ const LABELS: Record<"en" | "th" | "tw" | "cn" | "ja" | "id", HeaderNavLabels> =
     howItWorks: "运作方式",
     faq: "常见问题",
     learn: "学习中心",
+    quest: "Quest",
     startEarning: "开始赚回馈",
     mainNavAria: "主导航",
     toggleMenuAria: "打开或关闭菜单",
@@ -61,6 +66,7 @@ const LABELS: Record<"en" | "th" | "tw" | "cn" | "ja" | "id", HeaderNavLabels> =
     howItWorks: "仕組み",
     faq: "よくある質問",
     learn: "学ぶ",
+    quest: "Quest",
     startEarning: "還元を始める",
     mainNavAria: "メインナビゲーション",
     toggleMenuAria: "メニューを開く",
@@ -71,6 +77,7 @@ const LABELS: Record<"en" | "th" | "tw" | "cn" | "ja" | "id", HeaderNavLabels> =
     howItWorks: "Cara kerja",
     faq: "FAQ",
     learn: "Pelajari",
+    quest: "Quest",
     startEarning: "Mulai dapat cashback",
     mainNavAria: "Navigasi utama",
     toggleMenuAria: "Buka atau tutup menu",

@@ -24,4 +24,26 @@ test.describe("navigation", () => {
     await expect(page).toHaveURL(/\/learn\/?(\?.*)?$/);
     await expect(page.getByRole("main")).toBeVisible({ timeout: 30_000 });
   });
+
+  test("header Quest link (desktop) sits after Learn and opens app quests", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.goto("/", { waitUntil: "load", timeout: 90_000 });
+
+    const mainNav = page.getByRole("navigation", { name: "Main navigation" });
+    const links = mainNav.getByRole("link");
+    const labels = await links.evaluateAll((items) =>
+      items.map((item) => item.textContent?.trim() ?? ""),
+    );
+    const learnIndex = labels.indexOf("Learn");
+    const questIndex = labels.indexOf("Quest");
+
+    expect(learnIndex).toBeGreaterThanOrEqual(0);
+    expect(questIndex).toBe(learnIndex + 1);
+    await expect(mainNav.getByRole("link", { name: "Quest" })).toHaveAttribute(
+      "href",
+      "https://app.gogocash.co/en/quest",
+    );
+  });
 });
