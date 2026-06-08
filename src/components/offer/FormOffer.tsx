@@ -2410,7 +2410,27 @@ const FormOffer = ({
                   cashback above with a higher commission and max cap for a set
                   window.
                 </p>
-                {!form.all_product_types ? (
+                <div className="mt-3 flex min-w-0 items-start gap-3 sm:max-w-md">
+                  <Switch
+                    key={`${form.id}-upsize-all-product-types`}
+                    label=""
+                    onChange={(e) =>
+                      setForm({ ...form, upsize_all_product_types: e })
+                    }
+                    defaultChecked={form.upsize_all_product_types}
+                    disabled={isLoading}
+                  />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                      All product types
+                    </p>
+                    <p className="text-theme-xs text-gray-500 dark:text-gray-400">
+                      Apply this upsize to all products with one rate. Turn off
+                      to set per-product-type upsize lines.
+                    </p>
+                  </div>
+                </div>
+                {!form.upsize_all_product_types ? (
                   <>
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <Button
@@ -2525,13 +2545,9 @@ const FormOffer = ({
                       </ul>
                     ) : null}
                   </>
-                ) : (
-                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                    This upsize applies to all products — set the window and
-                    rate below.
-                  </p>
-                )}
-                {showUpsizeEventPeriodFields || form.all_product_types ? (
+                ) : null}
+                {showUpsizeEventPeriodFields ||
+                form.upsize_all_product_types ? (
                   <div className="mt-4 grid gap-4 sm:grid-cols-2">
                     <div className="sm:col-span-2">
                       <FieldLabel

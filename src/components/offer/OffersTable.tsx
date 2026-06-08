@@ -103,6 +103,7 @@ function offerToEditForm(offer: Offer): OfferRequestForm {
     upsize_end_date: offer.upsize_end_date ?? null,
     upsize_start_time: offer.upsize_start_time ?? null,
     upsize_end_time: offer.upsize_end_time ?? null,
+    upsize_all_product_types: offer.upsize_all_product_types ?? true,
     upsize_special_commission: offer.upsize_special_commission ?? null,
     upsize_max_cap: offer.upsize_max_cap ?? null,
     upsize_product_types: normalizeOfferProductTypes(
@@ -144,6 +145,7 @@ export default function OffersTable() {
     upsize_end_date: null,
     upsize_start_time: null,
     upsize_end_time: null,
+    upsize_all_product_types: true,
     upsize_special_commission: null,
     upsize_max_cap: null,
     upsize_product_types: [],
