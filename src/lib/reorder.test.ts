@@ -28,6 +28,12 @@ describe("reorder > no-op and guards", () => {
     expect(reorder(["A", "B", "C"], 0, 5)).toEqual(["A", "B", "C"]);
     expect(reorder(["A", "B", "C"], -1, 1)).toEqual(["A", "B", "C"]);
   });
+
+  it("returns equal contents when an index is NaN or non-integer", () => {
+    expect(reorder(["A", "B", "C"], NaN, 1)).toEqual(["A", "B", "C"]);
+    expect(reorder(["A", "B", "C"], 0, NaN)).toEqual(["A", "B", "C"]);
+    expect(reorder(["A", "B", "C"], 0.5, 2)).toEqual(["A", "B", "C"]);
+  });
 });
 
 describe("reorder > purity", () => {

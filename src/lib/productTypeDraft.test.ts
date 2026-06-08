@@ -113,3 +113,47 @@ describe("productTypeEntryToDraft > defaults", () => {
     expect(d.currency).toBe("THB");
   });
 });
+
+describe("Edit→Add round-trip preserves the per-row tracking link", () => {
+  it("carries deeplink through entry → draft → entry (cashback)", () => {
+    const entry: OfferProductTypeEntry = {
+      name: "X",
+      pay_in: "cashback",
+      commission_info: "7",
+      commission_raw: "10",
+      deeplink: "https://go.example/x",
+    };
+    const back = productTypeDraftToEntry(productTypeEntryToDraft(entry));
+    expect(back.deeplink).toBe("https://go.example/x");
+  });
+
+  it("carries deeplink through entry → draft → entry (cash)", () => {
+    const entry: OfferProductTypeEntry = {
+      name: "Gift card",
+      pay_in: "cash",
+      commission_info: "",
+      amount: 50,
+      currency: "USD",
+      deeplink: "https://go.example/gc",
+    };
+    const back = productTypeDraftToEntry(productTypeEntryToDraft(entry));
+    expect(back.deeplink).toBe("https://go.example/gc");
+  });
+});
+
+describe("productTypeDraftToEntry > cash amount guards", () => {
+  it("rejects a negative amount", () => {
+    expect(
+      productTypeDraftToEntry(draft({ name: "X", pay_in: "cash", amount: "-50" }))
+        .amount,
+    ).toBeNull();
+  });
+
+  it("rejects a non-finite amount", () => {
+    expect(
+      productTypeDraftToEntry(
+        draft({ name: "X", pay_in: "cash", amount: "Infinity" }),
+      ).amount,
+    ).toBeNull();
+  });
+});

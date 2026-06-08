@@ -177,7 +177,7 @@ export default function OffersTable() {
     staleTime: 30_000,
   });
 
-  const offers = offersResponse?.data ?? [];
+  const offers = useMemo(() => offersResponse?.data ?? [], [offersResponse]);
 
   /**
    * View mode: "flat" lists every offer row independently (current behavior); "grouped" buckets
@@ -422,10 +422,13 @@ export default function OffersTable() {
           {/* Grouped view: brand count + expand/collapse all (only when grouped). */}
           {viewMode === "grouped" && (
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-              <span className="text-gray-500 dark:text-gray-400">
+              <span
+                className="text-gray-500 dark:text-gray-400"
+                title="Variants are grouped within the current page; a brand whose variants span pages may appear on more than one page."
+              >
                 {brandGroups.length} brand
                 {brandGroups.length === 1 ? "" : "s"} · {offers.length} variant
-                {offers.length === 1 ? "" : "s"}
+                {offers.length === 1 ? "" : "s"} on this page
               </span>
               <button
                 type="button"
@@ -927,15 +930,6 @@ export default function OffersTable() {
                     })}
                   </tbody>
                 </table>
-              </div>
-            )}
-
-            {/* Tags display for debugging */}
-            {offers.length > 0 && offers && (
-              <div className="mt-4 rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
-                <div className="text-xs text-gray-600 dark:text-gray-400">
-                  {/* Sample tags: {offers.} */}
-                </div>
               </div>
             )}
 

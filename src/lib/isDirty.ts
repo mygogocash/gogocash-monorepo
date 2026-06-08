@@ -12,6 +12,13 @@ export function deepEqual(a: unknown, b: unknown): boolean {
   ) {
     return false;
   }
+  // Dates have no own enumerable keys, so the key-walk below would treat any two
+  // as equal; compare by timestamp instead.
+  if (a instanceof Date || b instanceof Date) {
+    return (
+      a instanceof Date && b instanceof Date && a.getTime() === b.getTime()
+    );
+  }
   const aArr = Array.isArray(a);
   const bArr = Array.isArray(b);
   if (aArr !== bArr) return false;
