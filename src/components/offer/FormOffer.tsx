@@ -1798,7 +1798,7 @@ const FormOffer = ({
             </p>
           </div>
           {/* Commission info from partner — read-only partner/network feed (moved from the tags card) */}
-          <div className="mt-5">
+          <div className="mt-5 border-y border-gray-200 py-5 dark:border-gray-700">
             <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
               Commission info from partner
             </h4>
