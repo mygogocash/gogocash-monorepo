@@ -560,6 +560,74 @@ const FormOffer = ({
       setSavingPolicy(false);
     }
   };
+
+  // Logos & media: read-only previews by default with its own Edit → Cancel/Save
+  // (mirrors the Policy section). Save uploads only the image fields via an
+  // independent partial PATCH, separate from the form-wide "Save changes".
+  const [editingMedia, setEditingMedia] = useState(false);
+  const [savingMedia, setSavingMedia] = useState(false);
+  const [mediaSnapshot, setMediaSnapshot] = useState<Pick<
+    OfferRequestForm,
+    "logo_desktop" | "logo_mobile" | "logo_circle" | "banner" | "banner_mobile"
+  > | null>(null);
+
+  const beginEditMedia = () => {
+    setMediaSnapshot({
+      logo_desktop: form.logo_desktop,
+      logo_mobile: form.logo_mobile,
+      logo_circle: form.logo_circle,
+      banner: form.banner,
+      banner_mobile: form.banner_mobile,
+    });
+    setEditingMedia(true);
+  };
+
+  const cancelEditMedia = () => {
+    if (mediaSnapshot) {
+      setForm((prev) => ({ ...prev, ...mediaSnapshot }));
+    }
+    setEditingMedia(false);
+  };
+
+  const saveMediaEdit = async () => {
+    if (!form.id) return;
+    setSavingMedia(true);
+    try {
+      const fd = new FormData();
+      if (form.logo_desktop) fd.append("logo_desktop", form.logo_desktop);
+      if (form.logo_mobile) fd.append("logo_mobile", form.logo_mobile);
+      if (form.logo_circle) fd.append("logo_circle", form.logo_circle);
+      if (form.banner) fd.append("banner", form.banner);
+      if (form.banner_mobile) fd.append("banner_mobile", form.banner_mobile);
+      await client.patch(`/admin/update-offer/${form.id}`, fd, {
+        headers: {
+          Authorization: `Bearer ${session?.accessToken}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      // Re-baseline the image fields so the form-wide "Save changes" doesn't
+      // re-flag these now-persisted uploads as dirty.
+      setFormBaseline((prev) => ({
+        ...prev,
+        snapshot: {
+          ...prev.snapshot,
+          logo_desktop: form.logo_desktop,
+          logo_mobile: form.logo_mobile,
+          logo_circle: form.logo_circle,
+          banner: form.banner,
+          banner_mobile: form.banner_mobile,
+        },
+      }));
+      setEditingMedia(false);
+      fetchOffers();
+      toast.success("Media updated successfully");
+    } catch (err) {
+      devError("Failed to update media:", err);
+      toast.error("Could not update media. Please try again.");
+    } finally {
+      setSavingMedia(false);
+    }
+  };
   const baselineSuggestedDeeplink =
     serverSuggestedDeeplink ?? partnerPreviewDeeplink;
   /**
@@ -2529,12 +2597,39 @@ const FormOffer = ({
           id="offer-section-media"
           className={`space-y-4 rounded-xl border border-gray-200 bg-gray-50/50 p-4 sm:p-5 dark:border-gray-700 dark:bg-gray-800/30 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
         >
-          <h4 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
-            Logos & media
-          </h4>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <h4 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
+              Logos & media
+            </h4>
+            {!editingMedia ? (
+              <SecondaryButton onClick={beginEditMedia} disabled={!offer}>
+                Edit
+              </SecondaryButton>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={cancelEditMedia}
+                  disabled={savingMedia}
+                  className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void saveMediaEdit()}
+                  disabled={savingMedia}
+                  className="border-brand-600 bg-brand-600 hover:bg-brand-700 dark:border-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500 rounded-lg border px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {savingMedia ? "Saving…" : "Save changes"}
+                </button>
+              </div>
+            )}
+          </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Upload images for desktop, mobile, and banners. Leave empty to keep
-            current.
+            {editingMedia
+              ? "Upload images for the logo, brand cover, and banner. Leave empty to keep current."
+              : "Current images. Click Edit to replace them."}
           </p>
 
           <div>
@@ -2543,21 +2638,23 @@ const FormOffer = ({
               description="Square (1:1) logo — used on both desktop and mobile."
             />
             <div className="flex flex-wrap items-start gap-4">
-              <div className="w-[320px] max-w-full shrink-0">
-                <Input
-                  type="file"
-                  name="logo_desktop"
-                  onChange={(e) => {
-                    // One 1:1 logo for both surfaces: set desktop + mobile to it.
-                    const file = e.target.files?.[0] || null;
-                    setForm((prev) => ({
-                      ...prev,
-                      logo_desktop: file,
-                      logo_mobile: file,
-                    }));
-                  }}
-                />
-              </div>
+              {editingMedia && (
+                <div className="w-[320px] max-w-full shrink-0">
+                  <Input
+                    type="file"
+                    name="logo_desktop"
+                    onChange={(e) => {
+                      // One 1:1 logo for both surfaces: set desktop + mobile to it.
+                      const file = e.target.files?.[0] || null;
+                      setForm((prev) => ({
+                        ...prev,
+                        logo_desktop: file,
+                        logo_mobile: file,
+                      }));
+                    }}
+                  />
+                </div>
+              )}
               {(form.logo_desktop || (openModal as Offer).logo_desktop) && (
                 <RemoteOrBlobImage
                   src={
@@ -2579,16 +2676,18 @@ const FormOffer = ({
               description="Cover image shown on the brand's shop page."
             />
             <div className="flex flex-wrap items-start gap-4">
-              <div className="w-[320px] max-w-full shrink-0">
-                <Input
-                  type="file"
-                  name="logo_circle"
-                  onChange={(e) => handleFileChange(e, "logo_circle")}
-                />
-                <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                  Requested size: 1,200 × 410 px (W × H).
-                </p>
-              </div>
+              {editingMedia && (
+                <div className="w-[320px] max-w-full shrink-0">
+                  <Input
+                    type="file"
+                    name="logo_circle"
+                    onChange={(e) => handleFileChange(e, "logo_circle")}
+                  />
+                  <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    Requested size: 1,200 × 410 px (W × H).
+                  </p>
+                </div>
+              )}
               {(form.logo_circle || (openModal as Offer).logo_circle) && (
                 <RemoteOrBlobImage
                   src={
@@ -2609,24 +2708,26 @@ const FormOffer = ({
               description="Hero / banner image — used on both desktop and mobile."
             />
             <div className="flex flex-wrap items-start gap-4">
-              <div className="w-[320px] max-w-full shrink-0">
-                <Input
-                  type="file"
-                  name="banner"
-                  onChange={(e) => {
-                    // One banner for both surfaces: set desktop + mobile to it.
-                    const file = e.target.files?.[0] || null;
-                    setForm((prev) => ({
-                      ...prev,
-                      banner: file,
-                      banner_mobile: file,
-                    }));
-                  }}
-                />
-                <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                  Requested size: 800 × 450 px (W × H).
-                </p>
-              </div>
+              {editingMedia && (
+                <div className="w-[320px] max-w-full shrink-0">
+                  <Input
+                    type="file"
+                    name="banner"
+                    onChange={(e) => {
+                      // One banner for both surfaces: set desktop + mobile to it.
+                      const file = e.target.files?.[0] || null;
+                      setForm((prev) => ({
+                        ...prev,
+                        banner: file,
+                        banner_mobile: file,
+                      }));
+                    }}
+                  />
+                  <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    Requested size: 800 × 450 px (W × H).
+                  </p>
+                </div>
+              )}
               {(form.banner || (openModal as Offer).banner) && (
                 <RemoteOrBlobImage
                   src={bannerUrl ?? pathImage((openModal as Offer).banner)}
