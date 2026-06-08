@@ -813,6 +813,7 @@ const FormOffer = ({
             amount: row.amount ?? null,
             currency: (row.currency ?? "").trim(),
             deeplink: (row.deeplink ?? "").trim(),
+            description: (row.description ?? "").trim(),
           }))
           .filter((row) => row.name.length > 0);
     formData.append("product_types", JSON.stringify(productTypeRows));
@@ -1470,6 +1471,30 @@ const FormOffer = ({
                     />
                   </div>
 
+                  <div>
+                    <label
+                      htmlFor="offer-pt-draft-description"
+                      className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >
+                      Product description
+                    </label>
+                    <Input
+                      id="offer-pt-draft-description"
+                      type="text"
+                      placeholder="e.g. Phones, laptops & accessories"
+                      value={productTypeDraft.description}
+                      onChange={(e) =>
+                        setProductTypeDraft((d) => ({
+                          ...d,
+                          description: e.target.value,
+                        }))
+                      }
+                      disabled={isLoading}
+                      autoComplete="off"
+                      className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
+                    />
+                  </div>
+
                   {/* 2nd line: "Pay in :" toggle group + inputs group (24px between the two groups) */}
                   <div className="flex flex-wrap items-center gap-6">
                     {/* Pay-in toggle group — wrapped for selection (no visual change) */}
@@ -1737,6 +1762,11 @@ const FormOffer = ({
                                 </td>
                                 <td className="px-4 py-2.5 font-medium text-gray-800 dark:text-gray-100">
                                   {row.name || "—"}
+                                  {row.description?.trim() ? (
+                                    <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-gray-400">
+                                      {row.description}
+                                    </p>
+                                  ) : null}
                                 </td>
                                 <td className="w-32 px-4 py-2.5">
                                   <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300">

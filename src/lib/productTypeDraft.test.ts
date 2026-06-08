@@ -5,7 +5,10 @@ import {
   productTypeEntryToDraft,
   type ProductTypeDraft,
 } from "@/lib/productTypeDraft";
-import type { OfferProductTypeEntry } from "@/types/api";
+import {
+  normalizeOfferProductTypes,
+  type OfferProductTypeEntry,
+} from "@/types/api";
 
 const draft = (over: Partial<ProductTypeDraft> = {}): ProductTypeDraft => ({
   ...EMPTY_PRODUCT_TYPE_DRAFT,
@@ -144,8 +147,9 @@ describe("Edit→Add round-trip preserves the per-row tracking link", () => {
 describe("productTypeDraftToEntry > cash amount guards", () => {
   it("rejects a negative amount", () => {
     expect(
-      productTypeDraftToEntry(draft({ name: "X", pay_in: "cash", amount: "-50" }))
-        .amount,
+      productTypeDraftToEntry(
+        draft({ name: "X", pay_in: "cash", amount: "-50" }),
+      ).amount,
     ).toBeNull();
   });
 
@@ -155,5 +159,67 @@ describe("productTypeDraftToEntry > cash amount guards", () => {
         draft({ name: "X", pay_in: "cash", amount: "Infinity" }),
       ).amount,
     ).toBeNull();
+  });
+});
+
+describe("product description carries through the draft lifecycle", () => {
+  it("productTypeDraftToEntry trims and stores the description (cashback)", () => {
+    const entry = productTypeDraftToEntry(
+      draft({
+        name: "Electronics",
+        pay_in: "cashback",
+        commission_raw: "10",
+        description: "  Phones & laptops  ",
+      }),
+    );
+    expect(entry.description).toBe("Phones & laptops");
+  });
+
+  it("productTypeDraftToEntry trims and stores the description (cash)", () => {
+    const entry = productTypeDraftToEntry(
+      draft({
+        name: "Gift card",
+        pay_in: "cash",
+        amount: "50",
+        currency: "USD",
+        description: "  One-time payout  ",
+      }),
+    );
+    expect(entry.description).toBe("One-time payout");
+  });
+
+  it("productTypeEntryToDraft populates the description from the entry", () => {
+    const d = productTypeEntryToDraft({
+      name: "X",
+      pay_in: "cashback",
+      commission_info: "7",
+      description: "Fast charging",
+    });
+    expect(d.description).toBe("Fast charging");
+  });
+
+  it("productTypeEntryToDraft defaults a missing description to an empty string", () => {
+    const d = productTypeEntryToDraft({ name: "X", commission_info: "" });
+    expect(d.description).toBe("");
+  });
+
+  it("carries the description through entry → draft → entry", () => {
+    const entry: OfferProductTypeEntry = {
+      name: "X",
+      pay_in: "cashback",
+      commission_info: "7",
+      commission_raw: "10",
+      description: "Detail line",
+    };
+    const back = productTypeDraftToEntry(productTypeEntryToDraft(entry));
+    expect(back.description).toBe("Detail line");
+  });
+
+  it("carries the description through the full reload pipeline (normalize → entry → draft → entry)", () => {
+    const [entry] = normalizeOfferProductTypes([
+      { name: "X", commission_info: "7", description: "  Detail line  " },
+    ]);
+    const back = productTypeDraftToEntry(productTypeEntryToDraft(entry));
+    expect(back.description).toBe("Detail line");
   });
 });
