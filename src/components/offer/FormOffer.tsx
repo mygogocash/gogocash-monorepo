@@ -1244,6 +1244,189 @@ const FormOffer = ({
             </div>
           </div>
 
+          <div>
+            <div>
+              <h4 className="text-brand-900 dark:text-brand-100 text-sm font-semibold">
+                Offer tags (merchandising)
+              </h4>
+              <p className="text-brand-800/80 dark:text-brand-200/80 mt-1 text-xs">
+                Optional labels for the offer card in the app: category, promos,
+                and expiry messaging. Editable here; unrelated to partner rates
+                above.
+              </p>
+              {offerTagPreviewChips.length > 0 ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {offerTagPreviewChips.map((c, i) => (
+                    <span
+                      key={`tag-preview-${i}`}
+                      className="text-brand-900 dark:bg-brand-950/60 dark:text-brand-100 rounded-full bg-white/90 px-2.5 py-1 text-xs font-medium shadow-sm"
+                    >
+                      {c}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-brand-800/70 dark:text-brand-200/70 mt-2 text-xs">
+                  No tags enabled — use the toggles below to show pills in the
+                  app.
+                </p>
+              )}
+            </div>
+            <div className="mt-4 space-y-5">
+              <div>
+                <div className="flex items-start gap-3">
+                  <Switch
+                    key={`${form.id}-odt-brand`}
+                    label=""
+                    defaultChecked={
+                      form.offer_display_tags.brand_category_enabled
+                    }
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        offer_display_tags: {
+                          ...form.offer_display_tags,
+                          brand_category_enabled: e,
+                        },
+                      })
+                    }
+                    disabled={isLoading}
+                  />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-400">
+                      Brand category
+                    </p>
+                    <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
+                      Show the brand-category pill in the app. Pick which
+                      category under Brand Info above.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <div className="flex items-start gap-3">
+                  <Switch
+                    key={`${form.id}-odt-xc`}
+                    label=""
+                    defaultChecked={form.offer_display_tags.extra_cashback_tag}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        offer_display_tags: {
+                          ...form.offer_display_tags,
+                          extra_cashback_tag: e,
+                        },
+                      })
+                    }
+                    disabled={isLoading}
+                  />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-400">
+                      Extra cashback
+                    </p>
+                    <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
+                      Show an “extra cashback” style promo tag (separate from
+                      Upsize fields below).
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-start gap-3">
+                  <Switch
+                    key={`${form.id}-odt-grab`}
+                    label=""
+                    defaultChecked={form.offer_display_tags.grab_coupon_tag}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        offer_display_tags: {
+                          ...form.offer_display_tags,
+                          grab_coupon_tag: e,
+                        },
+                      })
+                    }
+                    disabled={isLoading}
+                  />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-400">
+                      Grab Coupon
+                    </p>
+                    <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
+                      Highlight that users can claim a Grab-related coupon for
+                      this offer.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-start gap-3">
+                  <Switch
+                    key={`${form.id}-odt-exp`}
+                    label=""
+                    defaultChecked={
+                      form.offer_display_tags.expire_in_days_enabled
+                    }
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        offer_display_tags: {
+                          ...form.offer_display_tags,
+                          expire_in_days_enabled: e,
+                        },
+                      })
+                    }
+                    disabled={isLoading}
+                  />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-400">
+                      Expire in X days
+                    </p>
+                    <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
+                      Shows “Expire in {"{n}"} days” on the card. Set the number
+                      when enabled.
+                    </p>
+                    {form.offer_display_tags.expire_in_days_enabled ? (
+                      <div className="mt-2 flex max-w-md flex-wrap items-center gap-2">
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          Expire in
+                        </span>
+                        <Input
+                          type="number"
+                          name="offer_tag_expire_days"
+                          min="1"
+                          className="w-24"
+                          value={
+                            form.offer_display_tags.expire_in_days == null
+                              ? ""
+                              : String(form.offer_display_tags.expire_in_days)
+                          }
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setForm({
+                              ...form,
+                              offer_display_tags: {
+                                ...form.offer_display_tags,
+                                expire_in_days: v === "" ? null : Number(v),
+                              },
+                            });
+                          }}
+                          disabled={isLoading}
+                          autoComplete="off"
+                        />
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          days
+                        </span>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <section
             id="offer-section-cashback"
             className={`space-y-8 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
@@ -1891,189 +2074,8 @@ const FormOffer = ({
             Promotion and Marketing
           </h2>
           <div>
-            {/* Offer tags header — wrapped for selection (no visual change) */}
-            <div>
-              <h4 className="text-brand-900 dark:text-brand-100 text-sm font-semibold">
-                Offer tags (merchandising)
-              </h4>
-              <p className="text-brand-800/80 dark:text-brand-200/80 mt-1 text-xs">
-                Optional labels for the offer card in the app: category, promos,
-                and expiry messaging. Editable here; unrelated to partner rates
-                above.
-              </p>
-              {offerTagPreviewChips.length > 0 ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {offerTagPreviewChips.map((c, i) => (
-                    <span
-                      key={`tag-preview-${i}`}
-                      className="text-brand-900 dark:bg-brand-950/60 dark:text-brand-100 rounded-full bg-white/90 px-2.5 py-1 text-xs font-medium shadow-sm"
-                    >
-                      {c}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-brand-800/70 dark:text-brand-200/70 mt-2 text-xs">
-                  No tags enabled — use the toggles below to show pills in the
-                  app.
-                </p>
-              )}
-            </div>
-
             <div className="mt-4 space-y-5">
               <div>
-                <div className="flex items-start gap-3">
-                  <Switch
-                    key={`${form.id}-odt-brand`}
-                    label=""
-                    defaultChecked={
-                      form.offer_display_tags.brand_category_enabled
-                    }
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        offer_display_tags: {
-                          ...form.offer_display_tags,
-                          brand_category_enabled: e,
-                        },
-                      })
-                    }
-                    disabled={isLoading}
-                  />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-400">
-                      Brand category
-                    </p>
-                    <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
-                      Show the brand-category pill in the app. Pick which
-                      category under Brand Info above.
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div>
-                <div className="flex items-start gap-3">
-                  <Switch
-                    key={`${form.id}-odt-xc`}
-                    label=""
-                    defaultChecked={form.offer_display_tags.extra_cashback_tag}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        offer_display_tags: {
-                          ...form.offer_display_tags,
-                          extra_cashback_tag: e,
-                        },
-                      })
-                    }
-                    disabled={isLoading}
-                  />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-400">
-                      Extra cashback
-                    </p>
-                    <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
-                      Show an “extra cashback” style promo tag (separate from
-                      Upsize fields below).
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-start gap-3">
-                  <Switch
-                    key={`${form.id}-odt-grab`}
-                    label=""
-                    defaultChecked={form.offer_display_tags.grab_coupon_tag}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        offer_display_tags: {
-                          ...form.offer_display_tags,
-                          grab_coupon_tag: e,
-                        },
-                      })
-                    }
-                    disabled={isLoading}
-                  />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-400">
-                      Grab Coupon
-                    </p>
-                    <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
-                      Highlight that users can claim a Grab-related coupon for
-                      this offer.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-start gap-3">
-                  <Switch
-                    key={`${form.id}-odt-exp`}
-                    label=""
-                    defaultChecked={
-                      form.offer_display_tags.expire_in_days_enabled
-                    }
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        offer_display_tags: {
-                          ...form.offer_display_tags,
-                          expire_in_days_enabled: e,
-                        },
-                      })
-                    }
-                    disabled={isLoading}
-                  />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-400">
-                      Expire in X days
-                    </p>
-                    <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
-                      Shows “Expire in {"{n}"} days” on the card. Set the number
-                      when enabled.
-                    </p>
-                    {form.offer_display_tags.expire_in_days_enabled ? (
-                      <div className="mt-2 flex max-w-md flex-wrap items-center gap-2">
-                        <span className="text-sm text-gray-600 dark:text-gray-400">
-                          Expire in
-                        </span>
-                        <Input
-                          type="number"
-                          name="offer_tag_expire_days"
-                          min="1"
-                          className="w-24"
-                          value={
-                            form.offer_display_tags.expire_in_days == null
-                              ? ""
-                              : String(form.offer_display_tags.expire_in_days)
-                          }
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            setForm({
-                              ...form,
-                              offer_display_tags: {
-                                ...form.offer_display_tags,
-                                expire_in_days: v === "" ? null : Number(v),
-                              },
-                            });
-                          }}
-                          disabled={isLoading}
-                          autoComplete="off"
-                        />
-                        <span className="text-sm text-gray-600 dark:text-gray-400">
-                          days
-                        </span>
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-
-              <div className="border-brand-200/70 dark:border-brand-800/50 border-t pt-4">
                 <h5 className="text-brand-900 dark:text-brand-100 text-sm font-semibold">
                   Upsize event
                 </h5>
