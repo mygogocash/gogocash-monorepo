@@ -267,4 +267,19 @@ describe("serializeOfferProductTypes", () => {
     expect(row.deeplink).toBe("");
     expect(row.description).toBe("");
   });
+
+  it("preserves is_tagline:true for heading rows and trims their name", () => {
+    const [row] = serializeOfferProductTypes([
+      { name: "  Group A  ", is_tagline: true, commission_info: "" },
+    ]);
+    expect(row.is_tagline).toBe(true);
+    expect(row.name).toBe("Group A");
+  });
+
+  it("does not add is_tagline to normal product rows", () => {
+    const [row] = serializeOfferProductTypes([
+      { name: "Electronics", commission_info: "7" },
+    ]);
+    expect(row.is_tagline).toBeUndefined();
+  });
 });

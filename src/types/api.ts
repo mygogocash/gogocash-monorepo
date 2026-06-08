@@ -441,6 +441,8 @@ export interface OfferProductTypeEntry {
   deeplink?: string;
   /** Optional free-text subtitle shown under the name in admin product-type tables. */
   description?: string;
+  /** When true, this is a plain-text heading/tagline that groups the rows below it (no commission). */
+  is_tagline?: boolean;
 }
 
 /**
@@ -469,6 +471,7 @@ export function normalizeOfferProductTypes(
         currency: String(o.currency ?? "").trim(),
         deeplink: String(o.deeplink ?? "").trim(),
         description: String(o.description ?? "").trim(),
+        ...(o.is_tagline === true ? { is_tagline: true } : {}),
       };
     }
     return { name: "", pay_in: "cashback", commission_info: "" };
