@@ -2576,7 +2576,7 @@ const FormOffer = ({
         {/* Logos & media */}
         <section
           id="offer-section-media"
-          className={`space-y-4 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
+          className={`space-y-4 rounded-xl border border-gray-200 bg-gray-50/50 p-4 sm:p-5 dark:border-gray-700 dark:bg-gray-800/30 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
         >
           <h4 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
             Logos & media
