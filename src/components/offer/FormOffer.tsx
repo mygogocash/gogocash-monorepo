@@ -2139,7 +2139,7 @@ const FormOffer = ({
                                         disabled={isLoading || editLocked}
                                         autoComplete="off"
                                         aria-label="Tagline group heading"
-                                        className="min-w-0 flex-1 border-0 bg-transparent p-0 text-sm font-semibold tracking-wide text-gray-700 uppercase placeholder:text-xs placeholder:font-normal placeholder:tracking-normal placeholder:text-gray-400 placeholder:normal-case focus:ring-0 focus:outline-none disabled:opacity-50 dark:text-gray-200"
+                                        className="focus:border-brand-300 focus:ring-brand-500/10 min-w-0 flex-1 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-sm font-semibold tracking-wide text-gray-700 uppercase placeholder:font-normal placeholder:tracking-normal placeholder:text-gray-400 placeholder:normal-case focus:ring-3 focus:outline-none disabled:opacity-50 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200"
                                       />
                                       <button
                                         type="button"
