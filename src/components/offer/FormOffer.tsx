@@ -1498,7 +1498,7 @@ const FormOffer = ({
                 </div>
                 <div className="sm:col-span-2">
                   <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                    Offer tags
+                    Active tags
                   </dt>
                   <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
                     {offerTagPreviewChips.length > 0 ? (
