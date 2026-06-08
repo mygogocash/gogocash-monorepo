@@ -1014,7 +1014,7 @@ const FormOffer = ({
             <h4 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
               Brand Info
             </h4>
-            <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-start">
+            <div className="mt-2 space-y-[18px]">
               <div>
                 <FieldLabel
                   label="Name of offer"
