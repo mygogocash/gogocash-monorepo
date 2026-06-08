@@ -44,6 +44,7 @@ import {
 } from "@/lib/productTypeDraft";
 import { reorder } from "@/lib/reorder";
 import { STATUS_BADGE_BASE } from "@/lib/statusBadge";
+import { isDirty } from "@/lib/isDirty";
 import { COMMISSION_MANAGEMENT_BRANDS_ROOT_QUERY_KEY } from "@/lib/query/offersQueries";
 import { OfferFullscreenCardShell } from "./OfferFullscreenCardShell";
 import { FormSectionJumpNav } from "@/components/form/FormSectionJumpNav";
@@ -830,6 +831,22 @@ const FormOffer = ({
     }
   };
 
+  // Whether the Brand Info fields changed since Edit was opened (drives the
+  // section Save button: disabled + "No changes" until something is edited).
+  const brandDirty =
+    !!brandSnapshot &&
+    isDirty(
+      {
+        offer_name_display: form.offer_name_display,
+        lookup_value: form.lookup_value ?? "",
+        disabled: form.disabled,
+        extra_store: form.extra_store,
+        offer_display_tags: form.offer_display_tags,
+        syncLookup: syncLookupFromBrandCountry,
+      },
+      brandSnapshot,
+    );
+
   const { data: policyCategories = [], isPending: policyCategoriesPending } =
     useQuery<ResCategoryList[]>({
       queryKey: ["getCategory", "form-offer-policy"],
@@ -1081,10 +1098,14 @@ const FormOffer = ({
                 <button
                   type="button"
                   onClick={() => void saveBrandEdit()}
-                  disabled={savingBrand}
+                  disabled={savingBrand || !brandDirty}
                   className="border-brand-600 bg-brand-600 hover:bg-brand-700 dark:border-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500 rounded-lg border px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {savingBrand ? "Saving…" : "Save changes"}
+                  {savingBrand
+                    ? "Saving…"
+                    : brandDirty
+                      ? "Save changes"
+                      : "No changes"}
                 </button>
               </div>
             )}
