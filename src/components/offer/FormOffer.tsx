@@ -984,13 +984,7 @@ const FormOffer = ({
     >
       <>
         {offer ? (
-          <>
-            <FormOfferBrandReferenceStrip offer={offer} form={form} />
-            <div
-              className="border-t border-gray-200 dark:border-gray-700"
-              aria-hidden="true"
-            />
-          </>
+          <FormOfferBrandReferenceStrip offer={offer} form={form} />
         ) : null}
 
         <section
@@ -1801,11 +1795,6 @@ const FormOffer = ({
           </section>
         </section>
 
-        <div
-          className="border-t border-gray-200 dark:border-gray-700"
-          aria-hidden="true"
-        />
-
         {/* Tracking links — one per product-type row (brand / line), or single offer row */}
         <div
           id="offer-section-tracking"
@@ -1946,11 +1935,6 @@ const FormOffer = ({
             </div>
           )}
         </div>
-
-        <div
-          className="border-t border-gray-200 dark:border-gray-700"
-          aria-hidden="true"
-        />
 
         {/* Read-only: from partner / network feed */}
         <div
@@ -2391,11 +2375,6 @@ const FormOffer = ({
           </div>
         </div>
 
-        <div
-          className="border-t border-gray-200 dark:border-gray-700"
-          aria-hidden="true"
-        />
-
         {/* Policy (T&C source) — read-only by default; per-section Edit/Save. */}
         <section
           id="offer-section-policy"
@@ -2572,11 +2551,6 @@ const FormOffer = ({
             </>
           )}
         </section>
-
-        <div
-          className="border-t border-gray-200 dark:border-gray-700"
-          aria-hidden="true"
-        />
 
         {/* Logos & media */}
         <section
