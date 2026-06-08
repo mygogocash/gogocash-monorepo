@@ -832,10 +832,10 @@ const FormOffer = ({
         snapshot: {
           ...prev.snapshot,
           offer_name_display: form.offer_name_display,
-          lookup_value: form.lookup_value,
+          lookup_value: form.lookup_value ?? "",
           disabled: form.disabled,
           extra_store: form.extra_store,
-          offer_display_tags: form.offer_display_tags,
+          offer_display_tags: { ...form.offer_display_tags },
         },
       }));
       setEditingBrand(false);
@@ -1456,7 +1456,10 @@ const FormOffer = ({
                 </div>
               </>
             ) : (
-              <dl className="mt-2 grid gap-x-6 gap-y-4 sm:grid-cols-2">
+              <dl
+                aria-label="Brand Info summary"
+                className="mt-2 grid gap-x-6 gap-y-4 sm:grid-cols-2"
+              >
                 <div>
                   <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
                     Name of offer
@@ -1472,7 +1475,7 @@ const FormOffer = ({
                   <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
                     {form.offer_display_tags.brand_category_label?.trim() ||
                       (offer?.categories?.trim()
-                        ? `Use partner feed (${offer.categories})`
+                        ? `Use partner feed (${offer.categories.trim()})`
                         : "Use partner feed")}
                   </dd>
                 </div>
