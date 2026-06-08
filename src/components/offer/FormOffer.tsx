@@ -266,7 +266,6 @@ const FormOffer = ({
   const queryClient = useQueryClient();
   const logoDesktopUrl = useObjectUrl(form.logo_desktop);
   const bannerUrl = useObjectUrl(form.banner);
-  const bannerMobileUrl = useObjectUrl(form.banner_mobile);
   const logoCircleUrl = useObjectUrl(form.logo_circle);
   const offer = openModal && typeof openModal === "object" ? openModal : null;
   const offerCountry = offer?.countries ?? "";
@@ -2606,15 +2605,23 @@ const FormOffer = ({
 
           <div>
             <FieldLabel
-              label="Banner (desktop)"
-              description="Hero or banner image on desktop."
+              label="Banner"
+              description="Hero / banner image — used on both desktop and mobile."
             />
             <div className="flex flex-wrap items-start gap-4">
               <div className="w-[320px] max-w-full shrink-0">
                 <Input
                   type="file"
                   name="banner"
-                  onChange={(e) => handleFileChange(e, "banner")}
+                  onChange={(e) => {
+                    // One banner for both surfaces: set desktop + mobile to it.
+                    const file = e.target.files?.[0] || null;
+                    setForm((prev) => ({
+                      ...prev,
+                      banner: file,
+                      banner_mobile: file,
+                    }));
+                  }}
                 />
                 <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
                   Requested size: 800 × 450 px (W × H).
@@ -2627,34 +2634,6 @@ const FormOffer = ({
                   width={256}
                   height={256}
                   className="aspect-[800/450] h-auto w-[250px] shrink-0 rounded-lg border border-gray-200 object-cover dark:border-gray-600"
-                />
-              )}
-            </div>
-          </div>
-
-          <div>
-            <FieldLabel
-              label="Banner (mobile)"
-              description="Banner image on mobile."
-            />
-            <div className="flex flex-wrap items-start gap-4">
-              <div className="w-[320px] max-w-full shrink-0">
-                <Input
-                  type="file"
-                  name="banner_mobile"
-                  onChange={(e) => handleFileChange(e, "banner_mobile")}
-                />
-              </div>
-              {(form.banner_mobile || (openModal as Offer).banner_mobile) && (
-                <RemoteOrBlobImage
-                  src={
-                    bannerMobileUrl ??
-                    pathImage((openModal as Offer).banner_mobile)
-                  }
-                  alt="Preview"
-                  width={256}
-                  height={256}
-                  className="max-h-32 min-w-0 flex-1 rounded-lg border border-gray-200 object-contain dark:border-gray-600"
                 />
               )}
             </div>
