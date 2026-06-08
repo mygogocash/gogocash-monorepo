@@ -1428,15 +1428,11 @@ const FormOffer = ({
           </div>
         </section>
 
-        {/* Offer tags (merchandising) — editable display labels for the app */}
+        {/* Cashback management, product types & upsize promotion */}
         <div
           id="offer-section-merch"
           className={`border-brand-200/80 bg-brand-50/50 dark:border-brand-800/60 dark:bg-brand-950/25 rounded-xl border border-dashed p-4 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
         >
-          <h2 className="text-brand-900 dark:text-brand-100 mb-4 text-lg font-semibold tracking-tight">
-            Promotion and Marketing
-          </h2>
-
           <section
             id="offer-section-cashback"
             className={`space-y-8 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
