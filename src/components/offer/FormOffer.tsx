@@ -2186,60 +2186,67 @@ const FormOffer = ({
               </div>
 
               <div>
-                <Switch
-                  key={`${form.id}-odt-exp`}
-                  label="Expire in X days"
-                  defaultChecked={
-                    form.offer_display_tags.expire_in_days_enabled
-                  }
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      offer_display_tags: {
-                        ...form.offer_display_tags,
-                        expire_in_days_enabled: e,
-                      },
-                    })
-                  }
-                  disabled={isLoading}
-                />
-                <p className="mt-0.5 ml-6 text-xs text-gray-600 dark:text-gray-400">
-                  Shows “Expire in {"{n}"} days” on the card. Set the number
-                  when enabled.
-                </p>
-                {form.offer_display_tags.expire_in_days_enabled ? (
-                  <div className="mt-2 ml-6 flex max-w-md flex-wrap items-center gap-2">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">
-                      Expire in
-                    </span>
-                    <Input
-                      type="number"
-                      name="offer_tag_expire_days"
-                      min="1"
-                      className="w-24"
-                      value={
-                        form.offer_display_tags.expire_in_days == null
-                          ? ""
-                          : String(form.offer_display_tags.expire_in_days)
-                      }
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        setForm({
-                          ...form,
-                          offer_display_tags: {
-                            ...form.offer_display_tags,
-                            expire_in_days: v === "" ? null : Number(v),
-                          },
-                        });
-                      }}
-                      disabled={isLoading}
-                      autoComplete="off"
-                    />
-                    <span className="text-sm text-gray-600 dark:text-gray-400">
-                      days
-                    </span>
+                <div className="flex items-start gap-3">
+                  <Switch
+                    key={`${form.id}-odt-exp`}
+                    label=""
+                    defaultChecked={
+                      form.offer_display_tags.expire_in_days_enabled
+                    }
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        offer_display_tags: {
+                          ...form.offer_display_tags,
+                          expire_in_days_enabled: e,
+                        },
+                      })
+                    }
+                    disabled={isLoading}
+                  />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-400">
+                      Expire in X days
+                    </p>
+                    <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
+                      Shows “Expire in {"{n}"} days” on the card. Set the number
+                      when enabled.
+                    </p>
+                    {form.offer_display_tags.expire_in_days_enabled ? (
+                      <div className="mt-2 flex max-w-md flex-wrap items-center gap-2">
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          Expire in
+                        </span>
+                        <Input
+                          type="number"
+                          name="offer_tag_expire_days"
+                          min="1"
+                          className="w-24"
+                          value={
+                            form.offer_display_tags.expire_in_days == null
+                              ? ""
+                              : String(form.offer_display_tags.expire_in_days)
+                          }
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setForm({
+                              ...form,
+                              offer_display_tags: {
+                                ...form.offer_display_tags,
+                                expire_in_days: v === "" ? null : Number(v),
+                              },
+                            });
+                          }}
+                          disabled={isLoading}
+                          autoComplete="off"
+                        />
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          days
+                        </span>
+                      </div>
+                    ) : null}
                   </div>
-                ) : null}
+                </div>
               </div>
             </div>
           </div>
