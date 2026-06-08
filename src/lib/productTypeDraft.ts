@@ -98,3 +98,24 @@ export function serializeOfferProductTypes(
     }))
     .filter((row) => row.name.length > 0);
 }
+
+/**
+ * The highest user-facing cashback % (net `commission_info`) among the
+ * product-type rows. Ignores tagline headings and cash pay-in rows, and skips
+ * blank / non-numeric values. Returns null when there are no cashback rows.
+ * Used to auto-fill the single offer commission when per-row rates are in play.
+ */
+export function highestCashbackPercent(
+  rows: OfferProductTypeEntry[],
+): number | null {
+  let max: number | null = null;
+  for (const row of rows) {
+    if (row.is_tagline) continue;
+    if (row.pay_in === "cash") continue;
+    if (row.commission_info.trim() === "") continue;
+    const n = Number(row.commission_info);
+    if (!Number.isFinite(n)) continue;
+    if (max === null || n > max) max = n;
+  }
+  return max;
+}

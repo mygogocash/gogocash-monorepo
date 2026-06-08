@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   EMPTY_PRODUCT_TYPE_DRAFT,
+  highestCashbackPercent,
   productTypeDraftToEntry,
   productTypeEntryToDraft,
   serializeOfferProductTypes,
@@ -281,5 +282,54 @@ describe("serializeOfferProductTypes", () => {
       { name: "Electronics", commission_info: "7" },
     ]);
     expect(row.is_tagline).toBeUndefined();
+  });
+});
+
+describe("highestCashbackPercent", () => {
+  it("returns the max commission_info among cashback rows", () => {
+    expect(
+      highestCashbackPercent([
+        { name: "A", commission_info: "0.7" },
+        { name: "B", commission_info: "1.4" },
+        { name: "C", commission_info: "2.1" },
+      ]),
+    ).toBe(2.1);
+  });
+
+  it("ignores tagline (heading) rows even if they carry a number", () => {
+    expect(
+      highestCashbackPercent([
+        { name: "Group", commission_info: "99", is_tagline: true },
+        { name: "A", commission_info: "0.7" },
+      ]),
+    ).toBe(0.7);
+  });
+
+  it("ignores cash pay-in rows (they have no %)", () => {
+    expect(
+      highestCashbackPercent([
+        { name: "A", pay_in: "cash", amount: 50, commission_info: "" },
+        { name: "B", commission_info: "1.4" },
+      ]),
+    ).toBe(1.4);
+  });
+
+  it("ignores blank / non-numeric commission_info", () => {
+    expect(
+      highestCashbackPercent([
+        { name: "A", commission_info: "" },
+        { name: "B", commission_info: "abc" },
+        { name: "C", commission_info: "3" },
+      ]),
+    ).toBe(3);
+  });
+
+  it("returns null when there are no cashback rows", () => {
+    expect(highestCashbackPercent([])).toBeNull();
+    expect(
+      highestCashbackPercent([
+        { name: "Group", commission_info: "", is_tagline: true },
+      ]),
+    ).toBeNull();
   });
 });
