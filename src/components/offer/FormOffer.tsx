@@ -2607,22 +2607,19 @@ const FormOffer = ({
               </SecondaryButton>
             ) : (
               <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
+                <SecondaryButton
                   onClick={cancelEditMedia}
                   disabled={savingMedia}
-                  className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                 >
                   Cancel
-                </button>
-                <button
-                  type="button"
+                </SecondaryButton>
+                <SecondaryButton
+                  variant="blue"
                   onClick={() => void saveMediaEdit()}
                   disabled={savingMedia}
-                  className="border-brand-600 bg-brand-600 hover:bg-brand-700 dark:border-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500 rounded-lg border px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {savingMedia ? "Saving…" : "Save changes"}
-                </button>
+                  {savingMedia ? "Saving…" : "Save"}
+                </SecondaryButton>
               </div>
             )}
           </div>
