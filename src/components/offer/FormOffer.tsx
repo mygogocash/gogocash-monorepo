@@ -30,7 +30,6 @@ import {
   affiliateNetworkIdForOfferId,
 } from "@/data/affiliateNetworks";
 import { buildSuggestedAppDeeplink } from "@/lib/offerDeeplink";
-import { isDirty } from "@/lib/isDirty";
 import { defaultLookupFromBrandAndCountry } from "@/lib/createBrandLookupSlug";
 import {
   applyThirtyPercentFee,
@@ -261,7 +260,6 @@ const FormOffer = ({
   form,
   setForm,
   isLoading,
-  setIsLoading,
 }: FormOfferProps) => {
   const session = useDataSession();
   const queryClient = useQueryClient();
@@ -629,24 +627,6 @@ const FormOffer = ({
       setSavingMedia(false);
     }
   };
-  const baselineSuggestedDeeplink =
-    serverSuggestedDeeplink ?? partnerPreviewDeeplink;
-  /**
-   * The tracking-link field is the only editable value not stored in `form`
-   * (it lives in `deeplinkOverride`). A user edit shows up as an override for
-   * the current offer whose value differs from the suggested baseline; the
-   * suggested baseline can change asynchronously, so we compare against it
-   * rather than snapshotting a derived value.
-   */
-  const deeplinkDirty =
-    deeplinkOverride !== null &&
-    Boolean(offer) &&
-    deeplinkOverride.offerId === offer?._id &&
-    deeplinkOverride.value !== baselineSuggestedDeeplink;
-  const isFormDirty =
-    formBaseline.id === form.id &&
-    (isDirty(form, formBaseline.snapshot) || deeplinkDirty);
-
   const saveOfferDeeplink = useMutation({
     mutationFn: async (payload: { offerId: string; deeplink: string }) => {
       const { data } = await client.patch<{ success: boolean }>(
@@ -919,145 +899,6 @@ const FormOffer = ({
     setForm((prev) => ({ ...prev, [key]: file }));
   };
 
-  const handleSave = () => {
-    const tags = form.offer_display_tags;
-    if (tags.expire_in_days_enabled) {
-      const n = tags.expire_in_days;
-      if (n == null || Number.isNaN(n) || n < 1) {
-        toast.error(
-          'Set a positive number of days for "Expire in X days", or turn that tag off.',
-        );
-        return;
-      }
-    }
-    const formData = new FormData();
-    if (form.logo_desktop) {
-      formData.append("logo_desktop", form.logo_desktop);
-    }
-    if (form.logo_mobile) {
-      formData.append("logo_mobile", form.logo_mobile);
-    }
-
-    if (form.logo_circle) {
-      formData.append("logo_circle", form.logo_circle);
-    }
-
-    if (form.banner) {
-      formData.append("banner", form.banner);
-    }
-
-    if (form.banner_mobile) {
-      formData.append("banner_mobile", form.banner_mobile);
-    }
-    formData.append("offer_name_display", form.offer_name_display);
-    formData.append("lookup_value", form.lookup_value ?? "");
-    formData.append("disabled", String(form.disabled));
-    if (
-      form.commission_store != null &&
-      Number.isFinite(form.commission_store)
-    ) {
-      formData.append("commission_store", String(form.commission_store));
-    }
-    if (form.max_cap != null && Number.isFinite(form.max_cap)) {
-      formData.append("max_cap", String(form.max_cap));
-    }
-    formData.append("extra_store", String(form.extra_store));
-    if (form.upsize_start_date) {
-      formData.append("upsize_start_date", form.upsize_start_date);
-    }
-    if (form.upsize_end_date) {
-      formData.append("upsize_end_date", form.upsize_end_date);
-    }
-    if (form.upsize_special_commission != null) {
-      formData.append(
-        "upsize_special_commission",
-        String(form.upsize_special_commission),
-      );
-    }
-    if (form.upsize_max_cap != null) {
-      formData.append("upsize_max_cap", String(form.upsize_max_cap));
-    }
-    const upsizeProductTypeRows = (form.upsize_product_types ?? [])
-      .map((row) => ({
-        name: row.name.trim(),
-        commission_info: row.commission_info.trim(),
-        deeplink: (row.deeplink ?? "").trim(),
-      }))
-      .filter(
-        (row) =>
-          row.name.length > 0 ||
-          row.commission_info.length > 0 ||
-          row.deeplink.length > 0,
-      );
-    formData.append(
-      "upsize_product_types",
-      JSON.stringify(upsizeProductTypeRows),
-    );
-    const productTypeRows = form.all_product_types
-      ? []
-      : serializeOfferProductTypes(form.product_types ?? []);
-    formData.append("product_types", JSON.stringify(productTypeRows));
-    formData.append("all_product_types", String(form.all_product_types));
-    formData.append(
-      "admin_commission_info",
-      JSON.stringify(
-        (form.admin_commission_info ?? []).map((s) => s.trim()).filter(Boolean),
-      ),
-    );
-    formData.append("policy_category_id", form.policy_category_id ?? "");
-    formData.append("custom_terms", form.custom_terms ?? "");
-    formData.append("note_to_user", form.note_to_user ?? "");
-    formData.append(
-      "affiliate_network_id",
-      form.affiliate_network_id.trim() || "involve_asia",
-    );
-    formData.append(
-      "deeplink_store_id",
-      form.deeplink_store_id.trim() || "global",
-    );
-    formData.append(
-      "offer_display_tags",
-      JSON.stringify(form.offer_display_tags),
-    );
-    const hasProductTypeRows =
-      !form.all_product_types && (form.product_types ?? []).length > 0;
-
-    setIsLoading(true);
-    client
-      .patch(`/admin/update-offer/${form.id}`, formData, {
-        headers: {
-          Authorization: `Bearer ${session?.accessToken}`,
-          "Content-Type": "multipart/form-data",
-        },
-      })
-      .then(async () => {
-        if (!hasProductTypeRows && form.id) {
-          const d = offerDeeplinkDraft.trim();
-          if (d) {
-            try {
-              await saveOfferDeeplink.mutateAsync({
-                offerId: form.id,
-                deeplink: d,
-              });
-            } catch {
-              toast.error(
-                "Offer saved, but tracking link could not be synced.",
-              );
-            }
-          }
-        }
-        setOpenModal(false);
-        fetchOffers();
-        setIsLoading(false);
-        toast.success("Offer updated successfully");
-      })
-      .catch((err) => {
-        setIsLoading(false);
-        devError("Failed to update offer:", err);
-        toast.error("Could not update offer");
-      });
-  };
-
   // The brand's effective Terms & Conditions: the edited text if present, else
   // the resolved base for the selected source (category / automatic / sample).
   const policyBaseTerms = resolveOfferPolicyBaseTerms(
@@ -1198,14 +1039,6 @@ const FormOffer = ({
             </div>
           </div>
           <div className="xsm:flex-row xsm:justify-end flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:items-center sm:gap-2">
-            <SecondaryButton
-              variant="blue"
-              disabled={isLoading || !isFormDirty}
-              onClick={handleSave}
-              className="xsm:w-auto w-full touch-manipulation"
-            >
-              {isLoading ? "Saving…" : "Save changes"}
-            </SecondaryButton>
             <Button
               className="xsm:w-auto min-h-11 w-full touch-manipulation"
               size="sm"
