@@ -60,6 +60,7 @@ npm run build
 ## Conventions for agents
 
 - Prefer **small, task-scoped diffs**; match existing naming, imports, and Tailwind patterns in touched files.
+- **Formatting conventions:** render user-facing dates as **dd/mm/yyyy** via `src/lib/dateFormat.ts` (`formatDate` / `formatDateTime`); show money with the **ISO currency code as a suffix** (e.g. `149 THB`), never a symbol, via `src/lib/currencyFormat.ts` (`formatMoney`); status badges share a rounded-rect base from `src/lib/statusBadge.ts` (cycle/tier badges stay rounded-full pills).
 - Run **`npm run lint`** (and fix new issues) after substantive edits.
 - Do **not** commit generated artifacts such as `.open-next/` unless the project explicitly requires it.
 - **Documentation:** Update `README.md` when user-facing routes or setup change materially; avoid new markdown files unless the user asks.
@@ -88,8 +89,9 @@ Backend and mobile app contracts may live in sibling repos (see README **Related
 - **Statistics** dashboard chart: `src/components/ecommerce/StatisticsChart.tsx` — four series (Clicks, Conversions, Sale amount, Estimated earnings), optional chart kinds (column / stacked column / line). For ApexCharts, **do not set `plotOptions` to `undefined`** when toggling types; that wipes defaults and can throw (`reading 'line'`). Use conditional object spread or explicit `plotOptions.line` for line mode.
 - **`ChartTab`** (`src/components/common/ChartTab.tsx`): tabs include Day, Week, Monthly, Quarterly, Annually; supports controlled `value` / `onChange` — wire those props when the chart should follow the tab selection.
 - Sub-`sm` layout tuning: the project defines **`xsm:`** (425px) in `globals.css`, not Tailwind’s `xs:`.
-- Fullscreen offer UI: `OfferFullscreenCardShell` / related forms use **safe-area** padding patterns for notched mobile viewports.
+- Offer editor UI: despite its name, `OfferFullscreenCardShell` now renders the offer edit form (`FormOffer.tsx`) and the pending-review page (`PendingOfferReviewContent.tsx`) as a **content-fit inline card** that flows with the page under the app layout (no fullscreen modal, no inner scroll); it provides the `OfferFormScrollToSection` context used by `FormSectionJumpNav`.
 - If the dev server uses **3001** because **3000** is taken, align **`NEXTAUTH_URL`** in `.env.local` with the actual origin (see README / `npm run dev:3001`).
 - **`git pull` over HTTPS** may return “repository not found” for private repos without credentials; use a PAT, `gh auth login`, or an SSH remote.
 - **Node version:** some tooling may warn **EBADENGINE** on very new Node; prefer **20 or 22** if installs or Firebase-related deps misbehave.
 - **Next.js 16:** `params` and `searchParams` are async; client `page`/`layout` components that receive them may need **`React.use()`** or a thin async server wrapper to avoid dev enumeration warnings (see Next.js “sync dynamic APIs” message).
+- **Cashback wallet UI** lives in the **Conversions** tab of the user detail page (`/withdraw/:id`, `src/components/withdraw/WithdrawDetail.tsx`): a “Cashback Wallet” section with an **Adjust Wallet** panel (`src/components/wallet/UserWalletPanel.tsx`, freeze/unfreeze + add-extra-cashback) and an inline approval notice (`src/components/wallet/CashbackApprovalNotice.tsx`, Approve / Reject). Adding extra cashback files a **pending** request rather than crediting immediately; approval credits the balance. Mock routes (`POST /admin/wallets/:uid/adjust`, `GET /admin/wallets/:uid`, `PUT .../freeze`|`/unfreeze`, `POST /admin/wallets/cashback-request/:id`) live in `src/lib/mockAdminFeatures.ts` and are write-gated by `users:manage` in `mockApiCore.ts`; the approval UI itself is **not** yet `usePermissions()`/`<Can>`-gated.

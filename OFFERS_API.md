@@ -67,6 +67,7 @@ interface OffersQuery {
   category?: string; // Filter by category
   status?: string;   // Filter by status (active, inactive, expired)
   type?: string;     // Filter by offer type
+  country?: string;  // Filter by country name (mapped to ISO codes against Offer.countries)
 }
 ```
 
@@ -84,6 +85,9 @@ await getOffers({ status: 'active' });
 // Filter by category
 await getOffers({ category: 'electronics' });
 
+// Filter by country (name is mapped to ISO codes server-side)
+await getOffers({ country: 'Thailand' });
+
 // Combine filters
 await getOffers({ 
   search: 'sale', 
@@ -99,36 +103,59 @@ await getOffers({
 ```typescript
 interface OffersResponse {
   data: Offer[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
 }
 ```
 
 ### Offer
+
+See `src/types/api.ts` for the authoritative definition; key fields:
+
 ```typescript
 interface Offer {
   _id: string;
-  title: string;
-  description?: string;
-  price?: number;
-  discountPrice?: number;
-  category?: string;
-  status?: 'active' | 'inactive' | 'expired';
-  image?: string;
-  tags?: string[];
-  validFrom?: string;
-  validTo?: string;
-  createdAt: string;
-  updatedAt: string;
-  __v?: number;
-  userId?: string;
-  company?: string;
-  location?: string;
-  type?: string;
+  offer_id: number;
+  __v: number;
+  categories: string;
+  commission_tracking: string;
+  commissions: string[];
+  countries: string;            // ISO codes, e.g. "TH" or "TH,US" (used by the country filter)
+  currency: string;
+  datetime_created: Date;
+  datetime_updated: Date;
+  description: string;
+  is_require_approval: number;
+  logo: string;                 // 1:1 logo used for both desktop and mobile
+  merchant_id: number;
+  offer_name: string;
+  offer_name_display: string;
+  tracking_link: string;
+  tracking_type: string;
+  logo_desktop: string;
+  logo_mobile: string;
+  banner: string;               // brand cover
+  logo_circle: string;
+  banner_mobile: string;
+  disabled: boolean;
+  commission_store: number | null;
+  max_cap: number | null;       // admin-configured cap (editable in FormOffer)
+  partner_max_cap?: number | string | null;
+  extra_store: boolean;         // top-brand placement
+  active_policy?: string | null;
+  policy_category_id?: string | null; // Terms template source (category whose T&Cs apply)
+  custom_terms?: string | null;       // editable T&C copy for this offer/merchant
+  note_to_user?: string | null;       // optional message shown to end users
+  product_types?: OfferProductTypeEntry[];
+  all_product_types?: boolean;
+  admin_commission_info?: string[];
+  affiliate_partner?: string | null;
+  deeplink_store_id?: string | null;
+  offer_display_tags?: OfferDisplayTags;
+  is_global?: boolean;
+  default_country?: string | null;
 }
 ```
 
@@ -258,7 +285,7 @@ NEXTAUTH_URL=http://localhost:3000
 | **Authentication** | ❌ Not required for GET | ✅ Required | ✅ Required |
 | **Default Limit** | 100 | 12 | 12 |
 | **Search Parameter** | `search` | `search` | `search` |
-| **Response Format** | `{ data: [], pagination: {} }` | `{ data: [], pagination: {} }` | `{ users: [], pagination: {} }` |
+| **Response Format** | `{ data: [], page, limit, total, totalPages }` | `{ data: [], pagination: {} }` | `{ users: [], pagination: {} }` |
 
 ## Sample Response
 ```json
@@ -266,28 +293,37 @@ NEXTAUTH_URL=http://localhost:3000
   "data": [
     {
       "_id": "offer123",
-      "title": "Special Discount",
-      "description": "Get 50% off on electronics",
-      "price": 100,
-      "discountPrice": 50,
-      "category": "electronics",
-      "status": "active",
-      "image": "https://example.com/image.jpg",
-      "tags": ["discount", "electronics", "sale"],
-      "validFrom": "2025-01-01T00:00:00Z",
-      "validTo": "2025-12-31T00:00:00Z",
-      "createdAt": "2025-01-15T10:00:00Z",
-      "updatedAt": "2025-01-15T10:00:00Z",
-      "company": "Tech Store",
-      "location": "New York",
-      "type": "percentage"
+      "offer_id": 1001,
+      "__v": 0,
+      "categories": "Shopping",
+      "commission_tracking": "CPS",
+      "commissions": ["7%"],
+      "countries": "TH",
+      "currency": "THB",
+      "datetime_created": "2025-01-15T10:00:00Z",
+      "datetime_updated": "2025-01-15T10:00:00Z",
+      "description": "Created from affiliate feed. Network: Involve Asia.",
+      "is_require_approval": 0,
+      "logo": "/images/merchant-logos/gadgethub-th.png",
+      "merchant_id": 5001,
+      "offer_name": "GadgetHub - CPS",
+      "offer_name_display": "GadgetHub",
+      "tracking_link": "https://example.com/track",
+      "tracking_type": "CPS",
+      "banner": "/images/merchant-logos/gadgethub-th.png",
+      "disabled": false,
+      "commission_store": 7,
+      "max_cap": null,
+      "extra_store": false,
+      "policy_category_id": null,
+      "custom_terms": null,
+      "note_to_user": null,
+      "is_global": false
     }
   ],
-  "pagination": {
-    "page": 1,
-    "limit": 100,
-    "total": 1,
-    "totalPages": 1
-  }
+  "page": 1,
+  "limit": 100,
+  "total": 1,
+  "totalPages": 1
 }
 ```

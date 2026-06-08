@@ -427,7 +427,16 @@ export function normalizeOfferDisplayTags(value: unknown): OfferDisplayTags {
 /** One product-type row on an offer (display name + commission details for admins). */
 export interface OfferProductTypeEntry {
   name: string;
+  /** Which payout this line uses (default: cashback). */
+  pay_in?: "cashback" | "cash";
+  /** Cashback %: saved net commission (after −30% fee), as a string. */
   commission_info: string;
+  /** Raw partner number the admin typed; editing-only, derived from `commission_info` on load and dropped on save. */
+  commission_raw?: string;
+  /** Cash pay-in: fixed amount paid out. */
+  amount?: number | null;
+  /** Cash pay-in: currency code (e.g. THB, USD). */
+  currency?: string;
   /** Optional app tracking link for this brand / product line. */
   deeplink?: string;
 }
@@ -441,17 +450,25 @@ export function normalizeOfferProductTypes(
   if (!Array.isArray(value)) return [];
   return value.map((item): OfferProductTypeEntry => {
     if (typeof item === "string") {
-      return { name: item.trim(), commission_info: "", deeplink: "" };
+      return { name: item.trim(), pay_in: "cashback", commission_info: "" };
     }
     if (item && typeof item === "object") {
       const o = item as Record<string, unknown>;
+      const amountNum =
+        o.amount == null || o.amount === "" ? null : Number(o.amount);
       return {
         name: String(o.name ?? "").trim(),
+        pay_in: o.pay_in === "cash" ? "cash" : "cashback",
         commission_info: String(o.commission_info ?? "").trim(),
+        amount:
+          typeof amountNum === "number" && Number.isFinite(amountNum)
+            ? amountNum
+            : null,
+        currency: String(o.currency ?? "").trim(),
         deeplink: String(o.deeplink ?? "").trim(),
       };
     }
-    return { name: "", commission_info: "", deeplink: "" };
+    return { name: "", pay_in: "cashback", commission_info: "" };
   });
 }
 
@@ -572,6 +589,8 @@ export interface OfferRequestForm {
   banner: File | null;
   logo_circle: File | null;
   offer_name_display: string;
+  /** Lookup slug used in app-open URLs (persisted as `Offer.lookup_value`). */
+  lookup_value: string;
   disabled: boolean;
   max_cap: number | null;
   commission_store: number | null;

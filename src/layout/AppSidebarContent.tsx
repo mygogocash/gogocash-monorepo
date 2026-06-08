@@ -57,7 +57,6 @@ export const navItems: NavItem[] = [
       { name: "Subscription", path: "/subscription", pro: false, permission: "users:view" },
       { name: "Credit score", path: "/credit-score", pro: false, permission: "users:view" },
       { name: "Referral", path: "/referral", pro: false, permission: "users:view" },
-      { name: "Wallet", path: "/wallet", pro: false, permission: "users:view" },
     ],
   },
   {

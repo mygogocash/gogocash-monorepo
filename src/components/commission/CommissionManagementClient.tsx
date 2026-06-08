@@ -4,6 +4,7 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import Button from "@/components/ui/button/Button";
 import client from "@/lib/axios/client";
 import { formatMoney } from "@/lib/currencyFormat";
+import { isDirty } from "@/lib/isDirty";
 import type { AffiliateNetwork } from "@/data/affiliateNetworks";
 import { isAxiosError } from "axios";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -41,7 +42,10 @@ export type FetchBestResponse = {
   adminMaxCap?: number | null;
 };
 
-function formatMoneyCap(amount: number | null | undefined, currency: string): string {
+function formatMoneyCap(
+  amount: number | null | undefined,
+  currency: string,
+): string {
   return formatMoney(amount, currency || "USD", { decimals: 0, fallback: "—" });
 }
 
@@ -52,7 +56,9 @@ async function getNetworks(): Promise<{ data: AffiliateNetwork[] }> {
   return data;
 }
 
-async function getBrands(networkId: string): Promise<{ data: CommissionBrandRow[] }> {
+async function getBrands(
+  networkId: string,
+): Promise<{ data: CommissionBrandRow[] }> {
   const { data } = await client.get<{ data: CommissionBrandRow[] }>(
     "/admin/commission-management/brands",
     { params: networkId ? { networkId } : {} },
@@ -86,7 +92,10 @@ export default function CommissionManagementClient({
   const networks = networksRes?.data ?? [];
 
   const { data: brandsRes, isLoading: brandsLoading } = useQuery({
-    queryKey: [...COMMISSION_MANAGEMENT_BRANDS_ROOT_QUERY_KEY, selectedNetworkId],
+    queryKey: [
+      ...COMMISSION_MANAGEMENT_BRANDS_ROOT_QUERY_KEY,
+      selectedNetworkId,
+    ],
     queryFn: () => getBrands(selectedNetworkId),
     staleTime: 30_000,
   });
@@ -105,8 +114,14 @@ export default function CommissionManagementClient({
       ? deeplinkOverride
       : (selected?.appDeeplink ?? "");
 
+  /** Save is enabled only when the tracking link differs from the loaded value. */
+  const deeplinkDirty = isDirty(deeplinkDraft, selected?.appDeeplink ?? "");
+
   const fetchBest = useMutation({
-    mutationFn: async (payload: { offerId: string; affiliateNetworkId: string }) => {
+    mutationFn: async (payload: {
+      offerId: string;
+      affiliateNetworkId: string;
+    }) => {
       const { data } = await client.post<FetchBestResponse>(
         "/admin/commission-management/fetch-best",
         payload,
@@ -117,10 +132,14 @@ export default function CommissionManagementClient({
       setDeeplinkOverride(data.suggestedDeeplink);
       const capBits: string[] = [];
       if (data.partnerMaxCap != null) {
-        capBits.push(`partner cap ${formatMoneyCap(data.partnerMaxCap, data.currency)}`);
+        capBits.push(
+          `partner cap ${formatMoneyCap(data.partnerMaxCap, data.currency)}`,
+        );
       }
       if (data.adminMaxCap != null) {
-        capBits.push(`admin cap ${formatMoneyCap(data.adminMaxCap, data.currency)}`);
+        capBits.push(
+          `admin cap ${formatMoneyCap(data.adminMaxCap, data.currency)}`,
+        );
       }
       toast.success(
         `Best cashback ${data.bestRatePercent}% (${data.currency}) via ${data.affiliateNetworkName}${
@@ -187,7 +206,13 @@ export default function CommissionManagementClient({
     },
     // fetchBest.mutate is stable from useMutation
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [autoFindBestCashback, resolvedOfferId, selectedNetworkId, brandsLoading, networksLoading],
+    [
+      autoFindBestCashback,
+      resolvedOfferId,
+      selectedNetworkId,
+      brandsLoading,
+      networksLoading,
+    ],
   );
 
   const onSaveDeeplink = useCallback(() => {
@@ -223,22 +248,24 @@ export default function CommissionManagementClient({
           Best cashback, max cap &amp; tracking link
         </h2>
         <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-          Pull the strongest partner cashback for the selected merchant, surface the partner&apos;s
-          max cap vs what you publish in-app, then align the GoGoCash tracking link. Turn on
-          auto-optimization to re-run whenever you change network or merchant. Mock data only;
-          wire your backend to the same routes for production.
+          Pull the strongest partner cashback for the selected merchant, surface
+          the partner&apos;s max cap vs what you publish in-app, then align the
+          GoGoCash tracking link. Turn on auto-optimization to re-run whenever
+          you change network or merchant. Mock data only; wire your backend to
+          the same routes for production.
         </p>
 
         <div className="mt-6 space-y-6">
-          <div className="rounded-xl border border-brand-200/80 bg-brand-50/60 p-4 sm:p-5 dark:border-brand-800/50 dark:bg-brand-950/30">
+          <div className="border-brand-200/80 bg-brand-50/60 dark:border-brand-800/50 dark:bg-brand-950/30 rounded-xl border p-4 sm:p-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-800 dark:text-brand-300">
+                <p className="text-brand-800 dark:text-brand-300 text-[11px] font-semibold tracking-wide uppercase">
                   Auto optimization
                 </p>
-                <p className="mt-1 text-sm text-brand-900/90 dark:text-brand-100/90">
-                  When enabled, we automatically request the best cashback and cap snapshot each time
-                  you switch affiliate network or merchant (same as &quot;Run optimization&quot;).
+                <p className="text-brand-900/90 dark:text-brand-100/90 mt-1 text-sm">
+                  When enabled, we automatically request the best cashback and
+                  cap snapshot each time you switch affiliate network or
+                  merchant (same as &quot;Run optimization&quot;).
                 </p>
               </div>
               <button
@@ -246,7 +273,7 @@ export default function CommissionManagementClient({
                 role="switch"
                 aria-checked={autoFindBestCashback}
                 onClick={() => setAutoFindBestCashback((v) => !v)}
-                className="flex shrink-0 items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900"
+                className="focus-visible:ring-brand-500 flex shrink-0 items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900"
               >
                 <span
                   className={`relative inline-flex h-7 w-12 shrink-0 rounded-full transition-colors ${
@@ -272,7 +299,10 @@ export default function CommissionManagementClient({
                 size="sm"
                 onClick={onFetchBest}
                 disabled={
-                  !resolvedOfferId || !selectedNetworkId || fetchBest.isPending || networksLoading
+                  !resolvedOfferId ||
+                  !selectedNetworkId ||
+                  fetchBest.isPending ||
+                  networksLoading
                 }
                 startIcon={
                   fetchBest.isPending ? (
@@ -282,14 +312,14 @@ export default function CommissionManagementClient({
               >
                 Run optimization now
               </Button>
-              <p className="text-xs text-brand-900/75 dark:text-brand-200/80">
-                Uses the partner feed for the selected network to suggest rate, caps, and app
-                deeplink.
+              <p className="text-brand-900/75 dark:text-brand-200/80 text-xs">
+                Uses the partner feed for the selected network to suggest rate,
+                caps, and app deeplink.
               </p>
             </div>
           </div>
 
-          <details className="rounded-xl border border-gray-200 bg-gray-50/90 open:shadow-theme-xs dark:border-gray-700 dark:bg-gray-800/40">
+          <details className="open:shadow-theme-xs rounded-xl border border-gray-200 bg-gray-50/90 dark:border-gray-700 dark:bg-gray-800/40">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium text-gray-800 dark:text-gray-200 [&::-webkit-details-marker]:hidden">
               <span>
                 Connected affiliate networks
@@ -299,15 +329,22 @@ export default function CommissionManagementClient({
                   </span>
                 ) : null}
               </span>
-              <span aria-hidden className="shrink-0 text-gray-400 dark:text-gray-500">
+              <span
+                aria-hidden
+                className="shrink-0 text-gray-400 dark:text-gray-500"
+              >
                 &#9662;
               </span>
             </summary>
             <div className="border-t border-gray-200 px-4 py-3 dark:border-gray-700">
               {networksLoading ? (
-                <p className="text-sm text-gray-500 dark:text-gray-400">Loading networks…</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Loading networks…
+                </p>
               ) : networks.length === 0 ? (
-                <p className="text-sm text-gray-500 dark:text-gray-400">No networks configured.</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  No networks configured.
+                </p>
               ) : (
                 <ul className="space-y-2">
                   {networks.map((n) => (
@@ -316,7 +353,9 @@ export default function CommissionManagementClient({
                       className="flex flex-wrap items-start justify-between gap-2 border-b border-gray-200/80 pb-2 last:border-0 last:pb-0 dark:border-gray-700/80"
                     >
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">{n.name}</p>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">
+                          {n.name}
+                        </p>
                         <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
                           {n.shortDescription}
                         </p>
@@ -369,8 +408,8 @@ export default function CommissionManagementClient({
               )}
             </select>
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Merchants below are filtered to offers synced from this network (Involve Asia, Optimise,
-              Accesstrade, etc.).
+              Merchants below are filtered to offers synced from this network
+              (Involve Asia, Optimise, Accesstrade, etc.).
             </p>
           </div>
 
@@ -398,7 +437,8 @@ export default function CommissionManagementClient({
               ) : (
                 brands.map((b) => (
                   <option key={b.id} value={b.id}>
-                    {b.name} · merchant {b.merchantId} · {b.currency} · {b.affiliateNetworkName}
+                    {b.name} · merchant {b.merchantId} · {b.currency} ·{" "}
+                    {b.affiliateNetworkName}
                   </option>
                 ))
               )}
@@ -407,16 +447,19 @@ export default function CommissionManagementClient({
 
           {selected ? (
             <div className="space-y-3">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              <p className="text-[11px] font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
                 Current merchant snapshot
               </p>
-              <div className="grid gap-3 rounded-xl border border-brand-200/70 bg-brand-50/40 p-4 sm:grid-cols-2 dark:border-brand-800/50 dark:bg-brand-950/20">
+              <div className="border-brand-200/70 bg-brand-50/40 dark:border-brand-800/50 dark:bg-brand-950/20 grid gap-3 rounded-xl border p-4 sm:grid-cols-2">
                 <div>
                   <p className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
                     Partner max cap (feed)
                   </p>
-                  <p className="mt-1 text-base font-semibold tabular-nums text-gray-900 dark:text-white">
-                    {formatMoneyCap(selected.partnerMaxCap ?? null, selected.currency)}
+                  <p className="mt-1 text-base font-semibold text-gray-900 tabular-nums dark:text-white">
+                    {formatMoneyCap(
+                      selected.partnerMaxCap ?? null,
+                      selected.currency,
+                    )}
                   </p>
                   <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
                     Ceiling reported by the affiliate partner for this offer.
@@ -426,7 +469,7 @@ export default function CommissionManagementClient({
                   <p className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
                     Max cap in app (admin)
                   </p>
-                  <p className="mt-1 text-base font-semibold tabular-nums text-gray-900 dark:text-white">
+                  <p className="mt-1 text-base font-semibold text-gray-900 tabular-nums dark:text-white">
                     {formatMoneyCap(selected.maxCap ?? null, selected.currency)}
                   </p>
                   <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
@@ -490,31 +533,37 @@ export default function CommissionManagementClient({
                 Latest optimization · {lastFetch.offerName}
               </p>
               <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                <div className="rounded-lg border border-brand-200/60 bg-white/80 p-3 dark:border-brand-800/40 dark:bg-gray-900/40">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-brand-800 dark:text-brand-300">
+                <div className="border-brand-200/60 dark:border-brand-800/40 rounded-lg border bg-white/80 p-3 dark:bg-gray-900/40">
+                  <p className="text-brand-800 dark:text-brand-300 text-[10px] font-semibold tracking-wide uppercase">
                     Best cashback
                   </p>
-                  <p className="mt-1 text-lg font-semibold tabular-nums text-brand-900 dark:text-brand-50">
+                  <p className="text-brand-900 dark:text-brand-50 mt-1 text-lg font-semibold tabular-nums">
                     {lastFetch.bestRatePercent}%
-                    <span className="ml-1 text-sm font-normal text-brand-800/80 dark:text-brand-200/80">
+                    <span className="text-brand-800/80 dark:text-brand-200/80 ml-1 text-sm font-normal">
                       {lastFetch.currency}
                     </span>
                   </p>
                 </div>
-                <div className="rounded-lg border border-brand-200/60 bg-white/80 p-3 dark:border-brand-800/40 dark:bg-gray-900/40">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-brand-800 dark:text-brand-300">
+                <div className="border-brand-200/60 dark:border-brand-800/40 rounded-lg border bg-white/80 p-3 dark:bg-gray-900/40">
+                  <p className="text-brand-800 dark:text-brand-300 text-[10px] font-semibold tracking-wide uppercase">
                     Partner max cap
                   </p>
-                  <p className="mt-1 text-lg font-semibold tabular-nums text-brand-900 dark:text-brand-50">
-                    {formatMoneyCap(lastFetch.partnerMaxCap ?? null, lastFetch.currency)}
+                  <p className="text-brand-900 dark:text-brand-50 mt-1 text-lg font-semibold tabular-nums">
+                    {formatMoneyCap(
+                      lastFetch.partnerMaxCap ?? null,
+                      lastFetch.currency,
+                    )}
                   </p>
                 </div>
-                <div className="rounded-lg border border-brand-200/60 bg-white/80 p-3 dark:border-brand-800/40 dark:bg-gray-900/40">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-brand-800 dark:text-brand-300">
+                <div className="border-brand-200/60 dark:border-brand-800/40 rounded-lg border bg-white/80 p-3 dark:bg-gray-900/40">
+                  <p className="text-brand-800 dark:text-brand-300 text-[10px] font-semibold tracking-wide uppercase">
                     Admin max cap
                   </p>
-                  <p className="mt-1 text-lg font-semibold tabular-nums text-brand-900 dark:text-brand-50">
-                    {formatMoneyCap(lastFetch.adminMaxCap ?? null, lastFetch.currency)}
+                  <p className="text-brand-900 dark:text-brand-50 mt-1 text-lg font-semibold tabular-nums">
+                    {formatMoneyCap(
+                      lastFetch.adminMaxCap ?? null,
+                      lastFetch.currency,
+                    )}
                   </p>
                 </div>
               </div>
@@ -535,7 +584,8 @@ export default function CommissionManagementClient({
                 </li>
               </ul>
               <p className="text-brand-800/80 dark:text-brand-200/80 mt-2 text-xs">
-                Suggested app tracking link is filled below — edit if needed, then save.
+                Suggested app tracking link is filled below — edit if needed,
+                then save.
               </p>
             </div>
           ) : null}
@@ -567,7 +617,9 @@ export default function CommissionManagementClient({
               size="sm"
               variant="outline"
               onClick={onSaveDeeplink}
-              disabled={!resolvedOfferId || saveDeeplink.isPending}
+              disabled={
+                !resolvedOfferId || saveDeeplink.isPending || !deeplinkDirty
+              }
             >
               {saveDeeplink.isPending ? "Saving…" : "Save tracking link"}
             </Button>

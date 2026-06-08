@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useCallback, useMemo, useLayoutEffect } from "react";
+import React, {
+  useState,
+  useCallback,
+  useMemo,
+  useLayoutEffect,
+  useRef,
+} from "react";
 import Image from "next/image";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDataSession } from "@/hooks/useDataSession";
@@ -11,6 +17,7 @@ import NoData from "@/components/common/NoData";
 import Button from "@/components/ui/button/Button";
 import { pathImage } from "@/utils/helper";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
+import { isDirty } from "@/lib/isDirty";
 import toast from "react-hot-toast";
 import {
   DEFAULT_POLICY_TEMPLATES,
@@ -51,9 +58,12 @@ export default function PolicyTable() {
   const queryClient = useQueryClient();
   const session = useDataSession();
   const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<ResCategoryList | null>(null);
+  const [selectedCategory, setSelectedCategory] =
+    useState<ResCategoryList | null>(null);
   const [contentSource, setContentSource] = useState<ContentSource>("custom");
-  const [selectedTemplateId, setSelectedTemplateId] = useState(DEFAULT_POLICY_TEMPLATES[0]!.id);
+  const [selectedTemplateId, setSelectedTemplateId] = useState(
+    DEFAULT_POLICY_TEMPLATES[0]!.id,
+  );
 
   // V2 multi-language state — replaces the old (editPrimary, editTranslation,
   // translationLocale, showAdminTranslation) tuple. `translations` is keyed by
@@ -62,14 +72,18 @@ export default function PolicyTable() {
   // `activeLocale` is purely UI state — which tab the editor is currently on.
   const [primaryLocale, setPrimaryLocale] = useState<string>("th");
   const [translations, setTranslations] = useState<Record<string, string>>({});
-  const [additionalTermsByLocale, setAdditionalTermsByLocale] = useState<Record<string, string>>({});
+  const [additionalTermsByLocale, setAdditionalTermsByLocale] = useState<
+    Record<string, string>
+  >({});
   const [activeLocale, setActiveLocale] = useState<string>("th");
   // Phase 3A.2 — banner text editor state (sister of `translations`,
   // `primaryLocale`, `activeLocale`). Banner has no template machinery,
   // so we don't need contentSource/templateId/additionalTerms here.
   // 500-char per-locale soft cap (BA3 in POLICY_MULTILANG_PLAN.md).
   const [bannerPrimaryLocale, setBannerPrimaryLocale] = useState<string>("th");
-  const [bannerTranslations, setBannerTranslations] = useState<Record<string, string>>({});
+  const [bannerTranslations, setBannerTranslations] = useState<
+    Record<string, string>
+  >({});
   const [bannerActiveLocale, setBannerActiveLocale] = useState<string>("th");
   const [savedPreview, setSavedPreview] = useState<ParsedPolicy | null>(null);
   const [hasExistingPolicy, setHasExistingPolicy] = useState(false);
@@ -79,6 +93,34 @@ export default function PolicyTable() {
   const [bannerObjectUrl, setBannerObjectUrl] = useState<string | null>(null);
   const [bannerSaving, setBannerSaving] = useState(false);
   const [policyModalTab, setPolicyModalTab] = useState<PolicyModalTab>("terms");
+
+  // Snapshot of the editable fields `handleSave` sends, captured the moment a
+  // category modal opens (i.e. AFTER the loaded policy populates state). Drives
+  // "disable Save until something changed". `bannerDraft` (the image upload) is
+  // a separate save path with its own button, so it's intentionally excluded.
+  type SaveSnapshot = {
+    primaryLocale: string;
+    translations: Record<string, string>;
+    contentSource: ContentSource;
+    selectedTemplateId: string;
+    additionalTermsByLocale: Record<string, string>;
+    bannerPrimaryLocale: string;
+    bannerTranslations: Record<string, string>;
+  };
+  const initialSaveSnapshot = useRef<SaveSnapshot | null>(null);
+  const currentSaveSnapshot: SaveSnapshot = {
+    primaryLocale,
+    translations,
+    contentSource,
+    selectedTemplateId,
+    additionalTermsByLocale,
+    bannerPrimaryLocale,
+    bannerTranslations,
+  };
+  const hasUnsavedChanges = isDirty(
+    currentSaveSnapshot,
+    initialSaveSnapshot.current,
+  );
 
   useLayoutEffect(() => {
     if (!bannerDraft) {
@@ -90,7 +132,9 @@ export default function PolicyTable() {
     return () => URL.revokeObjectURL(url);
   }, [bannerDraft]);
 
-  const { data: categories = [], isLoading: loadingCategories } = useQuery<ResCategoryList[]>({
+  const { data: categories = [], isLoading: loadingCategories } = useQuery<
+    ResCategoryList[]
+  >({
     queryKey: ["getCategory", "policy-page"],
     queryFn: () => fetcher("/offer/get-category/list"),
     staleTime: 60_000,
@@ -100,7 +144,9 @@ export default function PolicyTable() {
   // to the new `/policy/category-list` (Policy[]). The shape change forces an
   // index-by-category-id step here so the rest of the component doesn't have
   // to know which version of the API is live.
-  const { data: policiesArray = [], isLoading: loadingPolicies } = useQuery<PolicyListEntry[]>({
+  const { data: policiesArray = [], isLoading: loadingPolicies } = useQuery<
+    PolicyListEntry[]
+  >({
     queryKey: ["policyList"],
     queryFn: () => fetcher("/policy/category-list"),
     staleTime: 0,
@@ -114,7 +160,9 @@ export default function PolicyTable() {
   }, [policiesArray]);
 
   const filteredCategories = search.trim()
-    ? categories.filter((c) => c.name.toLowerCase().includes(search.trim().toLowerCase()))
+    ? categories.filter((c) =>
+        c.name.toLowerCase().includes(search.trim().toLowerCase()),
+      )
     : categories;
 
   const selectedTemplate = useMemo(
@@ -132,7 +180,13 @@ export default function PolicyTable() {
       ).length;
     }
     return txt.length;
-  }, [contentSource, selectedTemplate, translations, activeLocale, additionalTermsByLocale]);
+  }, [
+    contentSource,
+    selectedTemplate,
+    translations,
+    activeLocale,
+    additionalTermsByLocale,
+  ]);
 
   // Any single locale crossing the per-locale cap blocks the save. Same rule
   // the backend enforces — fail in the UI before we hit the network.
@@ -144,10 +198,16 @@ export default function PolicyTable() {
     [translations],
   );
 
-  const totalLength = useMemo(() => totalTranslationLength(translations), [translations]);
+  const totalLength = useMemo(
+    () => totalTranslationLength(translations),
+    [translations],
+  );
 
   const hasAnyTranslation = useMemo(
-    () => Object.values(translations).some((t) => typeof t === "string" && t.trim().length > 0),
+    () =>
+      Object.values(translations).some(
+        (t) => typeof t === "string" && t.trim().length > 0,
+      ),
     [translations],
   );
 
@@ -167,7 +227,9 @@ export default function PolicyTable() {
       setHasExistingPolicy(Boolean(policy));
       setSavedPreview(parsed);
       setContentSource(parsed.contentSource ?? "custom");
-      setSelectedTemplateId(parsed.templateId ?? DEFAULT_POLICY_TEMPLATES[0]!.id);
+      setSelectedTemplateId(
+        parsed.templateId ?? DEFAULT_POLICY_TEMPLATES[0]!.id,
+      );
       setPrimaryLocale(parsed.primary_locale || "th");
       setTranslations({ ...parsed.translations });
       setAdditionalTermsByLocale({ ...parsed.additionalTerms });
@@ -188,6 +250,20 @@ export default function PolicyTable() {
       setConfirmClear(false);
       setBannerDraft(null);
       setPolicyModalTab("terms");
+      // Baseline for "disable Save until changed". Built from the same parsed
+      // values used in the setters above (state updates are async, so we can't
+      // read them back here). Mirrors `currentSaveSnapshot` exactly.
+      const nextContentSource = parsed.contentSource ?? "custom";
+      initialSaveSnapshot.current = {
+        primaryLocale: parsed.primary_locale || "th",
+        translations: { ...parsed.translations },
+        contentSource: nextContentSource,
+        selectedTemplateId:
+          parsed.templateId ?? DEFAULT_POLICY_TEMPLATES[0]!.id,
+        additionalTermsByLocale: { ...parsed.additionalTerms },
+        bannerPrimaryLocale: bannerParsed.primary_locale || "th",
+        bannerTranslations: { ...bannerParsed.translations },
+      };
     },
     [policiesById],
   );
@@ -233,7 +309,9 @@ export default function PolicyTable() {
       const body = res.data;
       if (body?.data) {
         setSelectedCategory((prev) =>
-          prev && prev._id === body.data!._id ? { ...prev, ...body.data } : prev,
+          prev && prev._id === body.data!._id
+            ? { ...prev, ...body.data }
+            : prev,
         );
       }
       setBannerDraft(null);
@@ -262,7 +340,10 @@ export default function PolicyTable() {
     }
     setContentSource(next);
     if (next === "template" && tmpl) {
-      setTranslations((prev) => ({ ...prev, [activeLocale]: getTemplateBody(tmpl.id, activeLocale) }));
+      setTranslations((prev) => ({
+        ...prev,
+        [activeLocale]: getTemplateBody(tmpl.id, activeLocale),
+      }));
       setAdditionalTermsByLocale((prev) => ({ ...prev, [activeLocale]: "" }));
     }
   };
@@ -272,7 +353,10 @@ export default function PolicyTable() {
     const tmpl = getTemplateById(id);
     if (!tmpl) return;
     if (contentSource === "template") {
-      setTranslations((prev) => ({ ...prev, [activeLocale]: getTemplateBody(tmpl.id, activeLocale) }));
+      setTranslations((prev) => ({
+        ...prev,
+        [activeLocale]: getTemplateBody(tmpl.id, activeLocale),
+      }));
     }
   };
 
@@ -304,7 +388,9 @@ export default function PolicyTable() {
       additionalTerms: {},
     });
     if (!termsParsed && !bannerParsed) {
-      toast.error("Add at least one non-empty translation to banner or terms before saving.");
+      toast.error(
+        "Add at least one non-empty translation to banner or terms before saving.",
+      );
       return;
     }
     setSaving(true);
@@ -324,7 +410,11 @@ export default function PolicyTable() {
       closeModal();
     } catch (err: unknown) {
       const message =
-        err && typeof err === "object" && "data" in err && typeof (err as { data?: { message?: string } }).data?.message === "string"
+        err &&
+        typeof err === "object" &&
+        "data" in err &&
+        typeof (err as { data?: { message?: string } }).data?.message ===
+          "string"
           ? (err as { data: { message: string } }).data.message
           : "Failed to save.";
       toast.error(message);
@@ -358,7 +448,11 @@ export default function PolicyTable() {
       closeModal();
     } catch (err: unknown) {
       const message =
-        err && typeof err === "object" && "data" in err && typeof (err as { data?: { message?: string } }).data?.message === "string"
+        err &&
+        typeof err === "object" &&
+        "data" in err &&
+        typeof (err as { data?: { message?: string } }).data?.message ===
+          "string"
           ? (err as { data: { message: string } }).data.message
           : "Failed to clear.";
       toast.error(message);
@@ -391,7 +485,7 @@ export default function PolicyTable() {
             placeholder="Search category"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-11 w-full rounded-lg border border-gray-200 bg-transparent px-5 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:ring-brand-500/20 focus:outline-hidden xl:w-[300px] dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400 dark:focus:ring-brand-400/30"
+            className="focus:ring-brand-500/20 dark:focus:ring-brand-400/30 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-5 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden xl:w-[300px] dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400"
           />
         </div>
       </div>
@@ -399,8 +493,10 @@ export default function PolicyTable() {
       <div className="border-t border-gray-100 p-4 sm:p-6 dark:border-gray-700 dark:bg-white/[0.02]">
         {loadingCategories || loadingPolicies ? (
           <div className="flex items-center justify-center py-8">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-brand-500 dark:border-gray-700 dark:border-t-brand-400" />
-            <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Loading...</span>
+            <div className="border-t-brand-500 dark:border-t-brand-400 h-8 w-8 animate-spin rounded-full border-2 border-gray-200 dark:border-gray-700" />
+            <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
+              Loading...
+            </span>
           </div>
         ) : (
           <>
@@ -408,11 +504,21 @@ export default function PolicyTable() {
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-800">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">#</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Category</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Banner</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">T&amp;C status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Actions</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      #
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Category
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Banner
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      T&amp;C status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
@@ -420,7 +526,12 @@ export default function PolicyTable() {
                     // "T&C status" column — green dot if any non-empty
                     // translation exists on the terms block; grey otherwise.
                     const policy = policiesById[category._id];
-                    const termsTranslations = (policy?.terms as { translations?: Record<string, string> } | undefined)?.translations ?? {};
+                    const termsTranslations =
+                      (
+                        policy?.terms as
+                          | { translations?: Record<string, string> }
+                          | undefined
+                      )?.translations ?? {};
                     const isSet = Object.values(termsTranslations).some(
                       (t) => typeof t === "string" && t.trim().length > 0,
                     );
@@ -436,10 +547,12 @@ export default function PolicyTable() {
                             openModal(category);
                           }
                         }}
-                        className="cursor-pointer hover:bg-gray-50 focus-visible:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:hover:bg-gray-800 dark:focus-visible:bg-gray-800 dark:focus-visible:ring-brand-400/40 dark:focus-visible:ring-offset-gray-900"
+                        className="focus-visible:ring-brand-500/40 dark:focus-visible:ring-brand-400/40 cursor-pointer hover:bg-gray-50 focus-visible:bg-gray-50 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none dark:hover:bg-gray-800 dark:focus-visible:bg-gray-800 dark:focus-visible:ring-offset-gray-900"
                       >
-                        <td className="whitespace-nowrap px-6 py-4">{index + 1}</td>
-                        <td className="whitespace-nowrap px-6 py-4">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {index + 1}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="h-12 w-12 flex-shrink-0">
                               {category.image ? (
@@ -459,11 +572,13 @@ export default function PolicyTable() {
                               )}
                             </div>
                             <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{category.name}</div>
+                              <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                {category.name}
+                              </div>
                             </div>
                           </div>
                         </td>
-                        <td className="whitespace-nowrap px-6 py-4">
+                        <td className="px-6 py-4 whitespace-nowrap">
                           {category.banner ? (
                             <RemoteOrBlobImage
                               className="h-14 w-36 rounded-lg border border-gray-200 object-cover dark:border-gray-600"
@@ -473,10 +588,12 @@ export default function PolicyTable() {
                               height={56}
                             />
                           ) : (
-                            <span className="text-sm text-gray-400 dark:text-gray-500">—</span>
+                            <span className="text-sm text-gray-400 dark:text-gray-500">
+                              —
+                            </span>
                           )}
                         </td>
-                        <td className="whitespace-nowrap px-6 py-4">
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <span
                             className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
                               isSet
@@ -487,7 +604,7 @@ export default function PolicyTable() {
                             {isSet ? "Set" : "Not set"}
                           </span>
                         </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm font-medium">
+                        <td className="px-6 py-4 text-sm font-medium whitespace-nowrap">
                           <span
                             className="pointer-events-none inline-flex rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
                             aria-hidden
@@ -557,289 +674,99 @@ export default function PolicyTable() {
           </div>
 
           <div className="mt-4 min-h-0 flex-1 overflow-y-auto">
-          {policyModalTab === "banner" && selectedCategory ? (
-            <section className="rounded-xl border border-gray-200 p-4 dark:border-gray-700 dark:bg-gray-900/20">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="min-w-0">
-                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                    Current banner
-                  </p>
-                  {selectedCategory.banner ? (
-                    <RemoteOrBlobImage
-                      className="max-h-40 w-full rounded-lg border border-gray-200 object-cover dark:border-gray-600"
-                      src={pathImage(selectedCategory.banner, "banner")}
-                      alt={`${selectedCategory.name} current banner`}
-                      width={640}
-                      height={200}
-                    />
-                  ) : (
-                    <p className="text-sm text-gray-400 dark:text-gray-500">No banner uploaded yet.</p>
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                    New upload preview
-                  </p>
-                  {bannerObjectUrl ? (
-                    <RemoteOrBlobImage
-                      className="max-h-40 w-full rounded-lg border-2 border-dashed border-brand-400 object-cover dark:border-brand-500"
-                      src={bannerObjectUrl}
-                      alt="Selected banner preview"
-                      width={640}
-                      height={200}
-                    />
-                  ) : (
-                    <p className="text-sm text-gray-400 dark:text-gray-500">
-                      Choose an image file to see a preview here.
+            {policyModalTab === "banner" && selectedCategory ? (
+              <section className="rounded-xl border border-gray-200 p-4 dark:border-gray-700 dark:bg-gray-900/20">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="min-w-0">
+                    <p className="mb-2 text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                      Current banner
                     </p>
-                  )}
+                    {selectedCategory.banner ? (
+                      <RemoteOrBlobImage
+                        className="max-h-40 w-full rounded-lg border border-gray-200 object-cover dark:border-gray-600"
+                        src={pathImage(selectedCategory.banner, "banner")}
+                        alt={`${selectedCategory.name} current banner`}
+                        width={640}
+                        height={200}
+                      />
+                    ) : (
+                      <p className="text-sm text-gray-400 dark:text-gray-500">
+                        No banner uploaded yet.
+                      </p>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="mb-2 text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                      New upload preview
+                    </p>
+                    {bannerObjectUrl ? (
+                      <RemoteOrBlobImage
+                        className="border-brand-400 dark:border-brand-500 max-h-40 w-full rounded-lg border-2 border-dashed object-cover"
+                        src={bannerObjectUrl}
+                        alt="Selected banner preview"
+                        width={640}
+                        height={200}
+                      />
+                    ) : (
+                      <p className="text-sm text-gray-400 dark:text-gray-500">
+                        Choose an image file to see a preview here.
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <div className="mt-4 flex flex-wrap items-end gap-3">
-                <div className="min-w-[200px] flex-1">
-                  <label htmlFor="policy-category-banner" className="sr-only">
-                    Upload category banner
-                  </label>
-                  <input
-                    id="policy-category-banner"
-                    key={selectedCategory._id}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleBannerFileChange}
-                    className="block w-full cursor-pointer text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-4 file:py-2 file:text-sm file:font-medium file:text-gray-800 hover:file:bg-gray-200 dark:text-gray-400 dark:file:bg-gray-800 dark:file:text-gray-200 dark:hover:file:bg-gray-700"
-                  />
+                <div className="mt-4 flex flex-wrap items-end gap-3">
+                  <div className="min-w-[200px] flex-1">
+                    <label htmlFor="policy-category-banner" className="sr-only">
+                      Upload category banner
+                    </label>
+                    <input
+                      id="policy-category-banner"
+                      key={selectedCategory._id}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleBannerFileChange}
+                      className="block w-full cursor-pointer text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-4 file:py-2 file:text-sm file:font-medium file:text-gray-800 hover:file:bg-gray-200 dark:text-gray-400 dark:file:bg-gray-800 dark:file:text-gray-200 dark:hover:file:bg-gray-700"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={!bannerDraft || bannerSaving}
+                    onClick={() => void handleBannerUpload()}
+                  >
+                    {bannerSaving ? "Uploading…" : "Upload banner"}
+                  </Button>
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={!bannerDraft || bannerSaving}
-                  onClick={() => void handleBannerUpload()}
-                >
-                  {bannerSaving ? "Uploading…" : "Upload banner"}
-                </Button>
-              </div>
 
-              {/* Phase 3A.2 — banner text editor (per-locale, ≤500 chars).
+                {/* Phase 3A.2 — banner text editor (per-locale, ≤500 chars).
                   Saved on the same "Save" action as the Terms tab — both
                   blocks share the modal's Save button. */}
-              <div className="mt-6 border-t border-gray-200 pt-4 dark:border-gray-700">
-                <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                  Banner text (per locale)
-                </h4>
-                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                  Optional short caption rendered above the offer grid on the
-                  customer side. Up to 500 characters per locale.
-                </p>
+                <div className="mt-6 border-t border-gray-200 pt-4 dark:border-gray-700">
+                  <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                    Banner text (per locale)
+                  </h4>
+                  <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                    Optional short caption rendered above the offer grid on the
+                    customer side. Up to 500 characters per locale.
+                  </p>
 
-                <div
-                  className="mt-3 flex flex-wrap gap-1 border-b border-gray-200 dark:border-gray-700"
-                  role="tablist"
-                  aria-label="Banner translation locale"
-                >
-                  {POLICY_TRANSLATION_LOCALES.map((l) => {
-                    const filled =
-                      typeof bannerTranslations[l.value] === "string" &&
-                      bannerTranslations[l.value]!.trim().length > 0;
-                    const isActive = bannerActiveLocale === l.value;
-                    return (
-                      <button
-                        key={l.value}
-                        type="button"
-                        role="tab"
-                        aria-selected={isActive}
-                        onClick={() => setBannerActiveLocale(l.value)}
-                        className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
-                          isActive
-                            ? "border-brand-500 text-brand-600 dark:border-brand-400 dark:text-brand-400"
-                            : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400"
-                        }`}
-                      >
-                        <span
-                          aria-hidden
-                          className={`h-1.5 w-1.5 rounded-full ${
-                            filled ? "bg-emerald-500" : "bg-gray-300 dark:bg-gray-600"
-                          }`}
-                        />
-                        {l.label}
-                        {bannerPrimaryLocale === l.value ? (
-                          <span className="ml-1 rounded bg-brand-100 px-1 py-0.5 text-[10px] font-medium text-brand-700 dark:bg-brand-900/40 dark:text-brand-300">
-                            primary
-                          </span>
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-                  <span>Primary locale:</span>
-                  <select
-                    value={bannerPrimaryLocale}
-                    onChange={(e) => setBannerPrimaryLocale(e.target.value)}
-                    className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800"
-                  >
-                    {POLICY_TRANSLATION_LOCALES.map((l) => (
-                      <option key={l.value} value={l.value}>
-                        {l.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <textarea
-                  value={bannerTranslations[bannerActiveLocale] ?? ""}
-                  onChange={(e) =>
-                    setBannerTranslations((prev) => ({
-                      ...prev,
-                      [bannerActiveLocale]: e.target.value,
-                    }))
-                  }
-                  maxLength={500}
-                  placeholder={
-                    bannerActiveLocale === "th"
-                      ? "เช่น โปรโมชั่นพิเศษเดือนนี้ — รับแคชแบ็กเพิ่ม 5%..."
-                      : "e.g. Special promotion this month — extra 5% cashback..."
-                  }
-                  className="mt-2 min-h-[80px] w-full resize-y rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400"
-                />
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  {POLICY_TRANSLATION_LOCALES.find((l) => l.value === bannerActiveLocale)?.label}
-                  : {(bannerTranslations[bannerActiveLocale] ?? "").length} / 500 characters
-                </p>
-              </div>
-            </section>
-          ) : null}
-
-          {policyModalTab === "terms" ? (
-            <>
-          {hasSavedContent && savedPreview && (
-            <details className="mt-4 rounded-xl border border-gray-200 bg-gray-50/80 p-4 dark:border-gray-700 dark:bg-gray-800/40">
-              <summary className="cursor-pointer text-sm font-medium text-gray-800 dark:text-gray-200">
-                Current saved version (read-only)
-              </summary>
-              <div className="mt-3 space-y-3 text-sm">
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Primary locale:{" "}
-                  <code className="rounded bg-gray-200 px-1 dark:bg-gray-700">
-                    {savedPreview.primary_locale}
-                  </code>
-                </p>
-                {Object.entries(savedPreview.translations).map(([locale, text]) => (
-                  <div key={locale}>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                      {POLICY_TRANSLATION_LOCALES.find((l) => l.value === locale)?.label ?? locale}
-                      {locale === savedPreview.primary_locale ? " (primary)" : null}
-                    </p>
-                    <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap rounded-lg border border-gray-200 bg-white p-3 text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200">
-                      {text || "—"}
-                    </pre>
-                  </div>
-                ))}
-              </div>
-            </details>
-          )}
-
-          <div className="mt-4 space-y-4">
-            <fieldset>
-              <legend className="text-sm font-medium text-gray-800 dark:text-gray-200">How do you want to set terms?</legend>
-              <div className="mt-2 flex flex-col gap-2">
-                <label className="flex cursor-pointer items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
-                  <input
-                    type="radio"
-                    name="policy-source"
-                    className="mt-1"
-                    checked={contentSource === "template"}
-                    onChange={() => handleContentSourceChange("template")}
-                  />
-                  <span>
-                    <span className="font-medium">Use a default template</span>
-                    <span className="block text-gray-500 dark:text-gray-400">
-                      Pick a preset and edit the text below before saving.
-                    </span>
-                  </span>
-                </label>
-                <label className="flex cursor-pointer items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
-                  <input
-                    type="radio"
-                    name="policy-source"
-                    className="mt-1"
-                    checked={contentSource === "template_plus"}
-                    onChange={() => handleContentSourceChange("template_plus")}
-                  />
-                  <span>
-                    <span className="font-medium">Default template + your additional terms</span>
-                    <span className="block text-gray-500 dark:text-gray-400">
-                      Keep the selected template and add your own section (appended with a clear separator).
-                    </span>
-                  </span>
-                </label>
-                <label className="flex cursor-pointer items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
-                  <input
-                    type="radio"
-                    name="policy-source"
-                    className="mt-1"
-                    checked={contentSource === "custom"}
-                    onChange={() => handleContentSourceChange("custom")}
-                  />
-                  <span>
-                    <span className="font-medium">Write everything yourself</span>
-                    <span className="block text-gray-500 dark:text-gray-400">Free-form text only.</span>
-                  </span>
-                </label>
-              </div>
-            </fieldset>
-
-            {(contentSource === "template" || contentSource === "template_plus") && (
-              <div>
-                <label htmlFor="policy-template" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Default template
-                </label>
-                <select
-                  id="policy-template"
-                  value={selectedTemplateId}
-                  onChange={(e) => handleTemplateSelectChange(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                >
-                  {DEFAULT_POLICY_TEMPLATES.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.title}
-                    </option>
-                  ))}
-                </select>
-                {selectedTemplate ? (
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{selectedTemplate.description}</p>
-                ) : null}
-              </div>
-            )}
-
-            {contentSource === "template_plus" && selectedTemplate ? (
-              <div className="space-y-3">
-                <div>
-                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Template preview (included in saved policy)</p>
-                  <pre className="mt-1 max-h-36 overflow-auto whitespace-pre-wrap rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-800 dark:border-gray-600 dark:bg-gray-900/50 dark:text-gray-200">
-                    {getTemplateBody(selectedTemplate.id, activeLocale)}
-                  </pre>
-                </div>
-                <div>
-                  {/* Per-locale "additional terms" — same locale tab strip
-                      drives both this and the main content textarea. */}
                   <div
-                    className="flex flex-wrap gap-1 border-b border-gray-200 dark:border-gray-700"
+                    className="mt-3 flex flex-wrap gap-1 border-b border-gray-200 dark:border-gray-700"
                     role="tablist"
-                    aria-label="Additional terms locale"
+                    aria-label="Banner translation locale"
                   >
                     {POLICY_TRANSLATION_LOCALES.map((l) => {
                       const filled =
-                        typeof additionalTermsByLocale[l.value] === "string" &&
-                        additionalTermsByLocale[l.value]!.trim().length > 0;
-                      const isActive = activeLocale === l.value;
+                        typeof bannerTranslations[l.value] === "string" &&
+                        bannerTranslations[l.value]!.trim().length > 0;
+                      const isActive = bannerActiveLocale === l.value;
                       return (
                         <button
                           key={l.value}
                           type="button"
                           role="tab"
                           aria-selected={isActive}
-                          onClick={() => setActiveLocale(l.value)}
+                          onClick={() => setBannerActiveLocale(l.value)}
                           className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
                             isActive
                               ? "border-brand-500 text-brand-600 dark:border-brand-400 dark:text-brand-400"
@@ -849,147 +776,402 @@ export default function PolicyTable() {
                           <span
                             aria-hidden
                             className={`h-1.5 w-1.5 rounded-full ${
-                              filled ? "bg-emerald-500" : "bg-gray-300 dark:bg-gray-600"
+                              filled
+                                ? "bg-emerald-500"
+                                : "bg-gray-300 dark:bg-gray-600"
                             }`}
                           />
                           {l.label}
+                          {bannerPrimaryLocale === l.value ? (
+                            <span className="bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300 ml-1 rounded px-1 py-0.5 text-[10px] font-medium">
+                              primary
+                            </span>
+                          ) : null}
                         </button>
                       );
                     })}
                   </div>
-                  <label htmlFor="policy-additional" className="mt-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Your additional terms — {POLICY_TRANSLATION_LOCALES.find((l) => l.value === activeLocale)?.label ?? activeLocale}
-                  </label>
+
+                  <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                    <span>Primary locale:</span>
+                    <select
+                      value={bannerPrimaryLocale}
+                      onChange={(e) => setBannerPrimaryLocale(e.target.value)}
+                      className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800"
+                    >
+                      {POLICY_TRANSLATION_LOCALES.map((l) => (
+                        <option key={l.value} value={l.value}>
+                          {l.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
                   <textarea
-                    id="policy-additional"
-                    value={additionalTermsByLocale[activeLocale] ?? ""}
+                    value={bannerTranslations[bannerActiveLocale] ?? ""}
                     onChange={(e) =>
-                      setAdditionalTermsByLocale((prev) => ({
+                      setBannerTranslations((prev) => ({
                         ...prev,
-                        [activeLocale]: e.target.value,
+                        [bannerActiveLocale]: e.target.value,
                       }))
                     }
-                    placeholder="Add clauses specific to this category (plain text)..."
-                    className="mt-1 min-h-[120px] w-full resize-y rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400"
+                    maxLength={500}
+                    placeholder={
+                      bannerActiveLocale === "th"
+                        ? "เช่น โปรโมชั่นพิเศษเดือนนี้ — รับแคชแบ็กเพิ่ม 5%..."
+                        : "e.g. Special promotion this month — extra 5% cashback..."
+                    }
+                    className="focus:border-brand-500 focus:ring-brand-500/20 mt-2 min-h-[80px] w-full resize-y rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-2 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400"
                   />
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {
+                      POLICY_TRANSLATION_LOCALES.find(
+                        (l) => l.value === bannerActiveLocale,
+                      )?.label
+                    }
+                    : {(bannerTranslations[bannerActiveLocale] ?? "").length} /
+                    500 characters
+                  </p>
                 </div>
-              </div>
+              </section>
             ) : null}
 
-            {(contentSource === "template" || contentSource === "custom") && (
-              <div className="min-h-0 flex-1">
-                {/* Locale tab strip — switching tabs swaps the textarea below.
+            {policyModalTab === "terms" ? (
+              <>
+                {hasSavedContent && savedPreview && (
+                  <details className="mt-4 rounded-xl border border-gray-200 bg-gray-50/80 p-4 dark:border-gray-700 dark:bg-gray-800/40">
+                    <summary className="cursor-pointer text-sm font-medium text-gray-800 dark:text-gray-200">
+                      Current saved version (read-only)
+                    </summary>
+                    <div className="mt-3 space-y-3 text-sm">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Primary locale:{" "}
+                        <code className="rounded bg-gray-200 px-1 dark:bg-gray-700">
+                          {savedPreview.primary_locale}
+                        </code>
+                      </p>
+                      {Object.entries(savedPreview.translations).map(
+                        ([locale, text]) => (
+                          <div key={locale}>
+                            <p className="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                              {POLICY_TRANSLATION_LOCALES.find(
+                                (l) => l.value === locale,
+                              )?.label ?? locale}
+                              {locale === savedPreview.primary_locale
+                                ? " (primary)"
+                                : null}
+                            </p>
+                            <pre className="mt-1 max-h-40 overflow-auto rounded-lg border border-gray-200 bg-white p-3 whitespace-pre-wrap text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200">
+                              {text || "—"}
+                            </pre>
+                          </div>
+                        ),
+                      )}
+                    </div>
+                  </details>
+                )}
+
+                <div className="mt-4 space-y-4">
+                  <fieldset>
+                    <legend className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                      How do you want to set terms?
+                    </legend>
+                    <div className="mt-2 flex flex-col gap-2">
+                      <label className="flex cursor-pointer items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+                        <input
+                          type="radio"
+                          name="policy-source"
+                          className="mt-1"
+                          checked={contentSource === "template"}
+                          onChange={() => handleContentSourceChange("template")}
+                        />
+                        <span>
+                          <span className="font-medium">
+                            Use a default template
+                          </span>
+                          <span className="block text-gray-500 dark:text-gray-400">
+                            Pick a preset and edit the text below before saving.
+                          </span>
+                        </span>
+                      </label>
+                      <label className="flex cursor-pointer items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+                        <input
+                          type="radio"
+                          name="policy-source"
+                          className="mt-1"
+                          checked={contentSource === "template_plus"}
+                          onChange={() =>
+                            handleContentSourceChange("template_plus")
+                          }
+                        />
+                        <span>
+                          <span className="font-medium">
+                            Default template + your additional terms
+                          </span>
+                          <span className="block text-gray-500 dark:text-gray-400">
+                            Keep the selected template and add your own section
+                            (appended with a clear separator).
+                          </span>
+                        </span>
+                      </label>
+                      <label className="flex cursor-pointer items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+                        <input
+                          type="radio"
+                          name="policy-source"
+                          className="mt-1"
+                          checked={contentSource === "custom"}
+                          onChange={() => handleContentSourceChange("custom")}
+                        />
+                        <span>
+                          <span className="font-medium">
+                            Write everything yourself
+                          </span>
+                          <span className="block text-gray-500 dark:text-gray-400">
+                            Free-form text only.
+                          </span>
+                        </span>
+                      </label>
+                    </div>
+                  </fieldset>
+
+                  {(contentSource === "template" ||
+                    contentSource === "template_plus") && (
+                    <div>
+                      <label
+                        htmlFor="policy-template"
+                        className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                      >
+                        Default template
+                      </label>
+                      <select
+                        id="policy-template"
+                        value={selectedTemplateId}
+                        onChange={(e) =>
+                          handleTemplateSelectChange(e.target.value)
+                        }
+                        className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                      >
+                        {DEFAULT_POLICY_TEMPLATES.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.title}
+                          </option>
+                        ))}
+                      </select>
+                      {selectedTemplate ? (
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          {selectedTemplate.description}
+                        </p>
+                      ) : null}
+                    </div>
+                  )}
+
+                  {contentSource === "template_plus" && selectedTemplate ? (
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Template preview (included in saved policy)
+                        </p>
+                        <pre className="mt-1 max-h-36 overflow-auto rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs whitespace-pre-wrap text-gray-800 dark:border-gray-600 dark:bg-gray-900/50 dark:text-gray-200">
+                          {getTemplateBody(selectedTemplate.id, activeLocale)}
+                        </pre>
+                      </div>
+                      <div>
+                        {/* Per-locale "additional terms" — same locale tab strip
+                      drives both this and the main content textarea. */}
+                        <div
+                          className="flex flex-wrap gap-1 border-b border-gray-200 dark:border-gray-700"
+                          role="tablist"
+                          aria-label="Additional terms locale"
+                        >
+                          {POLICY_TRANSLATION_LOCALES.map((l) => {
+                            const filled =
+                              typeof additionalTermsByLocale[l.value] ===
+                                "string" &&
+                              additionalTermsByLocale[l.value]!.trim().length >
+                                0;
+                            const isActive = activeLocale === l.value;
+                            return (
+                              <button
+                                key={l.value}
+                                type="button"
+                                role="tab"
+                                aria-selected={isActive}
+                                onClick={() => setActiveLocale(l.value)}
+                                className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
+                                  isActive
+                                    ? "border-brand-500 text-brand-600 dark:border-brand-400 dark:text-brand-400"
+                                    : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400"
+                                }`}
+                              >
+                                <span
+                                  aria-hidden
+                                  className={`h-1.5 w-1.5 rounded-full ${
+                                    filled
+                                      ? "bg-emerald-500"
+                                      : "bg-gray-300 dark:bg-gray-600"
+                                  }`}
+                                />
+                                {l.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <label
+                          htmlFor="policy-additional"
+                          className="mt-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                        >
+                          Your additional terms —{" "}
+                          {POLICY_TRANSLATION_LOCALES.find(
+                            (l) => l.value === activeLocale,
+                          )?.label ?? activeLocale}
+                        </label>
+                        <textarea
+                          id="policy-additional"
+                          value={additionalTermsByLocale[activeLocale] ?? ""}
+                          onChange={(e) =>
+                            setAdditionalTermsByLocale((prev) => ({
+                              ...prev,
+                              [activeLocale]: e.target.value,
+                            }))
+                          }
+                          placeholder="Add clauses specific to this category (plain text)..."
+                          className="focus:border-brand-500 focus:ring-brand-500/20 mt-1 min-h-[120px] w-full resize-y rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-2 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400"
+                        />
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {(contentSource === "template" ||
+                    contentSource === "custom") && (
+                    <div className="min-h-0 flex-1">
+                      {/* Locale tab strip — switching tabs swaps the textarea below.
                     The bullet on each tab indicates whether that locale has
                     any non-empty content authored. */}
-                <div
-                  className="flex flex-wrap gap-1 border-b border-gray-200 dark:border-gray-700"
-                  role="tablist"
-                  aria-label="Translation locale"
-                >
-                  {POLICY_TRANSLATION_LOCALES.map((l) => {
-                    const filled =
-                      typeof translations[l.value] === "string" &&
-                      translations[l.value]!.trim().length > 0;
-                    const isActive = activeLocale === l.value;
-                    return (
-                      <button
-                        key={l.value}
-                        type="button"
-                        role="tab"
-                        aria-selected={isActive}
-                        onClick={() => setActiveLocale(l.value)}
-                        className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
-                          isActive
-                            ? "border-brand-500 text-brand-600 dark:border-brand-400 dark:text-brand-400"
-                            : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400"
-                        }`}
+                      <div
+                        className="flex flex-wrap gap-1 border-b border-gray-200 dark:border-gray-700"
+                        role="tablist"
+                        aria-label="Translation locale"
                       >
-                        <span
-                          aria-hidden
-                          className={`h-1.5 w-1.5 rounded-full ${
-                            filled ? "bg-emerald-500" : "bg-gray-300 dark:bg-gray-600"
-                          }`}
-                        />
-                        {l.label}
-                        {primaryLocale === l.value ? (
-                          <span className="ml-1 rounded bg-brand-100 px-1 py-0.5 text-[10px] font-medium text-brand-700 dark:bg-brand-900/40 dark:text-brand-300">
-                            primary
-                          </span>
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
+                        {POLICY_TRANSLATION_LOCALES.map((l) => {
+                          const filled =
+                            typeof translations[l.value] === "string" &&
+                            translations[l.value]!.trim().length > 0;
+                          const isActive = activeLocale === l.value;
+                          return (
+                            <button
+                              key={l.value}
+                              type="button"
+                              role="tab"
+                              aria-selected={isActive}
+                              onClick={() => setActiveLocale(l.value)}
+                              className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
+                                isActive
+                                  ? "border-brand-500 text-brand-600 dark:border-brand-400 dark:text-brand-400"
+                                  : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400"
+                              }`}
+                            >
+                              <span
+                                aria-hidden
+                                className={`h-1.5 w-1.5 rounded-full ${
+                                  filled
+                                    ? "bg-emerald-500"
+                                    : "bg-gray-300 dark:bg-gray-600"
+                                }`}
+                              />
+                              {l.label}
+                              {primaryLocale === l.value ? (
+                                <span className="bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300 ml-1 rounded px-1 py-0.5 text-[10px] font-medium">
+                                  primary
+                                </span>
+                              ) : null}
+                            </button>
+                          );
+                        })}
+                      </div>
 
-                {/* Primary-locale picker — D2 default in POLICY_MULTILANG_PLAN.md.
+                      {/* Primary-locale picker — D2 default in POLICY_MULTILANG_PLAN.md.
                     Customer-side renderer falls back to this locale when the
                     user's locale isn't translated. */}
-                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-                  <span>Primary locale:</span>
-                  <select
-                    value={primaryLocale}
-                    onChange={(e) => setPrimaryLocale(e.target.value)}
-                    className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800"
-                  >
-                    {POLICY_TRANSLATION_LOCALES.map((l) => (
-                      <option key={l.value} value={l.value}>
-                        {l.label}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="text-gray-400">
-                    — used as the fallback when a user&apos;s locale has no translation.
-                  </span>
-                </div>
+                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                        <span>Primary locale:</span>
+                        <select
+                          value={primaryLocale}
+                          onChange={(e) => setPrimaryLocale(e.target.value)}
+                          className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800"
+                        >
+                          {POLICY_TRANSLATION_LOCALES.map((l) => (
+                            <option key={l.value} value={l.value}>
+                              {l.label}
+                            </option>
+                          ))}
+                        </select>
+                        <span className="text-gray-400">
+                          — used as the fallback when a user&apos;s locale has
+                          no translation.
+                        </span>
+                      </div>
 
-                <label
-                  htmlFor="policy-content"
-                  className="mt-3 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  {contentSource === "template" ? "Template text (editable)" : "Content"}
-                  {" — "}
-                  <span className="text-gray-500">
-                    {POLICY_TRANSLATION_LOCALES.find((l) => l.value === activeLocale)?.label ?? activeLocale}
-                  </span>
-                </label>
-                <textarea
-                  id="policy-content"
-                  value={translations[activeLocale] ?? ""}
-                  onChange={(e) =>
-                    setTranslations((prev) => ({ ...prev, [activeLocale]: e.target.value }))
-                  }
-                  placeholder={
-                    activeLocale === "th"
-                      ? "ป้อนข้อกำหนดและเงื่อนไข (ข้อความล้วน)..."
-                      : "Enter terms and conditions (plain text)..."
-                  }
-                  className="mt-1 min-h-[200px] w-full resize-y rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400"
-                />
-                <div className="mt-2 flex items-center justify-between text-xs">
-                  <p
-                    className={
-                      activeLocaleLength > POLICY_MAX_LENGTH
-                        ? "text-red-600 dark:text-red-400"
-                        : "text-gray-500 dark:text-gray-400"
-                    }
-                  >
-                    {POLICY_TRANSLATION_LOCALES.find((l) => l.value === activeLocale)?.label}
-                    : {activeLocaleLength} / {POLICY_MAX_LENGTH} characters
-                  </p>
-                  <p className="text-gray-500 dark:text-gray-400">
-                    Total across all locales: {totalLength}
-                  </p>
+                      <label
+                        htmlFor="policy-content"
+                        className="mt-3 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                      >
+                        {contentSource === "template"
+                          ? "Template text (editable)"
+                          : "Content"}
+                        {" — "}
+                        <span className="text-gray-500">
+                          {POLICY_TRANSLATION_LOCALES.find(
+                            (l) => l.value === activeLocale,
+                          )?.label ?? activeLocale}
+                        </span>
+                      </label>
+                      <textarea
+                        id="policy-content"
+                        value={translations[activeLocale] ?? ""}
+                        onChange={(e) =>
+                          setTranslations((prev) => ({
+                            ...prev,
+                            [activeLocale]: e.target.value,
+                          }))
+                        }
+                        placeholder={
+                          activeLocale === "th"
+                            ? "ป้อนข้อกำหนดและเงื่อนไข (ข้อความล้วน)..."
+                            : "Enter terms and conditions (plain text)..."
+                        }
+                        className="focus:border-brand-500 focus:ring-brand-500/20 mt-1 min-h-[200px] w-full resize-y rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-2 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400"
+                      />
+                      <div className="mt-2 flex items-center justify-between text-xs">
+                        <p
+                          className={
+                            activeLocaleLength > POLICY_MAX_LENGTH
+                              ? "text-red-600 dark:text-red-400"
+                              : "text-gray-500 dark:text-gray-400"
+                          }
+                        >
+                          {
+                            POLICY_TRANSLATION_LOCALES.find(
+                              (l) => l.value === activeLocale,
+                            )?.label
+                          }
+                          : {activeLocaleLength} / {POLICY_MAX_LENGTH}{" "}
+                          characters
+                        </p>
+                        <p className="text-gray-500 dark:text-gray-400">
+                          Total across all locales: {totalLength}
+                        </p>
+                      </div>
+                      {!hasAnyTranslation ? (
+                        <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                          At least one non-empty translation is required to
+                          save.
+                        </p>
+                      ) : null}
+                    </div>
+                  )}
                 </div>
-                {!hasAnyTranslation ? (
-                  <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-                    At least one non-empty translation is required to save.
-                  </p>
-                ) : null}
-              </div>
-            )}
-          </div>
-            </>
-          ) : null}
+              </>
+            ) : null}
           </div>
 
           <div className="mt-6 flex shrink-0 flex-wrap items-center justify-end gap-3 border-t border-gray-100 pt-4 dark:border-gray-800">
@@ -1005,15 +1187,20 @@ export default function PolicyTable() {
                 <Button
                   variant="primary"
                   onClick={handleSave}
-                  disabled={saving || isOverLength}
+                  disabled={saving || isOverLength || !hasUnsavedChanges}
                 >
                   {saving ? "Saving…" : "Save"}
                 </Button>
               </>
             ) : confirmClear ? (
               <>
-                <span className="text-sm text-gray-600 dark:text-gray-400">Clear all content?</span>
-                <Button variant="outline" onClick={() => setConfirmClear(false)}>
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  Clear all content?
+                </span>
+                <Button
+                  variant="outline"
+                  onClick={() => setConfirmClear(false)}
+                >
                   Cancel
                 </Button>
                 <Button
@@ -1041,7 +1228,12 @@ export default function PolicyTable() {
                 <Button
                   variant="primary"
                   onClick={handleSave}
-                  disabled={saving || isOverLength || !hasAnyTranslation}
+                  disabled={
+                    saving ||
+                    isOverLength ||
+                    !hasAnyTranslation ||
+                    !hasUnsavedChanges
+                  }
                 >
                   {saving ? "Saving…" : "Save"}
                 </Button>

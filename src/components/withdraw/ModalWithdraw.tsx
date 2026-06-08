@@ -14,6 +14,7 @@ import type { WithdrawList } from "@/types/withdraw";
 import { useState } from "react";
 import client from "@/lib/axios/client";
 import { devError } from "@/lib/devConsole";
+import { isDirty } from "@/lib/isDirty";
 interface DataWithdrawsModal {
   openModal: DataWithdrawsList | boolean;
   setOpenModal: React.Dispatch<
@@ -33,6 +34,19 @@ const ModalWithdraw = ({
   const session = useDataSession();
   const [isLoading, setIsLoading] = useState(false);
   const fileUrl = useObjectUrl(form.file);
+
+  // Baseline = the loaded request's values when the modal opened: its status and
+  // no newly-attached file. Save stays disabled until the admin changes the
+  // status or attaches a payment slip, and re-disables if they revert.
+  const initialSnapshot = {
+    status: ((openModal as DataWithdrawsList)?.status as string) ?? "",
+    hasFile: false,
+  };
+  const currentSnapshot = {
+    status: form.status,
+    hasFile: Boolean(form.file),
+  };
+  const dirty = isDirty(currentSnapshot, initialSnapshot);
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
     setForm((prev) => ({ ...prev, file }));
@@ -94,7 +108,7 @@ const ModalWithdraw = ({
             </Button>
             <Button
               size="sm"
-              disabled={isLoading}
+              disabled={isLoading || !dirty}
               onClick={() => {
                 if (
                   (openModal && (openModal as DataWithdrawsList).method) ===

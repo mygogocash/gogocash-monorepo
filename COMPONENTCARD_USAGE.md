@@ -1,95 +1,47 @@
-# ComponentCard Usage Guide
+# ComponentCard usage
 
-## Two Types of ComponentCard Available
+`ComponentCard` (`src/components/common/ComponentCard.tsx`) is a **TailAdmin starter
+demo wrapper** — not the card primitive to reach for in GoGoCash feature screens. This
+note records what it actually is so nobody wires it into a real page by mistake.
 
-### 1. ComponentCard (Server Component)
-Use this for static content that doesn't need search functionality:
+## What it actually is
+
+- A **client component** (`"use client"`), memoized with `React.memo`.
+- Props: `title: string`, `desc?: string`, `className?: string`, `children?: React.ReactNode`.
+- Renders the card shell (`rounded-2xl border …`) with a header (`title` + optional
+  `desc` + a search box) and a body, then `children`.
 
 ```tsx
 import ComponentCard from "@/components/common/ComponentCard";
 
-export default function BasicTables() {
-  return (
-    <ComponentCard title="Basic Table 1">
-      <BasicTableOne />
-    </ComponentCard>
-  );
-}
+<ComponentCard title="Some demo" desc="Optional subtitle">
+  <SomeContent />
+</ComponentCard>;
 ```
 
-**Features:**
-- ✅ Server-side rendered (faster)
-- ✅ No JavaScript bundle overhead
-- ✅ SEO-friendly
-- ❌ No search functionality
+> ⚠️ **Known issue — demo only.** The body renders a **hardcoded demo users table**
+> (`BasicTableOne` + `tableData`) _above_ `children`, and the header search box is a
+> no-op. So every `<ComponentCard>` shows a stray sample table regardless of its content.
+> It is currently used only by the TailAdmin showcase routes — UI elements
+> (`alerts`, `avatars`, `buttons`, `images`), form elements, charts, `basic-tables`,
+> `users-admin`, the modal examples, and `VideosExample`. **Do not use it for product UI.**
+> (Fixing it to drop the hardcoded table is tracked separately.)
 
-### 2. SearchableComponentCard (Client Component)
-Use this when you need search functionality:
+## What to use for real cards
 
-```tsx
-"use client";
-import SearchableComponentCard from "@/components/common/SearchableComponentCard";
-import { useState } from "react";
+For GoGoCash feature cards, use the **card shell** documented in
+[`docs/DESIGN_SYSTEM.md`](./docs/DESIGN_SYSTEM.md) §5:
 
-export default function SearchableTables() {
-  const [searchTerm, setSearchTerm] = useState("");
-
-  const handleSearch = (value: string) => {
-    setSearchTerm(value);
-    // Implement your search logic here
-  };
-
-  return (
-    <SearchableComponentCard 
-      title="Searchable Table" 
-      onSearchChange={handleSearch}
-      searchPlaceholder="Search tables..."
-    >
-      <FilteredTableComponent searchTerm={searchTerm} />
-    </SearchableComponentCard>
-  );
-}
+```
+rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]
 ```
 
-**Features:**
-- ✅ Interactive search input
-- ✅ Custom search placeholder
-- ✅ onChange callback
-- ❌ Client-side rendered (larger bundle)
+Inner padding is usually `px-4 py-4 sm:px-6 sm:py-5`. See `docs/DESIGN_SYSTEM.md` for the
+component inventory, typography roles, and tokens.
 
-## When to Use Which
+For a table search input, use `SearchTable` (`src/components/common/SearchTable.tsx`) or
+the design-system `SearchBar` (`src/components/ui/button/SearchBar.tsx`).
 
-### Use ComponentCard when:
-- Displaying static content
-- No user interaction needed
-- Want optimal performance
-- SEO is important
-
-### Use SearchableComponentCard when:
-- Need search/filter functionality
-- User needs to interact with content
-- Real-time filtering is required
-- Search is a core feature
-
-## Migration from Old ComponentCard
-
-If you were using the old ComponentCard with search functionality, update like this:
-
-```tsx
-// Before (will cause errors)
-<ComponentCard 
-  title="My Table" 
-  onSearchChange={handleSearch}
-  showSearch={true}
->
-  <MyTable />
-</ComponentCard>
-
-// After (correct)
-<SearchableComponentCard 
-  title="My Table" 
-  onSearchChange={handleSearch}
->
-  <MyTable />
-</SearchableComponentCard>
-```
+> **There is no `SearchableComponentCard` in this repo.** Earlier versions of this guide
+> described one (and `showSearch` / `onSearchChange` props on `ComponentCard`); none of
+> that exists in the current codebase, so it has been removed.

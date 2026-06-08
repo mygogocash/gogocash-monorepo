@@ -14,6 +14,7 @@ import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
 import { devError } from "@/lib/devConsole";
 import { parseAmount, validateOptionalAmount } from "@/lib/formValidation";
+import { isDirty } from "@/lib/isDirty";
 
 interface IProp {
   fetchData: () => void;
@@ -59,6 +60,21 @@ const FormCoupon = ({
     // refetchOnMount: true,
     // refetchOnReconnect: true,
   });
+
+  // Re-baseline the form on each open/close transition (captures the loaded
+  // coupon when the modal opens, or the empty defaults for a create) using
+  // React's "adjust state during render" pattern — runs at most once per
+  // transition, so Save stays disabled until the user actually changes a field.
+  const couponModalOpen = Boolean(openModal);
+  const [baseline, setBaseline] = useState<{
+    open: boolean;
+    form: CouponRequestForm;
+  }>(() => ({ open: couponModalOpen, form }));
+  if (baseline.open !== couponModalOpen) {
+    setBaseline({ open: couponModalOpen, form });
+  }
+
+  const hasUnsavedChanges = isDirty(form, baseline.form);
 
   // Handle file change
   const handleSave = () => {
@@ -258,7 +274,7 @@ const FormCoupon = ({
               </Button>
               <Button
                 size="sm"
-                disabled={isLoading}
+                disabled={isLoading || !hasUnsavedChanges}
                 onClick={() => handleSave()}
                 startIcon={
                   isLoading ? (

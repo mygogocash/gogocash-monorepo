@@ -6,12 +6,12 @@ This plan matches the current codebase: **NextAuth (JWT)**, **`AuthGuard`** (aut
 
 ## 1. Goals and principles
 
-| Goal | Detail |
-|------|--------|
-| **Least privilege** | Users only see routes and actions their role allows. |
+| Goal                       | Detail                                                                                                                  |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **Least privilege**        | Users only see routes and actions their role allows.                                                                    |
 | **Single source of truth** | Prefer **backend** roles/permissions on the token or a `/me` payload; the UI mirrors that, it does not invent security. |
-| **Defense in depth** | UI hiding + **route guards**; APIs must still **authorize server-side** (your API repo). |
-| **Auditable** | Log denied access (optional) and keep role definitions in one module. |
+| **Defense in depth**       | UI hiding + **route guards**; APIs must still **authorize server-side** (your API repo).                                |
+| **Auditable**              | Log denied access (optional) and keep role definitions in one module.                                                   |
 
 ---
 
@@ -22,6 +22,7 @@ This plan matches the current codebase: **NextAuth (JWT)**, **`AuthGuard`** (aut
 - **Login types**: `LoginResponse` has `token` but **no `role` field** in `src/types/api.ts` (extend when API contract is fixed).
 - **Admin listing**: `AdminUsersQuery` already supports **`role`** filter — backend likely has role concepts; align types with real API.
 - **Navigation**: flat list in **`AppSidebar`** — all items visible to any signed-in user.
+- **Cashback approval / wallet adjustment**: the standalone `/wallet` page has been removed; wallet actions now live only on the user detail page (`/withdraw/:id` → `WithdrawDetail`), which renders `CashbackApprovalNotice` (approve/reject) and `UserWalletPanel` (freeze/unfreeze + adjust balance + file extra-cashback request). The wallet **list** API (`getWallets`) is gone; the per-user `/admin/wallets/*` routes (`getWalletDetail`, freeze/unfreeze, `adjust`, `cashback-request`) remain in `src/lib/api/adminModulesApi.ts`. These panels are **not** wrapped in `<Can>` at the UI/button level, so any admin who can view `/withdraw` sees them — but the **write** routes are already enforced server-side in the mock API (e.g. `/admin/wallets/:id/adjust` requires `users:manage`; see `src/lib/rbac/enforcement.test.ts`). Add per-button `<Can>` gating to match if tighter UI hiding is wanted.
 
 ---
 
@@ -71,6 +72,7 @@ Examples: `users.read`, `users.write`, `offers.write`, `withdraw.approve`, `admi
 
 - **`AppSidebar`**: filter `navItems` / `othersItems` by role/permission metadata on each item (e.g. `requiredRoles: ['admin']` or `permission: 'offers.read'`).
 - **Tables / forms**: hide primary actions (delete, approve, invite admin) when `!can(...)`.
+- **Cashback approval / wallet**: gate `CashbackApprovalNotice` approve/reject and `UserWalletPanel` (Adjust Wallet, freeze/unfreeze, add extra cashback) on the user detail page — these credit/freeze real balances.
 - Optional **`AccessDenied`** stub component for inline “no permission” messages.
 
 ### Phase 3 — **Route protection**
@@ -98,15 +100,16 @@ Examples: `users.read`, `users.write`, `offers.write`, `withdraw.approve`, `admi
 
 Adjust to match product and API.
 
-| Area | Path prefix | Example roles allowed |
-|------|-------------|------------------------|
-| Dashboard | `/dashboard` | all internal roles |
-| Users (end) | `/users` | admin, support, read_only |
-| Admin users | `/admin-users` | super_admin, admin |
-| Offers / category / coupon / quest | various | admin, support (read_only: read-only where applicable) |
-| Withdraw / conversion approve | `/withdraw`, `/conversion` | admin, support (narrow approve to admin only if required) |
-| Fee | `/fee` | super_admin, admin |
-| User tracking link / banner | `/deeplink`, `/banner` | admin, marketing (if exists) |
+| Area                               | Path prefix                            | Example roles allowed                                     |
+| ---------------------------------- | -------------------------------------- | --------------------------------------------------------- |
+| Dashboard                          | `/dashboard`                           | all internal roles                                        |
+| Users (end)                        | `/users`                               | admin, support, read_only                                 |
+| Admin users                        | `/admin-users`                         | super_admin, admin                                        |
+| Offers / category / coupon / quest | various                                | admin, support (read_only: read-only where applicable)    |
+| Withdraw / conversion approve      | `/withdraw`, `/conversion`             | admin, support (narrow approve to admin only if required) |
+| Cashback approval / wallet adjust  | `/withdraw/:id` (+ `/admin/wallets/*`) | wallet write routes require `users:manage` server-side; UI panels not yet `<Can>`-gated — see §2 |
+| Fee                                | `/fee`                                 | super_admin, admin                                        |
+| User tracking link / banner        | `/deeplink`, `/banner`                 | admin, marketing (if exists)                              |
 
 Empty cells mean **define with stakeholders**.
 
@@ -114,12 +117,12 @@ Empty cells mean **define with stakeholders**.
 
 ## 7. Risks and mitigations
 
-| Risk | Mitigation |
-|------|------------|
-| JWT too large | Store minimal claims; fetch fine-grained permissions lazily if needed. |
+| Risk                       | Mitigation                                                               |
+| -------------------------- | ------------------------------------------------------------------------ |
+| JWT too large              | Store minimal claims; fetch fine-grained permissions lazily if needed.   |
 | Stale role after promotion | Short session TTL + re-login, or refresh endpoint updating token claims. |
-| URL guessing | **Always** enforce on API; UI is UX only. |
-| Mock vs prod drift | Same `LoginResponse` shape in mock and real API. |
+| URL guessing               | **Always** enforce on API; UI is UX only.                                |
+| Mock vs prod drift         | Same `LoginResponse` shape in mock and real API.                         |
 
 ---
 

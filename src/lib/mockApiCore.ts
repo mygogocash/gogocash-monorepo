@@ -24,6 +24,7 @@ import {
   isValidDeeplinkStoreId,
   resolveDeeplinkStoreId,
 } from "@/data/deeplinkStores";
+import { COUNTRY_FILTER_TO_CODES } from "@/data/mockPendingOffers";
 import {
   AFFILIATE_NETWORKS,
   affiliateNetworkIdForOfferId,
@@ -555,6 +556,19 @@ function handleMockGET(
           o.offer_name_display.toLowerCase().includes(s) ||
           partner.toLowerCase().includes(s)
         );
+      });
+    }
+    // Country filter: dropdown sends a country name; match against the offer's
+    // ISO codes in `countries` (e.g. "TH" / "TH,US"). Previously ignored, so the
+    // dropdown had no effect on results.
+    const country = searchParams.get("country") || "";
+    if (country) {
+      const codes = COUNTRY_FILTER_TO_CODES[country] ?? [country];
+      filtered = filtered.filter((o) => {
+        const offerCodes = String(o.countries || "")
+          .split(",")
+          .map((c) => c.trim());
+        return codes.some((code) => offerCodes.includes(code));
       });
     }
     return ok(paginateFlat(filtered, page, limit));
@@ -1558,6 +1572,9 @@ async function handleMockPATCH(
     const b = body as Record<string, string | undefined>;
     if (b.offer_name_display != null) {
       offer.offer_name_display = b.offer_name_display;
+    }
+    if (b.lookup_value !== undefined) {
+      offer.lookup_value = (b.lookup_value ?? "").trim();
     }
     if (b.disabled != null) {
       offer.disabled = b.disabled === "true";

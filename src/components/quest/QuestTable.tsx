@@ -21,6 +21,7 @@ import { Modal } from "@/components/ui/modal";
 import Label from "@/components/form/Label";
 import Input from "@/components/form/input/InputField";
 import { fetchOffersList, offersListQueryKey } from "@/lib/query/offersQueries";
+import { isDirty } from "@/lib/isDirty";
 import type { Offer, OffersQuery } from "@/types/api";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import NoData from "@/components/common/NoData";
@@ -295,11 +296,14 @@ export default function QuestTable() {
     useState<QuestDetails | null>(null);
   const [detailsEditMode, setDetailsEditMode] = useState(false);
   const [editDraft, setEditDraft] = useState<QuestDetails | null>(null);
+  // Snapshot of the draft as loaded into edit mode — baseline for "unsaved
+  // changes" so Save stays disabled until a field actually differs.
+  const [editBaseline, setEditBaseline] = useState<QuestDetails | null>(null);
   const [editSubmitting, setEditSubmitting] = useState(false);
 
   const startEditQuest = useCallback(() => {
     if (!detailsModalQuest) return;
-    setEditDraft({
+    const initialDraft: QuestDetails = {
       ...detailsModalQuest,
       tasks: detailsModalQuest.tasks
         ? detailsModalQuest.tasks.map((t, i) => ({
@@ -307,13 +311,16 @@ export default function QuestTable() {
             id: t.id ?? crypto.randomUUID?.() ?? `task-${Date.now()}-${i}`,
           }))
         : undefined,
-    });
+    };
+    setEditDraft(initialDraft);
+    setEditBaseline(initialDraft);
     setDetailsEditMode(true);
   }, [detailsModalQuest]);
 
   const cancelEditQuest = useCallback(() => {
     setDetailsEditMode(false);
     setEditDraft(null);
+    setEditBaseline(null);
   }, []);
 
   const saveEditQuest = useCallback(() => {
@@ -327,6 +334,7 @@ export default function QuestTable() {
       setDetailsModalQuest(editDraft);
       setDetailsEditMode(false);
       setEditDraft(null);
+      setEditBaseline(null);
       setEditSubmitting(false);
     }, 300);
   }, [editDraft]);
@@ -339,6 +347,7 @@ export default function QuestTable() {
     setDetailsModalQuest(null);
     setDetailsEditMode(false);
     setEditDraft(null);
+    setEditBaseline(null);
   }, []);
   const [pointsModalPageSize, setPointsModalPageSize] = useState<number>(10);
   const [pointsModalSearch, setPointsModalSearch] = useState("");
@@ -372,6 +381,54 @@ export default function QuestTable() {
     staleTime: 30_000,
   });
   const offers: Offer[] = offersData?.data ?? [];
+
+  // Edit form has unsaved changes when the live draft differs from the
+  // snapshot captured when edit mode opened.
+  const editDirty = useMemo(
+    () => isDirty(editDraft, editBaseline),
+    [editDraft, editBaseline],
+  );
+
+  // Create form has unsaved input when any editable field differs from its
+  // empty default (so "Create" stays disabled on a pristine form).
+  const createDirty = useMemo(
+    () =>
+      isDirty(
+        {
+          startDate,
+          endDate,
+          facebookPage,
+          facebookPageLink,
+          facebookPost,
+          facebookPostLink,
+          line,
+          lineLink,
+          tasks,
+        },
+        {
+          startDate: "",
+          endDate: "",
+          facebookPage: "No",
+          facebookPageLink: "",
+          facebookPost: "No",
+          facebookPostLink: "",
+          line: "No",
+          lineLink: "",
+          tasks: [] as QuestTask[],
+        },
+      ),
+    [
+      startDate,
+      endDate,
+      facebookPage,
+      facebookPageLink,
+      facebookPost,
+      facebookPostLink,
+      line,
+      lineLink,
+      tasks,
+    ],
+  );
 
   // Helpers for the inline task editor inside the Quest details edit mode.
   const patchEditTask = useCallback(
@@ -1005,7 +1062,7 @@ export default function QuestTable() {
                   <button
                     type="button"
                     onClick={saveEditQuest}
-                    disabled={editSubmitting}
+                    disabled={editSubmitting || !editDirty}
                     className="border-brand-500 bg-brand-500 hover:bg-brand-600 dark:border-brand-500 dark:bg-brand-500 dark:hover:bg-brand-600 rounded-lg border px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
                   >
                     {editSubmitting ? "Saving…" : "Save changes"}
@@ -2033,7 +2090,7 @@ export default function QuestTable() {
                 </button>
                 <button
                   type="submit"
-                  disabled={createSubmitting}
+                  disabled={createSubmitting || !createDirty}
                   className="border-brand-500 bg-brand-500 hover:bg-brand-600 dark:border-brand-500 dark:bg-brand-500 dark:hover:bg-brand-600 rounded-lg border px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
                 >
                   {createSubmitting ? "Creating…" : "Create"}

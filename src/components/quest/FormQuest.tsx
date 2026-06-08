@@ -1,8 +1,10 @@
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
+import { useEffect, useRef } from "react";
 import { Modal } from "../ui/modal";
 import Input from "../form/input/InputField";
 import client from "@/lib/axios/client";
 import { devError } from "@/lib/devConsole";
+import { isDirty } from "@/lib/isDirty";
 import toast from "react-hot-toast";
 import Button from "../ui/button/Button";
 import { useDataSession } from "@/hooks/useDataSession";
@@ -41,6 +43,25 @@ const FormQuest = ({
   const subBannerThUrl = useObjectUrl(
     form.sub_banner_th instanceof File ? form.sub_banner_th : null,
   );
+
+  // Snapshot the editable fields the moment the modal opens, so "Save" stays
+  // disabled until the user actually changes something (and re-disables if they
+  // revert to the originally-loaded values).
+  const isOpen = Boolean(openModal);
+  const initialSnapshot = useRef<ResponseQuestCreateForm | null>(null);
+  useEffect(() => {
+    if (isOpen) {
+      initialSnapshot.current = { ...form };
+    } else {
+      initialSnapshot.current = null;
+    }
+    // Only re-snapshot on open/close transitions, never on field edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+  const dirty =
+    initialSnapshot.current === null ||
+    isDirty({ ...form }, initialSnapshot.current);
+
   // Handle file change
   const handleFileChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -300,7 +321,7 @@ const FormQuest = ({
         </Button>
         <Button
           size="sm"
-          disabled={isLoading}
+          disabled={isLoading || !dirty}
           onClick={() => {
             handleSave();
           }}

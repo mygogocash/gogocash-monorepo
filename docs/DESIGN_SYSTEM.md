@@ -105,22 +105,43 @@ Never hand-roll image fallbacks: use `pathImage()` (`src/utils/helper.ts`) for U
 
 ## 6. Shared component inventory
 
-**`src/components/ui/`** — primitives: `alert`, `avatar`, `badge`, `button`, `dropdown`, `images`, `modal`, `table`, `video`, `CopyButton`.
+**`src/components/ui/`** — primitives: `alert`, `avatar`, `badge`, `button`, `dropdown`, `images`, `modal`, `table`, `video`, `CopyButton`, `StatusTag`.
+
+`StatusTag` (`src/components/ui/StatusTag.tsx`) wraps `STATUS_BADGE_BASE` (see §6.1) — pass per-status color classes via `className`; children are the status text.
+
+**`src/components/ui/button/`** — design-system buttons (no barrel; import each directly). All fixed-height, flexible-width:
+| Component | Shape |
+|---|---|
+| `PrimaryButton` | 44px (`h-11`), `px-4`. `variant`: `default` (white outline + shadow), `blue` (brand-filled), `outline` (white fill + 2px `brand-500` border) |
+| `SecondaryButton` | 36px (`h-9`), `px-3`. `variant`: `default` / `blue` |
+| `SupportButton` | 28px (`h-7`), `text-xs` outline, rendered as a Next `Link` (also exports `SUPPORT_BUTTON_CLASS` for native `<button>`s, e.g. pagination) |
+| `TextButton` | 36px borderless brand-blue text-link (inline actions) |
+| `SearchBar` | 36px compact `text-xs` text input (`min-w-[200px]`) |
+| `SortByDropdown` | 36px compact `text-xs` `<select>` (`min-w-[124px]`) |
 
 **`src/components/common/`** — app building blocks:
 | Component | Purpose |
 |---|---|
 | `PageBreadCrumb` | Page title + breadcrumb row |
-| `ComponentCard` / `Card` | Card containers (see `COMPONENTCARD_USAGE.md`) |
+| `ComponentCard` / `Card` | Card containers. **Note:** `ComponentCard` is a TailAdmin demo wrapper (renders a hardcoded sample table) — use the §5 card shell for real features. See `COMPONENTCARD_USAGE.md` |
 | `SectionTabs` | Reusable underlined sub-nav tab row (used by Users/Admin management tabs) |
 | `ChartTab` | Day/Week/Monthly/Quarterly/Annually chart toggle |
 | `AdminPaginationBar` | Standard list pagination |
 | `AdminTableSkeleton` | Loading state for tables |
 | `AdminQueryError` | Standard error state for queries |
 | `SearchTable` | Search input for tables |
+| `NoData` | Standard empty-state placeholder (dashed box, "No Data" headline + optional subtext) |
+| `StackedDateTime` | Two-line table cell: `dd/mm/yyyy` date over a lighter 24-hour time (invalid/empty → "—") |
 | `RemoteOrBlobImage` | Image that handles remote URLs + blob previews |
 | `ThemeToggleButton` | Light/dark toggle |
 | `GridShape` | Decorative background |
+
+### 6.1 Formatting conventions (always use these helpers)
+
+- **Dates** render `dd/mm/yyyy` via `src/lib/dateFormat.ts` (`formatDate`, `formatMonthYear`, `formatTime`, `formatDateTime` — all 24-hour, invalid/empty → `—`). Never `toLocaleDateString` inline.
+- **Money** shows the ISO currency code as a suffix (e.g. `149 THB`), never a symbol (฿/$), via `formatMoney(amount, currency)` in `src/lib/currencyFormat.ts`.
+- **Status badges** share one shape/size from `STATUS_BADGE_BASE` (`src/lib/statusBadge.ts`, a rounded-rect `text-xs` pill) and differ only by color; render via `StatusTag` or `${STATUS_BADGE_BASE} ${colorClasses}`. Cycle/tier badges stay `rounded-full` pills.
+- **`Switch`** (`src/components/form/switch/Switch.tsx`) accepts an optional `activeLabelClassName` to recolor the label text while checked (e.g. `text-brand-500`).
 
 ---
 
