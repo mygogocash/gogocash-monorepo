@@ -38,6 +38,7 @@ import {
 import { netCommissionFromRaw } from "@/lib/productTypeCommission";
 import {
   EMPTY_PRODUCT_TYPE_DRAFT,
+  highestCashbackPercent,
   productTypeDraftToEntry,
   productTypeEntryToDraft,
   serializeOfferProductTypes,
@@ -414,6 +415,30 @@ const FormOffer = ({
         : "",
     );
   }
+
+  // When per-row product types are in play ("All product types" off), the single
+  // offer commission isn't hand-entered — it tracks the highest per-row cashback
+  // %. Keep commission_store (and the raw display) synced to that max.
+  const highestRowCashback = useMemo(
+    () => highestCashbackPercent(form.product_types ?? []),
+    [form.product_types],
+  );
+  useEffect(() => {
+    if (form.all_product_types) return;
+    if (highestRowCashback == null) return;
+    if (form.commission_store === highestRowCashback) return;
+    setForm((prev) => ({ ...prev, commission_store: highestRowCashback }));
+    setCommissionRaw(String(reverseThirtyPercentFee(highestRowCashback)));
+  }, [
+    form.all_product_types,
+    highestRowCashback,
+    form.commission_store,
+    setForm,
+  ]);
+
+  // The single-commission controls are read-only when per-row rates drive the
+  // value ("All product types" off) — it's auto-filled from the highest line.
+  const commissionLockedToRows = !form.all_product_types;
 
   // Product-type "add" frame: a local draft, committed into form.product_types
   // on Add (the committed lines show in a summary table — a later step). Cancel
@@ -1674,7 +1699,7 @@ const FormOffer = ({
                           commission_entry_mode: "auto",
                         }))
                       }
-                      disabled={isLoading}
+                      disabled={isLoading || commissionLockedToRows}
                       aria-pressed={form.commission_entry_mode === "auto"}
                       className={`${
                         form.commission_entry_mode === "auto"
@@ -1692,7 +1717,7 @@ const FormOffer = ({
                           commission_entry_mode: "manual",
                         }))
                       }
-                      disabled={isLoading}
+                      disabled={isLoading || commissionLockedToRows}
                       aria-pressed={form.commission_entry_mode === "manual"}
                       className={`${
                         form.commission_entry_mode === "manual"
@@ -1726,7 +1751,7 @@ const FormOffer = ({
                                     : applyThirtyPercentFee(n),
                               }));
                             }}
-                            disabled={isLoading}
+                            disabled={isLoading || commissionLockedToRows}
                             placeholder="e.g. 10"
                           />
                         </div>
@@ -1760,11 +1785,20 @@ const FormOffer = ({
                                   : n,
                             }));
                           }}
-                          disabled={isLoading}
+                          disabled={isLoading || commissionLockedToRows}
                         />
                       </div>
                     )}
                   </div>
+                  {commissionLockedToRows ? (
+                    <p className="text-theme-xs mt-1.5 text-gray-500 dark:text-gray-400">
+                      Auto-filled from the highest product-type cashback
+                      {highestRowCashback != null
+                        ? ` (${highestRowCashback}%)`
+                        : ""}
+                      . Turn on “All product types” to set a single rate.
+                    </p>
+                  ) : null}
                 </div>
                 <div>
                   <FieldLabel
