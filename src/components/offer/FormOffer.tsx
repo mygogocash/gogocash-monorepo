@@ -2674,7 +2674,17 @@ const FormOffer = ({
                               type={startDateType}
                               placeholder="Start Date"
                               ariaLabel="Start Date"
-                              onFocus={() => setStartDateType("date")}
+                              onFocus={(e) => {
+                                const el = e.currentTarget;
+                                setStartDateType("date");
+                                requestAnimationFrame(() => {
+                                  try {
+                                    el.showPicker?.();
+                                  } catch {
+                                    /* showPicker needs a user gesture; ignore if blocked */
+                                  }
+                                });
+                              }}
                               onBlur={(e) => {
                                 if (!e.currentTarget.value)
                                   setStartDateType("text");
@@ -2719,7 +2729,17 @@ const FormOffer = ({
                               type={endDateType}
                               placeholder="End Date"
                               ariaLabel="End Date"
-                              onFocus={() => setEndDateType("date")}
+                              onFocus={(e) => {
+                                const el = e.currentTarget;
+                                setEndDateType("date");
+                                requestAnimationFrame(() => {
+                                  try {
+                                    el.showPicker?.();
+                                  } catch {
+                                    /* showPicker needs a user gesture; ignore if blocked */
+                                  }
+                                });
+                              }}
                               onBlur={(e) => {
                                 if (!e.currentTarget.value)
                                   setEndDateType("text");
