@@ -439,6 +439,8 @@ export interface OfferProductTypeEntry {
   currency?: string;
   /** Optional app tracking link for this brand / product line. */
   deeplink?: string;
+  /** Optional free-text subtitle shown under the name in admin product-type tables. */
+  description?: string;
 }
 
 /**
@@ -466,6 +468,7 @@ export function normalizeOfferProductTypes(
             : null,
         currency: String(o.currency ?? "").trim(),
         deeplink: String(o.deeplink ?? "").trim(),
+        description: String(o.description ?? "").trim(),
       };
     }
     return { name: "", pay_in: "cashback", commission_info: "" };

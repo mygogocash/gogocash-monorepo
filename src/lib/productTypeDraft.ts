@@ -7,6 +7,8 @@ import type { OfferProductTypeEntry } from "@/types/api";
 /** Local draft for the "add a product type" frame; committed into product_types on Add. */
 export type ProductTypeDraft = {
   name: string;
+  /** Optional free-text subtitle shown under the name in the product-types table. */
+  description: string;
   pay_in: "cashback" | "cash";
   /** Cashback %: raw partner number (net = raw × 0.7). */
   commission_raw: string;
@@ -20,6 +22,7 @@ export type ProductTypeDraft = {
 
 export const EMPTY_PRODUCT_TYPE_DRAFT: ProductTypeDraft = {
   name: "",
+  description: "",
   pay_in: "cashback",
   commission_raw: "",
   amount: "",
@@ -32,6 +35,7 @@ export function productTypeDraftToEntry(
   draft: ProductTypeDraft,
 ): OfferProductTypeEntry {
   const name = draft.name.trim();
+  const description = draft.description.trim();
   if (draft.pay_in === "cash") {
     const n = Number(draft.amount);
     const amount =
@@ -43,6 +47,7 @@ export function productTypeDraftToEntry(
       amount,
       currency: draft.currency,
       deeplink: draft.deeplink,
+      description,
     };
   }
   return {
@@ -51,6 +56,7 @@ export function productTypeDraftToEntry(
     commission_info: netCommissionFromRaw(draft.commission_raw),
     commission_raw: draft.commission_raw,
     deeplink: draft.deeplink,
+    description,
   };
 }
 
@@ -60,6 +66,7 @@ export function productTypeEntryToDraft(
 ): ProductTypeDraft {
   return {
     name: entry.name,
+    description: entry.description ?? "",
     pay_in: entry.pay_in === "cash" ? "cash" : "cashback",
     commission_raw:
       entry.commission_raw ?? rawCommissionFromNet(entry.commission_info ?? ""),
