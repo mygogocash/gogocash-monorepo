@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
@@ -440,24 +441,42 @@ const FormOffer = ({
     number | null
   >(null);
   const productActionsRef = useRef<HTMLDivElement>(null);
+  // The Action menu renders in a body portal (so it escapes the table's
+  // overflow clipping and sits on top); anchor holds its fixed position.
+  const productMenuRef = useRef<HTMLDivElement>(null);
+  const [productMenuAnchor, setProductMenuAnchor] = useState<{
+    top: number;
+    right: number;
+  } | null>(null);
   useEffect(() => {
     if (openProductActionIdx === null) return;
+    const close = () => {
+      setOpenProductActionIdx(null);
+      setProductMenuAnchor(null);
+    };
     const handleClick = (e: MouseEvent) => {
+      const t = e.target as Node;
       if (
-        productActionsRef.current &&
-        !productActionsRef.current.contains(e.target as Node)
+        productActionsRef.current?.contains(t) ||
+        productMenuRef.current?.contains(t)
       ) {
-        setOpenProductActionIdx(null);
+        return;
       }
+      close();
     };
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpenProductActionIdx(null);
+      if (e.key === "Escape") close();
     };
     document.addEventListener("click", handleClick, true);
     document.addEventListener("keydown", handleKey);
+    // The menu is position:fixed, so any scroll/resize would detach it — close instead.
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
     return () => {
       document.removeEventListener("click", handleClick, true);
       document.removeEventListener("keydown", handleKey);
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
     };
   }, [openProductActionIdx]);
 
@@ -879,6 +898,7 @@ const FormOffer = ({
     setProductTypeDraft(productTypeEntryToDraft(entry));
     setEditingProductIndex(index);
     setOpenProductActionIdx(null);
+    setProductMenuAnchor(null);
   };
 
   const deleteProductTypeRow = (index: number) => {
@@ -887,6 +907,7 @@ const FormOffer = ({
       product_types: (prev.product_types ?? []).filter((_, i) => i !== index),
     }));
     setOpenProductActionIdx(null);
+    setProductMenuAnchor(null);
   };
 
   // Drag-and-drop: move the row at `from` to `to` (order persists on Save).
@@ -1624,11 +1645,20 @@ const FormOffer = ({
                                     >
                                       <button
                                         type="button"
-                                        onClick={() =>
-                                          setOpenProductActionIdx((cur) =>
-                                            cur === i ? null : i,
-                                          )
-                                        }
+                                        onClick={(e) => {
+                                          if (openProductActionIdx === i) {
+                                            setOpenProductActionIdx(null);
+                                            setProductMenuAnchor(null);
+                                            return;
+                                          }
+                                          const r =
+                                            e.currentTarget.getBoundingClientRect();
+                                          setProductMenuAnchor({
+                                            top: r.bottom + 4,
+                                            right: window.innerWidth - r.right,
+                                          });
+                                          setOpenProductActionIdx(i);
+                                        }}
                                         disabled={isLoading || editLocked}
                                         aria-expanded={
                                           openProductActionIdx === i
@@ -1652,33 +1682,43 @@ const FormOffer = ({
                                           />
                                         </svg>
                                       </button>
-                                      {openProductActionIdx === i && (
-                                        <div
-                                          className="absolute top-full right-0 z-50 mt-1 min-w-[8rem] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800"
-                                          role="menu"
-                                        >
-                                          <button
-                                            type="button"
-                                            role="menuitem"
-                                            onClick={() =>
-                                              editProductTypeRow(i)
-                                            }
-                                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+                                      {openProductActionIdx === i &&
+                                        productMenuAnchor &&
+                                        createPortal(
+                                          <div
+                                            ref={productMenuRef}
+                                            style={{
+                                              position: "fixed",
+                                              top: productMenuAnchor.top,
+                                              right: productMenuAnchor.right,
+                                              zIndex: 100002,
+                                            }}
+                                            className="min-w-[8rem] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800"
+                                            role="menu"
                                           >
-                                            Edit
-                                          </button>
-                                          <button
-                                            type="button"
-                                            role="menuitem"
-                                            onClick={() =>
-                                              deleteProductTypeRow(i)
-                                            }
-                                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
-                                          >
-                                            Delete
-                                          </button>
-                                        </div>
-                                      )}
+                                            <button
+                                              type="button"
+                                              role="menuitem"
+                                              onClick={() =>
+                                                editProductTypeRow(i)
+                                              }
+                                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+                                            >
+                                              Edit
+                                            </button>
+                                            <button
+                                              type="button"
+                                              role="menuitem"
+                                              onClick={() =>
+                                                deleteProductTypeRow(i)
+                                              }
+                                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                                            >
+                                              Delete
+                                            </button>
+                                          </div>,
+                                          document.body,
+                                        )}
                                     </div>
                                   )}
                                 </td>
