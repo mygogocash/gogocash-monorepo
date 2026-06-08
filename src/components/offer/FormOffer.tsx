@@ -426,6 +426,14 @@ const FormOffer = ({
   const [endDateType, setEndDateType] = useState<"text" | "date">(
     form.upsize_end_date ? "date" : "text",
   );
+  // Same text↔native swap for the time boxes so "Start Time" / "End Time"
+  // placeholders show (a native <input type=time> can't carry a placeholder).
+  const [startTimeType, setStartTimeType] = useState<"text" | "time">(
+    form.upsize_start_time ? "time" : "text",
+  );
+  const [endTimeType, setEndTimeType] = useState<"text" | "time">(
+    form.upsize_end_time ? "time" : "text",
+  );
   const [commissionRawId, setCommissionRawId] = useState(form.id);
   if (commissionRawId !== form.id) {
     setCommissionRawId(form.id);
@@ -442,6 +450,8 @@ const FormOffer = ({
     setUpsizeCommissionMode("auto");
     setStartDateType(form.upsize_start_date ? "date" : "text");
     setEndDateType(form.upsize_end_date ? "date" : "text");
+    setStartTimeType(form.upsize_start_time ? "time" : "text");
+    setEndTimeType(form.upsize_end_time ? "time" : "text");
   }
 
   // When per-row product types are in play ("All product types" off), the single
@@ -2662,10 +2672,10 @@ const FormOffer = ({
                       />
                     </div>
                     <div className="sm:col-span-2">
+                      <p className="mb-1.5 text-sm font-medium text-gray-800 dark:text-gray-200">
+                        Upsize period
+                      </p>
                       <div className="flex flex-wrap items-center gap-3">
-                        <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                          Upsize period
-                        </span>
                         <div className="flex items-center gap-2">
                           <div className="w-36">
                             <Input
@@ -2689,11 +2699,18 @@ const FormOffer = ({
                               disabled={isLoading}
                             />
                           </div>
-                          <div className="w-32">
+                          <div className="w-28">
                             <Input
-                              type="time"
-                              name="upsize_start_time"
+                              type={startTimeType}
+                              placeholder="Start Time"
                               ariaLabel="Start time"
+                              lang="en-GB-u-hc-h23"
+                              onFocus={() => setStartTimeType("time")}
+                              onBlur={(e) => {
+                                if (!e.currentTarget.value)
+                                  setStartTimeType("text");
+                              }}
+                              name="upsize_start_time"
                               value={form.upsize_start_time ?? ""}
                               onChange={(e) =>
                                 setForm({
@@ -2731,11 +2748,18 @@ const FormOffer = ({
                               disabled={isLoading}
                             />
                           </div>
-                          <div className="w-32">
+                          <div className="w-28">
                             <Input
-                              type="time"
-                              name="upsize_end_time"
+                              type={endTimeType}
+                              placeholder="End Time"
                               ariaLabel="End time"
+                              lang="en-GB-u-hc-h23"
+                              onFocus={() => setEndTimeType("time")}
+                              onBlur={(e) => {
+                                if (!e.currentTarget.value)
+                                  setEndTimeType("text");
+                              }}
+                              name="upsize_end_time"
                               value={form.upsize_end_time ?? ""}
                               onChange={(e) =>
                                 setForm({
