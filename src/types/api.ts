@@ -566,6 +566,8 @@ export interface Offer {
   upsize_end_time?: string | null;
   upsize_special_commission?: number | null;
   upsize_max_cap?: number | null;
+  /** Upsize promo scope: one rate for all products (true) vs per-product-line (false). */
+  upsize_all_product_types?: boolean;
   /** Per–product-line commission copy for the upsize promo period (optional). */
   upsize_product_types?: OfferProductTypeEntry[];
   /** Product types for this offer (optional, from API) */
@@ -616,6 +618,8 @@ export interface OfferRequestForm {
   upsize_end_time: string | null;
   upsize_special_commission: number | null;
   upsize_max_cap: number | null;
+  /** Upsize promo scope: one rate for all products (true) vs per-product-line (false). */
+  upsize_all_product_types: boolean;
   /** Product lines + commission messaging for the upsize promo (same shape as Product Type rows). */
   upsize_product_types?: OfferProductTypeEntry[];
   /** Product types (name + commission info per row) for this offer */

@@ -1602,6 +1602,9 @@ async function handleMockPATCH(
     if (b.upsize_end_time !== undefined) {
       offer.upsize_end_time = b.upsize_end_time || null;
     }
+    if (b.upsize_all_product_types != null) {
+      offer.upsize_all_product_types = b.upsize_all_product_types === "true";
+    }
     if (b.upsize_special_commission !== undefined) {
       offer.upsize_special_commission =
         b.upsize_special_commission === "" ||
