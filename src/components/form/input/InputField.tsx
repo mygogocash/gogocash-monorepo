@@ -10,6 +10,8 @@ interface InputProps {
   defaultValue?: string | number;
   value?: string | number;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onFocus?: (e: React.FocusEvent<HTMLInputElement>) => void;
+  onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
   className?: string;
   min?: string;
   max?: string;
@@ -44,6 +46,8 @@ const Input: FC<InputProps> = ({
   success = false,
   error = false,
   value,
+  onFocus,
+  onBlur,
   hint,
   enterKeyHint,
   autoComplete,
@@ -82,6 +86,8 @@ const Input: FC<InputProps> = ({
         placeholder={placeholder}
         {...valueProps}
         onChange={onChange}
+        onFocus={onFocus}
+        onBlur={onBlur}
         min={min}
         max={max}
         step={step}
