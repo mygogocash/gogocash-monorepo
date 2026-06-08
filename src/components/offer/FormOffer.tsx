@@ -1801,7 +1801,7 @@ const FormOffer = ({
           className={`rounded-xl border border-gray-200 bg-gray-50/50 p-4 sm:p-5 dark:border-gray-700 dark:bg-gray-800/30 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
         >
           <h4 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
-            Tracking links
+            Info from partner
           </h4>
           <p className="mt-1 max-w-3xl text-sm leading-relaxed text-gray-500 dark:text-gray-400">
             Choose network and advertiser, then set the app URL users open from
@@ -1823,6 +1823,84 @@ const FormOffer = ({
               field below follows the same store as Commission Management.
             </p>
           </details>
+          {/* Commission info from partner — read-only partner/network feed (moved from the tags card) */}
+          <div className="mt-5">
+            <h4 className="text-brand-900 dark:text-brand-100 text-sm font-semibold">
+              Commission info from partner
+            </h4>
+            <p className="text-brand-800/80 dark:text-brand-200/80 mt-1 text-xs">
+              Structured terms as supplied by the partner or affiliate network.
+              This does not change when you edit “Commission (%)” or “Max cap”
+              above — partner max cap is separate and read-only here.
+            </p>
+            <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div>
+                <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                  Tracking model
+                </dt>
+                <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                  {offer?.commission_tracking?.trim()
+                    ? offer.commission_tracking
+                    : "—"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                  Min / Max
+                </dt>
+                <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                  {formatPartnerRatesMinMax(offer)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                  Max cap (partner)
+                </dt>
+                <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                  {formatPartnerMaxCap(offer)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                  Currency (partner)
+                </dt>
+                <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                  {offer?.currency?.trim() ? offer.currency : "—"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                  Payment terms
+                </dt>
+                <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                  {typeof offer?.payment_terms === "number"
+                    ? `${offer.payment_terms} days`
+                    : "—"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                  Validation terms
+                </dt>
+                <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                  {typeof offer?.validation_terms === "number"
+                    ? `${offer.validation_terms} days`
+                    : "—"}
+                </dd>
+              </div>
+            </dl>
+            {Array.isArray(offer?.special_commissions) &&
+            offer.special_commissions.length > 0 ? (
+              <p className="mt-3 text-xs text-gray-600 dark:text-gray-400">
+                <span className="font-medium text-gray-700 dark:text-gray-300">
+                  Special commissions:{" "}
+                </span>
+                {offer.special_commissions.length} tier(s) — see partner portal
+                for full rules.
+              </p>
+            ) : null}
+          </div>
+
           <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
             <div className="min-w-0">
               <FieldLabel
@@ -1936,87 +2014,12 @@ const FormOffer = ({
           )}
         </div>
 
-        {/* Read-only: from partner / network feed */}
+        {/* Offer tags (merchandising) — editable display labels for the app */}
         <div
           id="offer-section-merch"
           className={`border-brand-200/80 bg-brand-50/50 dark:border-brand-800/60 dark:bg-brand-950/25 rounded-xl border border-dashed p-4 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
         >
-          <h4 className="text-brand-900 dark:text-brand-100 text-sm font-semibold">
-            Commission info from partner
-          </h4>
-          <p className="text-brand-800/80 dark:text-brand-200/80 mt-1 text-xs">
-            Structured terms as supplied by the partner or affiliate network.
-            This does not change when you edit “Commission (%)” or “Max cap”
-            above — partner max cap is separate and read-only here.
-          </p>
-          <dl className="mt-4 grid gap-3 sm:grid-cols-2">
-            <div>
-              <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                Tracking model
-              </dt>
-              <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
-                {offer?.commission_tracking?.trim()
-                  ? offer.commission_tracking
-                  : "—"}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                Min / Max
-              </dt>
-              <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
-                {formatPartnerRatesMinMax(offer)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                Max cap (partner)
-              </dt>
-              <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
-                {formatPartnerMaxCap(offer)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                Currency (partner)
-              </dt>
-              <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
-                {offer?.currency?.trim() ? offer.currency : "—"}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                Payment terms
-              </dt>
-              <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
-                {typeof offer?.payment_terms === "number"
-                  ? `${offer.payment_terms} days`
-                  : "—"}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                Validation terms
-              </dt>
-              <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
-                {typeof offer?.validation_terms === "number"
-                  ? `${offer.validation_terms} days`
-                  : "—"}
-              </dd>
-            </div>
-          </dl>
-          {Array.isArray(offer?.special_commissions) &&
-          offer.special_commissions.length > 0 ? (
-            <p className="mt-3 text-xs text-gray-600 dark:text-gray-400">
-              <span className="font-medium text-gray-700 dark:text-gray-300">
-                Special commissions:{" "}
-              </span>
-              {offer.special_commissions.length} tier(s) — see partner portal
-              for full rules.
-            </p>
-          ) : null}
-
-          <div className="border-brand-200/70 dark:border-brand-800/50 mt-6 border-t pt-5">
+          <div>
             <h4 className="text-brand-900 dark:text-brand-100 text-sm font-semibold">
               Offer tags (merchandising)
             </h4>
