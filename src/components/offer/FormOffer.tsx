@@ -2549,135 +2549,139 @@ const FormOffer = ({
                 {showUpsizeEventPeriodFields ||
                 form.upsize_all_product_types ? (
                   <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                    <div className="sm:col-span-2">
-                      <FieldLabel
-                        label={
-                          <>
-                            <span className="text-brand-600 dark:text-brand-400">
-                              Upsize
-                            </span>{" "}
-                            commission (%)
-                          </>
-                        }
-                        description="Commission during the promo."
-                      />
-                      <div className="mb-2 flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setUpsizeCommissionMode("auto")}
-                          disabled={isLoading}
-                          aria-pressed={upsizeCommissionMode === "auto"}
-                          className={`${
-                            upsizeCommissionMode === "auto"
-                              ? COMMISSION_MODE_TOGGLE_ACTIVE
-                              : COMMISSION_MODE_TOGGLE_INACTIVE
-                          } touch-manipulation`}
-                        >
-                          Auto apply 30% fee
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setUpsizeCommissionMode("manual")}
-                          disabled={isLoading}
-                          aria-pressed={upsizeCommissionMode === "manual"}
-                          className={`${
-                            upsizeCommissionMode === "manual"
-                              ? COMMISSION_MODE_TOGGLE_ACTIVE
-                              : COMMISSION_MODE_TOGGLE_INACTIVE
-                          } touch-manipulation`}
-                        >
-                          Manual
-                        </button>
-                      </div>
-                      <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-2">
-                        {upsizeCommissionMode === "auto" ? (
-                          <>
-                            <div className="min-w-0">
-                              <p className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
-                                Raw %
-                              </p>
-                              <Input
-                                type="text"
-                                name="upsize_commission_raw"
-                                value={upsizeCommissionRaw}
-                                onChange={(e) => {
-                                  const v = e.target.value;
-                                  setUpsizeCommissionRaw(v);
-                                  const n = Number(v);
-                                  setForm((prev) => ({
-                                    ...prev,
-                                    upsize_special_commission:
-                                      v.trim() === "" || Number.isNaN(n)
-                                        ? null
-                                        : applyThirtyPercentFee(n),
-                                  }));
-                                }}
-                                disabled={isLoading}
-                              />
-                            </div>
-                            <div className="min-w-0">
-                              <p className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
-                                % after 30% fee
-                              </p>
-                              <Input
-                                type="text"
-                                name="upsize_special_commission"
-                                value={form.upsize_special_commission ?? ""}
-                                disabled
-                              />
-                            </div>
-                          </>
-                        ) : (
-                          <div className="min-w-0">
-                            <Input
-                              type="text"
-                              name="upsize_special_commission"
-                              value={form.upsize_special_commission ?? ""}
-                              onChange={(e) => {
-                                const v = e.target.value;
-                                const n = Number(v);
-                                setForm((prev) => ({
-                                  ...prev,
-                                  upsize_special_commission:
-                                    v.trim() === "" || !Number.isFinite(n)
-                                      ? null
-                                      : n,
-                                }));
-                              }}
+                    {form.upsize_all_product_types ? (
+                      <>
+                        <div className="sm:col-span-2">
+                          <FieldLabel
+                            label={
+                              <>
+                                <span className="text-brand-600 dark:text-brand-400">
+                                  Upsize
+                                </span>{" "}
+                                commission (%)
+                              </>
+                            }
+                            description="Commission during the promo."
+                          />
+                          <div className="mb-2 flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setUpsizeCommissionMode("auto")}
                               disabled={isLoading}
-                            />
+                              aria-pressed={upsizeCommissionMode === "auto"}
+                              className={`${
+                                upsizeCommissionMode === "auto"
+                                  ? COMMISSION_MODE_TOGGLE_ACTIVE
+                                  : COMMISSION_MODE_TOGGLE_INACTIVE
+                              } touch-manipulation`}
+                            >
+                              Auto apply 30% fee
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setUpsizeCommissionMode("manual")}
+                              disabled={isLoading}
+                              aria-pressed={upsizeCommissionMode === "manual"}
+                              className={`${
+                                upsizeCommissionMode === "manual"
+                                  ? COMMISSION_MODE_TOGGLE_ACTIVE
+                                  : COMMISSION_MODE_TOGGLE_INACTIVE
+                              } touch-manipulation`}
+                            >
+                              Manual
+                            </button>
                           </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="sm:col-span-2">
-                      <FieldLabel
-                        label={
-                          <>
-                            Max cap for{" "}
-                            <span className="text-brand-600 dark:text-brand-400">
-                              upsize
-                            </span>
-                          </>
-                        }
-                        description="Maximum cap offered to users during the promo. Enter the value already reduced by 30% from the affiliate partner cap."
-                      />
-                      <Input
-                        type="number"
-                        name="upsize_max_cap"
-                        onChange={(e) =>
-                          setForm({
-                            ...form,
-                            upsize_max_cap:
-                              e.target.value === ""
-                                ? null
-                                : Number(e.target.value),
-                          })
-                        }
-                        defaultValue={form.upsize_max_cap ?? ""}
-                        disabled={isLoading}
-                      />
-                    </div>
+                          <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-2">
+                            {upsizeCommissionMode === "auto" ? (
+                              <>
+                                <div className="min-w-0">
+                                  <p className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
+                                    Raw %
+                                  </p>
+                                  <Input
+                                    type="text"
+                                    name="upsize_commission_raw"
+                                    value={upsizeCommissionRaw}
+                                    onChange={(e) => {
+                                      const v = e.target.value;
+                                      setUpsizeCommissionRaw(v);
+                                      const n = Number(v);
+                                      setForm((prev) => ({
+                                        ...prev,
+                                        upsize_special_commission:
+                                          v.trim() === "" || Number.isNaN(n)
+                                            ? null
+                                            : applyThirtyPercentFee(n),
+                                      }));
+                                    }}
+                                    disabled={isLoading}
+                                  />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
+                                    % after 30% fee
+                                  </p>
+                                  <Input
+                                    type="text"
+                                    name="upsize_special_commission"
+                                    value={form.upsize_special_commission ?? ""}
+                                    disabled
+                                  />
+                                </div>
+                              </>
+                            ) : (
+                              <div className="min-w-0">
+                                <Input
+                                  type="text"
+                                  name="upsize_special_commission"
+                                  value={form.upsize_special_commission ?? ""}
+                                  onChange={(e) => {
+                                    const v = e.target.value;
+                                    const n = Number(v);
+                                    setForm((prev) => ({
+                                      ...prev,
+                                      upsize_special_commission:
+                                        v.trim() === "" || !Number.isFinite(n)
+                                          ? null
+                                          : n,
+                                    }));
+                                  }}
+                                  disabled={isLoading}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="sm:col-span-2">
+                          <FieldLabel
+                            label={
+                              <>
+                                Max cap for{" "}
+                                <span className="text-brand-600 dark:text-brand-400">
+                                  upsize
+                                </span>
+                              </>
+                            }
+                            description="Maximum cap offered to users during the promo. Enter the value already reduced by 30% from the affiliate partner cap."
+                          />
+                          <Input
+                            type="number"
+                            name="upsize_max_cap"
+                            onChange={(e) =>
+                              setForm({
+                                ...form,
+                                upsize_max_cap:
+                                  e.target.value === ""
+                                    ? null
+                                    : Number(e.target.value),
+                              })
+                            }
+                            defaultValue={form.upsize_max_cap ?? ""}
+                            disabled={isLoading}
+                          />
+                        </div>
+                      </>
+                    ) : null}
                     <div className="sm:col-span-2">
                       <p className="mb-1.5 text-sm font-medium text-gray-800 dark:text-gray-200">
                         Upsize period
