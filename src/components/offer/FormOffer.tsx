@@ -2662,11 +2662,11 @@ const FormOffer = ({
                       />
                     </div>
                     <div className="sm:col-span-2">
-                      <p className="mb-1.5 text-sm font-medium text-gray-800 dark:text-gray-200">
-                        Upsize period
-                      </p>
                       <div className="flex flex-wrap items-center gap-3">
-                        <div className="min-w-0 flex-1">
+                        <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                          Upsize period
+                        </span>
+                        <div className="w-40">
                           <Input
                             id="offer-upsize-start"
                             type={startDateType}
@@ -2691,7 +2691,7 @@ const FormOffer = ({
                         <span className="text-sm text-gray-500 dark:text-gray-400">
                           to
                         </span>
-                        <div className="min-w-0 flex-1">
+                        <div className="w-40">
                           <Input
                             id="offer-upsize-end"
                             type={endDateType}
