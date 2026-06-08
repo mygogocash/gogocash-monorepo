@@ -418,6 +418,10 @@ const FormOffer = ({
   const [productTypeDraft, setProductTypeDraft] = useState(
     EMPTY_PRODUCT_TYPE_DRAFT,
   );
+  // Draft frame mode: add a product type, or a tagline (group heading) row.
+  const [insertMode, setInsertMode] = useState<"product" | "tagline">(
+    "product",
+  );
   // Per-row "Action" dropdown (Edit / Delete) in the added-product-type table.
   const [openProductActionIdx, setOpenProductActionIdx] = useState<
     number | null
@@ -961,6 +965,19 @@ const FormOffer = ({
   // place, preserving its position) or append a new one. Persists on Save changes.
   const addProductTypeDraft = () => {
     if (!productTypeDraft.name.trim()) return;
+    if (insertMode === "tagline") {
+      const text = productTypeDraft.name.trim();
+      setForm((prev) => ({
+        ...prev,
+        product_types: [
+          ...(prev.product_types ?? []),
+          { name: text, commission_info: "", is_tagline: true },
+        ],
+      }));
+      setProductTypeDraft(EMPTY_PRODUCT_TYPE_DRAFT);
+      toast.success("Tagline added");
+      return;
+    }
     const entry = productTypeDraftToEntry(productTypeDraft);
     const editing = editingProductIndex;
     setForm((prev) => {
@@ -1007,16 +1024,8 @@ const FormOffer = ({
 
   // Taglines: plain-text heading rows that group the product-type lines below
   // them. Stored as is_tagline entries in product_types so they interleave and
-  // reorder with the rows; edited inline in the table.
-  const addTaglineRow = () =>
-    setForm((prev) => ({
-      ...prev,
-      product_types: [
-        ...(prev.product_types ?? []),
-        { name: "", commission_info: "", is_tagline: true },
-      ],
-    }));
-
+  // reorder with the rows; added via the draft "Insert: Tagline" mode, and
+  // edited inline in the table.
   const updateTaglineText = (index: number, text: string) =>
     setForm((prev) => ({
       ...prev,
@@ -1805,178 +1814,243 @@ const FormOffer = ({
                   </p>
                 </div>
                 <div className="flex flex-col gap-4 rounded-xl border border-gray-300 bg-gray-50/50 p-4 dark:border-gray-600 dark:bg-gray-800/30">
-                  {/* 1st line: product type name (full width) */}
-                  <div>
-                    <label
-                      htmlFor="offer-pt-draft-name"
-                      className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  {/* Insert mode: a product type, or a tagline (group heading) */}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Insert :
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setInsertMode("product")}
+                      disabled={isLoading || editingProductIndex !== null}
+                      aria-pressed={insertMode === "product"}
+                      className={`${
+                        insertMode === "product"
+                          ? COMMISSION_MODE_TOGGLE_ACTIVE
+                          : COMMISSION_MODE_TOGGLE_INACTIVE
+                      } touch-manipulation`}
                     >
-                      Product type name
-                    </label>
-                    <Input
-                      id="offer-pt-draft-name"
-                      type="text"
-                      placeholder="e.g. Electronics"
-                      value={productTypeDraft.name}
-                      onChange={(e) =>
-                        setProductTypeDraft((d) => ({
-                          ...d,
-                          name: e.target.value,
-                        }))
-                      }
-                      disabled={isLoading}
-                      autoComplete="off"
-                      className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="offer-pt-draft-description"
-                      className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                      Product type
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setInsertMode("tagline")}
+                      disabled={isLoading || editingProductIndex !== null}
+                      aria-pressed={insertMode === "tagline"}
+                      className={`${
+                        insertMode === "tagline"
+                          ? COMMISSION_MODE_TOGGLE_ACTIVE
+                          : COMMISSION_MODE_TOGGLE_INACTIVE
+                      } touch-manipulation`}
                     >
-                      Product description
-                    </label>
-                    <Input
-                      id="offer-pt-draft-description"
-                      type="text"
-                      placeholder="e.g. Phones, laptops & accessories"
-                      value={productTypeDraft.description}
-                      onChange={(e) =>
-                        setProductTypeDraft((d) => ({
-                          ...d,
-                          description: e.target.value,
-                        }))
-                      }
-                      disabled={isLoading}
-                      autoComplete="off"
-                      className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
-                    />
+                      Tagline
+                    </button>
                   </div>
+                  {insertMode === "product" ? (
+                    <>
+                      {/* 1st line: product type name (full width) */}
+                      <div>
+                        <label
+                          htmlFor="offer-pt-draft-name"
+                          className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                        >
+                          Product type name
+                        </label>
+                        <Input
+                          id="offer-pt-draft-name"
+                          type="text"
+                          placeholder="e.g. Electronics"
+                          value={productTypeDraft.name}
+                          onChange={(e) =>
+                            setProductTypeDraft((d) => ({
+                              ...d,
+                              name: e.target.value,
+                            }))
+                          }
+                          disabled={isLoading}
+                          autoComplete="off"
+                          className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
+                        />
+                      </div>
 
-                  {/* 2nd line: "Pay in :" toggle group + inputs group (24px between the two groups) */}
-                  <div className="flex flex-wrap items-center gap-6">
-                    {/* Pay-in toggle group — wrapped for selection (no visual change) */}
-                    <div className="flex flex-wrap items-center gap-3">
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Pay in :
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() =>
+                      <div>
+                        <label
+                          htmlFor="offer-pt-draft-description"
+                          className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                        >
+                          Product description
+                        </label>
+                        <Input
+                          id="offer-pt-draft-description"
+                          type="text"
+                          placeholder="e.g. Phones, laptops & accessories"
+                          value={productTypeDraft.description}
+                          onChange={(e) =>
+                            setProductTypeDraft((d) => ({
+                              ...d,
+                              description: e.target.value,
+                            }))
+                          }
+                          disabled={isLoading}
+                          autoComplete="off"
+                          className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
+                        />
+                      </div>
+
+                      {/* 2nd line: "Pay in :" toggle group + inputs group (24px between the two groups) */}
+                      <div className="flex flex-wrap items-center gap-6">
+                        {/* Pay-in toggle group — wrapped for selection (no visual change) */}
+                        <div className="flex flex-wrap items-center gap-3">
+                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Pay in :
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setProductTypeDraft((d) => ({
+                                ...d,
+                                pay_in: "cashback",
+                              }))
+                            }
+                            disabled={isLoading}
+                            aria-pressed={
+                              productTypeDraft.pay_in === "cashback"
+                            }
+                            className={`${
+                              productTypeDraft.pay_in === "cashback"
+                                ? COMMISSION_MODE_TOGGLE_ACTIVE
+                                : COMMISSION_MODE_TOGGLE_INACTIVE
+                            } touch-manipulation`}
+                          >
+                            Cashback %
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setProductTypeDraft((d) => ({
+                                ...d,
+                                pay_in: "cash",
+                              }))
+                            }
+                            disabled={isLoading}
+                            aria-pressed={productTypeDraft.pay_in === "cash"}
+                            className={`${
+                              productTypeDraft.pay_in === "cash"
+                                ? COMMISSION_MODE_TOGGLE_ACTIVE
+                                : COMMISSION_MODE_TOGGLE_INACTIVE
+                            } touch-manipulation`}
+                          >
+                            Cash
+                          </button>
+                        </div>
+                        {/* inputs group — fills the leftover row space; the two inputs split it */}
+                        <div className="flex flex-1 items-center gap-3">
+                          {productTypeDraft.pay_in === "cashback" ? (
+                            <>
+                              <div className="min-w-0 flex-1">
+                                <Input
+                                  id="offer-pt-draft-raw"
+                                  type="text"
+                                  placeholder="Raw %"
+                                  ariaLabel="Raw %"
+                                  title="Raw %"
+                                  value={productTypeDraft.commission_raw}
+                                  onChange={(e) =>
+                                    setProductTypeDraft((d) => ({
+                                      ...d,
+                                      commission_raw: e.target.value,
+                                    }))
+                                  }
+                                  disabled={isLoading}
+                                  autoComplete="off"
+                                  className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
+                                />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <Input
+                                  id="offer-pt-draft-net"
+                                  type="text"
+                                  placeholder="% after 30% fee"
+                                  ariaLabel="% after 30% fee"
+                                  title="% after 30% fee"
+                                  value={netCommissionFromRaw(
+                                    productTypeDraft.commission_raw,
+                                  )}
+                                  disabled
+                                  className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
+                                />
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="min-w-0 flex-1">
+                                <Input
+                                  id="offer-pt-draft-amount"
+                                  type="text"
+                                  placeholder="Amount"
+                                  ariaLabel="Amount"
+                                  title="Amount"
+                                  value={productTypeDraft.amount}
+                                  onChange={(e) =>
+                                    setProductTypeDraft((d) => ({
+                                      ...d,
+                                      amount: e.target.value,
+                                    }))
+                                  }
+                                  disabled={isLoading}
+                                  autoComplete="off"
+                                  className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
+                                />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <select
+                                  id="offer-pt-draft-currency"
+                                  value={productTypeDraft.currency}
+                                  onChange={(e) =>
+                                    setProductTypeDraft((d) => ({
+                                      ...d,
+                                      currency: e.target.value,
+                                    }))
+                                  }
+                                  disabled={isLoading}
+                                  aria-label="Currency"
+                                  title="Currency"
+                                  className="focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-800 focus:ring-3 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                                >
+                                  <option value="THB">THB</option>
+                                  <option value="USD">USD</option>
+                                </select>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div>
+                      <label
+                        htmlFor="offer-pt-draft-tagline"
+                        className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                      >
+                        Tagline (group heading)
+                      </label>
+                      <Input
+                        id="offer-pt-draft-tagline"
+                        type="text"
+                        placeholder="e.g. Cashback list that excludes China & Japan"
+                        value={productTypeDraft.name}
+                        onChange={(e) =>
                           setProductTypeDraft((d) => ({
                             ...d,
-                            pay_in: "cashback",
+                            name: e.target.value,
                           }))
                         }
                         disabled={isLoading}
-                        aria-pressed={productTypeDraft.pay_in === "cashback"}
-                        className={`${
-                          productTypeDraft.pay_in === "cashback"
-                            ? COMMISSION_MODE_TOGGLE_ACTIVE
-                            : COMMISSION_MODE_TOGGLE_INACTIVE
-                        } touch-manipulation`}
-                      >
-                        Cashback %
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setProductTypeDraft((d) => ({ ...d, pay_in: "cash" }))
-                        }
-                        disabled={isLoading}
-                        aria-pressed={productTypeDraft.pay_in === "cash"}
-                        className={`${
-                          productTypeDraft.pay_in === "cash"
-                            ? COMMISSION_MODE_TOGGLE_ACTIVE
-                            : COMMISSION_MODE_TOGGLE_INACTIVE
-                        } touch-manipulation`}
-                      >
-                        Cash
-                      </button>
+                        autoComplete="off"
+                        className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
+                      />
                     </div>
-                    {/* inputs group — fills the leftover row space; the two inputs split it */}
-                    <div className="flex flex-1 items-center gap-3">
-                      {productTypeDraft.pay_in === "cashback" ? (
-                        <>
-                          <div className="min-w-0 flex-1">
-                            <Input
-                              id="offer-pt-draft-raw"
-                              type="text"
-                              placeholder="Raw %"
-                              ariaLabel="Raw %"
-                              title="Raw %"
-                              value={productTypeDraft.commission_raw}
-                              onChange={(e) =>
-                                setProductTypeDraft((d) => ({
-                                  ...d,
-                                  commission_raw: e.target.value,
-                                }))
-                              }
-                              disabled={isLoading}
-                              autoComplete="off"
-                              className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
-                            />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <Input
-                              id="offer-pt-draft-net"
-                              type="text"
-                              placeholder="% after 30% fee"
-                              ariaLabel="% after 30% fee"
-                              title="% after 30% fee"
-                              value={netCommissionFromRaw(
-                                productTypeDraft.commission_raw,
-                              )}
-                              disabled
-                              className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
-                            />
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="min-w-0 flex-1">
-                            <Input
-                              id="offer-pt-draft-amount"
-                              type="text"
-                              placeholder="Amount"
-                              ariaLabel="Amount"
-                              title="Amount"
-                              value={productTypeDraft.amount}
-                              onChange={(e) =>
-                                setProductTypeDraft((d) => ({
-                                  ...d,
-                                  amount: e.target.value,
-                                }))
-                              }
-                              disabled={isLoading}
-                              autoComplete="off"
-                              className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
-                            />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <select
-                              id="offer-pt-draft-currency"
-                              value={productTypeDraft.currency}
-                              onChange={(e) =>
-                                setProductTypeDraft((d) => ({
-                                  ...d,
-                                  currency: e.target.value,
-                                }))
-                              }
-                              disabled={isLoading}
-                              aria-label="Currency"
-                              title="Currency"
-                              className="focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-800 focus:ring-3 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                            >
-                              <option value="THB">THB</option>
-                              <option value="USD">USD</option>
-                            </select>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
+                  )}
 
                   {/* 3rd line: editing hint + Cancel / Add|Update (bottom right) */}
                   <div className="flex flex-wrap items-center justify-end gap-2">
@@ -2003,20 +2077,13 @@ const FormOffer = ({
                       }
                       className={`${SUPPORT_BUTTON_BLUE_CLASS} touch-manipulation`}
                     >
-                      {editingProductIndex !== null ? "Update" : "Add"}
+                      {editingProductIndex !== null
+                        ? "Update"
+                        : insertMode === "tagline"
+                          ? "Add tagline"
+                          : "Add"}
                     </button>
                   </div>
-                </div>
-
-                <div>
-                  <button
-                    type="button"
-                    onClick={addTaglineRow}
-                    disabled={isLoading || editingProductIndex !== null}
-                    className={`${SUPPORT_BUTTON_DEFAULT_CLASS} touch-manipulation`}
-                  >
-                    + Add tagline (group heading)
-                  </button>
                 </div>
 
                 {/* Added product type list — committed rows; Action → Edit (re-loads the draft) / Delete */}
