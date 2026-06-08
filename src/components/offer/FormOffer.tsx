@@ -2616,6 +2616,9 @@ const FormOffer = ({
                   name="banner"
                   onChange={(e) => handleFileChange(e, "banner")}
                 />
+                <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  Requested size: 800 × 450 px (W × H).
+                </p>
               </div>
               {(form.banner || (openModal as Offer).banner) && (
                 <RemoteOrBlobImage
