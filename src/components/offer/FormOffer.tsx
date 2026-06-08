@@ -1970,12 +1970,13 @@ const FormOffer = ({
                   }
                   disabled={isLoading || saveOfferDeeplink.isPending}
                   autoComplete="off"
-                  className="pr-10"
+                  className="pr-12"
                 />
                 <div className="absolute inset-y-0 right-2 flex items-center">
                   <CopyButton
                     value={offerDeeplinkDraft}
                     title="Copy tracking link"
+                    iconClassName="h-6 w-6"
                   />
                 </div>
               </div>
