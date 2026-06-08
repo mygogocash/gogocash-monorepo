@@ -2339,7 +2339,7 @@ const FormOffer = ({
           <div>
             <div className="mt-4 space-y-5">
               <div>
-                <h5 className="text-brand-900 dark:text-brand-100 text-sm font-semibold">
+                <h5 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
                   Upsize event
                 </h5>
                 <p className="text-brand-800/80 dark:text-brand-200/80 mt-0.5 text-xs">
