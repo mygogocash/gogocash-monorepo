@@ -1857,6 +1857,9 @@ const FormOffer = ({
           id="offer-section-merch"
           className={`border-brand-200/80 bg-brand-50/50 dark:border-brand-800/60 dark:bg-brand-950/25 rounded-xl border border-dashed p-4 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
         >
+          <h2 className="mb-4 text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
+            Promotion and Marketing
+          </h2>
           <div>
             <h4 className="text-brand-900 dark:text-brand-100 text-sm font-semibold">
               Offer tags (merchandising)
