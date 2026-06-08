@@ -1528,19 +1528,19 @@ const FormOffer = ({
                             </th>
                             <th
                               scope="col"
-                              className="px-4 py-2.5 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400"
+                              className="w-32 px-4 py-2.5 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400"
                             >
                               Pay in
                             </th>
                             <th
                               scope="col"
-                              className="px-4 py-2.5 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400"
+                              className="w-32 px-4 py-2.5 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400"
                             >
                               Value
                             </th>
                             <th
                               scope="col"
-                              className="w-24 px-2 py-2.5 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400"
+                              className="w-32 px-4 py-2.5 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400"
                             >
                               Action
                             </th>
@@ -1621,15 +1621,15 @@ const FormOffer = ({
                                 <td className="px-4 py-2.5 font-medium text-gray-800 dark:text-gray-100">
                                   {row.name || "—"}
                                 </td>
-                                <td className="px-4 py-2.5">
+                                <td className="w-32 px-4 py-2.5">
                                   <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300">
                                     {isCash ? "Cash" : "Cashback %"}
                                   </span>
                                 </td>
-                                <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">
+                                <td className="w-32 px-4 py-2.5 text-gray-700 dark:text-gray-300">
                                   {value}
                                 </td>
-                                <td className="relative w-24 px-2 py-2.5 text-left">
+                                <td className="relative w-32 px-4 py-2.5 text-left">
                                   {isEditingThisRow ? (
                                     <span className="bg-brand-100 text-brand-700 dark:bg-brand-500/20 dark:text-brand-300 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium">
                                       Editing…
