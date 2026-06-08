@@ -2666,52 +2666,86 @@ const FormOffer = ({
                         <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
                           Upsize period
                         </span>
-                        <div className="w-40">
-                          <Input
-                            id="offer-upsize-start"
-                            type={startDateType}
-                            placeholder="Start Date"
-                            ariaLabel="Start Date"
-                            onFocus={() => setStartDateType("date")}
-                            onBlur={(e) => {
-                              if (!e.currentTarget.value)
-                                setStartDateType("text");
-                            }}
-                            name="upsize_start_date"
-                            onChange={(e) =>
-                              setForm({
-                                ...form,
-                                upsize_start_date: e.target.value || null,
-                              })
-                            }
-                            defaultValue={form.upsize_start_date ?? ""}
-                            disabled={isLoading}
-                          />
+                        <div className="flex items-center gap-2">
+                          <div className="w-36">
+                            <Input
+                              id="offer-upsize-start"
+                              type={startDateType}
+                              placeholder="Start Date"
+                              ariaLabel="Start Date"
+                              onFocus={() => setStartDateType("date")}
+                              onBlur={(e) => {
+                                if (!e.currentTarget.value)
+                                  setStartDateType("text");
+                              }}
+                              name="upsize_start_date"
+                              onChange={(e) =>
+                                setForm({
+                                  ...form,
+                                  upsize_start_date: e.target.value || null,
+                                })
+                              }
+                              defaultValue={form.upsize_start_date ?? ""}
+                              disabled={isLoading}
+                            />
+                          </div>
+                          <div className="w-32">
+                            <Input
+                              type="time"
+                              name="upsize_start_time"
+                              ariaLabel="Start time"
+                              value={form.upsize_start_time ?? ""}
+                              onChange={(e) =>
+                                setForm({
+                                  ...form,
+                                  upsize_start_time: e.target.value || null,
+                                })
+                              }
+                              disabled={isLoading}
+                            />
+                          </div>
                         </div>
                         <span className="text-sm text-gray-500 dark:text-gray-400">
                           to
                         </span>
-                        <div className="w-40">
-                          <Input
-                            id="offer-upsize-end"
-                            type={endDateType}
-                            placeholder="End Date"
-                            ariaLabel="End Date"
-                            onFocus={() => setEndDateType("date")}
-                            onBlur={(e) => {
-                              if (!e.currentTarget.value)
-                                setEndDateType("text");
-                            }}
-                            name="upsize_end_date"
-                            onChange={(e) =>
-                              setForm({
-                                ...form,
-                                upsize_end_date: e.target.value || null,
-                              })
-                            }
-                            defaultValue={form.upsize_end_date ?? ""}
-                            disabled={isLoading}
-                          />
+                        <div className="flex items-center gap-2">
+                          <div className="w-36">
+                            <Input
+                              id="offer-upsize-end"
+                              type={endDateType}
+                              placeholder="End Date"
+                              ariaLabel="End Date"
+                              onFocus={() => setEndDateType("date")}
+                              onBlur={(e) => {
+                                if (!e.currentTarget.value)
+                                  setEndDateType("text");
+                              }}
+                              name="upsize_end_date"
+                              onChange={(e) =>
+                                setForm({
+                                  ...form,
+                                  upsize_end_date: e.target.value || null,
+                                })
+                              }
+                              defaultValue={form.upsize_end_date ?? ""}
+                              disabled={isLoading}
+                            />
+                          </div>
+                          <div className="w-32">
+                            <Input
+                              type="time"
+                              name="upsize_end_time"
+                              ariaLabel="End time"
+                              value={form.upsize_end_time ?? ""}
+                              onChange={(e) =>
+                                setForm({
+                                  ...form,
+                                  upsize_end_time: e.target.value || null,
+                                })
+                              }
+                              disabled={isLoading}
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>

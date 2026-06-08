@@ -561,6 +561,9 @@ export interface Offer {
   /** Upsize event (optional, from API) */
   upsize_start_date?: string | null;
   upsize_end_date?: string | null;
+  /** Promo start/end clock time (HH:mm), paired with the start/end dates. */
+  upsize_start_time?: string | null;
+  upsize_end_time?: string | null;
   upsize_special_commission?: number | null;
   upsize_max_cap?: number | null;
   /** Per–product-line commission copy for the upsize promo period (optional). */
@@ -609,6 +612,8 @@ export interface OfferRequestForm {
   /** Upsize event */
   upsize_start_date: string | null;
   upsize_end_date: string | null;
+  upsize_start_time: string | null;
+  upsize_end_time: string | null;
   upsize_special_commission: number | null;
   upsize_max_cap: number | null;
   /** Product lines + commission messaging for the upsize promo (same shape as Product Type rows). */
