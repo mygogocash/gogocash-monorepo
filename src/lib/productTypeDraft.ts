@@ -75,3 +75,25 @@ export function productTypeEntryToDraft(
     deeplink: entry.deeplink ?? "",
   };
 }
+
+/**
+ * Whitelist + normalize product-type rows for the `product_types` save payload:
+ * trim string fields, default pay_in/amount/currency, and drop blank-name rows.
+ * Shared by the form-wide save and the partner-info section save so the two
+ * never drift (e.g. when a new field like `description` is added).
+ */
+export function serializeOfferProductTypes(
+  rows: OfferProductTypeEntry[],
+): OfferProductTypeEntry[] {
+  return rows
+    .map((row) => ({
+      name: row.name.trim(),
+      pay_in: row.pay_in ?? "cashback",
+      commission_info: row.commission_info.trim(),
+      amount: row.amount ?? null,
+      currency: (row.currency ?? "").trim(),
+      deeplink: (row.deeplink ?? "").trim(),
+      description: (row.description ?? "").trim(),
+    }))
+    .filter((row) => row.name.length > 0);
+}
