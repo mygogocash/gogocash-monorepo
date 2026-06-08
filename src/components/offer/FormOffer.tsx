@@ -2626,7 +2626,7 @@ const FormOffer = ({
                   alt="Preview"
                   width={256}
                   height={256}
-                  className="max-h-32 min-w-0 flex-1 rounded-lg border border-gray-200 object-contain dark:border-gray-600"
+                  className="aspect-[800/450] h-auto w-[250px] shrink-0 rounded-lg border border-gray-200 object-cover dark:border-gray-600"
                 />
               )}
             </div>
