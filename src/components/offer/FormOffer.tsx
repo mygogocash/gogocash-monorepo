@@ -122,12 +122,11 @@ function OfferFormSectionNav({ showReference }: { showReference: boolean }) {
         ...(showReference
           ? [{ id: "offer-section-reference", label: "Reference" }]
           : []),
-        { id: "offer-section-brand", label: "Brand" },
-        { id: "offer-section-cashback", label: "Cashback Management" },
-        { id: "offer-section-merch", label: "Tags & feed" },
-        { id: "offer-section-media", label: "Media" },
-        { id: "offer-section-policy", label: "Policy" },
-        { id: "offer-section-tracking", label: "Info from partner" },
+        { id: "offer-section-brand", label: "Brand & Cashback" },
+        { id: "offer-section-merch", label: "Promotion" },
+        { id: "offer-section-media", label: "Logo & Medias" },
+        { id: "offer-section-policy", label: "Terms & Conditions" },
+        { id: "offer-section-tracking", label: "Partner & Tracking link" },
       ] as const,
     [showReference],
   );
