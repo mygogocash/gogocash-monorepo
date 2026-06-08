@@ -1005,6 +1005,26 @@ const FormOffer = ({
       product_types: reorder(prev.product_types ?? [], from, to),
     }));
 
+  // Taglines: plain-text heading rows that group the product-type lines below
+  // them. Stored as is_tagline entries in product_types so they interleave and
+  // reorder with the rows; edited inline in the table.
+  const addTaglineRow = () =>
+    setForm((prev) => ({
+      ...prev,
+      product_types: [
+        ...(prev.product_types ?? []),
+        { name: "", commission_info: "", is_tagline: true },
+      ],
+    }));
+
+  const updateTaglineText = (index: number, text: string) =>
+    setForm((prev) => ({
+      ...prev,
+      product_types: (prev.product_types ?? []).map((row, i) =>
+        i === index ? { ...row, name: text } : row,
+      ),
+    }));
+
   return (
     <OfferFullscreenCardShell
       afterHeader={<OfferFormSectionNav showReference={Boolean(offer)} />}
@@ -1988,6 +2008,17 @@ const FormOffer = ({
                   </div>
                 </div>
 
+                <div>
+                  <button
+                    type="button"
+                    onClick={addTaglineRow}
+                    disabled={isLoading || editingProductIndex !== null}
+                    className={`${SUPPORT_BUTTON_DEFAULT_CLASS} touch-manipulation`}
+                  >
+                    + Add tagline (group heading)
+                  </button>
+                </div>
+
                 {/* Added product type list — committed rows; Action → Edit (re-loads the draft) / Delete */}
                 {(form.product_types ?? []).length > 0 && (
                   <div className="space-y-2">
@@ -2029,6 +2060,100 @@ const FormOffer = ({
                         </thead>
                         <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                           {(form.product_types ?? []).map((row, i) => {
+                            if (row.is_tagline) {
+                              const editLocked = editingProductIndex !== null;
+                              const isDragSource = dragSrcIndex === i;
+                              const isDragTarget =
+                                dragSrcIndex !== null &&
+                                dragOverIndex === i &&
+                                dragSrcIndex !== i;
+                              return (
+                                <tr
+                                  key={i}
+                                  onDragOver={(e) => {
+                                    if (dragSrcIndex === null) return;
+                                    e.preventDefault();
+                                    e.dataTransfer.dropEffect = "move";
+                                    if (dragOverIndex !== i)
+                                      setDragOverIndex(i);
+                                  }}
+                                  onDrop={(e) => {
+                                    e.preventDefault();
+                                    if (
+                                      dragSrcIndex !== null &&
+                                      dragSrcIndex !== i
+                                    ) {
+                                      reorderProductTypeRow(dragSrcIndex, i);
+                                    }
+                                    setDragSrcIndex(null);
+                                    setDragOverIndex(null);
+                                  }}
+                                  className={`transition-colors ${
+                                    isDragSource
+                                      ? "opacity-50"
+                                      : isDragTarget
+                                        ? "bg-brand-50 dark:bg-brand-500/10"
+                                        : "bg-gray-100/70 dark:bg-gray-800/60"
+                                  }`}
+                                >
+                                  <td className="px-2 py-2.5 text-center align-middle">
+                                    <button
+                                      type="button"
+                                      aria-label={`Drag to reorder ${row.name || "tagline"}`}
+                                      title="Drag to reorder"
+                                      draggable={!editLocked && !isLoading}
+                                      onDragStart={(e) => {
+                                        setDragSrcIndex(i);
+                                        setOpenProductActionIdx(null);
+                                        e.dataTransfer.effectAllowed = "move";
+                                        e.dataTransfer.setData(
+                                          "text/plain",
+                                          String(i),
+                                        );
+                                      }}
+                                      onDragEnd={() => {
+                                        setDragSrcIndex(null);
+                                        setDragOverIndex(null);
+                                      }}
+                                      disabled={isLoading || editLocked}
+                                      className="cursor-grab px-1 leading-none text-gray-500 select-none hover:text-gray-700 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-40 dark:text-gray-400 dark:hover:text-gray-200"
+                                    >
+                                      <span aria-hidden>⋮⋮</span>
+                                    </button>
+                                  </td>
+                                  <td colSpan={4} className="px-4 py-2">
+                                    <div className="flex items-center gap-2">
+                                      <span
+                                        aria-hidden
+                                        className="text-xs font-semibold text-gray-400 dark:text-gray-500"
+                                      >
+                                        #
+                                      </span>
+                                      <input
+                                        type="text"
+                                        value={row.name}
+                                        onChange={(e) =>
+                                          updateTaglineText(i, e.target.value)
+                                        }
+                                        placeholder="Group heading — e.g. Cashback list that excludes China & Japan"
+                                        disabled={isLoading || editLocked}
+                                        autoComplete="off"
+                                        aria-label="Tagline group heading"
+                                        className="min-w-0 flex-1 border-0 bg-transparent p-0 text-sm font-semibold tracking-wide text-gray-700 uppercase placeholder:text-xs placeholder:font-normal placeholder:tracking-normal placeholder:text-gray-400 placeholder:normal-case focus:ring-0 focus:outline-none disabled:opacity-50 dark:text-gray-200"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => deleteProductTypeRow(i)}
+                                        disabled={isLoading || editLocked}
+                                        className="shrink-0 rounded px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-40 dark:text-red-400 dark:hover:bg-red-900/20"
+                                      >
+                                        Remove
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            }
                             const isCash = row.pay_in === "cash";
                             const value = isCash
                               ? row.amount != null
