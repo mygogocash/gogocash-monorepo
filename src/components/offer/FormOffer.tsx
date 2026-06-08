@@ -1014,19 +1014,103 @@ const FormOffer = ({
             <h4 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
               Brand Info
             </h4>
-            <div className="mt-2">
-              <FieldLabel
-                label="Name of offer"
-                description="Display name shown to users in the app."
-              />
-              <Input
-                type="text"
-                name="offer_name_display"
-                onChange={(e) =>
-                  setForm({ ...form, offer_name_display: e.target.value })
-                }
-                defaultValue={form.offer_name_display}
-              />
+            <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-start">
+              <div>
+                <FieldLabel
+                  label="Name of offer"
+                  description="Display name shown to users in the app."
+                />
+                <Input
+                  type="text"
+                  name="offer_name_display"
+                  onChange={(e) =>
+                    setForm({ ...form, offer_name_display: e.target.value })
+                  }
+                  defaultValue={form.offer_name_display}
+                />
+              </div>
+              {/* Brand category — system-category tag for the app (moved here from Tags & feed) */}
+              <div>
+                <Switch
+                  key={`${form.id}-odt-brand`}
+                  label="Brand category"
+                  defaultChecked={
+                    form.offer_display_tags.brand_category_enabled
+                  }
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      offer_display_tags: {
+                        ...form.offer_display_tags,
+                        brand_category_enabled: e,
+                      },
+                    })
+                  }
+                  disabled={isLoading}
+                />
+                <p className="mt-0.5 ml-6 text-xs text-gray-600 dark:text-gray-400">
+                  Partner feed category:{" "}
+                  <span className="font-medium text-gray-800 dark:text-gray-200">
+                    {offer?.categories?.trim() ? offer.categories : "—"}
+                  </span>
+                  . Pick a system category below, or leave “Use partner feed” so
+                  the tag uses that value.
+                </p>
+                {form.offer_display_tags.brand_category_enabled ? (
+                  <div className="mt-2 ml-6">
+                    <label
+                      htmlFor="offer_tag_brand_category"
+                      className="sr-only"
+                    >
+                      Brand category tag
+                    </label>
+                    <select
+                      id="offer_tag_brand_category"
+                      name="offer_tag_brand_category"
+                      className="shadow-theme-xs w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                      value={form.offer_display_tags.brand_category_label}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          offer_display_tags: {
+                            ...form.offer_display_tags,
+                            brand_category_label: e.target.value,
+                          },
+                        })
+                      }
+                      disabled={isLoading || policyCategoriesPending}
+                    >
+                      <option value="">
+                        Use partner feed
+                        {offer?.categories?.trim()
+                          ? ` (${offer.categories.trim()})`
+                          : ""}
+                      </option>
+                      {legacyBrandCategoryLabel ? (
+                        <option value={legacyBrandCategoryLabel}>
+                          {legacyBrandCategoryLabel} (not in category list —
+                          choose a listed value to replace)
+                        </option>
+                      ) : null}
+                      {categoriesForTagSelect.map((cat) => (
+                        <option key={cat._id} value={cat.name}>
+                          {cat.name}
+                        </option>
+                      ))}
+                    </select>
+                    {policyCategoriesPending ? (
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        Loading categories…
+                      </p>
+                    ) : categoriesForTagSelect.length === 0 ? (
+                      <NoData className="mt-1">
+                        No categories in the system yet. Add them under Category
+                        Management, or use partner feed.
+                      </NoData>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
             </div>
             <div className="mt-[18px]">
               <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
@@ -1994,88 +2078,6 @@ const FormOffer = ({
             )}
 
             <div className="mt-4 space-y-5">
-              <div>
-                <Switch
-                  key={`${form.id}-odt-brand`}
-                  label="Brand category"
-                  defaultChecked={
-                    form.offer_display_tags.brand_category_enabled
-                  }
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      offer_display_tags: {
-                        ...form.offer_display_tags,
-                        brand_category_enabled: e,
-                      },
-                    })
-                  }
-                  disabled={isLoading}
-                />
-                <p className="mt-0.5 ml-6 text-xs text-gray-600 dark:text-gray-400">
-                  Partner feed category:{" "}
-                  <span className="font-medium text-gray-800 dark:text-gray-200">
-                    {offer?.categories?.trim() ? offer.categories : "—"}
-                  </span>
-                  . Pick a system category below, or leave “Use partner feed” so
-                  the tag uses that value.
-                </p>
-                {form.offer_display_tags.brand_category_enabled ? (
-                  <div className="mt-2 ml-6 max-w-xl">
-                    <label
-                      htmlFor="offer_tag_brand_category"
-                      className="sr-only"
-                    >
-                      Brand category tag
-                    </label>
-                    <select
-                      id="offer_tag_brand_category"
-                      name="offer_tag_brand_category"
-                      className="shadow-theme-xs w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-                      value={form.offer_display_tags.brand_category_label}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          offer_display_tags: {
-                            ...form.offer_display_tags,
-                            brand_category_label: e.target.value,
-                          },
-                        })
-                      }
-                      disabled={isLoading || policyCategoriesPending}
-                    >
-                      <option value="">
-                        Use partner feed
-                        {offer?.categories?.trim()
-                          ? ` (${offer.categories.trim()})`
-                          : ""}
-                      </option>
-                      {legacyBrandCategoryLabel ? (
-                        <option value={legacyBrandCategoryLabel}>
-                          {legacyBrandCategoryLabel} (not in category list —
-                          choose a listed value to replace)
-                        </option>
-                      ) : null}
-                      {categoriesForTagSelect.map((cat) => (
-                        <option key={cat._id} value={cat.name}>
-                          {cat.name}
-                        </option>
-                      ))}
-                    </select>
-                    {policyCategoriesPending ? (
-                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        Loading categories…
-                      </p>
-                    ) : categoriesForTagSelect.length === 0 ? (
-                      <NoData className="mt-1">
-                        No categories in the system yet. Add them under Category
-                        Management, or use partner feed.
-                      </NoData>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-
               <div>
                 <Switch
                   key={`${form.id}-odt-xc`}
