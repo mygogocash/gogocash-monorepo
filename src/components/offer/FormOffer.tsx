@@ -2700,23 +2700,10 @@ const FormOffer = ({
         {/* Tracking links — one per product-type row (brand / line), or single offer row */}
         <div
           id="offer-section-tracking"
-          className={`rounded-xl border border-gray-200 bg-gray-50/50 p-4 sm:p-5 dark:border-gray-700 dark:bg-gray-800/30 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
+          className={`relative rounded-xl border border-gray-200 bg-gray-50/50 p-4 sm:p-5 dark:border-gray-700 dark:bg-gray-800/30 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
         >
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h4 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
-                Info from partner
-              </h4>
-              <p className="mt-1 max-w-3xl text-sm leading-relaxed text-gray-500 dark:text-gray-400">
-                Choose network and advertiser, then set the app URL users open
-                from this offer. Per–product-type URLs appear when you add
-                product lines below and turn off{" "}
-                <span className="font-medium text-gray-700 dark:text-gray-300">
-                  all product types
-                </span>
-                .
-              </p>
-            </div>
+          {/* Section actions — pinned top-right, out of normal flow (ignores auto layout) */}
+          <div className="absolute top-4 right-4 z-10 sm:top-5 sm:right-5">
             {!editingTracking ? (
               <SecondaryButton onClick={beginEditTracking} disabled={!offer}>
                 Edit
@@ -2741,6 +2728,20 @@ const FormOffer = ({
                 </button>
               </div>
             )}
+          </div>
+          <div>
+            <h4 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
+              Info from partner
+            </h4>
+            <p className="mt-1 max-w-3xl text-sm leading-relaxed text-gray-500 dark:text-gray-400">
+              Choose network and advertiser, then set the app URL users open
+              from this offer. Per–product-type URLs appear when you add product
+              lines below and turn off{" "}
+              <span className="font-medium text-gray-700 dark:text-gray-300">
+                all product types
+              </span>
+              .
+            </p>
           </div>
           {trackingSaveError && (
             <p className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
