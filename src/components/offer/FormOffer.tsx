@@ -2381,117 +2381,128 @@ const FormOffer = ({
                   cashback above with a higher commission and max cap for a set
                   window.
                 </p>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    type="button"
-                    onClick={() =>
-                      setForm({
-                        ...form,
-                        upsize_product_types: [
-                          ...(form.upsize_product_types ?? []),
-                          { name: "", commission_info: "", deeplink: "" },
-                        ],
-                      })
-                    }
-                    disabled={isLoading}
-                    className="touch-manipulation"
-                  >
-                    Add product line
-                  </Button>
-                </div>
-                {(form.upsize_product_types ?? []).length > 0 ? (
-                  <ul className="mt-3 space-y-4">
-                    {(form.upsize_product_types ?? []).map((row, i) => {
-                      const baseId = `offer-upsize-pt-${form.id || "new"}-${i}`;
-                      return (
-                        <li
-                          key={i}
-                          className="flex flex-col gap-4 rounded-xl border border-gray-100 bg-gray-50/50 p-4 sm:flex-row sm:items-stretch sm:gap-3 sm:p-3 dark:border-gray-700 dark:bg-gray-800/30"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <label
-                              htmlFor={`${baseId}-name`}
-                              className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                {!form.all_product_types ? (
+                  <>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        type="button"
+                        onClick={() =>
+                          setForm({
+                            ...form,
+                            upsize_product_types: [
+                              ...(form.upsize_product_types ?? []),
+                              { name: "", commission_info: "", deeplink: "" },
+                            ],
+                          })
+                        }
+                        disabled={isLoading}
+                        className="touch-manipulation"
+                      >
+                        Add product line
+                      </Button>
+                    </div>
+                    {(form.upsize_product_types ?? []).length > 0 ? (
+                      <ul className="mt-3 space-y-4">
+                        {(form.upsize_product_types ?? []).map((row, i) => {
+                          const baseId = `offer-upsize-pt-${form.id || "new"}-${i}`;
+                          return (
+                            <li
+                              key={i}
+                              className="flex flex-col gap-4 rounded-xl border border-gray-100 bg-gray-50/50 p-4 sm:flex-row sm:items-stretch sm:gap-3 sm:p-3 dark:border-gray-700 dark:bg-gray-800/30"
                             >
-                              Product type name
-                            </label>
-                            <select
-                              id={`${baseId}-name`}
-                              className="shadow-theme-xs min-h-11 w-full min-w-0 touch-manipulation rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 sm:text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-                              value={row.name}
-                              onChange={(e) => {
-                                const next = [
-                                  ...(form.upsize_product_types ?? []),
-                                ];
-                                next[i] = {
-                                  ...next[i],
-                                  name: e.target.value,
-                                };
-                                setForm({
-                                  ...form,
-                                  upsize_product_types: next,
-                                });
-                              }}
-                              disabled={isLoading}
-                            >
-                              <option value="">Select product type…</option>
-                              {upsizeProductTypeNameOptions.map((name) => (
-                                <option key={name} value={name}>
-                                  {name}
-                                </option>
-                              ))}
-                              {row.name.trim() &&
-                              !upsizeProductTypeNameOptions.includes(
-                                row.name.trim(),
-                              ) ? (
-                                <option value={row.name.trim()}>
-                                  {row.name.trim()} (saved — add under Product
-                                  Type to pick)
-                                </option>
-                              ) : null}
-                            </select>
-                            {upsizeProductTypeNameOptions.length === 0 ? (
-                              <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-                                Add named lines under{" "}
-                                <span className="font-medium">
-                                  Brand Info → Product Type
-                                </span>{" "}
-                                first, or turn off{" "}
-                                <span className="font-medium">
-                                  all product types
-                                </span>{" "}
-                                if those rows are hidden.
-                              </p>
-                            ) : null}
-                          </div>
-                          <div className="flex shrink-0 sm:items-end sm:pb-0.5">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              type="button"
-                              onClick={() => {
-                                const next = (
-                                  form.upsize_product_types ?? []
-                                ).filter((_, j) => j !== i);
-                                setForm({
-                                  ...form,
-                                  upsize_product_types: next.length ? next : [],
-                                });
-                              }}
-                              disabled={isLoading}
-                              className="min-h-11 w-full touch-manipulation text-red-600 hover:bg-red-50 hover:text-red-700 sm:w-auto dark:text-red-400 dark:hover:bg-red-900/20"
-                            >
-                              Remove
-                            </Button>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : null}
-                {showUpsizeEventPeriodFields ? (
+                              <div className="min-w-0 flex-1">
+                                <label
+                                  htmlFor={`${baseId}-name`}
+                                  className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                                >
+                                  Product type name
+                                </label>
+                                <select
+                                  id={`${baseId}-name`}
+                                  className="shadow-theme-xs min-h-11 w-full min-w-0 touch-manipulation rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 sm:text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                                  value={row.name}
+                                  onChange={(e) => {
+                                    const next = [
+                                      ...(form.upsize_product_types ?? []),
+                                    ];
+                                    next[i] = {
+                                      ...next[i],
+                                      name: e.target.value,
+                                    };
+                                    setForm({
+                                      ...form,
+                                      upsize_product_types: next,
+                                    });
+                                  }}
+                                  disabled={isLoading}
+                                >
+                                  <option value="">Select product type…</option>
+                                  {upsizeProductTypeNameOptions.map((name) => (
+                                    <option key={name} value={name}>
+                                      {name}
+                                    </option>
+                                  ))}
+                                  {row.name.trim() &&
+                                  !upsizeProductTypeNameOptions.includes(
+                                    row.name.trim(),
+                                  ) ? (
+                                    <option value={row.name.trim()}>
+                                      {row.name.trim()} (saved — add under
+                                      Product Type to pick)
+                                    </option>
+                                  ) : null}
+                                </select>
+                                {upsizeProductTypeNameOptions.length === 0 ? (
+                                  <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                                    Add named lines under{" "}
+                                    <span className="font-medium">
+                                      Brand Info → Product Type
+                                    </span>{" "}
+                                    first, or turn off{" "}
+                                    <span className="font-medium">
+                                      all product types
+                                    </span>{" "}
+                                    if those rows are hidden.
+                                  </p>
+                                ) : null}
+                              </div>
+                              <div className="flex shrink-0 sm:items-end sm:pb-0.5">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  type="button"
+                                  onClick={() => {
+                                    const next = (
+                                      form.upsize_product_types ?? []
+                                    ).filter((_, j) => j !== i);
+                                    setForm({
+                                      ...form,
+                                      upsize_product_types: next.length
+                                        ? next
+                                        : [],
+                                    });
+                                  }}
+                                  disabled={isLoading}
+                                  className="min-h-11 w-full touch-manipulation text-red-600 hover:bg-red-50 hover:text-red-700 sm:w-auto dark:text-red-400 dark:hover:bg-red-900/20"
+                                >
+                                  Remove
+                                </Button>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : null}
+                  </>
+                ) : (
+                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                    This upsize applies to all products — set the window and
+                    rate below.
+                  </p>
+                )}
+                {showUpsizeEventPeriodFields || form.all_product_types ? (
                   <div className="mt-4 grid gap-4 sm:grid-cols-2">
                     <div>
                       <FieldLabel
