@@ -2907,31 +2907,21 @@ const FormOffer = ({
                     label="Tracking link"
                     description="Prefilled from partner data (rate, currency, affiliate network); you can edit before save. If you previously saved a custom URL, that value is shown instead."
                   />
-                  <div className="relative">
-                    <Input
-                      type="url"
-                      name="offer_deeplink"
-                      placeholder="https://gogocash.app/open/offer/..."
-                      value={offerDeeplinkDraft}
-                      onChange={(e) =>
-                        setDeeplinkOverride(
-                          offer
-                            ? { offerId: offer._id, value: e.target.value }
-                            : null,
-                        )
-                      }
-                      disabled={isLoading || saveOfferDeeplink.isPending}
-                      autoComplete="off"
-                      className="pr-12"
-                    />
-                    <div className="absolute inset-y-0 right-2 flex items-center">
-                      <CopyButton
-                        value={offerDeeplinkDraft}
-                        title="Copy tracking link"
-                        iconClassName="h-6 w-6"
-                      />
-                    </div>
-                  </div>
+                  <Input
+                    type="url"
+                    name="offer_deeplink"
+                    placeholder="https://gogocash.app/open/offer/..."
+                    value={offerDeeplinkDraft}
+                    onChange={(e) =>
+                      setDeeplinkOverride(
+                        offer
+                          ? { offerId: offer._id, value: e.target.value }
+                          : null,
+                      )
+                    }
+                    disabled={isLoading || saveOfferDeeplink.isPending}
+                    autoComplete="off"
+                  />
                 </div>
               )}
             </>
@@ -2981,9 +2971,16 @@ const FormOffer = ({
                   <p className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
                     Tracking link
                   </p>
-                  <p className="mt-0.5 text-sm break-all text-gray-900 dark:text-gray-100">
-                    {offerDeeplinkDraft.trim() ? offerDeeplinkDraft : "—"}
-                  </p>
+                  <div className="mt-0.5 flex items-start">
+                    <p className="text-sm break-all text-gray-900 dark:text-gray-100">
+                      {offerDeeplinkDraft.trim() ? offerDeeplinkDraft : "—"}
+                    </p>
+                    <CopyButton
+                      value={offerDeeplinkDraft}
+                      title="Copy tracking link"
+                      iconClassName="h-6 w-6"
+                    />
+                  </div>
                 </div>
               )}
             </div>
