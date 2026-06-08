@@ -1948,212 +1948,6 @@ const FormOffer = ({
                     </p>
                   </div>
                 </div>
-                <div className="border-brand-200/70 dark:border-brand-800/50 mt-4 border-t pt-4">
-                  <h5 className="text-brand-900 dark:text-brand-100 text-sm font-semibold">
-                    Upsize event
-                  </h5>
-                  <p className="text-brand-800/80 dark:text-brand-200/80 mt-0.5 text-xs">
-                    Special-period promotion — temporarily overrides the default
-                    cashback above with a higher commission and max cap for a
-                    set window.
-                  </p>
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      type="button"
-                      onClick={() =>
-                        setForm({
-                          ...form,
-                          upsize_product_types: [
-                            ...(form.upsize_product_types ?? []),
-                            { name: "", commission_info: "", deeplink: "" },
-                          ],
-                        })
-                      }
-                      disabled={isLoading}
-                      className="touch-manipulation"
-                    >
-                      Add product line
-                    </Button>
-                  </div>
-                  {(form.upsize_product_types ?? []).length > 0 ? (
-                    <ul className="mt-3 space-y-4">
-                      {(form.upsize_product_types ?? []).map((row, i) => {
-                        const baseId = `offer-upsize-pt-${form.id || "new"}-${i}`;
-                        return (
-                          <li
-                            key={i}
-                            className="flex flex-col gap-4 rounded-xl border border-gray-100 bg-gray-50/50 p-4 sm:flex-row sm:items-stretch sm:gap-3 sm:p-3 dark:border-gray-700 dark:bg-gray-800/30"
-                          >
-                            <div className="min-w-0 flex-1">
-                              <label
-                                htmlFor={`${baseId}-name`}
-                                className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                              >
-                                Product type name
-                              </label>
-                              <select
-                                id={`${baseId}-name`}
-                                className="shadow-theme-xs min-h-11 w-full min-w-0 touch-manipulation rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 sm:text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-                                value={row.name}
-                                onChange={(e) => {
-                                  const next = [
-                                    ...(form.upsize_product_types ?? []),
-                                  ];
-                                  next[i] = {
-                                    ...next[i],
-                                    name: e.target.value,
-                                  };
-                                  setForm({
-                                    ...form,
-                                    upsize_product_types: next,
-                                  });
-                                }}
-                                disabled={isLoading}
-                              >
-                                <option value="">Select product type…</option>
-                                {upsizeProductTypeNameOptions.map((name) => (
-                                  <option key={name} value={name}>
-                                    {name}
-                                  </option>
-                                ))}
-                                {row.name.trim() &&
-                                !upsizeProductTypeNameOptions.includes(
-                                  row.name.trim(),
-                                ) ? (
-                                  <option value={row.name.trim()}>
-                                    {row.name.trim()} (saved — add under Product
-                                    Type to pick)
-                                  </option>
-                                ) : null}
-                              </select>
-                              {upsizeProductTypeNameOptions.length === 0 ? (
-                                <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-                                  Add named lines under{" "}
-                                  <span className="font-medium">
-                                    Brand Info → Product Type
-                                  </span>{" "}
-                                  first, or turn off{" "}
-                                  <span className="font-medium">
-                                    all product types
-                                  </span>{" "}
-                                  if those rows are hidden.
-                                </p>
-                              ) : null}
-                            </div>
-                            <div className="flex shrink-0 sm:items-end sm:pb-0.5">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                type="button"
-                                onClick={() => {
-                                  const next = (
-                                    form.upsize_product_types ?? []
-                                  ).filter((_, j) => j !== i);
-                                  setForm({
-                                    ...form,
-                                    upsize_product_types: next.length
-                                      ? next
-                                      : [],
-                                  });
-                                }}
-                                disabled={isLoading}
-                                className="min-h-11 w-full touch-manipulation text-red-600 hover:bg-red-50 hover:text-red-700 sm:w-auto dark:text-red-400 dark:hover:bg-red-900/20"
-                              >
-                                Remove
-                              </Button>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  ) : null}
-                  {showUpsizeEventPeriodFields ? (
-                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                      <div>
-                        <FieldLabel
-                          label="Start date"
-                          description="When the promo starts."
-                        />
-                        <Input
-                          type="date"
-                          name="upsize_start_date"
-                          onChange={(e) =>
-                            setForm({
-                              ...form,
-                              upsize_start_date: e.target.value || null,
-                            })
-                          }
-                          defaultValue={form.upsize_start_date ?? ""}
-                          disabled={isLoading}
-                        />
-                      </div>
-                      <div>
-                        <FieldLabel
-                          label="End date"
-                          description="When the promo ends."
-                        />
-                        <Input
-                          type="date"
-                          name="upsize_end_date"
-                          onChange={(e) =>
-                            setForm({
-                              ...form,
-                              upsize_end_date: e.target.value || null,
-                            })
-                          }
-                          defaultValue={form.upsize_end_date ?? ""}
-                          disabled={isLoading}
-                        />
-                      </div>
-                      <div>
-                        <FieldLabel
-                          label="Special commission (%)"
-                          description="Commission during the promo."
-                        />
-                        <Input
-                          type="number"
-                          name="upsize_special_commission"
-                          placeholder="e.g. 10"
-                          onChange={(e) =>
-                            setForm({
-                              ...form,
-                              upsize_special_commission:
-                                e.target.value === ""
-                                  ? null
-                                  : Number(e.target.value),
-                            })
-                          }
-                          defaultValue={form.upsize_special_commission ?? ""}
-                          disabled={isLoading}
-                        />
-                      </div>
-                      <div>
-                        <FieldLabel
-                          label="Max cap (upsize)"
-                          description="Maximum cap offered to users during the promo. Enter the value already reduced by 30% from the affiliate partner cap."
-                        />
-                        <Input
-                          type="number"
-                          name="upsize_max_cap"
-                          placeholder="e.g. 1000"
-                          onChange={(e) =>
-                            setForm({
-                              ...form,
-                              upsize_max_cap:
-                                e.target.value === ""
-                                  ? null
-                                  : Number(e.target.value),
-                            })
-                          }
-                          defaultValue={form.upsize_max_cap ?? ""}
-                          disabled={isLoading}
-                        />
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
               </div>
 
               <div>
@@ -2247,6 +2041,211 @@ const FormOffer = ({
                     ) : null}
                   </div>
                 </div>
+              </div>
+
+              <div className="border-brand-200/70 dark:border-brand-800/50 border-t pt-4">
+                <h5 className="text-brand-900 dark:text-brand-100 text-sm font-semibold">
+                  Upsize event
+                </h5>
+                <p className="text-brand-800/80 dark:text-brand-200/80 mt-0.5 text-xs">
+                  Special-period promotion — temporarily overrides the default
+                  cashback above with a higher commission and max cap for a set
+                  window.
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    type="button"
+                    onClick={() =>
+                      setForm({
+                        ...form,
+                        upsize_product_types: [
+                          ...(form.upsize_product_types ?? []),
+                          { name: "", commission_info: "", deeplink: "" },
+                        ],
+                      })
+                    }
+                    disabled={isLoading}
+                    className="touch-manipulation"
+                  >
+                    Add product line
+                  </Button>
+                </div>
+                {(form.upsize_product_types ?? []).length > 0 ? (
+                  <ul className="mt-3 space-y-4">
+                    {(form.upsize_product_types ?? []).map((row, i) => {
+                      const baseId = `offer-upsize-pt-${form.id || "new"}-${i}`;
+                      return (
+                        <li
+                          key={i}
+                          className="flex flex-col gap-4 rounded-xl border border-gray-100 bg-gray-50/50 p-4 sm:flex-row sm:items-stretch sm:gap-3 sm:p-3 dark:border-gray-700 dark:bg-gray-800/30"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <label
+                              htmlFor={`${baseId}-name`}
+                              className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                            >
+                              Product type name
+                            </label>
+                            <select
+                              id={`${baseId}-name`}
+                              className="shadow-theme-xs min-h-11 w-full min-w-0 touch-manipulation rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 sm:text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                              value={row.name}
+                              onChange={(e) => {
+                                const next = [
+                                  ...(form.upsize_product_types ?? []),
+                                ];
+                                next[i] = {
+                                  ...next[i],
+                                  name: e.target.value,
+                                };
+                                setForm({
+                                  ...form,
+                                  upsize_product_types: next,
+                                });
+                              }}
+                              disabled={isLoading}
+                            >
+                              <option value="">Select product type…</option>
+                              {upsizeProductTypeNameOptions.map((name) => (
+                                <option key={name} value={name}>
+                                  {name}
+                                </option>
+                              ))}
+                              {row.name.trim() &&
+                              !upsizeProductTypeNameOptions.includes(
+                                row.name.trim(),
+                              ) ? (
+                                <option value={row.name.trim()}>
+                                  {row.name.trim()} (saved — add under Product
+                                  Type to pick)
+                                </option>
+                              ) : null}
+                            </select>
+                            {upsizeProductTypeNameOptions.length === 0 ? (
+                              <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                                Add named lines under{" "}
+                                <span className="font-medium">
+                                  Brand Info → Product Type
+                                </span>{" "}
+                                first, or turn off{" "}
+                                <span className="font-medium">
+                                  all product types
+                                </span>{" "}
+                                if those rows are hidden.
+                              </p>
+                            ) : null}
+                          </div>
+                          <div className="flex shrink-0 sm:items-end sm:pb-0.5">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              type="button"
+                              onClick={() => {
+                                const next = (
+                                  form.upsize_product_types ?? []
+                                ).filter((_, j) => j !== i);
+                                setForm({
+                                  ...form,
+                                  upsize_product_types: next.length ? next : [],
+                                });
+                              }}
+                              disabled={isLoading}
+                              className="min-h-11 w-full touch-manipulation text-red-600 hover:bg-red-50 hover:text-red-700 sm:w-auto dark:text-red-400 dark:hover:bg-red-900/20"
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : null}
+                {showUpsizeEventPeriodFields ? (
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <FieldLabel
+                        label="Start date"
+                        description="When the promo starts."
+                      />
+                      <Input
+                        type="date"
+                        name="upsize_start_date"
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            upsize_start_date: e.target.value || null,
+                          })
+                        }
+                        defaultValue={form.upsize_start_date ?? ""}
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel
+                        label="End date"
+                        description="When the promo ends."
+                      />
+                      <Input
+                        type="date"
+                        name="upsize_end_date"
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            upsize_end_date: e.target.value || null,
+                          })
+                        }
+                        defaultValue={form.upsize_end_date ?? ""}
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel
+                        label="Special commission (%)"
+                        description="Commission during the promo."
+                      />
+                      <Input
+                        type="number"
+                        name="upsize_special_commission"
+                        placeholder="e.g. 10"
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            upsize_special_commission:
+                              e.target.value === ""
+                                ? null
+                                : Number(e.target.value),
+                          })
+                        }
+                        defaultValue={form.upsize_special_commission ?? ""}
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel
+                        label="Max cap (upsize)"
+                        description="Maximum cap offered to users during the promo. Enter the value already reduced by 30% from the affiliate partner cap."
+                      />
+                      <Input
+                        type="number"
+                        name="upsize_max_cap"
+                        placeholder="e.g. 1000"
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            upsize_max_cap:
+                              e.target.value === ""
+                                ? null
+                                : Number(e.target.value),
+                          })
+                        }
+                        defaultValue={form.upsize_max_cap ?? ""}
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>
