@@ -661,6 +661,109 @@ const FormOffer = ({
     },
   });
 
+  // Info from partner: read-only by default with its own Edit → Cancel/Save
+  // (mirrors the Policy section). Save persists the affiliate network/store and
+  // the tracking link(s) via a partial PATCH plus the deeplink mutation.
+  const [editingTracking, setEditingTracking] = useState(false);
+  const [savingTracking, setSavingTracking] = useState(false);
+  const [trackingSnapshot, setTrackingSnapshot] = useState<{
+    affiliate_network_id: string;
+    deeplink_store_id: string;
+    deeplink: string | null;
+  } | null>(null);
+  const [trackingSaveError, setTrackingSaveError] = useState<string | null>(
+    null,
+  );
+
+  const beginEditTracking = () => {
+    setTrackingSnapshot({
+      affiliate_network_id: form.affiliate_network_id,
+      deeplink_store_id: form.deeplink_store_id,
+      deeplink:
+        deeplinkOverride && offer && deeplinkOverride.offerId === offer._id
+          ? deeplinkOverride.value
+          : null,
+    });
+    setTrackingSaveError(null);
+    setEditingTracking(true);
+  };
+
+  const cancelEditTracking = () => {
+    if (trackingSnapshot) {
+      setForm((prev) => ({
+        ...prev,
+        affiliate_network_id: trackingSnapshot.affiliate_network_id,
+        deeplink_store_id: trackingSnapshot.deeplink_store_id,
+      }));
+      setDeeplinkOverride(
+        trackingSnapshot.deeplink !== null && offer
+          ? { offerId: offer._id, value: trackingSnapshot.deeplink }
+          : null,
+      );
+    }
+    setTrackingSaveError(null);
+    setEditingTracking(false);
+  };
+
+  const saveTrackingEdit = async () => {
+    if (!form.id) return;
+    setSavingTracking(true);
+    setTrackingSaveError(null);
+    try {
+      const fd = new FormData();
+      fd.append(
+        "affiliate_network_id",
+        form.affiliate_network_id.trim() || "involve_asia",
+      );
+      fd.append("deeplink_store_id", form.deeplink_store_id.trim() || "global");
+      // Per-product tracking URLs live in product_types — persist them too.
+      if (usePerProductTrackingLinks) {
+        fd.append(
+          "product_types",
+          JSON.stringify(serializeOfferProductTypes(form.product_types ?? [])),
+        );
+        fd.append("all_product_types", String(form.all_product_types));
+      }
+      await client.patch(`/admin/update-offer/${form.id}`, fd, {
+        headers: {
+          Authorization: `Bearer ${session?.accessToken}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      // Single tracking link persists via the commission deeplink mutation.
+      if (!usePerProductTrackingLinks) {
+        const d = offerDeeplinkDraft.trim();
+        if (d) {
+          await saveOfferDeeplink.mutateAsync({
+            offerId: form.id,
+            deeplink: d,
+          });
+        }
+      }
+      // Re-baseline saved fields so the form-wide "Save changes" doesn't
+      // re-flag this now-persisted partner info as dirty.
+      setFormBaseline((prev) => ({
+        ...prev,
+        snapshot: {
+          ...prev.snapshot,
+          affiliate_network_id: form.affiliate_network_id,
+          deeplink_store_id: form.deeplink_store_id,
+          ...(usePerProductTrackingLinks
+            ? { product_types: form.product_types }
+            : {}),
+        },
+      }));
+      setEditingTracking(false);
+      fetchOffers();
+      toast.success("Partner info updated successfully");
+    } catch (err) {
+      devError("Failed to update partner info:", err);
+      setTrackingSaveError("Could not update partner info. Please try again.");
+    } finally {
+      setSavingTracking(false);
+    }
+  };
+
   const { data: policyCategories = [], isPending: policyCategoriesPending } =
     useQuery<ResCategoryList[]>({
       queryKey: ["getCategory", "form-offer-policy"],
@@ -2599,20 +2702,51 @@ const FormOffer = ({
           id="offer-section-tracking"
           className={`rounded-xl border border-gray-200 bg-gray-50/50 p-4 sm:p-5 dark:border-gray-700 dark:bg-gray-800/30 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
         >
-          <div>
-            <h4 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
-              Info from partner
-            </h4>
-            <p className="mt-1 max-w-3xl text-sm leading-relaxed text-gray-500 dark:text-gray-400">
-              Choose network and advertiser, then set the app URL users open
-              from this offer. Per–product-type URLs appear when you add product
-              lines below and turn off{" "}
-              <span className="font-medium text-gray-700 dark:text-gray-300">
-                all product types
-              </span>
-              .
-            </p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h4 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
+                Info from partner
+              </h4>
+              <p className="mt-1 max-w-3xl text-sm leading-relaxed text-gray-500 dark:text-gray-400">
+                Choose network and advertiser, then set the app URL users open
+                from this offer. Per–product-type URLs appear when you add
+                product lines below and turn off{" "}
+                <span className="font-medium text-gray-700 dark:text-gray-300">
+                  all product types
+                </span>
+                .
+              </p>
+            </div>
+            {!editingTracking ? (
+              <SecondaryButton onClick={beginEditTracking} disabled={!offer}>
+                Edit
+              </SecondaryButton>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={cancelEditTracking}
+                  disabled={savingTracking}
+                  className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void saveTrackingEdit()}
+                  disabled={savingTracking}
+                  className="border-brand-600 bg-brand-600 hover:bg-brand-700 dark:border-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500 rounded-lg border px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {savingTracking ? "Saving…" : "Save changes"}
+                </button>
+              </div>
+            )}
           </div>
+          {trackingSaveError && (
+            <p className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+              {trackingSaveError}
+            </p>
+          )}
           {/* Commission info from partner — read-only partner/network feed (moved from the tags card) */}
           <div className="mt-5 border-y border-gray-200 py-5 dark:border-gray-700">
             <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
@@ -2691,111 +2825,167 @@ const FormOffer = ({
             ) : null}
           </div>
 
-          <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
-            <div className="min-w-0">
-              <FieldLabel
-                label="Affiliate partner"
-                description="Network that supplies rates and tracking."
-              />
-              <select
-                id="offer-affiliate-network"
-                name="offer-affiliate-network"
-                className="shadow-theme-xs w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-                value={form.affiliate_network_id}
-                onChange={(e) =>
-                  setForm({ ...form, affiliate_network_id: e.target.value })
-                }
-                disabled={isLoading}
-              >
-                {affiliateSelectOptions.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="min-w-0">
-              <FieldLabel
-                label="Affiliate brand name"
-                description="Store on the network; sets store= in the tracking link."
-              />
-              <select
-                id="offer-deeplink-advertiser"
-                name="offer-deeplink-advertiser"
-                className="shadow-theme-xs w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-                value={form.deeplink_store_id}
-                onChange={(e) =>
-                  setForm({ ...form, deeplink_store_id: e.target.value })
-                }
-                disabled={isLoading}
-              >
-                {advertiserSelectOptions.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          {usePerProductTrackingLinks ? (
-            <ul className="mt-4 space-y-4">
-              {(form.product_types ?? []).map((row, i) => {
-                const label =
-                  row.name.trim() || `Brand / product line ${i + 1}`;
-                return (
-                  <li key={i}>
-                    <FieldLabel
-                      label={`Tracking link — ${label}`}
-                      description="URL opened in the app for this product type (e.g. gogocash.app/...)."
-                    />
-                    <Input
-                      type="url"
-                      name={`product_type_deeplink_${i}`}
-                      placeholder="https://gogocash.app/open/offer/..."
-                      value={row.deeplink ?? ""}
-                      onChange={(e) => {
-                        const next = [...(form.product_types ?? [])];
-                        next[i] = { ...next[i], deeplink: e.target.value };
-                        setForm({ ...form, product_types: next });
-                      }}
-                      disabled={isLoading}
-                      autoComplete="off"
-                    />
-                  </li>
-                );
-              })}
-            </ul>
-          ) : (
-            <div className="mt-4">
-              <FieldLabel
-                label="Tracking link"
-                description="Prefilled from partner data (rate, currency, affiliate network); you can edit before save. If you previously saved a custom URL, that value is shown instead."
-              />
-              <div className="relative">
-                <Input
-                  type="url"
-                  name="offer_deeplink"
-                  placeholder="https://gogocash.app/open/offer/..."
-                  value={offerDeeplinkDraft}
-                  onChange={(e) =>
-                    setDeeplinkOverride(
-                      offer
-                        ? { offerId: offer._id, value: e.target.value }
-                        : null,
-                    )
-                  }
-                  disabled={isLoading || saveOfferDeeplink.isPending}
-                  autoComplete="off"
-                  className="pr-12"
-                />
-                <div className="absolute inset-y-0 right-2 flex items-center">
-                  <CopyButton
-                    value={offerDeeplinkDraft}
-                    title="Copy tracking link"
-                    iconClassName="h-6 w-6"
+          {editingTracking ? (
+            <>
+              <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
+                <div className="min-w-0">
+                  <FieldLabel
+                    label="Affiliate partner"
+                    description="Network that supplies rates and tracking."
                   />
+                  <select
+                    id="offer-affiliate-network"
+                    name="offer-affiliate-network"
+                    className="shadow-theme-xs w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                    value={form.affiliate_network_id}
+                    onChange={(e) =>
+                      setForm({ ...form, affiliate_network_id: e.target.value })
+                    }
+                    disabled={isLoading}
+                  >
+                    {affiliateSelectOptions.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="min-w-0">
+                  <FieldLabel
+                    label="Affiliate brand name"
+                    description="Store on the network; sets store= in the tracking link."
+                  />
+                  <select
+                    id="offer-deeplink-advertiser"
+                    name="offer-deeplink-advertiser"
+                    className="shadow-theme-xs w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                    value={form.deeplink_store_id}
+                    onChange={(e) =>
+                      setForm({ ...form, deeplink_store_id: e.target.value })
+                    }
+                    disabled={isLoading}
+                  >
+                    {advertiserSelectOptions.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
+              {usePerProductTrackingLinks ? (
+                <ul className="mt-4 space-y-4">
+                  {(form.product_types ?? []).map((row, i) => {
+                    const label =
+                      row.name.trim() || `Brand / product line ${i + 1}`;
+                    return (
+                      <li key={i}>
+                        <FieldLabel
+                          label={`Tracking link — ${label}`}
+                          description="URL opened in the app for this product type (e.g. gogocash.app/...)."
+                        />
+                        <Input
+                          type="url"
+                          name={`product_type_deeplink_${i}`}
+                          placeholder="https://gogocash.app/open/offer/..."
+                          value={row.deeplink ?? ""}
+                          onChange={(e) => {
+                            const next = [...(form.product_types ?? [])];
+                            next[i] = { ...next[i], deeplink: e.target.value };
+                            setForm({ ...form, product_types: next });
+                          }}
+                          disabled={isLoading}
+                          autoComplete="off"
+                        />
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <div className="mt-4">
+                  <FieldLabel
+                    label="Tracking link"
+                    description="Prefilled from partner data (rate, currency, affiliate network); you can edit before save. If you previously saved a custom URL, that value is shown instead."
+                  />
+                  <div className="relative">
+                    <Input
+                      type="url"
+                      name="offer_deeplink"
+                      placeholder="https://gogocash.app/open/offer/..."
+                      value={offerDeeplinkDraft}
+                      onChange={(e) =>
+                        setDeeplinkOverride(
+                          offer
+                            ? { offerId: offer._id, value: e.target.value }
+                            : null,
+                        )
+                      }
+                      disabled={isLoading || saveOfferDeeplink.isPending}
+                      autoComplete="off"
+                      className="pr-12"
+                    />
+                    <div className="absolute inset-y-0 right-2 flex items-center">
+                      <CopyButton
+                        value={offerDeeplinkDraft}
+                        title="Copy tracking link"
+                        iconClassName="h-6 w-6"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="mt-5 space-y-4">
+              <dl className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                    Affiliate partner
+                  </dt>
+                  <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                    {affiliateSelectOptions.find(
+                      (o) => o.id === form.affiliate_network_id,
+                    )?.label ?? "—"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                    Affiliate brand name
+                  </dt>
+                  <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                    {advertiserSelectOptions.find(
+                      (o) => o.id === form.deeplink_store_id,
+                    )?.label ?? "—"}
+                  </dd>
+                </div>
+              </dl>
+              {usePerProductTrackingLinks ? (
+                <ul className="space-y-3">
+                  {(form.product_types ?? []).map((row, i) => {
+                    const label =
+                      row.name.trim() || `Brand / product line ${i + 1}`;
+                    return (
+                      <li key={i}>
+                        <p className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                          Tracking link — {label}
+                        </p>
+                        <p className="mt-0.5 text-sm break-all text-gray-900 dark:text-gray-100">
+                          {row.deeplink?.trim() ? row.deeplink : "—"}
+                        </p>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <div>
+                  <p className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                    Tracking link
+                  </p>
+                  <p className="mt-0.5 text-sm break-all text-gray-900 dark:text-gray-100">
+                    {offerDeeplinkDraft.trim() ? offerDeeplinkDraft : "—"}
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>
