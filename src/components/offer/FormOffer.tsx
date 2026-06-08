@@ -1861,31 +1861,34 @@ const FormOffer = ({
             Promotion and Marketing
           </h2>
           <div>
-            <h4 className="text-brand-900 dark:text-brand-100 text-sm font-semibold">
-              Offer tags (merchandising)
-            </h4>
-            <p className="text-brand-800/80 dark:text-brand-200/80 mt-1 text-xs">
-              Optional labels for the offer card in the app: category, promos,
-              and expiry messaging. Editable here; unrelated to partner rates
-              above.
-            </p>
-            {offerTagPreviewChips.length > 0 ? (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {offerTagPreviewChips.map((c, i) => (
-                  <span
-                    key={`tag-preview-${i}`}
-                    className="text-brand-900 dark:bg-brand-950/60 dark:text-brand-100 rounded-full bg-white/90 px-2.5 py-1 text-xs font-medium shadow-sm"
-                  >
-                    {c}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className="text-brand-800/70 dark:text-brand-200/70 mt-2 text-xs">
-                No tags enabled — use the toggles below to show pills in the
-                app.
+            {/* Offer tags header — wrapped for selection (no visual change) */}
+            <div>
+              <h4 className="text-brand-900 dark:text-brand-100 text-sm font-semibold">
+                Offer tags (merchandising)
+              </h4>
+              <p className="text-brand-800/80 dark:text-brand-200/80 mt-1 text-xs">
+                Optional labels for the offer card in the app: category, promos,
+                and expiry messaging. Editable here; unrelated to partner rates
+                above.
               </p>
-            )}
+              {offerTagPreviewChips.length > 0 ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {offerTagPreviewChips.map((c, i) => (
+                    <span
+                      key={`tag-preview-${i}`}
+                      className="text-brand-900 dark:bg-brand-950/60 dark:text-brand-100 rounded-full bg-white/90 px-2.5 py-1 text-xs font-medium shadow-sm"
+                    >
+                      {c}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-brand-800/70 dark:text-brand-200/70 mt-2 text-xs">
+                  No tags enabled — use the toggles below to show pills in the
+                  app.
+                </p>
+              )}
+            </div>
 
             <div className="mt-4 space-y-5">
               <div>
