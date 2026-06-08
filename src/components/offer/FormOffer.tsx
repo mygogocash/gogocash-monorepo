@@ -1095,46 +1095,24 @@ const FormOffer = ({
               </div>
             </div>
             <div className="mt-[18px]">
-              <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+              <div className="mb-1.5">
                 <label
                   htmlFor="offer-lookup"
                   className="text-sm font-medium text-gray-800 dark:text-gray-200"
                 >
                   Lookup slug (optional)
                 </label>
-                <div className="flex flex-wrap items-center gap-3">
-                  <label
-                    htmlFor="offer-sync-lookup"
-                    className="flex cursor-pointer items-center gap-2 text-xs text-gray-600 dark:text-gray-400"
-                  >
-                    <input
-                      id="offer-sync-lookup"
-                      type="checkbox"
-                      checked={syncLookupFromBrandCountry}
-                      onChange={(e) =>
-                        setSyncLookupFromBrandCountry(e.target.checked)
-                      }
-                      className="text-brand-600 focus:ring-brand-500 h-4 w-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-900"
-                    />
-                    <span>Default: brand + country (e.g. apple_th)</span>
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setForm((prev) => ({
-                        ...prev,
-                        lookup_value: defaultLookupFromBrandAndCountry(
-                          prev.offer_name_display,
-                          offerCountry,
-                        ),
-                      }))
-                    }
-                    disabled={isLoading || syncLookupFromBrandCountry}
-                    className="text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    Apply once
-                  </button>
-                </div>
+                <p
+                  id="offer-lookup-hint"
+                  className="mt-0.5 text-xs text-gray-500 dark:text-gray-400"
+                >
+                  With the default option on, the slug stays{" "}
+                  <code className="rounded bg-gray-100 px-1 py-0.5 text-[0.7rem] dark:bg-gray-800">
+                    brandname_countrycode
+                  </code>{" "}
+                  (lowercase, non-alphanumeric → underscore) and updates when
+                  the offer name or country changes.
+                </p>
               </div>
               <input
                 id="offer-lookup"
@@ -1154,17 +1132,39 @@ const FormOffer = ({
                 className="shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 read-only:bg-gray-50 read-only:text-gray-700 focus:ring-3 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:read-only:bg-gray-800 dark:read-only:text-gray-200"
                 placeholder="my_brand_th — used in app open URLs"
               />
-              <p
-                id="offer-lookup-hint"
-                className="mt-1 text-xs text-gray-500 dark:text-gray-400"
-              >
-                With the default option on, the slug stays{" "}
-                <code className="rounded bg-gray-100 px-1 py-0.5 text-[0.7rem] dark:bg-gray-800">
-                  brandname_countrycode
-                </code>{" "}
-                (lowercase, non-alphanumeric → underscore) and updates when the
-                offer name or country changes.
-              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <label
+                  htmlFor="offer-sync-lookup"
+                  className="flex cursor-pointer items-center gap-2 text-xs text-gray-600 dark:text-gray-400"
+                >
+                  <input
+                    id="offer-sync-lookup"
+                    type="checkbox"
+                    checked={syncLookupFromBrandCountry}
+                    onChange={(e) =>
+                      setSyncLookupFromBrandCountry(e.target.checked)
+                    }
+                    className="text-brand-600 focus:ring-brand-500 h-4 w-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-900"
+                  />
+                  <span>Default: brand + country (e.g. apple_th)</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setForm((prev) => ({
+                      ...prev,
+                      lookup_value: defaultLookupFromBrandAndCountry(
+                        prev.offer_name_display,
+                        offerCountry,
+                      ),
+                    }))
+                  }
+                  disabled={isLoading || syncLookupFromBrandCountry}
+                  className="text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Apply once
+                </button>
+              </div>
             </div>
             <div className="mt-[18px] flex flex-col gap-5 sm:flex-row sm:flex-wrap sm:items-start sm:gap-6">
               <div className="flex min-w-0 items-start gap-3 sm:max-w-md">
