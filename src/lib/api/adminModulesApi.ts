@@ -282,11 +282,6 @@ export async function postMissingOrderNote(id: string, note: string, adminId: st
 }
 
 /* Wallet */
-export async function getWallets(params: { page?: number; limit?: number; search?: string; status?: string }) {
-  const { data } = await client.get<Paginated<UserWallet>>("/admin/wallets", { params: qp(params) });
-  return data;
-}
-
 export async function getWalletDetail(userId: string) {
   const { data } = await client.get<{ wallet: UserWallet; recentTransactions: Transaction[] }>(
     `/admin/wallets/${userId}`,

@@ -64,7 +64,7 @@ export function FormSectionJumpNav({
 
   return (
     <nav className={`min-w-0 ${className}`.trim()} aria-label={ariaLabel}>
-      <p className="mb-1.5 text-[10px] font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
+      <p className="mb-1.5 text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
         On this page
       </p>
       <ul className="flex flex-wrap gap-1.5">
@@ -73,7 +73,7 @@ export function FormSectionJumpNav({
             <button
               type="button"
               onClick={() => scrollTo(l.id)}
-              className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 transition-colors hover:border-brand-300 hover:bg-brand-50 hover:text-brand-800 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-brand-500/50 dark:hover:bg-brand-950/40 dark:hover:text-brand-100"
+              className="text-brand-600 hover:bg-brand-50 hover:text-brand-700 dark:text-brand-400 dark:hover:bg-brand-950/40 dark:hover:text-brand-300 cursor-pointer rounded-md px-2 py-1 text-sm font-medium underline-offset-2 transition-colors hover:underline"
             >
               {l.label}
             </button>

@@ -338,7 +338,7 @@ interface Session {
 | `/brands/[id]` | `Detail` + `FormOffer` | Individual brand detail & editing |
 | `/brands/pending/[id]` | `PendingOfferReviewRouteClient` | Full-page review for merchant-submitted (pending) brands |
 | `/withdraw` | `WithdrawTable` | View withdrawal requests |
-| `/withdraw/[id]` | `WithdrawDetail` | Approve/reject withdrawals |
+| `/withdraw/[id]` | `WithdrawDetail` | Tabbed user/withdrawal detail (User Info, Benefits & Scoring, Conversions, Finance, Login Tracking, Delete user data) — approve/reject withdrawals plus the Cashback Wallet section |
 | `/conversion` | `ConversionTable` | Track affiliate conversions |
 | `/banner` | `BannerTable` ×2 | Main homepage carousel + small-banner strip (separate mock APIs) |
 | `/banner/all-brand-page` | `BannerTable` (all-brand variant) | All-brands listing screen banners |

@@ -7,6 +7,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useRolesQuery, ROLES_QUERY_KEY } from "@/hooks/useRoles";
 import { Modal } from "@/components/ui/modal";
 import { devError } from "@/lib/devConsole";
+import { isDirty } from "@/lib/isDirty";
 import {
   ALL_PERMISSIONS,
   RESOURCES,
@@ -41,6 +42,22 @@ export default function RoleManagement() {
   const [perms, setPerms] = useState<Set<Permission>>(new Set());
   const [submitting, setSubmitting] = useState(false);
 
+  // Baseline snapshot of the editable fields, captured when the modal opens, so
+  // Save stays disabled until something actually changes.
+  type FormSnapshot = { label: string; description: string; perms: string[] };
+  const snapshotOf = (
+    nextLabel: string,
+    nextDescription: string,
+    nextPerms: Iterable<Permission>,
+  ): FormSnapshot => ({
+    label: nextLabel,
+    description: nextDescription,
+    perms: [...nextPerms].sort(),
+  });
+  const [initialSnapshot, setInitialSnapshot] = useState<FormSnapshot>(
+    snapshotOf("", "", new Set()),
+  );
+
   const [roleToDelete, setRoleToDelete] = useState<RoleDef | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -51,6 +68,7 @@ export default function RoleManagement() {
     setLabel("");
     setDescription("");
     setPerms(new Set());
+    setInitialSnapshot(snapshotOf("", "", new Set()));
     clearError();
     setFormOpen(true);
   }
@@ -59,6 +77,9 @@ export default function RoleManagement() {
     setLabel(role.label);
     setDescription(role.description ?? "");
     setPerms(new Set(role.permissions));
+    setInitialSnapshot(
+      snapshotOf(role.label, role.description ?? "", role.permissions),
+    );
     clearError();
     setFormOpen(true);
   }
@@ -112,6 +133,11 @@ export default function RoleManagement() {
       setDeleting(false);
     }
   }
+
+  const formDirty = isDirty(
+    snapshotOf(label, description, perms),
+    initialSnapshot,
+  );
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
@@ -293,7 +319,7 @@ export default function RoleManagement() {
           <button
             type="button"
             onClick={submit}
-            disabled={submitting || !label.trim()}
+            disabled={submitting || !label.trim() || !formDirty}
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
             {submitting ? "Saving…" : editing ? "Save changes" : "Create role"}

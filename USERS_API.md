@@ -62,11 +62,15 @@ function UserComponent() {
 ### UsersQuery Interface
 ```typescript
 interface UsersQuery {
-  limit?: number;    // Number of users per page (default: 12)
-  page?: number;     // Page number (default: 1)
-  search?: string;   // Search term for username/email
-  role?: string;     // Filter by role
-  status?: string;   // Filter by status (active, inactive, suspended)
+  limit?: number;        // Number of users per page (default: 12)
+  page?: number;         // Page number (default: 1)
+  search?: string;       // Search term for username/email
+  role?: string;         // Filter by role
+  status?: string;       // Filter by status
+  sort?: string;         // "newest" | "name" | "tier" | "membership" (see lib/userSort)
+  tier?: string;         // Credit tier id: "bronze" | "silver" | "gold" | "platinum"
+  membership?: string;   // Membership tier name, e.g. "Basic" | "GoGoPass Plus"
+  subscription?: string; // "monthly" | "annual" | "none" (see lib/userFilter)
 }
 ```
 
@@ -109,19 +113,22 @@ interface UsersResponse {
 ```typescript
 interface RegularUser {
   _id: string;
-  username: string;
+  address: string;
+  __v: number;
   email: string;
-  password?: string;        // Usually omitted in responses
-  createdAt: string;
-  updatedAt: string;
-  __v?: number;
-  avatar?: string;
-  role?: string;
-  status?: 'active' | 'inactive' | 'suspended';
-  lastLogin?: string;
-  firstName?: string;
-  lastName?: string;
-  phone?: string;
+  id_crossmint: string;
+  id_twitter: string;
+  username: string;
+  mobile?: string;
+  id_firebase: string;
+  createdAt: Date;
+  updatedAt: Date;
+  birthdate: Date | null;
+  country: string | null;
+  gender: string | null;
+  membershipTier?: string;   // e.g. "Basic", "GoGoPass Plus"
+  subscriptionPlan?: string; // e.g. "Monthly Premium"; absent if not subscribed
+  creditScore?: number;      // 0–1000; drives the credit tier
 }
 ```
 
@@ -145,11 +152,13 @@ const { createUser } = useApi();
 const newUser = await createUser({
   username: 'newuser',
   email: 'user@example.com',
-  password: 'password123',
-  firstName: 'John',
-  lastName: 'Doe',
-  role: 'user',
-  status: 'active'
+  address: '0x...',
+  id_crossmint: '',
+  id_twitter: '',
+  id_firebase: '',
+  birthdate: null,
+  country: null,
+  gender: null,
 });
 ```
 
@@ -158,7 +167,7 @@ const newUser = await createUser({
 const { updateUser } = useApi();
 const updatedUser = await updateUser('user_id', {
   username: 'updatedname',
-  status: 'inactive'
+  country: 'TH'
 });
 ```
 

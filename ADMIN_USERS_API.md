@@ -18,7 +18,7 @@ const response = await apiClient.getAdminUsers({
   search: 'y'
 });
 
-console.log(response.users); // Array of admin users
+console.log(response.data); // Array of admin users
 console.log(response.pagination); // Pagination info
 ```
 
@@ -37,7 +37,7 @@ function AdminComponent() {
         search: 'y'
       });
       
-      console.log('Users:', response.users);
+      console.log('Users:', response.data);
       console.log('Pagination:', response.pagination);
     } catch (err) {
       console.error('Failed to fetch users:', err);
@@ -63,7 +63,7 @@ interface AdminUsersQuery {
   page?: number;     // Page number (default: 1)
   search?: string;   // Search term for username/email
   role?: string;     // Filter by role
-  status?: string;   // Filter by status (active, inactive, suspended)
+  status?: string;   // Filter by status (active, pending)
 }
 ```
 
@@ -92,32 +92,31 @@ await getAdminUsers({
 ### AdminUsersResponse
 ```typescript
 interface AdminUsersResponse {
-  users: AdminUser[];
-  pagination: {
-    currentPage: number;
-    totalPages: number;
-    totalUsers: number;
-    limit: number;
-    hasNextPage: boolean;
-    hasPrevPage: boolean;
-  };
+  data: DataAdminUsers[];
+  pagination: Pagination;
+}
+
+interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
 }
 ```
 
-### AdminUser
+### DataAdminUsers
 ```typescript
-interface AdminUser {
+interface DataAdminUsers {
   _id: string;
   username: string;
+  password: string;
   email: string;
-  password?: string;        // Usually omitted in responses
-  createdAt: string;
-  updatedAt: string;
-  __v?: number;
-  avatar?: string;
+  /** Role id — a built-in tier (`super_admin`…) or a custom role id. */
   role?: string;
-  status?: 'active' | 'inactive' | 'suspended';
-  lastLogin?: string;
+  status?: 'active' | 'pending';
+  createdAt: Date;
+  updatedAt: Date;
+  __v: number;
 }
 ```
 
@@ -152,7 +151,7 @@ const newUser = await createAdminUser({
 const { updateAdminUser } = useApi();
 const updatedUser = await updateAdminUser('user_id', {
   username: 'updatedname',
-  status: 'inactive'
+  status: 'pending'
 });
 ```
 

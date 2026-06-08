@@ -30,6 +30,7 @@ import { COMMON_CURRENCIES, FEE_REGION_PRESETS } from "@/data/feeRegionPresets";
 import toast from "react-hot-toast";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import { DEFAULT_MOCK_ACCESS_TOKEN } from "@/lib/authTokens";
+import { isDirty } from "@/lib/isDirty";
 
 function isCommonCurrency(code: string): boolean {
   return (COMMON_CURRENCIES as readonly string[]).includes(code.toUpperCase());
@@ -96,6 +97,10 @@ export default function FeeForm() {
   >({});
   const [fetching, setFetching] = useState(true);
   const [saving, setSaving] = useState(false);
+  /** Baseline snapshot of the loaded form; drives "disable Save until changed". */
+  const [initialForms, setInitialForms] = useState<FeeSettingsForm | null>(
+    null,
+  );
 
   const feeCountryOptions = useMemo(() => getFeeCountrySelectOptions(), []);
   const feeCountryCodeSet = useMemo(() => getFeeCountryCodeSet(), []);
@@ -116,7 +121,7 @@ export default function FeeForm() {
     const legacy = deriveLegacyWithdrawFields(fromApi);
     const capMode: GlobalMaxCapMode =
       res.global_max_cap_mode === "fixed" ? "fixed" : "percent";
-    setForms({
+    const loaded: FeeSettingsForm = {
       system: res.system,
       fee_withdraw_usd: legacy.fee_withdraw_usd,
       fee_withdraw_thb: legacy.fee_withdraw_thb,
@@ -130,7 +135,10 @@ export default function FeeForm() {
       global_max_cap_currency: (
         res.global_max_cap_currency ?? "THB"
       ).toUpperCase(),
-    });
+    };
+    setForms(loaded);
+    // Baseline reflects the LOADED entity so Save stays disabled until edited.
+    setInitialForms(structuredClone(loaded));
   }, []);
 
   useEffect(() => {
@@ -161,6 +169,9 @@ export default function FeeForm() {
   }, [token, applyFeeResponse]);
 
   const regions = forms.withdraw_regions ?? [];
+
+  // True once the user edits a field away from the loaded/saved baseline.
+  const dirty = initialForms !== null && isDirty(forms, initialForms);
 
   const updateRegion = (id: string, patch: Partial<FeeWithdrawRegion>) => {
     setForms((f) => {
@@ -272,6 +283,7 @@ export default function FeeForm() {
       }
     }
     const legacy = deriveLegacyWithdrawFields(normalized);
+    const savedSnapshot = structuredClone(forms);
     setSaving(true);
     try {
       await apiClient.updateFee(
@@ -282,6 +294,8 @@ export default function FeeForm() {
         },
         token,
       );
+      // Refresh baseline so Save disables again until the next edit.
+      setInitialForms(savedSnapshot);
       toast.success("Fee settings updated successfully");
     } catch (saveErr) {
       devError("Failed to save fee settings:", saveErr);
@@ -591,7 +605,7 @@ export default function FeeForm() {
                         <button
                           type="button"
                           onClick={() => void saveSettings()}
-                          disabled={saving || fetching || !forms.id}
+                          disabled={saving || fetching || !forms.id || !dirty}
                           className="h-11 w-full rounded-lg bg-blue-600 px-4 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:min-w-[7.5rem]"
                         >
                           {saving ? "Saving…" : "Save"}
@@ -941,7 +955,7 @@ export default function FeeForm() {
           <div className="border-t border-gray-100 pt-6 dark:border-gray-800">
             <button
               type="submit"
-              disabled={saving || fetching || !forms.id}
+              disabled={saving || fetching || !forms.id || !dirty}
               className="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:min-w-[200px]"
             >
               {saving ? "Saving..." : "Save"}

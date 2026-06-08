@@ -1,18 +1,32 @@
 # Deeplink page — cleaner UI plan
 
-Targets [`src/app/(admin)/(others-pages)/deeplink/page.tsx`](src/app/(admin)/(others-pages)/deeplink/page.tsx) and [`src/components/deeplink/DeeplinkTable.tsx`](src/components/deeplink/DeeplinkTable.tsx).
+Targets [`src/components/deeplink/DeeplinkTable.tsx`](src/components/deeplink/DeeplinkTable.tsx).
+
+> **Current architecture (verified):** there is no standalone Deeplink page anymore.
+> [`src/app/(admin)/(others-pages)/deeplink/page.tsx`](src/app/(admin)/(others-pages)/deeplink/page.tsx)
+> is now a `redirect("/brands?tab=deeplink")`. `DeeplinkTable` renders as the
+> **User tracking link** tab inside Brands Management
+> ([`src/components/offer/OffersManagementPageContent.tsx`](src/components/offer/OffersManagementPageContent.tsx)),
+> which already owns the single `PageBreadcrumb`. So the breadcrumb / page-shell
+> items below are owned by that tabbed shell, not by a deeplink page.
 
 ---
 
 ## 1. Problems today (from current markup)
 
+The breadcrumb-duplication problems below were resolved by moving Deeplink under
+the Brands Management tab shell (one `PageBreadcrumb`, no duplicate page title).
+What remains live in `DeeplinkTable.tsx`:
+
 | Issue | What users see / feel |
 |--------|----------------------|
-| **Redundant labels** | Page `h2` says **Deeplink**, breadcrumb repeats **Deeplink Home** and **Deeplink Lists**, and the card title is again **Deeplink Lists** — same idea three times. |
-| **Busy breadcrumb** | Four trail segments for a single list page; **Banner** uses a simpler pattern (`pageTitle` + default Home). |
-| **Dense table** | Seven columns with **ALL CAPS** headers; long IDs and URLs compete for attention; horizontal scroll on smaller widths. |
-| **Weak hierarchy** | No short page subtitle (“Track user deeplinks and clicks”); metrics (total rows) sit only inside the card. |
-| **Link-only deeplink** | URL is clickable but there is no quick **copy** action (common ops workflow). |
+| **Mixed-case headers** | `USER ID` / `EMAIL` are ALL CAPS while the rest (`Source`, `Offer / shop / brand`, `Tracking link`, `Click`, `Create Date`, `Update Date`) are sentence/title case — inconsistent within one header row. |
+| **Dense table** | Eight columns; long IDs and tracking links compete for attention; horizontal scroll below `min-w-[820px]`. |
+| **Link-only tracking link** | URL is a clickable link (truncated + `title` tooltip) but there is no quick **copy** action (common ops workflow). |
+
+> Already handled in the table: a card title (`h3` **Tracking link records**),
+> a `Total: N` count line (with "filtered from M" when searching), a search box,
+> and a `NoData` empty state. Row click opens a read-only detail `Modal`.
 
 ---
 
@@ -27,26 +41,23 @@ Targets [`src/app/(admin)/(others-pages)/deeplink/page.tsx`](src/app/(admin)/(ot
 
 ## 3. Phase A — Information architecture (quick win)
 
-**Page shell (`page.tsx`)**
+> **Status: largely done.** The breadcrumb now lives in the Brands Management tab
+> shell (`OffersManagementPageContent.tsx` → single `PageBreadcrumb`), and the
+> table title (`h3` **Tracking link records**) no longer repeats a page title.
+> Remaining optional polish:
 
-1. **Simplify breadcrumb** to match Banner-style usage:
-   - Either `pageTitle="Deeplink"` with **no** custom `items` (default: Home → Deeplink), **or** `items={[{ label: "Home", href: "/dashboard" }, { label: "Deeplink" }]}` only.
-2. Remove duplicate concepts: drop **“Deeplink Home”** and **“Deeplink Lists”** from the trail entirely.
-3. Optionally add a **one-line description** under the `PageBreadcrumb` title area (if you extend the component or add a small wrapper) — e.g. “View and search user deeplinks by offer and activity.”
+1. Optionally add a **one-line description** under the `PageBreadcrumb` title area (if you extend the component or add a small wrapper) — e.g. “View and search user tracking links by offer and activity.”
+2. Optionally reconsider the inner `h3` title now that Deeplink is a tab — e.g. drop it and rely on the active tab label + toolbar row (search + count).
 
-**Card / table header (`DeeplinkTable.tsx`)**
-
-4. Rename inner section title to something that doesn’t repeat the page: e.g. **“All records”**, **“Deeplink activity”**, or remove the `h3` and rely on the page title + toolbar row (search + count).
-
-**Acceptance:** User reads **Deeplink** once at the top; breadcrumb has at most **two** segments after Home.
+**Acceptance:** User reads the section once at the top; the tab shell owns one breadcrumb.
 
 ---
 
 ## 4. Phase B — Table readability
 
-1. **Headers**: switch from `USER ID` style to **sentence case** (`User ID`, `Email`, `Offer`, `URL`, `Clicks`, `Created`, `Updated`) for a calmer, more product-like look (match design tokens used elsewhere).
-2. **Column widths**: set sensible `min-w` / `max-w` per column; keep **User ID** monospace but shorten visible width with **tooltip** on hover (you already use `title` in places — align all truncations).
-3. **URL column**: show **truncated host + path** in cell; full URL in tooltip; primary actions: **Open** (icon link) + **Copy** (icon button with toast or brief “Copied”).
+1. **Headers**: switch the ALL-CAPS `USER ID` / `EMAIL` to **sentence case** so the whole header row is consistent — current columns are `User ID`, `Email`, `Source`, `Offer / shop / brand`, `Tracking link`, `Click`, `Create Date`, `Update Date` (match design tokens used elsewhere).
+2. **Column widths**: set sensible `min-w` / `max-w` per column; keep **User ID** monospace but shorten visible width with **tooltip** on hover (already done via `title` + `max-w-[180px]` truncation — align all truncations).
+3. **Tracking link column**: show **truncated host + path** in cell; full URL in tooltip (already truncates + has `title`); add primary actions: **Open** (icon link) + **Copy** (icon button with toast or brief “Copied”).
 4. **Dates**: use one format (ISO or locale) consistently; optional **relative** sublabel for “last 24h” teams (low priority).
 5. **Clicks**: right-align numbers; consider **thousands separator** for large values later.
 6. **Sticky header** on scroll (within card): `sticky top-0 z-10 bg-white dark:bg-gray-900` on `thead` for long lists.
@@ -84,8 +95,8 @@ If product wants **sorting, column resize, pagination** like Offer/Withdraw:
 
 ## 8. Implementation checklist (suggested order)
 
-- [ ] **A1** Simplify `page.tsx` breadcrumb (remove “Deeplink Home” / “Deeplink Lists” trail).
-- [ ] **A2** Remove or reword duplicate `h3` in `DeeplinkTable`.
+- [x] **A1** Breadcrumb owned by the Brands Management tab shell (`page.tsx` now redirects to `/brands?tab=deeplink`).
+- [ ] **A2** (optional) Reword/remove the `h3` in `DeeplinkTable` now that it's a tab.
 - [ ] **B1** Sentence-case headers + alignment tweaks.
 - [ ] **B2** URL column: truncate + copy + open.
 - [ ] **B3** Sticky table header inside card.
@@ -99,8 +110,9 @@ If product wants **sorting, column resize, pagination** like Offer/Withdraw:
 
 | File | Changes |
 |------|---------|
-| `src/app/(admin)/(others-pages)/deeplink/page.tsx` | Breadcrumb items; optional page description block |
-| `src/components/deeplink/DeeplinkTable.tsx` | Toolbar, headers, URL actions, sticky thead, filters |
+| `src/components/deeplink/DeeplinkTable.tsx` | Toolbar, headers, tracking-link actions, sticky thead, filters |
+| `src/components/offer/OffersManagementPageContent.tsx` | Breadcrumb items / tab labels; optional page description block (owns the shell now) |
 | `src/components/common/PageBreadCrumb.tsx` | Only if adding optional subtitle prop project-wide |
+| `src/app/(admin)/(others-pages)/deeplink/page.tsx` | Redirect-only today; touch only if the URL/redirect target changes |
 
 This keeps scope focused on **clarity and hierarchy** first; **DataGrid** and **API** are optional follow-ups.

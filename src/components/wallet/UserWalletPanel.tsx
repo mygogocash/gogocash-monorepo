@@ -36,6 +36,9 @@ export default function UserWalletPanel({
 }: Props) {
   const qc = useQueryClient();
   const [adj, setAdj] = useState({ amount: "", reason: "", otherReason: "" });
+  // Pending Freeze/Unfreeze choice — applied on Save, not immediately.
+  // `null` means "follow the loaded wallet status" (no change yet).
+  const [freezeChecked, setFreezeChecked] = useState<boolean | null>(null);
   // The recorded reason: the chosen preset, or the typed text when "Others".
   const effectiveReason =
     adj.reason === "Others" ? adj.otherReason : adj.reason;
@@ -82,6 +85,37 @@ export default function UserWalletPanel({
     return <p className="text-sm text-gray-500">Loading…</p>;
   }
   const frozen = detailQ.data.wallet.status === "frozen";
+  // The Freeze toggle and the cashback form are both committed by Save.
+  const freezeChanged = freezeChecked !== null && freezeChecked !== frozen;
+  const validCashback = isValidCashbackAddition(adj.amount, effectiveReason);
+  // Partially-typed cashback (an amount or reason, but not a valid pair) — block
+  // Save so a half-entered cashback request isn't silently dropped.
+  const cashbackPartial =
+    !validCashback && (adj.amount.trim() !== "" || adj.reason !== "");
+
+  const handleSave = async () => {
+    if (cashbackPartial) {
+      toast.error("Enter a positive amount and a reason, or clear the fields");
+      return;
+    }
+    if (!freezeChanged && !validCashback) return;
+    if (!confirm("Save changes to this user's wallet?")) return;
+    try {
+      if (freezeChanged) {
+        await (freezeChecked ? freeze : unfreeze).mutateAsync(userId);
+      }
+      if (validCashback) {
+        // addCashback.onSuccess resets the form, refreshes, and closes.
+        await addCashback.mutateAsync();
+      } else {
+        // Freeze-only save: addCashback didn't run, so finish up here.
+        onAdjusted?.();
+        onClose?.();
+      }
+    } catch {
+      toast.error("Could not save the wallet changes. Please try again.");
+    }
+  };
 
   return (
     <div className="space-y-4 text-sm">
@@ -90,9 +124,7 @@ export default function UserWalletPanel({
           label="Freeze wallet"
           defaultChecked={frozen}
           activeLabelClassName="text-brand-500 dark:text-brand-400"
-          onChange={(checked) =>
-            void (checked ? freeze : unfreeze).mutateAsync(userId)
-          }
+          onChange={setFreezeChecked}
         />
         <div className="mt-4 flex flex-wrap items-baseline gap-2">
           <p className="font-medium text-gray-900 dark:text-white">
@@ -110,7 +142,11 @@ export default function UserWalletPanel({
             onChange={(e) => setAdj({ ...adj, amount: e.target.value })}
           />
           <select
-            className="focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-800 focus:ring-3 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+            className={`focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm focus:ring-3 dark:border-gray-700 dark:bg-gray-900 ${
+              adj.reason === ""
+                ? "text-gray-500 dark:text-gray-400"
+                : "text-gray-800 dark:text-white/90"
+            }`}
             value={adj.reason}
             onChange={(e) => setAdj({ ...adj, reason: e.target.value })}
           >
@@ -132,6 +168,7 @@ export default function UserWalletPanel({
           <SecondaryButton
             onClick={() => {
               setAdj({ amount: "", reason: "", otherReason: "" });
+              setFreezeChecked(null);
               onClose?.();
             }}
           >
@@ -139,14 +176,8 @@ export default function UserWalletPanel({
           </SecondaryButton>
           <SecondaryButton
             variant="blue"
-            onClick={() => {
-              if (!isValidCashbackAddition(adj.amount, effectiveReason)) {
-                toast.error("Enter a positive amount and a reason");
-                return;
-              }
-              if (!confirm("Add cashback to this user's wallet?")) return;
-              void addCashback.mutateAsync();
-            }}
+            disabled={!(freezeChanged || validCashback)}
+            onClick={() => void handleSave()}
           >
             Save
           </SecondaryButton>

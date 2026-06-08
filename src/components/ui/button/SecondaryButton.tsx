@@ -6,6 +6,9 @@ const SECONDARY_BUTTON_VARIANTS = {
     "border border-gray-300 bg-white text-gray-800 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800",
   /** Brand-blue filled (the website's default blue). */
   blue: "bg-brand-500 text-white hover:bg-brand-600 disabled:bg-brand-300",
+  /** "Outline" — white fill with a 2px brand-blue border. */
+  outline:
+    "border-2 border-brand-500 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-brand-500 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800",
 } as const;
 
 /**

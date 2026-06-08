@@ -1,5 +1,7 @@
 # Plan: Deploy admin to Firebase Hosting (internal review)
 
+> **Status:** This is the **manual / optional** static-export path for internal previews. The app's automated deploy has **migrated to Railway** (`railway.json`, NIXPACKS — a full Next.js Node server); the Firebase Hosting CI was retired (see §8). The manual Firebase steps below still work via the `*:firebase*` npm scripts.
+
 **Target GCP / Firebase**
 
 | Field | Value |
@@ -122,14 +124,16 @@ Document in your internal wiki who may access `gogocash-staging` and that this b
 
 ---
 
-## 8. CI/CD (implemented)
+## 8. CI/CD — Firebase CI retired (app deploys on Railway)
+
+> **Update:** The Firebase Hosting GitHub Actions workflow was **retired** (commit `4a445d3`, "ci: retire Firebase Hosting workflows (migrated to Railway)"). There is **no `.github/workflows/` directory** in the repo anymore, so `.github/workflows/firebase-hosting-staging.yml` no longer exists. Automated deploys now run on **Railway** (`railway.json`, NIXPACKS builder — it builds and serves the standard Next.js Node server, not a static export). The Firebase Hosting steps in this doc remain only as a **manual** static-export option for internal previews.
 
 | Piece | Location |
 |--------|-----------|
-| **GitHub Actions** | `.github/workflows/firebase-hosting-staging.yml` — runs on **push to `staging`** and **workflow_dispatch**. |
-| **Local scripted deploy** | `npm run deploy:firebase:staging` → `scripts/deploy-firebase-staging.mjs` (requires `NEXTAUTH_SECRET`, `NEXTAUTH_URL` in the shell). |
+| **GitHub Actions (Firebase)** | _Retired — `.github/workflows/firebase-hosting-staging.yml` was removed (migrated to Railway)._ |
+| **Local scripted deploy (manual, still works)** | `npm run deploy:firebase:staging` → `scripts/deploy-firebase-staging.mjs` (requires `NEXTAUTH_SECRET`, `NEXTAUTH_URL` in the shell). |
 
-**Repository secrets** (Settings → Secrets and variables → Actions):
+**Repository secrets** _(historical — these applied to the retired Firebase CI workflow; not used by the Railway deploy)_:
 
 | Secret | Description |
 |--------|--------------|
@@ -165,7 +169,8 @@ Hosting keeps previous releases in the console; you can **roll back** to a prior
 | Firebase hosting config | `firebase.json` (includes basic security headers), `.firebaserc` |
 | Static export toggle | `next.config.ts` when `BUILD_FOR_FIREBASE=1` |
 | NPM scripts | `build:firebase`, `deploy:firebase`, `deploy:firebase:staging` |
-| CI workflow | `.github/workflows/firebase-hosting-staging.yml` |
+| Railway deploy config | `railway.json` (NIXPACKS builder) — current automated deploy target |
+| CI workflow | _Retired — `.github/workflows/firebase-hosting-staging.yml` removed; deploys moved to Railway (see §8)._ |
 | Local staging deploy script | `scripts/deploy-firebase-staging.mjs` |
 | NextAuth static export params | `src/app/api/auth/[...nextauth]/route.ts` (`generateStaticParams` when `BUILD_FOR_FIREBASE`) |
 
