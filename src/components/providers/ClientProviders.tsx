@@ -4,6 +4,7 @@ import "@/lib/installFirebaseStaticShims";
 import { SidebarProvider } from "@/context/SidebarContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import ThemeColorMeta from "@/components/theme/ThemeColorMeta";
+import DateInputCalendarAutoOpen from "@/components/datepicker/DateInputCalendarAutoOpen";
 import { SessionProvider } from "next-auth/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { getQueryClient } from "@/lib/query/queryClient";
@@ -20,6 +21,7 @@ export default function ClientProviders({
       <SessionProvider refetchOnWindowFocus={false} refetchInterval={0}>
         <ThemeProvider>
           <ThemeColorMeta />
+          <DateInputCalendarAutoOpen />
           <Toaster
             position="top-right"
             containerStyle={{
