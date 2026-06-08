@@ -1501,9 +1501,20 @@ const FormOffer = ({
                     Offer tags
                   </dt>
                   <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
-                    {offerTagPreviewChips.length > 0
-                      ? offerTagPreviewChips.join(", ")
-                      : "None enabled"}
+                    {offerTagPreviewChips.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {offerTagPreviewChips.map((c, i) => (
+                          <span
+                            key={`brand-summary-tag-${i}`}
+                            className="text-brand-900 dark:bg-brand-950/60 dark:text-brand-100 rounded-full bg-white/90 px-2.5 py-1 text-xs font-medium shadow-sm"
+                          >
+                            {c}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      "None enabled"
+                    )}
                   </dd>
                 </div>
               </dl>
