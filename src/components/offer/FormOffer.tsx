@@ -1898,8 +1898,8 @@ const FormOffer = ({
             </div>
             <div className="min-w-0">
               <FieldLabel
-                label="Advertiser"
-                description="Campaign / store on the network. Drives store= when applicable."
+                label="Affiliate brand name"
+                description="Store on the network; sets store= in the tracking link."
               />
               <select
                 id="offer-deeplink-advertiser"
