@@ -1246,10 +1246,10 @@ const FormOffer = ({
 
           <div>
             <div>
-              <h4 className="text-brand-900 dark:text-brand-100 text-sm font-semibold">
+              <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
                 Offer tags (merchandising)
               </h4>
-              <p className="text-brand-800/80 dark:text-brand-200/80 mt-1 text-xs">
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 Optional labels for the offer card in the app: category, promos,
                 and expiry messaging. Editable here; unrelated to partner rates
                 above.
