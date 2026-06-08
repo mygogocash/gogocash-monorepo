@@ -94,6 +94,7 @@ export function serializeOfferProductTypes(
       currency: (row.currency ?? "").trim(),
       deeplink: (row.deeplink ?? "").trim(),
       description: (row.description ?? "").trim(),
+      ...(row.is_tagline ? { is_tagline: true } : {}),
     }))
     .filter((row) => row.name.length > 0);
 }
