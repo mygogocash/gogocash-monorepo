@@ -124,10 +124,10 @@ function OfferFormSectionNav({ showReference }: { showReference: boolean }) {
           : []),
         { id: "offer-section-brand", label: "Brand" },
         { id: "offer-section-cashback", label: "Cashback Management" },
-        { id: "offer-section-tracking", label: "Tracking" },
         { id: "offer-section-merch", label: "Tags & feed" },
-        { id: "offer-section-policy", label: "Policy" },
         { id: "offer-section-media", label: "Media" },
+        { id: "offer-section-policy", label: "Policy" },
+        { id: "offer-section-tracking", label: "Info from partner" },
       ] as const,
     [showReference],
   );
@@ -1853,212 +1853,6 @@ const FormOffer = ({
           </section>
         </section>
 
-        {/* Tracking links — one per product-type row (brand / line), or single offer row */}
-        <div
-          id="offer-section-tracking"
-          className={`rounded-xl border border-gray-200 bg-gray-50/50 p-4 sm:p-5 dark:border-gray-700 dark:bg-gray-800/30 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
-        >
-          <div>
-            <h4 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
-              Info from partner
-            </h4>
-            <p className="mt-1 max-w-3xl text-sm leading-relaxed text-gray-500 dark:text-gray-400">
-              Choose network and advertiser, then set the app URL users open
-              from this offer. Per–product-type URLs appear when you add product
-              lines below and turn off{" "}
-              <span className="font-medium text-gray-700 dark:text-gray-300">
-                all product types
-              </span>
-              .
-            </p>
-          </div>
-          {/* Commission info from partner — read-only partner/network feed (moved from the tags card) */}
-          <div className="mt-5 border-y border-gray-200 py-5 dark:border-gray-700">
-            <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
-              Commission info from partner
-            </h4>
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Structured terms as supplied by the partner or affiliate network.
-              This does not change when you edit “Commission (%)” or “Max cap”
-              above — partner max cap is separate and read-only here.
-            </p>
-            <dl className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div>
-                <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                  Tracking model
-                </dt>
-                <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
-                  {offer?.commission_tracking?.trim()
-                    ? offer.commission_tracking
-                    : "—"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                  Min / Max
-                </dt>
-                <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
-                  {formatPartnerRatesMinMax(offer)}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                  Max cap (partner)
-                </dt>
-                <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
-                  {formatPartnerMaxCap(offer)}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                  Currency (partner)
-                </dt>
-                <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
-                  {offer?.currency?.trim() ? offer.currency : "—"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                  Payment terms
-                </dt>
-                <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
-                  {typeof offer?.payment_terms === "number"
-                    ? `${offer.payment_terms} days`
-                    : "—"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                  Validation terms
-                </dt>
-                <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
-                  {typeof offer?.validation_terms === "number"
-                    ? `${offer.validation_terms} days`
-                    : "—"}
-                </dd>
-              </div>
-            </dl>
-            {Array.isArray(offer?.special_commissions) &&
-            offer.special_commissions.length > 0 ? (
-              <p className="mt-3 text-xs text-gray-600 dark:text-gray-400">
-                <span className="font-medium text-gray-700 dark:text-gray-300">
-                  Special commissions:{" "}
-                </span>
-                {offer.special_commissions.length} tier(s) — see partner portal
-                for full rules.
-              </p>
-            ) : null}
-          </div>
-
-          <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
-            <div className="min-w-0">
-              <FieldLabel
-                label="Affiliate partner"
-                description="Network that supplies rates and tracking."
-              />
-              <select
-                id="offer-affiliate-network"
-                name="offer-affiliate-network"
-                className="shadow-theme-xs w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-                value={form.affiliate_network_id}
-                onChange={(e) =>
-                  setForm({ ...form, affiliate_network_id: e.target.value })
-                }
-                disabled={isLoading}
-              >
-                {affiliateSelectOptions.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="min-w-0">
-              <FieldLabel
-                label="Affiliate brand name"
-                description="Store on the network; sets store= in the tracking link."
-              />
-              <select
-                id="offer-deeplink-advertiser"
-                name="offer-deeplink-advertiser"
-                className="shadow-theme-xs w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-                value={form.deeplink_store_id}
-                onChange={(e) =>
-                  setForm({ ...form, deeplink_store_id: e.target.value })
-                }
-                disabled={isLoading}
-              >
-                {advertiserSelectOptions.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          {usePerProductTrackingLinks ? (
-            <ul className="mt-4 space-y-4">
-              {(form.product_types ?? []).map((row, i) => {
-                const label =
-                  row.name.trim() || `Brand / product line ${i + 1}`;
-                return (
-                  <li key={i}>
-                    <FieldLabel
-                      label={`Tracking link — ${label}`}
-                      description="URL opened in the app for this product type (e.g. gogocash.app/...)."
-                    />
-                    <Input
-                      type="url"
-                      name={`product_type_deeplink_${i}`}
-                      placeholder="https://gogocash.app/open/offer/..."
-                      value={row.deeplink ?? ""}
-                      onChange={(e) => {
-                        const next = [...(form.product_types ?? [])];
-                        next[i] = { ...next[i], deeplink: e.target.value };
-                        setForm({ ...form, product_types: next });
-                      }}
-                      disabled={isLoading}
-                      autoComplete="off"
-                    />
-                  </li>
-                );
-              })}
-            </ul>
-          ) : (
-            <div className="mt-4">
-              <FieldLabel
-                label="Tracking link"
-                description="Prefilled from partner data (rate, currency, affiliate network); you can edit before save. If you previously saved a custom URL, that value is shown instead."
-              />
-              <div className="relative">
-                <Input
-                  type="url"
-                  name="offer_deeplink"
-                  placeholder="https://gogocash.app/open/offer/..."
-                  value={offerDeeplinkDraft}
-                  onChange={(e) =>
-                    setDeeplinkOverride(
-                      offer
-                        ? { offerId: offer._id, value: e.target.value }
-                        : null,
-                    )
-                  }
-                  disabled={isLoading || saveOfferDeeplink.isPending}
-                  autoComplete="off"
-                  className="pr-12"
-                />
-                <div className="absolute inset-y-0 right-2 flex items-center">
-                  <CopyButton
-                    value={offerDeeplinkDraft}
-                    title="Copy tracking link"
-                    iconClassName="h-6 w-6"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
         {/* Offer tags (merchandising) — editable display labels for the app */}
         <div
           id="offer-section-merch"
@@ -2425,6 +2219,152 @@ const FormOffer = ({
           </div>
         </div>
 
+        {/* Logos & media */}
+        <section
+          id="offer-section-media"
+          className={`space-y-4 rounded-xl border border-gray-200 bg-gray-50/50 p-4 sm:p-5 dark:border-gray-700 dark:bg-gray-800/30 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <h4 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
+              Logos & media
+            </h4>
+            {!editingMedia ? (
+              <SecondaryButton onClick={beginEditMedia} disabled={!offer}>
+                Edit
+              </SecondaryButton>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                <SecondaryButton
+                  onClick={cancelEditMedia}
+                  disabled={savingMedia}
+                >
+                  Cancel
+                </SecondaryButton>
+                <SecondaryButton
+                  variant="blue"
+                  onClick={() => void saveMediaEdit()}
+                  disabled={savingMedia}
+                >
+                  {savingMedia ? "Saving…" : "Save"}
+                </SecondaryButton>
+              </div>
+            )}
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {editingMedia
+              ? "Upload images for the logo, brand cover, and banner. Leave empty to keep current."
+              : "Current images. Click Edit to replace them."}
+          </p>
+
+          <div>
+            <FieldLabel
+              label="Logo"
+              description="Square (1:1) logo — used on both desktop and mobile."
+            />
+            <div className="flex flex-wrap items-start gap-4">
+              {editingMedia && (
+                <div className="w-[320px] max-w-full shrink-0">
+                  <Input
+                    type="file"
+                    name="logo_desktop"
+                    onChange={(e) => {
+                      // One 1:1 logo for both surfaces: set desktop + mobile to it.
+                      const file = e.target.files?.[0] || null;
+                      setForm((prev) => ({
+                        ...prev,
+                        logo_desktop: file,
+                        logo_mobile: file,
+                      }));
+                    }}
+                  />
+                </div>
+              )}
+              {(form.logo_desktop || (openModal as Offer).logo_desktop) && (
+                <RemoteOrBlobImage
+                  src={
+                    logoDesktopUrl ??
+                    pathImage((openModal as Offer).logo_desktop)
+                  }
+                  alt="Preview"
+                  width={256}
+                  height={256}
+                  className="h-32 w-32 rounded-lg border border-gray-200 object-contain dark:border-gray-600"
+                />
+              )}
+            </div>
+          </div>
+
+          <div>
+            <FieldLabel
+              label="Brand cover"
+              description="Cover image shown on the brand's shop page."
+            />
+            <div className="flex flex-wrap items-start gap-4">
+              {editingMedia && (
+                <div className="w-[320px] max-w-full shrink-0">
+                  <Input
+                    type="file"
+                    name="logo_circle"
+                    onChange={(e) => handleFileChange(e, "logo_circle")}
+                  />
+                  <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    Requested size: 1,200 × 410 px (W × H).
+                  </p>
+                </div>
+              )}
+              {(form.logo_circle || (openModal as Offer).logo_circle) && (
+                <RemoteOrBlobImage
+                  src={
+                    logoCircleUrl ?? pathImage((openModal as Offer).logo_circle)
+                  }
+                  alt="Preview"
+                  width={256}
+                  height={256}
+                  className="aspect-[1200/410] h-auto w-[250px] shrink-0 rounded-lg border border-gray-200 object-cover dark:border-gray-600"
+                />
+              )}
+            </div>
+          </div>
+
+          <div>
+            <FieldLabel
+              label="Banner"
+              description="Hero / banner image — used on both desktop and mobile."
+            />
+            <div className="flex flex-wrap items-start gap-4">
+              {editingMedia && (
+                <div className="w-[320px] max-w-full shrink-0">
+                  <Input
+                    type="file"
+                    name="banner"
+                    onChange={(e) => {
+                      // One banner for both surfaces: set desktop + mobile to it.
+                      const file = e.target.files?.[0] || null;
+                      setForm((prev) => ({
+                        ...prev,
+                        banner: file,
+                        banner_mobile: file,
+                      }));
+                    }}
+                  />
+                  <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    Requested size: 800 × 450 px (W × H).
+                  </p>
+                </div>
+              )}
+              {(form.banner || (openModal as Offer).banner) && (
+                <RemoteOrBlobImage
+                  src={bannerUrl ?? pathImage((openModal as Offer).banner)}
+                  alt="Preview"
+                  width={256}
+                  height={256}
+                  className="aspect-[800/450] h-auto w-[250px] shrink-0 rounded-lg border border-gray-200 object-cover dark:border-gray-600"
+                />
+              )}
+            </div>
+          </div>
+        </section>
+
         {/* Policy (T&C source) — read-only by default; per-section Edit/Save. */}
         <section
           id="offer-section-policy"
@@ -2602,151 +2542,211 @@ const FormOffer = ({
           )}
         </section>
 
-        {/* Logos & media */}
-        <section
-          id="offer-section-media"
-          className={`space-y-4 rounded-xl border border-gray-200 bg-gray-50/50 p-4 sm:p-5 dark:border-gray-700 dark:bg-gray-800/30 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
+        {/* Tracking links — one per product-type row (brand / line), or single offer row */}
+        <div
+          id="offer-section-tracking"
+          className={`rounded-xl border border-gray-200 bg-gray-50/50 p-4 sm:p-5 dark:border-gray-700 dark:bg-gray-800/30 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
         >
-          <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
             <h4 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
-              Logos & media
+              Info from partner
             </h4>
-            {!editingMedia ? (
-              <SecondaryButton onClick={beginEditMedia} disabled={!offer}>
-                Edit
-              </SecondaryButton>
-            ) : (
-              <div className="flex flex-wrap items-center gap-2">
-                <SecondaryButton
-                  onClick={cancelEditMedia}
-                  disabled={savingMedia}
-                >
-                  Cancel
-                </SecondaryButton>
-                <SecondaryButton
-                  variant="blue"
-                  onClick={() => void saveMediaEdit()}
-                  disabled={savingMedia}
-                >
-                  {savingMedia ? "Saving…" : "Save"}
-                </SecondaryButton>
+            <p className="mt-1 max-w-3xl text-sm leading-relaxed text-gray-500 dark:text-gray-400">
+              Choose network and advertiser, then set the app URL users open
+              from this offer. Per–product-type URLs appear when you add product
+              lines below and turn off{" "}
+              <span className="font-medium text-gray-700 dark:text-gray-300">
+                all product types
+              </span>
+              .
+            </p>
+          </div>
+          {/* Commission info from partner — read-only partner/network feed (moved from the tags card) */}
+          <div className="mt-5 border-y border-gray-200 py-5 dark:border-gray-700">
+            <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+              Commission info from partner
+            </h4>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Structured terms as supplied by the partner or affiliate network.
+              This does not change when you edit “Commission (%)” or “Max cap”
+              above — partner max cap is separate and read-only here.
+            </p>
+            <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div>
+                <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                  Tracking model
+                </dt>
+                <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                  {offer?.commission_tracking?.trim()
+                    ? offer.commission_tracking
+                    : "—"}
+                </dd>
               </div>
-            )}
+              <div>
+                <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                  Min / Max
+                </dt>
+                <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                  {formatPartnerRatesMinMax(offer)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                  Max cap (partner)
+                </dt>
+                <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                  {formatPartnerMaxCap(offer)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                  Currency (partner)
+                </dt>
+                <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                  {offer?.currency?.trim() ? offer.currency : "—"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                  Payment terms
+                </dt>
+                <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                  {typeof offer?.payment_terms === "number"
+                    ? `${offer.payment_terms} days`
+                    : "—"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                  Validation terms
+                </dt>
+                <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                  {typeof offer?.validation_terms === "number"
+                    ? `${offer.validation_terms} days`
+                    : "—"}
+                </dd>
+              </div>
+            </dl>
+            {Array.isArray(offer?.special_commissions) &&
+            offer.special_commissions.length > 0 ? (
+              <p className="mt-3 text-xs text-gray-600 dark:text-gray-400">
+                <span className="font-medium text-gray-700 dark:text-gray-300">
+                  Special commissions:{" "}
+                </span>
+                {offer.special_commissions.length} tier(s) — see partner portal
+                for full rules.
+              </p>
+            ) : null}
           </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            {editingMedia
-              ? "Upload images for the logo, brand cover, and banner. Leave empty to keep current."
-              : "Current images. Click Edit to replace them."}
-          </p>
 
-          <div>
-            <FieldLabel
-              label="Logo"
-              description="Square (1:1) logo — used on both desktop and mobile."
-            />
-            <div className="flex flex-wrap items-start gap-4">
-              {editingMedia && (
-                <div className="w-[320px] max-w-full shrink-0">
-                  <Input
-                    type="file"
-                    name="logo_desktop"
-                    onChange={(e) => {
-                      // One 1:1 logo for both surfaces: set desktop + mobile to it.
-                      const file = e.target.files?.[0] || null;
-                      setForm((prev) => ({
-                        ...prev,
-                        logo_desktop: file,
-                        logo_mobile: file,
-                      }));
-                    }}
-                  />
-                </div>
-              )}
-              {(form.logo_desktop || (openModal as Offer).logo_desktop) && (
-                <RemoteOrBlobImage
-                  src={
-                    logoDesktopUrl ??
-                    pathImage((openModal as Offer).logo_desktop)
+          <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
+            <div className="min-w-0">
+              <FieldLabel
+                label="Affiliate partner"
+                description="Network that supplies rates and tracking."
+              />
+              <select
+                id="offer-affiliate-network"
+                name="offer-affiliate-network"
+                className="shadow-theme-xs w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                value={form.affiliate_network_id}
+                onChange={(e) =>
+                  setForm({ ...form, affiliate_network_id: e.target.value })
+                }
+                disabled={isLoading}
+              >
+                {affiliateSelectOptions.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="min-w-0">
+              <FieldLabel
+                label="Affiliate brand name"
+                description="Store on the network; sets store= in the tracking link."
+              />
+              <select
+                id="offer-deeplink-advertiser"
+                name="offer-deeplink-advertiser"
+                className="shadow-theme-xs w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                value={form.deeplink_store_id}
+                onChange={(e) =>
+                  setForm({ ...form, deeplink_store_id: e.target.value })
+                }
+                disabled={isLoading}
+              >
+                {advertiserSelectOptions.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          {usePerProductTrackingLinks ? (
+            <ul className="mt-4 space-y-4">
+              {(form.product_types ?? []).map((row, i) => {
+                const label =
+                  row.name.trim() || `Brand / product line ${i + 1}`;
+                return (
+                  <li key={i}>
+                    <FieldLabel
+                      label={`Tracking link — ${label}`}
+                      description="URL opened in the app for this product type (e.g. gogocash.app/...)."
+                    />
+                    <Input
+                      type="url"
+                      name={`product_type_deeplink_${i}`}
+                      placeholder="https://gogocash.app/open/offer/..."
+                      value={row.deeplink ?? ""}
+                      onChange={(e) => {
+                        const next = [...(form.product_types ?? [])];
+                        next[i] = { ...next[i], deeplink: e.target.value };
+                        setForm({ ...form, product_types: next });
+                      }}
+                      disabled={isLoading}
+                      autoComplete="off"
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <div className="mt-4">
+              <FieldLabel
+                label="Tracking link"
+                description="Prefilled from partner data (rate, currency, affiliate network); you can edit before save. If you previously saved a custom URL, that value is shown instead."
+              />
+              <div className="relative">
+                <Input
+                  type="url"
+                  name="offer_deeplink"
+                  placeholder="https://gogocash.app/open/offer/..."
+                  value={offerDeeplinkDraft}
+                  onChange={(e) =>
+                    setDeeplinkOverride(
+                      offer
+                        ? { offerId: offer._id, value: e.target.value }
+                        : null,
+                    )
                   }
-                  alt="Preview"
-                  width={256}
-                  height={256}
-                  className="h-32 w-32 rounded-lg border border-gray-200 object-contain dark:border-gray-600"
+                  disabled={isLoading || saveOfferDeeplink.isPending}
+                  autoComplete="off"
+                  className="pr-12"
                 />
-              )}
-            </div>
-          </div>
-
-          <div>
-            <FieldLabel
-              label="Brand cover"
-              description="Cover image shown on the brand's shop page."
-            />
-            <div className="flex flex-wrap items-start gap-4">
-              {editingMedia && (
-                <div className="w-[320px] max-w-full shrink-0">
-                  <Input
-                    type="file"
-                    name="logo_circle"
-                    onChange={(e) => handleFileChange(e, "logo_circle")}
+                <div className="absolute inset-y-0 right-2 flex items-center">
+                  <CopyButton
+                    value={offerDeeplinkDraft}
+                    title="Copy tracking link"
+                    iconClassName="h-6 w-6"
                   />
-                  <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                    Requested size: 1,200 × 410 px (W × H).
-                  </p>
                 </div>
-              )}
-              {(form.logo_circle || (openModal as Offer).logo_circle) && (
-                <RemoteOrBlobImage
-                  src={
-                    logoCircleUrl ?? pathImage((openModal as Offer).logo_circle)
-                  }
-                  alt="Preview"
-                  width={256}
-                  height={256}
-                  className="aspect-[1200/410] h-auto w-[250px] shrink-0 rounded-lg border border-gray-200 object-cover dark:border-gray-600"
-                />
-              )}
+              </div>
             </div>
-          </div>
-
-          <div>
-            <FieldLabel
-              label="Banner"
-              description="Hero / banner image — used on both desktop and mobile."
-            />
-            <div className="flex flex-wrap items-start gap-4">
-              {editingMedia && (
-                <div className="w-[320px] max-w-full shrink-0">
-                  <Input
-                    type="file"
-                    name="banner"
-                    onChange={(e) => {
-                      // One banner for both surfaces: set desktop + mobile to it.
-                      const file = e.target.files?.[0] || null;
-                      setForm((prev) => ({
-                        ...prev,
-                        banner: file,
-                        banner_mobile: file,
-                      }));
-                    }}
-                  />
-                  <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                    Requested size: 800 × 450 px (W × H).
-                  </p>
-                </div>
-              )}
-              {(form.banner || (openModal as Offer).banner) && (
-                <RemoteOrBlobImage
-                  src={bannerUrl ?? pathImage((openModal as Offer).banner)}
-                  alt="Preview"
-                  width={256}
-                  height={256}
-                  className="aspect-[800/450] h-auto w-[250px] shrink-0 rounded-lg border border-gray-200 object-cover dark:border-gray-600"
-                />
-              )}
-            </div>
-          </div>
-        </section>
+          )}
+        </div>
       </>
     </OfferFullscreenCardShell>
   );
