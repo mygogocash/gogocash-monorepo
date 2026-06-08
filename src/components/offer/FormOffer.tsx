@@ -1519,7 +1519,7 @@ const FormOffer = ({
                             </th>
                             <th
                               scope="col"
-                              className="px-4 py-2.5 text-right text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400"
+                              className="w-24 px-2 py-2.5 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400"
                             >
                               Action
                             </th>
@@ -1608,7 +1608,7 @@ const FormOffer = ({
                                 <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">
                                   {value}
                                 </td>
-                                <td className="relative px-4 py-2.5 text-right">
+                                <td className="relative w-24 px-2 py-2.5 text-left">
                                   {isEditingThisRow ? (
                                     <span className="bg-brand-100 text-brand-700 dark:bg-brand-500/20 dark:text-brand-300 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium">
                                       Editing…
