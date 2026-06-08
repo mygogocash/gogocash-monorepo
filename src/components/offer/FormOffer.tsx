@@ -1253,6 +1253,14 @@ const FormOffer = ({
               <h4 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
                 Cashback Management
               </h4>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                The default cashback for this offer (commission %, product-type
+                lines, and max cap). Run a special-period promotion under{" "}
+                <span className="font-medium text-gray-700 dark:text-gray-300">
+                  Upsize event
+                </span>
+                .
+              </p>
 
               <div className="min-w-0 space-y-[18px]">
                 {/* Commission entry — grouped for easier selection */}
@@ -2132,7 +2140,9 @@ const FormOffer = ({
                     Upsize event
                   </h5>
                   <p className="text-brand-800/80 dark:text-brand-200/80 mt-0.5 text-xs">
-                    Optional period with special commission and max cap.
+                    Special-period promotion — temporarily overrides the default
+                    cashback above with a higher commission and max cap for a
+                    set window.
                   </p>
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <Button
