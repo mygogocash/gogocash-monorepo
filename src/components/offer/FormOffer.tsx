@@ -2521,42 +2521,6 @@ const FormOffer = ({
                 )}
                 {showUpsizeEventPeriodFields || form.all_product_types ? (
                   <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                    <div>
-                      <FieldLabel
-                        label="Start date"
-                        description="When the promo starts."
-                      />
-                      <Input
-                        type="date"
-                        name="upsize_start_date"
-                        onChange={(e) =>
-                          setForm({
-                            ...form,
-                            upsize_start_date: e.target.value || null,
-                          })
-                        }
-                        defaultValue={form.upsize_start_date ?? ""}
-                        disabled={isLoading}
-                      />
-                    </div>
-                    <div>
-                      <FieldLabel
-                        label="End date"
-                        description="When the promo ends."
-                      />
-                      <Input
-                        type="date"
-                        name="upsize_end_date"
-                        onChange={(e) =>
-                          setForm({
-                            ...form,
-                            upsize_end_date: e.target.value || null,
-                          })
-                        }
-                        defaultValue={form.upsize_end_date ?? ""}
-                        disabled={isLoading}
-                      />
-                    </div>
                     <div className="sm:col-span-2">
                       <FieldLabel
                         label={
@@ -2685,6 +2649,58 @@ const FormOffer = ({
                         defaultValue={form.upsize_max_cap ?? ""}
                         disabled={isLoading}
                       />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <p className="mb-1.5 text-sm font-medium text-gray-800 dark:text-gray-200">
+                        Upsize period
+                      </p>
+                      <div className="flex flex-wrap items-end gap-3">
+                        <div className="min-w-0 flex-1">
+                          <label
+                            htmlFor="offer-upsize-start"
+                            className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400"
+                          >
+                            Start
+                          </label>
+                          <Input
+                            id="offer-upsize-start"
+                            type="date"
+                            name="upsize_start_date"
+                            onChange={(e) =>
+                              setForm({
+                                ...form,
+                                upsize_start_date: e.target.value || null,
+                              })
+                            }
+                            defaultValue={form.upsize_start_date ?? ""}
+                            disabled={isLoading}
+                          />
+                        </div>
+                        <span className="pb-3 text-sm text-gray-500 dark:text-gray-400">
+                          to
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <label
+                            htmlFor="offer-upsize-end"
+                            className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400"
+                          >
+                            End
+                          </label>
+                          <Input
+                            id="offer-upsize-end"
+                            type="date"
+                            name="upsize_end_date"
+                            onChange={(e) =>
+                              setForm({
+                                ...form,
+                                upsize_end_date: e.target.value || null,
+                              })
+                            }
+                            defaultValue={form.upsize_end_date ?? ""}
+                            disabled={isLoading}
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ) : null}
