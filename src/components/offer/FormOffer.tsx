@@ -1797,10 +1797,10 @@ const FormOffer = ({
           </p>
           {/* Commission info from partner — read-only partner/network feed (moved from the tags card) */}
           <div className="mt-5">
-            <h4 className="text-brand-900 dark:text-brand-100 text-sm font-semibold">
+            <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
               Commission info from partner
             </h4>
-            <p className="text-brand-800/80 dark:text-brand-200/80 mt-1 text-xs">
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               Structured terms as supplied by the partner or affiliate network.
               This does not change when you edit “Commission (%)” or “Max cap”
               above — partner max cap is separate and read-only here.
