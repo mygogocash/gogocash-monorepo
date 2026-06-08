@@ -2053,15 +2053,8 @@ const FormOffer = ({
                     </div>
                   )}
 
-                  {/* 3rd line: editing hint + Cancel / Add|Update (bottom right) */}
+                  {/* 3rd line: Cancel / Add|Update (bottom right) */}
                   <div className="flex flex-wrap items-center justify-end gap-2">
-                    {editingProductIndex !== null && (
-                      <span className="text-brand-600 dark:text-brand-400 mr-auto text-xs font-medium">
-                        Editing “
-                        {productTypeDraft.name.trim() || "product type"}” —
-                        Update to save, or Cancel to discard.
-                      </span>
-                    )}
                     <button
                       type="button"
                       onClick={cancelProductTypeDraft}
