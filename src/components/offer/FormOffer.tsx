@@ -331,7 +331,8 @@ const FormOffer = ({
 
   /** Per-line tracking URLs only when there are product-type rows and “all product types” is off. */
   const usePerProductTrackingLinks =
-    (form.product_types ?? []).length > 0 && !form.all_product_types;
+    (form.product_types ?? []).some((r) => !r.is_tagline) &&
+    !form.all_product_types;
 
   const affiliateSelectOptions = useMemo<IdLabelOption[]>(
     () => AFFILIATE_NETWORKS.map((n) => ({ id: n.id, label: n.name })),
@@ -342,9 +343,11 @@ const FormOffer = ({
     [],
   );
 
-  /** Names from Brand Info → Product Type rows, for Upsize line picker. */
+  /** Names from Brand Info → Product Type rows, for Upsize line picker.
+   *  Excludes tagline (group-heading) rows — those aren't selectable product types. */
   const upsizeProductTypeNameOptions = useMemo(() => {
     const names = (form.product_types ?? [])
+      .filter((r) => !r.is_tagline)
       .map((r) => r.name.trim())
       .filter(Boolean);
     return [...new Set(names)];
@@ -3044,6 +3047,7 @@ const FormOffer = ({
               {usePerProductTrackingLinks ? (
                 <ul className="mt-4 space-y-4">
                   {(form.product_types ?? []).map((row, i) => {
+                    if (row.is_tagline) return null;
                     const label =
                       row.name.trim() || `Brand / product line ${i + 1}`;
                     return (
@@ -3120,6 +3124,7 @@ const FormOffer = ({
               {usePerProductTrackingLinks ? (
                 <ul className="space-y-3">
                   {(form.product_types ?? []).map((row, i) => {
+                    if (row.is_tagline) return null;
                     const label =
                       row.name.trim() || `Brand / product line ${i + 1}`;
                     return (
