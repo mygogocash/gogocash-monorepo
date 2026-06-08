@@ -85,7 +85,7 @@ function FieldLabel({
   label,
   description,
 }: {
-  label: string;
+  label: React.ReactNode;
   description: string;
 }) {
   return (
@@ -2559,7 +2559,14 @@ const FormOffer = ({
                     </div>
                     <div className="sm:col-span-2">
                       <FieldLabel
-                        label="Special commission (%)"
+                        label={
+                          <>
+                            <span className="text-brand-600 dark:text-brand-400">
+                              Upsize
+                            </span>{" "}
+                            commission (%)
+                          </>
+                        }
                         description="Commission during the promo."
                       />
                       <div className="mb-2 flex flex-wrap gap-2">
@@ -2653,9 +2660,16 @@ const FormOffer = ({
                         )}
                       </div>
                     </div>
-                    <div>
+                    <div className="sm:col-span-2">
                       <FieldLabel
-                        label="Max cap (upsize)"
+                        label={
+                          <>
+                            Max cap for{" "}
+                            <span className="text-brand-600 dark:text-brand-400">
+                              upsize
+                            </span>
+                          </>
+                        }
                         description="Maximum cap offered to users during the promo. Enter the value already reduced by 30% from the affiliate partner cap."
                       />
                       <Input
