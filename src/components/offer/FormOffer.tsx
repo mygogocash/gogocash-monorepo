@@ -2,8 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import Autocomplete from "@mui/material/Autocomplete";
-import TextField from "@mui/material/TextField";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import NoData from "@/components/common/NoData";
 import CopyButton from "@/components/ui/CopyButton";
@@ -114,8 +112,6 @@ const COMMISSION_MODE_TOGGLE_INACTIVE = `${SUPPORT_BUTTON_CLASS} transition disa
 const SUPPORT_BUTTON_BLUE_CLASS = COMMISSION_MODE_TOGGLE_ACTIVE;
 /** Default (outline) Support button with disabled states — for "Cancel". */
 const SUPPORT_BUTTON_DEFAULT_CLASS = `${SUPPORT_BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-50`;
-
-const AUTOCOMPLETE_POPPER_Z = { zIndex: 100002 } as const;
 
 type IdLabelOption = { id: string; label: string };
 
@@ -342,22 +338,9 @@ const FormOffer = ({
     () => AFFILIATE_NETWORKS.map((n) => ({ id: n.id, label: n.name })),
     [],
   );
-  const selectedAffiliateOption = useMemo(
-    () =>
-      affiliateSelectOptions.find((o) => o.id === form.affiliate_network_id) ??
-      null,
-    [affiliateSelectOptions, form.affiliate_network_id],
-  );
-
   const advertiserSelectOptions = useMemo<IdLabelOption[]>(
     () => DEEPLINK_STORE_OPTIONS.map((s) => ({ id: s.id, label: s.label })),
     [],
-  );
-  const selectedAdvertiserOption = useMemo(
-    () =>
-      advertiserSelectOptions.find((o) => o.id === form.deeplink_store_id) ??
-      null,
-    [advertiserSelectOptions, form.deeplink_store_id],
   );
 
   /** Names from Brand Info → Product Type rows, for Upsize line picker. */
@@ -1894,60 +1877,46 @@ const FormOffer = ({
             <div className="min-w-0">
               <FieldLabel
                 label="Affiliate partner"
-                description="Network that supplies rates and tracking. Type to filter the list."
+                description="Network that supplies rates and tracking."
               />
-              <Autocomplete<IdLabelOption, false, false, false>
+              <select
                 id="offer-affiliate-network"
-                options={affiliateSelectOptions}
-                value={selectedAffiliateOption}
-                onChange={(_e, v) =>
-                  setForm({ ...form, affiliate_network_id: v?.id ?? "" })
+                name="offer-affiliate-network"
+                className="shadow-theme-xs w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                value={form.affiliate_network_id}
+                onChange={(e) =>
+                  setForm({ ...form, affiliate_network_id: e.target.value })
                 }
-                getOptionLabel={(o) => o.label}
-                isOptionEqualToValue={(a, b) => a.id === b.id}
                 disabled={isLoading}
-                size="small"
-                sx={{ mt: 0.5, width: "100%" }}
-                slotProps={{
-                  popper: { sx: AUTOCOMPLETE_POPPER_Z },
-                }}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    placeholder="Search network…"
-                    variant="outlined"
-                  />
-                )}
-              />
+              >
+                {affiliateSelectOptions.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="min-w-0">
               <FieldLabel
                 label="Advertiser"
-                description="Campaign / store on the network. Type to filter; drives store= when applicable."
+                description="Campaign / store on the network. Drives store= when applicable."
               />
-              <Autocomplete<IdLabelOption, false, false, false>
+              <select
                 id="offer-deeplink-advertiser"
-                options={advertiserSelectOptions}
-                value={selectedAdvertiserOption}
-                onChange={(_e, v) =>
-                  setForm({ ...form, deeplink_store_id: v?.id ?? "" })
+                name="offer-deeplink-advertiser"
+                className="shadow-theme-xs w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                value={form.deeplink_store_id}
+                onChange={(e) =>
+                  setForm({ ...form, deeplink_store_id: e.target.value })
                 }
-                getOptionLabel={(o) => o.label}
-                isOptionEqualToValue={(a, b) => a.id === b.id}
                 disabled={isLoading}
-                size="small"
-                sx={{ mt: 0.5, width: "100%" }}
-                slotProps={{
-                  popper: { sx: AUTOCOMPLETE_POPPER_Z },
-                }}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    placeholder="Search advertiser…"
-                    variant="outlined"
-                  />
-                )}
-              />
+              >
+                {advertiserSelectOptions.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
           {usePerProductTrackingLinks ? (
