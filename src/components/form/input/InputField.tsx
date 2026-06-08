@@ -22,6 +22,7 @@ interface InputProps {
   error?: boolean;
   hint?: string; // Optional hint text
   enterKeyHint?: React.HTMLAttributes<HTMLInputElement>["enterKeyHint"];
+  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
   autoComplete?: string;
   accept?: string;
   /** Accessible name when there's no visible <label> (e.g. placeholder-as-title). */
@@ -52,6 +53,7 @@ const Input: FC<InputProps> = ({
   onBlur,
   hint,
   enterKeyHint,
+  inputMode,
   autoComplete,
   accept,
   ariaLabel,
@@ -98,6 +100,7 @@ const Input: FC<InputProps> = ({
         disabled={disabled}
         className={inputClasses}
         enterKeyHint={enterKeyHint}
+        inputMode={inputMode}
         autoComplete={autoComplete}
         accept={accept}
         aria-label={ariaLabel}

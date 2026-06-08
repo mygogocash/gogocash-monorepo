@@ -35,6 +35,7 @@ import {
   applyThirtyPercentFee,
   reverseThirtyPercentFee,
 } from "@/lib/commissionFee";
+import { formatTime24Input } from "@/lib/time24";
 import { netCommissionFromRaw } from "@/lib/productTypeCommission";
 import {
   EMPTY_PRODUCT_TYPE_DRAFT,
@@ -426,14 +427,6 @@ const FormOffer = ({
   const [endDateType, setEndDateType] = useState<"text" | "date">(
     form.upsize_end_date ? "date" : "text",
   );
-  // Same text↔native swap for the time boxes so "Start Time" / "End Time"
-  // placeholders show (a native <input type=time> can't carry a placeholder).
-  const [startTimeType, setStartTimeType] = useState<"text" | "time">(
-    form.upsize_start_time ? "time" : "text",
-  );
-  const [endTimeType, setEndTimeType] = useState<"text" | "time">(
-    form.upsize_end_time ? "time" : "text",
-  );
   const [commissionRawId, setCommissionRawId] = useState(form.id);
   if (commissionRawId !== form.id) {
     setCommissionRawId(form.id);
@@ -450,8 +443,6 @@ const FormOffer = ({
     setUpsizeCommissionMode("auto");
     setStartDateType(form.upsize_start_date ? "date" : "text");
     setEndDateType(form.upsize_end_date ? "date" : "text");
-    setStartTimeType(form.upsize_start_time ? "time" : "text");
-    setEndTimeType(form.upsize_end_time ? "time" : "text");
   }
 
   // When per-row product types are in play ("All product types" off), the single
@@ -2701,21 +2692,17 @@ const FormOffer = ({
                           </div>
                           <div className="w-28">
                             <Input
-                              type={startTimeType}
+                              type="text"
+                              inputMode="numeric"
                               placeholder="Start Time"
-                              ariaLabel="Start time"
-                              lang="en-GB-u-hc-h23"
-                              onFocus={() => setStartTimeType("time")}
-                              onBlur={(e) => {
-                                if (!e.currentTarget.value)
-                                  setStartTimeType("text");
-                              }}
+                              ariaLabel="Start time (24-hour HH:MM)"
                               name="upsize_start_time"
                               value={form.upsize_start_time ?? ""}
                               onChange={(e) =>
                                 setForm({
                                   ...form,
-                                  upsize_start_time: e.target.value || null,
+                                  upsize_start_time:
+                                    formatTime24Input(e.target.value) || null,
                                 })
                               }
                               disabled={isLoading}
@@ -2750,21 +2737,17 @@ const FormOffer = ({
                           </div>
                           <div className="w-28">
                             <Input
-                              type={endTimeType}
+                              type="text"
+                              inputMode="numeric"
                               placeholder="End Time"
-                              ariaLabel="End time"
-                              lang="en-GB-u-hc-h23"
-                              onFocus={() => setEndTimeType("time")}
-                              onBlur={(e) => {
-                                if (!e.currentTarget.value)
-                                  setEndTimeType("text");
-                              }}
+                              ariaLabel="End time (24-hour HH:MM)"
                               name="upsize_end_time"
                               value={form.upsize_end_time ?? ""}
                               onChange={(e) =>
                                 setForm({
                                   ...form,
-                                  upsize_end_time: e.target.value || null,
+                                  upsize_end_time:
+                                    formatTime24Input(e.target.value) || null,
                                 })
                               }
                               disabled={isLoading}
