@@ -1955,21 +1955,30 @@ const FormOffer = ({
                 label="Tracking link"
                 description="Prefilled from partner data (rate, currency, affiliate network); you can edit before save. If you previously saved a custom URL, that value is shown instead."
               />
-              <Input
-                type="url"
-                name="offer_deeplink"
-                placeholder="https://gogocash.app/open/offer/..."
-                value={offerDeeplinkDraft}
-                onChange={(e) =>
-                  setDeeplinkOverride(
-                    offer
-                      ? { offerId: offer._id, value: e.target.value }
-                      : null,
-                  )
-                }
-                disabled={isLoading || saveOfferDeeplink.isPending}
-                autoComplete="off"
-              />
+              <div className="relative">
+                <Input
+                  type="url"
+                  name="offer_deeplink"
+                  placeholder="https://gogocash.app/open/offer/..."
+                  value={offerDeeplinkDraft}
+                  onChange={(e) =>
+                    setDeeplinkOverride(
+                      offer
+                        ? { offerId: offer._id, value: e.target.value }
+                        : null,
+                    )
+                  }
+                  disabled={isLoading || saveOfferDeeplink.isPending}
+                  autoComplete="off"
+                  className="pr-10"
+                />
+                <div className="absolute inset-y-0 right-2 flex items-center">
+                  <CopyButton
+                    value={offerDeeplinkDraft}
+                    title="Copy tracking link"
+                  />
+                </div>
+              </div>
             </div>
           )}
         </div>
