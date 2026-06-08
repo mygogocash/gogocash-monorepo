@@ -2665,18 +2665,13 @@ const FormOffer = ({
                       <p className="mb-1.5 text-sm font-medium text-gray-800 dark:text-gray-200">
                         Upsize period
                       </p>
-                      <div className="flex flex-wrap items-end gap-3">
+                      <div className="flex flex-wrap items-center gap-3">
                         <div className="min-w-0 flex-1">
-                          <label
-                            htmlFor="offer-upsize-start"
-                            className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400"
-                          >
-                            Start
-                          </label>
                           <Input
                             id="offer-upsize-start"
                             type={startDateType}
                             placeholder="Start Date"
+                            ariaLabel="Start Date"
                             onFocus={() => setStartDateType("date")}
                             onBlur={(e) => {
                               if (!e.currentTarget.value)
@@ -2693,20 +2688,15 @@ const FormOffer = ({
                             disabled={isLoading}
                           />
                         </div>
-                        <span className="pb-3 text-sm text-gray-500 dark:text-gray-400">
+                        <span className="text-sm text-gray-500 dark:text-gray-400">
                           to
                         </span>
                         <div className="min-w-0 flex-1">
-                          <label
-                            htmlFor="offer-upsize-end"
-                            className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400"
-                          >
-                            End
-                          </label>
                           <Input
                             id="offer-upsize-end"
                             type={endDateType}
                             placeholder="End Date"
+                            ariaLabel="End Date"
                             onFocus={() => setEndDateType("date")}
                             onBlur={(e) => {
                               if (!e.currentTarget.value)
