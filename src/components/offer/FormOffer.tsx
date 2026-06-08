@@ -1496,7 +1496,7 @@ const FormOffer = ({
                       <table className="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
                         <thead className="bg-gray-50 dark:bg-gray-800/50">
                           <tr>
-                            <th scope="col" className="w-24 px-2 py-2.5">
+                            <th scope="col" className="w-8 px-2 py-2.5">
                               <span className="sr-only">Reorder</span>
                             </th>
                             <th
@@ -1535,7 +1535,6 @@ const FormOffer = ({
                               : row.commission_info
                                 ? `${row.commission_info}%`
                                 : "—";
-                            const rowCount = (form.product_types ?? []).length;
                             const isEditingThisRow = editingProductIndex === i;
                             const editLocked = editingProductIndex !== null;
                             const isDragSource = dragSrcIndex === i;
@@ -1573,62 +1572,30 @@ const FormOffer = ({
                                         : "bg-white dark:bg-gray-900"
                                 }`}
                               >
-                                <td className="px-2 py-2.5 align-middle">
-                                  <div className="flex items-center gap-0.5">
-                                    <button
-                                      type="button"
-                                      aria-label={`Drag to reorder ${row.name || "row"}`}
-                                      title="Drag to reorder"
-                                      draggable={!editLocked && !isLoading}
-                                      onDragStart={(e) => {
-                                        setDragSrcIndex(i);
-                                        setOpenProductActionIdx(null);
-                                        e.dataTransfer.effectAllowed = "move";
-                                        e.dataTransfer.setData(
-                                          "text/plain",
-                                          String(i),
-                                        );
-                                      }}
-                                      onDragEnd={() => {
-                                        setDragSrcIndex(null);
-                                        setDragOverIndex(null);
-                                      }}
-                                      disabled={isLoading || editLocked}
-                                      className="cursor-grab px-1 leading-none text-gray-500 select-none hover:text-gray-700 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-40 dark:text-gray-400 dark:hover:text-gray-200"
-                                    >
-                                      <span aria-hidden>⋮⋮</span>
-                                    </button>
-                                    <button
-                                      type="button"
-                                      aria-label={`Move ${row.name || "row"} up`}
-                                      title="Move up"
-                                      onClick={() =>
-                                        reorderProductTypeRow(i, i - 1)
-                                      }
-                                      disabled={
-                                        isLoading || editLocked || i === 0
-                                      }
-                                      className="rounded px-1 leading-none text-gray-500 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-30 dark:text-gray-400 dark:hover:text-gray-200"
-                                    >
-                                      <span aria-hidden>↑</span>
-                                    </button>
-                                    <button
-                                      type="button"
-                                      aria-label={`Move ${row.name || "row"} down`}
-                                      title="Move down"
-                                      onClick={() =>
-                                        reorderProductTypeRow(i, i + 1)
-                                      }
-                                      disabled={
-                                        isLoading ||
-                                        editLocked ||
-                                        i === rowCount - 1
-                                      }
-                                      className="rounded px-1 leading-none text-gray-500 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-30 dark:text-gray-400 dark:hover:text-gray-200"
-                                    >
-                                      <span aria-hidden>↓</span>
-                                    </button>
-                                  </div>
+                                <td className="px-2 py-2.5 text-center align-middle">
+                                  <button
+                                    type="button"
+                                    aria-label={`Drag to reorder ${row.name || "row"}`}
+                                    title="Drag to reorder"
+                                    draggable={!editLocked && !isLoading}
+                                    onDragStart={(e) => {
+                                      setDragSrcIndex(i);
+                                      setOpenProductActionIdx(null);
+                                      e.dataTransfer.effectAllowed = "move";
+                                      e.dataTransfer.setData(
+                                        "text/plain",
+                                        String(i),
+                                      );
+                                    }}
+                                    onDragEnd={() => {
+                                      setDragSrcIndex(null);
+                                      setDragOverIndex(null);
+                                    }}
+                                    disabled={isLoading || editLocked}
+                                    className="cursor-grab px-1 leading-none text-gray-500 select-none hover:text-gray-700 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-40 dark:text-gray-400 dark:hover:text-gray-200"
+                                  >
+                                    <span aria-hidden>⋮⋮</span>
+                                  </button>
                                 </td>
                                 <td className="px-4 py-2.5 font-medium text-gray-800 dark:text-gray-100">
                                   {row.name || "—"}
