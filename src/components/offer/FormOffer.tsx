@@ -417,6 +417,15 @@ const FormOffer = ({
       ? String(reverseThirtyPercentFee(form.upsize_special_commission))
       : "",
   );
+  // Upsize date inputs render as type="text" (so the "Start Date" / "End Date"
+  // placeholder shows) and swap to type="date" on focus / when a value is set —
+  // a native <input type=date> can't carry a custom placeholder.
+  const [startDateType, setStartDateType] = useState<"text" | "date">(
+    form.upsize_start_date ? "date" : "text",
+  );
+  const [endDateType, setEndDateType] = useState<"text" | "date">(
+    form.upsize_end_date ? "date" : "text",
+  );
   const [commissionRawId, setCommissionRawId] = useState(form.id);
   if (commissionRawId !== form.id) {
     setCommissionRawId(form.id);
@@ -431,6 +440,8 @@ const FormOffer = ({
         : "",
     );
     setUpsizeCommissionMode("auto");
+    setStartDateType(form.upsize_start_date ? "date" : "text");
+    setEndDateType(form.upsize_end_date ? "date" : "text");
   }
 
   // When per-row product types are in play ("All product types" off), the single
@@ -2664,7 +2675,13 @@ const FormOffer = ({
                           </label>
                           <Input
                             id="offer-upsize-start"
-                            type="date"
+                            type={startDateType}
+                            placeholder="Start Date"
+                            onFocus={() => setStartDateType("date")}
+                            onBlur={(e) => {
+                              if (!e.currentTarget.value)
+                                setStartDateType("text");
+                            }}
                             name="upsize_start_date"
                             onChange={(e) =>
                               setForm({
@@ -2688,7 +2705,13 @@ const FormOffer = ({
                           </label>
                           <Input
                             id="offer-upsize-end"
-                            type="date"
+                            type={endDateType}
+                            placeholder="End Date"
+                            onFocus={() => setEndDateType("date")}
+                            onBlur={(e) => {
+                              if (!e.currentTarget.value)
+                                setEndDateType("text");
+                            }}
                             name="upsize_end_date"
                             onChange={(e) =>
                               setForm({
