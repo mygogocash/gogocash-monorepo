@@ -44,6 +44,7 @@ import {
   serializeOfferProductTypes,
 } from "@/lib/productTypeDraft";
 import { reorder } from "@/lib/reorder";
+import { STATUS_BADGE_BASE } from "@/lib/statusBadge";
 import { COMMISSION_MANAGEMENT_BRANDS_ROOT_QUERY_KEY } from "@/lib/query/offersQueries";
 import { OfferFullscreenCardShell } from "./OfferFullscreenCardShell";
 import { FormSectionJumpNav } from "@/components/form/FormSectionJumpNav";
@@ -1491,9 +1492,23 @@ const FormOffer = ({
                   <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
                     Visibility
                   </dt>
-                  <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
-                    {form.disabled ? "Disabled" : "Active"}
-                    {form.extra_store ? " · Top brand" : ""}
+                  <dd className="mt-1 flex flex-wrap gap-1.5">
+                    <span
+                      className={`${STATUS_BADGE_BASE} ${
+                        form.disabled
+                          ? "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                          : "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200"
+                      }`}
+                    >
+                      {form.disabled ? "Disabled" : "Active"}
+                    </span>
+                    {form.extra_store ? (
+                      <span
+                        className={`${STATUS_BADGE_BASE} bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200`}
+                      >
+                        Top brand
+                      </span>
+                    ) : null}
                   </dd>
                 </div>
                 <div className="sm:col-span-2">
