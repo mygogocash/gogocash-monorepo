@@ -1645,6 +1645,26 @@ const FormOffer = ({
                         : "Maximum % offered to users. Enter the value already reduced by 30% from the affiliate partner rate."
                     }
                   />
+                  <div className="mb-3 flex min-w-0 items-start gap-3 sm:max-w-md">
+                    <Switch
+                      key={`${form.id}-all-product-types`}
+                      label=""
+                      onChange={(e) =>
+                        setForm({ ...form, all_product_types: e })
+                      }
+                      defaultChecked={form.all_product_types}
+                      disabled={isLoading}
+                    />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                        All product types
+                      </p>
+                      <p className="text-theme-xs text-gray-500 dark:text-gray-400">
+                        Use one commission rate and tracking link for all lines.
+                        Turn off to add per-row names and commission.
+                      </p>
+                    </div>
+                  </div>
                   <div className="mb-2 flex flex-wrap gap-2">
                     <button
                       type="button"
@@ -1777,24 +1797,6 @@ const FormOffer = ({
                     </p>
                   </div>
                 ) : null}
-                <div className="flex min-w-0 items-start gap-3 sm:max-w-md">
-                  <Switch
-                    key={`${form.id}-all-product-types`}
-                    label=""
-                    onChange={(e) => setForm({ ...form, all_product_types: e })}
-                    defaultChecked={form.all_product_types}
-                    disabled={isLoading}
-                  />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                      All product types
-                    </p>
-                    <p className="text-theme-xs text-gray-500 dark:text-gray-400">
-                      Use one commission rate and tracking link for all lines.
-                      Turn off to add per-row names and commission.
-                    </p>
-                  </div>
-                </div>
               </div>
             </div>
 
