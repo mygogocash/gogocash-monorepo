@@ -1812,17 +1812,6 @@ const FormOffer = ({
             </span>
             .
           </p>
-          <details className="mt-2 max-w-3xl rounded-lg border border-gray-200/80 bg-white/50 px-3 py-2 text-xs text-gray-600 dark:border-gray-600 dark:bg-gray-900/30 dark:text-gray-400">
-            <summary className="cursor-pointer font-medium text-gray-700 select-none dark:text-gray-300">
-              How this ties to Commission Management
-            </summary>
-            <p className="mt-2 leading-relaxed">
-              With <span className="font-medium">Product Type</span> rows (and
-              without <span className="font-medium">all product types</span>),
-              each line can have its own tracking URL. Otherwise the single
-              field below follows the same store as Commission Management.
-            </p>
-          </details>
           {/* Commission info from partner — read-only partner/network feed (moved from the tags card) */}
           <div className="mt-5">
             <h4 className="text-brand-900 dark:text-brand-100 text-sm font-semibold">
