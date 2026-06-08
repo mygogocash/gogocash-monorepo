@@ -764,6 +764,91 @@ const FormOffer = ({
     }
   };
 
+  // Brand Info: read-only by default with its own Edit → Cancel/Save (mirrors the
+  // Policy/Info-from-partner sections). Save persists the brand fields + display
+  // tags via a partial PATCH; the form-wide "Save changes" in the header still
+  // saves everything else.
+  const [editingBrand, setEditingBrand] = useState(false);
+  const [savingBrand, setSavingBrand] = useState(false);
+  const [brandSnapshot, setBrandSnapshot] = useState<{
+    offer_name_display: string;
+    lookup_value: string;
+    disabled: boolean;
+    extra_store: boolean;
+    offer_display_tags: OfferDisplayTags;
+    syncLookup: boolean;
+  } | null>(null);
+  const [brandSaveError, setBrandSaveError] = useState<string | null>(null);
+
+  const beginEditBrand = () => {
+    setBrandSnapshot({
+      offer_name_display: form.offer_name_display,
+      lookup_value: form.lookup_value ?? "",
+      disabled: form.disabled,
+      extra_store: form.extra_store,
+      offer_display_tags: { ...form.offer_display_tags },
+      syncLookup: syncLookupFromBrandCountry,
+    });
+    setBrandSaveError(null);
+    setEditingBrand(true);
+  };
+
+  const cancelEditBrand = () => {
+    if (brandSnapshot) {
+      setForm((prev) => ({
+        ...prev,
+        offer_name_display: brandSnapshot.offer_name_display,
+        lookup_value: brandSnapshot.lookup_value,
+        disabled: brandSnapshot.disabled,
+        extra_store: brandSnapshot.extra_store,
+        offer_display_tags: brandSnapshot.offer_display_tags,
+      }));
+      setSyncLookupFromBrandCountry(brandSnapshot.syncLookup);
+    }
+    setBrandSaveError(null);
+    setEditingBrand(false);
+  };
+
+  const saveBrandEdit = async () => {
+    if (!form.id) return;
+    setSavingBrand(true);
+    setBrandSaveError(null);
+    try {
+      const fd = new FormData();
+      fd.append("offer_name_display", form.offer_name_display);
+      fd.append("lookup_value", form.lookup_value ?? "");
+      fd.append("disabled", String(form.disabled));
+      fd.append("extra_store", String(form.extra_store));
+      fd.append("offer_display_tags", JSON.stringify(form.offer_display_tags));
+      await client.patch(`/admin/update-offer/${form.id}`, fd, {
+        headers: {
+          Authorization: `Bearer ${session?.accessToken}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      // Re-baseline so the form-wide "Save changes" doesn't re-flag these.
+      setFormBaseline((prev) => ({
+        ...prev,
+        snapshot: {
+          ...prev.snapshot,
+          offer_name_display: form.offer_name_display,
+          lookup_value: form.lookup_value,
+          disabled: form.disabled,
+          extra_store: form.extra_store,
+          offer_display_tags: form.offer_display_tags,
+        },
+      }));
+      setEditingBrand(false);
+      fetchOffers();
+      toast.success("Brand info updated successfully");
+    } catch (err) {
+      devError("Failed to update brand info:", err);
+      setBrandSaveError("Could not update brand info. Please try again.");
+    } finally {
+      setSavingBrand(false);
+    }
+  };
+
   const { data: policyCategories = [], isPending: policyCategoriesPending } =
     useQuery<ResCategoryList[]>({
       queryKey: ["getCategory", "form-offer-policy"],
@@ -1143,379 +1228,471 @@ const FormOffer = ({
           id="offer-section-brand"
           className={`relative space-y-8 rounded-xl border border-gray-200 bg-gray-50/50 p-4 sm:p-5 dark:border-gray-700 dark:bg-gray-800/30 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
         >
+          {/* Section actions — pinned top-right, out of normal flow (ignores auto layout) */}
+          <div className="absolute top-4 right-4 z-10 sm:top-5 sm:right-5">
+            {!editingBrand ? (
+              <SecondaryButton onClick={beginEditBrand} disabled={!offer}>
+                Edit
+              </SecondaryButton>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={cancelEditBrand}
+                  disabled={savingBrand}
+                  className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void saveBrandEdit()}
+                  disabled={savingBrand}
+                  className="border-brand-600 bg-brand-600 hover:bg-brand-700 dark:border-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500 rounded-lg border px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {savingBrand ? "Saving…" : "Save changes"}
+                </button>
+              </div>
+            )}
+          </div>
+          {brandSaveError && (
+            <p className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+              {brandSaveError}
+            </p>
+          )}
           {/* Brand info fields — grouped for easier selection */}
           <div>
             <h4 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
               Brand Info
             </h4>
-            <div className="mt-2 space-y-[18px]">
-              <div>
-                <FieldLabel
-                  label="Name of offer"
-                  description="Display name shown to users in the app."
-                />
-                <Input
-                  type="text"
-                  name="offer_name_display"
-                  onChange={(e) =>
-                    setForm({ ...form, offer_name_display: e.target.value })
-                  }
-                  defaultValue={form.offer_name_display}
-                />
-              </div>
-              {/* Brand category dropdown — picks the system-category tag; the
+            {editingBrand ? (
+              <>
+                <div className="mt-2 space-y-[18px]">
+                  <div>
+                    <FieldLabel
+                      label="Name of offer"
+                      description="Display name shown to users in the app."
+                    />
+                    <Input
+                      type="text"
+                      name="offer_name_display"
+                      onChange={(e) =>
+                        setForm({ ...form, offer_name_display: e.target.value })
+                      }
+                      defaultValue={form.offer_name_display}
+                    />
+                  </div>
+                  {/* Brand category dropdown — picks the system-category tag; the
                   on/off toggle lives with the other tags under Offer tags. */}
-              <div>
-                <div className="mb-1.5">
-                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                    Brand category
-                  </p>
-                  <p className="text-theme-xs text-gray-500 dark:text-gray-400">
-                    Partner feed:{" "}
-                    <span className="font-medium text-gray-700 dark:text-gray-300">
-                      {offer?.categories?.trim() ? offer.categories : "—"}
-                    </span>
-                    . Pick a system category, or keep “Use partner feed”. Enable
-                    the tag under Offer tags.
-                  </p>
-                </div>
-                <label htmlFor="offer_tag_brand_category" className="sr-only">
-                  Brand category tag
-                </label>
-                <select
-                  id="offer_tag_brand_category"
-                  name="offer_tag_brand_category"
-                  className="shadow-theme-xs w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-                  value={form.offer_display_tags.brand_category_label}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      offer_display_tags: {
-                        ...form.offer_display_tags,
-                        brand_category_label: e.target.value,
-                      },
-                    })
-                  }
-                  disabled={isLoading || policyCategoriesPending}
-                >
-                  <option value="">
-                    Use partner feed
-                    {offer?.categories?.trim()
-                      ? ` (${offer.categories.trim()})`
-                      : ""}
-                  </option>
-                  {legacyBrandCategoryLabel ? (
-                    <option value={legacyBrandCategoryLabel}>
-                      {legacyBrandCategoryLabel} (not in category list — choose
-                      a listed value to replace)
-                    </option>
-                  ) : null}
-                  {categoriesForTagSelect.map((cat) => (
-                    <option key={cat._id} value={cat.name}>
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
-                {policyCategoriesPending ? (
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Loading categories…
-                  </p>
-                ) : categoriesForTagSelect.length === 0 ? (
-                  <NoData className="mt-1">
-                    No categories in the system yet. Add them under Category
-                    Management, or use partner feed.
-                  </NoData>
-                ) : null}
-              </div>
-            </div>
-            <div className="mt-[18px]">
-              <div className="mb-1.5">
-                <label
-                  htmlFor="offer-lookup"
-                  className="text-sm font-medium text-gray-800 dark:text-gray-200"
-                >
-                  Lookup slug (optional)
-                </label>
-                <p
-                  id="offer-lookup-hint"
-                  className="mt-0.5 text-xs text-gray-500 dark:text-gray-400"
-                >
-                  With the default option on, the slug stays{" "}
-                  <code className="rounded bg-gray-100 px-1 py-0.5 text-[0.7rem] dark:bg-gray-800">
-                    brandname_countrycode
-                  </code>{" "}
-                  (lowercase, non-alphanumeric → underscore) and updates when
-                  the offer name or country changes.
-                </p>
-              </div>
-              <input
-                id="offer-lookup"
-                type="text"
-                value={form.lookup_value}
-                onChange={(e) =>
-                  setForm({ ...form, lookup_value: e.target.value })
-                }
-                readOnly={syncLookupFromBrandCountry}
-                disabled={isLoading}
-                aria-describedby="offer-lookup-hint"
-                title={
-                  syncLookupFromBrandCountry
-                    ? 'Uncheck "Default: brand + country" to edit manually'
-                    : undefined
-                }
-                className="shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 read-only:bg-gray-50 read-only:text-gray-700 focus:ring-3 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:read-only:bg-gray-800 dark:read-only:text-gray-200"
-                placeholder="my_brand_th — used in app open URLs"
-              />
-              <div className="mt-2 flex flex-wrap items-center gap-3">
-                <label
-                  htmlFor="offer-sync-lookup"
-                  className="flex cursor-pointer items-center gap-2 text-xs text-gray-600 dark:text-gray-400"
-                >
-                  <input
-                    id="offer-sync-lookup"
-                    type="checkbox"
-                    checked={syncLookupFromBrandCountry}
-                    onChange={(e) =>
-                      setSyncLookupFromBrandCountry(e.target.checked)
-                    }
-                    className="text-brand-600 focus:ring-brand-500 h-4 w-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-900"
-                  />
-                  <span>Default: brand + country (e.g. apple_th)</span>
-                </label>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setForm((prev) => ({
-                      ...prev,
-                      lookup_value: defaultLookupFromBrandAndCountry(
-                        prev.offer_name_display,
-                        offerCountry,
-                      ),
-                    }))
-                  }
-                  disabled={isLoading || syncLookupFromBrandCountry}
-                  className="text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Apply once
-                </button>
-              </div>
-            </div>
-            <div className="mt-[18px] flex flex-col gap-5 sm:flex-row sm:flex-wrap sm:items-start sm:gap-6">
-              <div className="flex min-w-0 items-start gap-3 sm:max-w-md">
-                <Switch
-                  label=""
-                  onChange={(e) => setForm({ ...form, disabled: e })}
-                  defaultChecked={form.disabled}
-                />
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-700 dark:text-gray-400">
-                    Disabled offer
-                  </p>
-                  <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                    Hide this offer from users.
-                  </p>
-                </div>
-              </div>
-              <div className="flex min-w-0 items-start gap-3 sm:max-w-md">
-                <Switch
-                  label=""
-                  onChange={(e) => setForm({ ...form, extra_store: e })}
-                  defaultChecked={form.extra_store}
-                />
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-700 dark:text-gray-400">
-                    Top Brands
-                  </p>
-                  <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                    Highlight this offer in top-brand placements in the app.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <div>
-              <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                Offer tags (merchandising)
-              </h4>
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                Optional labels for the offer card in the app: category, promos,
-                and expiry messaging. Editable here; unrelated to partner rates
-                above.
-              </p>
-              {offerTagPreviewChips.length > 0 ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {offerTagPreviewChips.map((c, i) => (
-                    <span
-                      key={`tag-preview-${i}`}
-                      className="text-brand-900 dark:bg-brand-950/60 dark:text-brand-100 rounded-full bg-white/90 px-2.5 py-1 text-xs font-medium shadow-sm"
+                  <div>
+                    <div className="mb-1.5">
+                      <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                        Brand category
+                      </p>
+                      <p className="text-theme-xs text-gray-500 dark:text-gray-400">
+                        Partner feed:{" "}
+                        <span className="font-medium text-gray-700 dark:text-gray-300">
+                          {offer?.categories?.trim() ? offer.categories : "—"}
+                        </span>
+                        . Pick a system category, or keep “Use partner feed”.
+                        Enable the tag under Offer tags.
+                      </p>
+                    </div>
+                    <label
+                      htmlFor="offer_tag_brand_category"
+                      className="sr-only"
                     >
-                      {c}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-brand-800/70 dark:text-brand-200/70 mt-2 text-xs">
-                  No tags enabled — use the toggles below to show pills in the
-                  app.
-                </p>
-              )}
-            </div>
-            <div className="mt-4 space-y-5">
-              <div>
-                <div className="flex items-start gap-3">
-                  <Switch
-                    key={`${form.id}-odt-brand`}
-                    label=""
-                    defaultChecked={
-                      form.offer_display_tags.brand_category_enabled
-                    }
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        offer_display_tags: {
-                          ...form.offer_display_tags,
-                          brand_category_enabled: e,
-                        },
-                      })
-                    }
-                    disabled={isLoading}
-                  />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-400">
-                      Brand category
-                    </p>
-                    <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
-                      Show the brand-category pill in the app. Pick which
-                      category under Brand Info above.
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div>
-                <div className="flex items-start gap-3">
-                  <Switch
-                    key={`${form.id}-odt-xc`}
-                    label=""
-                    defaultChecked={form.offer_display_tags.extra_cashback_tag}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        offer_display_tags: {
-                          ...form.offer_display_tags,
-                          extra_cashback_tag: e,
-                        },
-                      })
-                    }
-                    disabled={isLoading}
-                  />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-400">
-                      Extra cashback
-                    </p>
-                    <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
-                      Show an “extra cashback” style promo tag (separate from
-                      Upsize fields below).
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-start gap-3">
-                  <Switch
-                    key={`${form.id}-odt-grab`}
-                    label=""
-                    defaultChecked={form.offer_display_tags.grab_coupon_tag}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        offer_display_tags: {
-                          ...form.offer_display_tags,
-                          grab_coupon_tag: e,
-                        },
-                      })
-                    }
-                    disabled={isLoading}
-                  />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-400">
-                      Grab Coupon
-                    </p>
-                    <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
-                      Highlight that users can claim a Grab-related coupon for
-                      this offer.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-start gap-3">
-                  <Switch
-                    key={`${form.id}-odt-exp`}
-                    label=""
-                    defaultChecked={
-                      form.offer_display_tags.expire_in_days_enabled
-                    }
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        offer_display_tags: {
-                          ...form.offer_display_tags,
-                          expire_in_days_enabled: e,
-                        },
-                      })
-                    }
-                    disabled={isLoading}
-                  />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-400">
-                      Expire in X days
-                    </p>
-                    <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
-                      Shows “Expire in {"{n}"} days” on the card. Set the number
-                      when enabled.
-                    </p>
-                    {form.offer_display_tags.expire_in_days_enabled ? (
-                      <div className="mt-2 flex max-w-md flex-wrap items-center gap-2">
-                        <span className="text-sm text-gray-600 dark:text-gray-400">
-                          Expire in
-                        </span>
-                        <Input
-                          type="number"
-                          name="offer_tag_expire_days"
-                          min="1"
-                          className="w-24"
-                          value={
-                            form.offer_display_tags.expire_in_days == null
-                              ? ""
-                              : String(form.offer_display_tags.expire_in_days)
-                          }
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            setForm({
-                              ...form,
-                              offer_display_tags: {
-                                ...form.offer_display_tags,
-                                expire_in_days: v === "" ? null : Number(v),
-                              },
-                            });
-                          }}
-                          disabled={isLoading}
-                          autoComplete="off"
-                        />
-                        <span className="text-sm text-gray-600 dark:text-gray-400">
-                          days
-                        </span>
-                      </div>
+                      Brand category tag
+                    </label>
+                    <select
+                      id="offer_tag_brand_category"
+                      name="offer_tag_brand_category"
+                      className="shadow-theme-xs w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                      value={form.offer_display_tags.brand_category_label}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          offer_display_tags: {
+                            ...form.offer_display_tags,
+                            brand_category_label: e.target.value,
+                          },
+                        })
+                      }
+                      disabled={isLoading || policyCategoriesPending}
+                    >
+                      <option value="">
+                        Use partner feed
+                        {offer?.categories?.trim()
+                          ? ` (${offer.categories.trim()})`
+                          : ""}
+                      </option>
+                      {legacyBrandCategoryLabel ? (
+                        <option value={legacyBrandCategoryLabel}>
+                          {legacyBrandCategoryLabel} (not in category list —
+                          choose a listed value to replace)
+                        </option>
+                      ) : null}
+                      {categoriesForTagSelect.map((cat) => (
+                        <option key={cat._id} value={cat.name}>
+                          {cat.name}
+                        </option>
+                      ))}
+                    </select>
+                    {policyCategoriesPending ? (
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        Loading categories…
+                      </p>
+                    ) : categoriesForTagSelect.length === 0 ? (
+                      <NoData className="mt-1">
+                        No categories in the system yet. Add them under Category
+                        Management, or use partner feed.
+                      </NoData>
                     ) : null}
                   </div>
                 </div>
+                <div className="mt-[18px]">
+                  <div className="mb-1.5">
+                    <label
+                      htmlFor="offer-lookup"
+                      className="text-sm font-medium text-gray-800 dark:text-gray-200"
+                    >
+                      Lookup slug (optional)
+                    </label>
+                    <p
+                      id="offer-lookup-hint"
+                      className="mt-0.5 text-xs text-gray-500 dark:text-gray-400"
+                    >
+                      With the default option on, the slug stays{" "}
+                      <code className="rounded bg-gray-100 px-1 py-0.5 text-[0.7rem] dark:bg-gray-800">
+                        brandname_countrycode
+                      </code>{" "}
+                      (lowercase, non-alphanumeric → underscore) and updates
+                      when the offer name or country changes.
+                    </p>
+                  </div>
+                  <input
+                    id="offer-lookup"
+                    type="text"
+                    value={form.lookup_value}
+                    onChange={(e) =>
+                      setForm({ ...form, lookup_value: e.target.value })
+                    }
+                    readOnly={syncLookupFromBrandCountry}
+                    disabled={isLoading}
+                    aria-describedby="offer-lookup-hint"
+                    title={
+                      syncLookupFromBrandCountry
+                        ? 'Uncheck "Default: brand + country" to edit manually'
+                        : undefined
+                    }
+                    className="shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 read-only:bg-gray-50 read-only:text-gray-700 focus:ring-3 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:read-only:bg-gray-800 dark:read-only:text-gray-200"
+                    placeholder="my_brand_th — used in app open URLs"
+                  />
+                  <div className="mt-2 flex flex-wrap items-center gap-3">
+                    <label
+                      htmlFor="offer-sync-lookup"
+                      className="flex cursor-pointer items-center gap-2 text-xs text-gray-600 dark:text-gray-400"
+                    >
+                      <input
+                        id="offer-sync-lookup"
+                        type="checkbox"
+                        checked={syncLookupFromBrandCountry}
+                        onChange={(e) =>
+                          setSyncLookupFromBrandCountry(e.target.checked)
+                        }
+                        className="text-brand-600 focus:ring-brand-500 h-4 w-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-900"
+                      />
+                      <span>Default: brand + country (e.g. apple_th)</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setForm((prev) => ({
+                          ...prev,
+                          lookup_value: defaultLookupFromBrandAndCountry(
+                            prev.offer_name_display,
+                            offerCountry,
+                          ),
+                        }))
+                      }
+                      disabled={isLoading || syncLookupFromBrandCountry}
+                      className="text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Apply once
+                    </button>
+                  </div>
+                </div>
+                <div className="mt-[18px] flex flex-col gap-5 sm:flex-row sm:flex-wrap sm:items-start sm:gap-6">
+                  <div className="flex min-w-0 items-start gap-3 sm:max-w-md">
+                    <Switch
+                      label=""
+                      onChange={(e) => setForm({ ...form, disabled: e })}
+                      defaultChecked={form.disabled}
+                    />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-700 dark:text-gray-400">
+                        Disabled offer
+                      </p>
+                      <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                        Hide this offer from users.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex min-w-0 items-start gap-3 sm:max-w-md">
+                    <Switch
+                      label=""
+                      onChange={(e) => setForm({ ...form, extra_store: e })}
+                      defaultChecked={form.extra_store}
+                    />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-700 dark:text-gray-400">
+                        Top Brands
+                      </p>
+                      <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                        Highlight this offer in top-brand placements in the app.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <dl className="mt-2 grid gap-x-6 gap-y-4 sm:grid-cols-2">
+                <div>
+                  <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                    Name of offer
+                  </dt>
+                  <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                    {form.offer_name_display?.trim() || "—"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                    Brand category
+                  </dt>
+                  <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                    {form.offer_display_tags.brand_category_label?.trim() ||
+                      (offer?.categories?.trim()
+                        ? `Use partner feed (${offer.categories})`
+                        : "Use partner feed")}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                    Lookup slug
+                  </dt>
+                  <dd className="mt-0.5 text-sm break-all text-gray-900 dark:text-gray-100">
+                    {form.lookup_value?.trim() || "—"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                    Visibility
+                  </dt>
+                  <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                    {form.disabled ? "Disabled" : "Active"}
+                    {form.extra_store ? " · Top brand" : ""}
+                  </dd>
+                </div>
+                <div className="sm:col-span-2">
+                  <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                    Offer tags
+                  </dt>
+                  <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                    {offerTagPreviewChips.length > 0
+                      ? offerTagPreviewChips.join(", ")
+                      : "None enabled"}
+                  </dd>
+                </div>
+              </dl>
+            )}
+          </div>
+
+          {editingBrand && (
+            <div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                  Offer tags (merchandising)
+                </h4>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Optional labels for the offer card in the app: category,
+                  promos, and expiry messaging. Editable here; unrelated to
+                  partner rates above.
+                </p>
+                {offerTagPreviewChips.length > 0 ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {offerTagPreviewChips.map((c, i) => (
+                      <span
+                        key={`tag-preview-${i}`}
+                        className="text-brand-900 dark:bg-brand-950/60 dark:text-brand-100 rounded-full bg-white/90 px-2.5 py-1 text-xs font-medium shadow-sm"
+                      >
+                        {c}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-brand-800/70 dark:text-brand-200/70 mt-2 text-xs">
+                    No tags enabled — use the toggles below to show pills in the
+                    app.
+                  </p>
+                )}
+              </div>
+              <div className="mt-4 space-y-5">
+                <div>
+                  <div className="flex items-start gap-3">
+                    <Switch
+                      key={`${form.id}-odt-brand`}
+                      label=""
+                      defaultChecked={
+                        form.offer_display_tags.brand_category_enabled
+                      }
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          offer_display_tags: {
+                            ...form.offer_display_tags,
+                            brand_category_enabled: e,
+                          },
+                        })
+                      }
+                      disabled={isLoading}
+                    />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-700 dark:text-gray-400">
+                        Brand category
+                      </p>
+                      <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
+                        Show the brand-category pill in the app. Pick which
+                        category under Brand Info above.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-start gap-3">
+                    <Switch
+                      key={`${form.id}-odt-xc`}
+                      label=""
+                      defaultChecked={
+                        form.offer_display_tags.extra_cashback_tag
+                      }
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          offer_display_tags: {
+                            ...form.offer_display_tags,
+                            extra_cashback_tag: e,
+                          },
+                        })
+                      }
+                      disabled={isLoading}
+                    />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-700 dark:text-gray-400">
+                        Extra cashback
+                      </p>
+                      <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
+                        Show an “extra cashback” style promo tag (separate from
+                        Upsize fields below).
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-start gap-3">
+                    <Switch
+                      key={`${form.id}-odt-grab`}
+                      label=""
+                      defaultChecked={form.offer_display_tags.grab_coupon_tag}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          offer_display_tags: {
+                            ...form.offer_display_tags,
+                            grab_coupon_tag: e,
+                          },
+                        })
+                      }
+                      disabled={isLoading}
+                    />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-700 dark:text-gray-400">
+                        Grab Coupon
+                      </p>
+                      <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
+                        Highlight that users can claim a Grab-related coupon for
+                        this offer.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-start gap-3">
+                    <Switch
+                      key={`${form.id}-odt-exp`}
+                      label=""
+                      defaultChecked={
+                        form.offer_display_tags.expire_in_days_enabled
+                      }
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          offer_display_tags: {
+                            ...form.offer_display_tags,
+                            expire_in_days_enabled: e,
+                          },
+                        })
+                      }
+                      disabled={isLoading}
+                    />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-700 dark:text-gray-400">
+                        Expire in X days
+                      </p>
+                      <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
+                        Shows “Expire in {"{n}"} days” on the card. Set the
+                        number when enabled.
+                      </p>
+                      {form.offer_display_tags.expire_in_days_enabled ? (
+                        <div className="mt-2 flex max-w-md flex-wrap items-center gap-2">
+                          <span className="text-sm text-gray-600 dark:text-gray-400">
+                            Expire in
+                          </span>
+                          <Input
+                            type="number"
+                            name="offer_tag_expire_days"
+                            min="1"
+                            className="w-24"
+                            value={
+                              form.offer_display_tags.expire_in_days == null
+                                ? ""
+                                : String(form.offer_display_tags.expire_in_days)
+                            }
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setForm({
+                                ...form,
+                                offer_display_tags: {
+                                  ...form.offer_display_tags,
+                                  expire_in_days: v === "" ? null : Number(v),
+                                },
+                              });
+                            }}
+                            disabled={isLoading}
+                            autoComplete="off"
+                          />
+                          <span className="text-sm text-gray-600 dark:text-gray-400">
+                            days
+                          </span>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </section>
 
         {/* Cashback management, product types & upsize promotion */}
