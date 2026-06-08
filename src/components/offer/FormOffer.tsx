@@ -1112,6 +1112,14 @@ const FormOffer = ({
             </div>
           </div>
           <div className="xsm:flex-row xsm:justify-end flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:items-center sm:gap-2">
+            <SecondaryButton
+              variant="blue"
+              disabled={isLoading || !isFormDirty}
+              onClick={handleSave}
+              className="xsm:w-auto w-full touch-manipulation"
+            >
+              {isLoading ? "Saving…" : "Save changes"}
+            </SecondaryButton>
             <Button
               className="xsm:w-auto min-h-11 w-full touch-manipulation"
               size="sm"
@@ -1135,18 +1143,6 @@ const FormOffer = ({
           id="offer-section-brand"
           className={`relative space-y-8 rounded-xl border border-gray-200 bg-gray-50/50 p-4 sm:p-5 dark:border-gray-700 dark:bg-gray-800/30 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
         >
-          {/* Section-level save — pinned top-right, out of normal flow (ignores auto layout) */}
-          <div className="absolute top-4 right-4 z-10 sm:top-5 sm:right-5">
-            <SecondaryButton
-              variant="blue"
-              disabled={isLoading || !isFormDirty}
-              onClick={handleSave}
-              className="touch-manipulation"
-            >
-              {isLoading ? "Saving…" : "Save changes"}
-            </SecondaryButton>
-          </div>
-
           {/* Brand info fields — grouped for easier selection */}
           <div>
             <h4 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
