@@ -1915,25 +1915,32 @@ const FormOffer = ({
                 </p>
               </div>
               <div>
-                <Switch
-                  key={`${form.id}-odt-xc`}
-                  label="Extra cashback"
-                  defaultChecked={form.offer_display_tags.extra_cashback_tag}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      offer_display_tags: {
-                        ...form.offer_display_tags,
-                        extra_cashback_tag: e,
-                      },
-                    })
-                  }
-                  disabled={isLoading}
-                />
-                <p className="mt-0.5 ml-6 text-xs text-gray-600 dark:text-gray-400">
-                  Show an “extra cashback” style promo tag (separate from Upsize
-                  fields below).
-                </p>
+                <div className="flex items-start gap-3">
+                  <Switch
+                    key={`${form.id}-odt-xc`}
+                    label=""
+                    defaultChecked={form.offer_display_tags.extra_cashback_tag}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        offer_display_tags: {
+                          ...form.offer_display_tags,
+                          extra_cashback_tag: e,
+                        },
+                      })
+                    }
+                    disabled={isLoading}
+                  />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-400">
+                      Extra cashback
+                    </p>
+                    <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
+                      Show an “extra cashback” style promo tag (separate from
+                      Upsize fields below).
+                    </p>
+                  </div>
+                </div>
                 <div className="border-brand-200/70 dark:border-brand-800/50 mt-4 border-t pt-4">
                   <h5 className="text-brand-900 dark:text-brand-100 text-sm font-semibold">
                     Upsize event
