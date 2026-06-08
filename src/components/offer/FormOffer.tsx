@@ -41,6 +41,7 @@ import {
   EMPTY_PRODUCT_TYPE_DRAFT,
   productTypeDraftToEntry,
   productTypeEntryToDraft,
+  serializeOfferProductTypes,
 } from "@/lib/productTypeDraft";
 import { reorder } from "@/lib/reorder";
 import { COMMISSION_MANAGEMENT_BRANDS_ROOT_QUERY_KEY } from "@/lib/query/offersQueries";
@@ -805,17 +806,7 @@ const FormOffer = ({
     );
     const productTypeRows = form.all_product_types
       ? []
-      : (form.product_types ?? [])
-          .map((row) => ({
-            name: row.name.trim(),
-            pay_in: row.pay_in ?? "cashback",
-            commission_info: row.commission_info.trim(),
-            amount: row.amount ?? null,
-            currency: (row.currency ?? "").trim(),
-            deeplink: (row.deeplink ?? "").trim(),
-            description: (row.description ?? "").trim(),
-          }))
-          .filter((row) => row.name.length > 0);
+      : serializeOfferProductTypes(form.product_types ?? []);
     formData.append("product_types", JSON.stringify(productTypeRows));
     formData.append("all_product_types", String(form.all_product_types));
     formData.append(

@@ -3,6 +3,7 @@ import {
   EMPTY_PRODUCT_TYPE_DRAFT,
   productTypeDraftToEntry,
   productTypeEntryToDraft,
+  serializeOfferProductTypes,
   type ProductTypeDraft,
 } from "@/lib/productTypeDraft";
 import {
@@ -221,5 +222,49 @@ describe("product description carries through the draft lifecycle", () => {
     ]);
     const back = productTypeDraftToEntry(productTypeEntryToDraft(entry));
     expect(back.description).toBe("Detail line");
+  });
+});
+
+describe("serializeOfferProductTypes", () => {
+  it("trims string fields and keeps every save field (incl. description + deeplink)", () => {
+    const [row] = serializeOfferProductTypes([
+      {
+        name: "  Electronics  ",
+        pay_in: "cashback",
+        commission_info: " 7 ",
+        amount: null,
+        currency: " THB ",
+        deeplink: "  https://go/x  ",
+        description: "  Phones  ",
+      },
+    ]);
+    expect(row).toEqual({
+      name: "Electronics",
+      pay_in: "cashback",
+      commission_info: "7",
+      amount: null,
+      currency: "THB",
+      deeplink: "https://go/x",
+      description: "Phones",
+    });
+  });
+
+  it("drops rows whose name is blank after trimming", () => {
+    const rows = serializeOfferProductTypes([
+      { name: "Keep", commission_info: "7" },
+      { name: "   ", commission_info: "5" },
+    ]);
+    expect(rows.map((r) => r.name)).toEqual(["Keep"]);
+  });
+
+  it("defaults pay_in to cashback, amount to null, and missing strings to empty", () => {
+    const [row] = serializeOfferProductTypes([
+      { name: "X", commission_info: "" },
+    ]);
+    expect(row.pay_in).toBe("cashback");
+    expect(row.amount).toBeNull();
+    expect(row.currency).toBe("");
+    expect(row.deeplink).toBe("");
+    expect(row.description).toBe("");
   });
 });
