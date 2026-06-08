@@ -2586,6 +2586,9 @@ const FormOffer = ({
                   name="logo_circle"
                   onChange={(e) => handleFileChange(e, "logo_circle")}
                 />
+                <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  Requested size: 1,200 × 410 px (W × H).
+                </p>
               </div>
               {(form.logo_circle || (openModal as Offer).logo_circle) && (
                 <RemoteOrBlobImage
