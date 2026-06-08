@@ -1783,18 +1783,20 @@ const FormOffer = ({
           id="offer-section-tracking"
           className={`rounded-xl border border-gray-200 bg-gray-50/50 p-4 sm:p-5 dark:border-gray-700 dark:bg-gray-800/30 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
         >
-          <h4 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
-            Info from partner
-          </h4>
-          <p className="mt-1 max-w-3xl text-sm leading-relaxed text-gray-500 dark:text-gray-400">
-            Choose network and advertiser, then set the app URL users open from
-            this offer. Per–product-type URLs appear when you add product lines
-            below and turn off{" "}
-            <span className="font-medium text-gray-700 dark:text-gray-300">
-              all product types
-            </span>
-            .
-          </p>
+          <div>
+            <h4 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
+              Info from partner
+            </h4>
+            <p className="mt-1 max-w-3xl text-sm leading-relaxed text-gray-500 dark:text-gray-400">
+              Choose network and advertiser, then set the app URL users open
+              from this offer. Per–product-type URLs appear when you add product
+              lines below and turn off{" "}
+              <span className="font-medium text-gray-700 dark:text-gray-300">
+                all product types
+              </span>
+              .
+            </p>
+          </div>
           {/* Commission info from partner — read-only partner/network feed (moved from the tags card) */}
           <div className="mt-5">
             <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
