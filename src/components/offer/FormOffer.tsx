@@ -1260,15 +1260,15 @@ const FormOffer = ({
                   <div className="flex min-w-0 items-start gap-3 sm:max-w-md">
                     <Switch
                       label=""
-                      onChange={(e) => setForm({ ...form, disabled: e })}
-                      defaultChecked={form.disabled}
+                      onChange={(e) => setForm({ ...form, disabled: !e })}
+                      defaultChecked={!form.disabled}
                     />
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-gray-700 dark:text-gray-400">
-                        Disabled offer
+                        Active offer
                       </p>
                       <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                        Hide this offer from users.
+                        Show this offer to users.
                       </p>
                     </div>
                   </div>
