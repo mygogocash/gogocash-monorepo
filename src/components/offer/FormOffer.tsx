@@ -2601,10 +2601,12 @@ const FormOffer = ({
                         {upsizeCommissionMode === "auto" ? (
                           <>
                             <div className="min-w-0">
+                              <p className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
+                                Raw %
+                              </p>
                               <Input
                                 type="text"
                                 name="upsize_commission_raw"
-                                ariaLabel="Upsize raw %"
                                 value={upsizeCommissionRaw}
                                 onChange={(e) => {
                                   const v = e.target.value;
@@ -2619,17 +2621,17 @@ const FormOffer = ({
                                   }));
                                 }}
                                 disabled={isLoading}
-                                placeholder="e.g. 10"
                               />
                             </div>
                             <div className="min-w-0">
+                              <p className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
+                                % after 30% fee
+                              </p>
                               <Input
                                 type="text"
                                 name="upsize_special_commission"
-                                ariaLabel="Upsize % after 30% fee"
                                 value={form.upsize_special_commission ?? ""}
                                 disabled
-                                placeholder="—"
                               />
                             </div>
                           </>
@@ -2638,7 +2640,6 @@ const FormOffer = ({
                             <Input
                               type="text"
                               name="upsize_special_commission"
-                              ariaLabel="Upsize commission % (net)"
                               value={form.upsize_special_commission ?? ""}
                               onChange={(e) => {
                                 const v = e.target.value;
@@ -2658,11 +2659,20 @@ const FormOffer = ({
                       </div>
                     </div>
                     <div className="sm:col-span-2">
+                      <FieldLabel
+                        label={
+                          <>
+                            Max cap for{" "}
+                            <span className="text-brand-600 dark:text-brand-400">
+                              upsize
+                            </span>
+                          </>
+                        }
+                        description="Maximum cap offered to users during the promo. Enter the value already reduced by 30% from the affiliate partner cap."
+                      />
                       <Input
                         type="number"
                         name="upsize_max_cap"
-                        ariaLabel="Max cap for upsize"
-                        placeholder="e.g. 1000"
                         onChange={(e) =>
                           setForm({
                             ...form,
