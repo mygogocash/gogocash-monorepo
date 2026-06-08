@@ -1634,7 +1634,7 @@ const FormOffer = ({
                                           openProductActionIdx === i
                                         }
                                         aria-haspopup="menu"
-                                        className="inline-flex min-h-[2rem] items-center justify-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                                        className={`${SUPPORT_BUTTON_DEFAULT_CLASS} gap-1`}
                                       >
                                         Action
                                         <svg
