@@ -406,6 +406,17 @@ const FormOffer = ({
       ? String(reverseThirtyPercentFee(form.commission_store))
       : "",
   );
+  // Upsize "Special commission" mirrors the main commission entry: Auto applies
+  // the 30% fee to a raw partner %, Manual takes the net directly. Mode + raw are
+  // local (the net lives in form.upsize_special_commission).
+  const [upsizeCommissionMode, setUpsizeCommissionMode] = useState<
+    "auto" | "manual"
+  >("auto");
+  const [upsizeCommissionRaw, setUpsizeCommissionRaw] = useState(() =>
+    form.upsize_special_commission != null
+      ? String(reverseThirtyPercentFee(form.upsize_special_commission))
+      : "",
+  );
   const [commissionRawId, setCommissionRawId] = useState(form.id);
   if (commissionRawId !== form.id) {
     setCommissionRawId(form.id);
@@ -414,6 +425,12 @@ const FormOffer = ({
         ? String(reverseThirtyPercentFee(form.commission_store))
         : "",
     );
+    setUpsizeCommissionRaw(
+      form.upsize_special_commission != null
+        ? String(reverseThirtyPercentFee(form.upsize_special_commission))
+        : "",
+    );
+    setUpsizeCommissionMode("auto");
   }
 
   // When per-row product types are in play ("All product types" off), the single
@@ -2540,27 +2557,101 @@ const FormOffer = ({
                         disabled={isLoading}
                       />
                     </div>
-                    <div>
+                    <div className="sm:col-span-2">
                       <FieldLabel
                         label="Special commission (%)"
                         description="Commission during the promo."
                       />
-                      <Input
-                        type="number"
-                        name="upsize_special_commission"
-                        placeholder="e.g. 10"
-                        onChange={(e) =>
-                          setForm({
-                            ...form,
-                            upsize_special_commission:
-                              e.target.value === ""
-                                ? null
-                                : Number(e.target.value),
-                          })
-                        }
-                        defaultValue={form.upsize_special_commission ?? ""}
-                        disabled={isLoading}
-                      />
+                      <div className="mb-2 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setUpsizeCommissionMode("auto")}
+                          disabled={isLoading}
+                          aria-pressed={upsizeCommissionMode === "auto"}
+                          className={`${
+                            upsizeCommissionMode === "auto"
+                              ? COMMISSION_MODE_TOGGLE_ACTIVE
+                              : COMMISSION_MODE_TOGGLE_INACTIVE
+                          } touch-manipulation`}
+                        >
+                          Auto apply 30% fee
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setUpsizeCommissionMode("manual")}
+                          disabled={isLoading}
+                          aria-pressed={upsizeCommissionMode === "manual"}
+                          className={`${
+                            upsizeCommissionMode === "manual"
+                              ? COMMISSION_MODE_TOGGLE_ACTIVE
+                              : COMMISSION_MODE_TOGGLE_INACTIVE
+                          } touch-manipulation`}
+                        >
+                          Manual
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-2">
+                        {upsizeCommissionMode === "auto" ? (
+                          <>
+                            <div className="min-w-0">
+                              <p className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
+                                Raw %
+                              </p>
+                              <Input
+                                type="text"
+                                name="upsize_commission_raw"
+                                value={upsizeCommissionRaw}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  setUpsizeCommissionRaw(v);
+                                  const n = Number(v);
+                                  setForm((prev) => ({
+                                    ...prev,
+                                    upsize_special_commission:
+                                      v.trim() === "" || Number.isNaN(n)
+                                        ? null
+                                        : applyThirtyPercentFee(n),
+                                  }));
+                                }}
+                                disabled={isLoading}
+                                placeholder="e.g. 10"
+                              />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
+                                % after 30% fee
+                              </p>
+                              <Input
+                                type="text"
+                                name="upsize_special_commission"
+                                value={form.upsize_special_commission ?? ""}
+                                disabled
+                                placeholder="—"
+                              />
+                            </div>
+                          </>
+                        ) : (
+                          <div className="min-w-0">
+                            <Input
+                              type="text"
+                              name="upsize_special_commission"
+                              value={form.upsize_special_commission ?? ""}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                const n = Number(v);
+                                setForm((prev) => ({
+                                  ...prev,
+                                  upsize_special_commission:
+                                    v.trim() === "" || !Number.isFinite(n)
+                                      ? null
+                                      : n,
+                                }));
+                              }}
+                              disabled={isLoading}
+                            />
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div>
                       <FieldLabel
