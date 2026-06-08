@@ -1892,27 +1892,34 @@ const FormOffer = ({
 
             <div className="mt-4 space-y-5">
               <div>
-                <Switch
-                  key={`${form.id}-odt-brand`}
-                  label="Brand category"
-                  defaultChecked={
-                    form.offer_display_tags.brand_category_enabled
-                  }
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      offer_display_tags: {
-                        ...form.offer_display_tags,
-                        brand_category_enabled: e,
-                      },
-                    })
-                  }
-                  disabled={isLoading}
-                />
-                <p className="mt-0.5 ml-6 text-xs text-gray-600 dark:text-gray-400">
-                  Show the brand-category pill in the app. Pick which category
-                  under Brand Info above.
-                </p>
+                <div className="flex items-start gap-3">
+                  <Switch
+                    key={`${form.id}-odt-brand`}
+                    label=""
+                    defaultChecked={
+                      form.offer_display_tags.brand_category_enabled
+                    }
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        offer_display_tags: {
+                          ...form.offer_display_tags,
+                          brand_category_enabled: e,
+                        },
+                      })
+                    }
+                    disabled={isLoading}
+                  />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-400">
+                      Brand category
+                    </p>
+                    <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
+                      Show the brand-category pill in the app. Pick which
+                      category under Brand Info above.
+                    </p>
+                  </div>
+                </div>
               </div>
               <div>
                 <div className="flex items-start gap-3">
@@ -2150,25 +2157,32 @@ const FormOffer = ({
               </div>
 
               <div>
-                <Switch
-                  key={`${form.id}-odt-grab`}
-                  label="Grab Coupon"
-                  defaultChecked={form.offer_display_tags.grab_coupon_tag}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      offer_display_tags: {
-                        ...form.offer_display_tags,
-                        grab_coupon_tag: e,
-                      },
-                    })
-                  }
-                  disabled={isLoading}
-                />
-                <p className="mt-0.5 ml-6 text-xs text-gray-600 dark:text-gray-400">
-                  Highlight that users can claim a Grab-related coupon for this
-                  offer.
-                </p>
+                <div className="flex items-start gap-3">
+                  <Switch
+                    key={`${form.id}-odt-grab`}
+                    label=""
+                    defaultChecked={form.offer_display_tags.grab_coupon_tag}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        offer_display_tags: {
+                          ...form.offer_display_tags,
+                          grab_coupon_tag: e,
+                        },
+                      })
+                    }
+                    disabled={isLoading}
+                  />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-400">
+                      Grab Coupon
+                    </p>
+                    <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
+                      Highlight that users can claim a Grab-related coupon for
+                      this offer.
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <div>
