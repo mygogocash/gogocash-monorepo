@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
@@ -450,13 +450,24 @@ const FormOffer = ({
         setOpenProductActionIdx(null);
       }
     };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpenProductActionIdx(null);
+    };
     document.addEventListener("click", handleClick, true);
-    return () => document.removeEventListener("click", handleClick, true);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("click", handleClick, true);
+      document.removeEventListener("keydown", handleKey);
+    };
   }, [openProductActionIdx]);
 
   // Drag-and-drop reorder for the added-product-type table (native HTML5 DnD).
   const [dragSrcIndex, setDragSrcIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  // Which committed row is loaded into the draft frame for editing (null = adding new).
+  const [editingProductIndex, setEditingProductIndex] = useState<number | null>(
+    null,
+  );
 
   // Policy section: read-only by default with its own Edit → Cancel/Save
   // (mirrors the User page's "Edit user"). Saves ONLY policy_category_id +
@@ -683,8 +694,15 @@ const FormOffer = ({
     formData.append("offer_name_display", form.offer_name_display);
     formData.append("lookup_value", form.lookup_value ?? "");
     formData.append("disabled", String(form.disabled));
-    formData.append("commission_store", String(form.commission_store));
-    formData.append("max_cap", String(form.max_cap));
+    if (
+      form.commission_store != null &&
+      Number.isFinite(form.commission_store)
+    ) {
+      formData.append("commission_store", String(form.commission_store));
+    }
+    if (form.max_cap != null && Number.isFinite(form.max_cap)) {
+      formData.append("max_cap", String(form.max_cap));
+    }
     formData.append("extra_store", String(form.extra_store));
     if (form.upsize_start_date) {
       formData.append("upsize_start_date", form.upsize_start_date);
@@ -827,32 +845,39 @@ const FormOffer = ({
 
   if (!openModal) return null;
 
-  const cancelProductTypeDraft = () =>
+  const cancelProductTypeDraft = () => {
     setProductTypeDraft(EMPTY_PRODUCT_TYPE_DRAFT);
+    setEditingProductIndex(null);
+  };
 
-  // Commit the draft into form.product_types — it appears in the added-list
-  // table below and persists on Save changes.
+  // Commit the draft into form.product_types: replace the row being edited (in
+  // place, preserving its position) or append a new one. Persists on Save changes.
   const addProductTypeDraft = () => {
     if (!productTypeDraft.name.trim()) return;
     const entry = productTypeDraftToEntry(productTypeDraft);
-    setForm((prev) => ({
-      ...prev,
-      product_types: [...(prev.product_types ?? []), entry],
-    }));
+    const editing = editingProductIndex;
+    setForm((prev) => {
+      const list = prev.product_types ?? [];
+      const next =
+        editing !== null && editing < list.length
+          ? list.map((row, i) => (i === editing ? entry : row))
+          : [...list, entry];
+      return { ...prev, product_types: next };
+    });
     setProductTypeDraft(EMPTY_PRODUCT_TYPE_DRAFT);
-    toast.success("Product type added");
+    setEditingProductIndex(null);
+    toast.success(
+      editing !== null ? "Product type updated" : "Product type added",
+    );
   };
 
-  // Load a committed row back into the draft frame and remove it from the list,
-  // so editing then Add re-commits the updated line.
+  // Load a committed row into the draft frame for editing — non-destructive: the
+  // row stays in the list and is replaced in place on Update (Cancel discards).
   const editProductTypeRow = (index: number) => {
     const entry = (form.product_types ?? [])[index];
     if (!entry) return;
     setProductTypeDraft(productTypeEntryToDraft(entry));
-    setForm((prev) => ({
-      ...prev,
-      product_types: (prev.product_types ?? []).filter((_, i) => i !== index),
-    }));
+    setEditingProductIndex(index);
     setOpenProductActionIdx(null);
   };
 
@@ -1195,9 +1220,13 @@ const FormOffer = ({
                           value={form.commission_store ?? ""}
                           onChange={(e) => {
                             const v = e.target.value;
+                            const n = Number(v);
                             setForm((prev) => ({
                               ...prev,
-                              commission_store: v === "" ? null : Number(v),
+                              commission_store:
+                                v.trim() === "" || !Number.isFinite(n)
+                                  ? null
+                                  : n,
                             }));
                           }}
                           disabled={isLoading}
@@ -1214,10 +1243,17 @@ const FormOffer = ({
                   <Input
                     type="text"
                     name="max_cap"
-                    onChange={(e) =>
-                      setForm({ ...form, max_cap: Number(e.target.value) })
-                    }
-                    defaultValue={form.max_cap || ""}
+                    value={form.max_cap ?? ""}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      const n = Number(v);
+                      setForm((prev) => ({
+                        ...prev,
+                        max_cap:
+                          v.trim() === "" || !Number.isFinite(n) ? null : n,
+                      }));
+                    }}
+                    disabled={isLoading}
                   />
                 </div>
                 {form.commission_entry_mode === "auto" ? (
@@ -1420,8 +1456,15 @@ const FormOffer = ({
                     </div>
                   </div>
 
-                  {/* 3rd line: Cancel + Add (bottom right) */}
-                  <div className="flex justify-end gap-2">
+                  {/* 3rd line: editing hint + Cancel / Add|Update (bottom right) */}
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    {editingProductIndex !== null && (
+                      <span className="text-brand-600 dark:text-brand-400 mr-auto text-xs font-medium">
+                        Editing “
+                        {productTypeDraft.name.trim() || "product type"}” —
+                        Update to save, or Cancel to discard.
+                      </span>
+                    )}
                     <button
                       type="button"
                       onClick={cancelProductTypeDraft}
@@ -1438,7 +1481,7 @@ const FormOffer = ({
                       }
                       className={`${SUPPORT_BUTTON_BLUE_CLASS} touch-manipulation`}
                     >
-                      Add
+                      {editingProductIndex !== null ? "Update" : "Add"}
                     </button>
                   </div>
                 </div>
@@ -1453,19 +1496,31 @@ const FormOffer = ({
                       <table className="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
                         <thead className="bg-gray-50 dark:bg-gray-800/50">
                           <tr>
-                            <th className="w-8 px-2 py-2.5">
+                            <th scope="col" className="w-24 px-2 py-2.5">
                               <span className="sr-only">Reorder</span>
                             </th>
-                            <th className="px-4 py-2.5 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                            <th
+                              scope="col"
+                              className="px-4 py-2.5 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400"
+                            >
                               Name
                             </th>
-                            <th className="px-4 py-2.5 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                            <th
+                              scope="col"
+                              className="px-4 py-2.5 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400"
+                            >
                               Pay in
                             </th>
-                            <th className="px-4 py-2.5 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                            <th
+                              scope="col"
+                              className="px-4 py-2.5 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400"
+                            >
                               Value
                             </th>
-                            <th className="px-4 py-2.5 text-right text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                            <th
+                              scope="col"
+                              className="px-4 py-2.5 text-right text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400"
+                            >
                               Action
                             </th>
                           </tr>
@@ -1480,6 +1535,9 @@ const FormOffer = ({
                               : row.commission_info
                                 ? `${row.commission_info}%`
                                 : "—";
+                            const rowCount = (form.product_types ?? []).length;
+                            const isEditingThisRow = editingProductIndex === i;
+                            const editLocked = editingProductIndex !== null;
                             const isDragSource = dragSrcIndex === i;
                             const isDragTarget =
                               dragSrcIndex !== null &&
@@ -1506,37 +1564,71 @@ const FormOffer = ({
                                   setDragOverIndex(null);
                                 }}
                                 className={`transition-colors ${
-                                  isDragSource
-                                    ? "opacity-50"
-                                    : isDragTarget
-                                      ? "bg-brand-50 dark:bg-brand-500/10"
-                                      : "bg-white dark:bg-gray-900"
+                                  isEditingThisRow
+                                    ? "bg-brand-50 dark:bg-brand-500/10"
+                                    : isDragSource
+                                      ? "opacity-50"
+                                      : isDragTarget
+                                        ? "bg-brand-50 dark:bg-brand-500/10"
+                                        : "bg-white dark:bg-gray-900"
                                 }`}
                               >
-                                <td className="w-8 px-2 py-2.5 text-center align-middle">
-                                  <button
-                                    type="button"
-                                    aria-label="Drag to reorder"
-                                    title="Drag to reorder"
-                                    draggable
-                                    onDragStart={(e) => {
-                                      setDragSrcIndex(i);
-                                      setOpenProductActionIdx(null);
-                                      e.dataTransfer.effectAllowed = "move";
-                                      e.dataTransfer.setData(
-                                        "text/plain",
-                                        String(i),
-                                      );
-                                    }}
-                                    onDragEnd={() => {
-                                      setDragSrcIndex(null);
-                                      setDragOverIndex(null);
-                                    }}
-                                    disabled={isLoading}
-                                    className="cursor-grab leading-none text-gray-400 select-none hover:text-gray-600 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-500 dark:hover:text-gray-300"
-                                  >
-                                    <span aria-hidden>⋮⋮</span>
-                                  </button>
+                                <td className="px-2 py-2.5 align-middle">
+                                  <div className="flex items-center gap-0.5">
+                                    <button
+                                      type="button"
+                                      aria-label={`Drag to reorder ${row.name || "row"}`}
+                                      title="Drag to reorder"
+                                      draggable={!editLocked && !isLoading}
+                                      onDragStart={(e) => {
+                                        setDragSrcIndex(i);
+                                        setOpenProductActionIdx(null);
+                                        e.dataTransfer.effectAllowed = "move";
+                                        e.dataTransfer.setData(
+                                          "text/plain",
+                                          String(i),
+                                        );
+                                      }}
+                                      onDragEnd={() => {
+                                        setDragSrcIndex(null);
+                                        setDragOverIndex(null);
+                                      }}
+                                      disabled={isLoading || editLocked}
+                                      className="cursor-grab px-1 leading-none text-gray-500 select-none hover:text-gray-700 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-40 dark:text-gray-400 dark:hover:text-gray-200"
+                                    >
+                                      <span aria-hidden>⋮⋮</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      aria-label={`Move ${row.name || "row"} up`}
+                                      title="Move up"
+                                      onClick={() =>
+                                        reorderProductTypeRow(i, i - 1)
+                                      }
+                                      disabled={
+                                        isLoading || editLocked || i === 0
+                                      }
+                                      className="rounded px-1 leading-none text-gray-500 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-30 dark:text-gray-400 dark:hover:text-gray-200"
+                                    >
+                                      <span aria-hidden>↑</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      aria-label={`Move ${row.name || "row"} down`}
+                                      title="Move down"
+                                      onClick={() =>
+                                        reorderProductTypeRow(i, i + 1)
+                                      }
+                                      disabled={
+                                        isLoading ||
+                                        editLocked ||
+                                        i === rowCount - 1
+                                      }
+                                      className="rounded px-1 leading-none text-gray-500 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-30 dark:text-gray-400 dark:hover:text-gray-200"
+                                    >
+                                      <span aria-hidden>↓</span>
+                                    </button>
+                                  </div>
                                 </td>
                                 <td className="px-4 py-2.5 font-medium text-gray-800 dark:text-gray-100">
                                   {row.name || "—"}
@@ -1550,68 +1642,78 @@ const FormOffer = ({
                                   {value}
                                 </td>
                                 <td className="relative px-4 py-2.5 text-right">
-                                  <div
-                                    ref={
-                                      openProductActionIdx === i
-                                        ? productActionsRef
-                                        : undefined
-                                    }
-                                    className="relative inline-block text-left"
-                                  >
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        setOpenProductActionIdx((cur) =>
-                                          cur === i ? null : i,
-                                        )
+                                  {isEditingThisRow ? (
+                                    <span className="bg-brand-100 text-brand-700 dark:bg-brand-500/20 dark:text-brand-300 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium">
+                                      Editing…
+                                    </span>
+                                  ) : (
+                                    <div
+                                      ref={
+                                        openProductActionIdx === i
+                                          ? productActionsRef
+                                          : undefined
                                       }
-                                      disabled={isLoading}
-                                      aria-expanded={openProductActionIdx === i}
-                                      aria-haspopup="true"
-                                      className="inline-flex min-h-[2rem] items-center justify-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                                      className="relative inline-block text-left"
                                     >
-                                      Action
-                                      <svg
-                                        className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                        aria-hidden
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setOpenProductActionIdx((cur) =>
+                                            cur === i ? null : i,
+                                          )
+                                        }
+                                        disabled={isLoading || editLocked}
+                                        aria-expanded={
+                                          openProductActionIdx === i
+                                        }
+                                        aria-haspopup="menu"
+                                        className="inline-flex min-h-[2rem] items-center justify-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                                       >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth={2}
-                                          d="M19 9l-7 7-7-7"
-                                        />
-                                      </svg>
-                                    </button>
-                                    {openProductActionIdx === i && (
-                                      <div
-                                        className="absolute top-full right-0 z-50 mt-1 min-w-[8rem] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800"
-                                        role="menu"
-                                      >
-                                        <button
-                                          type="button"
-                                          role="menuitem"
-                                          onClick={() => editProductTypeRow(i)}
-                                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+                                        Action
+                                        <svg
+                                          className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400"
+                                          fill="none"
+                                          viewBox="0 0 24 24"
+                                          stroke="currentColor"
+                                          aria-hidden
                                         >
-                                          Edit
-                                        </button>
-                                        <button
-                                          type="button"
-                                          role="menuitem"
-                                          onClick={() =>
-                                            deleteProductTypeRow(i)
-                                          }
-                                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M19 9l-7 7-7-7"
+                                          />
+                                        </svg>
+                                      </button>
+                                      {openProductActionIdx === i && (
+                                        <div
+                                          className="absolute top-full right-0 z-50 mt-1 min-w-[8rem] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800"
+                                          role="menu"
                                         >
-                                          Delete
-                                        </button>
-                                      </div>
-                                    )}
-                                  </div>
+                                          <button
+                                            type="button"
+                                            role="menuitem"
+                                            onClick={() =>
+                                              editProductTypeRow(i)
+                                            }
+                                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+                                          >
+                                            Edit
+                                          </button>
+                                          <button
+                                            type="button"
+                                            role="menuitem"
+                                            onClick={() =>
+                                              deleteProductTypeRow(i)
+                                            }
+                                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                                          >
+                                            Delete
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
                                 </td>
                               </tr>
                             );

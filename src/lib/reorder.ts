@@ -5,6 +5,8 @@
  */
 export function reorder<T>(list: readonly T[], from: number, to: number): T[] {
   if (
+    !Number.isInteger(from) ||
+    !Number.isInteger(to) ||
     from === to ||
     from < 0 ||
     to < 0 ||

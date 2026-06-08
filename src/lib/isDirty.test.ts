@@ -28,6 +28,12 @@ describe("deepEqual", () => {
     expect(deepEqual(null, {})).toBe(false);
     expect(deepEqual(undefined, undefined)).toBe(true);
   });
+
+  it("given two Dates > compares by timestamp, not as empty objects", () => {
+    expect(deepEqual(new Date(0), new Date(1))).toBe(false);
+    expect(deepEqual(new Date(5), new Date(5))).toBe(true);
+    expect(deepEqual({ at: new Date(0) }, { at: new Date(1) })).toBe(false);
+  });
 });
 
 describe("isDirty", () => {
