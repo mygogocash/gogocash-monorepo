@@ -995,7 +995,7 @@ const FormOffer = ({
 
         <section
           id="offer-section-brand"
-          className={`relative space-y-6 rounded-xl border border-gray-200 bg-gray-50/50 p-4 sm:p-5 dark:border-gray-700 dark:bg-gray-800/30 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
+          className={`relative space-y-8 rounded-xl border border-gray-200 bg-gray-50/50 p-4 sm:p-5 dark:border-gray-700 dark:bg-gray-800/30 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
         >
           {/* Section-level save — pinned top-right, out of normal flow (ignores auto layout) */}
           <div className="absolute top-4 right-4 z-10 sm:top-5 sm:right-5">
@@ -1136,7 +1136,7 @@ const FormOffer = ({
 
           <section
             id="offer-section-cashback"
-            className={`space-y-6 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
+            className={`space-y-8 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
           >
             {/* Cashback management fields — grouped for easier selection */}
             <div className="space-y-2">
