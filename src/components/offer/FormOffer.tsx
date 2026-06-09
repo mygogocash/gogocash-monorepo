@@ -15,6 +15,7 @@ import Button from "../ui/button/Button";
 import SecondaryButton from "../ui/button/SecondaryButton";
 import PrimaryButton from "../ui/button/PrimaryButton";
 import { SUPPORT_BUTTON_CLASS } from "../ui/button/SupportButton";
+import ProductTypeTable from "./ProductTypeTable";
 import {
   OFFER_MOCK_TERMS,
   resolveOfferPolicyBaseTerms,
@@ -510,53 +511,8 @@ const FormOffer = ({
   const [insertMode, setInsertMode] = useState<"product" | "tagline">(
     "product",
   );
-  // Per-row "Action" dropdown (Edit / Delete) in the added-product-type table.
-  const [openProductActionIdx, setOpenProductActionIdx] = useState<
-    number | null
-  >(null);
-  const productActionsRef = useRef<HTMLDivElement>(null);
-  // The Action menu renders in a body portal (so it escapes the table's
-  // overflow clipping and sits on top); anchor holds its fixed position.
-  const productMenuRef = useRef<HTMLDivElement>(null);
-  const [productMenuAnchor, setProductMenuAnchor] = useState<{
-    top: number;
-    right: number;
-  } | null>(null);
-  useEffect(() => {
-    if (openProductActionIdx === null) return;
-    const close = () => {
-      setOpenProductActionIdx(null);
-      setProductMenuAnchor(null);
-    };
-    const handleClick = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (
-        productActionsRef.current?.contains(t) ||
-        productMenuRef.current?.contains(t)
-      ) {
-        return;
-      }
-      close();
-    };
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
-    };
-    document.addEventListener("click", handleClick, true);
-    document.addEventListener("keydown", handleKey);
-    // The menu is position:fixed, so any scroll/resize would detach it — close instead.
-    window.addEventListener("scroll", close, true);
-    window.addEventListener("resize", close);
-    return () => {
-      document.removeEventListener("click", handleClick, true);
-      document.removeEventListener("keydown", handleKey);
-      window.removeEventListener("scroll", close, true);
-      window.removeEventListener("resize", close);
-    };
-  }, [openProductActionIdx]);
-
-  // Drag-and-drop reorder for the added-product-type table (native HTML5 DnD).
-  const [dragSrcIndex, setDragSrcIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  // The added-product-type table (drag reorder + Action menu) lives in
+  // <ProductTypeTable>, which owns its own drag/menu state.
   // Which committed row is loaded into the draft frame for editing (null = adding new).
   const [editingProductIndex, setEditingProductIndex] = useState<number | null>(
     null,
@@ -1177,8 +1133,6 @@ const FormOffer = ({
       setProductTypeDraft(productTypeEntryToDraft(entry));
     }
     setEditingProductIndex(index);
-    setOpenProductActionIdx(null);
-    setProductMenuAnchor(null);
   };
 
   const deleteProductTypeRow = (index: number) => {
@@ -1186,8 +1140,6 @@ const FormOffer = ({
       ...prev,
       product_types: (prev.product_types ?? []).filter((_, i) => i !== index),
     }));
-    setOpenProductActionIdx(null);
-    setProductMenuAnchor(null);
   };
 
   // Drag-and-drop: move the row at `from` to `to` (order persists on Save).
@@ -2318,256 +2270,15 @@ const FormOffer = ({
                     </div>
                   ) : null}
 
-                  {/* Added product type list — committed rows; Action → Edit (re-loads the draft) / Delete */}
-                  {(form.product_types ?? []).length > 0 && (
-                    <div className="space-y-2">
-                      <h5 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                        Added product type list
-                      </h5>
-                      <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
-                        <table className="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
-                          <thead className="bg-gray-50 dark:bg-gray-800/50">
-                            <tr>
-                              <th scope="col" className="w-8 px-2 py-2.5">
-                                <span className="sr-only">Reorder</span>
-                              </th>
-                              <th
-                                scope="col"
-                                className="px-4 py-2.5 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400"
-                              >
-                                Name
-                              </th>
-                              <th
-                                scope="col"
-                                className="w-32 px-4 py-2.5 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400"
-                              >
-                                Pay in
-                              </th>
-                              <th
-                                scope="col"
-                                className="w-32 px-4 py-2.5 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400"
-                              >
-                                Value
-                              </th>
-                              <th
-                                scope="col"
-                                className="w-32 px-4 py-2.5 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400"
-                              >
-                                Action
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                            {(form.product_types ?? []).map((row, i) => {
-                              const isCash = row.pay_in === "cash";
-                              const value = isCash
-                                ? row.amount != null
-                                  ? `${row.amount} ${row.currency || ""}`.trim()
-                                  : "—"
-                                : row.commission_info
-                                  ? `${row.commission_info}%`
-                                  : "—";
-                              const isEditingThisRow =
-                                editingProductIndex === i;
-                              const editLocked = editingProductIndex !== null;
-                              const isDragSource = dragSrcIndex === i;
-                              const isDragTarget =
-                                dragSrcIndex !== null &&
-                                dragOverIndex === i &&
-                                dragSrcIndex !== i;
-                              return (
-                                <tr
-                                  key={i}
-                                  onDragOver={(e) => {
-                                    if (dragSrcIndex === null) return;
-                                    e.preventDefault();
-                                    e.dataTransfer.dropEffect = "move";
-                                    if (dragOverIndex !== i)
-                                      setDragOverIndex(i);
-                                  }}
-                                  onDrop={(e) => {
-                                    e.preventDefault();
-                                    if (
-                                      dragSrcIndex !== null &&
-                                      dragSrcIndex !== i
-                                    ) {
-                                      reorderProductTypeRow(dragSrcIndex, i);
-                                    }
-                                    setDragSrcIndex(null);
-                                    setDragOverIndex(null);
-                                  }}
-                                  className={`transition-colors ${
-                                    isEditingThisRow
-                                      ? "bg-brand-50 dark:bg-brand-500/10"
-                                      : isDragSource
-                                        ? "opacity-50"
-                                        : isDragTarget
-                                          ? "bg-brand-50 dark:bg-brand-500/10"
-                                          : row.is_tagline
-                                            ? "bg-gray-100/70 dark:bg-gray-800/60"
-                                            : "bg-white dark:bg-gray-900"
-                                  }`}
-                                >
-                                  <td className="px-2 py-2.5 text-center align-middle">
-                                    <button
-                                      type="button"
-                                      aria-label={`Drag to reorder ${row.name || "row"}`}
-                                      title="Drag to reorder"
-                                      draggable={!editLocked && !isLoading}
-                                      onDragStart={(e) => {
-                                        setDragSrcIndex(i);
-                                        setOpenProductActionIdx(null);
-                                        e.dataTransfer.effectAllowed = "move";
-                                        e.dataTransfer.setData(
-                                          "text/plain",
-                                          String(i),
-                                        );
-                                      }}
-                                      onDragEnd={() => {
-                                        setDragSrcIndex(null);
-                                        setDragOverIndex(null);
-                                      }}
-                                      disabled={isLoading || editLocked}
-                                      className="cursor-grab px-1 leading-none text-gray-500 select-none hover:text-gray-700 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-40 dark:text-gray-400 dark:hover:text-gray-200"
-                                    >
-                                      <span aria-hidden>⋮⋮</span>
-                                    </button>
-                                  </td>
-                                  {row.is_tagline ? (
-                                    <td
-                                      colSpan={3}
-                                      className="px-4 py-2.5 text-sm font-semibold tracking-wide text-gray-700 uppercase dark:text-gray-200"
-                                    >
-                                      <span
-                                        aria-hidden
-                                        className="mr-2 text-gray-400 dark:text-gray-500"
-                                      >
-                                        #
-                                      </span>
-                                      {row.name || "—"}
-                                    </td>
-                                  ) : (
-                                    <>
-                                      <td className="px-4 py-2.5 font-medium text-gray-800 dark:text-gray-100">
-                                        {row.name || "—"}
-                                        {row.description?.trim() ? (
-                                          <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-gray-400">
-                                            {row.description}
-                                          </p>
-                                        ) : null}
-                                      </td>
-                                      <td className="w-32 px-4 py-2.5">
-                                        <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300">
-                                          {isCash ? "Cash" : "Cashback %"}
-                                        </span>
-                                      </td>
-                                      <td className="w-32 px-4 py-2.5 text-gray-700 dark:text-gray-300">
-                                        {value}
-                                      </td>
-                                    </>
-                                  )}
-                                  <td className="relative w-32 px-4 py-2.5 text-left">
-                                    {isEditingThisRow ? (
-                                      <span className="bg-brand-100 text-brand-700 dark:bg-brand-500/20 dark:text-brand-300 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium">
-                                        Editing…
-                                      </span>
-                                    ) : (
-                                      <div
-                                        ref={
-                                          openProductActionIdx === i
-                                            ? productActionsRef
-                                            : undefined
-                                        }
-                                        className="relative inline-block text-left"
-                                      >
-                                        <button
-                                          type="button"
-                                          onClick={(e) => {
-                                            if (openProductActionIdx === i) {
-                                              setOpenProductActionIdx(null);
-                                              setProductMenuAnchor(null);
-                                              return;
-                                            }
-                                            const r =
-                                              e.currentTarget.getBoundingClientRect();
-                                            setProductMenuAnchor({
-                                              top: r.bottom + 4,
-                                              right:
-                                                window.innerWidth - r.right,
-                                            });
-                                            setOpenProductActionIdx(i);
-                                          }}
-                                          disabled={isLoading || editLocked}
-                                          aria-expanded={
-                                            openProductActionIdx === i
-                                          }
-                                          aria-haspopup="menu"
-                                          className={`${SUPPORT_BUTTON_DEFAULT_CLASS} gap-1`}
-                                        >
-                                          Action
-                                          <svg
-                                            className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                            aria-hidden
-                                          >
-                                            <path
-                                              strokeLinecap="round"
-                                              strokeLinejoin="round"
-                                              strokeWidth={2}
-                                              d="M19 9l-7 7-7-7"
-                                            />
-                                          </svg>
-                                        </button>
-                                        {openProductActionIdx === i &&
-                                          productMenuAnchor &&
-                                          createPortal(
-                                            <div
-                                              ref={productMenuRef}
-                                              style={{
-                                                position: "fixed",
-                                                top: productMenuAnchor.top,
-                                                right: productMenuAnchor.right,
-                                                zIndex: 100002,
-                                              }}
-                                              className="min-w-[8rem] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800"
-                                              role="menu"
-                                            >
-                                              <button
-                                                type="button"
-                                                role="menuitem"
-                                                onClick={() =>
-                                                  editProductTypeRow(i)
-                                                }
-                                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
-                                              >
-                                                Edit
-                                              </button>
-                                              <button
-                                                type="button"
-                                                role="menuitem"
-                                                onClick={() =>
-                                                  deleteProductTypeRow(i)
-                                                }
-                                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
-                                              >
-                                                Delete
-                                              </button>
-                                            </div>,
-                                            document.body,
-                                          )}
-                                      </div>
-                                    )}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
+                  <ProductTypeTable
+                    title="Added product type list"
+                    rows={form.product_types ?? []}
+                    editingIndex={editingProductIndex}
+                    disabled={isLoading}
+                    onReorder={reorderProductTypeRow}
+                    onEdit={editProductTypeRow}
+                    onDelete={deleteProductTypeRow}
+                  />
                 </section>
               )}
             </fieldset>
