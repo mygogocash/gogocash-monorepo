@@ -6,6 +6,7 @@ import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import NoData from "@/components/common/NoData";
 import CopyButton from "@/components/ui/CopyButton";
 import Input from "../form/input/InputField";
+import TimeFieldHM from "../form/input/TimeFieldHM";
 import TextArea from "../form/input/TextArea";
 import client, { fetcher } from "@/lib/axios/client";
 import { devError } from "@/lib/devConsole";
@@ -41,7 +42,6 @@ import {
   applyThirtyPercentFee,
   reverseThirtyPercentFee,
 } from "@/lib/commissionFee";
-import { formatTime24Input } from "@/lib/time24";
 import { netCommissionFromRaw } from "@/lib/productTypeCommission";
 import {
   EMPTY_PRODUCT_TYPE_DRAFT,
@@ -3136,8 +3136,8 @@ const FormOffer = ({
                               period
                             </p>
                             <div className="flex flex-wrap items-center gap-3">
-                              <div className="flex items-center gap-2">
-                                <div className="w-36">
+                              <div className="flex flex-1 items-center gap-2">
+                                <div className="min-w-0 flex-1">
                                   <Input
                                     id="offer-upsize-start"
                                     type={startDateType}
@@ -3170,31 +3170,23 @@ const FormOffer = ({
                                     disabled={isLoading}
                                   />
                                 </div>
-                                <div className="w-28">
-                                  <Input
-                                    type="text"
-                                    inputMode="numeric"
-                                    placeholder="Start Time"
-                                    ariaLabel="Start time (24-hour HH:MM)"
-                                    name="upsize_start_time"
-                                    value={form.upsize_start_time ?? ""}
-                                    onChange={(e) =>
-                                      setForm({
-                                        ...form,
-                                        upsize_start_time:
-                                          formatTime24Input(e.target.value) ||
-                                          null,
-                                      })
-                                    }
-                                    disabled={isLoading}
-                                  />
-                                </div>
+                                <TimeFieldHM
+                                  ariaLabel="Start time"
+                                  value={form.upsize_start_time ?? ""}
+                                  onChange={(next) =>
+                                    setForm({
+                                      ...form,
+                                      upsize_start_time: next || null,
+                                    })
+                                  }
+                                  disabled={isLoading}
+                                />
                               </div>
                               <span className="text-sm text-gray-500 dark:text-gray-400">
                                 to
                               </span>
-                              <div className="flex items-center gap-2">
-                                <div className="w-36">
+                              <div className="flex flex-1 items-center gap-2">
+                                <div className="min-w-0 flex-1">
                                   <Input
                                     id="offer-upsize-end"
                                     type={endDateType}
@@ -3226,25 +3218,17 @@ const FormOffer = ({
                                     disabled={isLoading}
                                   />
                                 </div>
-                                <div className="w-28">
-                                  <Input
-                                    type="text"
-                                    inputMode="numeric"
-                                    placeholder="End Time"
-                                    ariaLabel="End time (24-hour HH:MM)"
-                                    name="upsize_end_time"
-                                    value={form.upsize_end_time ?? ""}
-                                    onChange={(e) =>
-                                      setForm({
-                                        ...form,
-                                        upsize_end_time:
-                                          formatTime24Input(e.target.value) ||
-                                          null,
-                                      })
-                                    }
-                                    disabled={isLoading}
-                                  />
-                                </div>
+                                <TimeFieldHM
+                                  ariaLabel="End time"
+                                  value={form.upsize_end_time ?? ""}
+                                  onChange={(next) =>
+                                    setForm({
+                                      ...form,
+                                      upsize_end_time: next || null,
+                                    })
+                                  }
+                                  disabled={isLoading}
+                                />
                               </div>
                             </div>
                           </div>
