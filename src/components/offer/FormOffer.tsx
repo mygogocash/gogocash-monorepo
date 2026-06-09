@@ -2337,7 +2337,7 @@ const FormOffer = ({
         {/* Upsize event — its own section, separate from Cashback Management */}
         <section
           id="offer-section-upsize"
-          className={`border-brand-200/80 bg-brand-50/50 dark:border-brand-800/60 dark:bg-brand-950/25 relative rounded-xl border border-dashed p-4 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
+          className={`border-brand-500 bg-brand-50/50 dark:border-brand-500 dark:bg-brand-950/25 relative rounded-xl border border-dashed p-4 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
         >
           {/* Section actions — Edit unlocks the fields; Save locks (changes
           persist via the form-wide "Save changes"); Cancel reverts. */}
