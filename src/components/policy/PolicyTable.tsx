@@ -144,7 +144,7 @@ export default function PolicyTable() {
   // to the new `/policy/category-list` (Policy[]). The shape change forces an
   // index-by-category-id step here so the rest of the component doesn't have
   // to know which version of the API is live.
-  const { data: policiesArray = [], isLoading: loadingPolicies } = useQuery<
+  const { data: policiesData, isLoading: loadingPolicies } = useQuery<
     PolicyListEntry[]
   >({
     queryKey: ["policyList"],
@@ -153,11 +153,14 @@ export default function PolicyTable() {
   });
   const policiesById = useMemo(() => {
     const map: Record<string, PolicyListEntry> = {};
-    for (const p of policiesArray) {
+    // The endpoint/mock may yield a non-array (e.g. an error body); guard so this
+    // loop never throws "policiesArray is not iterable".
+    const list = Array.isArray(policiesData) ? policiesData : [];
+    for (const p of list) {
       if (p?.category_id) map[String(p.category_id)] = p;
     }
     return map;
-  }, [policiesArray]);
+  }, [policiesData]);
 
   const filteredCategories = search.trim()
     ? categories.filter((c) =>
