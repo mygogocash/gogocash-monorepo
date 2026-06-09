@@ -2016,7 +2016,7 @@ const FormOffer = ({
                       top of this section.
                     </p>
                   </div>
-                  <div className="flex flex-col gap-4 rounded-xl border border-gray-300 bg-gray-50/50 p-4 dark:border-gray-600 dark:bg-gray-800/30">
+                  <div className="flex flex-col gap-4 rounded-xl border border-gray-300 bg-white p-4 dark:border-gray-600 dark:bg-gray-900">
                     {/* Insert mode: a product type, or a tagline (group heading) */}
                     <div className="flex flex-wrap items-center gap-3">
                       <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
