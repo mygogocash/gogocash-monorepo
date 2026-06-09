@@ -1017,6 +1017,14 @@ const FormOffer = ({
       return { ...prev, upsize_product_types: next };
     });
 
+  const removeUpsizeRow = (i: number) =>
+    setForm((prev) => ({
+      ...prev,
+      upsize_product_types: (prev.upsize_product_types ?? []).filter(
+        (_, j) => j !== i,
+      ),
+    }));
+
   // Default description per product type (for the upsize line's "Default" view).
   const productTypeDescByName = useMemo(() => {
     const map = new Map<string, string>();
@@ -2526,79 +2534,57 @@ const FormOffer = ({
                                   key={i}
                                   className="flex flex-col gap-4 rounded-xl border border-gray-100 bg-gray-50/50 p-4 dark:border-gray-700 dark:bg-gray-800/30"
                                 >
-                                  <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-3">
-                                    <div className="min-w-0 flex-1">
-                                      <label
-                                        htmlFor={`${baseId}-name`}
-                                        className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                                      >
-                                        Product type name
-                                      </label>
-                                      <select
-                                        id={`${baseId}-name`}
-                                        className="shadow-theme-xs min-h-11 w-full min-w-0 touch-manipulation rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 sm:text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-                                        value={
-                                          row.is_others
-                                            ? "__others__"
-                                            : row.name
-                                        }
-                                        onChange={(e) =>
-                                          e.target.value === "__others__"
-                                            ? updateUpsizeRow(i, {
-                                                is_others: true,
-                                                name: "",
-                                              })
-                                            : updateUpsizeRow(i, {
-                                                is_others: false,
-                                                name: e.target.value,
-                                              })
-                                        }
-                                        disabled={isLoading}
-                                      >
-                                        <option value="">
-                                          Select product type…
-                                        </option>
-                                        {upsizeProductTypeNameOptions.map(
-                                          (name) => (
-                                            <option key={name} value={name}>
-                                              {name}
-                                            </option>
-                                          ),
-                                        )}
-                                        {!row.is_others &&
-                                        row.name.trim() &&
-                                        !upsizeProductTypeNameOptions.includes(
-                                          row.name.trim(),
-                                        ) ? (
-                                          <option value={row.name.trim()}>
-                                            {row.name.trim()} (saved — add under
-                                            Product Type to pick)
-                                          </option>
-                                        ) : null}
-                                        <option value="__others__">
-                                          Others (custom)
-                                        </option>
-                                      </select>
-                                      {!row.is_others &&
-                                      upsizeProductTypeNameOptions.length ===
-                                        0 ? (
-                                        <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-                                          Add named lines under{" "}
-                                          <span className="font-medium">
-                                            Brand Info → Product Type
-                                          </span>{" "}
-                                          first, or turn off{" "}
-                                          <span className="font-medium">
-                                            all product types
-                                          </span>{" "}
-                                          if those rows are hidden.
-                                        </p>
-                                      ) : null}
-                                      {row.is_others ? (
+                                  <div className="flex flex-wrap items-center gap-3">
+                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                      Insert :
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        updateUpsizeRow(i, {
+                                          is_tagline: false,
+                                        })
+                                      }
+                                      disabled={isLoading}
+                                      aria-pressed={!row.is_tagline}
+                                      className={`${
+                                        !row.is_tagline
+                                          ? COMMISSION_MODE_TOGGLE_ACTIVE
+                                          : COMMISSION_MODE_TOGGLE_INACTIVE
+                                      } touch-manipulation`}
+                                    >
+                                      Product type
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        updateUpsizeRow(i, { is_tagline: true })
+                                      }
+                                      disabled={isLoading}
+                                      aria-pressed={!!row.is_tagline}
+                                      className={`${
+                                        row.is_tagline
+                                          ? COMMISSION_MODE_TOGGLE_ACTIVE
+                                          : COMMISSION_MODE_TOGGLE_INACTIVE
+                                      } touch-manipulation`}
+                                    >
+                                      Tagline
+                                    </button>
+                                  </div>
+                                  {row.is_tagline ? (
+                                    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-3">
+                                      <div className="min-w-0 flex-1">
+                                        <label
+                                          htmlFor={`${baseId}-tagline`}
+                                          className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                                        >
+                                          Tagline (group heading)
+                                        </label>
                                         <Input
+                                          id={`${baseId}-tagline`}
                                           type="text"
-                                          placeholder="e.g. Electronics"
-                                          ariaLabel="Custom product type name"
+                                          placeholder="e.g. Cashback list that excludes China & Japan"
+                                          ariaLabel="Upsize tagline group heading"
                                           value={row.name}
                                           onChange={(e) =>
                                             updateUpsizeRow(i, {
@@ -2607,249 +2593,357 @@ const FormOffer = ({
                                           }
                                           disabled={isLoading}
                                           autoComplete="off"
-                                          className="mt-2 min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
+                                          className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
                                         />
-                                      ) : null}
-                                    </div>
-                                    <div className="flex shrink-0 sm:items-end sm:pb-0.5">
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        type="button"
-                                        onClick={() => {
-                                          const next = (
-                                            form.upsize_product_types ?? []
-                                          ).filter((_, j) => j !== i);
-                                          setForm({
-                                            ...form,
-                                            upsize_product_types: next.length
-                                              ? next
-                                              : [],
-                                          });
-                                        }}
-                                        disabled={isLoading}
-                                        className="min-h-11 w-full touch-manipulation text-red-600 hover:bg-red-50 hover:text-red-700 sm:w-auto dark:text-red-400 dark:hover:bg-red-900/20"
-                                      >
-                                        Remove
-                                      </Button>
-                                    </div>
-                                  </div>
-                                  {row.name.trim() ? (
-                                    <>
-                                      <div>
-                                        <div className="mb-1.5 flex flex-wrap items-center gap-3">
-                                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                            Product description
-                                          </span>
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              updateUpsizeRow(i, {
-                                                description_rewrite: false,
-                                                description: "",
-                                              })
-                                            }
-                                            disabled={isLoading}
-                                            aria-pressed={
-                                              !row.description_rewrite
-                                            }
-                                            className={`${
-                                              !row.description_rewrite
-                                                ? COMMISSION_MODE_TOGGLE_ACTIVE
-                                                : COMMISSION_MODE_TOGGLE_INACTIVE
-                                            } touch-manipulation`}
-                                          >
-                                            Default
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              updateUpsizeRow(i, {
-                                                description_rewrite: true,
-                                                description:
-                                                  row.description?.trim()
-                                                    ? row.description
-                                                    : (productTypeDescByName.get(
-                                                        row.name.trim(),
-                                                      ) ?? ""),
-                                              })
-                                            }
-                                            disabled={isLoading}
-                                            aria-pressed={
-                                              !!row.description_rewrite
-                                            }
-                                            className={`${
-                                              row.description_rewrite
-                                                ? COMMISSION_MODE_TOGGLE_ACTIVE
-                                                : COMMISSION_MODE_TOGGLE_INACTIVE
-                                            } touch-manipulation`}
-                                          >
-                                            Re-write
-                                          </button>
-                                        </div>
-                                        {row.description_rewrite ? (
-                                          <Input
-                                            type="text"
-                                            placeholder="Re-write the description for this promo"
-                                            ariaLabel={`Re-written description for ${row.name.trim()}`}
-                                            value={row.description ?? ""}
-                                            onChange={(e) =>
-                                              updateUpsizeRow(i, {
-                                                description: e.target.value,
-                                              })
-                                            }
-                                            disabled={isLoading}
-                                            autoComplete="off"
-                                            className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
-                                          />
-                                        ) : (
-                                          <Input
-                                            type="text"
-                                            placeholder="(uses the product type's description)"
-                                            ariaLabel={`Default description for ${row.name.trim()}`}
-                                            value={
-                                              productTypeDescByName.get(
-                                                row.name.trim(),
-                                              ) ?? ""
-                                            }
-                                            disabled
-                                            className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
-                                          />
-                                        )}
                                       </div>
-                                      <div className="flex flex-wrap items-center gap-6">
-                                        <div className="flex flex-wrap items-center gap-3">
-                                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                            Pay in :
-                                          </span>
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              updateUpsizeRow(i, {
-                                                pay_in: "cashback",
-                                              })
+                                      <div className="flex shrink-0 sm:items-end sm:pb-0.5">
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          type="button"
+                                          onClick={() => removeUpsizeRow(i)}
+                                          disabled={isLoading}
+                                          className="min-h-11 w-full touch-manipulation text-red-600 hover:bg-red-50 hover:text-red-700 sm:w-auto dark:text-red-400 dark:hover:bg-red-900/20"
+                                        >
+                                          Remove
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-3">
+                                        <div className="min-w-0 flex-1">
+                                          <label
+                                            htmlFor={`${baseId}-name`}
+                                            className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                                          >
+                                            Product type name
+                                          </label>
+                                          <select
+                                            id={`${baseId}-name`}
+                                            className="shadow-theme-xs min-h-11 w-full min-w-0 touch-manipulation rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 sm:text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                                            value={
+                                              row.is_others
+                                                ? "__others__"
+                                                : row.name
+                                            }
+                                            onChange={(e) =>
+                                              e.target.value === "__others__"
+                                                ? updateUpsizeRow(i, {
+                                                    is_others: true,
+                                                    name: "",
+                                                  })
+                                                : updateUpsizeRow(i, {
+                                                    is_others: false,
+                                                    name: e.target.value,
+                                                  })
                                             }
                                             disabled={isLoading}
-                                            aria-pressed={
-                                              (row.pay_in ?? "cashback") ===
-                                              "cashback"
-                                            }
-                                            className={`${
-                                              (row.pay_in ?? "cashback") ===
-                                              "cashback"
-                                                ? COMMISSION_MODE_TOGGLE_ACTIVE
-                                                : COMMISSION_MODE_TOGGLE_INACTIVE
-                                            } touch-manipulation`}
                                           >
-                                            Cashback %
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              updateUpsizeRow(i, {
-                                                pay_in: "cash",
-                                              })
-                                            }
-                                            disabled={isLoading}
-                                            aria-pressed={row.pay_in === "cash"}
-                                            className={`${
-                                              row.pay_in === "cash"
-                                                ? COMMISSION_MODE_TOGGLE_ACTIVE
-                                                : COMMISSION_MODE_TOGGLE_INACTIVE
-                                            } touch-manipulation`}
-                                          >
-                                            Cash
-                                          </button>
+                                            <option value="">
+                                              Select product type…
+                                            </option>
+                                            {upsizeProductTypeNameOptions.map(
+                                              (name) => (
+                                                <option key={name} value={name}>
+                                                  {name}
+                                                </option>
+                                              ),
+                                            )}
+                                            {!row.is_others &&
+                                            row.name.trim() &&
+                                            !upsizeProductTypeNameOptions.includes(
+                                              row.name.trim(),
+                                            ) ? (
+                                              <option value={row.name.trim()}>
+                                                {row.name.trim()} (saved — add
+                                                under Product Type to pick)
+                                              </option>
+                                            ) : null}
+                                            <option value="__others__">
+                                              Others (custom)
+                                            </option>
+                                          </select>
+                                          {!row.is_others &&
+                                          upsizeProductTypeNameOptions.length ===
+                                            0 ? (
+                                            <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                                              Add named lines under{" "}
+                                              <span className="font-medium">
+                                                Brand Info → Product Type
+                                              </span>{" "}
+                                              first, or turn off{" "}
+                                              <span className="font-medium">
+                                                all product types
+                                              </span>{" "}
+                                              if those rows are hidden.
+                                            </p>
+                                          ) : null}
+                                          {row.is_others ? (
+                                            <Input
+                                              type="text"
+                                              placeholder="e.g. Electronics"
+                                              ariaLabel="Custom product type name"
+                                              value={row.name}
+                                              onChange={(e) =>
+                                                updateUpsizeRow(i, {
+                                                  name: e.target.value,
+                                                })
+                                              }
+                                              disabled={isLoading}
+                                              autoComplete="off"
+                                              className="mt-2 min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
+                                            />
+                                          ) : null}
                                         </div>
-                                        <div className="flex flex-1 items-center gap-3">
-                                          {(row.pay_in ?? "cashback") ===
-                                          "cashback" ? (
-                                            <>
-                                              <div className="min-w-0 flex-1">
-                                                <Input
-                                                  type="text"
-                                                  placeholder="Raw %"
-                                                  ariaLabel={`Raw % for ${row.name.trim()}`}
-                                                  value={
-                                                    row.commission_raw ?? ""
-                                                  }
-                                                  onChange={(e) =>
-                                                    updateUpsizeRow(i, {
-                                                      commission_raw:
-                                                        e.target.value,
-                                                      commission_info:
-                                                        netCommissionFromRaw(
-                                                          e.target.value,
-                                                        ),
-                                                    })
-                                                  }
-                                                  disabled={isLoading}
-                                                  autoComplete="off"
-                                                  className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
-                                                />
-                                              </div>
-                                              <div className="min-w-0 flex-1">
-                                                <Input
-                                                  type="text"
-                                                  placeholder="% after 30% fee"
-                                                  ariaLabel={`% after 30% fee for ${row.name.trim()}`}
-                                                  value={netCommissionFromRaw(
-                                                    row.commission_raw ?? "",
-                                                  )}
-                                                  disabled
-                                                  className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
-                                                />
-                                              </div>
-                                            </>
-                                          ) : (
-                                            <>
-                                              <div className="min-w-0 flex-1">
-                                                <Input
-                                                  type="text"
-                                                  placeholder="Amount"
-                                                  ariaLabel={`Amount for ${row.name.trim()}`}
-                                                  value={row.amount ?? ""}
-                                                  onChange={(e) =>
-                                                    updateUpsizeRow(i, {
-                                                      amount:
-                                                        e.target.value === ""
-                                                          ? null
-                                                          : Number(
+                                        <div className="flex shrink-0 sm:items-end sm:pb-0.5">
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            type="button"
+                                            onClick={() => {
+                                              const next = (
+                                                form.upsize_product_types ?? []
+                                              ).filter((_, j) => j !== i);
+                                              setForm({
+                                                ...form,
+                                                upsize_product_types:
+                                                  next.length ? next : [],
+                                              });
+                                            }}
+                                            disabled={isLoading}
+                                            className="min-h-11 w-full touch-manipulation text-red-600 hover:bg-red-50 hover:text-red-700 sm:w-auto dark:text-red-400 dark:hover:bg-red-900/20"
+                                          >
+                                            Remove
+                                          </Button>
+                                        </div>
+                                      </div>
+                                      {row.name.trim() ? (
+                                        <>
+                                          <div>
+                                            <div className="mb-1.5 flex flex-wrap items-center gap-3">
+                                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                Product description
+                                              </span>
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  updateUpsizeRow(i, {
+                                                    description_rewrite: false,
+                                                    description: "",
+                                                  })
+                                                }
+                                                disabled={isLoading}
+                                                aria-pressed={
+                                                  !row.description_rewrite
+                                                }
+                                                className={`${
+                                                  !row.description_rewrite
+                                                    ? COMMISSION_MODE_TOGGLE_ACTIVE
+                                                    : COMMISSION_MODE_TOGGLE_INACTIVE
+                                                } touch-manipulation`}
+                                              >
+                                                Default
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  updateUpsizeRow(i, {
+                                                    description_rewrite: true,
+                                                    description:
+                                                      row.description?.trim()
+                                                        ? row.description
+                                                        : (productTypeDescByName.get(
+                                                            row.name.trim(),
+                                                          ) ?? ""),
+                                                  })
+                                                }
+                                                disabled={isLoading}
+                                                aria-pressed={
+                                                  !!row.description_rewrite
+                                                }
+                                                className={`${
+                                                  row.description_rewrite
+                                                    ? COMMISSION_MODE_TOGGLE_ACTIVE
+                                                    : COMMISSION_MODE_TOGGLE_INACTIVE
+                                                } touch-manipulation`}
+                                              >
+                                                Re-write
+                                              </button>
+                                            </div>
+                                            {row.description_rewrite ? (
+                                              <Input
+                                                type="text"
+                                                placeholder="Re-write the description for this promo"
+                                                ariaLabel={`Re-written description for ${row.name.trim()}`}
+                                                value={row.description ?? ""}
+                                                onChange={(e) =>
+                                                  updateUpsizeRow(i, {
+                                                    description: e.target.value,
+                                                  })
+                                                }
+                                                disabled={isLoading}
+                                                autoComplete="off"
+                                                className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
+                                              />
+                                            ) : (
+                                              <Input
+                                                type="text"
+                                                placeholder="(uses the product type's description)"
+                                                ariaLabel={`Default description for ${row.name.trim()}`}
+                                                value={
+                                                  productTypeDescByName.get(
+                                                    row.name.trim(),
+                                                  ) ?? ""
+                                                }
+                                                disabled
+                                                className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
+                                              />
+                                            )}
+                                          </div>
+                                          <div className="flex flex-wrap items-center gap-6">
+                                            <div className="flex flex-wrap items-center gap-3">
+                                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                Pay in :
+                                              </span>
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  updateUpsizeRow(i, {
+                                                    pay_in: "cashback",
+                                                  })
+                                                }
+                                                disabled={isLoading}
+                                                aria-pressed={
+                                                  (row.pay_in ?? "cashback") ===
+                                                  "cashback"
+                                                }
+                                                className={`${
+                                                  (row.pay_in ?? "cashback") ===
+                                                  "cashback"
+                                                    ? COMMISSION_MODE_TOGGLE_ACTIVE
+                                                    : COMMISSION_MODE_TOGGLE_INACTIVE
+                                                } touch-manipulation`}
+                                              >
+                                                Cashback %
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  updateUpsizeRow(i, {
+                                                    pay_in: "cash",
+                                                  })
+                                                }
+                                                disabled={isLoading}
+                                                aria-pressed={
+                                                  row.pay_in === "cash"
+                                                }
+                                                className={`${
+                                                  row.pay_in === "cash"
+                                                    ? COMMISSION_MODE_TOGGLE_ACTIVE
+                                                    : COMMISSION_MODE_TOGGLE_INACTIVE
+                                                } touch-manipulation`}
+                                              >
+                                                Cash
+                                              </button>
+                                            </div>
+                                            <div className="flex flex-1 items-center gap-3">
+                                              {(row.pay_in ?? "cashback") ===
+                                              "cashback" ? (
+                                                <>
+                                                  <div className="min-w-0 flex-1">
+                                                    <Input
+                                                      type="text"
+                                                      placeholder="Raw %"
+                                                      ariaLabel={`Raw % for ${row.name.trim()}`}
+                                                      value={
+                                                        row.commission_raw ?? ""
+                                                      }
+                                                      onChange={(e) =>
+                                                        updateUpsizeRow(i, {
+                                                          commission_raw:
+                                                            e.target.value,
+                                                          commission_info:
+                                                            netCommissionFromRaw(
                                                               e.target.value,
                                                             ),
-                                                    })
-                                                  }
-                                                  disabled={isLoading}
-                                                  autoComplete="off"
-                                                  className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
-                                                />
-                                              </div>
-                                              <div className="min-w-0 flex-1">
-                                                <select
-                                                  value={row.currency ?? "THB"}
-                                                  onChange={(e) =>
-                                                    updateUpsizeRow(i, {
-                                                      currency: e.target.value,
-                                                    })
-                                                  }
-                                                  disabled={isLoading}
-                                                  aria-label={`Currency for ${row.name.trim()}`}
-                                                  className="focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-800 focus:ring-3 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                                                >
-                                                  <option value="THB">
-                                                    THB
-                                                  </option>
-                                                  <option value="USD">
-                                                    USD
-                                                  </option>
-                                                </select>
-                                              </div>
-                                            </>
-                                          )}
-                                        </div>
-                                      </div>
+                                                        })
+                                                      }
+                                                      disabled={isLoading}
+                                                      autoComplete="off"
+                                                      className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
+                                                    />
+                                                  </div>
+                                                  <div className="min-w-0 flex-1">
+                                                    <Input
+                                                      type="text"
+                                                      placeholder="% after 30% fee"
+                                                      ariaLabel={`% after 30% fee for ${row.name.trim()}`}
+                                                      value={netCommissionFromRaw(
+                                                        row.commission_raw ??
+                                                          "",
+                                                      )}
+                                                      disabled
+                                                      className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
+                                                    />
+                                                  </div>
+                                                </>
+                                              ) : (
+                                                <>
+                                                  <div className="min-w-0 flex-1">
+                                                    <Input
+                                                      type="text"
+                                                      placeholder="Amount"
+                                                      ariaLabel={`Amount for ${row.name.trim()}`}
+                                                      value={row.amount ?? ""}
+                                                      onChange={(e) =>
+                                                        updateUpsizeRow(i, {
+                                                          amount:
+                                                            e.target.value ===
+                                                            ""
+                                                              ? null
+                                                              : Number(
+                                                                  e.target
+                                                                    .value,
+                                                                ),
+                                                        })
+                                                      }
+                                                      disabled={isLoading}
+                                                      autoComplete="off"
+                                                      className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
+                                                    />
+                                                  </div>
+                                                  <div className="min-w-0 flex-1">
+                                                    <select
+                                                      value={
+                                                        row.currency ?? "THB"
+                                                      }
+                                                      onChange={(e) =>
+                                                        updateUpsizeRow(i, {
+                                                          currency:
+                                                            e.target.value,
+                                                        })
+                                                      }
+                                                      disabled={isLoading}
+                                                      aria-label={`Currency for ${row.name.trim()}`}
+                                                      className="focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-800 focus:ring-3 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                                                    >
+                                                      <option value="THB">
+                                                        THB
+                                                      </option>
+                                                      <option value="USD">
+                                                        USD
+                                                      </option>
+                                                    </select>
+                                                  </div>
+                                                </>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </>
+                                      ) : null}
                                     </>
-                                  ) : null}
+                                  )}
                                 </li>
                               );
                             })}
