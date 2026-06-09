@@ -14,3 +14,31 @@ export function formatTime24Input(raw: string): string {
   if (mm.length === 2 && Number(mm) > 59) mm = "59";
   return d.length <= 2 ? hh : `${hh}:${mm}`;
 }
+
+/** Sanitize a typed hour: digits only, max two, clamped to 00–23. */
+export function clampHour(raw: string): string {
+  const d = raw.replace(/\D/g, "").slice(0, 2);
+  return d.length === 2 && Number(d) > 23 ? "23" : d;
+}
+
+/** Sanitize a typed minute: digits only, max two, clamped to 00–59. */
+export function clampMinute(raw: string): string {
+  const d = raw.replace(/\D/g, "").slice(0, 2);
+  return d.length === 2 && Number(d) > 59 ? "59" : d;
+}
+
+/** Split a stored `HH:MM` (or partial) into its hour / minute parts. */
+export function splitHHMM(value: string): { hh: string; mm: string } {
+  const [hh = "", mm = ""] = (value ?? "").split(":");
+  return { hh, mm };
+}
+
+/** Join hour / minute parts; empty string when both are blank. */
+export function joinHHMM(hh: string, mm: string): string {
+  return hh === "" && mm === "" ? "" : `${hh}:${mm}`;
+}
+
+/** Left-pad a non-empty time part to two digits (blur tidy-up). */
+export function padTimePart(s: string): string {
+  return s === "" ? "" : s.padStart(2, "0");
+}
