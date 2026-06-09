@@ -444,6 +444,9 @@ export interface OfferProductTypeEntry {
   /** Upsize lines only, editing-only: true = `description` is a re-written override
    *  for the promo window; false/absent = use the product type's default description. */
   description_rewrite?: boolean;
+  /** Upsize lines only, editing-only: true = "Others" — `name` is free-text rather
+   *  than a product type chosen from the offer's list. */
+  is_others?: boolean;
   /** When true, this is a plain-text heading/tagline that groups the rows below it (no commission). */
   is_tagline?: boolean;
 }
