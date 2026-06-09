@@ -587,6 +587,12 @@ function handleMockGET(
     if (path[1] === "list") {
       return ok(Object.fromEntries(policyStore));
     }
+    if (path[1] === "category-list") {
+      // PolicyListEntry[] — which categories currently have a stored policy.
+      return ok(
+        [...policyStore.keys()].map((category_id) => ({ category_id })),
+      );
+    }
     const categoryId = searchParams.get("categoryId");
     if (!categoryId) {
       return jsonErr(400, { message: "categoryId is required" });
