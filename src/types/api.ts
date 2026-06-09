@@ -441,6 +441,9 @@ export interface OfferProductTypeEntry {
   deeplink?: string;
   /** Optional free-text subtitle shown under the name in admin product-type tables. */
   description?: string;
+  /** Upsize lines only, editing-only: true = `description` is a re-written override
+   *  for the promo window; false/absent = use the product type's default description. */
+  description_rewrite?: boolean;
   /** When true, this is a plain-text heading/tagline that groups the rows below it (no commission). */
   is_tagline?: boolean;
 }
