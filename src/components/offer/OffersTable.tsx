@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import NoData from "@/components/common/NoData";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
+import { SUPPORT_BUTTON_CLASS } from "@/components/ui/button/SupportButton";
 import {
   keepPreviousData,
   useMutation,
@@ -496,40 +497,16 @@ export default function OffersTable() {
                         Offer
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6 dark:text-gray-400">
-                        Affiliate partner
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6 dark:text-gray-400">
-                        Logo desktop
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6 dark:text-gray-400">
-                        Logo mobile
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6 dark:text-gray-400">
-                        Bannner
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6 dark:text-gray-400">
-                        Logo circle
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6 dark:text-gray-400">
-                        Category
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6 dark:text-gray-400">
-                        Country
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6 dark:text-gray-400">
-                        Description
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6 dark:text-gray-400">
-                        Active policy
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6 dark:text-gray-400">
-                        Max Cap
+                        Status
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6 dark:text-gray-400">
                         Max Commission
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6 dark:text-gray-400">
-                        Status
+                        Max Cap
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6 dark:text-gray-400">
+                        Country
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6 dark:text-gray-400">
                         Actions
@@ -565,7 +542,7 @@ export default function OffersTable() {
                               key={`brand-header-${group.key}`}
                               className="bg-gray-50 hover:bg-gray-100 dark:bg-gray-800/60 dark:hover:bg-gray-800"
                             >
-                              <td colSpan={15} className="px-4 py-3 sm:px-6">
+                              <td colSpan={7} className="px-4 py-3 sm:px-6">
                                 <button
                                   type="button"
                                   onClick={(e) => {
@@ -627,52 +604,13 @@ export default function OffersTable() {
                                 openEditOfferModal(offer);
                               }}
                             >
+                              {/* No. */}
                               <td className="px-4 py-3 whitespace-nowrap sm:px-6 sm:py-4">
                                 {rowNumber}
                               </td>
+                              {/* Logo / Offer name / Category */}
                               <td className="min-w-0 px-4 py-3 sm:px-6 sm:py-4">
-                                <div className="min-w-0">
-                                  <div className="flex flex-wrap items-center gap-1.5">
-                                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                      {offer.offer_name}
-                                    </span>
-                                    {offer.is_global && (
-                                      <span
-                                        className="bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase"
-                                        title={`Visible to customers in every country${offer.default_country ? ` (default: ${offer.default_country})` : ""}`}
-                                      >
-                                        Global
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                    New Name:{" "}
-                                    {offer.offer_name_display
-                                      ? offer.offer_name_display
-                                      : "N/A"}
-                                  </div>
-                                  {offer.disabled && (
-                                    <div className="text-xs text-gray-400 dark:text-gray-500">
-                                      Disabled:{" "}
-                                      {offer.disabled ? "Disabled" : "Enabled"}
-                                    </div>
-                                  )}
-                                  {offer.categories && (
-                                    <div className="text-xs text-gray-400 dark:text-gray-500">
-                                      {offer.categories}
-                                    </div>
-                                  )}
-                                </div>
-                              </td>
-
-                              <td className="max-w-[160px] min-w-0 px-4 py-3 sm:px-6 sm:py-4">
-                                <div className="text-sm font-medium break-words text-gray-900 dark:text-gray-100">
-                                  {displayAffiliatePartner(offer)}
-                                </div>
-                              </td>
-
-                              <td className="px-4 py-3 whitespace-nowrap sm:px-6 sm:py-4">
-                                <div className="flex items-center">
+                                <div className="flex items-center gap-3">
                                   <div className="h-10 w-10 flex-shrink-0 sm:h-12 sm:w-12">
                                     {has(logoDesktopSrc) ? (
                                       <RemoteOrBlobImage
@@ -689,122 +627,27 @@ export default function OffersTable() {
                                       </div>
                                     )}
                                   </div>
-                                </div>
-                              </td>
-
-                              <td className="px-4 py-3 whitespace-nowrap sm:px-6 sm:py-4">
-                                <div className="flex items-center">
-                                  <div className="h-10 w-10 flex-shrink-0 sm:h-12 sm:w-12">
-                                    {has(logoMobileSrc) ? (
-                                      <RemoteOrBlobImage
-                                        className="h-10 w-10 rounded-lg object-cover sm:h-12 sm:w-12"
-                                        src={logoMobileSrc}
-                                        alt={offer.offer_name}
-                                        width={48}
-                                        height={48}
-                                        sizes={OFFER_THUMB_SIZES}
-                                      />
-                                    ) : (
-                                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-200 text-xs text-gray-500 sm:h-12 sm:w-12 dark:bg-gray-600 dark:text-gray-400">
-                                        —
-                                      </div>
-                                    )}
+                                  <div className="min-w-0">
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                        {offer.offer_name}
+                                      </span>
+                                      {offer.is_global && (
+                                        <span
+                                          className="bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase"
+                                          title={`Visible to customers in every country${offer.default_country ? ` (default: ${offer.default_country})` : ""}`}
+                                        >
+                                          Global
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                                      {offer.categories || "Uncategorized"}
+                                    </div>
                                   </div>
                                 </div>
                               </td>
-
-                              <td className="px-4 py-3 whitespace-nowrap sm:px-6 sm:py-4">
-                                <div className="flex items-center">
-                                  <div className="h-10 w-10 flex-shrink-0 sm:h-12 sm:w-12">
-                                    {has(bannerSrc) ? (
-                                      <RemoteOrBlobImage
-                                        className="h-10 w-10 rounded-lg object-cover sm:h-12 sm:w-12"
-                                        src={bannerSrc}
-                                        alt={offer.offer_name}
-                                        width={48}
-                                        height={48}
-                                        sizes={OFFER_THUMB_SIZES}
-                                      />
-                                    ) : (
-                                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-200 text-xs text-gray-500 sm:h-12 sm:w-12 dark:bg-gray-600 dark:text-gray-400">
-                                        —
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </td>
-
-                              <td className="px-4 py-3 whitespace-nowrap sm:px-6 sm:py-4">
-                                <div className="flex items-center">
-                                  <div className="h-10 w-10 flex-shrink-0 sm:h-12 sm:w-12">
-                                    {has(logoCircleSrc) ? (
-                                      <RemoteOrBlobImage
-                                        className="h-10 w-10 rounded-lg object-cover sm:h-12 sm:w-12"
-                                        src={logoCircleSrc}
-                                        alt={offer.offer_name}
-                                        width={48}
-                                        height={48}
-                                        sizes={OFFER_THUMB_SIZES}
-                                      />
-                                    ) : (
-                                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-200 text-xs text-gray-500 sm:h-12 sm:w-12 dark:bg-gray-600 dark:text-gray-400">
-                                        —
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </td>
-
-                              <td className="min-w-0 px-4 py-3 sm:px-6 sm:py-4">
-                                <div className="text-sm break-words text-gray-900 dark:text-gray-100">
-                                  {offer.categories || "Uncategorized"}
-                                </div>
-                                {offer.currency && (
-                                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                                    Currency: {offer.currency}
-                                  </div>
-                                )}
-                              </td>
-                              <td className="min-w-0 px-4 py-3 sm:px-6 sm:py-4">
-                                <div className="max-w-[140px] text-sm break-words text-gray-900 dark:text-gray-100">
-                                  {offer.countries
-                                    ? offer.countries
-                                        .split(",")
-                                        .map((c) => c.trim())
-                                        .filter(Boolean)
-                                        .join(", ")
-                                    : "—"}
-                                </div>
-                              </td>
-                              <td className="max-w-[200px] min-w-0 px-4 py-3 sm:px-6 sm:py-4">
-                                <div
-                                  className="line-clamp-2 text-sm break-words text-gray-900 dark:text-gray-100"
-                                  title={offer.description || undefined}
-                                >
-                                  {offer.description
-                                    ? offer.description.length > 100
-                                      ? `${offer.description.slice(0, 100)}...`
-                                      : offer.description
-                                    : "—"}
-                                </div>
-                              </td>
-                              <td className="min-w-0 px-4 py-3 sm:px-6 sm:py-4">
-                                <div className="text-sm break-words text-gray-900 dark:text-gray-100">
-                                  {offer.active_policy ??
-                                    offer.categories ??
-                                    "—"}
-                                </div>
-                              </td>
-                              <td className="px-4 py-3 text-sm whitespace-nowrap text-gray-900 sm:px-6 sm:py-4 dark:text-gray-100">
-                                {offer.max_cap != null
-                                  ? offer.max_cap.toLocaleString()
-                                  : "—"}
-                              </td>
-                              <td className="px-4 py-3 text-sm whitespace-nowrap text-gray-900 sm:px-6 sm:py-4 dark:text-gray-100">
-                                {offer.commission_store != null
-                                  ? `${offer.commission_store}%`
-                                  : "—"}
-                              </td>
+                              {/* Status */}
                               <td className="min-w-0 px-4 py-3 sm:px-6 sm:py-4">
                                 <span
                                   className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
@@ -815,6 +658,35 @@ export default function OffersTable() {
                                 >
                                   {offer.disabled ? "Disable" : "Enable"}
                                 </span>
+                              </td>
+                              {/* Max Commission (% after 30% fee) */}
+                              <td className="px-4 py-3 text-sm whitespace-nowrap text-gray-900 sm:px-6 sm:py-4 dark:text-gray-100">
+                                {offer.commission_store != null
+                                  ? `${offer.commission_store}%`
+                                  : "—"}
+                              </td>
+                              {/* Max cap + Currency */}
+                              <td className="px-4 py-3 whitespace-nowrap sm:px-6 sm:py-4">
+                                <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                  {offer.max_cap != null
+                                    ? offer.max_cap.toLocaleString()
+                                    : "—"}
+                                </div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                  {offer.currency || "—"}
+                                </div>
+                              </td>
+                              {/* Country */}
+                              <td className="min-w-0 px-4 py-3 sm:px-6 sm:py-4">
+                                <div className="max-w-[140px] text-sm break-words text-gray-900 dark:text-gray-100">
+                                  {offer.countries
+                                    ? offer.countries
+                                        .split(",")
+                                        .map((c) => c.trim())
+                                        .filter(Boolean)
+                                        .join(", ")
+                                    : "—"}
+                                </div>
                               </td>
                               <td className="relative px-4 py-3 text-sm font-medium whitespace-nowrap sm:px-6 sm:py-4">
                                 <div
@@ -834,7 +706,7 @@ export default function OffersTable() {
                                         id === offer._id ? null : offer._id,
                                       );
                                     }}
-                                    className="inline-flex min-h-[2rem] items-center justify-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                                    className={`${SUPPORT_BUTTON_CLASS} gap-1`}
                                     aria-expanded={openActionsId === offer._id}
                                     aria-haspopup="true"
                                   >
