@@ -503,7 +503,7 @@ export default function OffersTable() {
                         Status
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6 dark:text-gray-400">
-                        Max Commission
+                        Max %
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6 dark:text-gray-400">
                         Max Cap
