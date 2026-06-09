@@ -2449,10 +2449,14 @@ const FormOffer = ({
                                                 ? updateUpsizeDraft({
                                                     is_others: true,
                                                     name: "",
+                                                    // No product type to supply a
+                                                    // default description → force Re-write.
+                                                    description_rewrite: true,
                                                   })
                                                 : updateUpsizeDraft({
                                                     is_others: false,
                                                     name: e.target.value,
+                                                    description_rewrite: false,
                                                   })
                                             }
                                             disabled={isLoading}
@@ -2527,7 +2531,9 @@ const FormOffer = ({
                                                 description: "",
                                               })
                                             }
-                                            disabled={isLoading}
+                                            disabled={
+                                              isLoading || row.is_others
+                                            }
                                             aria-pressed={
                                               !row.description_rewrite
                                             }
