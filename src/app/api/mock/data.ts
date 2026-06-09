@@ -217,6 +217,12 @@ const offerTemplates = [
       expire_in_days_enabled: true,
       expire_in_days: 14,
     },
+    // Demo: an upsize event live this month so the Brands table "Upsize" tag shows.
+    upsize_start_date: "2026-06-01",
+    upsize_end_date: "2026-06-30",
+    upsize_special_commission: 12,
+    upsize_max_cap: 1000,
+    upsize_all_product_types: true,
   },
   {
     categories: "Fashion",

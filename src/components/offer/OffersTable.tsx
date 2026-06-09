@@ -12,6 +12,7 @@ import {
 } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import { appLinks } from "@/lib/appLinks";
+import { isUpsizeActiveNow } from "@/lib/upsizeStatus";
 import { DEFAULT_MOCK_ACCESS_TOKEN } from "@/lib/authTokens";
 import { fetchOffersList, offersListQueryKey } from "@/lib/query/offersQueries";
 import {
@@ -126,6 +127,8 @@ export default function OffersTable() {
   const [openModal, setOpenModal] = useState<Offer | boolean>(false);
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
   const actionsDropdownRef = useRef<HTMLDivElement>(null);
+  // "Now" captured once at mount — drives the live "Upsize" status tag.
+  const [nowMs] = useState(() => Date.now());
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const [form, setForm] = useState<OfferRequestForm>({
@@ -649,15 +652,25 @@ export default function OffersTable() {
                               </td>
                               {/* Status */}
                               <td className="min-w-0 px-4 py-3 sm:px-6 sm:py-4">
-                                <span
-                                  className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                                    offer.disabled
-                                      ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-                                      : "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                                  }`}
-                                >
-                                  {offer.disabled ? "Disable" : "Enable"}
-                                </span>
+                                <div className="flex flex-col items-start gap-1">
+                                  <span
+                                    className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
+                                      offer.disabled
+                                        ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                                        : "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                                    }`}
+                                  >
+                                    {offer.disabled ? "Disable" : "Enable"}
+                                  </span>
+                                  {isUpsizeActiveNow(offer, nowMs) && (
+                                    <span
+                                      className="bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase"
+                                      title="Upsize event is live right now"
+                                    >
+                                      Upsize
+                                    </span>
+                                  )}
+                                </div>
                               </td>
                               {/* Max Commission (% after 30% fee) */}
                               <td className="px-4 py-3 text-sm whitespace-nowrap text-gray-900 sm:px-6 sm:py-4 dark:text-gray-100">
