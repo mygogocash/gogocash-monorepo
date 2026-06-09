@@ -988,14 +988,12 @@ const FormOffer = ({
     form.upsize_max_cap,
   ]);
 
-  // Per-product-line upsize (launched + "All product types" off): keep one empty
-  // trailing line so the product-type picker (and the period below it) appear
-  // automatically and new lines grow as you fill them — no "Add" button needed.
+  // Per-product-line upsize (launched + "All product types" off): ensure one
+  // product-line row exists so the picker (and the period below it) appear
+  // automatically when there are none. Filling it does not spawn a trailing row.
   useEffect(() => {
     if (!upsizeLaunched || form.upsize_all_product_types) return;
-    const rows = form.upsize_product_types ?? [];
-    const last = rows[rows.length - 1];
-    if (rows.length === 0 || (last?.name ?? "").trim() !== "") {
+    if ((form.upsize_product_types ?? []).length === 0) {
       setForm((prev) => ({
         ...prev,
         upsize_product_types: [
