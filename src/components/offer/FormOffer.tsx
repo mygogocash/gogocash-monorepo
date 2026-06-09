@@ -2514,230 +2514,218 @@ const FormOffer = ({
                                           ) : null}
                                         </div>
                                       </div>
-                                      {row.name.trim() ? (
-                                        <>
-                                          <div>
-                                            <div className="mb-1.5 flex flex-wrap items-center gap-3">
-                                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                Product description
-                                              </span>
-                                              <button
-                                                type="button"
-                                                onClick={() =>
-                                                  updateUpsizeDraft({
-                                                    description_rewrite: false,
-                                                    description: "",
-                                                  })
-                                                }
-                                                disabled={isLoading}
-                                                aria-pressed={
-                                                  !row.description_rewrite
-                                                }
-                                                className={`${
-                                                  !row.description_rewrite
-                                                    ? COMMISSION_MODE_TOGGLE_ACTIVE
-                                                    : COMMISSION_MODE_TOGGLE_INACTIVE
-                                                } touch-manipulation`}
-                                              >
-                                                Default
-                                              </button>
-                                              <button
-                                                type="button"
-                                                onClick={() =>
-                                                  updateUpsizeDraft({
-                                                    description_rewrite: true,
-                                                    description:
-                                                      row.description?.trim()
-                                                        ? row.description
-                                                        : (productTypeDescByName.get(
-                                                            row.name.trim(),
-                                                          ) ?? ""),
-                                                  })
-                                                }
-                                                disabled={isLoading}
-                                                aria-pressed={
-                                                  !!row.description_rewrite
-                                                }
-                                                className={`${
-                                                  row.description_rewrite
-                                                    ? COMMISSION_MODE_TOGGLE_ACTIVE
-                                                    : COMMISSION_MODE_TOGGLE_INACTIVE
-                                                } touch-manipulation`}
-                                              >
-                                                Re-write
-                                              </button>
-                                            </div>
-                                            {row.description_rewrite ? (
-                                              <Input
-                                                type="text"
-                                                placeholder="Re-write the description for this promo"
-                                                ariaLabel={`Re-written description for ${row.name.trim()}`}
-                                                value={row.description ?? ""}
-                                                onChange={(e) =>
-                                                  updateUpsizeDraft({
-                                                    description: e.target.value,
-                                                  })
-                                                }
-                                                disabled={isLoading}
-                                                autoComplete="off"
-                                                className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
-                                              />
-                                            ) : (
-                                              <Input
-                                                type="text"
-                                                placeholder="(uses the product type's description)"
-                                                ariaLabel={`Default description for ${row.name.trim()}`}
-                                                value={
-                                                  productTypeDescByName.get(
-                                                    row.name.trim(),
-                                                  ) ?? ""
-                                                }
-                                                disabled
-                                                className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
-                                              />
-                                            )}
-                                          </div>
-                                          <div className="flex flex-wrap items-center gap-6">
-                                            <div className="flex flex-wrap items-center gap-3">
-                                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                Pay in :
-                                              </span>
-                                              <button
-                                                type="button"
-                                                onClick={() =>
-                                                  updateUpsizeDraft({
-                                                    pay_in: "cashback",
-                                                  })
-                                                }
-                                                disabled={isLoading}
-                                                aria-pressed={
-                                                  (row.pay_in ?? "cashback") ===
-                                                  "cashback"
-                                                }
-                                                className={`${
-                                                  (row.pay_in ?? "cashback") ===
-                                                  "cashback"
-                                                    ? COMMISSION_MODE_TOGGLE_ACTIVE
-                                                    : COMMISSION_MODE_TOGGLE_INACTIVE
-                                                } touch-manipulation`}
-                                              >
-                                                Cashback %
-                                              </button>
-                                              <button
-                                                type="button"
-                                                onClick={() =>
-                                                  updateUpsizeDraft({
-                                                    pay_in: "cash",
-                                                  })
-                                                }
-                                                disabled={isLoading}
-                                                aria-pressed={
-                                                  row.pay_in === "cash"
-                                                }
-                                                className={`${
-                                                  row.pay_in === "cash"
-                                                    ? COMMISSION_MODE_TOGGLE_ACTIVE
-                                                    : COMMISSION_MODE_TOGGLE_INACTIVE
-                                                } touch-manipulation`}
-                                              >
-                                                Cash
-                                              </button>
-                                            </div>
-                                            <div className="flex flex-1 items-center gap-3">
-                                              {(row.pay_in ?? "cashback") ===
-                                              "cashback" ? (
-                                                <>
-                                                  <div className="min-w-0 flex-1">
-                                                    <Input
-                                                      type="text"
-                                                      placeholder="Raw %"
-                                                      ariaLabel={`Raw % for ${row.name.trim()}`}
-                                                      value={
-                                                        row.commission_raw ?? ""
-                                                      }
-                                                      onChange={(e) =>
-                                                        updateUpsizeDraft({
-                                                          commission_raw:
-                                                            e.target.value,
-                                                          commission_info:
-                                                            netCommissionFromRaw(
+                                      <div>
+                                        <div className="mb-1.5 flex flex-wrap items-center gap-3">
+                                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                            Product description
+                                          </span>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              updateUpsizeDraft({
+                                                description_rewrite: false,
+                                                description: "",
+                                              })
+                                            }
+                                            disabled={isLoading}
+                                            aria-pressed={
+                                              !row.description_rewrite
+                                            }
+                                            className={`${
+                                              !row.description_rewrite
+                                                ? COMMISSION_MODE_TOGGLE_ACTIVE
+                                                : COMMISSION_MODE_TOGGLE_INACTIVE
+                                            } touch-manipulation`}
+                                          >
+                                            Default
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              updateUpsizeDraft({
+                                                description_rewrite: true,
+                                                description:
+                                                  row.description?.trim()
+                                                    ? row.description
+                                                    : (productTypeDescByName.get(
+                                                        row.name.trim(),
+                                                      ) ?? ""),
+                                              })
+                                            }
+                                            disabled={isLoading}
+                                            aria-pressed={
+                                              !!row.description_rewrite
+                                            }
+                                            className={`${
+                                              row.description_rewrite
+                                                ? COMMISSION_MODE_TOGGLE_ACTIVE
+                                                : COMMISSION_MODE_TOGGLE_INACTIVE
+                                            } touch-manipulation`}
+                                          >
+                                            Re-write
+                                          </button>
+                                        </div>
+                                        {row.description_rewrite ? (
+                                          <Input
+                                            type="text"
+                                            placeholder="Re-write the description for this promo"
+                                            ariaLabel={`Re-written description for ${row.name.trim()}`}
+                                            value={row.description ?? ""}
+                                            onChange={(e) =>
+                                              updateUpsizeDraft({
+                                                description: e.target.value,
+                                              })
+                                            }
+                                            disabled={isLoading}
+                                            autoComplete="off"
+                                            className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
+                                          />
+                                        ) : (
+                                          <Input
+                                            type="text"
+                                            placeholder="(uses the product type's description)"
+                                            ariaLabel={`Default description for ${row.name.trim()}`}
+                                            value={
+                                              productTypeDescByName.get(
+                                                row.name.trim(),
+                                              ) ?? ""
+                                            }
+                                            disabled
+                                            className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
+                                          />
+                                        )}
+                                      </div>
+                                      <div className="flex flex-wrap items-center gap-6">
+                                        <div className="flex flex-wrap items-center gap-3">
+                                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                            Pay in :
+                                          </span>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              updateUpsizeDraft({
+                                                pay_in: "cashback",
+                                              })
+                                            }
+                                            disabled={isLoading}
+                                            aria-pressed={
+                                              (row.pay_in ?? "cashback") ===
+                                              "cashback"
+                                            }
+                                            className={`${
+                                              (row.pay_in ?? "cashback") ===
+                                              "cashback"
+                                                ? COMMISSION_MODE_TOGGLE_ACTIVE
+                                                : COMMISSION_MODE_TOGGLE_INACTIVE
+                                            } touch-manipulation`}
+                                          >
+                                            Cashback %
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              updateUpsizeDraft({
+                                                pay_in: "cash",
+                                              })
+                                            }
+                                            disabled={isLoading}
+                                            aria-pressed={row.pay_in === "cash"}
+                                            className={`${
+                                              row.pay_in === "cash"
+                                                ? COMMISSION_MODE_TOGGLE_ACTIVE
+                                                : COMMISSION_MODE_TOGGLE_INACTIVE
+                                            } touch-manipulation`}
+                                          >
+                                            Cash
+                                          </button>
+                                        </div>
+                                        <div className="flex flex-1 items-center gap-3">
+                                          {(row.pay_in ?? "cashback") ===
+                                          "cashback" ? (
+                                            <>
+                                              <div className="min-w-0 flex-1">
+                                                <Input
+                                                  type="text"
+                                                  placeholder="Raw %"
+                                                  ariaLabel={`Raw % for ${row.name.trim()}`}
+                                                  value={
+                                                    row.commission_raw ?? ""
+                                                  }
+                                                  onChange={(e) =>
+                                                    updateUpsizeDraft({
+                                                      commission_raw:
+                                                        e.target.value,
+                                                      commission_info:
+                                                        netCommissionFromRaw(
+                                                          e.target.value,
+                                                        ),
+                                                    })
+                                                  }
+                                                  disabled={isLoading}
+                                                  autoComplete="off"
+                                                  className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
+                                                />
+                                              </div>
+                                              <div className="min-w-0 flex-1">
+                                                <Input
+                                                  type="text"
+                                                  placeholder="% after 30% fee"
+                                                  ariaLabel={`% after 30% fee for ${row.name.trim()}`}
+                                                  value={netCommissionFromRaw(
+                                                    row.commission_raw ?? "",
+                                                  )}
+                                                  disabled
+                                                  className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
+                                                />
+                                              </div>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <div className="min-w-0 flex-1">
+                                                <Input
+                                                  type="text"
+                                                  placeholder="Amount"
+                                                  ariaLabel={`Amount for ${row.name.trim()}`}
+                                                  value={row.amount ?? ""}
+                                                  onChange={(e) =>
+                                                    updateUpsizeDraft({
+                                                      amount:
+                                                        e.target.value === ""
+                                                          ? null
+                                                          : Number(
                                                               e.target.value,
                                                             ),
-                                                        })
-                                                      }
-                                                      disabled={isLoading}
-                                                      autoComplete="off"
-                                                      className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
-                                                    />
-                                                  </div>
-                                                  <div className="min-w-0 flex-1">
-                                                    <Input
-                                                      type="text"
-                                                      placeholder="% after 30% fee"
-                                                      ariaLabel={`% after 30% fee for ${row.name.trim()}`}
-                                                      value={netCommissionFromRaw(
-                                                        row.commission_raw ??
-                                                          "",
-                                                      )}
-                                                      disabled
-                                                      className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
-                                                    />
-                                                  </div>
-                                                </>
-                                              ) : (
-                                                <>
-                                                  <div className="min-w-0 flex-1">
-                                                    <Input
-                                                      type="text"
-                                                      placeholder="Amount"
-                                                      ariaLabel={`Amount for ${row.name.trim()}`}
-                                                      value={row.amount ?? ""}
-                                                      onChange={(e) =>
-                                                        updateUpsizeDraft({
-                                                          amount:
-                                                            e.target.value ===
-                                                            ""
-                                                              ? null
-                                                              : Number(
-                                                                  e.target
-                                                                    .value,
-                                                                ),
-                                                        })
-                                                      }
-                                                      disabled={isLoading}
-                                                      autoComplete="off"
-                                                      className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
-                                                    />
-                                                  </div>
-                                                  <div className="min-w-0 flex-1">
-                                                    <select
-                                                      value={
-                                                        row.currency ?? "THB"
-                                                      }
-                                                      onChange={(e) =>
-                                                        updateUpsizeDraft({
-                                                          currency:
-                                                            e.target.value,
-                                                        })
-                                                      }
-                                                      disabled={isLoading}
-                                                      aria-label={`Currency for ${row.name.trim()}`}
-                                                      className="focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-800 focus:ring-3 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                                                    >
-                                                      <option value="THB">
-                                                        THB
-                                                      </option>
-                                                      <option value="USD">
-                                                        USD
-                                                      </option>
-                                                    </select>
-                                                  </div>
-                                                </>
-                                              )}
-                                            </div>
-                                          </div>
-                                        </>
-                                      ) : null}
+                                                    })
+                                                  }
+                                                  disabled={isLoading}
+                                                  autoComplete="off"
+                                                  className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
+                                                />
+                                              </div>
+                                              <div className="min-w-0 flex-1">
+                                                <select
+                                                  value={row.currency ?? "THB"}
+                                                  onChange={(e) =>
+                                                    updateUpsizeDraft({
+                                                      currency: e.target.value,
+                                                    })
+                                                  }
+                                                  disabled={isLoading}
+                                                  aria-label={`Currency for ${row.name.trim()}`}
+                                                  className="focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-800 focus:ring-3 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                                                >
+                                                  <option value="THB">
+                                                    THB
+                                                  </option>
+                                                  <option value="USD">
+                                                    USD
+                                                  </option>
+                                                </select>
+                                              </div>
+                                            </>
+                                          )}
+                                        </div>
+                                      </div>
                                     </>
                                   )}
                                 </li>
