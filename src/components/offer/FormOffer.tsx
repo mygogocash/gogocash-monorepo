@@ -983,6 +983,29 @@ const FormOffer = ({
     form.upsize_max_cap,
   ]);
 
+  // Per-product-line upsize (launched + "All product types" off): keep one empty
+  // trailing line so the product-type picker (and the period below it) appear
+  // automatically and new lines grow as you fill them — no "Add" button needed.
+  useEffect(() => {
+    if (!upsizeLaunched || form.upsize_all_product_types) return;
+    const rows = form.upsize_product_types ?? [];
+    const last = rows[rows.length - 1];
+    if (rows.length === 0 || (last?.name ?? "").trim() !== "") {
+      setForm((prev) => ({
+        ...prev,
+        upsize_product_types: [
+          ...(prev.upsize_product_types ?? []),
+          { name: "", commission_info: "", deeplink: "" },
+        ],
+      }));
+    }
+  }, [
+    upsizeLaunched,
+    form.upsize_all_product_types,
+    form.upsize_product_types,
+    setForm,
+  ]);
+
   const { data: policiesList = {} } = useQuery<Record<string, string>>({
     queryKey: ["policyList"],
     queryFn: () => fetcher("/policy/list"),
@@ -2473,30 +2496,6 @@ const FormOffer = ({
                   <>
                     {!form.upsize_all_product_types ? (
                       <>
-                        <div className="mt-3 flex flex-wrap items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            type="button"
-                            onClick={() =>
-                              setForm({
-                                ...form,
-                                upsize_product_types: [
-                                  ...(form.upsize_product_types ?? []),
-                                  {
-                                    name: "",
-                                    commission_info: "",
-                                    deeplink: "",
-                                  },
-                                ],
-                              })
-                            }
-                            disabled={isLoading}
-                            className="touch-manipulation"
-                          >
-                            Add product line
-                          </Button>
-                        </div>
                         {(form.upsize_product_types ?? []).length > 0 ? (
                           <ul className="mt-3 space-y-4">
                             {(form.upsize_product_types ?? []).map((row, i) => {
