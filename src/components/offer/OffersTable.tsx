@@ -633,7 +633,8 @@ export default function OffersTable() {
                                   <div className="min-w-0">
                                     <div className="flex flex-wrap items-center gap-1.5">
                                       <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                                        {offer.offer_name}
+                                        {offer.offer_name_display ||
+                                          offer.offer_name}
                                       </span>
                                       {offer.is_global && (
                                         <span
