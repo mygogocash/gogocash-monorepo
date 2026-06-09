@@ -148,6 +148,7 @@ function OfferFormSectionNav({ showReference }: { showReference: boolean }) {
           : []),
         { id: "offer-section-brand", label: "Brand & Cashback" },
         { id: "offer-section-merch", label: "Promotion" },
+        { id: "offer-section-upsize", label: "Upsize event" },
         { id: "offer-section-media", label: "Logo & Medias" },
         { id: "offer-section-policy", label: "Terms & Conditions" },
         { id: "offer-section-tracking", label: "Partner & Tracking link" },
@@ -2471,9 +2472,15 @@ const FormOffer = ({
               </section>
             )}
           </section>
+        </div>
 
+        {/* Upsize event — its own section, separate from Cashback Management */}
+        <section
+          id="offer-section-upsize"
+          className={`border-brand-200/80 bg-brand-50/50 dark:border-brand-800/60 dark:bg-brand-950/25 rounded-xl border border-dashed p-4 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
+        >
           <div>
-            <div className="mt-4 space-y-5">
+            <div className="space-y-5">
               <div>
                 <h5 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
                   <span className="text-brand-600 dark:text-brand-400">
@@ -3240,7 +3247,7 @@ const FormOffer = ({
               </div>
             </div>
           </div>
-        </div>
+        </section>
 
         {/* Logos & media */}
         <section
