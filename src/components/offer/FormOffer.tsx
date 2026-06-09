@@ -2537,21 +2537,22 @@ const FormOffer = ({
                                       <select
                                         id={`${baseId}-name`}
                                         className="shadow-theme-xs min-h-11 w-full min-w-0 touch-manipulation rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 sm:text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-                                        value={row.name}
-                                        onChange={(e) => {
-                                          const next = [
-                                            ...(form.upsize_product_types ??
-                                              []),
-                                          ];
-                                          next[i] = {
-                                            ...next[i],
-                                            name: e.target.value,
-                                          };
-                                          setForm({
-                                            ...form,
-                                            upsize_product_types: next,
-                                          });
-                                        }}
+                                        value={
+                                          row.is_others
+                                            ? "__others__"
+                                            : row.name
+                                        }
+                                        onChange={(e) =>
+                                          e.target.value === "__others__"
+                                            ? updateUpsizeRow(i, {
+                                                is_others: true,
+                                                name: "",
+                                              })
+                                            : updateUpsizeRow(i, {
+                                                is_others: false,
+                                                name: e.target.value,
+                                              })
+                                        }
                                         disabled={isLoading}
                                       >
                                         <option value="">
@@ -2564,7 +2565,8 @@ const FormOffer = ({
                                             </option>
                                           ),
                                         )}
-                                        {row.name.trim() &&
+                                        {!row.is_others &&
+                                        row.name.trim() &&
                                         !upsizeProductTypeNameOptions.includes(
                                           row.name.trim(),
                                         ) ? (
@@ -2573,9 +2575,13 @@ const FormOffer = ({
                                             Product Type to pick)
                                           </option>
                                         ) : null}
+                                        <option value="__others__">
+                                          Others (custom)
+                                        </option>
                                       </select>
-                                      {upsizeProductTypeNameOptions.length ===
-                                      0 ? (
+                                      {!row.is_others &&
+                                      upsizeProductTypeNameOptions.length ===
+                                        0 ? (
                                         <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
                                           Add named lines under{" "}
                                           <span className="font-medium">
@@ -2587,6 +2593,22 @@ const FormOffer = ({
                                           </span>{" "}
                                           if those rows are hidden.
                                         </p>
+                                      ) : null}
+                                      {row.is_others ? (
+                                        <Input
+                                          type="text"
+                                          placeholder="e.g. Electronics"
+                                          ariaLabel="Custom product type name"
+                                          value={row.name}
+                                          onChange={(e) =>
+                                            updateUpsizeRow(i, {
+                                              name: e.target.value,
+                                            })
+                                          }
+                                          disabled={isLoading}
+                                          autoComplete="off"
+                                          className="mt-2 min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
+                                        />
                                       ) : null}
                                     </div>
                                     <div className="flex shrink-0 sm:items-end sm:pb-0.5">
