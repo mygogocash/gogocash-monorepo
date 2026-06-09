@@ -1797,7 +1797,7 @@ const FormOffer = ({
                     onClick={() => setEditingCashback(false)}
                     className="border-brand-600 bg-brand-600 hover:bg-brand-700 dark:border-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500 rounded-lg border px-3 py-1.5 text-sm font-medium text-white"
                   >
-                    Done
+                    Save
                   </button>
                 </div>
               )}
