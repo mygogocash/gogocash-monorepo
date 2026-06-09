@@ -935,6 +935,33 @@ const FormOffer = ({
       brandSnapshot,
     );
 
+  // Cashback Management edit toggle — locks/unlocks the fields. No section save:
+  // changes persist via the form-wide "Save changes". Cancel reverts the snapshot.
+  const [editingCashback, setEditingCashback] = useState(false);
+  // Bump to remount the locked fieldset so uncontrolled controls (the Switch's
+  // defaultChecked, defaultValue inputs) re-read the form after a Cancel revert.
+  const [cashbackEditKey, setCashbackEditKey] = useState(0);
+  const [cashbackSnapshot, setCashbackSnapshot] = useState<Pick<
+    OfferRequestForm,
+    "commission_store" | "all_product_types" | "max_cap" | "product_types"
+  > | null>(null);
+
+  const beginEditCashback = () => {
+    setCashbackSnapshot({
+      commission_store: form.commission_store,
+      all_product_types: form.all_product_types,
+      max_cap: form.max_cap,
+      product_types: form.product_types,
+    });
+    setEditingCashback(true);
+  };
+
+  const cancelEditCashback = () => {
+    if (cashbackSnapshot) setForm((prev) => ({ ...prev, ...cashbackSnapshot }));
+    setCashbackEditKey((k) => k + 1);
+    setEditingCashback(false);
+  };
+
   const { data: policyCategories = [], isPending: policyCategoriesPending } =
     useQuery<ResCategoryList[]>({
       queryKey: ["getCategory", "form-offer-policy"],
@@ -1746,263 +1773,474 @@ const FormOffer = ({
         >
           <section
             id="offer-section-cashback"
-            className={`space-y-8 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
+            className={`relative space-y-8 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
           >
-            {/* Cashback management fields — grouped for easier selection */}
-            <div className="space-y-2">
-              <h4 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
-                Cashback Management
-              </h4>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                The default cashback for this offer (commission %, product-type
-                lines, and max cap). Run a special-period promotion under{" "}
-                <span className="font-medium text-gray-700 dark:text-gray-300">
-                  Upsize event
-                </span>
-                .
-              </p>
+            {/* Section actions — pinned top-right; Edit unlocks the fields,
+            Done locks them (changes persist via the form-wide "Save changes"),
+            Cancel reverts. */}
+            <div className="absolute top-0 right-0 z-10">
+              {!editingCashback ? (
+                <SecondaryButton onClick={beginEditCashback} disabled={!offer}>
+                  Edit
+                </SecondaryButton>
+              ) : (
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={cancelEditCashback}
+                    className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingCashback(false)}
+                    className="border-brand-600 bg-brand-600 hover:bg-brand-700 dark:border-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500 rounded-lg border px-3 py-1.5 text-sm font-medium text-white"
+                  >
+                    Done
+                  </button>
+                </div>
+              )}
+            </div>
+            <fieldset
+              key={cashbackEditKey}
+              disabled={!editingCashback || isLoading}
+              className="min-w-0 space-y-8"
+            >
+              {/* Cashback management fields — grouped for easier selection */}
+              <div className="space-y-2">
+                <h4 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
+                  Cashback Management
+                </h4>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  The default cashback for this offer (commission %,
+                  product-type lines, and max cap). Run a special-period
+                  promotion under{" "}
+                  <span className="font-medium text-gray-700 dark:text-gray-300">
+                    Upsize event
+                  </span>
+                  .
+                </p>
 
-              <div className="min-w-0 space-y-[18px]">
-                {/* Commission entry — grouped for easier selection */}
-                <div>
-                  <FieldLabel
-                    label="Commission (%)"
-                    description={
-                      form.commission_entry_mode === "auto"
-                        ? "Loads the best partner rate for this merchant on the selected affiliate network (same as Commission Management), then applies −30% for the user-facing %."
-                        : "Maximum % offered to users. Enter the value already reduced by 30% from the affiliate partner rate."
-                    }
-                  />
-                  <div className="mb-3 flex min-w-0 items-start gap-3 sm:max-w-md">
-                    <Switch
-                      key={`${form.id}-all-product-types`}
-                      label=""
-                      onChange={(e) =>
-                        setForm({ ...form, all_product_types: e })
-                      }
-                      defaultChecked={form.all_product_types}
-                      disabled={isLoading}
-                    />
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                        All product types
-                      </p>
-                      <p className="text-theme-xs text-gray-500 dark:text-gray-400">
-                        Use one commission rate and tracking link for all lines.
-                        Turn off to add per-row names and commission.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mb-2 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setForm((prev) => ({
-                          ...prev,
-                          commission_entry_mode: "auto",
-                        }))
-                      }
-                      disabled={isLoading || commissionLockedToRows}
-                      aria-pressed={form.commission_entry_mode === "auto"}
-                      className={`${
+                <div className="min-w-0 space-y-[18px]">
+                  {/* Commission entry — grouped for easier selection */}
+                  <div>
+                    <FieldLabel
+                      label="Commission (%)"
+                      description={
                         form.commission_entry_mode === "auto"
-                          ? COMMISSION_MODE_TOGGLE_ACTIVE
-                          : COMMISSION_MODE_TOGGLE_INACTIVE
-                      } touch-manipulation`}
-                    >
-                      Auto apply 30% fee
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setForm((prev) => ({
-                          ...prev,
-                          commission_entry_mode: "manual",
-                        }))
+                          ? "Loads the best partner rate for this merchant on the selected affiliate network (same as Commission Management), then applies −30% for the user-facing %."
+                          : "Maximum % offered to users. Enter the value already reduced by 30% from the affiliate partner rate."
                       }
-                      disabled={isLoading || commissionLockedToRows}
-                      aria-pressed={form.commission_entry_mode === "manual"}
-                      className={`${
-                        form.commission_entry_mode === "manual"
-                          ? COMMISSION_MODE_TOGGLE_ACTIVE
-                          : COMMISSION_MODE_TOGGLE_INACTIVE
-                      } touch-manipulation`}
-                    >
-                      Manual
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-2">
-                    {form.commission_entry_mode === "auto" ? (
-                      <>
+                    />
+                    <div className="mb-3 flex min-w-0 items-start gap-3 sm:max-w-md">
+                      <Switch
+                        key={`${form.id}-all-product-types`}
+                        label=""
+                        onChange={(e) =>
+                          setForm({ ...form, all_product_types: e })
+                        }
+                        defaultChecked={form.all_product_types}
+                        disabled={isLoading || !editingCashback}
+                      />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                          All product types
+                        </p>
+                        <p className="text-theme-xs text-gray-500 dark:text-gray-400">
+                          Use one commission rate and tracking link for all
+                          lines. Turn off to add per-row names and commission.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mb-2 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setForm((prev) => ({
+                            ...prev,
+                            commission_entry_mode: "auto",
+                          }))
+                        }
+                        disabled={isLoading || commissionLockedToRows}
+                        aria-pressed={form.commission_entry_mode === "auto"}
+                        className={`${
+                          form.commission_entry_mode === "auto"
+                            ? COMMISSION_MODE_TOGGLE_ACTIVE
+                            : COMMISSION_MODE_TOGGLE_INACTIVE
+                        } touch-manipulation`}
+                      >
+                        Auto apply 30% fee
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setForm((prev) => ({
+                            ...prev,
+                            commission_entry_mode: "manual",
+                          }))
+                        }
+                        disabled={isLoading || commissionLockedToRows}
+                        aria-pressed={form.commission_entry_mode === "manual"}
+                        className={`${
+                          form.commission_entry_mode === "manual"
+                            ? COMMISSION_MODE_TOGGLE_ACTIVE
+                            : COMMISSION_MODE_TOGGLE_INACTIVE
+                        } touch-manipulation`}
+                      >
+                        Manual
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-2">
+                      {form.commission_entry_mode === "auto" ? (
+                        <>
+                          <div className="min-w-0">
+                            <p className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
+                              Raw %
+                            </p>
+                            <Input
+                              type="text"
+                              name="commission_raw"
+                              value={commissionRaw}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setCommissionRaw(v);
+                                const n = Number(v);
+                                setForm((prev) => ({
+                                  ...prev,
+                                  commission_store:
+                                    v.trim() === "" || Number.isNaN(n)
+                                      ? null
+                                      : applyThirtyPercentFee(n),
+                                }));
+                              }}
+                              disabled={isLoading || commissionLockedToRows}
+                              placeholder="e.g. 10"
+                            />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
+                              % after 30% fee
+                            </p>
+                            <Input
+                              type="text"
+                              name="commission_store"
+                              value={form.commission_store ?? ""}
+                              disabled
+                              placeholder="—"
+                            />
+                          </div>
+                        </>
+                      ) : (
                         <div className="min-w-0">
-                          <p className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
-                            Raw %
-                          </p>
-                          <Input
-                            type="text"
-                            name="commission_raw"
-                            value={commissionRaw}
-                            onChange={(e) => {
-                              const v = e.target.value;
-                              setCommissionRaw(v);
-                              const n = Number(v);
-                              setForm((prev) => ({
-                                ...prev,
-                                commission_store:
-                                  v.trim() === "" || Number.isNaN(n)
-                                    ? null
-                                    : applyThirtyPercentFee(n),
-                              }));
-                            }}
-                            disabled={isLoading || commissionLockedToRows}
-                            placeholder="e.g. 10"
-                          />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
-                            % after 30% fee
-                          </p>
                           <Input
                             type="text"
                             name="commission_store"
                             value={form.commission_store ?? ""}
-                            disabled
-                            placeholder="—"
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              const n = Number(v);
+                              setForm((prev) => ({
+                                ...prev,
+                                commission_store:
+                                  v.trim() === "" || !Number.isFinite(n)
+                                    ? null
+                                    : n,
+                              }));
+                            }}
+                            disabled={isLoading || commissionLockedToRows}
                           />
+                        </div>
+                      )}
+                    </div>
+                    {commissionLockedToRows ? (
+                      <p className="text-theme-xs mt-1.5 text-gray-500 dark:text-gray-400">
+                        Auto-filled from the highest product-type cashback
+                        {highestRowCashback != null
+                          ? ` (${highestRowCashback}%)`
+                          : ""}
+                        . Turn on “All product types” to set a single rate.
+                      </p>
+                    ) : null}
+                  </div>
+                  <div>
+                    <FieldLabel
+                      label="Max cap"
+                      description="Maximum cap offered to users. Enter the value already reduced by 30% from the affiliate partner cap."
+                    />
+                    <Input
+                      type="text"
+                      name="max_cap"
+                      value={form.max_cap ?? ""}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        const n = Number(v);
+                        setForm((prev) => ({
+                          ...prev,
+                          max_cap:
+                            v.trim() === "" || !Number.isFinite(n) ? null : n,
+                        }));
+                      }}
+                      disabled={isLoading}
+                    />
+                  </div>
+                  {form.commission_entry_mode === "auto" ? (
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Partner rates on file:{" "}
+                        <span className="font-medium text-gray-700 dark:text-gray-300">
+                          {formatPartnerRatesMinMax(offer)}
+                        </span>
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+
+              {/* Product Type — hidden while "All product types" is on (one rate/link for all lines) */}
+              {!form.all_product_types && (
+                <section
+                  id="offer-section-product"
+                  className={`space-y-4 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
+                >
+                  {/* 1. Title · 2. Subtitle · 3. Add (blue outline secondary) */}
+                  <div className="space-y-0.5">
+                    <h4 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
+                      Product Type
+                    </h4>
+                    <p className="text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+                      Set up a product type below, then{" "}
+                      <span className="font-medium">Add</span> it. Added lines
+                      persist with{" "}
+                      <span className="font-medium">Save changes</span> at the
+                      top of this section.
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-4 rounded-xl border border-gray-300 bg-gray-50/50 p-4 dark:border-gray-600 dark:bg-gray-800/30">
+                    {/* Insert mode: a product type, or a tagline (group heading) */}
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Insert :
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setInsertMode("product")}
+                        disabled={isLoading || editingProductIndex !== null}
+                        aria-pressed={insertMode === "product"}
+                        className={`${
+                          insertMode === "product"
+                            ? COMMISSION_MODE_TOGGLE_ACTIVE
+                            : COMMISSION_MODE_TOGGLE_INACTIVE
+                        } touch-manipulation`}
+                      >
+                        Product type
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setInsertMode("tagline")}
+                        disabled={isLoading || editingProductIndex !== null}
+                        aria-pressed={insertMode === "tagline"}
+                        className={`${
+                          insertMode === "tagline"
+                            ? COMMISSION_MODE_TOGGLE_ACTIVE
+                            : COMMISSION_MODE_TOGGLE_INACTIVE
+                        } touch-manipulation`}
+                      >
+                        Tagline
+                      </button>
+                    </div>
+                    {insertMode === "product" ? (
+                      <>
+                        {/* 1st line: product type name (full width) */}
+                        <div>
+                          <label
+                            htmlFor="offer-pt-draft-name"
+                            className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                          >
+                            Product type name
+                          </label>
+                          <Input
+                            id="offer-pt-draft-name"
+                            type="text"
+                            placeholder="e.g. Electronics"
+                            value={productTypeDraft.name}
+                            onChange={(e) =>
+                              setProductTypeDraft((d) => ({
+                                ...d,
+                                name: e.target.value,
+                              }))
+                            }
+                            disabled={isLoading}
+                            autoComplete="off"
+                            className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
+                          />
+                        </div>
+
+                        <div>
+                          <label
+                            htmlFor="offer-pt-draft-description"
+                            className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                          >
+                            Product description
+                          </label>
+                          <Input
+                            id="offer-pt-draft-description"
+                            type="text"
+                            placeholder="e.g. Phones, laptops & accessories"
+                            value={productTypeDraft.description}
+                            onChange={(e) =>
+                              setProductTypeDraft((d) => ({
+                                ...d,
+                                description: e.target.value,
+                              }))
+                            }
+                            disabled={isLoading}
+                            autoComplete="off"
+                            className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
+                          />
+                        </div>
+
+                        {/* 2nd line: "Pay in :" toggle group + inputs group (24px between the two groups) */}
+                        <div className="flex flex-wrap items-center gap-6">
+                          {/* Pay-in toggle group — wrapped for selection (no visual change) */}
+                          <div className="flex flex-wrap items-center gap-3">
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                              Pay in :
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setProductTypeDraft((d) => ({
+                                  ...d,
+                                  pay_in: "cashback",
+                                }))
+                              }
+                              disabled={isLoading}
+                              aria-pressed={
+                                productTypeDraft.pay_in === "cashback"
+                              }
+                              className={`${
+                                productTypeDraft.pay_in === "cashback"
+                                  ? COMMISSION_MODE_TOGGLE_ACTIVE
+                                  : COMMISSION_MODE_TOGGLE_INACTIVE
+                              } touch-manipulation`}
+                            >
+                              Cashback %
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setProductTypeDraft((d) => ({
+                                  ...d,
+                                  pay_in: "cash",
+                                }))
+                              }
+                              disabled={isLoading}
+                              aria-pressed={productTypeDraft.pay_in === "cash"}
+                              className={`${
+                                productTypeDraft.pay_in === "cash"
+                                  ? COMMISSION_MODE_TOGGLE_ACTIVE
+                                  : COMMISSION_MODE_TOGGLE_INACTIVE
+                              } touch-manipulation`}
+                            >
+                              Cash
+                            </button>
+                          </div>
+                          {/* inputs group — fills the leftover row space; the two inputs split it */}
+                          <div className="flex flex-1 items-center gap-3">
+                            {productTypeDraft.pay_in === "cashback" ? (
+                              <>
+                                <div className="min-w-0 flex-1">
+                                  <Input
+                                    id="offer-pt-draft-raw"
+                                    type="text"
+                                    placeholder="Raw %"
+                                    ariaLabel="Raw %"
+                                    title="Raw %"
+                                    value={productTypeDraft.commission_raw}
+                                    onChange={(e) =>
+                                      setProductTypeDraft((d) => ({
+                                        ...d,
+                                        commission_raw: e.target.value,
+                                      }))
+                                    }
+                                    disabled={isLoading}
+                                    autoComplete="off"
+                                    className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
+                                  />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <Input
+                                    id="offer-pt-draft-net"
+                                    type="text"
+                                    placeholder="% after 30% fee"
+                                    ariaLabel="% after 30% fee"
+                                    title="% after 30% fee"
+                                    value={netCommissionFromRaw(
+                                      productTypeDraft.commission_raw,
+                                    )}
+                                    disabled
+                                    className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
+                                  />
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="min-w-0 flex-1">
+                                  <Input
+                                    id="offer-pt-draft-amount"
+                                    type="text"
+                                    placeholder="Amount"
+                                    ariaLabel="Amount"
+                                    title="Amount"
+                                    value={productTypeDraft.amount}
+                                    onChange={(e) =>
+                                      setProductTypeDraft((d) => ({
+                                        ...d,
+                                        amount: e.target.value,
+                                      }))
+                                    }
+                                    disabled={isLoading}
+                                    autoComplete="off"
+                                    className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
+                                  />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <select
+                                    id="offer-pt-draft-currency"
+                                    value={productTypeDraft.currency}
+                                    onChange={(e) =>
+                                      setProductTypeDraft((d) => ({
+                                        ...d,
+                                        currency: e.target.value,
+                                      }))
+                                    }
+                                    disabled={isLoading}
+                                    aria-label="Currency"
+                                    title="Currency"
+                                    className="focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-800 focus:ring-3 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                                  >
+                                    <option value="THB">THB</option>
+                                    <option value="USD">USD</option>
+                                  </select>
+                                </div>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </>
                     ) : (
-                      <div className="min-w-0">
-                        <Input
-                          type="text"
-                          name="commission_store"
-                          value={form.commission_store ?? ""}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            const n = Number(v);
-                            setForm((prev) => ({
-                              ...prev,
-                              commission_store:
-                                v.trim() === "" || !Number.isFinite(n)
-                                  ? null
-                                  : n,
-                            }));
-                          }}
-                          disabled={isLoading || commissionLockedToRows}
-                        />
-                      </div>
-                    )}
-                  </div>
-                  {commissionLockedToRows ? (
-                    <p className="text-theme-xs mt-1.5 text-gray-500 dark:text-gray-400">
-                      Auto-filled from the highest product-type cashback
-                      {highestRowCashback != null
-                        ? ` (${highestRowCashback}%)`
-                        : ""}
-                      . Turn on “All product types” to set a single rate.
-                    </p>
-                  ) : null}
-                </div>
-                <div>
-                  <FieldLabel
-                    label="Max cap"
-                    description="Maximum cap offered to users. Enter the value already reduced by 30% from the affiliate partner cap."
-                  />
-                  <Input
-                    type="text"
-                    name="max_cap"
-                    value={form.max_cap ?? ""}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      const n = Number(v);
-                      setForm((prev) => ({
-                        ...prev,
-                        max_cap:
-                          v.trim() === "" || !Number.isFinite(n) ? null : n,
-                      }));
-                    }}
-                    disabled={isLoading}
-                  />
-                </div>
-                {form.commission_entry_mode === "auto" ? (
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Partner rates on file:{" "}
-                      <span className="font-medium text-gray-700 dark:text-gray-300">
-                        {formatPartnerRatesMinMax(offer)}
-                      </span>
-                    </p>
-                  </div>
-                ) : null}
-              </div>
-            </div>
-
-            {/* Product Type — hidden while "All product types" is on (one rate/link for all lines) */}
-            {!form.all_product_types && (
-              <section
-                id="offer-section-product"
-                className={`space-y-4 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
-              >
-                {/* 1. Title · 2. Subtitle · 3. Add (blue outline secondary) */}
-                <div className="space-y-0.5">
-                  <h4 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
-                    Product Type
-                  </h4>
-                  <p className="text-xs leading-relaxed text-gray-500 dark:text-gray-400">
-                    Set up a product type below, then{" "}
-                    <span className="font-medium">Add</span> it. Added lines
-                    persist with{" "}
-                    <span className="font-medium">Save changes</span> at the top
-                    of this section.
-                  </p>
-                </div>
-                <div className="flex flex-col gap-4 rounded-xl border border-gray-300 bg-gray-50/50 p-4 dark:border-gray-600 dark:bg-gray-800/30">
-                  {/* Insert mode: a product type, or a tagline (group heading) */}
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Insert :
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setInsertMode("product")}
-                      disabled={isLoading || editingProductIndex !== null}
-                      aria-pressed={insertMode === "product"}
-                      className={`${
-                        insertMode === "product"
-                          ? COMMISSION_MODE_TOGGLE_ACTIVE
-                          : COMMISSION_MODE_TOGGLE_INACTIVE
-                      } touch-manipulation`}
-                    >
-                      Product type
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setInsertMode("tagline")}
-                      disabled={isLoading || editingProductIndex !== null}
-                      aria-pressed={insertMode === "tagline"}
-                      className={`${
-                        insertMode === "tagline"
-                          ? COMMISSION_MODE_TOGGLE_ACTIVE
-                          : COMMISSION_MODE_TOGGLE_INACTIVE
-                      } touch-manipulation`}
-                    >
-                      Tagline
-                    </button>
-                  </div>
-                  {insertMode === "product" ? (
-                    <>
-                      {/* 1st line: product type name (full width) */}
                       <div>
                         <label
-                          htmlFor="offer-pt-draft-name"
+                          htmlFor="offer-pt-draft-tagline"
                           className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
                         >
-                          Product type name
+                          Tagline (group heading)
                         </label>
                         <Input
-                          id="offer-pt-draft-name"
+                          id="offer-pt-draft-tagline"
                           type="text"
-                          placeholder="e.g. Electronics"
+                          placeholder="e.g. Cashback list that excludes China & Japan"
                           value={productTypeDraft.name}
                           onChange={(e) =>
                             setProductTypeDraft((d) => ({
@@ -2015,462 +2253,288 @@ const FormOffer = ({
                           className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
                         />
                       </div>
+                    )}
 
-                      <div>
-                        <label
-                          htmlFor="offer-pt-draft-description"
-                          className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                        >
-                          Product description
-                        </label>
-                        <Input
-                          id="offer-pt-draft-description"
-                          type="text"
-                          placeholder="e.g. Phones, laptops & accessories"
-                          value={productTypeDraft.description}
-                          onChange={(e) =>
-                            setProductTypeDraft((d) => ({
-                              ...d,
-                              description: e.target.value,
-                            }))
-                          }
-                          disabled={isLoading}
-                          autoComplete="off"
-                          className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
-                        />
-                      </div>
-
-                      {/* 2nd line: "Pay in :" toggle group + inputs group (24px between the two groups) */}
-                      <div className="flex flex-wrap items-center gap-6">
-                        {/* Pay-in toggle group — wrapped for selection (no visual change) */}
-                        <div className="flex flex-wrap items-center gap-3">
-                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Pay in :
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setProductTypeDraft((d) => ({
-                                ...d,
-                                pay_in: "cashback",
-                              }))
-                            }
-                            disabled={isLoading}
-                            aria-pressed={
-                              productTypeDraft.pay_in === "cashback"
-                            }
-                            className={`${
-                              productTypeDraft.pay_in === "cashback"
-                                ? COMMISSION_MODE_TOGGLE_ACTIVE
-                                : COMMISSION_MODE_TOGGLE_INACTIVE
-                            } touch-manipulation`}
-                          >
-                            Cashback %
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setProductTypeDraft((d) => ({
-                                ...d,
-                                pay_in: "cash",
-                              }))
-                            }
-                            disabled={isLoading}
-                            aria-pressed={productTypeDraft.pay_in === "cash"}
-                            className={`${
-                              productTypeDraft.pay_in === "cash"
-                                ? COMMISSION_MODE_TOGGLE_ACTIVE
-                                : COMMISSION_MODE_TOGGLE_INACTIVE
-                            } touch-manipulation`}
-                          >
-                            Cash
-                          </button>
-                        </div>
-                        {/* inputs group — fills the leftover row space; the two inputs split it */}
-                        <div className="flex flex-1 items-center gap-3">
-                          {productTypeDraft.pay_in === "cashback" ? (
-                            <>
-                              <div className="min-w-0 flex-1">
-                                <Input
-                                  id="offer-pt-draft-raw"
-                                  type="text"
-                                  placeholder="Raw %"
-                                  ariaLabel="Raw %"
-                                  title="Raw %"
-                                  value={productTypeDraft.commission_raw}
-                                  onChange={(e) =>
-                                    setProductTypeDraft((d) => ({
-                                      ...d,
-                                      commission_raw: e.target.value,
-                                    }))
-                                  }
-                                  disabled={isLoading}
-                                  autoComplete="off"
-                                  className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
-                                />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <Input
-                                  id="offer-pt-draft-net"
-                                  type="text"
-                                  placeholder="% after 30% fee"
-                                  ariaLabel="% after 30% fee"
-                                  title="% after 30% fee"
-                                  value={netCommissionFromRaw(
-                                    productTypeDraft.commission_raw,
-                                  )}
-                                  disabled
-                                  className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
-                                />
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <div className="min-w-0 flex-1">
-                                <Input
-                                  id="offer-pt-draft-amount"
-                                  type="text"
-                                  placeholder="Amount"
-                                  ariaLabel="Amount"
-                                  title="Amount"
-                                  value={productTypeDraft.amount}
-                                  onChange={(e) =>
-                                    setProductTypeDraft((d) => ({
-                                      ...d,
-                                      amount: e.target.value,
-                                    }))
-                                  }
-                                  disabled={isLoading}
-                                  autoComplete="off"
-                                  className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
-                                />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <select
-                                  id="offer-pt-draft-currency"
-                                  value={productTypeDraft.currency}
-                                  onChange={(e) =>
-                                    setProductTypeDraft((d) => ({
-                                      ...d,
-                                      currency: e.target.value,
-                                    }))
-                                  }
-                                  disabled={isLoading}
-                                  aria-label="Currency"
-                                  title="Currency"
-                                  className="focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-800 focus:ring-3 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                                >
-                                  <option value="THB">THB</option>
-                                  <option value="USD">USD</option>
-                                </select>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    <div>
-                      <label
-                        htmlFor="offer-pt-draft-tagline"
-                        className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                      >
-                        Tagline (group heading)
-                      </label>
-                      <Input
-                        id="offer-pt-draft-tagline"
-                        type="text"
-                        placeholder="e.g. Cashback list that excludes China & Japan"
-                        value={productTypeDraft.name}
-                        onChange={(e) =>
-                          setProductTypeDraft((d) => ({
-                            ...d,
-                            name: e.target.value,
-                          }))
-                        }
+                    {/* 3rd line: Cancel / Add|Update (bottom right) */}
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={cancelProductTypeDraft}
                         disabled={isLoading}
-                        autoComplete="off"
-                        className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
-                      />
+                        className={`${SUPPORT_BUTTON_DEFAULT_CLASS} touch-manipulation`}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={addProductTypeDraft}
+                        disabled={
+                          isLoading || productTypeDraft.name.trim() === ""
+                        }
+                        className={`${SUPPORT_BUTTON_BLUE_CLASS} touch-manipulation`}
+                      >
+                        {editingProductIndex !== null
+                          ? "Update"
+                          : insertMode === "tagline"
+                            ? "Add tagline"
+                            : "Add"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Added product type list — committed rows; Action → Edit (re-loads the draft) / Delete */}
+                  {(form.product_types ?? []).length > 0 && (
+                    <div className="space-y-2">
+                      <h5 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                        Added product type list
+                      </h5>
+                      <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+                        <table className="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
+                          <thead className="bg-gray-50 dark:bg-gray-800/50">
+                            <tr>
+                              <th scope="col" className="w-8 px-2 py-2.5">
+                                <span className="sr-only">Reorder</span>
+                              </th>
+                              <th
+                                scope="col"
+                                className="px-4 py-2.5 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400"
+                              >
+                                Name
+                              </th>
+                              <th
+                                scope="col"
+                                className="w-32 px-4 py-2.5 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400"
+                              >
+                                Pay in
+                              </th>
+                              <th
+                                scope="col"
+                                className="w-32 px-4 py-2.5 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400"
+                              >
+                                Value
+                              </th>
+                              <th
+                                scope="col"
+                                className="w-32 px-4 py-2.5 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400"
+                              >
+                                Action
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                            {(form.product_types ?? []).map((row, i) => {
+                              const isCash = row.pay_in === "cash";
+                              const value = isCash
+                                ? row.amount != null
+                                  ? `${row.amount} ${row.currency || ""}`.trim()
+                                  : "—"
+                                : row.commission_info
+                                  ? `${row.commission_info}%`
+                                  : "—";
+                              const isEditingThisRow =
+                                editingProductIndex === i;
+                              const editLocked = editingProductIndex !== null;
+                              const isDragSource = dragSrcIndex === i;
+                              const isDragTarget =
+                                dragSrcIndex !== null &&
+                                dragOverIndex === i &&
+                                dragSrcIndex !== i;
+                              return (
+                                <tr
+                                  key={i}
+                                  onDragOver={(e) => {
+                                    if (dragSrcIndex === null) return;
+                                    e.preventDefault();
+                                    e.dataTransfer.dropEffect = "move";
+                                    if (dragOverIndex !== i)
+                                      setDragOverIndex(i);
+                                  }}
+                                  onDrop={(e) => {
+                                    e.preventDefault();
+                                    if (
+                                      dragSrcIndex !== null &&
+                                      dragSrcIndex !== i
+                                    ) {
+                                      reorderProductTypeRow(dragSrcIndex, i);
+                                    }
+                                    setDragSrcIndex(null);
+                                    setDragOverIndex(null);
+                                  }}
+                                  className={`transition-colors ${
+                                    isEditingThisRow
+                                      ? "bg-brand-50 dark:bg-brand-500/10"
+                                      : isDragSource
+                                        ? "opacity-50"
+                                        : isDragTarget
+                                          ? "bg-brand-50 dark:bg-brand-500/10"
+                                          : row.is_tagline
+                                            ? "bg-gray-100/70 dark:bg-gray-800/60"
+                                            : "bg-white dark:bg-gray-900"
+                                  }`}
+                                >
+                                  <td className="px-2 py-2.5 text-center align-middle">
+                                    <button
+                                      type="button"
+                                      aria-label={`Drag to reorder ${row.name || "row"}`}
+                                      title="Drag to reorder"
+                                      draggable={!editLocked && !isLoading}
+                                      onDragStart={(e) => {
+                                        setDragSrcIndex(i);
+                                        setOpenProductActionIdx(null);
+                                        e.dataTransfer.effectAllowed = "move";
+                                        e.dataTransfer.setData(
+                                          "text/plain",
+                                          String(i),
+                                        );
+                                      }}
+                                      onDragEnd={() => {
+                                        setDragSrcIndex(null);
+                                        setDragOverIndex(null);
+                                      }}
+                                      disabled={isLoading || editLocked}
+                                      className="cursor-grab px-1 leading-none text-gray-500 select-none hover:text-gray-700 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-40 dark:text-gray-400 dark:hover:text-gray-200"
+                                    >
+                                      <span aria-hidden>⋮⋮</span>
+                                    </button>
+                                  </td>
+                                  {row.is_tagline ? (
+                                    <td
+                                      colSpan={3}
+                                      className="px-4 py-2.5 text-sm font-semibold tracking-wide text-gray-700 uppercase dark:text-gray-200"
+                                    >
+                                      <span
+                                        aria-hidden
+                                        className="mr-2 text-gray-400 dark:text-gray-500"
+                                      >
+                                        #
+                                      </span>
+                                      {row.name || "—"}
+                                    </td>
+                                  ) : (
+                                    <>
+                                      <td className="px-4 py-2.5 font-medium text-gray-800 dark:text-gray-100">
+                                        {row.name || "—"}
+                                        {row.description?.trim() ? (
+                                          <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-gray-400">
+                                            {row.description}
+                                          </p>
+                                        ) : null}
+                                      </td>
+                                      <td className="w-32 px-4 py-2.5">
+                                        <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                                          {isCash ? "Cash" : "Cashback %"}
+                                        </span>
+                                      </td>
+                                      <td className="w-32 px-4 py-2.5 text-gray-700 dark:text-gray-300">
+                                        {value}
+                                      </td>
+                                    </>
+                                  )}
+                                  <td className="relative w-32 px-4 py-2.5 text-left">
+                                    {isEditingThisRow ? (
+                                      <span className="bg-brand-100 text-brand-700 dark:bg-brand-500/20 dark:text-brand-300 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium">
+                                        Editing…
+                                      </span>
+                                    ) : (
+                                      <div
+                                        ref={
+                                          openProductActionIdx === i
+                                            ? productActionsRef
+                                            : undefined
+                                        }
+                                        className="relative inline-block text-left"
+                                      >
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            if (openProductActionIdx === i) {
+                                              setOpenProductActionIdx(null);
+                                              setProductMenuAnchor(null);
+                                              return;
+                                            }
+                                            const r =
+                                              e.currentTarget.getBoundingClientRect();
+                                            setProductMenuAnchor({
+                                              top: r.bottom + 4,
+                                              right:
+                                                window.innerWidth - r.right,
+                                            });
+                                            setOpenProductActionIdx(i);
+                                          }}
+                                          disabled={isLoading || editLocked}
+                                          aria-expanded={
+                                            openProductActionIdx === i
+                                          }
+                                          aria-haspopup="menu"
+                                          className={`${SUPPORT_BUTTON_DEFAULT_CLASS} gap-1`}
+                                        >
+                                          Action
+                                          <svg
+                                            className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                            aria-hidden
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              strokeWidth={2}
+                                              d="M19 9l-7 7-7-7"
+                                            />
+                                          </svg>
+                                        </button>
+                                        {openProductActionIdx === i &&
+                                          productMenuAnchor &&
+                                          createPortal(
+                                            <div
+                                              ref={productMenuRef}
+                                              style={{
+                                                position: "fixed",
+                                                top: productMenuAnchor.top,
+                                                right: productMenuAnchor.right,
+                                                zIndex: 100002,
+                                              }}
+                                              className="min-w-[8rem] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800"
+                                              role="menu"
+                                            >
+                                              <button
+                                                type="button"
+                                                role="menuitem"
+                                                onClick={() =>
+                                                  editProductTypeRow(i)
+                                                }
+                                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+                                              >
+                                                Edit
+                                              </button>
+                                              <button
+                                                type="button"
+                                                role="menuitem"
+                                                onClick={() =>
+                                                  deleteProductTypeRow(i)
+                                                }
+                                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                                              >
+                                                Delete
+                                              </button>
+                                            </div>,
+                                            document.body,
+                                          )}
+                                      </div>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   )}
-
-                  {/* 3rd line: Cancel / Add|Update (bottom right) */}
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={cancelProductTypeDraft}
-                      disabled={isLoading}
-                      className={`${SUPPORT_BUTTON_DEFAULT_CLASS} touch-manipulation`}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={addProductTypeDraft}
-                      disabled={
-                        isLoading || productTypeDraft.name.trim() === ""
-                      }
-                      className={`${SUPPORT_BUTTON_BLUE_CLASS} touch-manipulation`}
-                    >
-                      {editingProductIndex !== null
-                        ? "Update"
-                        : insertMode === "tagline"
-                          ? "Add tagline"
-                          : "Add"}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Added product type list — committed rows; Action → Edit (re-loads the draft) / Delete */}
-                {(form.product_types ?? []).length > 0 && (
-                  <div className="space-y-2">
-                    <h5 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                      Added product type list
-                    </h5>
-                    <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
-                      <table className="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
-                        <thead className="bg-gray-50 dark:bg-gray-800/50">
-                          <tr>
-                            <th scope="col" className="w-8 px-2 py-2.5">
-                              <span className="sr-only">Reorder</span>
-                            </th>
-                            <th
-                              scope="col"
-                              className="px-4 py-2.5 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400"
-                            >
-                              Name
-                            </th>
-                            <th
-                              scope="col"
-                              className="w-32 px-4 py-2.5 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400"
-                            >
-                              Pay in
-                            </th>
-                            <th
-                              scope="col"
-                              className="w-32 px-4 py-2.5 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400"
-                            >
-                              Value
-                            </th>
-                            <th
-                              scope="col"
-                              className="w-32 px-4 py-2.5 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400"
-                            >
-                              Action
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                          {(form.product_types ?? []).map((row, i) => {
-                            const isCash = row.pay_in === "cash";
-                            const value = isCash
-                              ? row.amount != null
-                                ? `${row.amount} ${row.currency || ""}`.trim()
-                                : "—"
-                              : row.commission_info
-                                ? `${row.commission_info}%`
-                                : "—";
-                            const isEditingThisRow = editingProductIndex === i;
-                            const editLocked = editingProductIndex !== null;
-                            const isDragSource = dragSrcIndex === i;
-                            const isDragTarget =
-                              dragSrcIndex !== null &&
-                              dragOverIndex === i &&
-                              dragSrcIndex !== i;
-                            return (
-                              <tr
-                                key={i}
-                                onDragOver={(e) => {
-                                  if (dragSrcIndex === null) return;
-                                  e.preventDefault();
-                                  e.dataTransfer.dropEffect = "move";
-                                  if (dragOverIndex !== i) setDragOverIndex(i);
-                                }}
-                                onDrop={(e) => {
-                                  e.preventDefault();
-                                  if (
-                                    dragSrcIndex !== null &&
-                                    dragSrcIndex !== i
-                                  ) {
-                                    reorderProductTypeRow(dragSrcIndex, i);
-                                  }
-                                  setDragSrcIndex(null);
-                                  setDragOverIndex(null);
-                                }}
-                                className={`transition-colors ${
-                                  isEditingThisRow
-                                    ? "bg-brand-50 dark:bg-brand-500/10"
-                                    : isDragSource
-                                      ? "opacity-50"
-                                      : isDragTarget
-                                        ? "bg-brand-50 dark:bg-brand-500/10"
-                                        : row.is_tagline
-                                          ? "bg-gray-100/70 dark:bg-gray-800/60"
-                                          : "bg-white dark:bg-gray-900"
-                                }`}
-                              >
-                                <td className="px-2 py-2.5 text-center align-middle">
-                                  <button
-                                    type="button"
-                                    aria-label={`Drag to reorder ${row.name || "row"}`}
-                                    title="Drag to reorder"
-                                    draggable={!editLocked && !isLoading}
-                                    onDragStart={(e) => {
-                                      setDragSrcIndex(i);
-                                      setOpenProductActionIdx(null);
-                                      e.dataTransfer.effectAllowed = "move";
-                                      e.dataTransfer.setData(
-                                        "text/plain",
-                                        String(i),
-                                      );
-                                    }}
-                                    onDragEnd={() => {
-                                      setDragSrcIndex(null);
-                                      setDragOverIndex(null);
-                                    }}
-                                    disabled={isLoading || editLocked}
-                                    className="cursor-grab px-1 leading-none text-gray-500 select-none hover:text-gray-700 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-40 dark:text-gray-400 dark:hover:text-gray-200"
-                                  >
-                                    <span aria-hidden>⋮⋮</span>
-                                  </button>
-                                </td>
-                                {row.is_tagline ? (
-                                  <td
-                                    colSpan={3}
-                                    className="px-4 py-2.5 text-sm font-semibold tracking-wide text-gray-700 uppercase dark:text-gray-200"
-                                  >
-                                    <span
-                                      aria-hidden
-                                      className="mr-2 text-gray-400 dark:text-gray-500"
-                                    >
-                                      #
-                                    </span>
-                                    {row.name || "—"}
-                                  </td>
-                                ) : (
-                                  <>
-                                    <td className="px-4 py-2.5 font-medium text-gray-800 dark:text-gray-100">
-                                      {row.name || "—"}
-                                      {row.description?.trim() ? (
-                                        <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-gray-400">
-                                          {row.description}
-                                        </p>
-                                      ) : null}
-                                    </td>
-                                    <td className="w-32 px-4 py-2.5">
-                                      <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300">
-                                        {isCash ? "Cash" : "Cashback %"}
-                                      </span>
-                                    </td>
-                                    <td className="w-32 px-4 py-2.5 text-gray-700 dark:text-gray-300">
-                                      {value}
-                                    </td>
-                                  </>
-                                )}
-                                <td className="relative w-32 px-4 py-2.5 text-left">
-                                  {isEditingThisRow ? (
-                                    <span className="bg-brand-100 text-brand-700 dark:bg-brand-500/20 dark:text-brand-300 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium">
-                                      Editing…
-                                    </span>
-                                  ) : (
-                                    <div
-                                      ref={
-                                        openProductActionIdx === i
-                                          ? productActionsRef
-                                          : undefined
-                                      }
-                                      className="relative inline-block text-left"
-                                    >
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          if (openProductActionIdx === i) {
-                                            setOpenProductActionIdx(null);
-                                            setProductMenuAnchor(null);
-                                            return;
-                                          }
-                                          const r =
-                                            e.currentTarget.getBoundingClientRect();
-                                          setProductMenuAnchor({
-                                            top: r.bottom + 4,
-                                            right: window.innerWidth - r.right,
-                                          });
-                                          setOpenProductActionIdx(i);
-                                        }}
-                                        disabled={isLoading || editLocked}
-                                        aria-expanded={
-                                          openProductActionIdx === i
-                                        }
-                                        aria-haspopup="menu"
-                                        className={`${SUPPORT_BUTTON_DEFAULT_CLASS} gap-1`}
-                                      >
-                                        Action
-                                        <svg
-                                          className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400"
-                                          fill="none"
-                                          viewBox="0 0 24 24"
-                                          stroke="currentColor"
-                                          aria-hidden
-                                        >
-                                          <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M19 9l-7 7-7-7"
-                                          />
-                                        </svg>
-                                      </button>
-                                      {openProductActionIdx === i &&
-                                        productMenuAnchor &&
-                                        createPortal(
-                                          <div
-                                            ref={productMenuRef}
-                                            style={{
-                                              position: "fixed",
-                                              top: productMenuAnchor.top,
-                                              right: productMenuAnchor.right,
-                                              zIndex: 100002,
-                                            }}
-                                            className="min-w-[8rem] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800"
-                                            role="menu"
-                                          >
-                                            <button
-                                              type="button"
-                                              role="menuitem"
-                                              onClick={() =>
-                                                editProductTypeRow(i)
-                                              }
-                                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
-                                            >
-                                              Edit
-                                            </button>
-                                            <button
-                                              type="button"
-                                              role="menuitem"
-                                              onClick={() =>
-                                                deleteProductTypeRow(i)
-                                              }
-                                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
-                                            >
-                                              Delete
-                                            </button>
-                                          </div>,
-                                          document.body,
-                                        )}
-                                    </div>
-                                  )}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-              </section>
-            )}
+                </section>
+              )}
+            </fieldset>
           </section>
         </div>
 
