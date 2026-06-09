@@ -3,24 +3,34 @@
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { Offer } from "@/types/api";
 import OffersManagementTabs, {
   offersManagementTabFromSearch,
   type OffersManagementTabId,
 } from "./OffersManagementTabs";
 
-const OffersTable = dynamic(() => import("./OffersTable").then((m) => m.default), {
-  loading: () => <TabPanelSkeleton />,
-});
+const OffersTable = dynamic(
+  () => import("./OffersTable").then((m) => m.default),
+  {
+    loading: () => <TabPanelSkeleton />,
+  },
+);
 
 const CommissionManagementClient = dynamic(
-  () => import("@/components/commission/CommissionManagementClient").then((m) => m.default),
+  () =>
+    import("@/components/commission/CommissionManagementClient").then(
+      (m) => m.default,
+    ),
   { loading: () => <TabPanelSkeleton /> },
 );
 
-const PolicyTable = dynamic(() => import("@/components/policy/PolicyTable").then((m) => m.default), {
-  loading: () => <TabPanelSkeleton />,
-});
+const PolicyTable = dynamic(
+  () => import("@/components/policy/PolicyTable").then((m) => m.default),
+  {
+    loading: () => <TabPanelSkeleton />,
+  },
+);
 
 const DeeplinkTable = dynamic(
   () => import("@/components/deeplink/DeeplinkTable").then((m) => m.default),
@@ -57,6 +67,10 @@ export default function OffersManagementPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const activeTab = offersManagementTabFromSearch(searchParams.get("tab"));
+  // Inline offer editor (Brands tab). Lifted here so the breadcrumb can close it:
+  // the editor keeps the URL at /brands, so the "Brands Management" link alone is a
+  // same-URL no-op — its onClick closes the editor.
+  const [openModal, setOpenModal] = useState<Offer | boolean>(false);
 
   useEffect(() => {
     if (searchParams.get("tab") === "category") {
@@ -72,15 +86,16 @@ export default function OffersManagementPageContent() {
 
   const breadcrumbMeta = useMemo(() => {
     const pageTitle = BREADCRUMB_LABEL[activeTab];
+    const closeEditor = openModal ? () => setOpenModal(false) : undefined;
     return {
       pageTitle,
       items: [
         { label: "Home", href: "/" },
-        { label: "Brands Management", href: "/brands" },
+        { label: "Brands Management", href: "/brands", onClick: closeEditor },
         { label: pageTitle },
       ],
     };
-  }, [activeTab]);
+  }, [activeTab, openModal]);
 
   return (
     <div>
@@ -91,7 +106,9 @@ export default function OffersManagementPageContent() {
       <div className="space-y-6">
         <OffersManagementTabs />
 
-        {activeTab === "brands" && <OffersTable />}
+        {activeTab === "brands" && (
+          <OffersTable openModal={openModal} setOpenModal={setOpenModal} />
+        )}
         {activeTab === "commission" && <CommissionManagementClient embedded />}
         {activeTab === "policy" && <PolicyTable />}
         {activeTab === "deeplink" && <DeeplinkTable />}

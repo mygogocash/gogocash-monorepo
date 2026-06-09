@@ -4,6 +4,8 @@ import React from "react";
 export interface BreadcrumbItem {
   label: string;
   href?: string;
+  /** Extra handler run on click (e.g. close an inline editor whose URL is unchanged). */
+  onClick?: () => void;
 }
 
 interface BreadcrumbProps {
@@ -14,7 +16,7 @@ interface BreadcrumbProps {
 
 const Chevron = () => (
   <svg
-    className="stroke-current shrink-0 text-gray-400"
+    className="shrink-0 stroke-current text-gray-400"
     width="17"
     height="16"
     viewBox="0 0 17 16"
@@ -32,12 +34,10 @@ const Chevron = () => (
 );
 
 const PageBreadcrumb: React.FC<BreadcrumbProps> = ({ pageTitle, items }) => {
-  const trail = items && items.length > 0
-    ? items
-    : [
-        { label: "Home", href: "/" as string },
-        { label: pageTitle },
-      ];
+  const trail =
+    items && items.length > 0
+      ? items
+      : [{ label: "Home", href: "/" as string }, { label: pageTitle }];
 
   return (
     <div className="mb-6 flex min-w-0 flex-wrap items-center justify-between gap-3">
@@ -58,6 +58,7 @@ const PageBreadcrumb: React.FC<BreadcrumbProps> = ({ pageTitle, items }) => {
                   <Link
                     className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                     href={item.href}
+                    onClick={item.onClick}
                   >
                     {item.label}
                   </Link>
