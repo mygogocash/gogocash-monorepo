@@ -123,8 +123,16 @@ function offerToEditForm(offer: Offer): OfferRequestForm {
   };
 }
 
-export default function OffersTable() {
-  const [openModal, setOpenModal] = useState<Offer | boolean>(false);
+interface OffersTableProps {
+  /** Inline editor state, lifted to the parent so the page breadcrumb can close it. */
+  openModal: Offer | boolean;
+  setOpenModal: React.Dispatch<React.SetStateAction<Offer | boolean>>;
+}
+
+export default function OffersTable({
+  openModal,
+  setOpenModal,
+}: OffersTableProps) {
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
   const actionsDropdownRef = useRef<HTMLDivElement>(null);
   // "Now" captured once at mount — drives the live "Upsize" status tag.
