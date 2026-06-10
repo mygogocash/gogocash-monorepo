@@ -36,13 +36,31 @@ type ContentSource = NonNullable<ParsedPolicy["contentSource"]>;
 
 type PolicyModalTab = "banner" | "terms";
 
-/** Preset banner applied when an admin picks "Use default banner". */
-const DEFAULT_CATEGORY_BANNER =
-  "https://placehold.co/640x200.png/465fff/ffffff?text=Default+banner";
-
-/** Preset banner that temporarily replaces the default during a scheduled event. */
-const SPECIAL_EVENT_BANNER =
-  "https://placehold.co/640x200.png/f59e0b/ffffff?text=Special+event+banner";
+/** Empty state shown in a banner preview slot before any file is uploaded. */
+function NoUploadedBanner() {
+  return (
+    <div className="flex h-40 w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 bg-gray-50 text-gray-400 dark:border-gray-600 dark:bg-gray-800/30 dark:text-gray-500">
+      <svg
+        className="h-8 w-8"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.6}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+        <circle cx="9" cy="9" r="2" />
+        <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+      </svg>
+      <div className="text-center">
+        <p className="text-sm font-medium">No uploaded files</p>
+        <p className="text-xs">Use “Upload File” to add a banner image.</p>
+      </div>
+    </div>
+  );
+}
 
 /** Minimal shape returned by `GET /policy/category-list`. Backend documents
  *  may carry timestamps + Mongo internals — we only use what the editor needs. */
@@ -528,13 +546,17 @@ export default function PolicyTable() {
                       </span>
                     ) : null}
                   </div>
-                  <RemoteOrBlobImage
-                    className="max-h-40 w-full rounded-lg border border-gray-200 object-cover dark:border-gray-600"
-                    src={defaultUpload?.url ?? DEFAULT_CATEGORY_BANNER}
-                    alt="Default category banner"
-                    width={640}
-                    height={200}
-                  />
+                  {defaultUpload ? (
+                    <RemoteOrBlobImage
+                      className="max-h-40 w-full rounded-lg border border-gray-200 object-cover dark:border-gray-600"
+                      src={defaultUpload.url}
+                      alt="Default category banner"
+                      width={640}
+                      height={200}
+                    />
+                  ) : (
+                    <NoUploadedBanner />
+                  )}
                   <input
                     ref={defaultFileRef}
                     type="file"
@@ -572,13 +594,17 @@ export default function PolicyTable() {
                     Temporarily replaces the default banner during the period
                     below.
                   </p>
-                  <RemoteOrBlobImage
-                    className="max-h-40 w-full rounded-lg border border-gray-200 object-cover dark:border-gray-600"
-                    src={specialUpload?.url ?? SPECIAL_EVENT_BANNER}
-                    alt="Special event banner"
-                    width={640}
-                    height={200}
-                  />
+                  {specialUpload ? (
+                    <RemoteOrBlobImage
+                      className="max-h-40 w-full rounded-lg border border-gray-200 object-cover dark:border-gray-600"
+                      src={specialUpload.url}
+                      alt="Special event banner"
+                      width={640}
+                      height={200}
+                    />
+                  ) : (
+                    <NoUploadedBanner />
+                  )}
                   <input
                     ref={specialFileRef}
                     type="file"
