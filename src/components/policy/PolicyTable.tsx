@@ -581,12 +581,12 @@ export default function PolicyTable() {
                       Special event banner setup
                     </h3>
                     {specialUpload ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
                         <span
-                          className="h-1.5 w-1.5 rounded-full bg-green-500"
+                          className="h-1.5 w-1.5 rounded-full bg-yellow-500"
                           aria-hidden
                         />
-                        Active Banner
+                        Scheduled
                       </span>
                     ) : null}
                   </div>
