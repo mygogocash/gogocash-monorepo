@@ -91,9 +91,11 @@ const PATHS: Record<CategoryIconKey, React.ReactNode> = {
 export default function CategoryIcon({
   name,
   className = "h-8 w-8",
+  strokeWidth = 1.8,
 }: {
   name: string;
   className?: string;
+  strokeWidth?: number;
 }) {
   return (
     <svg
@@ -101,7 +103,7 @@ export default function CategoryIcon({
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth={1.8}
+      strokeWidth={strokeWidth}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
