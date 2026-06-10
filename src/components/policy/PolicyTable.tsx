@@ -15,6 +15,7 @@ import { ResCategoryList } from "@/types/category";
 import { Modal } from "@/components/ui/modal";
 import NoData from "@/components/common/NoData";
 import Button from "@/components/ui/button/Button";
+import SecondaryButton from "@/components/ui/button/SecondaryButton";
 import { pathImage } from "@/utils/helper";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import CategoryIcon from "./CategoryIcon";
@@ -576,12 +577,13 @@ export default function PolicyTable() {
                           </span>
                         </td>
                         <td className="px-6 py-4 text-sm font-medium whitespace-nowrap">
-                          <span
-                            className="pointer-events-none inline-flex rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+                          <SecondaryButton
                             aria-hidden
+                            tabIndex={-1}
+                            className="pointer-events-none"
                           >
-                            View / Edit
-                          </span>
+                            Action
+                          </SecondaryButton>
                         </td>
                       </tr>
                     );
