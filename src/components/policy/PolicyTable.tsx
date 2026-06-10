@@ -42,6 +42,10 @@ type ContentSource = NonNullable<ParsedPolicy["contentSource"]>;
 
 type PolicyModalTab = "banner" | "terms";
 
+/** Preset banner applied when an admin picks "Use default banner". */
+const DEFAULT_CATEGORY_BANNER =
+  "https://placehold.co/640x200.png/465fff/ffffff?text=Default+banner";
+
 /** Minimal shape returned by `GET /policy/category-list`. Backend documents
  *  may carry timestamps + Mongo internals — we only use what the editor needs. */
 type PolicyListEntry = {
@@ -92,6 +96,7 @@ export default function PolicyTable() {
   const [confirmClear, setConfirmClear] = useState(false);
   const [bannerDraft, setBannerDraft] = useState<File | null>(null);
   const [bannerObjectUrl, setBannerObjectUrl] = useState<string | null>(null);
+  const [usingDefaultBanner, setUsingDefaultBanner] = useState(false);
   const [bannerSaving, setBannerSaving] = useState(false);
   const [policyModalTab, setPolicyModalTab] = useState<PolicyModalTab>("terms");
 
@@ -249,6 +254,7 @@ export default function PolicyTable() {
       setActiveLocale(populated[0]?.[0] ?? parsed.primary_locale ?? "th");
       setConfirmClear(false);
       setBannerDraft(null);
+      setUsingDefaultBanner(false);
       setPolicyModalTab("terms");
       // Baseline for "disable Save until changed". Built from the same parsed
       // values used in the setters above (state updates are async, so we can't
@@ -288,6 +294,17 @@ export default function PolicyTable() {
   const handleBannerFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
     setBannerDraft(file);
+    if (file) setUsingDefaultBanner(false);
+  };
+
+  // "Use default banner" — apply the preset banner to this category (clears any
+  // pending custom upload). Data is mock, so this marks the selection locally.
+  const handleUseDefaultBanner = () => {
+    setBannerDraft(null);
+    setUsingDefaultBanner(true);
+    toast.success(
+      `Default banner applied${selectedCategory ? ` to ${selectedCategory.name}` : ""}.`,
+    );
   };
 
   const handleBannerUpload = async () => {
@@ -527,66 +544,103 @@ export default function PolicyTable() {
           <div className="mt-4">
             {policyModalTab === "banner" && selectedCategory ? (
               <section className="rounded-xl border border-gray-200 p-4 dark:border-gray-700 dark:bg-gray-900/20">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="min-w-0">
-                    <p className="mb-2 text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                      Current banner
-                    </p>
-                    {selectedCategory.banner ? (
-                      <RemoteOrBlobImage
-                        className="max-h-40 w-full rounded-lg border border-gray-200 object-cover dark:border-gray-600"
-                        src={pathImage(selectedCategory.banner, "banner")}
-                        alt={`${selectedCategory.name} current banner`}
-                        width={640}
-                        height={200}
-                      />
-                    ) : (
-                      <p className="text-sm text-gray-400 dark:text-gray-500">
-                        No banner uploaded yet.
-                      </p>
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="mb-2 text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                      New upload preview
-                    </p>
-                    {bannerObjectUrl ? (
-                      <RemoteOrBlobImage
-                        className="border-brand-400 dark:border-brand-500 max-h-40 w-full rounded-lg border-2 border-dashed object-cover"
-                        src={bannerObjectUrl}
-                        alt="Selected banner preview"
-                        width={640}
-                        height={200}
-                      />
-                    ) : (
-                      <p className="text-sm text-gray-400 dark:text-gray-500">
-                        Choose an image file to see a preview here.
-                      </p>
-                    )}
+                {/* Default banner — a preset applied via "Use default banner". */}
+                <div className="min-w-0">
+                  <p className="mb-2 text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                    Default banner
+                  </p>
+                  <RemoteOrBlobImage
+                    className="max-h-40 w-full rounded-lg border border-gray-200 object-cover dark:border-gray-600"
+                    src={DEFAULT_CATEGORY_BANNER}
+                    alt="Default category banner"
+                    width={640}
+                    height={200}
+                  />
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleUseDefaultBanner}
+                    >
+                      Use default banner
+                    </Button>
+                    {usingDefaultBanner ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                        ✓ Default banner selected
+                      </span>
+                    ) : null}
                   </div>
                 </div>
-                <div className="mt-4 flex flex-wrap items-end gap-3">
-                  <div className="min-w-[200px] flex-1">
-                    <label htmlFor="policy-category-banner" className="sr-only">
-                      Upload category banner
-                    </label>
-                    <input
-                      id="policy-category-banner"
-                      key={selectedCategory._id}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleBannerFileChange}
-                      className="block w-full cursor-pointer text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-4 file:py-2 file:text-sm file:font-medium file:text-gray-800 hover:file:bg-gray-200 dark:text-gray-400 dark:file:bg-gray-800 dark:file:text-gray-200 dark:hover:file:bg-gray-700"
-                    />
+
+                {/* Or upload a custom banner (overrides the default). */}
+                <div className="mt-6 border-t border-gray-200 pt-4 dark:border-gray-700">
+                  <p className="mb-3 text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                    Or upload a custom banner
+                  </p>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="min-w-0">
+                      <p className="mb-2 text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                        Current banner
+                      </p>
+                      {selectedCategory.banner ? (
+                        <RemoteOrBlobImage
+                          className="max-h-40 w-full rounded-lg border border-gray-200 object-cover dark:border-gray-600"
+                          src={pathImage(selectedCategory.banner, "banner")}
+                          alt={`${selectedCategory.name} current banner`}
+                          width={640}
+                          height={200}
+                        />
+                      ) : (
+                        <p className="text-sm text-gray-400 dark:text-gray-500">
+                          No banner uploaded yet.
+                        </p>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="mb-2 text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                        New upload preview
+                      </p>
+                      {bannerObjectUrl ? (
+                        <RemoteOrBlobImage
+                          className="border-brand-400 dark:border-brand-500 max-h-40 w-full rounded-lg border-2 border-dashed object-cover"
+                          src={bannerObjectUrl}
+                          alt="Selected banner preview"
+                          width={640}
+                          height={200}
+                        />
+                      ) : (
+                        <p className="text-sm text-gray-400 dark:text-gray-500">
+                          Choose an image file to see a preview here.
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={!bannerDraft || bannerSaving}
-                    onClick={() => void handleBannerUpload()}
-                  >
-                    {bannerSaving ? "Uploading…" : "Upload banner"}
-                  </Button>
+                  <div className="mt-4 flex flex-wrap items-end gap-3">
+                    <div className="min-w-[200px] flex-1">
+                      <label
+                        htmlFor="policy-category-banner"
+                        className="sr-only"
+                      >
+                        Upload category banner
+                      </label>
+                      <input
+                        id="policy-category-banner"
+                        key={selectedCategory._id}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleBannerFileChange}
+                        className="block w-full cursor-pointer text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-4 file:py-2 file:text-sm file:font-medium file:text-gray-800 hover:file:bg-gray-200 dark:text-gray-400 dark:file:bg-gray-800 dark:file:text-gray-200 dark:hover:file:bg-gray-700"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={!bannerDraft || bannerSaving}
+                      onClick={() => void handleBannerUpload()}
+                    >
+                      {bannerSaving ? "Uploading…" : "Upload banner"}
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Phase 3A.2 — banner text editor (per-locale, ≤500 chars).
