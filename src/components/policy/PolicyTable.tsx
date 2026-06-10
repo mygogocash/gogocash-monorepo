@@ -1283,7 +1283,8 @@ export default function PolicyTable() {
                               <div className="flex items-center gap-3">
                                 <CategoryIcon
                                   name={category.name}
-                                  className="h-8 w-8 shrink-0 text-gray-500 dark:text-gray-400"
+                                  className="h-5 w-5 shrink-0 text-gray-400 dark:text-gray-500"
+                                  strokeWidth={0.75}
                                 />
                                 <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                                   {category.name}
