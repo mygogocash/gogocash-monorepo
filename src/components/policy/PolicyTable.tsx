@@ -327,6 +327,19 @@ export default function PolicyTable() {
     toast.success(`Uploaded ${file.name}`);
   };
 
+  // Clear an uploaded banner — back to the "No uploaded files" state.
+  const handleRemoveDefault = () => {
+    if (defaultUpload) URL.revokeObjectURL(defaultUpload.url);
+    setDefaultUpload(null);
+    if (defaultFileRef.current) defaultFileRef.current.value = "";
+  };
+
+  const handleRemoveSpecial = () => {
+    if (specialUpload) URL.revokeObjectURL(specialUpload.url);
+    setSpecialUpload(null);
+    if (specialFileRef.current) specialFileRef.current.value = "";
+  };
+
   // Templates apply to the ACTIVE locale only — admins translate per-locale,
   // not by retemplating every locale at once. If you want all locales to use
   // the same template, switch tabs and re-apply.
@@ -564,13 +577,22 @@ export default function PolicyTable() {
                     onChange={handleDefaultUpload}
                     className="hidden"
                   />
-                  <div className="mt-3">
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
                     <SecondaryButton
                       type="button"
                       onClick={() => defaultFileRef.current?.click()}
                     >
                       Upload File
                     </SecondaryButton>
+                    {defaultUpload ? (
+                      <button
+                        type="button"
+                        onClick={handleRemoveDefault}
+                        className="text-xs font-medium text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400"
+                      >
+                        Remove
+                      </button>
+                    ) : null}
                   </div>
                 </div>
 
@@ -654,13 +676,22 @@ export default function PolicyTable() {
                       </div>
                     </div>
                   </div>
-                  <div className="mt-3">
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
                     <SecondaryButton
                       type="button"
                       onClick={() => specialFileRef.current?.click()}
                     >
                       Upload File
                     </SecondaryButton>
+                    {specialUpload ? (
+                      <button
+                        type="button"
+                        onClick={handleRemoveSpecial}
+                        className="text-xs font-medium text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400"
+                      >
+                        Remove
+                      </button>
+                    ) : null}
                   </div>
                 </div>
 
