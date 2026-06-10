@@ -707,6 +707,21 @@ export default function PolicyTable() {
                     customer side. Up to 500 characters per locale.
                   </p>
 
+                  <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                    <span>Primary locale:</span>
+                    <select
+                      value={bannerPrimaryLocale}
+                      onChange={(e) => setBannerPrimaryLocale(e.target.value)}
+                      className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800"
+                    >
+                      {POLICY_TRANSLATION_LOCALES.map((l) => (
+                        <option key={l.value} value={l.value}>
+                          {l.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
                   <div
                     className="mt-3 flex flex-wrap gap-1 border-b border-gray-200 dark:border-gray-700"
                     role="tablist"
@@ -747,21 +762,6 @@ export default function PolicyTable() {
                         </button>
                       );
                     })}
-                  </div>
-
-                  <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-                    <span>Primary locale:</span>
-                    <select
-                      value={bannerPrimaryLocale}
-                      onChange={(e) => setBannerPrimaryLocale(e.target.value)}
-                      className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800"
-                    >
-                      {POLICY_TRANSLATION_LOCALES.map((l) => (
-                        <option key={l.value} value={l.value}>
-                          {l.label}
-                        </option>
-                      ))}
-                    </select>
                   </div>
 
                   <textarea
