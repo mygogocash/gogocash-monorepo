@@ -46,6 +46,10 @@ type PolicyModalTab = "banner" | "terms";
 const DEFAULT_CATEGORY_BANNER =
   "https://placehold.co/640x200.png/465fff/ffffff?text=Default+banner";
 
+/** Preset banner that temporarily replaces the default during a scheduled event. */
+const SPECIAL_EVENT_BANNER =
+  "https://placehold.co/640x200.png/f59e0b/ffffff?text=Special+event+banner";
+
 /** Minimal shape returned by `GET /policy/category-list`. Backend documents
  *  may carry timestamps + Mongo internals — we only use what the editor needs. */
 type PolicyListEntry = {
@@ -97,6 +101,11 @@ export default function PolicyTable() {
   const [bannerDraft, setBannerDraft] = useState<File | null>(null);
   const [bannerObjectUrl, setBannerObjectUrl] = useState<string | null>(null);
   const [usingDefaultBanner, setUsingDefaultBanner] = useState(false);
+  const [usingSpecialEventBanner, setUsingSpecialEventBanner] = useState(false);
+  // Period (datetime-local "YYYY-MM-DDTHH:MM") during which the special event
+  // banner replaces the default.
+  const [specialEventStart, setSpecialEventStart] = useState("");
+  const [specialEventEnd, setSpecialEventEnd] = useState("");
   const [bannerSaving, setBannerSaving] = useState(false);
   const [policyModalTab, setPolicyModalTab] = useState<PolicyModalTab>("terms");
 
@@ -255,6 +264,9 @@ export default function PolicyTable() {
       setConfirmClear(false);
       setBannerDraft(null);
       setUsingDefaultBanner(false);
+      setUsingSpecialEventBanner(false);
+      setSpecialEventStart("");
+      setSpecialEventEnd("");
       setPolicyModalTab("terms");
       // Baseline for "disable Save until changed". Built from the same parsed
       // values used in the setters above (state updates are async, so we can't
@@ -294,16 +306,39 @@ export default function PolicyTable() {
   const handleBannerFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
     setBannerDraft(file);
-    if (file) setUsingDefaultBanner(false);
+    if (file) {
+      setUsingDefaultBanner(false);
+      setUsingSpecialEventBanner(false);
+    }
   };
 
   // "Use default banner" — apply the preset banner to this category (clears any
   // pending custom upload). Data is mock, so this marks the selection locally.
   const handleUseDefaultBanner = () => {
     setBannerDraft(null);
+    setUsingSpecialEventBanner(false);
     setUsingDefaultBanner(true);
     toast.success(
       `Default banner applied${selectedCategory ? ` to ${selectedCategory.name}` : ""}.`,
+    );
+  };
+
+  // "Use special event banner" — schedule the preset to replace the default for
+  // the chosen window. Requires both start + end. Mock: marked locally.
+  const handleUseSpecialEventBanner = () => {
+    if (!specialEventStart || !specialEventEnd) {
+      toast.error("Set a start and end time for the special event banner.");
+      return;
+    }
+    if (specialEventEnd <= specialEventStart) {
+      toast.error("The special event must end after it starts.");
+      return;
+    }
+    setBannerDraft(null);
+    setUsingDefaultBanner(false);
+    setUsingSpecialEventBanner(true);
+    toast.success(
+      `Special event banner scheduled${selectedCategory ? ` for ${selectedCategory.name}` : ""}.`,
     );
   };
 
@@ -567,6 +602,62 @@ export default function PolicyTable() {
                     {usingDefaultBanner ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-400">
                         ✓ Default banner selected
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+
+                {/* Special event banner — replaces the default for a set period. */}
+                <div className="mt-6 border-t border-gray-200 pt-4 dark:border-gray-700">
+                  <p className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                    Special event banner setup
+                  </p>
+                  <p className="mt-1 mb-3 text-xs text-gray-500 dark:text-gray-400">
+                    Temporarily replaces the default banner during the period
+                    below.
+                  </p>
+                  <RemoteOrBlobImage
+                    className="max-h-40 w-full rounded-lg border border-gray-200 object-cover dark:border-gray-600"
+                    src={SPECIAL_EVENT_BANNER}
+                    alt="Special event banner"
+                    width={640}
+                    height={200}
+                  />
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                        Starts
+                      </span>
+                      <input
+                        type="datetime-local"
+                        value={specialEventStart}
+                        onChange={(e) => setSpecialEventStart(e.target.value)}
+                        className="focus:border-brand-400 focus:ring-brand-500/20 h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-800 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                        Ends
+                      </span>
+                      <input
+                        type="datetime-local"
+                        value={specialEventEnd}
+                        onChange={(e) => setSpecialEventEnd(e.target.value)}
+                        className="focus:border-brand-400 focus:ring-brand-500/20 h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-800 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                      />
+                    </label>
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleUseSpecialEventBanner}
+                    >
+                      Use special event banner
+                    </Button>
+                    {usingSpecialEventBanner ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+                        ✓ Special event banner scheduled
                       </span>
                     ) : null}
                   </div>
