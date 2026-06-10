@@ -514,9 +514,6 @@ export default function PolicyTable() {
                       Category
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
-                      Banner
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                       T&amp;C status
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
@@ -556,45 +553,9 @@ export default function PolicyTable() {
                           {index + 1}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="h-12 w-12 flex-shrink-0">
-                              {category.image ? (
-                                <Image
-                                  className="h-12 w-12 rounded-lg object-cover"
-                                  src={pathImage(category.image)}
-                                  alt={category.name}
-                                  width={48}
-                                  height={48}
-                                />
-                              ) : (
-                                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gray-300 dark:bg-gray-600">
-                                  <span className="text-xs font-medium text-gray-700 dark:text-gray-200">
-                                    {category.name.charAt(0).toUpperCase()}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                            <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                {category.name}
-                              </div>
-                            </div>
+                          <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                            {category.name}
                           </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {category.banner ? (
-                            <RemoteOrBlobImage
-                              className="h-14 w-36 rounded-lg border border-gray-200 object-cover dark:border-gray-600"
-                              src={pathImage(category.banner, "banner")}
-                              alt={`${category.name} banner`}
-                              width={144}
-                              height={56}
-                            />
-                          ) : (
-                            <span className="text-sm text-gray-400 dark:text-gray-500">
-                              —
-                            </span>
-                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span
