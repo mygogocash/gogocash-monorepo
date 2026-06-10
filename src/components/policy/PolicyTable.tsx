@@ -514,9 +514,20 @@ export default function PolicyTable() {
               <section className="rounded-xl border border-gray-200 p-4 dark:border-gray-700 dark:bg-gray-900/20">
                 {/* Default banner — preset preview, replaced by an uploaded file. */}
                 <div className="min-w-0">
-                  <p className="mb-2 text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                    Default banner
-                  </p>
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                      Default banner
+                    </h3>
+                    {defaultUpload ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                        <span
+                          className="h-1.5 w-1.5 rounded-full bg-green-500"
+                          aria-hidden
+                        />
+                        Active Banner
+                      </span>
+                    ) : null}
+                  </div>
                   <RemoteOrBlobImage
                     className="max-h-40 w-full rounded-lg border border-gray-200 object-cover dark:border-gray-600"
                     src={defaultUpload?.url ?? DEFAULT_CATEGORY_BANNER}
@@ -531,26 +542,32 @@ export default function PolicyTable() {
                     onChange={handleDefaultUpload}
                     className="hidden"
                   />
-                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <div className="mt-3">
                     <SecondaryButton
                       type="button"
                       onClick={() => defaultFileRef.current?.click()}
                     >
                       Upload File
                     </SecondaryButton>
-                    {defaultUpload ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-400">
-                        ✓ {defaultUpload.name}
-                      </span>
-                    ) : null}
                   </div>
                 </div>
 
                 {/* Special event banner — replaces the default for a set period. */}
                 <div className="mt-6 border-t border-gray-200 pt-4 dark:border-gray-700">
-                  <p className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                    Special event banner setup
-                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                      Special event banner setup
+                    </h3>
+                    {specialUpload ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                        <span
+                          className="h-1.5 w-1.5 rounded-full bg-green-500"
+                          aria-hidden
+                        />
+                        Active Banner
+                      </span>
+                    ) : null}
+                  </div>
                   <p className="mt-1 mb-3 text-xs text-gray-500 dark:text-gray-400">
                     Temporarily replaces the default banner during the period
                     below.
@@ -611,18 +628,13 @@ export default function PolicyTable() {
                       </div>
                     </div>
                   </div>
-                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <div className="mt-3">
                     <SecondaryButton
                       type="button"
                       onClick={() => specialFileRef.current?.click()}
                     >
                       Upload File
                     </SecondaryButton>
-                    {specialUpload ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
-                        ✓ {specialUpload.name}
-                      </span>
-                    ) : null}
                   </div>
                 </div>
 
