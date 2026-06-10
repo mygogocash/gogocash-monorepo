@@ -2,8 +2,7 @@
 
 import React, { useState, useCallback, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useDataSession } from "@/hooks/useDataSession";
-import client, { fetcher, fetcherPut } from "@/lib/axios/client";
+import { fetcher, fetcherPut } from "@/lib/axios/client";
 import { ResCategoryList } from "@/types/category";
 import NoData from "@/components/common/NoData";
 import Button from "@/components/ui/button/Button";
@@ -73,7 +72,6 @@ type PolicyListEntry = {
 
 export default function PolicyTable() {
   const queryClient = useQueryClient();
-  const session = useDataSession();
   const [selectedCategory, setSelectedCategory] =
     useState<ResCategoryList | null>(null);
   const [contentSource, setContentSource] = useState<ContentSource>("custom");
@@ -103,7 +101,6 @@ export default function PolicyTable() {
   const [savedPreview, setSavedPreview] = useState<ParsedPolicy | null>(null);
   const [hasExistingPolicy, setHasExistingPolicy] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [confirmClear, setConfirmClear] = useState(false);
   // Uploaded banner per section (object-URL preview + filename). Replaces the
   // preset preview once a file is chosen via "Upload File".
   const [defaultUpload, setDefaultUpload] = useState<{
@@ -269,7 +266,6 @@ export default function PolicyTable() {
         .filter(([, v]) => typeof v === "string" && v.trim().length > 0)
         .sort((a, b) => b[1].length - a[1].length);
       setActiveLocale(populated[0]?.[0] ?? parsed.primary_locale ?? "th");
-      setConfirmClear(false);
       setDefaultUpload(null);
       setSpecialUpload(null);
       setSpecialEventStartDate("");
@@ -306,7 +302,6 @@ export default function PolicyTable() {
     setBannerPrimaryLocale("th");
     setBannerTranslations({});
     setBannerActiveLocale("th");
-    setConfirmClear(false);
     setPolicyModalTab("terms");
   }, []);
 
@@ -461,42 +456,12 @@ export default function PolicyTable() {
     }
   };
 
+  // One-step clear — empty the terms content for every locale. Local only;
+  // closing without saving leaves any previously-saved policy intact.
   const handleClearClick = () => {
-    if (!confirmClear) {
-      setConfirmClear(true);
-      return;
-    }
-    void handleClearConfirm();
-  };
-
-  const handleClearConfirm = async () => {
-    if (!selectedCategory) return;
-    setSaving(true);
-    try {
-      // DELETE /policy/category/:id removes the entire policy row (banner + terms).
-      // Phase 2 only edits terms, so a "Clear T&C" today wipes both — accepted
-      // simplification; banner image still lives on the Category record.
-      await client.delete(`/policy/category/${selectedCategory._id}`, {
-        headers: {
-          Authorization: `Bearer ${session?.accessToken ?? ""}`,
-        },
-      });
-      await queryClient.invalidateQueries({ queryKey: ["policyList"] });
-      toast.success("Terms & conditions cleared.");
-      closeModal();
-    } catch (err: unknown) {
-      const message =
-        err &&
-        typeof err === "object" &&
-        "data" in err &&
-        typeof (err as { data?: { message?: string } }).data?.message ===
-          "string"
-          ? (err as { data: { message: string } }).data.message
-          : "Failed to clear.";
-      toast.error(message);
-    } finally {
-      setSaving(false);
-    }
+    setTranslations({});
+    setAdditionalTermsByLocale({});
+    toast.success("Terms content cleared.");
   };
 
   const hasSavedContent =
@@ -537,7 +502,6 @@ export default function PolicyTable() {
               aria-selected={policyModalTab === "banner"}
               onClick={() => {
                 setPolicyModalTab("banner");
-                setConfirmClear(false);
               }}
               className={`-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
                 policyModalTab === "banner"
@@ -996,55 +960,30 @@ export default function PolicyTable() {
                           )?.label ?? activeLocale}
                         </span>
                       </label>
-                      {/* Clear / Save for the whole policy — sit on the Content
-                          label row, right-aligned. */}
+                      {/* One-click Clear empties the content; Save persists.
+                          Right-aligned on the Content label row. */}
                       <div className="flex items-center gap-3">
-                        {confirmClear ? (
-                          <>
-                            <span className="text-xs text-gray-600 dark:text-gray-400">
-                              Clear all content?
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => setConfirmClear(false)}
-                              className="text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              type="button"
-                              onClick={handleClearClick}
-                              disabled={saving}
-                              className="text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
-                            >
-                              {saving ? "Clearing…" : "Yes, clear"}
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              type="button"
-                              onClick={handleClearClick}
-                              disabled={!hasSavedContent && !hasAnyTranslation}
-                              className="text-xs font-medium text-gray-500 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-gray-500 dark:text-gray-400 dark:hover:text-red-400"
-                            >
-                              Clear T&amp;C
-                            </button>
-                            <button
-                              type="button"
-                              onClick={handleSave}
-                              disabled={
-                                saving ||
-                                isOverLength ||
-                                !hasAnyTranslation ||
-                                !hasUnsavedChanges
-                              }
-                              className={`${SUPPORT_BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
-                            >
-                              {saving ? "Saving…" : "Save"}
-                            </button>
-                          </>
-                        )}
+                        <button
+                          type="button"
+                          onClick={handleClearClick}
+                          disabled={!hasAnyTranslation}
+                          className="text-xs font-medium text-gray-500 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-gray-500 dark:text-gray-400 dark:hover:text-red-400"
+                        >
+                          Clear T&amp;C
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSave}
+                          disabled={
+                            saving ||
+                            isOverLength ||
+                            !hasAnyTranslation ||
+                            !hasUnsavedChanges
+                          }
+                          className={`${SUPPORT_BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
+                        >
+                          {saving ? "Saving…" : "Save"}
+                        </button>
                       </div>
                     </div>
                     <textarea
