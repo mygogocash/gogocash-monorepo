@@ -209,7 +209,10 @@ function buildMockCreatedConversions(): CreatedConversionItem[] {
 
 const createdConversionsList: CreatedConversionItem[] =
   buildMockCreatedConversions();
-const policyStore = new Map<string, string>();
+// V2 policy store — per category, the saved `banner` and `terms` blocks
+// (parsed JSON, as the real backend stores them). A block is only overwritten
+// when the PUT includes it, so saving one block never clobbers the other.
+const policyStore = new Map<string, { banner?: unknown; terms?: unknown }>();
 
 /** Mock OTP for admin verification when adding emails / phones on withdraw user (internal demo). */
 const MOCK_USER_CONTACT_OTP = "123456";
@@ -588,17 +591,19 @@ function handleMockGET(
       return ok(Object.fromEntries(policyStore));
     }
     if (path[1] === "category-list") {
-      // PolicyListEntry[] — which categories currently have a stored policy.
+      // PolicyListEntry[] — category id + its saved banner/terms blocks.
       return ok(
-        [...policyStore.keys()].map((category_id) => ({ category_id })),
+        [...policyStore.entries()].map(([category_id, blocks]) => ({
+          category_id,
+          ...blocks,
+        })),
       );
     }
     const categoryId = searchParams.get("categoryId");
     if (!categoryId) {
       return jsonErr(400, { message: "categoryId is required" });
     }
-    const content = policyStore.get(categoryId) ?? "";
-    return ok({ content });
+    return ok(policyStore.get(categoryId) ?? {});
   }
 
   if (path[0] === "offer" && path[1] === "get-coupon-id") {
@@ -1484,17 +1489,29 @@ async function handleMockPUT(
   }
 
   if (joined === "policy") {
-    const categoryId = b?.categoryId;
-    const content = typeof b?.content === "string" ? b.content : "";
+    // `fetcherPut` wraps the payload as `{ data: { category_id, banner?, terms? } }`.
+    const payload = (
+      b && typeof b === "object" && "data" in b
+        ? (b as { data: unknown }).data
+        : b
+    ) as {
+      category_id?: string;
+      categoryId?: string;
+      banner?: unknown;
+      terms?: unknown;
+    } | null;
+    const categoryId = payload?.category_id ?? payload?.categoryId;
     if (!categoryId) {
-      return jsonErr(400, { message: "categoryId is required" });
+      return jsonErr(400, { message: "category_id is required" });
     }
-    policyStore.set(String(categoryId), content);
-    return ok({
-      success: true,
-      message: "Policy saved",
-      categoryId,
+    // Merge so an omitted block keeps its previously-saved value.
+    const existing = policyStore.get(String(categoryId)) ?? {};
+    policyStore.set(String(categoryId), {
+      ...existing,
+      ...(payload?.banner !== undefined ? { banner: payload.banner } : {}),
+      ...(payload?.terms !== undefined ? { terms: payload.terms } : {}),
     });
+    return ok({ success: true, message: "Policy saved", categoryId });
   }
 
   return jsonErr(404, { message: `Mock endpoint not found: PUT /${joined}` });

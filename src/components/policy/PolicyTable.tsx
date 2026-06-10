@@ -98,9 +98,23 @@ export default function PolicyTable() {
     Record<string, string>
   >({});
   const [bannerActiveLocale, setBannerActiveLocale] = useState<string>("th");
-  const [savedPreview, setSavedPreview] = useState<ParsedPolicy | null>(null);
-  const [hasExistingPolicy, setHasExistingPolicy] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Per-section view/edit toggle (read-only preview by default; Edit reveals the
+  // form, mirroring the offer card's policy section). Snapshots captured on
+  // entering edit mode let Cancel revert that section's in-progress changes.
+  const [editingTerms, setEditingTerms] = useState(false);
+  const [editingBanner, setEditingBanner] = useState(false);
+  const termsEditSnapshot = useRef<{
+    translations: Record<string, string>;
+    additionalTermsByLocale: Record<string, string>;
+    primaryLocale: string;
+    selectedTemplateId: string;
+    contentSource: ContentSource;
+  } | null>(null);
+  const bannerEditSnapshot = useRef<{
+    bannerTranslations: Record<string, string>;
+    bannerPrimaryLocale: string;
+  } | null>(null);
   // Uploaded banner per section (object-URL preview + filename). Replaces the
   // preset preview once a file is chosen via "Upload File".
   const [defaultUpload, setDefaultUpload] = useState<{
@@ -149,9 +163,31 @@ export default function PolicyTable() {
     bannerPrimaryLocale,
     bannerTranslations,
   };
-  const hasUnsavedChanges = isDirty(
-    currentSaveSnapshot,
-    initialSaveSnapshot.current,
+  // Per-block dirty flags — each section's Save is gated on its OWN changes, so
+  // saving (or re-baselining) one section never enables/touches the other.
+  const baseline = initialSaveSnapshot.current;
+  const termsDirty = isDirty(
+    {
+      primaryLocale,
+      translations,
+      contentSource,
+      selectedTemplateId,
+      additionalTermsByLocale,
+    },
+    baseline && {
+      primaryLocale: baseline.primaryLocale,
+      translations: baseline.translations,
+      contentSource: baseline.contentSource,
+      selectedTemplateId: baseline.selectedTemplateId,
+      additionalTermsByLocale: baseline.additionalTermsByLocale,
+    },
+  );
+  const bannerDirty = isDirty(
+    { bannerPrimaryLocale, bannerTranslations },
+    baseline && {
+      bannerPrimaryLocale: baseline.bannerPrimaryLocale,
+      bannerTranslations: baseline.bannerTranslations,
+    },
   );
 
   const { data: categories = [], isLoading: loadingCategories } = useQuery<
@@ -245,8 +281,6 @@ export default function PolicyTable() {
         ? parseStoredPolicy(policy.banner)
         : emptyParsedPolicy();
       setSelectedCategory(category);
-      setHasExistingPolicy(Boolean(policy));
-      setSavedPreview(parsed);
       setContentSource(parsed.contentSource ?? "custom");
       setSelectedTemplateId(parsed.templateId ?? "");
       setPrimaryLocale(parsed.primary_locale || "th");
@@ -272,6 +306,8 @@ export default function PolicyTable() {
       setSpecialEventStartTime("");
       setSpecialEventEndDate("");
       setSpecialEventEndTime("");
+      setEditingTerms(false);
+      setEditingBanner(false);
       setPolicyModalTab("terms");
       // Baseline for "disable Save until changed". Built from the same parsed
       // values used in the setters above (state updates are async, so we can't
@@ -294,14 +330,15 @@ export default function PolicyTable() {
     setSelectedCategory(null);
     setTranslations({});
     setAdditionalTermsByLocale({});
-    setSavedPreview(null);
-    setHasExistingPolicy(false);
     setContentSource("custom");
+    setSelectedTemplateId("");
     setPrimaryLocale("th");
     setActiveLocale("th");
     setBannerPrimaryLocale("th");
     setBannerTranslations({});
     setBannerActiveLocale("th");
+    setEditingTerms(false);
+    setEditingBanner(false);
     setPolicyModalTab("terms");
   }, []);
 
@@ -393,16 +430,20 @@ export default function PolicyTable() {
     }));
   };
 
-  const handleSave = async () => {
+  // Persist ONE block (terms or banner). The other block is intentionally
+  // omitted from the payload so the server keeps its copy — this is what makes
+  // each section's "read-only preview" promise true (editing/saving one section
+  // never rewrites the other). On success the editor stays open and `afterSave`
+  // returns that section to its preview (defaults to closing the editor).
+  const handleSave = async (
+    block: "terms" | "banner",
+    afterSave?: () => void,
+  ) => {
     if (!selectedCategory) return;
-    if (isOverLength) {
+    if (block === "terms" && isOverLength) {
       toast.error("One or more translations exceed 50,000 characters.");
       return;
     }
-    // Phase 3A.2 — `asNonEmptyParsed` decides whether each block is
-    // worth sending. Empty blocks become undefined, which buildSavePayload
-    // omits from the payload, which prevents the backend's $set from
-    // clobbering existing server-side content.
     const termsParsed = asNonEmptyParsed({
       primary_locale: primaryLocale,
       translations,
@@ -420,9 +461,12 @@ export default function PolicyTable() {
       templateId: null,
       additionalTerms: {},
     });
-    if (!termsParsed && !bannerParsed) {
+    const editedParsed = block === "terms" ? termsParsed : bannerParsed;
+    if (!editedParsed) {
       toast.error(
-        "Add at least one non-empty translation to banner or terms before saving.",
+        block === "terms"
+          ? "Add at least one terms translation before saving."
+          : "Add banner text in at least one locale before saving.",
       );
       return;
     }
@@ -433,14 +477,33 @@ export default function PolicyTable() {
         {
           data: buildSavePayload({
             categoryId: selectedCategory._id,
-            bannerParsed,
-            termsParsed,
+            termsParsed: block === "terms" ? termsParsed : undefined,
+            bannerParsed: block === "banner" ? bannerParsed : undefined,
           }),
         },
       ]);
       await queryClient.invalidateQueries({ queryKey: ["policyList"] });
-      toast.success("Terms & conditions saved.");
-      closeModal();
+      // Re-baseline ONLY the saved block so its dirty flag resets while the
+      // other block's unsaved edits (it wasn't persisted) stay flagged dirty.
+      initialSaveSnapshot.current = {
+        ...(initialSaveSnapshot.current ?? currentSaveSnapshot),
+        ...(block === "terms"
+          ? {
+              primaryLocale,
+              translations: { ...translations },
+              contentSource,
+              selectedTemplateId,
+              additionalTermsByLocale: { ...additionalTermsByLocale },
+            }
+          : {
+              bannerPrimaryLocale,
+              bannerTranslations: { ...bannerTranslations },
+            }),
+      };
+      toast.success(
+        block === "terms" ? "Terms & conditions saved." : "Banner text saved.",
+      );
+      (afterSave ?? closeModal)();
     } catch (err: unknown) {
       const message =
         err &&
@@ -464,12 +527,81 @@ export default function PolicyTable() {
     toast.success("Terms content cleared.");
   };
 
-  const hasSavedContent =
-    hasExistingPolicy &&
-    !!savedPreview &&
-    Object.values(savedPreview.translations || {}).some(
-      (t) => typeof t === "string" && t.trim().length > 0,
+  // Enter edit mode: snapshot the section's editable fields (spread-copied so
+  // later edits don't mutate the snapshot) so Cancel can revert them.
+  const beginEditTerms = () => {
+    termsEditSnapshot.current = {
+      translations: { ...translations },
+      additionalTermsByLocale: { ...additionalTermsByLocale },
+      primaryLocale,
+      selectedTemplateId,
+      contentSource,
+    };
+    setEditingTerms(true);
+  };
+  const cancelEditTerms = () => {
+    const s = termsEditSnapshot.current;
+    if (s) {
+      setTranslations(s.translations);
+      setAdditionalTermsByLocale(s.additionalTermsByLocale);
+      setPrimaryLocale(s.primaryLocale);
+      setSelectedTemplateId(s.selectedTemplateId);
+      setContentSource(s.contentSource);
+    }
+    setEditingTerms(false);
+  };
+  const beginEditBanner = () => {
+    bannerEditSnapshot.current = {
+      bannerTranslations: { ...bannerTranslations },
+      bannerPrimaryLocale,
+    };
+    setEditingBanner(true);
+  };
+  const cancelEditBanner = () => {
+    const s = bannerEditSnapshot.current;
+    if (s) {
+      setBannerTranslations(s.bannerTranslations);
+      setBannerPrimaryLocale(s.bannerPrimaryLocale);
+    }
+    setEditingBanner(false);
+  };
+
+  // Read-only preview shown when a section isn't being edited — every locale
+  // that has content, each in its own bordered box (primary flagged). Reads the
+  // live per-section state, which equals the saved value outside edit mode.
+  const renderLocalePreview = (
+    byLocale: Record<string, string>,
+    primary: string,
+    emptyHint: string,
+  ) => {
+    const populated = POLICY_TRANSLATION_LOCALES.filter(
+      (l) =>
+        typeof byLocale[l.value] === "string" &&
+        byLocale[l.value]!.trim().length > 0,
     );
+    if (populated.length === 0) {
+      return (
+        <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4 text-center text-sm text-gray-500 dark:border-gray-600 dark:bg-gray-800/30 dark:text-gray-400">
+          {emptyHint}
+        </div>
+      );
+    }
+    return (
+      <div className="space-y-3">
+        {populated.map((l) => (
+          <div key={l.value}>
+            <p className="mb-1 text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
+              {l.label}
+              {l.value === primary ? " (primary)" : null}
+            </p>
+            <div className="max-h-40 overflow-y-auto rounded-lg border border-gray-200 bg-white p-3 text-xs leading-relaxed whitespace-pre-wrap text-gray-700 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-300">
+              {byLocale[l.value]}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
@@ -706,328 +838,368 @@ export default function PolicyTable() {
                     <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
                       Banner text (per locale)
                     </h4>
-                    <button
-                      type="button"
-                      onClick={handleSave}
-                      disabled={saving || isOverLength || !hasUnsavedChanges}
-                      className={`${SUPPORT_BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
-                    >
-                      {saving ? "Saving…" : "Save"}
-                    </button>
+                    {editingBanner ? (
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={cancelEditBanner}
+                          disabled={saving}
+                          className="text-xs font-medium text-gray-500 hover:text-gray-700 disabled:opacity-50 dark:text-gray-400 dark:hover:text-gray-200"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void handleSave("banner", () =>
+                              setEditingBanner(false),
+                            )
+                          }
+                          disabled={saving || !bannerDirty}
+                          className={`${SUPPORT_BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
+                        >
+                          {saving ? "Saving…" : "Save"}
+                        </button>
+                      </div>
+                    ) : (
+                      <SecondaryButton
+                        type="button"
+                        onClick={beginEditBanner}
+                        aria-label="Edit banner text"
+                      >
+                        Edit
+                      </SecondaryButton>
+                    )}
                   </div>
                   <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
                     Optional short caption rendered above the offer grid on the
                     customer side. Up to 500 characters per locale.
                   </p>
 
-                  <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-                    <span>Primary locale:</span>
-                    <select
-                      value={bannerPrimaryLocale}
-                      onChange={(e) => setBannerPrimaryLocale(e.target.value)}
-                      className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800"
-                    >
-                      {POLICY_TRANSLATION_LOCALES.map((l) => (
-                        <option key={l.value} value={l.value}>
-                          {l.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div
-                    className="mt-3 flex flex-wrap gap-1 border-b border-gray-200 dark:border-gray-700"
-                    role="tablist"
-                    aria-label="Banner translation locale"
-                  >
-                    {POLICY_TRANSLATION_LOCALES.map((l) => {
-                      const filled =
-                        typeof bannerTranslations[l.value] === "string" &&
-                        bannerTranslations[l.value]!.trim().length > 0;
-                      const isActive = bannerActiveLocale === l.value;
-                      return (
-                        <button
-                          key={l.value}
-                          type="button"
-                          role="tab"
-                          aria-selected={isActive}
-                          onClick={() => setBannerActiveLocale(l.value)}
-                          className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
-                            isActive
-                              ? "border-brand-500 text-brand-600 dark:border-brand-400 dark:text-brand-400"
-                              : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400"
-                          }`}
+                  {!editingBanner ? (
+                    renderLocalePreview(
+                      bannerTranslations,
+                      bannerPrimaryLocale,
+                      "No banner text set yet — click Edit to add.",
+                    )
+                  ) : (
+                    <>
+                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                        <span>Primary locale:</span>
+                        <select
+                          value={bannerPrimaryLocale}
+                          onChange={(e) =>
+                            setBannerPrimaryLocale(e.target.value)
+                          }
+                          className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800"
                         >
-                          <span
-                            aria-hidden
-                            className={`h-1.5 w-1.5 rounded-full ${
-                              filled
-                                ? "bg-emerald-500"
-                                : "bg-gray-300 dark:bg-gray-600"
-                            }`}
-                          />
-                          {l.label}
-                          {bannerPrimaryLocale === l.value ? (
-                            <span className="bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300 ml-1 rounded px-1 py-0.5 text-[10px] font-medium">
-                              primary
-                            </span>
-                          ) : null}
-                        </button>
-                      );
-                    })}
-                  </div>
+                          {POLICY_TRANSLATION_LOCALES.map((l) => (
+                            <option key={l.value} value={l.value}>
+                              {l.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
 
-                  <textarea
-                    value={bannerTranslations[bannerActiveLocale] ?? ""}
-                    onChange={(e) =>
-                      setBannerTranslations((prev) => ({
-                        ...prev,
-                        [bannerActiveLocale]: e.target.value,
-                      }))
-                    }
-                    maxLength={500}
-                    placeholder={
-                      bannerActiveLocale === "th"
-                        ? "เช่น โปรโมชั่นพิเศษเดือนนี้ — รับแคชแบ็กเพิ่ม 5%..."
-                        : "e.g. Special promotion this month — extra 5% cashback..."
-                    }
-                    className="focus:border-brand-500 focus:ring-brand-500/20 mt-2 min-h-[80px] w-full resize-y rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-2 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400"
-                  />
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    {
-                      POLICY_TRANSLATION_LOCALES.find(
-                        (l) => l.value === bannerActiveLocale,
-                      )?.label
-                    }
-                    : {(bannerTranslations[bannerActiveLocale] ?? "").length} /
-                    500 characters
-                  </p>
+                      <div
+                        className="mt-3 flex flex-wrap gap-1 border-b border-gray-200 dark:border-gray-700"
+                        role="tablist"
+                        aria-label="Banner translation locale"
+                      >
+                        {POLICY_TRANSLATION_LOCALES.map((l) => {
+                          const filled =
+                            typeof bannerTranslations[l.value] === "string" &&
+                            bannerTranslations[l.value]!.trim().length > 0;
+                          const isActive = bannerActiveLocale === l.value;
+                          return (
+                            <button
+                              key={l.value}
+                              type="button"
+                              role="tab"
+                              aria-selected={isActive}
+                              onClick={() => setBannerActiveLocale(l.value)}
+                              className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
+                                isActive
+                                  ? "border-brand-500 text-brand-600 dark:border-brand-400 dark:text-brand-400"
+                                  : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400"
+                              }`}
+                            >
+                              <span
+                                aria-hidden
+                                className={`h-1.5 w-1.5 rounded-full ${
+                                  filled
+                                    ? "bg-emerald-500"
+                                    : "bg-gray-300 dark:bg-gray-600"
+                                }`}
+                              />
+                              {l.label}
+                              {bannerPrimaryLocale === l.value ? (
+                                <span className="bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300 ml-1 rounded px-1 py-0.5 text-[10px] font-medium">
+                                  primary
+                                </span>
+                              ) : null}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <textarea
+                        value={bannerTranslations[bannerActiveLocale] ?? ""}
+                        onChange={(e) =>
+                          setBannerTranslations((prev) => ({
+                            ...prev,
+                            [bannerActiveLocale]: e.target.value,
+                          }))
+                        }
+                        maxLength={500}
+                        placeholder={
+                          bannerActiveLocale === "th"
+                            ? "เช่น โปรโมชั่นพิเศษเดือนนี้ — รับแคชแบ็กเพิ่ม 5%..."
+                            : "e.g. Special promotion this month — extra 5% cashback..."
+                        }
+                        className="focus:border-brand-500 focus:ring-brand-500/20 mt-2 min-h-[80px] w-full resize-y rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-2 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400"
+                      />
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        {
+                          POLICY_TRANSLATION_LOCALES.find(
+                            (l) => l.value === bannerActiveLocale,
+                          )?.label
+                        }
+                        :{" "}
+                        {(bannerTranslations[bannerActiveLocale] ?? "").length}{" "}
+                        / 500 characters
+                      </p>
+                    </>
+                  )}
                 </div>
               </section>
             ) : null}
 
             {policyModalTab === "terms" ? (
               <>
-                <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                  Terms &amp; conditions (per locale)
-                </h4>
-                {hasSavedContent && savedPreview && (
-                  <details className="mt-4 rounded-xl border border-gray-200 bg-gray-50/80 p-4 dark:border-gray-700 dark:bg-gray-800/40">
-                    <summary className="cursor-pointer text-sm font-medium text-gray-800 dark:text-gray-200">
-                      Current saved version (read-only)
-                    </summary>
-                    <div className="mt-3 space-y-3 text-sm">
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        Primary locale:{" "}
-                        <code className="rounded bg-gray-200 px-1 dark:bg-gray-700">
-                          {savedPreview.primary_locale}
-                        </code>
-                      </p>
-                      {Object.entries(savedPreview.translations).map(
-                        ([locale, text]) => (
-                          <div key={locale}>
-                            <p className="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                              {POLICY_TRANSLATION_LOCALES.find(
-                                (l) => l.value === locale,
-                              )?.label ?? locale}
-                              {locale === savedPreview.primary_locale
-                                ? " (primary)"
-                                : null}
-                            </p>
-                            <pre className="mt-1 max-h-40 overflow-auto rounded-lg border border-gray-200 bg-white p-3 whitespace-pre-wrap text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200">
-                              {text || "—"}
-                            </pre>
-                          </div>
-                        ),
-                      )}
-                    </div>
-                  </details>
-                )}
-
-                <div className="mt-4 space-y-4">
-                  {/* Optional starting template — pick one to load it into the
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                    Terms &amp; conditions (per locale)
+                  </h4>
+                  {editingTerms ? (
+                    <button
+                      type="button"
+                      onClick={cancelEditTerms}
+                      disabled={saving}
+                      className="text-xs font-medium text-gray-500 hover:text-gray-700 disabled:opacity-50 dark:text-gray-400 dark:hover:text-gray-200"
+                    >
+                      Cancel
+                    </button>
+                  ) : (
+                    <SecondaryButton
+                      type="button"
+                      onClick={beginEditTerms}
+                      aria-label="Edit terms & conditions"
+                    >
+                      Edit
+                    </SecondaryButton>
+                  )}
+                </div>
+                {!editingTerms ? (
+                  <div className="mt-4">
+                    {renderLocalePreview(
+                      translations,
+                      primaryLocale,
+                      "No terms set yet — click Edit to add.",
+                    )}
+                  </div>
+                ) : (
+                  <div className="mt-4 space-y-4">
+                    {/* Optional starting template — pick one to load it into the
                       content box below, or leave it on "— Select a template —"
                       to write your own from scratch. */}
-                  <div>
-                    <label
-                      htmlFor="policy-template"
-                      className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                    >
-                      Default template
-                    </label>
-                    <select
-                      id="policy-template"
-                      value={selectedTemplateId}
-                      onChange={(e) =>
-                        handleTemplateSelectChange(e.target.value)
-                      }
-                      className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                    >
-                      <option value="">— Select a template —</option>
-                      {DEFAULT_POLICY_TEMPLATES.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.title}
-                        </option>
-                      ))}
-                    </select>
-                    {selectedTemplate ? (
-                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        {selectedTemplate.description}
-                      </p>
-                    ) : null}
-                  </div>
-
-                  <div className="min-h-0 flex-1">
-                    {/* Primary-locale picker — D2 default in POLICY_MULTILANG_PLAN.md.
-                    Customer-side renderer falls back to this locale when the
-                    user's locale isn't translated. */}
-                    <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-                      <span>Primary locale:</span>
-                      <select
-                        value={primaryLocale}
-                        onChange={(e) => setPrimaryLocale(e.target.value)}
-                        className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800"
+                    <div>
+                      <label
+                        htmlFor="policy-template"
+                        className="block text-sm font-medium text-gray-700 dark:text-gray-300"
                       >
-                        {POLICY_TRANSLATION_LOCALES.map((l) => (
-                          <option key={l.value} value={l.value}>
-                            {l.label}
+                        Default template
+                      </label>
+                      <select
+                        id="policy-template"
+                        value={selectedTemplateId}
+                        onChange={(e) =>
+                          handleTemplateSelectChange(e.target.value)
+                        }
+                        className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                      >
+                        <option value="">— Select a template —</option>
+                        {DEFAULT_POLICY_TEMPLATES.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.title}
                           </option>
                         ))}
                       </select>
-                      <span className="text-gray-400">
-                        — used as the fallback when a user&apos;s locale has no
-                        translation.
-                      </span>
+                      {selectedTemplate ? (
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          {selectedTemplate.description}
+                        </p>
+                      ) : null}
                     </div>
 
-                    {/* Locale tab strip — switching tabs swaps the textarea below.
+                    <div className="min-h-0 flex-1">
+                      {/* Primary-locale picker — D2 default in POLICY_MULTILANG_PLAN.md.
+                    Customer-side renderer falls back to this locale when the
+                    user's locale isn't translated. */}
+                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                        <span>Primary locale:</span>
+                        <select
+                          value={primaryLocale}
+                          onChange={(e) => setPrimaryLocale(e.target.value)}
+                          className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800"
+                        >
+                          {POLICY_TRANSLATION_LOCALES.map((l) => (
+                            <option key={l.value} value={l.value}>
+                              {l.label}
+                            </option>
+                          ))}
+                        </select>
+                        <span className="text-gray-400">
+                          — used as the fallback when a user&apos;s locale has
+                          no translation.
+                        </span>
+                      </div>
+
+                      {/* Locale tab strip — switching tabs swaps the textarea below.
                     The bullet on each tab indicates whether that locale has
                     any non-empty content authored. */}
-                    <div
-                      className="flex flex-wrap gap-1 border-b border-gray-200 dark:border-gray-700"
-                      role="tablist"
-                      aria-label="Translation locale"
-                    >
-                      {POLICY_TRANSLATION_LOCALES.map((l) => {
-                        const filled =
-                          typeof translations[l.value] === "string" &&
-                          translations[l.value]!.trim().length > 0;
-                        const isActive = activeLocale === l.value;
-                        return (
-                          <button
-                            key={l.value}
-                            type="button"
-                            role="tab"
-                            aria-selected={isActive}
-                            onClick={() => setActiveLocale(l.value)}
-                            className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
-                              isActive
-                                ? "border-brand-500 text-brand-600 dark:border-brand-400 dark:text-brand-400"
-                                : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400"
-                            }`}
-                          >
-                            <span
-                              aria-hidden
-                              className={`h-1.5 w-1.5 rounded-full ${
-                                filled
-                                  ? "bg-emerald-500"
-                                  : "bg-gray-300 dark:bg-gray-600"
+                      <div
+                        className="flex flex-wrap gap-1 border-b border-gray-200 dark:border-gray-700"
+                        role="tablist"
+                        aria-label="Translation locale"
+                      >
+                        {POLICY_TRANSLATION_LOCALES.map((l) => {
+                          const filled =
+                            typeof translations[l.value] === "string" &&
+                            translations[l.value]!.trim().length > 0;
+                          const isActive = activeLocale === l.value;
+                          return (
+                            <button
+                              key={l.value}
+                              type="button"
+                              role="tab"
+                              aria-selected={isActive}
+                              onClick={() => setActiveLocale(l.value)}
+                              className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
+                                isActive
+                                  ? "border-brand-500 text-brand-600 dark:border-brand-400 dark:text-brand-400"
+                                  : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400"
                               }`}
-                            />
-                            {l.label}
-                            {primaryLocale === l.value ? (
-                              <span className="bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300 ml-1 rounded px-1 py-0.5 text-[10px] font-medium">
-                                primary
-                              </span>
-                            ) : null}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                      <label
-                        htmlFor="policy-content"
-                        className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                      >
-                        {contentSource === "template"
-                          ? "Template text (editable)"
-                          : "Content"}
-                        {" — "}
-                        <span className="text-gray-500">
-                          {POLICY_TRANSLATION_LOCALES.find(
-                            (l) => l.value === activeLocale,
-                          )?.label ?? activeLocale}
-                        </span>
-                      </label>
-                      {/* One-click Clear empties the content; Save persists.
-                          Right-aligned on the Content label row. */}
-                      <div className="flex items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={handleClearClick}
-                          disabled={!hasAnyTranslation}
-                          className="text-xs font-medium text-gray-500 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-gray-500 dark:text-gray-400 dark:hover:text-red-400"
-                        >
-                          Clear T&amp;C
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleSave}
-                          disabled={
-                            saving ||
-                            isOverLength ||
-                            !hasAnyTranslation ||
-                            !hasUnsavedChanges
-                          }
-                          className={`${SUPPORT_BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
-                        >
-                          {saving ? "Saving…" : "Save"}
-                        </button>
+                            >
+                              <span
+                                aria-hidden
+                                className={`h-1.5 w-1.5 rounded-full ${
+                                  filled
+                                    ? "bg-emerald-500"
+                                    : "bg-gray-300 dark:bg-gray-600"
+                                }`}
+                              />
+                              {l.label}
+                              {primaryLocale === l.value ? (
+                                <span className="bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300 ml-1 rounded px-1 py-0.5 text-[10px] font-medium">
+                                  primary
+                                </span>
+                              ) : null}
+                            </button>
+                          );
+                        })}
                       </div>
-                    </div>
-                    <textarea
-                      id="policy-content"
-                      value={translations[activeLocale] ?? ""}
-                      onChange={(e) =>
-                        setTranslations((prev) => ({
-                          ...prev,
-                          [activeLocale]: e.target.value,
-                        }))
-                      }
-                      placeholder={
-                        activeLocale === "th"
-                          ? "ป้อนข้อกำหนดและเงื่อนไข (ข้อความล้วน)..."
-                          : "Enter terms and conditions (plain text)..."
-                      }
-                      className="focus:border-brand-500 focus:ring-brand-500/20 mt-1 min-h-[200px] w-full resize-y rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-2 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400"
-                    />
-                    <div className="mt-2 flex items-center justify-between text-xs">
-                      <p
-                        className={
-                          activeLocaleLength > POLICY_MAX_LENGTH
-                            ? "text-red-600 dark:text-red-400"
-                            : "text-gray-500 dark:text-gray-400"
+
+                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                        <label
+                          htmlFor="policy-content"
+                          className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                        >
+                          {contentSource === "template"
+                            ? "Template text (editable)"
+                            : "Content"}
+                          {" — "}
+                          <span className="text-gray-500">
+                            {POLICY_TRANSLATION_LOCALES.find(
+                              (l) => l.value === activeLocale,
+                            )?.label ?? activeLocale}
+                          </span>
+                        </label>
+                        {/* One-click Clear empties the content; Save persists.
+                          Right-aligned on the Content label row. */}
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={handleClearClick}
+                            disabled={!hasAnyTranslation}
+                            className="text-xs font-medium text-gray-500 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-gray-500 dark:text-gray-400 dark:hover:text-red-400"
+                          >
+                            Clear T&amp;C
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void handleSave("terms", () =>
+                                setEditingTerms(false),
+                              )
+                            }
+                            disabled={
+                              saving ||
+                              isOverLength ||
+                              !hasAnyTranslation ||
+                              !termsDirty
+                            }
+                            className={`${SUPPORT_BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
+                          >
+                            {saving ? "Saving…" : "Save"}
+                          </button>
+                        </div>
+                      </div>
+                      <textarea
+                        id="policy-content"
+                        value={translations[activeLocale] ?? ""}
+                        onChange={(e) =>
+                          setTranslations((prev) => ({
+                            ...prev,
+                            [activeLocale]: e.target.value,
+                          }))
                         }
-                      >
-                        {
-                          POLICY_TRANSLATION_LOCALES.find(
-                            (l) => l.value === activeLocale,
-                          )?.label
+                        placeholder={
+                          activeLocale === "th"
+                            ? "ป้อนข้อกำหนดและเงื่อนไข (ข้อความล้วน)..."
+                            : "Enter terms and conditions (plain text)..."
                         }
-                        : {activeLocaleLength} / {POLICY_MAX_LENGTH} characters
-                      </p>
-                      <p className="text-gray-500 dark:text-gray-400">
-                        Total across all locales: {totalLength}
-                      </p>
+                        className="focus:border-brand-500 focus:ring-brand-500/20 mt-1 min-h-[200px] w-full resize-y rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-2 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400"
+                      />
+                      <div className="mt-2 flex items-center justify-between text-xs">
+                        <p
+                          className={
+                            activeLocaleLength > POLICY_MAX_LENGTH
+                              ? "text-red-600 dark:text-red-400"
+                              : "text-gray-500 dark:text-gray-400"
+                          }
+                        >
+                          {
+                            POLICY_TRANSLATION_LOCALES.find(
+                              (l) => l.value === activeLocale,
+                            )?.label
+                          }
+                          : {activeLocaleLength} / {POLICY_MAX_LENGTH}{" "}
+                          characters
+                        </p>
+                        <p className="text-gray-500 dark:text-gray-400">
+                          Total across all locales: {totalLength}
+                        </p>
+                      </div>
+                      {!hasAnyTranslation ? (
+                        <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                          At least one non-empty translation is required to
+                          save.
+                        </p>
+                      ) : null}
                     </div>
-                    {!hasAnyTranslation ? (
-                      <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-                        At least one non-empty translation is required to save.
-                      </p>
-                    ) : null}
                   </div>
-                </div>
+                )}
               </>
             ) : null}
           </div>
