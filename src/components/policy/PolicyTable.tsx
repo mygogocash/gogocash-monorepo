@@ -8,6 +8,7 @@ import { ResCategoryList } from "@/types/category";
 import NoData from "@/components/common/NoData";
 import Button from "@/components/ui/button/Button";
 import { SUPPORT_BUTTON_CLASS } from "@/components/ui/button/SupportButton";
+import SecondaryButton from "@/components/ui/button/SecondaryButton";
 import PrimaryButton from "@/components/ui/button/PrimaryButton";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import CategoryIcon from "./CategoryIcon";
@@ -86,8 +87,18 @@ export default function PolicyTable() {
   const [hasExistingPolicy, setHasExistingPolicy] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
-  const [usingDefaultBanner, setUsingDefaultBanner] = useState(false);
-  const [usingSpecialEventBanner, setUsingSpecialEventBanner] = useState(false);
+  // Uploaded banner per section (object-URL preview + filename). Replaces the
+  // preset preview once a file is chosen via "Upload File".
+  const [defaultUpload, setDefaultUpload] = useState<{
+    url: string;
+    name: string;
+  } | null>(null);
+  const [specialUpload, setSpecialUpload] = useState<{
+    url: string;
+    name: string;
+  } | null>(null);
+  const defaultFileRef = useRef<HTMLInputElement>(null);
+  const specialFileRef = useRef<HTMLInputElement>(null);
   // Period during which the special event banner replaces the default. Date +
   // 24-hour HH:MM (TimeFieldHM) so the time never renders as 12-hour AM/PM.
   const [specialEventStartDate, setSpecialEventStartDate] = useState("");
@@ -239,8 +250,8 @@ export default function PolicyTable() {
         .sort((a, b) => b[1].length - a[1].length);
       setActiveLocale(populated[0]?.[0] ?? parsed.primary_locale ?? "th");
       setConfirmClear(false);
-      setUsingDefaultBanner(false);
-      setUsingSpecialEventBanner(false);
+      setDefaultUpload(null);
+      setSpecialUpload(null);
       setSpecialEventStartDate("");
       setSpecialEventStartTime("");
       setSpecialEventEndDate("");
@@ -280,48 +291,22 @@ export default function PolicyTable() {
     setPolicyModalTab("terms");
   }, []);
 
-  // "Use default banner" — apply the preset banner to this category. Data is
-  // mock, so this marks the selection locally.
-  const handleUseDefaultBanner = () => {
-    setUsingSpecialEventBanner(false);
-    setUsingDefaultBanner(true);
-    toast.success(
-      `Default banner applied${selectedCategory ? ` to ${selectedCategory.name}` : ""}.`,
-    );
+  // "Upload File" handlers — read the chosen image into an object-URL preview
+  // (revoking any prior one). Data is mock, so the upload stays client-side.
+  const handleDefaultUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (defaultUpload) URL.revokeObjectURL(defaultUpload.url);
+    setDefaultUpload({ url: URL.createObjectURL(file), name: file.name });
+    toast.success(`Uploaded ${file.name}`);
   };
 
-  // "Use special event banner" — schedule the preset to replace the default for
-  // the chosen window. Requires both start + end. Mock: marked locally.
-  const handleUseSpecialEventBanner = () => {
-    if (
-      !specialEventStartDate ||
-      !specialEventStartTime ||
-      !specialEventEndDate ||
-      !specialEventEndTime
-    ) {
-      toast.error("Set a start and end date and time (24h).");
-      return;
-    }
-    const toMs = (date: string, time: string) => {
-      const [h = "0", m = "0"] = time.split(":");
-      return new Date(
-        `${date}T${h.padStart(2, "0")}:${m.padStart(2, "0")}:00`,
-      ).getTime();
-    };
-    if (
-      !(
-        toMs(specialEventEndDate, specialEventEndTime) >
-        toMs(specialEventStartDate, specialEventStartTime)
-      )
-    ) {
-      toast.error("The special event must end after it starts.");
-      return;
-    }
-    setUsingDefaultBanner(false);
-    setUsingSpecialEventBanner(true);
-    toast.success(
-      `Special event banner scheduled${selectedCategory ? ` for ${selectedCategory.name}` : ""}.`,
-    );
+  const handleSpecialUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (specialUpload) URL.revokeObjectURL(specialUpload.url);
+    setSpecialUpload({ url: URL.createObjectURL(file), name: file.name });
+    toast.success(`Uploaded ${file.name}`);
   };
 
   // Templates apply to the ACTIVE locale only — admins translate per-locale,
@@ -527,29 +512,35 @@ export default function PolicyTable() {
           <div className="mt-4">
             {policyModalTab === "banner" && selectedCategory ? (
               <section className="rounded-xl border border-gray-200 p-4 dark:border-gray-700 dark:bg-gray-900/20">
-                {/* Default banner — a preset applied via "Use default banner". */}
+                {/* Default banner — preset preview, replaced by an uploaded file. */}
                 <div className="min-w-0">
                   <p className="mb-2 text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
                     Default banner
                   </p>
                   <RemoteOrBlobImage
                     className="max-h-40 w-full rounded-lg border border-gray-200 object-cover dark:border-gray-600"
-                    src={DEFAULT_CATEGORY_BANNER}
+                    src={defaultUpload?.url ?? DEFAULT_CATEGORY_BANNER}
                     alt="Default category banner"
                     width={640}
                     height={200}
                   />
+                  <input
+                    ref={defaultFileRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleDefaultUpload}
+                    className="hidden"
+                  />
                   <div className="mt-3 flex flex-wrap items-center gap-3">
-                    <Button
+                    <SecondaryButton
                       type="button"
-                      variant="outline"
-                      onClick={handleUseDefaultBanner}
+                      onClick={() => defaultFileRef.current?.click()}
                     >
-                      Use default banner
-                    </Button>
-                    {usingDefaultBanner ? (
+                      Upload File
+                    </SecondaryButton>
+                    {defaultUpload ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-400">
-                        ✓ Default banner selected
+                        ✓ {defaultUpload.name}
                       </span>
                     ) : null}
                   </div>
@@ -566,10 +557,17 @@ export default function PolicyTable() {
                   </p>
                   <RemoteOrBlobImage
                     className="max-h-40 w-full rounded-lg border border-gray-200 object-cover dark:border-gray-600"
-                    src={SPECIAL_EVENT_BANNER}
+                    src={specialUpload?.url ?? SPECIAL_EVENT_BANNER}
                     alt="Special event banner"
                     width={640}
                     height={200}
+                  />
+                  <input
+                    ref={specialFileRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleSpecialUpload}
+                    className="hidden"
                   />
                   <div className="mt-3 grid gap-4 sm:grid-cols-2">
                     <div>
@@ -614,16 +612,15 @@ export default function PolicyTable() {
                     </div>
                   </div>
                   <div className="mt-3 flex flex-wrap items-center gap-3">
-                    <Button
+                    <SecondaryButton
                       type="button"
-                      variant="outline"
-                      onClick={handleUseSpecialEventBanner}
+                      onClick={() => specialFileRef.current?.click()}
                     >
-                      Use special event banner
-                    </Button>
-                    {usingSpecialEventBanner ? (
+                      Upload File
+                    </SecondaryButton>
+                    {specialUpload ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
-                        ✓ Special event banner scheduled
+                        ✓ {specialUpload.name}
                       </span>
                     ) : null}
                   </div>
