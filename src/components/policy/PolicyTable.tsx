@@ -869,6 +869,62 @@ export default function PolicyTable() {
 
             {policyModalTab === "terms" ? (
               <>
+                {/* Per-section save — same pattern as the Category-banner page:
+                    a Support-styled Save (and a subtle Clear T&C) in the section
+                    header, no bottom footer bar. */}
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                    Terms &amp; conditions (per locale)
+                  </h4>
+                  <div className="flex items-center gap-3">
+                    {confirmClear ? (
+                      <>
+                        <span className="text-xs text-gray-600 dark:text-gray-400">
+                          Clear all content?
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmClear(false)}
+                          className="text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleClearClick}
+                          disabled={saving}
+                          className="text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
+                        >
+                          {saving ? "Clearing…" : "Yes, clear"}
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={handleClearClick}
+                          disabled={!hasSavedContent && !hasAnyTranslation}
+                          className="text-xs font-medium text-gray-500 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-gray-500 dark:text-gray-400 dark:hover:text-red-400"
+                        >
+                          Clear T&amp;C
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSave}
+                          disabled={
+                            saving ||
+                            isOverLength ||
+                            !hasAnyTranslation ||
+                            !hasUnsavedChanges
+                          }
+                          className={`${SUPPORT_BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
+                        >
+                          {saving ? "Saving…" : "Save"}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
                 {hasSavedContent && savedPreview && (
                   <details className="mt-4 rounded-xl border border-gray-200 bg-gray-50/80 p-4 dark:border-gray-700 dark:bg-gray-800/40">
                     <summary className="cursor-pointer text-sm font-medium text-gray-800 dark:text-gray-200">
@@ -1204,61 +1260,6 @@ export default function PolicyTable() {
               </>
             ) : null}
           </div>
-
-          {/* Footer actions live only on the Terms tab — the Banner tab
-              auto-saves on upload, the banner-text block has its own Save, and
-              the editor header already provides a Close. */}
-          {policyModalTab !== "banner" ? (
-            <div className="mt-6 flex shrink-0 flex-wrap items-center justify-end gap-3 border-t border-gray-100 pt-4 dark:border-gray-800">
-              {confirmClear ? (
-                <>
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
-                    Clear all content?
-                  </span>
-                  <Button
-                    variant="outline"
-                    onClick={() => setConfirmClear(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleClearClick}
-                    disabled={saving}
-                    className="border-red-300 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20"
-                  >
-                    {saving ? "Clearing…" : "Yes, clear"}
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button variant="outline" onClick={closeModal}>
-                    Cancel
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleClearClick}
-                    disabled={!hasSavedContent && !hasAnyTranslation}
-                    className="border-red-300 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20"
-                  >
-                    Clear T&amp;C
-                  </Button>
-                  <Button
-                    variant="primary"
-                    onClick={handleSave}
-                    disabled={
-                      saving ||
-                      isOverLength ||
-                      !hasAnyTranslation ||
-                      !hasUnsavedChanges
-                    }
-                  >
-                    {saving ? "Saving…" : "Save"}
-                  </Button>
-                </>
-              )}
-            </div>
-          ) : null}
         </div>
       ) : (
         <>
