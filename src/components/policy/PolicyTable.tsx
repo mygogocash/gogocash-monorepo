@@ -649,16 +649,7 @@ export default function PolicyTable() {
                 <h4 className="text-base font-semibold text-gray-900 dark:text-white">
                   Terms &amp; conditions (per locale)
                 </h4>
-                {editingTerms ? (
-                  <button
-                    type="button"
-                    onClick={cancelEditTerms}
-                    disabled={saving}
-                    className="text-xs font-medium text-gray-500 hover:text-gray-700 disabled:opacity-50 dark:text-gray-400 dark:hover:text-gray-200"
-                  >
-                    Cancel
-                  </button>
-                ) : (
+                {!editingTerms ? (
                   <SecondaryButton
                     type="button"
                     onClick={beginEditTerms}
@@ -666,7 +657,7 @@ export default function PolicyTable() {
                   >
                     Edit
                   </SecondaryButton>
-                )}
+                ) : null}
               </div>
               {!editingTerms ? (
                 <div className="mt-4">
@@ -793,16 +784,23 @@ export default function PolicyTable() {
                           )?.label ?? activeLocale}
                         </span>
                       </label>
-                      {/* One-click Clear empties the content; Save persists.
-                          Right-aligned on the Content label row. */}
+                      {/* Clear (red) · Cancel · Save — on the Content label row. */}
                       <div className="flex items-center gap-3">
                         <button
                           type="button"
                           onClick={handleClearClick}
                           disabled={!hasAnyTranslation}
-                          className="text-xs font-medium text-gray-500 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-gray-500 dark:text-gray-400 dark:hover:text-red-400"
+                          className="text-xs font-medium text-red-600 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
                         >
                           Clear T&amp;C
+                        </button>
+                        <button
+                          type="button"
+                          onClick={cancelEditTerms}
+                          disabled={saving}
+                          className="text-xs font-medium text-gray-500 hover:text-gray-700 disabled:opacity-50 dark:text-gray-400 dark:hover:text-gray-200"
+                        >
+                          Cancel
                         </button>
                         <button
                           type="button"
