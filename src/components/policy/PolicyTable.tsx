@@ -686,10 +686,10 @@ export default function PolicyTable() {
                     onChange={handleSpecialUpload}
                     className="hidden"
                   />
-                  <div className="mt-3 grid gap-4 sm:grid-cols-2">
-                    <div>
+                  <div className="mt-3 flex flex-wrap items-end gap-4">
+                    <div className="min-w-[180px] flex-1">
                       <span className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                        Starts (24h)
+                        Starts
                       </span>
                       <div className="flex flex-wrap items-center gap-2">
                         <input
@@ -707,9 +707,9 @@ export default function PolicyTable() {
                         />
                       </div>
                     </div>
-                    <div>
+                    <div className="min-w-[180px] flex-1">
                       <span className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                        Ends (24h)
+                        Ends
                       </span>
                       <div className="flex flex-wrap items-center gap-2">
                         <input
@@ -727,8 +727,6 @@ export default function PolicyTable() {
                         />
                       </div>
                     </div>
-                  </div>
-                  <div className="mt-3">
                     <PrimaryButton variant="blue" onClick={handleSetSchedule}>
                       Set
                     </PrimaryButton>
