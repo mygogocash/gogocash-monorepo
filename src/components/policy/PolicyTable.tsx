@@ -646,7 +646,7 @@ export default function PolicyTable() {
           <div className="mt-4">
             <>
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                <h4 className="text-base font-semibold text-gray-900 dark:text-white">
                   Terms &amp; conditions (per locale)
                 </h4>
                 {editingTerms ? (
@@ -869,9 +869,6 @@ export default function PolicyTable() {
             </>
 
             <div className="mt-8 border-t border-gray-200 pt-6 dark:border-gray-800">
-              <h4 className="mb-3 text-sm font-semibold text-gray-800 dark:text-gray-200">
-                Category banner
-              </h4>
               <section className="rounded-xl border border-gray-200 p-4 dark:border-gray-700 dark:bg-gray-900/20">
                 {/* Default banner — preset preview, replaced by an uploaded file. */}
                 <div className="min-w-0">
