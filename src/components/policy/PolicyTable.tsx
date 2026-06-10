@@ -1,13 +1,6 @@
 "use client";
 
-import React, {
-  useState,
-  useCallback,
-  useMemo,
-  useLayoutEffect,
-  useRef,
-} from "react";
-import Image from "next/image";
+import React, { useState, useCallback, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDataSession } from "@/hooks/useDataSession";
 import client, { fetcher, fetcherPut } from "@/lib/axios/client";
@@ -16,7 +9,6 @@ import NoData from "@/components/common/NoData";
 import Button from "@/components/ui/button/Button";
 import { SUPPORT_BUTTON_CLASS } from "@/components/ui/button/SupportButton";
 import PrimaryButton from "@/components/ui/button/PrimaryButton";
-import { pathImage } from "@/utils/helper";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import CategoryIcon from "./CategoryIcon";
 import TimeFieldHM from "@/components/form/input/TimeFieldHM";
@@ -60,11 +52,6 @@ type PolicyListEntry = {
   terms?: unknown;
 };
 
-type UpdateCategoryResponse = {
-  success?: boolean;
-  data?: ResCategoryList;
-};
-
 export default function PolicyTable() {
   const queryClient = useQueryClient();
   const session = useDataSession();
@@ -99,8 +86,6 @@ export default function PolicyTable() {
   const [hasExistingPolicy, setHasExistingPolicy] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
-  const [bannerDraft, setBannerDraft] = useState<File | null>(null);
-  const [bannerObjectUrl, setBannerObjectUrl] = useState<string | null>(null);
   const [usingDefaultBanner, setUsingDefaultBanner] = useState(false);
   const [usingSpecialEventBanner, setUsingSpecialEventBanner] = useState(false);
   // Period during which the special event banner replaces the default. Date +
@@ -109,7 +94,6 @@ export default function PolicyTable() {
   const [specialEventStartTime, setSpecialEventStartTime] = useState("");
   const [specialEventEndDate, setSpecialEventEndDate] = useState("");
   const [specialEventEndTime, setSpecialEventEndTime] = useState("");
-  const [bannerSaving, setBannerSaving] = useState(false);
   const [policyModalTab, setPolicyModalTab] = useState<PolicyModalTab>("terms");
 
   // Snapshot of the editable fields `handleSave` sends, captured the moment a
@@ -139,16 +123,6 @@ export default function PolicyTable() {
     currentSaveSnapshot,
     initialSaveSnapshot.current,
   );
-
-  useLayoutEffect(() => {
-    if (!bannerDraft) {
-      setBannerObjectUrl(null);
-      return undefined;
-    }
-    const url = URL.createObjectURL(bannerDraft);
-    setBannerObjectUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [bannerDraft]);
 
   const { data: categories = [], isLoading: loadingCategories } = useQuery<
     ResCategoryList[]
@@ -265,7 +239,6 @@ export default function PolicyTable() {
         .sort((a, b) => b[1].length - a[1].length);
       setActiveLocale(populated[0]?.[0] ?? parsed.primary_locale ?? "th");
       setConfirmClear(false);
-      setBannerDraft(null);
       setUsingDefaultBanner(false);
       setUsingSpecialEventBanner(false);
       setSpecialEventStartDate("");
@@ -304,23 +277,12 @@ export default function PolicyTable() {
     setBannerTranslations({});
     setBannerActiveLocale("th");
     setConfirmClear(false);
-    setBannerDraft(null);
     setPolicyModalTab("terms");
   }, []);
 
-  const handleBannerFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] ?? null;
-    setBannerDraft(file);
-    if (file) {
-      setUsingDefaultBanner(false);
-      setUsingSpecialEventBanner(false);
-    }
-  };
-
-  // "Use default banner" — apply the preset banner to this category (clears any
-  // pending custom upload). Data is mock, so this marks the selection locally.
+  // "Use default banner" — apply the preset banner to this category. Data is
+  // mock, so this marks the selection locally.
   const handleUseDefaultBanner = () => {
-    setBannerDraft(null);
     setUsingSpecialEventBanner(false);
     setUsingDefaultBanner(true);
     toast.success(
@@ -355,46 +317,11 @@ export default function PolicyTable() {
       toast.error("The special event must end after it starts.");
       return;
     }
-    setBannerDraft(null);
     setUsingDefaultBanner(false);
     setUsingSpecialEventBanner(true);
     toast.success(
       `Special event banner scheduled${selectedCategory ? ` for ${selectedCategory.name}` : ""}.`,
     );
-  };
-
-  const handleBannerUpload = async () => {
-    if (!selectedCategory || !bannerDraft) return;
-    setBannerSaving(true);
-    try {
-      const formData = new FormData();
-      formData.append("banner", bannerDraft);
-      const res = await client.patch<UpdateCategoryResponse>(
-        `/admin/update-category/${selectedCategory._id}`,
-        formData,
-        {
-          headers: {
-            Authorization: `Bearer ${session?.accessToken ?? ""}`,
-            "Content-Type": "multipart/form-data",
-          },
-        },
-      );
-      const body = res.data;
-      if (body?.data) {
-        setSelectedCategory((prev) =>
-          prev && prev._id === body.data!._id
-            ? { ...prev, ...body.data }
-            : prev,
-        );
-      }
-      setBannerDraft(null);
-      await queryClient.invalidateQueries({ queryKey: ["getCategory"] });
-      toast.success("Banner updated.");
-    } catch {
-      toast.error("Failed to upload banner.");
-    } finally {
-      setBannerSaving(false);
-    }
   };
 
   // Templates apply to the ACTIVE locale only — admins translate per-locale,
@@ -699,77 +626,6 @@ export default function PolicyTable() {
                         ✓ Special event banner scheduled
                       </span>
                     ) : null}
-                  </div>
-                </div>
-
-                {/* Or upload a custom banner (overrides the default). */}
-                <div className="mt-6 border-t border-gray-200 pt-4 dark:border-gray-700">
-                  <p className="mb-3 text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                    Or upload a custom banner
-                  </p>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="min-w-0">
-                      <p className="mb-2 text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                        Current banner
-                      </p>
-                      {selectedCategory.banner ? (
-                        <RemoteOrBlobImage
-                          className="max-h-40 w-full rounded-lg border border-gray-200 object-cover dark:border-gray-600"
-                          src={pathImage(selectedCategory.banner, "banner")}
-                          alt={`${selectedCategory.name} current banner`}
-                          width={640}
-                          height={200}
-                        />
-                      ) : (
-                        <p className="text-sm text-gray-400 dark:text-gray-500">
-                          No banner uploaded yet.
-                        </p>
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="mb-2 text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                        New upload preview
-                      </p>
-                      {bannerObjectUrl ? (
-                        <RemoteOrBlobImage
-                          className="border-brand-400 dark:border-brand-500 max-h-40 w-full rounded-lg border-2 border-dashed object-cover"
-                          src={bannerObjectUrl}
-                          alt="Selected banner preview"
-                          width={640}
-                          height={200}
-                        />
-                      ) : (
-                        <p className="text-sm text-gray-400 dark:text-gray-500">
-                          Choose an image file to see a preview here.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="mt-4 flex flex-wrap items-end gap-3">
-                    <div className="min-w-[200px] flex-1">
-                      <label
-                        htmlFor="policy-category-banner"
-                        className="sr-only"
-                      >
-                        Upload category banner
-                      </label>
-                      <input
-                        id="policy-category-banner"
-                        key={selectedCategory._id}
-                        type="file"
-                        accept="image/*"
-                        onChange={handleBannerFileChange}
-                        className="block w-full cursor-pointer text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-4 file:py-2 file:text-sm file:font-medium file:text-gray-800 hover:file:bg-gray-200 dark:text-gray-400 dark:file:bg-gray-800 dark:file:text-gray-200 dark:hover:file:bg-gray-700"
-                      />
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={!bannerDraft || bannerSaving}
-                      onClick={() => void handleBannerUpload()}
-                    >
-                      {bannerSaving ? "Uploading…" : "Upload banner"}
-                    </Button>
                   </div>
                 </div>
 
