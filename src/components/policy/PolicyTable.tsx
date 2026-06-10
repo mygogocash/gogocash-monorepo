@@ -15,7 +15,7 @@ import { ResCategoryList } from "@/types/category";
 import { Modal } from "@/components/ui/modal";
 import NoData from "@/components/common/NoData";
 import Button from "@/components/ui/button/Button";
-import SecondaryButton from "@/components/ui/button/SecondaryButton";
+import { SUPPORT_BUTTON_CLASS } from "@/components/ui/button/SupportButton";
 import PrimaryButton from "@/components/ui/button/PrimaryButton";
 import { pathImage } from "@/utils/helper";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
@@ -567,13 +567,12 @@ export default function PolicyTable() {
                           </span>
                         </td>
                         <td className="px-6 py-4 text-sm font-medium whitespace-nowrap">
-                          <SecondaryButton
+                          <span
+                            className={`${SUPPORT_BUTTON_CLASS} pointer-events-none`}
                             aria-hidden
-                            tabIndex={-1}
-                            className="pointer-events-none"
                           >
                             Action
-                          </SecondaryButton>
+                          </span>
                         </td>
                       </tr>
                     );
