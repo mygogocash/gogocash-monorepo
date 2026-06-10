@@ -77,9 +77,8 @@ export default function PolicyTable() {
   const [selectedCategory, setSelectedCategory] =
     useState<ResCategoryList | null>(null);
   const [contentSource, setContentSource] = useState<ContentSource>("custom");
-  const [selectedTemplateId, setSelectedTemplateId] = useState(
-    DEFAULT_POLICY_TEMPLATES[0]!.id,
-  );
+  // "" = no template chosen yet (the "— Select a template —" placeholder).
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
 
   // V2 multi-language state — replaces the old (editPrimary, editTranslation,
   // translationLocale, showAdminTranslation) tuple. `translations` is keyed by
@@ -252,9 +251,7 @@ export default function PolicyTable() {
       setHasExistingPolicy(Boolean(policy));
       setSavedPreview(parsed);
       setContentSource(parsed.contentSource ?? "custom");
-      setSelectedTemplateId(
-        parsed.templateId ?? DEFAULT_POLICY_TEMPLATES[0]!.id,
-      );
+      setSelectedTemplateId(parsed.templateId ?? "");
       setPrimaryLocale(parsed.primary_locale || "th");
       setTranslations({ ...parsed.translations });
       setAdditionalTermsByLocale({ ...parsed.additionalTerms });
@@ -288,8 +285,7 @@ export default function PolicyTable() {
         primaryLocale: parsed.primary_locale || "th",
         translations: { ...parsed.translations },
         contentSource: nextContentSource,
-        selectedTemplateId:
-          parsed.templateId ?? DEFAULT_POLICY_TEMPLATES[0]!.id,
+        selectedTemplateId: parsed.templateId ?? "",
         additionalTermsByLocale: { ...parsed.additionalTerms },
         bannerPrimaryLocale: bannerParsed.primary_locale || "th",
         bannerTranslations: { ...bannerParsed.translations },
@@ -439,7 +435,7 @@ export default function PolicyTable() {
       contentSource,
       templateId:
         contentSource === "template" || contentSource === "template_plus"
-          ? selectedTemplateId
+          ? selectedTemplateId || null
           : null,
       additionalTerms: additionalTermsByLocale,
     });
@@ -1021,36 +1017,36 @@ export default function PolicyTable() {
                     </div>
                   </fieldset>
 
-                  {(contentSource === "template" ||
-                    contentSource === "template_plus") && (
-                    <div>
-                      <label
-                        htmlFor="policy-template"
-                        className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                      >
-                        Default template
-                      </label>
-                      <select
-                        id="policy-template"
-                        value={selectedTemplateId}
-                        onChange={(e) =>
-                          handleTemplateSelectChange(e.target.value)
-                        }
-                        className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                      >
-                        {DEFAULT_POLICY_TEMPLATES.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.title}
-                          </option>
-                        ))}
-                      </select>
-                      {selectedTemplate ? (
-                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                          {selectedTemplate.description}
-                        </p>
-                      ) : null}
-                    </div>
-                  )}
+                  {/* Always visible; defaults to the "— Select a template —"
+                      placeholder until the admin picks one. */}
+                  <div>
+                    <label
+                      htmlFor="policy-template"
+                      className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >
+                      Default template
+                    </label>
+                    <select
+                      id="policy-template"
+                      value={selectedTemplateId}
+                      onChange={(e) =>
+                        handleTemplateSelectChange(e.target.value)
+                      }
+                      className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                    >
+                      <option value="">— Select a template —</option>
+                      {DEFAULT_POLICY_TEMPLATES.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.title}
+                        </option>
+                      ))}
+                    </select>
+                    {selectedTemplate ? (
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        {selectedTemplate.description}
+                      </p>
+                    ) : null}
+                  </div>
 
                   {contentSource === "template_plus" && selectedTemplate ? (
                     <div className="space-y-3">
