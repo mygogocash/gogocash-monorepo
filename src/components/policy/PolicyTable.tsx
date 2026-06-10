@@ -19,6 +19,7 @@ import PrimaryButton from "@/components/ui/button/PrimaryButton";
 import { pathImage } from "@/utils/helper";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import CategoryIcon from "./CategoryIcon";
+import TimeFieldHM from "@/components/form/input/TimeFieldHM";
 import { isDirty } from "@/lib/isDirty";
 import toast from "react-hot-toast";
 import {
@@ -102,10 +103,12 @@ export default function PolicyTable() {
   const [bannerObjectUrl, setBannerObjectUrl] = useState<string | null>(null);
   const [usingDefaultBanner, setUsingDefaultBanner] = useState(false);
   const [usingSpecialEventBanner, setUsingSpecialEventBanner] = useState(false);
-  // Period (datetime-local "YYYY-MM-DDTHH:MM") during which the special event
-  // banner replaces the default.
-  const [specialEventStart, setSpecialEventStart] = useState("");
-  const [specialEventEnd, setSpecialEventEnd] = useState("");
+  // Period during which the special event banner replaces the default. Date +
+  // 24-hour HH:MM (TimeFieldHM) so the time never renders as 12-hour AM/PM.
+  const [specialEventStartDate, setSpecialEventStartDate] = useState("");
+  const [specialEventStartTime, setSpecialEventStartTime] = useState("");
+  const [specialEventEndDate, setSpecialEventEndDate] = useState("");
+  const [specialEventEndTime, setSpecialEventEndTime] = useState("");
   const [bannerSaving, setBannerSaving] = useState(false);
   const [policyModalTab, setPolicyModalTab] = useState<PolicyModalTab>("terms");
 
@@ -265,8 +268,10 @@ export default function PolicyTable() {
       setBannerDraft(null);
       setUsingDefaultBanner(false);
       setUsingSpecialEventBanner(false);
-      setSpecialEventStart("");
-      setSpecialEventEnd("");
+      setSpecialEventStartDate("");
+      setSpecialEventStartTime("");
+      setSpecialEventEndDate("");
+      setSpecialEventEndTime("");
       setPolicyModalTab("terms");
       // Baseline for "disable Save until changed". Built from the same parsed
       // values used in the setters above (state updates are async, so we can't
@@ -326,11 +331,27 @@ export default function PolicyTable() {
   // "Use special event banner" — schedule the preset to replace the default for
   // the chosen window. Requires both start + end. Mock: marked locally.
   const handleUseSpecialEventBanner = () => {
-    if (!specialEventStart || !specialEventEnd) {
-      toast.error("Set a start and end time for the special event banner.");
+    if (
+      !specialEventStartDate ||
+      !specialEventStartTime ||
+      !specialEventEndDate ||
+      !specialEventEndTime
+    ) {
+      toast.error("Set a start and end date and time (24h).");
       return;
     }
-    if (specialEventEnd <= specialEventStart) {
+    const toMs = (date: string, time: string) => {
+      const [h = "0", m = "0"] = time.split(":");
+      return new Date(
+        `${date}T${h.padStart(2, "0")}:${m.padStart(2, "0")}:00`,
+      ).getTime();
+    };
+    if (
+      !(
+        toMs(specialEventEndDate, specialEventEndTime) >
+        toMs(specialEventStartDate, specialEventStartTime)
+      )
+    ) {
       toast.error("The special event must end after it starts.");
       return;
     }
@@ -623,29 +644,47 @@ export default function PolicyTable() {
                     width={640}
                     height={200}
                   />
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                    <label className="block">
+                  <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                    <div>
                       <span className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                        Starts
+                        Starts (24h)
                       </span>
-                      <input
-                        type="datetime-local"
-                        value={specialEventStart}
-                        onChange={(e) => setSpecialEventStart(e.target.value)}
-                        className="focus:border-brand-400 focus:ring-brand-500/20 h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-800 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                      />
-                    </label>
-                    <label className="block">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          type="date"
+                          value={specialEventStartDate}
+                          onChange={(e) =>
+                            setSpecialEventStartDate(e.target.value)
+                          }
+                          className="focus:border-brand-400 focus:ring-brand-500/20 h-11 min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-800 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                        />
+                        <TimeFieldHM
+                          value={specialEventStartTime}
+                          onChange={setSpecialEventStartTime}
+                          ariaLabel="Start time"
+                        />
+                      </div>
+                    </div>
+                    <div>
                       <span className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                        Ends
+                        Ends (24h)
                       </span>
-                      <input
-                        type="datetime-local"
-                        value={specialEventEnd}
-                        onChange={(e) => setSpecialEventEnd(e.target.value)}
-                        className="focus:border-brand-400 focus:ring-brand-500/20 h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-800 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                      />
-                    </label>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          type="date"
+                          value={specialEventEndDate}
+                          onChange={(e) =>
+                            setSpecialEventEndDate(e.target.value)
+                          }
+                          className="focus:border-brand-400 focus:ring-brand-500/20 h-11 min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-800 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                        />
+                        <TimeFieldHM
+                          value={specialEventEndTime}
+                          onChange={setSpecialEventEndTime}
+                          ariaLabel="End time"
+                        />
+                      </div>
+                    </div>
                   </div>
                   <div className="mt-3 flex flex-wrap items-center gap-3">
                     <Button
