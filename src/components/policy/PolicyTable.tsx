@@ -545,19 +545,38 @@ export default function PolicyTable() {
               <section className="rounded-xl border border-gray-200 p-4 dark:border-gray-700 dark:bg-gray-900/20">
                 {/* Default banner — preset preview, replaced by an uploaded file. */}
                 <div className="min-w-0">
-                  <div className="mb-2 flex flex-wrap items-center gap-2">
-                    <h3 className="text-base font-semibold text-gray-900 dark:text-white">
-                      Default banner
-                    </h3>
-                    {defaultUpload ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                        <span
-                          className="h-1.5 w-1.5 rounded-full bg-green-500"
-                          aria-hidden
-                        />
-                        Active Banner
-                      </span>
-                    ) : null}
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                        Default banner
+                      </h3>
+                      {defaultUpload ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                          <span
+                            className="h-1.5 w-1.5 rounded-full bg-green-500"
+                            aria-hidden
+                          />
+                          Active Banner
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <SecondaryButton
+                        type="button"
+                        onClick={() => defaultFileRef.current?.click()}
+                      >
+                        Upload File
+                      </SecondaryButton>
+                      {defaultUpload ? (
+                        <button
+                          type="button"
+                          onClick={handleRemoveDefault}
+                          className="text-xs font-medium text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400"
+                        >
+                          Remove
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
                   {defaultUpload ? (
                     <RemoteOrBlobImage
@@ -577,40 +596,42 @@ export default function PolicyTable() {
                     onChange={handleDefaultUpload}
                     className="hidden"
                   />
-                  <div className="mt-3 flex flex-wrap items-center gap-3">
-                    <SecondaryButton
-                      type="button"
-                      onClick={() => defaultFileRef.current?.click()}
-                    >
-                      Upload File
-                    </SecondaryButton>
-                    {defaultUpload ? (
-                      <button
-                        type="button"
-                        onClick={handleRemoveDefault}
-                        className="text-xs font-medium text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400"
-                      >
-                        Remove
-                      </button>
-                    ) : null}
-                  </div>
                 </div>
 
                 {/* Special event banner — replaces the default for a set period. */}
                 <div className="mt-6 border-t border-gray-200 pt-4 dark:border-gray-700">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-base font-semibold text-gray-900 dark:text-white">
-                      Special event banner setup
-                    </h3>
-                    {specialUpload ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
-                        <span
-                          className="h-1.5 w-1.5 rounded-full bg-yellow-500"
-                          aria-hidden
-                        />
-                        Scheduled
-                      </span>
-                    ) : null}
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                        Special event banner setup
+                      </h3>
+                      {specialUpload ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
+                          <span
+                            className="h-1.5 w-1.5 rounded-full bg-yellow-500"
+                            aria-hidden
+                          />
+                          Scheduled
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <SecondaryButton
+                        type="button"
+                        onClick={() => specialFileRef.current?.click()}
+                      >
+                        Upload File
+                      </SecondaryButton>
+                      {specialUpload ? (
+                        <button
+                          type="button"
+                          onClick={handleRemoveSpecial}
+                          className="text-xs font-medium text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400"
+                        >
+                          Remove
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
                   <p className="mt-1 mb-3 text-xs text-gray-500 dark:text-gray-400">
                     Temporarily replaces the default banner during the period
@@ -676,32 +697,25 @@ export default function PolicyTable() {
                       </div>
                     </div>
                   </div>
-                  <div className="mt-3 flex flex-wrap items-center gap-3">
-                    <SecondaryButton
-                      type="button"
-                      onClick={() => specialFileRef.current?.click()}
-                    >
-                      Upload File
-                    </SecondaryButton>
-                    {specialUpload ? (
-                      <button
-                        type="button"
-                        onClick={handleRemoveSpecial}
-                        className="text-xs font-medium text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400"
-                      >
-                        Remove
-                      </button>
-                    ) : null}
-                  </div>
                 </div>
 
                 {/* Phase 3A.2 — banner text editor (per-locale, ≤500 chars).
                   Saved on the same "Save" action as the Terms tab — both
                   blocks share the modal's Save button. */}
                 <div className="mt-6 border-t border-gray-200 pt-4 dark:border-gray-700">
-                  <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                    Banner text (per locale)
-                  </h4>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                      Banner text (per locale)
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={handleSave}
+                      disabled={saving || isOverLength || !hasUnsavedChanges}
+                      className={`${SUPPORT_BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
+                    >
+                      {saving ? "Saving…" : "Save"}
+                    </button>
+                  </div>
                   <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
                     Optional short caption rendered above the offer grid on the
                     customer side. Up to 500 characters per locale.
@@ -789,16 +803,6 @@ export default function PolicyTable() {
                     : {(bannerTranslations[bannerActiveLocale] ?? "").length} /
                     500 characters
                   </p>
-                  <div className="mt-4 flex justify-end border-t border-gray-100 pt-3 dark:border-gray-800">
-                    <button
-                      type="button"
-                      onClick={handleSave}
-                      disabled={saving || isOverLength || !hasUnsavedChanges}
-                      className={`${SUPPORT_BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
-                    >
-                      {saving ? "Saving…" : "Save"}
-                    </button>
-                  </div>
                 </div>
               </section>
             ) : null}
