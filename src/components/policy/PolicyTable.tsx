@@ -386,45 +386,16 @@ export default function PolicyTable() {
   // Templates apply to the ACTIVE locale only — admins translate per-locale,
   // not by retemplating every locale at once. If you want all locales to use
   // the same template, switch tabs and re-apply.
-  const handleContentSourceChange = (next: ContentSource) => {
-    const tid = selectedTemplateId;
-    const tmpl = getTemplateById(tid);
-    if (next === "custom" && contentSource === "template_plus" && tmpl) {
-      const merged = composeTemplatePlus(
-        getTemplateBody(tmpl.id, activeLocale),
-        additionalTermsByLocale[activeLocale] ?? "",
-      );
-      setTranslations((prev) => ({ ...prev, [activeLocale]: merged }));
-      setAdditionalTermsByLocale((prev) => ({ ...prev, [activeLocale]: "" }));
-    }
-    setContentSource(next);
-    if (next === "template" && tmpl) {
-      setTranslations((prev) => ({
-        ...prev,
-        [activeLocale]: getTemplateBody(tmpl.id, activeLocale),
-      }));
-      setAdditionalTermsByLocale((prev) => ({ ...prev, [activeLocale]: "" }));
-    }
-  };
-
   const handleTemplateSelectChange = (id: string) => {
     setSelectedTemplateId(id);
     const tmpl = getTemplateById(id);
     if (!tmpl) return;
-    if (contentSource === "template") {
-      setTranslations((prev) => ({
-        ...prev,
-        [activeLocale]: getTemplateBody(tmpl.id, activeLocale),
-      }));
-    } else if (contentSource === "template_plus") {
-      // Load the chosen template into the editable "additional terms" box for
-      // the active locale, so the admin starts from the template and edits /
-      // extends it inline (mirrors how "template" mode fills the content box).
-      setAdditionalTermsByLocale((prev) => ({
-        ...prev,
-        [activeLocale]: getTemplateBody(tmpl.id, activeLocale),
-      }));
-    }
+    // Single editable content box — load the chosen template into it for the
+    // active locale so the admin can edit / extend it before saving.
+    setTranslations((prev) => ({
+      ...prev,
+      [activeLocale]: getTemplateBody(tmpl.id, activeLocale),
+    }));
   };
 
   const handleSave = async () => {
@@ -547,7 +518,7 @@ export default function PolicyTable() {
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 {policyModalTab === "banner"
                   ? "Upload or replace the wide banner image for this category in the app."
-                  : "Choose a default template, combine a template with your own clauses, or write custom text. Optional admin translation is stored with the policy."}
+                  : "Pick an optional starting template, then edit the terms text per locale. Optional admin translation is stored with the policy."}
               </p>
             </div>
             <Button variant="outline" onClick={closeModal} className="shrink-0">
@@ -963,70 +934,9 @@ export default function PolicyTable() {
                 )}
 
                 <div className="mt-4 space-y-4">
-                  <fieldset>
-                    <legend className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                      How do you want to set terms?
-                    </legend>
-                    <div className="mt-2 flex flex-col gap-2">
-                      <label className="flex cursor-pointer items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
-                        <input
-                          type="radio"
-                          name="policy-source"
-                          className="mt-1"
-                          checked={contentSource === "template"}
-                          onChange={() => handleContentSourceChange("template")}
-                        />
-                        <span>
-                          <span className="font-medium">
-                            Use a default template
-                          </span>
-                          <span className="block text-gray-500 dark:text-gray-400">
-                            Pick a preset and edit the text below before saving.
-                          </span>
-                        </span>
-                      </label>
-                      <label className="flex cursor-pointer items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
-                        <input
-                          type="radio"
-                          name="policy-source"
-                          className="mt-1"
-                          checked={contentSource === "template_plus"}
-                          onChange={() =>
-                            handleContentSourceChange("template_plus")
-                          }
-                        />
-                        <span>
-                          <span className="font-medium">
-                            Default template + your additional terms
-                          </span>
-                          <span className="block text-gray-500 dark:text-gray-400">
-                            Keep the selected template and add your own section
-                            (appended with a clear separator).
-                          </span>
-                        </span>
-                      </label>
-                      <label className="flex cursor-pointer items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
-                        <input
-                          type="radio"
-                          name="policy-source"
-                          className="mt-1"
-                          checked={contentSource === "custom"}
-                          onChange={() => handleContentSourceChange("custom")}
-                        />
-                        <span>
-                          <span className="font-medium">
-                            Write everything yourself
-                          </span>
-                          <span className="block text-gray-500 dark:text-gray-400">
-                            Free-form text only.
-                          </span>
-                        </span>
-                      </label>
-                    </div>
-                  </fieldset>
-
-                  {/* Always visible; defaults to the "— Select a template —"
-                      placeholder until the admin picks one. */}
+                  {/* Optional starting template — pick one to load it into the
+                      content box below, or leave it on "— Select a template —"
+                      to write your own from scratch. */}
                   <div>
                     <label
                       htmlFor="policy-template"
@@ -1056,210 +966,129 @@ export default function PolicyTable() {
                     ) : null}
                   </div>
 
-                  {contentSource === "template_plus" && selectedTemplate ? (
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                          Template preview (included in saved policy)
-                        </p>
-                        <pre className="mt-1 max-h-36 overflow-auto rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs whitespace-pre-wrap text-gray-800 dark:border-gray-600 dark:bg-gray-900/50 dark:text-gray-200">
-                          {getTemplateBody(selectedTemplate.id, activeLocale)}
-                        </pre>
-                      </div>
-                      <div>
-                        {/* Per-locale "additional terms" — same locale tab strip
-                      drives both this and the main content textarea. */}
-                        <div
-                          className="flex flex-wrap gap-1 border-b border-gray-200 dark:border-gray-700"
-                          role="tablist"
-                          aria-label="Additional terms locale"
-                        >
-                          {POLICY_TRANSLATION_LOCALES.map((l) => {
-                            const filled =
-                              typeof additionalTermsByLocale[l.value] ===
-                                "string" &&
-                              additionalTermsByLocale[l.value]!.trim().length >
-                                0;
-                            const isActive = activeLocale === l.value;
-                            return (
-                              <button
-                                key={l.value}
-                                type="button"
-                                role="tab"
-                                aria-selected={isActive}
-                                onClick={() => setActiveLocale(l.value)}
-                                className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
-                                  isActive
-                                    ? "border-brand-500 text-brand-600 dark:border-brand-400 dark:text-brand-400"
-                                    : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400"
-                                }`}
-                              >
-                                <span
-                                  aria-hidden
-                                  className={`h-1.5 w-1.5 rounded-full ${
-                                    filled
-                                      ? "bg-emerald-500"
-                                      : "bg-gray-300 dark:bg-gray-600"
-                                  }`}
-                                />
-                                {l.label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                        <label
-                          htmlFor="policy-additional"
-                          className="mt-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                        >
-                          Your additional terms —{" "}
-                          {POLICY_TRANSLATION_LOCALES.find(
-                            (l) => l.value === activeLocale,
-                          )?.label ?? activeLocale}
-                        </label>
-                        <textarea
-                          id="policy-additional"
-                          value={additionalTermsByLocale[activeLocale] ?? ""}
-                          onChange={(e) =>
-                            setAdditionalTermsByLocale((prev) => ({
-                              ...prev,
-                              [activeLocale]: e.target.value,
-                            }))
-                          }
-                          placeholder="Add clauses specific to this category (plain text)..."
-                          className="focus:border-brand-500 focus:ring-brand-500/20 mt-1 min-h-[120px] w-full resize-y rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-2 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400"
-                        />
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {(contentSource === "template" ||
-                    contentSource === "custom") && (
-                    <div className="min-h-0 flex-1">
-                      {/* Locale tab strip — switching tabs swaps the textarea below.
+                  <div className="min-h-0 flex-1">
+                    {/* Locale tab strip — switching tabs swaps the textarea below.
                     The bullet on each tab indicates whether that locale has
                     any non-empty content authored. */}
-                      <div
-                        className="flex flex-wrap gap-1 border-b border-gray-200 dark:border-gray-700"
-                        role="tablist"
-                        aria-label="Translation locale"
-                      >
-                        {POLICY_TRANSLATION_LOCALES.map((l) => {
-                          const filled =
-                            typeof translations[l.value] === "string" &&
-                            translations[l.value]!.trim().length > 0;
-                          const isActive = activeLocale === l.value;
-                          return (
-                            <button
-                              key={l.value}
-                              type="button"
-                              role="tab"
-                              aria-selected={isActive}
-                              onClick={() => setActiveLocale(l.value)}
-                              className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
-                                isActive
-                                  ? "border-brand-500 text-brand-600 dark:border-brand-400 dark:text-brand-400"
-                                  : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400"
+                    <div
+                      className="flex flex-wrap gap-1 border-b border-gray-200 dark:border-gray-700"
+                      role="tablist"
+                      aria-label="Translation locale"
+                    >
+                      {POLICY_TRANSLATION_LOCALES.map((l) => {
+                        const filled =
+                          typeof translations[l.value] === "string" &&
+                          translations[l.value]!.trim().length > 0;
+                        const isActive = activeLocale === l.value;
+                        return (
+                          <button
+                            key={l.value}
+                            type="button"
+                            role="tab"
+                            aria-selected={isActive}
+                            onClick={() => setActiveLocale(l.value)}
+                            className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
+                              isActive
+                                ? "border-brand-500 text-brand-600 dark:border-brand-400 dark:text-brand-400"
+                                : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400"
+                            }`}
+                          >
+                            <span
+                              aria-hidden
+                              className={`h-1.5 w-1.5 rounded-full ${
+                                filled
+                                  ? "bg-emerald-500"
+                                  : "bg-gray-300 dark:bg-gray-600"
                               }`}
-                            >
-                              <span
-                                aria-hidden
-                                className={`h-1.5 w-1.5 rounded-full ${
-                                  filled
-                                    ? "bg-emerald-500"
-                                    : "bg-gray-300 dark:bg-gray-600"
-                                }`}
-                              />
-                              {l.label}
-                              {primaryLocale === l.value ? (
-                                <span className="bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300 ml-1 rounded px-1 py-0.5 text-[10px] font-medium">
-                                  primary
-                                </span>
-                              ) : null}
-                            </button>
-                          );
-                        })}
-                      </div>
+                            />
+                            {l.label}
+                            {primaryLocale === l.value ? (
+                              <span className="bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300 ml-1 rounded px-1 py-0.5 text-[10px] font-medium">
+                                primary
+                              </span>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
 
-                      {/* Primary-locale picker — D2 default in POLICY_MULTILANG_PLAN.md.
+                    {/* Primary-locale picker — D2 default in POLICY_MULTILANG_PLAN.md.
                     Customer-side renderer falls back to this locale when the
                     user's locale isn't translated. */}
-                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-                        <span>Primary locale:</span>
-                        <select
-                          value={primaryLocale}
-                          onChange={(e) => setPrimaryLocale(e.target.value)}
-                          className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800"
-                        >
-                          {POLICY_TRANSLATION_LOCALES.map((l) => (
-                            <option key={l.value} value={l.value}>
-                              {l.label}
-                            </option>
-                          ))}
-                        </select>
-                        <span className="text-gray-400">
-                          — used as the fallback when a user&apos;s locale has
-                          no translation.
-                        </span>
-                      </div>
-
-                      <label
-                        htmlFor="policy-content"
-                        className="mt-3 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                    <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                      <span>Primary locale:</span>
+                      <select
+                        value={primaryLocale}
+                        onChange={(e) => setPrimaryLocale(e.target.value)}
+                        className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800"
                       >
-                        {contentSource === "template"
-                          ? "Template text (editable)"
-                          : "Content"}
-                        {" — "}
-                        <span className="text-gray-500">
-                          {POLICY_TRANSLATION_LOCALES.find(
-                            (l) => l.value === activeLocale,
-                          )?.label ?? activeLocale}
-                        </span>
-                      </label>
-                      <textarea
-                        id="policy-content"
-                        value={translations[activeLocale] ?? ""}
-                        onChange={(e) =>
-                          setTranslations((prev) => ({
-                            ...prev,
-                            [activeLocale]: e.target.value,
-                          }))
-                        }
-                        placeholder={
-                          activeLocale === "th"
-                            ? "ป้อนข้อกำหนดและเงื่อนไข (ข้อความล้วน)..."
-                            : "Enter terms and conditions (plain text)..."
-                        }
-                        className="focus:border-brand-500 focus:ring-brand-500/20 mt-1 min-h-[200px] w-full resize-y rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-2 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400"
-                      />
-                      <div className="mt-2 flex items-center justify-between text-xs">
-                        <p
-                          className={
-                            activeLocaleLength > POLICY_MAX_LENGTH
-                              ? "text-red-600 dark:text-red-400"
-                              : "text-gray-500 dark:text-gray-400"
-                          }
-                        >
-                          {
-                            POLICY_TRANSLATION_LOCALES.find(
-                              (l) => l.value === activeLocale,
-                            )?.label
-                          }
-                          : {activeLocaleLength} / {POLICY_MAX_LENGTH}{" "}
-                          characters
-                        </p>
-                        <p className="text-gray-500 dark:text-gray-400">
-                          Total across all locales: {totalLength}
-                        </p>
-                      </div>
-                      {!hasAnyTranslation ? (
-                        <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-                          At least one non-empty translation is required to
-                          save.
-                        </p>
-                      ) : null}
+                        {POLICY_TRANSLATION_LOCALES.map((l) => (
+                          <option key={l.value} value={l.value}>
+                            {l.label}
+                          </option>
+                        ))}
+                      </select>
+                      <span className="text-gray-400">
+                        — used as the fallback when a user&apos;s locale has no
+                        translation.
+                      </span>
                     </div>
-                  )}
+
+                    <label
+                      htmlFor="policy-content"
+                      className="mt-3 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >
+                      {contentSource === "template"
+                        ? "Template text (editable)"
+                        : "Content"}
+                      {" — "}
+                      <span className="text-gray-500">
+                        {POLICY_TRANSLATION_LOCALES.find(
+                          (l) => l.value === activeLocale,
+                        )?.label ?? activeLocale}
+                      </span>
+                    </label>
+                    <textarea
+                      id="policy-content"
+                      value={translations[activeLocale] ?? ""}
+                      onChange={(e) =>
+                        setTranslations((prev) => ({
+                          ...prev,
+                          [activeLocale]: e.target.value,
+                        }))
+                      }
+                      placeholder={
+                        activeLocale === "th"
+                          ? "ป้อนข้อกำหนดและเงื่อนไข (ข้อความล้วน)..."
+                          : "Enter terms and conditions (plain text)..."
+                      }
+                      className="focus:border-brand-500 focus:ring-brand-500/20 mt-1 min-h-[200px] w-full resize-y rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-2 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400"
+                    />
+                    <div className="mt-2 flex items-center justify-between text-xs">
+                      <p
+                        className={
+                          activeLocaleLength > POLICY_MAX_LENGTH
+                            ? "text-red-600 dark:text-red-400"
+                            : "text-gray-500 dark:text-gray-400"
+                        }
+                      >
+                        {
+                          POLICY_TRANSLATION_LOCALES.find(
+                            (l) => l.value === activeLocale,
+                          )?.label
+                        }
+                        : {activeLocaleLength} / {POLICY_MAX_LENGTH} characters
+                      </p>
+                      <p className="text-gray-500 dark:text-gray-400">
+                        Total across all locales: {totalLength}
+                      </p>
+                    </div>
+                    {!hasAnyTranslation ? (
+                      <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                        At least one non-empty translation is required to save.
+                      </p>
+                    ) : null}
+                  </div>
                 </div>
               </>
             ) : null}
