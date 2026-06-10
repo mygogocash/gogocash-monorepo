@@ -453,13 +453,14 @@ type ExploreShop = {
   readonly id: string;
   readonly name: string;
   readonly cashback: string;
+  readonly tint: string;
 };
 
 const exploreShops: readonly ExploreShop[] = [
-  { id: "orbit-airways", name: "Orbit Airways", cashback: "8.5%" },
-  { id: "nova-travel-club", name: "Nova Travel Club", cashback: "9.2%" },
-  { id: "horizon-escapes", name: "Horizon Escapes", cashback: "8.8%" },
-  { id: "cloudline-getaways", name: "Cloudline Getaways", cashback: "7.9%" },
+  { id: "orbit-airways", name: "Orbit Airways", cashback: "8.5%", tint: "#1D4ED8" },
+  { id: "nova-travel-club", name: "Nova Travel Club", cashback: "9.2%", tint: "#0F766E" },
+  { id: "horizon-escapes", name: "Horizon Escapes", cashback: "8.8%", tint: "#7C3AED" },
+  { id: "cloudline-getaways", name: "Cloudline Getaways", cashback: "7.9%", tint: "#C2410C" },
 ];
 
 function ReferralExploreShopsSection({ isDesktop }: { isDesktop: boolean }) {
@@ -497,7 +498,11 @@ function ExploreShopCard({ isDesktop, shop }: { isDesktop: boolean; shop: Explor
   const [isFavorite, setIsFavorite] = useState(false);
   return (
     <View style={[styles.exploreCard, isDesktop ? styles.exploreCardDesktop : styles.exploreCardMobile]}>
-      <View style={styles.exploreCardBanner} />
+      {/* Brand-color art + monogram — the same card language as the app's brand cards
+          (the fixture ships no shop logos, so the tint + initial stands in for one). */}
+      <View style={[styles.exploreCardBanner, { backgroundColor: shop.tint }]}>
+        <Text style={styles.exploreCardMonogram}>{shop.name.charAt(0)}</Text>
+      </View>
       <View style={[styles.exploreCardBody, isDesktop ? styles.exploreCardBodyDesktop : null]}>
         <View style={styles.exploreCardCopy}>
           <Text
@@ -508,6 +513,7 @@ function ExploreShopCard({ isDesktop, shop }: { isDesktop: boolean; shop: Explor
           </Text>
           <View style={styles.exploreCashbackRow}>
             <Text
+              numberOfLines={2}
               style={[
                 styles.exploreCashbackLabel,
                 isDesktop ? styles.exploreCashbackLabelDesktop : null,
@@ -526,7 +532,11 @@ function ExploreShopCard({ isDesktop, shop }: { isDesktop: boolean; shop: Explor
           </View>
         </View>
         <Pressable
-          accessibilityLabel={tc("favoritePageAddFavorite")}
+          accessibilityLabel={
+            isFavorite
+              ? `${tc("Remove from saved brands")}: ${shop.name}`
+              : `${tc("Save brand")}: ${shop.name}`
+          }
           accessibilityRole="button"
           accessibilityState={{ selected: isFavorite }}
           hitSlop={8}
@@ -1042,9 +1052,18 @@ const styles = StyleSheet.create({
     flexBasis: "22%",
   },
   exploreCardBanner: {
+    alignItems: "center",
     aspectRatio: 16 / 10,
     backgroundColor: "#F6F6F6",
+    justifyContent: "center",
     width: "100%",
+  },
+  exploreCardMonogram: {
+    color: colors.white,
+    fontFamily: typography.family,
+    fontSize: 44,
+    fontWeight: "800",
+    opacity: 0.96,
   },
   exploreCardBody: {
     alignItems: "flex-start",

@@ -1,25 +1,33 @@
 import { Link } from "expo-router";
 import {
   BookOpen as GuideIcon,
-  CalendarDays as CalendarIcon,
+  Check as CheckIcon,
   ChevronDown as ChevronDownIcon,
   ChevronLeft as ChevronLeftIcon,
   CircleHelp as HelpIcon,
-  Hash as HashIcon,
+  Eye as EyeIcon,
   ImagePlus as ImageIcon,
   MessageCircle as SupportIcon,
-  PencilLine as NoteIcon,
-  ReceiptText as AmountIcon,
   ShoppingBag as ShoppingIcon,
-  Store as StoreIcon,
-  UserRound as UserIcon,
 } from "@mobile/theme/icons";
 import type { ReactNode } from "react";
-import { useState } from "react";
-import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
-import type { ViewStyle } from "react-native";
+import { useRef, useState } from "react";
+import {
+  Image,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View,
+} from "react-native";
+import type { LayoutRectangle, ViewStyle } from "react-native";
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
+import { BirthDateField } from "@mobile/components/BirthDateField";
 import { KeyboardAwareScreen } from "@mobile/components/KeyboardAwareScreen";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
@@ -37,6 +45,52 @@ const attachmentField = webMissingOrdersPage.sections
   .flatMap((section): readonly MissingOrdersField[] => section.fields)
   .find((field) => field.icon === "image");
 const attachmentRequiredMessage = attachmentField?.helper ?? "";
+
+const [purchaseSection, accountSection, extraSection] = webMissingOrdersPage.sections;
+
+// Preset stores for the "Store or marketplace" dropdown (web parity: a real <Select>).
+const MISSING_ORDERS_SHOPS = [
+  "Shopee",
+  "Lazada",
+  "TikTok Shop",
+  "Banana IT",
+  "Agoda",
+  "Trip.com",
+  "Traveloka",
+  "Klook",
+  "Other (enter brand name)",
+] as const;
+
+const MISSING_ORDERS_USER_ID = "mock-user-001";
+
+const MAX_MISSING_ORDER_IMAGES = 5;
+
+type MissingOrderImage = { id: string; name: string; uri: string };
+
+// Opens the device image picker (web parity: <input type="file" accept="image/*" multiple>).
+// On web it uses a real hidden file input; on native (where this mock is not exercised) it
+// registers a single placeholder so the required-attachment flow still works.
+function pickMissingOrderImages(onPicked: (images: MissingOrderImage[]) => void): void {
+  if (Platform.OS !== "web" || typeof document === "undefined") {
+    onPicked([{ id: `mock-${Date.now()}`, name: "receipt.png", uri: "" }]);
+    return;
+  }
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/*";
+  input.multiple = true;
+  input.onchange = () => {
+    const picked = Array.from(input.files ?? [])
+      .slice(0, MAX_MISSING_ORDER_IMAGES)
+      .map((file, index) => ({
+        id: `${file.name}-${file.size}-${index}`,
+        name: file.name,
+        uri: typeof URL !== "undefined" && URL.createObjectURL ? URL.createObjectURL(file) : "",
+      }));
+    if (picked.length > 0) onPicked(picked);
+  };
+  input.click();
+}
 
 export function CustomerMissingOrdersScreen() {
   const { width } = useWindowDimensions();
@@ -89,20 +143,39 @@ function MissingOrdersFormPanel() {
   // least 1 image"). The rest of this screen simulates entry with static values, so we
   // mirror that: a single attachment flag the add-image field toggles. Submit validates
   // it — the smallest honest validation the form's own copy demands.
-  const [hasAttachment, setHasAttachment] = useState(false);
+  const [attachments, setAttachments] = useState<readonly MissingOrderImage[]>([]);
   const [submitError, setSubmitError] = useState(false);
+  const [submittedOpen, setSubmittedOpen] = useState(false);
+  const [shop, setShop] = useState("");
+  const [orderId, setOrderId] = useState("");
+  const [amount, setAmount] = useState("");
+  const [purchaseDate, setPurchaseDate] = useState("");
+  const [note, setNote] = useState("");
+  const [shopOpen, setShopOpen] = useState(false);
+  // Anchor rect of the shop field so the dropdown opens directly under it (web parity).
+  const [shopAnchor, setShopAnchor] = useState<LayoutRectangle | null>(null);
+
+  const hasAttachment = attachments.length > 0;
+
+  const addImages = (images: MissingOrderImage[]) => {
+    setAttachments((prev) => [...prev, ...images].slice(0, MAX_MISSING_ORDER_IMAGES));
+    setSubmitError(false);
+  };
+  const removeImage = (id: string) =>
+    setAttachments((prev) => prev.filter((image) => image.id !== id));
 
   const handleSubmit = () => {
     if (!hasAttachment) {
-      // Validation failure: nothing to send yet → error buzz + inline message.
+      // Validation failure: a screenshot/receipt is required → error buzz + inline message.
       setSubmitError(true);
       haptics.error();
       return;
     }
 
-    // Claim is ready to open LINE and send → success haptic.
+    // Claim is ready → success haptic + the "Order Tracking Submitted!" confirmation.
     setSubmitError(false);
     haptics.success();
+    setSubmittedOpen(true);
   };
 
   return (
@@ -122,17 +195,59 @@ function MissingOrdersFormPanel() {
       </View>
 
       <View style={styles.sectionStack}>
-        {webMissingOrdersPage.sections.map((section) => (
-          <MissingOrdersFormSection
-            hasAttachment={hasAttachment}
-            key={section.id}
-            onToggleAttachment={() => {
-              setHasAttachment((added) => !added);
-              setSubmitError(false);
-            }}
-            section={section}
+        <MissingOrdersFormSection section={purchaseSection}>
+          <MissingOrdersSelectField
+            helper={purchaseSection.fields[0].helper}
+            label={purchaseSection.fields[0].label}
+            onMeasure={setShopAnchor}
+            onOpen={() => setShopOpen(true)}
+            open={shopOpen}
+            value={shop}
           />
-        ))}
+          <MissingOrdersTextField
+            helper={purchaseSection.fields[1].helper}
+            label={purchaseSection.fields[1].label}
+            onChangeText={setOrderId}
+            required
+            value={orderId}
+          />
+          <MissingOrdersTextField
+            helper={purchaseSection.fields[2].helper}
+            keyboardType="decimal-pad"
+            label={purchaseSection.fields[2].label}
+            onChangeText={setAmount}
+            value={amount}
+          />
+          <MissingOrdersDateField
+            helper={purchaseSection.fields[3].helper}
+            label={purchaseSection.fields[3].label}
+            onChange={setPurchaseDate}
+            value={purchaseDate}
+          />
+        </MissingOrdersFormSection>
+        <MissingOrdersFormSection section={accountSection}>
+          <MissingOrdersUserIdField
+            helper={accountSection.fields[0].helper}
+            label={accountSection.fields[0].label}
+            userId={MISSING_ORDERS_USER_ID}
+          />
+        </MissingOrdersFormSection>
+        <MissingOrdersFormSection section={extraSection}>
+          <MissingOrdersTextField
+            helper={extraSection.fields[0].helper}
+            label={extraSection.fields[0].label}
+            multiline
+            onChangeText={setNote}
+            value={note}
+          />
+          <MissingOrdersAttachmentField
+            attachments={attachments}
+            helper={extraSection.fields[1].helper}
+            label={extraSection.fields[1].label}
+            onAdd={addImages}
+            onRemove={removeImage}
+          />
+        </MissingOrdersFormSection>
       </View>
 
       <View style={styles.bulletPanel}>
@@ -165,17 +280,113 @@ function MissingOrdersFormPanel() {
           <Text style={styles.submitButtonText}>{tc(webMissingOrdersPage.submitActionLabel)}</Text>
         </MotionPressable>
       </View>
+
+      {shopOpen ? (
+        <Modal animationType="none" onRequestClose={() => setShopOpen(false)} transparent visible>
+          <Pressable
+            accessibilityLabel={tc("Close")}
+            onPress={() => setShopOpen(false)}
+            style={styles.dropdownBackdrop}
+          />
+          {/* Anchored under the shop field (web parity: the <Select> menu opens below it). */}
+          <View
+            style={[
+              styles.dropdownAnchoredMenu,
+              shopAnchor
+                ? {
+                    left: shopAnchor.x,
+                    top: shopAnchor.y + shopAnchor.height + 4,
+                    width: shopAnchor.width,
+                  }
+                : styles.dropdownMenuFallback,
+            ]}
+          >
+            <ScrollView style={styles.dropdownScroll}>
+              {MISSING_ORDERS_SHOPS.map((option) => {
+                const selected = shop === option;
+                return (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    key={option}
+                    onPress={() => {
+                      setShop(option);
+                      setShopOpen(false);
+                    }}
+                    style={styles.dropdownOption}
+                  >
+                    <Text
+                      style={[
+                        styles.dropdownOptionText,
+                        selected ? styles.dropdownOptionTextSelected : null,
+                      ]}
+                    >
+                      {option}
+                    </Text>
+                    {selected ? (
+                      <CheckIcon
+                        color={colors.primaryDark}
+                        size={18}
+                        strokeWidth={typography.iconStrokeWidth}
+                      />
+                    ) : null}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </Modal>
+      ) : null}
+
+      {submittedOpen ? (
+        <Modal
+          animationType="fade"
+          onRequestClose={() => setSubmittedOpen(false)}
+          transparent
+          visible
+        >
+          <View style={styles.successRoot}>
+            <View style={styles.successCard}>
+              <View style={styles.successBadge}>
+                <CheckIcon color={colors.white} size={36} strokeWidth={2.6} />
+              </View>
+              <Text style={styles.successTitle}>{tc("Order Tracking Submitted!")}</Text>
+              <Text style={styles.successBody}>
+                {tc("You can track the result on order transaction in wallet.")}
+              </Text>
+              <View style={styles.successActions}>
+                <Link asChild href="/wallet">
+                  <MotionPressable
+                    onPress={() => setSubmittedOpen(false)}
+                    pressScale={0.98}
+                    style={styles.successOutlineButton}
+                  >
+                    <Text style={styles.successOutlineButtonText}>{tc("Go to Wallet")}</Text>
+                  </MotionPressable>
+                </Link>
+                <Link asChild href="/brand">
+                  <MotionPressable
+                    onPress={() => setSubmittedOpen(false)}
+                    pressScale={0.98}
+                    style={styles.successPrimaryButton}
+                  >
+                    <Text style={styles.successPrimaryButtonText}>{tc("Shop More!")}</Text>
+                  </MotionPressable>
+                </Link>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      ) : null}
     </View>
   );
 }
 
 function MissingOrdersFormSection({
-  hasAttachment,
-  onToggleAttachment,
+  children,
   section,
 }: {
-  hasAttachment: boolean;
-  onToggleAttachment: () => void;
+  children: ReactNode;
   section: MissingOrdersSection;
 }) {
   const tc = useCopy();
@@ -185,68 +396,250 @@ function MissingOrdersFormSection({
         <Text style={styles.sectionTitle}>{tc(section.title)}</Text>
         <Text style={styles.sectionHelp}>{tc(section.help)}</Text>
       </View>
-      <View style={styles.fieldStack}>
-        {section.fields.map((field) => (
-          <MissingOrdersFieldRow
-            field={field}
-            hasAttachment={hasAttachment}
-            key={field.label}
-            onToggleAttachment={onToggleAttachment}
-          />
-        ))}
-      </View>
+      <View style={styles.fieldStack}>{children}</View>
     </View>
   );
 }
 
-function MissingOrdersFieldRow({
-  field,
-  hasAttachment,
-  onToggleAttachment,
+// Outlined text input with a MUI-style floating label (web parity): the label sits as the
+// placeholder when empty + unfocused, and floats onto the border once focused or filled.
+function MissingOrdersTextField({
+  helper,
+  keyboardType,
+  label,
+  multiline,
+  onChangeText,
+  readOnly,
+  required,
+  value,
 }: {
-  field: MissingOrdersField;
-  hasAttachment: boolean;
-  onToggleAttachment: () => void;
+  helper: string;
+  keyboardType?: "decimal-pad" | "default";
+  label: string;
+  multiline?: boolean;
+  onChangeText?: (text: string) => void;
+  readOnly?: boolean;
+  required?: boolean;
+  value: string;
 }) {
   const tc = useCopy();
-  const isAttachment = field.icon === "image";
-
-  const content = (
-    <>
-      <View style={styles.fieldIcon}>
-        {renderFieldIcon(field.icon)}
-      </View>
-      <View style={styles.fieldCopy}>
-        <Text style={styles.fieldLabel}>{tc(field.label)}</Text>
-        <Text style={[styles.fieldValue, isAttachment ? styles.attachmentValue : null]}>
-          {isAttachment && hasAttachment ? tc("1 image added") : tc(field.value)}
-        </Text>
-        <Text style={styles.fieldHelper}>{tc(field.helper)}</Text>
-      </View>
-      {field.icon === "store" ? (
-        <ChevronDownIcon color={colors.muted} size={18} strokeWidth={typography.iconStrokeWidth} />
-      ) : null}
-    </>
-  );
-
-  // The attachment row is the only interactive field today: it's an icon-led "add image"
-  // trigger whose icon is 32px (< 44px), so it carries a hitSlop to reach the 44px target.
-  if (isAttachment) {
-    return (
-      <Pressable
-        accessibilityLabel={tc(field.label)}
-        accessibilityRole="button"
-        accessibilityState={{ selected: hasAttachment }}
-        hitSlop={8}
-        onPress={onToggleAttachment}
-        style={styles.attachmentField}
+  const [focused, setFocused] = useState(false);
+  const labelText = `${tc(label)}${required ? " *" : ""}`;
+  const floated = focused || value.length > 0;
+  return (
+    <View style={styles.fieldGroup}>
+      <View
+        style={[
+          styles.inputBox,
+          multiline ? styles.inputBoxMultiline : null,
+          focused ? styles.inputBoxFocused : null,
+        ]}
       >
-        {content}
-      </Pressable>
-    );
-  }
+        {floated ? (
+          <Text style={[styles.floatLabel, focused ? styles.floatLabelFocused : null]}>
+            {labelText}
+          </Text>
+        ) : null}
+        <TextInput
+          editable={!readOnly}
+          keyboardType={keyboardType ?? "default"}
+          multiline={multiline}
+          onBlur={() => setFocused(false)}
+          onChangeText={onChangeText}
+          onFocus={() => setFocused(true)}
+          placeholder={floated ? "" : labelText}
+          placeholderTextColor={colors.muted}
+          style={[styles.fieldInput, multiline ? styles.fieldInputMultiline : null]}
+          value={value}
+        />
+      </View>
+      <Text style={styles.fieldHelper}>{tc(helper)}</Text>
+    </View>
+  );
+}
 
-  return <View style={styles.fieldRow}>{content}</View>;
+// User ID is read-only + masked; the eye toggle reveals/hides the real id (web parity).
+function MissingOrdersUserIdField({
+  helper,
+  label,
+  userId,
+}: {
+  helper: string;
+  label: string;
+  userId: string;
+}) {
+  const tc = useCopy();
+  const [revealed, setRevealed] = useState(false);
+  return (
+    <View style={styles.fieldGroup}>
+      <View style={styles.inputBox}>
+        <Text style={styles.floatLabel}>{tc(label)}</Text>
+        <Text style={styles.fieldInput}>{revealed ? userId : "******"}</Text>
+        <Pressable
+          accessibilityLabel={revealed ? tc("Hide user ID") : tc("Show user ID")}
+          accessibilityRole="button"
+          accessibilityState={{ selected: revealed }}
+          hitSlop={8}
+          onPress={() => setRevealed((value) => !value)}
+          style={styles.eyeButton}
+        >
+          <EyeIcon
+            color={revealed ? colors.primaryDark : colors.muted}
+            size={20}
+            strokeWidth={typography.iconStrokeWidth}
+          />
+        </Pressable>
+      </View>
+      <Text style={styles.fieldHelper}>{tc(helper)}</Text>
+    </View>
+  );
+}
+
+// Outlined select field that opens the store dropdown (web parity: a <Select> with a caret).
+function MissingOrdersSelectField({
+  helper,
+  label,
+  onMeasure,
+  onOpen,
+  open,
+  value,
+}: {
+  helper: string;
+  label: string;
+  onMeasure: (rect: LayoutRectangle) => void;
+  onOpen: () => void;
+  open: boolean;
+  value: string;
+}) {
+  const tc = useCopy();
+  const ref = useRef<View>(null);
+  const floated = open || value.length > 0;
+  const handlePress = () => {
+    // Open immediately, then anchor the menu under the field once measured (best-effort).
+    onOpen();
+    ref.current?.measureInWindow((x, y, fieldWidth, fieldHeight) =>
+      onMeasure({ height: fieldHeight, width: fieldWidth, x, y })
+    );
+  };
+  return (
+    <View style={styles.fieldGroup}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={handlePress}
+        ref={ref}
+        style={[styles.inputBox, open ? styles.inputBoxFocused : null]}
+      >
+        {floated ? (
+          <Text style={[styles.floatLabel, open ? styles.floatLabelFocused : null]}>
+            {tc(label)}
+          </Text>
+        ) : null}
+        <Text style={[styles.fieldInput, value ? null : styles.fieldPlaceholder]}>
+          {value || (floated ? "" : tc(label))}
+        </Text>
+        <ChevronDownIcon color={colors.muted} size={20} strokeWidth={typography.iconStrokeWidth} />
+      </Pressable>
+      <Text style={styles.fieldHelper}>{tc(helper)}</Text>
+    </View>
+  );
+}
+
+// Outlined date field — the label always floats (the field always shows a dd/mm/yyyy slot,
+// web shrink). Wraps the shared BirthDateField (browser <input type="date"> / native picker).
+function MissingOrdersDateField({
+  helper,
+  label,
+  onChange,
+  value,
+}: {
+  helper: string;
+  label: string;
+  onChange: (value: string) => void;
+  value: string;
+}) {
+  const tc = useCopy();
+  const [focused, setFocused] = useState(false);
+  return (
+    <View style={styles.fieldGroup}>
+      <View style={[styles.inputBox, focused ? styles.inputBoxFocused : null]}>
+        <Text style={[styles.floatLabel, focused ? styles.floatLabelFocused : null]}>
+          {tc(label)}
+        </Text>
+        <BirthDateField
+          accessibilityLabel={tc(label)}
+          maxToday
+          onBlur={() => setFocused(false)}
+          onChange={onChange}
+          onFocus={() => setFocused(true)}
+          value={value}
+        />
+      </View>
+      <Text style={styles.fieldHelper}>{tc(helper)}</Text>
+    </View>
+  );
+}
+
+// Dashed attachment uploader (web parity): label* + hint + an outlined "Add images" button.
+function MissingOrdersAttachmentField({
+  attachments,
+  helper,
+  label,
+  onAdd,
+  onRemove,
+}: {
+  attachments: readonly MissingOrderImage[];
+  helper: string;
+  label: string;
+  onAdd: (images: MissingOrderImage[]) => void;
+  onRemove: (id: string) => void;
+}) {
+  const tc = useCopy();
+  return (
+    <View style={styles.attachmentBox}>
+      <Text style={styles.attachmentLabel}>
+        {tc(label)} <Text style={styles.attachmentRequired}>*</Text>
+      </Text>
+      <Text style={styles.attachmentHint}>{tc(helper)}</Text>
+      <Pressable
+        accessibilityLabel={tc("Add images")}
+        accessibilityRole="button"
+        hitSlop={8}
+        onPress={() => pickMissingOrderImages(onAdd)}
+        style={styles.attachmentButton}
+      >
+        <ImageIcon color="#00AA80" size={20} strokeWidth={typography.iconStrokeWidth} />
+        <Text style={styles.attachmentButtonText}>{tc("Add images")}</Text>
+      </Pressable>
+      {attachments.length > 0 ? (
+        <View style={styles.attachmentChips}>
+          {attachments.map((image) => (
+            <View key={image.id} style={styles.attachmentChip}>
+              {image.uri ? (
+                <Image
+                  alt=""
+                  resizeMode="cover"
+                  source={{ uri: image.uri }}
+                  style={styles.attachmentThumb}
+                />
+              ) : null}
+              <Text numberOfLines={1} style={styles.attachmentChipName}>
+                {image.name}
+              </Text>
+              <Pressable
+                accessibilityLabel={`${tc("Remove")} ${image.name}`}
+                accessibilityRole="button"
+                hitSlop={6}
+                onPress={() => onRemove(image.id)}
+                style={styles.attachmentRemove}
+              >
+                <Text style={styles.attachmentRemoveText}>×</Text>
+              </Pressable>
+            </View>
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
 }
 
 function MissingOrdersQuickCards() {
@@ -330,30 +723,6 @@ function MissingOrdersFaqSection() {
   );
 }
 
-function renderFieldIcon(icon: MissingOrdersField["icon"]): ReactNode {
-  const iconProps = {
-    color: colors.primaryDark,
-    size: 18,
-    strokeWidth: typography.iconStrokeWidth,
-  };
-
-  switch (icon) {
-    case "amount":
-      return <AmountIcon {...iconProps} />;
-    case "calendar":
-      return <CalendarIcon {...iconProps} />;
-    case "hash":
-      return <HashIcon {...iconProps} />;
-    case "image":
-      return <ImageIcon {...iconProps} />;
-    case "note":
-      return <NoteIcon {...iconProps} />;
-    case "store":
-      return <StoreIcon {...iconProps} />;
-    case "user":
-      return <UserIcon {...iconProps} />;
-  }
-}
 
 function renderQuickCardIcon(icon: MissingOrdersQuickCard["icon"], size: number): ReactNode {
   const iconProps = {
@@ -516,59 +885,161 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
   fieldStack: {
-    gap: 12,
+    gap: 16,
   },
-  fieldRow: {
-    alignItems: "flex-start",
+  fieldGroup: {
+    gap: 6,
+  },
+  inputBox: {
+    alignItems: "center",
     backgroundColor: colors.card,
-    borderColor: "rgba(152,152,152,0.38)",
-    borderRadius: radii.md,
+    borderColor: "rgba(152, 152, 152, 0.4)",
+    borderRadius: 8,
     borderWidth: 1,
     flexDirection: "row",
-    gap: 10,
-    minHeight: 74,
-    padding: 12,
+    gap: 8,
+    minHeight: 56,
+    paddingHorizontal: 12,
+    position: "relative",
   },
-  attachmentField: {
+  inputBoxMultiline: {
     alignItems: "flex-start",
+    minHeight: 92,
+    paddingVertical: 10,
+  },
+  inputBoxFocused: {
+    borderColor: colors.primary,
+  },
+  floatLabel: {
+    backgroundColor: colors.card,
+    color: colors.muted,
+    fontFamily: typography.family,
+    fontSize: 12,
+    left: 8,
+    paddingHorizontal: 4,
+    position: "absolute",
+    top: -8,
+    zIndex: 1,
+  },
+  floatLabelFocused: {
+    color: colors.primaryDark,
+  },
+  fieldInput: {
+    color: colors.ink,
+    flex: 1,
+    fontFamily: typography.family,
+    fontSize: 16,
+    outlineColor: "transparent",
+    outlineWidth: 0,
+    paddingVertical: 0,
+  },
+  fieldInputMultiline: {
+    minHeight: 64,
+    paddingTop: 4,
+    textAlignVertical: "top",
+  },
+  fieldPlaceholder: {
+    color: colors.muted,
+  },
+  eyeButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 32,
+    minWidth: 32,
+    outlineColor: "transparent",
+    outlineWidth: 0,
+  },
+  attachmentBox: {
     backgroundColor: colors.card,
     borderColor: "#D4D4D4",
-    borderRadius: 14,
+    borderRadius: 12,
     borderStyle: "dashed",
     borderWidth: 1,
-    flexDirection: "row",
-    gap: 10,
-    minHeight: 92,
-    padding: 12,
+    gap: 8,
+    padding: 14,
   },
-  fieldIcon: {
-    alignItems: "center",
-    backgroundColor: colors.primarySoft,
-    borderRadius: 999,
-    height: 32,
-    justifyContent: "center",
-    width: 32,
-  },
-  fieldCopy: {
-    flex: 1,
-    gap: 4,
-    minWidth: 0,
-  },
-  fieldLabel: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 13,
-    fontWeight: "600",
-    lineHeight: 18,
-  },
-  fieldValue: {
+  attachmentLabel: {
     color: colors.ink,
     fontFamily: typography.family,
     fontSize: 15,
-    fontWeight: "500",
-    lineHeight: 21,
+    fontWeight: "600",
   },
-  attachmentValue: {
+  attachmentRequired: {
+    color: colors.danger,
+  },
+  attachmentHint: {
+    color: colors.textSoft,
+    fontFamily: typography.family,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  attachmentButton: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    borderColor: "#00CC99",
+    borderRadius: 16,
+    borderWidth: 1.5,
+    flexDirection: "row",
+    gap: 8,
+    minHeight: 44,
+    outlineColor: "transparent",
+    outlineWidth: 0,
+    paddingHorizontal: 16,
+  },
+  attachmentButtonText: {
+    color: "#00AA80",
+    fontFamily: typography.family,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  dropdownRoot: {
+    alignItems: "center",
+    flex: 1,
+    justifyContent: "center",
+    padding: 24,
+  },
+  dropdownBackdrop: {
+    backgroundColor: "rgba(0, 0, 0, 0.35)",
+    bottom: 0,
+    left: 0,
+    outlineColor: "transparent",
+    outlineWidth: 0,
+    position: "absolute",
+    right: 0,
+    top: 0,
+  },
+  dropdownMenu: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    boxShadow: shadows.cardCss,
+    maxWidth: 360,
+    padding: 8,
+    width: "100%",
+  },
+  dropdownTitle: {
+    color: colors.muted,
+    fontFamily: typography.family,
+    fontSize: 12,
+    fontWeight: "600",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  dropdownOption: {
+    alignItems: "center",
+    borderRadius: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    minHeight: 44,
+    outlineColor: "transparent",
+    outlineWidth: 0,
+    paddingHorizontal: 12,
+  },
+  dropdownOptionText: {
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: 16,
+  },
+  dropdownOptionTextSelected: {
     color: colors.primaryDark,
     fontWeight: "700",
   },
@@ -733,5 +1204,148 @@ const styles = StyleSheet.create({
   },
   faqChevronOpen: {
     transform: [{ rotate: "180deg" }],
+  },
+  dropdownAnchoredMenu: {
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    boxShadow: shadows.cardCss,
+    maxHeight: 320,
+    overflow: "hidden",
+    padding: 6,
+    position: "absolute",
+  },
+  dropdownScroll: {
+    flexGrow: 0,
+  },
+  dropdownMenuFallback: {
+    left: 16,
+    right: 16,
+    top: 140,
+  },
+  attachmentChips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 4,
+  },
+  attachmentChip: {
+    alignItems: "center",
+    backgroundColor: "#F6F6F6",
+    borderColor: colors.border,
+    borderRadius: 10,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 6,
+    maxWidth: "100%",
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  attachmentThumb: {
+    borderRadius: 6,
+    height: 28,
+    width: 28,
+  },
+  attachmentChipName: {
+    color: colors.ink,
+    flexShrink: 1,
+    fontFamily: typography.family,
+    fontSize: 12,
+  },
+  attachmentRemove: {
+    alignItems: "center",
+    height: 18,
+    justifyContent: "center",
+    width: 18,
+  },
+  attachmentRemoveText: {
+    color: colors.muted,
+    fontFamily: typography.family,
+    fontSize: 16,
+    lineHeight: 18,
+  },
+  successRoot: {
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
+    flex: 1,
+    justifyContent: "center",
+    padding: 24,
+  },
+  successCard: {
+    alignItems: "center",
+    backgroundColor: colors.card,
+    borderRadius: 24,
+    gap: 16,
+    maxWidth: 420,
+    paddingHorizontal: 24,
+    paddingVertical: 32,
+    width: "100%",
+  },
+  successBadge: {
+    alignItems: "center",
+    backgroundColor: colors.primary,
+    borderRadius: 44,
+    height: 88,
+    justifyContent: "center",
+    width: 88,
+  },
+  successTitle: {
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: 26,
+    fontWeight: "700",
+    lineHeight: 32,
+    textAlign: "center",
+  },
+  successBody: {
+    color: colors.muted,
+    fontFamily: typography.family,
+    fontSize: 15,
+    lineHeight: 22,
+    maxWidth: 360,
+    textAlign: "center",
+  },
+  successActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    justifyContent: "center",
+    marginTop: 4,
+  },
+  successOutlineButton: {
+    alignItems: "center",
+    borderColor: colors.primary,
+    borderRadius: 999,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 52,
+    minWidth: 150,
+    outlineColor: "transparent",
+    outlineWidth: 0,
+    paddingHorizontal: 20,
+  },
+  successOutlineButtonText: {
+    color: colors.primaryDark,
+    fontFamily: typography.family,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  successPrimaryButton: {
+    alignItems: "center",
+    backgroundColor: colors.primary,
+    borderRadius: 999,
+    justifyContent: "center",
+    minHeight: 52,
+    minWidth: 150,
+    outlineColor: "transparent",
+    outlineWidth: 0,
+    paddingHorizontal: 20,
+  },
+  successPrimaryButtonText: {
+    color: colors.white,
+    fontFamily: typography.family,
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

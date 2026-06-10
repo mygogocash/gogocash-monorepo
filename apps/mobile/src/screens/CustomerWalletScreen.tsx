@@ -2,6 +2,7 @@ import { Link } from "expo-router";
 import {
   Banknote as BanknoteIcon,
   CalendarDays as CalendarIcon,
+  Check as CheckIcon,
   ChevronDown as ChevronDownIcon,
   ChevronLeft as ChevronLeftIcon,
   ExternalLink as ExternalLinkIcon,
@@ -14,6 +15,7 @@ import {
 import { useState } from "react";
 import {
   Image,
+  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -113,15 +115,13 @@ const WALLET_TX_ROWS: readonly WalletTxRow[] = [
 ] as const;
 
 const WALLET_TX_MAX_TS = Math.max(...WALLET_TX_ROWS.map((row) => row.ts));
-const WALLET_STATUS_CYCLE: readonly ("all" | WalletTxStatus)[] = ["all", "success", "pending", "failed"];
-const WALLET_DATE_CYCLE = [0, 7, 30] as const;
-
 function WalletTransactions({ onRefresh }: { onRefresh: () => void }) {
   const tc = useCopy();
   const [activeTab, setActiveTab] = useState(0);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | WalletTxStatus>("all");
   const [dateDays, setDateDays] = useState<number>(0);
+  const [openFilter, setOpenFilter] = useState<"date" | "status" | null>(null);
 
   // Tab → kind, plus the Search / Status / Date Range filters (web parity: substring + status + day window).
   const rows = WALLET_TX_ROWS.filter((row) => {
@@ -137,10 +137,19 @@ function WalletTransactions({ onRefresh }: { onRefresh: () => void }) {
     return true;
   });
 
-  const cycleStatus = () => {
-    const i = WALLET_STATUS_CYCLE.indexOf(statusFilter);
-    setStatusFilter(WALLET_STATUS_CYCLE[(i + 1) % WALLET_STATUS_CYCLE.length]);
-  };
+  // Status + Date Range are tap-to-open dropdowns (web parity: a real <Select>). The pill
+  // shows the current choice; tapping opens a menu of options to pick from.
+  const statusOptions: { label: string; value: "all" | WalletTxStatus }[] = [
+    { label: tc("All statuses"), value: "all" },
+    { label: tc("Success"), value: "success" },
+    { label: tc("Pending"), value: "pending" },
+    { label: tc("Failed"), value: "failed" },
+  ];
+  const dateOptions: { label: string; value: number }[] = [
+    { label: tc("All time"), value: 0 },
+    { label: tc("Last 7 days"), value: 7 },
+    { label: tc("Last 30 days"), value: 30 },
+  ];
   const statusPillLabel =
     statusFilter === "all"
       ? tc("Status")
@@ -149,11 +158,6 @@ function WalletTransactions({ onRefresh }: { onRefresh: () => void }) {
         : statusFilter === "pending"
           ? tc("Pending")
           : tc("Failed");
-
-  const cycleDate = () => {
-    const i = WALLET_DATE_CYCLE.indexOf(dateDays as 0 | 7 | 30);
-    setDateDays(WALLET_DATE_CYCLE[(i + 1) % WALLET_DATE_CYCLE.length]);
-  };
   const datePillLabel =
     dateDays === 0 ? tc("Date Range") : dateDays === 7 ? tc("Last 7 days") : tc("Last 30 days");
 
@@ -193,8 +197,8 @@ function WalletTransactions({ onRefresh }: { onRefresh: () => void }) {
             value={search}
           />
         </View>
-        <FilterPill icon="calendar" label={datePillLabel} onPress={cycleDate} />
-        <FilterPill icon="status" label={statusPillLabel} onPress={cycleStatus} />
+        <FilterPill icon="calendar" label={datePillLabel} onPress={() => setOpenFilter("date")} />
+        <FilterPill icon="status" label={statusPillLabel} onPress={() => setOpenFilter("status")} />
       </View>
       <ScrollView
         contentContainerStyle={styles.tableScrollContent}
@@ -255,7 +259,79 @@ function WalletTransactions({ onRefresh }: { onRefresh: () => void }) {
           </View>
         )}
       </ScrollView>
+      <Modal
+        animationType="fade"
+        onRequestClose={() => setOpenFilter(null)}
+        transparent
+        visible={openFilter !== null}
+      >
+        <View style={styles.dropdownRoot}>
+          <MotionPressable
+            accessibilityLabel={tc("Close")}
+            hoverLift={false}
+            onPress={() => setOpenFilter(null)}
+            pressScale={1}
+            style={styles.dropdownBackdrop}
+          />
+          <View style={styles.dropdownMenu}>
+            <Text style={styles.dropdownTitle}>
+              {openFilter === "status" ? tc("Status") : tc("Date Range")}
+            </Text>
+            {openFilter === "status"
+              ? statusOptions.map((opt) => (
+                  <WalletFilterOption
+                    key={opt.value}
+                    label={opt.label}
+                    onSelect={() => {
+                      setStatusFilter(opt.value);
+                      setOpenFilter(null);
+                    }}
+                    selected={statusFilter === opt.value}
+                  />
+                ))
+              : dateOptions.map((opt) => (
+                  <WalletFilterOption
+                    key={opt.value}
+                    label={opt.label}
+                    onSelect={() => {
+                      setDateDays(opt.value);
+                      setOpenFilter(null);
+                    }}
+                    selected={dateDays === opt.value}
+                  />
+                ))}
+          </View>
+        </View>
+      </Modal>
     </View>
+  );
+}
+
+function WalletFilterOption({
+  label,
+  onSelect,
+  selected,
+}: {
+  label: string;
+  onSelect: () => void;
+  selected: boolean;
+}) {
+  return (
+    <MotionPressable
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      hoverLift={false}
+      onPress={onSelect}
+      pressScale={0.98}
+      style={styles.dropdownOption}
+    >
+      <Text style={[styles.dropdownOptionText, selected ? styles.dropdownOptionTextSelected : null]}>
+        {label}
+      </Text>
+      {selected ? (
+        <CheckIcon color={colors.primaryDark} size={18} strokeWidth={typography.iconStrokeWidth} />
+      ) : null}
+    </MotionPressable>
   );
 }
 
@@ -666,6 +742,57 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontFamily: typography.family,
     fontSize: typography.caption,
+  },
+  dropdownRoot: {
+    alignItems: "center",
+    flex: 1,
+    justifyContent: "center",
+    padding: 24,
+  },
+  dropdownBackdrop: {
+    backgroundColor: "rgba(0, 0, 0, 0.35)",
+    bottom: 0,
+    left: 0,
+    outlineColor: "transparent",
+    outlineWidth: 0,
+    position: "absolute",
+    right: 0,
+    top: 0,
+  },
+  dropdownMenu: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    boxShadow: shadows.cardCss,
+    maxWidth: 340,
+    padding: 8,
+    width: "100%",
+  },
+  dropdownTitle: {
+    color: colors.muted,
+    fontFamily: typography.family,
+    fontSize: typography.caption,
+    fontWeight: "600",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  dropdownOption: {
+    alignItems: "center",
+    borderRadius: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    minHeight: 44,
+    outlineColor: "transparent",
+    outlineWidth: 0,
+    paddingHorizontal: 12,
+  },
+  dropdownOptionText: {
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: typography.body,
+  },
+  dropdownOptionTextSelected: {
+    color: colors.primaryDark,
+    fontWeight: "700",
   },
   txList: {
     backgroundColor: colors.card,

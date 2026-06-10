@@ -148,18 +148,22 @@ export function CustomerMembershipScreen() {
             </View>
           </View>
 
-          <View style={styles.perksGrid}>
+          {/* Desktop: the three perks sit side by side as equal columns; mobile stays stacked. */}
+          <View style={[styles.perksGrid, isDesktop ? styles.perksGridDesktop : null]}>
             <PerkCard
+              desktop={isDesktop}
               icon="wallet"
               title="Fee-free withdrawals"
               body="Two member withdrawals each month."
             />
             <PerkCard
+              desktop={isDesktop}
               icon="sparkles"
               title="Reward boosts"
               body="GoGoQuest and My Rating Score earn a 20% lift."
             />
             <PerkCard
+              desktop={isDesktop}
               icon="support"
               title="Priority support"
               body="Member requests move through the support queue first."
@@ -234,10 +238,12 @@ export function CustomerMembershipScreen() {
 
 function PerkCard({
   body,
+  desktop = false,
   icon,
   title,
 }: {
   body: string;
+  desktop?: boolean;
   icon: "sparkles" | "support" | "wallet";
   title: string;
 }) {
@@ -245,7 +251,7 @@ function PerkCard({
   const tc = useCopy();
 
   return (
-    <View style={styles.perkCard}>
+    <View style={[styles.perkCard, desktop ? styles.perkCardDesktop : null]}>
       <View style={styles.perkIcon}>
         <Icon color={colors.primaryDark} size={22} strokeWidth={typography.iconStrokeWidth} />
       </View>
@@ -427,6 +433,15 @@ const styles = StyleSheet.create({
   },
   perksGrid: {
     gap: spacing.md,
+  },
+  perksGridDesktop: {
+    alignItems: "stretch",
+    flexDirection: "row",
+  },
+  perkCardDesktop: {
+    flexBasis: 0,
+    flexGrow: 1,
+    minWidth: 0,
   },
   perkCard: {
     backgroundColor: colors.card,

@@ -100,9 +100,29 @@ describe("CustomerCreditScoreScreen — Wave B (B5) foundations adopted (source 
     expect(creditScoreSource).toMatch(/numberOfLines=\{[12]\}\s+style=\{styles\.benefitNote\}/);
   });
 
-  it("gives the sub-44px row CTA a hitSlop to reach a 44px tap target", () => {
-    // styles.rowCta declares minHeight:38 (< 44), so the Pressable needs a hitSlop.
+  it("gives the row CTA a hitSlop for a comfortable tap target", () => {
+    // styles.rowCta is 44px (web h-11 parity); the hitSlop keeps the target generous.
     expect(creditScoreSource).toContain("hitSlop=");
     expect(creditScoreSource).toMatch(/hitSlop=[\s\S]*?style=\{styles\.rowCta\}/);
+  });
+
+  it("aligns to the web desktop design: centered 672px column, web heading ink, gradient fills, streak pills", () => {
+    // Desktop centers the page in a max-w-2xl (672px) column like the web client container.
+    expect(creditScoreSource).toContain("contentDesktop");
+    expect(creditScoreSource).toContain("maxWidth: 672");
+    // Score + section headings use the web's dark heading green; the score carries the
+    // heaviest weight the app's typography rule allows (800 — no true 900 in DM Sans).
+    expect(creditScoreSource).toContain('"#103522"');
+    expect(creditScoreSource).toMatch(/scoreValue: \{[\s\S]*?fontWeight: "800"/);
+    // Progress fills carry the web's #00AA80→#00CC99 gradient (web-only backgroundImage).
+    expect(creditScoreSource).toContain("progressFillGradient");
+    expect(creditScoreSource).toContain("linear-gradient(to right, #00AA80, #00CC99)");
+    // Streak tracker: connector lines join the month dots; month status renders as colored pills.
+    expect(creditScoreSource).toContain("monthConnector");
+    expect(creditScoreSource).toContain("monthStatusPill");
+    expect(creditScoreSource).toContain('"#FEF3C7"');
+    // Mint card borders use the web --gc-border-mint token.
+    expect(creditScoreSource).toContain('"#B7E7DB"');
+    expect(creditScoreSource).not.toContain('"#B7F0DC"');
   });
 });
