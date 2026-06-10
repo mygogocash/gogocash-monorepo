@@ -86,14 +86,28 @@ describe("CustomerWalletScreen (render)", () => {
     expect(screen.queryByText("Glow Theory")).toBeNull();
   });
 
-  it("status filter cycles and filters the rows", () => {
+  it("status filter dropdown: opening it and picking a status filters the rows", () => {
     renderScreen();
     // A pending row is visible on All.
     expect(screen.getByText("Orbit Airways")).toBeTruthy();
-    // Cycle the Status pill once → Success → pending rows drop, success rows remain.
+    // Open the Status dropdown, then choose "Success" from the menu options.
     fireEvent.click(screen.getByText("Status"));
+    fireEvent.click(screen.getByRole("button", { name: "Success" }));
+    // Pending rows drop; success rows remain.
     expect(screen.getByText("Glow Theory")).toBeTruthy();
     expect(screen.queryByText("Orbit Airways")).toBeNull();
+  });
+
+  it("date range dropdown: opening it and picking a window filters the rows", () => {
+    renderScreen();
+    // Quick Cart is the oldest row (Jan 28) — visible on All time.
+    expect(screen.getByText("Quick Cart")).toBeTruthy();
+    // Open the Date Range dropdown, then choose "Last 7 days".
+    fireEvent.click(screen.getByText("Date Range"));
+    fireEvent.click(screen.getByRole("button", { name: "Last 7 days" }));
+    // The newest row stays; the oldest drops out of the 7-day window.
+    expect(screen.getByText("Glow Theory")).toBeTruthy();
+    expect(screen.queryByText("Quick Cart")).toBeNull();
   });
 
   it("shows the empty state when filters match no rows", () => {

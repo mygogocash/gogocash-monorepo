@@ -10,6 +10,7 @@ export const accountDataSourceEnvName = "EXPO_PUBLIC_ACCOUNT_DATA_SOURCE";
 
 export type CustomerAccountResourceId =
   | "billing"
+  | "catalog"
   | "merchant"
   | "offers"
   | "profile"
@@ -63,6 +64,12 @@ export function resolveCustomerAccountResourceEndpoint({
 
   if (resourceId === "offers") {
     return "/offer/my-offers?limit=10&page=1";
+  }
+
+  if (resourceId === "catalog") {
+    // Public merchant catalog (no auth required) — the web favorite page reads
+    // the same list (Favorite.tsx → GET /offer).
+    return "/offer?limit=4&page=1";
   }
 
   if (resourceId === "merchant") {

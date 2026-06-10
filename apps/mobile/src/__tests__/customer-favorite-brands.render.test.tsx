@@ -3,18 +3,23 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createElement } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { CustomerFavoriteBrandsScreen } from "@mobile/screens/CustomerFavoriteBrandsScreen";
 
-// Render coverage for the Favorite Brands screen (Wave B4). This is an AccountPageShell
-// screen whose content is built entirely from the static `webFavoriteBrandsPage` fixture
-// const — there is NO async account resource (no useCustomerAccountResource / useQuery) and
-// NO inputs — so, unlike CustomerProfileOffersScreen, it needs neither a QueryClientProvider
-// nor a ToastProvider to mount. useCopy is stubbed to a passthrough by the render config.
+// Render coverage for the Favorite Brands screen (Wave B4 + live-catalog seam). The brand
+// sections now flow through useCustomerAccountResource (resourceId "catalog"): the default
+// "fixtures" data source returns webFavoriteBrandsPage.recentBrands synchronously, so every
+// assertion below sees the same parity rows as before — but useQuery mounts unconditionally,
+// so the screen needs a QueryClientProvider (same pattern as the wallet/referral suites).
+// useCopy is stubbed to a passthrough by the render config.
 function renderScreen() {
-  return render(createElement(CustomerFavoriteBrandsScreen));
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    createElement(QueryClientProvider, { client: queryClient }, createElement(CustomerFavoriteBrandsScreen))
+  );
 }
 
 // Beyond MOUNTING, we read the screen source to assert a behavior/source signal for the

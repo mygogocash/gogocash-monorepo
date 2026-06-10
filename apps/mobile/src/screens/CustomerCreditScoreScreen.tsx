@@ -1,7 +1,8 @@
 import { Link } from "expo-router";
 import { ChevronLeft as ChevronLeftIcon } from "@mobile/theme/icons";
 import type { ReactNode } from "react";
-import type { DimensionValue } from "react-native";
+import { Fragment } from "react";
+import type { DimensionValue, ViewStyle } from "react-native";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
@@ -19,7 +20,8 @@ export function CustomerCreditScoreScreen() {
       {/* Mobile-only back link — on desktop the persistent sidebar handles navigation
           (web parity: the SubPage topbar is md:hidden). */}
       {isDesktop ? null : <CreditScoreTopBar />}
-      <View style={styles.content}>
+      {/* Web parity: the page is a centered column capped at max-w-2xl (672px) on desktop. */}
+      <View style={[styles.content, isDesktop ? styles.contentDesktop : null]}>
         <CreditScoreHero />
         <CreditScoreProgressCard />
         <CreditScoreBreakdown />
@@ -92,7 +94,7 @@ function CreditScoreProgressCard() {
 function ProgressTrack({ progress, slim = false }: { progress: DimensionValue; slim?: boolean }) {
   return (
     <View style={[styles.progressTrack, slim ? styles.progressTrackSlim : null]}>
-      <View style={[styles.progressFill, { width: progress }]} />
+      <View style={[styles.progressFill, progressFillGradient, { width: progress }]} />
     </View>
   );
 }
@@ -243,12 +245,16 @@ function CreditScoreStreakCard() {
       <Text style={styles.streakSubtitle}>{tc(webCreditScorePage.streakSubtitle)}</Text>
       <View style={styles.monthTrack}>
         {[1, 2, 3].map((month) => (
-          <View key={month} style={styles.monthItem}>
-            <View style={styles.monthDot} />
-            <Text style={styles.monthLabel}>
-              {tc("Month")} {month}
-            </Text>
-          </View>
+          <Fragment key={month}>
+            {/* Web parity: connector lines join the month dots. */}
+            {month > 1 ? <View style={styles.monthConnector} /> : null}
+            <View style={styles.monthItem}>
+              <View style={styles.monthDot} />
+              <Text style={styles.monthLabel}>
+                {tc("Month")} {month}
+              </Text>
+            </View>
+          </Fragment>
         ))}
       </View>
       <View style={styles.monthRows}>
@@ -257,9 +263,23 @@ function CreditScoreStreakCard() {
             <Text numberOfLines={1} style={styles.monthRowText}>
               {tc("Month")} {month}
             </Text>
-            <Text numberOfLines={1} style={styles.monthStatus}>
-              {month === 2 ? `🔥 ${tc("In progress")}` : `🔒 ${tc("Locked")}`}
-            </Text>
+            {/* Web parity: status renders as a colored pill (amber in-progress / muted locked). */}
+            <View
+              style={[
+                styles.monthStatusPill,
+                month === 2 ? styles.monthStatusPillProgress : styles.monthStatusPillLocked,
+              ]}
+            >
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.monthStatus,
+                  month === 2 ? styles.monthStatusProgress : null,
+                ]}
+              >
+                {month === 2 ? `🔥 ${tc("In progress")}` : `🔒 ${tc("Locked")}`}
+              </Text>
+            </View>
           </View>
         ))}
       </View>
@@ -283,6 +303,12 @@ function CreditScoreBoostCard() {
     </View>
   );
 }
+
+// Web-only gradient for the progress fills (from #00aa80 to #00cc99, web parity).
+// Ignored on native, where the solid progressFill backgroundColor stands in.
+const progressFillGradient = {
+  backgroundImage: "linear-gradient(to right, #00AA80, #00CC99)",
+} as unknown as ViewStyle;
 
 const styles = StyleSheet.create({
   surface: {
@@ -320,6 +346,11 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     paddingBottom: 96,
   },
+  contentDesktop: {
+    alignSelf: "center",
+    maxWidth: 672,
+    width: "100%",
+  },
   heroCard: {
     backgroundColor: colors.card,
     borderColor: colors.border,
@@ -340,7 +371,7 @@ const styles = StyleSheet.create({
   heroLabel: {
     color: colors.muted,
     fontFamily: typography.family,
-    fontSize: 15,
+    fontSize: 14,
     marginTop: 10,
     textAlign: "center",
   },
@@ -349,19 +380,21 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   scoreEmoji: {
-    fontSize: 50,
-    lineHeight: 56,
+    fontSize: 48,
+    lineHeight: 54,
   },
   scoreValue: {
-    color: colors.accent,
+    // Web parity: text-7xl font-black #103522. The app's typography rule caps weights at
+    // 800 (DM Sans ships no true 900), so 800 stands in for the web's font-black.
+    color: "#103522",
     fontFamily: typography.family,
-    fontSize: 76,
-    fontWeight: "700",
+    fontSize: 72,
+    fontWeight: "800",
     letterSpacing: 0,
-    lineHeight: 82,
+    lineHeight: 78,
   },
   progressTrack: {
-    backgroundColor: "#F3F5F8",
+    backgroundColor: "#F6F6F6",
     borderColor: colors.border,
     borderRadius: radii.chip,
     borderWidth: 1,
@@ -382,7 +415,7 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontFamily: typography.family,
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: "600",
     marginTop: spacing.md,
     textAlign: "center",
   },
@@ -406,26 +439,26 @@ const styles = StyleSheet.create({
   progressTitle: {
     color: colors.accent,
     fontFamily: typography.family,
-    fontSize: 17,
-    fontWeight: "700",
+    fontSize: 16,
+    fontWeight: "600",
     textAlign: "center",
   },
   progressLabel: {
     color: colors.ink,
     fontFamily: typography.family,
-    fontSize: 17,
-    fontWeight: "700",
+    fontSize: 16,
+    fontWeight: "600",
     textAlign: "center",
   },
   breakdownSection: {
     gap: spacing.sm,
   },
   breakdownTitle: {
-    color: colors.accent,
+    color: "#103522",
     fontFamily: typography.family,
-    fontSize: 38,
+    fontSize: 36,
     fontWeight: "600",
-    lineHeight: 44,
+    lineHeight: 42,
   },
   sectionLabel: {
     color: colors.muted,
@@ -454,7 +487,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
   },
   scoreRowTodo: {
-    backgroundColor: "#F4F7F5",
+    backgroundColor: "#F6F6F6",
   },
   scoreRowCopy: {
     flex: 1,
@@ -489,7 +522,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.chip,
     borderWidth: 1,
     justifyContent: "center",
-    minHeight: 38,
+    minHeight: 44,
     paddingHorizontal: spacing.md,
   },
   rowCtaText: {
@@ -502,7 +535,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   benefitsTitle: {
-    color: colors.accent,
+    color: "#103522",
     fontFamily: typography.family,
     fontSize: 32,
     fontWeight: "600",
@@ -545,7 +578,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   statusPill: {
-    backgroundColor: "#F3F5F8",
+    backgroundColor: "#F6F6F6",
     borderRadius: radii.chip,
     color: colors.textSoft,
     fontFamily: typography.family,
@@ -564,7 +597,7 @@ const styles = StyleSheet.create({
   },
   streakCard: {
     backgroundColor: colors.primarySoft,
-    borderColor: "#B7F0DC",
+    borderColor: "#B7E7DB",
     borderRadius: radii.md,
     borderWidth: 1,
     padding: 20,
@@ -582,14 +615,21 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   monthTrack: {
+    alignItems: "center",
     backgroundColor: "rgba(255,255,255,0.75)",
     borderColor: colors.border,
-    borderRadius: radii.sm,
+    borderRadius: 12,
     borderWidth: 1,
     flexDirection: "row",
     justifyContent: "space-between",
     marginTop: spacing.md,
     padding: spacing.md,
+  },
+  monthConnector: {
+    backgroundColor: colors.border,
+    height: 1,
+    marginBottom: 24,
+    width: 32,
   },
   monthItem: {
     alignItems: "center",
@@ -637,9 +677,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
   },
+  monthStatusProgress: {
+    color: "#B45309",
+  },
+  monthStatusPill: {
+    borderRadius: radii.chip,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  monthStatusPillProgress: {
+    backgroundColor: "#FEF3C7",
+  },
+  monthStatusPillLocked: {
+    backgroundColor: "#F6F6F6",
+  },
   boostCard: {
     backgroundColor: colors.primarySoft,
-    borderColor: "#B7F0DC",
+    borderColor: "#B7E7DB",
     borderRadius: radii.md,
     borderWidth: 1,
     padding: 20,
@@ -662,7 +716,7 @@ const styles = StyleSheet.create({
   boostButton: {
     alignItems: "center",
     backgroundColor: colors.primaryDark,
-    borderRadius: radii.sm,
+    borderRadius: 12,
     justifyContent: "center",
     marginTop: spacing.md,
     minHeight: 48,

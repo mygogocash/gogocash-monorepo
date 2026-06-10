@@ -97,4 +97,10 @@ describe("CustomerMembershipScreen — Wave B foundations adopted (source signal
     expect(membershipSource).toContain("MEMBERSHIP_TRUST");
     expect(membershipSource).toContain("setOpenFaq");
   });
+
+  it("lays the three perk cards out as equal columns on desktop (stacked on mobile)", () => {
+    expect(membershipSource).toContain("perksGridDesktop");
+    expect(membershipSource).toContain("perkCardDesktop");
+    expect(membershipSource).toContain("desktop={isDesktop}");
+  });
 });

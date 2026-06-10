@@ -10,14 +10,30 @@ import { useState } from "react";
 import { Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
+import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { mapOffersToCatalogBrands } from "@mobile/api/catalogMapper";
+import { isOfferListResponse } from "@mobile/api/catalogTypes";
+import type { OfferListResponse } from "@mobile/api/catalogTypes";
 import { useCopy } from "@mobile/i18n/useCopy";
+import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { mobileShellLayout, webFavoriteBrandsPage } from "@mobile/design/webDesignParity";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 import favoriteHeroBagImage from "../../assets/favorite-hero-bag.png";
 import favoriteHeroLogoImage from "../../assets/favorite-hero-logo.png";
 
-type FavoriteBrand = (typeof webFavoriteBrandsPage.recentBrands)[number];
+// One row shape for both sources: the static fixture rows and the live catalog
+// rows mapped from GET /offer (which add an optional logo URL + derived tint).
+type FavoriteBrand = {
+  readonly id: string;
+  readonly name: string;
+  readonly category: string;
+  readonly cashback: string;
+  readonly href: string;
+  readonly showGrabCoupon?: boolean;
+  readonly logo?: string;
+  readonly tint?: string;
+};
 
 // The favorite fixture ships no per-brand color/logo (and webDesignParity.ts is parallel-owned), so the
 // new-card visual uses a locally-derived brand tint + a brand monogram. The heart toggle manages a local
@@ -41,6 +57,20 @@ export function CustomerFavoriteBrandsScreen() {
   const [favoriteIds, setFavoriteIds] = useState<readonly string[]>(INITIAL_FAVORITE_IDS);
   const toggleFavorite = (id: string) =>
     setFavoriteIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  // Fixtures mode (default) renders the parity rows synchronously; backend mode
+  // pulls the live public catalog (GET /offer) and maps it into the same row shape —
+  // mirroring the web favorite page, which reads the same list.
+  const catalogResource = useCustomerAccountResource<readonly FavoriteBrand[], OfferListResponse>({
+    fixtureData: webFavoriteBrandsPage.recentBrands,
+    resourceId: "catalog",
+  });
+  const brands: readonly FavoriteBrand[] = isOfferListResponse(catalogResource.data)
+    ? mapOffersToCatalogBrands(catalogResource.data)
+    : Array.isArray(catalogResource.data)
+      ? catalogResource.data
+      : webFavoriteBrandsPage.recentBrands;
+
   return (
     <FavoriteBrandsSubPage>
       <View style={styles.favoriteShell}>
@@ -48,8 +78,27 @@ export function CustomerFavoriteBrandsScreen() {
         <View style={styles.content}>
           <Text style={styles.pageTitle}>{tc(webFavoriteBrandsPage.title)}</Text>
           <FavoriteBrandsHero />
-          <RecentlyVisitedBrandsGrid favoriteIds={favoriteIds} onToggleFavorite={toggleFavorite} />
-          <FavoriteBrandsListPreview favoriteIds={favoriteIds} onToggleFavorite={toggleFavorite} />
+          {catalogResource.status !== "ready" ? (
+            <CustomerAccountResourceState
+              emptyBody={tc("No partner brands are available right now.")}
+              emptyTitle={tc("Nothing to explore yet")}
+              resource={catalogResource}
+              resourceLabel="catalog"
+            />
+          ) : (
+            <>
+              <RecentlyVisitedBrandsGrid
+                brands={brands}
+                favoriteIds={favoriteIds}
+                onToggleFavorite={toggleFavorite}
+              />
+              <FavoriteBrandsListPreview
+                brands={brands}
+                favoriteIds={favoriteIds}
+                onToggleFavorite={toggleFavorite}
+              />
+            </>
+          )}
         </View>
       </View>
     </FavoriteBrandsSubPage>
@@ -115,9 +164,11 @@ function FavoriteBrandsHero() {
 }
 
 function RecentlyVisitedBrandsGrid({
+  brands,
   favoriteIds,
   onToggleFavorite,
 }: {
+  brands: readonly FavoriteBrand[];
   favoriteIds: readonly string[];
   onToggleFavorite: (id: string) => void;
 }) {
@@ -129,7 +180,7 @@ function RecentlyVisitedBrandsGrid({
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{tc(webFavoriteBrandsPage.recentTitle)}</Text>
       <View style={[styles.brandGrid, isDesktop ? styles.brandGridDesktop : null]}>
-        {webFavoriteBrandsPage.recentBrands.map((brand) => (
+        {brands.map((brand) => (
           <FavoriteBrandCard
             brand={brand}
             isFavorite={favoriteIds.includes(brand.id)}
@@ -143,18 +194,18 @@ function RecentlyVisitedBrandsGrid({
 }
 
 function FavoriteBrandsListPreview({
+  brands,
   favoriteIds,
   onToggleFavorite,
 }: {
+  brands: readonly FavoriteBrand[];
   favoriteIds: readonly string[];
   onToggleFavorite: (id: string) => void;
 }) {
   const tc = useCopy();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
-  const savedBrands = webFavoriteBrandsPage.recentBrands.filter((brand) =>
-    favoriteIds.includes(brand.id)
-  );
+  const savedBrands = brands.filter((brand) => favoriteIds.includes(brand.id));
 
   return (
     <View style={styles.section}>
@@ -201,7 +252,7 @@ function FavoriteBrandCard({
   onToggleFavorite: (id: string) => void;
 }) {
   const tc = useCopy();
-  const tint = FAVORITE_BRAND_TINTS[brand.id] ?? FAVORITE_BRAND_FALLBACK_TINT;
+  const tint = brand.tint ?? FAVORITE_BRAND_TINTS[brand.id] ?? FAVORITE_BRAND_FALLBACK_TINT;
   return (
     <View style={styles.brandCard}>
       <Link asChild href={brand.href as never}>
@@ -220,7 +271,16 @@ function FavoriteBrandCard({
                 </Text>
               </View>
             ) : null}
-            <Text style={styles.brandMonogram}>{brand.name.charAt(0)}</Text>
+            {brand.logo ? (
+              <Image
+                alt={`${brand.name} logo`}
+                resizeMode="contain"
+                source={{ uri: brand.logo }}
+                style={styles.brandLogoImage}
+              />
+            ) : (
+              <Text style={styles.brandMonogram}>{brand.name.charAt(0)}</Text>
+            )}
           </View>
           <View style={styles.brandMeta}>
             <View style={styles.categoryChip}>
@@ -444,6 +504,10 @@ const styles = StyleSheet.create({
     fontSize: 46,
     fontWeight: "800",
     opacity: 0.96,
+  },
+  brandLogoImage: {
+    height: "55%",
+    width: "70%",
   },
   couponBadge: {
     alignItems: "center",

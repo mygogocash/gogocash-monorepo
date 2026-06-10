@@ -93,6 +93,17 @@ describe("CustomerReferralScreen (render)", () => {
     expect(screen.getByText(/gogocash\.co\/\?r…f86cd799439011/)).toBeTruthy();
     expect(screen.queryByText(/localhost/i)).toBeNull();
   });
+
+  it("explore-shop cards: brand-tint monogram art + human favorite labels (no raw i18n key)", () => {
+    renderScreen();
+    // The heart's accessible name is real copy, not the leaked "favoritePageAddFavorite" key.
+    expect(screen.queryByLabelText("favoritePageAddFavorite")).toBeNull();
+    expect(screen.getByLabelText("Save brand: Orbit Airways")).toBeTruthy();
+    // The banner carries a brand monogram instead of rendering as an empty gray box.
+    expect(referralSource).toContain("exploreCardMonogram");
+    expect(referralSource).toContain("shop.tint");
+    expect(referralSource).not.toContain("favoritePageAddFavorite");
+  });
 });
 
 describe("CustomerReferralScreen — Wave B foundations adopted (source signals)", () => {
