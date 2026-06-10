@@ -967,6 +967,28 @@ export default function PolicyTable() {
                   </div>
 
                   <div className="min-h-0 flex-1">
+                    {/* Primary-locale picker — D2 default in POLICY_MULTILANG_PLAN.md.
+                    Customer-side renderer falls back to this locale when the
+                    user's locale isn't translated. */}
+                    <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                      <span>Primary locale:</span>
+                      <select
+                        value={primaryLocale}
+                        onChange={(e) => setPrimaryLocale(e.target.value)}
+                        className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800"
+                      >
+                        {POLICY_TRANSLATION_LOCALES.map((l) => (
+                          <option key={l.value} value={l.value}>
+                            {l.label}
+                          </option>
+                        ))}
+                      </select>
+                      <span className="text-gray-400">
+                        — used as the fallback when a user&apos;s locale has no
+                        translation.
+                      </span>
+                    </div>
+
                     {/* Locale tab strip — switching tabs swaps the textarea below.
                     The bullet on each tab indicates whether that locale has
                     any non-empty content authored. */}
@@ -1010,28 +1032,6 @@ export default function PolicyTable() {
                           </button>
                         );
                       })}
-                    </div>
-
-                    {/* Primary-locale picker — D2 default in POLICY_MULTILANG_PLAN.md.
-                    Customer-side renderer falls back to this locale when the
-                    user's locale isn't translated. */}
-                    <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-                      <span>Primary locale:</span>
-                      <select
-                        value={primaryLocale}
-                        onChange={(e) => setPrimaryLocale(e.target.value)}
-                        className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800"
-                      >
-                        {POLICY_TRANSLATION_LOCALES.map((l) => (
-                          <option key={l.value} value={l.value}>
-                            {l.label}
-                          </option>
-                        ))}
-                      </select>
-                      <span className="text-gray-400">
-                        — used as the fallback when a user&apos;s locale has no
-                        translation.
-                      </span>
                     </div>
 
                     <label
