@@ -16,6 +16,7 @@ import { Modal } from "@/components/ui/modal";
 import NoData from "@/components/common/NoData";
 import Button from "@/components/ui/button/Button";
 import SecondaryButton from "@/components/ui/button/SecondaryButton";
+import PrimaryButton from "@/components/ui/button/PrimaryButton";
 import { pathImage } from "@/utils/helper";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import CategoryIcon from "./CategoryIcon";
@@ -59,7 +60,6 @@ type UpdateCategoryResponse = {
 export default function PolicyTable() {
   const queryClient = useQueryClient();
   const session = useDataSession();
-  const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] =
     useState<ResCategoryList | null>(null);
   const [contentSource, setContentSource] = useState<ContentSource>("custom");
@@ -164,11 +164,7 @@ export default function PolicyTable() {
     return map;
   }, [policiesData]);
 
-  const filteredCategories = search.trim()
-    ? categories.filter((c) =>
-        c.name.toLowerCase().includes(search.trim().toLowerCase()),
-      )
-    : categories;
+  const filteredCategories = categories;
 
   const selectedTemplate = useMemo(
     () => getTemplateById(selectedTemplateId),
@@ -485,13 +481,7 @@ export default function PolicyTable() {
           </p>
         </div>
         <div className="flex items-center gap-4">
-          <input
-            type="text"
-            placeholder="Search category"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="focus:ring-brand-500/20 dark:focus:ring-brand-400/30 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-5 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden xl:w-[300px] dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400"
-          />
+          <PrimaryButton variant="blue">Create New</PrimaryButton>
         </div>
       </div>
 
