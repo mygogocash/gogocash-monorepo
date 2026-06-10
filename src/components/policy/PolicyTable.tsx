@@ -844,62 +844,9 @@ export default function PolicyTable() {
 
             {policyModalTab === "terms" ? (
               <>
-                {/* Per-section save — same pattern as the Category-banner page:
-                    a Support-styled Save (and a subtle Clear T&C) in the section
-                    header, no bottom footer bar. */}
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                    Terms &amp; conditions (per locale)
-                  </h4>
-                  <div className="flex items-center gap-3">
-                    {confirmClear ? (
-                      <>
-                        <span className="text-xs text-gray-600 dark:text-gray-400">
-                          Clear all content?
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmClear(false)}
-                          className="text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleClearClick}
-                          disabled={saving}
-                          className="text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
-                        >
-                          {saving ? "Clearing…" : "Yes, clear"}
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          onClick={handleClearClick}
-                          disabled={!hasSavedContent && !hasAnyTranslation}
-                          className="text-xs font-medium text-gray-500 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-gray-500 dark:text-gray-400 dark:hover:text-red-400"
-                        >
-                          Clear T&amp;C
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleSave}
-                          disabled={
-                            saving ||
-                            isOverLength ||
-                            !hasAnyTranslation ||
-                            !hasUnsavedChanges
-                          }
-                          className={`${SUPPORT_BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
-                        >
-                          {saving ? "Saving…" : "Save"}
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
+                <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                  Terms &amp; conditions (per locale)
+                </h4>
                 {hasSavedContent && savedPreview && (
                   <details className="mt-4 rounded-xl border border-gray-200 bg-gray-50/80 p-4 dark:border-gray-700 dark:bg-gray-800/40">
                     <summary className="cursor-pointer text-sm font-medium text-gray-800 dark:text-gray-200">
@@ -1034,20 +981,72 @@ export default function PolicyTable() {
                       })}
                     </div>
 
-                    <label
-                      htmlFor="policy-content"
-                      className="mt-3 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                    >
-                      {contentSource === "template"
-                        ? "Template text (editable)"
-                        : "Content"}
-                      {" — "}
-                      <span className="text-gray-500">
-                        {POLICY_TRANSLATION_LOCALES.find(
-                          (l) => l.value === activeLocale,
-                        )?.label ?? activeLocale}
-                      </span>
-                    </label>
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                      <label
+                        htmlFor="policy-content"
+                        className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                      >
+                        {contentSource === "template"
+                          ? "Template text (editable)"
+                          : "Content"}
+                        {" — "}
+                        <span className="text-gray-500">
+                          {POLICY_TRANSLATION_LOCALES.find(
+                            (l) => l.value === activeLocale,
+                          )?.label ?? activeLocale}
+                        </span>
+                      </label>
+                      {/* Clear / Save for the whole policy — sit on the Content
+                          label row, right-aligned. */}
+                      <div className="flex items-center gap-3">
+                        {confirmClear ? (
+                          <>
+                            <span className="text-xs text-gray-600 dark:text-gray-400">
+                              Clear all content?
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmClear(false)}
+                              className="text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleClearClick}
+                              disabled={saving}
+                              className="text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
+                            >
+                              {saving ? "Clearing…" : "Yes, clear"}
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={handleClearClick}
+                              disabled={!hasSavedContent && !hasAnyTranslation}
+                              className="text-xs font-medium text-gray-500 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-gray-500 dark:text-gray-400 dark:hover:text-red-400"
+                            >
+                              Clear T&amp;C
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleSave}
+                              disabled={
+                                saving ||
+                                isOverLength ||
+                                !hasAnyTranslation ||
+                                !hasUnsavedChanges
+                              }
+                              className={`${SUPPORT_BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
+                            >
+                              {saving ? "Saving…" : "Save"}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
                     <textarea
                       id="policy-content"
                       value={translations[activeLocale] ?? ""}
