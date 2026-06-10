@@ -17,6 +17,7 @@ import NoData from "@/components/common/NoData";
 import Button from "@/components/ui/button/Button";
 import { pathImage } from "@/utils/helper";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
+import CategoryIcon from "./CategoryIcon";
 import { isDirty } from "@/lib/isDirty";
 import toast from "react-hot-toast";
 import {
@@ -553,8 +554,14 @@ export default function PolicyTable() {
                           {index + 1}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                            {category.name}
+                          <div className="flex items-center gap-3">
+                            <CategoryIcon
+                              name={category.name}
+                              className="h-8 w-8 shrink-0 text-gray-500 dark:text-gray-400"
+                            />
+                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                              {category.name}
+                            </span>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
