@@ -220,10 +220,10 @@ export default function PolicyTable() {
     return map;
   }, [policiesData]);
 
-  // Category-table toolbar — free-text search by name + sort by T&C status.
+  // Category-table toolbar — free-text search by name + filter by T&C status.
   const [categorySearch, setCategorySearch] = useState("");
-  const [categorySort, setCategorySort] = useState<"default" | "set" | "unset">(
-    "default",
+  const [statusFilter, setStatusFilter] = useState<"all" | "set" | "unset">(
+    "all",
   );
   const isCategorySet = useCallback(
     (category: ResCategoryList) => {
@@ -239,17 +239,14 @@ export default function PolicyTable() {
   );
   const displayedCategories = useMemo(() => {
     const q = categorySearch.trim().toLowerCase();
-    const list = q
+    let list = q
       ? categories.filter((c) => c.name.toLowerCase().includes(q))
       : categories;
-    if (categorySort === "default") return list;
-    // "set" floats Set rows up, "unset" floats them down.
-    return [...list].sort((a, b) => {
-      const av = isCategorySet(a) ? 1 : 0;
-      const bv = isCategorySet(b) ? 1 : 0;
-      return categorySort === "set" ? bv - av : av - bv;
-    });
-  }, [categories, categorySearch, categorySort, isCategorySet]);
+    if (statusFilter === "set") list = list.filter((c) => isCategorySet(c));
+    else if (statusFilter === "unset")
+      list = list.filter((c) => !isCategorySet(c));
+    return list;
+  }, [categories, categorySearch, statusFilter, isCategorySet]);
 
   const selectedTemplate = useMemo(
     () => getTemplateById(selectedTemplateId),
@@ -1260,16 +1257,16 @@ export default function PolicyTable() {
                 className="focus:border-brand-300 focus:ring-brand-500/10 h-9 w-[280px] max-w-full min-w-[200px] rounded-lg border border-gray-300 bg-white px-2 text-xs text-gray-500 placeholder:text-gray-400 focus:ring-3 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-gray-400 dark:placeholder:text-gray-500"
               />
               <select
-                value={categorySort}
+                value={statusFilter}
                 onChange={(e) =>
-                  setCategorySort(e.target.value as "default" | "set" | "unset")
+                  setStatusFilter(e.target.value as "all" | "set" | "unset")
                 }
-                aria-label="Sort by T&C status"
+                aria-label="Filter by T&C status"
                 className="h-9 min-w-[150px] rounded-lg border border-gray-300 bg-white px-2 text-xs text-gray-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-400"
               >
-                <option value="default">Sort by…</option>
-                <option value="set">Status: Set first</option>
-                <option value="unset">Status: Not set first</option>
+                <option value="all">All statuses (default)</option>
+                <option value="set">Already set</option>
+                <option value="unset">Not set yet</option>
               </select>
             </div>
             {loadingCategories || loadingPolicies ? (
