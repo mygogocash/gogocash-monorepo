@@ -416,6 +416,14 @@ export default function PolicyTable() {
         ...prev,
         [activeLocale]: getTemplateBody(tmpl.id, activeLocale),
       }));
+    } else if (contentSource === "template_plus") {
+      // Load the chosen template into the editable "additional terms" box for
+      // the active locale, so the admin starts from the template and edits /
+      // extends it inline (mirrors how "template" mode fills the content box).
+      setAdditionalTermsByLocale((prev) => ({
+        ...prev,
+        [activeLocale]: getTemplateBody(tmpl.id, activeLocale),
+      }));
     }
   };
 
