@@ -789,6 +789,16 @@ export default function PolicyTable() {
                     : {(bannerTranslations[bannerActiveLocale] ?? "").length} /
                     500 characters
                   </p>
+                  <div className="mt-4 flex justify-end border-t border-gray-100 pt-3 dark:border-gray-800">
+                    <button
+                      type="button"
+                      onClick={handleSave}
+                      disabled={saving || isOverLength || !hasUnsavedChanges}
+                      className={`${SUPPORT_BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
+                    >
+                      {saving ? "Saving…" : "Save"}
+                    </button>
+                  </div>
                 </div>
               </section>
             ) : null}
