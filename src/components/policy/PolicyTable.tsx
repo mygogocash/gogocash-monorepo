@@ -117,6 +117,11 @@ export default function PolicyTable() {
   } | null>(null);
   const defaultFileRef = useRef<HTMLInputElement>(null);
   const specialFileRef = useRef<HTMLInputElement>(null);
+  // Auto-save on upload — which banner is briefly "Saving…" (transient).
+  const [bannerSaving, setBannerSaving] = useState<
+    "default" | "special" | null
+  >(null);
+  const bannerSaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Period during which the special event banner replaces the default. Date +
   // 24-hour HH:MM (TimeFieldHM) so the time never renders as 12-hour AM/PM.
   const [specialEventStartDate, setSpecialEventStartDate] = useState("");
@@ -309,14 +314,25 @@ export default function PolicyTable() {
     setPolicyModalTab("terms");
   }, []);
 
+  // Auto-save a just-uploaded banner — no separate Save step. Mock: a brief
+  // "Saving…" then a confirmation toast (object-URL preview is applied at once).
+  const autoSaveBanner = (which: "default" | "special", name: string) => {
+    if (bannerSaveTimeout.current) clearTimeout(bannerSaveTimeout.current);
+    setBannerSaving(which);
+    bannerSaveTimeout.current = setTimeout(() => {
+      setBannerSaving(null);
+      toast.success(`${name} saved automatically.`);
+    }, 600);
+  };
+
   // "Upload File" handlers — read the chosen image into an object-URL preview
-  // (revoking any prior one). Data is mock, so the upload stays client-side.
+  // (revoking any prior one), then auto-save. Data is mock, so it's client-side.
   const handleDefaultUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (defaultUpload) URL.revokeObjectURL(defaultUpload.url);
     setDefaultUpload({ url: URL.createObjectURL(file), name: file.name });
-    toast.success(`Uploaded ${file.name}`);
+    autoSaveBanner("default", file.name);
   };
 
   const handleSpecialUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -324,7 +340,7 @@ export default function PolicyTable() {
     if (!file) return;
     if (specialUpload) URL.revokeObjectURL(specialUpload.url);
     setSpecialUpload({ url: URL.createObjectURL(file), name: file.name });
-    toast.success(`Uploaded ${file.name}`);
+    autoSaveBanner("special", file.name);
   };
 
   // Clear an uploaded banner — back to the "No uploaded files" state.
@@ -592,6 +608,11 @@ export default function PolicyTable() {
                       ) : null}
                     </div>
                     <div className="flex items-center gap-3">
+                      {bannerSaving === "default" ? (
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          Saving…
+                        </span>
+                      ) : null}
                       <SecondaryButton
                         type="button"
                         onClick={() => defaultFileRef.current?.click()}
@@ -647,6 +668,11 @@ export default function PolicyTable() {
                       ) : null}
                     </div>
                     <div className="flex items-center gap-3">
+                      {bannerSaving === "special" ? (
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          Saving…
+                        </span>
+                      ) : null}
                       <SecondaryButton
                         type="button"
                         onClick={() => specialFileRef.current?.click()}
