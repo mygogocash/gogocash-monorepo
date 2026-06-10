@@ -340,6 +340,37 @@ export default function PolicyTable() {
     if (specialFileRef.current) specialFileRef.current.value = "";
   };
 
+  // "Set" — validate the special-event start/end window (date + 24h time).
+  const handleSetSchedule = () => {
+    if (
+      !specialEventStartDate ||
+      !specialEventStartTime ||
+      !specialEventEndDate ||
+      !specialEventEndTime
+    ) {
+      toast.error("Set a start and end date and time (24h).");
+      return;
+    }
+    const toMs = (date: string, time: string) => {
+      const [h = "0", m = "0"] = time.split(":");
+      return new Date(
+        `${date}T${h.padStart(2, "0")}:${m.padStart(2, "0")}:00`,
+      ).getTime();
+    };
+    if (
+      !(
+        toMs(specialEventEndDate, specialEventEndTime) >
+        toMs(specialEventStartDate, specialEventStartTime)
+      )
+    ) {
+      toast.error("The special event must end after it starts.");
+      return;
+    }
+    toast.success(
+      `Schedule set: ${specialEventStartDate} ${specialEventStartTime} → ${specialEventEndDate} ${specialEventEndTime}.`,
+    );
+  };
+
   // Templates apply to the ACTIVE locale only — admins translate per-locale,
   // not by retemplating every locale at once. If you want all locales to use
   // the same template, switch tabs and re-apply.
@@ -696,6 +727,11 @@ export default function PolicyTable() {
                         />
                       </div>
                     </div>
+                  </div>
+                  <div className="mt-3">
+                    <PrimaryButton variant="blue" onClick={handleSetSchedule}>
+                      Set
+                    </PrimaryButton>
                   </div>
                 </div>
 
