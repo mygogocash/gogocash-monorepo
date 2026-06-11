@@ -27,7 +27,10 @@ import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useReducedMotion } from "@mobile/hooks/useReducedMotion";
 import { haptics } from "@mobile/lib/haptics";
 import { markIntroModalPending } from "@mobile/features/introModal/introModalSession";
+import { toPhoneE164 } from "@mobile/auth/phoneE164";
 import { buildDemoMobileSession, persistMobileSession } from "@mobile/auth/session";
+import { getMobileEnv } from "@mobile/config/env";
+import type { ConfirmationResult } from "firebase/auth";
 import {
   getDesktopShellHorizontalPadding,
   mobileShellLayout,
@@ -63,6 +66,9 @@ const webSocialButtonRestStyle = {
   boxShadow: "0 1px 2px rgba(16, 24, 40, 0.05)",
 } as unknown as ViewStyle;
 
+const authDesktopPageHorizontalPadding = 56;
+const otpResendDurationSeconds = 59;
+
 // Floating country dropdown — soft elevation so the menu reads as an overlay above the form.
 const webCountryMenuShadowStyle = {
   boxShadow: "0 16px 40px rgba(16, 24, 40, 0.18)",
@@ -71,6 +77,14 @@ const webCountryMenuShadowStyle = {
 type AuthPhase = "phone" | "otp";
 type SocialProvider = (typeof webAuthPage.socialProviders)[number];
 type AuthCountry = (typeof webAuthPage.countries)[number];
+
+function formatOtpCountdown(totalSeconds: number) {
+  const clampedSeconds = Math.max(0, totalSeconds);
+  const minutes = Math.floor(clampedSeconds / 60);
+  const seconds = clampedSeconds % 60;
+
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
 
 export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   const insets = useSafeAreaInsets();
@@ -83,12 +97,18 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   const [authPhase, setAuthPhase] = useState<AuthPhase>("phone");
   const [otpError, setOtpError] = useState(false);
   const [otpInput, setOtpInput] = useState("");
+  const [resendSecondsRemaining, setResendSecondsRemaining] =
+    useState(otpResendDurationSeconds);
   const [phoneLocal, setPhoneLocal] = useState("");
   const [phoneFocused, setPhoneFocused] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState<AuthCountry>(webAuthPage.countries[0]);
   const [countryMenuOpen, setCountryMenuOpen] = useState(false);
   const countryWrapRef = useRef<View>(null);
+  // Live (backend-mode) phone auth: the Firebase ConfirmationResult is a live,
+  // non-serializable object — held in a ref between OTP send and confirm.
+  const liveAuth = getMobileEnv().accountDataSource === "backend";
+  const confirmationRef = useRef<ConfirmationResult | null>(null);
   const consentCheckProgress = useMemo(() => new Animated.Value(0), []);
   useEffect(() => {
     Animated.timing(consentCheckProgress, {
@@ -174,6 +194,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   const dividerText = webAuthPage.socialDividerByMode[mode];
   const primarySocialProviders = webAuthPage.socialProviders.slice(0, 4);
   const secondarySocialProviders = webAuthPage.socialProviders.slice(4);
+  const resendCountdownLabel = formatOtpCountdown(resendSecondsRemaining);
   const maskedPhone = useMemo(() => {
     if (!phoneDigits) {
       return selectedCountry.dialCode;
@@ -197,20 +218,59 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
       return;
     }
 
+    if (liveAuth) {
+      // Real flow: request a Firebase SMS OTP first; only advance once it sent.
+      // Dynamic import keeps the firebase package out of fixtures-mode bundles
+      // and the render-test transform path.
+      void (async () => {
+        try {
+          const { sendPhoneOtp } = await import("@mobile/auth/firebasePhoneAuth");
+          confirmationRef.current = await sendPhoneOtp(
+            toPhoneE164(selectedCountry.dialCode, phoneDigits)
+          );
+          setAuthPhase("otp");
+          setOtpInput("");
+          setOtpError(false);
+          setResendSecondsRemaining(otpResendDurationSeconds);
+        } catch {
+          // Send failed (invalid number, rate limit, unsupported platform):
+          // surface the error feedback and keep the user on the phone step.
+          haptics.error();
+        }
+      })();
+      return;
+    }
+
     setAuthPhase("otp");
     setOtpInput("");
     setOtpError(false);
+    setResendSecondsRemaining(otpResendDurationSeconds);
   };
 
   const handleChangePhone = () => {
     setAuthPhase("phone");
     setOtpInput("");
     setOtpError(false);
+    setResendSecondsRemaining(otpResendDurationSeconds);
   };
+
+  useEffect(() => {
+    if (authPhase !== "otp" || resendSecondsRemaining <= 0) {
+      return undefined;
+    }
+
+    const timeoutId = setTimeout(() => {
+      setResendSecondsRemaining((remaining) => Math.max(remaining - 1, 0));
+    }, 1000);
+
+    return () => clearTimeout(timeoutId);
+  }, [authPhase, resendSecondsRemaining]);
 
   const handleOtpChange = (nextValue: string) => {
     const nextDigits = nextValue.replace(/\D/g, "").slice(0, 6);
-    const isInvalidFullCode = nextDigits.length === 6 && nextDigits !== "123456";
+    // In live auth only Firebase knows whether the code is right, so the
+    // demo-stub instant check applies to fixtures mode alone.
+    const isInvalidFullCode = !liveAuth && nextDigits.length === 6 && nextDigits !== "123456";
 
     // Light tap as each digit lands; an error buzz the moment a full code is wrong.
     if (nextDigits.length > otpInput.length) {
@@ -225,6 +285,44 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   };
 
   const handleOtpSubmit = () => {
+    if (liveAuth) {
+      if (otpInput.length !== 6) {
+        setOtpError(true);
+        haptics.error();
+        return;
+      }
+      void (async () => {
+        try {
+          const confirmation = confirmationRef.current;
+          if (!confirmation) {
+            // No in-flight confirmation (e.g. page reloaded on the OTP step) —
+            // the code cannot be verified; surface the error state.
+            setOtpError(true);
+            haptics.error();
+            return;
+          }
+          const { confirmPhoneOtp } = await import("@mobile/auth/firebasePhoneAuth");
+          const { exchangeFirebaseIdToken } = await import("@mobile/auth/firebaseLogin");
+          const { idToken } = await confirmPhoneOtp(confirmation, otpInput);
+          const session = await exchangeFirebaseIdToken({
+            apiUrl: getMobileEnv().apiUrl,
+            country: selectedCountry.code,
+            idToken,
+          });
+          haptics.success();
+          markIntroModalPending();
+          await persistMobileSession(session);
+          router.push("/link-mycashback");
+        } catch {
+          // Wrong/expired code or a failed backend exchange: no session is
+          // written, no navigation happens — surface the error on the OTP step.
+          setOtpError(true);
+          haptics.error();
+        }
+      })();
+      return;
+    }
+
     const isValid = otpInput.length === 6 && otpInput === "123456";
     setOtpError(!isValid);
     if (isValid) {
@@ -498,14 +596,37 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                         hitSlop={8}
                         hoverLift={false}
                         onPress={() => {
+                          if (liveAuth) {
+                            // A fresh Firebase OTP must actually be requested; the
+                            // replacement confirmation is what the next submit verifies.
+                            void (async () => {
+                              try {
+                                const { sendPhoneOtp } = await import(
+                                  "@mobile/auth/firebasePhoneAuth"
+                                );
+                                confirmationRef.current = await sendPhoneOtp(
+                                  toPhoneE164(selectedCountry.dialCode, phoneDigits)
+                                );
+                                setOtpInput("");
+                                setOtpError(false);
+                                setResendSecondsRemaining(otpResendDurationSeconds);
+                              } catch {
+                                // Resend failed — keep the current countdown/state and
+                                // surface error feedback instead of pretending it sent.
+                                haptics.error();
+                              }
+                            })();
+                            return;
+                          }
                           setOtpInput("");
                           setOtpError(false);
+                          setResendSecondsRemaining(otpResendDurationSeconds);
                         }}
                         pressScale={motion.scale.subtlePress}
                       >
                         <Text style={styles.resendText}>{tc(webAuthPage.otp.resend)}</Text>
                       </MotionPressable>
-                      <Text style={styles.resendCountdown}>00:59</Text>
+                      <Text style={styles.resendCountdown}>{resendCountdownLabel}</Text>
                     </View>
                     <MotionPressable
                       accessibilityRole="button"
@@ -573,7 +694,10 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
             </View>
             {isDesktopShell ? (
               <View style={styles.desktopFooter}>
-                <CustomerDesktopFooter horizontalPadding={0} viewportWidth={width} />
+                <CustomerDesktopFooter
+                  horizontalPadding={authDesktopPageHorizontalPadding}
+                  viewportWidth={width}
+                />
               </View>
             ) : null}
           </KeyboardAwareScreen>
@@ -819,7 +943,7 @@ const styles = StyleSheet.create({
   },
   pageDesktop: {
     alignItems: "center",
-    paddingHorizontal: 56,
+    paddingHorizontal: authDesktopPageHorizontalPadding,
   },
   pageMobile: {
     paddingBottom: mobileShellLayout.bottomNavClearance,
@@ -1184,7 +1308,7 @@ const styles = StyleSheet.create({
     color: "#555555",
     fontFamily: typography.family,
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: "400",
     lineHeight: 21,
     textAlign: "center",
   },
@@ -1212,7 +1336,7 @@ const styles = StyleSheet.create({
     color: "#55C99E",
     fontFamily: typography.family,
     fontSize: 13,
-    fontWeight: "800",
+    fontWeight: "400",
   },
   otpInputWrap: {
     height: 48,
@@ -1279,14 +1403,14 @@ const styles = StyleSheet.create({
     color: "#55C99E",
     fontFamily: typography.family,
     fontSize: 13,
-    fontWeight: "800",
+    fontWeight: "400",
   },
   resendCountdown: {
     color: "#8D8D8D",
     fontFamily: typography.family,
     fontSize: 13,
     fontVariant: ["tabular-nums"],
-    fontWeight: "700",
+    fontWeight: "400",
   },
   socialBlock: {
     gap: 14,
