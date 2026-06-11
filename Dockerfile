@@ -1,5 +1,7 @@
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 WORKDIR /app
+# nest build (tsc) exceeds Node's default container heap
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 # ติดตั้ง dependencies
 COPY package*.json ./
@@ -14,7 +16,7 @@ COPY . .
 RUN yarn build
 
 # Stage 2: Production
-FROM node:20-alpine
+FROM node:22-alpine
 WORKDIR /app
 
 # copy package.json สำหรับ production
