@@ -36,10 +36,8 @@ describe("CustomerAuthScreen — live send failure is visible", () => {
     window.localStorage.clear();
   });
 
-  it("given sendPhoneOtp rejects > then shows the request-failed copy and stays on the phone step", async () => {
-    sendPhoneOtp.mockRejectedValue(
-      Object.assign(new Error("blocked"), { code: "auth/too-many-requests" })
-    );
+  it("given sendPhoneOtp rejects without a known code > then shows the request-failed copy and stays on the phone step", async () => {
+    sendPhoneOtp.mockRejectedValue(new Error("blocked"));
 
     render(createElement(CustomerAuthScreen, { mode: "login" }));
     fireEvent.change(screen.getByPlaceholderText("Phone Number"), {
@@ -54,6 +52,46 @@ describe("CustomerAuthScreen — live send failure is visible", () => {
     // Still on the phone step — the OTP input never mounted, nothing navigated.
     expect(screen.queryByLabelText("Verification code")).toBeNull();
     expect(routerPush).not.toHaveBeenCalled();
+  });
+
+  it("given sendPhoneOtp rejects with auth/too-many-requests > then shows the rate-limit copy", async () => {
+    sendPhoneOtp.mockRejectedValue(
+      Object.assign(new Error("blocked"), { code: "auth/too-many-requests" })
+    );
+
+    render(createElement(CustomerAuthScreen, { mode: "login" }));
+    fireEvent.change(screen.getByPlaceholderText("Phone Number"), {
+      target: { value: "0812346789" },
+    });
+    fireEvent.click(screen.getByRole("checkbox", { name: "I have read and understand" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Too many attempts. Please wait a few minutes and try again.")
+      ).toBeTruthy();
+    });
+    expect(screen.queryByText("Request failed. Please try again.")).toBeNull();
+  });
+
+  it("given sendPhoneOtp rejects with auth/invalid-app-credential > then shows the security-check copy", async () => {
+    sendPhoneOtp.mockRejectedValue(
+      Object.assign(new Error("rejected"), { code: "auth/invalid-app-credential" })
+    );
+
+    render(createElement(CustomerAuthScreen, { mode: "login" }));
+    fireEvent.change(screen.getByPlaceholderText("Phone Number"), {
+      target: { value: "0812346789" },
+    });
+    fireEvent.click(screen.getByRole("checkbox", { name: "I have read and understand" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Security check failed. Please refresh the page and try again.")
+      ).toBeTruthy();
+    });
+    expect(screen.queryByText("Request failed. Please try again.")).toBeNull();
   });
 
   it("given the user edits the phone after a failure > then the failure notice clears", async () => {
