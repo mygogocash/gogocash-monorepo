@@ -4,6 +4,7 @@ import { type PostHog, PostHogProvider } from "posthog-react-native";
 import { PropsWithChildren, useEffect, useMemo } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { createSessionQueryCacheBridge } from "@mobile/account/sessionQueryCacheBridge";
 import { RouteAnalyticsTracker } from "@mobile/analytics/RouteAnalyticsTracker";
 import { useAuthGuardSession } from "@mobile/auth/useAuthGuardSession";
 import { CustomerRouteState } from "@mobile/components/CustomerRouteState";
@@ -51,6 +52,12 @@ export function AppProviders({ children }: PropsWithChildren) {
   useEffect(() => {
     initObservability();
   }, []);
+
+  // Login/logout must not serve the previous identity's cached resource data.
+  useEffect(
+    () => createSessionQueryCacheBridge({ queryClient }),
+    [queryClient]
+  );
 
   if ((!fontsLoaded && !fontError) || !sessionReady) {
     // Gate on BOTH the runtime fonts AND the initial session read (one-time bootstrap on app
