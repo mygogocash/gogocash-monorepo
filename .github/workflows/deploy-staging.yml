@@ -51,6 +51,9 @@ jobs:
         continue-on-error: true
 
       - name: Build (type-check)
+        # nest build (tsc) exceeds Node's 2GB default heap on runners (exit 134)
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         run: npm run build
 
   deploy:
