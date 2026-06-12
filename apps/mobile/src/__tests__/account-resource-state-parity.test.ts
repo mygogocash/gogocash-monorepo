@@ -25,8 +25,9 @@ describe("Account resource state parity", () => {
       expect(resourceFile).toContain(endpoint);
     }
 
-    expect(resourceFile).toContain("createMobileApiClient");
-    expect(resourceFile).toContain("createAvailableSessionStore");
+    // Singleton seam (perf mandate): the hook resolves the shared client —
+    // store/client construction lives in sharedClient/sharedSessionStore.
+    expect(resourceFile).toContain("getSharedMobileApiClient");
     expect(resourceFile).toContain("EXPO_PUBLIC_ACCOUNT_DATA_SOURCE");
     expect(resourceFile).toContain("isCustomerAccountResourcePayloadEmpty");
   });

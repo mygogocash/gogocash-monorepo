@@ -59,7 +59,9 @@ export function createMobileApiClient(options: MobileApiClientOptions) {
             ? String(responseBody.message)
             : `Request failed with status ${response.status}`;
 
-        if (response.status === 401) {
+        // Only an authenticated request 401-ing means the stored session is
+        // bad; a public endpoint's 401 must never force-logout the user.
+        if (response.status === 401 && token) {
           await options.sessionStore.clearSession();
           options.onUnauthorized?.();
         }

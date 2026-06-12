@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
-import { createMobileApiClient, ApiError } from "@mobile/api/client";
-import { createAvailableSessionStore } from "@mobile/auth/session";
+import { ApiError } from "@mobile/api/client";
+import { getSharedMobileApiClient } from "@mobile/api/sharedClient";
 import type { AccountDataSource } from "@mobile/auth/routeGuard";
 import { getMobileEnv } from "@mobile/config/env";
 
@@ -91,16 +91,16 @@ export function useCustomerAccountResource<TFixture, TBackend = unknown>({
   const query = useQuery<TBackend, Error>({
     enabled: shouldUseBackend,
     queryFn: async () => {
-      const sessionStore = await createAvailableSessionStore();
+      // Shared singleton: the session store + client are built once per
+      // baseUrl, not per fetch (the client re-reads the session each request,
+      // so token freshness is unaffected).
+      const client = await getSharedMobileApiClient(env.apiUrl);
 
-      if (!sessionStore) {
+      if (!client) {
         throw new ApiError("No mobile session store is available.", 0, "SESSION_STORE_UNAVAILABLE");
       }
 
-      return createMobileApiClient({
-        baseUrl: env.apiUrl,
-        sessionStore,
-      }).get<TBackend>(endpoint);
+      return client.get<TBackend>(endpoint);
     },
     queryKey: ["customer-account-resource", resourceId, endpoint, env.apiUrl],
     retry: false,

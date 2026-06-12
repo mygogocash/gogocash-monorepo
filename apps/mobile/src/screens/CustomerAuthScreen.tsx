@@ -96,6 +96,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   const reducedMotion = useReducedMotion();
   const [authPhase, setAuthPhase] = useState<AuthPhase>("phone");
   const [otpError, setOtpError] = useState(false);
+  const [sendError, setSendError] = useState(false);
   const [otpInput, setOtpInput] = useState("");
   const [resendSecondsRemaining, setResendSecondsRemaining] =
     useState(otpResendDurationSeconds);
@@ -210,6 +211,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   }, [phoneDigits, selectedCountry.dialCode]);
 
   const handlePhoneChange = (nextValue: string) => {
+    setSendError(false);
     setPhoneLocal(nextValue.replace(/\D/g, "").slice(0, 10));
   };
 
@@ -222,6 +224,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
       // Real flow: request a Firebase SMS OTP first; only advance once it sent.
       // Dynamic import keeps the firebase package out of fixtures-mode bundles
       // and the render-test transform path.
+      setSendError(false);
       void (async () => {
         try {
           const { sendPhoneOtp } = await import("@mobile/auth/firebasePhoneAuth");
@@ -234,7 +237,9 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
           setResendSecondsRemaining(otpResendDurationSeconds);
         } catch {
           // Send failed (invalid number, rate limit, unsupported platform):
-          // surface the error feedback and keep the user on the phone step.
+          // surface the error visibly and keep the user on the phone step.
+          // Never include the phone number or provider internals in the notice.
+          setSendError(true);
           haptics.error();
         }
       })();
@@ -507,6 +512,11 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                           value={phoneLocal}
                         />
                       </View>
+                      {sendError ? (
+                        <Text accessibilityRole="alert" style={styles.otpError}>
+                          {tc("Request failed. Please try again.")}
+                        </Text>
+                      ) : null}
                     </View>
 
                     <MotionPressable

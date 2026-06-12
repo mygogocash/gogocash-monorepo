@@ -62,6 +62,24 @@ describe("GoGoCash mobile API client", () => {
     expect(unauthorizedHandler).toHaveBeenCalledOnce();
   });
 
+  it("mobile api client > given 401 on a request that sent no bearer > then the session is NOT cleared", async () => {
+    const unauthorizedHandler = vi.fn();
+    const sessionStore = createSessionStore(null);
+    const client = createMobileApiClient({
+      baseUrl: "https://api-staging.gogocash.co",
+      fetchImpl: vi.fn(async () => Response.json({ message: "unauthorized" }, { status: 401 })),
+      onUnauthorized: unauthorizedHandler,
+      sessionStore,
+    });
+
+    await expect(client.get("/offer")).rejects.toMatchObject({ status: 401 });
+
+    // A public/unauthenticated request 401-ing must never force-logout a user
+    // whose stored session was never even presented.
+    expect(sessionStore.clearSession).not.toHaveBeenCalled();
+    expect(unauthorizedHandler).not.toHaveBeenCalled();
+  });
+
   it("mobile api client > given post body > then serializes json and preserves custom headers", async () => {
     const fetchMock = vi.fn(async () => Response.json({ created: true }));
     const client = createMobileApiClient({
