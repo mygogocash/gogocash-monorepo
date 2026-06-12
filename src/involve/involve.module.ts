@@ -28,5 +28,6 @@ import { FeeRate, FeeRateSchema } from 'src/withdraw/schemas/feeRate.schema';
   ],
   controllers: [InvolveController],
   providers: [InvolveService, JwtService],
+  exports: [InvolveService],
 })
 export class InvolveModule {}

@@ -17,12 +17,16 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { CustomerIoModule } from './customer-io/customer-io.module';
 import { PolicyModule } from './policy/policy.module';
+import { GogosenseModule } from './gogosense/gogosense.module';
+import { CustomerBillingModule } from './customer-billing/customer-billing.module';
 @Module({
   imports: [
     ScheduleModule.forRoot(),
     AnalyticsModule,
     CustomerIoModule,
     PolicyModule,
+    GogosenseModule,
+    CustomerBillingModule,
     ConfigModule.forRoot({
       load: [envConfig],
     }),
