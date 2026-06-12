@@ -403,7 +403,10 @@ export class WithdrawService {
       .find({
         user_id: new Types.ObjectId(user._id),
         mycashback_id: [],
-        status: { $in: ['pending', 'approved'] }, //, 'rejected'
+        // 'paid' MUST stay in the deduction set: once markWithdrawPaid flips a
+        // withdrawal to 'paid', dropping it here re-credits the balance and
+        // allows a second withdrawal of the same funds (double-withdraw).
+        status: { $in: ['pending', 'approved', 'paid'] },
       })
       .lean();
 
@@ -742,6 +745,102 @@ export class WithdrawService {
         },
         {} as Record<string, { netAmount: number; count: number }>,
       );
+
+    const withdrawSumThbApproved = await Object.entries(
+      withdrawSumByCurrencyApproved,
+    ).reduce(
+      async (accPromise, [currency, item]) => {
+        const acc = await accPromise;
+        if (currency === 'THB') {
+          acc.netAmount += item.netAmount || 0;
+          acc.count += item.count || 0;
+        } else if (
+          currency === 'USD' ||
+          currency === 'USDT' ||
+          currency === 'USDC'
+        ) {
+          const toThb = await this.convertCurrencyThb(currency, item.netAmount);
+          acc.netAmount += toThb.amount || 0;
+          acc.count += item.count || 0;
+        } else if (currency === 'CNY') {
+          const toThb = await this.convertCurrencyThb(currency, item.netAmount);
+          acc.netAmount += toThb.amount || 0;
+          acc.count += item.count || 0;
+        }
+        return acc;
+      },
+      Promise.resolve({ netAmount: 0, count: 0 }),
+    );
+
+    const withdrawSumUsdApproved = await Object.entries(
+      withdrawSumByCurrencyApproved,
+    ).reduce(
+      async (accPromise, [currency, item]) => {
+        const acc = await accPromise;
+        if (currency === 'USD' || currency === 'USDT' || currency === 'USDC') {
+          acc.netAmount += item.netAmount || 0;
+          acc.count += item.count || 0;
+        } else if (currency === 'THB') {
+          const toUsd = await this.convertCurrencyUsd(currency, item.netAmount);
+          acc.netAmount += toUsd.usdAmount || 0;
+          acc.count += item.count || 0;
+        } else if (currency === 'CNY') {
+          const toUsd = await this.convertCurrencyUsd(currency, item.netAmount);
+          acc.netAmount += toUsd.usdAmount || 0;
+          acc.count += item.count || 0;
+        }
+        return acc;
+      },
+      Promise.resolve({ netAmount: 0, count: 0 }),
+    );
+
+    const withdrawSumThbPending = await Object.entries(
+      withdrawSumByCurrencyPending,
+    ).reduce(
+      async (accPromise, [currency, item]) => {
+        const acc = await accPromise;
+        if (currency === 'THB') {
+          acc.netAmount += item.netAmount || 0;
+          acc.count += item.count || 0;
+        } else if (
+          currency === 'USD' ||
+          currency === 'USDT' ||
+          currency === 'USDC'
+        ) {
+          const toThb = await this.convertCurrencyThb(currency, item.netAmount);
+          acc.netAmount += toThb.amount || 0;
+          acc.count += item.count || 0;
+        } else if (currency === 'CNY') {
+          const toThb = await this.convertCurrencyThb(currency, item.netAmount);
+          acc.netAmount += toThb.amount || 0;
+          acc.count += item.count || 0;
+        }
+        return acc;
+      },
+      Promise.resolve({ netAmount: 0, count: 0 }),
+    );
+
+    const withdrawSumUsdPending = await Object.entries(
+      withdrawSumByCurrencyPending,
+    ).reduce(
+      async (accPromise, [currency, item]) => {
+        const acc = await accPromise;
+        if (currency === 'USD' || currency === 'USDT' || currency === 'USDC') {
+          acc.netAmount += item.netAmount || 0;
+          acc.count += item.count || 0;
+        } else if (currency === 'THB') {
+          const toUsd = await this.convertCurrencyUsd(currency, item.netAmount);
+          acc.netAmount += toUsd.usdAmount || 0;
+          acc.count += item.count || 0;
+        } else if (currency === 'CNY') {
+          const toUsd = await this.convertCurrencyUsd(currency, item.netAmount);
+          acc.netAmount += toUsd.usdAmount || 0;
+          acc.count += item.count || 0;
+        }
+        return acc;
+      },
+      Promise.resolve({ netAmount: 0, count: 0 }),
+    );
     return {
       totalsByStatusAndCurrency,
       data: groupedByStatus,
@@ -756,6 +855,382 @@ export class WithdrawService {
         email: user.email,
         mobile: user.mobile,
       },
+      withdrawSumThbApproved,
+      withdrawSumUsdApproved,
+      withdrawSumThbPending,
+      withdrawSumUsdPending,
+    };
+  }
+
+  async listCheckWithdrawNew(id: string) {
+    const user = await this.userModel.findOne({
+      _id: new Types.ObjectId(id),
+    });
+    if (!user) {
+      throw new UnauthorizedException({ message: 'User not found' });
+    }
+    const fee = await this.feeRateModel.findOne().exec();
+    if (!fee) {
+      throw new HttpException({ message: 'Fee rate not found' }, 400);
+    }
+
+    const withdrawList = await this.withdrawModel
+      .find({
+        user_id: user._id, // user._id.toString(),
+      })
+      .sort({ createdAt: -1 })
+      .lean();
+    // const allConversions1 = await this.conversionModel
+    //   .find({
+    //     aff_sub1: { $regex: `user_id:${user._id.toString()}` },
+    //   })
+    //   .sort({ createdAt: -1 })
+    //   .lean();
+
+    const allConversions = await this.conversionModel
+      .aggregate([
+        {
+          $match: {
+            aff_sub1: { $regex: `user_id:${user._id.toString()}` },
+          },
+        },
+        {
+          $lookup: {
+            from: 'offers',
+            localField: 'offer_id',
+            foreignField: 'offer_id',
+            as: 'offer',
+          },
+        },
+        { $unwind: { path: '$offer', preserveNullAndEmptyArrays: true } },
+        {
+          $addFields: {
+            max_cap: { $ifNull: ['$offer.max_cap', fee.max_cap] },
+          },
+        },
+        {
+          $addFields: {
+            payoutNew: {
+              $cond: [
+                { $eq: ['$offer_name', 'reward_conversion_quest'] },
+                '$payout',
+                {
+                  $let: {
+                    vars: {
+                      payoutAfterFee: {
+                        $subtract: [
+                          '$payout',
+                          {
+                            $divide: [
+                              { $multiply: ['$payout', fee.system] },
+                              100,
+                            ],
+                          },
+                        ],
+                      },
+                    },
+                    in: {
+                      $cond: [
+                        { $gt: ['$$payoutAfterFee', '$max_cap'] },
+                        '$max_cap',
+                        '$$payoutAfterFee',
+                      ],
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        },
+        {
+          $project: {
+            conversion_id: 1,
+            adv_sub1: 1,
+            adv_sub2: 1,
+            adv_sub3: 1,
+            adv_sub4: 1,
+            adv_sub5: 1,
+            aff_sub1: 1,
+            aff_sub2: 1,
+            aff_sub3: 1,
+            aff_sub4: 1,
+            aff_sub5: 1,
+            affiliate_remarks: 1,
+            base_payout: 1,
+            bonus_payout: 1,
+            conversion_status: 1,
+            currency: 1,
+            datetime_conversion: 1,
+            merchant_id: 1,
+            offer_id: 1,
+            offer_name: 1,
+            payout: 1,
+            sale_amount: 1,
+            add_point: 1,
+            payoutNew: 1,
+            _id: 1,
+          },
+        },
+        // {
+        //   $group: {
+        //     _id: {
+        //       merchant_id: '$merchant_id',
+        //       offer_name: '$offer.offer_name',
+        //     },
+        //     count: { $sum: 1 },
+        //     totalPayout: { $sum: '$payoutNew' },
+        //   },
+        // },
+        {
+          $sort: { datetime_conversion: -1 },
+        },
+      ])
+      .exec();
+    const groupedByStatus: Record<
+      string,
+      { count: number; totalPayout: number; items: any[] }
+    > = allConversions.reduce(
+      (acc, item) => {
+        const status = item.conversion_status || 'unknown';
+        if (!acc[status]) {
+          acc[status] = {
+            count: 0,
+            totalPayout: 0,
+            items: [],
+          };
+        }
+        acc[status].count += 1;
+
+        // const payout =
+        //   item.offer_name === 'reward_conversion_quest'
+        //     ? item.payout
+        //     : item.payout >= fee.max_cap
+        //       ? fee.max_cap
+        //       : item.payout;
+        const payout = item.payoutNew || 0;
+        acc[status].totalPayout += payout > 0 ? payout : 0;
+        acc[status].items.push(item);
+        return acc;
+      },
+      {} as Record<
+        string,
+        { count: number; totalPayout: number; items: any[] }
+      >,
+    );
+
+    const totalsByStatusAndCurrency = await Promise.all(
+      Object.entries(groupedByStatus).map(async ([status, statusData]) => {
+        const currencyTotals = statusData.items.reduce(
+          (acc, item) => {
+            const currency = item.currency || 'USD';
+            const payoutData =
+              item.offer_name === 'reward_conversion_quest'
+                ? item.payout
+                : item.payout >= fee.max_cap
+                  ? fee.max_cap
+                  : item.payout;
+            const feeAmount = payoutData * (fee.system / 100);
+
+            const payout =
+              item.offer_name === 'reward_conversion_quest'
+                ? payoutData
+                : payoutData - feeAmount;
+
+            if (!acc[currency]) {
+              acc[currency] = 0;
+            }
+            acc[currency] += payout > 0 ? payout : 0;
+            return acc;
+          },
+          {} as Record<string, number>,
+        );
+
+        const convertedTotals = await Promise.all(
+          Object.entries(currencyTotals).map(async ([currency, amount]) => {
+            const toUSD = await this.convertCurrencyUsd(
+              currency,
+              Number(amount),
+            );
+            const toTHB = await this.convertCurrencyThb(
+              currency,
+              Number(amount),
+            );
+            return {
+              currency,
+              amount,
+              usdAmount: toUSD.usdAmount,
+              thbAmount: toTHB.amount,
+            };
+          }),
+        );
+
+        const totalUSD = convertedTotals.reduce(
+          (sum, item) => sum + (item.usdAmount || 0),
+          0,
+        );
+        const totalTHB = convertedTotals.reduce(
+          (sum, item) => sum + (item.thbAmount || 0),
+          0,
+        );
+
+        return {
+          status,
+          count: statusData.count,
+          totalPayout: statusData.totalPayout,
+          currencyBreakdown: convertedTotals,
+          totalUSD,
+          totalTHB,
+        };
+      }),
+    );
+    const withdrawSumByCurrencyApproved = withdrawList
+      ?.filter((item) => item.status === 'approved')
+      .reduce(
+        (acc, withdraw) => {
+          const currency = withdraw.currency || 'unknown';
+          if (!acc[currency]) {
+            acc[currency] = {
+              netAmount: 0,
+              count: 0,
+            };
+          }
+          acc[currency].netAmount += withdraw.amount_net || 0;
+          acc[currency].count += 1;
+          return acc;
+        },
+        {} as Record<string, { netAmount: number; count: number }>,
+      );
+    const withdrawSumByCurrencyPending = withdrawList
+      .filter((item) => item.status === 'pending')
+      .reduce(
+        (acc, withdraw) => {
+          const currency = withdraw.currency || 'unknown';
+          if (!acc[currency]) {
+            acc[currency] = {
+              netAmount: 0,
+              count: 0,
+            };
+          }
+          acc[currency].netAmount += withdraw.amount_net || 0;
+          acc[currency].count += 1;
+          return acc;
+        },
+        {} as Record<string, { netAmount: number; count: number }>,
+      );
+
+       const withdrawSumThbApproved = await Object.entries(
+      withdrawSumByCurrencyApproved,
+    ).reduce(
+      async (accPromise, [currency, item]) => {
+        const acc = await accPromise;
+        if (currency === 'THB') {
+          acc.netAmount += item.netAmount || 0;
+          acc.count += item.count || 0;
+        } else if (
+          currency === 'USD' ||
+          currency === 'USDT' ||
+          currency === 'USDC'
+        ) {
+          const toThb = await this.convertCurrencyThb(currency, item.netAmount);
+          acc.netAmount += toThb.amount || 0;
+          acc.count += item.count || 0;
+        } else if (currency === 'CNY') {
+          const toThb = await this.convertCurrencyThb(currency, item.netAmount);
+          acc.netAmount += toThb.amount || 0;
+          acc.count += item.count || 0;
+        }
+        return acc;
+      },
+      Promise.resolve({ netAmount: 0, count: 0 }),
+    );
+
+    const withdrawSumUsdApproved = await Object.entries(
+      withdrawSumByCurrencyApproved,
+    ).reduce(
+      async (accPromise, [currency, item]) => {
+        const acc = await accPromise;
+        if (currency === 'USD' || currency === 'USDT' || currency === 'USDC') {
+          acc.netAmount += item.netAmount || 0;
+          acc.count += item.count || 0;
+        } else if (currency === 'THB') {
+          const toUsd = await this.convertCurrencyUsd(currency, item.netAmount);
+          acc.netAmount += toUsd.usdAmount || 0;
+          acc.count += item.count || 0;
+        } else if (currency === 'CNY') {
+          const toUsd = await this.convertCurrencyUsd(currency, item.netAmount);
+          acc.netAmount += toUsd.usdAmount || 0;
+          acc.count += item.count || 0;
+        }
+        return acc;
+      },
+      Promise.resolve({ netAmount: 0, count: 0 }),
+    );
+
+    const withdrawSumThbPending = await Object.entries(
+      withdrawSumByCurrencyPending,
+    ).reduce(
+      async (accPromise, [currency, item]) => {
+        const acc = await accPromise;
+        if (currency === 'THB') {
+          acc.netAmount += item.netAmount || 0;
+          acc.count += item.count || 0;
+        } else if (
+          currency === 'USD' ||
+          currency === 'USDT' ||
+          currency === 'USDC'
+        ) {
+          const toThb = await this.convertCurrencyThb(currency, item.netAmount);
+          acc.netAmount += toThb.amount || 0;
+          acc.count += item.count || 0;
+        } else if (currency === 'CNY') {
+          const toThb = await this.convertCurrencyThb(currency, item.netAmount);
+          acc.netAmount += toThb.amount || 0;
+          acc.count += item.count || 0;
+        }
+        return acc;
+      },
+      Promise.resolve({ netAmount: 0, count: 0 }),
+    );
+
+    const withdrawSumUsdPending = await Object.entries(
+      withdrawSumByCurrencyPending,
+    ).reduce(
+      async (accPromise, [currency, item]) => {
+        const acc = await accPromise;
+        if (currency === 'USD' || currency === 'USDT' || currency === 'USDC') {
+          acc.netAmount += item.netAmount || 0;
+          acc.count += item.count || 0;
+        } else if (currency === 'THB') {
+          const toUsd = await this.convertCurrencyUsd(currency, item.netAmount);
+          acc.netAmount += toUsd.usdAmount || 0;
+          acc.count += item.count || 0;
+        } else if (currency === 'CNY') {
+          const toUsd = await this.convertCurrencyUsd(currency, item.netAmount);
+          acc.netAmount += toUsd.usdAmount || 0;
+          acc.count += item.count || 0;
+        }
+        return acc;
+      },
+      Promise.resolve({ netAmount: 0, count: 0 }),
+    );
+    return {
+      totalsByStatusAndCurrency,
+      data: groupedByStatus,
+      fee,
+      withdrawList,
+      withdrawSumByCurrency: {
+        pending: withdrawSumByCurrencyPending,
+        approved: withdrawSumByCurrencyApproved,
+      },
+      allConversions,
+      user: {
+        email: user.email,
+        mobile: user.mobile,
+      },
+      withdrawSumThbApproved,
+      withdrawSumUsdApproved,
+      withdrawSumThbPending,
+      withdrawSumUsdPending,
     };
   }
   async getConversionByUser(id: string) {
@@ -818,6 +1293,19 @@ export class WithdrawService {
 
     return groupedByCurrency;
   }
+
+  async detailWithdraw(id: string, requesterId?: string) {
+    return await this.withdrawModel
+      .findOne({
+        _id: new Types.ObjectId(id),
+        // When a requester id is supplied (customer route), constrain to their
+        // own withdrawals so the detail can't be enumerated by ObjectId.
+        ...(requesterId ? { user_id: new Types.ObjectId(requesterId) } : {}),
+      })
+      .populate('user_id', 'email mobile')
+      .lean();
+  }
+
   async checkWithdrawMyCashback(id: string) {
     const user = await this.userModel.findOne({
       _id: new Types.ObjectId(id),
@@ -919,7 +1407,8 @@ export class WithdrawService {
         mycashback_id: {
           $in: myCashbackDataList.map((item) => new Types.ObjectId(item?._id)),
         }, //,
-        status: { $in: ['approved', 'pending'] },
+        // 'paid' included so settled MyCashback withdrawals stay deducted.
+        status: { $in: ['approved', 'pending', 'paid'] },
       })
       .lean();
     const totalWithdrawnUSD = withdrawListApproved.reduce((sum, w) => {
@@ -1591,6 +2080,9 @@ export class WithdrawService {
 
     const list = [];
     for (let i = 0; i < userReceivedReward.length; i++) {
+      if (userReceivedReward[i]?.point <= 0) {
+        continue; // Skip users with 0 or negative points
+      }
       if (rewardList?.data?.length <= i) {
         break;
       }
@@ -1600,8 +2092,8 @@ export class WithdrawService {
         offer_id: 0,
         offer_name: 'reward_conversion_quest',
         merchant_id: 0,
-        aff_sub2: user?.email || "",
-        aff_sub3: user?.username || "",
+        aff_sub2: user?.email || '',
+        aff_sub3: user?.username || '',
         aff_sub4: '',
         aff_sub5: '',
         adv_sub1: `${questDate.start_date.toLocaleDateString('en-CA')} - ${questDate.end_date.toLocaleDateString('en-CA')}`, // "Reward Quest 2024-01-01 - 2024-01-31"
@@ -1631,8 +2123,10 @@ export class WithdrawService {
     await this.questModel
       .findByIdAndUpdate(questDate._id, { reward_status: true })
       .exec();
-    console.log(`done reward conversion for quest ${questDate._id} with ${list.length} users`);
-      
+    console.log(
+      `done reward conversion for quest ${questDate._id} with ${list.length} users`,
+    );
+
     return rewardList;
   }
 
@@ -1652,16 +2146,16 @@ export class WithdrawService {
     reward_type,
     reward_amount,
     reward_currency,
-    user
+    user,
   }: RequestCreateConversionReward) {
-    const filterUSer = {}
-    if(user?.includes('@')) {
-      filterUSer['email'] = user
+    const filterUSer = {};
+    if (user?.includes('@')) {
+      filterUSer['email'] = user;
     } else {
       if (user?.startsWith('0')) {
-        user = "+66" + user.slice(1);
+        user = '+66' + user.slice(1);
       }
-      filterUSer['mobile'] = user
+      filterUSer['mobile'] = user;
     }
     const userData = await this.userModel.findOne({ ...filterUSer });
     if (!userData) {
@@ -1687,7 +2181,9 @@ export class WithdrawService {
       affiliate_remarks: '',
       base_payout: 0,
       bonus_payout: 0,
-      aff_sub1: user_id?.startsWith('user_id:') ? user_id : `user_id:${user_id}`, // "user_id:68bf99fed9667685c1637607"
+      aff_sub1: user_id?.startsWith('user_id:')
+        ? user_id
+        : `user_id:${user_id}`, // "user_id:68bf99fed9667685c1637607"
       currency: reward_currency || 'THB',
       payout: Number(reward_amount) || 0,
       sale_amount: 0,

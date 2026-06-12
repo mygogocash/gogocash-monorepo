@@ -9,25 +9,41 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
+  LineAuthDto,
   MiniPaySiweDto,
+  RequestOtpDto,
   SignInAiDto,
   SignInDto,
   SignInFirebaseDto,
   TelegramAuthDto,
+  VerifyOtpDto,
 } from './dto/auth.dto';
 import { CrossmintAuthGuard } from './jwt-auth.guard';
 import { Request } from 'express';
 import { FirebaseAuthGuard } from './firebase-auth.guard';
 import { OtpService } from './otp.service';
-import { SendOtpDto, VerifyOtpDto } from './dto/otp.dto';
+// VerifyOtpDto exists in BOTH auth.dto (email-OTP) and otp.dto (legacy) —
+// alias the legacy one to disambiguate.
+import {
+  SendOtpDto,
+  VerifyOtpDto as LegacyVerifyOtpDto,
+} from './dto/otp.dto';
 import { RateLimitGuard } from './rate-limit.guard';
 import { RateLimit } from './rate-limit.decorator';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
+import { EmailService } from '../email/email.service';
+import { AnalyticsService } from 'src/analytics/analytics.service';
+import { extractAnalyticsContext } from 'src/analytics/analytics-context';
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService, private readonly otpService: OtpService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly otpService: OtpService,
+    private readonly emailService: EmailService,
+    private readonly analytics: AnalyticsService,
+  ) {}
 
   @Post('sign-in')
   @UseGuards(CrossmintAuthGuard)
@@ -48,9 +64,41 @@ export class AuthController {
   @ApiResponse({ status: 201, description: 'User login successfully' })
   async loginFirebase(@Req() req: Request, @Body() body: SignInFirebaseDto) {
     const authHeader = req.headers.authorization ?? "";
-    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-    // The guard has already validated the token and added the user payload to the request
+    // Prefer token from Authorization header, fallback to body.token for compatibility
+    const token = authHeader.startsWith("Bearer ")
+      ? authHeader.slice(7)
+      : body.token || null;
+
+    if (!token) {
+      throw new UnauthorizedException('Firebase token is required in Authorization header or body');
+    }
+
+    // Sign in the user
     const user = await this.auth.signInFirebase(token, body);
+
+    // Track login event
+    if (user.user?._id) {
+      const analyticsCtx = extractAnalyticsContext(req, {
+        userId: user.user._id.toString(),
+        region: body.country,
+      });
+
+      void this.analytics.capture(
+        'user_login',
+        analyticsCtx,
+        {
+          method: 'firebase',
+          provider: user.user.provider || 'unknown',
+          is_new_user: user.is_new_user || false,
+          pathname: body.pathname,
+          $set: {
+            email: user.user.email,
+            username: user.user.username,
+          },
+        },
+      );
+    }
+
     return { message: 'Login successful!', ...user };
   }
 
@@ -59,13 +107,45 @@ export class AuthController {
   @UseGuards(RateLimitGuard)
   @RateLimit({ windowMs: 60_000, max: 10 })
   @ApiBody({ type: SignInFirebaseDto })
-  @ApiResponse({ status: 201, description: 'User login successfully' })
+  @ApiResponse({ status: 201, description: 'User registered successfully' })
   async register(@Req() req: Request, @Body() body: SignInFirebaseDto) {
     const authHeader = req.headers.authorization ?? "";
-    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-    // The guard has already validated the token and added the user payload to the request
+    // Prefer token from Authorization header, fallback to body.token for compatibility
+    const token = authHeader.startsWith("Bearer ")
+      ? authHeader.slice(7)
+      : body.token || null;
+
+    if (!token) {
+      throw new UnauthorizedException('Firebase token is required in Authorization header or body');
+    }
+
+    // Register/sign in the user
     const user = await this.auth.signInFirebase(token, body);
-    return { message: 'Login successful!', ...user };
+
+    // Track registration event
+    if (user.user?._id) {
+      const analyticsCtx = extractAnalyticsContext(req, {
+        userId: user.user._id.toString(),
+        region: body.country,
+      });
+
+      void this.analytics.capture(
+        'user_registered',
+        analyticsCtx,
+        {
+          method: 'firebase',
+          provider: user.user.provider || 'unknown',
+          pathname: body.pathname,
+          referral_id: body.referral_id,
+          $set: {
+            email: user.user.email,
+            username: user.user.username,
+          },
+        },
+      );
+    }
+
+    return { message: 'Registration successful!', ...user };
   }
 
   /**
@@ -153,6 +233,83 @@ export class AuthController {
     return { exists: Boolean(user) };
   }
 
+  @Post('line-login')
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ windowMs: 60_000, max: 10 })
+  @ApiBody({ type: LineAuthDto })
+  @ApiResponse({ status: 201, description: 'LINE user login successfully' })
+  async loginLine(@Req() req: Request, @Body() body: LineAuthDto) {
+    // Extract LINE access token from Authorization header for verification
+    const authHeader = req.headers.authorization ?? '';
+    const accessToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
+
+    // Extract temporary OTP token from custom header (set after email OTP verification)
+    const tempToken = req.headers['x-otp-token'] as string | undefined;
+
+    const result = await this.auth.signInLine(body, accessToken, tempToken);
+    return { message: 'Login successful!', ...result };
+  }
+
+  @Get('check-account-line/:id')
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ windowMs: 60_000, max: 20 })
+  @ApiResponse({ status: 200, description: 'Check if LINE account exists' })
+  async checkAccountLine(@Req() req: Request) {
+    const id = req.params.id;
+    const user = await this.auth.getProfileByLineId(id?.toString());
+    // SECURITY: Only return existence status and minimal data needed for login flow
+    // Do not expose full user object to prevent data leakage
+    return {
+      exists: !!user,
+      // Only return email hint if account exists (for UX - show which account to use)
+      user: user ? {
+        hasEmail: !!user.email && user.email !== '' && user.email !== 'undefined',
+      } : null,
+    };
+  }
+
+  @Post('email/request-otp')
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ windowMs: 60_000, max: 5 })
+  @ApiBody({ type: RequestOtpDto })
+  @ApiResponse({ status: 201, description: 'OTP sent to email successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid email or rate limit exceeded' })
+  async requestOtp(@Body() body: RequestOtpDto) {
+    // Generate and send OTP via email
+    const otp = await this.otpService.createOtp(body.email);
+    await this.emailService.sendOtp(body.email, otp);
+
+    // SECURITY: Don't leak whether email exists in database
+    return {
+      message: 'If the email is valid, an OTP code has been sent.',
+    };
+  }
+
+  @Post('email/verify-otp')
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ windowMs: 60_000, max: 10 })
+  @ApiBody({ type: VerifyOtpDto })
+  @ApiResponse({ status: 200, description: 'OTP verified, temporary token issued' })
+  @ApiResponse({ status: 401, description: 'Invalid or expired OTP' })
+  async verifyOtp(@Body() body: VerifyOtpDto) {
+    // STEP 1: Verify OTP code (business logic in OtpService)
+    const isValid = await this.otpService.verifyOtp(body.email, body.otp);
+
+    if (!isValid) {
+      throw new UnauthorizedException('Invalid or expired OTP code');
+    }
+
+    // STEP 2: Generate temporary token (5 minutes) for registration
+    // No auto-login — frontend uses this token with /line-login to complete signup
+    const tempToken = await this.auth.generateTempToken(body.email);
+
+    return {
+      verified: true,
+      message: 'Email verified successfully',
+      temp_token: tempToken,
+    };
+  }
+
   // @Post('sign-out')
   // @ApiResponse({
   //   status: 200,
@@ -185,7 +342,8 @@ export class AuthController {
   //   return cookies[key] || null;
   // }
 
-  // Send-OTP: limited to discourage email-bombing the same address.
+  // Legacy email-OTP (UserOtp subsystem). Send-OTP: limited to discourage
+  // email-bombing the same address.
   @Post('send-otp')
   @UseGuards(RateLimitGuard)
   @RateLimit({ windowMs: 60_000, max: 5 })
@@ -200,8 +358,8 @@ export class AuthController {
   @Post('verify-otp')
   @UseGuards(RateLimitGuard)
   @RateLimit({ windowMs: 60_000, max: 10 })
-  @ApiBody({ type: VerifyOtpDto })
-  async verifyOtp(@Body('email') email: string, @Body('otp') otp: string) {
+  @ApiBody({ type: LegacyVerifyOtpDto })
+  async verifyLegacyOtp(@Body('email') email: string, @Body('otp') otp: string) {
     return this.otpService.verifyOtpAndCreateToken(email, otp);
   }
 }

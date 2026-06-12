@@ -1,10 +1,15 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import * as https from 'https';
 // Crossmint deprecated — auth now flows via Firebase + SIWE only.
 import { UserService } from 'src/user/user.service';
 import {
+  LineAuthDto,
   MiniPaySiweDto,
   SignInDto,
   SignInFirebaseDto,
@@ -44,7 +49,7 @@ export class AuthService {
     this.baseUrl = this.config.get<string>('env.CROSSMINT_BASE_URL') ?? '';
     this.projectId = this.config.get<string>('env.CROSSMINT_PROJECT_ID') ?? '';
     this.secret = this.config.get<string>('env.CROSSMINT_SECRET') ?? '';
-    this.httpsAgent = new https.Agent({ rejectUnauthorized: false });
+    this.httpsAgent = new https.Agent({ rejectUnauthorized: true });
     // Crossmint SDK removed; signIn() path will throw if invoked.
     this.crossmint = null;
     this.crossmintAuth = null;
@@ -141,14 +146,22 @@ export class AuthService {
           email: data.email,
         });
       }
+      if (!userExist && data.phone_number) {
+        userExist = await this.userService.findOne({
+          mobile: data.phone_number,
+        });
+      }
 
       if (userExist) {
         const user = await this.userService.update(userExist._id, {
-          email: data.email,
-          username: data?.twitter
-            ? data.twitter.username
-            : data?.name || data?.email?.split('@')[0],
-          id_twitter: data?.twitter ? data.twitter.id : '',
+          email: userExist?.email || data.email,
+          username: userExist?.username
+            ? userExist?.username
+            : data?.twitter
+              ? data.twitter.username
+              : data?.name || data?.email?.split('@')[0],
+          id_twitter:
+            userExist?.id_twitter || (data?.twitter ? data.twitter.id : ''),
           address:
             payload?.address && payload?.address !== 'undefined'
               ? payload?.address
@@ -192,6 +205,7 @@ export class AuthService {
         id_twitter: data?.twitter ? data.twitter?.id : '',
         id_firebase: data.uid,
         country: toIso2Server(payload?.country),
+        mobile: data?.phone_number ? data.phone_number : '',
         provider: data?.firebase?.sign_in_provider,
       });
       if (payload?.referral_id && payload.referral_id !== 'undefined') {
@@ -438,6 +452,13 @@ export class AuthService {
     }
   }
 
+  async getProfileByLineId(lineId: string) {
+    const res = await this.userService.findOne({
+      id_line: lineId,
+    });
+    return res;
+  }
+
   async getProfileByTelegramId(telegramId: string) {
     const res = await this.userService.findOne({
       id_telegram: telegramId,
@@ -650,5 +671,277 @@ export class AuthService {
       is_new_user: isNewUser,
       auth_flow: (isNewUser ? 'register' : 'login') as 'register' | 'login',
     };
+  }
+
+  async generateTempToken(email: string): Promise<string> {
+    const payload = {
+      email: email,
+      type: 'otp_verified',
+    };
+
+    const token = this.jwtService.sign(payload, {
+      secret: this.config.get<string>('env.JWT_SECRET'),
+      expiresIn: '5m',
+    });
+
+    return token;
+  }
+
+  /**
+   * Verify temporary token (used by /line-login)
+   * Returns the email from the token payload
+   */
+  async verifyTempToken(token: string): Promise<{ email: string }> {
+    try {
+      const decoded = this.jwtService.verify(token, {
+        secret: this.config.get<string>('env.JWT_SECRET'),
+      });
+
+      if (decoded.type !== 'otp_verified') {
+        throw new Error('Invalid token type');
+      }
+
+      return { email: decoded.email };
+    } catch (_error: any) {
+      throw new UnauthorizedException('Invalid or expired temporary token');
+    }
+  }
+
+  /**
+   * Sign in with LINE credentials from LIFF
+   * This method handles LINE Mini App authentication
+   * @param payload - LINE auth data (id_line, email, username, etc.)
+   * @param accessToken - Optional LINE access token for verification
+   * @param tempToken - Optional temporary OTP token (required when email is provided)
+   */
+  async signInLine(
+    payload: LineAuthDto,
+    accessToken?: string,
+    tempToken?: string,
+  ) {
+    try {
+      // STEP 0: Verify LINE access token and user identity
+      // CRITICAL: Must verify token belongs to the claimed user ID
+      if (accessToken) {
+        try {
+          // First, verify the token is valid
+          await this.verifyLineAccessToken(accessToken);
+
+          // CRITICAL: Verify the token belongs to the claimed LINE user ID
+          // This prevents attackers from using their valid token with someone else's LINE ID
+          const lineProfile = await this.getLineProfile(accessToken);
+          if (lineProfile.userId !== payload.id_line) {
+            throw new Error(
+              'LINE User ID mismatch - token does not belong to claimed user',
+            );
+          }
+        } catch (verifyError: any) {
+          throw new Error(verifyError?.message || 'Invalid LINE access token');
+        }
+      } else {
+        throw new Error('LINE access token is required for authentication');
+      }
+
+      // STEP 1: Verify temporary OTP token if email is provided
+      // This ensures the user has completed OTP verification before linking email
+      if (payload.email) {
+        if (!tempToken) {
+          throw new BadRequestException(
+            'Email verification token required. Please complete OTP verification first.',
+          );
+        }
+
+        try {
+          const tokenData = await this.verifyTempToken(tempToken);
+
+          // Verify email in payload matches the verified email in token
+          if (tokenData.email !== payload.email) {
+            throw new BadRequestException(
+              'Email mismatch in verification token',
+            );
+          }
+        } catch (error) {
+          if (error instanceof BadRequestException) {
+            throw error;
+          }
+          throw new BadRequestException(
+            'Invalid or expired email verification. Please verify OTP again.',
+          );
+        }
+      }
+
+      // Find existing user by LINE User ID
+      let userExist = await this.userService.findOne({
+        id_line: payload.id_line,
+      });
+
+      // If not found by LINE ID, try to find by email (for account linking)
+      // This allows users to link their LINE account to an existing email account
+      // SECURITY: Token verification above ensures the LINE user is legitimate
+      if (!userExist && payload.email) {
+        userExist = await this.userService.findOne({
+          email: payload.email,
+        });
+      }
+
+      if (userExist) {
+        // Update existing user - link LINE ID to account if not already linked
+        const user = await this.userService.update(userExist._id, {
+          username: userExist.username || payload.username,
+          id_line: payload.id_line, // Link LINE ID to account
+          provider: userExist.provider || 'line',
+          email_verified: payload.email ? true : userExist.email_verified,
+        });
+
+        if (user?.disabled) {
+          throw new Error('Your account has been disabled');
+        }
+
+        const jwtToken = await this.generateToken({
+          userId: user._id.toString(),
+          firebaseId: user.id_firebase || `line_${payload.id_line}`,
+        });
+
+        return { user, token: jwtToken };
+      }
+
+      // Create new user - frontend enforces email requirement
+      const user = await this.userService.createFromFirebase({
+        email: payload.email,
+        username: payload.username || 'LINE User',
+        id_line: payload.id_line,
+        id_firebase: `line_${payload.id_line}`,
+        country: payload.country || 'TH',
+        provider: 'line',
+        address: '',
+        id_crossmint: '',
+        id_twitter: '',
+        email_verified: !!payload.email,
+      });
+
+      // Handle referral
+      if (payload?.referral_id && payload.referral_id !== 'undefined') {
+        const refData = await this.userService.findOne({
+          _id: new Types.ObjectId(payload.referral_id),
+        });
+        if (
+          refData &&
+          user._id?.toString() !== payload.referral_id?.toString()
+        ) {
+          await this.updatePoint({
+            user_id: user._id.toString(),
+            referral_id: payload.referral_id,
+          });
+        }
+      }
+
+      if (user?.disabled) {
+        throw new Error('Your account has been disabled');
+      }
+
+      const jwtToken = await this.generateToken({
+        userId: user._id.toString(),
+        firebaseId: user.id_firebase || `line_${payload.id_line}`,
+      });
+
+      return { user, token: jwtToken };
+    } catch (error) {
+      throw new Error(error?.message || 'LINE login failed');
+    }
+  }
+
+  /**
+   * Verify LINE access token with LINE API
+   * Returns: { scope, client_id, expires_in }
+   */
+  private async verifyLineAccessToken(accessToken: string) {
+    try {
+      const response = await axios.get(
+        'https://api.line.me/oauth2/v2.1/verify',
+        {
+          params: { access_token: accessToken },
+        },
+      );
+      return response.data;
+    } catch (error) {
+      throw new Error('Invalid LINE access token');
+    }
+  }
+
+  /**
+   * Get LINE user profile using access token
+   * CRITICAL: Used to verify the token belongs to the claimed user ID
+   * Returns: { userId, displayName, pictureUrl?, statusMessage? }
+   */
+  private async getLineProfile(accessToken: string) {
+    try {
+      const response = await axios.get('https://api.line.me/v2/profile', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error('Failed to verify LINE user identity');
+    }
+  }
+
+  /**
+   * Sign in with Email OTP verification
+   * This method handles email-based authentication after OTP verification
+   * @param email - User's verified email address
+   * @returns Object with user and JWT access token
+   */
+  async signInWithEmailOtp(
+    email: string,
+  ): Promise<{ user: any; token: string }> {
+    try {
+      // Find existing user by email
+      const userExist = await this.userService.findOne({
+        email: email,
+      });
+
+      if (userExist) {
+        // Update existing user - mark email as verified
+        const user = await this.userService.update(userExist._id, {
+          email_verified: true,
+          provider: userExist.provider || 'email',
+        });
+
+        if (user?.disabled) {
+          throw new Error('Your account has been disabled');
+        }
+
+        const accessToken = await this.generateToken({
+          userId: user._id.toString(),
+          firebaseId: user.id_firebase || `email_${email}`,
+        });
+
+        return { user, token: accessToken };
+      }
+
+      // Create new user - email already verified via OTP
+      const user = await this.userService.createFromFirebase({
+        email: email,
+        username: email.split('@')[0], // Use email prefix as username
+        id_firebase: `email_${email}`, // Generate unique firebase ID
+        country: '',
+        provider: 'email',
+        address: '',
+        id_crossmint: '',
+        id_twitter: '',
+      });
+
+      if (user?.disabled) {
+        throw new Error('Your account has been disabled');
+      }
+
+      const accessToken = await this.generateToken({
+        userId: user._id.toString(),
+        firebaseId: user.id_firebase || `email_${email}`,
+      });
+
+      return { user, token: accessToken };
+    } catch (error) {
+      throw new Error(error?.message || 'Email OTP login failed');
+    }
   }
 }
