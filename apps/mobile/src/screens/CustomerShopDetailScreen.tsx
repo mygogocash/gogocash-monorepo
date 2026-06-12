@@ -28,6 +28,8 @@ import questBannerImage from "../../assets/quest-banner-en.png";
 import walletNoDataImage from "../../assets/wallet-no-data.png";
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
+import { mapMerchantOfferToShopDetail } from "@mobile/api/merchantMapper";
+import { isMerchantOfferResponse } from "@mobile/api/merchantTypes";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
 import { MotionPressable } from "@mobile/components/MotionPressable";
@@ -52,7 +54,14 @@ const questBannerAssets = {
   "quest-banner-en": questBannerImage,
 } as const;
 
-type ShopDetail = typeof webShopDetailGroceryGalaxy;
+// Identity fields widen to string so the live-mapped merchant (real ids and
+// rates from the backend) satisfies the same view-model as the fixture.
+type ShopDetail = Omit<typeof webShopDetailGroceryGalaxy, "brand" | "cashback" | "category" | "id"> & {
+  brand: string;
+  cashback: string;
+  category: string;
+  id: string;
+};
 type TrackingStep = ShopDetail["trackingPeriod"][number];
 
 export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
@@ -63,13 +72,18 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
   const homeLayout = getResponsiveHomeLayoutMetrics(width);
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
   const showBottomNav = !isDesktop;
-  const shop = webShopDetailGroceryGalaxy;
+  const fixtureShop = webShopDetailGroceryGalaxy;
   const [redirecting, setRedirecting] = useState(false);
   const merchantResource = useCustomerAccountResource({
-    fixtureData: shop,
-    merchantId: shopId ?? shop.id,
+    fixtureData: fixtureShop,
+    merchantId: shopId ?? fixtureShop.id,
     resourceId: "merchant",
   });
+  // Live merchant identity (name/category/cashback) overlays the fixture's
+  // static product copy; fixtures mode rejects the guard and stays unchanged.
+  const shop = isMerchantOfferResponse(merchantResource.data)
+    ? mapMerchantOfferToShopDetail(merchantResource.data, fixtureShop)
+    : fixtureShop;
 
   // Share the merchant referral link, then confirm with a transient toast + success haptic.
   // Reuses the existing translated "Copied to clipboard" string (tc reverse-looks it up to
