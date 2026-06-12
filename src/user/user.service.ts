@@ -84,6 +84,12 @@ export class UserService {
   }
   async update(id: Types.ObjectId, updateUserDto: UpdateUserDto) {
     // delete updateUserDto.mobile; // prevent updating mobile directly;
+    // Order matters: unwrap the legacy { data: {...} } envelope FIRST, THEN
+    // canonicalise country — otherwise a wrapped payload writes raw 'Thailand'
+    // into the ISO-2 migrated collection.
+    if (updateUserDto && 'data' in updateUserDto && updateUserDto.data) {
+      updateUserDto = updateUserDto.data;
+    }
     return this.userModel.findByIdAndUpdate(
       id,
       withCanonicalCountry(updateUserDto),

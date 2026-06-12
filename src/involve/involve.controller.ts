@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { InvolveService } from './involve.service';
 import {
-  ConversionData,
+  // ConversionData,
   CreateAffiliateAiDto,
   CreateAffiliateDto,
   RequestGetConversion,
@@ -78,8 +78,9 @@ export class InvolveController {
       userId: id,
     });
 
-    return this.involveService.createAffiliate(createInvolveDto, id).then(
-      async (deeplink) => {
+    return this.involveService
+      .createAffiliate(createInvolveDto, id)
+      .then(async (deeplink) => {
         await this.analytics.capture(
           'affiliate_deeplink_generated',
           analyticsContext,
@@ -91,8 +92,7 @@ export class InvolveController {
         );
 
         return deeplink;
-      },
-    );
+      });
   }
 
   @Post('create-affiliate-ai/:email')
@@ -125,9 +125,12 @@ export class InvolveController {
   @ApiBearerAuth() // This directly applies Bearer authentication
   @ApiResponse({ status: 201, description: 'User login successfully' })
   @Post('conversion-all')
-  async getConversionAll(@Body() body: ConversionData, @Req() req: Request) {
+  async getConversionAll(
+    @Body() body: RequestGetConversion,
+    @Req() req: Request,
+  ) {
     const user = req['user'] as any;
     const id = user?.sub;
-    return this.involveService.getConversationAllPage(body.data, id);
+    return this.involveService.getConversationAllPage(body, id);
   }
 }

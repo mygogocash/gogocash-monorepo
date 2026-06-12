@@ -201,6 +201,10 @@ export class AdminService {
     key?: string,
     status?: string,
   ) {
+    const fee = await this.feeRateModel.findOne().exec();
+    if (!fee) {
+      throw new HttpException({ message: 'Fee rate not found' }, 400);
+    }
     const filter = {};
     if (search && key) {
       if (key === 'conversion_id') {
@@ -235,13 +239,107 @@ export class AdminService {
     }
 
     const skip = (page - 1) * limit;
+
+    const allConversions = await this.conversionModel
+      .aggregate([
+        {
+          $match: filter,
+        },
+        {
+          $lookup: {
+            from: 'offers',
+            localField: 'offer_id',
+            foreignField: 'offer_id',
+            as: 'offer',
+          },
+        },
+        { $unwind: { path: '$offer', preserveNullAndEmptyArrays: true } },
+        {
+          $addFields: {
+            max_cap: { $ifNull: ['$offer.max_cap', fee.max_cap] },
+          },
+        },
+        {
+          $addFields: {
+            payoutNew: {
+              $cond: [
+                { $eq: ['$offer_name', 'reward_conversion_quest'] },
+                '$payout',
+                {
+                  $let: {
+                    vars: {
+                      payoutAfterFee: {
+                        $subtract: [
+                          '$payout',
+                          {
+                            $divide: [
+                              { $multiply: ['$payout', fee.system] },
+                              100,
+                            ],
+                          },
+                        ],
+                      },
+                    },
+                    in: {
+                      $cond: [
+                        { $gt: ['$$payoutAfterFee', '$max_cap'] },
+                        '$max_cap',
+                        '$$payoutAfterFee',
+                      ],
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        },
+        {
+          $project: {
+            conversion_id: 1,
+            adv_sub1: 1,
+            adv_sub2: 1,
+            adv_sub3: 1,
+            adv_sub4: 1,
+            adv_sub5: 1,
+            aff_sub1: 1,
+            aff_sub2: 1,
+            aff_sub3: 1,
+            aff_sub4: 1,
+            aff_sub5: 1,
+            affiliate_remarks: 1,
+            base_payout: 1,
+            bonus_payout: 1,
+            conversion_status: 1,
+            currency: 1,
+            datetime_conversion: 1,
+            merchant_id: 1,
+            offer_id: 1,
+            offer_name: 1,
+            payout: 1,
+            sale_amount: 1,
+            add_point: 1,
+            payoutNew: 1,
+            _id: 1,
+          },
+        },
+        // Sort BEFORE paginating — otherwise each page is sorted internally
+        // but pages come back in natural insertion order (global newest-first
+        // ordering regressed).
+        {
+          $sort: { datetime_conversion: -1 },
+        },
+        { $skip: skip },
+        { $limit: limit },
+      ])
+      .exec();
     const [data, total] = await Promise.all([
-      this.conversionModel
-        .find(filter)
-        .skip(skip)
-        .limit(limit)
-        .sort({ datetime_conversion: -1 })
-        .exec(),
+      // this.conversionModel
+      //   .find(filter)
+      //   .skip(skip)
+      //   .limit(limit)
+      //   .sort({ datetime_conversion: -1 })
+      //   .exec(),
+      allConversions,
       this.conversionModel.countDocuments(filter).exec(),
     ]);
 
@@ -380,7 +478,10 @@ export class AdminService {
             updateData.commission_store ?? offer.commission_store ?? 0,
           max_cap: updateData.max_cap ?? offer.max_cap ?? 0,
           extra_store: Boolean(updateData.extra_store ?? offer.extra_store),
-          product_type: typeof updateData.product_type === 'string' ? JSON.parse(updateData.product_type) : updateData.product_type,
+          product_type:
+            typeof updateData.product_type === 'string'
+              ? JSON.parse(updateData.product_type)
+              : updateData.product_type,
         },
         { new: true },
       )
@@ -520,7 +621,7 @@ export class AdminService {
   }
 
   async updateConversionDataByConversionId(id: string) {
-    return this.jobService.syncConversion(id);
+    return this.jobService.syncConversionByConversionId(id);
   }
 
   async getDeepLinkList() {

@@ -1,5 +1,5 @@
 /* eslint-disable prettier/prettier */
-import { Inject, Injectable } from '@nestjs/common';
+import { HttpException, Inject, Injectable } from '@nestjs/common';
 import {
   CreateAffiliateAiDto,
   CreateAffiliateDto,
@@ -85,6 +85,7 @@ export class InvolveService {
           offer_id: Number(createInvolveDto.offer_id),
           merchant_id: Number(createInvolveDto.merchant_id),
           user_id: new Types.ObjectId(user._id), // user._id,
+          // deeplink: deep.data.tracking_link as string,
         },
         {
           $push: { click_date: new Date() },
@@ -187,12 +188,13 @@ export class InvolveService {
         page: pageFilter?.page || 1,
         limit: pageFilter?.limit || 100,
       };
-      filter['application_status'] = 'Approved'; //Approved|Blocked|Pending|Rejected
-      filter['offer_status'] = 'Active'; //Active|Paused
-
+      const filters = {};
+      filters['application_status'] = 'Approved'; //Approved|Blocked|Pending|Rejected
+      filters['offer_status'] = 'Active'; //Active|Paused
+      filters['offer_type'] = 'cps'; //cps|cpa|cpc
       const res = await axios.post(
         `${this.endpoint}/offers/all`,
-        { page: filter.page, limit: filter.limit, filter },
+        { page: filter.page, limit: filter.limit, filter: filters },
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -424,7 +426,7 @@ export class InvolveService {
       );
       if (error.response?.data?.status_code === 401) {
         await this.signIn();
-        return this.getConversionAll(payload);
+        return this.getConversionRange(payload, range, filters);
       }
       throw new Error(error.message || 'Failed to get conversion');
     }
@@ -534,38 +536,164 @@ export class InvolveService {
     //   allConversions = allConversions.concat(nextConversions.data.data);
     //   conversions.data.nextPage = nextConversions.data.nextPage;
     // }
-
+    // old version
+    if (payload && 'data' in payload && payload.data) {
+      payload = payload.data as RequestGetConversion;
+    }
     const user = await this.userModel.findOne({ _id: new Types.ObjectId(id) });
     if (!user) {
       throw new Error('User not found');
     }
-    const allConversions = await this.conversionModel
-      .find({
-        aff_sub1: { $regex: `user_id:${id}` },
-      })
-      .sort({ datetime_conversion: -1 })
-      .lean();
     const fee = await this.feeRateModel.findOne().exec();
-
-    const conversationByUser = [];
-    for (const conversion of allConversions) {
-      const payout =
-        conversion.offer_name === 'reward_conversion_quest'
-          ? conversion.payout
-          : conversion.payout >= fee.max_cap
-            ? fee.max_cap
-            : conversion.payout;
-      // @TODO ลบ feePercent ออก 30%
-      conversationByUser.push({ ...conversion, payout: payout });
+    if (!fee) {
+      throw new HttpException({ message: 'Fee rate not found' }, 400);
     }
-    const totalUSDApproved = await conversationByUser
+    // const allConversions = await this.conversionModel
+    //   .find({
+    //     aff_sub1: { $regex: `user_id:${id}` },
+    //   })
+    //   .sort({ datetime_conversion: -1 })
+    //   .lean();
+    const allConversions = await this.conversionModel
+      .aggregate([
+        {
+          $match: {
+            aff_sub1: { $regex: `user_id:${user._id.toString()}` },
+          },
+        },
+        {
+          // Source-constrained lookup: offer_id is only unique WITHIN a source
+          // (Involve vs Optimise can share a numeric offer_id). A naive
+          // localField/foreignField join would match both and $unwind would
+          // double-count the conversion's payout. Match on source + offer_id
+          // and take the single Involve offer.
+          $lookup: {
+            from: 'offers',
+            let: { oid: '$offer_id' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ['$source', 'involve'] },
+                      { $eq: ['$offer_id', '$$oid'] },
+                    ],
+                  },
+                },
+              },
+              { $limit: 1 },
+            ],
+            as: 'offer',
+          },
+        },
+        { $unwind: { path: '$offer', preserveNullAndEmptyArrays: true } },
+        {
+          $addFields: {
+            max_cap: { $ifNull: ['$offer.max_cap', fee.max_cap] },
+          },
+        },
+        {
+          $addFields: {
+            payoutNew: {
+              $cond: [
+                { $eq: ['$offer_name', 'reward_conversion_quest'] },
+                '$payout',
+                {
+                  $let: {
+                    vars: {
+                      payoutAfterFee: {
+                        $subtract: [
+                          '$payout',
+                          {
+                            $divide: [
+                              { $multiply: ['$payout', fee.system] },
+                              100,
+                            ],
+                          },
+                        ],
+                      },
+                    },
+                    in: {
+                      $cond: [
+                        { $gt: ['$$payoutAfterFee', '$max_cap'] },
+                        '$max_cap',
+                        '$$payoutAfterFee',
+                      ],
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        },
+        {
+          $project: {
+            conversion_id: 1,
+            adv_sub1: 1,
+            adv_sub2: 1,
+            adv_sub3: 1,
+            adv_sub4: 1,
+            adv_sub5: 1,
+            aff_sub1: 1,
+            aff_sub2: 1,
+            aff_sub3: 1,
+            aff_sub4: 1,
+            aff_sub5: 1,
+            affiliate_remarks: 1,
+            base_payout: 1,
+            bonus_payout: 1,
+            conversion_status: 1,
+            currency: 1,
+            datetime_conversion: 1,
+            merchant_id: 1,
+            offer_id: 1,
+            offer_name: 1,
+            payout: 1,
+            sale_amount: 1,
+            add_point: 1,
+            payoutNew: 1,
+            _id: 1,
+          },
+        },
+        // {
+        //   $group: {
+        //     _id: {
+        //       merchant_id: '$merchant_id',
+        //       offer_name: '$offer.offer_name',
+        //     },
+        //     count: { $sum: 1 },
+        //     totalPayout: { $sum: '$payoutNew' },
+        //   },
+        // },
+        {
+          $sort: { datetime_conversion: -1 },
+        },
+      ])
+      .exec();
+    // const fee = await this.feeRateModel.findOne().exec();
+
+    // const conversationByUser = [];
+    // for (const conversion of allConversions) {
+    //   // const payout =
+    //   //   conversion.offer_name === 'reward_conversion_quest'
+    //   //     ? conversion.payout
+    //   //     : conversion.payout >= fee.max_cap
+    //   //       ? fee.max_cap
+    //   //       : conversion.payout;
+    //   // @TODO ลบ feePercent ออก 30%
+
+    //   const payout = conversion.payoutNew || 0;
+    //   conversationByUser.push({ ...conversion, payout: payout });
+    // }
+    const totalUSDApproved = await allConversions
       ?.filter((ele) => ele.conversion_status === 'approved')
       ?.reduce(async (accPromise, item) => {
         const acc = await accPromise;
-        const payout =
-          Number(item.payout || 0) >= fee.max_cap
-            ? Number(fee.max_cap)
-            : Number(item.payout || 0);
+        // const payout =
+        //   Number(item.payout || 0) >= fee.max_cap
+        //     ? Number(fee.max_cap)
+        //     : Number(item.payout || 0);
+        const payout = item.payoutNew || 0;
         if (item.currency === 'USD') {
           return acc + payout;
         } else {
@@ -581,14 +709,15 @@ export class InvolveService {
         }
       }, 0);
 
-    const totalUSDPending = await conversationByUser
+    const totalUSDPending = await allConversions
       ?.filter((ele) => ele.conversion_status === 'pending')
       .reduce(async (accPromise, item) => {
         const acc = await accPromise;
-        const payout =
-          Number(item.payout || 0) >= fee.max_cap
-            ? Number(fee.max_cap)
-            : Number(item.payout || 0);
+        // const payout =
+        //   Number(item.payout || 0) >= fee.max_cap
+        //     ? Number(fee.max_cap)
+        //     : Number(item.payout || 0);
+        const payout = item.payoutNew || 0;
         if (item.currency === 'USD') {
           return acc + payout;
         } else {
@@ -604,14 +733,15 @@ export class InvolveService {
         }
       }, 0);
 
-    const totalTHBPending = await conversationByUser
+    const totalTHBPending = await allConversions
       ?.filter((ele) => ele.conversion_status === 'pending')
       .reduce(async (accPromise, item) => {
         const acc = await accPromise;
-        const payout =
-          Number(item.payout || 0) >= fee.max_cap
-            ? Number(fee.max_cap)
-            : Number(item.payout || 0);
+        // const payout =
+        //   Number(item.payout || 0) >= fee.max_cap
+        //     ? Number(fee.max_cap)
+        //     : Number(item.payout || 0);
+        const payout = item.payoutNew || 0;
         if (item.currency === 'THB') {
           return acc + payout;
         } else {
@@ -627,14 +757,11 @@ export class InvolveService {
         }
       }, 0);
 
-    const totalTHBApproved = await conversationByUser
+    const totalTHBApproved = await allConversions
       ?.filter((ele) => ele.conversion_status === 'approved')
       .reduce(async (accPromise, item) => {
         const acc = await accPromise;
-        const payout =
-          Number(item.payout || 0) >= fee.max_cap
-            ? Number(fee.max_cap)
-            : Number(item.payout || 0);
+        const payout = item.payoutNew || 0;
         if (item.currency === 'THB') {
           return acc + payout;
         } else {
@@ -651,15 +778,15 @@ export class InvolveService {
       }, 0);
 
     return {
-      data: conversationByUser,
+      data: allConversions,
       totalUSD: { pending: totalUSDPending, approved: totalUSDApproved },
       totalTHB: { pending: totalTHBPending, approved: totalTHBApproved },
       pagination: {
-        total: conversationByUser.length,
-        limit: payload.limit || 10,
-        page: payload.page || 1,
+        total: allConversions.length,
+        limit: payload?.limit || 10,
+        page: payload?.page || 1,
         totalPages: Math.ceil(
-          conversationByUser.length / Number(payload.limit || 10),
+          allConversions.length / Number(payload?.limit || 10),
         ),
       },
     };
