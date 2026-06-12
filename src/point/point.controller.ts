@@ -165,6 +165,10 @@ export class PointController {
     return this.pointService.getQuestAll();
   }
 
+  // Admin/internal round aggregation — returns user PII (email, aff_sub*);
+  // must not be reachable unauthenticated.
+  @UseGuards(AuthAdminGuard)
+  @ApiBearerAuth()
   @Get('get-quest-all/:startDate/:endDate')
   getQuestEndToRound(
     @Param('startDate') startDate: string,
@@ -207,6 +211,10 @@ export class PointController {
     return this.pointService.getMyPointSumEveryMonth(id);
   }
 
+  // Admin/internal special-point round calculation — returns user PII
+  // (email); must not be reachable unauthenticated.
+  @UseGuards(AuthAdminGuard)
+  @ApiBearerAuth()
   @Get('get-spacial-point-next-round/:startDate/:endDate')
   getSpacialPointNextRound(
     @Param('startDate') startDate: string,
