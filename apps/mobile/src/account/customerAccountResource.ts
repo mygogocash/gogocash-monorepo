@@ -79,6 +79,32 @@ export function resolveCustomerAccountResourceEndpoint({
   return "/customer-billing/subscription";
 }
 
+export type CustomerAccountResourceRequest = {
+  body?: Record<string, unknown>;
+  method: "GET" | "POST";
+  path: string;
+};
+
+/**
+ * The actual fetch instruction per resource. Most resources are plain GETs of
+ * the endpoint above; offers is a POST contract on the backend
+ * (POST /offer/my-offers { limit, page } — a GET falls through to @Get(':id')
+ * and 500s on the CastError).
+ */
+export function resolveCustomerAccountResourceRequest({
+  merchantId,
+  resourceId,
+}: {
+  merchantId?: string;
+  resourceId: CustomerAccountResourceId;
+}): CustomerAccountResourceRequest {
+  if (resourceId === "offers") {
+    return { body: { limit: 10, page: 1 }, method: "POST", path: "/offer/my-offers" };
+  }
+
+  return { method: "GET", path: resolveCustomerAccountResourceEndpoint({ merchantId, resourceId }) };
+}
+
 export function useCustomerAccountResource<TFixture, TBackend = unknown>({
   enabled = true,
   fixtureData,
@@ -100,7 +126,10 @@ export function useCustomerAccountResource<TFixture, TBackend = unknown>({
         throw new ApiError("No mobile session store is available.", 0, "SESSION_STORE_UNAVAILABLE");
       }
 
-      return client.get<TBackend>(endpoint);
+      const request = resolveCustomerAccountResourceRequest({ merchantId, resourceId });
+      return request.method === "POST"
+        ? client.post<TBackend>(request.path, request.body)
+        : client.get<TBackend>(request.path);
     },
     queryKey: ["customer-account-resource", resourceId, endpoint, env.apiUrl],
     retry: false,

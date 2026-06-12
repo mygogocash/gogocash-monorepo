@@ -4,6 +4,8 @@ import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-na
 
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
+import { mapMyOffersToRows, type MyOfferRow } from "@mobile/api/offersMapper";
+import { isMyOfferList } from "@mobile/api/offersTypes";
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { mobileShellLayout } from "@mobile/design/webDesignParity";
@@ -39,6 +41,11 @@ export function CustomerProfileOffersScreen() {
     fixtureData: myOfferRows,
     resourceId: "offers",
   });
+  // Live activated deeplinks replace the demo rows when the backend list
+  // narrows; fixtures mode renders the screen-local rows byte-identically.
+  const offerRows: readonly MyOfferRow[] = isMyOfferList(offersResource.data)
+    ? mapMyOffersToRows(offersResource.data)
+    : myOfferRows;
 
   // Copy the offer deeplink, then confirm with a transient toast + success haptic.
   // Reuses the existing translated "Copied to clipboard" string (tc reverse-looks it
@@ -95,7 +102,7 @@ export function CustomerProfileOffersScreen() {
               <Text style={[styles.headerCell, styles.offerNameCell]}>offer_name</Text>
               <Text style={[styles.headerCell, styles.createdCell]}>createdAt</Text>
             </View>
-            {myOfferRows.map((row) => (
+            {offerRows.map((row) => (
               <View key={row.id} style={styles.offerRow}>
                 <View style={styles.rowTop}>
                   <Text style={styles.offerId}>{row.offer_id}</Text>
