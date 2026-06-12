@@ -251,7 +251,26 @@ Desktop category navigation:
 
 Mobile does not use this desktop subheader; it uses home shortcut pills.
 
-### 4.3 Mobile Bottom Navigation
+### 4.3 Desktop Footer
+
+Source: `src/components/layouts/Footer.tsx`.
+
+Desktop-only footer:
+
+- Hidden on mobile.
+- White background spans the full viewport, matching the desktop navbar outer width.
+- Inner content remains centered in the desktop shell lane.
+- The GoGoCash brand link uses the same logo mark/text treatment as the navbar.
+- Footer columns include Live on Platform, Products, and Resources.
+- Cloudflare trust mark stays under Products.
+- Copyright, social links, and legal disclaimer remain in the lower footer row.
+
+Implementation rule for Expo Web: if a page renders the footer inside a centered
+desktop content cap, pass the cap's centered viewport offset into the footer so
+the white band breaks out to viewport `x=0` without increasing page
+`scrollWidth`.
+
+### 4.4 Mobile Bottom Navigation
 
 Source: `src/components/layouts/FooterMobile.tsx`.
 
@@ -290,7 +309,7 @@ Behavior:
 - Active state must match current route.
 - Content must reserve bottom clearance so cards are not hidden.
 
-### 4.4 Floating Buttons
+### 4.5 Floating Buttons
 
 Source shell includes `LineOfficialFab` and environment/tooling can add a Next
 marker. Expo should match product-visible buttons:
@@ -300,7 +319,7 @@ marker. Expo should match product-visible buttons:
 - It should preserve safe area on mobile.
 - It should be hidden or repositioned when modal/sheet is open if needed.
 
-### 4.5 Consent Banner
+### 4.6 Consent Banner
 
 Consent components render globally in Next.js. Expo should include:
 

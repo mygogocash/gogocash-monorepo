@@ -1,7 +1,7 @@
 # GoGoCash Web — Backend API Integration (Developer Handoff)
 
 **Audience:** External developer wiring the GoGoCash **Next.js customer web app** to the **production backend API**.
-**Scope:** This document covers the Next.js app at the **repo root** (`src/`, App Router under `src/app/[locale]/...`). It does **not** cover `apps/mobile/` (the separate Expo app).
+**Scope:** This document covers the Next.js app at the **repo root** (`src/`, App Router under `src/app/[locale]/...`). It does **not** cover `apps/mobile/` (the separate Expo app) — for that, see [`apps/mobile/docs/api-integration.md`](../apps/mobile/docs/api-integration.md).
 **Status:** Generated from the actual source. All file paths are relative to the repo root. Env vars and endpoints use their real names. No secret values are printed.
 
 ---
@@ -15,6 +15,8 @@
 - **~40 distinct backend endpoints** across offers, points/quests, user/profile, wallet/withdraw, affiliate, policy, and auth.
 - **Stripe billing is separate:** it does **not** go through `api.gogocash.co`. Checkout/portal/subscription run as Next.js **server actions** talking directly to the Stripe API with `STRIPE_SECRET_KEY` ([`src/features/subscription/actions.ts`](../src/features/subscription/actions.ts)).
 - **One config gotcha to confirm:** `apphosting.yaml` sets `NEXT_PUBLIC_API_BASE_URL`, but the code only reads `NEXT_PUBLIC_API_URL`. See [§7 / Ambiguities](#ambiguities-please-confirm).
+
+> **Live verification (2026-06-10):** probed against the real backends. **Production `https://api.gogocash.co` is live** (NestJS; `GET /offer` and categories are public, the rest 401 without a token; CORS open). **Staging `https://api-staging.gogocash.co` is down** (infra-level 503 on every path). Important: `/auth/send-otp`, `/auth/verify-otp`, and `/auth/siwe-nonce` **return 404 on the real backend** — the phone-OTP and SIWE login flows work only against the in-repo mock adapter; the Firebase token exchange (`POST /auth/log-in`) is the only real auth path.
 
 ---
 

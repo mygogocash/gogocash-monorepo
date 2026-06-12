@@ -9,7 +9,7 @@ gogocash_app-feature-login-firebase/      # this repo (Expo migration target)
 ├── apps/
 │   └── mobile/        # Expo SDK 56 app (RN 0.85, React 19, expo-router, react-native-web)
 │       ├── app/             # expo-router file-based routes (~48 route files)
-│       ├── src/             # 23 dirs — see full map below (re-derive with `ls apps/mobile/src`)
+│       ├── src/             # 26 dirs — see full map below (re-derive with `ls apps/mobile/src`)
 │       └── app.json, eas.json, vitest.config.ts, vitest.render.config.ts
 ├── docs/research/     # audit + research scratch (gitignored)
 └── project.md · context.md · agent.md · design.md
@@ -19,7 +19,7 @@ gogocash_app-feature-login-firebase/      # this repo (Expo migration target)
 ### apps/mobile/src — all 23 dirs (file counts drift; re-derive before trusting)
 ```
 screens/        31  Customer*Screen.tsx, one per route surface
-__tests__/      40  vitest source-string parity + render suites
+__tests__/      90  vitest source-string parity + render suites
 components/      12  shared UI (AccountPageShell, MotionPressable, desktop/nav chrome)
 theme/            5  tokens.ts, icons (phosphor adapter), motion, fonts, categoryIcons
 analytics/        4  events.ts vocab, pageTracking, RouteAnalyticsTracker, useAnalytics (PostHog/Sentry WIRED)
@@ -29,7 +29,7 @@ gogosense/        3  detector.ts is a permanent NO-OP stub (Android native modul
 account/          3  customerAccountResource (useQuery to real endpoints; DORMANT — defaults to fixtures)
 navigation/       3  routes.ts (requiresAuth table), routeParams, conversion matrix
 config/           2  env.ts + mobileAppConfig.ts (appEnv / accountDataSource flags)
-design/           2  webDesignParity.ts source-of-truth fixtures (~2979 lines)
+design/           2  webDesignParity.ts source-of-truth fixtures (~3041 lines)
 features/         2  golink + accountSetup helpers
 lib/              2  clipboard + utils
 types/            2  asset / phosphor type decls
@@ -48,7 +48,11 @@ legal/            1  privacyPolicyMarkdown.ts
 Bring `apps/mobile` to **visual + structural parity** with the frozen Next.js reference, route by route. Genuinely parked (verified absent — no deps): i18n runtime, web3, Stripe. NOT fully parked (deep-verified — foundations shipped, see context.md "BACKLOG TRUTH"): auth (session/guard/callback wired; login form stubbed), live-data (account resource wired but dormant), analytics (PostHog/Sentry wired; page_view + select_promotion events live as of the analytics slices).
 
 ## Status (high level)
-Route coverage complete; visual-parity pass largely done (multi-agent audit had ~50% false positives, so every gap is ground-truthed before fixing). Shipped under strict RED→GREEN TDD: the original visual-parity fixes, Quest History view, the 7 security todos, a render-test harness, and analytics slices 1–3 (vocabulary + page_view + banner select_promotion). A 2026-05-31 deep-verify corrected the backlog framing (several "parked" items were actually shipped-but-dormant) and surfaced hidden pending (GoGoSense no-op detector, fabricated credit-score, dead NativeParityScreen). See **context.md** for the authoritative shipped-vs-remaining list (with the deep-verify truth), **design.md** for the design system, **agent.md** for workflow + environment gotchas. Re-run the commands in agent.md for live counts; do not trust pinned numbers/SHAs here.
+Route coverage complete; visual-parity pass largely done (multi-agent audit had ~50% false positives, so every gap is ground-truthed before fixing). Shipped under strict RED→GREEN TDD: the original visual-parity fixes, Quest History view, the 7 security todos, a render-test harness, and analytics slices 1–3 (vocabulary + page_view + banner select_promotion). A 2026-05-31 deep-verify corrected the backlog framing (several "parked" items were actually shipped-but-dormant) and surfaced hidden pending (GoGoSense no-op detector, fabricated credit-score, dead NativeParityScreen).
+
+Latest local progress (2026-06-06, uncommitted at time of writing): desktop footer/navbar parity was tightened from browser-reported issues. The footer logo now uses the shared navbar logo treatment, the footer outer white band spans the same viewport width as the navbar on `/login` and `/`, and capped desktop pages use a shared shell offset so the footer breaks out from centered content caps without horizontal overflow. Live Browser proof on `http://localhost:19006/login` and `http://localhost:19006/` at `1509x828` measured navbar/footer outer bounds at `x=0 width=1509 right=1509`, with clean console logs; mobile guard checks at `390x844` kept the desktop footer hidden. Local gates passed: source suite `53 files / 407 tests`, render suite `38 files / 238 tests`, and `tsc --noEmit`.
+
+See **context.md** for the authoritative shipped-vs-remaining list (with the deep-verify truth), **design.md** for the design system, **agent.md** for workflow + environment gotchas. Re-run the commands in agent.md for live counts; do not trust pinned numbers/SHAs here.
 
 ## Working commands
 ```

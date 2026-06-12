@@ -13,12 +13,12 @@ Every parity fix: extend a failing test → see it fail for the right reason →
 ## 3. Commands
 ```
 cd apps/mobile
-npx tsc --noEmit                                            # 0 errors
-npx vitest run --config vitest.config.ts                   # source-string suite (baseline 276 pass / 0 todo, 40 files)
-npx vitest run --config vitest.render.config.ts            # render suite (5 pass) — happy-dom, mounts components
+npm run typecheck                                           # 0 errors
+npm run test                                                # source-string suite (latest local: 53 files / 407 tests)
+npm run test:render                                         # render suite (latest local: 38 files / 238 tests)
 npx vitest run --config vitest.config.ts src/__tests__/X.test.ts   # one file
 ```
-Counts drift every feature commit and bash stdout has been unreliable here — re-derive with `--reporter=json --outputFile=/tmp/x.json` + read the file; never trust a pinned number. Same for SHAs: run `git rev-parse --short HEAD` (this repo has a documented "ghost SHA" history of invented SHAs written into docs). The original 7 `it.todo` placeholders were all resolved into real tests; none remain.
+Counts drift every feature commit and bash stdout has been unreliable here — re-derive with `--reporter=json --outputFile=/tmp/x.json` + read the file when precision matters; never trust a pinned number. Same for SHAs: run `git rev-parse --short HEAD` (this repo has a documented "ghost SHA" history of invented SHAs written into docs). The original 7 `it.todo` placeholders were all resolved into real tests; none remain.
 
 ## 4. Parity discipline
 - Ground-truth EVERY claimed gap against the real web file (`gogocash_app-staging/src/**`) AND the real Expo file first. Audit ~50% false positives.

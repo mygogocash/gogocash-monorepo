@@ -1,51 +1,50 @@
-# Handoff — `staging` branch (GoGoCash web)
+# Handoff — `expo-module` branch (GoGoCash web + Expo mobile)
 
-**Repo:** `https://github.com/mygogocash/gogocash_app`  
-**Branch:** `staging` (pushed with this commit)  
-**Stack:** Next.js 16 (Turbopack dev), React, MUI, TanStack Query, NextAuth, Firebase.
+**Repo:** `https://github.com/mygogocash/gogocash_app`
+**Branch:** `expo-module`
+**Last updated:** 2026-06-10. (The previous `staging`-branch web handoff this file held is preserved in git history.)
 
-## What landed in this update
+This repo holds **two separate apps**: the Next.js customer web app at the root (`src/`) and the Expo react-native-web parity port at `apps/mobile/` (own `package.json`, own `node_modules`, no workspace sharing — coupling is `npm run mobile:*` proxy scripts plus cross-tree contract tests).
 
-- **Performance / shell:** Web Vitals reporter (`WebVitalsReporter` → `ProviderDefault`); `@next/bundle-analyzer` + `analyze` / `perf:bundle-note` scripts; `optimizePackageImports` for MUI in `next.config.ts`; TanStack Query defaults in `src/lib/query/queryClient.ts`; header/main/footer paint immediately (`ClientLayoutWrapper`, `ClientLayoutWallet`); lazy MUI Data Grid (`src/components/perf/LazyMuiDataGrid.tsx`) used from `WalletTransaction`, `MyOffer`; shop detail code-split in `shop/[id]/PageClient.tsx`; font fallback tuning in `src/lib/fonts.ts`.
-- **Profile / layout:** Profile shell, sub-nav, personal panel, cashback summary, withdraw UI pieces, Figma-aligned footer/header/subprofile work; removed obsolete pieces (e.g. `SubProfileInfo.tsx`, `CategoryPopup.tsx` per git).
-- **Link My Cashback:** New locale routes under `src/app/[locale]/link-mycashback/` plus auth/components and public assets under `public/images/link-mycashback-*`, `public/profile/link-mycashback-*`.
-- **Console / CSP:** Dynamic `PageLoader` in `NavigationLoadingOverlay.tsx` and `DelayedPageLoadingScreen.tsx` to avoid unused CSS preload warnings; Web Vitals **dev** logging only when `NEXT_PUBLIC_WEB_VITALS_DEBUG=1`; CSP report-only adds `https://telegram.org` for Telegram widget (`next.config.ts`).
+## Where things stand
 
-## CI / install
+### Expo app (`apps/mobile/`) — the active workstream
 
-- **GitHub Actions** (`.github/workflows/ci.yml`) uses **`npm ci`** — keep **`package-lock.json`** in sync; do **not** rely on `pnpm-lock.yaml` for CI (left untracked intentionally if present locally).
+- **Desktop web-parity UI** is largely complete across the profile section: wallet (functional transaction tabs + filter dropdowns), favorites (brand-color cards with working ♥ toggles), missing orders (MUI-style outlined form, image picker, submit modal), membership (trust strip, FAQ accordion, 3-column perks), GoGoPass score page, quest history (leaderboard + dialogs), referral (premium pass, functional tabs). Landed in commits `30f2f23`, `0349e5e`, `e645186`.
+- **First live API integration is shipped and verified**: the Favorite Brands screen renders the real production offer catalog when `EXPO_PUBLIC_ACCOUNT_DATA_SOURCE=backend`. The mapper pattern it establishes is the template for all remaining resources.
+- **Firebase auth plumbing is built but not screen-wired**: phone-OTP + `/auth/log-in` exchange modules exist and are unit-tested; the login screen still uses a demo-session stub.
+- **Read the full integration handoff:** [`apps/mobile/docs/api-integration.md`](apps/mobile/docs/api-integration.md) — architecture, live-probe results, Firebase setup, pinned tests, and the suggested order of work.
+- **Working rules for this app:** [`apps/mobile/AGENTS.md`](apps/mobile/AGENTS.md) (gates, i18n via `tc()`, parity-test conventions, react-native-web gotchas).
 
-## Environment reminders
+### Web app (root `src/`)
 
-- **`NEXTAUTH_SECRET`:** Required for `next start` and session API; without it, browser shows `[next-auth] CLIENT_FETCH_ERROR` and `/api/auth/session` 500.
-- **`SKIP_ENV_VALIDATION=1`:** Used in CI build/E2E; local dev may use full `.env.local`.
-- **Analytics:** `NEXT_PUBLIC_ANALYTICS_DEBUG` gates extra `console.info` in `metaPixel` / analytics helpers.
-- **Web Vitals logs:** Optional `NEXT_PUBLIC_WEB_VITALS_DEBUG=true` in dev only.
+- Unchanged architecture: single axios client → `NEXT_PUBLIC_API_URL`, Firebase-token auth, mock-adapter MOCK MODE. Documented in depth in [`docs/API_INTEGRATION.md`](docs/API_INTEGRATION.md).
+- Without `NEXT_PUBLIC_API_URL` set the web app runs entirely on mocks (orange banner) — that is the normal local-dev mode.
 
-## Known follow-ups (optional)
+## Environment facts a new developer must know (verified 2026-06-10)
 
-- DevTools may still show: Turbopack **HMR WebSocket** errors under Playwright/automation; **preload warnings** for Swiper CSS / gtag on home if scripts load after load event.
-- Sentry build may warn if `SENTRY_AUTH_TOKEN` missing (source maps); non-blocking for runtime.
+1. **Production API (`https://api.gogocash.co`) is live** (NestJS). `GET /offer` + categories are public; everything else is auth-gated behind Firebase tokens (`POST /auth/log-in`: *"Firebase token is required"*). CORS is open.
+2. **Staging is down** — `api-staging.gogocash.co` 503s at the Google Frontend on every path and `app-staging.gogocash.co` fails TLS. Needs an ops redeploy before any safe end-to-end auth/write testing.
+3. **The web's phone-OTP and SIWE auth endpoints do not exist on the real backend** (`/auth/send-otp`, `/auth/verify-otp`, `/auth/siwe-nonce` → 404). They live only in the web's mock adapter. Firebase is the only real auth path.
+4. **Firebase:** project `gogocash-staging`; phone is the only enabled sign-in provider; a "GoGoCash Mobile" web app is registered; client config goes in `apps/mobile/.env` (untracked) under `EXPO_PUBLIC_FIREBASE_*`.
 
-## Verification (run before merging to `main`)
+## Verification gates
 
 ```bash
-npm ci
+# Web (repo root)
 npm run validate
 SKIP_ENV_VALIDATION=1 NEXTAUTH_SECRET="ci-build-placeholder-secret-min-32-chars!!" npm run build
+
+# Mobile (run in apps/mobile, or via root npm run mobile:*)
+npm run typecheck && npm test && npm run test:render
 ```
 
-E2E: see `playwright.config.ts` (`npm run test:e2e` with server per config).
+Mobile "done" = all three gates green **and**, for UI work, live-verified on Expo web (`npm run web`, port 19006). Many mobile tests are source-grep **contract tests** that pin endpoint strings, env defaults, session fields, and even JSX prop order — when one fails after a rename, read the test before "fixing" the code.
 
-## Key paths
+## Parallel-work etiquette
 
-| Area                 | Paths                                                                                        |
-| -------------------- | -------------------------------------------------------------------------------------------- |
-| Layout / providers   | `ClientLayoutWrapper.tsx`, `ProviderDefault.tsx`, `SessionContext.tsx`                       |
-| Perf                 | `WebVitalsReporter.tsx`, `LazyMuiDataGrid.tsx`, `queryClient.ts`, `next.config.ts`           |
-| Profile UI           | `ProfileDesktopPersonalPanel.tsx`, `ProfileLayoutShell.tsx`, `SubProfile.tsx`, `SubPage.tsx` |
-| Auth / link cashback | `src/app/[locale]/link-mycashback/`, `src/features/auth/component/link-mycashback/`          |
+Multiple agents/developers work this branch concurrently. Commit **only files you changed**; expect unrelated dirty files (currently: home/discovery/category/auth screens, `AccountPageShell`, `webDesignParity.ts`, and the root planning docs `agent.md`/`context.md`/`design.md`/`project.md`/`spec.md` belong to another in-flight effort). `webDesignParity.ts` in particular is shared parity data — prefer screen-local additions over editing it.
 
 ---
 
-_Generated for continuity with the next developer or AI agent. Update or remove this file when the handoff is absorbed._
+_Update this file when the handoff is absorbed or the branch state changes materially._

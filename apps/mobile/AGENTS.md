@@ -10,7 +10,7 @@ Concise guidance for AI coding agents and contributors working in `apps/mobile/`
 - **Routing:** **expo-router** ~56.2.5 (file-based, `app/`). Auth gating via `Stack.Protected` in `app/_layout.tsx`, driven by `useAuthGuardSession` (synchronous-on-first-render so the guard is correct on first paint).
 - **i18n:** `tc()` from `src/i18n/useCopy.ts` — a **text-based reverse-lookup** into the reused web ICU catalogs, falling back to the English in `src/design/webDesignParity.ts`. Render copy inline as `tc("English string")`; do not invent new keys.
 - **Design tokens:** `src/theme/tokens.ts` (`colors.primary` = `#00CC99`, `radii`, `spacing`, `typography`), icons `src/theme/icons.tsx` (phosphor adapters), motion `src/theme/motion.ts`.
-- **Data:** mock/fixture-driven (`src/account/customerAccountResource.ts`, `src/design/webDesignParity.ts`); there is no real wallet/withdraw API yet.
+- **Data:** fixture-driven by default, with a live-API seam: `src/account/customerAccountResource.ts` switches on `EXPO_PUBLIC_ACCOUNT_DATA_SOURCE` (`fixtures` default | `backend` | `disabled`). The public offer catalog is already wired live (Favorite Brands screen); auth-gated resources pend real auth. See [docs/api-integration.md](./docs/api-integration.md).
 - **Imports:** path alias `@mobile/*` → `src/*` (`tsconfig.json`, both vitest configs).
 
 ## Where to start (by task)
@@ -67,7 +67,7 @@ Guarded by `src/__tests__/web-style-deprecation-parity.test.ts` and `src/__tests
 
 - **Desktop breakpoint = 1024** (`mobileShellLayout.desktopBreakpoint`): `width >= 1024` is desktop (rail), below is mobile (bottom nav).
 - **`AccountPageShell` is the single source of the desktop rail:** `showDesktopRail = isDesktop && (showProfileRail || isProfileSectionPath(pathname))`. New profile-section pages should render through it so they appear as subpages with the rail/submenu.
-- **Auth is mock today:** phone-OTP login uses a fixed demo code and writes a client-side demo session; `useAuthGuardSession` flips `isAuthed` reactively via `notifyMobileSessionChange`. Replace with real Firebase phone auth before production.
+- **Auth: demo stub on screen, real plumbing built.** The login screen still verifies a fixed demo code and writes a demo session (`useAuthGuardSession` flips `isAuthed` reactively via `notifyMobileSessionChange`). Real Firebase phone-auth modules exist and are unit-tested (`src/auth/firebaseClient.ts`, `firebasePhoneAuth.ts`, `firebaseLogin.ts` — project `gogocash-staging`, phone provider enabled); wiring them into `CustomerAuthScreen` is the open task ([docs/api-integration.md](./docs/api-integration.md) §5).
 - Commit/push only when asked; keep changes scoped to your task (a parallel desktop-parity effort may have other files uncommitted — do not stage files you did not change).
 
 When in doubt, search `apps/mobile/src` for an existing pattern before introducing a new abstraction.
