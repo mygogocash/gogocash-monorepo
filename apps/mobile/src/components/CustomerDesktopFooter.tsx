@@ -3,12 +3,12 @@ import { Image, StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
 import cloudflareLogoImage from "../../assets/branding/cloudflare-logo.png";
-import logoMarkImage from "../../assets/nav/logo.png";
+import { CustomerDesktopBrandLink } from "@mobile/components/CustomerDesktopBrandLink";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
 import {
   getDesktopFooterGrid,
-  mobileShellLayout,
+  getDesktopShellContentWidth,
   webDesktopFooter,
 } from "@mobile/design/webDesignParity";
 import { motion } from "@mobile/theme/motion";
@@ -23,9 +23,7 @@ export function CustomerDesktopFooter({
   horizontalPadding: number;
   viewportWidth: number;
 }) {
-  const shellContentWidth = Math.min(viewportWidth, mobileShellLayout.desktopContentMaxWidth);
-  const shellOffset = Math.max(0, (viewportWidth - shellContentWidth) / 2);
-  const contentWidth = Math.min(1200, viewportWidth);
+  const contentWidth = getDesktopShellContentWidth(viewportWidth);
   const footerGrid = getDesktopFooterGrid(viewportWidth);
   const tc = useCopy();
   const copyright = tc(webDesktopFooter.copyrightTemplate).replace(
@@ -39,7 +37,7 @@ export function CustomerDesktopFooter({
       style={[
         styles.footerOuter,
         {
-          marginLeft: -(shellOffset + horizontalPadding),
+          marginLeft: -horizontalPadding,
           width: viewportWidth,
         },
       ]}
@@ -48,21 +46,10 @@ export function CustomerDesktopFooter({
       <View style={[styles.footerContent, { width: contentWidth }]}>
         <View style={styles.footerTop}>
           <View style={styles.footerBrand}>
-            <Link asChild href="/">
-              <MotionPressable
-                accessibilityLabel="GoGoCash footer home"
-                pressScale={motion.scale.subtlePress}
-                style={styles.logoLink}
-              >
-                <Image
-                  alt="GoGoCash"
-                  accessibilityIgnoresInvertColors
-                  source={logoMarkImage}
-                  style={styles.logoMark}
-                />
-                <Text style={styles.logoText}>{webDesktopFooter.logoLabel}</Text>
-              </MotionPressable>
-            </Link>
+            <CustomerDesktopBrandLink
+              accessibilityLabel="GoGoCash footer home"
+              label={webDesktopFooter.logoLabel}
+            />
           </View>
 
           <View style={[styles.sectionGrid, { gap: footerGrid.gap }]}>
@@ -212,7 +199,6 @@ const styles = StyleSheet.create({
   },
   footerContent: {
     alignSelf: "center",
-    paddingHorizontal: 32,
   },
   footerTop: {
     flexDirection: "row",
@@ -220,28 +206,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   footerBrand: {
+    alignItems: "flex-start",
     maxWidth: 384,
     minWidth: 220,
-  },
-  logoLink: {
-    alignItems: "center",
-    borderRadius: radii.sm,
-    flexDirection: "row",
-    gap: 8,
-    minHeight: 56,
-    alignSelf: "flex-start",
-  },
-  logoMark: {
-    borderRadius: 14,
-    height: 56,
-    width: 56,
-  },
-  logoText: {
-    color: "#1F2937",
-    fontFamily: typography.family,
-    fontSize: 20,
-    fontWeight: "700",
-    lineHeight: 28,
   },
   sectionGrid: {
     flexDirection: "row",

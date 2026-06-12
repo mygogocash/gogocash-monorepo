@@ -55,6 +55,8 @@ describe("Expo auth design parity", () => {
     ]);
     expect(authFile).toContain("CustomerDesktopHeader");
     expect(authFile).toContain("CustomerCookieConsentBanner");
+    expect(authFile).toContain("const authDesktopPageHorizontalPadding = 56;");
+    expect(authFile).toContain("horizontalPadding={authDesktopPageHorizontalPadding}");
     expect(authFile).toContain("authHeroImage");
     expect(authFile).toContain("webAuthPage.socialProviders.slice(0, 4)");
     expect(authFile).toContain("webAuthPage.socialProviders.slice(4)");
@@ -100,9 +102,9 @@ describe("Expo auth design parity", () => {
 
   it("auth typography parity > given Next desktop login metrics > then Expo matches text scale weight and tracking", () => {
     const authFile = readMobileFile("src/screens/CustomerAuthScreen.tsx");
-    const headerFile = readMobileFile("src/components/CustomerDesktopHeader.tsx");
+    const desktopBrandLinkFile = readMobileFile("src/components/CustomerDesktopBrandLink.tsx");
 
-    expectStyleBlock(headerFile, "desktopLogoText", [
+    expectStyleBlock(desktopBrandLinkFile, "logoText", [
       "fontSize: 20",
       'fontWeight: "700"',
       "letterSpacing: 0",
@@ -136,6 +138,24 @@ describe("Expo auth design parity", () => {
       "fontSize: 12",
       'fontWeight: "400"',
       "lineHeight: 16",
+    ]);
+    expectStyleBlock(authFile, "otpIntro", [
+      'color: "#555555"',
+      "fontSize: 14",
+      'fontWeight: "400"',
+      "lineHeight: 21",
+    ]);
+    expectStyleBlock(authFile, "changePhoneText", [
+      "fontSize: 13",
+      'fontWeight: "400"',
+    ]);
+    expectStyleBlock(authFile, "resendText", [
+      "fontSize: 13",
+      'fontWeight: "400"',
+    ]);
+    expectStyleBlock(authFile, "resendCountdown", [
+      "fontSize: 13",
+      'fontWeight: "400"',
     ]);
     expectStyleBlock(authFile, "socialLabel", [
       'color: "#5C5C5C"',

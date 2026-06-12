@@ -41,6 +41,7 @@ import {
   getCategoryDirectoryGridMetrics,
   getCategoryDirectoryMatches,
   getCategoryDirectoryPage,
+  getDesktopShellOffset,
   getProductDiscoveryGridMetrics,
   getProductDiscoveryResults,
   getResponsiveHomeLayoutMetrics,
@@ -139,6 +140,7 @@ function BrandDirectoryScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const homeLayout = getResponsiveHomeLayoutMetrics(width);
+  const desktopFooterHorizontalOffset = getDesktopShellOffset(width);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [sortBy, setSortBy] = useState<WebBrandDirectorySort>("highest_cashback");
@@ -360,7 +362,10 @@ function BrandDirectoryScreen() {
                 { maxWidth: homeLayout.contentMaxWidth },
               ]}
             >
-              <CustomerDesktopFooter horizontalPadding={0} viewportWidth={width} />
+              <CustomerDesktopFooter
+                horizontalPadding={desktopFooterHorizontalOffset}
+                viewportWidth={width}
+              />
             </View>
           </ScrollView>
         </View>
@@ -542,6 +547,7 @@ function ProductDiscoveryScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const homeLayout = getResponsiveHomeLayoutMetrics(width);
+  const desktopFooterHorizontalOffset = getDesktopShellOffset(width);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedCashbackMin, setSelectedCashbackMin] =
@@ -792,7 +798,10 @@ function ProductDiscoveryScreen() {
                 { maxWidth: homeLayout.contentMaxWidth },
               ]}
             >
-              <CustomerDesktopFooter horizontalPadding={0} viewportWidth={width} />
+              <CustomerDesktopFooter
+                horizontalPadding={desktopFooterHorizontalOffset}
+                viewportWidth={width}
+              />
             </View>
           </ScrollView>
           {termsDialog}
@@ -1100,6 +1109,7 @@ function ShopDirectoryScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const homeLayout = getResponsiveHomeLayoutMetrics(width);
+  const desktopFooterHorizontalOffset = getDesktopShellOffset(width);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedShopType, setSelectedShopType] = useState<WebShopType>("all");
@@ -1361,7 +1371,10 @@ function ShopDirectoryScreen() {
                 { maxWidth: homeLayout.contentMaxWidth },
               ]}
             >
-              <CustomerDesktopFooter horizontalPadding={0} viewportWidth={width} />
+              <CustomerDesktopFooter
+                horizontalPadding={desktopFooterHorizontalOffset}
+                viewportWidth={width}
+              />
             </View>
           </ScrollView>
         </View>
@@ -1698,6 +1711,7 @@ function CategoryDirectoryScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const homeLayout = getResponsiveHomeLayoutMetrics(width);
+  const desktopFooterHorizontalOffset = getDesktopShellOffset(width);
   const showBottomNav = !homeLayout.isDesktop;
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -1839,7 +1853,10 @@ function CategoryDirectoryScreen() {
                 { maxWidth: homeLayout.contentMaxWidth },
               ]}
             >
-              <CustomerDesktopFooter horizontalPadding={0} viewportWidth={width} />
+              <CustomerDesktopFooter
+                horizontalPadding={desktopFooterHorizontalOffset}
+                viewportWidth={width}
+              />
             </View>
           </ScrollView>
         </View>

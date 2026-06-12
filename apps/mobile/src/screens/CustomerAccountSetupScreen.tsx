@@ -9,6 +9,7 @@ import { useState } from "react";
 import {
   Image,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -214,7 +215,7 @@ export function CustomerAccountSetupScreen() {
             ) : null}
 
             <View style={[styles.card, isWideDesktop ? styles.cardDesktop : styles.cardStacked]}>
-              <View style={styles.cardInner}>
+              <CardBody scroll={isWideDesktop}>
                 <AccountSetupHeader />
 
                 <View style={styles.stepBody}>
@@ -281,9 +282,9 @@ export function CustomerAccountSetupScreen() {
                     />
                   ) : null}
                 </View>
-              </View>
-              </View>
+              </CardBody>
             </View>
+          </View>
             {isDesktopShell ? (
               <View style={styles.desktopFooter}>
                 <CustomerDesktopFooter horizontalPadding={0} viewportWidth={width} />
@@ -293,6 +294,24 @@ export function CustomerAccountSetupScreen() {
         </View>
       </View>
   );
+}
+
+function CardBody({ scroll, children }: { scroll: boolean; children: React.ReactNode }) {
+  // On wide desktop the card has a fixed height (to sit flush beside the hero), so its
+  // content must scroll internally; on stacked/mobile the card grows and the page scrolls.
+  if (scroll) {
+    return (
+      <ScrollView
+        contentContainerStyle={styles.cardScrollContent}
+        showsVerticalScrollIndicator={false}
+        style={styles.cardScroll}
+      >
+        {children}
+      </ScrollView>
+    );
+  }
+
+  return <View style={styles.cardInner}>{children}</View>;
 }
 
 function AccountSetupHeader() {
@@ -802,6 +821,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 28,
   },
+  cardScroll: {
+    flex: 1,
+  },
+  cardScrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingTop: 28,
+  },
   brandBlock: {
     alignItems: "center",
     gap: 8,
@@ -860,7 +887,7 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   stepBody: {
-    flex: 1,
+    width: "100%",
   },
   stack: {
     gap: 18,
