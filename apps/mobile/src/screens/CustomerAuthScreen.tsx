@@ -78,6 +78,24 @@ type AuthPhase = "phone" | "otp";
 type SocialProvider = (typeof webAuthPage.socialProviders)[number];
 type AuthCountry = (typeof webAuthPage.countries)[number];
 
+// OTP-send failures keep the user on the phone step; the notice copy depends on
+// the Firebase error code so rate limits and security rejections are
+// distinguishable from generic failures (never expose provider internals).
+type SendErrorKind = "rate-limit" | "security-check" | "generic";
+
+const sendErrorCopy: Record<SendErrorKind, string> = {
+  "rate-limit": "Too many attempts. Please wait a few minutes and try again.",
+  "security-check": "Security check failed. Please refresh the page and try again.",
+  generic: "Request failed. Please try again.",
+};
+
+function toSendErrorKind(error: unknown): SendErrorKind {
+  const code = (error as { code?: unknown } | null)?.code;
+  if (code === "auth/too-many-requests") return "rate-limit";
+  if (code === "auth/invalid-app-credential") return "security-check";
+  return "generic";
+}
+
 function formatOtpCountdown(totalSeconds: number) {
   const clampedSeconds = Math.max(0, totalSeconds);
   const minutes = Math.floor(clampedSeconds / 60);
@@ -96,7 +114,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   const reducedMotion = useReducedMotion();
   const [authPhase, setAuthPhase] = useState<AuthPhase>("phone");
   const [otpError, setOtpError] = useState(false);
-  const [sendError, setSendError] = useState(false);
+  const [sendError, setSendError] = useState<SendErrorKind | null>(null);
   const [otpInput, setOtpInput] = useState("");
   const [resendSecondsRemaining, setResendSecondsRemaining] =
     useState(otpResendDurationSeconds);
@@ -211,7 +229,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   }, [phoneDigits, selectedCountry.dialCode]);
 
   const handlePhoneChange = (nextValue: string) => {
-    setSendError(false);
+    setSendError(null);
     setPhoneLocal(nextValue.replace(/\D/g, "").slice(0, 10));
   };
 
@@ -224,7 +242,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
       // Real flow: request a Firebase SMS OTP first; only advance once it sent.
       // Dynamic import keeps the firebase package out of fixtures-mode bundles
       // and the render-test transform path.
-      setSendError(false);
+      setSendError(null);
       void (async () => {
         try {
           const { sendPhoneOtp } = await import("@mobile/auth/firebasePhoneAuth");
@@ -235,11 +253,11 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
           setOtpInput("");
           setOtpError(false);
           setResendSecondsRemaining(otpResendDurationSeconds);
-        } catch {
+        } catch (error) {
           // Send failed (invalid number, rate limit, unsupported platform):
           // surface the error visibly and keep the user on the phone step.
           // Never include the phone number or provider internals in the notice.
-          setSendError(true);
+          setSendError(toSendErrorKind(error));
           haptics.error();
         }
       })();
@@ -514,7 +532,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                       </View>
                       {sendError ? (
                         <Text accessibilityRole="alert" style={styles.otpError}>
-                          {tc("Request failed. Please try again.")}
+                          {tc(sendErrorCopy[sendError])}
                         </Text>
                       ) : null}
                     </View>
