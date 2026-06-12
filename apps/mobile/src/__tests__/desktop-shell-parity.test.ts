@@ -46,6 +46,12 @@ const rootChromeFooterSlotOwners = [
   "src/screens/CustomerSubscriptionScreen.tsx",
 ];
 
+const cappedDesktopFooterScreens = [
+  "src/screens/CustomerHomeScreen.tsx",
+  "src/screens/CustomerCategoryDetailScreen.tsx",
+  "src/screens/CustomerDiscoveryScreen.tsx",
+];
+
 describe("desktop route shell parity", () => {
   it("desktop route chrome > given every migrated customer route > then Expo guarantees a navbar and footer on desktop", () => {
     const rootLayout = readMobileFile("app/_layout.tsx");
@@ -78,6 +84,36 @@ describe("desktop route shell parity", () => {
       const screenFile = readMobileFile(screenPath);
 
       expect(screenFile, `${screenPath} desktop footer slot`).toContain("CustomerDesktopFooterSlot");
+    }
+  });
+
+  it("account shell footer offset > given the capped + padded shell frame > then it passes a computed offset to the footer slot", () => {
+    const shell = readMobileFile("src/components/AccountPageShell.tsx");
+
+    expect(shell, "shell should compute the footer offset from frame metrics").toContain(
+      "getAccountShellFooterHorizontalPadding"
+    );
+    expect(shell, "shell should pass the computed offset to the footer slot").toContain(
+      "horizontalPadding={footerHorizontalPadding}"
+    );
+    expect(shell, "shell should not leave the footer slot at the default zero offset").not.toMatch(
+      /<CustomerDesktopFooterSlot\s+style=\{styles\.desktopFooter\}\s*\/>/
+    );
+  });
+
+  it("desktop capped footer width > given content-capped pages > then the footer offsets back to the viewport edge", () => {
+    for (const screenPath of cappedDesktopFooterScreens) {
+      const screenFile = readMobileFile(screenPath);
+
+      expect(screenFile, `${screenPath} should compute centered shell offset`).toContain(
+        "getDesktopShellOffset"
+      );
+      expect(screenFile, `${screenPath} should pass shell offset to footer`).toContain(
+        "horizontalPadding={desktopFooterHorizontalOffset}"
+      );
+      expect(screenFile, `${screenPath} should not leave capped footer at parent x`).not.toContain(
+        "CustomerDesktopFooter horizontalPadding={0} viewportWidth={width}"
+      );
     }
   });
 
@@ -128,6 +164,27 @@ describe("desktop route shell parity", () => {
     expect(header).not.toContain(
       "item.active ? <View style={styles.desktopCategoryUnderline} /> : null"
     );
+  });
+
+  it("desktop brand logo > given navbar and footer brand links > then both use the shared navbar logo treatment", () => {
+    const header = readMobileFile("src/components/CustomerDesktopHeader.tsx");
+    const footer = readMobileFile("src/components/CustomerDesktopFooter.tsx");
+    const brandLink = readMobileFile("src/components/CustomerDesktopBrandLink.tsx");
+
+    expect(header).toContain("CustomerDesktopBrandLink");
+    expect(footer).toContain("CustomerDesktopBrandLink");
+    expect(footer).not.toContain("styles.logoLink");
+    expect(footer).not.toContain("styles.logoMark");
+    expect(footer.match(/footerBrand: \{[\s\S]*?\n  \}/)?.[0]).toContain(
+      'alignItems: "flex-start"'
+    );
+    expect(brandLink).toContain("hoverLift={false}");
+    expect(brandLink).toContain("onPointerEnter={() => setLogoHovered(true)}");
+    expect(brandLink).toContain("onPointerLeave={() => setLogoHovered(false)}");
+    expect(brandLink).toContain(
+      "getInteractionTransformStyle({ hovered: logoHovered, hoverLift: true })"
+    );
+    expect(brandLink).toContain('boxShadow: "0 4px 10px rgba(0, 0, 0, 0.1)"');
   });
 
 });

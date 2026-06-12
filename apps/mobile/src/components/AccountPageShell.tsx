@@ -38,6 +38,8 @@ import { GoGoPassBadge } from "@mobile/components/GoGoPassBadge";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
 import {
+  getAccountShellFooterHorizontalPadding,
+  getAccountShellFrameMetrics,
   mobileShellLayout,
   profileHubMenuItems,
   profileHubSubNavItems,
@@ -78,19 +80,22 @@ export function AccountPageShell({
   // The rounded surface card wraps content whenever the rail shows, plus the
   // mobile hub screens (profile/wallet) that opt in via showProfileRail.
   const useProfileSurface = showDesktopRail || (!isDesktop && showProfileRail);
+  // Profile/account-section pages (those with the desktop rail) adopt the navbar
+  // shell's width + gutter so the user-section card lines up with the header logo
+  // (left) and globe (right). Quest (no rail) keeps the legacy 1180/16 frame its
+  // internal hero/grid math depends on.
+  const frameMetrics = getAccountShellFrameMetrics(width, {
+    alignToNavbarShell: showDesktopRail,
+  });
+  // The full-bleed footer must offset back past the frame's centering gap + content
+  // padding so its centered content lines up with the page content (not shift right).
+  const footerHorizontalPadding = getAccountShellFooterHorizontalPadding(width, {
+    alignToNavbarShell: showDesktopRail,
+  });
 
   return (
     <View style={styles.viewport}>
-      <View
-        style={[
-          styles.frame,
-          {
-            maxWidth: isDesktop
-              ? webAccountPageSurface.desktopContentMaxWidth
-              : mobileShellLayout.contentMaxWidth,
-          },
-        ]}
-      >
+      <View style={[styles.frame, { maxWidth: frameMetrics.maxWidth }]}>
         <ScrollView
           contentContainerStyle={[
             styles.page,
@@ -98,9 +103,7 @@ export function AccountPageShell({
               paddingBottom: showBottomNav
                 ? mobileShellLayout.bottomNavClearance + 18
                 : mobileShellLayout.desktopBottomClearance,
-              paddingHorizontal: isDesktop
-                ? mobileShellLayout.desktopContentHorizontalPadding
-                : mobileShellLayout.contentHorizontalPadding,
+              paddingHorizontal: frameMetrics.paddingHorizontal,
               paddingTop: Math.max(spacing.md, insets.top + spacing.md),
             },
           ]}
@@ -133,7 +136,10 @@ export function AccountPageShell({
           ) : (
             <View style={styles.questContent}>{children}</View>
           )}
-          <CustomerDesktopFooterSlot style={styles.desktopFooter} />
+          <CustomerDesktopFooterSlot
+            horizontalPadding={footerHorizontalPadding}
+            style={styles.desktopFooter}
+          />
         </ScrollView>
         {showBottomNav ? (
           <CustomerMobileBottomNav activeRouteId={activeRouteId} bottomInset={insets.bottom} />

@@ -34,7 +34,7 @@ describe("Link MyCashback parity", () => {
     );
     expect(designFile).toContain("Skip");
     expect(designFile).toContain("Link Account");
-    expect(designFile).toContain('backgroundColor: "#DCEBFF"');
+    expect(designFile).toContain('backgroundColor: "#F6F6F6"');
     expect(designFile).toContain("connectorDots");
 
     expect(screenFile).toContain("CustomerDesktopHeader");

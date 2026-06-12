@@ -79,6 +79,7 @@ import { useReducedMotion } from "@mobile/hooks/useReducedMotion";
 import {
   getCarouselActiveIndex,
   getCarouselDotCount,
+  getDesktopShellOffset,
   getDesktopShellHorizontalPadding,
   getHomeSearchMatches,
   getResponsiveHomeLayoutMetrics,
@@ -211,6 +212,7 @@ export function CustomerHomeScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const homeLayout = getResponsiveHomeLayoutMetrics(width);
+  const desktopFooterHorizontalOffset = getDesktopShellOffset(width);
   const [desktopGoLinkGuidelineOpen, setDesktopGoLinkGuidelineOpen] = useState(false);
   const [desktopGoLinkResultHref, setDesktopGoLinkResultHref] = useState("");
   const [searchPopoverOpen, setSearchPopoverOpen] = useState(false);
@@ -292,7 +294,10 @@ export function CustomerHomeScreen() {
             <View
               style={[styles.desktopFooterCap, { maxWidth: homeLayout.contentMaxWidth }]}
             >
-              <CustomerDesktopFooter horizontalPadding={0} viewportWidth={width} />
+              <CustomerDesktopFooter
+                horizontalPadding={desktopFooterHorizontalOffset}
+                viewportWidth={width}
+              />
             </View>
           </ScrollView>
         </View>

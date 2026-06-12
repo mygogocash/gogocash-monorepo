@@ -25,6 +25,7 @@ import { haptics } from "@mobile/lib/haptics";
 import { useCopy } from "@mobile/i18n/useCopy";
 import {
   getCategoryExploreResults,
+  getDesktopShellOffset,
   getResponsiveHomeLayoutMetrics,
   mobileShellLayout,
   type WebCategoryExploreSort,
@@ -126,6 +127,7 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const homeLayout = getResponsiveHomeLayoutMetrics(width);
+  const desktopFooterHorizontalOffset = getDesktopShellOffset(width);
   const isDesktop = homeLayout.isDesktop;
   const showBottomNav = !isDesktop;
   const category = safeDecodeCategoryName(categoryName);
@@ -286,7 +288,10 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
                 { maxWidth: homeLayout.contentMaxWidth },
               ]}
             >
-              <CustomerDesktopFooter horizontalPadding={0} viewportWidth={width} />
+              <CustomerDesktopFooter
+                horizontalPadding={desktopFooterHorizontalOffset}
+                viewportWidth={width}
+              />
             </View>
           </ScrollView>
         </View>

@@ -3,8 +3,8 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createElement } from "react";
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 // CustomerDesktopHeader -> CustomerLocaleRegionControl -> i18n/LocaleProvider pulls in
 // expo-localization (-> expo-modules-core), which reaches for the native `expo` global
@@ -29,6 +29,10 @@ const authSource = readFileSync(
   "utf8"
 );
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe("CustomerAuthScreen (render)", () => {
   it("mounts the login form without throwing", () => {
     expect(() => render(createElement(CustomerAuthScreen, { mode: "login" }))).not.toThrow();
@@ -45,6 +49,25 @@ describe("CustomerAuthScreen (render)", () => {
     render(createElement(CustomerAuthScreen, { mode: "login" }));
     // webAuthPage.phonePlaceholder is the phone TextInput's accessibilityLabel + placeholder.
     expect(screen.getAllByPlaceholderText("Phone Number").length).toBeGreaterThan(0);
+  });
+
+  it("counts down the OTP resend timer after phone sign-in", () => {
+    vi.useFakeTimers();
+    render(createElement(CustomerAuthScreen, { mode: "login" }));
+
+    fireEvent.change(screen.getByPlaceholderText("Phone Number"), {
+      target: { value: "0812346789" },
+    });
+    fireEvent.click(screen.getByRole("checkbox", { name: "I have read and understand" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(screen.getByText("00:59")).toBeTruthy();
+
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    expect(screen.getByText("00:58")).toBeTruthy();
   });
 });
 

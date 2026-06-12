@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  getAccountShellFooterHorizontalPadding,
+  getAccountShellFrameMetrics,
   getCarouselActiveIndex,
   getCarouselDotCount,
   getDesktopFooterGrid,
+  getDesktopShellOffset,
+  getDesktopShellContentWidth,
   getDesktopShellHorizontalPadding,
   getHomeSearchMatches,
   getResponsiveHomeLayoutMetrics,
@@ -269,10 +273,76 @@ describe("GoGoCash web design parity", () => {
     expect(getDesktopShellHorizontalPadding(1279)).toBe(80);
     expect(getDesktopShellHorizontalPadding(1440)).toBe(80);
     expect(getDesktopShellHorizontalPadding(2048)).toBe(80);
+    expect(getDesktopShellOffset(1024)).toBe(0);
+    expect(getDesktopShellOffset(1440)).toBe(0);
+    expect(getDesktopShellOffset(1509)).toBeCloseTo(34.5);
+    expect(getDesktopShellOffset(2048)).toBe(304);
+    expect(getDesktopShellContentWidth(1279)).toBe(1119);
+    expect(getDesktopShellContentWidth(1440)).toBe(1280);
+    expect(getDesktopShellContentWidth(2048)).toBe(1280);
     expect(webLineOfficialFab).toEqual({
       href: "https://lin.ee/7om5sAr",
       label: "LINE Official Account",
     });
+  });
+
+  it("account shell frame > given desktop profile/rail page > then it matches the navbar shell so content lines up with the logo and globe", () => {
+    // Navbar content column = min(vw, 1440) inset by getDesktopShellHorizontalPadding
+    // (80 at >=1200, 56 at 1024-1199). The account/profile shell must use the SAME
+    // pair so the user-section card's left edge meets the logo and its right edge
+    // meets the globe.
+    expect(getAccountShellFrameMetrics(1440, { alignToNavbarShell: true })).toEqual({
+      maxWidth: 1440,
+      paddingHorizontal: 80,
+    });
+    expect(getAccountShellFrameMetrics(1600, { alignToNavbarShell: true })).toEqual({
+      maxWidth: 1440,
+      paddingHorizontal: 80,
+    });
+    expect(getAccountShellFrameMetrics(1100, { alignToNavbarShell: true })).toEqual({
+      maxWidth: 1440,
+      paddingHorizontal: 56,
+    });
+  });
+
+  it("account shell frame > given desktop non-rail page (quest) > then it keeps the legacy account width/padding", () => {
+    expect(getAccountShellFrameMetrics(1440, { alignToNavbarShell: false })).toEqual({
+      maxWidth: 1180,
+      paddingHorizontal: 16,
+    });
+  });
+
+  it("account shell frame > given below the desktop breakpoint > then it uses the full-bleed mobile content width regardless of alignment", () => {
+    expect(getAccountShellFrameMetrics(800, { alignToNavbarShell: true })).toEqual({
+      maxWidth: 1440,
+      paddingHorizontal: 16,
+    });
+    expect(getAccountShellFrameMetrics(800, { alignToNavbarShell: false })).toEqual({
+      maxWidth: 1440,
+      paddingHorizontal: 16,
+    });
+  });
+
+  it("account shell footer offset > given desktop rail page > then the footer breaks back to the centered frame content edge", () => {
+    // The desktop footer renders full-bleed (marginLeft: -horizontalPadding, width:
+    // viewportWidth) inside the AccountPageShell's centered + padded frame. To line the
+    // footer's centered content up with the page content above it, the slot must offset
+    // by frameOffset + framePadding = (viewportWidth - frameMaxWidth)/2 + framePadding.
+    // Rail pages mirror the navbar shell (maxWidth 1440, padding 80 at >=1200 / 56 below).
+    expect(getAccountShellFooterHorizontalPadding(1440, { alignToNavbarShell: true })).toBe(80);
+    expect(getAccountShellFooterHorizontalPadding(1600, { alignToNavbarShell: true })).toBe(160);
+    expect(getAccountShellFooterHorizontalPadding(2048, { alignToNavbarShell: true })).toBe(384);
+    expect(getAccountShellFooterHorizontalPadding(1100, { alignToNavbarShell: true })).toBe(56);
+  });
+
+  it("account shell footer offset > given desktop non-rail page (quest) > then it uses the legacy 1180/16 frame", () => {
+    expect(getAccountShellFooterHorizontalPadding(1440, { alignToNavbarShell: false })).toBe(146);
+    expect(getAccountShellFooterHorizontalPadding(2048, { alignToNavbarShell: false })).toBe(450);
+  });
+
+  it("account shell footer offset > given below the desktop breakpoint > then there is no offset (footer is hidden)", () => {
+    expect(getAccountShellFooterHorizontalPadding(800, { alignToNavbarShell: true })).toBe(0);
+    expect(getAccountShellFooterHorizontalPadding(800, { alignToNavbarShell: false })).toBe(0);
   });
 
   it("home search > given web mobile header > then mobile uses the same placeholder copy", () => {
@@ -575,6 +645,10 @@ describe("GoGoCash web design parity", () => {
       "utf8"
     );
     expect(footerSource).toContain("getDesktopFooterGrid(viewportWidth)");
+    expect(footerSource).toContain("getDesktopShellContentWidth(viewportWidth)");
+    expect(footerSource).toContain("marginLeft: -horizontalPadding");
+    expect(footerSource).toContain("width: viewportWidth");
+    expect(footerSource).not.toContain("paddingHorizontal: 32");
     expect(footerSource).toContain('flexWrap: "wrap"');
     expect(footerSource).toContain("gap: footerGrid.gap");
     expect(footerSource).toContain("flexBasis: footerGrid.columnBasis");

@@ -238,6 +238,19 @@ export function getDesktopShellHorizontalPadding(viewportWidth: number) {
   );
 }
 
+export function getDesktopShellOffset(viewportWidth: number) {
+  const shellContentWidth = Math.min(viewportWidth, mobileShellLayout.desktopContentMaxWidth);
+
+  return Math.max(0, (viewportWidth - shellContentWidth) / 2);
+}
+
+export function getDesktopShellContentWidth(viewportWidth: number) {
+  const shellContentWidth = Math.min(viewportWidth, mobileShellLayout.desktopContentMaxWidth);
+  const shellPadding = getDesktopShellHorizontalPadding(viewportWidth);
+
+  return Math.max(0, shellContentWidth - shellPadding * 2);
+}
+
 export const webHomeSearchPlaceholder = "Search brands, stores, products, or cashback";
 
 // First-visit intro modal (web parity: ModalAfterLogin "Every Purchase Pays You Back.").
@@ -401,7 +414,7 @@ export const webAuthPage = {
 } as const;
 
 export const webLinkMyCashbackIntro = {
-  backgroundColor: "#DCEBFF",
+  backgroundColor: "#F6F6F6",
   title: "Sign in",
   subtitle: "Manage your activities in one centralized account",
   goGoCashImageLabel: "GoGoCash",
@@ -498,6 +511,74 @@ export const webAccountPageSurface = {
   surfaceBorderColor: "#E4E4E4",
   shellBackground: "#F6F6F6",
 } as const;
+
+/**
+ * Horizontal width frame for the account/profile shell (AccountPageShell).
+ *
+ * `alignToNavbarShell` pages (the profile rail / account-section surfaces) reuse the
+ * desktop header's column cap (mobileShellLayout.desktopContentMaxWidth) and gutter
+ * (getDesktopShellHorizontalPadding) so the user-section card's left edge meets the
+ * navbar logo and its right edge meets the globe — the same rule the home page uses
+ * in getResponsiveHomeLayoutMetrics. Non-rail desktop pages (e.g. Quest, whose hero
+ * and grid are sized from webAccountPageSurface.desktopContentMaxWidth) keep the
+ * legacy 1180/16 frame. Below the desktop breakpoint both use the full-bleed mobile
+ * content width.
+ */
+export function getAccountShellFrameMetrics(
+  viewportWidth: number,
+  options: { alignToNavbarShell?: boolean } = {}
+): { maxWidth: number; paddingHorizontal: number } {
+  const isDesktop = viewportWidth >= mobileShellLayout.desktopBreakpoint;
+
+  if (!isDesktop) {
+    return {
+      maxWidth: mobileShellLayout.contentMaxWidth,
+      paddingHorizontal: mobileShellLayout.contentHorizontalPadding,
+    };
+  }
+
+  if (options.alignToNavbarShell) {
+    return {
+      maxWidth: mobileShellLayout.desktopContentMaxWidth,
+      paddingHorizontal: getDesktopShellHorizontalPadding(viewportWidth),
+    };
+  }
+
+  return {
+    maxWidth: webAccountPageSurface.desktopContentMaxWidth,
+    paddingHorizontal: mobileShellLayout.desktopContentHorizontalPadding,
+  };
+}
+
+/**
+ * Horizontal offset the AccountPageShell must pass to its desktop footer slot.
+ *
+ * The footer renders full-bleed — CustomerDesktopFooter sets
+ * `marginLeft: -horizontalPadding` + `width: viewportWidth` and centers its inner
+ * content. But it lives inside the shell's centered, horizontally-padded frame, so
+ * without compensation it starts at the padded content edge and overflows to the
+ * right (clipping the last footer column / social icon). Offsetting by the frame's
+ * centering gap plus its content padding pulls the footer back to the viewport edge
+ * so its centered content lines up with the page content above it. Mirrors the
+ * `getDesktopShellOffset` convention the full-bleed pages use, but adds the frame
+ * padding the shell applies via the ScrollView content container.
+ *
+ * Mobile hides the footer (CustomerDesktopFooterSlot returns null below the desktop
+ * breakpoint), so no offset is needed there.
+ */
+export function getAccountShellFooterHorizontalPadding(
+  viewportWidth: number,
+  options: { alignToNavbarShell?: boolean } = {}
+): number {
+  if (viewportWidth < mobileShellLayout.desktopBreakpoint) {
+    return 0;
+  }
+
+  const { maxWidth, paddingHorizontal } = getAccountShellFrameMetrics(viewportWidth, options);
+  const frameOffset = Math.max(0, (viewportWidth - maxWidth) / 2);
+
+  return roundLayoutValue(frameOffset + paddingHorizontal);
+}
 
 export const webWalletTransactionTabs = [
   "All Transactions",
