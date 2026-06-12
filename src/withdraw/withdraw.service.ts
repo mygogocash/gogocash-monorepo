@@ -851,7 +851,9 @@ export class WithdrawService {
         .lean();
     }
 
-    if (myCashbackDataList?.length < 1) {
+    // Fresh phone-OTP users have no email on the doc; `$regex: undefined`
+    // makes MongoDB throw and 500s /withdraw/check for exactly those users.
+    if (myCashbackDataList?.length < 1 && user?.email) {
       myCashbackDataList = await this.userMyCashbackModel
         .find({
           // email: user.email,
