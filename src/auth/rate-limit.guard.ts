@@ -54,9 +54,22 @@ export class RateLimitGuard implements CanActivate {
         context.getHandler(),
       ) ?? DEFAULTS;
 
-    const forwarded = req.headers?.['x-forwarded-for'];
-    const fwd = Array.isArray(forwarded) ? forwarded[0] : forwarded;
-    const ip = (fwd?.split(',')[0]?.trim() || req.ip || 'unknown').toString();
+    // Prefer Cloudflare's CF-Connecting-IP — it is set by the Cloudflare edge
+    // and overwrites any client-supplied value, so it can't be spoofed to rotate
+    // the rate-limit bucket (the leftmost X-Forwarded-For entry IS client-set,
+    // which was the bypass). Fall back to XFF then req.ip for non-CF paths.
+    const headerIp = (name: string): string | undefined => {
+      const v = req.headers?.[name];
+      return (Array.isArray(v) ? v[0] : v)?.toString();
+    };
+    const cfIp = headerIp('cf-connecting-ip');
+    const fwd = headerIp('x-forwarded-for');
+    const ip = (
+      cfIp?.trim() ||
+      fwd?.split(',')[0]?.trim() ||
+      req.ip ||
+      'unknown'
+    ).toString();
     const routeKey = req.route?.path || context.getHandler().name;
     const key = `${routeKey}::${ip}`;
 
