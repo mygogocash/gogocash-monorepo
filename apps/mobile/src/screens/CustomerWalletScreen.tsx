@@ -29,6 +29,8 @@ import walletNoDataImage from "../../assets/wallet-no-data.png";
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
 import { WalletSkeleton } from "@mobile/components/Skeleton";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
+import { mapCheckWithdrawToWalletMetrics, type WalletMetricView } from "@mobile/api/walletMapper";
+import { isCheckWithdrawResponse } from "@mobile/api/walletTypes";
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
@@ -42,7 +44,9 @@ import {
 } from "@mobile/design/webDesignParity";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
-type WalletMetric = (typeof webWalletCashbackSummary.metrics)[number];
+// Widened to the live view shape so fixture rows and backend-mapped rows
+// share one metric card type (fixture literals are assignable to it).
+type WalletMetric = WalletMetricView;
 
 export function CustomerWalletScreen() {
   const tc = useCopy();
@@ -52,6 +56,12 @@ export function CustomerWalletScreen() {
     fixtureData: webWalletCashbackSummary,
     resourceId: "wallet",
   });
+  // Money rule: live amounts are backend-derived or zero — the fixture's demo
+  // balances must never render as real money. Fixtures mode rejects the guard
+  // and stays byte-identical.
+  const liveMetrics = isCheckWithdrawResponse(walletResource.data)
+    ? mapCheckWithdrawToWalletMetrics(walletResource.data, webWalletCashbackSummary.metrics)
+    : null;
 
   if (walletResource.status !== "ready") {
     return (
@@ -70,7 +80,7 @@ export function CustomerWalletScreen() {
       {/* Mobile-only back link + title — on desktop the persistent sidebar replaces it (web parity). */}
       {isDesktop ? null : <WalletHeader />}
       <WalletSupportBanner />
-      <WalletCashbackSummary />
+      <WalletCashbackSummary liveMetrics={liveMetrics} />
       <WalletTransactions onRefresh={walletResource.retry} />
     </AccountPageShell>
   );
@@ -399,7 +409,7 @@ function WalletSupportBanner() {
   );
 }
 
-function WalletCashbackSummary() {
+function WalletCashbackSummary({ liveMetrics }: { liveMetrics: WalletMetricView[] | null }) {
   const tc = useCopy();
   return (
     <View accessibilityLabel={webWalletAccessibleSummary} style={styles.cashbackSummaryCard}>
@@ -411,7 +421,7 @@ function WalletCashbackSummary() {
         <HelpCircleIcon color="#7089A5" size={28} strokeWidth={2.4} />
       </View>
       <View style={styles.walletMetricStack}>
-        {webWalletCashbackSummary.metrics.map((metric) => (
+        {(liveMetrics ?? webWalletCashbackSummary.metrics).map((metric) => (
           <WalletMetricCard key={metric.label} metric={metric} />
         ))}
       </View>
