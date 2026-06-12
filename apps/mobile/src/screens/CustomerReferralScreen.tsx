@@ -23,6 +23,8 @@ import {
 
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
+import { mapReferralPointsToInviteRows, type ReferralInviteRow } from "@mobile/api/referralMapper";
+import { isReferralPointList } from "@mobile/api/referralTypes";
 import { copyToClipboard } from "@mobile/lib/clipboard";
 import { haptics } from "@mobile/lib/haptics";
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
@@ -55,6 +57,11 @@ export function CustomerReferralScreen() {
     resourceId: "referral",
   });
   const copyReferralLink = useCopyReferralLink();
+  // Live referral activity replaces the demo rows when the backend list
+  // narrows; fixtures mode keeps the screen-local rows byte-identically.
+  const liveInviteRows = isReferralPointList(referralResource.data)
+    ? mapReferralPointsToInviteRows(referralResource.data)
+    : null;
 
   if (referralResource.status !== "ready") {
     return (
@@ -83,7 +90,7 @@ export function CustomerReferralScreen() {
           }
         >
           <ReferralEarnCard isDesktop={isDesktop} onCopyLink={copyReferralLink} />
-          <ReferralInvitationPanel />
+          <ReferralInvitationPanel liveRows={liveInviteRows} />
           <ReferralStepsSection />
           <ReferralFaqsSection />
           <ReferralExploreShopsSection isDesktop={isDesktop} />
@@ -297,14 +304,14 @@ const REFERRAL_INVITE_ROWS = [
   { date: "3/12/2026", user: "DealMate", point: "80 pts", status: "Success", category: "shop" },
 ] as const;
 
-function ReferralInvitationPanel() {
+function ReferralInvitationPanel({ liveRows }: { liveRows: ReferralInviteRow[] | null }) {
   const tc = useCopy();
   const [activeTab, setActiveTab] = useState(0);
   return (
     <View style={styles.invitationSection}>
       <Text style={styles.invitationTitle}>{tc(webReferralPage.invitation.title)}</Text>
       <ReferralInvitationTabs activeTab={activeTab} onSelectTab={setActiveTab} />
-      <ReferralInvitationTable activeTab={activeTab} />
+      <ReferralInvitationTable activeTab={activeTab} liveRows={liveRows} />
     </View>
   );
 }
@@ -342,12 +349,19 @@ function ReferralInvitationTabs({
   );
 }
 
-function ReferralInvitationTable({ activeTab }: { activeTab: number }) {
+function ReferralInvitationTable({
+  activeTab,
+  liveRows,
+}: {
+  activeTab: number;
+  liveRows: ReferralInviteRow[] | null;
+}) {
   const tc = useCopy();
   const category = REFERRAL_TAB_CATEGORIES[activeTab] ?? null;
+  const sourceRows: readonly ReferralInviteRow[] = liveRows ?? REFERRAL_INVITE_ROWS;
   const rows = category
-    ? REFERRAL_INVITE_ROWS.filter((row) => row.category === category)
-    : REFERRAL_INVITE_ROWS;
+    ? sourceRows.filter((row) => row.category === category)
+    : sourceRows;
   return (
     <View style={styles.tableCard}>
       <View style={styles.tableHeader}>
