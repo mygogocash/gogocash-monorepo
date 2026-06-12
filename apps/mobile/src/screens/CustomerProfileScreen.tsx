@@ -19,6 +19,8 @@ import { ProfileInfoPanel } from "@mobile/components/ProfileInfoPanel";
 import { useToast } from "@mobile/hooks/useToast";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { useMobileLogout } from "@mobile/auth/useMobileLogout";
+import { mapUserProfileToWalletSummary } from "@mobile/api/profileMapper";
+import { isUserProfileResponse } from "@mobile/api/profileTypes";
 import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
 import { copyToClipboard } from "@mobile/lib/clipboard";
 import {
@@ -45,6 +47,12 @@ export function CustomerProfileScreen() {
     fixtureData: webProfileWalletSummary,
     resourceId: "profile",
   });
+  // Precedence: live backend doc > session overlay > fixture. In fixtures mode
+  // resource.data is the fixture summary, which the live-doc guard rejects, so
+  // the session overlay path is byte-identical to the pre-live behavior.
+  const walletSummary = isUserProfileResponse(profileResource.data)
+    ? mapUserProfileToWalletSummary(profileResource.data, sessionWalletSummary)
+    : sessionWalletSummary;
 
   if (profileResource.status !== "ready") {
     return (
@@ -64,12 +72,12 @@ export function CustomerProfileScreen() {
       ) : (
       <View style={styles.profileHubStack}>
         <AccountWalletHeroCard
-          amount={sessionWalletSummary.amount}
-          currency={sessionWalletSummary.currency}
-          lastUpdated={sessionWalletSummary.lastUpdated}
-          maskedId={sessionWalletSummary.maskedId}
-          tier={sessionWalletSummary.tier}
-          title={sessionWalletSummary.username}
+          amount={walletSummary.amount}
+          currency={walletSummary.currency}
+          lastUpdated={walletSummary.lastUpdated}
+          maskedId={walletSummary.maskedId}
+          tier={walletSummary.tier}
+          title={walletSummary.username}
         />
         <View style={styles.profilePanelShell}>
           <ProfilePanelHeader
