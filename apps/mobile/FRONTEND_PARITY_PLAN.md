@@ -2,12 +2,13 @@
 
 This plan tracks the native Expo app work needed to match the current GoGoCash customer web UI without using a WebView.
 
-## Current Progress Snapshot (2026-05-28)
+## Current Progress Snapshot (2026-06-06)
 
 Status: the Expo customer app is past the scaffold phase and has been handed off to GitHub on branch `expo-module`. The conversion matrix now marks the customer route catalog as migrated, and tests assert there are no remaining `parity_shell` or `backend_migration` customer routes.
 
 Recently completed:
 
+- 2026-06-06 desktop footer/navbar tightening (local, uncommitted): footer brand uses the shared navbar logo treatment via `CustomerDesktopBrandLink`; the desktop footer outer band now matches the navbar outer viewport width on `/login` and `/` at `1509x828`; and capped desktop pages (`/`, `/category/*`, `/brand`, `/shops`, `/discover`, `/category`) pass `getDesktopShellOffset(width)` into the footer so the white band breaks out from centered caps without page overflow. Browser proof on `/login` and `/` measured navbar/footer outer bounds at `x=0 width=1509 right=1509`, zero horizontal overflow, and clean console logs; mobile guard at `390x844` kept desktop footer hidden.
 - 2026-06-01 directory/category footer full-bleed (`7a1baf0`): the white footer card was capped at 1440 and centered (gray gutters) on /brand, /shops, /discover, /category/* because an ancestor ScrollView inside the 1440-capped phoneFrame clips (overflowX:hidden) the footer's full-bleed white; lifted the footer out of the 1440 cap on the desktop branch (CustomerCategoryDetailScreen + CustomerDiscoveryScreen brand/shops/discover sub-screens, mobile unchanged). Verified live at vw=1940: footer whiteCard L0 R1940 W1940 full-bleed on all four, content still capped 1440, no overflow; gate render+source+tsc all 0.
 - 2026-06-01 desktop category/header UI pass (`54add48` → `a593f6a` → `265bb85`): fixed the top-nav active-state (route-derived via `usePathname()` instead of hardcoded `webDesktopHeaderNavItems.active`, so the current tab underlines and the sidebar highlights the route category); matched the category sort pills to Next's `14px/600/lineHeight20/padding6×16`; removed the persistent RN-web focus-outline box on the logo/header pressables/sidebar/sort pills (`webPressableFocusReset`, with `StyleSheet.flatten` on `<Link asChild>` children to avoid the expo-router `<Slot>` array-style crash); renamed the sort label "High Cashback" → "Highest Cashback" across `webDesignParity.ts` and web i18n (`discoverSortHighCashback` en/th/jp); and silenced the keyless `usePostHog` dev-error toast by always mounting `<PostHogProvider>` with a no-op client + `autocapture={false}`. Each commit gated render+source+tsc all 0 and was live-verified against the Next reference.
 - 2026-05-31 full desktop parity sweep (`ce8de6a`): measured all 45 routes (desktop + mobile) Expo-vs-Next — zero genuine misalignments; the one real defect (home header/footer trapped in the `phoneFrame` 1440 cap) was made full-bleed and verified at vw=2000. All other audit flags were measurement false positives. (the sweep's footer heuristic missed the directory/category footer, caught later and fixed in 7a1baf0).
@@ -29,6 +30,7 @@ Recently completed:
 
 Verification run for this update:
 
+- 2026-06-06 footer/navbar local gates: focused shell/footer tests passed (33 tests), home parity passed (32 tests), full source suite passed (53 files / 407 tests), render suite passed (38 files / 238 tests), `npm --prefix apps/mobile run typecheck` passed, and Browser validation passed for `/login` and `/` at `1509x828` plus mobile guard at `390x844`. Screenshot evidence: `/tmp/gogocash-footer-width-navbar-after.png`, `/tmp/gogocash-home-footer-full-width-after.png`.
 - 2026-05-28 GitHub handoff: branch `expo-module` tracks `origin/expo-module` at commit `e605c59`; the old remote branch `codex/expo-desktop-navbar-footer` was deleted. This was a repository/docs handoff step, so no new runtime gate was run after the previously recorded green checks.
 - `npm run mobile:test:flows`: passed, 9 tests.
 - `npm run mobile:test:full`: passed, 30 files / 204 tests / 10 todo, typecheck, and Expo web export.
@@ -48,16 +50,18 @@ Verification run for this update:
 
 Not verified in this update:
 
-- New runtime validation after the 2026-05-28 docs-only progress refresh.
+- Expo web export after the 2026-06-06 footer/navbar local pass.
 - Full side-by-side screenshot comparison for every route against a clean Next.js reference server
 - EAS preview/production builds
 - iOS simulator, Android emulator, or physical-device smoke
 
 Verified in the latest local completion pass:
 
-- `npm run lint`
-- `npm run test:full` with 229 passed tests / 7 todo, typecheck, and Expo web export
-- `MOBILE_PLAYWRIGHT_NO_SERVER=1 npm run mobile:design-qa` with 77 passed checks / 3 desktop-only mobile skips
+- Focused parity tests for shell/footer and home
+- `npm --prefix apps/mobile run test` with 407 passed tests
+- `npm --prefix apps/mobile run test:render` with 238 passed tests
+- `npm --prefix apps/mobile run typecheck`
+- Browser validation on the live Expo web preview for `/login`, `/`, and mobile guard viewports
 
 Current blockers before production launch:
 

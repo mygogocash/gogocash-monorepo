@@ -170,7 +170,7 @@ Opening motion is already present on the Expo GoGoCash interaction surfaces. Clo
 
 Expo web home must match the desktop Next.js reference shell. At desktop widths it should show the GoGoCash desktop header, Quest/sign-in/locale controls, the category nav bar, and the bottom PDPA cookie banner. The mobile search shell and floating bottom nav remain mobile-only.
 
-The desktop shell must paint white across the full viewport while constraining its inner content to the same centered `1440px` shell as Next.js. At the live reference widths, shell padding is `56px` at `1024px`, `80px` at `1280px+`, and remains `80px` inside the centered shell on very wide screens. The secondary menu row uses Next's 38px tab lane, 16px inter-tab gap, 14px/21px medium body tabs, and 16px/24px regular lead tabs.
+The desktop shell must paint white across the full viewport while constraining its inner content to the same centered `1440px` shell as Next.js. At the live reference widths, shell padding is `56px` at `1024px`, `80px` at `1280px+`, and remains `80px` inside the centered shell on very wide screens. Capped desktop content must still let full-bleed shell elements, especially the footer, escape to viewport `x=0` without creating horizontal overflow. The secondary menu row uses Next's 38px tab lane, 16px inter-tab gap, 14px/21px medium body tabs, and 16px/24px regular lead tabs.
 
 ## Data and State
 
@@ -208,6 +208,7 @@ Expo web home must render the desktop-only GoGoLink banner in the same position 
 - `webGoLinkFeature` stores the staging title, input label, placeholder, CTA label, empty error, invalid URL error, and success/result copy.
 - Desktop banner state keeps the pasted URL, current validation error, guideline-dialog visibility, result-dialog visibility, and result href.
 - `getDesktopShellHorizontalPadding` stores the responsive desktop header/subnav padding contract so desktop shell geometry can match both 1440px and wider centered viewports.
+- `getDesktopShellOffset` stores the centered-shell viewport offset for desktop pages that render full-bleed chrome inside a capped parent.
 
 ## Edge Cases
 
@@ -230,6 +231,7 @@ Every Expo web customer page must have the Next.js desktop shell on desktop widt
 - `CustomerDesktopRouteChrome` wraps the Expo Router stack at desktop widths.
 - `CustomerDesktopRouteChrome` renders `CustomerDesktopHeader` around route content for routes that do not own their own public shell.
 - `CustomerDesktopFooterSlot` renders the shared desktop footer inside route-owned scroll content so long pages keep the footer reachable at the bottom instead of pinning it over the viewport.
+- Capped desktop pages must pass a real footer breakout offset, not `horizontalPadding={0}`, when the footer is nested inside a centered cap.
 - The self-owned desktop shell route list is exact and limited to `/`, `/login`, `/register`, `/account-setup`, `/privacy-policy`, `/link-mycashback`, and `/link-mycashback/my-cashback-sign-in`.
 
 ## Edge Cases
@@ -243,6 +245,8 @@ Every Expo web customer page must have the Next.js desktop shell on desktop widt
 
 - `desktop-shell-parity.test.ts`
   - `desktop route chrome > given every migrated customer route > then Expo guarantees a navbar and footer on desktop`
+  - `desktop capped footer width > given content-capped pages > then the footer offsets back to the viewport edge`
+  - `desktop brand logo > given navbar and footer brand links > then both use the shared navbar logo treatment`
   - R-tier: R2
   - Affected files: `apps/mobile/app/_layout.tsx`, `apps/mobile/src/components/CustomerDesktopRouteChrome.tsx`, `apps/mobile/src/screens/CustomerAuthScreen.tsx`, `CustomerAccountSetupScreen.tsx`, `CustomerPrivacyPolicyScreen.tsx`, `apps/mobile/src/__tests__/desktop-shell-parity.test.ts`, `spec.md`
   - Rollback: remove the root chrome wrapper and the three self-owned page footers, returning desktop shell ownership to route-specific screens.
@@ -259,19 +263,22 @@ Every Expo web customer page must have the Next.js desktop shell on desktop widt
 
 ## Requirement
 
-Expo web home must render the desktop Next.js footer at desktop widths. The footer should match the staging layout: white full-width footer band, centered `1200px` content, GoGoCash logo, three link columns, Products-column Cloudflare trust mark, copyright row, social icon row, and risk disclaimer. The existing mobile bottom nav remains the only footer-style surface below the desktop breakpoint.
+Expo web home and desktop public routes must render the desktop Next.js footer at desktop widths. The footer should match the staging layout: white full-width footer band, centered desktop content, GoGoCash logo using the same visual treatment as the navbar logo, three link columns, Products-column Cloudflare trust mark, copyright row, social icon row, and risk disclaimer. The existing mobile bottom nav remains the only footer-style surface below the desktop breakpoint.
 
 ## Data and State
 
 - `webDesktopFooter` stores the staging footer copy, sections, link URLs, social URLs, Cloudflare link, and disclaimer.
 - The footer uses the current calendar year in the same copyright template as Next.js.
+- `CustomerDesktopBrandLink` is the shared navbar/footer brand-link implementation.
+- `CustomerDesktopFooter` separates the outer full-viewport footer band from the inner desktop content lane.
 - Cloudflare uses the staging `/branding/cloudflare-logo.png` asset copied into Expo assets.
 
 ## Edge Cases
 
 - Desktop footer must not render on mobile widths.
 - Internal footer links stay as app links; external footer and social links open with external URL attributes on web.
-- Footer white background must extend across the viewport instead of inheriting the gray page background.
+- Footer white background must extend across the viewport instead of inheriting the gray page background, including when the footer is rendered inside a centered desktop content cap.
+- Footer outer width must match the navbar outer width at the same viewport; footer inner content may remain centered and narrower.
 - The Cloudflare mark must remain under the Products column, not in the bottom copyright/social row.
 - Social links must expose accessible labels matching the Next footer: X, Discord, Telegram, Line, Threads, LinkedIn, GitHub, YouTube.
 
@@ -279,10 +286,11 @@ Expo web home must render the desktop Next.js footer at desktop widths. The foot
 
 - `web-design-parity.test.ts`
   - `desktop footer parity > given the Next footer contract > then Expo keeps the same sections links social and legal copy`
+  - `desktop footer grid > given web Footer breakpoints > then columns and gap collapse responsively`
 - `design-parity.spec.ts`
   - `/ > given desktop Next shell parity > then header, category nav, GoGoLink, footer, and cookie banner render and dismiss`
   - R-tier: R2
-  - Affected files: `src/design/webDesignParity.ts`, `src/components/CustomerDesktopFooter.tsx`, `src/screens/CustomerHomeScreen.tsx`, `assets/branding/cloudflare-logo.png`, `spec.md`
+  - Affected files: `src/design/webDesignParity.ts`, `src/components/CustomerDesktopFooter.tsx`, `src/components/CustomerDesktopBrandLink.tsx`, `src/screens/CustomerHomeScreen.tsx`, `src/screens/CustomerAuthScreen.tsx`, `src/screens/CustomerCategoryDetailScreen.tsx`, `src/screens/CustomerDiscoveryScreen.tsx`, `assets/branding/cloudflare-logo.png`, `spec.md`
   - Rollback: remove `CustomerDesktopFooter`, remove footer constants and e2e assertions, and restore the home scroll content to end after promo sections.
 
 # Desktop Auth Parity Spec
