@@ -12,6 +12,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
+import { mapSubscriptionStatus } from "@mobile/api/billingMapper";
+import { isCustomerSubscriptionStatus } from "@mobile/api/billingTypes";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { Skeleton, SkeletonText } from "@mobile/components/Skeleton";
 import { haptics } from "@mobile/lib/haptics";
@@ -74,6 +76,12 @@ export function CustomerSubscriptionScreen({ mode }: { mode: SubscriptionMode })
     fixtureData: model,
     resourceId: "billing",
   });
+  // Live subscription status (staging returns {enabled:false,status:"disabled"}
+  // until Stripe env is configured). An active holder shouldn't be re-sold the
+  // plan, so the hero CTA hides; everything else is unchanged.
+  const liveSubscription = isCustomerSubscriptionStatus(billingResource.data)
+    ? mapSubscriptionStatus(billingResource.data)
+    : null;
 
   if (billingResource.status !== "ready") {
     return (
@@ -109,15 +117,17 @@ export function CustomerSubscriptionScreen({ mode }: { mode: SubscriptionMode })
             <Text style={styles.title}>{tc(model.title)}</Text>
             <Text style={styles.body}>{tc(model.body)}</Text>
             <DisabledStripeNotice />
-            <Link asChild href={model.ctaHref}>
-              <Pressable
-                accessibilityRole="link"
-                onPress={() => haptics.impact()}
-                style={styles.primaryAction}
-              >
-                <Text style={styles.primaryActionText}>{tc(model.ctaLabel)}</Text>
-              </Pressable>
-            </Link>
+            {liveSubscription?.isActive ? null : (
+              <Link asChild href={model.ctaHref}>
+                <Pressable
+                  accessibilityRole="link"
+                  onPress={() => haptics.impact()}
+                  style={styles.primaryAction}
+                >
+                  <Text style={styles.primaryActionText}>{tc(model.ctaLabel)}</Text>
+                </Pressable>
+              </Link>
+            )}
           </View>
 
           {mode === "pricing" ? <PricingPanel period={period} setPeriod={setPeriod} /> : null}
