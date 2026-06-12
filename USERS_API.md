@@ -183,7 +183,7 @@ const response = await getUsers(); // Token added automatically
 curl -X 'GET' \
   'http://localhost:8080/user?limit=12&page=1&search=y' \
   -H 'accept: */*' \
-  -H 'Authorization: Bearer ***REMOVED***'
+  -H 'Authorization: Bearer <ADMIN_JWT>'
 ```
 
 ## Demo Component
