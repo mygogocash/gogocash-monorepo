@@ -52,6 +52,9 @@ async function bootstrap() {
     'http://localhost:3000',
     'http://localhost:3001',
     'http://localhost:3002',
+    // Expo web dev server (apps/mobile)
+    'http://localhost:8081',
+    'http://localhost:19006',
   ];
   app.enableCors({
     origin: (origin, callback) => {
