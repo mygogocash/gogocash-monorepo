@@ -571,6 +571,29 @@ export class AuthService {
       throw new UnauthorizedException('Signature does not match address');
     }
 
+    // EIP-4361 domain binding: a SIWE signature is only valid for the domain it
+    // was issued for. Without this, a message the wallet signed for ANOTHER
+    // site could be replayed here to authenticate that wallet. Enforced when
+    // SIWE_EXPECTED_DOMAIN is configured (e.g. 'api.gogocash.co') so the control
+    // ships without breaking the current MiniPay flow until the value is set.
+    const expectedDomain = process.env.SIWE_EXPECTED_DOMAIN;
+    if (expectedDomain) {
+      const domainMatch = /^(\S+) wants you to sign in/m.exec(message);
+      if (!domainMatch || domainMatch[1] !== expectedDomain) {
+        throw new UnauthorizedException('SIWE domain mismatch');
+      }
+      const uriMatch = /^URI:\s*(\S+)/m.exec(message);
+      let uriHost: string | null = null;
+      try {
+        uriHost = uriMatch ? new URL(uriMatch[1]).host : null;
+      } catch {
+        uriHost = null;
+      }
+      if (uriHost !== expectedDomain) {
+        throw new UnauthorizedException('SIWE URI mismatch');
+      }
+    }
+
     // Pull `Issued At` out of the SIWE message (EIP-4361 field order is stable).
     const issuedAtMatch = /^Issued At:\s*(.+)$/m.exec(message);
     if (!issuedAtMatch) {
