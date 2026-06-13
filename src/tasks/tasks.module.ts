@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { JwtModule } from '@nestjs/jwt';
 import { TasksService } from './tasks.service';
 import { TasksController } from './tasks.controller';
 import { InvolveService } from 'src/involve/involve.service';
@@ -42,6 +43,11 @@ import {
 @Module({
   imports: [
     CacheModule.register(),
+    // TasksController is guarded by AuthAdminGuard, which injects JwtService.
+    // Without this registration Nest cannot resolve the guard's dependency and
+    // the whole app fails to boot (UnknownDependenciesException). Mirrors the
+    // JwtModule registration in every other AuthAdminGuard-protected module.
+    JwtModule.register({ secret: process.env.JWT_ADMIN_SECRET }),
     MongooseModule.forFeature([
       { name: Offer.name, schema: OfferSchema },
       { name: Deeplink.name, schema: DeeplinkSchema },

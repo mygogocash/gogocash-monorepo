@@ -64,7 +64,9 @@ export class UserController {
     const userData = await this.userService.findOne({
       _id: new Types.ObjectId(id),
     });
-    return this.userService.update(userData._id, updateUserDto);
+    // Self-service update: allowlisted fields only (no mass-assignment of
+    // server-controlled trust/financial fields).
+    return this.userService.updateProfile(userData._id, updateUserDto);
   }
 
   @UseGuards(AuthAdminGuard)
