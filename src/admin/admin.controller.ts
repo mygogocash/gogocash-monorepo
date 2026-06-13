@@ -158,6 +158,9 @@ export class AdminController {
   @UseGuards(AuthAdminGuard)
   @ApiSecurity('access-token')
   @ApiBearerAuth()
+  // Homepage merchandising config (writes the banner config doc) — a mutation,
+  // so it must not be reachable by a read-only viewer.
+  @Roles('approver')
   @Put('top-brands')
   saveTopBrands(@Body() body: { order: string[] }) {
     return this.adminService.saveTopBrands(body.order);
@@ -188,6 +191,9 @@ export class AdminController {
   //     example: 'Bearer eyJhb',
   //   },
   // })
+  // Dead stub today (returns a string, no DB write). Guarded at superadmin so
+  // it can never be implemented open by a later edit without a deliberate review.
+  @Roles('superadmin')
   @Post()
   create(@Body() createAdminDto: CreateAdminDto) {
     return this.adminService.create(createAdminDto);
@@ -314,7 +320,9 @@ export class AdminController {
   @UseGuards(AuthAdminGuard)
   @ApiSecurity('access-token')
   @ApiBearerAuth()
-  @Roles('approver')
+  // Edits commission_store / max_cap (cashback economics, fee-like) alongside
+  // offer content — raised from approver to superadmin per the Phase-2 review.
+  @Roles('superadmin')
   @Patch('update-offer/:id')
   updateOffer(
     @Param('id') id: string,

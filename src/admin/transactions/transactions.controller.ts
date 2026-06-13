@@ -29,6 +29,8 @@ export class TransactionsController {
     return this.transactionsService.findAll(query);
   }
 
+  // Bulk financial-PII export — restrict to support+ (not read-only viewers).
+  @Roles('support')
   @Get('export')
   async exportCsv(
     @Query() query: TransactionQueryDto,
