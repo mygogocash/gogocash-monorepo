@@ -83,8 +83,18 @@ export class UserController {
 
   @UseGuards(FirebaseAuthGuard)
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.userService.update(new Types.ObjectId(id), updateUserDto);
+  update(
+    @Param('id') _id: string,
+    @Body() updateUserDto: UpdateUserDto,
+    @Req() req: Request,
+  ) {
+    // Scope to self: a customer may only edit their OWN record. The `:id`
+    // param is ignored (it was an IDOR — any authed user could PATCH any other
+    // user by id). Use the verified token subject and the allowlisted path so
+    // server-controlled fields can't be mass-assigned either.
+    const user = req['user'] as { sub?: string };
+    const selfId = new Types.ObjectId(user?.sub);
+    return this.userService.updateProfile(selfId, updateUserDto);
   }
 
   @UseGuards(FirebaseAuthGuard)
