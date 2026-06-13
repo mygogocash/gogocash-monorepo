@@ -15,8 +15,9 @@ export default registerAs('env', () => ({
   OPTIMISE_AGENCY_ID: process.env.OPTIMISE_AGENCY_ID,
   OPTIMISE_API_BASE:
     process.env.OPTIMISE_API_BASE || 'https://api.optimisemedia.com',
-  // Email OTP Configuration
-  GMAIL_USER: process.env.GMAIL_USER,
-  GMAIL_APP_PASSWORD: process.env.GMAIL_APP_PASSWORD,
+  // Email (Resend) — RESEND_API_KEY loaded from Google Secret Manager in
+  // prod/staging. MAIL_FROM must be an address on a Resend-verified domain.
+  RESEND_API_KEY: process.env.RESEND_API_KEY,
+  MAIL_FROM: process.env.MAIL_FROM || 'GoGoCash <noreply@gogocash.co>',
   WEB_URL: process.env.WEB_APP_URL,
 }));

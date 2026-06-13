@@ -5,7 +5,7 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { MailerService } from '@nestjs-modules/mailer';
+import { EmailService } from 'src/email/email.service';
 import { InjectModel } from '@nestjs/mongoose';
 import { UserOtp } from 'src/user/schemas/user-otp.schema';
 import { Model } from 'mongoose';
@@ -39,11 +39,12 @@ function timingSafeEqualHex(a: string, b: string): boolean {
 
 @Injectable()
 export class OtpService {
-  // Two OTP subsystems coexist post-merge and DO NOT share state:
-  //  - UserOtp + MailerService (legacy /send-otp, /verify-otp; hardened)
+  // Two OTP subsystems coexist post-merge and DO NOT share state. Both now
+  // deliver email via Resend (EmailService); they differ only in storage/flow:
+  //  - UserOtp (legacy /send-otp, /verify-otp; hardened)
   //  - EmailOtpVerification + bcrypt (LINE-signup /email/request-otp, /email/verify-otp)
   constructor(
-    private readonly mailerService: MailerService,
+    private readonly emailService: EmailService,
     @InjectModel(UserOtp.name) private userOtpModel: Model<UserOtp>,
     @InjectModel(EmailOtpVerification.name)
     private otpModel: Model<EmailOtpVerificationDocument>,
@@ -60,12 +61,22 @@ export class OtpService {
       { upsert: true, new: true },
     );
     if (userOtp) {
-      await this.mailerService.sendMail({
-        from: 'Gogocash <support@gogocash.co>',
+      await this.emailService.sendEmail({
         to: email,
         subject: 'Gogocash รหัสยืนยันการเข้าสู่ระบบ (OTP)',
-        template: './otp',
-        context: { otp },
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #333;">Gogocash</h2>
+            <p>รหัสยืนยันการเข้าสู่ระบบ (OTP) ของคุณคือ:</p>
+            <div style="background-color: #f0f0f0; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 5px; margin: 20px 0; border-radius: 8px;">
+              ${otp}
+            </div>
+            <p>รหัสนี้จะหมดอายุใน <strong>5 นาที</strong></p>
+            <p style="color: #666;">หากคุณไม่ได้ร้องขอรหัสนี้ กรุณาเพิกเฉยต่ออีเมลฉบับนี้</p>
+            <hr style="margin-top: 30px; border: none; border-top: 1px solid #ddd;">
+            <p style="color: #888; font-size: 12px;">GOGOCASH</p>
+          </div>
+        `,
         text: `รหัส OTP ของคุณคือ: ${otp}`,
       });
     }
