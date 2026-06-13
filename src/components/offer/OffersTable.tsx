@@ -35,23 +35,7 @@ import { useRouter } from "next/navigation";
 import SearchBar from "@/components/ui/button/SearchBar";
 import SortByDropdown from "@/components/ui/button/SortByDropdown";
 import { OFFER_THUMB_SIZES } from "./offerMedia";
-
-const OFFERS_COUNTRY_FILTER_OPTIONS = [
-  { label: "\uD83C\uDDF9\uD83C\uDDED Thailand", value: "Thailand" },
-  { label: "\uD83C\uDDEE\uD83C\uDDE9 Indonesia", value: "Indonesia" },
-  { label: "\uD83C\uDDFB\uD83C\uDDF3 Vietnam", value: "Vietnam" },
-  { label: "\uD83C\uDDF5\uD83C\uDDED Philippines", value: "Philippines" },
-  { label: "\uD83C\uDDEE\uD83C\uDDF3 India", value: "India" },
-  { label: "\uD83C\uDDF2\uD83C\uDDFE Malaysia", value: "Malaysia" },
-  { label: "\uD83C\uDDE7\uD83C\uDDF7 Brazil", value: "Brazil" },
-  {
-    label: "\uD83C\uDDFA\uD83C\uDDF8 United States of America",
-    value: "United States of America",
-  },
-  { label: "\uD83C\uDDEC\uD83C\uDDE7 United Kingdom", value: "United Kingdom" },
-  { label: "\uD83C\uDDF8\uD83C\uDDEC Singapore", value: "Singapore" },
-  { label: "\uD83C\uDDF2\uD83C\uDDF2 Myanmar", value: "Myanmar" },
-];
+import { OFFERS_COUNTRY_FILTER_OPTIONS } from "@/lib/offerCountries";
 
 function displayAffiliatePartner(offer: Offer): string {
   const raw = offer.affiliate_partner?.trim();

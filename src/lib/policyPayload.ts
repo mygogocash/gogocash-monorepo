@@ -161,7 +161,11 @@ export function parseStoredPolicy(raw: string | unknown): ParsedPolicy {
             : "th";
         const translations: Record<string, string> = {};
         if (v1.primary) translations[primaryLocale] = v1.primary;
-        if (typeof v1.translation === "string" && v1.translation.trim() && v1.translationLocale) {
+        if (
+          typeof v1.translation === "string" &&
+          v1.translation.trim() &&
+          v1.translationLocale
+        ) {
           translations[v1.translationLocale] = v1.translation;
         }
         return {
@@ -183,7 +187,9 @@ export function parseStoredPolicy(raw: string | unknown): ParsedPolicy {
   // Path 3 — plain text or template_plus split.
   const split = trySplitTemplatePlus(raw);
   if (split.additional) {
-    const tmpl = DEFAULT_POLICY_TEMPLATES.find((t) => t.body.trim() === split.base.trim());
+    const tmpl = DEFAULT_POLICY_TEMPLATES.find(
+      (t) => t.body.trim() === split.base.trim(),
+    );
     if (tmpl) {
       return {
         primary_locale: "th",
@@ -203,18 +209,24 @@ export function parseStoredPolicy(raw: string | unknown): ParsedPolicy {
   };
 }
 
-function normaliseContentSource(
-  v: unknown,
-): PolicyDocumentV1["contentSource"] {
-  return v === "template" || v === "template_plus" || v === "custom" ? v : "custom";
+function normaliseContentSource(v: unknown): PolicyDocumentV1["contentSource"] {
+  return v === "template" || v === "template_plus" || v === "custom"
+    ? v
+    : "custom";
 }
 
 /** Best-effort split when legacy saves used composeTemplatePlus separator. */
-function trySplitTemplatePlus(primary: string): { base: string; additional: string } {
+function trySplitTemplatePlus(primary: string): {
+  base: string;
+  additional: string;
+} {
   const sep = "\n\n--- Additional terms ---\n\n";
   const i = primary.indexOf(sep);
   if (i === -1) return { base: primary, additional: "" };
-  return { base: primary.slice(0, i), additional: primary.slice(i + sep.length) };
+  return {
+    base: primary.slice(0, i),
+    additional: primary.slice(i + sep.length),
+  };
 }
 
 /** Strip empty translations + apply per-locale length cap. Mirrors the
@@ -254,7 +266,10 @@ export function buildPolicyContentForSave(payload: ParsedPolicy): {
       payload.contentSource === "template_plus"
         ? payload.templateId
         : null,
-    additional_terms: isTemplatePlus && Object.keys(additional).length > 0 ? additional : undefined,
+    additional_terms:
+      isTemplatePlus && Object.keys(additional).length > 0
+        ? additional
+        : undefined,
   };
 }
 
@@ -287,8 +302,7 @@ type PolicyContentWire = ReturnType<typeof buildPolicyContentForSave>;
  * Backend contract (gogocash_api/src/policy/policy.controller.ts):
  *   PUT /policy { category_id, banner?, terms? }
  *
- * Phase 3A.1 of POLICY_MULTILANG_PLAN.md — extracted from PolicyTable
- * so the wire shape is testable as a pure function.
+ * Extracted from PolicyTable so the wire shape is testable as a pure function.
  */
 export function buildSavePayload(input: {
   categoryId: string;
@@ -316,14 +330,18 @@ export function buildSavePayload(input: {
 /** Total character footprint across all locales — used for the editor's
  *  "are we within the storage cap" guard. The backend caps each locale
  *  at 50k independently, so this is just a UX hint. */
-export function totalTranslationLength(translations: Record<string, string>): number {
+export function totalTranslationLength(
+  translations: Record<string, string>,
+): number {
   return Object.values(translations || {}).reduce(
     (sum, v) => sum + (typeof v === "string" ? v.length : 0),
     0,
   );
 }
 
-export function getTemplateById(id: string | null | undefined): PolicyTemplate | undefined {
+export function getTemplateById(
+  id: string | null | undefined,
+): PolicyTemplate | undefined {
   if (!id) return undefined;
   return DEFAULT_POLICY_TEMPLATES.find((t) => t.id === id);
 }
@@ -357,7 +375,10 @@ export function getTemplateBody(
   return tmpl?.body ?? "";
 }
 
-export function composeTemplatePlus(templateBody: string, additional: string): string {
+export function composeTemplatePlus(
+  templateBody: string,
+  additional: string,
+): string {
   const add = additional.trim();
   if (!add) return templateBody.trim();
   return `${templateBody.trim()}\n\n--- Additional terms ---\n\n${add}`;

@@ -249,6 +249,8 @@ export async function getMissingOrders(params: {
   limit?: number;
   search?: string;
   status?: string;
+  from?: string;
+  to?: string;
 }) {
   const { data } = await client.get<Paginated<MissingOrderClaim>>("/admin/missing-orders", {
     params: qp(params),

@@ -213,6 +213,9 @@ const createdConversionsList: CreatedConversionItem[] =
 // (parsed JSON, as the real backend stores them). A block is only overwritten
 // when the PUT includes it, so saving one block never clobbers the other.
 const policyStore = new Map<string, { banner?: unknown; terms?: unknown }>();
+// Categories created via Policy Management "Create New" (in-memory; resets on
+// server restart, like the rest of the mock). Merged into get-category/list.
+const createdCategories: (typeof mockCategories)[number][] = [];
 
 /** Mock OTP for admin verification when adding emails / phones on withdraw user (internal demo). */
 const MOCK_USER_CONTACT_OTP = "123456";
@@ -578,7 +581,7 @@ function handleMockGET(
   }
 
   if (joined === "offer/get-category/list") {
-    let filtered = mockCategories;
+    let filtered = [...mockCategories, ...createdCategories];
     if (search) {
       const s = search.toLowerCase();
       filtered = filtered.filter((c) => c.name.toLowerCase().includes(s));
@@ -826,6 +829,22 @@ async function handleMockPOST(
   joined: string,
   body: unknown,
 ): Promise<MockApiResult> {
+  if (joined === "offer/create-category") {
+    const b = body as { data?: { name?: string }; name?: string } | null;
+    const name = (b?.data?.name ?? b?.name ?? "").trim();
+    if (!name) return jsonErr(400, { message: "name is required" });
+    const now = new Date().toISOString();
+    const created = {
+      _id: `cat_${Date.now()}`,
+      name,
+      image: "",
+      banner: "",
+      createdAt: now,
+      updatedAt: now,
+    };
+    createdCategories.push(created);
+    return ok(created);
+  }
   if (joined === "admin/login") {
     const b = body as { email?: string; password?: string };
     const password = b?.password ?? "";
@@ -1565,11 +1584,18 @@ async function handleMockPATCH(
 
   if (path[0] === "admin" && path[1] === "update-category" && path[2]) {
     const categoryId = path[2];
-    const cat = mockCategories.find((c) => c._id === categoryId);
+    // Look up seeded AND runtime-created categories (Policy Management "Create
+    // New" pushes into createdCategories) so their icon/banner can be edited.
+    const cat =
+      mockCategories.find((c) => c._id === categoryId) ??
+      createdCategories.find((c) => c._id === categoryId);
     if (!cat) {
       return jsonErr(404, { message: "Category not found" });
     }
-    const body = b as { image?: string; banner?: string };
+    const body = b as { image?: string; banner?: string; name?: string };
+    if (typeof body.name === "string" && body.name.trim().length > 0) {
+      cat.name = body.name.trim();
+    }
     if (typeof body.image === "string" && body.image.length > 0) {
       cat.image = body.image;
     }

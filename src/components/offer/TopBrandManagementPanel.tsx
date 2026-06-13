@@ -20,9 +20,18 @@ const EMPTY_ORDER: string[] = [];
 /** Payload for HTML5 DnD (index into the ordered id list). */
 const DND_INDEX_KEY = "application/gogocash-top-brand-index";
 
-function reorderIds(ids: string[], fromIndex: number, toIndex: number): string[] {
+function reorderIds(
+  ids: string[],
+  fromIndex: number,
+  toIndex: number,
+): string[] {
   if (fromIndex === toIndex) return ids;
-  if (fromIndex < 0 || toIndex < 0 || fromIndex >= ids.length || toIndex >= ids.length) {
+  if (
+    fromIndex < 0 ||
+    toIndex < 0 ||
+    fromIndex >= ids.length ||
+    toIndex >= ids.length
+  ) {
     return ids;
   }
   const next = [...ids];
@@ -106,12 +115,29 @@ export default function TopBrandManagementPanel() {
   }, [data?.items, offersPick?.data]);
 
   const pickerOptions = useMemo(() => {
-    const inList = new Set(localOrder);
-    return (offersPick?.data ?? []).filter((o) => !inList.has(o._id));
-  }, [offersPick?.data, localOrder]);
+    const inListIds = new Set(localOrder);
+    // Hide a shop once any of its offers is in the order — match on the display
+    // label (not just the offer id), and collapse duplicate labels to a single
+    // option (the offer list can return several offers that share a name).
+    const listedLabels = new Set(
+      localOrder
+        .map((id) => offerById.get(id))
+        .filter((o): o is Offer => Boolean(o))
+        .map(offerLabel),
+    );
+    const seen = new Set<string>();
+    const out: Offer[] = [];
+    for (const o of offersPick?.data ?? []) {
+      if (inListIds.has(o._id)) continue;
+      const label = offerLabel(o);
+      if (listedLabels.has(label) || seen.has(label)) continue;
+      seen.add(label);
+      out.push(o);
+    }
+    return out;
+  }, [offersPick?.data, localOrder, offerById]);
 
-  const dirty =
-    draftOrder !== null && !ordersEqual(draftOrder, serverOrder);
+  const dirty = draftOrder !== null && !ordersEqual(draftOrder, serverOrder);
 
   const saveMutation = useMutation({
     mutationFn: (order: string[]) => apiClient.saveTopBrands(order),
@@ -136,12 +162,15 @@ export default function TopBrandManagementPanel() {
     [serverOrder],
   );
 
-  const removeAt = useCallback((index: number) => {
-    setDraftOrder((d) => {
-      const prev = d ?? serverOrder;
-      return prev.filter((_, i) => i !== index);
-    });
-  }, [serverOrder]);
+  const removeAt = useCallback(
+    (index: number) => {
+      setDraftOrder((d) => {
+        const prev = d ?? serverOrder;
+        return prev.filter((_, i) => i !== index);
+      });
+    },
+    [serverOrder],
+  );
 
   const addSelected = useCallback(() => {
     const id = addOfferId.trim();
@@ -180,7 +209,9 @@ export default function TopBrandManagementPanel() {
   const handleRowDrop = useCallback(
     (e: DragEvent, dropIndex: number) => {
       e.preventDefault();
-      const raw = e.dataTransfer.getData(DND_INDEX_KEY) || e.dataTransfer.getData("text/plain");
+      const raw =
+        e.dataTransfer.getData(DND_INDEX_KEY) ||
+        e.dataTransfer.getData("text/plain");
       const from = parseInt(raw, 10);
       setDraggingIndex(null);
       setDragOverIndex(null);
@@ -215,26 +246,32 @@ export default function TopBrandManagementPanel() {
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 dark:border-gray-800 dark:bg-white/[0.03]">
       <div className="max-w-3xl space-y-2">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Homepage top brands</h2>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+          Homepage top brands
+        </h2>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          Choose which offers appear in the app homepage top-brand section and set their display order (first =
-          leftmost / top). In mock mode this is stored in memory until you restart the dev server.
+          Choose which offers appear in the app homepage top-brand section and
+          set their display order (first = leftmost / top). In mock mode this is
+          stored in memory until you restart the dev server.
         </p>
         <p className="text-xs text-gray-500 dark:text-gray-400">
-          Tip: you can still flag individual offers with <strong className="font-medium">Top Brands</strong> on
-          each offer; this screen controls the curated homepage sequence consumers see.
+          Tip: you can still flag individual offers with{" "}
+          <strong className="font-medium">Top Brands</strong> on each offer;
+          this screen controls the curated homepage sequence consumers see.
         </p>
       </div>
 
       {staleIds.length > 0 && (
         <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100">
-          Unknown or unloaded offer IDs: {staleIds.join(", ")}. Save will drop IDs that do not exist in the
-          catalog.
+          Unknown or unloaded offer IDs: {staleIds.join(", ")}. Save will drop
+          IDs that do not exist in the catalog.
         </p>
       )}
 
       <div className="mt-6 border-t border-gray-200 pt-6 dark:border-gray-700">
-        <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Add offer</h3>
+        <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+          Add offer
+        </h3>
         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
           Search by name, then pick an offer. Already listed offers are hidden.
         </p>
@@ -249,7 +286,7 @@ export default function TopBrandManagementPanel() {
               value={pickerSearch}
               onChange={(e) => setPickerSearch(e.target.value)}
               placeholder="Search offers…"
-              className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:focus:border-brand-400"
+              className="focus:border-brand-500 focus:ring-brand-500/20 dark:focus:border-brand-400 h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white"
             />
           </div>
           <div className="min-w-0 flex-[2]">
@@ -260,7 +297,7 @@ export default function TopBrandManagementPanel() {
               id="top-brand-add"
               value={addOfferId}
               onChange={(e) => setAddOfferId(e.target.value)}
-              className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:focus:border-brand-400"
+              className="focus:border-brand-500 focus:ring-brand-500/20 dark:focus:border-brand-400 h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white"
             >
               <option value="">Select an offer…</option>
               {pickerOptions.map((o) => (
@@ -271,18 +308,29 @@ export default function TopBrandManagementPanel() {
               ))}
             </select>
           </div>
-          <Button type="button" size="sm" onClick={addSelected} disabled={!addOfferId}>
+          <Button
+            type="button"
+            size="sm"
+            onClick={addSelected}
+            disabled={!addOfferId}
+          >
             Add to list
           </Button>
         </div>
       </div>
 
       <div className="mt-8 space-y-3 border-t border-gray-200 pt-6 dark:border-gray-700">
-        <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Current order</h3>
+        <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+          Current order
+        </h3>
         {localOrder.length > 0 ? (
-          <p id="top-brand-dnd-help" className="text-xs text-gray-500 dark:text-gray-400">
-            Press, hold briefly, and drag a row to a new spot (or drag from the grip). You can also use the
-            arrow buttons. Touch devices may need the arrows.
+          <p
+            id="top-brand-dnd-help"
+            className="text-xs text-gray-500 dark:text-gray-400"
+          >
+            Press, hold briefly, and drag a row to a new spot (or drag from the
+            grip). You can also use the arrow buttons. Touch devices may need
+            the arrows.
           </p>
         ) : null}
         {localOrder.length === 0 ? (
@@ -290,12 +338,19 @@ export default function TopBrandManagementPanel() {
             No brands selected yet. Use the form above to add offers.
           </NoData>
         ) : null}
-        <ul className="space-y-2" aria-describedby={localOrder.length > 0 ? "top-brand-dnd-help" : undefined}>
+        <ul
+          className="space-y-2"
+          aria-describedby={
+            localOrder.length > 0 ? "top-brand-dnd-help" : undefined
+          }
+        >
           {localOrder.map((id, index) => {
             const offer = offerById.get(id);
             const isDragging = draggingIndex === index;
             const isDropTarget =
-              dragOverIndex === index && draggingIndex !== null && draggingIndex !== index;
+              dragOverIndex === index &&
+              draggingIndex !== null &&
+              draggingIndex !== index;
             return (
               <li
                 key={id}
@@ -312,7 +367,7 @@ export default function TopBrandManagementPanel() {
                     : "cursor-grab border-gray-200 dark:border-gray-700"
                 } ${
                   isDropTarget
-                    ? "border-brand-400 ring-2 ring-brand-400/40 dark:border-brand-500"
+                    ? "border-brand-400 ring-brand-400/40 dark:border-brand-500 ring-2"
                     : ""
                 }`}
               >
@@ -327,7 +382,11 @@ export default function TopBrandManagementPanel() {
                 </span>
                 {offer ? (
                   <RemoteOrBlobImage
-                    src={pathImage(offer.logo_circle || offer.logo_desktop || offer.logo_mobile)}
+                    src={pathImage(
+                      offer.logo_circle ||
+                        offer.logo_desktop ||
+                        offer.logo_mobile,
+                    )}
                     alt=""
                     width={40}
                     height={40}
@@ -343,7 +402,9 @@ export default function TopBrandManagementPanel() {
                   <p className="truncate text-sm font-medium text-gray-900 dark:text-white">
                     {offer ? offerLabel(offer) : "Unknown offer"}
                   </p>
-                  <p className="truncate font-mono text-xs text-gray-500 dark:text-gray-400">{id}</p>
+                  <p className="truncate font-mono text-xs text-gray-500 dark:text-gray-400">
+                    {id}
+                  </p>
                 </div>
                 {offer?.disabled ? (
                   <span className="rounded bg-gray-200 px-2 py-0.5 text-xs text-gray-700 dark:bg-gray-700 dark:text-gray-200">
@@ -351,11 +412,14 @@ export default function TopBrandManagementPanel() {
                   </span>
                 ) : null}
                 {offer?.extra_store ? (
-                  <span className="rounded bg-brand-100 px-2 py-0.5 text-xs text-brand-800 dark:bg-brand-950/60 dark:text-brand-200">
+                  <span className="bg-brand-100 text-brand-800 dark:bg-brand-950/60 dark:text-brand-200 rounded px-2 py-0.5 text-xs">
                     Top Brands on
                   </span>
                 ) : null}
-                <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                <div
+                  className="flex shrink-0 items-center gap-1"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <button
                     type="button"
                     title="Move up"
