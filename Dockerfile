@@ -12,7 +12,9 @@
 FROM node:22-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+# --legacy-peer-deps: the lockfile carries a peerOptional conflict (@types/node vs vite)
+# that strict `npm ci` rejects; the API repo uses the same flag.
+RUN npm ci --legacy-peer-deps
 
 FROM node:22-slim AS builder
 WORKDIR /app
