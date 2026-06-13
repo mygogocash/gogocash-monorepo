@@ -1,0 +1,71 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/apps/mobile/node_modules/
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+/test-results/
+/apps/mobile/coverage/
+/apps/mobile/test-results/
+# Playwright saved session (see e2e/profile-subpage-scroll.spec.ts)
+/e2e/.auth/
+
+# next.js
+/.next/
+/out/
+/.expo/
+/apps/mobile/.expo/
+/apps/mobile/dist/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+firebase-debug.log
+
+# env files (can opt-in for committing if needed)
+.env*
+!.env.example
+!apps/mobile/.env.example
+# Sentry build plugin (same as .env*; listed for clarity per Sentry docs)
+.env.sentry-build-plugin
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# deploy build output
+/deploy-build/
+
+# PDPA local JSON store (dev / self-hosted Node)
+/data/pdpa/
+
+# Local agent / IDE tooling (not app source)
+.agents/
+.claude/
+.kiro/
+.windsurf/
+skills/
+
+# local research scratch
+docs/research/
