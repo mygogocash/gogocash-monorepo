@@ -108,16 +108,31 @@ export interface MissingOrderClaim {
   id: string;
   userId: string;
   userName: string;
+  email: string;
+  phone: string;
   merchantId: string;
   merchantName: string;
+  orderId: string;
   orderAmount: number;
+  purchaseDate: string;
   expectedCashback: number;
   overrideCashback: number | null;
   submittedDate: string;
-  status: "pending" | "under_review" | "approved" | "rejected" | "info_requested";
+  remarks: string;
+  status:
+    | "pending"
+    | "under_review"
+    | "approved"
+    | "rejected"
+    | "info_requested";
   assignedTo: string | null;
   evidence: string[];
-  notes: { adminId: string; adminName: string; note: string; timestamp: string }[];
+  notes: {
+    adminId: string;
+    adminName: string;
+    note: string;
+    timestamp: string;
+  }[];
   rejectionReason: string | null;
 }
 

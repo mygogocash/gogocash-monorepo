@@ -22,7 +22,7 @@ const PENDING_OFFER_JUMP_LINKS = [
   { id: "pending-offer-section-admin", label: "Admin & coverage" },
 ] as const;
 
-const PENDING_OFFER_SCROLL_CLASS = "scroll-mt-[4.5rem]";
+const PENDING_OFFER_SCROLL_CLASS = "scroll-mt-24";
 
 export function displayAffiliatePartner(offer: Offer): string {
   const raw = offer.affiliate_partner?.trim();

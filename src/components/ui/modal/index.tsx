@@ -24,7 +24,11 @@ export const Modal: React.FC<ModalProps> = ({
   isFullscreen = false,
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
-  const mounted = useSyncExternalStore(subscribeNoop, clientSnapshot, serverSnapshot);
+  const mounted = useSyncExternalStore(
+    subscribeNoop,
+    clientSnapshot,
+    serverSnapshot,
+  );
 
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
@@ -57,11 +61,11 @@ export const Modal: React.FC<ModalProps> = ({
   if (!isOpen) return null;
 
   const contentClasses = isFullscreen
-    ? "fixed inset-0 z-[100001] flex h-screen min-h-screen w-full flex-col overflow-hidden rounded-none bg-white dark:bg-gray-900"
+    ? "fixed inset-0 z-[100001] flex h-screen min-h-screen w-full flex-col overflow-clip rounded-none bg-white dark:bg-gray-900"
     : "relative z-[1000] m-auto my-4 mx-4 w-full max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)] overflow-y-auto rounded-3xl bg-white dark:bg-gray-900 sm:mx-6 sm:my-6 sm:max-w-2xl";
 
   const wrapperClasses = isFullscreen
-    ? "modal fixed inset-0 z-[100000] flex min-h-screen w-full items-stretch justify-center overflow-hidden p-0"
+    ? "modal fixed inset-0 z-[100000] flex min-h-screen w-full items-stretch justify-center overflow-clip p-0"
     : "modal fixed inset-0 z-[999] flex min-h-full items-center justify-center overflow-y-auto p-4 sm:p-6";
 
   const modalTree = (
@@ -101,7 +105,15 @@ export const Modal: React.FC<ModalProps> = ({
             </svg>
           </button>
         )}
-        <div className={isFullscreen ? "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden" : "min-w-0"}>{children}</div>
+        <div
+          className={
+            isFullscreen
+              ? "flex min-h-0 min-w-0 flex-1 flex-col overflow-clip"
+              : "min-w-0"
+          }
+        >
+          {children}
+        </div>
       </div>
     </div>
   );

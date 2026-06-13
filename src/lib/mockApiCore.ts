@@ -24,6 +24,7 @@ import {
   isValidDeeplinkStoreId,
   resolveDeeplinkStoreId,
 } from "@/data/deeplinkStores";
+import { COUNTRY_FILTER_TO_CODES } from "@/data/mockPendingOffers";
 import {
   AFFILIATE_NETWORKS,
   affiliateNetworkIdForOfferId,
@@ -208,7 +209,13 @@ function buildMockCreatedConversions(): CreatedConversionItem[] {
 
 const createdConversionsList: CreatedConversionItem[] =
   buildMockCreatedConversions();
-const policyStore = new Map<string, string>();
+// V2 policy store — per category, the saved `banner` and `terms` blocks
+// (parsed JSON, as the real backend stores them). A block is only overwritten
+// when the PUT includes it, so saving one block never clobbers the other.
+const policyStore = new Map<string, { banner?: unknown; terms?: unknown }>();
+// Categories created via Policy Management "Create New" (in-memory; resets on
+// server restart, like the rest of the mock). Merged into get-category/list.
+const createdCategories: (typeof mockCategories)[number][] = [];
 
 /** Mock OTP for admin verification when adding emails / phones on withdraw user (internal demo). */
 const MOCK_USER_CONTACT_OTP = "123456";
@@ -557,11 +564,24 @@ function handleMockGET(
         );
       });
     }
+    // Country filter: dropdown sends a country name; match against the offer's
+    // ISO codes in `countries` (e.g. "TH" / "TH,US"). Previously ignored, so the
+    // dropdown had no effect on results.
+    const country = searchParams.get("country") || "";
+    if (country) {
+      const codes = COUNTRY_FILTER_TO_CODES[country] ?? [country];
+      filtered = filtered.filter((o) => {
+        const offerCodes = String(o.countries || "")
+          .split(",")
+          .map((c) => c.trim());
+        return codes.some((code) => offerCodes.includes(code));
+      });
+    }
     return ok(paginateFlat(filtered, page, limit));
   }
 
   if (joined === "offer/get-category/list") {
-    let filtered = mockCategories;
+    let filtered = [...mockCategories, ...createdCategories];
     if (search) {
       const s = search.toLowerCase();
       filtered = filtered.filter((c) => c.name.toLowerCase().includes(s));
@@ -573,12 +593,20 @@ function handleMockGET(
     if (path[1] === "list") {
       return ok(Object.fromEntries(policyStore));
     }
+    if (path[1] === "category-list") {
+      // PolicyListEntry[] — category id + its saved banner/terms blocks.
+      return ok(
+        [...policyStore.entries()].map(([category_id, blocks]) => ({
+          category_id,
+          ...blocks,
+        })),
+      );
+    }
     const categoryId = searchParams.get("categoryId");
     if (!categoryId) {
       return jsonErr(400, { message: "categoryId is required" });
     }
-    const content = policyStore.get(categoryId) ?? "";
-    return ok({ content });
+    return ok(policyStore.get(categoryId) ?? {});
   }
 
   if (path[0] === "offer" && path[1] === "get-coupon-id") {
@@ -801,6 +829,22 @@ async function handleMockPOST(
   joined: string,
   body: unknown,
 ): Promise<MockApiResult> {
+  if (joined === "offer/create-category") {
+    const b = body as { data?: { name?: string }; name?: string } | null;
+    const name = (b?.data?.name ?? b?.name ?? "").trim();
+    if (!name) return jsonErr(400, { message: "name is required" });
+    const now = new Date().toISOString();
+    const created = {
+      _id: `cat_${Date.now()}`,
+      name,
+      image: "",
+      banner: "",
+      createdAt: now,
+      updatedAt: now,
+    };
+    createdCategories.push(created);
+    return ok(created);
+  }
   if (joined === "admin/login") {
     const b = body as { email?: string; password?: string };
     const password = b?.password ?? "";
@@ -1464,17 +1508,29 @@ async function handleMockPUT(
   }
 
   if (joined === "policy") {
-    const categoryId = b?.categoryId;
-    const content = typeof b?.content === "string" ? b.content : "";
+    // `fetcherPut` wraps the payload as `{ data: { category_id, banner?, terms? } }`.
+    const payload = (
+      b && typeof b === "object" && "data" in b
+        ? (b as { data: unknown }).data
+        : b
+    ) as {
+      category_id?: string;
+      categoryId?: string;
+      banner?: unknown;
+      terms?: unknown;
+    } | null;
+    const categoryId = payload?.category_id ?? payload?.categoryId;
     if (!categoryId) {
-      return jsonErr(400, { message: "categoryId is required" });
+      return jsonErr(400, { message: "category_id is required" });
     }
-    policyStore.set(String(categoryId), content);
-    return ok({
-      success: true,
-      message: "Policy saved",
-      categoryId,
+    // Merge so an omitted block keeps its previously-saved value.
+    const existing = policyStore.get(String(categoryId)) ?? {};
+    policyStore.set(String(categoryId), {
+      ...existing,
+      ...(payload?.banner !== undefined ? { banner: payload.banner } : {}),
+      ...(payload?.terms !== undefined ? { terms: payload.terms } : {}),
     });
+    return ok({ success: true, message: "Policy saved", categoryId });
   }
 
   return jsonErr(404, { message: `Mock endpoint not found: PUT /${joined}` });
@@ -1528,11 +1584,18 @@ async function handleMockPATCH(
 
   if (path[0] === "admin" && path[1] === "update-category" && path[2]) {
     const categoryId = path[2];
-    const cat = mockCategories.find((c) => c._id === categoryId);
+    // Look up seeded AND runtime-created categories (Policy Management "Create
+    // New" pushes into createdCategories) so their icon/banner can be edited.
+    const cat =
+      mockCategories.find((c) => c._id === categoryId) ??
+      createdCategories.find((c) => c._id === categoryId);
     if (!cat) {
       return jsonErr(404, { message: "Category not found" });
     }
-    const body = b as { image?: string; banner?: string };
+    const body = b as { image?: string; banner?: string; name?: string };
+    if (typeof body.name === "string" && body.name.trim().length > 0) {
+      cat.name = body.name.trim();
+    }
     if (typeof body.image === "string" && body.image.length > 0) {
       cat.image = body.image;
     }
@@ -1559,6 +1622,9 @@ async function handleMockPATCH(
     if (b.offer_name_display != null) {
       offer.offer_name_display = b.offer_name_display;
     }
+    if (b.lookup_value !== undefined) {
+      offer.lookup_value = (b.lookup_value ?? "").trim();
+    }
     if (b.disabled != null) {
       offer.disabled = b.disabled === "true";
     }
@@ -1578,6 +1644,15 @@ async function handleMockPATCH(
     }
     if (b.upsize_end_date !== undefined) {
       offer.upsize_end_date = b.upsize_end_date || null;
+    }
+    if (b.upsize_start_time !== undefined) {
+      offer.upsize_start_time = b.upsize_start_time || null;
+    }
+    if (b.upsize_end_time !== undefined) {
+      offer.upsize_end_time = b.upsize_end_time || null;
+    }
+    if (b.upsize_all_product_types != null) {
+      offer.upsize_all_product_types = b.upsize_all_product_types === "true";
     }
     if (b.upsize_special_commission !== undefined) {
       offer.upsize_special_commission =

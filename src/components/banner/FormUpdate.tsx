@@ -12,6 +12,8 @@ import { useObjectUrl } from "@/hooks/useObjectUrl";
 import { BannerRequestForm } from "@/types/banner";
 import { devError } from "@/lib/devConsole";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
+import { isDirty } from "@/lib/isDirty";
+import { useEffect, useMemo, useRef } from "react";
 interface IProp {
   fetchData: () => void;
   openModal: boolean;
@@ -40,6 +42,59 @@ const FormUpdate = ({
   uploadImageHint = "Choose a banner image (e.g. PNG, JPG). Use a clear, wide image for best display on the homepage.",
 }: IProp) => {
   const session = useDataSession();
+
+  // Snapshot of the loaded values, captured when the modal opens, so we can
+  // disable "Save Changes" until the user actually edits something. File fields
+  // are normalized to a stable identity marker so picking a new file is seen as
+  // a change while deepEqual stays reliable (it can't structurally diff File).
+  const snapshotForm = (f: BannerRequestForm) => ({
+    image_1:
+      f.image_1 instanceof File
+        ? f.image_1.name + ":" + f.image_1.size
+        : f.image_1,
+    image_2:
+      f.image_2 instanceof File
+        ? f.image_2.name + ":" + f.image_2.size
+        : f.image_2,
+    image_3:
+      f.image_3 instanceof File
+        ? f.image_3.name + ":" + f.image_3.size
+        : f.image_3,
+    image_4:
+      f.image_4 instanceof File
+        ? f.image_4.name + ":" + f.image_4.size
+        : f.image_4,
+    image_5:
+      f.image_5 instanceof File
+        ? f.image_5.name + ":" + f.image_5.size
+        : f.image_5,
+    link_1: f.link_1,
+    link_2: f.link_2,
+    link_3: f.link_3,
+    link_4: f.link_4,
+    link_5: f.link_5,
+    start_date: f.start_date,
+    end_date: f.end_date,
+    end_forever: f.end_forever,
+    id: f.id,
+  });
+  const initialSnapshot = useRef<ReturnType<typeof snapshotForm> | null>(null);
+  useEffect(() => {
+    if (openModal) {
+      initialSnapshot.current = snapshotForm(form);
+    } else {
+      initialSnapshot.current = null;
+    }
+    // Re-snapshot only when the modal open state changes; `form` is populated
+    // synchronously alongside `openModal` by the parent.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openModal]);
+  const dirty = useMemo(
+    () =>
+      initialSnapshot.current != null &&
+      isDirty(snapshotForm(form), initialSnapshot.current),
+    [form],
+  );
 
   // Handle file change
   const handleFileChange = (
@@ -124,7 +179,7 @@ const FormUpdate = ({
             </Button>
             <Button
               size="sm"
-              disabled={isLoading}
+              disabled={isLoading || !dirty}
               onClick={() => handleSave()}
               startIcon={
                 isLoading ? (

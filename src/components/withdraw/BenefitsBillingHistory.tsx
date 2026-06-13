@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import NoData from "@/components/common/NoData";
+import SortByDropdown from "@/components/ui/button/SortByDropdown";
 import { formatDate } from "@/lib/dateFormat";
 import { formatMoney } from "@/lib/currencyFormat";
 import {
@@ -81,13 +82,12 @@ export default function BenefitsBillingHistory({
         <div className="flex items-center gap-2">
           <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
             Sort by
-            <select
+            <SortByDropdown
               value={billingSort}
               onChange={(e) => {
                 setBillingSort(e.target.value as BillingSortKey);
                 setBillingFilter("");
               }}
-              className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-300"
             >
               <option value="date-desc">Date (newest)</option>
               <option value="date-asc">Date (oldest)</option>
@@ -96,7 +96,7 @@ export default function BenefitsBillingHistory({
               <option value="benefit">Benefit</option>
               <option value="method">Payment method</option>
               <option value="status">Status</option>
-            </select>
+            </SortByDropdown>
           </label>
           {billingFilterCatalog && (
             <select

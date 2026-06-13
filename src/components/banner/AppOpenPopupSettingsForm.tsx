@@ -1,8 +1,15 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, startTransition } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  startTransition,
+} from "react";
 import Button from "@/components/ui/button/Button";
 import toast from "react-hot-toast";
+import { isDirty } from "@/lib/isDirty";
 import {
   loadPopupConfig,
   savePopupConfig,
@@ -54,6 +61,22 @@ function todayIsoDate(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+/**
+ * Project banners into a comparable snapshot of the editable fields that are
+ * actually persisted (images are admin-preview only and never saved, so they
+ * are intentionally excluded). Drives "disable Save until something changed".
+ */
+function bannersSnapshot(banners: AppOpenPopupBannerItem[]) {
+  return banners.map((b) => ({
+    id: b.id,
+    duration: b.duration,
+    link: b.link,
+    startDate: b.startDate,
+    endForever: b.endForever,
+    endDate: b.endDate,
+  }));
+}
+
 function defaultBanner(): AppOpenPopupBannerItem {
   return {
     id: makeId(),
@@ -83,15 +106,18 @@ export default function AppOpenPopupSettingsForm({
 }: Props) {
   const [banners, setBanners] = useState<AppOpenPopupBannerItem[]>([]);
   const [saving, setSaving] = useState(false);
+  /** Snapshot of the editable fields as loaded; baseline for unsaved-changes. */
+  const initialSnapshot = useRef<ReturnType<typeof bannersSnapshot>>([]);
 
   const hydrate = useCallback(() => {
     const stored = loadPopupConfig();
+    const initial =
+      stored.length > 0
+        ? stored.map(storedToItem).slice(0, MAX_MODAL_POPUPS)
+        : [defaultBanner()];
+    initialSnapshot.current = bannersSnapshot(initial);
     startTransition(() => {
-      if (stored.length > 0) {
-        setBanners(stored.map(storedToItem).slice(0, MAX_MODAL_POPUPS));
-      } else {
-        setBanners([defaultBanner()]);
-      }
+      setBanners(initial);
     });
   }, []);
 
@@ -100,9 +126,14 @@ export default function AppOpenPopupSettingsForm({
     hydrate();
   }, [isActive, hydrate]);
 
-  const updateBanner = useCallback((id: string, patch: Partial<AppOpenPopupBannerItem>) => {
-    setBanners((prev) => prev.map((b) => (b.id === id ? { ...b, ...patch } : b)));
-  }, []);
+  const updateBanner = useCallback(
+    (id: string, patch: Partial<AppOpenPopupBannerItem>) => {
+      setBanners((prev) =>
+        prev.map((b) => (b.id === id ? { ...b, ...patch } : b)),
+      );
+    },
+    [],
+  );
 
   const addBanner = () => {
     setBanners((prev) => {
@@ -112,13 +143,17 @@ export default function AppOpenPopupSettingsForm({
   };
 
   const removeBanner = (id: string) => {
-    setBanners((prev) => (prev.length <= 1 ? prev : prev.filter((b) => b.id !== id)));
+    setBanners((prev) =>
+      prev.length <= 1 ? prev : prev.filter((b) => b.id !== id),
+    );
   };
 
   const handleSave = () => {
     const invalid = banners.find((b) => !b.endForever && !b.endDate.trim());
     if (invalid) {
-      toast.error("Set an end date or choose “No end date (forever)” for each popup.");
+      toast.error(
+        "Set an end date or choose “No end date (forever)” for each popup.",
+      );
       return;
     }
     setSaving(true);
@@ -132,6 +167,7 @@ export default function AppOpenPopupSettingsForm({
         endDate: b.endForever ? "" : b.endDate.trim(),
       }));
       savePopupConfig(toStore);
+      initialSnapshot.current = bannersSnapshot(banners);
       toast.success(`Saved ${toStore.length} modal popup(s). History updated.`);
       onSaved?.();
     } finally {
@@ -140,15 +176,20 @@ export default function AppOpenPopupSettingsForm({
   };
 
   const canAdd = banners.length < MAX_MODAL_POPUPS;
+  const dirty = isDirty(bannersSnapshot(banners), initialSnapshot.current);
 
   return (
     <div className={className}>
-      <div className="mb-6 rounded-xl border border-gray-200 bg-gradient-to-br from-gray-50 to-white p-4 dark:border-gray-700 dark:from-gray-900/80 dark:to-gray-900 sm:p-5">
-        <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Modal popups on app open</h4>
+      <div className="mb-6 rounded-xl border border-gray-200 bg-gradient-to-br from-gray-50 to-white p-4 sm:p-5 dark:border-gray-700 dark:from-gray-900/80 dark:to-gray-900">
+        <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
+          Modal popups on app open
+        </h4>
         <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-          Configure up to <strong>{MAX_MODAL_POPUPS}</strong> full-screen style popups shown when users open the app. Set a{" "}
-          <strong>redirect link</strong> for where taps should go (offer, shop, or external URL). Order is 1 → 3; images are
-          for preview in admin only until wired to your API.
+          Configure up to <strong>{MAX_MODAL_POPUPS}</strong> full-screen style
+          popups shown when users open the app. Set a{" "}
+          <strong>redirect link</strong> for where taps should go (offer, shop,
+          or external URL). Order is 1 → 3; images are for preview in admin only
+          until wired to your API.
         </p>
       </div>
 
@@ -156,7 +197,7 @@ export default function AppOpenPopupSettingsForm({
         {banners.map((banner, index) => (
           <div
             key={banner.id}
-            className="rounded-xl border border-gray-200 bg-gray-50/80 p-4 dark:border-gray-600 dark:bg-gray-800/40 sm:p-5"
+            className="rounded-xl border border-gray-200 bg-gray-50/80 p-4 sm:p-5 dark:border-gray-600 dark:bg-gray-800/40"
           >
             <div className="mb-3 flex items-center justify-between gap-2">
               <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">
@@ -170,7 +211,13 @@ export default function AppOpenPopupSettingsForm({
                 title="Remove this popup"
                 aria-label="Remove popup"
               >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -190,12 +237,16 @@ export default function AppOpenPopupSettingsForm({
                     type="file"
                     accept="image/*"
                     onChange={(e) =>
-                      updateBanner(banner.id, { imageDesktop: e.target.files?.[0] ?? null })
+                      updateBanner(banner.id, {
+                        imageDesktop: e.target.files?.[0] ?? null,
+                      })
                     }
                     className="block w-full rounded-lg border border-gray-200 bg-white text-xs text-gray-800 file:mr-2 file:rounded file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 dark:border-gray-600 dark:bg-gray-900 dark:file:bg-gray-800"
                   />
                   {banner.imageDesktop && (
-                    <p className="mt-1 truncate text-xs text-gray-500 dark:text-gray-400">{banner.imageDesktop.name}</p>
+                    <p className="mt-1 truncate text-xs text-gray-500 dark:text-gray-400">
+                      {banner.imageDesktop.name}
+                    </p>
                   )}
                 </div>
                 <div>
@@ -206,33 +257,43 @@ export default function AppOpenPopupSettingsForm({
                     type="file"
                     accept="image/*"
                     onChange={(e) =>
-                      updateBanner(banner.id, { imageMobile: e.target.files?.[0] ?? null })
+                      updateBanner(banner.id, {
+                        imageMobile: e.target.files?.[0] ?? null,
+                      })
                     }
                     className="block w-full rounded-lg border border-gray-200 bg-white text-xs text-gray-800 file:mr-2 file:rounded file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 dark:border-gray-600 dark:bg-gray-900 dark:file:bg-gray-800"
                   />
                   {banner.imageMobile && (
-                    <p className="mt-1 truncate text-xs text-gray-500 dark:text-gray-400">{banner.imageMobile.name}</p>
+                    <p className="mt-1 truncate text-xs text-gray-500 dark:text-gray-400">
+                      {banner.imageMobile.name}
+                    </p>
                   )}
                 </div>
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Display duration</label>
+                <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                  Display duration
+                </label>
                 <div className="flex flex-wrap gap-2">
                   {DURATION_OPTIONS.map((opt) => (
                     <label
                       key={opt.value}
-                      className="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs has-[:checked]:border-brand-500 has-[:checked]:ring-2 has-[:checked]:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-900 dark:has-[:checked]:border-brand-400"
+                      className="has-[:checked]:border-brand-500 has-[:checked]:ring-brand-500/20 dark:has-[:checked]:border-brand-400 flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs has-[:checked]:ring-2 dark:border-gray-600 dark:bg-gray-900"
                     >
                       <input
                         type="radio"
                         name={`duration-${banner.id}`}
                         value={opt.value}
                         checked={banner.duration === opt.value}
-                        onChange={() => updateBanner(banner.id, { duration: opt.value })}
-                        className="h-3.5 w-3.5 border-gray-300 text-brand-500 dark:border-gray-600 dark:bg-gray-800"
+                        onChange={() =>
+                          updateBanner(banner.id, { duration: opt.value })
+                        }
+                        className="text-brand-500 h-3.5 w-3.5 border-gray-300 dark:border-gray-600 dark:bg-gray-800"
                       />
-                      <span className="text-gray-700 dark:text-gray-200">{opt.label}</span>
+                      <span className="text-gray-700 dark:text-gray-200">
+                        {opt.label}
+                      </span>
                     </label>
                   ))}
                 </div>
@@ -250,11 +311,14 @@ export default function AppOpenPopupSettingsForm({
                     id={`popup-start-${banner.id}`}
                     type="date"
                     value={banner.startDate}
-                    onChange={(e) => updateBanner(banner.id, { startDate: e.target.value })}
-                    className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:focus:border-brand-400"
+                    onChange={(e) =>
+                      updateBanner(banner.id, { startDate: e.target.value })
+                    }
+                    className="focus:border-brand-500 focus:ring-brand-500/20 dark:focus:border-brand-400 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                   />
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Optional. First day this popup may show (inclusive). Leave empty for no fixed start.
+                    Optional. First day this popup may show (inclusive). Leave
+                    empty for no fixed start.
                   </p>
                 </div>
                 <div>
@@ -269,10 +333,14 @@ export default function AppOpenPopupSettingsForm({
                         const forever = e.target.checked;
                         updateBanner(banner.id, {
                           endForever: forever,
-                          endDate: forever ? "" : banner.endDate || banner.startDate || todayIsoDate(),
+                          endDate: forever
+                            ? ""
+                            : banner.endDate ||
+                              banner.startDate ||
+                              todayIsoDate(),
                         });
                       }}
-                      className="h-4 w-4 rounded border-gray-300 text-brand-500 dark:border-gray-600 dark:bg-gray-800"
+                      className="text-brand-500 h-4 w-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-800"
                     />
                     No end date (forever)
                   </label>
@@ -283,8 +351,10 @@ export default function AppOpenPopupSettingsForm({
                         type="date"
                         value={banner.endDate}
                         min={banner.startDate || undefined}
-                        onChange={(e) => updateBanner(banner.id, { endDate: e.target.value })}
-                        className="mt-2 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:focus:border-brand-400"
+                        onChange={(e) =>
+                          updateBanner(banner.id, { endDate: e.target.value })
+                        }
+                        className="focus:border-brand-500 focus:ring-brand-500/20 dark:focus:border-brand-400 mt-2 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                       />
                       <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                         Last day this popup may show (inclusive).
@@ -305,9 +375,11 @@ export default function AppOpenPopupSettingsForm({
                   id={`popup-link-${banner.id}`}
                   type="url"
                   value={banner.link}
-                  onChange={(e) => updateBanner(banner.id, { link: e.target.value })}
+                  onChange={(e) =>
+                    updateBanner(banner.id, { link: e.target.value })
+                  }
                   placeholder="https://app.gogocash.co/offer/… or https://…"
-                  className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 placeholder:text-gray-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:focus:border-brand-400"
+                  className="focus:border-brand-500 focus:ring-brand-500/20 dark:focus:border-brand-400 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                 />
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   Tracking link or web URL opened when the user taps this popup.
@@ -323,15 +395,25 @@ export default function AppOpenPopupSettingsForm({
           type="button"
           onClick={addBanner}
           disabled={!canAdd}
-          className="inline-flex items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 hover:border-brand-500 hover:bg-gray-50 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:border-brand-400 dark:hover:text-brand-400"
+          className="hover:border-brand-500 hover:text-brand-600 dark:hover:border-brand-400 dark:hover:text-brand-400 inline-flex items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800"
         >
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+          <svg
+            className="h-5 w-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M12 4v16m8-8H4"
+            />
           </svg>
           Add popup {!canAdd ? `(max ${MAX_MODAL_POPUPS})` : ""}
         </button>
         <div className="flex gap-2 sm:ml-auto">
-          <Button size="sm" onClick={handleSave} disabled={saving}>
+          <Button size="sm" onClick={handleSave} disabled={saving || !dirty}>
             {saving ? "Saving…" : "Save configuration"}
           </Button>
         </div>

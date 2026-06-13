@@ -135,14 +135,15 @@ Plan for representing insight data on the GoGoCash admin dashboard so management
 
 ## 7. File / Component Map (for implementation)
 
-- **Dashboard page**: `src/app/(admin)/dashboard/page.tsx` – add “Withdrawals at a glance” and optional “Executive summary” row.
-- **New components** (suggested):
+- **Dashboard page**: `src/app/(admin)/dashboard/page.tsx` – composes `DashboardWelcome`, `DashboardInsightsAnalytics`, `DashboardWithdrawSummary`, and `RecentActivity`.
+- **Components** (implemented, under `src/components/ecommerce/`):
+  - `ExecutiveSummary.tsx` – KPI summary row (rendered via `DashboardInsightsAnalytics`).
+  - `DashboardInsightsAnalytics.tsx` – range control + executive summary + statistics chart + insight details (`DashboardInsightRangeControl`, `DashboardInsightDetails`, `StatisticsChart`).
   - `DashboardWithdrawSummary.tsx` – pending/approved/rejected counts + link to `/withdraw`.
-  - `DashboardSummaryKpis.tsx` (Phase 2) – conversion count, total payout, vs last period, fed by summary API.
 - **API**:
-  - Keep using `getDashboardStats`, `getConversion`, `getWithdraws` for Phase 1.
-  - Add `getDashboardSummary(period)` in Phase 2 when backend is ready.
-- **Types**: Extend `src/types/api.ts` with `DashboardSummaryResponse` when adding summary endpoint.
+  - `getDashboardStats`, `getConversion`, `getWithdraws` in `src/lib/api.ts`.
+  - `getDashboardSummary` in `src/lib/api.ts` (conversion count, total payout, withdraw-by-status, optional prior-period deltas).
+- **Types**: `DashboardSummaryResponse` (and `DashboardStatsResponse`, `DashboardWithdrawStatusBucket`) in `src/types/api.ts`.
 
 ---
 

@@ -1,8 +1,15 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, startTransition } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  startTransition,
+} from "react";
 import { Modal } from "@/components/ui/modal";
 import Button from "@/components/ui/button/Button";
+import { isDirty } from "@/lib/isDirty";
 import toast from "react-hot-toast";
 
 const STORAGE_KEY = "gogocash_app_open_popup";
@@ -48,7 +55,9 @@ function loadStored(): StoredBanner[] {
     const list = Array.isArray(parsed.banners) ? parsed.banners : [];
     return list.map((b) => ({
       id: typeof b.id === "string" ? b.id : makeId(),
-      duration: ["3", "5", "until_close"].includes(b.duration) ? (b.duration as PopupDuration) : "5",
+      duration: ["3", "5", "until_close"].includes(b.duration)
+        ? (b.duration as PopupDuration)
+        : "5",
       link: typeof b.link === "string" ? b.link : "",
       startDate: typeof b.startDate === "string" ? b.startDate : "",
       endForever: typeof b.endForever === "boolean" ? b.endForever : true,
@@ -79,6 +88,23 @@ function todayIsoDate(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+/**
+ * Serializable snapshot of the editable fields, used to detect unsaved changes.
+ * Files are represented by name so selecting/clearing an image counts as a change.
+ */
+function snapshotBanners(banners: AppOpenPopupBannerItem[]) {
+  return banners.map((b) => ({
+    id: b.id,
+    imageDesktop: b.imageDesktop?.name ?? null,
+    imageMobile: b.imageMobile?.name ?? null,
+    duration: b.duration,
+    link: b.link,
+    startDate: b.startDate,
+    endForever: b.endForever,
+    endDate: b.endDate,
+  }));
+}
+
 interface AppOpenPopupModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -95,17 +121,23 @@ const defaultBanner = (): AppOpenPopupBannerItem => ({
   endDate: "",
 });
 
-export default function AppOpenPopupModal({ isOpen, onClose }: AppOpenPopupModalProps) {
+export default function AppOpenPopupModal({
+  isOpen,
+  onClose,
+}: AppOpenPopupModalProps) {
   const [banners, setBanners] = useState<AppOpenPopupBannerItem[]>([]);
   const [saving, setSaving] = useState(false);
+  // Baseline snapshot of the editable fields as loaded; drives the Save guard.
+  const [initialSnapshot, setInitialSnapshot] = useState<
+    ReturnType<typeof snapshotBanners>
+  >([]);
 
   useEffect(() => {
     if (!isOpen) return;
     const stored = loadStored();
-    startTransition(() => {
-      if (stored.length > 0) {
-        setBanners(
-          stored.map((b) => {
+    const loaded: AppOpenPopupBannerItem[] =
+      stored.length > 0
+        ? stored.map((b) => {
             const endForever = b.endForever !== false;
             return {
               id: b.id,
@@ -117,31 +149,43 @@ export default function AppOpenPopupModal({ isOpen, onClose }: AppOpenPopupModal
               endForever,
               endDate: endForever ? "" : (b.endDate ?? ""),
             };
-          }),
-        );
-      } else {
-        setBanners([defaultBanner()]);
-      }
+          })
+        : [defaultBanner()];
+    startTransition(() => {
+      setBanners(loaded);
+      setInitialSnapshot(snapshotBanners(loaded));
     });
   }, [isOpen]);
 
-  const updateBanner = useCallback((id: string, patch: Partial<AppOpenPopupBannerItem>) => {
-    setBanners((prev) =>
-      prev.map((b) => (b.id === id ? { ...b, ...patch } : b)),
-    );
-  }, []);
+  const dirty = useMemo(
+    () => isDirty(snapshotBanners(banners), initialSnapshot),
+    [banners, initialSnapshot],
+  );
+
+  const updateBanner = useCallback(
+    (id: string, patch: Partial<AppOpenPopupBannerItem>) => {
+      setBanners((prev) =>
+        prev.map((b) => (b.id === id ? { ...b, ...patch } : b)),
+      );
+    },
+    [],
+  );
 
   const addBanner = () => {
     setBanners((prev) => [...prev, defaultBanner()]);
   };
 
   const removeBanner = (id: string) => {
-    setBanners((prev) => (prev.length <= 1 ? prev : prev.filter((b) => b.id !== id)));
+    setBanners((prev) =>
+      prev.length <= 1 ? prev : prev.filter((b) => b.id !== id),
+    );
   };
 
   const handleSave = () => {
     if (banners.some((b) => !b.endForever && !b.endDate.trim())) {
-      toast.error("Set an end date or choose “No end (forever)” for each popup.");
+      toast.error(
+        "Set an end date or choose “No end (forever)” for each popup.",
+      );
       return;
     }
     setSaving(true);
@@ -151,7 +195,13 @@ export default function AppOpenPopupModal({ isOpen, onClose }: AppOpenPopupModal
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} isFullscreen showCloseButton={false} className="p-0">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      isFullscreen
+      showCloseButton={false}
+      className="p-0"
+    >
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-5 sm:p-6 md:p-8">
         <div className="mb-4 flex w-full shrink-0 flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-4 dark:border-gray-700">
           <div className="min-w-0">
@@ -159,20 +209,27 @@ export default function AppOpenPopupModal({ isOpen, onClose }: AppOpenPopupModal
               App-open popup settings
             </h4>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              Configure one or more popups shown when users open the app. Order is top to bottom; each can have its own images, duration, and link.
+              Configure one or more popups shown when users open the app. Order
+              is top to bottom; each can have its own images, duration, and
+              link.
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-3">
-            <Button size="sm" variant="outline" onClick={onClose} disabled={saving}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onClose}
+              disabled={saving}
+            >
               Cancel
             </Button>
-            <Button size="sm" onClick={handleSave} disabled={saving}>
+            <Button size="sm" onClick={handleSave} disabled={saving || !dirty}>
               {saving ? "Saving…" : "Save"}
             </Button>
           </div>
         </div>
 
-        <div className="mt-5 min-h-0 flex-1 space-y-4 overflow-y-auto pb-4 pr-1">
+        <div className="mt-5 min-h-0 flex-1 space-y-4 overflow-y-auto pr-1 pb-4">
           {banners.map((banner, index) => (
             <div
               key={banner.id}
@@ -189,8 +246,18 @@ export default function AppOpenPopupModal({ isOpen, onClose }: AppOpenPopupModal
                   className="rounded p-1.5 text-gray-400 hover:bg-gray-200 hover:text-red-600 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-red-400"
                   title="Remove banner"
                 >
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  <svg
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
                   </svg>
                 </button>
               </div>
@@ -205,12 +272,14 @@ export default function AppOpenPopupModal({ isOpen, onClose }: AppOpenPopupModal
                       type="file"
                       accept="image/*"
                       onChange={(e) =>
-                        updateBanner(banner.id, { imageDesktop: e.target.files?.[0] ?? null })
+                        updateBanner(banner.id, {
+                          imageDesktop: e.target.files?.[0] ?? null,
+                        })
                       }
                       className="block w-full rounded-lg border border-gray-200 bg-white text-xs text-gray-800 file:mr-2 file:rounded file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-xs dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:file:bg-gray-800"
                     />
                     {banner.imageDesktop && (
-                      <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 truncate">
+                      <p className="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400">
                         {banner.imageDesktop.name}
                       </p>
                     )}
@@ -223,12 +292,14 @@ export default function AppOpenPopupModal({ isOpen, onClose }: AppOpenPopupModal
                       type="file"
                       accept="image/*"
                       onChange={(e) =>
-                        updateBanner(banner.id, { imageMobile: e.target.files?.[0] ?? null })
+                        updateBanner(banner.id, {
+                          imageMobile: e.target.files?.[0] ?? null,
+                        })
                       }
                       className="block w-full rounded-lg border border-gray-200 bg-white text-xs text-gray-800 file:mr-2 file:rounded file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-xs dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:file:bg-gray-800"
                     />
                     {banner.imageMobile && (
-                      <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 truncate">
+                      <p className="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400">
                         {banner.imageMobile.name}
                       </p>
                     )}
@@ -243,17 +314,21 @@ export default function AppOpenPopupModal({ isOpen, onClose }: AppOpenPopupModal
                     {DURATION_OPTIONS.map((opt) => (
                       <label
                         key={opt.value}
-                        className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs has-[:checked]:border-brand-500 has-[:checked]:ring-2 has-[:checked]:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-900 dark:has-[:checked]:border-brand-400 dark:has-[:checked]:ring-brand-400/20"
+                        className="has-[:checked]:border-brand-500 has-[:checked]:ring-brand-500/20 dark:has-[:checked]:border-brand-400 dark:has-[:checked]:ring-brand-400/20 flex cursor-pointer items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs has-[:checked]:ring-2 dark:border-gray-600 dark:bg-gray-900"
                       >
                         <input
                           type="radio"
                           name={`duration-${banner.id}`}
                           value={opt.value}
                           checked={banner.duration === opt.value}
-                          onChange={() => updateBanner(banner.id, { duration: opt.value })}
-                          className="h-3.5 w-3.5 border-gray-300 text-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-800"
+                          onChange={() =>
+                            updateBanner(banner.id, { duration: opt.value })
+                          }
+                          className="text-brand-500 focus:ring-brand-500 h-3.5 w-3.5 border-gray-300 dark:border-gray-600 dark:bg-gray-800"
                         />
-                        <span className="text-gray-700 dark:text-gray-200">{opt.label}</span>
+                        <span className="text-gray-700 dark:text-gray-200">
+                          {opt.label}
+                        </span>
                       </label>
                     ))}
                   </div>
@@ -267,10 +342,14 @@ export default function AppOpenPopupModal({ isOpen, onClose }: AppOpenPopupModal
                     <input
                       type="date"
                       value={banner.startDate}
-                      onChange={(e) => updateBanner(banner.id, { startDate: e.target.value })}
-                      className="h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:focus:border-brand-400 dark:focus:ring-brand-400/20"
+                      onChange={(e) =>
+                        updateBanner(banner.id, { startDate: e.target.value })
+                      }
+                      className="focus:border-brand-500 focus:ring-brand-500/20 dark:focus:border-brand-400 dark:focus:ring-brand-400/20 h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                     />
-                    <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">Optional.</p>
+                    <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
+                      Optional.
+                    </p>
                   </div>
                   <div>
                     <span className="mb-0.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
@@ -284,10 +363,14 @@ export default function AppOpenPopupModal({ isOpen, onClose }: AppOpenPopupModal
                           const forever = e.target.checked;
                           updateBanner(banner.id, {
                             endForever: forever,
-                            endDate: forever ? "" : banner.endDate || banner.startDate || todayIsoDate(),
+                            endDate: forever
+                              ? ""
+                              : banner.endDate ||
+                                banner.startDate ||
+                                todayIsoDate(),
                           });
                         }}
-                        className="h-3.5 w-3.5 rounded border-gray-300 text-brand-500 dark:border-gray-600 dark:bg-gray-800"
+                        className="text-brand-500 h-3.5 w-3.5 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-800"
                       />
                       No end (forever)
                     </label>
@@ -296,8 +379,10 @@ export default function AppOpenPopupModal({ isOpen, onClose }: AppOpenPopupModal
                         type="date"
                         value={banner.endDate}
                         min={banner.startDate || undefined}
-                        onChange={(e) => updateBanner(banner.id, { endDate: e.target.value })}
-                        className="mt-1.5 h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:focus:border-brand-400 dark:focus:ring-brand-400/20"
+                        onChange={(e) =>
+                          updateBanner(banner.id, { endDate: e.target.value })
+                        }
+                        className="focus:border-brand-500 focus:ring-brand-500/20 dark:focus:border-brand-400 dark:focus:ring-brand-400/20 mt-1.5 h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                       />
                     )}
                   </div>
@@ -310,9 +395,11 @@ export default function AppOpenPopupModal({ isOpen, onClose }: AppOpenPopupModal
                   <input
                     type="url"
                     value={banner.link}
-                    onChange={(e) => updateBanner(banner.id, { link: e.target.value })}
+                    onChange={(e) =>
+                      updateBanner(banner.id, { link: e.target.value })
+                    }
                     placeholder="https://example.com/promo"
-                    className="h-9 w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-800 placeholder:text-gray-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:placeholder:text-gray-500 dark:focus:border-brand-400 dark:focus:ring-brand-400/20"
+                    className="focus:border-brand-500 focus:ring-brand-500/20 dark:focus:border-brand-400 dark:focus:ring-brand-400/20 h-9 w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:placeholder:text-gray-500"
                   />
                 </div>
               </div>
@@ -324,10 +411,20 @@ export default function AppOpenPopupModal({ isOpen, onClose }: AppOpenPopupModal
           <button
             type="button"
             onClick={addBanner}
-            className="inline-flex items-center gap-2 rounded-lg border border-dashed border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-600 hover:border-brand-500 hover:bg-gray-50 hover:text-brand-600 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-brand-400 dark:hover:bg-gray-700 dark:hover:text-brand-400"
+            className="hover:border-brand-500 hover:text-brand-600 dark:hover:border-brand-400 dark:hover:text-brand-400 inline-flex items-center gap-2 rounded-lg border border-dashed border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
           >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 4v16m8-8H4"
+              />
             </svg>
             Add banner
           </button>

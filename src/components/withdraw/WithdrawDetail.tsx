@@ -35,6 +35,7 @@ import NoData from "@/components/common/NoData";
 import CashbackApprovalNotice from "@/components/wallet/CashbackApprovalNotice";
 import UserWalletPanel from "@/components/wallet/UserWalletPanel";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
+import { isDirty } from "@/lib/isDirty";
 import { shouldShowMockOtpHint } from "@/lib/mockOtpHint";
 import {
   deleteWithdrawUserData,
@@ -130,6 +131,36 @@ const WITHDRAW_STATUS_STYLE_FALLBACK: StatusCardStyle = {
   icon: "M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm0-12a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 6Zm0 8a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z",
 };
 
+/** Saveable shape of the User Info edit form — what `saveUserEdit` persists.
+ * Used to drive "disable Save until something changed": transient contact-row
+ * UI state (OTP input/verification flags) is excluded so the dirty check only
+ * reflects fields that actually get sent. */
+type UserEditSnapshot = {
+  emails: string[];
+  mobiles: string[];
+  fullName: string;
+  gender: string;
+  birthdate: string;
+  wallet: string;
+  gogopassActive: boolean;
+};
+
+const buildUserEditSnapshot = (
+  draft: WithdrawUserEditDraft,
+): UserEditSnapshot => ({
+  emails: ensureUserContactRows(draft.emailRows)
+    .map((r) => r.value.trim())
+    .filter(Boolean),
+  mobiles: ensureUserContactRows(draft.mobileRows)
+    .map((r) => r.value.trim())
+    .filter(Boolean),
+  fullName: draft.fullName,
+  gender: draft.gender,
+  birthdate: draft.birthdate,
+  wallet: draft.wallet,
+  gogopassActive: draft.gogopassActive,
+});
+
 const WithdrawDetail = () => {
   const queryClient = useQueryClient();
   const { id } = useParams();
@@ -171,6 +202,9 @@ const WithdrawDetail = () => {
 
   const initialEmailsRef = useRef<Set<string>>(new Set());
   const initialMobilesRef = useRef<Set<string>>(new Set());
+  // Snapshot of the saveable User Info fields taken when an edit session opens
+  // (after loaded data populates the draft). Drives "disable Save until changed".
+  const userEditSnapshotRef = useRef<UserEditSnapshot | null>(null);
 
   useEffect(() => {
     setUserDraft((d) => {
@@ -593,7 +627,7 @@ const WithdrawDetail = () => {
       mobiles.length > 0
         ? mobiles.map((value) => createContactRow(value))
         : [createContactRow("")];
-    setUserDraft({
+    const loadedDraft: WithdrawUserEditDraft = {
       emailRows,
       mobileRows,
       fullName: u.fullName ?? "",
@@ -601,7 +635,9 @@ const WithdrawDetail = () => {
       birthdate: birthIso,
       wallet: u.wallet ?? "",
       gogopassActive: u.gogopassActive === true,
-    });
+    };
+    setUserDraft(loadedDraft);
+    userEditSnapshotRef.current = buildUserEditSnapshot(loadedDraft);
     setUserSaveError(null);
     setEditingUser(true);
   }, [withdrawDetail?.user]);
@@ -673,6 +709,13 @@ const WithdrawDetail = () => {
     initialEmailsRef.current,
     initialMobilesRef.current,
   );
+
+  // Unsaved-changes guard: enabled only once a saveable field differs from the
+  // snapshot captured when the edit session opened. Falls back to not-dirty
+  // when no snapshot exists yet (edit form not opened).
+  const userEditDirty = userEditSnapshotRef.current
+    ? isDirty(buildUserEditSnapshot(userDraft), userEditSnapshotRef.current)
+    : false;
 
   const isUserDataDeleted =
     withdrawDetail?.user?.fullName === "User data deleted";
@@ -766,7 +809,8 @@ const WithdrawDetail = () => {
                         disabled={
                           savingUser ||
                           !withdrawUserId ||
-                          !userContactsReadyForSave
+                          !userContactsReadyForSave ||
+                          !userEditDirty
                         }
                         className="border-brand-600 bg-brand-600 hover:bg-brand-700 dark:border-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500 rounded-lg border px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
                       >
@@ -1509,8 +1553,7 @@ const WithdrawDetail = () => {
                         </p>
                       </div>
                     );
-                  },
-                )}
+                  })}
                 <div className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900/40">
                   <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-300">
                     <svg

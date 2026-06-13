@@ -427,9 +427,28 @@ export function normalizeOfferDisplayTags(value: unknown): OfferDisplayTags {
 /** One product-type row on an offer (display name + commission details for admins). */
 export interface OfferProductTypeEntry {
   name: string;
+  /** Which payout this line uses (default: cashback). */
+  pay_in?: "cashback" | "cash";
+  /** Cashback %: saved net commission (after −30% fee), as a string. */
   commission_info: string;
+  /** Raw partner number the admin typed; editing-only, derived from `commission_info` on load and dropped on save. */
+  commission_raw?: string;
+  /** Cash pay-in: fixed amount paid out. */
+  amount?: number | null;
+  /** Cash pay-in: currency code (e.g. THB, USD). */
+  currency?: string;
   /** Optional app tracking link for this brand / product line. */
   deeplink?: string;
+  /** Optional free-text subtitle shown under the name in admin product-type tables. */
+  description?: string;
+  /** Upsize lines only, editing-only: true = `description` is a re-written override
+   *  for the promo window; false/absent = use the product type's default description. */
+  description_rewrite?: boolean;
+  /** Upsize lines only, editing-only: true = "Others" — `name` is free-text rather
+   *  than a product type chosen from the offer's list. */
+  is_others?: boolean;
+  /** When true, this is a plain-text heading/tagline that groups the rows below it (no commission). */
+  is_tagline?: boolean;
 }
 
 /**
@@ -441,17 +460,27 @@ export function normalizeOfferProductTypes(
   if (!Array.isArray(value)) return [];
   return value.map((item): OfferProductTypeEntry => {
     if (typeof item === "string") {
-      return { name: item.trim(), commission_info: "", deeplink: "" };
+      return { name: item.trim(), pay_in: "cashback", commission_info: "" };
     }
     if (item && typeof item === "object") {
       const o = item as Record<string, unknown>;
+      const amountNum =
+        o.amount == null || o.amount === "" ? null : Number(o.amount);
       return {
         name: String(o.name ?? "").trim(),
+        pay_in: o.pay_in === "cash" ? "cash" : "cashback",
         commission_info: String(o.commission_info ?? "").trim(),
+        amount:
+          typeof amountNum === "number" && Number.isFinite(amountNum)
+            ? amountNum
+            : null,
+        currency: String(o.currency ?? "").trim(),
         deeplink: String(o.deeplink ?? "").trim(),
+        description: String(o.description ?? "").trim(),
+        ...(o.is_tagline === true ? { is_tagline: true } : {}),
       };
     }
-    return { name: "", commission_info: "", deeplink: "" };
+    return { name: "", pay_in: "cashback", commission_info: "" };
   });
 }
 
@@ -538,8 +567,13 @@ export interface Offer {
   /** Upsize event (optional, from API) */
   upsize_start_date?: string | null;
   upsize_end_date?: string | null;
+  /** Promo start/end clock time (HH:mm), paired with the start/end dates. */
+  upsize_start_time?: string | null;
+  upsize_end_time?: string | null;
   upsize_special_commission?: number | null;
   upsize_max_cap?: number | null;
+  /** Upsize promo scope: one rate for all products (true) vs per-product-line (false). */
+  upsize_all_product_types?: boolean;
   /** Per–product-line commission copy for the upsize promo period (optional). */
   upsize_product_types?: OfferProductTypeEntry[];
   /** Product types for this offer (optional, from API) */
@@ -572,6 +606,8 @@ export interface OfferRequestForm {
   banner: File | null;
   logo_circle: File | null;
   offer_name_display: string;
+  /** Lookup slug used in app-open URLs (persisted as `Offer.lookup_value`). */
+  lookup_value: string;
   disabled: boolean;
   max_cap: number | null;
   commission_store: number | null;
@@ -584,8 +620,12 @@ export interface OfferRequestForm {
   /** Upsize event */
   upsize_start_date: string | null;
   upsize_end_date: string | null;
+  upsize_start_time: string | null;
+  upsize_end_time: string | null;
   upsize_special_commission: number | null;
   upsize_max_cap: number | null;
+  /** Upsize promo scope: one rate for all products (true) vs per-product-line (false). */
+  upsize_all_product_types: boolean;
   /** Product lines + commission messaging for the upsize promo (same shape as Product Type rows). */
   upsize_product_types?: OfferProductTypeEntry[];
   /** Product types (name + commission info per row) for this offer */
