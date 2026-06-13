@@ -1,6 +1,8 @@
 import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { AuthAdminGuard } from '../jwt-auth-admin.guard';
+import { RolesGuard } from '../roles.guard';
+import { Roles } from '../roles.decorator';
 import { SearchService } from './search.service';
 import {
   CreateFeaturedTermDto,
@@ -14,7 +16,8 @@ import {
 
 @ApiTags('Search Config')
 @Controller('admin/search')
-@UseGuards(AuthAdminGuard)
+@UseGuards(AuthAdminGuard, RolesGuard)
+@Roles('support') // featured terms / boost / blacklist — controls user search results
 @ApiSecurity('access-token')
 @ApiBearerAuth()
 export class SearchController {

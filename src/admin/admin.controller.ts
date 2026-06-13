@@ -63,7 +63,7 @@ const adminAuthValidation = new ValidationPipe({
 // Admin auth is enforced at the CLASS level so every route fails closed by
 // default; genuinely public routes opt out explicitly with @Public(). This is
 // the structural fix for routes that were silently exposed by a missing guard.
-@UseGuards(AuthAdminGuard)
+@UseGuards(AuthAdminGuard, RolesGuard)
 @Controller('admin')
 export class AdminController {
   constructor(
@@ -240,6 +240,7 @@ export class AdminController {
   @ApiBody({ type: UpdateFeeRateDto })
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
+  @Roles('superadmin')
   @Patch('update-fee-rate/:id')
   updateFeeRate(
     @Param('id') id: string,
@@ -255,6 +256,7 @@ export class AdminController {
   @UseGuards(AuthAdminGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
+  @Roles('approver')
   @Patch('update-request-withdraw')
   updateRequestWithdraw(
     @UploadedFile() file: Express.Multer.File,
@@ -312,6 +314,7 @@ export class AdminController {
   @UseGuards(AuthAdminGuard)
   @ApiSecurity('access-token')
   @ApiBearerAuth()
+  @Roles('approver')
   @Patch('update-offer/:id')
   updateOffer(
     @Param('id') id: string,
@@ -338,6 +341,7 @@ export class AdminController {
   @ApiSecurity('access-token')
   @ApiBearerAuth()
   @ApiBody({ type: ApproveOfferDto })
+  @Roles('approver')
   @Post('offer/:id/approve')
   approveOffer(
     @Param('id') id: string,
@@ -353,6 +357,7 @@ export class AdminController {
   @ApiSecurity('access-token')
   @ApiBearerAuth()
   @ApiBody({ type: RejectOfferDto })
+  @Roles('approver')
   @Post('offer/:id/reject')
   rejectOffer(
     @Param('id') id: string,
@@ -372,6 +377,7 @@ export class AdminController {
   @UseGuards(AuthAdminGuard)
   @ApiSecurity('access-token')
   @ApiBearerAuth()
+  @Roles('support')
   @Patch('update-category/:id')
   updateCategory(
     @Param('id') id: string,
@@ -386,6 +392,7 @@ export class AdminController {
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
   @ApiBody({ type: UpdateUserDto })
+  @Roles('superadmin')
   @Post('update-user/:id')
   updateUser(
     @Param('id') id: string,
@@ -418,6 +425,7 @@ export class AdminController {
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
   @ApiBody({ type: UpdateBannerHomeDto })
+  @Roles('superadmin')
   @Post('banner-home')
   updateBannerHome(
     @UploadedFiles() files: { image_1?: Express.Multer.File[], image_2?: Express.Multer.File[], image_3?: Express.Multer.File[], image_4?: Express.Multer.File[], image_5 ?: Express.Multer.File[] },
@@ -449,6 +457,7 @@ export class AdminController {
   @UseGuards(AuthAdminGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth()
+  @Roles('approver')
   @Patch('update-conversion/:id')
   updateConversionDataByConversionId(@Param('id') id: string) {
     // console.log('Updating conversion data for ID:', id);

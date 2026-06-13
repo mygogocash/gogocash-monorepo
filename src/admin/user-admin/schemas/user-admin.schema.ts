@@ -43,10 +43,10 @@ export function roleHasAccess(
   actual: AdminRole | string | undefined | null,
   required: AdminRole,
 ): boolean {
-  // Backward compatibility: existing admin accounts have no role field.
-  // Treat them as superadmin so this rollout doesn't lock anyone out.
-  // New accounts must be created with an explicit role.
-  const a = (normalizeRole(actual) ?? 'superadmin') as AdminRole;
+  // Fail CLOSED: a missing/unknown role gets the LEAST privilege ('viewer'),
+  // never superadmin. (New accounts are created with an explicit role; the
+  // schema also defaults role to 'viewer'.)
+  const a = (normalizeRole(actual) ?? 'viewer') as AdminRole;
   const req = (normalizeRole(required) ?? required) as AdminRole;
   return (ROLE_RANK[a] ?? -1) >= ROLE_RANK[req];
 }
@@ -77,6 +77,7 @@ export class UserAdmin {
       'editor',
     ],
     required: false,
+    default: 'viewer',
   })
   role: AdminRole | string;
 }

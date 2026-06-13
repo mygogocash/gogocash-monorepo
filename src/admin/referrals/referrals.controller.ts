@@ -9,12 +9,14 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { AuthAdminGuard } from '../jwt-auth-admin.guard';
+import { RolesGuard } from '../roles.guard';
+import { Roles } from '../roles.decorator';
 import { ReferralsService } from './referrals.service';
 import { ReferralQueryDto, UpdateReferralConfigDto } from './dto/referral.dto';
 
 @ApiTags('Admin Referrals')
 @Controller('admin')
-@UseGuards(AuthAdminGuard)
+@UseGuards(AuthAdminGuard, RolesGuard)
 @ApiSecurity('access-token')
 @ApiBearerAuth()
 export class ReferralsController {
@@ -25,6 +27,7 @@ export class ReferralsController {
     return this.referralsService.getConfig();
   }
 
+  @Roles('superadmin')
   @Put('referral/config')
   updateConfig(@Body() dto: UpdateReferralConfigDto) {
     return this.referralsService.updateConfig(dto);
@@ -40,11 +43,14 @@ export class ReferralsController {
     return this.referralsService.getTree(userId);
   }
 
+  // Approving a referral grants the referral payout (money decision).
+  @Roles('approver')
   @Put('referrals/:id/approve')
   approve(@Param('id') id: string) {
     return this.referralsService.approve(id);
   }
 
+  @Roles('approver')
   @Put('referrals/:id/reject')
   reject(@Param('id') id: string) {
     return this.referralsService.reject(id);

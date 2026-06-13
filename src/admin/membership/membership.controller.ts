@@ -11,6 +11,8 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { AuthAdminGuard } from '../jwt-auth-admin.guard';
+import { RolesGuard } from '../roles.guard';
+import { Roles } from '../roles.decorator';
 import { MembershipService } from './membership.service';
 import {
   MembershipQueryDto,
@@ -22,7 +24,8 @@ import {
 
 @ApiTags('Admin Membership')
 @Controller('admin/membership')
-@UseGuards(AuthAdminGuard)
+@UseGuards(AuthAdminGuard, RolesGuard)
+@Roles('superadmin') // membership tier / pricing config
 @ApiSecurity('access-token')
 @ApiBearerAuth()
 export class MembershipController {

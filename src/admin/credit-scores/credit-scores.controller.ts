@@ -11,6 +11,8 @@ import {
 import { Request } from 'express';
 import { ApiBearerAuth, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { AuthAdminGuard } from '../jwt-auth-admin.guard';
+import { RolesGuard } from '../roles.guard';
+import { Roles } from '../roles.decorator';
 import { CreditScoresService } from './credit-scores.service';
 import {
   CreditScoreQueryDto,
@@ -20,7 +22,7 @@ import {
 
 @ApiTags('Admin Credit Scores')
 @Controller('admin/credit-scores')
-@UseGuards(AuthAdminGuard)
+@UseGuards(AuthAdminGuard, RolesGuard)
 @ApiSecurity('access-token')
 @ApiBearerAuth()
 export class CreditScoresController {
@@ -36,6 +38,7 @@ export class CreditScoresController {
     return this.creditScoresService.getConfig();
   }
 
+  @Roles('superadmin')
   @Put('config')
   updateConfig(@Body() dto: UpdateCreditScoreConfigDto) {
     return this.creditScoresService.updateConfig(dto);
@@ -51,6 +54,7 @@ export class CreditScoresController {
     return this.creditScoresService.getAudit(userId);
   }
 
+  @Roles('approver')
   @Put(':userId/override')
   override(
     @Param('userId') userId: string,
