@@ -45,6 +45,7 @@ import { ApiBearerAuth, ApiBody, ApiSecurity } from '@nestjs/swagger';
 import { AuthAdminGuard } from './jwt-auth-admin.guard';
 import { RolesGuard } from './roles.guard';
 import { Roles } from './roles.decorator';
+import { Public } from './public.decorator';
 import { RateLimitGuard } from 'src/auth/rate-limit.guard';
 import { RateLimit } from 'src/auth/rate-limit.decorator';
 import {
@@ -59,6 +60,10 @@ const adminAuthValidation = new ValidationPipe({
   whitelist: true,
 });
 
+// Admin auth is enforced at the CLASS level so every route fails closed by
+// default; genuinely public routes opt out explicitly with @Public(). This is
+// the structural fix for routes that were silently exposed by a missing guard.
+@UseGuards(AuthAdminGuard)
 @Controller('admin')
 export class AdminController {
   constructor(
@@ -67,6 +72,7 @@ export class AdminController {
     private readonly adminInviteService: AdminInviteService,
   ) {}
 
+  @Public()
   @UseGuards(RateLimitGuard)
   @RateLimit({ windowMs: 60_000, max: 5 })
   @ApiBody({ type: LoginAdminDto })
@@ -91,6 +97,7 @@ export class AdminController {
     return this.adminInviteService.invite(body.email, body.role);
   }
 
+  @Public()
   @UseGuards(RateLimitGuard)
   @RateLimit({ windowMs: 60_000, max: 5 })
   @ApiBody({ type: AcceptInviteDto })
@@ -99,6 +106,7 @@ export class AdminController {
     return this.adminInviteService.acceptInvite(body);
   }
 
+  @Public()
   @UseGuards(RateLimitGuard)
   @RateLimit({ windowMs: 60_000, max: 5 })
   @ApiBody({ type: AdminForgotPasswordDto })
@@ -107,6 +115,7 @@ export class AdminController {
     return this.adminInviteService.forgotPassword(body.email);
   }
 
+  @Public()
   @UseGuards(RateLimitGuard)
   @RateLimit({ windowMs: 60_000, max: 5 })
   @ApiBody({ type: AdminResetPasswordDto })
@@ -154,7 +163,11 @@ export class AdminController {
     return this.adminService.saveTopBrands(body.order);
   }
 
-  @UseGuards(AuthAdminGuard)
+  // Creating an admin account is a superadmin action (parallels the gated
+  // invite flow); without this gate any authenticated admin could mint a
+  // superadmin via a mass-assigned role.
+  @UseGuards(AuthAdminGuard, RolesGuard)
+  @Roles('superadmin')
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth()
   @ApiBody({ type: RegisterAdminDto })
@@ -250,11 +263,22 @@ export class AdminController {
     return this.adminService.updateRequestWithdraw(updateAdminDto, file);
   }
 
+  // Admin-account management (change role / delete). Superadmin-only: these
+  // catch-all :id routes previously had NO guard at all, allowing anonymous
+  // mass-assignment of role:'superadmin' onto any admin record.
+  @UseGuards(AuthAdminGuard, RolesGuard)
+  @Roles('superadmin')
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateAdminDto: UpdateAdminDto) {
     return this.adminService.update(id, updateAdminDto);
   }
 
+  @UseGuards(AuthAdminGuard, RolesGuard)
+  @Roles('superadmin')
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.adminService.remove(id);
