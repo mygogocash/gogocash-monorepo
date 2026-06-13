@@ -6,7 +6,7 @@ import { Suspense } from "react";
 import { awaitPageDynamicProps, type DefaultAppPageProps } from "@/lib/nextAppPageProps";
 
 export const metadata: Metadata = {
-  title: "Search Config | GoGoCash Admin",
+  title: "Search Management | GoGoCash Admin",
 };
 
 export default async function SearchConfigPage(props: DefaultAppPageProps) {
@@ -14,8 +14,8 @@ export default async function SearchConfigPage(props: DefaultAppPageProps) {
   return (
     <div className="min-w-0">
       <PageBreadcrumb
-        pageTitle="Search Config"
-        items={[{ label: "Home", href: "/" }, { label: "Search Config" }]}
+        pageTitle="Search Management"
+        items={[{ label: "Home", href: "/" }, { label: "Search Management" }]}
       />
       <div className="mt-6 space-y-6">
         <OffersManagementTabs />

@@ -78,7 +78,7 @@ export const navItems: NavItem[] = [
       { name: "User tracking link", path: "/brands?tab=deeplink", pro: false, permission: "brands:view" },
       { name: "Top brands", path: "/brands?tab=top-brands", pro: false, permission: "brands:view" },
       { name: "Missing orders", path: "/missing-orders", pro: false, permission: "brands:view" },
-      { name: "Search config", path: "/search-config", pro: false, permission: "brands:view" },
+      { name: "Search Management", path: "/search-config", pro: false, permission: "brands:view" },
     ],
   },
   {

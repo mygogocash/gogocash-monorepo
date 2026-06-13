@@ -293,6 +293,7 @@ function buildWithdrawDetailUser(userId: string) {
     gender: genderLabel,
     birthdate: u.birthdate ?? "",
     wallet: u.address,
+    country: u.country,
     subscriptionPlan: u.subscriptionPlan,
     creditScore: u.creditScore,
   };
