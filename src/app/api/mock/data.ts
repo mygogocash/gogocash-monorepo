@@ -789,6 +789,8 @@ export const mockCoupons = Array.from({ length: 550 }, (_, i) => {
     terms_and_conditions: `Minimum spend ${t.min_spend} THB. ${t.description}. Valid for ${t.eligibility.replace(/_/g, " ")}. One redemption per user unless stated otherwise. GoGoCash may amend or withdraw this offer at any time.`,
     start_time: "00:00",
     end_time: "23:59",
+    usage_per_user: i % 5 === 0 ? "3" : "1",
+    one_time_use_enabled: i % 5 !== 0,
   };
 });
 

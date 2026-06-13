@@ -251,6 +251,29 @@ const FormCoupon = ({
       toast.error(maxCapError);
       return;
     }
+    if (form.code_enabled && !String(form.code).trim()) {
+      toast.error("Enter a coupon code.");
+      return;
+    }
+    if (
+      !form.one_time_use_enabled &&
+      !String(form.usage_per_user ?? "").trim()
+    ) {
+      toast.error("Enter how many times each user can use this code.");
+      return;
+    }
+    const usagePerUser = !form.one_time_use_enabled
+      ? parseAmount(form.usage_per_user)
+      : 1;
+    if (
+      !form.one_time_use_enabled &&
+      (usagePerUser == null ||
+        usagePerUser < 1 ||
+        !Number.isInteger(usagePerUser))
+    ) {
+      toast.error("Usage per user must be a whole number (1 or greater).");
+      return;
+    }
     if (showOfferField && selectedBrands.length === 0) {
       toast.error("Add at least one brand for this coupon.");
       return;
@@ -259,7 +282,16 @@ const FormCoupon = ({
     const formData = new FormData();
     formData.append("name", form.name);
     formData.append("description", form.description);
-    formData.append("code", form.code);
+    formData.append("code", form.code_enabled ? form.code : "");
+    formData.append("code_enabled", String(Boolean(form.code_enabled)));
+    formData.append(
+      "usage_per_user",
+      form.one_time_use_enabled ? "1" : String(usagePerUser),
+    );
+    formData.append(
+      "one_time_use_enabled",
+      String(Boolean(form.one_time_use_enabled)),
+    );
     formData.append("offer_id", form.offer_id);
     formData.append("start_date", form.start_date);
     formData.append("end_date", form.end_date);
@@ -331,12 +363,6 @@ const FormCoupon = ({
       placeholder: "https://example.com/promo",
       description:
         "Optional URL where users go when they open this coupon in the app (e.g. a brand promo or terms page).",
-    },
-    {
-      filedName: "code",
-      type: "text",
-      description:
-        "The code users enter to redeem (e.g. WELCOME10). Must be unique.",
     },
     {
       filedName: "eligibility",
@@ -730,11 +756,11 @@ const FormCoupon = ({
       <div
         className={`grid min-w-0 gap-3 ${
           form.min_spend_enabled
-            ? "grid-cols-2 items-center"
+            ? "grid-cols-[320px_1fr] items-center"
             : "grid-cols-1"
         }`}
       >
-        <div className="flex min-w-0 items-start gap-3">
+        <div className="flex w-[320px] shrink-0 items-start gap-3">
           <Switch
             key={`${form.id ?? "new"}-min-spend`}
             label=""
@@ -805,10 +831,12 @@ const FormCoupon = ({
     <div className="min-w-0 w-full">
       <div
         className={`grid min-w-0 gap-3 ${
-          form.max_cap_enabled ? "grid-cols-2 items-center" : "grid-cols-1"
+          form.max_cap_enabled
+            ? "grid-cols-[320px_1fr] items-center"
+            : "grid-cols-1"
         }`}
       >
-        <div className="flex min-w-0 items-start gap-3">
+        <div className="flex w-[320px] shrink-0 items-start gap-3">
           <Switch
             key={`${form.id ?? "new"}-max-cap`}
             label=""
@@ -875,6 +903,120 @@ const FormCoupon = ({
     </div>
   );
 
+  const codeFields = (
+    <div className="min-w-0 w-full">
+      <div
+        className={`grid min-w-0 gap-3 ${
+          form.code_enabled
+            ? "grid-cols-[320px_1fr] items-center"
+            : "grid-cols-1"
+        }`}
+      >
+        <div className="flex w-[320px] shrink-0 items-start gap-3">
+          <Switch
+            key={`${form.id ?? "new"}-code`}
+            label=""
+            defaultChecked={Boolean(form.code_enabled)}
+            onChange={(enabled) =>
+              setForm({
+                ...form,
+                code_enabled: enabled,
+                code: enabled ? form.code : "",
+              })
+            }
+            disabled={isLoading}
+          />
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+              Code
+            </p>
+            <p className="text-theme-xs text-gray-500 dark:text-gray-400">
+              The code users enter to redeem (e.g. WELCOME10). Must be unique.
+            </p>
+          </div>
+        </div>
+        {form.code_enabled ? (
+          <div className="min-w-0">
+            <Input
+              type="text"
+              name="code"
+              value={form.code}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  code: event.target.value,
+                })
+              }
+              placeholder="WELCOME10"
+              ariaLabel="Coupon code"
+              disabled={isLoading}
+            />
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+
+  const oneTimeUseFields = (
+    <div className="min-w-0 w-full">
+      <div
+        className={`grid min-w-0 gap-3 ${
+          !form.one_time_use_enabled
+            ? "grid-cols-[320px_1fr] items-center"
+            : "grid-cols-1"
+        }`}
+      >
+        <div className="flex w-[320px] shrink-0 items-start gap-3">
+          <Switch
+            key={`${form.id ?? "new"}-one-time-use`}
+            label=""
+            defaultChecked={Boolean(form.one_time_use_enabled)}
+            onChange={(enabled) =>
+              setForm({
+                ...form,
+                one_time_use_enabled: enabled,
+                usage_per_user: enabled ? "" : form.usage_per_user || "",
+              })
+            }
+            disabled={isLoading}
+          />
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+              One time use
+            </p>
+            <p className="text-theme-xs text-gray-500 dark:text-gray-400">
+              One code is available for one-time use per user.
+            </p>
+          </div>
+        </div>
+        {!form.one_time_use_enabled ? (
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <Input
+                type="number"
+                name="usage_per_user"
+                value={form.usage_per_user ?? ""}
+                onChange={(event) =>
+                  setForm({
+                    ...form,
+                    usage_per_user: event.target.value,
+                  })
+                }
+                placeholder="2"
+                ariaLabel="Usage times per user"
+                disabled={isLoading}
+                min="1"
+              />
+            </div>
+            <span className="text-theme-xs shrink-0 text-gray-500 dark:text-gray-400">
+              times per user
+            </span>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+
   return (
     <>
       <Modal
@@ -923,59 +1065,61 @@ const FormCoupon = ({
             {dataForm.map((formItem) => (
               <Fragment key={formItem.filedName}>
                 <div className="w-full">
-                  <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {(formItem.label ?? formItem.filedName.replace(/_/g, " "))
-                      .toUpperCase()}
-                  </p>
-                  {formItem.description && (
-                    <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-                      {formItem.description}
+                    <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {(formItem.label ?? formItem.filedName.replace(/_/g, " "))
+                        .toUpperCase()}
                     </p>
-                  )}
-                  {formItem.type === "textarea" ? (
-                    <TextArea
-                      id={formItem.filedName}
-                      rows={6}
-                      placeholder={formItem.placeholder || ""}
-                      value={
-                        (form?.[
-                          formItem.filedName as keyof CouponRequestForm
-                        ] as string) ?? ""
-                      }
-                      onChange={(value) => {
-                        setForm({
-                          ...form,
-                          [formItem.filedName]: value,
-                        });
-                      }}
-                    />
-                  ) : (
-                    <Input
-                      type={formItem.type}
-                      name={formItem.filedName}
-                      onChange={(event) => {
-                        setForm({
-                          ...form,
-                          [formItem.filedName]: event.target.value,
-                        });
-                      }}
-                      placeholder={formItem.placeholder || ""}
-                      defaultValue={
-                        form?.[
-                          formItem.filedName as keyof CouponRequestForm
-                        ] as string
-                      }
-                    />
-                  )}
+                    {formItem.description && (
+                      <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+                        {formItem.description}
+                      </p>
+                    )}
+                    {formItem.type === "textarea" ? (
+                      <TextArea
+                        id={formItem.filedName}
+                        rows={6}
+                        placeholder={formItem.placeholder || ""}
+                        value={
+                          (form?.[
+                            formItem.filedName as keyof CouponRequestForm
+                          ] as string) ?? ""
+                        }
+                        onChange={(value) => {
+                          setForm({
+                            ...form,
+                            [formItem.filedName]: value,
+                          });
+                        }}
+                      />
+                    ) : (
+                      <Input
+                        type={formItem.type}
+                        name={formItem.filedName}
+                        onChange={(event) => {
+                          setForm({
+                            ...form,
+                            [formItem.filedName]: event.target.value,
+                          });
+                        }}
+                        placeholder={formItem.placeholder || ""}
+                        defaultValue={
+                          form?.[
+                            formItem.filedName as keyof CouponRequestForm
+                          ] as string
+                        }
+                      />
+                    )}
                 </div>
                 {formItem.filedName === "name" ? brandPickerFields : null}
                 {formItem.filedName === "link" ? (
                   <>
                     {validPeriodFields}
                     {discountFields}
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="flex flex-col gap-4">
                       {minSpendFields}
                       {maxCapFields}
+                      {codeFields}
+                      {oneTimeUseFields}
                     </div>
                   </>
                 ) : null}
