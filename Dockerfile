@@ -9,16 +9,6 @@
 # in-process mock (the long-standing "mock-by-default" blocker). For other
 # environments pass `--build-arg NEXT_PUBLIC_API_URL=...`.
 
-<<<<<<< Updated upstream
-FROM node:22-slim AS deps
-WORKDIR /app
-COPY package.json package-lock.json ./
-# --legacy-peer-deps: the lockfile carries a peerOptional conflict (@types/node vs vite)
-# that strict `npm ci` rejects; the API repo uses the same flag.
-RUN npm ci --legacy-peer-deps
-
-=======
->>>>>>> Stashed changes
 FROM node:22-slim AS builder
 WORKDIR /app
 # Copy the full source BEFORE install: a postinstall script
