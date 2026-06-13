@@ -1,0 +1,3 @@
+# Aligns with common README/docs practice; line-length (MD013) is noisy for prose and tables.
+config:
+  MD013: false
