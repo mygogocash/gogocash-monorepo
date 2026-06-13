@@ -19,5 +19,7 @@ export default registerAs('env', () => ({
   // prod/staging. MAIL_FROM must be an address on a Resend-verified domain.
   RESEND_API_KEY: process.env.RESEND_API_KEY,
   MAIL_FROM: process.env.MAIL_FROM || 'GoGoCash <noreply@gogocash.co>',
+  // Base URL of the admin app — used to build invite / password-reset links.
+  ADMIN_APP_URL: process.env.ADMIN_APP_URL || 'https://admin-staging.gogocash.co',
   WEB_URL: process.env.WEB_APP_URL,
 }));
