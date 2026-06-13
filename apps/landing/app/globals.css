@@ -1,0 +1,147 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #10b981;
+  --primary-dark: #059669;
+  --accent: #f97066;
+  --accent-dark: #dc2626;
+  --text-primary: #1f2937;
+  --text-secondary: #6b7280;
+  --text-muted: #9ca3af;
+  /* Motion tokens (keep in sync with tailwind.config.ts) */
+  --motion-duration-micro: 150ms;
+  --motion-duration-button: 220ms;
+  --motion-duration-section: 380ms;
+  --motion-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --motion-ease-emphasized: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html {
+  scroll-behavior: smooth;
+  overflow-x: clip;
+}
+
+body {
+  font-family: var(--font-poppins), var(--font-inter), "Poppins", "Inter", sans-serif;
+  min-width: 0;
+  overflow-x: clip;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d4d4d4;
+  border-radius: 3px;
+}
+
+/* Rolling text animation */
+@keyframes rolling-text {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-50%);
+  }
+}
+
+.rolling-text {
+  display: inline-flex;
+  overflow: hidden;
+  vertical-align: top;
+}
+
+.rolling-text-inner {
+  animation: rolling-text 3s ease-in-out infinite;
+}
+
+/* Grid pattern */
+.grid-pattern {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+  background-size: 80px 80px;
+}
+
+/* Gradient backgrounds */
+.hero-gradient {
+  background: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    #ffffff 50%,
+    #d1fae5 70%,
+    #6ee7b7 85%,
+    #10b981 100%
+  );
+}
+
+/* Animate on scroll base — uses motion tokens */
+.animate-on-scroll {
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity var(--motion-duration-section) var(--motion-ease-standard),
+    transform var(--motion-duration-section) var(--motion-ease-standard);
+}
+
+.animate-on-scroll.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.animate-on-scroll.fade-in-left {
+  transform: translateX(-30px);
+}
+
+.animate-on-scroll.fade-in-left.visible {
+  transform: translateX(0);
+}
+
+.animate-on-scroll.fade-in-right {
+  transform: translateX(30px);
+}
+
+.animate-on-scroll.fade-in-right.visible {
+  transform: translateX(0);
+}
+
+.animate-on-scroll.scale-in {
+  transform: scale(0.95);
+}
+
+.animate-on-scroll.scale-in.visible {
+  transform: scale(1);
+}
+
+/* Green check icon */
+.check-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #00cc9a;
+  color: white;
+  flex-shrink: 0;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

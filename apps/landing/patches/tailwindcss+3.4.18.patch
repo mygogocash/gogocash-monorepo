@@ -1,0 +1,20 @@
+diff --git a/node_modules/tailwindcss/lib/util/hashConfig.js b/node_modules/tailwindcss/lib/util/hashConfig.js
+--- a/node_modules/tailwindcss/lib/util/hashConfig.js
++++ b/node_modules/tailwindcss/lib/util/hashConfig.js
+@@ -8,14 +8,14 @@ Object.defineProperty(exports, "default", {
+         return hashConfig;
+     }
+ });
+-const _objecthash = /*#__PURE__*/ _interop_require_default(require("object-hash"));
++const _objecthash = require("object-hash");
+ function _interop_require_default(obj) {
+     return obj && obj.__esModule ? obj : {
+         default: obj
+     };
+ }
+ function hashConfig(config) {
+-    return (0, _objecthash.default)(config, {
++    return _objecthash(config, {
+         ignoreUnknown: true
+     });
+ }

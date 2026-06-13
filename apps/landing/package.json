@@ -1,0 +1,85 @@
+{
+  "name": "gogocash-landing",
+  "version": "1.0.0",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mygogocash/landing-page.git"
+  },
+  "type": "module",
+  "scripts": {
+    "setup": "npm install",
+    "start:dev": "bash scripts/start-dev.sh",
+    "local": "npm install && npm run dev",
+    "postinstall": "npm exec -- patch-package",
+    "clean": "rm -rf .next",
+    "dev:local": "bash scripts/dev-local.sh",
+    "dev:docker": "docker compose up --build",
+    "dev": "npm exec -- next dev --hostname 0.0.0.0 --port 3000",
+    "dev:clean": "npm run clean && npm run dev",
+    "dev:webpack": "npm exec -- next dev --webpack",
+    "build": "npm exec -- next build",
+    "build:webpack": "npm exec -- next build --webpack",
+    "analyze": "cross-env ANALYZE=true npm run build:webpack",
+    "analyze:turbopack": "npm exec -- next experimental-analyze",
+    "build:clean": "npm run clean && npm run build",
+    "deploy:firebase": "npm run build && node scripts/deploy-firebase-hosting.mjs",
+    "deploy:firebase:full": "npm run deploy:firebase",
+    "dns:cloudflare-firebase-apex": "bash scripts/run-cloudflare-firebase-dns.sh",
+    "start": "npm exec -- next start",
+    "lint": "npm exec -- eslint . --ignore-pattern node_modules --ignore-pattern .next --ignore-pattern .node_modules.stalled",
+    "test": "node scripts/run-lib-tests.mjs",
+    "test:e2e": "npm exec -- playwright test",
+    "test:e2e:smoke": "npm exec -- playwright test smoke.spec.ts sitemap.spec.ts navigation.spec.ts locale-autodetect.spec.ts --project=mobile-chrome",
+    "test:e2e:ci": "npm exec -- playwright test",
+    "test:e2e:static": "npm run build && npm run test:e2e:static-only",
+    "test:e2e:static-only": "npm exec -- cross-env PLAYWRIGHT_SERVE_STATIC=1 playwright test --project=mobile-chrome",
+    "test:e2e:install": "npm exec -- playwright install chromium webkit",
+    "typecheck": "npm exec -- tsc --noEmit",
+    "verify": "npm run lint && npm run test && npm run typecheck && npm run build",
+    "learn:strapi-push": "npm exec -- tsx scripts/push-learn-to-strapi.ts",
+    "generate:assets": "node scripts/generate-seo-assets.mjs",
+    "lh:mobile": "npx --yes lighthouse http://127.0.0.1:3000/ --only-categories=performance,accessibility,best-practices,seo --preset=mobile --output=html --output-path=./lighthouse-home-mobile.html --quiet"
+  },
+  "dependencies": {
+    "@swc/helpers": "0.5.15",
+    "firebase": "^12.11.0",
+    "framer-motion": "^12.38.0",
+    "next": "^16.2.7",
+    "posthog-js": "^1.379.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-markdown": "^10.1.0"
+  },
+  "engines": {
+    "node": ">=20 <21"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@next/bundle-analyzer": "^16.2.7",
+    "@playwright/test": "^1.58.2",
+    "@types/node": "^20.0.0",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "autoprefixer": "^10.4.27",
+    "cross-env": "^7.0.3",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.2.7",
+    "firebase-tools": "^15.19.1",
+    "globals": "^17.4.0",
+    "patch-package": "^8.0.1",
+    "postcss": "^8.5.15",
+    "qrcode": "^1.5.4",
+    "sharp": "^0.34.5",
+    "tailwindcss": "3.4.18",
+    "tsx": "^4.22.4",
+    "typescript": "^5.0.0"
+  },
+  "overrides": {
+    "postcss": "^8.5.15",
+    "gaxios": {
+      "uuid": "^11.1.1"
+    }
+  }
+}
