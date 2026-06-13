@@ -19,9 +19,6 @@ export default function CouponTable() {
     name: "",
     description: "",
     code: "",
-    code_enabled: false,
-    one_time_use_enabled: true,
-    usage_per_user: "",
     offer_id: "",
     start_date: "",
     end_date: "",
@@ -107,15 +104,6 @@ export default function CouponTable() {
     name: list.name,
     description: list.description,
     code: list.code,
-    code_enabled: Boolean(list.code?.trim()),
-    one_time_use_enabled:
-      list.one_time_use_enabled ??
-      list.usage_per_user == null ||
-      Number(list.usage_per_user) <= 1,
-    usage_per_user:
-      list.usage_per_user != null && Number(list.usage_per_user) > 1
-        ? String(list.usage_per_user)
-        : "",
     offer_id: list.offer_id._id,
     start_date: toDateInputValue(list.start_date),
     end_date: toDateInputValue(list.end_date),
