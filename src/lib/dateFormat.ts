@@ -85,3 +85,12 @@ export function formatDateTime(
   if (!p.date) return datePart;
   return `${datePart} ${formatTime(input, { seconds })}`;
 }
+
+/** Normalise API / ISO values to `YYYY-MM-DD` for `<input type="date">`. */
+export function toDateInputValue(raw: DateInput): string {
+  if (raw === null || raw === undefined || raw === "") return "";
+  const trimmed = String(raw).trim();
+  if (DATE_ONLY_RE.test(trimmed)) return trimmed.slice(0, 10);
+  const parsed = raw instanceof Date ? raw : new Date(trimmed);
+  return Number.isNaN(parsed.getTime()) ? "" : parsed.toISOString().slice(0, 10);
+}
