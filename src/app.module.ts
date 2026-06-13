@@ -19,8 +19,13 @@ import { CustomerIoModule } from './customer-io/customer-io.module';
 import { PolicyModule } from './policy/policy.module';
 import { GogosenseModule } from './gogosense/gogosense.module';
 import { CustomerBillingModule } from './customer-billing/customer-billing.module';
+import { InvolveModule } from './involve/involve.module';
+import { TasksModule } from './tasks/tasks.module';
 @Module({
   imports: [
+    // ScheduleModule stays the in-process scheduler (staging); feature/bug-old's
+    // TasksController exposes the same jobs over HTTP as admin break-glass only
+    // (hardened behind AuthAdminGuard — see tasks.controller).
     ScheduleModule.forRoot(),
     AnalyticsModule,
     CustomerIoModule,
@@ -43,6 +48,8 @@ import { CustomerBillingModule } from './customer-billing/customer-billing.modul
     process.env.TELEGRAM_BOT_TOKEN !== 'PLACEHOLDER'
       ? [TelegramBotModule]
       : []),
+    InvolveModule,
+    TasksModule,
   ],
   controllers: [AppController],
   providers: [AppService],

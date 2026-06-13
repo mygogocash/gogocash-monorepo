@@ -27,6 +27,9 @@ import { FeeRate, FeeRateSchema } from 'src/withdraw/schemas/feeRate.schema';
     ]),
   ],
   controllers: [InvolveController],
+  // AnalyticsService resolves via the @Global AnalyticsModule (app.module);
+  // a local provider would spawn a second PostHog client. exports required —
+  // admin/gogosense/offer/point/withdraw inject InvolveService.
   providers: [InvolveService, JwtService],
   exports: [InvolveService],
 })

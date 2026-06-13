@@ -115,6 +115,9 @@ export class Offer {
   @Prop()
   extra_store: boolean;
 
+  @Prop()
+  extra_store_sort: number;
+
   @Prop({ default: 1 })
   extra_point: number;
 
