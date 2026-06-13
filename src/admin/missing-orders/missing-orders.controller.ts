@@ -66,6 +66,8 @@ export class MissingOrdersController {
     return this.missingOrdersService.assign(id, dto.admin_id);
   }
 
+  // Writing a case note is a mutation — exclude read-only viewers.
+  @Roles('support')
   @Post(':id/notes')
   addNote(
     @Param('id') id: string,
