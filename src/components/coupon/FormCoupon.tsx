@@ -9,12 +9,17 @@ import { useDataSession } from "@/hooks/useDataSession";
 import { fetchOffersList, offersListQueryKey } from "@/lib/query/offersQueries";
 import toast from "react-hot-toast";
 import Button from "../ui/button/Button";
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { Offer, OffersQuery } from "@/types/api";
 import { useQuery } from "@tanstack/react-query";
 import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
 import { devError } from "@/lib/devConsole";
+import {
+  brandSearchOptionLabel,
+  formatOfferCountries,
+  getOfferDisplayName,
+} from "@/lib/offerDisplay";
 import { parseAmount, validateOptionalAmount } from "@/lib/formValidation";
 import { isDirty } from "@/lib/isDirty";
 import { toDateInputValue } from "@/lib/dateFormat";
@@ -24,6 +29,7 @@ import { TrashBinIcon } from "@/icons";
 import { pathImage } from "@/utils/helper";
 import { SUPPORT_BUTTON_CLASS } from "@/components/ui/button/SupportButton";
 
+const COUPON_FIELD_INPUT_WIDTH = "w-[316px] shrink-0";
 const DISCOUNT_MODE_TOGGLE_ACTIVE =
   "inline-flex h-7 items-center justify-center rounded-lg border border-brand-500 bg-brand-500 px-3 text-xs font-medium text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:bg-brand-300";
 const DISCOUNT_MODE_TOGGLE_INACTIVE = `${SUPPORT_BUTTON_CLASS} transition disabled:cursor-not-allowed disabled:opacity-50`;
@@ -47,15 +53,9 @@ const BRAND_AUTOCOMPLETE_POPPER_Z = 100002;
 function offerToSelectedBrand(offer: Offer): CouponSelectedBrand {
   return {
     id: offer._id,
-    name: offer.offer_name_display || offer.offer_name,
+    name: getOfferDisplayName(offer),
     category: offer.categories || "Uncategorized",
-    country: offer.countries
-      ? offer.countries
-          .split(",")
-          .map((code) => code.trim())
-          .filter(Boolean)
-          .join(", ")
-      : "—",
+    country: formatOfferCountries(offer.countries),
     logo: offer.logo_desktop ?? "",
   };
 }
@@ -148,24 +148,22 @@ const FormCoupon = ({
     !brandIdsEqual(selectedBrands, baseline.brands);
 
   const brandOptions = useMemo(() => {
-    const options: BrandSelectOption[] = (brandOffers?.data ?? []).map(
-      (offer) => ({
+    const byId = new Map<string, BrandSelectOption>();
+    for (const offer of brandOffers?.data ?? []) {
+      byId.set(offer._id, {
         id: offer._id,
-        label: offer.offer_name_display || offer.offer_name,
+        label: brandSearchOptionLabel(offer),
         offer,
-      }),
-    );
-    if (
-      offerDetail?._id &&
-      !options.some((option) => option.id === offerDetail._id)
-    ) {
-      options.unshift({
+      });
+    }
+    if (offerDetail?._id && !byId.has(offerDetail._id)) {
+      byId.set(offerDetail._id, {
         id: offerDetail._id,
-        label: offerDetail.offer_name_display || offerDetail.offer_name,
+        label: brandSearchOptionLabel(offerDetail),
         offer: offerDetail,
       });
     }
-    return options;
+    return Array.from(byId.values());
   }, [brandOffers?.data, offerDetail]);
 
   function syncPrimaryOfferId(brands: CouponSelectedBrand[]) {
@@ -198,35 +196,64 @@ const FormCoupon = ({
     });
   }
 
-  useEffect(() => {
-    if (!couponModalOpen) {
+  function closeModal() {
+    setOpenModal(false);
+  }
+
+  const [modalOpenSync, setModalOpenSync] = useState(couponModalOpen);
+  if (modalOpenSync !== couponModalOpen) {
+    setModalOpenSync(couponModalOpen);
+    if (couponModalOpen) {
+      setStartDateType(form.start_date ? "date" : "text");
+      setEndDateType(form.end_date ? "date" : "text");
+    } else {
       setBrandSearch("");
       setSelectedBrand(null);
       setSelectedBrands([]);
       setStartDateType("text");
       setEndDateType("text");
-      return;
     }
-    setStartDateType(form.start_date ? "date" : "text");
-    setEndDateType(form.end_date ? "date" : "text");
-    if (!offerDetail?._id || form.offer_id !== offerDetail._id) return;
-    const brand = offerToSelectedBrand(offerDetail);
+  }
+
+  const [brandSyncOfferId, setBrandSyncOfferId] = useState<string | null>(null);
+  const shouldSyncBrand =
+    couponModalOpen &&
+    Boolean(offerDetail?._id) &&
+    form.offer_id === offerDetail?._id;
+  if (shouldSyncBrand && brandSyncOfferId !== offerDetail!._id) {
+    const brand = offerToSelectedBrand(offerDetail!);
     setSelectedBrands([brand]);
     setBaseline((current) =>
       current.open === couponModalOpen ? { ...current, brands: [brand] } : current,
     );
-  }, [couponModalOpen, offerDetail, form.offer_id]);
+    setBrandSyncOfferId(offerDetail!._id);
+  }
+  if (!shouldSyncBrand && brandSyncOfferId !== null) {
+    setBrandSyncOfferId(null);
+  }
 
-  // Handle file change
+  // Save handler
   const handleSave = () => {
     const discount = parseAmount(form.discount);
     if (discount == null || discount < 0) {
       toast.error("Discount must be a number (0 or greater).");
       return;
     }
-    const quantity = parseAmount(form.quantity);
-    if (quantity == null || quantity < 0 || !Number.isInteger(quantity)) {
-      toast.error("Quantity must be a whole number (0 or greater).");
+    const quantity = form.unlimited_amount_enabled
+      ? 0
+      : parseAmount(form.available_code_amount);
+    if (
+      !form.unlimited_amount_enabled &&
+      !String(form.available_code_amount ?? "").trim()
+    ) {
+      toast.error("Enter the available code amount.");
+      return;
+    }
+    if (
+      !form.unlimited_amount_enabled &&
+      (quantity == null || quantity < 1 || !Number.isInteger(quantity))
+    ) {
+      toast.error("Available code amount must be a whole number (1 or greater).");
       return;
     }
     if (form.min_spend_enabled && !String(form.min_spend).trim()) {
@@ -251,6 +278,29 @@ const FormCoupon = ({
       toast.error(maxCapError);
       return;
     }
+    if (form.code_enabled && !String(form.code).trim()) {
+      toast.error("Enter a coupon code.");
+      return;
+    }
+    if (
+      !form.one_time_use_enabled &&
+      !String(form.usage_per_user ?? "").trim()
+    ) {
+      toast.error("Enter how many times each user can use this code.");
+      return;
+    }
+    const usagePerUser = !form.one_time_use_enabled
+      ? parseAmount(form.usage_per_user)
+      : 1;
+    if (
+      !form.one_time_use_enabled &&
+      (usagePerUser == null ||
+        usagePerUser < 1 ||
+        !Number.isInteger(usagePerUser))
+    ) {
+      toast.error("Usage per user must be a whole number (1 or greater).");
+      return;
+    }
     if (showOfferField && selectedBrands.length === 0) {
       toast.error("Add at least one brand for this coupon.");
       return;
@@ -259,7 +309,16 @@ const FormCoupon = ({
     const formData = new FormData();
     formData.append("name", form.name);
     formData.append("description", form.description);
-    formData.append("code", form.code);
+    formData.append("code", form.code_enabled ? form.code : "");
+    formData.append("code_enabled", String(Boolean(form.code_enabled)));
+    formData.append(
+      "usage_per_user",
+      form.one_time_use_enabled ? "1" : String(usagePerUser),
+    );
+    formData.append(
+      "one_time_use_enabled",
+      String(Boolean(form.one_time_use_enabled)),
+    );
     formData.append("offer_id", form.offer_id);
     formData.append("start_date", form.start_date);
     formData.append("end_date", form.end_date);
@@ -285,6 +344,14 @@ const FormCoupon = ({
     );
     formData.append("max_cap_currency", form.max_cap_currency || "THB");
     formData.append("quantity", String(quantity));
+    formData.append(
+      "unlimited_amount_enabled",
+      String(Boolean(form.unlimited_amount_enabled)),
+    );
+    formData.append(
+      "available_code_amount",
+      form.unlimited_amount_enabled ? "" : String(quantity),
+    );
     formData.append("discount", String(discount));
     formData.append("discount_type", form.discount_type || "percent");
     formData.append("discount_currency", form.discount_currency || "THB");
@@ -302,7 +369,7 @@ const FormCoupon = ({
       })
       .then(() => {
         fetchData();
-        setOpenModal(false);
+        closeModal();
         setIsLoading(false);
         toast.success("updated successfully");
       })
@@ -333,12 +400,6 @@ const FormCoupon = ({
         "Optional URL where users go when they open this coupon in the app (e.g. a brand promo or terms page).",
     },
     {
-      filedName: "code",
-      type: "text",
-      description:
-        "The code users enter to redeem (e.g. WELCOME10). Must be unique.",
-    },
-    {
       filedName: "eligibility",
       type: "text",
       description:
@@ -349,11 +410,6 @@ const FormCoupon = ({
       type: "textarea",
       description:
         "Short text explaining the coupon terms, conditions or offer details.",
-    },
-    {
-      filedName: "quantity",
-      type: "number",
-      description: "Total number of redemptions allowed. Use 0 for unlimited.",
     },
   ];
 
@@ -374,7 +430,16 @@ const FormCoupon = ({
           openOnFocus
           filterOptions={(options) => options}
           getOptionLabel={(opt) => opt.label}
+          getOptionKey={(opt) => opt.id}
           isOptionEqualToValue={(opt, val) => opt.id === val.id}
+          renderOption={(props, option) => {
+            const { key: _key, ...optionProps } = props;
+            return (
+              <li {...optionProps} key={option.id}>
+                {option.label}
+              </li>
+            );
+          }}
           noOptionsText={
             isFetchingBrands ? "Loading brands…" : "No brands found"
           }
@@ -730,15 +795,16 @@ const FormCoupon = ({
       <div
         className={`grid min-w-0 gap-3 ${
           form.min_spend_enabled
-            ? "grid-cols-2 items-center"
+            ? "grid-cols-[320px_1fr] items-center"
             : "grid-cols-1"
         }`}
       >
-        <div className="flex min-w-0 items-start gap-3">
+        <div className="flex w-[320px] shrink-0 items-start gap-3">
           <Switch
             key={`${form.id ?? "new"}-min-spend`}
             label=""
-            defaultChecked={Boolean(form.min_spend_enabled)}
+            ariaLabel="Min spend"
+            checked={Boolean(form.min_spend_enabled)}
             onChange={(enabled) =>
               setForm({
                 ...form,
@@ -805,14 +871,17 @@ const FormCoupon = ({
     <div className="min-w-0 w-full">
       <div
         className={`grid min-w-0 gap-3 ${
-          form.max_cap_enabled ? "grid-cols-2 items-center" : "grid-cols-1"
+          form.max_cap_enabled
+            ? "grid-cols-[320px_1fr] items-center"
+            : "grid-cols-1"
         }`}
       >
-        <div className="flex min-w-0 items-start gap-3">
+        <div className="flex w-[320px] shrink-0 items-start gap-3">
           <Switch
             key={`${form.id ?? "new"}-max-cap`}
             label=""
-            defaultChecked={Boolean(form.max_cap_enabled)}
+            ariaLabel="Max cap"
+            checked={Boolean(form.max_cap_enabled)}
             onChange={(enabled) =>
               setForm({
                 ...form,
@@ -875,11 +944,190 @@ const FormCoupon = ({
     </div>
   );
 
+  const codeFields = (
+    <div className="min-w-0 w-full">
+      <div
+        className={`grid min-w-0 gap-3 ${
+          form.code_enabled
+            ? "grid-cols-[320px_1fr] items-center"
+            : "grid-cols-1"
+        }`}
+      >
+        <div className="flex w-[320px] shrink-0 items-start gap-3">
+          <Switch
+            key={`${form.id ?? "new"}-code`}
+            label=""
+            ariaLabel="Coupon code"
+            checked={Boolean(form.code_enabled)}
+            onChange={(enabled) =>
+              setForm({
+                ...form,
+                code_enabled: enabled,
+                code: enabled ? form.code : "",
+              })
+            }
+            disabled={isLoading}
+          />
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+              Code
+            </p>
+            <p className="text-theme-xs text-gray-500 dark:text-gray-400">
+              The code users enter to redeem (e.g. WELCOME10). Must be unique.
+            </p>
+          </div>
+        </div>
+        {form.code_enabled ? (
+          <div className={COUPON_FIELD_INPUT_WIDTH}>
+            <Input
+              type="text"
+              name="code"
+              value={form.code}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  code: event.target.value,
+                })
+              }
+              placeholder="WELCOME10"
+              ariaLabel="Coupon code"
+              disabled={isLoading}
+            />
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+
+  const oneTimeUseFields = (
+    <div className="min-w-0 w-full">
+      <div
+        className={`grid min-w-0 gap-3 ${
+          !form.one_time_use_enabled
+            ? "grid-cols-[320px_1fr] items-center"
+            : "grid-cols-1"
+        }`}
+      >
+        <div className="flex w-[320px] shrink-0 items-start gap-3">
+          <Switch
+            key={`${form.id ?? "new"}-one-time-use`}
+            label=""
+            ariaLabel="One time use per user"
+            checked={Boolean(form.one_time_use_enabled)}
+            onChange={(enabled) =>
+              setForm({
+                ...form,
+                one_time_use_enabled: enabled,
+                usage_per_user: enabled ? "" : form.usage_per_user || "",
+              })
+            }
+            disabled={isLoading}
+          />
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+              One time use
+            </p>
+            <p className="text-theme-xs text-gray-500 dark:text-gray-400">
+              One code is available for one-time use per user.
+            </p>
+          </div>
+        </div>
+        {!form.one_time_use_enabled ? (
+          <div className="flex min-w-0 items-center gap-3">
+            <div className={COUPON_FIELD_INPUT_WIDTH}>
+              <Input
+                type="number"
+                name="usage_per_user"
+                value={form.usage_per_user ?? ""}
+                onChange={(event) =>
+                  setForm({
+                    ...form,
+                    usage_per_user: event.target.value,
+                  })
+                }
+                placeholder="2"
+                ariaLabel="Usage times per user"
+                disabled={isLoading}
+                min="1"
+              />
+            </div>
+            <span className="text-theme-xs shrink-0 text-gray-500 dark:text-gray-400">
+              times per user
+            </span>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+
+  const unlimitedAmountFields = (
+    <div className="min-w-0 w-full">
+      <div
+        className={`grid min-w-0 gap-3 ${
+          !form.unlimited_amount_enabled
+            ? "grid-cols-[320px_1fr] items-center"
+            : "grid-cols-1"
+        }`}
+      >
+        <div className="flex w-[320px] shrink-0 items-start gap-3">
+          <Switch
+            key={`${form.id ?? "new"}-unlimited-amount`}
+            label=""
+            ariaLabel="Unlimited redemption amount"
+            checked={Boolean(form.unlimited_amount_enabled)}
+            onChange={(enabled) =>
+              setForm({
+                ...form,
+                unlimited_amount_enabled: enabled,
+                available_code_amount: enabled
+                  ? ""
+                  : form.available_code_amount || "",
+              })
+            }
+            disabled={isLoading}
+          />
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+              Unlimited amount
+            </p>
+            <p className="text-theme-xs text-gray-500 dark:text-gray-400">
+              No limit on how many times this code can be redeemed in total.
+            </p>
+          </div>
+        </div>
+        {!form.unlimited_amount_enabled ? (
+          <div className="flex min-w-0 items-center gap-3">
+            <div className={COUPON_FIELD_INPUT_WIDTH}>
+              <Input
+                type="number"
+                name="available_code_amount"
+                value={form.available_code_amount ?? ""}
+                onChange={(event) =>
+                  setForm({
+                    ...form,
+                    available_code_amount: event.target.value,
+                  })
+                }
+                placeholder="100"
+                ariaLabel="Available code amount"
+                disabled={isLoading}
+                min="1"
+              />
+            </div>
+            <span className="text-theme-xs shrink-0 text-gray-500 dark:text-gray-400">
+              available code amount
+            </span>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+
   return (
     <>
       <Modal
         isOpen={Boolean(openModal)}
-        onClose={() => setOpenModal(false)}
+        onClose={closeModal}
         isFullscreen
         showCloseButton={false}
         className="p-0"
@@ -900,7 +1148,7 @@ const FormCoupon = ({
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => setOpenModal(false)}
+                onClick={closeModal}
                 disabled={isLoading}
               >
                 Close
@@ -960,10 +1208,10 @@ const FormCoupon = ({
                         });
                       }}
                       placeholder={formItem.placeholder || ""}
-                      defaultValue={
-                        form?.[
+                      value={
+                        (form?.[
                           formItem.filedName as keyof CouponRequestForm
-                        ] as string
+                        ] as string | number | undefined) ?? ""
                       }
                     />
                   )}
@@ -973,9 +1221,12 @@ const FormCoupon = ({
                   <>
                     {validPeriodFields}
                     {discountFields}
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="flex flex-col gap-4">
                       {minSpendFields}
                       {maxCapFields}
+                      {codeFields}
+                      {oneTimeUseFields}
+                      {unlimitedAmountFields}
                     </div>
                   </>
                 ) : null}

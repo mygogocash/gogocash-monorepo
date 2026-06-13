@@ -4,6 +4,11 @@ export interface CouponRequestForm {
   name: string;
   description: string;
   code: string;
+  code_enabled?: boolean;
+  one_time_use_enabled?: boolean;
+  usage_per_user?: string;
+  unlimited_amount_enabled?: boolean;
+  available_code_amount?: string;
   offer_id: string;
   start_date: string;
   end_date: string;
@@ -40,6 +45,11 @@ export interface CouponData {
     name:        string;
     description: string;
     code:        string;
+    code_enabled?: boolean;
+    one_time_use_enabled?: boolean;
+    usage_per_user?: string;
+    unlimited_amount_enabled?: boolean;
+    available_code_amount?: string;
     offer_id:    OfferID;
     start_date:  string;
     end_date:    string;
@@ -55,6 +65,8 @@ export interface CouponData {
     discount:    number;
     discount_type?: DiscountType;
     discount_currency?: string;
+    quantity?: number;
+    quantity_used?: number;
     createdAt:   Date;
     updatedAt:   Date;
     disabled:    boolean;
@@ -66,4 +78,8 @@ export interface CouponData {
 export interface OfferID {
     _id:        string;
     offer_name: string;
+    offer_name_display?: string;
+    categories?: string;
+    countries?: string;
+    logo_desktop?: string;
 }
