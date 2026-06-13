@@ -13,9 +13,10 @@ import { AdminRole, roleHasAccess } from './user-admin/schemas/user-admin.schema
  * without `@Roles` are not affected — this guard is opt-in per route. Always
  * apply AFTER `AuthAdminGuard` so `request['user']` is populated.
  *
- * Backward compatibility: a JWT issued before this rollout has no `role`
- * claim → `roleHasAccess` treats undefined as superadmin so existing tokens
- * keep working until they expire (7 days max).
+ * Role resolution fails CLOSED: `roleHasAccess` maps a missing/unknown `role`
+ * claim to the least privilege ('viewer'), never superadmin. A pre-rollout JWT
+ * with no role claim is therefore treated as viewer (read-only), not granted
+ * blanket access. (See `roleHasAccess` in user-admin/schemas/user-admin.schema.ts.)
  */
 @Injectable()
 export class RolesGuard implements CanActivate {
