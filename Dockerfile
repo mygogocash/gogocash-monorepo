@@ -9,6 +9,7 @@
 # in-process mock (the long-standing "mock-by-default" blocker). For other
 # environments pass `--build-arg NEXT_PUBLIC_API_URL=...`.
 
+<<<<<<< Updated upstream
 FROM node:22-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -16,14 +17,20 @@ COPY package.json package-lock.json ./
 # that strict `npm ci` rejects; the API repo uses the same flag.
 RUN npm ci --legacy-peer-deps
 
+=======
+>>>>>>> Stashed changes
 FROM node:22-slim AS builder
 WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
+# Copy the full source BEFORE install: a postinstall script
+# (scripts/patch-apexcharts-border-radius.mjs) runs during `npm ci` and needs it.
 COPY . .
 ARG NEXT_PUBLIC_API_URL=https://api-staging.gogocash.co
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV STANDALONE=1
 ENV NEXT_TELEMETRY_DISABLED=1
+# --legacy-peer-deps: the lockfile carries a peerOptional conflict
+# (@types/node vs vite) that strict `npm ci` rejects; the API repo uses it too.
+RUN npm ci --legacy-peer-deps
 RUN npm run build:standalone
 
 FROM node:22-slim AS runner
