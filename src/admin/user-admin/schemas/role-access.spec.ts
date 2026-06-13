@@ -11,9 +11,16 @@ describe('roleHasAccess > superadmin gate', () => {
     expect(roleHasAccess('super_admin', 'superadmin')).toBe(true);
   });
 
-  it('allows legacy accounts with no role (backward compat)', () => {
-    expect(roleHasAccess(undefined, 'superadmin')).toBe(true);
-    expect(roleHasAccess(null, 'superadmin')).toBe(true);
+  it('DENIES roleless accounts the superadmin gate (fail-closed default)', () => {
+    // A missing role must NOT grant privilege — the old "undefined => superadmin"
+    // default was a fail-open hole. Roleless accounts get least privilege.
+    expect(roleHasAccess(undefined, 'superadmin')).toBe(false);
+    expect(roleHasAccess(null, 'superadmin')).toBe(false);
+  });
+
+  it('grants roleless accounts only viewer-level access', () => {
+    expect(roleHasAccess(undefined, 'viewer')).toBe(true);
+    expect(roleHasAccess(undefined, 'support')).toBe(false);
   });
 
   it('DENIES every non-superadmin role (privilege escalation guard)', () => {

@@ -11,6 +11,8 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { AuthAdminGuard } from '../jwt-auth-admin.guard';
+import { RolesGuard } from '../roles.guard';
+import { Roles } from '../roles.decorator';
 import { SubscriptionsService } from './subscriptions.service';
 import {
   SubscriptionQueryDto,
@@ -21,7 +23,8 @@ import {
 
 @ApiTags('Admin Subscriptions')
 @Controller('admin/subscription')
-@UseGuards(AuthAdminGuard)
+@UseGuards(AuthAdminGuard, RolesGuard)
+@Roles('superadmin') // pricing/plan config + grant subscription days
 @ApiSecurity('access-token')
 @ApiBearerAuth()
 export class SubscriptionsController {
