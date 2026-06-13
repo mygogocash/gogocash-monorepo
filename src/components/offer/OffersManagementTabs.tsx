@@ -110,7 +110,7 @@ export default function OffersManagementTabs() {
         aria-selected={searchConfigActive}
         className={tabButtonClass(searchConfigActive)}
       >
-        Search config
+        Search Management
       </Link>
     </div>
   );

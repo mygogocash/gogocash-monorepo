@@ -96,6 +96,8 @@ export interface User {
   /** Street / mailing address (not crypto wallet — see `wallet`) */
   streetAddress?: string;
   city?: string;
+  /** Country (same source as the Users table — e.g. ISO code "TH" / "US"). */
+  country?: string;
   zipCode?: string;
   rating?: number;
   creditScoreType?: number;

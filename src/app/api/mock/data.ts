@@ -1067,6 +1067,7 @@ export const mockWithdrawDetail = {
     publisherId: "5fe00f25be6e4a4964398e02",
     streetAddress: "123 Sukhumvit Rd",
     city: "Bangkok",
+    country: "TH",
     zipCode: "10110",
     rating: 86,
     creditScoreType: 0,

@@ -1108,6 +1108,10 @@ const WithdrawDetail = () => {
                               {wu.city ?? "—"}
                             </p>
                             <p className="text-sm text-gray-800 dark:text-gray-200">
+                              <span className="font-medium">Country:</span>{" "}
+                              {wu.country ?? "—"}
+                            </p>
+                            <p className="text-sm text-gray-800 dark:text-gray-200">
                               <span className="font-medium">Zip code:</span>{" "}
                               {wu.zipCode ?? "—"}
                             </p>
