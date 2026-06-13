@@ -1,11 +1,19 @@
-# Local development: hot reload on http://localhost:3000
+# Local development ONLY: hot reload on http://localhost:3000
 # Run: docker compose up --build  (or npm run dev:docker)
-FROM node:20-bookworm-slim
+#
+# Dev-only container. The build context is this app directory (compose.yaml
+# `context: .`), so the monorepo root package-lock.json is NOT available here.
+# Because the per-app lockfile was removed in favor of the root workspace
+# lockfile, this image uses `npm install` (not `npm ci`) to resolve deps from
+# package.json alone. This is acceptable for a throwaway dev container; CI and
+# production installs run `npm ci` from the monorepo root against the root
+# lockfile.
+FROM node:22-bookworm-slim
 
 WORKDIR /app
 
-COPY package.json package-lock.json ./
-RUN npm ci --no-audit --no-fund
+COPY package.json ./
+RUN npm install --no-audit --no-fund
 
 COPY . .
 

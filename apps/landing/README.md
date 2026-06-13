@@ -83,8 +83,8 @@ flowchart LR
 
 ## Prerequisites
 
-- **Node.js 20.x** (use [`.nvmrc`](./.nvmrc) / `fnm` / `nvm`; `package.json` `engines` is `>=20 <21` so CI and local tooling stay aligned with Firebase-related deps.)
-- **npm** (lockfile is `package-lock.json`; use `npm ci` in CI and for reproducible installs).
+- **Node.js 22** (use [`.nvmrc`](./.nvmrc) / `fnm` / `nvm`; the monorepo root `package.json` `engines` is `>=22`, so CI and local tooling stay aligned across the workspace.)
+- **npm** (the monorepo root `package-lock.json` governs installs; run `npm ci` from the repo root in CI and for reproducible installs).
 - For **local Firebase deploy**: Firebase CLI is available as a **devDependency** — prefer `npm exec -- firebase` from the repo root.
 - For **Cloudflare DNS scripts**: `curl`, `jq`, and a Cloudflare API token (see [Cloudflare DNS](#cloudflare-dns-apex--firebase)).
 - For **Playwright locally**: after `npm ci`, run `npm run test:e2e:install` once to download browsers. On **Linux**, WebKit also needs system libraries—use `npx playwright install --with-deps chromium webkit` if launches fail with missing `.so` files.
@@ -297,7 +297,7 @@ Playwright projects: **mobile-chrome** (Pixel 5) and **mobile-safari** (iPhone 1
 |---------|------------------|
 | Firebase domain verification / SSL **526** or “remove AAAA” | Apex `A` must be **DNS only** (grey cloud) to `199.36.158.100`. Re-run `npm run dns:cloudflare-firebase-apex` after fixing `.env.cloudflare`. |
 | `npm run lint` crashes with `expand is not a function` | Broken `minimatch` / `brace-expansion` mix — remove incompatible `overrides` in `package.json` and run `npm install`. |
-| Build works locally, CI fails | Compare Node version (CI uses 20), ensure `npm ci` lockfile is committed, check GitHub Actions logs for the failing step. |
+| Build works locally, CI fails | Compare Node version (CI uses 22), ensure the root `npm ci` lockfile is committed, check GitHub Actions logs for the failing step. |
 | Firebase deploy auth errors in CI | WIF provider, service account permissions, and `google-github-actions/auth` settings must match the Firebase/GCP project. |
 | Empty partner data in build | Set `INVOLVE_ASIA_*` for build, or accept static fallback documented in `.env.example`. |
 | E2E WebKit: “Host system is missing dependencies” (CI/Linux) | Run `npx playwright install --with-deps chromium webkit` (see workflow); `playwright install` alone is not enough for WebKit on Ubuntu. |

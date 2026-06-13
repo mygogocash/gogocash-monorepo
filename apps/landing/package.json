@@ -4,7 +4,7 @@
   "private": true,
   "repository": {
     "type": "git",
-    "url": "https://github.com/mygogocash/landing-page.git"
+    "url": "https://github.com/mygogocash/gogocash-monorepo.git"
   },
   "type": "module",
   "scripts": {
