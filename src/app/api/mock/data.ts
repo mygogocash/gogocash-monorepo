@@ -6,6 +6,7 @@ import {
 const now = new Date().toISOString();
 const yesterday = new Date(Date.now() - 86400000).toISOString();
 const lastWeek = new Date(Date.now() - 7 * 86400000).toISOString();
+const nextWeek = new Date(Date.now() + 7 * 86400000).toISOString();
 
 export const mockAdminUsers: Array<{
   _id: string;
@@ -685,12 +686,21 @@ export const mockCategories = [
   },
 ];
 
-const couponOfferRefs = [
-  { _id: "o1", offer_name: "Banana IT TH - CPS" },
-  { _id: "o2", offer_name: "Adidas TH - CPS" },
-  { _id: "o3", offer_name: "AirAsia Travel - CPS" },
-  { _id: "o4", offer_name: "Banana IT TH Food - CPS" },
+const couponBrandNames = [
+  "Banana IT TH - CPS",
+  "Adidas TH - CPS",
+  "AirAsia Travel - CPS",
+  "Banana IT TH Food - CPS",
 ];
+
+const couponOfferRefs = offerTemplates.map((t, i) => ({
+  _id: `o${i + 1}`,
+  offer_name: couponBrandNames[i],
+  offer_name_display: t.offer_name_display,
+  categories: t.categories,
+  countries: t.countries,
+  logo_desktop: t.logo_desktop,
+}));
 
 const couponTemplates = [
   {
@@ -761,10 +771,18 @@ export const mockCoupons = Array.from({ length: 550 }, (_, i) => {
   const offerRef = couponOfferRefs[i % couponOfferRefs.length];
   const domain = couponDomains[i % couponDomains.length];
   const code = `${t.codePrefix}${String(i + 1).padStart(3, "0")}`;
-  const startDate = i % 3 === 0 ? lastWeek : i % 3 === 1 ? yesterday : now;
+  const startDate =
+    i % 4 === 0
+      ? nextWeek
+      : i % 4 === 1
+        ? lastWeek
+        : i % 4 === 2
+          ? yesterday
+          : now;
   const endDate = new Date(
     Date.now() + (90 + (i % 180)) * 86400000,
   ).toISOString();
+  const limitedQuantity = i % 6 === 0 ? 500 : i % 11 === 2 ? 100 : 0;
   return {
     _id: `cp${i + 1}`,
     name: `${t.name} #${i + 1}`,
@@ -789,6 +807,16 @@ export const mockCoupons = Array.from({ length: 550 }, (_, i) => {
     terms_and_conditions: `Minimum spend ${t.min_spend} THB. ${t.description}. Valid for ${t.eligibility.replace(/_/g, " ")}. One redemption per user unless stated otherwise. GoGoCash may amend or withdraw this offer at any time.`,
     start_time: "00:00",
     end_time: "23:59",
+    usage_per_user: i % 5 === 0 ? "3" : "1",
+    one_time_use_enabled: i % 5 !== 0,
+    quantity: limitedQuantity,
+    quantity_used:
+      limitedQuantity > 0 && (i % 11 === 2 || i % 24 === 6)
+        ? limitedQuantity
+        : limitedQuantity > 0
+          ? Math.floor(limitedQuantity * 0.3)
+          : 0,
+    unlimited_amount_enabled: limitedQuantity === 0,
   };
 });
 
