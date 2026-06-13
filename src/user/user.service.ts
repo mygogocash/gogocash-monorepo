@@ -18,6 +18,41 @@ function withCanonicalCountry<T extends { country?: string | null }>(dto: T): T 
   return { ...dto, country: toIso2Server(dto.country) };
 }
 
+/**
+ * Fields a user is allowed to change on their OWN profile via PUT /user/profile.
+ * Fail-closed allowlist: everything else — identity links (id_firebase,
+ * id_crossmint, id_*), trust/financial state (email_verified, wallet_frozen,
+ * privilege, credit_score, credit_tier), referral fields, mobile, disabled,
+ * provider, email — is server-controlled and must never be mass-assignable
+ * from a user-facing request.
+ */
+const SELF_EDITABLE_PROFILE_FIELDS = [
+  'address',
+  'username',
+  'country',
+  'birthdate',
+  'gender',
+  'id_card',
+  'passport',
+  'legal_address',
+  'state',
+  'city',
+  'zip',
+  'email_mcb',
+  'consent',
+] as const;
+
+/** Copy only allowlisted keys from an arbitrary (untrusted) body. */
+function pickSelfEditableFields(dto: Record<string, unknown>): Record<string, unknown> {
+  const safe: Record<string, unknown> = {};
+  for (const key of SELF_EDITABLE_PROFILE_FIELDS) {
+    if (Object.prototype.hasOwnProperty.call(dto, key)) {
+      safe[key] = dto[key];
+    }
+  }
+  return safe;
+}
+
 @Injectable()
 export class UserService {
   constructor(
@@ -95,6 +130,30 @@ export class UserService {
       withCanonicalCountry(updateUserDto),
       { new: true },
     );
+  }
+
+  /**
+   * Self-service profile update for the authenticated user (PUT /user/profile).
+   * Unlike admin `update()`, this is a user-facing write, so it must NOT trust
+   * the request body wholesale — server-controlled fields (email_verified,
+   * wallet_frozen, privilege, credit_*, referral_*, mobile, identity links)
+   * would otherwise be mass-assignable. See SELF_EDITABLE_PROFILE_FIELDS.
+   */
+  async updateProfile(id: Types.ObjectId, updateUserDto: UpdateUserDto) {
+    // Unwrap the legacy { data: {...} } envelope first (matches update()).
+    let body: Record<string, unknown> = (updateUserDto ?? {}) as Record<
+      string,
+      unknown
+    >;
+    if (body && 'data' in body && body.data) {
+      body = body.data as Record<string, unknown>;
+    }
+    // Fail-closed allowlist: drop every server-controlled / unknown field
+    // before it can reach the document.
+    const safe = pickSelfEditableFields(body);
+    return this.userModel.findByIdAndUpdate(id, withCanonicalCountry(safe), {
+      new: true,
+    });
   }
 
   updateCountry(updateCountryDto: UpdateCountryDto, id: string) {

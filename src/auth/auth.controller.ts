@@ -1,5 +1,5 @@
 /* eslint-disable prettier/prettier */
-import { Body, Controller, Get, Post, Req, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, UnauthorizedException, UseGuards, ValidationPipe } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import {
   ApiBearerAuth,
@@ -34,6 +34,18 @@ import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
 import { EmailService } from '../email/email.service';
 import { AnalyticsService } from 'src/analytics/analytics.service';
 import { extractAnalyticsContext } from 'src/analytics/analytics-context';
+
+// Route-scoped strict validation for the UNAUTHENTICATED OTP endpoints. These
+// take `email` straight into a Mongo selector (otp.service `findOne({ email })`),
+// so a `{ $gt: "" }` object would be a NoSQL operator injection. `whitelist`
+// strips unknown top-level props and the DTO's @IsEmail/@IsString rejects a
+// non-string `email` with 400 before any DB call. Scoped to these routes (not a
+// global pipe) on purpose: the codebase still has undecorated DTOs that a global
+// whitelist pipe would silently empty — see PR#4 review C3/H1 (Phase 1 fix).
+const otpBodyValidation = new ValidationPipe({
+  transform: true,
+  whitelist: true,
+});
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -274,7 +286,7 @@ export class AuthController {
   @ApiBody({ type: RequestOtpDto })
   @ApiResponse({ status: 201, description: 'OTP sent to email successfully' })
   @ApiResponse({ status: 400, description: 'Invalid email or rate limit exceeded' })
-  async requestOtp(@Body() body: RequestOtpDto) {
+  async requestOtp(@Body(otpBodyValidation) body: RequestOtpDto) {
     // Generate and send OTP via email
     const otp = await this.otpService.createOtp(body.email);
     await this.emailService.sendOtp(body.email, otp);
@@ -291,7 +303,7 @@ export class AuthController {
   @ApiBody({ type: VerifyOtpDto })
   @ApiResponse({ status: 200, description: 'OTP verified, temporary token issued' })
   @ApiResponse({ status: 401, description: 'Invalid or expired OTP' })
-  async verifyOtp(@Body() body: VerifyOtpDto) {
+  async verifyOtp(@Body(otpBodyValidation) body: VerifyOtpDto) {
     // STEP 1: Verify OTP code (business logic in OtpService)
     const isValid = await this.otpService.verifyOtp(body.email, body.otp);
 
@@ -348,8 +360,8 @@ export class AuthController {
   @UseGuards(RateLimitGuard)
   @RateLimit({ windowMs: 60_000, max: 5 })
   @ApiBody({ type: SendOtpDto })
-  async sendOtp(@Body('email') email: string) {
-    return this.otpService.sendOtpToEmail(email);
+  async sendOtp(@Body(otpBodyValidation) body: SendOtpDto) {
+    return this.otpService.sendOtpToEmail(body.email);
   }
 
   // Verify-OTP: tight per-IP cap is the outer brake; per-email lockout
@@ -359,7 +371,7 @@ export class AuthController {
   @UseGuards(RateLimitGuard)
   @RateLimit({ windowMs: 60_000, max: 10 })
   @ApiBody({ type: LegacyVerifyOtpDto })
-  async verifyLegacyOtp(@Body('email') email: string, @Body('otp') otp: string) {
-    return this.otpService.verifyOtpAndCreateToken(email, otp);
+  async verifyLegacyOtp(@Body(otpBodyValidation) body: LegacyVerifyOtpDto) {
+    return this.otpService.verifyOtpAndCreateToken(body.email, body.otp);
   }
 }
