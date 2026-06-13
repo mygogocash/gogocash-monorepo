@@ -21,15 +21,34 @@ const ROLE_RANK: Record<AdminRole, number> = {
   superadmin: 3,
 };
 
+/**
+ * Map the admin-UI role vocabulary (super_admin/admin/editor/viewer) onto the
+ * API tiers so a single rank check works regardless of which vocabulary an
+ * account was created with. Invited admins carry UI-vocab roles; legacy/API
+ * accounts carry API-vocab roles.
+ */
+const UI_ROLE_TO_API: Record<string, AdminRole> = {
+  super_admin: 'superadmin',
+  admin: 'approver',
+  editor: 'support',
+  viewer: 'viewer',
+};
+
+function normalizeRole(role: string | undefined | null): AdminRole | undefined {
+  if (role == null) return undefined;
+  return (UI_ROLE_TO_API[role] ?? role) as AdminRole;
+}
+
 export function roleHasAccess(
-  actual: AdminRole | undefined | null,
+  actual: AdminRole | string | undefined | null,
   required: AdminRole,
 ): boolean {
   // Backward compatibility: existing admin accounts have no role field.
   // Treat them as superadmin so this rollout doesn't lock anyone out.
   // New accounts must be created with an explicit role.
-  const a = (actual ?? 'superadmin') as AdminRole;
-  return (ROLE_RANK[a] ?? -1) >= ROLE_RANK[required];
+  const a = (normalizeRole(actual) ?? 'superadmin') as AdminRole;
+  const req = (normalizeRole(required) ?? required) as AdminRole;
+  return (ROLE_RANK[a] ?? -1) >= ROLE_RANK[req];
 }
 
 @Schema({ timestamps: true })

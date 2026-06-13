@@ -43,6 +43,8 @@ import {
 } from './dto/admin-auth.dto';
 import { ApiBearerAuth, ApiBody, ApiSecurity } from '@nestjs/swagger';
 import { AuthAdminGuard } from './jwt-auth-admin.guard';
+import { RolesGuard } from './roles.guard';
+import { Roles } from './roles.decorator';
 import { RateLimitGuard } from 'src/auth/rate-limit.guard';
 import { RateLimit } from 'src/auth/rate-limit.decorator';
 import {
@@ -75,7 +77,12 @@ export class AdminController {
 
   // ─── Admin invite + password reset (Resend-backed) ───
 
-  @UseGuards(AuthAdminGuard)
+  // Only superadmins may invite new admins (prevents a lower-privilege admin
+  // from minting a superadmin account). RolesGuard runs after AuthAdminGuard so
+  // req.user.role is populated; it normalises UI/API role vocabularies.
+  @UseGuards(RateLimitGuard, AuthAdminGuard, RolesGuard)
+  @RateLimit({ windowMs: 60_000, max: 10 })
+  @Roles('superadmin')
   @ApiSecurity('access-token')
   @ApiBearerAuth()
   @ApiBody({ type: InviteAdminUserDto })
