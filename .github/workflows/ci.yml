@@ -90,9 +90,11 @@ jobs:
         # Boots the compiled artifact against the ephemeral Mongo and probes `/`.
         # If the DI graph can't resolve (e.g. a guard's JwtService is unavailable
         # in its module), `node dist/main` exits before listening and this fails.
-        # Dummy secrets are fine: nothing validates them at boot (Firebase uses
-        # applicationDefault() lazily; PostHog/Customer.io stay disabled with no
-        # keys). No real credentials are referenced.
+        # Dummy secrets are fine: nothing validates them at boot EXCEPT Resend,
+        # whose client constructor throws on an empty key — so RESEND_API_KEY
+        # must be a non-empty dummy. (Firebase uses applicationDefault() lazily;
+        # PostHog/Customer.io stay disabled with no keys.) No real credentials
+        # are referenced; the smoke test never sends email.
         env:
           NODE_ENV: production
           PORT: "8080"
@@ -100,6 +102,7 @@ jobs:
           JWT_SECRET: ci-smoke-dummy
           JWT_ADMIN_SECRET: ci-smoke-dummy
           FIREBASE_PROJECT_ID: demo-smoke
+          RESEND_API_KEY: re_ci_smoke_dummy
         run: |
           set -uo pipefail
           npm run start:prod > /tmp/boot.log 2>&1 &
