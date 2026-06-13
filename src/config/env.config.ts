@@ -15,4 +15,8 @@ export default registerAs('env', () => ({
   OPTIMISE_AGENCY_ID: process.env.OPTIMISE_AGENCY_ID,
   OPTIMISE_API_BASE:
     process.env.OPTIMISE_API_BASE || 'https://api.optimisemedia.com',
+  // Email OTP Configuration
+  GMAIL_USER: process.env.GMAIL_USER,
+  GMAIL_APP_PASSWORD: process.env.GMAIL_APP_PASSWORD,
+  WEB_URL: process.env.WEB_APP_URL,
 }));

@@ -3,6 +3,19 @@ import { HydratedDocument } from 'mongoose';
 
 export type UserDocument = HydratedDocument<User>;
 
+export class ConsentData {
+  @Prop({ required: false })
+  marketing_communications: boolean;
+
+  @Prop({ required: false })
+  analytics: boolean;
+
+  @Prop({ required: false })
+  b2b_aggregated_insights: boolean;
+
+  @Prop({ required: false })
+  ai_credit_scoring: boolean;
+}
 @Schema({ timestamps: true })
 export class User {
   @Prop({ required: false, unique: false, default: '' })
@@ -81,6 +94,38 @@ export class User {
 
   @Prop({ type: String, default: 'none' })
   credit_tier: string;
+
+  // ── LINE miniapp + KYC/consent (feature/bug-old) ──
+  @Prop()
+  id_line: string;
+
+  @Prop({ default: false })
+  email_verified: boolean;
+
+  @Prop({ default: '' })
+  id_card: string;
+
+  @Prop({ default: '' })
+  passport: string;
+
+  @Prop({ default: '' })
+  legal_address: string;
+
+  @Prop({ default: '' })
+  state: string;
+
+  @Prop({ default: '' })
+  city: string;
+
+  @Prop({ default: '' })
+  zip: string;
+
+  @Prop({ default: '' })
+  email_mcb: string;
+
+  @Prop()
+  consent?: ConsentData;
 }
+
 
 export const UserSchema = SchemaFactory.createForClass(User);

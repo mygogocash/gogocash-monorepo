@@ -25,7 +25,7 @@ import {
 import { ApiBearerAuth, ApiBody, ApiQuery, ApiSecurity } from '@nestjs/swagger';
 import { Request } from 'express';
 import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
-import { extractAnalyticsContext } from 'src/analytics/analytics-context';
+// import { extractAnalyticsContext } from 'src/analytics/analytics-context';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
 import { RequestCreateConversionReward } from 'src/user/dto/create-conversion-reward.dto';
 @Controller('withdraw')
@@ -66,7 +66,9 @@ export class WithdrawController {
   listCheckWithdraw(@Req() req: Request) {
     const user = req['user'] as any;
     const id = user?.sub;
-    return this.withdrawService.listCheckWithdraw(id);
+    // return this.withdrawService.listCheckWithdraw(id);
+
+    return this.withdrawService.listCheckWithdrawNew(id);
   }
 
   @UseGuards(AuthAdminGuard)
@@ -74,7 +76,7 @@ export class WithdrawController {
   @ApiBearerAuth()
   @Post('list-check-admin/:userId')
   listCheckWithdrawAdmin(@Req() req: Request, @Param('userId') userId: string) {
-    return this.withdrawService.listCheckWithdraw(userId);
+    return this.withdrawService.listCheckWithdrawNew(userId);
   }
 
   @UseGuards(FirebaseAuthGuard)
@@ -106,9 +108,9 @@ export class WithdrawController {
   create(@Req() req: Request, @Body() createWithdrawDto: CreateWithdrawDto) {
     const user = req['user'] as any;
     const id = user?.sub;
-    const analyticsContext = extractAnalyticsContext(req, {
-      userId: id,
-    });
+    // const analyticsContext = extractAnalyticsContext(req, {
+    //   userId: id,
+    // });
     return this.withdrawService.create(createWithdrawDto, id);
   }
 
@@ -161,9 +163,9 @@ export class WithdrawController {
   ) {
     const user = req['user'] as any;
     const id = user?.sub;
-    const analyticsContext = extractAnalyticsContext(req, {
-      userId: id,
-    });
+    // const analyticsContext = extractAnalyticsContext(req, {
+    //   userId: id,
+    // });
     return this.withdrawService.createBankTransfer(createWithdrawDto, id);
   }
 
@@ -198,6 +200,18 @@ export class WithdrawController {
   }
 
   @UseGuards(FirebaseAuthGuard)
+  @ApiSecurity('access-token') // Apply the security scheme defined globally
+  @ApiBearerAuth()
+  @Get('detail/:id')
+  withdrawDetail(@Req() req: Request, @Param('id') id: string) {
+    // IDOR fix: scope the lookup to the authenticated requester so a user can
+    // only read their own withdrawal (was readable for ANY ObjectId, leaking
+    // email/mobile/amount/tx_hash).
+    const requesterId = (req.user as { sub?: string } | undefined)?.sub;
+    return this.withdrawService.detailWithdraw(id, requesterId);
+  }
+
+  @UseGuards(FirebaseAuthGuard)
   @ApiBody({ type: GETSignDTO })
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth()
@@ -228,9 +242,9 @@ export class WithdrawController {
   ) {
     const user = req['user'] as any;
     const id = user?.sub;
-    const analyticsContext = extractAnalyticsContext(req, {
-      userId: id,
-    });
+    // const analyticsContext = extractAnalyticsContext(req, {
+    //   userId: id,
+    // });
     return this.withdrawService.createWithdrawMethod(createWithdrawMethod, id);
   }
 
