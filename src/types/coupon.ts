@@ -4,6 +4,9 @@ export interface CouponRequestForm {
   name: string;
   description: string;
   code: string;
+  code_enabled?: boolean;
+  one_time_use_enabled?: boolean;
+  usage_per_user?: string;
   offer_id: string;
   start_date: string;
   end_date: string;
@@ -40,6 +43,9 @@ export interface CouponData {
     name:        string;
     description: string;
     code:        string;
+    code_enabled?: boolean;
+    one_time_use_enabled?: boolean;
+    usage_per_user?: string;
     offer_id:    OfferID;
     start_date:  string;
     end_date:    string;
