@@ -131,7 +131,7 @@ export function generateStaticParams() {
 // Next 16 requires `dynamic` to be a static string literal (Turbopack analyzes
 // statically at build). NextAuth's API routes need dynamic rendering — without
 // this, every call (csrf, providers, callback, error) trips DYNAMIC_SERVER_USAGE.
-// Firebase static-export builds are retired (we moved to Railway); if you need
+// Firebase static-export builds are retired (we run a Next.js Node server on Cloud Run); if you need
 // to re-enable them, flip this to "auto" and confirm generateStaticParams covers
 // every NextAuth path.
 export const dynamic = "force-dynamic";
