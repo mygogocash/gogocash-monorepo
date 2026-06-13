@@ -1,0 +1,22 @@
+# Next.js dev server — use when Node/npm is not installed on the host.
+# Usage: docker compose up --build   (or: npm run dev:docker)
+# Open: http://localhost:3000/
+#
+# The anonymous volume on /app/node_modules keeps deps from the image (see Dockerfile.dev).
+# After changing package-lock.json, rebuild: docker compose build --no-cache
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      # Preserve node_modules from the image; do not use a named empty volume here.
+      - /app/node_modules
+    environment:
+      WATCHPACK_POLLING: "true"
+      CHOKIDAR_USEPOLLING: "true"
+    stdin_open: true
+    tty: true

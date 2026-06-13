@@ -1,0 +1,24 @@
+GoGoCash public discovery
+
+Base URL: https://gogocash.co
+
+Start here:
+- https://gogocash.co/sitemap.md -> markdown discovery index
+- https://gogocash.co/sitemap.xml -> XML sitemap for crawlers
+- https://gogocash.co/llms.txt -> short operator hint surface
+- https://gogocash.co/skills.md -> agent task guidance
+- https://gogocash.co/rss.xml -> RSS feed for Learn articles
+
+Human route families:
+- Home: https://gogocash.co/
+- Learn hub: https://gogocash.co/learn
+- Learn articles: https://gogocash.co/learn/<slug>
+- Localized landing pages: https://gogocash.co/en, /id, /th, /tw, /cn, /ja
+- Legal and policy pages: /privacy-policy, /term-of-use, /terms-of-service, /how-gogocash-makes-money
+- Search: https://gogocash.co/search
+
+Agent notes:
+- GoGoCash is a cashback rewards site.
+- Merchant availability, cashback rates, quests, and payout rails can change. Prefer current app or support links for account-specific questions.
+- Do not present cashback, Saving Plus, or related offers as financial, investment, or tax advice.
+- Public discovery surfaces only reference public marketing and Learn content.

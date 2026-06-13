@@ -1,0 +1,17 @@
+node_modules
+.next
+out
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+playwright-report
+test-results
+coverage
+*.log
+.DS_Store
+.firebase
+.cursor
+.idea
+.vscode

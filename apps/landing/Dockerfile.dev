@@ -1,0 +1,17 @@
+# Local development: hot reload on http://localhost:3000
+# Run: docker compose up --build  (or npm run dev:docker)
+FROM node:20-bookworm-slim
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
+
+COPY . .
+
+EXPOSE 3000
+
+ENV HOSTNAME=0.0.0.0
+ENV NEXT_TELEMETRY_DISABLED=1
+
+CMD ["npm", "run", "dev"]
