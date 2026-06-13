@@ -5,6 +5,7 @@ import { ConversionQuery } from "@/types/api";
 import NoData from "@/components/common/NoData";
 import FormCoupon from "./FormCoupon";
 import { CouponData, CouponRequestForm, ResponseCoupon } from "@/types/coupon";
+import { toDateInputValue } from "@/lib/dateFormat";
 import { useQuery } from "@tanstack/react-query";
 import client from "@/lib/axios/client";
 export default function CouponTable() {
@@ -23,7 +24,16 @@ export default function CouponTable() {
     end_date: "",
     eligibility: "",
     min_spend: "",
+    min_spend_enabled: false,
+    min_spend_currency: "THB",
+    max_cap: "",
+    max_cap_enabled: false,
+    max_cap_currency: "THB",
     discount: 0,
+    discount_type: "percent",
+    discount_currency: "THB",
+    start_time: "",
+    end_time: "",
   };
   const [form, setForm] = useState<CouponRequestForm>(defaultValue);
 
@@ -95,11 +105,20 @@ export default function CouponTable() {
     description: list.description,
     code: list.code,
     offer_id: list.offer_id._id,
-    start_date: list.start_date,
-    end_date: list.end_date,
+    start_date: toDateInputValue(list.start_date),
+    end_date: toDateInputValue(list.end_date),
+    start_time: list.start_time ?? "",
+    end_time: list.end_time ?? "",
     eligibility: list.eligibility,
     min_spend: list.min_spend,
+    min_spend_enabled: Boolean(list.min_spend?.trim()),
+    min_spend_currency: list.min_spend_currency ?? "THB",
+    max_cap: list.max_cap ?? "",
+    max_cap_enabled: Boolean(list.max_cap?.trim()),
+    max_cap_currency: list.max_cap_currency ?? "THB",
     discount: list.discount,
+    discount_type: list.discount_type ?? "percent",
+    discount_currency: list.discount_currency ?? "THB",
     id: list._id,
     link: list.link,
   });
