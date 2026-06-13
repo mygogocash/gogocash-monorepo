@@ -22,7 +22,6 @@ type PointStatus = (typeof POINT_STATUS_OPTIONS)[number]["value"];
 export default function CreatePointsForm() {
   const [pointName, setPointName] = useState("");
   const [pointAmount, setPointAmount] = useState("");
-  const [pointCurrency, setPointCurrency] = useState("THB");
   const [pointUser, setPointUser] = useState("");
   const [pointStatus, setPointStatus] = useState<PointStatus>("pending");
   const [reviewConfirmed, setReviewConfirmed] = useState(false);
@@ -36,7 +35,6 @@ export default function CreatePointsForm() {
         JSON.stringify({
           pointName,
           pointAmount,
-          pointCurrency,
           pointUser,
           status: pointStatus,
         }),
@@ -51,7 +49,7 @@ export default function CreatePointsForm() {
           Create Points
         </h3>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Create new points. Set the name, amount, currency, recipient, and admin status (pending or approved).
+          Create new points. Set the name, amount, recipient, and admin status (pending or approved).
         </p>
       </div>
       <form onSubmit={handleSubmit} className="border-t border-gray-100 px-6 py-6 dark:border-gray-800">
@@ -83,21 +81,6 @@ export default function CreatePointsForm() {
               type="number"
               value={pointAmount}
               onChange={(e) => setPointAmount(e.target.value)}
-              className="mt-2"
-            />
-          </div>
-          <div>
-            <Label>
-              Point Currency <span className="text-error-500">*</span>
-            </Label>
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-              Currency code for the amount (e.g. THB, USD).
-            </p>
-            <Input
-              placeholder="Ex.[THB, USD]"
-              type="text"
-              value={pointCurrency}
-              onChange={(e) => setPointCurrency(e.target.value)}
               className="mt-2"
             />
           </div>
