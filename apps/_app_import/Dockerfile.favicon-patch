@@ -1,9 +1,0 @@
-FROM gcr.io/cogent-coyote-472808-m1/next-app:ga4-20260308-2015
-
-COPY --chown=nodejs:nodejs deploy-build/next-output /app/.next
-COPY --chown=nodejs:nodejs public /app/public
-COPY --chown=nodejs:nodejs src/app/favicon.ico /app/src/app/favicon.ico
-COPY --chown=nodejs:nodejs src/app/apple-icon.png /app/src/app/apple-icon.png
-COPY --chown=nodejs:nodejs src/app/icon.png /app/src/app/icon.png
-COPY --chown=nodejs:nodejs src/app/layout.tsx /app/src/app/layout.tsx
-COPY --chown=nodejs:nodejs src/constants/Metadata.ts /app/src/constants/Metadata.ts
