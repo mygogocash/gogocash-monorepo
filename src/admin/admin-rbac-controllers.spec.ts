@@ -10,6 +10,7 @@ import { SubscriptionsController } from './subscriptions/subscriptions.controlle
 import { MembershipController } from './membership/membership.controller';
 import { DiscoverController } from './discover/discover.controller';
 import { SearchController } from './search/search.controller';
+import { AdminController } from './admin.controller';
 
 const GUARDS = '__guards__';
 const rolesOnMethod = (C: unknown, m: string): string[] => {
@@ -63,5 +64,37 @@ describe('Admin money/sensitive controllers enforce roles', () => {
     expect(rolesOnClass(MembershipController)).toContain('superadmin');
     expect(rolesOnClass(DiscoverController)).toContain('support');
     expect(rolesOnClass(SearchController)).toContain('support');
+  });
+});
+
+/**
+ * Phase 2: routes the Phase-1 pass left unguarded (fail-open to viewer) or
+ * under-tiered. RolesGuard is opt-in per route, so an undecorated mutation is
+ * reachable by ANY authenticated admin (viewer floor). These assertions pin the
+ * closed tiers so a future edit can't silently re-open them.
+ */
+describe('Admin Phase-2 RBAC gap closures', () => {
+  it('AdminController attaches RolesGuard at the class level', () => {
+    expect(classGuards(AdminController)).toContain(RolesGuard);
+  });
+
+  it('previously-unguarded mutations now require a tier', () => {
+    // Homepage "top brands" merchandising (writes the banner config).
+    expect(rolesOnMethod(AdminController, 'saveTopBrands')).toContain('approver');
+    // Internal case notes — a read-only viewer must not be able to write them.
+    expect(rolesOnMethod(MissingOrdersController, 'addNote')).toContain('support');
+    // Dead create() stub — guarded so it cannot be silently implemented open.
+    expect(rolesOnMethod(AdminController, 'create')).toContain('superadmin');
+  });
+
+  it('update-offer is raised to superadmin (edits commission_store/max_cap)', () => {
+    expect(rolesOnMethod(AdminController, 'updateOffer')).toContain('superadmin');
+    // The raise must REPLACE approver: @Roles(...) passes if the role meets ANY
+    // listed tier, so leaving 'approver' in would keep the weaker bar.
+    expect(rolesOnMethod(AdminController, 'updateOffer')).not.toContain('approver');
+  });
+
+  it('bulk transaction CSV export is restricted to support+', () => {
+    expect(rolesOnMethod(TransactionsController, 'exportCsv')).toContain('support');
   });
 });
