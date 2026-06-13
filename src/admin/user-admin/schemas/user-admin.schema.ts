@@ -43,12 +43,23 @@ export class UserAdmin {
   @Prop({ required: true, unique: true })
   email: string;
 
+  // Accept both the API role vocabulary (viewer/support/approver/superadmin)
+  // and the admin-UI vocabulary (super_admin/admin/editor/viewer) that invited
+  // accounts are created with. The admin UI maps either on login via fromApiRole.
   @Prop({
     type: String,
-    enum: ['viewer', 'support', 'approver', 'superadmin'],
+    enum: [
+      'viewer',
+      'support',
+      'approver',
+      'superadmin',
+      'super_admin',
+      'admin',
+      'editor',
+    ],
     required: false,
   })
-  role: AdminRole;
+  role: AdminRole | string;
 }
 
 export const UserAdminSchema = SchemaFactory.createForClass(UserAdmin);

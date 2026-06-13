@@ -14,6 +14,7 @@ import {
   UseInterceptors,
   UploadedFile,
   UploadedFiles,
+  ValidationPipe,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { AdminService } from './admin.service';
@@ -33,6 +34,13 @@ import {
   UpdateUserDto,
 } from './dto/update-admin.dto';
 import { UserAdminService } from './user-admin/user-admin-service';
+import { AdminInviteService } from './admin-invite.service';
+import {
+  AcceptInviteDto,
+  AdminForgotPasswordDto,
+  AdminResetPasswordDto,
+  InviteAdminUserDto,
+} from './dto/admin-auth.dto';
 import { ApiBearerAuth, ApiBody, ApiSecurity } from '@nestjs/swagger';
 import { AuthAdminGuard } from './jwt-auth-admin.guard';
 import { RateLimitGuard } from 'src/auth/rate-limit.guard';
@@ -42,11 +50,19 @@ import {
   FileInterceptor,
 } from '@nestjs/platform-express';
 
+// Strip unknown fields + coerce types on the unauthenticated admin-auth
+// endpoints (no global ValidationPipe in this app).
+const adminAuthValidation = new ValidationPipe({
+  transform: true,
+  whitelist: true,
+});
+
 @Controller('admin')
 export class AdminController {
   constructor(
     private readonly adminService: AdminService,
     private readonly userAdminService: UserAdminService,
+    private readonly adminInviteService: AdminInviteService,
   ) {}
 
   @UseGuards(RateLimitGuard)
@@ -55,6 +71,41 @@ export class AdminController {
   @Post('login')
   login(@Body() createAdminDto: LoginAdminDto) {
     return this.userAdminService.login(createAdminDto);
+  }
+
+  // ─── Admin invite + password reset (Resend-backed) ───
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @ApiBody({ type: InviteAdminUserDto })
+  @Post('invite')
+  invite(@Body(adminAuthValidation) body: InviteAdminUserDto) {
+    return this.adminInviteService.invite(body.email, body.role);
+  }
+
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ windowMs: 60_000, max: 5 })
+  @ApiBody({ type: AcceptInviteDto })
+  @Post('accept-invite')
+  acceptInvite(@Body(adminAuthValidation) body: AcceptInviteDto) {
+    return this.adminInviteService.acceptInvite(body);
+  }
+
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ windowMs: 60_000, max: 5 })
+  @ApiBody({ type: AdminForgotPasswordDto })
+  @Post('forgot-password')
+  forgotPassword(@Body(adminAuthValidation) body: AdminForgotPasswordDto) {
+    return this.adminInviteService.forgotPassword(body.email);
+  }
+
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ windowMs: 60_000, max: 5 })
+  @ApiBody({ type: AdminResetPasswordDto })
+  @Post('reset-password')
+  resetPassword(@Body(adminAuthValidation) body: AdminResetPasswordDto) {
+    return this.adminInviteService.resetPassword(body);
   }
 
   @UseGuards(AuthAdminGuard)
