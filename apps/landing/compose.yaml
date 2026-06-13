@@ -3,7 +3,9 @@
 # Open: http://localhost:3000/
 #
 # The anonymous volume on /app/node_modules keeps deps from the image (see Dockerfile.dev).
-# After changing package-lock.json, rebuild: docker compose build --no-cache
+# After changing package.json deps, rebuild: docker compose build --no-cache
+# Note: this dev container installs from package.json only (no co-located
+# lockfile in the workspace); the root lockfile governs CI/prod installs.
 services:
   web:
     build:

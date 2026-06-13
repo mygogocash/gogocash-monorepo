@@ -14,20 +14,27 @@ const envDefaults = {
   frontendUrl: "https://app-staging.gogocash.co",
 } as const;
 
+// Resolve font assets via Node module resolution rather than a hardcoded
+// "./node_modules/..." relative path. In the npm-workspaces monorepo the
+// @expo-google-fonts/* packages hoist to the ROOT node_modules, so the old
+// app-relative paths pointed at files that do not exist and the expo-font
+// config plugin would embed zero fonts at native build time.
+const fontPath = (specifier: string): string => require.resolve(specifier);
+
 const dmSansFonts = {
-  regular: "./node_modules/@expo-google-fonts/dm-sans/400Regular/DMSans_400Regular.ttf",
-  medium: "./node_modules/@expo-google-fonts/dm-sans/500Medium/DMSans_500Medium.ttf",
-  semiBold: "./node_modules/@expo-google-fonts/dm-sans/600SemiBold/DMSans_600SemiBold.ttf",
-  bold: "./node_modules/@expo-google-fonts/dm-sans/700Bold/DMSans_700Bold.ttf",
-  extraBold: "./node_modules/@expo-google-fonts/dm-sans/800ExtraBold/DMSans_800ExtraBold.ttf",
-  black: "./node_modules/@expo-google-fonts/dm-sans/900Black/DMSans_900Black.ttf",
+  regular: fontPath("@expo-google-fonts/dm-sans/400Regular/DMSans_400Regular.ttf"),
+  medium: fontPath("@expo-google-fonts/dm-sans/500Medium/DMSans_500Medium.ttf"),
+  semiBold: fontPath("@expo-google-fonts/dm-sans/600SemiBold/DMSans_600SemiBold.ttf"),
+  bold: fontPath("@expo-google-fonts/dm-sans/700Bold/DMSans_700Bold.ttf"),
+  extraBold: fontPath("@expo-google-fonts/dm-sans/800ExtraBold/DMSans_800ExtraBold.ttf"),
+  black: fontPath("@expo-google-fonts/dm-sans/900Black/DMSans_900Black.ttf"),
 } as const;
 
 const anuphanFonts = {
-  regular: "./node_modules/@expo-google-fonts/anuphan/400Regular/Anuphan_400Regular.ttf",
-  medium: "./node_modules/@expo-google-fonts/anuphan/500Medium/Anuphan_500Medium.ttf",
-  semiBold: "./node_modules/@expo-google-fonts/anuphan/600SemiBold/Anuphan_600SemiBold.ttf",
-  bold: "./node_modules/@expo-google-fonts/anuphan/700Bold/Anuphan_700Bold.ttf",
+  regular: fontPath("@expo-google-fonts/anuphan/400Regular/Anuphan_400Regular.ttf"),
+  medium: fontPath("@expo-google-fonts/anuphan/500Medium/Anuphan_500Medium.ttf"),
+  semiBold: fontPath("@expo-google-fonts/anuphan/600SemiBold/Anuphan_600SemiBold.ttf"),
+  bold: fontPath("@expo-google-fonts/anuphan/700Bold/Anuphan_700Bold.ttf"),
 } as const;
 
 const mobileExpoConfig = ({ config }: ConfigContext): ExpoConfig => ({
