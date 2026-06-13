@@ -1,0 +1,34 @@
+<svg width="497" height="305" viewBox="0 0 497 305" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g filter="url(#filter0_d_9678_161515)">
+<g clip-path="url(#clip0_9678_161515)">
+<path d="M24 36C24 27.1634 31.1634 20 40 20H457C465.837 20 473 27.1634 473 36V261C473 269.837 465.837 277 457 277H40C31.1634 277 24 269.837 24 261V36Z" fill="#00CC99"/>
+<path d="M24 36C24 27.1634 31.1634 20 40 20H457C465.837 20 473 27.1634 473 36V261C473 269.837 465.837 277 457 277H40C31.1634 277 24 269.837 24 261V36Z" fill="url(#paint0_radial_9678_161515)"/>
+<g clip-path="url(#clip1_9678_161515)">
+<path d="M401.333 521.923C551.187 521.923 672.667 400.449 672.667 250.602C672.667 100.756 551.187 -20.7188 401.333 -20.7188C251.48 -20.7188 130 100.756 130 250.602C130 400.449 251.48 521.923 401.333 521.923Z" fill="white" fill-opacity="0.1"/>
+<path d="M477.193 558.392C627.046 558.392 748.526 436.918 748.526 287.071C748.526 137.225 627.046 15.75 477.193 15.75C327.339 15.75 205.859 137.225 205.859 287.071C205.859 436.918 327.339 558.392 477.193 558.392Z" fill="white" fill-opacity="0.2"/>
+<path d="M551.583 619.658C701.437 619.658 822.917 498.183 822.917 348.337C822.917 198.49 701.437 77.0156 551.583 77.0156C401.73 77.0156 280.25 198.49 280.25 348.337C280.25 498.183 401.73 619.658 551.583 619.658Z" fill="white" fill-opacity="0.4"/>
+</g>
+</g>
+</g>
+<defs>
+<filter id="filter0_d_9678_161515" x="0" y="0" width="497" height="305" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset dy="4"/>
+<feGaussianBlur stdDeviation="12"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.15 0"/>
+<feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_9678_161515"/>
+<feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_9678_161515" result="shape"/>
+</filter>
+<radialGradient id="paint0_radial_9678_161515" cx="0" cy="0" r="1" gradientTransform="matrix(-479.301 244.808 -477.557 -249.853 466.896 61.0393)" gradientUnits="userSpaceOnUse">
+<stop stop-color="#00AA80"/>
+<stop offset="0.470937" stop-color="white"/>
+</radialGradient>
+<clipPath id="clip0_9678_161515">
+<path d="M24 36C24 27.1634 31.1634 20 40 20H457C465.837 20 473 27.1634 473 36V261C473 269.837 465.837 277 457 277H40C31.1634 277 24 269.837 24 261V36Z" fill="white"/>
+</clipPath>
+<clipPath id="clip1_9678_161515">
+<rect width="407" height="318" fill="white" transform="translate(130 7)"/>
+</clipPath>
+</defs>
+</svg>

@@ -1,0 +1,21 @@
+{
+  "apphosting": [
+    {
+      "backendId": "gogocash-web",
+      "rootDir": ".",
+      "ignore": [
+        "node_modules",
+        ".git",
+        ".next",
+        "out",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "e2e/.auth",
+        "test-results",
+        "coverage",
+        ".env.local",
+        ".env.sentry-build-plugin"
+      ]
+    }
+  ]
+}

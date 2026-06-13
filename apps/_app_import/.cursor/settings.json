@@ -1,0 +1,16 @@
+{
+  "plugins": {
+    "posthog": {
+      "enabled": true
+    },
+    "sentry": {
+      "enabled": true
+    },
+    "linear": {
+      "enabled": true
+    },
+    "stripe": {
+      "enabled": true
+    }
+  }
+}

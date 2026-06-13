@@ -1,0 +1,73 @@
+# Firebase App Hosting (Next.js SSR + API routes)
+# Docs: https://firebase.google.com/docs/app-hosting/get-started
+#
+# Prerequisites:
+# - Blaze billing on the Firebase/GCP project
+# - Backend id must match `backendId` in firebase.json (default: gogocash-web)
+#
+# Environment: copy keys from .env.example into the Firebase console
+# (App Hosting → your backend → Settings → Environment), or use `env:` below.
+# Secrets: https://firebase.google.com/docs/app-hosting/configure#secret-parameters
+#   firebase apphosting:secrets:set NEXTAUTH_SECRET
+#
+# Set NEXTAUTH_URL and NEXT_PUBLIC_FRONTEND_URL to your live App Hosting URL
+# (format: https://BACKEND_ID--PROJECT_ID.REGION.hosted.app) after the first deploy.
+# Console env vars override these — see Firebase docs (variable hierarchy).
+
+runConfig:
+  minInstances: 0
+  maxInstances: 20
+  concurrency: 80
+  cpu: 1
+  memoryMiB: 1024
+
+env:
+  # Use npm + package-lock.json (repo also has yarn.lock; buildpack would pick Yarn otherwise)
+  - variable: GOOGLE_PACKAGE_MANAGER
+    value: npm
+    availability:
+      - BUILD
+  - variable: GOOGLE_NODEJS_VERSION
+    value: "22"
+    availability:
+      - BUILD
+  # Disable mock API — staging connects to the real API at api-staging.gogocash.co
+  - variable: NEXT_PUBLIC_MOCK_API
+    value: "0"
+    availability:
+      - BUILD
+      - RUNTIME
+  # Staging API base URL
+  - variable: NEXT_PUBLIC_API_BASE_URL
+    value: https://api-staging.gogocash.co
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: CI
+    value: "true"
+    availability:
+      - BUILD
+  # Avoid OOM on large Next.js builds in Cloud Build
+  - variable: NODE_OPTIONS
+    value: "--max-old-space-size=6144"
+    availability:
+      - BUILD
+  # Staging custom domain
+  - variable: NEXTAUTH_URL
+    value: https://app-staging.gogocash.co
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FRONTEND_URL
+    value: https://app-staging.gogocash.co
+    availability:
+      - BUILD
+      - RUNTIME
+
+  # Secrets — provision once, then uncomment:
+  #   npx firebase apphosting:secrets:set NEXTAUTH_SECRET --project gogocash-app-staging
+  # - variable: NEXTAUTH_SECRET
+  #   secret: NEXTAUTH_SECRET
+  #   availability:
+  #     - BUILD
+  #     - RUNTIME
