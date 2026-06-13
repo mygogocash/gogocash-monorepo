@@ -12,7 +12,6 @@ import { PointSchema } from 'src/point/schemas/point.schema';
 import { UserMyCashback, UserMyCashbackSchema } from 'src/user/schemas/user-my-cashback.schema';
 import { EmailModule } from 'src/email/email.module';
 import { OtpService } from './otp.service';
-import { MailerModule } from '@nestjs-modules/mailer';
 import { UserOtp, UserOtpSchema } from 'src/user/schemas/user-otp.schema';
 import { SiweNonce, SiweNonceSchema } from './schemas/siwe-nonce.schema';
 import { RateLimitGuard } from './rate-limit.guard';
@@ -26,7 +25,7 @@ import { AnalyticsModule } from 'src/analytics/analytics.module';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    EmailModule, // Provides EmailService (nodemailer with Gmail SMTP) — email-OTP subsystem
+    EmailModule, // Provides EmailService (Resend) — used by both OTP subsystems
     AnalyticsModule, // Provides AnalyticsService
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
@@ -41,19 +40,9 @@ import { AnalyticsModule } from 'src/analytics/analytics.module';
       secret: process.env.CROSSMINT_SECRET,
       signOptions: { expiresIn: '60m' },
     }),
-    // MailerModule.forRoot — OtpService.sendOtpToEmail still uses MailerService
-    // (legacy UserOtp subsystem). Kept alongside EmailModule's EmailService.
-    MailerModule.forRoot({
-      transport: {
-        host: process.env.SMTP_HOST,
-        port: 587,
-        secure: false,
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS,
-        },
-      },
-    }),
+    // Email is sent via Resend through EmailService (see EmailModule). The old
+    // MailerModule/SMTP transport was retired together with the Gmail nodemailer
+    // transport — both OTP flows now go through one provider + verified domain.
   ],
   controllers: [AuthController],
   providers: [AuthService, UserService, JwtService, OtpService, RateLimitGuard],
