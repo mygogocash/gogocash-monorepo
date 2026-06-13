@@ -6,7 +6,7 @@
  * - Firebase static export: NEXT_PUBLIC_FIREBASE_STATIC=1 at build time (internal review builds).
  */
 export function isMockAdminPasswordAllowed(): boolean {
-  // Explicit opt-in wins (e.g. Railway internal-test env where both a real API
+  // Explicit opt-in wins (e.g. an internal-test env where both a real API
   // URL and a mock-auth shortcut are desired). Must be set deliberately.
   if (process.env.ALLOW_MOCK_ADMIN_PASSWORD === "true") return true;
   // Real API is the source of truth — never bypass with mock password.

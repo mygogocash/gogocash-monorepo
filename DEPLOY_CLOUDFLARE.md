@@ -2,7 +2,7 @@
 
 This project is set up to deploy to **Cloudflare** (Workers/Pages) using [OpenNext](https://opennext.js.org/cloudflare). The Cloudflare scaffolding (`wrangler.toml`, `open-next.config.ts`) is present in the repo.
 
-> **Note:** The `build:cf` / `deploy:cf` / `preview:cf` npm scripts referenced below are **not currently defined** in `package.json`, and `wrangler` / `@opennextjs/cloudflare` are **not** installed as dependencies. To use this path you must first add those scripts/dev-dependencies (or run the equivalent commands via `npx`). The repo currently wires up Firebase (`deploy:firebase`) and Google Cloud / Railway deploy paths instead — see `DEPLOYMENT.md`, `DEPLOY_FIREBASE.md`, and `DEPLOY_VERCEL.md`.
+> **Note:** The `build:cf` / `deploy:cf` / `preview:cf` npm scripts referenced below are **not currently defined** in `package.json`, and `wrangler` / `@opennextjs/cloudflare` are **not** installed as dependencies. To use this path you must first add those scripts/dev-dependencies (or run the equivalent commands via `npx`). The repo currently wires up Firebase (`deploy:firebase`) and Google Cloud / GCP Cloud Run deploy paths instead — see `DEPLOYMENT.md`, `DEPLOY_FIREBASE.md`, and `DEPLOY_VERCEL.md`.
 
 ## Build settings for Cloudflare (Git / Workers Builds)
 

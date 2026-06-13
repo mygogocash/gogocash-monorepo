@@ -6,7 +6,7 @@ import { handleMockApiRequest } from "@/lib/mockApiCore";
 const isFirebaseStaticExport = process.env.BUILD_FOR_FIREBASE === "1";
 
 /** Next 16 requires `dynamic` to be a static literal. "force-dynamic" prevents
- *  DYNAMIC_SERVER_USAGE errors on Railway/Node deploys. If Firebase static
+ *  DYNAMIC_SERVER_USAGE errors on Node/Cloud Run deploys. If Firebase static
  *  export is re-enabled, change this to "auto" and rebuild. */
 export const dynamic = "force-dynamic";
 
