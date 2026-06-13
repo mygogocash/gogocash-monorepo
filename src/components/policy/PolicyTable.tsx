@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetcher, fetcherPut } from "@/lib/axios/client";
+import client, { fetcher, fetcherPost, fetcherPut } from "@/lib/axios/client";
 import { ResCategoryList } from "@/types/category";
 import NoData from "@/components/common/NoData";
 import Button from "@/components/ui/button/Button";
@@ -10,6 +10,7 @@ import { SUPPORT_BUTTON_CLASS } from "@/components/ui/button/SupportButton";
 import SecondaryButton from "@/components/ui/button/SecondaryButton";
 import PrimaryButton from "@/components/ui/button/PrimaryButton";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
+import { PencilIcon } from "@/icons";
 import CategoryIcon from "./CategoryIcon";
 import TimeFieldHM from "@/components/form/input/TimeFieldHM";
 import { isDirty } from "@/lib/isDirty";
@@ -75,6 +76,17 @@ export default function PolicyTable() {
   const [contentSource, setContentSource] = useState<ContentSource>("custom");
   // "" = no template chosen yet (the "— Select a template —" placeholder).
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  // "Create New" flow — creates the category immediately (so it has an id),
+  // then opens the normal full editor for it with the name field ready to fill.
+  const [creatingSave, setCreatingSave] = useState(false);
+  // Synchronous in-flight guard — `creatingSave` (state) only disables the
+  // button on the next render, so a sub-frame double-click could fire two
+  // creates; this ref dedupes immediately.
+  const creatingRef = useRef(false);
+  // Inline category-name rename (the pencil next to the editor title).
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+  const [savingName, setSavingName] = useState(false);
 
   // V2 multi-language state — replaces the old (editPrimary, editTranslation,
   // translationLocale, showAdminTranslation) tuple. `translations` is keyed by
@@ -119,23 +131,10 @@ export default function PolicyTable() {
     url: string;
     name: string;
   } | null>(null);
-  const [specialUpload, setSpecialUpload] = useState<{
-    url: string;
-    name: string;
-  } | null>(null);
   const defaultFileRef = useRef<HTMLInputElement>(null);
-  const specialFileRef = useRef<HTMLInputElement>(null);
   // Auto-save on upload — which banner is briefly "Saving…" (transient).
-  const [bannerSaving, setBannerSaving] = useState<
-    "default" | "special" | null
-  >(null);
+  const [bannerSaving, setBannerSaving] = useState<"default" | null>(null);
   const bannerSaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Period during which the special event banner replaces the default. Date +
-  // 24-hour HH:MM (TimeFieldHM) so the time never renders as 12-hour AM/PM.
-  const [specialEventStartDate, setSpecialEventStartDate] = useState("");
-  const [specialEventStartTime, setSpecialEventStartTime] = useState("");
-  const [specialEventEndDate, setSpecialEventEndDate] = useState("");
-  const [specialEventEndTime, setSpecialEventEndTime] = useState("");
 
   // Snapshot of the editable fields `handleSave` sends, captured the moment a
   // category modal opens (i.e. AFTER the loaded policy populates state). Drives
@@ -324,13 +323,9 @@ export default function PolicyTable() {
         .sort((a, b) => b[1].length - a[1].length);
       setActiveLocale(populated[0]?.[0] ?? parsed.primary_locale ?? "th");
       setDefaultUpload(null);
-      setSpecialUpload(null);
-      setSpecialEventStartDate("");
-      setSpecialEventStartTime("");
-      setSpecialEventEndDate("");
-      setSpecialEventEndTime("");
       setEditingTerms(false);
       setEditingBanner(false);
+      setEditingName(false);
       // Baseline for "disable Save until changed". Built from the same parsed
       // values used in the setters above (state updates are async, so we can't
       // read them back here). Mirrors `currentSaveSnapshot` exactly.
@@ -361,11 +356,78 @@ export default function PolicyTable() {
     setBannerActiveLocale("th");
     setEditingTerms(false);
     setEditingBanner(false);
+    setEditingName(false);
   }, []);
+
+  // Create the category immediately (so it has a real id), then open the normal
+  // full editor for it with the name field focused. Terms & banners are then
+  // added via the existing per-section editors (which all need a category id).
+  const handleCreateCategory = async () => {
+    if (creatingRef.current) return;
+    creatingRef.current = true;
+    setCreatingSave(true);
+    try {
+      const created = (await fetcherPost([
+        "/offer/create-category",
+        { data: { name: "New category" } },
+      ])) as ResCategoryList;
+      await queryClient.invalidateQueries({
+        queryKey: ["getCategory", "policy-page"],
+      });
+      openModal(created);
+      setNameDraft(created.name);
+      setEditingName(true);
+    } catch (err: unknown) {
+      const message =
+        err &&
+        typeof err === "object" &&
+        "data" in err &&
+        typeof (err as { data?: { message?: string } }).data?.message ===
+          "string"
+          ? (err as { data: { message: string } }).data.message
+          : "Failed to create category.";
+      toast.error(message);
+    } finally {
+      setCreatingSave(false);
+      creatingRef.current = false;
+    }
+  };
+  // Inline rename of the open category (the pencil next to the title).
+  const beginEditName = () => {
+    setNameDraft(selectedCategory?.name ?? "");
+    setEditingName(true);
+  };
+  const cancelEditName = () => {
+    setEditingName(false);
+  };
+  const saveName = async () => {
+    if (!selectedCategory) return;
+    const name = nameDraft.trim();
+    if (!name) {
+      toast.error("Enter a category name.");
+      return;
+    }
+    setSavingName(true);
+    try {
+      await client.patch(`/admin/update-category/${selectedCategory._id}`, {
+        name,
+      });
+      setSelectedCategory({ ...selectedCategory, name });
+      await queryClient.invalidateQueries({
+        queryKey: ["getCategory", "policy-page"],
+      });
+      setEditingName(false);
+      toast.success("Category name saved.");
+    } catch {
+      toast.error("Failed to rename category.");
+    } finally {
+      setSavingName(false);
+    }
+  };
 
   // Auto-save a just-uploaded banner — no separate Save step. Mock: a brief
   // "Saving…" then a confirmation toast (object-URL preview is applied at once).
-  const autoSaveBanner = (which: "default" | "special", name: string) => {
+  const autoSaveBanner = (which: "default", name: string) => {
     if (bannerSaveTimeout.current) clearTimeout(bannerSaveTimeout.current);
     setBannerSaving(which);
     bannerSaveTimeout.current = setTimeout(() => {
@@ -384,56 +446,11 @@ export default function PolicyTable() {
     autoSaveBanner("default", file.name);
   };
 
-  const handleSpecialUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (specialUpload) URL.revokeObjectURL(specialUpload.url);
-    setSpecialUpload({ url: URL.createObjectURL(file), name: file.name });
-    autoSaveBanner("special", file.name);
-  };
-
   // Clear an uploaded banner — back to the "No uploaded files" state.
   const handleRemoveDefault = () => {
     if (defaultUpload) URL.revokeObjectURL(defaultUpload.url);
     setDefaultUpload(null);
     if (defaultFileRef.current) defaultFileRef.current.value = "";
-  };
-
-  const handleRemoveSpecial = () => {
-    if (specialUpload) URL.revokeObjectURL(specialUpload.url);
-    setSpecialUpload(null);
-    if (specialFileRef.current) specialFileRef.current.value = "";
-  };
-
-  // "Set" — validate the special-event start/end window (date + 24h time).
-  const handleSetSchedule = () => {
-    if (
-      !specialEventStartDate ||
-      !specialEventStartTime ||
-      !specialEventEndDate ||
-      !specialEventEndTime
-    ) {
-      toast.error("Set a start and end date and time (24h).");
-      return;
-    }
-    const toMs = (date: string, time: string) => {
-      const [h = "0", m = "0"] = time.split(":");
-      return new Date(
-        `${date}T${h.padStart(2, "0")}:${m.padStart(2, "0")}:00`,
-      ).getTime();
-    };
-    if (
-      !(
-        toMs(specialEventEndDate, specialEventEndTime) >
-        toMs(specialEventStartDate, specialEventStartTime)
-      )
-    ) {
-      toast.error("The special event must end after it starts.");
-      return;
-    }
-    toast.success(
-      `Schedule set: ${specialEventStartDate} ${specialEventStartTime} → ${specialEventEndDate} ${specialEventEndTime}.`,
-    );
   };
 
   // Templates apply to the ACTIVE locale only — admins translate per-locale,
@@ -624,15 +641,215 @@ export default function PolicyTable() {
     );
   };
 
+  // Per-locale banner-caption editor for the default banner (`banner` block).
+  // Kept as a small render helper so the read-only preview and the edit form
+  // stay together and the caller just passes the relevant state.
+  const renderBannerTextEditor = (cfg: {
+    translations: Record<string, string>;
+    setTranslations: React.Dispatch<
+      React.SetStateAction<Record<string, string>>
+    >;
+    primaryLocale: string;
+    setPrimaryLocale: (v: string) => void;
+    activeLocale: string;
+    setActiveLocale: (v: string) => void;
+    editing: boolean;
+    onBeginEdit: () => void;
+    onCancel: () => void;
+    onSave: () => void;
+    dirty: boolean;
+    editAriaLabel: string;
+  }) => (
+    <div className="mt-4">
+      {/* Structural wrapper around the caption editor's content (no styling —
+          keeps the rendered layout identical). */}
+      <div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+            Banner text (per locale)
+          </h4>
+          {cfg.editing ? (
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={cfg.onCancel}
+                disabled={saving}
+                className="text-xs font-medium text-gray-500 hover:text-gray-700 disabled:opacity-50 dark:text-gray-400 dark:hover:text-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={cfg.onSave}
+                disabled={saving || !cfg.dirty}
+                className={`${SUPPORT_BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
+              >
+                {saving ? "Saving…" : "Save"}
+              </button>
+            </div>
+          ) : (
+            <SecondaryButton
+              type="button"
+              onClick={cfg.onBeginEdit}
+              aria-label={cfg.editAriaLabel}
+            >
+              Edit
+            </SecondaryButton>
+          )}
+        </div>
+        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+          Optional short caption rendered above the offer grid on the customer
+          side. Up to 500 characters per locale.
+        </p>
+
+        {!cfg.editing ? (
+          renderLocalePreview(
+            cfg.translations,
+            cfg.primaryLocale,
+            "No banner text set yet — click Edit to add.",
+          )
+        ) : (
+          <>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+              <span>Primary locale:</span>
+              <select
+                value={cfg.primaryLocale}
+                onChange={(e) => cfg.setPrimaryLocale(e.target.value)}
+                className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800"
+              >
+                {POLICY_TRANSLATION_LOCALES.map((l) => (
+                  <option key={l.value} value={l.value}>
+                    {l.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div
+              className="mt-3 flex flex-wrap gap-1 border-b border-gray-200 dark:border-gray-700"
+              role="tablist"
+              aria-label="Banner translation locale"
+            >
+              {POLICY_TRANSLATION_LOCALES.map((l) => {
+                const filled =
+                  typeof cfg.translations[l.value] === "string" &&
+                  cfg.translations[l.value]!.trim().length > 0;
+                const isActive = cfg.activeLocale === l.value;
+                return (
+                  <button
+                    key={l.value}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    onClick={() => cfg.setActiveLocale(l.value)}
+                    className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
+                      isActive
+                        ? "border-brand-500 text-brand-600 dark:border-brand-400 dark:text-brand-400"
+                        : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400"
+                    }`}
+                  >
+                    <span
+                      aria-hidden
+                      className={`h-1.5 w-1.5 rounded-full ${
+                        filled
+                          ? "bg-emerald-500"
+                          : "bg-gray-300 dark:bg-gray-600"
+                      }`}
+                    />
+                    {l.label}
+                    {cfg.primaryLocale === l.value ? (
+                      <span className="bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300 ml-1 rounded px-1 py-0.5 text-[10px] font-medium">
+                        primary
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+
+            <textarea
+              value={cfg.translations[cfg.activeLocale] ?? ""}
+              onChange={(e) =>
+                cfg.setTranslations((prev) => ({
+                  ...prev,
+                  [cfg.activeLocale]: e.target.value,
+                }))
+              }
+              maxLength={500}
+              placeholder={
+                cfg.activeLocale === "th"
+                  ? "เช่น โปรโมชั่นพิเศษเดือนนี้ — รับแคชแบ็กเพิ่ม 5%..."
+                  : "e.g. Special promotion this month — extra 5% cashback..."
+              }
+              className="focus:border-brand-500 focus:ring-brand-500/20 mt-2 min-h-[80px] w-full resize-y rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-2 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400"
+            />
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {
+                POLICY_TRANSLATION_LOCALES.find(
+                  (l) => l.value === cfg.activeLocale,
+                )?.label
+              }
+              : {(cfg.translations[cfg.activeLocale] ?? "").length} / 500
+              characters
+            </p>
+          </>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
       {selectedCategory ? (
         <div className="flex flex-col p-6">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                {selectedCategory?.name}
-              </h3>
+              {editingName ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={nameDraft}
+                    onChange={(e) => setNameDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") void saveName();
+                      if (e.key === "Escape") cancelEditName();
+                    }}
+                    aria-label="Category name"
+                    autoFocus
+                    className="focus:border-brand-400 focus:ring-brand-500/20 h-9 min-w-0 rounded-lg border border-gray-300 bg-white px-3 text-xl font-semibold text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void saveName()}
+                    disabled={savingName || !nameDraft.trim()}
+                    className={`${SUPPORT_BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
+                  >
+                    {savingName ? "Saving…" : "Save"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={cancelEditName}
+                    disabled={savingName}
+                    className="text-xs font-medium text-gray-500 hover:text-gray-700 disabled:opacity-50 dark:text-gray-400 dark:hover:text-gray-200"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                    {selectedCategory?.name}
+                  </h3>
+                  <button
+                    type="button"
+                    aria-label="Edit category"
+                    onClick={beginEditName}
+                    className="shrink-0 text-gray-400 transition hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                  >
+                    <PencilIcon className="h-4 w-4" viewBox="0 0 21 21" />
+                  </button>
+                </div>
+              )}
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 Edit the terms &amp; conditions and the category banner for this
                 category. Optional admin translation is stored with the policy.
@@ -926,258 +1143,22 @@ export default function PolicyTable() {
                     onChange={handleDefaultUpload}
                     className="hidden"
                   />
-                </div>
 
-                {/* Special event banner — replaces the default for a set period. */}
-                <div className="mt-6 border-t border-gray-200 pt-4 dark:border-gray-700">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-base font-semibold text-gray-900 dark:text-white">
-                        Special event banner setup
-                      </h3>
-                      {specialUpload ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
-                          <span
-                            className="h-1.5 w-1.5 rounded-full bg-yellow-500"
-                            aria-hidden
-                          />
-                          Scheduled
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="flex items-center gap-3">
-                      {bannerSaving === "special" ? (
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          Saving…
-                        </span>
-                      ) : null}
-                      <SecondaryButton
-                        type="button"
-                        onClick={() => specialFileRef.current?.click()}
-                      >
-                        Upload File
-                      </SecondaryButton>
-                      {specialUpload ? (
-                        <button
-                          type="button"
-                          onClick={handleRemoveSpecial}
-                          className="text-xs font-medium text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400"
-                        >
-                          Remove
-                        </button>
-                      ) : null}
-                    </div>
-                  </div>
-                  <p className="mt-1 mb-3 text-xs text-gray-500 dark:text-gray-400">
-                    Temporarily replaces the default banner during the period
-                    below.
-                  </p>
-                  {specialUpload ? (
-                    <RemoteOrBlobImage
-                      className="max-h-40 w-full rounded-lg border border-gray-200 object-cover dark:border-gray-600"
-                      src={specialUpload.url}
-                      alt="Special event banner"
-                      width={640}
-                      height={200}
-                    />
-                  ) : (
-                    <NoUploadedBanner />
-                  )}
-                  <input
-                    ref={specialFileRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleSpecialUpload}
-                    className="hidden"
-                  />
-                  <div className="mt-3 flex flex-wrap items-end gap-4">
-                    <div className="min-w-[180px] flex-1">
-                      <span className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                        Starts
-                      </span>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <input
-                          type="date"
-                          value={specialEventStartDate}
-                          onChange={(e) =>
-                            setSpecialEventStartDate(e.target.value)
-                          }
-                          className="focus:border-brand-400 focus:ring-brand-500/20 h-11 min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-800 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                        />
-                        <TimeFieldHM
-                          value={specialEventStartTime}
-                          onChange={setSpecialEventStartTime}
-                          ariaLabel="Start time"
-                        />
-                      </div>
-                    </div>
-                    <div className="min-w-[180px] flex-1">
-                      <span className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                        Ends
-                      </span>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <input
-                          type="date"
-                          value={specialEventEndDate}
-                          onChange={(e) =>
-                            setSpecialEventEndDate(e.target.value)
-                          }
-                          className="focus:border-brand-400 focus:ring-brand-500/20 h-11 min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-800 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                        />
-                        <TimeFieldHM
-                          value={specialEventEndTime}
-                          onChange={setSpecialEventEndTime}
-                          ariaLabel="End time"
-                        />
-                      </div>
-                    </div>
-                    <PrimaryButton variant="blue" onClick={handleSetSchedule}>
-                      Set
-                    </PrimaryButton>
-                  </div>
-                </div>
-
-                {/* Phase 3A.2 — banner text editor (per-locale, ≤500 chars).
-                  Saved on the same "Save" action as the Terms tab — both
-                  blocks share the modal's Save button. */}
-                <div className="mt-6 border-t border-gray-200 pt-4 dark:border-gray-700">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                      Banner text (per locale)
-                    </h4>
-                    {editingBanner ? (
-                      <div className="flex items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={cancelEditBanner}
-                          disabled={saving}
-                          className="text-xs font-medium text-gray-500 hover:text-gray-700 disabled:opacity-50 dark:text-gray-400 dark:hover:text-gray-200"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            void handleSave("banner", () =>
-                              setEditingBanner(false),
-                            )
-                          }
-                          disabled={saving || !bannerDirty}
-                          className={`${SUPPORT_BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
-                        >
-                          {saving ? "Saving…" : "Save"}
-                        </button>
-                      </div>
-                    ) : (
-                      <SecondaryButton
-                        type="button"
-                        onClick={beginEditBanner}
-                        aria-label="Edit banner text"
-                      >
-                        Edit
-                      </SecondaryButton>
-                    )}
-                  </div>
-                  <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                    Optional short caption rendered above the offer grid on the
-                    customer side. Up to 500 characters per locale.
-                  </p>
-
-                  {!editingBanner ? (
-                    renderLocalePreview(
-                      bannerTranslations,
-                      bannerPrimaryLocale,
-                      "No banner text set yet — click Edit to add.",
-                    )
-                  ) : (
-                    <>
-                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-                        <span>Primary locale:</span>
-                        <select
-                          value={bannerPrimaryLocale}
-                          onChange={(e) =>
-                            setBannerPrimaryLocale(e.target.value)
-                          }
-                          className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800"
-                        >
-                          {POLICY_TRANSLATION_LOCALES.map((l) => (
-                            <option key={l.value} value={l.value}>
-                              {l.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div
-                        className="mt-3 flex flex-wrap gap-1 border-b border-gray-200 dark:border-gray-700"
-                        role="tablist"
-                        aria-label="Banner translation locale"
-                      >
-                        {POLICY_TRANSLATION_LOCALES.map((l) => {
-                          const filled =
-                            typeof bannerTranslations[l.value] === "string" &&
-                            bannerTranslations[l.value]!.trim().length > 0;
-                          const isActive = bannerActiveLocale === l.value;
-                          return (
-                            <button
-                              key={l.value}
-                              type="button"
-                              role="tab"
-                              aria-selected={isActive}
-                              onClick={() => setBannerActiveLocale(l.value)}
-                              className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
-                                isActive
-                                  ? "border-brand-500 text-brand-600 dark:border-brand-400 dark:text-brand-400"
-                                  : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400"
-                              }`}
-                            >
-                              <span
-                                aria-hidden
-                                className={`h-1.5 w-1.5 rounded-full ${
-                                  filled
-                                    ? "bg-emerald-500"
-                                    : "bg-gray-300 dark:bg-gray-600"
-                                }`}
-                              />
-                              {l.label}
-                              {bannerPrimaryLocale === l.value ? (
-                                <span className="bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300 ml-1 rounded px-1 py-0.5 text-[10px] font-medium">
-                                  primary
-                                </span>
-                              ) : null}
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      <textarea
-                        value={bannerTranslations[bannerActiveLocale] ?? ""}
-                        onChange={(e) =>
-                          setBannerTranslations((prev) => ({
-                            ...prev,
-                            [bannerActiveLocale]: e.target.value,
-                          }))
-                        }
-                        maxLength={500}
-                        placeholder={
-                          bannerActiveLocale === "th"
-                            ? "เช่น โปรโมชั่นพิเศษเดือนนี้ — รับแคชแบ็กเพิ่ม 5%..."
-                            : "e.g. Special promotion this month — extra 5% cashback..."
-                        }
-                        className="focus:border-brand-500 focus:ring-brand-500/20 mt-2 min-h-[80px] w-full resize-y rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-2 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400"
-                      />
-                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        {
-                          POLICY_TRANSLATION_LOCALES.find(
-                            (l) => l.value === bannerActiveLocale,
-                          )?.label
-                        }
-                        :{" "}
-                        {(bannerTranslations[bannerActiveLocale] ?? "").length}{" "}
-                        / 500 characters
-                      </p>
-                    </>
-                  )}
+                  {renderBannerTextEditor({
+                    translations: bannerTranslations,
+                    setTranslations: setBannerTranslations,
+                    primaryLocale: bannerPrimaryLocale,
+                    setPrimaryLocale: setBannerPrimaryLocale,
+                    activeLocale: bannerActiveLocale,
+                    setActiveLocale: setBannerActiveLocale,
+                    editing: editingBanner,
+                    onBeginEdit: beginEditBanner,
+                    onCancel: cancelEditBanner,
+                    onSave: () =>
+                      void handleSave("banner", () => setEditingBanner(false)),
+                    dirty: bannerDirty,
+                    editAriaLabel: "Edit banner text",
+                  })}
                 </div>
               </section>
             </div>
@@ -1195,7 +1176,13 @@ export default function PolicyTable() {
               </p>
             </div>
             <div className="flex items-center gap-4">
-              <PrimaryButton variant="blue">Create New</PrimaryButton>
+              <PrimaryButton
+                variant="blue"
+                onClick={() => void handleCreateCategory()}
+                disabled={creatingSave}
+              >
+                {creatingSave ? "Creating…" : "Create New"}
+              </PrimaryButton>
             </div>
           </div>
 

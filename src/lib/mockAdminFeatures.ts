@@ -312,12 +312,17 @@ type MissingClaim = {
   id: string;
   userId: string;
   userName: string;
+  email: string;
+  phone: string;
   merchantId: string;
   merchantName: string;
+  orderId: string;
   orderAmount: number;
+  purchaseDate: string;
   expectedCashback: number;
   overrideCashback: number | null;
   submittedDate: string;
+  remarks: string;
   status:
     | "pending"
     | "under_review"
@@ -339,19 +344,26 @@ let missingClaims: MissingClaim[] = Array.from({ length: 18 }, (_, i) => ({
   id: `moc_${100 + i}`,
   userId: mockUsers[i]._id,
   userName: mockUsers[i].username,
+  email: mockUsers[i].email,
+  phone: mockUsers[i].mobile,
   merchantId: `merch_${i}`,
   merchantName: ["GadgetHub", "StyleMart", "StayPlus"][i % 3],
+  orderId: `ORD-${100000 + i * 37}`,
   orderAmount: 500 + i * 120,
+  purchaseDate: new Date(Date.now() - (i + 3) * 86400000).toISOString(),
   expectedCashback: 25 + i * 5,
   overrideCashback: null,
   submittedDate: new Date(Date.now() - i * 86400000).toISOString(),
-  status: ["pending", "under_review", "approved", "rejected"][
-    i % 4
-  ] as MissingClaim["status"],
+  remarks: [
+    "Cashback didn't post after my purchase",
+    "Order shows complete but no tracking",
+    "",
+  ][i % 3],
+  status: ["pending", "approved", "rejected"][i % 3] as MissingClaim["status"],
   assignedTo: i % 2 === 0 ? "a1" : null,
   evidence: ["/images/merchant-logos/gadgethub-th.png"],
   notes: [],
-  rejectionReason: i % 4 === 3 ? "Insufficient evidence" : null,
+  rejectionReason: i % 3 === 2 && i % 2 === 0 ? "Insufficient evidence" : null,
 }));
 
 type WalletRow = {
@@ -940,6 +952,11 @@ export function tryMockAdminFeaturesRequest(
       }
       const st = searchParams.get("status");
       if (st) rows = rows.filter((r) => r.status === st);
+      // Date-range filter on the claim's submitted date (yyyy-mm-dd compare).
+      const from = searchParams.get("from");
+      const to = searchParams.get("to");
+      if (from) rows = rows.filter((r) => r.submittedDate.slice(0, 10) >= from);
+      if (to) rows = rows.filter((r) => r.submittedDate.slice(0, 10) <= to);
       return ok(paginate(rows, page, limit));
     }
     if (m === "GET" && path[2] && path.length === 3) {
@@ -1063,7 +1080,10 @@ export function tryMockAdminFeaturesRequest(
             return { ...w, ggcBalance: w.ggcBalance + mul * adj.amount };
           if (adj.currency === "points")
             return { ...w, pointsBalance: w.pointsBalance + mul * adj.amount };
-          return { ...w, cashbackBalance: w.cashbackBalance + mul * adj.amount };
+          return {
+            ...w,
+            cashbackBalance: w.cashbackBalance + mul * adj.amount,
+          };
         });
       }
       return ok({ success: true, adjustment: adj });

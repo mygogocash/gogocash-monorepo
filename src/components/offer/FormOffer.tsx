@@ -10,6 +10,7 @@ import TimeFieldHM from "../form/input/TimeFieldHM";
 import TextArea from "../form/input/TextArea";
 import client, { fetcher } from "@/lib/axios/client";
 import { devError } from "@/lib/devConsole";
+import { formatDate } from "@/lib/dateFormat";
 import toast from "react-hot-toast";
 import Button from "../ui/button/Button";
 import SecondaryButton from "../ui/button/SecondaryButton";
@@ -136,6 +137,23 @@ const COMMISSION_MODE_TOGGLE_INACTIVE = `${SUPPORT_BUTTON_CLASS} transition disa
 /** Plain-text rendering of a saved field value (Cashback view mode). */
 const CASHBACK_READONLY_VALUE =
   "flex min-h-11 items-center text-sm font-medium text-gray-800 dark:text-gray-200";
+
+/** Plain-text rendering of the upsize promo window (view mode). */
+function formatUpsizePeriod(
+  startDate: string | null | undefined,
+  startTime: string | null | undefined,
+  endDate: string | null | undefined,
+  endTime: string | null | undefined,
+): string {
+  const start = startDate
+    ? `${formatDate(startDate)}${startTime ? ` ${startTime}` : ""}`
+    : "";
+  const end = endDate
+    ? `${formatDate(endDate)}${endTime ? ` ${endTime}` : ""}`
+    : "";
+  if (!start && !end) return "—";
+  return `${start || "—"} to ${end || "—"}`;
+}
 
 /** Blank upsize per-product-line draft. */
 const EMPTY_UPSIZE_DRAFT: OfferProductTypeEntry = {
@@ -2337,7 +2355,7 @@ const FormOffer = ({
         {/* Upsize event — its own section, separate from Cashback Management */}
         <section
           id="offer-section-upsize"
-          className={`border-brand-500 bg-brand-50/50 dark:border-brand-500 dark:bg-brand-950/25 relative rounded-xl border border-dashed p-4 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
+          className={`border-brand-200/80 bg-brand-50/50 dark:border-brand-800/60 dark:bg-brand-950/25 relative rounded-xl border border-dashed p-4 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
         >
           {/* Section actions — Edit unlocks the fields; Save locks (changes
           persist via the form-wide "Save changes"); Cancel reverts. */}
@@ -2372,14 +2390,11 @@ const FormOffer = ({
           >
             <div>
               <div className="space-y-5">
-                <div>
-                  <h5 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
-                    <span className="text-brand-600 dark:text-brand-400">
-                      Upsize
-                    </span>{" "}
-                    event
-                  </h5>
-                  <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                <div className="space-y-2">
+                  <h4 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
+                    Upsize event
+                  </h4>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
                     Special-period promotion — temporarily overrides the default
                     cashback above with a higher commission and max cap for a
                     set window.
@@ -2426,106 +2441,114 @@ const FormOffer = ({
                     <>
                       <div className="mt-3">
                         <p className="mb-1.5 text-sm font-medium text-gray-800 dark:text-gray-200">
-                          <span className="text-brand-600 dark:text-brand-400">
-                            Upsize
-                          </span>{" "}
-                          period
+                          Upsize period
                         </p>
-                        <div className="flex flex-wrap items-center gap-3">
-                          <div className="flex flex-1 items-center gap-2">
-                            <div className="min-w-0 flex-1">
-                              <Input
-                                id="offer-upsize-start"
-                                type={startDateType}
-                                placeholder="Start Date"
-                                ariaLabel="Start Date"
-                                onFocus={(e) => {
-                                  const el = e.currentTarget;
-                                  setStartDateType("date");
-                                  requestAnimationFrame(() => {
-                                    try {
-                                      el.showPicker?.();
-                                    } catch {
-                                      /* showPicker needs a user gesture; ignore if blocked */
-                                    }
-                                  });
-                                }}
-                                onBlur={(e) => {
-                                  if (!e.currentTarget.value)
-                                    setStartDateType("text");
-                                }}
-                                name="upsize_start_date"
-                                onChange={(e) =>
+                        {editingUpsize ? (
+                          <div className="flex flex-wrap items-center gap-3">
+                            <div className="flex flex-1 items-center gap-2">
+                              <div className="min-w-0 flex-1">
+                                <Input
+                                  id="offer-upsize-start"
+                                  type={startDateType}
+                                  placeholder="Start Date"
+                                  ariaLabel="Start Date"
+                                  onFocus={(e) => {
+                                    const el = e.currentTarget;
+                                    setStartDateType("date");
+                                    requestAnimationFrame(() => {
+                                      try {
+                                        el.showPicker?.();
+                                      } catch {
+                                        /* showPicker needs a user gesture; ignore if blocked */
+                                      }
+                                    });
+                                  }}
+                                  onBlur={(e) => {
+                                    if (!e.currentTarget.value)
+                                      setStartDateType("text");
+                                  }}
+                                  name="upsize_start_date"
+                                  onChange={(e) =>
+                                    setForm({
+                                      ...form,
+                                      upsize_start_date: e.target.value || null,
+                                    })
+                                  }
+                                  defaultValue={form.upsize_start_date ?? ""}
+                                  disabled={isLoading}
+                                />
+                              </div>
+                              <TimeFieldHM
+                                ariaLabel="Start time"
+                                value={form.upsize_start_time ?? ""}
+                                onChange={(next) =>
                                   setForm({
                                     ...form,
-                                    upsize_start_date: e.target.value || null,
+                                    upsize_start_time: next || null,
                                   })
                                 }
-                                defaultValue={form.upsize_start_date ?? ""}
                                 disabled={isLoading}
                               />
                             </div>
-                            <TimeFieldHM
-                              ariaLabel="Start time"
-                              value={form.upsize_start_time ?? ""}
-                              onChange={(next) =>
-                                setForm({
-                                  ...form,
-                                  upsize_start_time: next || null,
-                                })
-                              }
-                              disabled={isLoading}
-                            />
-                          </div>
-                          <span className="text-sm text-gray-500 dark:text-gray-400">
-                            to
-                          </span>
-                          <div className="flex flex-1 items-center gap-2">
-                            <div className="min-w-0 flex-1">
-                              <Input
-                                id="offer-upsize-end"
-                                type={endDateType}
-                                placeholder="End Date"
-                                ariaLabel="End Date"
-                                onFocus={(e) => {
-                                  const el = e.currentTarget;
-                                  setEndDateType("date");
-                                  requestAnimationFrame(() => {
-                                    try {
-                                      el.showPicker?.();
-                                    } catch {
-                                      /* showPicker needs a user gesture; ignore if blocked */
-                                    }
-                                  });
-                                }}
-                                onBlur={(e) => {
-                                  if (!e.currentTarget.value)
-                                    setEndDateType("text");
-                                }}
-                                name="upsize_end_date"
-                                onChange={(e) =>
+                            <span className="text-sm text-gray-500 dark:text-gray-400">
+                              to
+                            </span>
+                            <div className="flex flex-1 items-center gap-2">
+                              <div className="min-w-0 flex-1">
+                                <Input
+                                  id="offer-upsize-end"
+                                  type={endDateType}
+                                  placeholder="End Date"
+                                  ariaLabel="End Date"
+                                  onFocus={(e) => {
+                                    const el = e.currentTarget;
+                                    setEndDateType("date");
+                                    requestAnimationFrame(() => {
+                                      try {
+                                        el.showPicker?.();
+                                      } catch {
+                                        /* showPicker needs a user gesture; ignore if blocked */
+                                      }
+                                    });
+                                  }}
+                                  onBlur={(e) => {
+                                    if (!e.currentTarget.value)
+                                      setEndDateType("text");
+                                  }}
+                                  name="upsize_end_date"
+                                  onChange={(e) =>
+                                    setForm({
+                                      ...form,
+                                      upsize_end_date: e.target.value || null,
+                                    })
+                                  }
+                                  defaultValue={form.upsize_end_date ?? ""}
+                                  disabled={isLoading}
+                                />
+                              </div>
+                              <TimeFieldHM
+                                ariaLabel="End time"
+                                value={form.upsize_end_time ?? ""}
+                                onChange={(next) =>
                                   setForm({
                                     ...form,
-                                    upsize_end_date: e.target.value || null,
+                                    upsize_end_time: next || null,
                                   })
                                 }
-                                defaultValue={form.upsize_end_date ?? ""}
                                 disabled={isLoading}
                               />
                             </div>
-                            <TimeFieldHM
-                              ariaLabel="End time"
-                              value={form.upsize_end_time ?? ""}
-                              onChange={(next) =>
-                                setForm({
-                                  ...form,
-                                  upsize_end_time: next || null,
-                                })
-                              }
-                              disabled={isLoading}
-                            />
                           </div>
-                        </div>
+                        ) : (
+                          <p className={CASHBACK_READONLY_VALUE}>
+                            {formatUpsizePeriod(
+                              form.upsize_start_date,
+                              form.upsize_start_time,
+                              form.upsize_end_date,
+                              form.upsize_end_time,
+                            )}
+                          </p>
+                        )}
                       </div>
                       <div className="mt-3 flex flex-col gap-4 rounded-xl border border-gray-300 bg-gray-50/50 p-4 dark:border-gray-600 dark:bg-gray-800/30">
                         {!form.upsize_all_product_types ? (
@@ -2931,14 +2954,7 @@ const FormOffer = ({
                               <>
                                 <div className="sm:col-span-2">
                                   <FieldLabel
-                                    label={
-                                      <>
-                                        <span className="text-brand-600 dark:text-brand-400">
-                                          Upsize
-                                        </span>{" "}
-                                        commission (%)
-                                      </>
-                                    }
+                                    label="Upsize commission (%)"
                                     description="Commission during the promo."
                                   />
                                   <div className="mb-2 flex flex-wrap gap-2">
@@ -2984,30 +3000,71 @@ const FormOffer = ({
                                           <p className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
                                             Raw %
                                           </p>
-                                          <Input
-                                            type="text"
-                                            name="upsize_commission_raw"
-                                            value={upsizeCommissionRaw}
-                                            onChange={(e) => {
-                                              const v = e.target.value;
-                                              setUpsizeCommissionRaw(v);
-                                              const n = Number(v);
-                                              setForm((prev) => ({
-                                                ...prev,
-                                                upsize_special_commission:
-                                                  v.trim() === "" ||
-                                                  Number.isNaN(n)
-                                                    ? null
-                                                    : applyThirtyPercentFee(n),
-                                              }));
-                                            }}
-                                            disabled={isLoading}
-                                          />
+                                          {editingUpsize ? (
+                                            <Input
+                                              type="text"
+                                              name="upsize_commission_raw"
+                                              value={upsizeCommissionRaw}
+                                              onChange={(e) => {
+                                                const v = e.target.value;
+                                                setUpsizeCommissionRaw(v);
+                                                const n = Number(v);
+                                                setForm((prev) => ({
+                                                  ...prev,
+                                                  upsize_special_commission:
+                                                    v.trim() === "" ||
+                                                    Number.isNaN(n)
+                                                      ? null
+                                                      : applyThirtyPercentFee(
+                                                          n,
+                                                        ),
+                                                }));
+                                              }}
+                                              disabled={isLoading}
+                                            />
+                                          ) : (
+                                            <p
+                                              className={
+                                                CASHBACK_READONLY_VALUE
+                                              }
+                                            >
+                                              {upsizeCommissionRaw.trim()
+                                                ? upsizeCommissionRaw
+                                                : "—"}
+                                            </p>
+                                          )}
                                         </div>
                                         <div className="min-w-0">
                                           <p className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
                                             % after 30% fee
                                           </p>
+                                          {editingUpsize ? (
+                                            <Input
+                                              type="text"
+                                              name="upsize_special_commission"
+                                              value={
+                                                form.upsize_special_commission ??
+                                                ""
+                                              }
+                                              disabled
+                                            />
+                                          ) : (
+                                            <p
+                                              className={
+                                                CASHBACK_READONLY_VALUE
+                                              }
+                                            >
+                                              {form.upsize_special_commission !=
+                                              null
+                                                ? form.upsize_special_commission
+                                                : "—"}
+                                            </p>
+                                          )}
+                                        </div>
+                                      </>
+                                    ) : (
+                                      <div className="min-w-0">
+                                        {editingUpsize ? (
                                           <Input
                                             type="text"
                                             name="upsize_special_commission"
@@ -3015,63 +3072,62 @@ const FormOffer = ({
                                               form.upsize_special_commission ??
                                               ""
                                             }
-                                            disabled
+                                            onChange={(e) => {
+                                              const v = e.target.value;
+                                              const n = Number(v);
+                                              setForm((prev) => ({
+                                                ...prev,
+                                                upsize_special_commission:
+                                                  v.trim() === "" ||
+                                                  !Number.isFinite(n)
+                                                    ? null
+                                                    : n,
+                                              }));
+                                            }}
+                                            disabled={isLoading}
                                           />
-                                        </div>
-                                      </>
-                                    ) : (
-                                      <div className="min-w-0">
-                                        <Input
-                                          type="text"
-                                          name="upsize_special_commission"
-                                          value={
-                                            form.upsize_special_commission ?? ""
-                                          }
-                                          onChange={(e) => {
-                                            const v = e.target.value;
-                                            const n = Number(v);
-                                            setForm((prev) => ({
-                                              ...prev,
-                                              upsize_special_commission:
-                                                v.trim() === "" ||
-                                                !Number.isFinite(n)
-                                                  ? null
-                                                  : n,
-                                            }));
-                                          }}
-                                          disabled={isLoading}
-                                        />
+                                        ) : (
+                                          <p
+                                            className={CASHBACK_READONLY_VALUE}
+                                          >
+                                            {form.upsize_special_commission !=
+                                            null
+                                              ? form.upsize_special_commission
+                                              : "—"}
+                                          </p>
+                                        )}
                                       </div>
                                     )}
                                   </div>
                                 </div>
                                 <div className="sm:col-span-2">
                                   <FieldLabel
-                                    label={
-                                      <>
-                                        Max cap for{" "}
-                                        <span className="text-brand-600 dark:text-brand-400">
-                                          upsize
-                                        </span>
-                                      </>
-                                    }
+                                    label="Max cap for upsize"
                                     description="Maximum cap offered to users during the promo. Enter the value already reduced by 30% from the affiliate partner cap."
                                   />
-                                  <Input
-                                    type="number"
-                                    name="upsize_max_cap"
-                                    onChange={(e) =>
-                                      setForm({
-                                        ...form,
-                                        upsize_max_cap:
-                                          e.target.value === ""
-                                            ? null
-                                            : Number(e.target.value),
-                                      })
-                                    }
-                                    defaultValue={form.upsize_max_cap ?? ""}
-                                    disabled={isLoading}
-                                  />
+                                  {editingUpsize ? (
+                                    <Input
+                                      type="number"
+                                      name="upsize_max_cap"
+                                      onChange={(e) =>
+                                        setForm({
+                                          ...form,
+                                          upsize_max_cap:
+                                            e.target.value === ""
+                                              ? null
+                                              : Number(e.target.value),
+                                        })
+                                      }
+                                      defaultValue={form.upsize_max_cap ?? ""}
+                                      disabled={isLoading}
+                                    />
+                                  ) : (
+                                    <p className={CASHBACK_READONLY_VALUE}>
+                                      {form.upsize_max_cap != null
+                                        ? form.upsize_max_cap
+                                        : "—"}
+                                    </p>
+                                  )}
                                 </div>
                               </>
                             ) : null}
