@@ -178,9 +178,9 @@ class ApiClient {
     });
   }
 
-  // Password reset endpoints
+  // Password reset endpoints (admin accounts, backed by Resend emails)
   async requestPasswordReset(email: string): Promise<{ message: string }> {
-    return this.request<{ message: string }>("/auth/forgot-password", {
+    return this.request<{ message: string }>("/admin/forgot-password", {
       method: "POST",
       body: JSON.stringify({ email }),
     });
@@ -190,9 +190,26 @@ class ApiClient {
     email: string;
     token: string;
     password: string;
-    password_confirmation: string;
+    password_confirmation?: string;
   }): Promise<{ message: string }> {
-    return this.request<{ message: string }>("/auth/reset-password", {
+    return this.request<{ message: string }>("/admin/reset-password", {
+      method: "POST",
+      body: JSON.stringify({
+        email: data.email,
+        token: data.token,
+        password: data.password,
+      }),
+    });
+  }
+
+  // Accept an admin invite: create the account from an invite token.
+  async acceptInvite(data: {
+    email: string;
+    token: string;
+    password: string;
+    username?: string;
+  }): Promise<{ message: string }> {
+    return this.request<{ message: string }>("/admin/accept-invite", {
       method: "POST",
       body: JSON.stringify(data),
     });
