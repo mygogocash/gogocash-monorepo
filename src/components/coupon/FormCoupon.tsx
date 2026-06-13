@@ -146,27 +146,15 @@ const FormCoupon = ({
       description: "Display name of the coupon shown to users in the app.",
     },
     {
-      filedName: "code",
-      type: "text",
-      description:
-        "The code users enter to redeem (e.g. WELCOME10). Must be unique.",
+      filedName: "offer_id",
+      type: "option",
+      description: "The offer or platform this coupon applies to.",
     },
     {
       filedName: "link",
       type: "text",
       description:
         "Optional URL for the coupon or promo page (e.g. adidas.co.th/promo).",
-    },
-    {
-      filedName: "description",
-      type: "textarea",
-      description:
-        "Short text explaining the coupon terms, conditions or offer details.",
-    },
-    {
-      filedName: "offer_id",
-      type: "option",
-      description: "The offer or platform this coupon applies to.",
     },
     {
       filedName: "start_date",
@@ -181,10 +169,10 @@ const FormCoupon = ({
       description: "When the coupon expires. Use YYYY-MM-DD.",
     },
     {
-      filedName: "eligibility",
-      type: "text",
+      filedName: "discount",
+      type: "number",
       description:
-        "Who can use it (e.g. new users, all users, first order only).",
+        "Discount value: amount off (e.g. 50) or percentage (e.g. 10 for 10%).",
     },
     {
       filedName: "min_spend",
@@ -193,10 +181,22 @@ const FormCoupon = ({
         "Minimum purchase amount required to use the coupon (e.g. 500 THB).",
     },
     {
-      filedName: "discount",
-      type: "number",
+      filedName: "code",
+      type: "text",
       description:
-        "Discount value: amount off (e.g. 50) or percentage (e.g. 10 for 10%).",
+        "The code users enter to redeem (e.g. WELCOME10). Must be unique.",
+    },
+    {
+      filedName: "eligibility",
+      type: "text",
+      description:
+        "Who can use it (e.g. new users, all users, first order only).",
+    },
+    {
+      filedName: "description",
+      type: "textarea",
+      description:
+        "Short text explaining the coupon terms, conditions or offer details.",
     },
     {
       filedName: "quantity",
