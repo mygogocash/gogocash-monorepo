@@ -41,6 +41,34 @@ export function isRole(value: unknown): value is Role {
   );
 }
 
+/**
+ * The NestJS API uses a different role vocabulary than this UI:
+ *   API:      viewer | support | approver | superadmin
+ *   Frontend: super_admin | admin | editor | viewer
+ * Known API tiers that have no exact frontend equivalent map to least
+ * privilege — the UI must never over-grant. API-side guards still enforce
+ * each admin's real rights via the separate API token, so under-granting in
+ * the UI is safe.
+ */
+const API_ROLE_TO_FRONTEND: Record<string, Role> = {
+  superadmin: "super_admin",
+  viewer: "viewer",
+  support: "viewer",
+  approver: "viewer",
+};
+
+/**
+ * Translate a role as issued by the API (POST /admin/login) into the role the
+ * UI gates on. Without this, the API's `superadmin` is not a frontend `Role`
+ * and silently degrades to `viewer` (empty menu, /403). Unknown non-empty ids
+ * are preserved so future API-issued custom roles still reach the dynamic
+ * role store; missing/empty values fall back to least privilege.
+ */
+export function fromApiRole(apiRole: unknown): string {
+  if (typeof apiRole !== "string" || !apiRole) return DEFAULT_ROLE;
+  return API_ROLE_TO_FRONTEND[apiRole] ?? apiRole;
+}
+
 /** Coerce an unknown value (token/db field) into a Role, falling back safely. */
 export function asRole(value: unknown, fallback: Role = DEFAULT_ROLE): Role {
   return isRole(value) ? value : fallback;

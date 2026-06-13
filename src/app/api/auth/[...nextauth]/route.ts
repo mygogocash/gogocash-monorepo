@@ -7,6 +7,7 @@ import { devError } from "@/lib/devConsole";
 import { isMockAdminPasswordAllowed } from "@/lib/mockAuthPolicy";
 import { DEFAULT_MOCK_ACCESS_TOKEN } from "@/lib/authTokens";
 import { mockRoleForEmail, resolveTokenRole } from "@/lib/mockAdminRole";
+import { fromApiRole } from "@/lib/rbac";
 
 const authOptions: NextAuthOptions = {
   providers: [
@@ -46,7 +47,10 @@ const authOptions: NextAuthOptions = {
             email: userData.email,
             image: undefined,
             accessToken: userData.token,
-            role: (userData as { role?: string }).role ?? "viewer",
+            // Translate the API role vocabulary (superadmin/approver/support)
+            // into the frontend Role the UI gates on. The API token above still
+            // carries the original role for API-side guards.
+            role: fromApiRole((userData as { role?: string }).role),
           };
         } catch (error) {
           const message =
