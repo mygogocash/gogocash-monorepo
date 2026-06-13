@@ -52,7 +52,7 @@
     "react-markdown": "^10.1.0"
   },
   "engines": {
-    "node": ">=20 <21"
+    "node": ">=22"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
