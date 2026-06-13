@@ -1,0 +1,26 @@
+# dependencies
+node_modules/
+.pnp.*
+
+# builds / outputs
+dist/
+.next/
+out/
+build/
+.expo/
+web-build/
+
+# turborepo
+.turbo/
+
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# misc
+.DS_Store
+*.log
+coverage/
+.idea/
+.vscode/
