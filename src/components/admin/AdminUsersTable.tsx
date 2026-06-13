@@ -10,6 +10,7 @@ import { devError } from "@/lib/devConsole";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useRolesQuery } from "@/hooks/useRoles";
 import { roleBadgeClass } from "@/lib/rbac";
+import { isDirty } from "@/lib/isDirty";
 
 export default function AdminUsersTable() {
   const {
@@ -555,7 +556,10 @@ export default function AdminUsersTable() {
             <button
               type="button"
               onClick={handleConfirmChangeRole}
-              disabled={roleSubmitting}
+              disabled={
+                roleSubmitting ||
+                !isDirty({ role: newRole }, { role: userToChangeRole?.role })
+              }
               className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 dark:bg-blue-500 dark:hover:bg-blue-600"
             >
               {roleSubmitting ? "Saving…" : "Save role"}

@@ -60,6 +60,18 @@ access. The store resets on restart (a real backend would persist).
    **403** for admin-user management writes (invite / update / delete) without `adminUsers:manage`.
    A real backend should mirror this server check — UI/middleware gating is not sufficient on its own.
 
+> **Known gap — cashback approval UI.** The cashback-approval flow on the withdrawal
+> detail page (route `/withdraw/:id`) — the "Adjust Wallet" panel
+> ([`UserWalletPanel.tsx`](../src/components/wallet/UserWalletPanel.tsx)) and the
+> "Cashback approval needed" notice
+> ([`CashbackApprovalNotice.tsx`](../src/components/wallet/CashbackApprovalNotice.tsx),
+> rendered from [`WithdrawDetail.tsx`](../src/components/withdraw/WithdrawDetail.tsx)) —
+> is **not** wrapped in `<Can>` / `usePermissions`, so every admin who can open the page
+> sees it. The API layer still gates the writes: `admin/wallets/*` mutations (adjust,
+> freeze, unfreeze, and `cashback-request/:id` approve/reject) require `users:manage` via
+> `requiredWritePermission` in `mockApiCore.ts`. Add UI gating (e.g. behind `super_admin`)
+> once RBAC is wired into this view.
+
 ## Extending
 
 - **New custom role:** use the **/roles** page (Role Management) — no code change.

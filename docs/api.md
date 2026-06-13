@@ -26,3 +26,27 @@ Wrappers live in `src/lib/api/withdrawUserContactApi.ts`. The withdraw user edit
 ### Mock OTP hint in the UI
 
 Set **`NEXT_PUBLIC_SHOW_MOCK_OTP_HINT`** to `1` / `true` / `yes` to show demo codes returned by the API; `0` / `false` / `no` to hide. If unset, hints show only when **`NODE_ENV === "development"`** (`shouldShowMockOtpHint` in `src/lib/mockOtpHint.ts`).
+
+## Cashback wallet & approval
+
+The "Cashback Wallet" section of the withdraw user detail page (route `/withdraw/[id]`)
+drives these routes. Wrappers live in `src/lib/api/adminModulesApi.ts`.
+
+- **GET** `/admin/wallets/:userId`
+- **Response (mock):** `{ wallet, recentTransactions }`
+- **Wrapper:** `getWalletDetail`
+- **UI:** `UserWalletPanel` (toggled by the "Adjust Wallet" button)
+
+- **PUT** `/admin/wallets/:userId/freeze`
+- **PUT** `/admin/wallets/:userId/unfreeze`
+- **Wrappers:** `putWalletFreeze` / `putWalletUnfreeze` (driven by the freeze `Switch` in `UserWalletPanel`)
+
+- **POST** `/admin/wallets/:userId/adjust`
+- **Body:** `{ type: "credit" | "debit"; amount: number; currency; reason: string; adminId: string }`
+- **Wrapper:** `postWalletAdjust`
+- **Behavior (mock):** a `credit` of `cashback` currency does **not** credit the balance immediately — it files a **pending** "Extra cashback" conversion; other adjustments apply to the balance directly.
+
+- **POST** `/admin/wallets/cashback-request/:conversionId`
+- **Body:** `{ action: "approve" | "reject"; reason? }`
+- **Wrapper:** `resolveCashbackRequest(conversionId, action, reason?)`
+- **UI:** `CashbackApprovalNotice` ("Cashback approval needed") with inline Approve / Reject; the cashback balance is credited only on **approve**, and the optional `reason` is recorded on **reject**.

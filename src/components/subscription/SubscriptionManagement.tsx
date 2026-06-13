@@ -13,6 +13,7 @@ import type { Subscription, SubscriptionPlan } from "@/types/adminModules";
 import { formatDate } from "@/lib/dateFormat";
 import { planCycle, CYCLE_LABEL, CYCLE_BADGE } from "@/lib/subscriptionCycle";
 import { STATUS_BADGE_BASE } from "@/lib/statusBadge";
+import { isDirty } from "@/lib/isDirty";
 import Button from "@/components/ui/button/Button";
 import PrimaryButton from "@/components/ui/button/PrimaryButton";
 import { Modal } from "@/components/ui/modal";
@@ -54,7 +55,9 @@ export default function SubscriptionManagement() {
     }, 400);
     return () => clearTimeout(t);
   }, [search]);
-  const [planModal, setPlanModal] = useState<false | "create" | SubscriptionPlan>(false);
+  const [planModal, setPlanModal] = useState<
+    false | "create" | SubscriptionPlan
+  >(false);
   const [draft, setDraft] = useState<Partial<SubscriptionPlan>>({
     name: "",
     billingCycle: "monthly",
@@ -65,9 +68,22 @@ export default function SubscriptionManagement() {
     status: "draft",
     subscriberCount: 0,
   });
+  // Baseline snapshot of the draft when the modal opens; drives "disable Save
+  // until the form has unsaved changes". Captured alongside every setDraft that
+  // opens the modal (create defaults / loaded plan) so it reflects the real
+  // starting values.
+  const [initialDraft, setInitialDraft] = useState<Partial<SubscriptionPlan>>(
+    {},
+  );
 
-  const statsQ = useQuery({ queryKey: ["admin", "subscription", "stats"], queryFn: getSubscriptionStats });
-  const plansQ = useQuery({ queryKey: ["admin", "subscription", "plans"], queryFn: getSubscriptionPlans });
+  const statsQ = useQuery({
+    queryKey: ["admin", "subscription", "stats"],
+    queryFn: getSubscriptionStats,
+  });
+  const plansQ = useQuery({
+    queryKey: ["admin", "subscription", "plans"],
+    queryFn: getSubscriptionPlans,
+  });
   const subsQ = useQuery({
     queryKey: [
       "admin",
@@ -98,7 +114,12 @@ export default function SubscriptionManagement() {
   const savePlan = useMutation({
     mutationFn: async () => {
       const body: SubscriptionPlan = {
-        id: typeof planModal === "object" && planModal !== null && "id" in planModal ? planModal.id : `plan_${Date.now()}`,
+        id:
+          typeof planModal === "object" &&
+          planModal !== null &&
+          "id" in planModal
+            ? planModal.id
+            : `plan_${Date.now()}`,
         name: draft.name || "Untitled",
         billingCycle: draft.billingCycle ?? "monthly",
         price: Number(draft.price ?? 0),
@@ -116,7 +137,9 @@ export default function SubscriptionManagement() {
     },
     onSuccess: () => {
       toast.success("Plan saved");
-      void qc.invalidateQueries({ queryKey: ["admin", "subscription", "plans"] });
+      void qc.invalidateQueries({
+        queryKey: ["admin", "subscription", "plans"],
+      });
       setPlanModal(false);
     },
     onError: () => toast.error("Failed"),
@@ -126,7 +149,9 @@ export default function SubscriptionManagement() {
     mutationFn: deleteSubscriptionPlan,
     onSuccess: () => {
       toast.success("Deleted");
-      void qc.invalidateQueries({ queryKey: ["admin", "subscription", "plans"] });
+      void qc.invalidateQueries({
+        queryKey: ["admin", "subscription", "plans"],
+      });
     },
   });
 
@@ -151,17 +176,30 @@ export default function SubscriptionManagement() {
       {statsQ.data && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { label: "Volume today", value: statsQ.data.totalVolumeToday.toLocaleString() },
-            { label: "Volume MTD", value: statsQ.data.totalVolumeMtd.toLocaleString() },
-            { label: "Avg ticket", value: statsQ.data.avgTransactionValue.toLocaleString() },
+            {
+              label: "Volume today",
+              value: statsQ.data.totalVolumeToday.toLocaleString(),
+            },
+            {
+              label: "Volume MTD",
+              value: statsQ.data.totalVolumeMtd.toLocaleString(),
+            },
+            {
+              label: "Avg ticket",
+              value: statsQ.data.avgTransactionValue.toLocaleString(),
+            },
             { label: "Flagged tx", value: String(statsQ.data.flaggedCount) },
           ].map((c) => (
             <div
               key={c.label}
               className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]"
             >
-              <p className="text-sm text-gray-500 dark:text-gray-400">{c.label}</p>
-              <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{c.value}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {c.label}
+              </p>
+              <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">
+                {c.value}
+              </p>
             </div>
           ))}
         </div>
@@ -169,11 +207,13 @@ export default function SubscriptionManagement() {
 
       <section>
         <div className="mb-4 flex justify-between gap-3">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Plans</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Plans
+          </h2>
           <PrimaryButton
             variant="blue"
             onClick={() => {
-              setDraft({
+              const seed: Partial<SubscriptionPlan> = {
                 name: "",
                 billingCycle: "monthly",
                 price: 149,
@@ -182,7 +222,9 @@ export default function SubscriptionManagement() {
                 features: { cashback: true, quests: true, premiumOffers: true },
                 status: "draft",
                 subscriberCount: 0,
-              });
+              };
+              setDraft(seed);
+              setInitialDraft(seed);
               setPlanModal("create");
             }}
           >
@@ -196,6 +238,7 @@ export default function SubscriptionManagement() {
               plan={p}
               onEdit={(plan) => {
                 setDraft(plan);
+                setInitialDraft(plan);
                 setPlanModal(plan);
               }}
               onDelete={(plan) => {
@@ -206,7 +249,7 @@ export default function SubscriptionManagement() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03] sm:p-6">
+      <section className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-6 dark:border-gray-800 dark:bg-white/[0.03]">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex shrink-0 items-baseline gap-2">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -274,7 +317,9 @@ export default function SubscriptionManagement() {
         ) : subsQ.isError ? (
           <p className="mt-4 text-sm text-red-600">Failed to load.</p>
         ) : !subsQ.data?.data.length ? (
-          <p className="mt-6 text-center text-sm text-gray-500">No subscriptions.</p>
+          <p className="mt-6 text-center text-sm text-gray-500">
+            No subscriptions.
+          </p>
         ) : (
           <>
             <div className="mt-4 overflow-x-auto">
@@ -362,15 +407,29 @@ export default function SubscriptionManagement() {
         )}
       </section>
 
-      <Modal isOpen={Boolean(planModal)} onClose={() => setPlanModal(false)} className="max-w-lg p-6">
-        <h4 className="mb-4 font-semibold text-gray-900 dark:text-white">Plan</h4>
+      <Modal
+        isOpen={Boolean(planModal)}
+        onClose={() => setPlanModal(false)}
+        className="max-w-lg p-6"
+      >
+        <h4 className="mb-4 font-semibold text-gray-900 dark:text-white">
+          Plan
+        </h4>
         <div className="space-y-3">
-          <Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="Name" />
+          <Input
+            value={draft.name}
+            onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+            placeholder="Name"
+          />
           <select
             className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white"
             value={draft.billingCycle}
             onChange={(e) =>
-              setDraft({ ...draft, billingCycle: e.target.value as SubscriptionPlan["billingCycle"] })
+              setDraft({
+                ...draft,
+                billingCycle: e.target
+                  .value as SubscriptionPlan["billingCycle"],
+              })
             }
           >
             <option value="monthly">monthly</option>
@@ -380,34 +439,54 @@ export default function SubscriptionManagement() {
           <Input
             type="number"
             value={String(draft.price ?? 0)}
-            onChange={(e) => setDraft({ ...draft, price: Number(e.target.value) })}
+            onChange={(e) =>
+              setDraft({ ...draft, price: Number(e.target.value) })
+            }
           />
           <div className="grid grid-cols-2 gap-2">
             <Input
               type="number"
               value={String(draft.trialDays ?? 0)}
-              onChange={(e) => setDraft({ ...draft, trialDays: Number(e.target.value) })}
+              onChange={(e) =>
+                setDraft({ ...draft, trialDays: Number(e.target.value) })
+              }
               placeholder="Trial days"
             />
             <Input
               type="number"
               value={String(draft.gracePeriodDays ?? 0)}
-              onChange={(e) => setDraft({ ...draft, gracePeriodDays: Number(e.target.value) })}
+              onChange={(e) =>
+                setDraft({ ...draft, gracePeriodDays: Number(e.target.value) })
+              }
               placeholder="Grace days"
             />
           </div>
           <select
             className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white"
             value={draft.status}
-            onChange={(e) => setDraft({ ...draft, status: e.target.value as SubscriptionPlan["status"] })}
+            onChange={(e) =>
+              setDraft({
+                ...draft,
+                status: e.target.value as SubscriptionPlan["status"],
+              })
+            }
           >
             <option value="draft">draft</option>
             <option value="active">active</option>
             <option value="archived">archived</option>
           </select>
           <div className="flex gap-2">
-            <Button onClick={() => void savePlan.mutateAsync()}>Save</Button>
-            <Button variant="outline" onClick={() => void savePlan.mutateAsync()}>
+            <Button
+              disabled={savePlan.isPending || !isDirty(draft, initialDraft)}
+              onClick={() => void savePlan.mutateAsync()}
+            >
+              Save
+            </Button>
+            <Button
+              variant="outline"
+              disabled={savePlan.isPending || !isDirty(draft, initialDraft)}
+              onClick={() => void savePlan.mutateAsync()}
+            >
               Publish
             </Button>
           </div>

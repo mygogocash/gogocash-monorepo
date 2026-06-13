@@ -96,3 +96,49 @@ describe("update-offer numeric guard", () => {
     expect(body.commission_store).toBe(7);
   });
 });
+
+describe("update-offer lookup slug", () => {
+  it("persists an edited lookup_value (trimmed)", async () => {
+    await call("PATCH", ["admin", "update-offer", "o1"], {
+      body: { lookup_value: "  custom_slug_th  " },
+    });
+    const res = await call("GET", ["offer", "o1"]);
+    const body = res.body as { lookup_value?: string };
+    expect(body.lookup_value).toBe("custom_slug_th");
+  });
+});
+
+describe("update-offer product types — pay-in", () => {
+  it("persists pay_in, amount, and currency for a cash product line", async () => {
+    await call("PATCH", ["admin", "update-offer", "o1"], {
+      body: {
+        product_types: JSON.stringify([
+          { name: "Gift card", pay_in: "cash", amount: 50, currency: "USD" },
+        ]),
+      },
+    });
+    const res = await call("GET", ["offer", "o1"]);
+    const body = res.body as {
+      product_types?: Array<Record<string, unknown>>;
+    };
+    const row = body.product_types?.[0];
+    expect(row?.pay_in).toBe("cash");
+    expect(row?.amount).toBe(50);
+    expect(row?.currency).toBe("USD");
+  });
+
+  it("defaults pay_in to 'cashback' when omitted", async () => {
+    await call("PATCH", ["admin", "update-offer", "o1"], {
+      body: {
+        product_types: JSON.stringify([
+          { name: "Electronics", commission_info: "7" },
+        ]),
+      },
+    });
+    const res = await call("GET", ["offer", "o1"]);
+    const body = res.body as {
+      product_types?: Array<Record<string, unknown>>;
+    };
+    expect(body.product_types?.[0]?.pay_in).toBe("cashback");
+  });
+});

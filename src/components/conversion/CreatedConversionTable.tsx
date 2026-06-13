@@ -17,6 +17,7 @@ import Input from "@/components/form/input/InputField";
 import Button from "@/components/ui/button/Button";
 import { devError } from "@/lib/devConsole";
 import { validateOptionalAmount } from "@/lib/formValidation";
+import { isDirty } from "@/lib/isDirty";
 
 const STATUS_OPTIONS = [
   { value: "pending", label: "Pending" },
@@ -41,13 +42,15 @@ export default function CreatedConversionTable() {
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
   const actionsDropdownRef = useRef<HTMLDivElement>(null);
   const [updateModal, setUpdateModal] = useState<DataConversion | null>(null);
-  const [editForm, setEditForm] = useState({
+  const EMPTY_EDIT_FORM = {
     conversion_status: "",
     sale_amount: "",
     payout: "",
     adv_sub2: "",
     remark: "",
-  });
+  };
+  const [editForm, setEditForm] = useState(EMPTY_EDIT_FORM);
+  const [initialEditForm, setInitialEditForm] = useState(EMPTY_EDIT_FORM);
   const [saving, setSaving] = useState(false);
 
   const fetchList = async (page = 1) => {
@@ -93,13 +96,15 @@ export default function CreatedConversionTable() {
 
   const openUpdateModal = (row: DataConversion) => {
     setUpdateModal(row);
-    setEditForm({
+    const loaded = {
       conversion_status: row.conversion_status ?? "pending",
       sale_amount: row.sale_amount ?? "",
       payout: row.payout ?? "",
       adv_sub2: row.adv_sub2 ?? "",
       remark: (row as DataConversion & { remark?: string }).remark ?? "",
-    });
+    };
+    setEditForm(loaded);
+    setInitialEditForm(loaded);
   };
 
   const handleSaveUpdate = async () => {
@@ -396,7 +401,11 @@ export default function CreatedConversionTable() {
             >
               Cancel
             </Button>
-            <Button size="sm" onClick={handleSaveUpdate} disabled={saving}>
+            <Button
+              size="sm"
+              onClick={handleSaveUpdate}
+              disabled={saving || !isDirty(editForm, initialEditForm)}
+            >
               {saving ? "Saving…" : "Save"}
             </Button>
           </div>

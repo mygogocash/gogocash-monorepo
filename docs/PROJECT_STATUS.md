@@ -2,7 +2,7 @@
 
 Snapshot of where the codebase is so a new contributor (human or AI) can continue with context. Pair this with [`AGENTS.md`](../AGENTS.md) (conventions), [`docs/DESIGN_SYSTEM.md`](./DESIGN_SYSTEM.md) (UI), and [`docs/RBAC.md`](./RBAC.md) (access control).
 
-_Last updated: 2026-06-03 (branch `staging`)._
+_Last updated: 2026-06-07 (branch `staging`)._
 
 ---
 
@@ -38,6 +38,20 @@ Internal **Next.js 16 (App Router)** admin dashboard for GoGoCash — users, off
 - **Server write enforcement:** every non-GET mock route is gated by `requiredWritePermission()` in `mockApiCore.ts` (fail-closed for unmapped `admin/*` writes). See `docs/RBAC.md`.
 - Sidebar reorg: **Admin Management** section (Users Admin + Roles) separate from **Users Management**.
 
+### Cashback approval workflow (new)
+
+- **Cashback Wallet** section on the user detail page (`/withdraw/:id`, Conversions tab). **Adjust Wallet** opens an inline panel (`src/components/wallet/UserWalletPanel.tsx`): freeze/unfreeze plus an "add extra cashback" form. Adding does **not** credit immediately — it files a _pending_ "Extra cashback" conversion.
+- Inline **Cashback approval needed** notice (`src/components/wallet/CashbackApprovalNotice.tsx`) lists pending requests with Approve / Reject (no centered modal). Approve credits the wallet cashback balance + marks the request approved; Reject expands the row for an optional rejection reason and records it with no credit.
+- Pure libs (unit-tested): `src/lib/cashbackRequests.ts`, `src/lib/walletAdjustment.ts`, `src/lib/cashbackTotals.ts`; conversion money columns (GGC/User earning) via `src/lib/conversionFormat.ts`.
+- Mock backend: `addManualCashbackConversion()` / `setManualCashbackStatus()` in `src/app/api/mock/data.ts`; wallet routes (`admin/wallets/:uid/adjust|freeze|unfreeze`, `admin/wallets/cashback-request/:id`) in `src/lib/mockAdminFeatures.ts`, all gated by `users:manage` via `requiredWritePermission()`.
+
+### Offers/Brands editor & policy (this session)
+
+- **Standalone `/wallet` page removed** — route, sidebar nav, users tab entry, RBAC prefix, the `getWallets` API, and `WalletManagement` component are gone. Per-user wallet adjustment/cashback routes (`admin/wallets/*` in `mockAdminFeatures.ts`) stay — they back the cashback workflow above.
+- **Brands list** (`src/components/offer/OffersTable.tsx`): compact inline filter bar (shared `SearchBar` + `SortByDropdown`, country filter + flat/grouped "View" toggle), `NoData` empty state, a single "New Brand" actions dropdown, and a "Total: N brands" title styled like the GoGoCash Users table. The country filter is now actually applied in the mock — `COUNTRY_FILTER_TO_CODES` (`src/data/mockPendingOffers.ts`) maps dropdown labels to ISO codes filtered in `mockApiCore.ts` (`offer/admin`). The editor opens inline under the app layout, not as a fullscreen modal.
+- **Offer editor** (`src/components/offer/FormOffer.tsx`): commission entry has a "Manual / Auto apply 30% fee" toggle (Auto: raw × 0.7 = saved net; `src/lib/commissionFee.ts`, unit-tested). The two logo uploads were merged into one 1:1 "Logo" (desktop + mobile) plus a "Brand cover"; a "Cashback Management" section groups commission/product-type/max-cap; top-level sections are divider-separated.
+- **Policy / T&Cs:** one editable T&C field (`Offer.custom_terms`) with a "Terms template" source select (custom / automatic / a category) seeding a per-category sample, a "Back to default" button, a read-only preview, a per-section Edit → Cancel/Save doing an **independent partial PATCH** of `policy_category_id` + `custom_terms` + `note_to_user`, and an "Add note to users" toggle (`Offer.note_to_user`). Resolution + sample terms live in `src/lib/offerPolicyTerms.ts` (`OFFER_MOCK_TERMS`, `CATEGORY_MOCK_TERMS`, `resolveOfferPolicyBaseTerms`), unit-tested; `admin/update-offer` in `mockApiCore.ts` merges those fields per-field.
+
 ### Dashboard insights
 
 - Range control with presets (7d/30d/90d/All) + auto-filled From/To inputs (`DashboardInsightRangeControl`), Executive Summary, analytics, and `StatisticsChart` (Clicks/Conversions/Sale/Earnings).
@@ -54,7 +68,7 @@ Internal **Next.js 16 (App Router)** admin dashboard for GoGoCash — users, off
 ## 4. Tests & quality gates
 
 ```bash
-npm test          # vitest — 121 tests across 16 files (all green)
+npm test          # vitest — 292 tests across 38 files (all green)
 npx tsc --noEmit  # type check (clean)
 npm run lint      # eslint (clean; 1 pre-existing warning in OffersTable)
 npx prettier --check .
@@ -69,6 +83,7 @@ Notable suites: `src/lib/rbac/*.test.ts` (permission matrix, role store, **serve
 - **Mock state resets** on server restart/recompile (in-memory). A real backend must persist roles, offers, conversions, etc.
 - **Edge proxy enforces built-in tiers only** — custom roles can't be resolved at the edge (no runtime store there), so they're gated client-side + at the API. This is intentional; documented in `src/proxy.ts`.
 - **New `admin/*` mock write routes fail closed** — if a new admin mutation 403s for admin/editor, map it in `requiredWritePermission()` (`mockApiCore.ts`). See the project memory note `mock-api-write-gate`.
+- **Cashback approval UI is not role-gated** — the `admin/wallets/*` write routes are API-gated (`users:manage`), but the approval notice + Adjust Wallet panel render for every admin with no `<Can>` / permission guard. Gate the UI behind `super_admin` once that's decided.
 - **Next 16 specifics:** middleware is `src/proxy.ts`; `params`/`searchParams` are async; `dynamic` must be a static string literal.
 - **ApexCharts:** `postinstall` patches stacked-bar radius; re-run after upgrading and don't set `plotOptions` to `undefined` when toggling chart type.
 

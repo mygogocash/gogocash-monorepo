@@ -11,7 +11,6 @@ export const USERS_MANAGEMENT_NAV = [
   { label: "Subscription", href: "/subscription" },
   { label: "Credit score", href: "/credit-score" },
   { label: "Referral", href: "/referral" },
-  { label: "Wallet", href: "/wallet" },
 ] as const;
 
 function isTabActive(pathname: string, href: string): boolean {

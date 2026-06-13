@@ -217,6 +217,12 @@ const offerTemplates = [
       expire_in_days_enabled: true,
       expire_in_days: 14,
     },
+    // Demo: an upsize event live this month so the Brands table "Upsize" tag shows.
+    upsize_start_date: "2026-06-01",
+    upsize_end_date: "2026-06-30",
+    upsize_special_commission: 12,
+    upsize_max_cap: 1000,
+    upsize_all_product_types: true,
   },
   {
     categories: "Fashion",
@@ -353,7 +359,12 @@ export const mockWithdraws = Array.from({ length: 550 }, (_, i) => {
   const percentFee = 5;
   const amountNet =
     Math.round(amountTotal * (1 - percentFee / 100) * 100) / 100;
-  const status = statuses[i % 4] as "approved" | "pending" | "rejected";
+  // i === 0 is u1's demo crypto withdrawal ("w1"); keep it pending so u1's
+  // Total Withdrawn reflects only the approved THB bank withdrawal below.
+  const status = (i === 0 ? "pending" : statuses[i % 4]) as
+    | "approved"
+    | "pending"
+    | "rejected";
   const method = i % 5 === 0 ? "crypto" : "bank_transfer";
   const currency = i % 3 === 0 ? "USD" : "THB";
   const dt = i % 3 === 0 ? lastWeek : i % 3 === 1 ? yesterday : now;
@@ -394,9 +405,9 @@ export const mockWithdraws = Array.from({ length: 550 }, (_, i) => {
     account_number: "012-3-45678-9",
     account_name: "Alice Smith",
     bank_name: "Kasikorn Bank",
-    amount_total: 2000,
-    amount_net: 1900,
-    percent_fee: 5,
+    amount_total: 2500,
+    amount_net: 2300,
+    percent_fee: 8,
     status: "approved",
     method: "bank_transfer",
     tx_hash: "BANKREF-2026-000128",

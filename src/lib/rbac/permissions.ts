@@ -59,7 +59,6 @@ const ROUTE_VIEW_PERMISSION: { prefix: string; permission: Permission }[] = [
   { prefix: "/subscription", permission: "users:view" },
   { prefix: "/credit-score", permission: "users:view" },
   { prefix: "/referral", permission: "users:view" },
-  { prefix: "/wallet", permission: "users:view" },
   { prefix: "/brands", permission: "brands:view" },
   { prefix: "/missing-orders", permission: "brands:view" },
   { prefix: "/search-config", permission: "brands:view" },

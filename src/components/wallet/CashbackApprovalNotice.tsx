@@ -1,6 +1,5 @@
 import { useState } from "react";
 import SecondaryButton from "@/components/ui/button/SecondaryButton";
-import { Modal } from "@/components/ui/modal";
 import type { CashbackRequestRow } from "@/lib/cashbackRequests";
 
 export interface CashbackApprovalNoticeProps {
@@ -16,9 +15,9 @@ export interface CashbackApprovalNoticeProps {
 /**
  * Inline "super-admin must respond" notice shown in the Cashback Wallet section
  * whenever an admin has filed pending "Extra cashback" requests. Approve credits
- * the wallet immediately; Reject opens a confirmation pop-up where the super
- * admin can add an optional rejection note before confirming. No credit on
- * reject. It stays easily noticed without a modal that has to be dismissed.
+ * the wallet immediately; Reject expands the request row in place with an
+ * optional rejection-note field and Cancel / Confirm — no separate pop-up, and
+ * no credit on reject. It stays easily noticed without a modal to dismiss.
  */
 export default function CashbackApprovalNotice({
   requests,
@@ -41,8 +40,6 @@ export default function CashbackApprovalNotice({
   };
 
   if (requests.length === 0) return null;
-
-  const rejecting = requests.find((r) => r.conversion_id === rejectId);
 
   return (
     <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-500/30 dark:bg-amber-500/10">
@@ -71,71 +68,70 @@ export default function CashbackApprovalNotice({
         wallet, or reject to dismiss the request.
       </p>
       <ul className="space-y-2">
-        {requests.map((request) => (
-          <li
-            key={request.conversion_id}
-            className="rounded-lg border border-amber-200 bg-white p-3 dark:border-amber-500/20 dark:bg-gray-900/40"
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-base font-semibold text-gray-900 dark:text-white">
-                  {Number(request.payout ?? 0).toFixed(2)} THB
-                </p>
-                <p className="truncate text-xs text-gray-500 dark:text-gray-400">
-                  {request.affiliate_remarks || "No reason provided"}
-                </p>
+        {requests.map((request) => {
+          const isRejecting = rejectId === request.conversion_id;
+          return (
+            <li
+              key={request.conversion_id}
+              className="rounded-lg border border-amber-200 bg-white p-3 dark:border-amber-500/20 dark:bg-gray-900/40"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-base font-semibold text-gray-900 dark:text-white">
+                    {Number(request.payout ?? 0).toFixed(2)} THB
+                  </p>
+                  <p className="truncate text-xs text-gray-500 dark:text-gray-400">
+                    {request.affiliate_remarks || "No reason provided"}
+                  </p>
+                </div>
+                {!isRejecting && (
+                  <div className="flex shrink-0 gap-2">
+                    <SecondaryButton
+                      disabled={resolvingId !== null}
+                      onClick={() => setRejectId(request.conversion_id)}
+                    >
+                      Reject
+                    </SecondaryButton>
+                    <SecondaryButton
+                      variant="blue"
+                      disabled={resolvingId !== null}
+                      onClick={() =>
+                        onResolve(request.conversion_id, "approve")
+                      }
+                    >
+                      Approve
+                    </SecondaryButton>
+                  </div>
+                )}
               </div>
-              <div className="flex shrink-0 gap-2">
-                <SecondaryButton
-                  disabled={resolvingId !== null}
-                  onClick={() => setRejectId(request.conversion_id)}
-                >
-                  Reject
-                </SecondaryButton>
-                <SecondaryButton
-                  variant="blue"
-                  disabled={resolvingId !== null}
-                  onClick={() => onResolve(request.conversion_id, "approve")}
-                >
-                  Approve
-                </SecondaryButton>
-              </div>
-            </div>
-          </li>
-        ))}
-      </ul>
 
-      <Modal
-        isOpen={rejectId !== null}
-        onClose={closeReject}
-        className="!max-w-md p-6"
-      >
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-          Reject cashback request
-        </h3>
-        <p className="mt-1 mb-3 text-sm text-gray-500 dark:text-gray-400">
-          {rejecting
-            ? `Reject the ${Number(rejecting.payout ?? 0).toFixed(2)} THB request? Add an optional note explaining why — no cashback will be credited.`
-            : "Add an optional note explaining why — no cashback will be credited."}
-        </p>
-        <textarea
-          className="focus:border-brand-300 focus:ring-brand-500/10 min-h-20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:ring-3 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-          rows={3}
-          placeholder="Rejection reason (optional)"
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-        />
-        <div className="mt-4 flex justify-end gap-2">
-          <SecondaryButton onClick={closeReject}>Cancel</SecondaryButton>
-          <SecondaryButton
-            variant="blue"
-            disabled={resolvingId !== null}
-            onClick={confirmReject}
-          >
-            Confirm
-          </SecondaryButton>
-        </div>
-      </Modal>
+              {isRejecting && (
+                <div className="mt-3 flex items-center gap-10">
+                  <input
+                    type="text"
+                    className="focus:border-brand-300 focus:ring-brand-500/10 h-9 min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-800 focus:ring-3 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                    placeholder="Rejection reason (optional)"
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                  />
+                  <div className="flex shrink-0 gap-2">
+                    <SecondaryButton onClick={closeReject}>
+                      Cancel
+                    </SecondaryButton>
+                    <SecondaryButton
+                      variant="blue"
+                      disabled={resolvingId !== null}
+                      onClick={confirmReject}
+                    >
+                      Confirm
+                    </SecondaryButton>
+                  </div>
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
