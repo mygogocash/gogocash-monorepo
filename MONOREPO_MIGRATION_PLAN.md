@@ -1,5 +1,9 @@
 # GoGoCash Monorepo Migration Plan
 
+> **UPDATE 2026-06-14 — supersedes parts of this doc:** The monorepo is **3 apps**
+> (`admin`, `api`, `app`). **Landing was removed** and stays in its own repo
+> (`mygogocash/gogocash-landing-page`). Ignore the `apps/landing` references below.
+
 > Status: PLAN (not started). Staging-only throughout; **prod cutover requires explicit approval**.
 > Decisions locked 2026-06-13.
 

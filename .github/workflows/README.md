@@ -1,9 +1,9 @@
 # GitHub Actions — monorepo CI
 
 GitHub only reads workflows from this directory (`.github/workflows/` at the
-repo root). The CI/deploy files still nested under `apps/api/.github/` and
-`apps/landing/.github/` are **inert** — GitHub never runs them. This root
-workflow set replaces them for build/test.
+repo root). The CI/deploy files still nested under `apps/api/.github/` are
+**inert** — GitHub never runs them. This root workflow set replaces them for
+build/test. (The landing site is a separate repo, not in this monorepo.)
 
 ## What runs
 
@@ -20,9 +20,8 @@ Every job uses `actions/setup-node@v4` on **Node 22** and installs with a bare
 
 | App | Workspace / package | Jobs | Gate |
 |-----|---------------------|------|------|
-| admin | `gogocash-admin` | lint → test → build | required |
-| landing | `gogocash-landing` | lint → test → typecheck → build | required |
-| app (mobile) | `@gogocash/mobile` | typecheck → test → test:render | required |
+| admin | `gogocash-admin` | lint/test (informational) → build | build is the gate |
+| app (mobile) | `@gogocash/mobile` | typecheck/test (informational) → web export | web export is the gate |
 | api | `gogocash-api` | lint, unit tests | **informational** (`continue-on-error`) |
 | api | `gogocash-api` | **build + boot smoke** | **required** |
 
@@ -54,8 +53,8 @@ In Settings → Branches, add rules for `staging` and `main`:
 There is **no auto-deploy in this repo**. This CI builds and tests only —
 nothing here ships to staging or production.
 
-The per-app `deploy-*.yml` files under `apps/api/.github/` and
-`apps/landing/.github/` were **not** ported to root. They were push-triggered
+The per-app `deploy-*.yml` files under `apps/api/.github/` were **not** ported
+to root. They were push-triggered
 (`on: push` to `staging` / `production` → Cloud Run / Firebase Hosting), and
 porting them as-is would auto-deploy from this branch. That is intentionally
 avoided.

@@ -1,5 +1,9 @@
 # GoGoCash Monorepo — Detailed Execution Plan (sub-agent work packets)
 
+> **UPDATE 2026-06-14:** Monorepo is **3 apps** (`admin`, `api`, `app`). **Landing was
+> removed** — it stays in its own repo (`mygogocash/gogocash-landing-page`). Ignore
+> `apps/landing` task packets below.
+
 > Companion to `MONOREPO_MIGRATION_PLAN.md` (the high-level decisions). This doc breaks the work
 > into **self-contained tasks** a sub-agent can execute from the packet alone, each with **testable
 > acceptance criteria** and explicit dependencies, so you can fan multiple agents across independent tasks.

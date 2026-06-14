@@ -8,7 +8,8 @@ GoGoCash monorepo — npm workspaces + Turborepo. Node 22.
 | `apps/admin` | Admin panel | Next.js | web | `gogocash_admin` (`staging`) |
 | `apps/api` | Backend API | NestJS | — | `gogocash_api` (`staging`) |
 | `apps/app` | Customer app | Expo | web · iOS · Android | `gogocash_app/apps/mobile` (`expo-module`) |
-| `apps/landing` | Marketing site | Next.js | web (SEO) | `gogocash-landing-page` (`main`) |
+
+> The marketing/landing site stays in its **own repo** (`mygogocash/gogocash-landing-page`) — not part of this monorepo.
 
 ## Packages (planned)
 - `packages/contracts` — shared API DTO/response types
