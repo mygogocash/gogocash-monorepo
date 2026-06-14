@@ -151,6 +151,18 @@ describe('InvolveService', () => {
       ).rejects.toThrow('User not found');
     });
 
+    // A malformed (non-24-hex) id must take the not-found path, not throw a raw
+    // BSON cast error — new Types.ObjectId(id) was constructed before the lookup.
+    it('createAffiliate > given a malformed (non-24-hex) id > then throws User not found, not a BSON cast error', async () => {
+      await expect(
+        service.createAffiliate(
+          { offer_id: 1, merchant_id: 2, deeplink: '' } as never,
+          'not-a-valid-object-id',
+        ),
+      ).rejects.toThrow('User not found');
+      expect(userModel.findOne).not.toHaveBeenCalled();
+    });
+
     // An already-generated deeplink must NOT trigger another Involve API call;
     // it should only append a fresh click timestamp (idempotent re-click).
     it('createAffiliate > given an existing deeplink > then appends a click_date and never calls Involve', async () => {
@@ -350,6 +362,19 @@ describe('InvolveService', () => {
       ).rejects.toThrow('User not found');
     });
 
+    // A malformed (non-24-hex) id must take the not-found path, not throw a raw
+    // BSON cast error — new Types.ObjectId(id) was constructed before the lookup.
+    it('getConversion > given a malformed (non-24-hex) id > then throws User not found, not a BSON cast error', async () => {
+      await expect(
+        service.getConversion(
+          '100',
+          { page: 1, limit: 10 } as never,
+          'not-a-valid-object-id',
+        ),
+      ).rejects.toThrow('User not found');
+      expect(userModel.findOne).not.toHaveBeenCalled();
+    });
+
     // Involve returns conversions for ALL affiliates on an offer; the service
     // must return only rows whose aff_sub1 belongs to THIS user, and recount.
     it('getConversion > given mixed-affiliate rows > then keeps only this user and rewrites count', async () => {
@@ -392,6 +417,18 @@ describe('InvolveService', () => {
           new Types.ObjectId().toString(),
         ),
       ).rejects.toThrow('User not found');
+    });
+
+    // A malformed (non-24-hex) id must take the not-found path, not throw a raw
+    // BSON cast error — new Types.ObjectId(id) was constructed before the lookup.
+    it('getConversationAllPage > given a malformed (non-24-hex) id > then throws User not found, not a BSON cast error', async () => {
+      await expect(
+        service.getConversationAllPage(
+          { page: 1, limit: 10 } as never,
+          'not-a-valid-object-id',
+        ),
+      ).rejects.toThrow('User not found');
+      expect(userModel.findOne).not.toHaveBeenCalled();
     });
 
     // Without a fee-rate config the payout cap is undefined; the service must
