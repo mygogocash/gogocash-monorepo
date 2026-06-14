@@ -1561,6 +1561,40 @@ export class WithdrawService {
 
     return receipt.hash;
   }
+  /**
+   * Server-side balance gate shared by the on-chain `create` and `bank-transfer`
+   * withdraw paths (V-2). Re-derives the user's available balance via
+   * {@link checkWithdraw} — which already reconciles pending/approved/paid
+   * withdrawals — and refuses any request above it, so a client-supplied
+   * `amount_net` can never forge a payout larger than the funds actually owed.
+   * Currency-aware: THB compares against the THB payout, all $-pegged tokens
+   * (USD/USDT/USDC) against the USD payout. The 1e-6 epsilon absorbs float dust.
+   */
+  private async assertWithinBalance(
+    userId: string,
+    amount: number | undefined,
+    currency: string | undefined,
+  ): Promise<void> {
+    const balance = await this.checkWithdraw(userId);
+    const available =
+      currency === 'THB'
+        ? Number(balance?.netAmountTHB ?? 0)
+        : Number(balance?.netAmount ?? 0);
+    const requested = Number(amount ?? 0);
+    if (
+      !Number.isFinite(requested) ||
+      requested <= 0 ||
+      requested > available + 1e-6
+    ) {
+      throw new HttpException(
+        {
+          message: `Requested amount exceeds available balance (${available.toFixed(2)} ${currency === 'THB' ? 'THB' : 'USD'})`,
+        },
+        400,
+      );
+    }
+  }
+
   async create(createWithdrawDto: CreateWithdrawDto, id: string) {
     const user = await this.userModel.findOne({
       _id: new Types.ObjectId(id),
@@ -1568,6 +1602,13 @@ export class WithdrawService {
     if (!user) {
       throw new UnauthorizedException({ message: 'User not found' });
     }
+    // V-2: hard server-side balance gate BEFORE any on-chain call or DB write.
+    // The client's amount_net is never trusted as the payout ceiling.
+    await this.assertWithinBalance(
+      id,
+      createWithdrawDto.amount_net,
+      createWithdrawDto.currency,
+    );
     //TODO create record shop on contract
     const hash_record = await this.createRecordOnChain(
       user._id.toString(),
@@ -1850,6 +1891,13 @@ export class WithdrawService {
         400,
       );
     }
+    // V-2: hard server-side balance gate before persisting the bank-transfer
+    // request — the admin-paid settlement flow treats this record as owed funds.
+    await this.assertWithinBalance(
+      id,
+      createWithdrawDto.amount_net,
+      createWithdrawDto.currency,
+    );
     // if (conversionIdsWithdrawed.length > 0) {
     //   throw new HttpException(
     //     {

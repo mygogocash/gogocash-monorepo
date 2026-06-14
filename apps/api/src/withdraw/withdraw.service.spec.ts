@@ -241,6 +241,84 @@ describe('WithdrawService', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // create / createBankTransfer — server-side balance gate (V-2).
+  //
+  // Both endpoints persisted `amount_net` straight from the client with NO
+  // balance check (the manual path above is the reference gate). A user could
+  // request a payout larger than their reconciled balance, forging a withdrawal
+  // record that the admin-paid bank-transfer/manual flows treat as owed funds.
+  // The gate re-derives the available balance server-side via checkWithdraw
+  // (currency-aware: THB -> netAmountTHB, USD/USDT/USDC -> netAmount) and
+  // refuses anything above it, before any on-chain call or DB write.
+  // ---------------------------------------------------------------------------
+  describe('create / createBankTransfer balance gate (V-2)', () => {
+    it('create > given requested amount exceeds available USD balance > then rejects with HTTP 400, no on-chain call, no record', async () => {
+      mocks.userModel.findOne.mockResolvedValue({
+        _id: new Types.ObjectId(VALID_USER_ID),
+      });
+      jest
+        .spyOn(mocks.service, 'checkWithdraw')
+        .mockResolvedValue({ netAmount: 10, netAmountTHB: 300 } as never);
+      const onChain = jest
+        .spyOn(mocks.service, 'createRecordOnChain')
+        .mockResolvedValue('0xrecord' as never);
+
+      await expect(
+        mocks.service.create(
+          { amount_net: 100, currency: 'USD' } as never,
+          VALID_USER_ID,
+        ),
+      ).rejects.toMatchObject({ status: 400 });
+      expect(onChain).not.toHaveBeenCalled();
+      expect(mocks.withdrawModel.create).not.toHaveBeenCalled();
+    });
+
+    it('create > given requested THB amount exceeds available THB balance > then rejects with HTTP 400', async () => {
+      mocks.userModel.findOne.mockResolvedValue({
+        _id: new Types.ObjectId(VALID_USER_ID),
+      });
+      jest
+        .spyOn(mocks.service, 'checkWithdraw')
+        .mockResolvedValue({ netAmount: 1000, netAmountTHB: 50 } as never);
+      jest
+        .spyOn(mocks.service, 'createRecordOnChain')
+        .mockResolvedValue('0xrecord' as never);
+
+      await expect(
+        mocks.service.create(
+          { amount_net: 200, currency: 'THB' } as never,
+          VALID_USER_ID,
+        ),
+      ).rejects.toMatchObject({ status: 400 });
+      expect(mocks.withdrawModel.create).not.toHaveBeenCalled();
+    });
+
+    it('createBankTransfer > given requested amount exceeds available balance > then rejects with HTTP 400 and does not create a record', async () => {
+      mocks.userModel.findOne.mockResolvedValue({
+        _id: new Types.ObjectId(VALID_USER_ID),
+      });
+      // Fee mock so the minimum-amount check passes and the only thing standing
+      // between the request and a DB write is the balance gate under test.
+      mocks.feeRateModel.findOne.mockReturnValue({
+        exec: jest
+          .fn()
+          .mockResolvedValue({ minimum_withdraw_thb: 100, minimum_withdraw_usd: 5 }),
+      });
+      jest
+        .spyOn(mocks.service, 'checkWithdraw')
+        .mockResolvedValue({ netAmount: 10, netAmountTHB: 300 } as never);
+
+      await expect(
+        mocks.service.createBankTransfer(
+          { amount_net: 100, amount_total: 100, currency: 'USD' } as never,
+          VALID_USER_ID,
+        ),
+      ).rejects.toMatchObject({ status: 400 });
+      expect(mocks.withdrawModel.create).not.toHaveBeenCalled();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // markWithdrawPaid — admin settlement, idempotency, terminal-state guards.
   // ---------------------------------------------------------------------------
   describe('markWithdrawPaid', () => {
