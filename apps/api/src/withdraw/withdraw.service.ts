@@ -19,7 +19,7 @@ import {
 import { ethers, keccak256, solidityPacked } from 'ethers';
 import { InjectModel } from '@nestjs/mongoose';
 import { User } from 'src/user/schemas/user.schema';
-import { Model, Types } from 'mongoose';
+import { isValidObjectId, Model, Types } from 'mongoose';
 import { InvolveService } from 'src/involve/involve.service';
 import { Withdraw } from './schemas/withdraw.schema';
 import { FeeRate } from './schemas/feeRate.schema';
@@ -2083,8 +2083,14 @@ export class WithdrawService {
     return thaiBanks;
   }
 
-  getMethodId(id: string) {
-    return this.withdrawMethodModel.findById(id);
+  // V-3: scope by owner so a member can only read their OWN saved payout method
+  // (was findById on a raw id — any user could read another's bank details).
+  getMethodId(id: string, userId: string) {
+    if (!isValidObjectId(id)) return null;
+    return this.withdrawMethodModel.findOne({
+      _id: new Types.ObjectId(id),
+      user_id: new Types.ObjectId(userId),
+    });
   }
 
   async getMethodList(id: string) {
@@ -2099,14 +2105,29 @@ export class WithdrawService {
     });
   }
 
-  deleteMethodData(id: string) {
-    return this.withdrawMethodModel.findByIdAndDelete(id);
+  // V-3: scope the delete to the owner so a member cannot delete another user's
+  // saved payout method by guessing its _id (atomic findOneAndDelete).
+  deleteMethodData(id: string, userId: string) {
+    if (!isValidObjectId(id)) return null;
+    return this.withdrawMethodModel.findOneAndDelete({
+      _id: new Types.ObjectId(id),
+      user_id: new Types.ObjectId(userId),
+    });
   }
 
-  updateMethodData(id: string, updateData: Partial<CreateWithdrawMethod>) {
-    return this.withdrawMethodModel.findByIdAndUpdate(id, updateData, {
-      new: true,
-    });
+  // V-3: scope the update to the owner so a member cannot overwrite another
+  // user's bank details (payout-redirect) by guessing its _id.
+  updateMethodData(
+    id: string,
+    userId: string,
+    updateData: Partial<CreateWithdrawMethod>,
+  ) {
+    if (!isValidObjectId(id)) return null;
+    return this.withdrawMethodModel.findOneAndUpdate(
+      { _id: new Types.ObjectId(id), user_id: new Types.ObjectId(userId) },
+      updateData,
+      { new: true },
+    );
   }
 
   async adminAddRewardConversionForQuest() {
