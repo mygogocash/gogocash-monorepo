@@ -7,7 +7,8 @@ build/test. (The landing site is a separate repo, not in this monorepo.)
 
 ## What runs
 
-`ci.yml` — runs on pull requests and pushes targeting `staging` and `main`.
+`ci.yml` — runs on pull requests and pushes targeting `staging`, `main`, and
+the `migrate/monorepo` integration branch.
 
 A `changes` job (using `dorny/paths-filter`) detects which app changed, then
 gates each app's job. A change confined to `apps/<X>/**` runs only `<X>`'s
@@ -22,16 +23,18 @@ Every job uses `actions/setup-node@v4` on **Node 22** and installs with a bare
 |-----|---------------------|------|------|
 | admin | `gogocash-admin` | lint/test (informational) → build | build is the gate |
 | app (mobile) | `@gogocash/mobile` | typecheck/test (informational) → web export | web export is the gate |
-| api | `gogocash-api` | lint, unit tests | **informational** (`continue-on-error`) |
+| api | `gogocash-api` | **lint** | **gate** (repaired in Tier 1 #1) |
+| api | `gogocash-api` | **unit tests** | **gate** (repaired in Tier 1 #6 — 30 suites / 385 tests) |
 | api | `gogocash-api` | **build + boot smoke** | **required** |
 
 Notes:
 - **app (`@gogocash/mobile`)** has no `build` script — Expo apps export via EAS,
   not a CI build. Its build-equivalent gate is `typecheck` + the unit and render
   test suites. It also has no `lint` script, so lint is omitted (not invented).
-- **api lint/test are informational** by design: 14/21 jest suites are red on
-  `staging` today (`nest g` scaffolding stubs with no deps wired). Drop
-  `continue-on-error` once they're repaired.
+- **api lint and unit tests are now gates.** They were informational while the
+  api carried lint debt (eslint 8) and 13 red `nest g` scaffold stubs. Tier 1 #1
+  cleared the lint debt and Tier 1 #6 replaced the stubs with 310 real behavior
+  tests (30 suites / 385 tests green), so both dropped `continue-on-error`.
 - **api build + boot smoke is the required gate.** It runs `nest build`
   (type-check) and boots `node dist/main` against an ephemeral Mongo service,
   probing `/`, to catch DI / bootstrap crashes that tsc and unit specs both
@@ -44,9 +47,8 @@ Notes:
 
 In Settings → Branches, add rules for `staging` and `main`:
 
-- **Require** status check: `api build + boot smoke (required)`
-- Do **not** require `api lint (informational)` / `api unit tests
-  (informational)` until those suites are repaired.
+- **Require** status checks: `api build + boot smoke (required)`, `api lint`,
+  and `api unit tests` — all three api jobs are gates now.
 
 ## Deploys are MANUAL ONLY (Phase 3 pending)
 

@@ -3,6 +3,12 @@
 > **UPDATE 2026-06-14:** Monorepo is **3 apps** (`admin`, `api`, `app`). **Landing was
 > removed** — it stays in its own repo (`mygogocash/gogocash-landing-page`). Ignore
 > `apps/landing` task packets below.
+>
+> **STATUS:** Phase 0–2 packets and the Phase 3 **CI** packet (`P3-CI-1`) are **DONE**
+> — all 3 apps build in path-filtered CI on `migrate/monorepo`. Remaining: the
+> Phase 3 **deploy** packets (`P3-*-1`, manual `workflow_dispatch` only), Phase 4
+> shared packages, Phase 5 cutover. A separate **dependency-upgrade** track is in
+> flight on top of the assembled monorepo — see [`UPGRADE_PLAN.md`](UPGRADE_PLAN.md).
 
 > Companion to `MONOREPO_MIGRATION_PLAN.md` (the high-level decisions). This doc breaks the work
 > into **self-contained tasks** a sub-agent can execute from the packet alone, each with **testable

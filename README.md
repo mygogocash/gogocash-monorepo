@@ -25,5 +25,8 @@ npm run typecheck
 npm run test
 ```
 
-> Migration in progress on branch `migrate/monorepo`. Each source repo's history is preserved via `git subtree`.
-> Staging-only; production cutover requires explicit approval. See `MONOREPO_EXECUTION_PLAN.md`.
+## Status
+
+The monorepo is assembled on branch `migrate/monorepo` (all three apps build in CI; each source repo's history is preserved via `git subtree`). Dependency modernization is underway per [`UPGRADE_PLAN.md`](UPGRADE_PLAN.md) — done so far: Tier 0 safe bumps, eslint 8→9, **TypeScript 6**, **NestJS 11**, **jest 30**, plus a full api test-suite repair (30 suites / 385 tests). All three `api` CI jobs (lint, unit tests, build + boot smoke) are required gates. Next: mongoose 8→9.
+
+> Staging-only; production cutover requires explicit approval. See [`MONOREPO_EXECUTION_PLAN.md`](MONOREPO_EXECUTION_PLAN.md).
