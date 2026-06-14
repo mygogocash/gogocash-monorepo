@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import { Test, TestingModule } from '@nestjs/testing';
 import type { Request } from 'express';
 import { WithdrawController } from './withdraw.controller';
@@ -38,6 +39,9 @@ function makeService(): jest.Mocked<Partial<WithdrawService>> {
       .fn()
       .mockResolvedValue({ _id: 'manual1', status: 'pending' }),
     markWithdrawPaid: jest.fn().mockResolvedValue({ status: 'paid' }),
+    approveWithdrawRequest: jest
+      .fn()
+      .mockResolvedValue({ success: true, data: { status: 'approved' } }),
     createBankTransfer: jest.fn().mockResolvedValue({ _id: 'bt1' }),
     findAll: jest.fn().mockResolvedValue({ data: [], total: 0 }),
     detailWithdraw: jest.fn().mockResolvedValue({ _id: 'w1' }),
@@ -154,6 +158,25 @@ describe('WithdrawController', () => {
 
       expect(service.create).toHaveBeenCalledWith(body, 'owner-1');
       expect(result).toEqual({ _id: 'w1' });
+    });
+  });
+
+  describe('approveWithdraw (admin, V-2b)', () => {
+    it('approveWithdraw > given a withdraw id + admin > then service.approveWithdrawRequest is called with (id, adminSub)', () => {
+      controller.approveWithdraw(reqWithUser('admin-9'), 'w-1');
+      expect(service.approveWithdrawRequest).toHaveBeenCalledWith(
+        'w-1',
+        'admin-9',
+      );
+    });
+
+    it('approveWithdraw > is protected by AuthAdminGuard', () => {
+      const guards =
+        (Reflect.getMetadata(
+          '__guards__',
+          WithdrawController.prototype.approveWithdraw,
+        ) as unknown[]) ?? [];
+      expect(guards).toContain(AuthAdminGuard);
     });
   });
 
@@ -306,9 +329,9 @@ describe('WithdrawController', () => {
       expect(service.getMethodList).toHaveBeenCalledWith('owner-1');
     });
 
-    it('getMethodId > given a method id > then service.getMethodId is called with that id', () => {
-      const result = controller.getMethodId('m-1');
-      expect(service.getMethodId).toHaveBeenCalledWith('m-1');
+    it('getMethodId > given a method id > then service.getMethodId is scoped to (id, caller sub) — IDOR guard', () => {
+      const result = controller.getMethodId('m-1', reqWithUser('owner-1'));
+      expect(service.getMethodId).toHaveBeenCalledWith('m-1', 'owner-1');
       expect(result).toEqual({ _id: 'm1' });
     });
 
@@ -318,12 +341,12 @@ describe('WithdrawController', () => {
       expect(result).toEqual([{ code: '004', name: 'KBANK' }]);
     });
 
-    it('deleteMethodData > given a method id > then service.deleteMethodData is called with that id', () => {
-      controller.deleteMethodData('m-1');
-      expect(service.deleteMethodData).toHaveBeenCalledWith('m-1');
+    it('deleteMethodData > given a method id > then service.deleteMethodData is scoped to (id, caller sub) — IDOR guard', () => {
+      controller.deleteMethodData('m-1', reqWithUser('owner-1'));
+      expect(service.deleteMethodData).toHaveBeenCalledWith('m-1', 'owner-1');
     });
 
-    it('updateMethodData > given an id and body > then service.updateMethodData is called with (id, body)', () => {
+    it('updateMethodData > given an id and body > then service.updateMethodData is scoped to (id, caller sub, body) — IDOR guard', () => {
       const body = {
         account_no: 1,
         account_name: 'Bob',
@@ -332,9 +355,13 @@ describe('WithdrawController', () => {
         is_default: true,
       } as unknown as CreateWithdrawMethod;
 
-      controller.updateMethodData('m-1', body);
+      controller.updateMethodData('m-1', body, reqWithUser('owner-1'));
 
-      expect(service.updateMethodData).toHaveBeenCalledWith('m-1', body);
+      expect(service.updateMethodData).toHaveBeenCalledWith(
+        'm-1',
+        'owner-1',
+        body,
+      );
     });
   });
 
