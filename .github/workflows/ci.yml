@@ -52,7 +52,6 @@ jobs:
       admin: ${{ steps.filter.outputs.admin }}
       api: ${{ steps.filter.outputs.api }}
       app: ${{ steps.filter.outputs.app }}
-      landing: ${{ steps.filter.outputs.landing }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -75,9 +74,6 @@ jobs:
             app:
               - *root
               - 'apps/app/**'
-            landing:
-              - *root
-              - 'apps/landing/**'
 
   # ── admin (gogocash-admin) — Next.js dashboard ────────────────────────────
   admin:
@@ -104,33 +100,6 @@ jobs:
         run: npx turbo run test --filter=gogocash-admin
       - name: Build (gate)
         run: npx turbo run build --filter=gogocash-admin
-
-  # ── landing (gogocash-landing) — Next.js marketing site ───────────────────
-  landing:
-    name: landing (gogocash-landing)
-    needs: changes
-    if: ${{ needs.changes.outputs.landing == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-      - name: Install (root, workspace-aware)
-        run: npm ci
-      # Lint/Test/Typecheck are INFORMATIONAL; the BUILD is the gate.
-      - name: Lint (informational)
-        continue-on-error: true
-        run: npx turbo run lint --filter=gogocash-landing
-      - name: Test (informational)
-        continue-on-error: true
-        run: npx turbo run test --filter=gogocash-landing
-      - name: Typecheck (informational)
-        continue-on-error: true
-        run: npx turbo run typecheck --filter=gogocash-landing
-      - name: Build (gate)
-        run: npx turbo run build --filter=gogocash-landing
 
   # ── app (@gogocash/mobile) — Expo / React Native (web+iOS+Android) ─────────
   # The real build gate is the WEB EXPORT (`expo export --platform web`) — it
