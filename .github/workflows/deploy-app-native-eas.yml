@@ -1,0 +1,114 @@
+# ════════════════════════════════════════════════════════════════════════════
+# SCAFFOLD — EAS native build / submit / OTA update for the Expo app (apps/app).
+# ════════════════════════════════════════════════════════════════════════════
+#
+# THIS IS A SCAFFOLD, NOT A FINISHED PIPELINE. It needs Expo credentials the
+# OWNER provides and an `eas.json` profile decision the owner finalizes:
+#
+#   • REQUIRED SECRET (Settings → Secrets and variables → Actions → Secrets):
+#       EXPO_TOKEN   — an Expo access token (expo.dev → Account → Access Tokens).
+#                      Without it, `eas build/update/submit` cannot authenticate.
+#
+#   • REQUIRED before `submit` works: store credentials configured on EAS
+#       (Apple App Store Connect API key / Google Play service-account JSON),
+#       set up via `eas credentials` or the eas.json `submit` profile. The
+#       submit job below is gated OFF by default (run it only once creds exist).
+#
+#   • eas.json profiles (apps/app/eas.json) currently define `development`,
+#       `preview`, and `production` build profiles + an empty `submit.production`.
+#       The owner should confirm the staging channel name used for OTA updates
+#       (this scaffold uses `staging`) and finalize the submit profile.
+#
+# Monorepo note: EAS auto-detects the workspace; the working-directory is
+# apps/app and `eas build` resolves the root lockfile. No app-source changes here.
+#
+# TRIGGER: workflow_dispatch ONLY (with inputs to pick platform / action).
+
+name: Deploy App Native (EAS) [scaffold]
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "What to run"
+        required: true
+        default: "update"
+        type: choice
+        options:
+          - build
+          - update
+          - submit
+      platform:
+        description: "Target platform (for build/submit)"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - android
+          - ios
+      profile:
+        description: "EAS build profile (from apps/app/eas.json)"
+        required: true
+        default: "preview"
+        type: choice
+        options:
+          - development
+          - preview
+          - production
+      channel:
+        description: "EAS Update channel (for the update action)"
+        required: true
+        default: "staging"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  eas:
+    name: EAS ${{ inputs.action }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Set up EAS / Expo
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install (root, workspace-aware)
+        working-directory: .
+        run: npm ci
+
+      # ── build: produces native binaries on EAS (managed credentials) ────────
+      - name: EAS Build
+        if: ${{ inputs.action == 'build' }}
+        run: eas build --non-interactive --no-wait --platform ${{ inputs.platform }} --profile ${{ inputs.profile }}
+
+      # ── update: OTA JS/asset update to a channel (no store review) ──────────
+      #   Pass user-provided inputs via env (not inline) to avoid shell-injection
+      #   from the free-text channel input.
+      - name: EAS Update (OTA)
+        if: ${{ inputs.action == 'update' }}
+        env:
+          EAS_CHANNEL: ${{ inputs.channel }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          eas update --non-interactive --branch "$EAS_CHANNEL" --message "ci: $COMMIT_SHA"
+
+      # ── submit: upload a finished build to the stores ───────────────────────
+      #   GATED: requires store credentials configured on EAS first (see header).
+      #   Leave this until the owner finalizes the eas.json submit profile.
+      - name: EAS Submit
+        if: ${{ inputs.action == 'submit' }}
+        run: eas submit --non-interactive --platform ${{ inputs.platform }} --profile ${{ inputs.profile }}

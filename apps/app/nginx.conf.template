@@ -1,0 +1,41 @@
+# nginx site config for the Expo Web static export, served on Cloud Run.
+#
+# Cloud Run injects $PORT (default 8080). The official nginx:alpine image runs
+# /docker-entrypoint.d/20-envsubst-on-templates.sh at startup, which renders
+# every /etc/nginx/templates/*.template through `envsubst` into /etc/nginx/conf.d/.
+# We ONLY substitute ${PORT} (see Dockerfile.web: NGINX_ENVSUBST_FILTER=^PORT$)
+# so nginx variables like $uri are left intact.
+
+server {
+    listen       ${PORT};
+    listen       [::]:${PORT};
+    server_name  _;
+
+    root   /usr/share/nginx/html;
+    index  index.html;
+
+    # gzip the text-y assets (JS bundle is multi-MB).
+    gzip            on;
+    gzip_types      text/plain text/css application/javascript application/json image/svg+xml;
+    gzip_min_length 1024;
+
+    # Hashed static assets (_expo/static/...) are immutable — cache hard.
+    location /_expo/ {
+        expires    1y;
+        add_header Cache-Control "public, immutable";
+        try_files  $uri =404;
+    }
+
+    location /assets/ {
+        expires    1y;
+        add_header Cache-Control "public, immutable";
+        try_files  $uri =404;
+    }
+
+    # expo-router web export emits per-route index.html files (e.g. /home/index.html)
+    # plus a root index.html. Serve the file, then the directory's index.html, then
+    # fall back to the SPA shell so client-side routes resolve on hard refresh.
+    location / {
+        try_files $uri $uri/ $uri.html /index.html;
+    }
+}
