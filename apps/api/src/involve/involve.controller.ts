@@ -27,6 +27,7 @@ import {
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
 import { Request } from 'express';
 import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
+import { ApiKeyGuard } from 'src/common/api-key.guard';
 import { AnalyticsService } from 'src/analytics/analytics.service';
 import { extractAnalyticsContext } from 'src/analytics/analytics-context';
 
@@ -101,10 +102,10 @@ export class InvolveController {
   }
 
   // V-5: was fully open — minted Involve affiliate deeplinks for any email
-  // (email enumeration + affiliate-API cost abuse). Fail-closed with
-  // AuthAdminGuard pending the owner's caller decision: if this is invoked by an
-  // external/AI service it should move to a dedicated API-key guard instead.
-  @UseGuards(AuthAdminGuard)
+  // (email enumeration + affiliate-API cost abuse). This is an external/AI
+  // integration endpoint, so it's guarded by a shared API key (x-api-key header
+  // vs INVOLVE_AI_API_KEY), fail-closed when the secret is unset.
+  @UseGuards(ApiKeyGuard)
   @Post('create-affiliate-ai/:email')
   createAffiliateAi(
     @Body() createInvolveDto: CreateAffiliateAiDto,
