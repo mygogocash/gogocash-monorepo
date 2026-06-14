@@ -205,6 +205,11 @@ jobs:
       - name: Install (root, workspace-aware)
         run: npm ci
       - name: Jest
+        # Jest OOMs on the default ~2GB heap running all api suites (exit 134);
+        # bump heap so the job RUNS to completion (still informational — it then
+        # shows the known scaffold-stub failures rather than crashing).
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         run: npm run test -w gogocash-api
 
   # The REQUIRED gate (preserved from the original): nest build (type-check) +
