@@ -265,3 +265,13 @@ jobs:
             exit 1
           fi
           echo "Booted and responded on / — DI graph resolved, app starts cleanly."
+
+      - name: Integration test (checkWithdraw vs real Mongo 7 / mongoose 9)
+        # Exercises the withdraw balance aggregation end-to-end against the
+        # ephemeral Mongo — covers the #36 risk (mongoose-9 strictQuery /
+        # sanitizeFilter / find-lean defaults) that the mock-based unit specs
+        # can't. Skips automatically when MONGO_URI is unset (e.g. local runs).
+        working-directory: apps/api
+        env:
+          MONGO_URI: mongodb://localhost:27017/inttest
+        run: npx jest --config ./test/jest-e2e.json withdraw-balance --runInBand
