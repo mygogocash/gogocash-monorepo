@@ -140,12 +140,13 @@ jobs:
         run: npm run export:web -w @gogocash/mobile
 
   # ── api (gogocash-api) — NestJS backend ───────────────────────────────────
-  # LINT IS NOW A GATE. The eslint 8→9 flat-config migration (2026-06-14,
-  # Tier 1 #1 of UPGRADE_PLAN.md) repaired the lint debt: `lint:ci` is clean
-  # (0 errors, 0 warnings, --max-warnings=0). Per the original note "do not
-  # gate until repaired; then drop continue-on-error" — it's repaired, so the
-  # gate is on. TEST stays informational: 13/21 jest suites are still red
-  # (nest-g scaffolding stubs with no deps wired), repaired in a later PR.
+  # LINT and TEST are BOTH GATES now.
+  #   • Lint: the eslint 8→9 flat-config migration (Tier 1 #1) cleared the debt.
+  #   • Test: Tier 1 #6 replaced the 13 nest-g scaffold stubs (which only did
+  #     expect(x).toBeDefined() and failed on unwired deps) with real behavior
+  #     specs and bumped jest 29→30. The full suite is green (30 suites / 385
+  #     tests), so the "do not gate until repaired" note no longer applies —
+  #     continue-on-error dropped.
   api-lint:
     name: api lint
     needs: changes
@@ -168,11 +169,10 @@ jobs:
         run: npm run lint:ci -w gogocash-api
 
   api-test:
-    name: api unit tests (informational)
+    name: api unit tests
     needs: changes
     if: ${{ needs.changes.outputs.api == 'true' }}
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -182,9 +182,8 @@ jobs:
       - name: Install (root, workspace-aware)
         run: npm ci
       - name: Jest
-        # Jest OOMs on the default ~2GB heap running all api suites (exit 134);
-        # bump heap so the job RUNS to completion (still informational — it then
-        # shows the known scaffold-stub failures rather than crashing).
+        # Jest exceeds Node's ~2GB default heap running all api suites (exit
+        # 134); bump it, same as the build/lint jobs.
         env:
           NODE_OPTIONS: --max-old-space-size=4096
         run: npm run test -w gogocash-api
@@ -194,8 +193,8 @@ jobs:
   # Catches DI / bootstrap crashes that tsc and the unit specs both miss.
   #
   # Branch protection (Settings → Branches, rules for staging and main):
-  #   Require status checks:  "api build + boot smoke (required)"  AND  "api lint"
-  #   Do NOT require "api unit tests (informational)" yet — see note above.
+  #   Require status checks:  "api build + boot smoke (required)", "api lint",
+  #   and "api unit tests" — all three are now gates.
   api-build-smoke:
     name: api build + boot smoke (required)
     needs: changes
