@@ -1,0 +1,120 @@
+# Deploy Customer Web (Expo Web export) to Cloud Run — app-staging.gogocash.co
+# (STAGING ONLY).
+#
+# Pipeline: run `expo export --platform web` in apps/app to produce the static
+# `dist/`, build a tiny nginx static-serving image (apps/app/Dockerfile.web),
+# push to Artifact Registry, and deploy to Cloud Run `gogocash-app-web-staging`.
+# This is the Expo Web bundle that replaces the retired Next.js customer web.
+#
+# TRIGGER: workflow_dispatch ONLY. There is NO `on: push`.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# MANUAL POST-DEPLOY STEP — CUSTOMER WEB DOMAIN CUTOVER (NOT automated here):
+#   This workflow does NOT touch DNS. After verifying the new Cloud Run revision
+#   serves the Expo Web export (login + wallet + one core screen, no chunk
+#   404s), an operator must cut the customer web domain over manually:
+#     1. Cloud Run → gogocash-app-web-staging → Custom domains →
+#        app-staging.gogocash.co  (then add the CNAME Cloud Run returns to DNS).
+#     2. Only once staging is verified should the production customer web domain
+#        be repointed (Phase 5 / P5-4 — gated, separate explicit approval).
+#   DNS is intentionally left manual: it's an R1 change with a human in the loop.
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# ─── Required GitHub variables (Settings → Secrets and variables → Actions → Variables) ───
+#   GCP_PROJECT_ID        gogocash-staging
+#   GCP_WIF_PROVIDER      projects/729804769570/locations/global/workloadIdentityPools/github-actions/providers/github
+#   GCP_SERVICE_ACCOUNT   github-actions-api@gogocash-staging.iam.gserviceaccount.com
+#
+# ─── No Secret Manager secrets ───
+#   The web export is a static bundle. EXPO_PUBLIC_* values are baked at export
+#   time below (all non-secret; they point at the public staging API/frontend).
+
+name: Deploy App Web (staging)
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: app-web-staging-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: Expo Web export → Docker → Artifact Registry → Cloud Run
+    runs-on: ubuntu-latest
+    env:
+      REGION: asia-southeast1
+      SERVICE_NAME: gogocash-app-web-staging
+      ARTIFACT_REPO: gogocash
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install (root, workspace-aware)
+        run: npm ci
+
+      - name: Expo Web export (static dist)
+        # Produces apps/app/dist with index.html + _expo/static + assets.
+        # EXPO_PUBLIC_* are inlined into the bundle at export time (non-secret).
+        env:
+          EXPO_PUBLIC_API_URL: https://api-staging.gogocash.co
+          EXPO_PUBLIC_APP_ENV: staging
+          EXPO_PUBLIC_ACCOUNT_DATA_SOURCE: fixtures
+          EXPO_PUBLIC_FRONTEND_URL: https://app-staging.gogocash.co
+        run: npm run export:web -w @gogocash/mobile
+
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build static-serving image
+        # Build context = apps/app (the exported dist/ lives there).
+        run: |
+          docker build \
+            -f apps/app/Dockerfile.web \
+            --tag ${{ env.REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+            --tag ${{ env.REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:latest \
+            apps/app
+
+      - name: Push image
+        run: |
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:latest
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image ${{ env.REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+            --region ${{ env.REGION }} \
+            --platform managed \
+            --allow-unauthenticated \
+            --port 8080 \
+            --min-instances 0 \
+            --max-instances 3 \
+            --memory 256Mi \
+            --cpu 1 \
+            --project ${{ vars.GCP_PROJECT_ID }}
+
+      - name: Print service URL
+        run: |
+          gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region ${{ env.REGION }} \
+            --project ${{ vars.GCP_PROJECT_ID }} \
+            --format "value(status.url)"
