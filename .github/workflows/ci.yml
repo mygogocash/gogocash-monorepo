@@ -160,6 +160,11 @@ jobs:
       - name: Install (root, workspace-aware)
         run: npm ci
       - name: Lint (no --fix)
+        # Type-aware lint (typescript-eslint with parserOptions.project) builds
+        # a full TS program; under TypeScript 6 that exceeds Node's ~2GB default
+        # heap on the runner (exit 134 OOM). Bump it, same as the build/test jobs.
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         run: npm run lint:ci -w gogocash-api
 
   api-test:
