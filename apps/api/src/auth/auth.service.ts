@@ -618,7 +618,9 @@ export class AuthService {
     const nonce = nonceMatch[1];
     const consumed = await this.siweNonceModel.findOneAndDelete({ nonce });
     if (!consumed) {
-      throw new UnauthorizedException('Nonce invalid, expired, or already used');
+      throw new UnauthorizedException(
+        'Nonce invalid, expired, or already used',
+      );
     }
 
     const syntheticFirebaseId = `minipay:${address.toLowerCase()}`;
@@ -725,7 +727,7 @@ export class AuthService {
       }
 
       return { email: decoded.email };
-    } catch (_error: any) {
+    } catch {
       throw new UnauthorizedException('Invalid or expired temporary token');
     }
   }
@@ -886,7 +888,7 @@ export class AuthService {
         },
       );
       return response.data;
-    } catch (error) {
+    } catch {
       throw new Error('Invalid LINE access token');
     }
   }
@@ -902,7 +904,7 @@ export class AuthService {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       return response.data;
-    } catch (error) {
+    } catch {
       throw new Error('Failed to verify LINE user identity');
     }
   }

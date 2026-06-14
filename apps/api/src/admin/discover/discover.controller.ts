@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Param,
+  Body,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { AuthAdminGuard } from '../jwt-auth-admin.guard';
 import { RolesGuard } from '../roles.guard';
@@ -25,7 +34,10 @@ export class DiscoverController {
   }
 
   @Post('sections/:type/items')
-  addItem(@Param('type') type: string, @Body() body: { offer_id: string; custom_title?: string }) {
+  addItem(
+    @Param('type') type: string,
+    @Body() body: { offer_id: string; custom_title?: string },
+  ) {
     return this.discoverService.addItem(type, body);
   }
 

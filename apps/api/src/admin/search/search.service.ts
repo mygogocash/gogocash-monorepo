@@ -18,7 +18,9 @@ export class SearchService {
 
   // ── Featured Terms ──
   async getFeaturedTerms() {
-    return { data: await this.featuredModel.find().sort({ sort_order: 1 }).lean() };
+    return {
+      data: await this.featuredModel.find().sort({ sort_order: 1 }).lean(),
+    };
   }
 
   async createFeaturedTerm(data: Partial<FeaturedSearchTerm>) {
@@ -26,7 +28,11 @@ export class SearchService {
   }
 
   async updateFeaturedTerm(id: string, data: Partial<FeaturedSearchTerm>) {
-    return this.featuredModel.findByIdAndUpdate(id, { $set: data }, { new: true });
+    return this.featuredModel.findByIdAndUpdate(
+      id,
+      { $set: data },
+      { new: true },
+    );
   }
 
   async deleteFeaturedTerm(id: string) {
@@ -47,7 +53,9 @@ export class SearchService {
 
   // ── Boost Rules ──
   async getBoostRules() {
-    return { data: await this.boostModel.find().sort({ boost_weight: -1 }).lean() };
+    return {
+      data: await this.boostModel.find().sort({ boost_weight: -1 }).lean(),
+    };
   }
 
   async createBoostRule(data: Partial<SearchBoostRule>) {
@@ -65,7 +73,9 @@ export class SearchService {
 
   // ── Blacklist ──
   async getBlacklist() {
-    return { data: await this.blacklistModel.find().sort({ createdAt: -1 }).lean() };
+    return {
+      data: await this.blacklistModel.find().sort({ createdAt: -1 }).lean(),
+    };
   }
 
   async createBlacklistEntry(data: { term: string; reason?: string }) {

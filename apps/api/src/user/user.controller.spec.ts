@@ -47,7 +47,8 @@ describe('UserController', () => {
       // Must route through the allowlisted self-service path with the caller's
       // own id, never the attacker-supplied param id.
       expect(userService.updateProfile).toHaveBeenCalledTimes(1);
-      const calledId = userService.updateProfile.mock.calls[0][0] as Types.ObjectId;
+      const calledId = userService.updateProfile.mock
+        .calls[0][0] as Types.ObjectId;
       expect(calledId.toString()).toBe(selfId.toString());
       expect(calledId.toString()).not.toBe('0123456789abcdef01234567');
     });

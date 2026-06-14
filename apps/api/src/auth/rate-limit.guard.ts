@@ -75,9 +75,7 @@ export class RateLimitGuard implements CanActivate {
 
     const now = Date.now();
     const windowCutoff = now - opts.windowMs;
-    const recent = (this.hits.get(key) ?? []).filter(
-      (ts) => ts > windowCutoff,
-    );
+    const recent = (this.hits.get(key) ?? []).filter((ts) => ts > windowCutoff);
 
     if (recent.length >= opts.max) {
       this.logger.warn(`rate-limit hit ${key} (${recent.length}/${opts.max})`);

@@ -28,9 +28,7 @@ import {
 @ApiSecurity('access-token')
 @ApiBearerAuth()
 export class MissingOrdersController {
-  constructor(
-    private readonly missingOrdersService: MissingOrdersService,
-  ) {}
+  constructor(private readonly missingOrdersService: MissingOrdersService) {}
 
   @Get('stats')
   getStats() {
@@ -77,11 +75,6 @@ export class MissingOrdersController {
     const admin = req['user'] as any;
     const adminId = admin?.sub ?? '';
     const adminName = admin?.username ?? admin?.email ?? '';
-    return this.missingOrdersService.addNote(
-      id,
-      adminId,
-      adminName,
-      dto.text,
-    );
+    return this.missingOrdersService.addNote(id, adminId, adminName, dto.text);
   }
 }

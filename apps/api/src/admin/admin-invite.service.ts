@@ -21,8 +21,10 @@ const DEFAULT_ADMIN_APP_URL = 'https://admin-staging.gogocash.co';
 @Injectable()
 export class AdminInviteService {
   constructor(
-    @InjectModel(UserAdmin.name) private readonly userAdminModel: Model<UserAdmin>,
-    @InjectModel(AdminToken.name) private readonly tokenModel: Model<AdminToken>,
+    @InjectModel(UserAdmin.name)
+    private readonly userAdminModel: Model<UserAdmin>,
+    @InjectModel(AdminToken.name)
+    private readonly tokenModel: Model<AdminToken>,
     private readonly emailService: EmailService,
     private readonly config: ConfigService,
   ) {}
@@ -107,7 +109,9 @@ export class AdminInviteService {
       throw new BadRequestException('Invalid or expired invitation');
     }
 
-    const existing = await this.userAdminModel.findOne({ email: rec.email }).exec();
+    const existing = await this.userAdminModel
+      .findOne({ email: rec.email })
+      .exec();
     if (existing) {
       throw new BadRequestException('An admin with this email already exists');
     }
@@ -120,7 +124,9 @@ export class AdminInviteService {
       password,
       role: rec.role,
     });
-    await this.tokenModel.updateOne({ _id: rec._id }, { usedAt: new Date() }).exec();
+    await this.tokenModel
+      .updateOne({ _id: rec._id }, { usedAt: new Date() })
+      .exec();
 
     return { message: 'Account created. You can now sign in.' };
   }
@@ -162,7 +168,9 @@ export class AdminInviteService {
     }
 
     // Same response whether or not the email exists (no account enumeration).
-    return { message: 'If that email is registered, a reset link has been sent.' };
+    return {
+      message: 'If that email is registered, a reset link has been sent.',
+    };
   }
 
   /** Consume a reset token and set a new password. */
@@ -184,14 +192,18 @@ export class AdminInviteService {
       throw new BadRequestException('Invalid or expired reset link');
     }
 
-    const admin = await this.userAdminModel.findOne({ email: rec.email }).exec();
+    const admin = await this.userAdminModel
+      .findOne({ email: rec.email })
+      .exec();
     if (!admin) {
       throw new BadRequestException('Invalid or expired reset link');
     }
 
     admin.password = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
     await admin.save();
-    await this.tokenModel.updateOne({ _id: rec._id }, { usedAt: new Date() }).exec();
+    await this.tokenModel
+      .updateOne({ _id: rec._id }, { usedAt: new Date() })
+      .exec();
 
     return { message: 'Password updated. You can now sign in.' };
   }

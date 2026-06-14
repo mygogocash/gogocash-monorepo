@@ -34,7 +34,10 @@ export class InviteAdminUserDto {
   @IsNotEmpty()
   email: string;
 
-  @ApiProperty({ enum: INVITABLE_ROLES, description: 'Role id to assign on accept' })
+  @ApiProperty({
+    enum: INVITABLE_ROLES,
+    description: 'Role id to assign on accept',
+  })
   @IsIn(INVITABLE_ROLES as unknown as string[])
   role: string;
 }

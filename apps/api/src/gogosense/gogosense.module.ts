@@ -40,7 +40,10 @@ import {
         name: GogosenseActivationEvent.name,
         schema: GogosenseActivationEventSchema,
       },
-      { name: GogosenseScreenshotJob.name, schema: GogosenseScreenshotJobSchema },
+      {
+        name: GogosenseScreenshotJob.name,
+        schema: GogosenseScreenshotJobSchema,
+      },
       { name: GogosenseUserSettings.name, schema: GogosenseUserSettingsSchema },
     ]),
   ],
