@@ -103,12 +103,15 @@ const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   session: {
     strategy: "jwt",
-    // 30 days lifetime; cookie expiry rolls forward every 24h of activity so
-    // active admins effectively never get signed out. Tighten to e.g.
-    // `maxAge: 7 * 24 * 60 * 60, updateAge: 60 * 60` if security policy
-    // requires a shorter admin window.
-    maxAge: 30 * 24 * 60 * 60,
-    updateAge: 24 * 60 * 60,
+    // P1-SESS: tightened from 30d -> 7d idle window for an admin panel that gates
+    // money/user data. The session still rolls forward on activity (updateAge),
+    // so active admins stay signed in; an idle/leaked session now expires in 7d
+    // instead of 30d (shrinks stolen-token blast radius). NOTE: the backend
+    // accessToken is still attached to the client session below — eliminating
+    // that exposure needs a server-side relay (BFF) and is tracked separately;
+    // revocation (token-version vs denylist) is an open owner decision.
+    maxAge: 7 * 24 * 60 * 60,
+    updateAge: 60 * 60,
   },
   pages: {
     signIn: "/signin",
