@@ -1,6 +1,8 @@
-# gogocash-monorepo
+# GoGoCash
 
-GoGoCash monorepo — npm workspaces + Turborepo. Node 22.
+> **Thailand cashback platform** — a Turborepo monorepo: NestJS API, Next.js admin dashboard, and an Expo (web / iOS / Android) customer app.
+
+npm workspaces + Turborepo · Node 22 · staging-first (production cutover is gated).
 
 ## Apps
 | Path | App | Stack | Platforms | Source repo (merged) |
