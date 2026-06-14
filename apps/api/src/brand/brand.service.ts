@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { FilterQuery, Model, Types } from 'mongoose';
+import { QueryFilter, Model, Types } from 'mongoose';
 import { Brand, BrandDocument } from './schemas/brand.schema';
 import { Offer, OfferDocument } from '../offer/schemas/offer.schema';
 import { CreateBrandDto } from './dto/create-brand.dto';
@@ -99,7 +99,7 @@ export class BrandService {
   async list(dto: ListBrandsDto): Promise<BrandListResponse> {
     const page = dto.page ?? 1;
     const limit = Math.min(dto.limit ?? 20, 200);
-    const filter: FilterQuery<Brand> = { disabled: false };
+    const filter: QueryFilter<Brand> = { disabled: false };
     if (dto.search) {
       filter.brand_name = { $regex: dto.search.trim(), $options: 'i' };
     }
@@ -118,7 +118,7 @@ export class BrandService {
     ]);
 
     const ids = brandsRaw.map((b) => b._id);
-    const variantFilter: FilterQuery<Offer> = { brand_id: { $in: ids } };
+    const variantFilter: QueryFilter<Offer> = { brand_id: { $in: ids } };
     if (dto.country)
       variantFilter.countries = { $regex: dto.country, $options: 'i' };
     const variants = await this.offerModel
