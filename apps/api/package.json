@@ -52,7 +52,7 @@
     "customerio-node": "^5.0.1",
     "ethers": "^6.15.0",
     "express": "^5.1.0",
-    "firebase-admin": "^13.6.0",
+    "firebase-admin": "^14.0.0",
     "googleapis": "^173.0.0",
     "helmet": "^8.1.0",
     "jwks-rsa": "^4.0.1",
@@ -106,6 +106,9 @@
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
+    "transformIgnorePatterns": [
+      "node_modules/(?!(jose|jwks-rsa)/)"
+    ],
     "moduleNameMapper": {
       "^src/(.*)$": "<rootDir>/$1"
     },
