@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
 import { Request } from 'express';
@@ -31,6 +32,27 @@ describe('UserController', () => {
 
   it('should be defined', () => {
     expect(controller).toBeDefined();
+  });
+
+  // ---------------------------------------------------------------------------
+  // Authorization wiring (V-4). GET /user/balance/me/mycashback/admin/:id had
+  // NO guard, so anyone could read ANY user's cashback balance + use the route
+  // as an existence oracle by ObjectId. Pin the guard so a future edit dropping
+  // it fails CI instead of silently re-opening the leak.
+  // ---------------------------------------------------------------------------
+  describe('authorization wiring (V-4)', () => {
+    const proto = UserController.prototype as unknown as Record<string, unknown>;
+    const guardsOf = (method: string): unknown[] =>
+      (Reflect.getMetadata('__guards__', proto[method] as object) as unknown[]) ??
+      [];
+
+    it('balanceMyCashbackAdmin > is protected by AuthAdminGuard (no unauthenticated balance/PII leak)', () => {
+      expect(guardsOf('balanceMyCashbackAdmin')).toContain(AuthAdminGuard);
+    });
+
+    it('balanceMyCashback (self) > stays protected by FirebaseAuthGuard', () => {
+      expect(guardsOf('balanceMyCashback')).toContain(FirebaseAuthGuard);
+    });
   });
 
   describe('PATCH /user/:id', () => {
