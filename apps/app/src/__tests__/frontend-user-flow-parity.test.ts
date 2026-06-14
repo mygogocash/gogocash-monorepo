@@ -575,22 +575,25 @@ describe("Expo frontend user-flow parity", () => {
     }
   });
 
-  it("frontend flow scripts > given package scripts > then flow parity can run alone or in the full mobile gate", () => {
+  it("frontend flow scripts > given package scripts > then flow parity can run alone or in the full app gate", () => {
     const rootPackage = JSON.parse(readRepoFile("package.json")) as {
       scripts: Record<string, string>;
     };
-    const mobilePackage = JSON.parse(readMobileFile("package.json")) as {
+    const appPackage = JSON.parse(readMobileFile("package.json")) as {
       scripts: Record<string, string>;
     };
 
-    expect(mobilePackage.scripts["test:flows"]).toBe(
+    // Run alone: the app exposes a dedicated flow-parity script.
+    expect(appPackage.scripts["test:flows"]).toBe(
       "vitest run --config vitest.config.ts src/__tests__/frontend-user-flow-parity.test.ts"
     );
-    expect(mobilePackage.scripts["test:full"]).toContain("npm run test");
-    expect(rootPackage.scripts["mobile:test:flows"]).toBe(
-      "npm --prefix apps/mobile run test:flows"
-    );
-    expect(rootPackage.scripts["mobile:test:full"]).toBe("npm --prefix apps/mobile run test:full");
+    // Run inside the full app gate: test:full chains the whole vitest suite
+    // (npm run test) which includes this flow-parity file.
+    expect(appPackage.scripts["test:full"]).toContain("npm run test");
+    // Run inside the full monorepo gate: the Turborepo root delegates `test`
+    // across workspaces, which invokes this app's test script. (The standalone
+    // `mobile:test:*` root scripts were retired when apps/mobile became apps/app.)
+    expect(rootPackage.scripts.test).toBe("turbo run test");
   });
 
   it("GoGoSense frontend parity > given native detector scope > then dedicated onboarding permissions timeline settings recovery and merchant flows replace placeholders", () => {
