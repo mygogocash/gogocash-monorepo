@@ -76,6 +76,12 @@ export class PointService {
 
       return savedPoint;
     }
+
+    // Idempotent: a grant for this (user, conversion, action) tuple already
+    // exists. Return the existing Point so the Promise<Point> contract holds
+    // (it previously fell through to undefined) and a retried conversion
+    // approval resolves to the same record instead of double-paying.
+    return pointDup;
   }
   create(createPointDto: CreatePointDto) {
     console.log(createPointDto);

@@ -1,20 +1,387 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import type { Request } from 'express';
 import { WithdrawController } from './withdraw.controller';
 import { WithdrawService } from './withdraw.service';
+import {
+  CreateManualWithdrawRequestDto,
+  CreateWithdrawDto,
+  GETSignDTO,
+  GetWithdrawTransactionsDTO,
+  MarkWithdrawPaidDto,
+  RequestCreateRewardList,
+} from './dto/create-withdraw.dto';
+import {
+  CreateWithdrawMethod,
+  UpdateWithdrawDto,
+} from './dto/update-withdraw.dto';
+import { RequestCreateConversionReward } from 'src/user/dto/create-conversion-reward.dto';
+import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
+import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
+
+/**
+ * The controller is a thin authorization/identity boundary in front of
+ * WithdrawService. The contract we test here is exactly that boundary:
+ *  - WHICH user id the controller forwards (the authenticated requester's
+ *    `sub` for self-service routes, the path `:userId` for admin routes), and
+ *  - that money/audit-sensitive args (IDOR-scoped detail, admin id on
+ *    mark-paid) are forwarded correctly.
+ * The service is fully mocked so no DB/network/timer is touched.
+ */
+function makeService(): jest.Mocked<Partial<WithdrawService>> {
+  return {
+    getSign: jest.fn().mockResolvedValue('0xsignature'),
+    checkWithdraw: jest.fn().mockResolvedValue({ balance: 100 }),
+    listCheckWithdrawNew: jest.fn().mockResolvedValue([{ id: 'c1' }]),
+    checkWithdrawMyCashback: jest.fn().mockResolvedValue({ cashback: 5 }),
+    create: jest.fn().mockResolvedValue({ _id: 'w1' }),
+    createManualWithdrawRequest: jest
+      .fn()
+      .mockResolvedValue({ _id: 'manual1', status: 'pending' }),
+    markWithdrawPaid: jest.fn().mockResolvedValue({ status: 'paid' }),
+    createBankTransfer: jest.fn().mockResolvedValue({ _id: 'bt1' }),
+    findAll: jest.fn().mockResolvedValue({ data: [], total: 0 }),
+    detailWithdraw: jest.fn().mockResolvedValue({ _id: 'w1' }),
+    update: jest.fn().mockResolvedValue({ _id: 'w1', updated: true }),
+    remove: jest.fn().mockReturnValue({ deleted: true }),
+    createWithdrawMethod: jest.fn().mockResolvedValue({ _id: 'm1' }),
+    getBankList: jest.fn().mockReturnValue([{ code: '004', name: 'KBANK' }]),
+    getMethodId: jest.fn().mockReturnValue({ _id: 'm1' }),
+    getMethodList: jest.fn().mockResolvedValue([{ _id: 'm1' }]),
+    deleteMethodData: jest.fn().mockReturnValue({ deleted: true }),
+    updateMethodData: jest.fn().mockReturnValue({ updated: true }),
+    adminAddRewardConversionForQuest: jest.fn().mockResolvedValue({ ok: true }),
+    createRewardList: jest.fn().mockResolvedValue({ created: 1 }),
+    createConversionReward: jest.fn().mockResolvedValue({ created: true }),
+  } as jest.Mocked<Partial<WithdrawService>>;
+}
+
+function reqWithUser(sub: string | undefined): Request {
+  return {
+    user: sub === undefined ? undefined : { sub },
+  } as unknown as Request;
+}
 
 describe('WithdrawController', () => {
   let controller: WithdrawController;
+  let service: jest.Mocked<Partial<WithdrawService>>;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
+    service = makeService();
+    const moduleRef: TestingModule = await Test.createTestingModule({
       controllers: [WithdrawController],
-      providers: [WithdrawService],
-    }).compile();
+      providers: [{ provide: WithdrawService, useValue: service }],
+    })
+      // Guards carry real Mongoose/JWT dependencies; we test controller
+      // delegation logic, not the guards themselves, so stub them to allow.
+      .overrideGuard(FirebaseAuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(AuthAdminGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
-    controller = module.get<WithdrawController>(WithdrawController);
+    controller = moduleRef.get<WithdrawController>(WithdrawController);
   });
 
   it('should be defined', () => {
     expect(controller).toBeDefined();
+  });
+
+  describe('checkWithdraw (self-service)', () => {
+    // Self-service balance check must be scoped to the caller's own `sub`,
+    // never an attacker-supplied id — this is the core money-isolation rule.
+    it('checkWithdraw > given an authenticated request > then it queries the caller sub only', async () => {
+      const result = await controller.checkWithdraw(reqWithUser('user-self'));
+
+      expect(service.checkWithdraw).toHaveBeenCalledWith('user-self');
+      expect(result).toEqual({ balance: 100 });
+    });
+
+    it('checkWithdraw > given a request with no user > then it forwards undefined (no cross-user leak)', async () => {
+      await controller.checkWithdraw(reqWithUser(undefined));
+
+      expect(service.checkWithdraw).toHaveBeenCalledWith(undefined);
+    });
+  });
+
+  describe('checkWithdrawGGCAdmin (admin)', () => {
+    // The admin variant must act on the PATH userId, not the admin's own sub —
+    // otherwise admins could never inspect another member's balance.
+    it('checkWithdrawGGCAdmin > given a target userId param > then it queries that userId, ignoring the admin sub', () => {
+      controller.checkWithdrawGGCAdmin(reqWithUser('admin-1'), 'target-user');
+
+      expect(service.checkWithdraw).toHaveBeenCalledWith('target-user');
+      expect(service.checkWithdraw).not.toHaveBeenCalledWith('admin-1');
+    });
+  });
+
+  describe('listCheckWithdraw / admin variant', () => {
+    it('listCheckWithdraw > given a self request > then it uses the caller sub', () => {
+      controller.listCheckWithdraw(reqWithUser('user-self'));
+      expect(service.listCheckWithdrawNew).toHaveBeenCalledWith('user-self');
+    });
+
+    it('listCheckWithdrawAdmin > given a target userId > then it uses the path userId', () => {
+      controller.listCheckWithdrawAdmin(reqWithUser('admin-1'), 'target-user');
+      expect(service.listCheckWithdrawNew).toHaveBeenCalledWith('target-user');
+    });
+  });
+
+  describe('checkWithdrawMyCashback / admin variant', () => {
+    it('checkWithdrawMyCashback > given a self request > then it uses the caller sub', () => {
+      controller.checkWithdrawMyCashback(reqWithUser('user-self'));
+      expect(service.checkWithdrawMyCashback).toHaveBeenCalledWith('user-self');
+    });
+
+    it('checkWithdrawMyCashbackAdmin > given a target userId > then it uses the path userId', () => {
+      controller.checkWithdrawMyCashbackAdmin(
+        reqWithUser('admin-1'),
+        'target-user',
+      );
+      expect(service.checkWithdrawMyCashback).toHaveBeenCalledWith(
+        'target-user',
+      );
+    });
+  });
+
+  describe('create (withdraw)', () => {
+    // A withdrawal moves money: the body must be paired with the AUTHENTICATED
+    // caller's id, never a body-supplied owner, to prevent withdrawing on
+    // behalf of another account.
+    it('create > given a withdraw body and authed user > then service.create is called with (body, callerSub)', async () => {
+      const body: CreateWithdrawDto = { amount_net: 50, currency: 'USDT' };
+
+      const result = await controller.create(reqWithUser('owner-1'), body);
+
+      expect(service.create).toHaveBeenCalledWith(body, 'owner-1');
+      expect(result).toEqual({ _id: 'w1' });
+    });
+  });
+
+  describe('createManualRequest (MiniPay manual withdraw)', () => {
+    // Manual payout request is balance-gated downstream; the controller must
+    // bind the request to the caller's own id so the balance check applies to
+    // the right account.
+    it('createManualRequest > given a manual body > then service is called with (body, callerSub)', () => {
+      const body: CreateManualWithdrawRequestDto = {
+        address: '0x' + 'a'.repeat(40),
+        currency: 'USDT',
+        amount: 12.5,
+      };
+
+      controller.createManualRequest(reqWithUser('owner-1'), body);
+
+      expect(service.createManualWithdrawRequest).toHaveBeenCalledWith(
+        body,
+        'owner-1',
+      );
+    });
+  });
+
+  describe('markPaid (admin audit stamp)', () => {
+    // The admin who confirms a payout is recorded for audit. When the request
+    // carries an admin sub it must be forwarded as-is.
+    it('markPaid > given an admin sub > then service.markWithdrawPaid records that admin id', () => {
+      const body: MarkWithdrawPaidDto = { tx_hash: '0x' + 'b'.repeat(64) };
+
+      controller.markPaid(reqWithUser('admin-7'), 'withdraw-1', body);
+
+      expect(service.markWithdrawPaid).toHaveBeenCalledWith(
+        'withdraw-1',
+        body,
+        'admin-7',
+      );
+    });
+
+    // Audit fields must never be silently empty: a missing sub is stamped as
+    // the literal 'unknown' rather than undefined, so the record stays
+    // queryable and the gap is visible.
+    it("markPaid > given no admin sub on the request > then it stamps 'unknown' as the admin id", () => {
+      const body: MarkWithdrawPaidDto = { tx_hash: '0x' + 'b'.repeat(64) };
+
+      controller.markPaid(reqWithUser(undefined), 'withdraw-1', body);
+
+      expect(service.markWithdrawPaid).toHaveBeenCalledWith(
+        'withdraw-1',
+        body,
+        'unknown',
+      );
+    });
+  });
+
+  describe('createBankTransfer', () => {
+    it('createBankTransfer > given a method body > then service is called with (body, callerSub)', async () => {
+      const body = {
+        account_no: 123,
+        account_name: 'Alice',
+        bank_name: 'KBANK',
+        bank_code: '004',
+        is_default: true,
+      } as unknown as CreateWithdrawMethod;
+
+      await controller.createBankTransfer(
+        reqWithUser('owner-1'),
+        body as never,
+      );
+
+      expect(service.createBankTransfer).toHaveBeenCalledWith(body, 'owner-1');
+    });
+  });
+
+  describe('findAll', () => {
+    it('findAll > given query params and authed user > then service.findAll is called with (params, callerSub)', async () => {
+      const params: GetWithdrawTransactionsDTO = { page: 2, limit: 10 };
+
+      const result = await controller.findAll(params, reqWithUser('owner-1'));
+
+      expect(service.findAll).toHaveBeenCalledWith(params, 'owner-1');
+      expect(result).toEqual({ data: [], total: 0 });
+    });
+  });
+
+  describe('withdrawDetail (IDOR-scoped)', () => {
+    // IDOR fix: the detail read MUST be scoped to the requester so a user can
+    // only fetch their own withdrawal. The controller must forward the
+    // requester sub as the second argument; dropping it would re-open the
+    // leak of email/mobile/amount/tx_hash for ANY ObjectId.
+    it('withdrawDetail > given an authed requester > then it scopes the lookup to (id, requesterSub)', () => {
+      controller.withdrawDetail(reqWithUser('requester-1'), 'withdraw-42');
+
+      expect(service.detailWithdraw).toHaveBeenCalledWith(
+        'withdraw-42',
+        'requester-1',
+      );
+    });
+
+    it('withdrawDetail > given no user on the request > then requesterId is forwarded as undefined (service decides)', () => {
+      controller.withdrawDetail(reqWithUser(undefined), 'withdraw-42');
+
+      expect(service.detailWithdraw).toHaveBeenCalledWith(
+        'withdraw-42',
+        undefined,
+      );
+    });
+  });
+
+  describe('update / remove (id coercion)', () => {
+    it('update > given an id and patch body > then service.update is called with (id, body)', async () => {
+      const body: UpdateWithdrawDto = { amount_net: 99 };
+
+      await controller.update('withdraw-1', body);
+
+      expect(service.update).toHaveBeenCalledWith('withdraw-1', body);
+    });
+
+    // remove() coerces the route string to a number via `+id`; document that
+    // contract so a future signature change can't silently pass a string.
+    it('remove > given a numeric string id > then service.remove receives the coerced number', () => {
+      controller.remove('15');
+
+      expect(service.remove).toHaveBeenCalledWith(15);
+      expect(typeof (service.remove as jest.Mock).mock.calls[0][0]).toBe(
+        'number',
+      );
+    });
+  });
+
+  describe('withdraw-method routes', () => {
+    it('createWithdrawMethod > given a method body > then service is called with (body, callerSub)', async () => {
+      const body = {
+        account_no: 123,
+        account_name: 'Alice',
+        bank_name: 'KBANK',
+        bank_code: '004',
+        is_default: false,
+      } as unknown as CreateWithdrawMethod;
+
+      await controller.createWithdrawMethod(body, reqWithUser('owner-1'));
+
+      expect(service.createWithdrawMethod).toHaveBeenCalledWith(
+        body,
+        'owner-1',
+      );
+    });
+
+    it('getMethodList > given an authed user > then service is scoped to the caller sub', () => {
+      controller.getMethodList(reqWithUser('owner-1'));
+      expect(service.getMethodList).toHaveBeenCalledWith('owner-1');
+    });
+
+    it('getMethodId > given a method id > then service.getMethodId is called with that id', () => {
+      const result = controller.getMethodId('m-1');
+      expect(service.getMethodId).toHaveBeenCalledWith('m-1');
+      expect(result).toEqual({ _id: 'm1' });
+    });
+
+    it('getBankList > then it delegates to service.getBankList', () => {
+      const result = controller.getBankList();
+      expect(service.getBankList).toHaveBeenCalledTimes(1);
+      expect(result).toEqual([{ code: '004', name: 'KBANK' }]);
+    });
+
+    it('deleteMethodData > given a method id > then service.deleteMethodData is called with that id', () => {
+      controller.deleteMethodData('m-1');
+      expect(service.deleteMethodData).toHaveBeenCalledWith('m-1');
+    });
+
+    it('updateMethodData > given an id and body > then service.updateMethodData is called with (id, body)', () => {
+      const body = {
+        account_no: 1,
+        account_name: 'Bob',
+        bank_name: 'SCB',
+        bank_code: '014',
+        is_default: true,
+      } as unknown as CreateWithdrawMethod;
+
+      controller.updateMethodData('m-1', body);
+
+      expect(service.updateMethodData).toHaveBeenCalledWith('m-1', body);
+    });
+  });
+
+  describe('signature', () => {
+    it('getSign > given a sign DTO > then it delegates the DTO unchanged to service.getSign', () => {
+      const dto: GETSignDTO = {
+        userid: 'u1',
+        userAddress: '0xabc',
+        totalCashbackAmount: '100',
+        conversionIdHashes: ['0xhash'],
+        expireAt: '2026-01-01',
+        chain: 42220,
+      };
+
+      controller.getSign(dto);
+
+      expect(service.getSign).toHaveBeenCalledWith(dto);
+    });
+  });
+
+  describe('admin reward routes', () => {
+    it('adminAddRewardConversion > then it delegates to adminAddRewardConversionForQuest', async () => {
+      await controller.adminAddRewardConversion();
+      expect(service.adminAddRewardConversionForQuest).toHaveBeenCalledTimes(1);
+    });
+
+    it('createRewardList > given a reward-list body > then service.createRewardList is called with it', async () => {
+      const body: RequestCreateRewardList = {
+        list: [{ rank: 1, reward: 1000, currency: 'THB' }],
+      };
+
+      await controller.createRewardList(body);
+
+      expect(service.createRewardList).toHaveBeenCalledWith(body);
+    });
+
+    it('createConversionReward > given a conversion-reward body > then service.createConversionReward is called with it', async () => {
+      const body: RequestCreateConversionReward = {
+        reward_type: 'quest',
+        reward_amount: 100 as unknown as number,
+        reward_currency: 'THB',
+        user: 'email',
+      };
+
+      await controller.createConversionReward(body);
+
+      expect(service.createConversionReward).toHaveBeenCalledWith(body);
+    });
   });
 });
