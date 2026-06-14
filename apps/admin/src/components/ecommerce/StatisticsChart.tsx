@@ -207,8 +207,8 @@ export default function StatisticsChart({ insightRange = "30d" }: StatisticsChar
           },
         },
         y: {
-          formatter: (val: number, opts: { seriesIndex?: number }) => {
-            const idx = opts.seriesIndex ?? 0;
+          formatter: (val: number, opts?: { seriesIndex?: number }) => {
+            const idx = opts?.seriesIndex ?? 0;
             if (idx === 2 || idx === 3) {
               return formatThb(val);
             }
