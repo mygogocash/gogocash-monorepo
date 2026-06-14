@@ -1,4 +1,3 @@
-/* eslint-disable prettier/prettier */
 import { HttpException, Inject, Injectable } from '@nestjs/common';
 import {
   CreateAffiliateAiDto,

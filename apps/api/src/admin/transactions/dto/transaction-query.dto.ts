@@ -1,4 +1,10 @@
-import { IsOptional, IsString, IsBoolean, IsIn, IsNumberString } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsBoolean,
+  IsIn,
+  IsNumberString,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 
@@ -13,7 +19,9 @@ export class TransactionQueryDto {
   @IsNumberString()
   limit?: string;
 
-  @ApiPropertyOptional({ description: 'Search by user email, username, or offer name' })
+  @ApiPropertyOptional({
+    description: 'Search by user email, username, or offer name',
+  })
   @IsOptional()
   @IsString()
   search?: string;
@@ -26,7 +34,10 @@ export class TransactionQueryDto {
   @IsIn(['conversion', 'withdrawal'])
   type?: string;
 
-  @ApiPropertyOptional({ description: 'Filter by status (e.g. pending, approved, completed, rejected)' })
+  @ApiPropertyOptional({
+    description:
+      'Filter by status (e.g. pending, approved, completed, rejected)',
+  })
   @IsOptional()
   @IsString()
   status?: string;

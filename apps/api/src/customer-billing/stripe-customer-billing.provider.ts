@@ -1,5 +1,5 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
-import Stripe = require('stripe');
+import Stripe from 'stripe';
 import type {
   CreateBillingPortalSessionInput,
   CreateCheckoutSessionInput,

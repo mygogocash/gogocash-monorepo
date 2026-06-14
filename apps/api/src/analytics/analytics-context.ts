@@ -29,7 +29,9 @@ export const extractAnalyticsContext = (
   req: Request,
   options?: { userId?: string; region?: string },
 ): AnalyticsContext => {
-  const requestDistinctId = readHeaderValue(req.headers['x-posthog-distinct-id']);
+  const requestDistinctId = readHeaderValue(
+    req.headers['x-posthog-distinct-id'],
+  );
   const anonymousId = readHeaderValue(req.headers['x-posthog-anonymous-id']);
   const locale = readHeaderValue(req.headers['x-app-locale']) || 'en';
 

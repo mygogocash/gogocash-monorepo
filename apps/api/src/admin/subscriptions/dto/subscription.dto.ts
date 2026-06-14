@@ -135,7 +135,9 @@ export class UpdateSubscriptionPlanDto {
 }
 
 export class SubscriptionActionDto {
-  @ApiPropertyOptional({ description: 'Number of days to extend (for extend action)' })
+  @ApiPropertyOptional({
+    description: 'Number of days to extend (for extend action)',
+  })
   @IsOptional()
   @IsNumber()
   @Min(1)

@@ -66,7 +66,11 @@ export const CIO_TRAITS = {
   successful_referrals: 'successful_referrals',
 } as const;
 
-export type SuppressionReason = 'bounced' | 'complained' | 'unsubscribed' | 'dropped';
+export type SuppressionReason =
+  | 'bounced'
+  | 'complained'
+  | 'unsubscribed'
+  | 'dropped';
 
 /**
  * Resolve `process.env.CUSTOMERIO_REGION` to the SDK's Region enum. Falls

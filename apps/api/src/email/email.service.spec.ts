@@ -13,7 +13,9 @@ describe('EmailService (Resend)', () => {
   let send: jest.Mock;
 
   beforeEach(async () => {
-    send = jest.fn().mockResolvedValue({ data: { id: 'email_123' }, error: null });
+    send = jest
+      .fn()
+      .mockResolvedValue({ data: { id: 'email_123' }, error: null });
     const moduleRef = await Test.createTestingModule({
       providers: [
         EmailService,
@@ -54,7 +56,10 @@ describe('EmailService (Resend)', () => {
   });
 
   it('sendOtp > when Resend returns an error > throws (does not swallow)', async () => {
-    send.mockResolvedValueOnce({ data: null, error: { message: 'domain not verified' } });
+    send.mockResolvedValueOnce({
+      data: null,
+      error: { message: 'domain not verified' },
+    });
 
     await expect(service.sendOtp('user@example.com', '123456')).rejects.toThrow(
       /domain not verified|Email delivery failed/i,

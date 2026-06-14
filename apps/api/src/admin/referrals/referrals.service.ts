@@ -91,9 +91,7 @@ export class ReferralsService {
           .exec()
       : [];
 
-    const referrerMap = new Map(
-      referrers.map((r) => [r._id?.toString(), r]),
-    );
+    const referrerMap = new Map(referrers.map((r) => [r._id?.toString(), r]));
 
     const data = users.map((u) => {
       const referrer = referrerMap.get(u.referred_by ?? '');
@@ -171,9 +169,7 @@ export class ReferralsService {
       .exec();
 
     if (!point) {
-      throw new NotFoundException(
-        `Referral point record ${id} not found`,
-      );
+      throw new NotFoundException(`Referral point record ${id} not found`);
     }
 
     return point;
@@ -195,9 +191,7 @@ export class ReferralsService {
       .exec();
 
     if (!point) {
-      throw new NotFoundException(
-        `Referral point record ${id} not found`,
-      );
+      throw new NotFoundException(`Referral point record ${id} not found`);
     }
 
     return point;

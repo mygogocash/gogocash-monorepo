@@ -36,10 +36,8 @@ export class TransactionsService {
     const limit = Math.min(100, Math.max(1, Number(query.limit) || 20));
     const skip = (page - 1) * limit;
 
-    const queryOnlyConversion =
-      query.type === 'conversion' || !query.type;
-    const queryOnlyWithdrawal =
-      query.type === 'withdrawal' || !query.type;
+    const queryOnlyConversion = query.type === 'conversion' || !query.type;
+    const queryOnlyWithdrawal = query.type === 'withdrawal' || !query.type;
 
     let conversions: any[] = [];
     let conversionTotal = 0;
@@ -79,15 +77,14 @@ export class TransactionsService {
     const unified = [
       ...conversions.map((c) => this.mapConversion(c)),
       ...withdrawals.map((w) => this.mapWithdrawal(w)),
-    ].sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-    );
+    ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-    const total = query.type === 'conversion'
-      ? conversionTotal
-      : query.type === 'withdrawal'
-        ? withdrawalTotal
-        : conversionTotal + withdrawalTotal;
+    const total =
+      query.type === 'conversion'
+        ? conversionTotal
+        : query.type === 'withdrawal'
+          ? withdrawalTotal
+          : conversionTotal + withdrawalTotal;
 
     const paginated = unified.slice(skip, skip + limit);
 
@@ -107,18 +104,12 @@ export class TransactionsService {
       throw new NotFoundException(`Transaction ${id} not found`);
     }
 
-    const conversion = await this.conversionModel
-      .findById(id)
-      .lean()
-      .exec();
+    const conversion = await this.conversionModel.findById(id).lean().exec();
     if (conversion) {
       return { ...this.mapConversion(conversion), raw: conversion };
     }
 
-    const withdrawal = await this.withdrawModel
-      .findById(id)
-      .lean()
-      .exec();
+    const withdrawal = await this.withdrawModel.findById(id).lean().exec();
     if (withdrawal) {
       return { ...this.mapWithdrawal(withdrawal), raw: withdrawal };
     }

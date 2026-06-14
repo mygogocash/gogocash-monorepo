@@ -4,11 +4,7 @@ import {
   SendEmailRequest,
   TrackClient,
 } from 'customerio-node';
-import {
-  CIO_TRAITS,
-  CioEventName,
-  resolveRegion,
-} from './customer-io.types';
+import { CIO_TRAITS, CioEventName, resolveRegion } from './customer-io.types';
 import { EmailSuppressionService } from './email-suppression/email-suppression.service';
 
 type Traits = Record<string, unknown>;
@@ -45,8 +41,7 @@ export class CustomerIoService {
   private readonly logger = new Logger(CustomerIoService.name);
 
   private readonly enabled = Boolean(
-    process.env.CUSTOMERIO_SITE_ID &&
-      process.env.CUSTOMERIO_TRACK_API_KEY,
+    process.env.CUSTOMERIO_SITE_ID && process.env.CUSTOMERIO_TRACK_API_KEY,
   );
 
   private readonly trackClient = this.enabled
@@ -171,9 +166,7 @@ export class CustomerIoService {
    * right-to-erasure flow alongside any other PII purges. Safe to call for
    * profiles that don't exist.
    */
-  async delete(
-    userId: string | { toString(): string },
-  ): Promise<void> {
+  async delete(userId: string | { toString(): string }): Promise<void> {
     if (!this.trackClient) return;
     const id = String(userId);
     if (!id) return;

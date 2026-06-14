@@ -105,10 +105,10 @@ export class GogosenseController {
   @ApiBearerAuth()
   @ApiBody({ type: GogosenseSettingsDto })
   @Post('settings')
-  updateSettings(
-    @Body() settings: GogosenseSettingsDto,
-    @Req() req: Request,
-  ) {
-    return this.gogosenseService.updateSettings(getRequestUserId(req), settings);
+  updateSettings(@Body() settings: GogosenseSettingsDto, @Req() req: Request) {
+    return this.gogosenseService.updateSettings(
+      getRequestUserId(req),
+      settings,
+    );
   }
 }
