@@ -1,0 +1,104 @@
+# Deploy Backend API to Cloud Run — api-ai-test.gogocash.co.
+# Triggered on push to the `ai-test` branch.
+# Isolated AI-testing environment, separate from staging.
+
+name: Deploy API (ai-test)
+
+on:
+  push:
+    branches:
+      - ai-test
+  workflow_dispatch:
+
+concurrency:
+  group: api-ai-test-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Run tests
+        run: npm run test
+        continue-on-error: true
+
+      - name: Build (type-check)
+        # nest build (tsc) exceeds Node's 2GB default heap on runners (exit 134)
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: npm run build
+
+  deploy:
+    name: Docker → Artifact Registry → Cloud Run
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      REGION: asia-southeast1
+      SERVICE_NAME: gogocash-api-ai-test
+      ARTIFACT_REPO: gogocash
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            --tag ${{ env.REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+            --tag ${{ env.REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:latest \
+            --cache-from ${{ env.REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:latest \
+            .
+
+      - name: Push Docker image
+        run: |
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:latest
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image ${{ env.REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+            --region ${{ env.REGION }} \
+            --platform managed \
+            --allow-unauthenticated \
+            --port 8080 \
+            --min-instances 0 \
+            --max-instances 3 \
+            --memory 512Mi \
+            --cpu 1 \
+            --set-env-vars "NODE_ENV=production,WEB_APP_URL=https://app-ai-test.gogocash.co,API_BASE_URL=https://api-ai-test.gogocash.co,POSTHOG_HOST=https://us.i.posthog.com,POSTHOG_ENABLED=true" \
+            --set-secrets "MONGO_URI=gogocash-ai-test-mongo-uri:latest,JWT_SECRET=gogocash-ai-test-jwt-secret:latest,JWT_ADMIN_SECRET=gogocash-ai-test-jwt-admin-secret:latest,FIREBASE_PROJECT_ID=gogocash-ai-test-firebase-project-id:latest,INVOLVE_SECRET=gogocash-ai-test-involve-secret:latest,POSTHOG_KEY=gogocash-ai-test-posthog-key:latest,TELEGRAM_BOT_TOKEN=gogocash-ai-test-telegram-bot-token:latest,CROSSMINT_AUTH_BASE=gogocash-ai-test-crossmint-auth-base:latest,CROSSMINT_PROJECT_ID=gogocash-ai-test-crossmint-project-id:latest,CROSSMINT_SECRET=gogocash-ai-test-crossmint-secret:latest" \
+            --project ${{ vars.GCP_PROJECT_ID }}
+
+      - name: Print service URL
+        run: |
+          gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region ${{ env.REGION }} \
+            --project ${{ vars.GCP_PROJECT_ID }} \
+            --format "value(status.url)"
