@@ -22,6 +22,10 @@ concurrency:
 permissions:
   contents: read
   id-token: write
+  # ci.yml's `changes` job (dorny/paths-filter) requests pull-requests:read; a
+  # reusable-workflow job can't request a permission the caller hasn't granted
+  # (else the whole run is a startup_failure), so grant it here.
+  pull-requests: read
 
 jobs:
   ci:
