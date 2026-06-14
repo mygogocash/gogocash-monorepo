@@ -2282,6 +2282,10 @@ export class WithdrawService {
         bonus_payout: 0,
         // change data
         aff_sub1: `user_id:${user.user_id}`, // "user_id:68bf99fed9667685c1637607"
+        // P1-COLLSCAN: persist the indexed user_id alongside the legacy aff_sub1.
+        ...(isValidObjectId(user.user_id)
+          ? { user_id: new Types.ObjectId(user.user_id) }
+          : {}),
         currency: rewardList?.data?.[i]?.currency || 'THB',
         payout: rewardList?.data?.[i]?.reward || 0,
         sale_amount: 0,
@@ -2358,6 +2362,8 @@ export class WithdrawService {
       aff_sub1: user_id?.startsWith('user_id:')
         ? user_id
         : `user_id:${user_id}`, // "user_id:68bf99fed9667685c1637607"
+      // P1-COLLSCAN: persist the indexed user_id alongside the legacy aff_sub1.
+      user_id: userData._id,
       currency: reward_currency || 'THB',
       payout: Number(reward_amount) || 0,
       sale_amount: 0,
