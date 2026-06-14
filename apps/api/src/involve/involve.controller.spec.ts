@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Request } from 'express';
 import { InvolveController } from './involve.controller';
@@ -81,6 +82,38 @@ describe('InvolveController', () => {
 
   it('should be defined', () => {
     expect(controller).toBeDefined();
+  });
+
+  // ---------------------------------------------------------------------------
+  // Authorization wiring (V-5 + involve stubs). These routes had NO guard:
+  //   - PATCH/DELETE /involve/:id  -> anyone could mutate/delete offer data
+  //   - GET /involve/checkOfferDuplicate -> unauthenticated admin utility
+  //   - POST /involve/create-affiliate-ai/:email -> deeplink minting +
+  //     email-enumeration + affiliate-API cost abuse (V-5)
+  // Guards are per-method on this controller (not class-level), so each must be
+  // pinned. AuthAdminGuard is the fail-closed default for create-affiliate-ai
+  // pending the owner's caller decision (external/AI service may need an
+  // API-key guard instead — tracked separately).
+  // ---------------------------------------------------------------------------
+  describe('authorization wiring (V-5 + involve stubs)', () => {
+    const proto = InvolveController.prototype as unknown as Record<
+      string,
+      unknown
+    >;
+    const guardsOf = (method: string): unknown[] =>
+      (Reflect.getMetadata('__guards__', proto[method] as object) as unknown[]) ??
+      [];
+
+    for (const method of [
+      'checkOfferDuplicate',
+      'update',
+      'remove',
+      'createAffiliateAi',
+    ]) {
+      it(`${method} > is protected by AuthAdminGuard (was an unguarded mutation/leak route)`, () => {
+        expect(guardsOf(method)).toContain(AuthAdminGuard);
+      });
+    }
   });
 
   describe('findAll', () => {

@@ -47,16 +47,21 @@ export class InvolveController {
     return this.involveService.findAll();
   }
 
+  // V-5/stubs: admin-only. Per-method guards (this controller has no class-level
+  // guard), so each previously-open route must be locked individually.
+  @UseGuards(AuthAdminGuard)
   @Get('checkOfferDuplicate')
   checkOfferDuplicate() {
     return this.involveService.checkOfferDuplicate();
   }
 
+  @UseGuards(AuthAdminGuard)
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateInvolveDto: UpdateInvolveDto) {
     return this.involveService.update(+id, updateInvolveDto);
   }
 
+  @UseGuards(AuthAdminGuard)
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.involveService.remove(+id);
@@ -95,6 +100,11 @@ export class InvolveController {
       });
   }
 
+  // V-5: was fully open — minted Involve affiliate deeplinks for any email
+  // (email enumeration + affiliate-API cost abuse). Fail-closed with
+  // AuthAdminGuard pending the owner's caller decision: if this is invoked by an
+  // external/AI service it should move to a dedicated API-key guard instead.
+  @UseGuards(AuthAdminGuard)
   @Post('create-affiliate-ai/:email')
   createAffiliateAi(
     @Body() createInvolveDto: CreateAffiliateAiDto,
