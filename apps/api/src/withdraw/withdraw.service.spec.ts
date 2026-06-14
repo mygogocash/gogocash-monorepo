@@ -29,6 +29,8 @@ const makeModelMock = (): ModelMock => ({
   findById: jest.fn(),
   findByIdAndUpdate: jest.fn(),
   findByIdAndDelete: jest.fn(),
+  findOneAndUpdate: jest.fn(),
+  findOneAndDelete: jest.fn(),
   find: jest.fn(),
   create: jest.fn(),
   countDocuments: jest.fn(),
@@ -480,6 +482,61 @@ describe('WithdrawService', () => {
       expect(result).toMatchObject({ status: 'success' });
       const persisted = mocks.withdrawMethodModel.create.mock.calls[0][0];
       expect(persisted.user_id.toString()).toBe(userOid.toString());
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // withdraw-method ownership scope — IDOR guard (V-3). get/update/delete a
+  // saved bank/withdraw method by raw _id was unscoped, so any authenticated
+  // user could read or overwrite another member's payout account (redirect
+  // funds). Queries must be constrained to {_id, user_id} like getMethodList.
+  // ---------------------------------------------------------------------------
+  describe('withdraw-method ownership scope (V-3 IDOR)', () => {
+    const METHOD_ID = new Types.ObjectId().toString();
+
+    it('getMethodId > given a method id + caller > then scopes findOne by owner user_id (not unscoped findById)', async () => {
+      mocks.withdrawMethodModel.findOne.mockResolvedValue(null);
+
+      await mocks.service.getMethodId(METHOD_ID, VALID_USER_ID);
+
+      expect(mocks.withdrawMethodModel.findById).not.toHaveBeenCalled();
+      expect(mocks.withdrawMethodModel.findOne).toHaveBeenCalledTimes(1);
+      const filter = mocks.withdrawMethodModel.findOne.mock.calls[0][0];
+      expect(filter.user_id.toString()).toBe(VALID_USER_ID);
+      expect(filter._id.toString()).toBe(METHOD_ID);
+    });
+
+    it('deleteMethodData > given a method id + caller > then deletes only the caller-owned row (scoped findOneAndDelete, not findByIdAndDelete)', async () => {
+      mocks.withdrawMethodModel.findOneAndDelete.mockResolvedValue(null);
+
+      await mocks.service.deleteMethodData(METHOD_ID, VALID_USER_ID);
+
+      expect(mocks.withdrawMethodModel.findByIdAndDelete).not.toHaveBeenCalled();
+      expect(mocks.withdrawMethodModel.findOneAndDelete).toHaveBeenCalledTimes(1);
+      const filter = mocks.withdrawMethodModel.findOneAndDelete.mock.calls[0][0];
+      expect(filter.user_id.toString()).toBe(VALID_USER_ID);
+      expect(filter._id.toString()).toBe(METHOD_ID);
+    });
+
+    it('updateMethodData > given a method id + caller > then updates only the caller-owned row (scoped findOneAndUpdate, not findByIdAndUpdate)', async () => {
+      mocks.withdrawMethodModel.findOneAndUpdate.mockResolvedValue(null);
+
+      await mocks.service.updateMethodData(METHOD_ID, VALID_USER_ID, {
+        account_no: '123',
+      } as never);
+
+      expect(mocks.withdrawMethodModel.findByIdAndUpdate).not.toHaveBeenCalled();
+      expect(mocks.withdrawMethodModel.findOneAndUpdate).toHaveBeenCalledTimes(1);
+      const filter = mocks.withdrawMethodModel.findOneAndUpdate.mock.calls[0][0];
+      expect(filter.user_id.toString()).toBe(VALID_USER_ID);
+    });
+
+    it('getMethodId > given a malformed method id > then returns null without a query (no CastError / no unscoped read)', async () => {
+      const res = await mocks.service.getMethodId('not-an-objectid', VALID_USER_ID);
+
+      expect(res).toBeNull();
+      expect(mocks.withdrawMethodModel.findOne).not.toHaveBeenCalled();
+      expect(mocks.withdrawMethodModel.findById).not.toHaveBeenCalled();
     });
   });
 

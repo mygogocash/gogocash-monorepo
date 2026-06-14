@@ -306,9 +306,9 @@ describe('WithdrawController', () => {
       expect(service.getMethodList).toHaveBeenCalledWith('owner-1');
     });
 
-    it('getMethodId > given a method id > then service.getMethodId is called with that id', () => {
-      const result = controller.getMethodId('m-1');
-      expect(service.getMethodId).toHaveBeenCalledWith('m-1');
+    it('getMethodId > given a method id > then service.getMethodId is scoped to (id, caller sub) — IDOR guard', () => {
+      const result = controller.getMethodId('m-1', reqWithUser('owner-1'));
+      expect(service.getMethodId).toHaveBeenCalledWith('m-1', 'owner-1');
       expect(result).toEqual({ _id: 'm1' });
     });
 
@@ -318,12 +318,12 @@ describe('WithdrawController', () => {
       expect(result).toEqual([{ code: '004', name: 'KBANK' }]);
     });
 
-    it('deleteMethodData > given a method id > then service.deleteMethodData is called with that id', () => {
-      controller.deleteMethodData('m-1');
-      expect(service.deleteMethodData).toHaveBeenCalledWith('m-1');
+    it('deleteMethodData > given a method id > then service.deleteMethodData is scoped to (id, caller sub) — IDOR guard', () => {
+      controller.deleteMethodData('m-1', reqWithUser('owner-1'));
+      expect(service.deleteMethodData).toHaveBeenCalledWith('m-1', 'owner-1');
     });
 
-    it('updateMethodData > given an id and body > then service.updateMethodData is called with (id, body)', () => {
+    it('updateMethodData > given an id and body > then service.updateMethodData is scoped to (id, caller sub, body) — IDOR guard', () => {
       const body = {
         account_no: 1,
         account_name: 'Bob',
@@ -332,9 +332,13 @@ describe('WithdrawController', () => {
         is_default: true,
       } as unknown as CreateWithdrawMethod;
 
-      controller.updateMethodData('m-1', body);
+      controller.updateMethodData('m-1', body, reqWithUser('owner-1'));
 
-      expect(service.updateMethodData).toHaveBeenCalledWith('m-1', body);
+      expect(service.updateMethodData).toHaveBeenCalledWith(
+        'm-1',
+        'owner-1',
+        body,
+      );
     });
   });
 
