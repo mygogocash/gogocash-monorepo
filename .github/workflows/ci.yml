@@ -28,10 +28,12 @@
 name: CI
 
 on:
+  # `migrate/monorepo` is the integration branch until the migration lands on
+  # main — validate it (and PRs into it) too, so stacked work gets clean-CI.
   pull_request:
-    branches: [staging, main]
+    branches: [staging, main, migrate/monorepo]
   push:
-    branches: [staging, main]
+    branches: [staging, main, migrate/monorepo]
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
