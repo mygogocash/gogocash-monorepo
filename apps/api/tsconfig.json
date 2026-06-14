@@ -6,6 +6,13 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
+    // Pin esModuleInterop ON explicitly (it's TS 6.0's default, but make it
+    // version-independent): the default imports of CJS callables (cookie-parser,
+    // supertest) only emit the __importDefault helper — and stay callable at
+    // runtime — when this is true. Without it, a build that happened to transpile
+    // under TS 5.9 (esModuleInterop:false) would emit require("cookie-parser").default
+    // (undefined) and crash `app.use(cookieParser())` in the boot smoke.
+    "esModuleInterop": true,
     "target": "ES2021",
     "sourceMap": true,
     "outDir": "./dist",
