@@ -7,11 +7,6 @@ import { typography } from "@mobile/theme/tokens";
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const mobileRoot = path.resolve(testDir, "../..");
-const repoRoot = path.resolve(mobileRoot, "../..");
-
-function readRepoFile(relativePath: string) {
-  return fs.readFileSync(path.join(repoRoot, relativePath), "utf8");
-}
 
 function readMobileFile(relativePath: string) {
   return fs.readFileSync(path.join(mobileRoot, relativePath), "utf8");
@@ -58,18 +53,24 @@ describe("Expo typography parity", () => {
     });
   });
 
-  it("typography parity > given Next font contract > then Expo loads matching web and native font families", () => {
-    const nextFonts = readRepoFile("src/lib/fonts.ts");
-    const nextGlobals = readRepoFile("src/app/globals.css");
+  it("typography parity > given the font contract > then Expo loads matching web and native font families", () => {
+    // The legacy Next customer web (src/lib/fonts.ts + src/app/globals.css) was
+    // retired. The font contract now lives entirely in the Expo app: the runtime
+    // font registry (appFonts.ts) is the native source of truth, the locale
+    // mechanism moved to the html lang attribute, and the web/native families are
+    // still pinned by the shared tokens, the web index.html, and app.config.ts.
+    const appFonts = readMobileFile("src/theme/appFonts.ts");
     const mobileHtml = readMobileFile("public/index.html");
     const mobileConfig = readMobileFile("app.config.ts");
     const providers = readMobileFile("src/providers/AppProviders.tsx");
     const packageJson = readMobileFile("package.json");
 
-    expect(nextFonts).toContain('DM_Sans');
-    expect(nextFonts).toContain('Anuphan');
-    expect(nextGlobals).toContain('body.locale-en');
-    expect(nextGlobals).toContain('body.locale-th');
+    // Native runtime registers both families under the names the styles reference.
+    expect(appFonts).toContain('"DM Sans": DMSans_400Regular');
+    expect(appFonts).toContain("Anuphan: Anuphan_400Regular");
+    // Web locale switching is driven by the html lang attribute (replaces the
+    // retired body.locale-en / body.locale-th globals.css classes).
+    expect(mobileHtml).toContain('<html lang="%LANG_ISO_CODE%">');
     expect(typography).toMatchObject({
       family: '"DM Sans", Anuphan, system-ui, sans-serif',
       thaiFamily: 'Anuphan, "DM Sans", system-ui, sans-serif',
