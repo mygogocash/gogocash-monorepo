@@ -26,7 +26,9 @@
     "migrate:brands": "ts-node -r tsconfig-paths/register scripts/migrate-brands.ts",
     "migrate:brands:dry": "ts-node -r tsconfig-paths/register scripts/migrate-brands.ts --dry-run",
     "migrate:country": "ts-node -r tsconfig-paths/register scripts/migrate-country.ts",
-    "migrate:country:dry": "ts-node -r tsconfig-paths/register scripts/migrate-country.ts --dry-run"
+    "migrate:country:dry": "ts-node -r tsconfig-paths/register scripts/migrate-country.ts --dry-run",
+    "backfill:conversion-userid": "ts-node -r tsconfig-paths/register scripts/backfill-conversion-userid.ts",
+    "backfill:conversion-userid:dry": "ts-node -r tsconfig-paths/register scripts/backfill-conversion-userid.ts --dry-run"
   },
   "dependencies": {
     "@crossmint/server-sdk": "^1.2.41",
