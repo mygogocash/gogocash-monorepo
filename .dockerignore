@@ -1,0 +1,19 @@
+# Root .dockerignore — apps build with context = monorepo root (-f apps/X/Dockerfile).
+# Keep the build context lean; node_modules are reinstalled via npm ci in the image.
+**/node_modules
+.git
+.github
+**/.next
+**/dist
+**/out
+**/.expo
+**/web-build
+**/.turbo
+**/coverage
+**/.DS_Store
+*.log
+.env
+.env.*
+**/.env
+**/.env.*
+!**/.env.example
