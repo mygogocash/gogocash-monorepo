@@ -65,18 +65,32 @@ the aggregator instead:
   free-plan repo. Enable after upgrading the plan or making the repo public
   (tracked in #44).
 
-## Deploys are MANUAL ONLY (Phase 3 pending)
+## Staging CD — auto build, manual release
 
-There is **no auto-deploy in this repo**. This CI builds and tests only —
-nothing here ships to staging or production.
+Staging deploys use an **auto-build + approval-gate** split (a real-money
+platform: builds are automatic, releases are a deliberate human action). All
+three Cloud Run lanes share two **reusable** workflows so the deploy logic lives
+in one place.
 
-The per-app `deploy-*.yml` files under `apps/api/.github/` were **not** ported
-to root. They were push-triggered
-(`on: push` to `staging` / `production` → Cloud Run / Firebase Hosting), and
-porting them as-is would auto-deploy from this branch. That is intentionally
-avoided.
+| Workflow | Trigger | Does |
+|----------|---------|------|
+| **`build-staging.yml`** | auto: push to `migrate/monorepo` (+ manual) | reuses `ci.yml` as the gate, then builds + pushes a `:staging-candidate` image for each **changed** app (path-filtered). **No deploy.** |
+| **`release-staging.yml`** | manual `workflow_dispatch` (pick app + tag) | deploys the chosen candidate image to Cloud Run, then **health-smokes** the new revision. The dispatch **is** the approval. |
+| `_build-push.yml` | `workflow_call` | reusable: WIF auth → optional prebuild → docker build → push `:sha` + `:staging-candidate`. |
+| `_deploy-cloudrun.yml` | `workflow_call` | reusable: WIF auth → `gcloud run deploy` a given tag → post-deploy `curl` health check. |
 
-When deploys are wired up (Phase 3), each deploy workflow added here **must**
-be triggered by `workflow_dispatch` (manual) only — **never `on: push`** — so a
-human explicitly initiates every staging/production release. Until then,
-deploys remain a documented manual step performed outside CI.
+Both reusables run in the **`staging` GitHub Environment** (holds the `GCP_*` WIF
+vars; GCP Secret-Manager secrets stay in GCP via `--set-secrets`).
+
+**Approval gate:** GitHub Environment required-reviewer protection needs a paid
+plan for private repos (see #44). Until then the approval is the manual
+`release-staging` dispatch. Once on Pro/public, add required-reviewers to the
+`staging` environment and the release pauses for one-click approval (no workflow
+change needed).
+
+**Native app** (`deploy-app-native-eas.yml`) stays a manual EAS scaffold
+(needs `EXPO_TOKEN`).
+
+> The legacy `deploy-{api,admin,app-web}-staging.yml` lanes are kept as a manual
+> fallback during cutover; delete them once `build-staging` + `release-staging`
+> are verified on a real merge.

@@ -1,0 +1,125 @@
+# Reusable: deploy an ALREADY-BUILT Artifact Registry image to Cloud Run, then
+# health-check the new revision. Called by release-staging.yml (the human
+# approval/release step). Does NOT build — it deploys an existing tag produced
+# by _build-push.yml.
+name: _deploy-cloudrun (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      service_name:
+        required: true
+        type: string
+      image_tag:
+        description: Artifact Registry tag to deploy (e.g. staging-candidate or a sha)
+        required: false
+        type: string
+        default: staging-candidate
+      memory:
+        required: false
+        type: string
+        default: 512Mi
+      max_instances:
+        required: false
+        type: string
+        default: "3"
+      min_instances:
+        required: false
+        type: string
+        default: "0"
+      port:
+        required: false
+        type: string
+        default: "8080"
+      health_path:
+        description: Path to probe after deploy (expect 2xx/3xx)
+        required: false
+        type: string
+        default: "/"
+      env_vars:
+        description: Comma-separated KEY=VALUE list for --set-env-vars
+        required: false
+        type: string
+        default: ""
+      secrets_map:
+        description: Comma-separated KEY=secret:version list for --set-secrets
+        required: false
+        type: string
+        default: ""
+      region:
+        required: false
+        type: string
+        default: asia-southeast1
+      artifact_repo:
+        required: false
+        type: string
+        default: gogocash
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: deploy ${{ inputs.service_name }}
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      IMAGE: ${{ inputs.region }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ inputs.artifact_repo }}/${{ inputs.service_name }}:${{ inputs.image_tag }}
+      PROJECT: ${{ vars.GCP_PROJECT_ID }}
+      REGION: ${{ inputs.region }}
+      SERVICE: ${{ inputs.service_name }}
+    steps:
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Deploy to Cloud Run
+        # env_vars / secrets_map are passed through env (not inlined into the
+        # command) per Actions injection guidance, even though they come from a
+        # trusted static caller.
+        env:
+          ENV_VARS: ${{ inputs.env_vars }}
+          SECRETS_MAP: ${{ inputs.secrets_map }}
+          PORT: ${{ inputs.port }}
+          MIN_INSTANCES: ${{ inputs.min_instances }}
+          MAX_INSTANCES: ${{ inputs.max_instances }}
+          MEMORY: ${{ inputs.memory }}
+        run: |
+          args=(run deploy "$SERVICE"
+            --image "$IMAGE"
+            --region "$REGION"
+            --platform managed
+            --allow-unauthenticated
+            --port "$PORT"
+            --min-instances "$MIN_INSTANCES"
+            --max-instances "$MAX_INSTANCES"
+            --memory "$MEMORY"
+            --cpu 1
+            --project "$PROJECT")
+          [ -n "$ENV_VARS" ] && args+=(--set-env-vars "$ENV_VARS")
+          [ -n "$SECRETS_MAP" ] && args+=(--set-secrets "$SECRETS_MAP")
+          gcloud "${args[@]}"
+
+      - name: Post-deploy health smoke
+        env:
+          HEALTH_PATH: ${{ inputs.health_path }}
+        run: |
+          URL=$(gcloud run services describe "$SERVICE" --region "$REGION" --project "$PROJECT" --format "value(status.url)")
+          echo "Service URL: $URL"
+          # Cloud Run min-instances 0 → first hit can cold-start (~10-15s); retry.
+          for i in $(seq 1 6); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "${URL}${HEALTH_PATH}" || echo 000)
+            echo "attempt $i: HTTP $code"
+            case "$code" in
+              2*|3*) echo "$SERVICE is healthy ($code)."; exit 0 ;;
+            esac
+            sleep 10
+          done
+          echo "::error::Post-deploy health check failed for $SERVICE (no 2xx/3xx on ${HEALTH_PATH})"
+          exit 1

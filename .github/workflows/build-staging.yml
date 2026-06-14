@@ -1,0 +1,62 @@
+# Staging CD — BUILD half (automatic).
+#
+# On every merge to `migrate/monorepo`: run CI, then build + push a
+# `:staging-candidate` image for each CHANGED app. It does NOT deploy — the
+# release is a deliberate human step (release-staging.yml). This is the
+# "auto build + approval gate" model: builds are automatic, releases are not.
+#
+# Gating: the `ci` job reuses ci.yml (same lint/test/build/boot-smoke gates +
+# its path-filter outputs), so a red CI blocks all builds and nothing is
+# duplicated.
+name: Build (staging)
+
+on:
+  push:
+    branches: [migrate/monorepo]
+  workflow_dispatch: {}
+
+concurrency:
+  group: build-staging-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  ci:
+    name: CI gate
+    uses: ./.github/workflows/ci.yml
+
+  build-api:
+    name: build api
+    needs: ci
+    if: ${{ needs.ci.outputs.api == 'true' }}
+    uses: ./.github/workflows/_build-push.yml
+    with:
+      service_name: gogocash-api-staging
+      dockerfile: apps/api/Dockerfile
+      build_context: .
+
+  build-admin:
+    name: build admin
+    needs: ci
+    if: ${{ needs.ci.outputs.admin == 'true' }}
+    uses: ./.github/workflows/_build-push.yml
+    with:
+      service_name: gogocash-admin
+      dockerfile: apps/admin/Dockerfile
+      build_context: .
+
+  build-app-web:
+    name: build app-web
+    needs: ci
+    if: ${{ needs.ci.outputs.app == 'true' }}
+    uses: ./.github/workflows/_build-push.yml
+    with:
+      service_name: gogocash-app-web-staging
+      dockerfile: apps/app/Dockerfile.web
+      build_context: apps/app
+      # Expo web export runs before the image build; EXPO_PUBLIC_* (all
+      # non-secret) are baked into the static bundle here.
+      prebuild_command: "EXPO_PUBLIC_API_URL=https://api-staging.gogocash.co EXPO_PUBLIC_APP_ENV=staging EXPO_PUBLIC_ACCOUNT_DATA_SOURCE=fixtures EXPO_PUBLIC_FRONTEND_URL=https://app-staging.gogocash.co npm run export:web -w @gogocash/mobile"

@@ -1,0 +1,71 @@
+# Staging CD — RELEASE half (manual = the approval gate).
+#
+# Deploys an already-built `:staging-candidate` image (from build-staging.yml)
+# to Cloud Run. Triggering this workflow IS the human approval to release.
+# Per-app runtime config (env vars + Secret Manager mappings) lives here.
+#
+# Upgrade path: this references the `staging` GitHub Environment, so once the
+# repo is on a plan that allows Environment protection rules (or is public —
+# see #44), add required-reviewers to `staging` and this pauses for one-click
+# approval instead of relying on a manual dispatch.
+name: Release (staging)
+
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: Which app to release to staging
+        required: true
+        type: choice
+        options:
+          - api
+          - admin
+          - app-web
+      tag:
+        description: Image tag to deploy (default = latest build-staging candidate)
+        required: false
+        default: staging-candidate
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  release-api:
+    if: ${{ inputs.app == 'api' }}
+    uses: ./.github/workflows/_deploy-cloudrun.yml
+    with:
+      service_name: gogocash-api-staging
+      image_tag: ${{ inputs.tag }}
+      memory: 512Mi
+      max_instances: "5"
+      health_path: "/"
+      env_vars: "NODE_ENV=production,WEB_APP_URL=https://app-staging.gogocash.co,API_BASE_URL=https://api-staging.gogocash.co,POSTHOG_HOST=https://us.i.posthog.com,POSTHOG_ENABLED=true,MAIL_FROM=GoGoCash <noreply@gogocash.co>,ADMIN_APP_URL=https://admin-staging.gogocash.co"
+      # INVOLVE_AI_API_KEY (V-5 create-affiliate-ai guard) is intentionally NOT
+      # set here — create the gogocash-staging-involve-ai-api-key Secret Manager
+      # secret first, then add it (the route stays fail-closed until then).
+      secrets_map: "MONGO_URI=gogocash-staging-mongo-uri:latest,JWT_SECRET=gogocash-staging-jwt-secret:latest,JWT_ADMIN_SECRET=gogocash-staging-jwt-admin-secret:latest,FIREBASE_PROJECT_ID=gogocash-staging-firebase-project-id:latest,INVOLVE_SECRET=gogocash-staging-involve-secret:latest,POSTHOG_KEY=gogocash-staging-posthog-key:latest,TELEGRAM_BOT_TOKEN=gogocash-staging-telegram-bot-token:latest,CROSSMINT_AUTH_BASE=gogocash-staging-crossmint-auth-base:latest,CROSSMINT_PROJECT_ID=gogocash-staging-crossmint-project-id:latest,CROSSMINT_SECRET=gogocash-staging-crossmint-secret:latest,RESEND_API_KEY=gogocash-staging-resend-api-key:latest"
+
+  release-admin:
+    if: ${{ inputs.app == 'admin' }}
+    uses: ./.github/workflows/_deploy-cloudrun.yml
+    with:
+      service_name: gogocash-admin
+      image_tag: ${{ inputs.tag }}
+      memory: 512Mi
+      max_instances: "3"
+      # Admin redirects to /signin (307) when unauthenticated — a healthy 3xx.
+      health_path: "/"
+      # NEXT_PUBLIC_API_URL is baked into the admin image at build time; the
+      # service's existing NextAuth env (NEXTAUTH_SECRET etc.) is retained.
+
+  release-app-web:
+    if: ${{ inputs.app == 'app-web' }}
+    uses: ./.github/workflows/_deploy-cloudrun.yml
+    with:
+      service_name: gogocash-app-web-staging
+      image_tag: ${{ inputs.tag }}
+      memory: 256Mi
+      max_instances: "3"
+      health_path: "/"
