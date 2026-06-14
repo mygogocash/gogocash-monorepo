@@ -1,28 +1,100 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
+  IsArray,
   IsIn,
   IsNotEmpty,
   IsNumber,
+  IsOptional,
   IsString,
   Matches,
   Max,
   Min,
 } from 'class-validator';
 
+/**
+ * Body for POST /withdraw (on-chain) and /withdraw/bank-transfer. Every field is
+ * optional (different methods populate different subsets), but when present the
+ * money fields are now validated (V-1) so the global ValidationPipe rejects
+ * negative/garbage amounts and unsupported currencies. The real payout ceiling
+ * is still enforced server-side by the balance gate (V-2) — Max here is only a
+ * coarse overflow guard, not the spendable limit.
+ */
 export class CreateWithdrawDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
   tx_hash?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
   address?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
   account_name?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
   bank_name?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
   account_number?: string;
+
+  @ApiProperty({ required: false, type: [Number] })
+  @IsOptional()
+  @IsArray()
   conversion_ids?: number[];
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
   percent_fee?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100_000_000)
   amount_total?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 6 })
+  @Min(0)
+  @Max(100_000_000)
   amount_net?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
   method?: string;
+
+  @ApiProperty({ required: false, enum: ['THB', 'USD', 'USDT', 'USDC'] })
+  @IsOptional()
+  @IsIn(['THB', 'USD', 'USDT', 'USDC'])
   currency?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNumber()
   chain?: number;
+
+  @ApiProperty({ required: false, type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
   mycashback_id?: string[];
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
   rate?: number;
 }
 

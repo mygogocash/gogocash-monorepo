@@ -88,6 +88,17 @@ export class Withdraw {
 
   @Prop({ type: Date, required: false })
   paid_at: Date;
+
+  /**
+   * Admin user id who approved a pending withdrawal (V-2b). On-chain withdrawals
+   * are now created as `pending` and an admin confirms the on-chain settlement
+   * here, instead of the client self-approving via a tx_hash.
+   */
+  @Prop({ type: String, required: false })
+  approved_by: string;
+
+  @Prop({ type: Date, required: false })
+  approved_at: Date;
 }
 
 export const WithdrawSchema = SchemaFactory.createForClass(Withdraw);

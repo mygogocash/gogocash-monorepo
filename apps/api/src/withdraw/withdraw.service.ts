@@ -19,7 +19,7 @@ import {
 import { ethers, keccak256, solidityPacked } from 'ethers';
 import { InjectModel } from '@nestjs/mongoose';
 import { User } from 'src/user/schemas/user.schema';
-import { Model, Types } from 'mongoose';
+import { isValidObjectId, Model, Types } from 'mongoose';
 import { InvolveService } from 'src/involve/involve.service';
 import { Withdraw } from './schemas/withdraw.schema';
 import { FeeRate } from './schemas/feeRate.schema';
@@ -1561,6 +1561,40 @@ export class WithdrawService {
 
     return receipt.hash;
   }
+  /**
+   * Server-side balance gate shared by the on-chain `create` and `bank-transfer`
+   * withdraw paths (V-2). Re-derives the user's available balance via
+   * {@link checkWithdraw} — which already reconciles pending/approved/paid
+   * withdrawals — and refuses any request above it, so a client-supplied
+   * `amount_net` can never forge a payout larger than the funds actually owed.
+   * Currency-aware: THB compares against the THB payout, all $-pegged tokens
+   * (USD/USDT/USDC) against the USD payout. The 1e-6 epsilon absorbs float dust.
+   */
+  private async assertWithinBalance(
+    userId: string,
+    amount: number | undefined,
+    currency: string | undefined,
+  ): Promise<void> {
+    const balance = await this.checkWithdraw(userId);
+    const available =
+      currency === 'THB'
+        ? Number(balance?.netAmountTHB ?? 0)
+        : Number(balance?.netAmount ?? 0);
+    const requested = Number(amount ?? 0);
+    if (
+      !Number.isFinite(requested) ||
+      requested <= 0 ||
+      requested > available + 1e-6
+    ) {
+      throw new HttpException(
+        {
+          message: `Requested amount exceeds available balance (${available.toFixed(2)} ${currency === 'THB' ? 'THB' : 'USD'})`,
+        },
+        400,
+      );
+    }
+  }
+
   async create(createWithdrawDto: CreateWithdrawDto, id: string) {
     const user = await this.userModel.findOne({
       _id: new Types.ObjectId(id),
@@ -1568,6 +1602,13 @@ export class WithdrawService {
     if (!user) {
       throw new UnauthorizedException({ message: 'User not found' });
     }
+    // V-2: hard server-side balance gate BEFORE any on-chain call or DB write.
+    // The client's amount_net is never trusted as the payout ceiling.
+    await this.assertWithinBalance(
+      id,
+      createWithdrawDto.amount_net,
+      createWithdrawDto.currency,
+    );
     //TODO create record shop on contract
     const hash_record = await this.createRecordOnChain(
       user._id.toString(),
@@ -1576,7 +1617,11 @@ export class WithdrawService {
     );
     const dt = await this.withdrawModel.create({
       user_id: new Types.ObjectId(user._id),
-      status: createWithdrawDto.tx_hash ? 'approved' : 'pending',
+      // V-2b: always 'pending'. The server no longer self-approves from a
+      // client-supplied tx_hash — an admin confirms on-chain settlement via
+      // approveWithdrawRequest. Balance is already reserved either way:
+      // checkWithdraw counts 'pending' against available, same as 'approved'.
+      status: 'pending',
       address: createWithdrawDto.address || '',
       account_name: createWithdrawDto.account_name || '',
       bank_name: createWithdrawDto.bank_name || '',
@@ -1811,6 +1856,45 @@ export class WithdrawService {
     }
   }
 
+  /**
+   * Admin action (V-2b): approve a pending withdrawal — e.g. confirm the
+   * on-chain withdrawal tx actually settled. Replaces the old client-tx_hash ->
+   * 'approved' self-promotion. Idempotent on already-approved; refuses any other
+   * terminal state so a paid/rejected row cannot be flipped back to approved.
+   */
+  async approveWithdrawRequest(withdrawId: string, adminId: string) {
+    if (!isValidObjectId(withdrawId)) {
+      throw new HttpException({ message: 'Invalid withdraw id' }, 400);
+    }
+    const existing = await this.withdrawModel.findById(withdrawId);
+    if (!existing) {
+      throw new HttpException({ message: 'Withdraw not found' }, 404);
+    }
+    if (existing.status === 'approved') {
+      return { success: true, data: existing };
+    }
+    if (existing.status !== 'pending') {
+      throw new HttpException(
+        {
+          message: `Only pending withdrawals can be approved (current: ${existing.status})`,
+        },
+        409,
+      );
+    }
+    const updated = await this.withdrawModel.findByIdAndUpdate(
+      withdrawId,
+      {
+        $set: {
+          status: 'approved',
+          approved_by: adminId,
+          approved_at: new Date(),
+        },
+      },
+      { new: true },
+    );
+    return { success: true, data: updated };
+  }
+
   async createBankTransfer(createWithdrawDto: CreateWithdrawDto, id: string) {
     // console.log(createWithdrawDto);
     const user = await this.userModel.findOne({
@@ -1850,6 +1934,13 @@ export class WithdrawService {
         400,
       );
     }
+    // V-2: hard server-side balance gate before persisting the bank-transfer
+    // request — the admin-paid settlement flow treats this record as owed funds.
+    await this.assertWithinBalance(
+      id,
+      createWithdrawDto.amount_net,
+      createWithdrawDto.currency,
+    );
     // if (conversionIdsWithdrawed.length > 0) {
     //   throw new HttpException(
     //     {
@@ -2035,8 +2126,14 @@ export class WithdrawService {
     return thaiBanks;
   }
 
-  getMethodId(id: string) {
-    return this.withdrawMethodModel.findById(id);
+  // V-3: scope by owner so a member can only read their OWN saved payout method
+  // (was findById on a raw id — any user could read another's bank details).
+  getMethodId(id: string, userId: string) {
+    if (!isValidObjectId(id)) return null;
+    return this.withdrawMethodModel.findOne({
+      _id: new Types.ObjectId(id),
+      user_id: new Types.ObjectId(userId),
+    });
   }
 
   async getMethodList(id: string) {
@@ -2051,14 +2148,29 @@ export class WithdrawService {
     });
   }
 
-  deleteMethodData(id: string) {
-    return this.withdrawMethodModel.findByIdAndDelete(id);
+  // V-3: scope the delete to the owner so a member cannot delete another user's
+  // saved payout method by guessing its _id (atomic findOneAndDelete).
+  deleteMethodData(id: string, userId: string) {
+    if (!isValidObjectId(id)) return null;
+    return this.withdrawMethodModel.findOneAndDelete({
+      _id: new Types.ObjectId(id),
+      user_id: new Types.ObjectId(userId),
+    });
   }
 
-  updateMethodData(id: string, updateData: Partial<CreateWithdrawMethod>) {
-    return this.withdrawMethodModel.findByIdAndUpdate(id, updateData, {
-      new: true,
-    });
+  // V-3: scope the update to the owner so a member cannot overwrite another
+  // user's bank details (payout-redirect) by guessing its _id.
+  updateMethodData(
+    id: string,
+    userId: string,
+    updateData: Partial<CreateWithdrawMethod>,
+  ) {
+    if (!isValidObjectId(id)) return null;
+    return this.withdrawMethodModel.findOneAndUpdate(
+      { _id: new Types.ObjectId(id), user_id: new Types.ObjectId(userId) },
+      updateData,
+      { new: true },
+    );
   }
 
   async adminAddRewardConversionForQuest() {

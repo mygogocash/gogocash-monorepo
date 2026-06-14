@@ -29,6 +29,8 @@ const makeModelMock = (): ModelMock => ({
   findById: jest.fn(),
   findByIdAndUpdate: jest.fn(),
   findByIdAndDelete: jest.fn(),
+  findOneAndUpdate: jest.fn(),
+  findOneAndDelete: jest.fn(),
   find: jest.fn(),
   create: jest.fn(),
   countDocuments: jest.fn(),
@@ -241,6 +243,184 @@ describe('WithdrawService', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // create / createBankTransfer — server-side balance gate (V-2).
+  //
+  // Both endpoints persisted `amount_net` straight from the client with NO
+  // balance check (the manual path above is the reference gate). A user could
+  // request a payout larger than their reconciled balance, forging a withdrawal
+  // record that the admin-paid bank-transfer/manual flows treat as owed funds.
+  // The gate re-derives the available balance server-side via checkWithdraw
+  // (currency-aware: THB -> netAmountTHB, USD/USDT/USDC -> netAmount) and
+  // refuses anything above it, before any on-chain call or DB write.
+  // ---------------------------------------------------------------------------
+  describe('create / createBankTransfer balance gate (V-2)', () => {
+    it('create > given requested amount exceeds available USD balance > then rejects with HTTP 400, no on-chain call, no record', async () => {
+      mocks.userModel.findOne.mockResolvedValue({
+        _id: new Types.ObjectId(VALID_USER_ID),
+      });
+      jest
+        .spyOn(mocks.service, 'checkWithdraw')
+        .mockResolvedValue({ netAmount: 10, netAmountTHB: 300 } as never);
+      const onChain = jest
+        .spyOn(mocks.service, 'createRecordOnChain')
+        .mockResolvedValue('0xrecord' as never);
+
+      await expect(
+        mocks.service.create(
+          { amount_net: 100, currency: 'USD' } as never,
+          VALID_USER_ID,
+        ),
+      ).rejects.toMatchObject({ status: 400 });
+      expect(onChain).not.toHaveBeenCalled();
+      expect(mocks.withdrawModel.create).not.toHaveBeenCalled();
+    });
+
+    it('create > given requested THB amount exceeds available THB balance > then rejects with HTTP 400', async () => {
+      mocks.userModel.findOne.mockResolvedValue({
+        _id: new Types.ObjectId(VALID_USER_ID),
+      });
+      jest
+        .spyOn(mocks.service, 'checkWithdraw')
+        .mockResolvedValue({ netAmount: 1000, netAmountTHB: 50 } as never);
+      jest
+        .spyOn(mocks.service, 'createRecordOnChain')
+        .mockResolvedValue('0xrecord' as never);
+
+      await expect(
+        mocks.service.create(
+          { amount_net: 200, currency: 'THB' } as never,
+          VALID_USER_ID,
+        ),
+      ).rejects.toMatchObject({ status: 400 });
+      expect(mocks.withdrawModel.create).not.toHaveBeenCalled();
+    });
+
+    it('createBankTransfer > given requested amount exceeds available balance > then rejects with HTTP 400 and does not create a record', async () => {
+      mocks.userModel.findOne.mockResolvedValue({
+        _id: new Types.ObjectId(VALID_USER_ID),
+      });
+      // Fee mock so the minimum-amount check passes and the only thing standing
+      // between the request and a DB write is the balance gate under test.
+      mocks.feeRateModel.findOne.mockReturnValue({
+        exec: jest
+          .fn()
+          .mockResolvedValue({ minimum_withdraw_thb: 100, minimum_withdraw_usd: 5 }),
+      });
+      jest
+        .spyOn(mocks.service, 'checkWithdraw')
+        .mockResolvedValue({ netAmount: 10, netAmountTHB: 300 } as never);
+
+      await expect(
+        mocks.service.createBankTransfer(
+          { amount_net: 100, amount_total: 100, currency: 'USD' } as never,
+          VALID_USER_ID,
+        ),
+      ).rejects.toMatchObject({ status: 400 });
+      expect(mocks.withdrawModel.create).not.toHaveBeenCalled();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // create status (V-2b) — on-chain withdrawals are created 'pending'; the
+  // server no longer self-approves from a client-supplied tx_hash. An admin
+  // confirms settlement via approveWithdrawRequest.
+  // ---------------------------------------------------------------------------
+  describe('create status + approveWithdrawRequest (V-2b)', () => {
+    const setupCreate = () => {
+      mocks.userModel.findOne.mockResolvedValue({
+        _id: new Types.ObjectId(VALID_USER_ID),
+      });
+      jest
+        .spyOn(mocks.service, 'checkWithdraw')
+        .mockResolvedValue({ netAmount: 1000, netAmountTHB: 1000 } as never);
+      jest
+        .spyOn(mocks.service, 'createRecordOnChain')
+        .mockResolvedValue('0xrecord' as never);
+      jest
+        .spyOn(mocks.service, 'checkWithdrawMyCashback')
+        .mockResolvedValue({ availableTHB: 0, availableUSD: 0 } as never);
+      mocks.withdrawModel.create.mockResolvedValue({ _id: 'w1' });
+    };
+
+    it('create > given a client tx_hash > then persists status "pending" (no client self-approval)', async () => {
+      setupCreate();
+
+      await mocks.service.create(
+        {
+          amount_net: 10,
+          amount_total: 10,
+          currency: 'USD',
+          tx_hash: '0xclientclaim',
+        } as never,
+        VALID_USER_ID,
+      );
+
+      const persisted = mocks.withdrawModel.create.mock.calls[0][0];
+      expect(persisted.status).toBe('pending');
+    });
+
+    it('approveWithdrawRequest > given a malformed id > then rejects with HTTP 400 without a lookup', async () => {
+      await expect(
+        mocks.service.approveWithdrawRequest('not-an-id', 'admin-1'),
+      ).rejects.toMatchObject({ status: 400 });
+      expect(mocks.withdrawModel.findById).not.toHaveBeenCalled();
+    });
+
+    it('approveWithdrawRequest > given a missing withdrawal > then rejects with HTTP 404', async () => {
+      mocks.withdrawModel.findById.mockResolvedValue(null);
+      await expect(
+        mocks.service.approveWithdrawRequest(VALID_WITHDRAW_ID, 'admin-1'),
+      ).rejects.toMatchObject({ status: 404 });
+    });
+
+    it('approveWithdrawRequest > given an already-approved record > then returns it unchanged (idempotent, no second write)', async () => {
+      const existing = { _id: VALID_WITHDRAW_ID, status: 'approved' };
+      mocks.withdrawModel.findById.mockResolvedValue(existing);
+      const result = await mocks.service.approveWithdrawRequest(
+        VALID_WITHDRAW_ID,
+        'admin-1',
+      );
+      expect(result).toEqual({ success: true, data: existing });
+      expect(mocks.withdrawModel.findByIdAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('approveWithdrawRequest > given a paid (non-pending terminal) record > then rejects with HTTP 409 and does not write', async () => {
+      mocks.withdrawModel.findById.mockResolvedValue({
+        _id: VALID_WITHDRAW_ID,
+        status: 'paid',
+      });
+      await expect(
+        mocks.service.approveWithdrawRequest(VALID_WITHDRAW_ID, 'admin-1'),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(mocks.withdrawModel.findByIdAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('approveWithdrawRequest > given a pending record > then sets status approved + admin attribution', async () => {
+      mocks.withdrawModel.findById.mockResolvedValue({
+        _id: VALID_WITHDRAW_ID,
+        status: 'pending',
+      });
+      mocks.withdrawModel.findByIdAndUpdate.mockResolvedValue({
+        _id: VALID_WITHDRAW_ID,
+        status: 'approved',
+      });
+
+      const result = await mocks.service.approveWithdrawRequest(
+        VALID_WITHDRAW_ID,
+        'admin-7',
+      );
+
+      expect(result).toMatchObject({ success: true });
+      const [, update] = mocks.withdrawModel.findByIdAndUpdate.mock.calls[0];
+      expect(update.$set).toMatchObject({
+        status: 'approved',
+        approved_by: 'admin-7',
+      });
+      expect(update.$set.approved_at).toBeInstanceOf(Date);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // markWithdrawPaid — admin settlement, idempotency, terminal-state guards.
   // ---------------------------------------------------------------------------
   describe('markWithdrawPaid', () => {
@@ -402,6 +582,61 @@ describe('WithdrawService', () => {
       expect(result).toMatchObject({ status: 'success' });
       const persisted = mocks.withdrawMethodModel.create.mock.calls[0][0];
       expect(persisted.user_id.toString()).toBe(userOid.toString());
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // withdraw-method ownership scope — IDOR guard (V-3). get/update/delete a
+  // saved bank/withdraw method by raw _id was unscoped, so any authenticated
+  // user could read or overwrite another member's payout account (redirect
+  // funds). Queries must be constrained to {_id, user_id} like getMethodList.
+  // ---------------------------------------------------------------------------
+  describe('withdraw-method ownership scope (V-3 IDOR)', () => {
+    const METHOD_ID = new Types.ObjectId().toString();
+
+    it('getMethodId > given a method id + caller > then scopes findOne by owner user_id (not unscoped findById)', async () => {
+      mocks.withdrawMethodModel.findOne.mockResolvedValue(null);
+
+      await mocks.service.getMethodId(METHOD_ID, VALID_USER_ID);
+
+      expect(mocks.withdrawMethodModel.findById).not.toHaveBeenCalled();
+      expect(mocks.withdrawMethodModel.findOne).toHaveBeenCalledTimes(1);
+      const filter = mocks.withdrawMethodModel.findOne.mock.calls[0][0];
+      expect(filter.user_id.toString()).toBe(VALID_USER_ID);
+      expect(filter._id.toString()).toBe(METHOD_ID);
+    });
+
+    it('deleteMethodData > given a method id + caller > then deletes only the caller-owned row (scoped findOneAndDelete, not findByIdAndDelete)', async () => {
+      mocks.withdrawMethodModel.findOneAndDelete.mockResolvedValue(null);
+
+      await mocks.service.deleteMethodData(METHOD_ID, VALID_USER_ID);
+
+      expect(mocks.withdrawMethodModel.findByIdAndDelete).not.toHaveBeenCalled();
+      expect(mocks.withdrawMethodModel.findOneAndDelete).toHaveBeenCalledTimes(1);
+      const filter = mocks.withdrawMethodModel.findOneAndDelete.mock.calls[0][0];
+      expect(filter.user_id.toString()).toBe(VALID_USER_ID);
+      expect(filter._id.toString()).toBe(METHOD_ID);
+    });
+
+    it('updateMethodData > given a method id + caller > then updates only the caller-owned row (scoped findOneAndUpdate, not findByIdAndUpdate)', async () => {
+      mocks.withdrawMethodModel.findOneAndUpdate.mockResolvedValue(null);
+
+      await mocks.service.updateMethodData(METHOD_ID, VALID_USER_ID, {
+        account_no: '123',
+      } as never);
+
+      expect(mocks.withdrawMethodModel.findByIdAndUpdate).not.toHaveBeenCalled();
+      expect(mocks.withdrawMethodModel.findOneAndUpdate).toHaveBeenCalledTimes(1);
+      const filter = mocks.withdrawMethodModel.findOneAndUpdate.mock.calls[0][0];
+      expect(filter.user_id.toString()).toBe(VALID_USER_ID);
+    });
+
+    it('getMethodId > given a malformed method id > then returns null without a query (no CastError / no unscoped read)', async () => {
+      const res = await mocks.service.getMethodId('not-an-objectid', VALID_USER_ID);
+
+      expect(res).toBeNull();
+      expect(mocks.withdrawMethodModel.findOne).not.toHaveBeenCalled();
+      expect(mocks.withdrawMethodModel.findById).not.toHaveBeenCalled();
     });
   });
 

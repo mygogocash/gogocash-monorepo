@@ -27,6 +27,7 @@ import {
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
 import { Request } from 'express';
 import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
+import { ApiKeyGuard } from 'src/common/api-key.guard';
 import { AnalyticsService } from 'src/analytics/analytics.service';
 import { extractAnalyticsContext } from 'src/analytics/analytics-context';
 
@@ -47,16 +48,21 @@ export class InvolveController {
     return this.involveService.findAll();
   }
 
+  // V-5/stubs: admin-only. Per-method guards (this controller has no class-level
+  // guard), so each previously-open route must be locked individually.
+  @UseGuards(AuthAdminGuard)
   @Get('checkOfferDuplicate')
   checkOfferDuplicate() {
     return this.involveService.checkOfferDuplicate();
   }
 
+  @UseGuards(AuthAdminGuard)
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateInvolveDto: UpdateInvolveDto) {
     return this.involveService.update(+id, updateInvolveDto);
   }
 
+  @UseGuards(AuthAdminGuard)
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.involveService.remove(+id);
@@ -95,6 +101,11 @@ export class InvolveController {
       });
   }
 
+  // V-5: was fully open — minted Involve affiliate deeplinks for any email
+  // (email enumeration + affiliate-API cost abuse). This is an external/AI
+  // integration endpoint, so it's guarded by a shared API key (x-api-key header
+  // vs INVOLVE_AI_API_KEY), fail-closed when the secret is unset.
+  @UseGuards(ApiKeyGuard)
   @Post('create-affiliate-ai/:email')
   createAffiliateAi(
     @Body() createInvolveDto: CreateAffiliateAiDto,
