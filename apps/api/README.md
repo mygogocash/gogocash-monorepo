@@ -53,6 +53,17 @@ This service is a **modular NestJS monolith** that handles:
 - PostHog truth events are currently wired for auth, deeplink generation, conversion sync/status, points, withdraw creation/completion/rejection, and withdraw method creation.
 - The admin dashboard consumes this API but is not part of the customer PostHog project.
 
+### Security hardening (2026-06-14)
+
+A money/auth hardening pass landed — see [`/SECURITY_HARDENING.md`](../../SECURITY_HARDENING.md) for the full register and follow-up issues:
+
+- **Global `ValidationPipe`** in `main.ts` (`transform` + `forbidUnknownValues:false`; whitelist deferred → #46) — class-validator decorators are now actually enforced.
+- **Withdraw balance gate** on `POST /withdraw` + `/withdraw/bank-transfer` (`assertWithinBalance`); `create()` no longer self-approves from a client `tx_hash` (now `pending` + admin `PATCH /withdraw/:id/approve`).
+- **Bank-transfer concurrency** serialized in a per-user Mongo transaction (closes the double-withdraw TOCTOU; on-chain `create()` reorder → #41).
+- **Authz fixes:** withdraw-method IDOR scoped to owner; guarded the unauth cashback-balance route, the involve offer-mutation/`create-affiliate-ai` routes (the AI route via a fail-closed API key, `INVOLVE_AI_API_KEY`).
+- **FX** conversion is cached + timeout-bounded + fail-closed (no more silent-null that zeroed foreign-currency balances).
+- A real `checkWithdraw`↔Mongo integration test runs in CI (`test/withdraw-balance.e2e-spec.ts`).
+
 ## 2. Tech Stack
 
 - **Framework**: NestJS

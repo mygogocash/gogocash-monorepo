@@ -27,6 +27,10 @@ npm run test
 
 ## Status
 
-The monorepo is assembled on branch `migrate/monorepo` (all three apps build in CI; each source repo's history is preserved via `git subtree`). Dependency modernization is underway per [`UPGRADE_PLAN.md`](UPGRADE_PLAN.md) — done so far: Tier 0 safe bumps, eslint 8→9, **TypeScript 6**, **NestJS 11**, **jest 30**, plus a full api test-suite repair (30 suites / 385 tests). All three `api` CI jobs (lint, unit tests, build + boot smoke) are required gates. Next: mongoose 8→9.
+The monorepo is assembled on branch `migrate/monorepo` (each source repo's history is preserved via `git subtree`). Dependency modernization (eslint 8→9, **TypeScript 6**, **NestJS 11**, **jest 30**, **mongoose 8→9**, **firebase-admin 13→14**, MUI 7→9, Expo align) is landed — see [`UPGRADE_PLAN.md`](UPGRADE_PLAN.md).
+
+A money/auth **security & reliability hardening** pass also landed — see [`SECURITY_HARDENING.md`](SECURITY_HARDENING.md) (PRs #37/#39/#40; follow-ups #41–#46).
+
+**CI gates** (`.github/workflows/ci.yml`, path-filtered per app): api lint · api unit tests · api build + boot smoke + Mongo integration; admin test + build; app typecheck/unit/render + web export. A single **`ci-gate`** aggregator is the check to require in branch protection (see [`.github/workflows/README.md`](.github/workflows/README.md)). Admin lint stays informational (#45).
 
 > Staging-only; production cutover requires explicit approval. See [`MONOREPO_EXECUTION_PLAN.md`](MONOREPO_EXECUTION_PLAN.md).
