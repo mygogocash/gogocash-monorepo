@@ -3,7 +3,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { json, urlencoded } from 'express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
-import * as cookieParser from 'cookie-parser';
+import cookieParser from 'cookie-parser';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import * as path from 'path';
 import { SanitisedExceptionFilter } from './common/sanitised-exception.filter';

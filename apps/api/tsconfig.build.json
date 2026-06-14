@@ -1,4 +1,9 @@
 {
   "extends": "./tsconfig.json",
+  // TS 6.0 changed the default rootDir from "common dir of inputs" to "the
+  // tsconfig directory". Without this, src/main.ts emits to dist/src/main.js
+  // and `node dist/main` (start:prod / the CI boot smoke) breaks. Pin it back
+  // to ./src so the artifact stays dist/main.js.
+  "compilerOptions": { "rootDir": "./src" },
   "exclude": ["node_modules", "test", "dist", "scripts", "**/*spec.ts"]
 }
