@@ -1,0 +1,102 @@
+# Reusable: build a Docker image from the monorepo and push it to Artifact
+# Registry, tagged with the commit SHA + a moving `:staging-candidate` tag.
+# Called by build-staging.yml (one invocation per changed app). Deploys NOTHING
+# — the release is a separate, human-initiated step (release-staging.yml).
+#
+# GCP auth is via Workload Identity Federation; the WIF vars come from the
+# `staging` GitHub Environment (GCP_PROJECT_ID / GCP_WIF_PROVIDER /
+# GCP_SERVICE_ACCOUNT).
+name: _build-push (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      service_name:
+        description: Cloud Run service / image name (also the Artifact Registry image)
+        required: true
+        type: string
+      dockerfile:
+        description: Path to the Dockerfile (from the repo root)
+        required: true
+        type: string
+      build_context:
+        description: Docker build context path
+        required: false
+        type: string
+        default: "."
+      prebuild_command:
+        # STATIC string supplied by the trusted caller (build-staging.yml) — not
+        # from any event payload — so it is safe to run. Used by app-web to run
+        # the Expo web export (with its EXPO_PUBLIC_* baked in) before the image
+        # build. Empty for api/admin (their Dockerfiles build from source).
+        description: Optional shell command to run before `docker build`
+        required: false
+        type: string
+        default: ""
+      region:
+        required: false
+        type: string
+        default: asia-southeast1
+      artifact_repo:
+        required: false
+        type: string
+        default: gogocash
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build-push:
+    name: build + push ${{ inputs.service_name }}
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      IMAGE: ${{ inputs.region }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ inputs.artifact_repo }}/${{ inputs.service_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        if: ${{ inputs.prebuild_command != '' }}
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install (root, workspace-aware)
+        if: ${{ inputs.prebuild_command != '' }}
+        run: npm ci
+
+      - name: Prebuild
+        if: ${{ inputs.prebuild_command != '' }}
+        run: ${{ inputs.prebuild_command }}
+
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ inputs.region }}-docker.pkg.dev --quiet
+
+      - name: Build image (in-runner; GitHub runners are amd64 = Cloud-Run-compatible)
+        run: |
+          docker build \
+            -f "${{ inputs.dockerfile }}" \
+            --tag "$IMAGE:${{ github.sha }}" \
+            --tag "$IMAGE:staging-candidate" \
+            --cache-from "$IMAGE:staging-candidate" \
+            "${{ inputs.build_context }}"
+
+      - name: Push image
+        run: |
+          docker push "$IMAGE:${{ github.sha }}"
+          docker push "$IMAGE:staging-candidate"
+
+      - name: Summary
+        run: |
+          echo "Pushed **$IMAGE** as \`${{ github.sha }}\` + \`staging-candidate\`." >> "$GITHUB_STEP_SUMMARY"
+          echo "Release it with the **Release (staging)** workflow." >> "$GITHUB_STEP_SUMMARY"
