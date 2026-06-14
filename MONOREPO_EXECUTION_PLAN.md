@@ -9,6 +9,10 @@
 > Phase 3 **deploy** packets (`P3-*-1`, manual `workflow_dispatch` only), Phase 4
 > shared packages, Phase 5 cutover. A separate **dependency-upgrade** track is in
 > flight on top of the assembled monorepo — see [`UPGRADE_PLAN.md`](UPGRADE_PLAN.md).
+>
+> A **security/reliability hardening** pass (money + auth) also landed on top of
+> the assembled monorepo — see [`SECURITY_HARDENING.md`](SECURITY_HARDENING.md)
+> (PRs #37/#39/#40; follow-ups #41–#46). Note P4 shared packages = issue #19.
 
 > Companion to `MONOREPO_MIGRATION_PLAN.md` (the high-level decisions). This doc breaks the work
 > into **self-contained tasks** a sub-agent can execute from the packet alone, each with **testable
