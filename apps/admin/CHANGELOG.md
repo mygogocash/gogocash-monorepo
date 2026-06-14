@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **Admin session window shortened 30d → 7d (2026-06-14, P1-SESS):** NextAuth
+  `session.maxAge` cut from 30 days to a 7-day idle window (`updateAge` 24h → 1h)
+  in `src/app/api/auth/[...nextauth]/route.ts`. Active admins still roll forward;
+  an idle/leaked session now expires in 7d instead of 30d. Remaining hardening —
+  stopping the backend `accessToken` from being attached to the client session
+  (needs a BFF relay) and session revocation — is tracked in #43.
+
 ### Added
 
 - **Offer editor — Cashback Management & 30%-fee toggle (2026-06-07):** `FormOffer` groups commission/product-type/max-cap into a **Cashback Management** section (Max cap renders under the commission input) with a **Manual / Auto apply 30% fee** toggle — Auto saves the raw partner number reduced by the fee (`raw × 0.7`) via `src/lib/commissionFee.ts`. The two logo uploads were merged into one 1:1 **Logo** (used for desktop and mobile) plus a **Brand cover**, and top-level sections are separated by divider lines.
