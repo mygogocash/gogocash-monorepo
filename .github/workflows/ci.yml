@@ -91,23 +91,23 @@ jobs:
           cache: npm
       - name: Install (root, workspace-aware)
         run: npm ci
-      # Lint/Test are INFORMATIONAL — pre-existing source debt carried over from
-      # gogocash_admin (eslint errors, test gaps), not monorepo-integration
-      # issues. The BUILD is the gate.
-      - name: Lint (informational)
+      # Test + Build are GATES (P2-CI: admin unit suite verified green). LINT
+      # stays informational — ~54 React-Compiler/react-hooks warnings-as-errors
+      # (setState-synchronously-in-effect, refs-during-render) are real
+      # pre-existing component debt, not auto-fixable; tracked for a focused
+      # cleanup before flipping this last step to a gate.
+      - name: Lint (informational — react-hooks debt, see comment)
         continue-on-error: true
         run: npx turbo run lint --filter=gogocash-admin
-      - name: Test (informational)
-        continue-on-error: true
+      - name: Test (gate)
         run: npx turbo run test --filter=gogocash-admin
       - name: Build (gate)
         run: npx turbo run build --filter=gogocash-admin
 
   # ── app (@gogocash/mobile) — Expo / React Native (web+iOS+Android) ─────────
-  # The real build gate is the WEB EXPORT (`expo export --platform web`) — it
-  # exercises Metro workspace resolution + the single-hoisted-React dedupe and
-  # proves the customer web bundle builds from the monorepo. Typecheck + tests
-  # are INFORMATIONAL (pre-existing test-file type/mocks, not migration issues).
+  # Typecheck + unit + render tests are now GATES (P2-CI: all three verified
+  # green). The WEB EXPORT (`expo export --platform web`) remains a gate too — it
+  # exercises Metro workspace resolution + the single-hoisted-React dedupe.
   # Native builds run on EAS, not CI.
   app:
     name: app (@gogocash/mobile)
@@ -122,14 +122,11 @@ jobs:
           cache: npm
       - name: Install (root, workspace-aware)
         run: npm ci
-      - name: Typecheck (informational)
-        continue-on-error: true
+      - name: Typecheck (gate)
         run: npx turbo run typecheck --filter=@gogocash/mobile
-      - name: Test (unit, informational)
-        continue-on-error: true
+      - name: Test (unit — gate)
         run: npm run test -w @gogocash/mobile
-      - name: Test (render, informational)
-        continue-on-error: true
+      - name: Test (render — gate)
         run: npm run test:render -w @gogocash/mobile
       - name: Build (web export — gate)
         env:
@@ -275,3 +272,30 @@ jobs:
         env:
           MONGO_URI: mongodb://localhost:27017/inttest
         run: npx jest --config ./test/jest-e2e.json withdraw-balance --runInBand
+
+  # ── Required-check aggregator (P2-MAINPROTECT) ─────────────────────────────
+  # Branch protection can't require the path-filtered per-app jobs directly: a PR
+  # that doesn't touch (say) apps/api leaves "api build + boot smoke" never
+  # reporting, which would block the merge forever. This always-runs gate depends
+  # on every app job and passes when each one SUCCEEDED or was SKIPPED (path-
+  # filtered) — failing only if one actually failed or was cancelled. Require
+  # ONLY this single check ("CI gate (required)") in branch protection.
+  ci-gate:
+    name: CI gate (required)
+    if: always()
+    needs: [changes, admin, app, api-lint, api-test, api-build-smoke]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify no required job failed
+        env:
+          RESULTS: ${{ join(needs.*.result, ',') }}
+        run: |
+          echo "upstream job results: $RESULTS"
+          case "$RESULTS" in
+            *failure*|*cancelled*)
+              echo "::error::A required CI job failed or was cancelled."
+              exit 1 ;;
+            *)
+              echo "All required CI jobs passed or were skipped."
+              exit 0 ;;
+          esac
