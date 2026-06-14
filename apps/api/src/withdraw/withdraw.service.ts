@@ -1617,7 +1617,11 @@ export class WithdrawService {
     );
     const dt = await this.withdrawModel.create({
       user_id: new Types.ObjectId(user._id),
-      status: createWithdrawDto.tx_hash ? 'approved' : 'pending',
+      // V-2b: always 'pending'. The server no longer self-approves from a
+      // client-supplied tx_hash — an admin confirms on-chain settlement via
+      // approveWithdrawRequest. Balance is already reserved either way:
+      // checkWithdraw counts 'pending' against available, same as 'approved'.
+      status: 'pending',
       address: createWithdrawDto.address || '',
       account_name: createWithdrawDto.account_name || '',
       bank_name: createWithdrawDto.bank_name || '',
@@ -1850,6 +1854,45 @@ export class WithdrawService {
       }
       throw err;
     }
+  }
+
+  /**
+   * Admin action (V-2b): approve a pending withdrawal — e.g. confirm the
+   * on-chain withdrawal tx actually settled. Replaces the old client-tx_hash ->
+   * 'approved' self-promotion. Idempotent on already-approved; refuses any other
+   * terminal state so a paid/rejected row cannot be flipped back to approved.
+   */
+  async approveWithdrawRequest(withdrawId: string, adminId: string) {
+    if (!isValidObjectId(withdrawId)) {
+      throw new HttpException({ message: 'Invalid withdraw id' }, 400);
+    }
+    const existing = await this.withdrawModel.findById(withdrawId);
+    if (!existing) {
+      throw new HttpException({ message: 'Withdraw not found' }, 404);
+    }
+    if (existing.status === 'approved') {
+      return { success: true, data: existing };
+    }
+    if (existing.status !== 'pending') {
+      throw new HttpException(
+        {
+          message: `Only pending withdrawals can be approved (current: ${existing.status})`,
+        },
+        409,
+      );
+    }
+    const updated = await this.withdrawModel.findByIdAndUpdate(
+      withdrawId,
+      {
+        $set: {
+          status: 'approved',
+          approved_by: adminId,
+          approved_at: new Date(),
+        },
+      },
+      { new: true },
+    );
+    return { success: true, data: updated };
   }
 
   async createBankTransfer(createWithdrawDto: CreateWithdrawDto, id: string) {

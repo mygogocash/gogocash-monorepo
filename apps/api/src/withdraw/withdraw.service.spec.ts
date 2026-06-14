@@ -321,6 +321,106 @@ describe('WithdrawService', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // create status (V-2b) — on-chain withdrawals are created 'pending'; the
+  // server no longer self-approves from a client-supplied tx_hash. An admin
+  // confirms settlement via approveWithdrawRequest.
+  // ---------------------------------------------------------------------------
+  describe('create status + approveWithdrawRequest (V-2b)', () => {
+    const setupCreate = () => {
+      mocks.userModel.findOne.mockResolvedValue({
+        _id: new Types.ObjectId(VALID_USER_ID),
+      });
+      jest
+        .spyOn(mocks.service, 'checkWithdraw')
+        .mockResolvedValue({ netAmount: 1000, netAmountTHB: 1000 } as never);
+      jest
+        .spyOn(mocks.service, 'createRecordOnChain')
+        .mockResolvedValue('0xrecord' as never);
+      jest
+        .spyOn(mocks.service, 'checkWithdrawMyCashback')
+        .mockResolvedValue({ availableTHB: 0, availableUSD: 0 } as never);
+      mocks.withdrawModel.create.mockResolvedValue({ _id: 'w1' });
+    };
+
+    it('create > given a client tx_hash > then persists status "pending" (no client self-approval)', async () => {
+      setupCreate();
+
+      await mocks.service.create(
+        {
+          amount_net: 10,
+          amount_total: 10,
+          currency: 'USD',
+          tx_hash: '0xclientclaim',
+        } as never,
+        VALID_USER_ID,
+      );
+
+      const persisted = mocks.withdrawModel.create.mock.calls[0][0];
+      expect(persisted.status).toBe('pending');
+    });
+
+    it('approveWithdrawRequest > given a malformed id > then rejects with HTTP 400 without a lookup', async () => {
+      await expect(
+        mocks.service.approveWithdrawRequest('not-an-id', 'admin-1'),
+      ).rejects.toMatchObject({ status: 400 });
+      expect(mocks.withdrawModel.findById).not.toHaveBeenCalled();
+    });
+
+    it('approveWithdrawRequest > given a missing withdrawal > then rejects with HTTP 404', async () => {
+      mocks.withdrawModel.findById.mockResolvedValue(null);
+      await expect(
+        mocks.service.approveWithdrawRequest(VALID_WITHDRAW_ID, 'admin-1'),
+      ).rejects.toMatchObject({ status: 404 });
+    });
+
+    it('approveWithdrawRequest > given an already-approved record > then returns it unchanged (idempotent, no second write)', async () => {
+      const existing = { _id: VALID_WITHDRAW_ID, status: 'approved' };
+      mocks.withdrawModel.findById.mockResolvedValue(existing);
+      const result = await mocks.service.approveWithdrawRequest(
+        VALID_WITHDRAW_ID,
+        'admin-1',
+      );
+      expect(result).toEqual({ success: true, data: existing });
+      expect(mocks.withdrawModel.findByIdAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('approveWithdrawRequest > given a paid (non-pending terminal) record > then rejects with HTTP 409 and does not write', async () => {
+      mocks.withdrawModel.findById.mockResolvedValue({
+        _id: VALID_WITHDRAW_ID,
+        status: 'paid',
+      });
+      await expect(
+        mocks.service.approveWithdrawRequest(VALID_WITHDRAW_ID, 'admin-1'),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(mocks.withdrawModel.findByIdAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('approveWithdrawRequest > given a pending record > then sets status approved + admin attribution', async () => {
+      mocks.withdrawModel.findById.mockResolvedValue({
+        _id: VALID_WITHDRAW_ID,
+        status: 'pending',
+      });
+      mocks.withdrawModel.findByIdAndUpdate.mockResolvedValue({
+        _id: VALID_WITHDRAW_ID,
+        status: 'approved',
+      });
+
+      const result = await mocks.service.approveWithdrawRequest(
+        VALID_WITHDRAW_ID,
+        'admin-7',
+      );
+
+      expect(result).toMatchObject({ success: true });
+      const [, update] = mocks.withdrawModel.findByIdAndUpdate.mock.calls[0];
+      expect(update.$set).toMatchObject({
+        status: 'approved',
+        approved_by: 'admin-7',
+      });
+      expect(update.$set.approved_at).toBeInstanceOf(Date);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // markWithdrawPaid — admin settlement, idempotency, terminal-state guards.
   // ---------------------------------------------------------------------------
   describe('markWithdrawPaid', () => {

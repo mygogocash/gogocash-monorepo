@@ -152,6 +152,21 @@ export class WithdrawController {
     return this.withdrawService.markWithdrawPaid(id, body, adminId);
   }
 
+  /**
+   * Admin action (V-2b): approve a pending withdrawal (confirm on-chain
+   * settlement). Replaces the removed client-tx_hash -> 'approved' self-promotion
+   * in POST /withdraw.
+   */
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Patch(':id/approve')
+  approveWithdraw(@Req() req: Request, @Param('id') id: string) {
+    const admin = req['user'] as { sub?: string } | undefined;
+    const adminId = admin?.sub ?? 'unknown';
+    return this.withdrawService.approveWithdrawRequest(id, adminId);
+  }
+
   @UseGuards(FirebaseAuthGuard)
   @ApiBody({ type: CreateWithdrawMethod })
   @ApiSecurity('access-token') // Apply the security scheme defined globally
