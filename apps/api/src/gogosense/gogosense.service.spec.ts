@@ -45,7 +45,9 @@ function makeQueryResult<T>(value: T) {
 
 function makeService() {
   const merchantModel = {
-    find: jest.fn().mockReturnValue(makeQueryResult([shopeeMerchant, lazadaMerchant])),
+    find: jest
+      .fn()
+      .mockReturnValue(makeQueryResult([shopeeMerchant, lazadaMerchant])),
   };
   const detectionEventModel = {
     create: jest.fn(async (doc) => ({ _id: 'detection-1', ...doc })),
@@ -227,12 +229,17 @@ describe('GogosenseService settings and timeline', () => {
   });
 
   it('timeline > given user > then queries only current user events', async () => {
-    const { activationEventModel, detectionEventModel, service } = makeService();
+    const { activationEventModel, detectionEventModel, service } =
+      makeService();
 
     await service.getTimeline('user-1');
 
-    expect(detectionEventModel.find).toHaveBeenCalledWith({ user_id: 'user-1' });
-    expect(activationEventModel.find).toHaveBeenCalledWith({ user_id: 'user-1' });
+    expect(detectionEventModel.find).toHaveBeenCalledWith({
+      user_id: 'user-1',
+    });
+    expect(activationEventModel.find).toHaveBeenCalledWith({
+      user_id: 'user-1',
+    });
   });
 });
 
@@ -253,6 +260,8 @@ describe('GoGoSense merchant seed catalog', () => {
         }),
       ]),
     );
-    expect(defaultGogosenseMerchants.every((merchant) => merchant.enabled === false)).toBe(true);
+    expect(
+      defaultGogosenseMerchants.every((merchant) => merchant.enabled === false),
+    ).toBe(true);
   });
 });

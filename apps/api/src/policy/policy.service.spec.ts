@@ -26,7 +26,8 @@ function makeService(opts: { categoryExists?: boolean } = {}) {
 
   const categoryModel: any = {
     exists: jest.fn().mockReturnValue({
-      lean: () => Promise.resolve(categoryExists ? { _id: VALID_CATEGORY_ID } : null),
+      lean: () =>
+        Promise.resolve(categoryExists ? { _id: VALID_CATEGORY_ID } : null),
     }),
   };
 
@@ -111,7 +112,10 @@ describe('PolicyService.upsert', () => {
     const { service, policyModel } = makeService();
     policyModel.lean.mockResolvedValueOnce({
       category_id: VALID_CATEGORY_ID,
-      banner: { primary_locale: 'th', translations: { th: 'แบนเนอร์', en: 'Banner' } },
+      banner: {
+        primary_locale: 'th',
+        translations: { th: 'แบนเนอร์', en: 'Banner' },
+      },
     });
     await service.upsert({
       category_id: VALID_CATEGORY_ID,
@@ -124,7 +128,10 @@ describe('PolicyService.upsert', () => {
     });
     const persistedBanner = (policyModel.findOneAndUpdate as jest.Mock).mock
       .calls[0][1].$set.banner;
-    expect(persistedBanner.translations).toEqual({ th: 'แบนเนอร์', en: 'Banner' });
+    expect(persistedBanner.translations).toEqual({
+      th: 'แบนเนอร์',
+      en: 'Banner',
+    });
     expect(persistedBanner.translations).not.toHaveProperty('ja');
   });
 });
@@ -132,9 +139,9 @@ describe('PolicyService.upsert', () => {
 describe('PolicyService.findByCategory', () => {
   it('rejects malformed category id with BadRequestException', async () => {
     const { service } = makeService();
-    await expect(service.findByCategory('not-a-mongo-id')).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      service.findByCategory('not-a-mongo-id'),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 });
 

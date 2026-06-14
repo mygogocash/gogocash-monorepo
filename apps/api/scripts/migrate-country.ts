@@ -123,7 +123,10 @@ async function main() {
       }
       changes.push({ id, from: current, to: next });
       if (!dryRun) {
-        await UserModel.updateOne({ _id: doc._id }, { $set: { country: next } });
+        await UserModel.updateOne(
+          { _id: doc._id },
+          { $set: { country: next } },
+        );
       }
       stats.mapped += 1;
     } catch (err) {
@@ -194,11 +197,7 @@ async function main() {
   // Exit non-zero on errors OR unmappables so CI / on-call notice rather than
   // silently moving on.
   process.exit(
-    stats.errors.length > 0
-      ? 2
-      : stats.unmappable.length > 0
-        ? 3
-        : 0,
+    stats.errors.length > 0 ? 2 : stats.unmappable.length > 0 ? 3 : 0,
   );
 }
 

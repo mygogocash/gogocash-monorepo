@@ -206,4 +206,7 @@ OfferSchema.index({ brand_id: 1, countries: 1 });
  * Apple TH rows. Sparse so legacy offers without `brand_id` aren't constrained until
  * the migration backfills them.
  */
-OfferSchema.index({ brand_id: 1, countries: 1 }, { unique: true, sparse: true });
+OfferSchema.index(
+  { brand_id: 1, countries: 1 },
+  { unique: true, sparse: true },
+);

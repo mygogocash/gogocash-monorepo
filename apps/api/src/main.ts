@@ -28,7 +28,6 @@ async function bootstrap() {
   // DEV ONLY: request logger so we can see incoming hits in the nest log.
   if (process.env.NODE_ENV !== 'production') {
     app.use((req: any, _res: any, next: any) => {
-      // eslint-disable-next-line no-console
       console.log(`[REQ] ${req.method} ${req.originalUrl || req.url}`);
       next();
     });

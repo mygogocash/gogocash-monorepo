@@ -127,5 +127,4 @@ export class User {
   consent?: ConsentData;
 }
 
-
 export const UserSchema = SchemaFactory.createForClass(User);

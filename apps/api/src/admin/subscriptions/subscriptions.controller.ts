@@ -28,9 +28,7 @@ import {
 @ApiSecurity('access-token')
 @ApiBearerAuth()
 export class SubscriptionsController {
-  constructor(
-    private readonly subscriptionsService: SubscriptionsService,
-  ) {}
+  constructor(private readonly subscriptionsService: SubscriptionsService) {}
 
   @Get('stats')
   getStats() {
@@ -48,10 +46,7 @@ export class SubscriptionsController {
   }
 
   @Put('plans/:id')
-  updatePlan(
-    @Param('id') id: string,
-    @Body() dto: UpdateSubscriptionPlanDto,
-  ) {
+  updatePlan(@Param('id') id: string, @Body() dto: UpdateSubscriptionPlanDto) {
     return this.subscriptionsService.updatePlan(id, dto);
   }
 

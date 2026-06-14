@@ -43,8 +43,7 @@ export class MissingOrdersService {
 
     return {
       byStatus,
-      totalOpen:
-        (byStatus['pending'] ?? 0) + (byStatus['investigating'] ?? 0),
+      totalOpen: (byStatus['pending'] ?? 0) + (byStatus['investigating'] ?? 0),
       avgResolutionHours: avgResolution[0]?.avgHours ?? null,
     };
   }
@@ -165,12 +164,7 @@ export class MissingOrdersService {
     return order;
   }
 
-  async addNote(
-    id: string,
-    adminId: string,
-    adminName: string,
-    text: string,
-  ) {
+  async addNote(id: string, adminId: string, adminName: string, text: string) {
     if (!Types.ObjectId.isValid(id)) {
       throw new NotFoundException(`Missing order ${id} not found`);
     }
