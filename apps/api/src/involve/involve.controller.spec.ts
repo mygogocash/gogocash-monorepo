@@ -12,6 +12,7 @@ import {
 import { UpdateInvolveDto } from './dto/update-involve.dto';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
 import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
+import { ApiKeyGuard } from 'src/common/api-key.guard';
 
 /**
  * InvolveController is a thin HTTP boundary in front of InvolveService. The
@@ -104,16 +105,15 @@ describe('InvolveController', () => {
       (Reflect.getMetadata('__guards__', proto[method] as object) as unknown[]) ??
       [];
 
-    for (const method of [
-      'checkOfferDuplicate',
-      'update',
-      'remove',
-      'createAffiliateAi',
-    ]) {
+    for (const method of ['checkOfferDuplicate', 'update', 'remove']) {
       it(`${method} > is protected by AuthAdminGuard (was an unguarded mutation/leak route)`, () => {
         expect(guardsOf(method)).toContain(AuthAdminGuard);
       });
     }
+
+    it('createAffiliateAi > is protected by ApiKeyGuard (external/AI caller, fail-closed)', () => {
+      expect(guardsOf('createAffiliateAi')).toContain(ApiKeyGuard);
+    });
   });
 
   describe('findAll', () => {
