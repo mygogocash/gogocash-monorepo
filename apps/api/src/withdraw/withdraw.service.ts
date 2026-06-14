@@ -17,9 +17,9 @@ import {
   UpdateWithdrawDto,
 } from './dto/update-withdraw.dto';
 import { ethers, keccak256, solidityPacked } from 'ethers';
-import { InjectModel } from '@nestjs/mongoose';
+import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { User } from 'src/user/schemas/user.schema';
-import { isValidObjectId, Model, Types } from 'mongoose';
+import { ClientSession, Connection, isValidObjectId, Model, Types } from 'mongoose';
 import { InvolveService } from 'src/involve/involve.service';
 import { Withdraw } from './schemas/withdraw.schema';
 import { FeeRate } from './schemas/feeRate.schema';
@@ -52,6 +52,7 @@ export class WithdrawService {
     private readonly involveService: InvolveService,
     private readonly pointService: PointService,
     private readonly customerIo: CustomerIoService,
+    @InjectConnection() private readonly connection: Connection,
   ) {}
   async getSign(msg: GETSignDTO): Promise<string> {
     // console.log('Generating EIP-712 signature for message:', msg);
@@ -1917,6 +1918,39 @@ export class WithdrawService {
     return { success: true, data: updated };
   }
 
+  /**
+   * Runs a withdraw balance-check + insert inside a per-user serialized Mongo
+   * transaction (P1-TX). The $inc on the user doc is a pure serialization point:
+   * two concurrent withdrawals for the same user contend on it, so the loser
+   * hits a WriteConflict, retries the whole callback, and re-evaluates the
+   * balance against the now-committed first withdrawal — closing the TOCTOU
+   * where both reads see the same balance and both insert. Requires a replica
+   * set (confirmed for staging/prod).
+   */
+  private async runSerializedWithdraw<T>(
+    userId: string,
+    work: (session: ClientSession) => Promise<T>,
+  ): Promise<T> {
+    const session = await this.connection.startSession();
+    try {
+      let result: T | undefined;
+      await session.withTransaction(async () => {
+        result = await work(session);
+        const user = await this.userModel.findOneAndUpdate(
+          { _id: new Types.ObjectId(userId) },
+          { $inc: { withdraw_lock_seq: 1 } },
+          { session },
+        );
+        if (!user) {
+          throw new UnauthorizedException({ message: 'User not found' });
+        }
+      });
+      return result as T;
+    } finally {
+      await session.endSession();
+    }
+  }
+
   async createBankTransfer(createWithdrawDto: CreateWithdrawDto, id: string) {
     // console.log(createWithdrawDto);
     const user = await this.userModel.findOne({
@@ -1956,37 +1990,38 @@ export class WithdrawService {
         400,
       );
     }
-    // V-2: hard server-side balance gate before persisting the bank-transfer
-    // request — the admin-paid settlement flow treats this record as owed funds.
-    await this.assertWithinBalance(
-      id,
-      createWithdrawDto.amount_net,
-      createWithdrawDto.currency,
-    );
-    // if (conversionIdsWithdrawed.length > 0) {
-    //   throw new HttpException(
-    //     {
-    //       message: `Some conversion IDs have already been withdrawn.`,
-    //     },
-    //     400,
-    //   );
-    // }
-    const dt = await this.withdrawModel.create({
-      user_id: new Types.ObjectId(user._id),
-      status: 'pending',
-      address: '',
-      account_name: createWithdrawDto.account_name || '',
-      bank_name: createWithdrawDto.bank_name || '',
-      account_number: createWithdrawDto.account_number || '',
-      tx_hash: '',
-      tx_hash_record: '',
-      percent_fee: createWithdrawDto.percent_fee || 0,
-      amount_total: createWithdrawDto.amount_total || 0,
-      amount_net: createWithdrawDto.amount_net || 0,
-      method: 'bank_transfer',
-      currency: createWithdrawDto.currency || '',
-      conversion_id: createWithdrawDto.conversion_ids || [],
-      mycashback_id: [],
+    // V-2 + P1-TX: gate the balance AND persist the record inside a per-user
+    // serialized transaction, so two concurrent bank-transfer requests can't
+    // both pass the balance check and double-withdraw.
+    const dt = await this.runSerializedWithdraw(id, async (session) => {
+      await this.assertWithinBalance(
+        id,
+        createWithdrawDto.amount_net,
+        createWithdrawDto.currency,
+      );
+      const [record] = await this.withdrawModel.create(
+        [
+          {
+            user_id: new Types.ObjectId(user._id),
+            status: 'pending',
+            address: '',
+            account_name: createWithdrawDto.account_name || '',
+            bank_name: createWithdrawDto.bank_name || '',
+            account_number: createWithdrawDto.account_number || '',
+            tx_hash: '',
+            tx_hash_record: '',
+            percent_fee: createWithdrawDto.percent_fee || 0,
+            amount_total: createWithdrawDto.amount_total || 0,
+            amount_net: createWithdrawDto.amount_net || 0,
+            method: 'bank_transfer',
+            currency: createWithdrawDto.currency || '',
+            conversion_id: createWithdrawDto.conversion_ids || [],
+            mycashback_id: [],
+          },
+        ],
+        { session },
+      );
+      return record;
     });
 
     const MCBCashback = await this.checkWithdrawMyCashback(id);
