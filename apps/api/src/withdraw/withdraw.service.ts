@@ -2008,7 +2008,9 @@ export class WithdrawService {
       throw new UnauthorizedException({ message: 'User not found' });
     }
     const checkDup = await this.withdrawMethodModel.findOne({
-      account_no: createWithdrawMethod.account_no,
+      // account_no is number on the DTO but string on the schema; normalise to
+      // string (mongoose already cast number→string, so this matches stored rows).
+      account_no: String(createWithdrawMethod.account_no),
       user_id: new Types.ObjectId(user._id),
     });
     if (checkDup) {
@@ -2018,7 +2020,10 @@ export class WithdrawService {
       );
     }
     createWithdrawMethod['user_id'] = new Types.ObjectId(user._id);
-    const dt = await this.withdrawMethodModel.create(createWithdrawMethod);
+    const dt = await this.withdrawMethodModel.create({
+      ...createWithdrawMethod,
+      account_no: String(createWithdrawMethod.account_no),
+    });
     return {
       message: 'Withdraw method created',
       data: dt,
