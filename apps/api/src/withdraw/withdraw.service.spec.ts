@@ -1,6 +1,6 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { getModelToken } from '@nestjs/mongoose';
+import { getConnectionToken, getModelToken } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 import { WithdrawService } from './withdraw.service';
 import { User } from 'src/user/schemas/user.schema';
@@ -68,6 +68,16 @@ async function buildService(): Promise<Mocks> {
   const involveService = { getConversionAll: jest.fn() };
   const pointService = { getQuestRankListOfPoint: jest.fn() };
   const customerIo = { track: jest.fn().mockResolvedValue(undefined) };
+  // Fake mongoose connection: withTransaction just runs the callback (the real
+  // concurrency/serialization is proven in the replica-set integration test).
+  const connection = {
+    startSession: jest.fn().mockResolvedValue({
+      withTransaction: async (cb: () => Promise<unknown>) => {
+        await cb();
+      },
+      endSession: jest.fn().mockResolvedValue(undefined),
+    }),
+  };
 
   const moduleRef: TestingModule = await Test.createTestingModule({
     providers: [
@@ -90,6 +100,7 @@ async function buildService(): Promise<Mocks> {
       { provide: InvolveService, useValue: involveService },
       { provide: PointService, useValue: pointService },
       { provide: CustomerIoService, useValue: customerIo },
+      { provide: getConnectionToken(), useValue: connection },
     ],
   }).compile();
 
