@@ -240,7 +240,13 @@ export class OfferService implements OnApplicationBootstrap {
       );
     } else {
       delete body.id;
-      return this.couponModel.create(body);
+      // mongoose 9 types create() strictly; `disabled` is string|boolean on the
+      // DTO but boolean on the schema. Assert (do NOT coerce — Boolean("false")
+      // is true); mongoose casts the raw "false"/"true" value correctly at save.
+      return this.couponModel.create({
+        ...body,
+        disabled: body.disabled as boolean,
+      });
     }
   }
 
