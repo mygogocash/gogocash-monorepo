@@ -12,7 +12,7 @@ export class Quest {
   end_date: Date;
 
   @Prop({ required: true })
-  status: string; // open, closed
+  status: string; // 'open' | 'close' — cron matches 'close' (TasksService.getSpacialPointNextRound)
 
   @Prop({ required: true, default: false })
   reward_status: boolean;
