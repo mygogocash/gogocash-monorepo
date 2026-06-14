@@ -29,11 +29,28 @@ name: CI
 
 on:
   # `migrate/monorepo` is the integration branch until the migration lands on
-  # main — validate it (and PRs into it) too, so stacked work gets clean-CI.
+  # main — validate PRs into it so stacked work gets clean-CI.
   pull_request:
     branches: [staging, main, migrate/monorepo]
+  # Pushes to migrate/monorepo are handled by build-staging.yml (which calls
+  # this workflow as its gate via workflow_call), so it is intentionally NOT in
+  # the push list here — otherwise a merge would run CI twice.
   push:
-    branches: [staging, main, migrate/monorepo]
+    branches: [staging, main]
+  # Reusable: build-staging.yml calls this as its deploy gate AND reuses the
+  # per-app change outputs to decide which images to build (no duplicated tests
+  # or path-filter).
+  workflow_call:
+    outputs:
+      admin:
+        description: "true when apps/admin (or shared root config) changed"
+        value: ${{ jobs.changes.outputs.admin }}
+      api:
+        description: "true when apps/api (or shared root config) changed"
+        value: ${{ jobs.changes.outputs.api }}
+      app:
+        description: "true when apps/app (or shared root config) changed"
+        value: ${{ jobs.changes.outputs.app }}
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
