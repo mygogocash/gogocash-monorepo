@@ -29,7 +29,9 @@ jest.mock('firebase-admin', () => ({
 
 jest.mock('./firebase-admin.provider', () => ({
   __esModule: true,
-  getAdminAuth: jest.fn(),
+  // firebase-admin 14 is modular-only; the service now calls
+  // getAdminAuth().verifyIdToken(...) instead of the removed admin.auth().
+  getAdminAuth: jest.fn(() => ({ verifyIdToken: verifyIdTokenMock })),
 }));
 
 import axios from 'axios';
