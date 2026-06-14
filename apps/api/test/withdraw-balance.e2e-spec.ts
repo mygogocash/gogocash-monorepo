@@ -195,4 +195,38 @@ suite('checkWithdraw — real Mongo aggregation (#36)', () => {
 
     expect(result.netAmountTHB).toBeCloseTo(95, 5);
   });
+
+  // Transactions require a replica set. Gated on MONGO_REPLICA_SET so the
+  // standalone Mongo used elsewhere (incl. the CI service) skips it; run with a
+  // single-node RS:  MONGO_REPLICA_SET=1 MONGO_URI=mongodb://localhost:27019/...
+  const rsOnly = process.env.MONGO_REPLICA_SET === '1' ? it : it.skip;
+
+  rsOnly(
+    'serializes two concurrent bank-transfers so only one passes the balance gate (P1-TX)',
+    async () => {
+      const user = await userModel.create({
+        id_firebase: 'int-fb-tx',
+        email: 'tx@gogocash.co',
+      });
+      const userId = user._id.toString();
+      await seedApprovedThb(userId, 105, 1); // ~99.75 available after the 5% fee
+
+      // Two simultaneous 60-THB requests: 60 fits, but 60+60=120 does not.
+      const dto = { amount_net: 60, amount_total: 60, currency: 'THB' };
+      const results = await Promise.allSettled([
+        service.createBankTransfer(dto as never, userId),
+        service.createBankTransfer(dto as never, userId),
+      ]);
+
+      const fulfilled = results.filter((r) => r.status === 'fulfilled');
+      const rejected = results.filter((r) => r.status === 'rejected');
+      expect(fulfilled).toHaveLength(1); // exactly one wins
+      expect(rejected).toHaveLength(1); // the other is refused (over balance)
+
+      const count = await withdrawModel.countDocuments({
+        user_id: new Types.ObjectId(userId),
+      });
+      expect(count).toBe(1); // and only one record was actually written
+    },
+  );
 });
