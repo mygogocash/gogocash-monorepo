@@ -1,0 +1,133 @@
+# Deploy Admin dashboard to Cloud Run — admin-staging.gogocash.co  (STAGING ONLY).
+#
+# Builds apps/admin (Next.js standalone) from the MONOREPO root context
+# (`-f apps/admin/Dockerfile .`, see apps/admin/Dockerfile header) and deploys
+# to Cloud Run service `gogocash-admin-staging`.
+#
+# WHY Cloud Build (not in-runner docker build like the API lane):
+#   The Phase 3 plan mandates building the admin image with "LEGACY logging"
+#   (MONOREPO_EXECUTION_PLAN.md P0-ADMIN-2 line 49: "w/ `logging: LEGACY`" and
+#   P3-ADMIN-1 line 102: "build image to asia-southeast1.../gogocash-admin
+#   (LEGACY logging)"). `logging:` is a Cloud Build `options:` setting, so it
+#   only applies to a build that RUNS ON Cloud Build via `gcloud builds submit`.
+#   We therefore submit an inline cloudbuild config whose `options.logging` is
+#   LEGACY (vs the API's cloudbuild.yaml which uses CLOUD_LOGGING_ONLY). WIF auth
+#   is identical to the API lane.
+#
+# TRIGGER: workflow_dispatch ONLY. There is NO `on: push`.
+#
+# ─── Required GitHub variables (Settings → Secrets and variables → Actions → Variables) ───
+#   GCP_PROJECT_ID        gogocash-staging
+#   GCP_WIF_PROVIDER      projects/729804769570/locations/global/workloadIdentityPools/github-actions/providers/github
+#   GCP_SERVICE_ACCOUNT   github-actions-api@gogocash-staging.iam.gserviceaccount.com
+#       (reuses the same WIF service account as the API lane; it needs Cloud
+#        Build Editor + Cloud Run Admin + Artifact Registry Writer +
+#        Service Account User on the Cloud Run runtime SA.)
+#
+# ─── No Secret Manager secrets needed at build OR deploy ───
+#   The admin talks to the staging API over HTTPS; NEXT_PUBLIC_API_URL is baked
+#   into the image at build time (defaults to https://api-staging.gogocash.co,
+#   see apps/admin/Dockerfile). No runtime secrets are wired.
+#
+# ─── After first deploy (MANUAL) ───
+#   1. Cloud Run → gogocash-admin-staging → Custom domains → admin-staging.gogocash.co
+#   2. Add the CNAME Cloud Run gives you to your DNS provider.
+#   Health check: `/` returns 307 (auth redirect) once live.
+
+name: Deploy Admin (staging)
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: admin-staging-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: Cloud Build (LEGACY logging) → Cloud Run
+    runs-on: ubuntu-latest
+    env:
+      REGION: asia-southeast1
+      SERVICE_NAME: gogocash-admin-staging
+      ARTIFACT_REPO: gogocash
+      IMAGE_NAME: gogocash-admin
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Write Cloud Build config (logging LEGACY)
+        env:
+          IMAGE_BASE: ${{ env.REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.IMAGE_NAME }}
+          GIT_SHA: ${{ github.sha }}
+        run: |
+          cat > /tmp/cloudbuild-admin.yaml <<'YAML'
+          # Generated at deploy time — builds apps/admin from the monorepo root
+          # context and pushes to Artifact Registry. `logging: LEGACY` per the
+          # Phase 3 admin deploy plan.
+          steps:
+            - id: build
+              name: gcr.io/cloud-builders/docker
+              args:
+                - build
+                - -f
+                - apps/admin/Dockerfile
+                - --tag
+                - ${_IMAGE_BASE}:${_GIT_SHA}
+                - --tag
+                - ${_IMAGE_BASE}:latest
+                - --cache-from
+                - ${_IMAGE_BASE}:latest
+                - .
+          images:
+            - ${_IMAGE_BASE}:${_GIT_SHA}
+            - ${_IMAGE_BASE}:latest
+          options:
+            logging: LEGACY
+            machineType: E2_HIGHCPU_8
+          timeout: 1800s
+          YAML
+
+      - name: Build image on Cloud Build
+        env:
+          IMAGE_BASE: ${{ env.REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.IMAGE_NAME }}
+        run: |
+          gcloud builds submit \
+            --config /tmp/cloudbuild-admin.yaml \
+            --substitutions "_IMAGE_BASE=${IMAGE_BASE},_GIT_SHA=${{ github.sha }}" \
+            --project ${{ vars.GCP_PROJECT_ID }} \
+            .
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image ${{ env.REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            --region ${{ env.REGION }} \
+            --platform managed \
+            --allow-unauthenticated \
+            --port 8080 \
+            --min-instances 0 \
+            --max-instances 3 \
+            --memory 512Mi \
+            --cpu 1 \
+            --project ${{ vars.GCP_PROJECT_ID }}
+
+      - name: Print service URL
+        run: |
+          gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region ${{ env.REGION }} \
+            --project ${{ vars.GCP_PROJECT_ID }} \
+            --format "value(status.url)"
