@@ -13,7 +13,8 @@ export class MissingOrderQueryDto {
   limit?: string;
 
   @ApiPropertyOptional({
-    description: 'Filter by status (pending, investigating, approved, rejected)',
+    description:
+      'Filter by status (pending, investigating, approved, rejected)',
   })
   @IsOptional()
   @IsString()

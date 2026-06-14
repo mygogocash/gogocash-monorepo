@@ -27,7 +27,9 @@ describe('WithdrawService.checkWithdrawMyCashback', () => {
   const userId = new Types.ObjectId().toString();
 
   it('given a fresh phone-OTP user with neither mobile nor email > then returns zeroed totals without an undefined-email query', async () => {
-    const myCashbackFind = jest.fn(() => ({ lean: jest.fn().mockResolvedValue([]) }));
+    const myCashbackFind = jest.fn(() => ({
+      lean: jest.fn().mockResolvedValue([]),
+    }));
     const service = buildService({
       user: { _id: new Types.ObjectId(userId), provider: 'phone' },
       myCashbackFind,
@@ -47,7 +49,9 @@ describe('WithdrawService.checkWithdrawMyCashback', () => {
   });
 
   it('given a user with an email > then the email lookup still runs', async () => {
-    const myCashbackFind = jest.fn(() => ({ lean: jest.fn().mockResolvedValue([]) }));
+    const myCashbackFind = jest.fn(() => ({
+      lean: jest.fn().mockResolvedValue([]),
+    }));
     const service = buildService({
       user: {
         _id: new Types.ObjectId(userId),

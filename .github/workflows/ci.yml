@@ -140,16 +140,17 @@ jobs:
         run: npm run export:web -w @gogocash/mobile
 
   # ── api (gogocash-api) — NestJS backend ───────────────────────────────────
-  # Lint and test are INFORMATIONAL (continue-on-error) per the original
-  # apps/api/.github/workflows/ci.yml: 14/21 jest suites are red on staging
-  # (nest-g scaffolding stubs with no deps wired). Do not gate merges on them
-  # until repaired; then drop continue-on-error.
+  # LINT IS NOW A GATE. The eslint 8→9 flat-config migration (2026-06-14,
+  # Tier 1 #1 of UPGRADE_PLAN.md) repaired the lint debt: `lint:ci` is clean
+  # (0 errors, 0 warnings, --max-warnings=0). Per the original note "do not
+  # gate until repaired; then drop continue-on-error" — it's repaired, so the
+  # gate is on. TEST stays informational: 13/21 jest suites are still red
+  # (nest-g scaffolding stubs with no deps wired), repaired in a later PR.
   api-lint:
-    name: api lint (informational)
+    name: api lint
     needs: changes
     if: ${{ needs.changes.outputs.api == 'true' }}
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -188,8 +189,8 @@ jobs:
   # Catches DI / bootstrap crashes that tsc and the unit specs both miss.
   #
   # Branch protection (Settings → Branches, rules for staging and main):
-  #   Require status check:  "api build + boot smoke (required)"
-  #   Do NOT require api lint/test yet — see note above.
+  #   Require status checks:  "api build + boot smoke (required)"  AND  "api lint"
+  #   Do NOT require "api unit tests (informational)" yet — see note above.
   api-build-smoke:
     name: api build + boot smoke (required)
     needs: changes

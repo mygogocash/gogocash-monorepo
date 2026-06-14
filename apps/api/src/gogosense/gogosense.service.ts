@@ -74,7 +74,12 @@ const normalizeDomain = (urlOrDomain?: string) => {
       : `https://${urlOrDomain}`;
     return new URL(withProtocol).hostname.replace(/^www\./i, '').toLowerCase();
   } catch {
-    return urlOrDomain.trim().replace(/^www\./i, '').toLowerCase() || undefined;
+    return (
+      urlOrDomain
+        .trim()
+        .replace(/^www\./i, '')
+        .toLowerCase() || undefined
+    );
   }
 };
 
@@ -135,11 +140,16 @@ export class GogosenseService {
         );
       const textMatch =
         text &&
-        [merchant.merchant_name, merchant.brand_slug, ...(merchant.domains || [])]
+        [
+          merchant.merchant_name,
+          merchant.brand_slug,
+          ...(merchant.domains || []),
+        ]
           .filter(Boolean)
           .some((candidate) => text.includes(String(candidate).toLowerCase()));
 
-      const confidenceScore = packageMatch || domainMatch ? 1 : textMatch ? 0.8 : 0;
+      const confidenceScore =
+        packageMatch || domainMatch ? 1 : textMatch ? 0.8 : 0;
       const threshold = merchant.confidence_threshold ?? 0.75;
 
       if (confidenceScore >= threshold) {
@@ -220,7 +230,8 @@ export class GogosenseService {
       userId,
     );
     const deeplink =
-      (deeplinkDoc as { deeplink?: string; tracking_link?: string })?.deeplink ||
+      (deeplinkDoc as { deeplink?: string; tracking_link?: string })
+        ?.deeplink ||
       (deeplinkDoc as { tracking_link?: string })?.tracking_link ||
       '';
 
@@ -276,7 +287,9 @@ export class GogosenseService {
   }
 
   async getScreenshotJob(userId: string, jobId: string) {
-    return this.screenshotJobModel.findOne({ _id: jobId, user_id: userId }).lean();
+    return this.screenshotJobModel
+      .findOne({ _id: jobId, user_id: userId })
+      .lean();
   }
 
   async getSettings(userId: string) {

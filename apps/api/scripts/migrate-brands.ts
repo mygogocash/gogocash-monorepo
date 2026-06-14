@@ -33,8 +33,16 @@
 
 import 'dotenv/config';
 import mongoose, { Model } from 'mongoose';
-import { OfferSchema, Offer, OfferDocument } from '../src/offer/schemas/offer.schema';
-import { BrandSchema, Brand, BrandDocument } from '../src/brand/schemas/brand.schema';
+import {
+  OfferSchema,
+  Offer,
+  OfferDocument,
+} from '../src/offer/schemas/offer.schema';
+import {
+  BrandSchema,
+  Brand,
+  BrandDocument,
+} from '../src/brand/schemas/brand.schema';
 import { slugifyBrand } from '../src/brand/brand.service';
 
 interface MigrationStats {
@@ -157,7 +165,8 @@ async function main() {
               $setOnInsert: {
                 brand_slug: slug,
                 brand_name: name,
-                logo: offer.logo ?? offer.logo_circle ?? offer.logo_desktop ?? '',
+                logo:
+                  offer.logo ?? offer.logo_circle ?? offer.logo_desktop ?? '',
                 logo_circle: offer.logo_circle ?? '',
                 banner: offer.banner ?? '',
                 description: offer.description ?? '',
@@ -174,7 +183,11 @@ async function main() {
           // Cheap heuristic: if `updatedAt - createdAt` < 1s, treat as new.
           const created = (result as unknown as { createdAt?: Date }).createdAt;
           const updated = (result as unknown as { updatedAt?: Date }).updatedAt;
-          if (created && updated && updated.getTime() - created.getTime() < 1000) {
+          if (
+            created &&
+            updated &&
+            updated.getTime() - created.getTime() < 1000
+          ) {
             stats.brandsCreated += 1;
           } else {
             stats.brandsReused += 1;
@@ -207,11 +220,13 @@ async function main() {
     'Brands created': stats.brandsCreated,
     'Brands reused': stats.brandsReused,
     'Offers linked this run': stats.offersLinked,
-    'Errors': stats.errors.length,
+    Errors: stats.errors.length,
     'Ambiguous slug→name conflicts': stats.ambiguousNames.length,
   });
   if (stats.ambiguousNames.length > 0) {
-    console.log('\n[migrate-brands] Ambiguous slugs (manual review recommended):');
+    console.log(
+      '\n[migrate-brands] Ambiguous slugs (manual review recommended):',
+    );
     for (const a of stats.ambiguousNames) console.log(`  - ${a}`);
   }
   if (stats.errors.length > 0) {

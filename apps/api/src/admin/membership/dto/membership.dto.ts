@@ -31,7 +31,9 @@ export class MembershipQueryDto {
   @IsString()
   tierId?: string;
 
-  @ApiPropertyOptional({ description: 'Filter by status (active/cancelled/expired)' })
+  @ApiPropertyOptional({
+    description: 'Filter by status (active/cancelled/expired)',
+  })
   @IsOptional()
   @IsString()
   status?: string;

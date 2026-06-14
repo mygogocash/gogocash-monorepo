@@ -192,7 +192,7 @@ export class WithdrawService {
         Number(process.env.CHAIN_ID_WITHDRAW_BNB),
       );
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     
     const conversionIdsWithdrawedSonic =
       await this.getConversionIdsWithdrawedByUserId(
         user._id.toString(),

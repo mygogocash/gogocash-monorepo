@@ -25,6 +25,8 @@ export interface ResendLike {
 export const resendClientProvider: Provider = {
   provide: RESEND_CLIENT,
   useFactory: (config: ConfigService): ResendLike =>
-    new Resend(config.get<string>('env.RESEND_API_KEY')) as unknown as ResendLike,
+    new Resend(
+      config.get<string>('env.RESEND_API_KEY'),
+    ) as unknown as ResendLike,
   inject: [ConfigService],
 };

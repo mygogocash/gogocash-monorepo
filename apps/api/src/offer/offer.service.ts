@@ -230,7 +230,6 @@ export class OfferService implements OnApplicationBootstrap {
     body.quantity = body.quantity ? Number(body.quantity) : 0;
     body.disabled = body.disabled == 'true' ? true : false;
     if (body?.id) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       // const { id, ...updateData } = body;
       return this.couponModel.findByIdAndUpdate(
         new Types.ObjectId(body.id),
@@ -240,7 +239,6 @@ export class OfferService implements OnApplicationBootstrap {
         },
       );
     } else {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       delete body.id;
       return this.couponModel.create(body);
     }

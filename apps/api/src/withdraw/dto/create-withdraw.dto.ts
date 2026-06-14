@@ -51,7 +51,11 @@ export class CreateManualWithdrawRequestDto {
    * balance check in the service enforces the real ceiling; this guards
    * against float overflow / input garbage short-circuiting validation.
    */
-  @ApiProperty({ description: 'Requested amount in the chosen token', minimum: 0.01, maximum: 1_000_000 })
+  @ApiProperty({
+    description: 'Requested amount in the chosen token',
+    minimum: 0.01,
+    maximum: 1_000_000,
+  })
   @IsNumber({ maxDecimalPlaces: 6 })
   @Min(0.01)
   @Max(1_000_000)

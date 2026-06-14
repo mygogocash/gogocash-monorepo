@@ -50,13 +50,25 @@ describe('Admin money/sensitive controllers enforce roles', () => {
     expect(rolesOnMethod(WalletsController, 'adjust')).toContain('superadmin');
     expect(rolesOnMethod(WalletsController, 'freeze')).toContain('approver');
     expect(rolesOnMethod(WalletsController, 'unfreeze')).toContain('approver');
-    expect(rolesOnMethod(CreditScoresController, 'updateConfig')).toContain('superadmin');
-    expect(rolesOnMethod(CreditScoresController, 'override')).toContain('approver');
-    expect(rolesOnMethod(MissingOrdersController, 'approve')).toContain('approver');
-    expect(rolesOnMethod(MissingOrdersController, 'reject')).toContain('approver');
+    expect(rolesOnMethod(CreditScoresController, 'updateConfig')).toContain(
+      'superadmin',
+    );
+    expect(rolesOnMethod(CreditScoresController, 'override')).toContain(
+      'approver',
+    );
+    expect(rolesOnMethod(MissingOrdersController, 'approve')).toContain(
+      'approver',
+    );
+    expect(rolesOnMethod(MissingOrdersController, 'reject')).toContain(
+      'approver',
+    );
     expect(rolesOnMethod(ReferralsController, 'approve')).toContain('approver');
-    expect(rolesOnMethod(ReferralsController, 'updateConfig')).toContain('superadmin');
-    expect(rolesOnMethod(TransactionsController, 'flagTransaction')).toContain('approver');
+    expect(rolesOnMethod(ReferralsController, 'updateConfig')).toContain(
+      'superadmin',
+    );
+    expect(rolesOnMethod(TransactionsController, 'flagTransaction')).toContain(
+      'approver',
+    );
   });
 
   it('config controllers carry a class-level minimum tier', () => {
@@ -80,21 +92,31 @@ describe('Admin Phase-2 RBAC gap closures', () => {
 
   it('previously-unguarded mutations now require a tier', () => {
     // Homepage "top brands" merchandising (writes the banner config).
-    expect(rolesOnMethod(AdminController, 'saveTopBrands')).toContain('approver');
+    expect(rolesOnMethod(AdminController, 'saveTopBrands')).toContain(
+      'approver',
+    );
     // Internal case notes — a read-only viewer must not be able to write them.
-    expect(rolesOnMethod(MissingOrdersController, 'addNote')).toContain('support');
+    expect(rolesOnMethod(MissingOrdersController, 'addNote')).toContain(
+      'support',
+    );
     // Dead create() stub — guarded so it cannot be silently implemented open.
     expect(rolesOnMethod(AdminController, 'create')).toContain('superadmin');
   });
 
   it('update-offer is raised to superadmin (edits commission_store/max_cap)', () => {
-    expect(rolesOnMethod(AdminController, 'updateOffer')).toContain('superadmin');
+    expect(rolesOnMethod(AdminController, 'updateOffer')).toContain(
+      'superadmin',
+    );
     // The raise must REPLACE approver: @Roles(...) passes if the role meets ANY
     // listed tier, so leaving 'approver' in would keep the weaker bar.
-    expect(rolesOnMethod(AdminController, 'updateOffer')).not.toContain('approver');
+    expect(rolesOnMethod(AdminController, 'updateOffer')).not.toContain(
+      'approver',
+    );
   });
 
   it('bulk transaction CSV export is restricted to support+', () => {
-    expect(rolesOnMethod(TransactionsController, 'exportCsv')).toContain('support');
+    expect(rolesOnMethod(TransactionsController, 'exportCsv')).toContain(
+      'support',
+    );
   });
 });

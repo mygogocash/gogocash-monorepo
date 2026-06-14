@@ -5,7 +5,7 @@ import {
   IsBoolean,
   IsNumberString,
 } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 
 export class ReferralQueryDto {
@@ -47,7 +47,10 @@ export class UpdateReferralConfigDto {
   @IsNumber()
   referee_reward?: number;
 
-  @ApiPropertyOptional({ description: 'Currency for rewards', default: 'points' })
+  @ApiPropertyOptional({
+    description: 'Currency for rewards',
+    default: 'points',
+  })
   @IsOptional()
   @IsString()
   currency?: string;

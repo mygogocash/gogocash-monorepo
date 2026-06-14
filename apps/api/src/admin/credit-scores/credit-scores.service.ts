@@ -102,10 +102,7 @@ export class CreditScoresService {
   }
 
   async getConfig() {
-    const existing = await this.creditScoreConfigModel
-      .findOne()
-      .lean()
-      .exec();
+    const existing = await this.creditScoreConfigModel.findOne().lean().exec();
 
     if (existing) {
       return existing;
@@ -133,7 +130,11 @@ export class CreditScoresService {
           min_score: 501,
           max_score: 800,
           color: '#FFD700',
-          benefits: ['Enhanced cashback', 'Priority support', 'Exclusive offers'],
+          benefits: [
+            'Enhanced cashback',
+            'Priority support',
+            'Exclusive offers',
+          ],
         },
         {
           name: 'Platinum',
@@ -264,13 +265,10 @@ export class CreditScoresService {
             { $group: { _id: null, total: { $sum: '$sale_amount' } } },
           ])
           .exec(),
-        this.userModel
-          .countDocuments({ referred_by: userId })
-          .exec(),
+        this.userModel.countDocuments({ referred_by: userId }).exec(),
       ]);
 
-    const totalSpend =
-      spendResult.length > 0 ? (spendResult[0].total ?? 0) : 0;
+    const totalSpend = spendResult.length > 0 ? (spendResult[0].total ?? 0) : 0;
 
     const accountCreated = (user as any)?.createdAt
       ? new Date((user as any).createdAt)
@@ -290,12 +288,10 @@ export class CreditScoresService {
 
     const weightedConversion =
       normalizedConversion * (weights.conversion_count ?? 0.25);
-    const weightedSpend =
-      normalizedSpend * (weights.total_spend ?? 0.25);
+    const weightedSpend = normalizedSpend * (weights.total_spend ?? 0.25);
     const weightedReferral =
       normalizedReferral * (weights.referral_count ?? 0.25);
-    const weightedAge =
-      normalizedAge * (weights.account_age_days ?? 0.25);
+    const weightedAge = normalizedAge * (weights.account_age_days ?? 0.25);
 
     const rawTotal =
       weightedConversion + weightedSpend + weightedReferral + weightedAge;

@@ -13,7 +13,11 @@ import {
 import { OfferService } from './offer.service';
 import { ApiBearerAuth, ApiBody, ApiQuery, ApiSecurity } from '@nestjs/swagger';
 import { Request } from 'express';
-import { GetMissingOrderDto, GetMyOfferDto, SaveMissingOrderDto } from './dto/create-offer.dto';
+import {
+  GetMissingOrderDto,
+  GetMyOfferDto,
+  SaveMissingOrderDto,
+} from './dto/create-offer.dto';
 import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
 import { RateLimitGuard } from 'src/auth/rate-limit.guard';
@@ -279,7 +283,6 @@ export class OfferController {
     const id = user.sub;
     return this.offerService.saveMissingOrder(id, body, files);
   }
-
 
   @UseGuards(FirebaseAuthGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
