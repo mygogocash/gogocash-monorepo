@@ -64,6 +64,6 @@
     "happy-dom": "^20.9.0",
     "react-test-renderer": "^19.2.3",
     "typescript": "~6.0.3",
-    "vitest": "latest"
+    "vitest": "^4.1.8"
   }
 }
