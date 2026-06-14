@@ -686,16 +686,53 @@ describe('WithdrawService', () => {
       expect(fetchSpy).not.toHaveBeenCalled();
     });
 
-    it('convertCurrencyThb > given a foreign currency and an upstream fetch failure > then falls back to null instead of throwing', async () => {
-      // A flaky FX upstream must degrade to a null amount, not crash the
-      // surrounding withdrawal calculation.
+    it('convertCurrencyThb > given an upstream failure and a cold cache > then throws (fail-closed)', async () => {
+      // P1-FX: a flaky FX upstream must NOT degrade to null — the callers do
+      // `amount || 0`, so a null silently zeroes a foreign-currency withdrawal
+      // and inflates the available balance. With no cached rate to fall back on,
+      // fail loud instead.
       jest
         .spyOn(global, 'fetch' as never)
         .mockResolvedValue({ ok: false } as never);
 
-      const result = await mocks.service.convertCurrencyThb('USD', 100);
+      await expect(
+        mocks.service.convertCurrencyThb('USD', 100),
+      ).rejects.toBeDefined();
+    });
 
-      expect(result).toEqual({ amount: null, exchangeRate: null });
+    it('convertCurrencyUsd > given a successful rate > then caches it (a second call within TTL does not refetch)', async () => {
+      // P1-FX: checkWithdraw converts the same currency ~20x per request; without
+      // a cache that is 20 external calls on the hot money path.
+      const fetchSpy = jest.spyOn(global, 'fetch' as never).mockResolvedValue({
+        ok: true,
+        json: async () => ({ rates: { USD: 0.03 } }),
+      } as never);
+
+      const first = await mocks.service.convertCurrencyUsd('THB', 100);
+      const second = await mocks.service.convertCurrencyUsd('THB', 200);
+
+      expect(first).toEqual({ usdAmount: 3, exchangeRate: 0.03 });
+      expect(second).toEqual({ usdAmount: 6, exchangeRate: 0.03 });
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('convertCurrencyUsd > given an upstream failure AFTER a cached success > then serves the stale rate (resilient, no throw)', async () => {
+      const fetchSpy = jest
+        .spyOn(global, 'fetch' as never)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ rates: { USD: 0.03 } }),
+        } as never)
+        .mockResolvedValue({ ok: false } as never);
+
+      // First call populates the cache; force-expire it so the next call refetches.
+      await mocks.service.convertCurrencyUsd('THB', 100);
+      mocks.service.expireFxCacheForTest();
+
+      const stale = await mocks.service.convertCurrencyUsd('THB', 100);
+
+      expect(stale).toEqual({ usdAmount: 3, exchangeRate: 0.03 });
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
     });
   });
 

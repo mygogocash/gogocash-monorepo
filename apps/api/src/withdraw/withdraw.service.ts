@@ -1439,6 +1439,72 @@ export class WithdrawService {
     return data;
   }
 
+  // ── FX conversion (P1-FX): cached, timeout-bounded, fail-closed ─────────────
+  private readonly fxCache = new Map<
+    string,
+    { rate: number; expiresAt: number }
+  >();
+  private readonly FX_TTL_MS = 10 * 60 * 1000; // 10 min — FX moves little intraday
+  private readonly FX_TIMEOUT_MS = 5000;
+
+  /** Test seam: force every cached rate stale so the next call refetches. */
+  expireFxCacheForTest(): void {
+    for (const entry of this.fxCache.values()) {
+      entry.expiresAt = 0;
+    }
+  }
+
+  /**
+   * Fetch the `base -> target` exchange rate. Cached for FX_TTL_MS so the hot
+   * balance path (which converts the same currency ~20x per request) makes at
+   * most one upstream call per window, and so we have a value to fall back on.
+   *
+   * FAIL-CLOSED: on a fresh-fetch failure we serve the last known rate if we
+   * have one; only with a cold cache do we THROW. We never return null — callers
+   * do `value || 0`, so a null would silently zero a foreign-currency amount and
+   * corrupt the balance (under-counting withdrawals = over-stating available).
+   */
+  private async fetchRate(base: string, target: string): Promise<number> {
+    const key = `${base}->${target}`;
+    const now = Date.now();
+    const cached = this.fxCache.get(key);
+    if (cached && cached.expiresAt > now) {
+      return cached.rate;
+    }
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), this.FX_TIMEOUT_MS);
+      let rate: number | undefined;
+      try {
+        const response = await fetch(
+          `https://api.exchangerate-api.com/v4/latest/${base}`,
+          { signal: controller.signal },
+        );
+        if (!response.ok) {
+          throw new Error(`FX ${base} upstream HTTP ${response.status}`);
+        }
+        const data = await response.json();
+        rate = data?.rates?.[target];
+      } finally {
+        clearTimeout(timer);
+      }
+      if (!rate || !Number.isFinite(rate)) {
+        throw new Error(`FX rate ${key} missing in upstream response`);
+      }
+      this.fxCache.set(key, { rate, expiresAt: now + this.FX_TTL_MS });
+      return rate;
+    } catch (err) {
+      if (cached) {
+        console.warn(`FX ${key} refresh failed; serving stale cached rate`, err);
+        return cached.rate;
+      }
+      throw new HttpException(
+        { message: `Currency conversion temporarily unavailable (${base})` },
+        503,
+      );
+    }
+  }
+
   async convertCurrencyUsd(
     currency: string,
     amount: number,
@@ -1446,30 +1512,8 @@ export class WithdrawService {
     if (currency === 'USD') {
       return { usdAmount: amount, exchangeRate: 1 };
     }
-
-    try {
-      // Using a free currency conversion API (you can replace with your preferred service)
-      const response = await fetch(
-        `https://api.exchangerate-api.com/v4/latest/${currency}`,
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch exchange rate for ${currency}`);
-      }
-
-      const data = await response.json();
-      const exchangeRate = data.rates.USD;
-
-      if (!exchangeRate) {
-        throw new Error(`USD exchange rate not found for ${currency}`);
-      }
-
-      return { usdAmount: amount * exchangeRate, exchangeRate }; // Return the converted amount * exchangeRate;
-    } catch (error) {
-      console.error(`Error converting ${currency} to USD:`, error);
-      // Return original amount as fallback
-      return { usdAmount: null, exchangeRate: null };
-    }
+    const exchangeRate = await this.fetchRate(currency, 'USD');
+    return { usdAmount: amount * exchangeRate, exchangeRate };
   }
 
   async convertCurrencyThb(
@@ -1479,30 +1523,8 @@ export class WithdrawService {
     if (currency === 'THB') {
       return { amount: amount, exchangeRate: 1 };
     }
-
-    try {
-      // Using a free currency conversion API (you can replace with your preferred service)
-      const response = await fetch(
-        `https://api.exchangerate-api.com/v4/latest/${currency}`,
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch exchange rate for ${currency}`);
-      }
-
-      const data = await response.json();
-      const exchangeRate = data.rates.THB;
-
-      if (!exchangeRate) {
-        throw new Error(`THB exchange rate not found for ${currency}`);
-      }
-
-      return { amount: amount * exchangeRate, exchangeRate }; // Return the converted amount * exchangeRate;
-    } catch (error) {
-      console.error(`Error converting ${currency} to THB:`, error);
-      // Return original amount as fallback
-      return { amount: null, exchangeRate: null };
-    }
+    const exchangeRate = await this.fetchRate(currency, 'THB');
+    return { amount: amount * exchangeRate, exchangeRate };
   }
 
   // async createFeeRate() {
