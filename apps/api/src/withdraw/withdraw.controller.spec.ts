@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import { Test, TestingModule } from '@nestjs/testing';
 import type { Request } from 'express';
 import { WithdrawController } from './withdraw.controller';
@@ -38,6 +39,9 @@ function makeService(): jest.Mocked<Partial<WithdrawService>> {
       .fn()
       .mockResolvedValue({ _id: 'manual1', status: 'pending' }),
     markWithdrawPaid: jest.fn().mockResolvedValue({ status: 'paid' }),
+    approveWithdrawRequest: jest
+      .fn()
+      .mockResolvedValue({ success: true, data: { status: 'approved' } }),
     createBankTransfer: jest.fn().mockResolvedValue({ _id: 'bt1' }),
     findAll: jest.fn().mockResolvedValue({ data: [], total: 0 }),
     detailWithdraw: jest.fn().mockResolvedValue({ _id: 'w1' }),
@@ -154,6 +158,25 @@ describe('WithdrawController', () => {
 
       expect(service.create).toHaveBeenCalledWith(body, 'owner-1');
       expect(result).toEqual({ _id: 'w1' });
+    });
+  });
+
+  describe('approveWithdraw (admin, V-2b)', () => {
+    it('approveWithdraw > given a withdraw id + admin > then service.approveWithdrawRequest is called with (id, adminSub)', () => {
+      controller.approveWithdraw(reqWithUser('admin-9'), 'w-1');
+      expect(service.approveWithdrawRequest).toHaveBeenCalledWith(
+        'w-1',
+        'admin-9',
+      );
+    });
+
+    it('approveWithdraw > is protected by AuthAdminGuard', () => {
+      const guards =
+        (Reflect.getMetadata(
+          '__guards__',
+          WithdrawController.prototype.approveWithdraw,
+        ) as unknown[]) ?? [];
+      expect(guards).toContain(AuthAdminGuard);
     });
   });
 
