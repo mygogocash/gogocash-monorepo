@@ -3,6 +3,13 @@ import { fileURLToPath } from "node:url";
 import bundleAnalyzer from "@next/bundle-analyzer";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
+/**
+ * Monorepo workspace root (two levels up from apps/landing). Turbopack must use
+ * this as its root so module resolution walks up into the hoisted root
+ * `node_modules` (framer-motion, posthog-js, react-markdown, @firebase/*, etc.).
+ * Pinning the root at the app dir hides every hoisted dependency.
+ */
+const workspaceRoot = path.resolve(projectRoot, "..", "..");
 
 const withBundleAnalyzer = bundleAnalyzer({
   enabled: process.env.ANALYZE === "true",
@@ -20,7 +27,7 @@ const nextConfig = {
     optimizePackageImports: ["framer-motion"],
   },
   turbopack: {
-    root: projectRoot,
+    root: workspaceRoot,
   },
   images: {
     unoptimized: true,
