@@ -90,4 +90,50 @@ describe("GoGoSense session controller", () => {
 
     expect(detector.openUsageAccessSettings).toHaveBeenCalledOnce();
   });
+
+  it("activate > given a matched lastMatch > then calls api.activate and returns the deeplink", async () => {
+    const response: GoGoSenseDetectionResponse = {
+      matched: true,
+      merchantId: "shopee",
+      offerId: 101,
+      networkMerchantId: 201,
+      recommendedAction: "activate",
+    };
+    const activate = vi.fn(async () => ({
+      activationEventId: "evt1",
+      deeplink: "https://track.gogocash.co/shopee",
+    }));
+    const session = createGoGoSenseSession({
+      api: { detect: vi.fn(async () => response), activate },
+      detector: createDetector(),
+    });
+
+    await session.start();
+    await session.poll();
+
+    await expect(session.activate()).resolves.toEqual({
+      deeplink: "https://track.gogocash.co/shopee",
+    });
+    expect(activate).toHaveBeenCalledWith({
+      detectionEventId: undefined,
+      merchantId: "shopee",
+      offerId: 101,
+      networkMerchantId: 201,
+      source: "gogosense",
+    });
+  });
+
+  it("activate > given no match > then returns null and never calls api.activate", async () => {
+    const activate = vi.fn();
+    const session = createGoGoSenseSession({
+      api: { detect: vi.fn(async () => ({ matched: false })), activate },
+      detector: createDetector(),
+    });
+
+    await session.start();
+    await session.poll();
+
+    await expect(session.activate()).resolves.toBeNull();
+    expect(activate).not.toHaveBeenCalled();
+  });
 });
