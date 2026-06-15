@@ -12,7 +12,7 @@ import {
   Store as StoreIcon,
 } from "@mobile/theme/icons";
 import { useEffect, type ComponentType } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
@@ -28,6 +28,8 @@ import {
 } from "@mobile/gogosense/detector";
 import { GoGoSenseDetectionBanner } from "@mobile/gogosense/GoGoSenseDetectionBanner";
 import { useGoGoSense } from "@mobile/gogosense/useGoGoSense";
+import { useGoGoSenseSettings } from "@mobile/gogosense/useGoGoSenseSettings";
+import { useGoGoSenseTimeline } from "@mobile/gogosense/useGoGoSenseTimeline";
 
 export type GoGoSenseFlowMode =
   | "hub"
@@ -138,14 +140,17 @@ const settingRows = [
   {
     title: "Usage access detection",
     body: "Use app and browser transitions for supported merchant sessions.",
+    field: "usageStatsEnabled",
   },
   {
     title: "Notification listener",
     body: "Capture merchant confirmation notices after checkout.",
+    field: "notificationListenerEnabled",
   },
   {
     title: "PII minimization",
     body: "Redact notification and screenshot data before upload.",
+    field: "screenshotRecoveryEnabled",
   },
 ] as const;
 
@@ -359,7 +364,8 @@ function UsageAccessControl({ detector }: { detector: GoGoSenseDetector }) {
   );
 }
 
-function TimelineContent() {
+function TimelineContent({ api }: { api?: { getTimeline(): Promise<unknown> } | null } = {}) {
+  const liveEntries = useGoGoSenseTimeline(api);
   return (
     <>
       <View style={styles.card}>
@@ -368,9 +374,18 @@ function TimelineContent() {
           subtitle="Only the state needed for cashback support is shown here."
           title="Tracking timeline"
         />
-        {timelineRows.map((row) => (
-          <TimelineRow body={row.body} key={row.title} status={row.status} title={row.title} />
-        ))}
+        {liveEntries
+          ? liveEntries.map((entry) => (
+              <TimelineRow
+                body={entry.body}
+                key={entry.id}
+                status={entry.status}
+                title={entry.title}
+              />
+            ))
+          : timelineRows.map((row) => (
+              <TimelineRow body={row.body} key={row.title} status={row.status} title={row.title} />
+            ))}
       </View>
       <View style={styles.actionGrid}>
         <PrimaryLink href="/gogosense/recovery" label="Start recovery" />
@@ -382,6 +397,7 @@ function TimelineContent() {
 
 function SettingsContent() {
   const tc = useCopy();
+  const { settings, setField } = useGoGoSenseSettings();
   return (
     <>
       <View style={styles.card}>
@@ -392,9 +408,11 @@ function SettingsContent() {
         />
         {settingRows.map((row) => (
           <View key={row.title} style={styles.settingRow}>
-            <View style={styles.settingSwitch}>
-              <View style={styles.settingSwitchKnob} />
-            </View>
+            <Switch
+              onValueChange={(value) => setField(row.field, value)}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              value={settings[row.field]}
+            />
             <View style={styles.settingCopy}>
               <Text
                 numberOfLines={1}
