@@ -22,4 +22,5 @@ export function createUnsupportedGoGoSenseDetector(): GoGoSenseDetector {
   };
 }
 
-export const gogosenseDetector = createUnsupportedGoGoSenseDetector();
+// The live, platform-selected singleton lives in detectorInstance.ts (it imports
+// react-native + the native module and is kept out of the pure node test path).
