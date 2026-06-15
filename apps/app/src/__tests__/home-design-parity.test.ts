@@ -100,7 +100,7 @@ describe("Expo home design parity", () => {
     // shared adapter (src/theme/icons.tsx) — screens never import an icon
     // library directly. The desktop category nav uses phosphor glyph components
     // (via the adapter), not the legacy PNG menu-bar icons.
-    expect(packageJson.dependencies?.["phosphor-react-native"]).toBe("^3.0.6");
+    expect(packageJson.dependencies?.["phosphor-react-native"]).toBe("^2.3.1");
     for (const sourceFile of [homeFile, desktopHeaderFile]) {
       expect(sourceFile).toContain('from "@mobile/theme/icons"');
       expect(sourceFile).not.toContain("lucide-react-native");
