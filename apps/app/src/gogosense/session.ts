@@ -1,4 +1,6 @@
 import type {
+  GoGoSenseActivationRequest,
+  GoGoSenseActivationResponse,
   GoGoSenseDetectionRequest,
   GoGoSenseDetectionResponse,
 } from "./api";
@@ -19,6 +21,7 @@ export type GoGoSenseSessionState = {
 
 type SessionApi = {
   detect(request: GoGoSenseDetectionRequest): Promise<GoGoSenseDetectionResponse>;
+  activate?(request: GoGoSenseActivationRequest): Promise<GoGoSenseActivationResponse>;
 };
 
 export type GoGoSenseStartResult =
@@ -106,6 +109,30 @@ export function createGoGoSenseSession(options: GoGoSenseSessionOptions) {
 
     async poll(): Promise<void> {
       await runner.pollForegroundPackage();
+    },
+
+    // Activates cashback for the surfaced match: turns lastMatch into an
+    // activation request, returns the tracking deeplink for the caller to open.
+    // Null when there's no actionable match or the api can't activate.
+    async activate(): Promise<{ deeplink: string } | null> {
+      const match = lastMatch?.response;
+      if (
+        !match?.matched ||
+        match.merchantId == null ||
+        match.offerId == null ||
+        match.networkMerchantId == null ||
+        !options.api.activate
+      ) {
+        return null;
+      }
+      const result = await options.api.activate({
+        detectionEventId: match.detectionEventId,
+        merchantId: match.merchantId,
+        offerId: match.offerId,
+        networkMerchantId: match.networkMerchantId,
+        source: "gogosense",
+      });
+      return { deeplink: result.deeplink };
     },
   };
 }

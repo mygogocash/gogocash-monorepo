@@ -1,6 +1,8 @@
 import { useCallback, useRef, useState } from "react";
 
 import type {
+  GoGoSenseActivationRequest,
+  GoGoSenseActivationResponse,
   GoGoSenseDetectionRequest,
   GoGoSenseDetectionResponse,
 } from "./api";
@@ -11,8 +13,11 @@ import {
   type GoGoSenseSessionState,
 } from "./session";
 
-type GoGoSenseHookApi = {
+export type GoGoSenseHookApi = {
   detect(request: GoGoSenseDetectionRequest): Promise<GoGoSenseDetectionResponse>;
+  activate?(
+    request: GoGoSenseActivationRequest,
+  ): Promise<GoGoSenseActivationResponse>;
 };
 
 export type UseGoGoSenseOptions = {
@@ -50,6 +55,7 @@ export function useGoGoSense(options: UseGoGoSenseOptions) {
   const start = useCallback(() => session.start(), [session]);
   const stop = useCallback(() => session.stop(), [session]);
   const poll = useCallback(() => session.poll(), [session]);
+  const activate = useCallback(() => session.activate(), [session]);
 
   return {
     state,
@@ -58,5 +64,6 @@ export function useGoGoSense(options: UseGoGoSenseOptions) {
     start,
     stop,
     poll,
+    activate,
   };
 }

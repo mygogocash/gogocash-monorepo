@@ -26,6 +26,7 @@ import {
   createUnsupportedGoGoSenseDetector,
   type GoGoSenseDetector,
 } from "@mobile/gogosense/detector";
+import { GoGoSenseDetectionBanner } from "@mobile/gogosense/GoGoSenseDetectionBanner";
 import { useGoGoSense } from "@mobile/gogosense/useGoGoSense";
 
 export type GoGoSenseFlowMode =
@@ -204,7 +205,7 @@ export function CustomerGoGoSenseScreen({
             ) : null}
           </View>
 
-          {mode === "hub" ? <HubContent /> : null}
+          {mode === "hub" ? <HubContent detector={detector} /> : null}
           {mode === "onboarding" ? <OnboardingContent /> : null}
           {mode === "permissions" ? <PermissionsContent detector={detector} /> : null}
           {mode === "timeline" ? <TimelineContent /> : null}
@@ -218,9 +219,10 @@ export function CustomerGoGoSenseScreen({
   );
 }
 
-function HubContent() {
+function HubContent({ detector }: { detector: GoGoSenseDetector }) {
   return (
     <>
+      <GoGoSenseDetectionBanner detector={detector} />
       <View style={styles.card}>
         <SectionHeader
           icon={LockIcon}
