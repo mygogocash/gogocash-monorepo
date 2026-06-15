@@ -69,6 +69,13 @@ jobs:
   eas:
     name: EAS ${{ inputs.action }}
     runs-on: ubuntu-latest
+    # app.config.ts resolves extra.eas.projectId from EXPO_PUBLIC_EAS_PROJECT_ID;
+    # without it `eas build` fails "project not configured". Set it as a repo
+    # VARIABLE (not a secret — the projectId is not sensitive): Settings →
+    # Secrets and variables → Actions → Variables → EXPO_PUBLIC_EAS_PROJECT_ID
+    # (value from `npx eas init` in apps/app).
+    env:
+      EXPO_PUBLIC_EAS_PROJECT_ID: ${{ vars.EXPO_PUBLIC_EAS_PROJECT_ID }}
     defaults:
       run:
         working-directory: apps/app
