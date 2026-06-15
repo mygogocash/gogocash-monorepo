@@ -41,6 +41,7 @@ const mobileExpoConfig = ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: appIdentity.displayName,
   slug: "gogocash-mobile",
+  owner: "gogocash",
   scheme: appIdentity.scheme,
   version: "0.1.0",
   orientation: "portrait",
