@@ -1,8 +1,16 @@
-import type { GoGoSenseDetectionRequest } from "./api";
+import type {
+  GoGoSenseDetectionRequest,
+  GoGoSenseDetectionResponse,
+} from "./api";
 import type { GoGoSenseDetector } from "./detector";
 
 type DetectionApi = {
-  detect(request: GoGoSenseDetectionRequest): Promise<unknown>;
+  detect(request: GoGoSenseDetectionRequest): Promise<GoGoSenseDetectionResponse>;
+};
+
+export type GoGoSenseDetectionEvent = {
+  packageName: string;
+  response: GoGoSenseDetectionResponse;
 };
 
 type DetectionRunnerOptions = {
@@ -11,6 +19,7 @@ type DetectionRunnerOptions = {
   cooldownMs?: number;
   detector: GoGoSenseDetector;
   now?: () => Date;
+  onDetection?: (event: GoGoSenseDetectionEvent) => void;
 };
 
 type StartResult =
@@ -72,13 +81,14 @@ export function createGoGoSenseDetectionRunner(options: DetectionRunnerOptions) 
       }
 
       lastDetectionByPackage.set(packageName, observedAt.getTime());
-      await options.api.detect({
+      const response = await options.api.detect({
         appVersion: options.appVersion,
         method: "android_package",
         observedAt: observedAt.toISOString(),
         packageName,
         platform: "android",
       });
+      options.onDetection?.({ packageName, response });
 
       return { detected: true, packageName, suppressed: false };
     },
