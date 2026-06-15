@@ -4,6 +4,7 @@ import { Cookie as CookieIcon } from "@mobile/theme/icons";
 import { StyleSheet, Text, View } from "react-native";
 
 import { webCookieConsentBanner } from "@mobile/design/webDesignParity";
+import { dispatchWebEvent } from "@mobile/lib/dispatchWebEvent";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { motion } from "@mobile/theme/motion";
 import { colors, radii, typography } from "@mobile/theme/tokens";
@@ -31,9 +32,7 @@ export function CustomerCookieConsentBanner({ isDesktop }: { isDesktop: boolean 
       // Ignore unavailable storage in native previews.
     }
     setVisible(false);
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent(webCookieConsentBanner.dismissedEventName));
-    }
+    dispatchWebEvent(webCookieConsentBanner.dismissedEventName);
   }, []);
 
   const acceptCookieBanner = useCallback(() => {
