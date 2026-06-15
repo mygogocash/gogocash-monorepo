@@ -86,12 +86,18 @@ describe("Remaining customer route parity", () => {
     expect(rootLayout).toContain("guard={isAuthed}");
     expect(rootLayout).toContain('"wallet"');
 
-    // The /profile tab self-guards: a Tabs.Protected fallback can only reach a sibling
-    // tab, so unauthenticated access is redirected to /login from the screen instead.
+    // The /profile tab self-guards by rendering the login UI INLINE for logged-out
+    // users (CustomerAuthScreen, mode="login") instead of a cross-navigator redirect
+    // to the root /login route. The Tabs→/login transition crashes the New-Arch
+    // Android view mounter on a cold start (react-native-screens removal-transition
+    // mParent leak), so login is kept inside the Tabs navigator. No
+    // buildProtectedLoginRedirect / cross-navigator hop here — that is the regression
+    // guard against reintroducing the crash.
     const profileRoute = readMobileFile("app/(tabs)/profile.tsx");
     expect(tabsLayout).toContain('name="profile"');
-    expect(profileRoute).toContain("Redirect");
-    expect(profileRoute).toContain("buildProtectedLoginRedirect");
+    expect(profileRoute).toContain("CustomerAuthScreen");
+    expect(profileRoute).toContain('mode="login"');
+    expect(profileRoute).not.toContain("buildProtectedLoginRedirect");
 
     // The guard signal is synchronous-correct on web (localStorage) and async on native.
     expect(guardSession).toContain("createAvailableSessionStore");
