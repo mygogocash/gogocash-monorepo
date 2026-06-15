@@ -333,5 +333,12 @@
   "mobileSec_302": "Next page",
   "mobileSec_303": "Category",
   "mobileSec_304": "Browse this collection",
-  "mobileSec_305": "Brands"
+  "mobileSec_305": "Brands",
+  "mobileGgs_1": "Grant usage access",
+  "mobileGgs_2": "Usage access granted",
+  "mobileGgs_3": "Usage access not granted yet",
+  "mobileGgs_4": "Usage access is only available on Android",
+  "mobileGgs_5": "Cashback available",
+  "mobileGgs_6": "Activate cashback before you keep shopping",
+  "mobileGgs_7": "Activate cashback"
 }

@@ -11,8 +11,8 @@ import {
   ShieldCheck as ShieldIcon,
   Store as StoreIcon,
 } from "@mobile/theme/icons";
-import type { ComponentType } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, type ComponentType } from "react";
+import { ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
@@ -22,6 +22,14 @@ import { useCopy } from "@mobile/i18n/useCopy";
 import { mobileShellLayout } from "@mobile/design/webDesignParity";
 import { motion } from "@mobile/theme/motion";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
+import {
+  createUnsupportedGoGoSenseDetector,
+  type GoGoSenseDetector,
+} from "@mobile/gogosense/detector";
+import { GoGoSenseDetectionBanner } from "@mobile/gogosense/GoGoSenseDetectionBanner";
+import { useGoGoSense } from "@mobile/gogosense/useGoGoSense";
+import { useGoGoSenseSettings } from "@mobile/gogosense/useGoGoSenseSettings";
+import { useGoGoSenseTimeline } from "@mobile/gogosense/useGoGoSenseTimeline";
 
 export type GoGoSenseFlowMode =
   | "hub"
@@ -41,6 +49,10 @@ type GoGoSenseIcon = ComponentType<{
 type GoGoSenseScreenProps = {
   merchantId?: string;
   mode: GoGoSenseFlowMode;
+  // The live platform detector. Defaults to the unsupported no-op so render
+  // tests + non-Android platforms stay safe; the Android routes inject the
+  // native UsageStats detector (which can't be imported under the test harness).
+  detector?: GoGoSenseDetector;
 };
 
 const gogoSenseFlowCopy = {
@@ -128,18 +140,25 @@ const settingRows = [
   {
     title: "Usage access detection",
     body: "Use app and browser transitions for supported merchant sessions.",
+    field: "usageStatsEnabled",
   },
   {
     title: "Notification listener",
     body: "Capture merchant confirmation notices after checkout.",
+    field: "notificationListenerEnabled",
   },
   {
     title: "PII minimization",
     body: "Redact notification and screenshot data before upload.",
+    field: "screenshotRecoveryEnabled",
   },
 ] as const;
 
-export function CustomerGoGoSenseScreen({ merchantId, mode }: GoGoSenseScreenProps) {
+export function CustomerGoGoSenseScreen({
+  merchantId,
+  mode,
+  detector = createUnsupportedGoGoSenseDetector(),
+}: GoGoSenseScreenProps) {
   const tc = useCopy();
   const insets = useSafeAreaInsets();
   const copy = gogoSenseFlowCopy[mode];
@@ -191,9 +210,9 @@ export function CustomerGoGoSenseScreen({ merchantId, mode }: GoGoSenseScreenPro
             ) : null}
           </View>
 
-          {mode === "hub" ? <HubContent /> : null}
+          {mode === "hub" ? <HubContent detector={detector} /> : null}
           {mode === "onboarding" ? <OnboardingContent /> : null}
-          {mode === "permissions" ? <PermissionsContent /> : null}
+          {mode === "permissions" ? <PermissionsContent detector={detector} /> : null}
           {mode === "timeline" ? <TimelineContent /> : null}
           {mode === "settings" ? <SettingsContent /> : null}
           {mode === "recovery" ? <RecoveryContent /> : null}
@@ -205,9 +224,10 @@ export function CustomerGoGoSenseScreen({ merchantId, mode }: GoGoSenseScreenPro
   );
 }
 
-function HubContent() {
+function HubContent({ detector }: { detector: GoGoSenseDetector }) {
   return (
     <>
+      <GoGoSenseDetectionBanner detector={detector} />
       <View style={styles.card}>
         <SectionHeader
           icon={LockIcon}
@@ -265,7 +285,7 @@ function OnboardingContent() {
   );
 }
 
-function PermissionsContent() {
+function PermissionsContent({ detector }: { detector: GoGoSenseDetector }) {
   return (
     <>
       <View style={styles.card}>
@@ -280,6 +300,7 @@ function PermissionsContent() {
           ))}
         </View>
       </View>
+      <UsageAccessControl detector={detector} />
       <View style={styles.actionGrid}>
         <PrimaryLink href="/gogosense/settings" label="Open settings" />
         <SecondaryLink href="/gogosense/timeline" label="View timeline" />
@@ -288,7 +309,63 @@ function PermissionsContent() {
   );
 }
 
-function TimelineContent() {
+// No-op api: the permissions screen only manages Usage-Access (detector-only);
+// detection (detect/activate) is wired with the authed api in a later step.
+const permissionsScopeApi = {
+  detect: async () => ({ matched: false }),
+};
+
+function UsageAccessControl({ detector }: { detector: GoGoSenseDetector }) {
+  const tc = useCopy();
+  const { state, refreshPermission, requestPermission } = useGoGoSense({
+    detector,
+    api: permissionsScopeApi,
+  });
+
+  useEffect(() => {
+    void refreshPermission();
+  }, [refreshPermission]);
+
+  const statusLabel = !state.supported
+    ? "Usage access is only available on Android"
+    : state.permissionGranted
+      ? "Usage access granted"
+      : "Usage access not granted yet";
+
+  const canGrant = state.supported && !state.permissionGranted;
+
+  return (
+    <View style={styles.card}>
+      <SectionHeader
+        icon={EyeIcon}
+        subtitle="GoGoSense uses Android Usage Access to detect supported shopping apps. Nothing is read until you grant access."
+        title="Usage access"
+      />
+      <Text numberOfLines={1} style={styles.rowTitle}>
+        {tc(statusLabel)}
+      </Text>
+      {canGrant ? (
+        <MotionPressable
+          onPress={() => {
+            // Opens the OS Usage-Access settings screen; the status refreshes
+            // when the customer returns to GoGoCash.
+            void haptics.impact();
+            void requestPermission();
+          }}
+          pressScale={motion.scale.subtlePress}
+          style={styles.primaryButton}
+        >
+          <Text numberOfLines={1} style={styles.primaryButtonText}>
+            {tc("Grant usage access")}
+          </Text>
+        </MotionPressable>
+      ) : null}
+    </View>
+  );
+}
+
+function TimelineContent({ api }: { api?: { getTimeline(): Promise<unknown> } | null } = {}) {
+  const liveEntries = useGoGoSenseTimeline(api);
   return (
     <>
       <View style={styles.card}>
@@ -297,9 +374,18 @@ function TimelineContent() {
           subtitle="Only the state needed for cashback support is shown here."
           title="Tracking timeline"
         />
-        {timelineRows.map((row) => (
-          <TimelineRow body={row.body} key={row.title} status={row.status} title={row.title} />
-        ))}
+        {liveEntries
+          ? liveEntries.map((entry) => (
+              <TimelineRow
+                body={entry.body}
+                key={entry.id}
+                status={entry.status}
+                title={entry.title}
+              />
+            ))
+          : timelineRows.map((row) => (
+              <TimelineRow body={row.body} key={row.title} status={row.status} title={row.title} />
+            ))}
       </View>
       <View style={styles.actionGrid}>
         <PrimaryLink href="/gogosense/recovery" label="Start recovery" />
@@ -311,6 +397,7 @@ function TimelineContent() {
 
 function SettingsContent() {
   const tc = useCopy();
+  const { settings, setField } = useGoGoSenseSettings();
   return (
     <>
       <View style={styles.card}>
@@ -321,9 +408,11 @@ function SettingsContent() {
         />
         {settingRows.map((row) => (
           <View key={row.title} style={styles.settingRow}>
-            <View style={styles.settingSwitch}>
-              <View style={styles.settingSwitchKnob} />
-            </View>
+            <Switch
+              onValueChange={(value) => setField(row.field, value)}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              value={settings[row.field]}
+            />
             <View style={styles.settingCopy}>
               <Text
                 numberOfLines={1}
