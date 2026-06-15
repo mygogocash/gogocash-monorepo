@@ -33,6 +33,8 @@ The monorepo is assembled on branch `migrate/monorepo` (each source repo's histo
 
 A money/auth **security & reliability hardening** pass also landed — see [`SECURITY_HARDENING.md`](SECURITY_HARDENING.md) (PRs #37/#39/#40; follow-ups #41–#46).
 
+The customer app's **GoGoSense** Android cashback-detection feature is being built (PR #65) — a real native `UsageStatsManager` detector (replacing a no-op stub) + the interactive permission / timeline / settings UI + the detect→activate→deeplink nudge. The JS layer is TDD-verified; the native module is **device-gated** (EAS dev-client build, owner-`EXPO_TOKEN`). See [`apps/app/README.md`](apps/app/README.md#gogosense--android-cashback-detection) and [`apps/app/modules/gogosense-detector/README.md`](apps/app/modules/gogosense-detector/README.md).
+
 **CI gates** (`.github/workflows/ci.yml`, path-filtered per app): api lint · api unit tests · api build + boot smoke + Mongo integration; admin test + build; app typecheck/unit/render + web export. A single **`ci-gate`** aggregator is the check to require in branch protection (see [`.github/workflows/README.md`](.github/workflows/README.md)). Admin lint stays informational (#45).
 
 > Staging-only; production cutover requires explicit approval. See [`MONOREPO_EXECUTION_PLAN.md`](MONOREPO_EXECUTION_PLAN.md).
