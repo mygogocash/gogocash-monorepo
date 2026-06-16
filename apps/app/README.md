@@ -36,7 +36,7 @@ EXPO_PUBLIC_FRONTEND_URL=https://app-staging.gogocash.co
 
 ## Auth
 
-Login currently uses a demo-session stub. Real Firebase phone-auth plumbing exists in `src/auth/firebaseClient.ts` / `firebasePhoneAuth.ts` / `firebaseLogin.ts` (unit-tested, pending screen wiring) against the `gogocash-staging` project. Client config lives in `.env` under `EXPO_PUBLIC_FIREBASE_*` (untracked — fetch from Firebase console → Project settings → Your apps → "GoGoCash Mobile").
+In the default `fixtures` mode the login screen uses a demo OTP stub (code `123456`). In `backend` mode `CustomerAuthScreen` runs **real Firebase phone auth**: `src/auth/firebasePhoneAuth.ts` (web — DOM reCAPTCHA + firebase JS) and `src/auth/firebasePhoneAuth.native.ts` (native — `@react-native-firebase/auth`, silent Play Integrity on a real device; Metro resolves the `.native` variant), then `firebaseLogin.ts` exchanges the Firebase ID token at `/auth/log-in` against the `gogocash-staging` project. Web client config lives in `.env` under `EXPO_PUBLIC_FIREBASE_*`; native config comes from `apps/app/google-services.json` (owner-provided — gates the native build; see [docs/api-integration.md](docs/api-integration.md)).
 
 ## GoGoSense — Android cashback detection
 

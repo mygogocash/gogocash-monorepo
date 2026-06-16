@@ -18,13 +18,17 @@ verified by `vitest` + `tsc`; the native half is verified **on a real Android de
 
 ## Phase 4 — build + verify on a device (owner)
 
-Prerequisites (owner-provided — not in the repo):
-1. **`EXPO_TOKEN`** repo secret (expo.dev → Account → Access Tokens). Without it
-   `eas build` cannot authenticate. (Confirmed not set as of this PR.)
-2. **`EXPO_PUBLIC_EAS_PROJECT_ID`** wired for the build (see `app.config.ts` → `extra.eas`).
-3. **≥1 GoGoSense merchant enabled** in staging Mongo with a real Involve
+**Progress (2026-06):** the dev client has been built (EAS + local `expo run:android`) and
+**boots/renders on the Android emulator** — the `gogosense-detector` Kotlin module compiles
+(`build.gradle` `versionCode`/`versionName` added). What's left is the on-device GoGoSense
+E2E below, which needs an **enabled merchant** (item 3) and ideally a real phone.
+
+Prerequisites (owner-provided):
+1. ✅ **`EXPO_TOKEN`** repo secret is set; the EAS project is `@gogocash/gogocash-mobile`.
+2. ✅ **`EXPO_PUBLIC_EAS_PROJECT_ID`** wired for the build (see `app.config.ts` → `extra.eas`).
+3. ⛔ **≥1 GoGoSense merchant enabled** in staging Mongo with a real Involve
    `offer_id`/`network_merchant_id` — all 30 seeds ship **disabled**, so `/gogosense/detect`
-   matches nothing until then.
+   matches nothing until then. (Still the main blocker for the E2E.)
 
 Build the dev client (CI or local):
 

@@ -14,8 +14,9 @@
 | Live catalog (public `GET /offer`) → Favorite Brands screen | ✅ **Shipped + verified against production** (commit `e645186`) |
 | API DTOs + mapper pattern | ✅ `src/api/catalogTypes.ts` + `src/api/catalogMapper.ts` (the template for all other resources) |
 | Firebase project setup | ✅ Web app "GoGoCash Mobile" registered in `gogocash-staging`; client config in `apps/mobile/.env` (untracked — ask a teammate, or re-fetch from Firebase console → Project settings → Your apps) |
-| Firebase auth plumbing (SDK, phone OTP, `/auth/log-in` exchange, session mapping) | ✅ Built + unit-tested (`src/auth/firebase*.ts`), **not yet wired into the login screen** |
-| Login-screen wiring | ⛔ Pending — `CustomerAuthScreen.tsx` still uses the demo-session stub (see §5) |
+| Firebase auth plumbing (SDK, phone OTP, `/auth/log-in` exchange, session mapping) | ✅ Built + unit-tested (`src/auth/firebase*.ts`) **and wired into `CustomerAuthScreen`** — the `backend`-mode path dynamically imports `sendPhoneOtp`/`confirmPhoneOtp` |
+| Login-screen wiring | ✅ `CustomerAuthScreen.tsx` calls real phone OTP in `backend` mode; `fixtures` mode (default) keeps the demo stub (OTP `123456`) |
+| Native phone OTP (real SMS on device) | 🔶 Code done — `@react-native-firebase/auth` (`firebasePhoneAuth.native.ts`, Metro `.native` split; web keeps the DOM-reCAPTCHA `firebasePhoneAuth.ts`), commit `cd8134c`. **Owner-gated to ship:** add `apps/app/google-services.json` (`co.gogocash.app`, `gogocash-staging`) + register the build SHA-1/256 in Firebase + EAS `development-otp` profile + verify on a real Android device |
 | Auth-gated resources live (profile/wallet/referral/offers/merchant) | ⛔ Pending — endpoints verified to exist; need auth + per-resource mappers |
 | Staging backend (`api-staging.gogocash.co`) | ❌ **Down** (infra-level 503 on every path, web frontend too) — needs an ops redeploy |
 

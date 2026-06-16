@@ -3,11 +3,16 @@ Expo protected routes need one shared state surface for startup loading, guarded
 
 > **Update (June 2026):** Protected-route gating moved from the `AuthRouteGuard` wrapper
 > (which unmounted the navigator and collapsed protected-route taps back to home) to
-> expo-router native `Stack.Protected` in `app/_layout.tsx` (commit `5886012`), with the
-> `/profile` tab self-guarding via `<Redirect>`. `AuthRouteGuard` is retired; its
-> offline-retry and unauthenticated route-state variants are no longer rendered —
-> unauthenticated access now redirects to `/login`. `CustomerRouteState` is still used for
-> the startup splash and the auth-callback states. The sections below describe the original slice.
+> expo-router native `Stack.Protected` in `app/_layout.tsx` (commit `5886012`).
+> `AuthRouteGuard` is retired; its offline-retry and unauthenticated route-state variants
+> are no longer rendered — unauthenticated access to the `Stack.Protected` screens falls
+> back to `/login`. The `/profile` tab is the exception: it no longer `<Redirect>`s to
+> `/login` but renders `<CustomerAuthScreen mode="login" />` INLINE within the Tabs
+> navigator for logged-out users (commit `bf21bed`), because the cross-navigator
+> Tabs→`/login` transition crashed the New-Arch Android view mounter on cold start
+> (react-native-screens@4.25.2 removal-transition leak). After a successful login the
+> tab re-renders to the profile hub. `CustomerRouteState` is still used for the startup
+> splash and the auth-callback states. The sections below describe the original slice.
 
 # Business Goals
 Keep customer account flows aligned with the Next.js reference by preventing blank screens and inconsistent protected-route copy while session state is being resolved.

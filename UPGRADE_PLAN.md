@@ -83,6 +83,8 @@ Then re-run the web export + an EAS preview build. **Never** bump these RN/expo-
 
 **app** (`@gogocash/mobile`, Expo 56 — upgrade via SDK, not individually): react-native 0.85→0.86, @sentry/react-native 7.11→8.14, @tanstack/react-query 5.100→5.101, @testing-library/react-native 13→14, phosphor-react-native 2.3→3.0, posthog-react-native 4.45→4.47, react-native-safe-area-context 5.7→5.8, react-native-screens 4.25.1→4.25.2, vitest 3.2→4.1, typescript ~6.0 (already current).
 
+> ⚠️ **Confirmed landmines (2026-06):** two of the bumps above were tried and reverted — they prove the "upgrade via SDK, not individually" rule. **`phosphor-react-native` 2.3→3.0 breaks icons at runtime** (`Element type is invalid` — v3 changed icon exports; render tests stub phosphor so it passes CI but redboxes on device) → kept at `^2.3.1`. **`react-native` 0.85→0.86 is a native mismatch** with Expo SDK 56 (which vendors RN 0.85.x + renderer 19.2.3; `react` must stay pinned **exact 19.2.3** monorepo-wide or the device throws `Incompatible React versions`). Dependabot bumping `react-native` on a managed Expo app is a false-positive — drop it. Separately, **`react-native-screens` 4.25.2 has an open New-Arch Android bug** (removal-transition `mParent` leak → `addViewAt: child already has a parent` on a cross-navigator redirect; upstream PR #3250 unmerged) — worked around in-app, not by an upgrade.
+
 ---
 
 ## Suggested sequencing
