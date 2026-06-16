@@ -15,6 +15,17 @@
         "EXPO_PUBLIC_FRONTEND_URL": "https://app-staging.gogocash.co"
       }
     },
+    "development-otp": {
+      "autoIncrement": true,
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api-staging.gogocash.co",
+        "EXPO_PUBLIC_APP_ENV": "staging",
+        "EXPO_PUBLIC_ACCOUNT_DATA_SOURCE": "backend",
+        "EXPO_PUBLIC_FRONTEND_URL": "https://app-staging.gogocash.co"
+      }
+    },
     "preview": {
       "autoIncrement": true,
       "distribution": "internal",

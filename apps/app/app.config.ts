@@ -1,4 +1,14 @@
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+
 import type { ConfigContext, ExpoConfig } from "expo/config";
+
+// Native Firebase (phone OTP via @react-native-firebase/auth) only activates when the
+// Android google-services.json is present — the owner drops it in for real-OTP builds.
+// Fixtures-mode local dev has no such file, so the plugins + googleServicesFile are
+// omitted to keep prebuild/EAS builds from failing on a missing config.
+const googleServicesPath = process.env.GOOGLE_SERVICES_JSON ?? "./google-services.json";
+const hasNativeFirebase = existsSync(resolve(__dirname, googleServicesPath));
 
 const appIdentity = {
   displayName: "GoGoCash",
@@ -58,6 +68,7 @@ const mobileExpoConfig = ({ config }: ConfigContext): ExpoConfig => ({
       foregroundImage: "./assets/adaptive-icon.png",
     },
     package: appIdentity.androidPackage,
+    ...(hasNativeFirebase ? { googleServicesFile: googleServicesPath } : {}),
   },
   web: {
     bundler: "metro",
@@ -114,6 +125,10 @@ const mobileExpoConfig = ({ config }: ConfigContext): ExpoConfig => ({
     ],
     // GoGoSense: declares PACKAGE_USAGE_STATS for the Android UsageStats detector.
     "./plugins/withGogosenseUsageAccess",
+    // Native phone-OTP (@react-native-firebase) — only when google-services.json is present.
+    ...(hasNativeFirebase
+      ? ["@react-native-firebase/app", "@react-native-firebase/auth"]
+      : []),
   ],
   extra: {
     accountDataSource: process.env.EXPO_PUBLIC_ACCOUNT_DATA_SOURCE ?? envDefaults.accountDataSource,

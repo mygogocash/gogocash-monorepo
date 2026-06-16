@@ -4,10 +4,11 @@ import { Platform } from "react-native";
 
 import { getClientAuth } from "@mobile/auth/firebaseClient";
 
-// Phone OTP via Firebase — the only sign-in provider enabled on gogocash-staging.
+// Phone OTP via Firebase (web) — the only sign-in provider enabled on gogocash-staging.
 // Mirrors the web's src/features/profile/firebase/fc.ts: invisible reCAPTCHA +
-// signInWithPhoneNumber. RecaptchaVerifier needs a DOM, so this path is Expo-web only;
-// native needs expo-firebase-recaptcha or a dev-client build (future work).
+// signInWithPhoneNumber. RecaptchaVerifier needs a DOM, so THIS file is Expo-web only.
+// Native uses firebasePhoneAuth.native.ts (@react-native-firebase/auth, silent Play
+// Integrity verification) — Metro resolves the `.native.ts` variant on device.
 const RECAPTCHA_CONTAINER_ID = "gogocash-recaptcha-container";
 
 let cachedVerifier: RecaptchaVerifier | null = null;
