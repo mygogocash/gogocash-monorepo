@@ -54,6 +54,7 @@ on:
         type: choice
         options:
           - development
+          - development-otp
           - preview
           - production
       channel:
