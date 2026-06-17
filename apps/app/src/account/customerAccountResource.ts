@@ -11,10 +11,12 @@ export const accountDataSourceEnvName = "EXPO_PUBLIC_ACCOUNT_DATA_SOURCE";
 export type CustomerAccountResourceId =
   | "billing"
   | "catalog"
+  | "homeBanner"
   | "merchant"
   | "offers"
   | "profile"
   | "referral"
+  | "topBrand"
   | "wallet";
 
 export type CustomerAccountResourceStatus =
@@ -70,6 +72,18 @@ export function resolveCustomerAccountResourceEndpoint({
     // Public merchant catalog (no auth required) — the web favorite page reads
     // the same list (Favorite.tsx → GET /offer).
     return "/offer?limit=4&page=1";
+  }
+
+  if (resourceId === "homeBanner") {
+    // Public home banners (no auth) — admin sets them via POST /admin/banner-home
+    // (one Banner doc, image_1..5 + link_1..5); mapped by mapBackendHomeBanners.
+    return "/offer/banner-home";
+  }
+
+  if (resourceId === "topBrand") {
+    // Public top brands (no auth) — admin curates order + cashback via
+    // PUT /admin/top-brands; resolved server-side, mapped by mapBackendTopBrands.
+    return "/offer/top-brands";
   }
 
   if (resourceId === "merchant") {

@@ -102,8 +102,10 @@ describe('InvolveController', () => {
       unknown
     >;
     const guardsOf = (method: string): unknown[] =>
-      (Reflect.getMetadata('__guards__', proto[method] as object) as unknown[]) ??
-      [];
+      (Reflect.getMetadata(
+        '__guards__',
+        proto[method] as object,
+      ) as unknown[]) ?? [];
 
     for (const method of ['checkOfferDuplicate', 'update', 'remove']) {
       it(`${method} > is protected by AuthAdminGuard (was an unguarded mutation/leak route)`, () => {

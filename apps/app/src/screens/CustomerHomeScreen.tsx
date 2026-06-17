@@ -96,6 +96,17 @@ import {
   webMobileBottomNavItems,
   webTopBrandCards,
 } from "@mobile/design/webDesignParity";
+import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
+import {
+  type BannerHomeDocument,
+  type HomeHeroBanner,
+  resolveHomeHeroBanners,
+} from "@mobile/account/homeBannerResource";
+import {
+  resolveTopBrands,
+  type TopBrandCard,
+  type TopBrandsPayload,
+} from "@mobile/account/topBrandResource";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { trackPromotionSelect } from "@mobile/analytics/events";
@@ -111,6 +122,14 @@ const heroBannerAssets: Record<string, ImageSourcePropType> = {
   "home-side-grocery": sideGroceryImage,
   "home-side-watch": sideWatchImage,
 };
+
+// Backend banners carry a remote URL (imageUri); fixtures carry a bundled asset key.
+function heroBannerSource(banner: HomeHeroBanner): ImageSourcePropType | undefined {
+  if (banner.imageUri) {
+    return { uri: banner.imageUri };
+  }
+  return banner.asset ? heroBannerAssets[banner.asset] : undefined;
+}
 
 const brandLogoAssets: Record<string, ImageSourcePropType> = {
   lazada: lazadaLogo,
@@ -157,8 +176,9 @@ type CompactBrandLogoOfferCardProps = {
   readonly tint: string;
 };
 type HomeSearchPanelItem = (typeof webHomeSearchPopularPanel.items)[number];
-type TopBrandCardProps = (typeof webTopBrandCards)[number];
-type HomeHeroBanner = (typeof webHomeHeroBanners)[number];
+// Widened to TopBrandCard so backend-resolved cards (non-literal strings) and the
+// `as const` fixture both satisfy it.
+type TopBrandCardProps = TopBrandCard;
 type HomeLayoutMetrics = ReturnType<typeof getResponsiveHomeLayoutMetrics>;
 type DesktopGoLinkBannerProps = {
   readonly onOpenGuideline: () => void;
@@ -955,8 +975,17 @@ function BrowseShortcuts() {
 }
 
 function HomeHeroBanners({ homeLayout }: { homeLayout: HomeLayoutMetrics }) {
-  const mainBanners = webHomeHeroBanners.filter((banner) => banner.placement === "main");
-  const sideBanners = webHomeHeroBanners.filter((banner) => banner.placement === "side");
+  const heroBannerResource = useCustomerAccountResource<readonly HomeHeroBanner[], BannerHomeDocument>({
+    fixtureData: webHomeHeroBanners,
+    resourceId: "homeBanner",
+  });
+  const heroBanners = resolveHomeHeroBanners(
+    heroBannerResource.source,
+    heroBannerResource.data,
+    webHomeHeroBanners,
+  );
+  const mainBanners = heroBanners.filter((banner) => banner.placement === "main");
+  const sideBanners = heroBanners.filter((banner) => banner.placement === "side");
   const [activeHeroBannerPage, setActiveHeroBannerPage] = useState(0);
   const [heroBannerWidth, setHeroBannerWidth] = useState(homeLayout.contentWidth);
   const heroMaxPageIndex = Math.max(0, mainBanners.length - 1);
@@ -1028,7 +1057,7 @@ function HomeHeroBanners({ homeLayout }: { homeLayout: HomeLayoutMetrics }) {
                 alt={`${banner.id} promotion banner`}
                 accessibilityLabel={`${banner.id} promotion banner`}
                 resizeMode="cover"
-                source={heroBannerAssets[banner.asset]}
+                source={heroBannerSource(banner)}
                 style={styles.heroImage}
               />
             </HeroBannerLink>
@@ -1061,7 +1090,7 @@ function HomeHeroBanners({ homeLayout }: { homeLayout: HomeLayoutMetrics }) {
               alt={`${banner.id} promotion banner`}
               accessibilityLabel={`${banner.id} promotion banner`}
               resizeMode="cover"
-              source={heroBannerAssets[banner.asset]}
+              source={heroBannerSource(banner)}
               style={styles.heroImage}
             />
             <HeroArrow size="small" />
@@ -1119,10 +1148,19 @@ function HeroArrow({ size }: { size: "large" | "small" }) {
 
 function TopBrandSection({ homeLayout }: { homeLayout: HomeLayoutMetrics }) {
   const tc = useCopy();
-  const topBrandPages = chunkTopBrandCards(webTopBrandCards, homeLayout.topBrandCardsPerPage);
+  const topBrandResource = useCustomerAccountResource<readonly TopBrandCardProps[], TopBrandsPayload>({
+    fixtureData: webTopBrandCards,
+    resourceId: "topBrand",
+  });
+  const topBrands = resolveTopBrands(
+    topBrandResource.source,
+    topBrandResource.data,
+    webTopBrandCards,
+  );
+  const topBrandPages = chunkTopBrandCards(topBrands, homeLayout.topBrandCardsPerPage);
   const [activeTopBrandPage, setActiveTopBrandPage] = useState(0);
   const topBrandDotCount = getCarouselDotCount(
-    webTopBrandCards.length,
+    topBrands.length,
     homeLayout.topBrandCardsPerPage
   );
   const topBrandMaxPageIndex = Math.max(0, topBrandPages.length - 1);
