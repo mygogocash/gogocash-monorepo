@@ -683,15 +683,23 @@ export interface OffersResponse {
   totalPages: number;
 }
 
-/** Curated homepage top-brand rail (admin). Mock: in-memory order of offer `_id`s. */
+export interface TopBrandConfigEntry {
+  /** Offer Mongo `_id` — the identity curated by the admin panel. */
+  offerId: string;
+  /** Customer-facing cashback copy shown on the Expo homepage card. */
+  cashback: string;
+}
+
+/** Curated homepage top-brand rail (admin). Mock: in-memory ordered entries. */
 export interface TopBrandsAdminResponse {
   order: string[];
+  brands: TopBrandConfigEntry[];
   items: Offer[];
 }
 
 export interface SaveTopBrandsResponse {
   success: boolean;
-  order: string[];
+  brands: TopBrandConfigEntry[];
   message?: string;
 }
 

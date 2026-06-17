@@ -3,6 +3,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createElement } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -49,6 +50,16 @@ function setViewportWidth(width: number) {
   });
 }
 
+// HomeHeroBanners now reads banners via useCustomerAccountResource (useQuery),
+// so the screen must mount inside a QueryClientProvider. In fixtures mode (default)
+// the query stays disabled and banners come from webHomeHeroBanners.
+function renderHome() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    createElement(QueryClientProvider, { client: queryClient }, createElement(CustomerHomeScreen))
+  );
+}
+
 afterEach(() => {
   setViewportWidth(DEFAULT_WINDOW_WIDTH);
 });
@@ -58,13 +69,13 @@ describe("CustomerHomeScreen (render)", () => {
     // < 1024 => getResponsiveHomeLayoutMetrics().isDesktop === false: sticky search,
     // BrowseShortcuts pills, Top Brands / promo sections, and the bottom nav render.
     setViewportWidth(390);
-    expect(() => render(createElement(CustomerHomeScreen))).not.toThrow();
+    expect(() => renderHome()).not.toThrow();
   });
 
   it("mounts the desktop layout without throwing", () => {
     // >= 1024 => isDesktop branch: desktop header chrome + capped content sections.
     setViewportWidth(1280);
-    expect(() => render(createElement(CustomerHomeScreen))).not.toThrow();
+    expect(() => renderHome()).not.toThrow();
   });
 });
 

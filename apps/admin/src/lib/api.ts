@@ -19,6 +19,7 @@ import {
   Offer,
   OffersQuery,
   OffersResponse,
+  TopBrandConfigEntry,
   TopBrandsAdminResponse,
   SaveTopBrandsResponse,
   WithdrawQuery,
@@ -622,10 +623,12 @@ class ApiClient {
     });
   }
 
-  async saveTopBrands(order: string[]): Promise<SaveTopBrandsResponse> {
+  async saveTopBrands(
+    brands: TopBrandConfigEntry[],
+  ): Promise<SaveTopBrandsResponse> {
     return this.request<SaveTopBrandsResponse>("/admin/top-brands", {
       method: "PUT",
-      body: JSON.stringify({ order }),
+      body: JSON.stringify({ brands }),
     });
   }
 

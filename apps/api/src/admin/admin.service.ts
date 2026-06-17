@@ -20,6 +20,7 @@ import { Category } from 'src/offer/schemas/category.schema';
 import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 import { UserMyCashback } from 'src/user/schemas/user-my-cashback.schema';
 import { Banner } from 'src/offer/schemas/banner.schema';
+import { TopBrandConfig } from 'src/offer/schemas/top-brand-config.schema';
 import { UserService } from 'src/user/user.service';
 import { JobService } from 'src/withdraw/cronjob/job.service';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
@@ -37,6 +38,8 @@ export class AdminService {
     @InjectModel(UserMyCashback.name)
     private userMyCashbackModel: Model<UserMyCashback>,
     @InjectModel(Banner.name) private bannerModel: Model<Banner>,
+    @InjectModel(TopBrandConfig.name)
+    private topBrandConfigModel: Model<TopBrandConfig>,
     @InjectModel(Deeplink.name) private deeplinkModel: Model<Deeplink>,
 
     private readonly googleDriveService: GoogleDriveService,
@@ -672,44 +675,62 @@ export class AdminService {
     };
   }
 
-  /** Top brands ranked by conversion count. */
+  /** Saved homepage top-brand config for the admin editor. */
   async getTopBrands() {
-    const topBrands = await this.conversionModel.aggregate([
-      { $group: { _id: '$offer_id', count: { $sum: 1 } } },
-      { $sort: { count: -1 } },
-      { $limit: 20 },
-      {
-        $lookup: {
-          from: 'offers',
-          localField: '_id',
-          foreignField: 'offer_id',
-          as: 'offer',
-        },
-      },
-      { $unwind: { path: '$offer', preserveNullAndEmptyArrays: true } },
-      {
-        $project: {
-          offer_id: '$_id',
-          conversions: '$count',
-          offer_name: '$offer.offer_name',
-          logo: '$offer.logo',
-          categories: '$offer.categories',
-        },
-      },
-    ]);
+    const config = await this.topBrandConfigModel.findOne().exec();
+    const brands = (config?.brands ?? [])
+      .map((entry) => ({
+        offerId: String(entry.offerId ?? '').trim(),
+        cashback: String(entry.cashback ?? '').trim(),
+      }))
+      .filter((entry) => entry.offerId);
 
-    return { data: topBrands };
+    if (brands.length === 0) {
+      return { order: [], brands: [], items: [] };
+    }
+
+    const order = brands.map((entry) => entry.offerId);
+    const offers = await this.offerModel.find({ _id: { $in: order } }).exec();
+    const offerById = new Map(
+      offers.map((offer) => [String(offer._id), offer]),
+    );
+
+    return {
+      order,
+      brands,
+      items: order
+        .map((offerId) => offerById.get(offerId))
+        .filter((offer) => offer != null),
+    };
   }
 
-  /** Save manual top brand ordering (array of offer IDs). */
-  async saveTopBrands(order: string[]) {
-    // Store as a banner-style config document
-    await this.bannerModel.updateOne(
-      { type: 'top_brands' },
-      { $set: { type: 'top_brands', order, updatedAt: new Date() } },
+  /**
+   * Save the admin-curated top-brands list: an ordered set of offer ids, each
+   * with an admin-typed cashback label. Stored as a single config doc (empty
+   * filter = the singleton) in its own collection, so it never collides with
+   * the image-banner doc that OfferService.getBannerHome() reads.
+   */
+  async saveTopBrands(brands: { offerId: string; cashback: string }[]) {
+    const seen = new Set<string>();
+    const normalizedBrands = (brands ?? [])
+      .map((entry) => ({
+        offerId: String(entry.offerId ?? '').trim(),
+        cashback: String(entry.cashback ?? '').trim(),
+      }))
+      .filter((entry) => {
+        if (!entry.offerId || seen.has(entry.offerId)) {
+          return false;
+        }
+        seen.add(entry.offerId);
+        return true;
+      });
+
+    await this.topBrandConfigModel.updateOne(
+      {},
+      { $set: { brands: normalizedBrands } },
       { upsert: true },
     );
-    return { success: true, order };
+    return { success: true, brands: normalizedBrands };
   }
 
   /**

@@ -39,6 +39,7 @@ import {
   normalizeOfferDisplayTags,
   normalizeOfferProductTypes,
   type Offer,
+  type TopBrandConfigEntry,
 } from "@/types/api";
 import { DEFAULT_MOCK_ACCESS_TOKEN } from "@/lib/authTokens";
 import { sortUsers, type UserSort } from "@/lib/userSort";
@@ -405,8 +406,13 @@ function mockWithdrawDetailForUser(userId: string) {
 /** Admin-set app tracking link per offer (commission management). */
 const commissionAppDeeplinkByOfferId = new Map<string, string>();
 
-/** Homepage top-brand rail: ordered offer `_id`s (mock; in-memory). */
-let topBrandHomepageOrder: string[] = ["o1", "o2", "o3", "o5"];
+/** Homepage top-brand rail: ordered offer `_id`s + cashback labels (mock; in-memory). */
+let topBrandHomepageBrands: TopBrandConfigEntry[] = [
+  { offerId: "o1", cashback: "Up to 12%" },
+  { offerId: "o2", cashback: "Up to 10%" },
+  { offerId: "o3", cashback: "Travel deals" },
+  { offerId: "o5", cashback: "Limited time" },
+];
 
 function allocateNewOfferIds(): {
   _id: string;
@@ -498,11 +504,12 @@ function handleMockGET(
   }
 
   if (joined === "admin/top-brands") {
-    const items = topBrandHomepageOrder
-      .map((id) => mockOffers.find((o) => o._id === id))
+    const items = topBrandHomepageBrands
+      .map((entry) => mockOffers.find((o) => o._id === entry.offerId))
       .filter((o) => o != null);
     return ok({
-      order: [...topBrandHomepageOrder],
+      order: topBrandHomepageBrands.map((entry) => entry.offerId),
+      brands: topBrandHomepageBrands.map((entry) => ({ ...entry })),
       items,
     });
   }
@@ -1456,22 +1463,35 @@ async function handleMockPUT(
   };
 
   if (joined === "admin/top-brands") {
-    const raw = b?.order;
-    const order = Array.isArray(raw)
-      ? raw.map((id) => String(id).trim()).filter(Boolean)
+    const raw = b?.brands;
+    const brands = Array.isArray(raw)
+      ? raw.map((entry) => ({
+          cashback: String(
+            (entry as { cashback?: unknown }).cashback ?? "",
+          ).trim(),
+          offerId: String(
+            (entry as { offerId?: unknown }).offerId ?? "",
+          ).trim(),
+        }))
       : [];
     const seen = new Set<string>();
-    const next: string[] = [];
-    for (const id of order) {
-      if (!mockOffers.some((o) => o._id === id) || seen.has(id)) continue;
-      seen.add(id);
-      next.push(id);
+    const next: TopBrandConfigEntry[] = [];
+    for (const entry of brands) {
+      if (
+        !entry.offerId ||
+        !mockOffers.some((o) => o._id === entry.offerId) ||
+        seen.has(entry.offerId)
+      ) {
+        continue;
+      }
+      seen.add(entry.offerId);
+      next.push(entry);
     }
-    topBrandHomepageOrder = next;
+    topBrandHomepageBrands = next;
     return ok({
       success: true,
-      order: next,
-      message: "Top brand homepage order saved (mock).",
+      brands: next.map((entry) => ({ ...entry })),
+      message: "Top brand homepage config saved (mock).",
     });
   }
 

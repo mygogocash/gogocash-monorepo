@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState, type DragEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
-import type { Offer } from "@/types/api";
+import type { Offer, TopBrandConfigEntry } from "@/types/api";
 import { fetchOffersList, offersListQueryKey } from "@/lib/query/offersQueries";
 import { pathImage } from "@/utils/helper";
 import NoData from "@/components/common/NoData";
@@ -15,7 +15,7 @@ import { OFFER_THUMB_SIZES } from "./offerMedia";
 
 const TOP_BRANDS_QUERY_KEY = ["admin", "top-brands"] as const;
 
-const EMPTY_ORDER: string[] = [];
+const EMPTY_BRANDS: TopBrandConfigEntry[] = [];
 
 /** Payload for HTML5 DnD (index into the ordered id list). */
 const DND_INDEX_KEY = "application/gogocash-top-brand-index";
@@ -71,10 +71,40 @@ function ordersEqual(a: string[], b: string[]): boolean {
   return a.every((id, i) => id === b[i]);
 }
 
+function cashbackByOfferId(
+  brands: readonly TopBrandConfigEntry[],
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const entry of brands) {
+    out[entry.offerId] = entry.cashback;
+  }
+  return out;
+}
+
+function brandEntriesEqual(
+  order: readonly string[],
+  cashbackById: Record<string, string>,
+  serverBrands: readonly TopBrandConfigEntry[],
+): boolean {
+  if (order.length !== serverBrands.length) return false;
+  return order.every((id, i) => {
+    const server = serverBrands[i];
+    return (
+      server?.offerId === id &&
+      (cashbackById[id] ?? "") === (server.cashback ?? "")
+    );
+  });
+}
+
 export default function TopBrandManagementPanel() {
   const queryClient = useQueryClient();
   /** When non-null, unsaved edits; otherwise show server order from `data`. */
   const [draftOrder, setDraftOrder] = useState<string[] | null>(null);
+  /** When non-null, unsaved cashback edits keyed by offer `_id`. */
+  const [draftCashbackById, setDraftCashbackById] = useState<Record<
+    string,
+    string
+  > | null>(null);
   const [addOfferId, setAddOfferId] = useState("");
   const [pickerSearch, setPickerSearch] = useState("");
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
@@ -85,8 +115,28 @@ export default function TopBrandManagementPanel() {
     queryFn: () => apiClient.getTopBrands(),
   });
 
-  const serverOrder = useMemo(() => data?.order ?? EMPTY_ORDER, [data?.order]);
+  const serverBrands = useMemo(
+    () => data?.brands ?? EMPTY_BRANDS,
+    [data?.brands],
+  );
+  const serverOrder = useMemo(
+    () => data?.order ?? serverBrands.map((entry) => entry.offerId),
+    [data?.order, serverBrands],
+  );
+  const serverCashbackById = useMemo(
+    () => cashbackByOfferId(serverBrands),
+    [serverBrands],
+  );
   const localOrder = draftOrder ?? serverOrder;
+  const localCashbackById = draftCashbackById ?? serverCashbackById;
+  const localBrands = useMemo(
+    () =>
+      localOrder.map((offerId) => ({
+        offerId,
+        cashback: localCashbackById[offerId] ?? "",
+      })),
+    [localCashbackById, localOrder],
+  );
 
   const pickerQuery = useMemo(
     () => ({
@@ -137,17 +187,21 @@ export default function TopBrandManagementPanel() {
     return out;
   }, [offersPick?.data, localOrder, offerById]);
 
-  const dirty = draftOrder !== null && !ordersEqual(draftOrder, serverOrder);
+  const dirty =
+    !ordersEqual(localOrder, serverOrder) ||
+    !brandEntriesEqual(localOrder, localCashbackById, serverBrands);
 
   const saveMutation = useMutation({
-    mutationFn: (order: string[]) => apiClient.saveTopBrands(order),
+    mutationFn: (brands: TopBrandConfigEntry[]) =>
+      apiClient.saveTopBrands(brands),
     onSuccess: () => {
       setDraftOrder(null);
+      setDraftCashbackById(null);
       void queryClient.invalidateQueries({ queryKey: TOP_BRANDS_QUERY_KEY });
-      toast.success("Top brand order saved.");
+      toast.success("Top brands saved.");
     },
     onError: () => {
-      toast.error("Could not save top brand order.");
+      toast.error("Could not save top brands.");
     },
   });
 
@@ -181,6 +235,16 @@ export default function TopBrandManagementPanel() {
     });
     setAddOfferId("");
   }, [addOfferId, serverOrder]);
+
+  const updateCashback = useCallback(
+    (offerId: string, cashback: string) => {
+      setDraftCashbackById((draft) => ({
+        ...(draft ?? serverCashbackById),
+        [offerId]: cashback,
+      }));
+    },
+    [serverCashbackById],
+  );
 
   const handleRowDragStart = useCallback((e: DragEvent, index: number) => {
     setDraggingIndex(index);
@@ -416,6 +480,16 @@ export default function TopBrandManagementPanel() {
                     Top Brands on
                   </span>
                 ) : null}
+                <input
+                  aria-label={`Cashback for ${offer ? offerLabel(offer) : id}`}
+                  type="text"
+                  value={localCashbackById[id] ?? ""}
+                  onChange={(e) => updateCashback(id, e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  draggable={false}
+                  placeholder="Cashback"
+                  className="focus:border-brand-500 focus:ring-brand-500/20 dark:focus:border-brand-400 min-w-32 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:outline-none sm:flex-none dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                />
                 <div
                   className="flex shrink-0 items-center gap-1"
                   onClick={(e) => e.stopPropagation()}
@@ -461,16 +535,19 @@ export default function TopBrandManagementPanel() {
           type="button"
           size="sm"
           disabled={!dirty || saveMutation.isPending}
-          onClick={() => saveMutation.mutate(localOrder)}
+          onClick={() => saveMutation.mutate(localBrands)}
         >
-          {saveMutation.isPending ? "Saving…" : "Save order"}
+          {saveMutation.isPending ? "Saving…" : "Save top brands"}
         </Button>
         <Button
           type="button"
           size="sm"
           variant="outline"
           disabled={!dirty || saveMutation.isPending}
-          onClick={() => setDraftOrder(null)}
+          onClick={() => {
+            setDraftOrder(null);
+            setDraftCashbackById(null);
+          }}
         >
           Reset
         </Button>
