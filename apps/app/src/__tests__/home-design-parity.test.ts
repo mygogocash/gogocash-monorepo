@@ -290,8 +290,11 @@ describe("Expo home design parity", () => {
     );
 
     expect(homeFile).toContain("activeHeroBannerPage");
+    // Banners now flow through useCustomerAccountResource + resolveHomeHeroBanners
+    // (admin-configurable in backend mode; identical to webHomeHeroBanners in
+    // fixtures mode). The main/side split is preserved on the resolved list.
     expect(homeFile).toContain(
-      'webHomeHeroBanners.filter((banner) => banner.placement === "main")'
+      'heroBanners.filter((banner) => banner.placement === "main")'
     );
     expect(homeFile).toContain("mainBanners.map");
     expect(homeFile).toContain("setHeroBannerWidth");

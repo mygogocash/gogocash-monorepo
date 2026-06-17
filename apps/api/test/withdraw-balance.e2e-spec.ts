@@ -77,7 +77,10 @@ suite('checkWithdraw — real Mongo aggregation (#36)', () => {
         WithdrawService,
         { provide: InvolveService, useValue: {} },
         { provide: PointService, useValue: {} },
-        { provide: CustomerIoService, useValue: { track: async () => undefined } },
+        {
+          provide: CustomerIoService,
+          useValue: { track: async () => undefined },
+        },
       ],
     }).compile();
 

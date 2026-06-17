@@ -27,7 +27,15 @@ describe("couponStatus", () => {
   it("getCouponTableStatus > given disabled coupon > returns Inactive only", () => {
     expect(
       getCouponTableStatus(
-        { disabled: true, start_date: "2026-06-20T00:00:00.000Z" },
+        {
+          disabled: true,
+          end_date: "",
+          end_time: "",
+          quantity: 0,
+          quantity_used: 0,
+          start_date: "2026-06-20T00:00:00.000Z",
+          unlimited_amount_enabled: true,
+        },
         REF,
       ).label,
     ).toBe("Inactive");
@@ -36,7 +44,15 @@ describe("couponStatus", () => {
   it("getCouponTableStatus > given enabled future start > returns Scheduled", () => {
     expect(
       getCouponTableStatus(
-        { disabled: false, start_date: "2026-06-20T00:00:00.000Z" },
+        {
+          disabled: false,
+          end_date: "",
+          end_time: "",
+          quantity: 0,
+          quantity_used: 0,
+          start_date: "2026-06-20T00:00:00.000Z",
+          unlimited_amount_enabled: true,
+        },
         REF,
       ).label,
     ).toBe("Scheduled");

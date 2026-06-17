@@ -38,6 +38,12 @@ export class OfferController {
     return this.offerService.getBannerHome();
   }
 
+  @Get('top-brands')
+  getTopBrands() {
+    // Public home "top brands" — admin-curated via PUT /admin/top-brands.
+    return this.offerService.getDisplayTopBrands();
+  }
+
   @UseGuards(AuthAdminGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
