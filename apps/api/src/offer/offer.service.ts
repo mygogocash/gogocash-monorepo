@@ -10,6 +10,7 @@ import { promises as fs } from 'fs';
 import { Category } from './schemas/category.schema';
 import { FavoriteOffer } from './schemas/favorite-offer.schema';
 import { Banner } from './schemas/banner.schema';
+import { TopBrandConfig } from './schemas/top-brand-config.schema';
 import { Coupon } from './schemas/coupon.schema';
 import { UpdateCouponDto } from './dto/update-offer.dto';
 import { MissionOrder } from './schemas/missing-order.schema';
@@ -29,6 +30,8 @@ export class OfferService implements OnApplicationBootstrap {
     private favoriteOfferModel: Model<FavoriteOffer>,
     @InjectModel(Banner.name)
     private bannerModel: Model<Banner>,
+    @InjectModel(TopBrandConfig.name)
+    private topBrandConfigModel: Model<TopBrandConfig>,
     @InjectModel(MissionOrder.name)
     private missionOrderModel: Model<MissionOrder>,
     private readonly googleDriveService: GoogleDriveService,
@@ -221,6 +224,45 @@ export class OfferService implements OnApplicationBootstrap {
   async getBannerHome() {
     // logic get banner home
     return this.bannerModel.findOne().exec();
+  }
+
+  /**
+   * Public home "top brands": the admin-curated, ordered list (saveTopBrands).
+   * Resolves each saved offerId to live brand name + logo, pairs it with the
+   * admin-set cashback label, and preserves the saved order. Unknown offer ids
+   * are dropped; no config → empty list (the client falls back to fixtures).
+   */
+  async getDisplayTopBrands() {
+    const config = await this.topBrandConfigModel.findOne().exec();
+    const entries = config?.brands ?? [];
+    if (entries.length === 0) {
+      return { data: [] };
+    }
+
+    const offers = await this.offerModel
+      .find({ _id: { $in: entries.map((entry) => entry.offerId) } })
+      .select('offer_id offer_name logo')
+      .exec();
+    const offerById = new Map(
+      offers.map((offer) => [String(offer._id), offer]),
+    );
+
+    const data = entries
+      .map((entry) => {
+        const offer = offerById.get(entry.offerId);
+        if (!offer) {
+          return null;
+        }
+        return {
+          offer_id: offer.offer_id,
+          brand: offer.offer_name,
+          logo: offer.logo,
+          cashback: entry.cashback,
+        };
+      })
+      .filter((brand) => brand !== null);
+
+    return { data };
   }
 
   async updateCoupon(body: UpdateCouponDto) {

@@ -34,6 +34,32 @@ describe("pagination clamping", () => {
   });
 });
 
+describe("top-brands config", () => {
+  it("round-trips the saved brands payload with cashback labels", async () => {
+    const brands = [
+      { offerId: "o2", cashback: "12%" },
+      { offerId: "o1", cashback: "8%" },
+    ];
+
+    const put = await call("PUT", ["admin", "top-brands"], {
+      body: { brands },
+    });
+    expect(put.status).toBe(200);
+    expect(put.body).toMatchObject({ success: true, brands });
+
+    const get = await call("GET", ["admin", "top-brands"]);
+    expect(get.status).toBe(200);
+    const body = get.body as {
+      brands: typeof brands;
+      items: Array<{ _id: string }>;
+      order: string[];
+    };
+    expect(body.order).toEqual(["o2", "o1"]);
+    expect(body.brands).toEqual(brands);
+    expect(body.items.map((item) => item._id)).toEqual(["o2", "o1"]);
+  });
+});
+
 describe("PUT offer/user persistence", () => {
   it("returns 404 for an unknown offer id", async () => {
     const res = await call("PUT", ["offer", "does-not-exist"], {

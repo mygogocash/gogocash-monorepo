@@ -41,10 +41,15 @@ describe('UserController', () => {
   // it fails CI instead of silently re-opening the leak.
   // ---------------------------------------------------------------------------
   describe('authorization wiring (V-4)', () => {
-    const proto = UserController.prototype as unknown as Record<string, unknown>;
+    const proto = UserController.prototype as unknown as Record<
+      string,
+      unknown
+    >;
     const guardsOf = (method: string): unknown[] =>
-      (Reflect.getMetadata('__guards__', proto[method] as object) as unknown[]) ??
-      [];
+      (Reflect.getMetadata(
+        '__guards__',
+        proto[method] as object,
+      ) as unknown[]) ?? [];
 
     it('balanceMyCashbackAdmin > is protected by AuthAdminGuard (no unauthenticated balance/PII leak)', () => {
       expect(guardsOf('balanceMyCashbackAdmin')).toContain(AuthAdminGuard);

@@ -256,10 +256,11 @@ describe('AdminController', () => {
   });
 
   describe('saveTopBrands', () => {
-    it('saveTopBrands > given an order array > then it unwraps body.order', () => {
-      controller.saveTopBrands({ order: ['a', 'b'] });
+    it('saveTopBrands > given a brands array > then it unwraps body.brands', () => {
+      const brands = [{ offerId: 'offer-1', cashback: '5%' }];
+      controller.saveTopBrands({ brands });
 
-      expect(adminService.saveTopBrands).toHaveBeenCalledWith(['a', 'b']);
+      expect(adminService.saveTopBrands).toHaveBeenCalledWith(brands);
     });
   });
 
