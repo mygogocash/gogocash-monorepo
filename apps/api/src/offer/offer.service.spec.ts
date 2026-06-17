@@ -7,6 +7,7 @@ import { Category } from './schemas/category.schema';
 import { Coupon } from './schemas/coupon.schema';
 import { FavoriteOffer } from './schemas/favorite-offer.schema';
 import { Banner } from './schemas/banner.schema';
+import { TopBrandConfig } from './schemas/top-brand-config.schema';
 import { MissionOrder } from './schemas/missing-order.schema';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
 import { User } from 'src/user/schemas/user.schema';
@@ -19,7 +20,7 @@ import { GoogleDriveService } from 'src/google-drive/google-drive.service';
  */
 function makeQuery(result: unknown) {
   const q: Record<string, jest.Mock> = {};
-  for (const m of ['find', 'skip', 'limit', 'populate', 'sort']) {
+  for (const m of ['find', 'skip', 'limit', 'populate', 'sort', 'select']) {
     q[m] = jest.fn().mockReturnValue(q);
   }
   q.exec = jest.fn().mockResolvedValue(result);
@@ -38,6 +39,7 @@ describe('OfferService', () => {
   let couponModel: any;
   let favoriteOfferModel: any;
   let bannerModel: any;
+  let topBrandConfigModel: any;
   let missionOrderModel: any;
   let googleDriveService: { uploadFile: jest.Mock };
 
@@ -68,6 +70,7 @@ describe('OfferService', () => {
       countDocuments: jest.fn().mockResolvedValue(0),
     };
     bannerModel = { findOne: jest.fn() };
+    topBrandConfigModel = { findOne: jest.fn() };
     // missionOrderModel is used BOTH as a constructor (`new this.missionOrderModel(...)`)
     // and as a static query holder (`this.missionOrderModel.find(...)`), so the
     // mock must be a callable with static query methods attached.
@@ -89,6 +92,10 @@ describe('OfferService', () => {
           useValue: favoriteOfferModel,
         },
         { provide: getModelToken(Banner.name), useValue: bannerModel },
+        {
+          provide: getModelToken(TopBrandConfig.name),
+          useValue: topBrandConfigModel,
+        },
         {
           provide: getModelToken(MissionOrder.name),
           useValue: missionOrderModel,
@@ -335,6 +342,68 @@ describe('OfferService', () => {
       expect(filter.user_id).toBeInstanceOf(Types.ObjectId);
       expect(filter.user_id.toHexString()).toBe(userId.toHexString());
       expect(result.total).toBe(1);
+    });
+  });
+
+  describe('getDisplayTopBrands', () => {
+    it('getDisplayTopBrands > given no config > then returns an empty list and skips the offer lookup', async () => {
+      topBrandConfigModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null),
+      });
+
+      await expect(service.getDisplayTopBrands()).resolves.toEqual({
+        data: [],
+      });
+      expect(offerModel.find).not.toHaveBeenCalled();
+    });
+
+    it('getDisplayTopBrands > given saved entries > then resolves offers in the saved order with admin cashback', async () => {
+      topBrandConfigModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({
+          brands: [
+            { offerId: 'id2', cashback: '10.0%' },
+            { offerId: 'id1', cashback: '12.5%' },
+          ],
+        }),
+      });
+      // Returned out of order on purpose: the admin-saved order must win.
+      offerModel.find.mockReturnValue(
+        makeQuery([
+          { _id: 'id1', offer_id: 1, offer_name: 'Alpha', logo: 'a.png' },
+          { _id: 'id2', offer_id: 2, offer_name: 'Bravo', logo: 'b.png' },
+        ]),
+      );
+
+      const result = await service.getDisplayTopBrands();
+
+      expect(result).toEqual({
+        data: [
+          { offer_id: 2, brand: 'Bravo', logo: 'b.png', cashback: '10.0%' },
+          { offer_id: 1, brand: 'Alpha', logo: 'a.png', cashback: '12.5%' },
+        ],
+      });
+    });
+
+    it('getDisplayTopBrands > given a saved id with no matching offer > then drops that entry', async () => {
+      topBrandConfigModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({
+          brands: [
+            { offerId: 'missing', cashback: '5%' },
+            { offerId: 'id1', cashback: '12.5%' },
+          ],
+        }),
+      });
+      offerModel.find.mockReturnValue(
+        makeQuery([
+          { _id: 'id1', offer_id: 1, offer_name: 'Alpha', logo: 'a.png' },
+        ]),
+      );
+
+      const result = await service.getDisplayTopBrands();
+
+      expect(result.data).toEqual([
+        { offer_id: 1, brand: 'Alpha', logo: 'a.png', cashback: '12.5%' },
+      ]);
     });
   });
 

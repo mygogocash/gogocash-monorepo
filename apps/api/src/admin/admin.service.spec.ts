@@ -12,6 +12,7 @@ import { Category } from 'src/offer/schemas/category.schema';
 import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 import { UserMyCashback } from 'src/user/schemas/user-my-cashback.schema';
 import { Banner } from 'src/offer/schemas/banner.schema';
+import { TopBrandConfig } from 'src/offer/schemas/top-brand-config.schema';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
 import { GoogleDriveService } from 'src/google-drive/google-drive.service';
 import { InvolveService } from 'src/involve/involve.service';
@@ -29,6 +30,7 @@ function makeQuery<T>(value: T) {
     'findOneAndUpdate',
     'skip',
     'limit',
+    'select',
     'sort',
     'populate',
   ]) {
@@ -52,6 +54,7 @@ describe('AdminService', () => {
   let conversionModel: any;
   let userMyCashbackModel: any;
   let bannerModel: any;
+  let topBrandConfigModel: any;
   let deeplinkModel: any;
   let googleDriveService: { uploadFile: jest.Mock; deleteFile: jest.Mock };
   let involveService: { getConversionAll: jest.Mock };
@@ -80,6 +83,7 @@ describe('AdminService', () => {
     feeRateModel.findOne = jest.fn();
     feeRateModel.findOneAndUpdate = jest.fn();
     offerModel = {
+      find: jest.fn(),
       findById: jest.fn(),
       findByIdAndUpdate: jest.fn(),
     };
@@ -98,6 +102,7 @@ describe('AdminService', () => {
       findOneAndUpdate: jest.fn(),
       updateOne: jest.fn(),
     };
+    topBrandConfigModel = { updateOne: jest.fn(), findOne: jest.fn() };
     deeplinkModel = { aggregate: jest.fn() };
     googleDriveService = {
       uploadFile: jest.fn(),
@@ -122,6 +127,10 @@ describe('AdminService', () => {
           useValue: userMyCashbackModel,
         },
         { provide: getModelToken(Banner.name), useValue: bannerModel },
+        {
+          provide: getModelToken(TopBrandConfig.name),
+          useValue: topBrandConfigModel,
+        },
         { provide: getModelToken(Deeplink.name), useValue: deeplinkModel },
         { provide: GoogleDriveService, useValue: googleDriveService },
         { provide: InvolveService, useValue: involveService },
@@ -448,22 +457,70 @@ describe('AdminService', () => {
   });
 
   describe('saveTopBrands', () => {
-    // Manual brand ordering is stored as a single upserted banner-config doc keyed by
-    // type; the upsert flag prevents creating duplicate ordering rows.
-    it('saveTopBrands > given an ordering array > then it upserts a single top_brands config doc', async () => {
-      bannerModel.updateOne.mockResolvedValue({ acknowledged: true });
+    // The curated top-brands list (ordered offer ids + admin cashback labels) is
+    // stored as a single upserted config doc in its own collection (empty filter
+    // = the singleton); upsert prevents duplicate config rows.
+    it('saveTopBrands > given curated brand entries > then it upserts a single config doc', async () => {
+      topBrandConfigModel.updateOne.mockResolvedValue({ acknowledged: true });
+      const brands = [
+        { offerId: 'offer-1', cashback: '12.5%' },
+        { offerId: 'offer-2', cashback: '10.0%' },
+      ];
 
-      const result = await service.saveTopBrands(['b1', 'b2']);
+      const result = await service.saveTopBrands(brands);
 
-      expect(bannerModel.updateOne).toHaveBeenCalledTimes(1);
-      const [filter, update, opts] = bannerModel.updateOne.mock.calls[0];
-      expect(filter).toEqual({ type: 'top_brands' });
-      expect(update.$set).toMatchObject({
-        type: 'top_brands',
-        order: ['b1', 'b2'],
-      });
+      expect(topBrandConfigModel.updateOne).toHaveBeenCalledTimes(1);
+      const [filter, update, opts] =
+        topBrandConfigModel.updateOne.mock.calls[0];
+      expect(filter).toEqual({});
+      expect(update.$set).toEqual({ brands });
       expect(opts).toEqual({ upsert: true });
-      expect(result).toEqual({ success: true, order: ['b1', 'b2'] });
+      expect(result).toEqual({ success: true, brands });
+    });
+  });
+
+  describe('getTopBrands', () => {
+    it('getTopBrands > given saved config > then returns saved order, cashback, and resolved offers in config order', async () => {
+      const brands = [
+        { offerId: 'offer-2', cashback: '12%' },
+        { offerId: 'missing-offer', cashback: '9%' },
+        { offerId: 'offer-1', cashback: '8%' },
+      ];
+      const offer1 = {
+        _id: 'offer-1',
+        offer_name: 'Banana IT',
+        logo: 'banana.png',
+      };
+      const offer2 = {
+        _id: 'offer-2',
+        offer_name: 'Adidas',
+        logo: 'adidas.png',
+      };
+
+      topBrandConfigModel.findOne.mockReturnValue(makeQuery({ brands }));
+      offerModel.find.mockReturnValue(makeQuery([offer1, offer2]));
+
+      const result = await service.getTopBrands();
+
+      expect(offerModel.find).toHaveBeenCalledWith({
+        _id: { $in: ['offer-2', 'missing-offer', 'offer-1'] },
+      });
+      expect(result).toEqual({
+        order: ['offer-2', 'missing-offer', 'offer-1'],
+        brands,
+        items: [offer2, offer1],
+      });
+    });
+
+    it('getTopBrands > given no saved config > then returns an empty editable config and skips offer lookup', async () => {
+      topBrandConfigModel.findOne.mockReturnValue(makeQuery(null));
+
+      await expect(service.getTopBrands()).resolves.toEqual({
+        order: [],
+        brands: [],
+        items: [],
+      });
+      expect(offerModel.find).not.toHaveBeenCalled();
     });
   });
 

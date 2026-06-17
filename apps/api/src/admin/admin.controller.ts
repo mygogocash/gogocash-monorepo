@@ -162,8 +162,8 @@ export class AdminController {
   // so it must not be reachable by a read-only viewer.
   @Roles('approver')
   @Put('top-brands')
-  saveTopBrands(@Body() body: { order: string[] }) {
-    return this.adminService.saveTopBrands(body.order);
+  saveTopBrands(@Body() body: { brands: { offerId: string; cashback: string }[] }) {
+    return this.adminService.saveTopBrands(body.brands);
   }
 
   // Creating an admin account is a superadmin action (parallels the gated

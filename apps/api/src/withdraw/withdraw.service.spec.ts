@@ -313,9 +313,10 @@ describe('WithdrawService', () => {
       // Fee mock so the minimum-amount check passes and the only thing standing
       // between the request and a DB write is the balance gate under test.
       mocks.feeRateModel.findOne.mockReturnValue({
-        exec: jest
-          .fn()
-          .mockResolvedValue({ minimum_withdraw_thb: 100, minimum_withdraw_usd: 5 }),
+        exec: jest.fn().mockResolvedValue({
+          minimum_withdraw_thb: 100,
+          minimum_withdraw_usd: 5,
+        }),
       });
       jest
         .spyOn(mocks.service, 'checkWithdraw')
@@ -622,9 +623,14 @@ describe('WithdrawService', () => {
 
       await mocks.service.deleteMethodData(METHOD_ID, VALID_USER_ID);
 
-      expect(mocks.withdrawMethodModel.findByIdAndDelete).not.toHaveBeenCalled();
-      expect(mocks.withdrawMethodModel.findOneAndDelete).toHaveBeenCalledTimes(1);
-      const filter = mocks.withdrawMethodModel.findOneAndDelete.mock.calls[0][0];
+      expect(
+        mocks.withdrawMethodModel.findByIdAndDelete,
+      ).not.toHaveBeenCalled();
+      expect(mocks.withdrawMethodModel.findOneAndDelete).toHaveBeenCalledTimes(
+        1,
+      );
+      const filter =
+        mocks.withdrawMethodModel.findOneAndDelete.mock.calls[0][0];
       expect(filter.user_id.toString()).toBe(VALID_USER_ID);
       expect(filter._id.toString()).toBe(METHOD_ID);
     });
@@ -636,14 +642,22 @@ describe('WithdrawService', () => {
         account_no: '123',
       } as never);
 
-      expect(mocks.withdrawMethodModel.findByIdAndUpdate).not.toHaveBeenCalled();
-      expect(mocks.withdrawMethodModel.findOneAndUpdate).toHaveBeenCalledTimes(1);
-      const filter = mocks.withdrawMethodModel.findOneAndUpdate.mock.calls[0][0];
+      expect(
+        mocks.withdrawMethodModel.findByIdAndUpdate,
+      ).not.toHaveBeenCalled();
+      expect(mocks.withdrawMethodModel.findOneAndUpdate).toHaveBeenCalledTimes(
+        1,
+      );
+      const filter =
+        mocks.withdrawMethodModel.findOneAndUpdate.mock.calls[0][0];
       expect(filter.user_id.toString()).toBe(VALID_USER_ID);
     });
 
     it('getMethodId > given a malformed method id > then returns null without a query (no CastError / no unscoped read)', async () => {
-      const res = await mocks.service.getMethodId('not-an-objectid', VALID_USER_ID);
+      const res = await mocks.service.getMethodId(
+        'not-an-objectid',
+        VALID_USER_ID,
+      );
 
       expect(res).toBeNull();
       expect(mocks.withdrawMethodModel.findOne).not.toHaveBeenCalled();
