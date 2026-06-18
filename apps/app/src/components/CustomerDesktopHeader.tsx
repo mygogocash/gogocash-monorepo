@@ -102,6 +102,7 @@ export function CustomerDesktopHeader({ viewportWidth }: { viewportWidth: number
             />
             <TextInput
               accessibilityLabel={tc(webHomeSearchPlaceholder)}
+              nativeID="desktop-header-search-input"
               placeholder={tc(webHomeSearchPlaceholder)}
               placeholderTextColor={colors.muted}
               style={StyleSheet.flatten([styles.desktopHeaderSearchInput, webPressableFocusReset])}

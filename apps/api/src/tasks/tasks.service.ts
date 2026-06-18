@@ -1,10 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Conversion } from 'src/withdraw/schemas/conversion.schema';
-import { Model, Types } from 'mongoose';
+import { Model, QueryFilter, Types } from 'mongoose';
 import { InvolveService } from 'src/involve/involve.service';
 import { Offer } from 'src/offer/schemas/offer.schema';
-import { Quest } from 'src/point/schemas/quest.schema';
+import {
+  Quest,
+  QuestRewardDistributionMode,
+} from 'src/point/schemas/quest.schema';
 import { PointService } from 'src/point/point.service';
 import { Point } from 'src/point/schemas/point.schema';
 
@@ -18,6 +21,24 @@ export class TasksService {
     private readonly involveService: InvolveService,
     private readonly pointService: PointService,
   ) {}
+
+  private rewardDistributionDueFilter(now: Date): QueryFilter<Quest> {
+    return {
+      status: 'close',
+      reward_status: { $ne: true },
+      $or: [
+        { reward_distribution_mode: { $exists: false } },
+        {
+          reward_distribution_mode:
+            'campaign_end' as QuestRewardDistributionMode,
+        },
+        {
+          reward_distribution_mode: 'after_days' as QuestRewardDistributionMode,
+          reward_distribution_scheduled_at: { $lte: now },
+        },
+      ],
+    };
+  }
 
   async changeConversionPaid() {
     const result = await this.conversionModel.updateMany(
@@ -64,15 +85,12 @@ export class TasksService {
       }
       // console.log('allConversions new', allConversions);
 
-      console.log('allConversions new', allConversions?.length);
-
       if (allConversions?.length === 0) return;
 
       // Batch update conversions to avoid timeout
       const batchSize = 10;
       for (let i = 0; i < allConversions.length; i += batchSize) {
         const batch = allConversions.slice(i, i + batchSize);
-        console.log('batch', batch);
         await Promise.all(
           batch.map((conversion) =>
             this.conversionModel.findOneAndUpdate(
@@ -83,7 +101,6 @@ export class TasksService {
           ),
         );
       }
-      console.log('done', allConversions?.length);
     } catch (error) {
       console.error('Error updating conversion status:', error);
       throw error;
@@ -91,14 +108,12 @@ export class TasksService {
   }
 
   async getSpacialPointNextRound() {
-    const questDate = await this.questModel.findOne({
-      status: 'close',
-      reward_status: { $ne: true },
-    });
+    const questDate = await this.questModel.findOne(
+      this.rewardDistributionDueFilter(new Date()),
+    );
 
     if (!questDate) {
       // throw new HttpException({ message: 'Quest date not found' }, 400);
-      console.log('Quest date not found for adminAddRewardConversionForQuest');
       return;
     }
     const startDate = new Date(questDate.start_date).toLocaleDateString(

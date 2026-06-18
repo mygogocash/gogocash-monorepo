@@ -227,7 +227,7 @@ describe("Expo home design parity", () => {
       homeFile.indexOf("<DesktopGoLinkBanner")
     );
     expect(homeFile.indexOf("<DesktopGoLinkBanner")).toBeLessThan(
-      homeFile.indexOf("<TopBrandSection homeLayout={homeLayout} />")
+      homeFile.indexOf("<TopBrandSection")
     );
     expect(homeFile).toContain("GoLinkGuidelineDialog");
     expect(homeFile).toContain("GoLinkResultDialog");
@@ -535,6 +535,8 @@ describe("Expo home design parity", () => {
       "Makeup Must Have!",
     ]);
     expect(homeFile).toContain("webHomePromoSections");
+    expect(homeFile).toContain('resourceId: "brandCatalog"');
+    expect(homeFile).toContain("resolveHomePromoSections");
     expect(homeFile).not.toContain("Recommended Shops");
     expect(homeFile).not.toContain("Travel cashback stores");
     expect(homeFile).not.toContain("Beauty store rewards");

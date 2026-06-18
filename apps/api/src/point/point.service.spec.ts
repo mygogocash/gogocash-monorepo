@@ -11,6 +11,7 @@ import { Quest } from './schemas/quest.schema';
 import { SocialReward } from './schemas/social-reward.schema';
 import { AnalyticsService } from 'src/analytics/analytics.service';
 import { GoogleDriveService } from 'src/google-drive/google-drive.service';
+import { Deeplink } from 'src/involve/schemas/deeplink.schema';
 import * as helper from 'src/utils/helper';
 
 // convertToTHB hits a live FX HTTP endpoint; mock at the module seam so the
@@ -49,6 +50,7 @@ describe('PointService', () => {
   let offerModel: Record<string, jest.Mock>;
   let questModel: Record<string, jest.Mock>;
   let socialRewardModel: Record<string, jest.Mock>;
+  let deeplinkModel: Record<string, jest.Mock>;
   let analytics: { capture: jest.Mock };
   let googleDrive: { uploadFile: jest.Mock; deleteFile: jest.Mock };
 
@@ -85,12 +87,14 @@ describe('PointService', () => {
       find: jest.fn(),
       findOneAndUpdate: jest.fn(),
       updateOne: jest.fn(),
+      findById: jest.fn(),
     };
     socialRewardModel = {
       findOne: jest.fn(),
       find: jest.fn(),
       create: jest.fn(),
     };
+    deeplinkModel = { aggregate: jest.fn().mockResolvedValue([]) };
     analytics = { capture: jest.fn().mockResolvedValue(undefined) };
     googleDrive = {
       uploadFile: jest.fn(),
@@ -109,6 +113,7 @@ describe('PointService', () => {
           provide: getModelToken(SocialReward.name),
           useValue: socialRewardModel,
         },
+        { provide: getModelToken(Deeplink.name), useValue: deeplinkModel },
         { provide: AnalyticsService, useValue: analytics },
         { provide: GoogleDriveService, useValue: googleDrive },
       ],
@@ -121,6 +126,21 @@ describe('PointService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  it('point scaffold mutations > given request DTOs > then they do not print payloads to stdout', () => {
+    const logSpy = jest
+      .spyOn(console, 'log')
+      .mockImplementation(() => undefined);
+
+    try {
+      service.create({ point: 10, user_id: 'user-1' } as never);
+      service.update(1, { point: 20 } as never);
+
+      expect(logSpy).not.toHaveBeenCalled();
+    } finally {
+      logSpy.mockRestore();
+    }
   });
 
   describe('addPointsToUser', () => {
@@ -255,6 +275,364 @@ describe('PointService', () => {
         user_id: userObjId,
         action: 'referral',
       });
+    });
+  });
+
+  describe('updateQuestTasks', () => {
+    const questId = new Types.ObjectId().toHexString();
+    const offerObjectId = new Types.ObjectId();
+
+    it('updateQuestTasks > given duplicate offers > then it rejects the payload before writing', async () => {
+      await expect(
+        service.updateQuestTasks(questId, {
+          tasks: [
+            {
+              offer: offerObjectId.toHexString(),
+              offer_id: 101,
+              merchant_id: 1001,
+              extra_point: 50,
+              enabled: true,
+            },
+            {
+              offer: offerObjectId.toHexString(),
+              offer_id: 101,
+              merchant_id: 1001,
+              extra_point: 25,
+              enabled: true,
+            },
+          ],
+        }),
+      ).rejects.toThrow(HttpException);
+
+      expect(questModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('updateQuestTasks > given invalid points > then it rejects the payload before writing', async () => {
+      await expect(
+        service.updateQuestTasks(questId, {
+          tasks: [
+            {
+              offer: offerObjectId.toHexString(),
+              offer_id: 101,
+              merchant_id: 1001,
+              extra_point: 1,
+              enabled: true,
+            },
+          ],
+        }),
+      ).rejects.toThrow(HttpException);
+
+      expect(questModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('updateQuestTasks > given an active quest task list > then it stores normalized tasks and mirrors offer extra_point values', async () => {
+      const secondOfferObjectId = new Types.ObjectId();
+      const quest = { _id: questId, status: 'open', tasks: [] };
+      questModel.findById.mockReturnValue(makeQuery(quest));
+      offerModel.find.mockReturnValue(
+        makeQuery([
+          {
+            _id: offerObjectId,
+            offer_id: 101,
+            merchant_id: 1001,
+            status: 'approved',
+            disabled: false,
+          },
+          {
+            _id: secondOfferObjectId,
+            offer_id: 202,
+            merchant_id: 2002,
+            status: 'approved',
+            disabled: false,
+          },
+        ]),
+      );
+      offerModel.updateMany = jest.fn().mockResolvedValue({ modifiedCount: 0 });
+      offerModel.bulkWrite = jest.fn().mockResolvedValue({ modifiedCount: 1 });
+      questModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({ _id: questId, status: 'open' }),
+      );
+
+      const result = await service.updateQuestTasks(questId, {
+        tasks: [
+          {
+            offer: offerObjectId.toHexString(),
+            offer_id: 101,
+            merchant_id: 1001,
+            extra_point: 50,
+            enabled: true,
+            wording: ' Make an order on Klook Travel ',
+          },
+          {
+            offer: secondOfferObjectId.toHexString(),
+            offer_id: 202,
+            merchant_id: 2002,
+            extra_point: 25,
+            enabled: false,
+            notes: 'hold',
+          },
+        ],
+      });
+
+      expect(questModel.findOneAndUpdate).toHaveBeenCalledWith(
+        { _id: new Types.ObjectId(questId) },
+        {
+          tasks: [
+            {
+              offer: offerObjectId,
+              offer_id: 101,
+              merchant_id: 1001,
+              extra_point: 50,
+              sort_order: 0,
+              enabled: true,
+              wording: 'Make an order on Klook Travel',
+              notes: '',
+            },
+            {
+              offer: secondOfferObjectId,
+              offer_id: 202,
+              merchant_id: 2002,
+              extra_point: 25,
+              sort_order: 1,
+              enabled: false,
+              wording: '',
+              notes: 'hold',
+            },
+          ],
+        },
+        { new: true },
+      );
+      expect(offerModel.updateMany).toHaveBeenCalledWith(
+        { _id: { $in: [] } },
+        { $set: { extra_point: 1 } },
+      );
+      expect(offerModel.bulkWrite).toHaveBeenCalledWith([
+        {
+          updateOne: {
+            filter: { _id: offerObjectId },
+            update: { $set: { extra_point: 50 } },
+          },
+        },
+      ]);
+      expect(result).toEqual({ _id: questId, status: 'open' });
+    });
+  });
+
+  describe('updateQuestRewards', () => {
+    const questId = new Types.ObjectId().toHexString();
+
+    it('updateQuestRewards > given duplicate ranks > then it rejects before writing', async () => {
+      await expect(
+        service.updateQuestRewards(questId, {
+          rewards: [
+            { rank: 1, reward: 1200, currency: 'THB' },
+            { rank: 1, reward: 800, currency: 'THB' },
+          ],
+        }),
+      ).rejects.toThrow(HttpException);
+
+      expect(questModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('updateQuestRewards > given valid rewards > then it stores them sorted by rank', async () => {
+      const endDate = new Date('2026-06-30T00:00:00.000Z');
+      questModel.findById.mockReturnValue(
+        makeQuery({ _id: questId, end_date: endDate }),
+      );
+      questModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({
+          _id: questId,
+          rewards: [
+            { rank: 1, reward: 1200, currency: 'THB' },
+            { rank: 2, reward: 800, currency: 'THB' },
+          ],
+        }),
+      );
+
+      await service.updateQuestRewards(questId, {
+        rewards: [
+          { rank: 2, reward: 800, currency: 'THB' },
+          { rank: 1, reward: 1200, currency: 'THB' },
+        ],
+      });
+
+      expect(questModel.findOneAndUpdate).toHaveBeenCalledWith(
+        { _id: new Types.ObjectId(questId) },
+        {
+          rewards: [
+            { rank: 1, reward: 1200, currency: 'THB' },
+            { rank: 2, reward: 800, currency: 'THB' },
+          ],
+          reward_distribution_mode: 'campaign_end',
+          reward_distribution_delay_days: 0,
+          reward_distribution_scheduled_at: endDate,
+        },
+        { new: true },
+      );
+    });
+
+    it('updateQuestRewards > given delayed automatic distribution > then it stores the scheduled payout date', async () => {
+      questModel.findById.mockReturnValue(
+        makeQuery({
+          _id: questId,
+          end_date: new Date('2026-06-30T00:00:00.000Z'),
+        }),
+      );
+      questModel.findOneAndUpdate.mockReturnValue(makeQuery({ _id: questId }));
+
+      await service.updateQuestRewards(questId, {
+        reward_distribution_mode: 'after_days',
+        reward_distribution_delay_days: 7,
+        rewards: [{ rank: 1, reward: 1200, currency: 'THB' }],
+      });
+
+      expect(questModel.findOneAndUpdate).toHaveBeenCalledWith(
+        { _id: new Types.ObjectId(questId) },
+        {
+          rewards: [{ rank: 1, reward: 1200, currency: 'THB' }],
+          reward_distribution_mode: 'after_days',
+          reward_distribution_delay_days: 7,
+          reward_distribution_scheduled_at: new Date(
+            '2026-07-07T00:00:00.000Z',
+          ),
+        },
+        { new: true },
+      );
+    });
+
+    it('updateQuestRewards > given after-days distribution with zero delay > then it rejects before writing', async () => {
+      questModel.findById.mockReturnValue(
+        makeQuery({
+          _id: questId,
+          end_date: new Date('2026-06-30T00:00:00.000Z'),
+        }),
+      );
+
+      await expect(
+        service.updateQuestRewards(questId, {
+          reward_distribution_mode: 'after_days',
+          reward_distribution_delay_days: 0,
+          rewards: [{ rank: 1, reward: 1200, currency: 'THB' }],
+        }),
+      ).rejects.toThrow(HttpException);
+
+      expect(questModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getQuestAdminLeaderboard', () => {
+    const questId = new Types.ObjectId().toHexString();
+
+    it('getQuestAdminLeaderboard > given quest rewards > then rows include rank, points, and reward', async () => {
+      questModel.findById.mockReturnValue(
+        makeQuery({
+          _id: questId,
+          start_date: new Date('2026-06-01T00:00:00.000Z'),
+          end_date: new Date('2026-06-30T00:00:00.000Z'),
+          rewards: [
+            { rank: 1, reward: 1200, currency: 'THB' },
+            { rank: 2, reward: 800, currency: 'THB' },
+          ],
+        }),
+      );
+      jest.spyOn(service, 'getQuestRankListOfPoint').mockResolvedValue([
+        {
+          user_id: new Types.ObjectId('000000000000000000000001'),
+          username: 'winner',
+          email: 'winner@gogocash.co',
+          point: 500,
+        },
+        {
+          user_id: new Types.ObjectId('000000000000000000000002'),
+          username: 'runner',
+          email: 'runner@gogocash.co',
+          point: 300,
+        },
+        {
+          user_id: new Types.ObjectId('000000000000000000000003'),
+          username: 'third',
+          email: 'third@gogocash.co',
+          point: 100,
+        },
+      ] as never);
+
+      const result = await service.getQuestAdminLeaderboard(questId);
+
+      expect(service.getQuestRankListOfPoint).toHaveBeenCalledWith(
+        '2026-06-01',
+        '2026-06-30',
+      );
+      expect(result.data).toEqual([
+        expect.objectContaining({
+          rank: 1,
+          username: 'winner',
+          point: 500,
+          reward: 1200,
+          currency: 'THB',
+        }),
+        expect.objectContaining({
+          rank: 2,
+          username: 'runner',
+          point: 300,
+          reward: 800,
+          currency: 'THB',
+        }),
+        expect.objectContaining({
+          rank: 3,
+          username: 'third',
+          point: 100,
+          reward: 0,
+          currency: 'THB',
+        }),
+      ]);
+    });
+
+    it('getQuestAdminLeaderboard > given empty selected range in local mode > then it returns the latest available leaderboard with source dates', async () => {
+      questModel.findById.mockReturnValue(
+        makeQuery({
+          _id: questId,
+          start_date: new Date('2026-07-01T00:00:00.000Z'),
+          end_date: new Date('2026-07-30T00:00:00.000Z'),
+          rewards: [{ rank: 1, reward: 1200, currency: 'THB' }],
+        }),
+      );
+      const rankSpy = jest
+        .spyOn(service, 'getQuestRankListOfPoint')
+        .mockResolvedValueOnce([] as never)
+        .mockResolvedValueOnce([
+          {
+            user_id: new Types.ObjectId('000000000000000000000001'),
+            username: 'winner',
+            email: 'winner@gogocash.co',
+            point: 450,
+            extra_point_received: 50,
+          },
+        ] as never);
+      pointModel.aggregate.mockResolvedValue([
+        { latestConversionDate: new Date('2026-06-17T00:00:00.000Z') },
+      ]);
+
+      const result = await service.getQuestAdminLeaderboard(questId);
+
+      expect(rankSpy).toHaveBeenNthCalledWith(1, '2026-07-01', '2026-07-30');
+      expect(rankSpy).toHaveBeenNthCalledWith(2, '2026-06-01', '2026-06-30');
+      expect(pointModel.aggregate).toHaveBeenCalledTimes(1);
+      expect(result).toMatchObject({
+        data_source: 'latest_available',
+        empty_range_start_date: '2026-07-01',
+        empty_range_end_date: '2026-07-30',
+        source_start_date: '2026-06-01',
+        source_end_date: '2026-06-30',
+      });
+      expect(result.data).toEqual([
+        expect.objectContaining({
+          rank: 1,
+          username: 'winner',
+          point: 450,
+          reward: 1200,
+          currency: 'THB',
+        }),
+      ]);
     });
   });
 
@@ -453,6 +831,24 @@ describe('PointService', () => {
         quest,
         socialRewards: rewards,
       });
+    });
+  });
+
+  describe('getQuestOpen', () => {
+    it('getQuestOpen > then it only returns currently active open quests', async () => {
+      questModel.findOne.mockReturnValue(makeQuery({ _id: 'q1' }));
+
+      await service.getQuestOpen();
+
+      expect(questModel.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'open',
+          $and: expect.arrayContaining([
+            expect.objectContaining({ $or: expect.any(Array) }),
+            expect.objectContaining({ $or: expect.any(Array) }),
+          ]),
+        }),
+      );
     });
   });
 

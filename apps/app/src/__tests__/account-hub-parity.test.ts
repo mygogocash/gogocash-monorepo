@@ -101,6 +101,13 @@ describe("Account hub route parity", () => {
     expect(questFile).toContain("questPromoImage");
     expect(questFile).toContain("webQuestTabs");
     expect(questFile).toContain("Explore other Shops");
+    expect(questFile).toContain("getResponsiveHomeLayoutMetrics");
+    expect(questFile).toContain("compactBrandCardsPerPage");
+    expect(questFile).toContain("CompactExploreShopCard");
+    expect(questFile).toContain("getTopBrandHref(card.brand)");
+    expect(questFile).toContain('resourceId: "brandCatalog"');
+    expect(questFile).toContain("resolveLiveBrandCards");
+    expect(questFile).not.toContain("exploreOtherShops.cards.slice(0, 4)");
     expect(questFile).toContain("Let’s Got the Tasks Done!");
     expect(questFile).not.toContain("Earn extra rewards.");
   });
@@ -150,7 +157,8 @@ describe("Account hub route parity", () => {
     expect(designFile).toContain("Glow Theory");
     expect(designFile).toContain("+0 Points");
     expect(questFile).toContain("QuestTaskPanel");
-    expect(questFile).toContain("webQuestTaskRows.map");
+    expect(questFile).toContain("useQuestTaskRows");
+    expect(questFile).toContain("questTasks.rows.map");
     expect(questFile).toContain("TaskPointsPill");
     expect(questFile).not.toContain("Daily check-in");
     expect(questFile).not.toContain("Shop 300 Baht+ on any shops");

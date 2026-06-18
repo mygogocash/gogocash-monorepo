@@ -797,6 +797,58 @@ describe('WithdrawService', () => {
     });
   });
 
+  describe('adminAddRewardConversionForQuest', () => {
+    it('adminAddRewardConversionForQuest > given quest-level rewards > then it uses them instead of the legacy global reward list', async () => {
+      const questId = new Types.ObjectId();
+      mocks.questModel.findOne.mockResolvedValue({
+        _id: questId,
+        status: 'close',
+        reward_status: false,
+        start_date: new Date('2026-06-01T00:00:00.000Z'),
+        end_date: new Date('2026-06-30T00:00:00.000Z'),
+        rewards: [
+          { rank: 1, reward: 1200, currency: 'THB' },
+          { rank: 2, reward: 800, currency: 'THB' },
+        ],
+      });
+      mocks.rewardListModel.findOne.mockResolvedValue({
+        name: 'quest',
+        data: [{ rank: 1, reward: 1, currency: 'THB' }],
+      });
+      mocks.pointService.getQuestRankListOfPoint.mockResolvedValue([
+        {
+          user_id: new Types.ObjectId().toHexString(),
+          username: 'winner',
+          email: 'winner@gogocash.co',
+          point: 500,
+        },
+        {
+          user_id: new Types.ObjectId().toHexString(),
+          username: 'runner',
+          email: 'runner@gogocash.co',
+          point: 400,
+        },
+      ]);
+      mocks.conversionModel.create.mockResolvedValue({});
+      mocks.questModel.findByIdAndUpdate.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({}),
+      });
+
+      await mocks.service.adminAddRewardConversionForQuest();
+
+      expect(mocks.rewardListModel.findOne).not.toHaveBeenCalled();
+      expect(mocks.conversionModel.create).toHaveBeenCalledTimes(2);
+      expect(mocks.conversionModel.create).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ payout: 1200, currency: 'THB' }),
+      );
+      expect(mocks.conversionModel.create).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ payout: 800, currency: 'THB' }),
+      );
+    });
+  });
+
   // ---------------------------------------------------------------------------
   // getBankList — deterministic static reference.
   // ---------------------------------------------------------------------------

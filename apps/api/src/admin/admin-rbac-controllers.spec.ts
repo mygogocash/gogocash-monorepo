@@ -11,6 +11,10 @@ import { MembershipController } from './membership/membership.controller';
 import { DiscoverController } from './discover/discover.controller';
 import { SearchController } from './search/search.controller';
 import { AdminController } from './admin.controller';
+import { PointController } from 'src/point/point.controller';
+import { OfferController } from 'src/offer/offer.controller';
+import { BrandController } from 'src/brand/brand.controller';
+import { AuthAdminGuard } from './jwt-auth-admin.guard';
 
 const GUARDS = '__guards__';
 const rolesOnMethod = (C: unknown, m: string): string[] => {
@@ -21,6 +25,10 @@ const rolesOnClass = (C: unknown): string[] =>
   (Reflect.getMetadata(ROLES_KEY, C as object) as string[]) ?? [];
 const classGuards = (C: unknown): unknown[] =>
   (Reflect.getMetadata(GUARDS, C as object) as unknown[]) ?? [];
+const methodGuards = (C: unknown, m: string): unknown[] => {
+  const proto = (C as { prototype: Record<string, unknown> }).prototype;
+  return (Reflect.getMetadata(GUARDS, proto[m] as object) as unknown[]) ?? [];
+};
 
 /**
  * Regression guard for the Phase-1 server-side RBAC rollout. If a future edit
@@ -114,9 +122,52 @@ describe('Admin Phase-2 RBAC gap closures', () => {
     );
   });
 
+  it('quest task updates require superadmin because they edit point economics', () => {
+    expect(rolesOnMethod(PointController, 'updateQuestTasks')).toContain(
+      'superadmin',
+    );
+  });
+
+  it('quest reward updates require superadmin because they edit payouts', () => {
+    expect(rolesOnMethod(PointController, 'updateQuestRewards')).toContain(
+      'superadmin',
+    );
+  });
+
+  it('quest campaign create and close require superadmin because they control public campaigns', () => {
+    expect(rolesOnMethod(PointController, 'createQuest')).toContain(
+      'superadmin',
+    );
+    expect(rolesOnMethod(PointController, 'closeQuest')).toContain(
+      'superadmin',
+    );
+  });
+
   it('bulk transaction CSV export is restricted to support+', () => {
     expect(rolesOnMethod(TransactionsController, 'exportCsv')).toContain(
       'support',
     );
+  });
+
+  it('manual point award route requires authenticated superadmin access', () => {
+    expect(methodGuards(PointController, 'savePoint')).toEqual(
+      expect.arrayContaining([AuthAdminGuard, RolesGuard]),
+    );
+    expect(rolesOnMethod(PointController, 'savePoint')).toContain('superadmin');
+  });
+
+  it('admin offer inventory is not publicly reachable', () => {
+    expect(methodGuards(OfferController, 'findAllAdmin')).toContain(
+      AuthAdminGuard,
+    );
+  });
+
+  it('brand write routes require support+ because they control customer-visible brand records', () => {
+    for (const method of ['create', 'update', 'remove']) {
+      expect(methodGuards(BrandController, method)).toEqual(
+        expect.arrayContaining([AuthAdminGuard, RolesGuard]),
+      );
+      expect(rolesOnMethod(BrandController, method)).toContain('support');
+    }
   });
 });

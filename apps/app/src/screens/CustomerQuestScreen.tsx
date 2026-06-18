@@ -24,18 +24,23 @@ import questRank4 from "../../assets/quest-rank/rank4.png";
 import questRank5 from "../../assets/quest-rank/rank5.png";
 import questRank6to10 from "../../assets/quest-rank/rank6_10.png";
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
+import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
+import { resolveLiveBrandCards } from "@mobile/account/brandCatalogResource";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { QuestCoinIcon } from "@mobile/components/QuestCoinIcon";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { haptics } from "@mobile/lib/haptics";
+import type { QuestTaskRow } from "@mobile/quest/questTaskResource";
+import { useQuestTaskRows } from "@mobile/quest/questTaskResource";
 import {
+  getResponsiveHomeLayoutMetrics,
+  getTopBrandHref,
   mobileShellLayout,
   webAccountPageSurface,
   webHomePromoSections,
   webQuestHistory,
   webQuestLeaderboardRows,
   webQuestMyRank,
-  webQuestTaskRows,
   webQuestTabs,
 } from "@mobile/design/webDesignParity";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
@@ -43,6 +48,15 @@ import { colors, radii, shadows, spacing, typography } from "@mobile/theme/token
 type QuestTabId = (typeof webQuestTabs)[number]["id"];
 
 const exploreOtherShops = webHomePromoSections.find((section) => section.id === "travel");
+type HomeLayoutMetrics = ReturnType<typeof getResponsiveHomeLayoutMetrics>;
+type QuestExploreShopCard = {
+  readonly brand: string;
+  readonly cashback: string;
+  readonly href?: string;
+  readonly logoFallbackText?: string;
+  readonly logoUri?: string;
+  readonly tint: string;
+};
 
 export function CustomerQuestScreen({ history = false }: { history?: boolean }) {
   const tc = useCopy();
@@ -60,6 +74,7 @@ export function CustomerQuestScreen({ history = false }: { history?: boolean }) 
       : mobileShellLayout.contentHorizontalPadding * 2);
   const heroHeight = contentWidth / (1200 / 675);
   const mediaColumnWidth = isDesktop ? (contentWidth - spacing.lg) / 2 : contentWidth;
+  const exploreLayout = getQuestExploreLayout(width, contentWidth);
 
   if (history) {
     return (
@@ -129,29 +144,67 @@ export function CustomerQuestScreen({ history = false }: { history?: boolean }) 
           </View>
         ) : null}
       </View>
-      <ExploreOtherShops />
+      <ExploreOtherShops layout={exploreLayout} />
     </AccountPageShell>
   );
 }
 
+function getQuestExploreLayout(viewportWidth: number, contentWidth: number): HomeLayoutMetrics {
+  const homeLayout = getResponsiveHomeLayoutMetrics(viewportWidth);
+  const compactBrandCardWidth = Math.floor(
+    (contentWidth - homeLayout.compactBrandGap * (homeLayout.compactBrandColumns - 1)) /
+      homeLayout.compactBrandColumns
+  );
+
+  return {
+    ...homeLayout,
+    compactBrandCardHeight: Math.floor(
+      compactBrandCardWidth + mobileShellLayout.compactBrandMetaHeight
+    ),
+    compactBrandCardWidth,
+    compactBrandLogoVisualHeight: Math.floor(compactBrandCardWidth - 16),
+    contentWidth,
+  };
+}
+
 function QuestTaskPanel() {
   const tc = useCopy();
+  const questTasks = useQuestTaskRows();
   return (
     <View style={styles.taskPanel}>
       <Text style={styles.taskTitle}>{tc("Let’s Got the Tasks Done!")}</Text>
-      {webQuestTaskRows.map((task) => (
-        <View key={task.title} style={styles.taskRow}>
-          <TaskLogo task={task} />
-          <View style={styles.taskCopy}>
-            <Text numberOfLines={1} style={styles.taskName}>
-              {tc(task.title)}
-            </Text>
-          </View>
-          <TaskPointsPill points={task.points} />
-        </View>
+      {questTasks.rows.map((task) => (
+        <QuestTaskListRow key={task.key} task={task} />
       ))}
     </View>
   );
+}
+
+function QuestTaskListRow({ task }: { task: QuestTaskRow }) {
+  const tc = useCopy();
+  const content = (
+    <>
+      <TaskLogo task={task} />
+      <View style={styles.taskCopy}>
+        <Text numberOfLines={1} style={styles.taskName}>
+          {tc(task.title)}
+        </Text>
+      </View>
+      <TaskPointsPill points={task.points} />
+    </>
+  );
+
+  if (task.href) {
+    return (
+      <Link asChild href={task.href as never}>
+        <MotionPressable accessibilityRole="link" pressScale={0.98} style={styles.taskRow}>
+          {content}
+        </MotionPressable>
+      </Link>
+    );
+  }
+
+  return <View style={styles.taskRow}>{content}</View>;
 }
 
 // Web renders every task row with a circular mint bubble (bg #E8FBF5). Map each task's icon
@@ -165,8 +218,21 @@ const taskGlyphByIcon: Record<string, IconComponent> = {
   go: StorefrontIcon,
 };
 
-function TaskLogo({ task }: { task: (typeof webQuestTaskRows)[number] }) {
+function TaskLogo({ task }: { task: QuestTaskRow }) {
   const Glyph = taskGlyphByIcon[task.icon] ?? StorefrontIcon;
+  if (task.logoUri) {
+    return (
+      <View style={styles.taskLogo}>
+        <Image
+          alt={`${task.title} logo`}
+          resizeMode="cover"
+          source={{ uri: task.logoUri }}
+          style={styles.taskLogoImage}
+        />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.taskLogo}>
       <Glyph color={colors.primaryDark} size={26} strokeWidth={typography.iconStrokeWidth} />
@@ -315,52 +381,110 @@ function RankTrophy({ index }: { index: number }) {
   );
 }
 
-function ExploreOtherShops() {
+function ExploreOtherShops({ layout }: { layout: HomeLayoutMetrics }) {
   const tc = useCopy();
+  const fallbackCards = exploreOtherShops?.cards ?? [];
+  const brandCatalogResource = useCustomerAccountResource({
+    fixtureData: fallbackCards,
+    resourceId: "brandCatalog",
+  });
+  const cards = resolveLiveBrandCards(
+    brandCatalogResource.source,
+    brandCatalogResource.data,
+    fallbackCards
+  );
+
   if (!exploreOtherShops) {
     return null;
   }
+
+  const visibleCards = cards.slice(0, layout.compactBrandCardsPerPage);
 
   return (
     <View style={styles.exploreSection}>
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>{tc("Explore other Shops")}</Text>
-        <Link asChild href="/brand">
+        <Link asChild href={exploreOtherShops.link as never}>
           <MotionPressable pressScale={0.98}>
             <Text style={styles.viewAll}>{`${tc("View all")} →`}</Text>
           </MotionPressable>
         </Link>
       </View>
-      <View style={styles.shopGrid}>
-        {exploreOtherShops.cards.slice(0, 4).map((card) => (
-          <Link
-            asChild
-            href={`/shop/${card.brand.toLowerCase().replace(/[^a-z0-9]+/g, "-")}` as never}
+      <View style={[styles.shopGrid, { gap: layout.compactBrandGap }]}>
+        {visibleCards.map((card) => (
+          <CompactExploreShopCard
+            card={card}
+            cardHeight={layout.compactBrandCardHeight}
+            cardWidth={layout.compactBrandCardWidth}
             key={card.brand}
-          >
-            <MotionPressable pressScale={0.98} style={styles.shopCard}>
-              <View style={[styles.shopLogo, { backgroundColor: card.tint }]}>
-                {"logoUri" in card ? (
-                  <Image
-                    alt={`${card.brand} ${tc("logo")}`}
-                    resizeMode="contain"
-                    source={{ uri: card.logoUri }}
-                    style={styles.shopLogoImage}
-                  />
-                ) : null}
-              </View>
-              <Text numberOfLines={1} style={styles.shopName}>
-                {card.brand}
-              </Text>
-              <View style={styles.shopCashbackRow}>
-                <Text style={styles.shopCashbackLabel}>{tc("Cashback up to")}</Text>
-                <Text style={styles.shopCashback}>{card.cashback}</Text>
-              </View>
-            </MotionPressable>
-          </Link>
+            logoVisualHeight={layout.compactBrandLogoVisualHeight}
+          />
         ))}
       </View>
     </View>
+  );
+}
+
+function CompactExploreShopCard({
+  card,
+  cardHeight,
+  cardWidth,
+  logoVisualHeight,
+}: {
+  card: QuestExploreShopCard;
+  cardHeight: number;
+  cardWidth: number;
+  logoVisualHeight: number;
+}) {
+  const tc = useCopy();
+  const logoSource = "logoUri" in card && card.logoUri ? { uri: card.logoUri } : null;
+  const logoFallback =
+    "logoFallbackText" in card &&
+    typeof card.logoFallbackText === "string" &&
+    card.logoFallbackText
+      ? card.logoFallbackText
+      : card.brand.slice(0, 2).toUpperCase();
+
+  return (
+    <Link asChild href={(card.href ?? getTopBrandHref(card.brand)) as never}>
+      <MotionPressable
+        pressScale={0.98}
+        style={StyleSheet.flatten([
+          styles.shopCard,
+          {
+            height: cardHeight,
+            width: cardWidth,
+          },
+        ])}
+      >
+        <View
+          style={[styles.shopLogo, { backgroundColor: card.tint, height: logoVisualHeight }]}
+        >
+          {logoSource ? (
+            <Image
+              accessibilityLabel={`${card.brand} ${tc("logo")}`}
+              alt={`${card.brand} ${tc("logo")}`}
+              resizeMode="contain"
+              source={logoSource}
+              style={styles.shopLogoImage}
+            />
+          ) : (
+            <Text numberOfLines={2} style={styles.shopLogoFallback}>
+              {logoFallback}
+            </Text>
+          )}
+        </View>
+        <Text numberOfLines={1} style={styles.shopName}>
+          {card.brand}
+        </Text>
+        <View style={styles.shopCashbackRow}>
+          <Text numberOfLines={1} style={styles.shopCashbackLabel}>
+            {tc("Cashback up to")}
+          </Text>
+          <Text style={styles.shopCashback}>{card.cashback}</Text>
+        </View>
+      </MotionPressable>
+    </Link>
   );
 }
 
@@ -1224,6 +1348,10 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     width: 52,
   },
+  taskLogoImage: {
+    height: "100%",
+    width: "100%",
+  },
   taskCopy: {
     flex: 1,
     gap: 3,
@@ -1534,46 +1662,55 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     borderWidth: 1,
     boxShadow: shadows.cardCss,
-    flexBasis: "47%",
-    flexGrow: 1,
-    minWidth: 150,
-    padding: spacing.sm,
+    gap: 4,
+    overflow: "hidden",
+    padding: 8,
   },
   shopLogo: {
     alignItems: "center",
-    aspectRatio: 1,
     borderRadius: radii.sm,
     justifyContent: "center",
     overflow: "hidden",
     width: "100%",
   },
   shopLogoImage: {
-    height: "70%",
-    width: "70%",
+    height: "62%",
+    width: "72%",
+  },
+  shopLogoFallback: {
+    color: colors.accent,
+    fontFamily: typography.family,
+    fontSize: 16,
+    fontWeight: typography.bodyWeight,
+    lineHeight: 24,
+    width: "72%",
   },
   shopName: {
     color: colors.ink,
     fontFamily: typography.family,
-    fontSize: typography.body,
-    fontWeight: "600",
-    marginTop: spacing.sm,
+    fontSize: typography.caption,
+    fontWeight: typography.labelWeight,
+    lineHeight: 15,
   },
   shopCashbackRow: {
-    alignItems: "flex-end",
+    alignItems: "baseline",
     flexDirection: "row",
+    gap: spacing.xs,
     justifyContent: "space-between",
-    marginTop: spacing.md,
   },
   shopCashbackLabel: {
-    color: colors.muted,
+    color: colors.textSoft,
     flex: 1,
     fontFamily: typography.family,
-    fontSize: typography.caption,
+    fontSize: 10,
+    fontWeight: typography.bodyWeight,
+    lineHeight: 10,
   },
   shopCashback: {
     color: colors.primaryDark,
     fontFamily: typography.family,
-    fontSize: 18,
-    fontWeight: "600",
+    fontSize: 16,
+    fontWeight: "700",
+    lineHeight: 16,
   },
 });

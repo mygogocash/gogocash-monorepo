@@ -13,6 +13,9 @@ const apiClientMock = vi.hoisted(() => ({
 }));
 
 const fetchOffersListMock = vi.hoisted(() => vi.fn());
+const permissionsMock = vi.hoisted(() => ({
+  canManageBrands: true,
+}));
 
 vi.mock("@/lib/api", () => ({
   apiClient: apiClientMock,
@@ -25,6 +28,20 @@ vi.mock("@/lib/query/offersQueries", () => ({
     "list",
     query.search ?? "",
   ],
+}));
+
+vi.mock("@/hooks/usePermissions", () => ({
+  usePermissions: () => ({
+    can: (permission: string) =>
+      permission === "brands:manage" ? permissionsMock.canManageBrands : true,
+    canAny: (permissions: string[]) =>
+      permissions.some((permission) =>
+        permission === "brands:manage" ? permissionsMock.canManageBrands : true,
+      ),
+    ready: true,
+    role: permissionsMock.canManageBrands ? "editor" : "viewer",
+    rolesLoaded: true,
+  }),
 }));
 
 vi.mock("react-hot-toast", () => ({
@@ -59,6 +76,7 @@ function renderPanel() {
 
 describe("TopBrandManagementPanel", () => {
   beforeEach(() => {
+    permissionsMock.canManageBrands = true;
     apiClientMock.getTopBrands.mockResolvedValue({
       brands: [{ offerId: "o1", cashback: "12%" }],
       items: [offer],
@@ -100,5 +118,21 @@ describe("TopBrandManagementPanel", () => {
         { offerId: "o1", cashback: "15%" },
       ]);
     });
+  });
+
+  it("given a viewer role > then renders top brand controls read-only", async () => {
+    permissionsMock.canManageBrands = false;
+    renderPanel();
+
+    const cashbackInput = await screen.findByLabelText(
+      "Cashback for Banana IT",
+    );
+
+    expect(screen.getByRole("searchbox", { name: "Search offers" })).toBeDisabled();
+    expect(screen.getByLabelText("Select offer to add")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Add to list" })).toBeDisabled();
+    expect(cashbackInput).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save top brands" })).toBeDisabled();
+    expect(screen.getByText(/read-only access/i)).toBeInTheDocument();
   });
 });

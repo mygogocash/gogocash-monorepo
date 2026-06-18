@@ -30,6 +30,7 @@ import {
   FeeSettingsForm,
 } from "@/types/api";
 import type { Permission } from "@/lib/rbac";
+import type { DataSession } from "@/types/authSession";
 import { isStaticHostingClient } from "@/lib/isStaticHostingClient";
 import { AxiosRequestConfig } from "axios";
 
@@ -70,14 +71,27 @@ class ApiClient {
       }
     }
 
+    const headers = {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      ...options.headers,
+    } as Record<string, string>;
+
+    const hasAuthorization = Object.keys(headers).some(
+      (key) => key.toLowerCase() === "authorization",
+    );
+    if (!hasAuthorization && typeof window !== "undefined") {
+      const { getSession } = await import("next-auth/react");
+      const session = (await getSession()) as DataSession | null;
+      if (session?.accessToken) {
+        headers.Authorization = `Bearer ${session.accessToken}`;
+      }
+    }
+
     const config = {
       url,
       method,
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        ...options.headers,
-      },
+      headers,
       data: parsedBody,
     };
 

@@ -57,10 +57,13 @@ const questBannerAssets = {
 // Identity fields widen to string so the live-mapped merchant (real ids and
 // rates from the backend) satisfies the same view-model as the fixture.
 type ShopDetail = Omit<typeof webShopDetailGroceryGalaxy, "brand" | "cashback" | "category" | "id"> & {
+  bannerUri?: string;
   brand: string;
   cashback: string;
   category: string;
   id: string;
+  logoUri?: string;
+  trackingUrl?: string;
 };
 type TrackingStep = ShopDetail["trackingPeriod"][number];
 
@@ -81,7 +84,7 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
   });
   // Live merchant identity (name/category/cashback) overlays the fixture's
   // static product copy; fixtures mode rejects the guard and stays unchanged.
-  const shop = isMerchantOfferResponse(merchantResource.data)
+  const shop: ShopDetail = isMerchantOfferResponse(merchantResource.data)
     ? mapMerchantOfferToShopDetail(merchantResource.data, fixtureShop)
     : fixtureShop;
 
@@ -159,11 +162,11 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
           brand={shop.brand}
           onComplete={() => {
             setRedirecting(false);
-            // Hand the user off to the merchant (web: new tab). The mock has no real
-            // affiliate URL, so we resolve the brand's merchant page via search. If the
-            // open fails, the user simply remains on the shop page — no error surface needed.
+            // Hand the user off to the admin-managed affiliate tracking URL when live
+            // backend data supplies one; fixtures fall back to a brand search.
             void Linking.openURL(
-              `https://www.google.com/search?q=${encodeURIComponent(shop.brand)}`
+              shop.trackingUrl ||
+                `https://www.google.com/search?q=${encodeURIComponent(shop.brand)}`
             ).catch(() => undefined);
           }}
         />
@@ -180,11 +183,21 @@ function ShopHero({ onShopNow, shop }: { onShopNow: () => void; shop: ShopDetail
           accessibilityLabel={`${shop.brand} promotion banner`}
           alt={`${shop.brand} promotion banner`}
           resizeMode="cover"
-          source={shopBannerAssets[shop.bannerAsset]}
+          source={shop.bannerUri ? { uri: shop.bannerUri } : shopBannerAssets[shop.bannerAsset]}
           style={styles.heroImage}
         />
         <View style={styles.logoBadge}>
-          <Text style={styles.logoText}>{shop.logoText}</Text>
+          {shop.logoUri ? (
+            <Image
+              accessibilityLabel={`${shop.brand} logo`}
+              alt={`${shop.brand} logo`}
+              resizeMode="contain"
+              source={{ uri: shop.logoUri }}
+              style={styles.logoImage}
+            />
+          ) : (
+            <Text style={styles.logoText}>{shop.logoText}</Text>
+          )}
         </View>
       </View>
       <ShopHeroSummaryCard onShopNow={onShopNow} shop={shop} />
@@ -226,7 +239,7 @@ function ShopCashbackRail({ shop }: { shop: ShopDetail }) {
         <Text style={styles.cashbackValue}>{shop.cashback}</Text>
       </View>
       <View style={styles.tagRow} accessibilityLabel="Offer highlights">
-        <Link asChild href={`/category/${shop.category}` as never}>
+        <Link asChild href={`/category/${encodeURIComponent(shop.category)}` as never}>
           <MotionPressable pressScale={0.98} style={styles.categoryTag}>
             <ShirtIcon color={colors.ink} size={18} strokeWidth={typography.iconStrokeWidth} />
             <Text style={styles.tagText}>{shop.category}</Text>
@@ -559,6 +572,10 @@ const styles = StyleSheet.create({
     fontSize: 30,
     fontWeight: "700",
     letterSpacing: 0,
+  },
+  logoImage: {
+    height: 44,
+    width: 50,
   },
   summaryCard: {
     alignItems: "center",

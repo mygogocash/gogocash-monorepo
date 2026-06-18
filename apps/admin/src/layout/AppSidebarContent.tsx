@@ -10,6 +10,7 @@ import {
   offersListQueryKey,
 } from "@/lib/query/offersQueries";
 import { useSidebar } from "../context/SidebarContext";
+import { appLinks } from "@/lib/appLinks";
 import {
   ArrowUpIcon,
   ChevronDownIcon,
@@ -426,7 +427,7 @@ export default function AppSidebarContent({ isSubItemActive }: Props) {
             {/* External link: Open Customer App in a new tab */}
             <div className="mt-4 border-t border-gray-200 pt-4 dark:border-gray-700">
               <a
-                href={process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}
+                href={appLinks.home()}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="group flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"

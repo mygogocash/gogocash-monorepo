@@ -60,7 +60,7 @@ const frontendFlowContracts: FrontendFlowContract[] = [
   },
   {
     appFile: "app/category/[name].tsx",
-    expectedLinks: ["encodeURIComponent(category)", "`/shop/"],
+    expectedLinks: ["encodeURIComponent(category)", "getTopBrandHref(store.brand)"],
     landmarks: [
       "Explore your Favorite",
       "webCategoryExploreHealthBeauty",
@@ -83,7 +83,7 @@ const frontendFlowContracts: FrontendFlowContract[] = [
   },
   {
     appFile: "app/shop/[id].tsx",
-    expectedLinks: ["`/category/${shop.category}`", "`/shop/${store.id}`"],
+    expectedLinks: ["`/category/${encodeURIComponent(shop.category)}`", "`/shop/${store.id}`"],
     landmarks: ["webShopDetailGroceryGalaxy", "ShopHero", "ShopCashbackRail", "ShopTermsPanel"],
     routeId: "shopDetail",
     routeMarkers: ["useLocalSearchParams", "CustomerShopDetailScreen", "shopId"],
@@ -384,7 +384,7 @@ const frontendFlowContracts: FrontendFlowContract[] = [
   },
   {
     appFile: "app/(tabs)/quest.tsx",
-    expectedLinks: ["/quest/history", "/brand", "`/shop/"],
+    expectedLinks: ["/quest/history", "/brand", "getTopBrandHref(card.brand)"],
     landmarks: ["webQuestTabs", "QuestTaskPanel", "QuestLeaderboardPanel"],
     routeId: "quest",
     routeMarkers: ["CustomerQuestScreen"],

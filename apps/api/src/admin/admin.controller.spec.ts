@@ -161,6 +161,27 @@ describe('AdminController', () => {
     });
   });
 
+  describe('getRoles', () => {
+    it('getRoles > given an authenticated admin > then it returns built-in admin role metadata', () => {
+      const result = controller.getRoles();
+
+      expect(result.data).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: 'super_admin',
+            label: 'Super Admin',
+            system: true,
+          }),
+          expect.objectContaining({
+            id: 'viewer',
+            label: 'Viewer',
+            system: true,
+          }),
+        ]),
+      );
+    });
+  });
+
   describe('register', () => {
     it('register > given a register dto > then it delegates to UserAdminService.register', () => {
       const dto = { email: 'x@gogocash.co' };
@@ -298,9 +319,9 @@ describe('AdminController', () => {
 
   describe('updateOffer', () => {
     // commission_store and max_cap are cashback economics. The controller only
-    // forwards them when the multipart value is a real string ("undefined" is a
-    // sentinel the multipart layer can send) — otherwise it must persist null so
-    // a missing field never overwrites economics with garbage.
+    // forwards them when the multipart value is a real value ("undefined" is a
+    // sentinel the multipart layer can send). Missing fields must remain
+    // undefined so partial saves preserve the existing economics.
     it('updateOffer > given real commission_store/max_cap > then they are forwarded as-is', () => {
       controller.updateOffer(
         'offer-1',
@@ -318,7 +339,7 @@ describe('AdminController', () => {
       expect(arg.max_cap).toBe(500);
     });
 
-    it('updateOffer > given the literal "undefined" string for money fields > then they are nulled', () => {
+    it('updateOffer > given the literal "undefined" string for money fields > then they are omitted', () => {
       controller.updateOffer(
         'offer-1',
         {
@@ -329,21 +350,33 @@ describe('AdminController', () => {
       );
 
       const arg = adminService.updateOffer.mock.calls[0][1];
-      expect(arg.commission_store).toBeNull();
-      expect(arg.max_cap).toBeNull();
+      expect(arg.commission_store).toBeUndefined();
+      expect(arg.max_cap).toBeUndefined();
     });
 
-    it('updateOffer > given missing money fields > then they default to null (no accidental overwrite)', () => {
+    it('updateOffer > given missing money fields > then they stay undefined (no accidental overwrite)', () => {
       controller.updateOffer('offer-1', {} as never, {});
 
       const arg = adminService.updateOffer.mock.calls[0][1];
-      expect(arg.commission_store).toBeNull();
-      expect(arg.max_cap).toBeNull();
+      expect(arg.commission_store).toBeUndefined();
+      expect(arg.max_cap).toBeUndefined();
+    });
+
+    it('updateOffer > given zero commission_store/max_cap > then zero is forwarded as an explicit value', () => {
+      controller.updateOffer(
+        'offer-1',
+        { commission_store: 0 as never, max_cap: 0 as never } as never,
+        {},
+      );
+
+      const arg = adminService.updateOffer.mock.calls[0][1];
+      expect(arg.commission_store).toBe(0);
+      expect(arg.max_cap).toBe(0);
     });
 
     // disabled/extra_store arrive as multipart strings; only the exact string
-    // "true" enables them. Anything else (incl. boolean false, "false", absent)
-    // must resolve to false so a flag is never accidentally turned on.
+    // "true" enables them. "false" explicitly disables them, while absent stays
+    // undefined so partial saves never rewrite existing flags.
     it('updateOffer > given disabled "true" and extra_store "true" > then both become boolean true', () => {
       controller.updateOffer(
         'offer-1',
@@ -356,7 +389,7 @@ describe('AdminController', () => {
       expect(arg.extra_store).toBe(true);
     });
 
-    it('updateOffer > given disabled "false" and extra_store omitted > then both are false', () => {
+    it('updateOffer > given disabled "false" and extra_store omitted > then disabled is false and extra_store is preserved', () => {
       controller.updateOffer(
         'offer-1',
         { disabled: 'false' as never } as never,
@@ -365,7 +398,26 @@ describe('AdminController', () => {
 
       const arg = adminService.updateOffer.mock.calls[0][1];
       expect(arg.disabled).toBe(false);
-      expect(arg.extra_store).toBe(false);
+      expect(arg.extra_store).toBeUndefined();
+    });
+
+    it('updateOffer > given disabled and extra_store omitted > then both stay undefined for partial-save preservation', () => {
+      controller.updateOffer('offer-1', {} as never, {});
+
+      const arg = adminService.updateOffer.mock.calls[0][1];
+      expect(arg.disabled).toBeUndefined();
+      expect(arg.extra_store).toBeUndefined();
+    });
+
+    it('updateOffer > given tracking_link > then it forwards the customer redirect link', () => {
+      controller.updateOffer(
+        'offer-1',
+        { tracking_link: 'https://track.example/brand' } as never,
+        {},
+      );
+
+      const arg = adminService.updateOffer.mock.calls[0][1];
+      expect(arg.tracking_link).toBe('https://track.example/brand');
     });
 
     // Multipart files arrive as single-element arrays per field; the controller
@@ -481,6 +533,46 @@ describe('AdminController', () => {
       expect(dto.image_5).toBeNull();
       expect(dto.link_2).toBeNull();
       expect(dto.link_5).toBeNull();
+    });
+
+    it('updateBannerHome > given schedule controls > then enabled and window fields pass through as-is', () => {
+      controller.updateBannerHome({}, {
+        enabled_1: false,
+        enabled_2: true,
+        start_date_1: '2026-06-01',
+        end_date_1: '2026-06-30',
+        end_date_2: '2026-07-15',
+      } as never);
+
+      const dto = adminService.updateBannerHome.mock.calls[0][0];
+      expect(dto.enabled_1).toBe(false);
+      expect(dto.enabled_2).toBe(true);
+      expect(dto.start_date_1).toBe('2026-06-01');
+      expect(dto.end_date_1).toBe('2026-06-30');
+      expect(dto.end_date_2).toBe('2026-07-15');
+      // Omitted optional schedule fields should remain undefined.
+      expect(dto.enabled_5).toBeUndefined();
+      expect(dto.start_date_3).toBeUndefined();
+      expect(dto.end_date_5).toBeUndefined();
+    });
+
+    it('updateBannerHome > given multipart boolean strings > then enabled controls are coerced', () => {
+      controller.updateBannerHome({}, {
+        enabled_1: 'false',
+        enabled_2: 'true',
+      } as never);
+
+      const dto = adminService.updateBannerHome.mock.calls[0][0];
+      expect(dto.enabled_1).toBe(false);
+      expect(dto.enabled_2).toBe(true);
+    });
+
+    it('updateBannerHome > given an empty submitted link > then the clear intent is forwarded', () => {
+      controller.updateBannerHome({}, { link_1: '' } as never);
+
+      const dto = adminService.updateBannerHome.mock.calls[0][0];
+      expect(dto.link_1).toBe('');
+      expect(dto.link_2).toBeNull();
     });
   });
 

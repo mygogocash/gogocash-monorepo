@@ -7,13 +7,16 @@ import client from "@/lib/axios/client";
 import toast from "react-hot-toast";
 import Button from "../ui/button/Button";
 import { useDataSession } from "@/hooks/useDataSession";
+import { usePermissions } from "@/hooks/usePermissions";
 import { pathImage } from "@/utils/helper";
 import { useObjectUrl } from "@/hooks/useObjectUrl";
 import { BannerRequestForm } from "@/types/banner";
 import { devError } from "@/lib/devConsole";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import { isDirty } from "@/lib/isDirty";
+import Switch from "../form/switch/Switch";
 import { useEffect, useMemo, useRef } from "react";
+import { buildBannerSlotFormData } from "./bannerFormPayload";
 interface IProp {
   fetchData: () => void;
   openModal: boolean;
@@ -42,6 +45,8 @@ const FormUpdate = ({
   uploadImageHint = "Choose a banner image (e.g. PNG, JPG). Use a clear, wide image for best display on the homepage.",
 }: IProp) => {
   const session = useDataSession();
+  const { can } = usePermissions();
+  const canManageBanners = can("banner:manage");
 
   // Snapshot of the loaded values, captured when the modal opens, so we can
   // disable "Save Changes" until the user actually edits something. File fields
@@ -73,9 +78,26 @@ const FormUpdate = ({
     link_3: f.link_3,
     link_4: f.link_4,
     link_5: f.link_5,
-    start_date: f.start_date,
-    end_date: f.end_date,
-    end_forever: f.end_forever,
+    enabled_1: f.enabled_1,
+    enabled_2: f.enabled_2,
+    enabled_3: f.enabled_3,
+    enabled_4: f.enabled_4,
+    enabled_5: f.enabled_5,
+    start_date_1: f.start_date_1,
+    start_date_2: f.start_date_2,
+    start_date_3: f.start_date_3,
+    start_date_4: f.start_date_4,
+    start_date_5: f.start_date_5,
+    end_date_1: f.end_date_1,
+    end_date_2: f.end_date_2,
+    end_date_3: f.end_date_3,
+    end_date_4: f.end_date_4,
+    end_date_5: f.end_date_5,
+    end_forever_1: f.end_forever_1,
+    end_forever_2: f.end_forever_2,
+    end_forever_3: f.end_forever_3,
+    end_forever_4: f.end_forever_4,
+    end_forever_5: f.end_forever_5,
     id: f.id,
   });
   const initialSnapshot = useRef<ReturnType<typeof snapshotForm> | null>(null);
@@ -96,32 +118,28 @@ const FormUpdate = ({
     [form],
   );
 
+  const setSlotField = <K extends keyof BannerRequestForm>(
+    key: K,
+    value: BannerRequestForm[K],
+  ) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
   // Handle file change
   const handleFileChange = (
     e: React.ChangeEvent<HTMLInputElement>,
     key: string,
   ) => {
+    if (!canManageBanners) return;
     const file = e.target.files?.[0] || null;
     setForm((prev) => ({ ...prev, [key]: file }));
   };
 
   const handleSave = () => {
-    const formData = new FormData();
+    if (!canManageBanners) return;
+    const formData = buildBannerSlotFormData(form);
+    if (!formData) return;
 
-    formData.append("link_1", String(form.link_1));
-    formData.append("link_2", String(form.link_2));
-    formData.append("link_3", String(form.link_3));
-    formData.append("link_4", String(form.link_4));
-    formData.append("link_5", String(form.link_5));
-    if (form.start_date) formData.append("start_date", form.start_date);
-    if (!form.end_forever && form.end_date)
-      formData.append("end_date", form.end_date);
-
-    if (form.image_1) formData.append("image_1", form.image_1);
-    if (form.image_2) formData.append("image_2", form.image_2);
-    if (form.image_3) formData.append("image_3", form.image_3);
-    if (form.image_4) formData.append("image_4", form.image_4);
-    if (form.image_5) formData.append("image_5", form.image_5);
     setIsLoading(true);
     client
       .post(savePath, formData, {
@@ -143,9 +161,17 @@ const FormUpdate = ({
       });
   };
   const slotImage = form[`image_${form.id}` as keyof BannerRequestForm];
+  const slotEnabledKey = `enabled_${form.id}` as keyof BannerRequestForm;
+  const slotStartDateKey = `start_date_${form.id}` as keyof BannerRequestForm;
+  const slotEndDateKey = `end_date_${form.id}` as keyof BannerRequestForm;
+  const slotEndForeverKey = `end_forever_${form.id}` as keyof BannerRequestForm;
   const slotImageUrl = useObjectUrl(
     slotImage instanceof File ? slotImage : null,
   );
+  const slotEnabled = Boolean(form[slotEnabledKey]);
+  const slotStartDate = String(form[slotStartDateKey] || "");
+  const slotEndDate = String(form[slotEndDateKey] || "");
+  const slotEndForever = Boolean(form[slotEndForeverKey]);
   const slotDesc = headerDescription.replace(/\{slot\}/g, String(form.id));
 
   return (
@@ -179,7 +205,7 @@ const FormUpdate = ({
             </Button>
             <Button
               size="sm"
-              disabled={isLoading || !dirty}
+              disabled={isLoading || !dirty || !canManageBanners}
               onClick={() => handleSave()}
               startIcon={
                 isLoading ? (
@@ -191,6 +217,12 @@ const FormUpdate = ({
             </Button>
           </div>
         </div>
+        {!canManageBanners ? (
+          <p className="mb-4 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+            You have read-only access. Ask an admin with Banner Management
+            permission to update this banner.
+          </p>
+        ) : null}
         <div className="min-h-0 flex-1 overflow-auto pb-4">
           <div className="mb-5 flex gap-2 border-b border-gray-200 dark:border-gray-700">
             <div>
@@ -203,6 +235,7 @@ const FormUpdate = ({
               <Input
                 type="file"
                 name={`image_${form.id}`}
+                disabled={!canManageBanners}
                 onChange={(event) =>
                   handleFileChange(event, `image_${form.id}`)
                 }
@@ -241,8 +274,12 @@ const FormUpdate = ({
               <Input
                 type="text"
                 name={`link_${form.id}`}
+                disabled={!canManageBanners}
                 onChange={(event) =>
-                  setForm({ ...form, [`link_${form.id}`]: event.target.value })
+                  setSlotField(
+                    `link_${form.id}` as keyof BannerRequestForm,
+                    event.target.value,
+                  )
                 }
                 defaultValue={
                   (form[
@@ -253,6 +290,22 @@ const FormUpdate = ({
             </div>
           </div>
           <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:gap-6">
+            <div className="min-w-0">
+              <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                Slot enabled
+              </p>
+              <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+                Turn this slot off to hide it without removing the banner content.
+              </p>
+              <Switch
+                label="Enabled"
+                checked={slotEnabled}
+                disabled={!canManageBanners}
+                onChange={(checked) =>
+                  setSlotField(slotEnabledKey, checked)
+                }
+              />
+            </div>
             <div className="min-w-0 flex-1">
               <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
                 Start date
@@ -263,10 +316,14 @@ const FormUpdate = ({
               </p>
               <Input
                 type="date"
-                name="start_date"
-                value={form.start_date ?? ""}
+                name={slotStartDateKey as string}
+                value={slotStartDate}
+                disabled={!canManageBanners}
                 onChange={(e) =>
-                  setForm({ ...form, start_date: e.target.value })
+                  setSlotField(
+                    slotStartDateKey,
+                    e.target.value,
+                  )
                 }
               />
             </div>
@@ -281,36 +338,34 @@ const FormUpdate = ({
               <label className="mb-3 flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200">
                 <input
                   type="checkbox"
-                  checked={form.end_forever}
-                  onChange={(e) => {
-                    const forever = e.target.checked;
-                    setForm({
-                      ...form,
-                      end_forever: forever,
-                      end_date: forever
-                        ? ""
-                        : form.end_date ||
-                          form.start_date ||
+                  checked={slotEndForever}
+                  disabled={!canManageBanners}
+                onChange={(e) => {
+                  const forever = e.target.checked;
+                  setSlotField(slotEndForeverKey, forever);
+                  setSlotField(
+                    slotEndDateKey,
+                    forever
+                      ? ""
+                      : slotEndDate ||
+                          slotStartDate ||
                           new Date().toISOString().slice(0, 10),
-                    });
-                  }}
+                  );
+                }}
                   className="text-brand-500 h-4 w-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-800"
                 />
                 Forever (no end date)
               </label>
               <Input
                 type="date"
-                name="end_date"
-                value={form.end_date ?? ""}
-                min={form.start_date || undefined}
-                disabled={form.end_forever}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    end_date: e.target.value,
-                    end_forever: false,
-                  })
-                }
+                name={slotEndDateKey as string}
+                value={slotEndDate}
+                min={slotStartDate || undefined}
+                disabled={!canManageBanners || slotEndForever}
+                onChange={(e) => {
+                  setSlotField(slotEndDateKey, e.target.value);
+                  setSlotField(slotEndForeverKey, false);
+                }}
               />
             </div>
           </div>

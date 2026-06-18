@@ -35,11 +35,13 @@ import {
 import profileAvatarImage from "../../assets/profile-avatar.png";
 import { GoGoPassAvatar } from "@mobile/components/GoGoPassAvatar";
 import { GoGoPassBadge } from "@mobile/components/GoGoPassBadge";
+import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
 import {
   getAccountShellFooterHorizontalPadding,
   getAccountShellFrameMetrics,
+  getDesktopShellOffset,
   mobileShellLayout,
   profileHubMenuItems,
   profileHubSubNavItems,
@@ -77,6 +79,7 @@ export function AccountPageShell({
   // Desktop: every profile-section route renders the persistent sidebar (rail),
   // not just the hub screens that explicitly opt in via showProfileRail.
   const showDesktopRail = isDesktop && (showProfileRail || isProfileSectionPath(pathname));
+  const useDesktopHomepageFooter = isDesktop && !showDesktopRail;
   // The rounded surface card wraps content whenever the rail shows, plus the
   // mobile hub screens (profile/wallet) that opt in via showProfileRail.
   const useProfileSurface = showDesktopRail || (!isDesktop && showProfileRail);
@@ -87,15 +90,17 @@ export function AccountPageShell({
   const frameMetrics = getAccountShellFrameMetrics(width, {
     alignToNavbarShell: showDesktopRail,
   });
-  // The full-bleed footer must offset back past the frame's centering gap + content
-  // padding so its centered content lines up with the page content (not shift right).
+  // Rail pages keep the footer inside the padded account frame, so they need an
+  // offset back past the frame's centering gap + content padding. Quest/non-rail
+  // desktop pages use the same full-width footer placement as the homepage.
   const footerHorizontalPadding = getAccountShellFooterHorizontalPadding(width, {
     alignToNavbarShell: showDesktopRail,
   });
+  const desktopFooterHorizontalOffset = getDesktopShellOffset(width);
 
   return (
     <View style={styles.viewport}>
-      <View style={[styles.frame, { maxWidth: frameMetrics.maxWidth }]}>
+      <View style={[styles.frame, useDesktopHomepageFooter ? null : { maxWidth: frameMetrics.maxWidth }]}>
         <ScrollView
           contentContainerStyle={[
             styles.page,
@@ -103,7 +108,7 @@ export function AccountPageShell({
               paddingBottom: showBottomNav
                 ? mobileShellLayout.bottomNavClearance + 18
                 : mobileShellLayout.desktopBottomClearance,
-              paddingHorizontal: frameMetrics.paddingHorizontal,
+              paddingHorizontal: useDesktopHomepageFooter ? 0 : frameMetrics.paddingHorizontal,
               paddingTop: Math.max(spacing.md, insets.top + spacing.md),
             },
           ]}
@@ -134,12 +139,41 @@ export function AccountPageShell({
               </View>
             </View>
           ) : (
-            <View style={styles.questContent}>{children}</View>
+            <View
+              style={[
+                styles.questContent,
+                useDesktopHomepageFooter
+                  ? [
+                      styles.questContentDesktopCap,
+                      {
+                        maxWidth: frameMetrics.maxWidth,
+                        paddingHorizontal: frameMetrics.paddingHorizontal,
+                      },
+                    ]
+                  : null,
+              ]}
+            >
+              {children}
+            </View>
           )}
-          <CustomerDesktopFooterSlot
-            horizontalPadding={footerHorizontalPadding}
-            style={styles.desktopFooter}
-          />
+          {useDesktopHomepageFooter ? (
+            <View
+              style={[
+                styles.desktopHomepageFooterCap,
+                { maxWidth: mobileShellLayout.desktopContentMaxWidth },
+              ]}
+            >
+              <CustomerDesktopFooter
+                horizontalPadding={desktopFooterHorizontalOffset}
+                viewportWidth={width}
+              />
+            </View>
+          ) : (
+            <CustomerDesktopFooterSlot
+              horizontalPadding={footerHorizontalPadding}
+              style={styles.desktopFooter}
+            />
+          )}
         </ScrollView>
         {showBottomNav ? (
           <CustomerMobileBottomNav activeRouteId={activeRouteId} bottomInset={insets.bottom} />
@@ -504,6 +538,13 @@ const styles = StyleSheet.create({
   },
   questContent: {
     gap: spacing.lg,
+    width: "100%",
+  },
+  questContentDesktopCap: {
+    alignSelf: "center",
+  },
+  desktopHomepageFooterCap: {
+    alignSelf: "center",
     width: "100%",
   },
   walletHeroCard: {

@@ -90,10 +90,10 @@ export default function UserScoringPanel({ userId }: { userId: string }) {
   }
 
   const detail = detailQ.data;
-  const maxContribution = Math.max(
-    1,
-    ...detail.factors.map((f) => f.contribution),
-  );
+  const history = Array.isArray(detail.history) ? detail.history : [];
+  const factors = Array.isArray(detail.factors) ? detail.factors : [];
+  const maxContribution = Math.max(1, ...factors.map((f) => f.contribution));
+  const tierBadge = CREDIT_TIER_BADGE[detail.tier] ?? CREDIT_TIER_BADGE.bronze;
 
   return (
     <div className="space-y-6">
@@ -103,7 +103,7 @@ export default function UserScoringPanel({ userId }: { userId: string }) {
             Credit score
           </div>
           <p className="mt-1 text-base font-semibold text-gray-900 dark:text-white">
-            {detail.currentScore}
+            {detail.currentScore ?? 0}
           </p>
         </div>
         <div className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900/40">
@@ -112,9 +112,9 @@ export default function UserScoringPanel({ userId }: { userId: string }) {
           </div>
           <div className="mt-1">
             <span
-              className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold capitalize ${CREDIT_TIER_BADGE[detail.tier]}`}
+              className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold capitalize ${tierBadge}`}
             >
-              {detail.tier}
+              {detail.tier ?? "bronze"}
             </span>
           </div>
         </div>
@@ -123,65 +123,73 @@ export default function UserScoringPanel({ userId }: { userId: string }) {
         <p className="mb-2 font-medium text-gray-900 dark:text-white">
           Score history
         </p>
-        <div className="h-56 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart
-              data={detail.history.slice(-10)}
-              margin={{ top: 5, right: 24, bottom: 0, left: 0 }}
-            >
-              <CartesianGrid
-                strokeDasharray="3 3"
-                className="stroke-gray-200 dark:stroke-gray-700"
-              />
-              <XAxis
-                dataKey="date"
-                tick={{ fontSize: 10 }}
-                interval={0}
-                tickFormatter={(d) => formatMonthYear(d)}
-              />
-              <YAxis tick={{ fontSize: 10 }} />
-              <Tooltip labelFormatter={(d) => formatMonthYear(d)} />
-              <Line
-                type="monotone"
-                dataKey="score"
-                stroke="#7c3aed"
-                strokeWidth={2}
-                dot={false}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+        {history.length > 0 ? (
+          <div className="h-56 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={history.slice(-10)}
+                margin={{ top: 5, right: 24, bottom: 0, left: 0 }}
+              >
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  className="stroke-gray-200 dark:stroke-gray-700"
+                />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 10 }}
+                  interval={0}
+                  tickFormatter={(d) => formatMonthYear(d)}
+                />
+                <YAxis tick={{ fontSize: 10 }} />
+                <Tooltip labelFormatter={(d) => formatMonthYear(d)} />
+                <Line
+                  type="monotone"
+                  dataKey="score"
+                  stroke="#7c3aed"
+                  strokeWidth={2}
+                  dot={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <NoData>No score history recorded for this user.</NoData>
+        )}
       </div>
       <div>
         <p className="font-medium text-gray-900 dark:text-white">Factors</p>
         <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
           Weight = how much each factor counts · contribution = points it added.
         </p>
-        <div className="mt-3 space-y-3">
-          {detail.factors.map((f) => (
-            <div key={f.name}>
-              <div className="mb-1 flex items-baseline justify-between gap-2 text-sm">
-                <span className="font-medium text-gray-800 dark:text-gray-200">
-                  {f.name}
-                </span>
-                <span className="text-gray-500 dark:text-gray-400">
-                  weight {Math.round(f.weight * 100)}% ·{" "}
-                  <span className="font-semibold text-gray-900 tabular-nums dark:text-white">
-                    +{Math.round(f.contribution)} pts
+        {factors.length > 0 ? (
+          <div className="mt-3 space-y-3">
+            {factors.map((f) => (
+              <div key={f.name}>
+                <div className="mb-1 flex items-baseline justify-between gap-2 text-sm">
+                  <span className="font-medium text-gray-800 dark:text-gray-200">
+                    {f.name}
                   </span>
-                </span>
+                  <span className="text-gray-500 dark:text-gray-400">
+                    weight {Math.round(f.weight * 100)}% ·{" "}
+                    <span className="font-semibold text-gray-900 tabular-nums dark:text-white">
+                      +{Math.round(f.contribution)} pts
+                    </span>
+                  </span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                  <div
+                    className="bg-brand-500 h-full rounded-full"
+                    style={{
+                      width: `${(f.contribution / maxContribution) * 100}%`,
+                    }}
+                  />
+                </div>
               </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                <div
-                  className="bg-brand-500 h-full rounded-full"
-                  style={{
-                    width: `${(f.contribution / maxContribution) * 100}%`,
-                  }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <NoData>No score factors recorded for this user.</NoData>
+        )}
       </div>
       <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
         <p className="font-medium text-gray-900 dark:text-white">

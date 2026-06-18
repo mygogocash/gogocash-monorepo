@@ -43,6 +43,12 @@ function displayAffiliatePartner(offer: Offer): string {
   return affiliateNetworkName(resolveAffiliateNetworkIdForOffer(offer));
 }
 
+export function offerVisibilityStatusLabel(
+  disabled: boolean,
+): "Hidden" | "Live" {
+  return disabled ? "Hidden" : "Live";
+}
+
 /**
  * Brand-grouping key — same logic as the customer-side `dedupeOffersByBrand`.
  * `merchant_id` is the strongest grouping signal (one merchant id across markets); falls
@@ -653,7 +659,7 @@ export default function OffersTable({
                                         : "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
                                     }`}
                                   >
-                                    {offer.disabled ? "Disable" : "Enable"}
+                                    {offerVisibilityStatusLabel(offer.disabled)}
                                   </span>
                                   {isUpsizeActiveNow(offer, nowMs) && (
                                     <span

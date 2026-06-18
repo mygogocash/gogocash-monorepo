@@ -12,6 +12,7 @@ import { MissionOrder } from './schemas/missing-order.schema';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
 import { User } from 'src/user/schemas/user.schema';
 import { GoogleDriveService } from 'src/google-drive/google-drive.service';
+import { Quest } from 'src/point/schemas/quest.schema';
 
 /**
  * A chainable Mongoose query stub. Each builder method returns `this` so that
@@ -41,6 +42,7 @@ describe('OfferService', () => {
   let bannerModel: any;
   let topBrandConfigModel: any;
   let missionOrderModel: any;
+  let questModel: any;
   let googleDriveService: { uploadFile: jest.Mock };
 
   beforeEach(async () => {
@@ -48,6 +50,7 @@ describe('OfferService', () => {
       find: jest.fn().mockReturnValue(makeQuery([])),
       findById: jest.fn(),
       findOne: jest.fn(),
+      create: jest.fn().mockResolvedValue({ _id: 'created-offer' }),
       countDocuments: jest.fn().mockResolvedValue(0),
       collection: {
         indexes: jest.fn().mockResolvedValue([]),
@@ -77,6 +80,7 @@ describe('OfferService', () => {
     missionOrderModel = jest.fn();
     missionOrderModel.find = jest.fn().mockReturnValue(makeQuery([]));
     missionOrderModel.countDocuments = jest.fn().mockResolvedValue(0);
+    questModel = { findOne: jest.fn().mockReturnValue(makeQuery(null)) };
     googleDriveService = { uploadFile: jest.fn() };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
@@ -100,6 +104,7 @@ describe('OfferService', () => {
           provide: getModelToken(MissionOrder.name),
           useValue: missionOrderModel,
         },
+        { provide: getModelToken(Quest.name), useValue: questModel },
         { provide: GoogleDriveService, useValue: googleDriveService },
       ],
     }).compile();
@@ -167,6 +172,208 @@ describe('OfferService', () => {
       const filter = offerModel.find.mock.calls[0][0];
       expect(filter.status).toBe('pending_review');
       expect(filter.source).toBe('optimise');
+    });
+  });
+
+  describe('findOne (public detail)', () => {
+    it('findOne > given a live offer id > then it returns customer-safe fields including tracking_link', async () => {
+      const offerId = new Types.ObjectId().toHexString();
+      const query = makeQuery({
+        _id: offerId,
+        offer_name: 'Nike',
+        tracking_link: 'https://track.example/nike',
+        reviewed_by: 'admin-1',
+        reviewed_at: new Date('2026-01-01T00:00:00.000Z'),
+        rejection_reason: 'old reason',
+      });
+      offerModel.findOne.mockReturnValue(query);
+
+      const result = await service.findOne(offerId);
+
+      expect(offerModel.findOne).toHaveBeenCalledWith({
+        _id: offerId,
+        disabled: { $ne: true },
+        status: { $nin: ['pending_review', 'rejected'] },
+      });
+      expect(query.select).toHaveBeenCalledWith(
+        expect.stringContaining('tracking_link'),
+      );
+      expect(result).toEqual(
+        expect.objectContaining({
+          _id: offerId,
+          offer_name: 'Nike',
+          tracking_link: 'https://track.example/nike',
+        }),
+      );
+      expect(result).not.toHaveProperty('reviewed_by');
+      expect(result).not.toHaveProperty('reviewed_at');
+      expect(result).not.toHaveProperty('rejection_reason');
+    });
+
+    it('findOne > given an invalid offer id > then it returns null without querying Mongo', async () => {
+      await expect(service.findOne('not-an-objectid')).resolves.toBeNull();
+
+      expect(offerModel.findOne).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('createAdminOffer', () => {
+    it('createAdminOffer > given brand form data > then creates an approved manual offer with tracking_link', async () => {
+      const result = await service.createAdminOffer({
+        brand_name: 'Orbit Airways',
+        affiliate_tracking_link: ' https://track.example/orbit ',
+        countries: 'Thailand',
+        currency: 'THB',
+        disabled: 'false',
+        extra_store: 'true',
+        commission_store: '7.5',
+        max_cap: '500',
+        is_global: 'true',
+        default_country: 'Thailand',
+        product_types: JSON.stringify([
+          {
+            name: 'Flights',
+            commission_info: '7.5%',
+            deeplink: 'https://gogocash.app/open/orbit',
+          },
+        ]),
+      });
+
+      expect(offerModel.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          offer_name: 'Orbit Airways - CPS',
+          offer_name_display: 'Orbit Airways',
+          tracking_link: 'https://track.example/orbit',
+          preview_url: 'https://track.example/orbit',
+          directory_page: 'https://track.example/orbit',
+          disabled: false,
+          extra_store: true,
+          commission_store: 7.5,
+          max_cap: 500,
+          status: 'approved',
+          source: 'manual',
+          is_global: true,
+          default_country: 'Thailand',
+          product_type: [
+            {
+              name: 'Flights',
+              commission_info: '7.5%',
+              deeplink: 'https://gogocash.app/open/orbit',
+            },
+          ],
+        }),
+      );
+      expect(result).toEqual({ _id: 'created-offer' });
+    });
+
+    it('createAdminOffer > given no tracking link > then it rejects without creating an offer', async () => {
+      await expect(
+        service.createAdminOffer({ brand_name: 'Missing Link' }),
+      ).rejects.toMatchObject({ status: 400 });
+
+      expect(offerModel.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getOfferExtraPoint', () => {
+    it('getOfferExtraPoint > given open quest tasks > then it returns enabled approved offers in quest order', async () => {
+      const offerA = new Types.ObjectId();
+      const offerB = new Types.ObjectId();
+      questModel.findOne.mockReturnValue(
+        makeQuery({
+          _id: new Types.ObjectId(),
+          status: 'open',
+          tasks: [
+            {
+              offer: offerB,
+              offer_id: 202,
+              merchant_id: 2002,
+              extra_point: 25,
+              sort_order: 1,
+              enabled: true,
+            },
+            {
+              offer: offerA,
+              offer_id: 101,
+              merchant_id: 1001,
+              extra_point: 50,
+              sort_order: 0,
+              enabled: true,
+              wording: 'Make an order on A',
+            },
+            {
+              offer: new Types.ObjectId(),
+              offer_id: 303,
+              merchant_id: 3003,
+              extra_point: 75,
+              sort_order: 2,
+              enabled: false,
+            },
+          ],
+        }),
+      );
+      offerModel.find.mockReturnValue(
+        makeQuery([
+          {
+            _id: offerB,
+            offer_id: 202,
+            merchant_id: 2002,
+            offer_name: 'B',
+            disabled: false,
+            status: 'approved',
+          },
+          {
+            _id: offerA,
+            offer_id: 101,
+            merchant_id: 1001,
+            offer_name: 'A',
+            disabled: false,
+            status: 'approved',
+          },
+        ]),
+      );
+
+      const result = await service.getOfferExtraPoint();
+
+      expect(questModel.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'open',
+          $and: expect.arrayContaining([
+            expect.objectContaining({ $or: expect.any(Array) }),
+            expect.objectContaining({ $or: expect.any(Array) }),
+          ]),
+        }),
+      );
+      expect(offerModel.find).toHaveBeenCalledWith({
+        _id: { $in: [offerA, offerB] },
+        disabled: { $ne: true },
+        status: { $nin: ['pending_review', 'rejected'] },
+      });
+      expect(result).toEqual([
+        expect.objectContaining({
+          _id: offerA,
+          extra_point: 50,
+          quest_task_sort_order: 0,
+          quest_task_wording: 'Make an order on A',
+        }),
+        expect.objectContaining({
+          _id: offerB,
+          extra_point: 25,
+          quest_task_sort_order: 1,
+        }),
+      ]);
+    });
+
+    it('getOfferExtraPoint > given no quest tasks > then it falls back to the legacy extra_point query with active-offer filters', async () => {
+      questModel.findOne.mockReturnValue(makeQuery({ _id: 'q1', tasks: [] }));
+
+      await service.getOfferExtraPoint();
+
+      expect(offerModel.find).toHaveBeenCalledWith({
+        extra_point: { $gt: 1 },
+        disabled: { $ne: true },
+        status: { $nin: ['pending_review', 'rejected'] },
+      });
     });
   });
 
@@ -376,10 +583,27 @@ describe('OfferService', () => {
 
       const result = await service.getDisplayTopBrands();
 
+      expect(offerModel.find).toHaveBeenCalledWith({
+        _id: { $in: ['id2', 'id1'] },
+        disabled: { $ne: true },
+        status: { $nin: ['pending_review', 'rejected'] },
+      });
       expect(result).toEqual({
         data: [
-          { offer_id: 2, brand: 'Bravo', logo: 'b.png', cashback: '10.0%' },
-          { offer_id: 1, brand: 'Alpha', logo: 'a.png', cashback: '12.5%' },
+          {
+            _id: 'id2',
+            offer_id: 2,
+            brand: 'Bravo',
+            logo: 'b.png',
+            cashback: '10.0%',
+          },
+          {
+            _id: 'id1',
+            offer_id: 1,
+            brand: 'Alpha',
+            logo: 'a.png',
+            cashback: '12.5%',
+          },
         ],
       });
     });
@@ -402,8 +626,49 @@ describe('OfferService', () => {
       const result = await service.getDisplayTopBrands();
 
       expect(result.data).toEqual([
-        { offer_id: 1, brand: 'Alpha', logo: 'a.png', cashback: '12.5%' },
+        {
+          _id: 'id1',
+          offer_id: 1,
+          brand: 'Alpha',
+          logo: 'a.png',
+          cashback: '12.5%',
+        },
       ]);
+    });
+  });
+
+  describe('getBannerHome', () => {
+    it('getBannerHome > given a banner doc > then it returns a lean object with per-slot schedule fields', async () => {
+      bannerModel.findOne.mockReturnValue(
+        makeQuery({
+          image_1: 'banner-1',
+          link_1: 'https://a.com',
+          enabled_1: true,
+          start_date_1: '2026-06-01',
+          end_date_1: '2026-06-30',
+          start_date: '2025-01-01',
+          end_date: '2025-12-31',
+          start_date_2: '2026-07-01',
+          end_date_2: '2026-07-31',
+        }),
+      );
+
+      const result = await service.getBannerHome();
+
+      expect(bannerModel.findOne).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(
+        expect.objectContaining({
+          image_1: 'banner-1',
+          link_1: 'https://a.com',
+          enabled_1: true,
+          start_date_1: '2026-06-01',
+          end_date_1: '2026-06-30',
+          start_date: '2025-01-01',
+          end_date: '2025-12-31',
+          start_date_2: '2026-07-01',
+          end_date_2: '2026-07-31',
+        }),
+      );
     });
   });
 

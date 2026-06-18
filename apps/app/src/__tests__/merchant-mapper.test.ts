@@ -5,9 +5,13 @@ import { mapMerchantOfferToShopDetail } from "../api/merchantMapper";
 const fixtureShop = {
   id: "brand-grocery-galaxy-1001",
   brand: "Grocery Galaxy",
+  bannerAsset: "home-side-watch",
   category: "others",
   cashback: "26.5%",
+  extraCashback: "14%",
   logoText: "GO",
+  productRates: [{ name: "Groceries", rate: "0%" }],
+  note: "fixture merchant campaign note",
   shopNowLabel: "Shop Now",
   disclaimer: "static legal copy",
 } as const;
@@ -20,11 +24,13 @@ const liveOffer = {
   categories: "Fashion",
   commissions: [{ Commission: "5.6%" }],
   logo: "https://cdn.example/logo.png",
+  banner: "backend-banner-file-id",
   merchant_id: 2048,
   offer_id: 1024,
   offer_name: "Lazada TH",
   source: "involve",
   status: "active",
+  tracking_link: "https://tracking.example/lazada",
 };
 
 describe("isMerchantOfferResponse", () => {
@@ -40,15 +46,24 @@ describe("isMerchantOfferResponse", () => {
 });
 
 describe("mapMerchantOfferToShopDetail", () => {
-  it("given a live offer > then overlays identity fields and keeps the fixture's static copy", () => {
+  it("given a live offer > then overlays identity and media without leaking fixture merchant copy", () => {
     const shop = mapMerchantOfferToShopDetail(liveOffer, fixtureShop);
 
     expect(shop.id).toBe("68345f00aa11bb22cc33dd44");
     expect(shop.brand).toBe("Lazada TH");
     expect(shop.category).toBe("Fashion");
     expect(shop.cashback).toBe("5.6%");
-    // Static product copy has no backend source — it must survive untouched.
-    expect(shop.disclaimer).toBe("static legal copy");
+    expect(shop.trackingUrl).toBe("https://tracking.example/lazada");
+    expect(shop.logoUri).toBe("https://cdn.example/logo.png");
+    expect(shop.bannerUri).toBe(
+      "https://drive.google.com/uc?export=view&id=backend-banner-file-id"
+    );
+    expect(shop.logoText).toBe("LT");
+    expect(shop.extraCashback).toBe("5.6%");
+    expect(shop.productRates).toEqual([{ name: "Lazada TH", rate: "5.6%" }]);
+    expect(shop.note).toContain("Lazada TH");
+    expect(shop.disclaimer).toContain("Lazada TH");
+    expect(shop.disclaimer).not.toBe("static legal copy");
     expect(shop.shopNowLabel).toBe("Shop Now");
   });
 

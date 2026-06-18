@@ -1,4 +1,5 @@
 import type { OfferListResponse, OfferRecord } from "@mobile/api/catalogTypes";
+import { resolveRemoteImageUri } from "@mobile/api/mediaUrl";
 
 // View-model the brand cards consume — the same field shape as the
 // webFavoriteBrandsPage.recentBrands fixture rows, plus the live-only extras
@@ -35,15 +36,38 @@ export function deriveCatalogTint(name: string): string {
 
 function formatCashback(commission: OfferRecord["commission_store"]): string {
   const value = typeof commission === "number" ? String(commission) : commission?.trim();
-  return value ? `${value}%` : "0%";
+  if (!value) {
+    return "0%";
+  }
+  return value.endsWith("%") ? value : `${value}%`;
 }
 
 function resolveLogo(logo: OfferRecord["logo"]): string | undefined {
-  return logo && /^https?:\/\//.test(logo) ? logo : undefined;
+  return resolveRemoteImageUri(logo);
+}
+
+export function isCustomerVisibleOffer({
+  disabled,
+  status,
+}: {
+  disabled?: boolean;
+  status?: string;
+}): boolean {
+  const normalizedStatus = status?.trim().toLowerCase();
+  return (
+    disabled !== true &&
+    normalizedStatus !== "pending" &&
+    normalizedStatus !== "pending_review" &&
+    normalizedStatus !== "rejected"
+  );
 }
 
 export function mapOffersToCatalogBrands(response: OfferListResponse): CatalogBrand[] {
   return response.data.flatMap((offer) => {
+    if (!isCustomerVisibleOffer(offer)) {
+      return [];
+    }
+
     const name = offer.offer_name_display?.trim() || offer.offer_name?.trim() || "";
     if (!offer._id || !name) {
       return [];

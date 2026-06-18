@@ -8,14 +8,20 @@
  * of [[mobile-admin-config-wiring-template]] (homeBannerResource).
  */
 import type { AccountDataSource } from "@mobile/auth/routeGuard";
+import { isCustomerVisibleOffer, mapOffersToCatalogBrands } from "@mobile/api/catalogMapper";
+import { isOfferListResponse } from "@mobile/api/catalogTypes";
+import { resolveRemoteImageUri } from "@mobile/api/mediaUrl";
 
 /** Raw payload from GET /offer/top-brands. */
 export type TopBrandsPayload = {
   data?: {
+    _id?: string;
     offer_id: number;
     brand: string;
+    disabled?: boolean;
     logo: string;
     cashback: string;
+    status?: string;
   }[];
 } | null;
 
@@ -23,6 +29,7 @@ export type TopBrandsPayload = {
 export type TopBrandCard = {
   brand: string;
   cashback: string;
+  href?: string;
   label: string;
   logoUri: string;
   showGrabCoupon: boolean;
@@ -34,17 +41,35 @@ const TOP_BRAND_TINTS = ["#6366F1", "#2563EB", "#0EA5E9", "#10B981", "#F59E0B", 
 
 /**
  * Spec pinned by top-brand-resource.test.ts.
- * ponytail: stubs return [] so the spec fails on an assertion (RED), not an import error.
  */
 export function mapBackendTopBrands(payload: TopBrandsPayload): TopBrandCard[] {
   const items = payload?.data ?? [];
-  return items.map((item, index) => ({
-    brand: item.brand,
-    cashback: item.cashback,
+  return items
+    .filter(isCustomerVisibleOffer)
+    .map((item, index) => ({
+      brand: item.brand,
+      cashback: item.cashback,
+      href: item._id ? `/shop/${item._id}` : undefined,
+      label: "Grab Coupon",
+      logoUri: resolveRemoteImageUri(item.logo) ?? "",
+      showGrabCoupon: false,
+      tint: TOP_BRAND_TINTS[index % TOP_BRAND_TINTS.length],
+    }));
+}
+
+export function mapOfferCatalogToTopBrands(payload: unknown): TopBrandCard[] {
+  if (!isOfferListResponse(payload)) {
+    return [];
+  }
+
+  return mapOffersToCatalogBrands(payload).map((brand, index) => ({
+    brand: brand.name,
+    cashback: brand.cashback,
+    href: brand.href,
     label: "Grab Coupon",
-    logoUri: item.logo,
-    showGrabCoupon: false,
-    tint: TOP_BRAND_TINTS[index % TOP_BRAND_TINTS.length],
+    logoUri: brand.logo ?? "",
+    showGrabCoupon: brand.showGrabCoupon,
+    tint: brand.tint || TOP_BRAND_TINTS[index % TOP_BRAND_TINTS.length],
   }));
 }
 
@@ -52,12 +77,10 @@ export function resolveTopBrands(
   source: AccountDataSource,
   data: unknown,
   fallback: readonly TopBrandCard[],
+  _catalogData?: unknown,
 ): TopBrandCard[] {
   if (source === "backend") {
-    const mapped = mapBackendTopBrands(data as TopBrandsPayload);
-    if (mapped.length > 0) {
-      return mapped;
-    }
+    return mapBackendTopBrands(data as TopBrandsPayload);
   }
   return [...fallback];
 }

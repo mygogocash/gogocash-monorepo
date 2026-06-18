@@ -553,15 +553,16 @@ export function getAccountShellFrameMetrics(
 /**
  * Horizontal offset the AccountPageShell must pass to its desktop footer slot.
  *
- * The footer renders full-bleed — CustomerDesktopFooter sets
+ * Rail pages render the same full-bleed footer as the homepage, but inside the
+ * account shell's centered frame. CustomerDesktopFooter sets
  * `marginLeft: -horizontalPadding` + `width: viewportWidth` and centers its inner
  * content. But it lives inside the shell's centered, horizontally-padded frame, so
  * without compensation it starts at the padded content edge and overflows to the
  * right (clipping the last footer column / social icon). Offsetting by the frame's
  * centering gap plus its content padding pulls the footer back to the viewport edge
- * so its centered content lines up with the page content above it. Mirrors the
- * `getDesktopShellOffset` convention the full-bleed pages use, but adds the frame
- * padding the shell applies via the ScrollView content container.
+ * so its centered content lines up with the page content above it. Quest/non-rail
+ * desktop pages do not use this helper; AccountPageShell renders their footer in
+ * the same full-width page structure as the homepage and uses getDesktopShellOffset.
  *
  * Mobile hides the footer (CustomerDesktopFooterSlot returns null below the desktop
  * breakpoint), so no offset is needed there.
@@ -570,7 +571,7 @@ export function getAccountShellFooterHorizontalPadding(
   viewportWidth: number,
   options: { alignToNavbarShell?: boolean } = {}
 ): number {
-  if (viewportWidth < mobileShellLayout.desktopBreakpoint) {
+  if (viewportWidth < mobileShellLayout.desktopBreakpoint || !options.alignToNavbarShell) {
     return 0;
   }
 

@@ -102,6 +102,7 @@ import {
   type HomeHeroBanner,
   resolveHomeHeroBanners,
 } from "@mobile/account/homeBannerResource";
+import { resolveHomePromoSections } from "@mobile/account/brandCatalogResource";
 import {
   resolveTopBrands,
   type TopBrandCard,
@@ -170,6 +171,7 @@ const webSearchInputFocusReset = {
 type CompactBrandLogoOfferCardProps = {
   readonly brand: string;
   readonly cashback: string;
+  readonly href?: string;
   readonly logoAsset?: keyof typeof brandLogoAssets;
   readonly logoFallbackText?: string;
   readonly logoUri?: string;
@@ -239,6 +241,15 @@ export function CustomerHomeScreen() {
   const [searchPopoverMounted, setSearchPopoverMounted] = useState(false);
   const [goLinkSheetOpen, setGoLinkSheetOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const brandCatalogResource = useCustomerAccountResource({
+    fixtureData: webHomePromoSections,
+    resourceId: "brandCatalog",
+  });
+  const promoSections = resolveHomePromoSections(
+    brandCatalogResource.source,
+    brandCatalogResource.data,
+    webHomePromoSections
+  );
   const searchTopPadding = Math.max(8, insets.top + 8);
   const searchPopoverTop = searchTopPadding + 62;
   const openSearchPopover = useCallback(() => {
@@ -273,9 +284,9 @@ export function CustomerHomeScreen() {
         />
       ) : null}
       {webHomeSectionOrder.includes("extra") ? (
-        <TopBrandSection homeLayout={homeLayout} />
+        <TopBrandSection brandCatalogData={brandCatalogResource.data} homeLayout={homeLayout} />
       ) : null}
-      {webHomePromoSections.map((section) => (
+      {promoSections.filter((section) => section.cards.length > 0).map((section) => (
         <PromoSection homeLayout={homeLayout} key={section.id} {...section} />
       ))}
     </>
@@ -1146,7 +1157,13 @@ function HeroArrow({ size }: { size: "large" | "small" }) {
   );
 }
 
-function TopBrandSection({ homeLayout }: { homeLayout: HomeLayoutMetrics }) {
+function TopBrandSection({
+  brandCatalogData,
+  homeLayout,
+}: {
+  brandCatalogData: unknown;
+  homeLayout: HomeLayoutMetrics;
+}) {
   const tc = useCopy();
   const topBrandResource = useCustomerAccountResource<readonly TopBrandCardProps[], TopBrandsPayload>({
     fixtureData: webTopBrandCards,
@@ -1156,6 +1173,7 @@ function TopBrandSection({ homeLayout }: { homeLayout: HomeLayoutMetrics }) {
     topBrandResource.source,
     topBrandResource.data,
     webTopBrandCards,
+    brandCatalogData,
   );
   const topBrandPages = chunkTopBrandCards(topBrands, homeLayout.topBrandCardsPerPage);
   const [activeTopBrandPage, setActiveTopBrandPage] = useState(0);
@@ -1254,6 +1272,7 @@ function BrandLogoOfferCard({
   cardHeight,
   cardWidth,
   cashback,
+  href,
   label,
   logoUri,
   showGrabCoupon,
@@ -1267,7 +1286,7 @@ function BrandLogoOfferCard({
   const logoSource = logoUri ? { uri: logoUri } : shopeeLogo;
 
   return (
-    <Link asChild href={brandHref(brand) as never}>
+    <Link asChild href={(href ?? brandHref(brand)) as never}>
       <MotionPressable
         style={StyleSheet.flatten([styles.brandCard, { height: cardHeight, width: cardWidth }])}
       >
@@ -1431,7 +1450,7 @@ function CompactBrandLogoOfferCard(
       : shopeeLogo;
 
   return (
-    <Link asChild href={brandHref(card.brand) as never}>
+    <Link asChild href={(card.href ?? brandHref(card.brand)) as never}>
       <MotionPressable
         style={StyleSheet.flatten([
           styles.compactBrandCard,

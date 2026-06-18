@@ -10,6 +10,7 @@ export const accountDataSourceEnvName = "EXPO_PUBLIC_ACCOUNT_DATA_SOURCE";
 
 export type CustomerAccountResourceId =
   | "billing"
+  | "brandCatalog"
   | "catalog"
   | "homeBanner"
   | "merchant"
@@ -72,6 +73,12 @@ export function resolveCustomerAccountResourceEndpoint({
     // Public merchant catalog (no auth required) — the web favorite page reads
     // the same list (Favorite.tsx → GET /offer).
     return "/offer?limit=4&page=1";
+  }
+
+  if (resourceId === "brandCatalog") {
+    // Public live brand catalog (no auth): Brand Management controls create/edit,
+    // tracking/deeplink, commission, status, and hidden/live visibility on offers.
+    return "/offer?limit=80&page=1";
   }
 
   if (resourceId === "homeBanner") {

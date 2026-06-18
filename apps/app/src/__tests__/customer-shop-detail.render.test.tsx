@@ -121,4 +121,8 @@ describe("CustomerShopDetailScreen — Wave B foundations adopted (source signal
     expect(shopSource).toContain("styles.referralTitle");
     expect(shopSource).toMatch(/numberOfLines=\{\d+\}\s*\n?\s*style=\{styles\.referralTitle\}/);
   });
+
+  it("encodes dynamic category links so backend categories with spaces and ampersands route correctly", () => {
+    expect(shopSource).toContain("encodeURIComponent(shop.category)");
+  });
 });

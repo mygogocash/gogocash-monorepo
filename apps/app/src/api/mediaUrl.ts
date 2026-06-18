@@ -1,0 +1,26 @@
+const REMOTE_URI_PREFIXES = ["https://", "http://", "data:", "blob:", "file:", "/"] as const;
+
+function looksLikeGoogleDriveFileId(value: string): boolean {
+  return /^[A-Za-z0-9_-]{10,}$/.test(value);
+}
+
+export function resolveRemoteImageUri(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  if (REMOTE_URI_PREFIXES.some((prefix) => trimmed.startsWith(prefix))) {
+    return trimmed;
+  }
+
+  if (looksLikeGoogleDriveFileId(trimmed)) {
+    return `https://drive.google.com/uc?export=view&id=${encodeURIComponent(trimmed)}`;
+  }
+
+  return undefined;
+}

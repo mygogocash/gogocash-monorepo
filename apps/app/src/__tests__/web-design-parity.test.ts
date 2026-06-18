@@ -335,9 +335,9 @@ describe("GoGoCash web design parity", () => {
     expect(getAccountShellFooterHorizontalPadding(1100, { alignToNavbarShell: true })).toBe(56);
   });
 
-  it("account shell footer offset > given desktop non-rail page (quest) > then it uses the legacy 1180/16 frame", () => {
-    expect(getAccountShellFooterHorizontalPadding(1440, { alignToNavbarShell: false })).toBe(146);
-    expect(getAccountShellFooterHorizontalPadding(2048, { alignToNavbarShell: false })).toBe(450);
+  it("account shell footer offset > given desktop non-rail page (quest) > then the rail-only helper is not applied", () => {
+    expect(getAccountShellFooterHorizontalPadding(1440, { alignToNavbarShell: false })).toBe(0);
+    expect(getAccountShellFooterHorizontalPadding(2048, { alignToNavbarShell: false })).toBe(0);
   });
 
   it("account shell footer offset > given below the desktop breakpoint > then there is no offset (footer is hidden)", () => {

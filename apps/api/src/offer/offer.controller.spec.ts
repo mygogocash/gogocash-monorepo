@@ -35,6 +35,7 @@ function createOfferServiceMock(): OfferServiceMock {
     getOfferExtraPoint: jest.fn().mockResolvedValue({ point: 1 }),
     getBannerHome: jest.fn().mockResolvedValue({ banner: 'home' }),
     getDisplayTopBrands: jest.fn().mockResolvedValue({ data: [] }),
+    createAdminOffer: jest.fn().mockResolvedValue({ _id: 'offer-new' }),
     getCoupon: jest.fn().mockResolvedValue({ data: [], total: 0 }),
     getCouponId: jest.fn().mockResolvedValue({ _id: 'coupon-1' }),
     updateCoupon: jest.fn().mockResolvedValue({ updated: true }),
@@ -112,6 +113,23 @@ describe('OfferController', () => {
     it('getTopBrands > given a request > then delegates to OfferService.getDisplayTopBrands', async () => {
       await expect(controller.getTopBrands()).resolves.toEqual({ data: [] });
       expect(service.getDisplayTopBrands).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('createOffer', () => {
+    it('createOffer > given multipart body and files > then delegates to OfferService.createAdminOffer', async () => {
+      const body = {
+        brand_name: 'Orbit Airways',
+        affiliate_tracking_link: 'https://track.example/orbit',
+      };
+      const logo = { originalname: 'logo.png' } as Express.Multer.File;
+
+      await expect(
+        controller.createOffer(body, { logo_desktop: [logo] }),
+      ).resolves.toEqual({ _id: 'offer-new' });
+      expect(service.createAdminOffer).toHaveBeenCalledWith(body, {
+        logo_desktop: [logo],
+      });
     });
   });
 

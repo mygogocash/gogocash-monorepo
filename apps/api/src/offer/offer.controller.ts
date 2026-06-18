@@ -20,10 +20,15 @@ import {
 } from './dto/create-offer.dto';
 import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
+import { Roles } from 'src/admin/roles.decorator';
+import { RolesGuard } from 'src/admin/roles.guard';
 import { RateLimitGuard } from 'src/auth/rate-limit.guard';
 import { RateLimit } from 'src/auth/rate-limit.decorator';
 import { UpdateCouponDto } from './dto/update-offer.dto';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import {
+  FileFieldsInterceptor,
+  FilesInterceptor,
+} from '@nestjs/platform-express';
 @Controller('offer')
 export class OfferController {
   constructor(private readonly offerService: OfferService) {}
@@ -42,6 +47,34 @@ export class OfferController {
   getTopBrands() {
     // Public home "top brands" — admin-curated via PUT /admin/top-brands.
     return this.offerService.getDisplayTopBrands();
+  }
+
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'logo_desktop', maxCount: 1 },
+      { name: 'logo_mobile', maxCount: 1 },
+      { name: 'banner', maxCount: 1 },
+      { name: 'logo_circle', maxCount: 1 },
+      { name: 'banner_mobile', maxCount: 1 },
+    ]),
+  )
+  @UseGuards(AuthAdminGuard, RolesGuard)
+  @Roles('superadmin')
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Post()
+  createOffer(
+    @Body() body: Record<string, any>,
+    @UploadedFiles()
+    files: {
+      banner_mobile?: Express.Multer.File[];
+      logo_desktop?: Express.Multer.File[];
+      logo_mobile?: Express.Multer.File[];
+      banner?: Express.Multer.File[];
+      logo_circle?: Express.Multer.File[];
+    } = {},
+  ) {
+    return this.offerService.createAdminOffer(body, files);
   }
 
   @UseGuards(AuthAdminGuard)
@@ -131,6 +164,9 @@ export class OfferController {
     return this.offerService.findAllExtra();
   }
 
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
   @Get('admin')
   @ApiQuery({
     name: 'page',

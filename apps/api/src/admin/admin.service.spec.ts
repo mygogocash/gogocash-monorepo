@@ -146,6 +146,24 @@ describe('AdminService', () => {
     expect(service).toBeDefined();
   });
 
+  it('admin scaffold mutations > given request data > then they do not print payloads or ids to stdout', () => {
+    const logSpy = jest
+      .spyOn(console, 'log')
+      .mockImplementation(() => undefined);
+
+    try {
+      service.create({
+        email: 'admin@example.com',
+        password: 'secret',
+      } as never);
+      service.remove(new Types.ObjectId().toHexString());
+
+      expect(logSpy).not.toHaveBeenCalled();
+    } finally {
+      logSpy.mockRestore();
+    }
+  });
+
   describe('findAll', () => {
     it('findAll > given a search term > then it builds a case-insensitive regex over username and email', async () => {
       userAdminModel.find.mockReturnValue(makeQuery([{ _id: 'a' }]));
@@ -406,6 +424,204 @@ describe('AdminService', () => {
 
       const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1];
       expect(persisted.product_type).toEqual([{ name: 'game', minimum: '1' }]);
+    });
+
+    it('updateOffer > given a tracking_link > then it persists the customer redirect link', async () => {
+      offerModel.findById.mockReturnValue(
+        makeQuery({
+          _id: 'o1',
+          tracking_link: 'https://track.example/old',
+        }),
+      );
+      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: 'o1' }));
+
+      await service.updateOffer('o1', {
+        product_type: [],
+        tracking_link: ' https://track.example/new ',
+      });
+
+      const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1];
+      expect(persisted.tracking_link).toBe('https://track.example/new');
+    });
+
+    it('updateOffer > given omitted booleans and zero economics > then it preserves flags and persists zeros', async () => {
+      offerModel.findById.mockReturnValue(
+        makeQuery({
+          _id: 'o1',
+          disabled: true,
+          extra_store: true,
+          commission_store: 15,
+          max_cap: 500,
+        }),
+      );
+      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: 'o1' }));
+
+      await service.updateOffer('o1', {
+        commission_store: 0,
+        max_cap: 0,
+        product_type: [],
+      });
+
+      const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1];
+      expect(persisted.disabled).toBe(true);
+      expect(persisted.extra_store).toBe(true);
+      expect(persisted.commission_store).toBe(0);
+      expect(persisted.max_cap).toBe(0);
+    });
+  });
+
+  describe('updateBannerHome', () => {
+    it('updateBannerHome > given no existing banner doc > then it upserts with new slot controls and does not delete files', async () => {
+      bannerModel.findOne.mockReturnValue(makeQuery(null));
+      bannerModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({ _id: 'banner-doc' }),
+      );
+
+      await service.updateBannerHome({
+        link_1: '/slot-1',
+        link_2: '',
+        link_3: '',
+        link_4: '',
+        link_5: '',
+        image_1: null,
+        image_2: null,
+        image_3: null,
+        image_4: null,
+        image_5: null,
+        enabled_1: true,
+        enabled_2: false,
+        start_date_1: '2026-06-01',
+        end_date_1: '2026-06-30',
+        start_date_2: '2026-07-01',
+        end_date_2: '2026-07-31',
+      } as never);
+
+      const [, update] = bannerModel.findOneAndUpdate.mock.calls[0];
+      expect(update.$set).toEqual(
+        expect.objectContaining({
+          link_1: '/slot-1',
+          link_2: '',
+          link_3: '',
+          link_4: '',
+          link_5: '',
+          enabled_1: true,
+          enabled_2: false,
+          start_date_1: '2026-06-01',
+          end_date_1: '2026-06-30',
+          start_date_2: '2026-07-01',
+          end_date_2: '2026-07-31',
+        }),
+      );
+      expect(update.$set.image_1).toBeUndefined();
+      expect(googleDriveService.deleteFile).not.toHaveBeenCalled();
+      expect(bannerModel.findOneAndUpdate).toHaveBeenCalledWith(
+        {},
+        expect.any(Object),
+        { upsert: true, new: true },
+      );
+    });
+
+    it('updateBannerHome > given legacy start_date/end_date on existing doc > then those values are preserved in the upsert payload', async () => {
+      bannerModel.findOne.mockReturnValue(
+        makeQuery({
+          _id: 'banner-doc',
+          start_date: '2025-01-01',
+          end_date: '2025-12-31',
+          start_date_2: '2025-02-01',
+          enabled_2: false,
+          image_1: 'old-image-id',
+        }),
+      );
+      bannerModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({ _id: 'banner-doc' }),
+      );
+
+      await service.updateBannerHome({
+        link_1: '/updated-slot-1',
+        link_2: '/updated-slot-2',
+        image_1: null,
+        image_2: null,
+        image_3: null,
+        image_4: null,
+        image_5: null,
+      } as never);
+
+      const [, update] = bannerModel.findOneAndUpdate.mock.calls[0];
+      expect(update.$set).toMatchObject({
+        start_date: '2025-01-01',
+        end_date: '2025-12-31',
+        start_date_2: '2025-02-01',
+        enabled_2: false,
+        image_1: 'old-image-id',
+      });
+      expect(update.$set.enabled_1).toBeUndefined();
+      expect(update.$set.link_1).toBe('/updated-slot-1');
+      expect(update.$set.link_2).toBe('/updated-slot-2');
+    });
+
+    it('updateBannerHome > given a partial slot update > then omitted links are preserved', async () => {
+      bannerModel.findOne.mockReturnValue(
+        makeQuery({
+          _id: 'banner-doc',
+          image_1: 'old-image-1',
+          link_1: '/old-slot-1',
+          link_2: '/old-slot-2',
+          link_3: '/old-slot-3',
+          link_4: '/old-slot-4',
+          link_5: '/old-slot-5',
+        }),
+      );
+      bannerModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({ _id: 'banner-doc' }),
+      );
+
+      await service.updateBannerHome({
+        link_1: '/new-slot-1',
+        link_2: null,
+        link_3: null,
+        link_4: null,
+        link_5: null,
+        image_1: null,
+        image_2: null,
+        image_3: null,
+        image_4: null,
+        image_5: null,
+      } as never);
+
+      const [, update] = bannerModel.findOneAndUpdate.mock.calls[0];
+      expect(update.$set).toEqual(
+        expect.objectContaining({
+          link_1: '/new-slot-1',
+          link_2: '/old-slot-2',
+          link_3: '/old-slot-3',
+          link_4: '/old-slot-4',
+          link_5: '/old-slot-5',
+        }),
+      );
+    });
+
+    it('updateBannerHome > given an explicit blank slot link > then that link can be cleared', async () => {
+      bannerModel.findOne.mockReturnValue(
+        makeQuery({
+          _id: 'banner-doc',
+          link_1: '/old-slot-1',
+        }),
+      );
+      bannerModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({ _id: 'banner-doc' }),
+      );
+
+      await service.updateBannerHome({
+        link_1: '',
+        image_1: null,
+        image_2: null,
+        image_3: null,
+        image_4: null,
+        image_5: null,
+      } as never);
+
+      const [, update] = bannerModel.findOneAndUpdate.mock.calls[0];
+      expect(update.$set.link_1).toBe('');
     });
   });
 

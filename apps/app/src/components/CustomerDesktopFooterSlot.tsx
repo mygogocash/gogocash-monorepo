@@ -4,13 +4,15 @@ import { StyleSheet, useWindowDimensions, View } from "react-native";
 import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
 import { mobileShellLayout } from "@mobile/design/webDesignParity";
 
+type CustomerDesktopFooterSlotProps = {
+  horizontalPadding?: number;
+  style?: StyleProp<ViewStyle>;
+};
+
 export function CustomerDesktopFooterSlot({
   horizontalPadding = 0,
   style,
-}: {
-  horizontalPadding?: number;
-  style?: StyleProp<ViewStyle>;
-}) {
+}: CustomerDesktopFooterSlotProps) {
   const { width } = useWindowDimensions();
 
   if (width < mobileShellLayout.desktopBreakpoint) {
