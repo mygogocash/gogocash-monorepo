@@ -1,4 +1,3 @@
-/* eslint-disable prettier/prettier */
 import {
   HttpException,
   Injectable,
@@ -19,7 +18,13 @@ import {
 import { ethers, keccak256, solidityPacked } from 'ethers';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { User } from 'src/user/schemas/user.schema';
-import { ClientSession, Connection, isValidObjectId, Model, Types } from 'mongoose';
+import {
+  ClientSession,
+  Connection,
+  isValidObjectId,
+  Model,
+  Types,
+} from 'mongoose';
 import { InvolveService } from 'src/involve/involve.service';
 import { Withdraw } from './schemas/withdraw.schema';
 import { FeeRate } from './schemas/feeRate.schema';
@@ -193,7 +198,6 @@ export class WithdrawService {
         Number(process.env.CHAIN_ID_WITHDRAW_BNB),
       );
 
-     
     const conversionIdsWithdrawedSonic =
       await this.getConversionIdsWithdrawedByUserId(
         user._id.toString(),
@@ -1119,7 +1123,7 @@ export class WithdrawService {
         {} as Record<string, { netAmount: number; count: number }>,
       );
 
-       const withdrawSumThbApproved = await Object.entries(
+    const withdrawSumThbApproved = await Object.entries(
       withdrawSumByCurrencyApproved,
     ).reduce(
       async (accPromise, [currency, item]) => {
@@ -1494,11 +1498,8 @@ export class WithdrawService {
       }
       this.fxCache.set(key, { rate, expiresAt: now + this.FX_TTL_MS });
       return rate;
-    } catch (err) {
-      if (cached) {
-        console.warn(`FX ${key} refresh failed; serving stale cached rate`, err);
-        return cached.rate;
-      }
+    } catch {
+      if (cached) return cached.rate;
       throw new HttpException(
         { message: `Currency conversion temporarily unavailable (${base})` },
         503,
@@ -2246,20 +2247,30 @@ export class WithdrawService {
       new Date(questDate.end_date).toLocaleDateString('en-CA'),
     );
 
-    const rewardList = await this.rewardListModel.findOne({ name: 'quest' });
+    const questRewards = [...((questDate as any).rewards ?? [])]
+      .filter((item) => Number(item?.rank) >= 1)
+      .sort((a, b) => Number(a.rank) - Number(b.rank));
+    const rewardList =
+      questRewards.length > 0
+        ? { name: 'quest', data: questRewards }
+        : await this.rewardListModel.findOne({ name: 'quest' });
 
     if (!rewardList) {
       throw new HttpException({ message: 'Reward list not found' }, 400);
     }
 
     const list = [];
+    const rewardsByRank = new Map(
+      (rewardList?.data ?? []).map((item) => [Number(item.rank), item]),
+    );
     for (let i = 0; i < userReceivedReward.length; i++) {
       if (userReceivedReward[i]?.point <= 0) {
         continue; // Skip users with 0 or negative points
       }
-      if (rewardList?.data?.length <= i) {
-        break;
-      }
+      const rank = i + 1;
+      const rankReward =
+        rewardsByRank.get(rank) ?? rewardList?.data?.[i] ?? null;
+      if (!rankReward || Number(rankReward.reward) <= 0) continue;
       const user = userReceivedReward[i];
       const data = {
         conversion_id: new Date().getTime() + i, // Use timestamp as unique ID for simplicity
@@ -2286,11 +2297,11 @@ export class WithdrawService {
         ...(isValidObjectId(user.user_id)
           ? { user_id: new Types.ObjectId(user.user_id) }
           : {}),
-        currency: rewardList?.data?.[i]?.currency || 'THB',
-        payout: rewardList?.data?.[i]?.reward || 0,
+        currency: rankReward?.currency || 'THB',
+        payout: Number(rankReward?.reward) || 0,
         sale_amount: 0,
       };
-      const payoutData = rewardList?.data?.[i]?.reward;
+      const payoutData = Number(rankReward?.reward) || 0;
 
       data.payout = payoutData;
 
@@ -2301,10 +2312,6 @@ export class WithdrawService {
     await this.questModel
       .findByIdAndUpdate(questDate._id, { reward_status: true })
       .exec();
-    console.log(
-      `done reward conversion for quest ${questDate._id} with ${list.length} users`,
-    );
-
     return rewardList;
   }
 

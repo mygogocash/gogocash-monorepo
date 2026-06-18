@@ -179,7 +179,11 @@ export class BrandService {
       .lean();
     if (!brand) throw new NotFoundException('Brand not found.');
     const variants = await this.offerModel
-      .find({ brand_id: brand._id, disabled: false })
+      .find({
+        brand_id: brand._id,
+        disabled: false,
+        status: { $nin: ['pending_review', 'rejected'] },
+      })
       .lean();
     if (variants.length === 0) {
       throw new NotFoundException('Brand has no active variants.');

@@ -12,6 +12,9 @@ import { DEFAULT_POST_LOGIN_PATH, safeAppPathFromCallback } from "@/lib/safeCall
 import { devError } from "@/lib/devConsole";
 
 export default function SignInForm() {
+  const emailInputId = "admin-signin-email";
+  const passwordInputId = "admin-signin-password";
+  const rememberInputId = "admin-signin-remember";
   const [showPassword, setShowPassword] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
   const [email, setEmail] = useState("");
@@ -19,6 +22,7 @@ export default function SignInForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const searchParams = useSearchParams();
+  const showMockQuickAccess = !process.env.NEXT_PUBLIC_API_URL;
 
   const redirectAfterSignIn = () => {
     const safe = safeAppPathFromCallback(searchParams.get("callbackUrl"));
@@ -98,29 +102,33 @@ export default function SignInForm() {
             </p>
           </div>
 
-          {/* Quick access for internal use */}
-          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-700 dark:bg-amber-900/20">
-            <p className="mb-3 text-center text-xs font-medium uppercase tracking-wide text-amber-700 dark:text-amber-400">
-              Quick access (internal use)
-            </p>
-            <button
-              type="button"
-              onClick={handleMockSignIn}
-              disabled={isLoading}
-              className="w-full rounded-lg border border-amber-400 bg-amber-100 px-4 py-3 text-sm font-semibold text-amber-900 transition-colors hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-600 dark:bg-amber-800/50 dark:text-amber-100 dark:hover:bg-amber-800/70"
-            >
-              Sign in with mock account
-            </button>
-            <p className="mt-2 text-center text-xs text-amber-600 dark:text-amber-500">
-              admin@gogocash.co / 1234
-            </p>
-          </div>
+          {showMockQuickAccess && (
+            <>
+              {/* Quick access for internal use */}
+              <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-700 dark:bg-amber-900/20">
+                <p className="mb-3 text-center text-xs font-medium uppercase tracking-wide text-amber-700 dark:text-amber-400">
+                  Quick access (internal use)
+                </p>
+                <button
+                  type="button"
+                  onClick={handleMockSignIn}
+                  disabled={isLoading}
+                  className="w-full rounded-lg border border-amber-400 bg-amber-100 px-4 py-3 text-sm font-semibold text-amber-900 transition-colors hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-600 dark:bg-amber-800/50 dark:text-amber-100 dark:hover:bg-amber-800/70"
+                >
+                  Sign in with mock account
+                </button>
+                <p className="mt-2 text-center text-xs text-amber-600 dark:text-amber-500">
+                  admin@gogocash.co / 1234
+                </p>
+              </div>
 
-          <div className="border-t border-gray-200 pt-6 dark:border-gray-700">
-            <p className="mb-4 text-center text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-              Or sign in with credentials
-            </p>
-          </div>
+              <div className="border-t border-gray-200 pt-6 dark:border-gray-700">
+                <p className="mb-4 text-center text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  Or sign in with credentials
+                </p>
+              </div>
+            </>
+          )}
 
           <div className="text-left">
             <form onSubmit={handleSignIn}>
@@ -131,46 +139,62 @@ export default function SignInForm() {
               )}
               <div className="space-y-6">
                 <div>
-                  <Label>
+                  <Label htmlFor={emailInputId}>
                     Email / Username{" "}
                     <span className="text-error-500">*</span>{" "}
                   </Label>
                   <Input
+                    id={emailInputId}
+                    name="email"
                     placeholder="admin@gogocash.co"
                     type="email"
                     value={email}
+                    autoComplete="username"
+                    required
                     onChange={(e) => setEmail(e.target.value)}
                   />
                 </div>
                 <div>
-                  <Label>
+                  <Label htmlFor={passwordInputId}>
                     Password <span className="text-error-500">*</span>{" "}
                   </Label>
                   <div className="relative">
-                    <Input
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Mock: 1234"
-                      value={password}
+	                    <Input
+	                      id={passwordInputId}
+	                      name="password"
+	                      type={showPassword ? "text" : "password"}
+	                      placeholder={
+	                        showMockQuickAccess ? "Mock: 1234" : "Enter password"
+	                      }
+	                      value={password}
+                      autoComplete="current-password"
+                      required
                       onChange={(e) => setPassword(e.target.value)}
                     />
-                    <span
+                    <button
+                      type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute top-1/2 right-4 z-30 -translate-y-1/2 cursor-pointer"
+                      aria-label={
+                        showPassword ? "Hide password" : "Show password"
+                      }
                     >
                       {showPassword ? (
                         <EyeIcon className="fill-gray-500 dark:fill-gray-400" />
                       ) : (
                         <EyeCloseIcon className="fill-gray-500 dark:fill-gray-400" />
                       )}
-                    </span>
+                    </button>
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <Checkbox
+                      id={rememberInputId}
+                      name="remember"
                       checked={isChecked}
                       onChange={setIsChecked}
-                      label=" Keep me logged in"
+                      label="Keep me logged in"
                     />
                     {/* <span className="text-theme-sm block font-normal text-gray-700 dark:text-gray-400">
                       Keep me logged in

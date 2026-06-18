@@ -110,6 +110,11 @@ export class UpdateOfferAdminDto {
   @IsOptional()
   extra_store: boolean | string;
 
+  @ApiProperty()
+  @IsString()
+  @IsOptional()
+  tracking_link: string;
+
   @ApiProperty({ type: [ProductTypeDto] })
   @IsOptional()
   product_type: ProductTypeDto[];
@@ -162,6 +167,76 @@ export class UpdateBannerHomeDto {
   @ApiProperty()
   @IsString()
   image_5: string | File | null;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  enabled_1?: boolean | string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  enabled_2?: boolean | string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  enabled_3?: boolean | string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  enabled_4?: boolean | string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  enabled_5?: boolean | string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  start_date_1?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  start_date_2?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  start_date_3?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  start_date_4?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  start_date_5?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  end_date_1?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  end_date_2?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  end_date_3?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  end_date_4?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  end_date_5?: string;
 }
 
 /**

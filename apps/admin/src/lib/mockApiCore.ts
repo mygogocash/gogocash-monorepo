@@ -109,6 +109,8 @@ type CreatedConversionItem = {
   user?: { _id: string; username?: string; email?: string };
 };
 
+type MockOffer = (typeof mockOffers)[number] & { extra_point?: number };
+
 const MOCK_CREATED_CONVERSIONS_BASE = [
   {
     offer_id: 1001,
@@ -210,6 +212,110 @@ function buildMockCreatedConversions(): CreatedConversionItem[] {
 
 const createdConversionsList: CreatedConversionItem[] =
   buildMockCreatedConversions();
+
+type MockQuestTask = {
+  offer: string | MockOffer;
+  offer_id: number;
+  merchant_id: number;
+  extra_point: number;
+  sort_order: number;
+  enabled: boolean;
+  wording?: string;
+  notes?: string;
+};
+
+type MockQuestReward = {
+  rank: number;
+  reward: number;
+  currency: string;
+};
+
+type MockQuestRewardDistributionMode = "manual" | "campaign_end" | "after_days";
+
+type MockQuest = {
+  _id: string;
+  status: string;
+  reward_status: boolean;
+  reward_distribution_mode: MockQuestRewardDistributionMode;
+  reward_distribution_delay_days: number;
+  reward_distribution_scheduled_at: string | null;
+  start_date: string;
+  end_date: string;
+  facebook_page: string;
+  facebook_post: string;
+  line: string;
+  banner_en: string;
+  banner_th: string;
+  sub_banner_en: string;
+  sub_banner_th: string;
+  tasks: MockQuestTask[];
+  rewards: MockQuestReward[];
+  createdAt: string;
+  updatedAt: string;
+  __v: number;
+};
+
+function mockQuestTaskFromOffer(
+  offer: MockOffer,
+  extraPoint: number,
+  sortOrder: number,
+): MockQuestTask {
+  return {
+    offer,
+    offer_id: offer.offer_id,
+    merchant_id: offer.merchant_id,
+    extra_point: extraPoint,
+    sort_order: sortOrder,
+    enabled: true,
+    wording:
+      offer.offer_name_display || offer.offer_name || `Offer ${offer.offer_id}`,
+    notes: "",
+  };
+}
+
+function rewardDistributionScheduledAt(
+  quest: Pick<MockQuest, "end_date">,
+  mode: MockQuestRewardDistributionMode,
+  delayDays: number,
+): string | null {
+  if (mode === "manual") return null;
+  const endTime = new Date(quest.end_date).getTime();
+  if (Number.isNaN(endTime)) return null;
+  const normalizedDelay = mode === "after_days" ? delayDays : 0;
+  return new Date(endTime + normalizedDelay * 86_400_000).toISOString();
+}
+
+const nowIso = new Date().toISOString();
+const mockQuestStore: MockQuest[] = [
+  {
+    _id: "q_open_2026_06",
+    status: "open",
+    reward_status: false,
+    reward_distribution_mode: "after_days",
+    reward_distribution_delay_days: 7,
+    reward_distribution_scheduled_at: "2026-07-07T00:00:00.000Z",
+    start_date: "2026-06-01T00:00:00.000Z",
+    end_date: "2026-06-30T00:00:00.000Z",
+    facebook_page: "https://www.facebook.com/gogocashofficial/",
+    facebook_post: "https://www.facebook.com/share/p/mock",
+    line: "https://lin.ee/mock",
+    banner_en: "",
+    banner_th: "",
+    sub_banner_en: "",
+    sub_banner_th: "",
+    tasks: mockOffers
+      .slice(0, 3)
+      .map((offer, index) => mockQuestTaskFromOffer(offer, 50, index)),
+    rewards: [
+      { rank: 1, reward: 1200, currency: "THB" },
+      { rank: 2, reward: 800, currency: "THB" },
+      { rank: 3, reward: 500, currency: "THB" },
+    ],
+    createdAt: nowIso,
+    updatedAt: nowIso,
+    __v: 0,
+  },
+];
 // V2 policy store — per category, the saved `banner` and `terms` blocks
 // (parsed JSON, as the real backend stores them). A block is only overwritten
 // when the PUT includes it, so saving one block never clobbers the other.
@@ -460,6 +566,20 @@ function paginateFlat<T>(items: T[], page = 1, limit = 10) {
   };
 }
 
+function mockBodyField(body: unknown, key: string): string {
+  if (
+    body &&
+    typeof body === "object" &&
+    "get" in body &&
+    typeof (body as { get: (name: string) => unknown }).get === "function"
+  ) {
+    const value = (body as { get: (name: string) => unknown }).get(key);
+    return typeof value === "string" ? value : "";
+  }
+  const value = (body as Record<string, unknown> | undefined)?.[key];
+  return typeof value === "string" ? value : value == null ? "" : String(value);
+}
+
 function handleMockGET(
   path: string[],
   joined: string,
@@ -586,6 +706,98 @@ function handleMockGET(
       });
     }
     return ok(paginateFlat(filtered, page, limit));
+  }
+
+  if (joined === "point/admin-get-quest") {
+    return ok(mockQuestStore);
+  }
+
+  if (
+    path[0] === "point" &&
+    path[1] === "admin-quest" &&
+    path[3] === "task-deeplinks"
+  ) {
+    const quest = mockQuestStore.find((q) => q._id === path[2]);
+    if (!quest) return jsonErr(404, { message: "Quest not found" });
+    return ok({
+      data: quest.tasks
+        .filter((task) => task.enabled)
+        .map((task) => {
+          const offer =
+            typeof task.offer === "string"
+              ? mockOffers.find((o) => o._id === task.offer)
+              : task.offer;
+          const offerId = offer?._id ?? String(task.offer);
+          return {
+            offer: offerId,
+            offer_id: task.offer_id,
+            merchant_id: task.merchant_id,
+            offer_name:
+              offer?.offer_name_display || offer?.offer_name || "Merchant",
+            extra_point: task.extra_point,
+            sort_order: task.sort_order,
+            tracking_link: offer?.tracking_link ?? "",
+            customer_path: `/shop/${offerId}`,
+            generated_count: task.sort_order + 1,
+            latest_click: new Date().toISOString(),
+            sample_deeplink: `https://invl.me/mock-${task.offer_id}`,
+          };
+        }),
+    });
+  }
+
+  if (
+    path[0] === "point" &&
+    path[1] === "admin-quest" &&
+    path[3] === "leaderboard"
+  ) {
+    const quest = mockQuestStore.find((q) => q._id === path[2]);
+    if (!quest) return jsonErr(404, { message: "Quest not found" });
+
+    const rewards = [...quest.rewards].sort((a, b) => a.rank - b.rank);
+    const data = mockMyCashback.slice(0, 5).map((user, index) => {
+      const rank = index + 1;
+      const reward = rewards.find((item) => item.rank === rank);
+      const extraPointReceived = Math.max(
+        0,
+        quest.tasks
+          .filter((task) => task.enabled !== false)
+          .reduce((sum, task) => sum + task.extra_point, 0) -
+          index * 20,
+      );
+      return {
+        rank,
+        user_id: user._id,
+        username: `${user.firstName} ${user.lastName}`.trim(),
+        email: user.email,
+        point: 2100 - index * 260,
+        extra_point_received: extraPointReceived,
+        extra_point_referral: index === 0 ? 50 : 0,
+        point_social_reward: index < 2 ? 25 : 0,
+        bonus_over_300_received: index === 0 ? 300 : 0,
+        reward: reward?.reward ?? 0,
+        currency: reward?.currency ?? "THB",
+      };
+    });
+
+    return ok({
+      data_source: "quest_range",
+      quest: {
+        _id: quest._id,
+        start_date: quest.start_date,
+        end_date: quest.end_date,
+        status: quest.status,
+        reward_status: quest.reward_status,
+        reward_distribution_mode: quest.reward_distribution_mode,
+        reward_distribution_delay_days: quest.reward_distribution_delay_days,
+        reward_distribution_scheduled_at:
+          quest.reward_distribution_scheduled_at,
+      },
+      rewards,
+      source_start_date: quest.start_date.slice(0, 10),
+      source_end_date: quest.end_date.slice(0, 10),
+      data,
+    });
   }
 
   if (joined === "offer/get-category/list") {
@@ -888,6 +1100,61 @@ async function handleMockPOST(
     });
   }
 
+  if (joined === "point/create-quest") {
+    const id = mockBodyField(body, "_id");
+    const existing =
+      (id ? mockQuestStore.find((q) => q._id === id) : undefined) ??
+      mockQuestStore.find((q) => q.status === "open");
+    const now = new Date().toISOString();
+    const quest: MockQuest = existing ?? {
+      _id: `q_${Date.now()}`,
+      status: "open",
+      reward_status: false,
+      reward_distribution_mode: "campaign_end",
+      reward_distribution_delay_days: 0,
+      reward_distribution_scheduled_at: null,
+      start_date: "",
+      end_date: "",
+      facebook_page: "",
+      facebook_post: "",
+      line: "",
+      banner_en: "",
+      banner_th: "",
+      sub_banner_en: "",
+      sub_banner_th: "",
+      createdAt: now,
+      updatedAt: now,
+      __v: 0,
+      tasks: [],
+      rewards: [],
+    };
+
+    quest.start_date = mockBodyField(body, "start_date") || quest.start_date;
+    quest.end_date = mockBodyField(body, "end_date") || quest.end_date;
+    quest.status = mockBodyField(body, "status") || quest.status || "open";
+    const rewardStatus = mockBodyField(body, "reward_status");
+    quest.reward_status =
+      rewardStatus === ""
+        ? Boolean(quest.reward_status)
+        : rewardStatus === "true";
+    quest.facebook_page = mockBodyField(body, "facebook_page");
+    quest.facebook_post = mockBodyField(body, "facebook_post");
+    quest.line = mockBodyField(body, "line");
+    quest.banner_en = quest.banner_en ?? "";
+    quest.banner_th = quest.banner_th ?? "";
+    quest.sub_banner_en = quest.sub_banner_en ?? "";
+    quest.sub_banner_th = quest.sub_banner_th ?? "";
+    quest.reward_distribution_scheduled_at = rewardDistributionScheduledAt(
+      quest,
+      quest.reward_distribution_mode,
+      quest.reward_distribution_delay_days,
+    );
+    quest.updatedAt = now;
+
+    if (!existing) mockQuestStore.unshift(quest);
+    return ok(quest);
+  }
+
   if (joined === "admin/list-mycashback-users") {
     const b = body as {
       page?: number;
@@ -1069,22 +1336,60 @@ async function handleMockPOST(
       string,
       unknown
     >;
+
+    const readBodyField = (key: string): unknown => {
+      if (
+        typeof body === "object" &&
+        body !== null &&
+        "get" in body &&
+        typeof (body as { get: (name: string) => unknown }).get === "function"
+      ) {
+        const value = (body as { get: (name: string) => unknown }).get(key);
+        if (value !== null) return value;
+        return undefined;
+      }
+
+      return raw[key];
+    };
+
+    const readBodyBoolean = (key: string): boolean | undefined => {
+      const value = readBodyField(key);
+      if (typeof value === "boolean") return value;
+      if (typeof value === "string") {
+        const trimmed = value.trim().toLowerCase();
+        if (trimmed === "true") return true;
+        if (trimmed === "false") return false;
+      }
+      return undefined;
+    };
+
     for (let i = 1; i <= 5; i++) {
       const lk = `link_${i}`;
-      if (typeof raw[lk] === "string") {
-        (target as Record<string, unknown>)[lk] = raw[lk];
+      const linkValue = readBodyField(lk);
+      if (typeof linkValue === "string") {
+        (target as Record<string, unknown>)[lk] = linkValue;
       }
       const ik = `image_${i}`;
-      if (typeof raw[ik] === "string") {
-        const s = String(raw[ik]).trim();
+      const imageValue = readBodyField(ik);
+      if (typeof imageValue === "string") {
+        const s = imageValue.trim();
         (target as Record<string, unknown>)[ik] = s.length > 0 ? s : null;
       }
-    }
-    if (typeof raw.start_date === "string") {
-      (target as Record<string, unknown>).start_date = raw.start_date;
-    }
-    if (typeof raw.end_date === "string") {
-      (target as Record<string, unknown>).end_date = raw.end_date;
+      const enabledKey = `enabled_${i}`;
+      const enabledValue = readBodyBoolean(enabledKey);
+      if (enabledValue !== undefined) {
+        (target as Record<string, unknown>)[enabledKey] = enabledValue;
+      }
+      const startDateKey = `start_date_${i}`;
+      const startDateValue = readBodyField(startDateKey);
+      if (typeof startDateValue === "string") {
+        (target as Record<string, unknown>)[startDateKey] = startDateValue;
+      }
+      const endDateKey = `end_date_${i}`;
+      const endDateValue = readBodyField(endDateKey);
+      if (typeof endDateValue === "string") {
+        (target as Record<string, unknown>)[endDateKey] = endDateValue;
+      }
     }
     return ok({ success: true, message: "Banner updated", ...target });
   }
@@ -1597,6 +1902,144 @@ async function handleMockPATCH(
     });
   }
 
+  if (
+    path[0] === "point" &&
+    path[1] === "admin-quest" &&
+    path[2] &&
+    path[3] === "rewards"
+  ) {
+    const quest = mockQuestStore.find((q) => q._id === path[2]);
+    if (!quest) return jsonErr(404, { message: "Quest not found" });
+
+    const rawRewards = Array.isArray((b as { rewards?: unknown[] }).rewards)
+      ? ((b as { rewards: unknown[] }).rewards as Array<
+          Record<string, unknown>
+        >)
+      : [];
+    const seenRanks = new Set<number>();
+    const rewards: MockQuestReward[] = [];
+    for (const raw of rawRewards) {
+      const rank = Number(raw.rank);
+      const reward = Number(raw.reward);
+      const currency = String(raw.currency ?? "THB")
+        .trim()
+        .toUpperCase();
+      if (!Number.isInteger(rank) || rank < 1 || rank > 1000) {
+        return jsonErr(400, { message: "Invalid reward rank" });
+      }
+      if (seenRanks.has(rank)) {
+        return jsonErr(400, { message: "Duplicate reward rank" });
+      }
+      if (!Number.isFinite(reward) || reward < 0 || reward > 1000000) {
+        return jsonErr(400, { message: "Invalid reward amount" });
+      }
+      if (!currency || currency.length > 12) {
+        return jsonErr(400, { message: "Invalid reward currency" });
+      }
+      seenRanks.add(rank);
+      rewards.push({ rank, reward, currency });
+    }
+
+    const mode = String(
+      (b as { reward_distribution_mode?: unknown }).reward_distribution_mode ??
+        quest.reward_distribution_mode,
+    ) as MockQuestRewardDistributionMode;
+    if (!["manual", "campaign_end", "after_days"].includes(mode)) {
+      return jsonErr(400, { message: "Invalid reward distribution mode" });
+    }
+    const delayDays =
+      mode === "after_days"
+        ? Number(
+            (b as { reward_distribution_delay_days?: unknown })
+              .reward_distribution_delay_days ??
+              quest.reward_distribution_delay_days ??
+              7,
+          )
+        : 0;
+    if (
+      !Number.isInteger(delayDays) ||
+      delayDays < (mode === "after_days" ? 1 : 0) ||
+      delayDays > 365
+    ) {
+      return jsonErr(400, { message: "Invalid reward distribution delay" });
+    }
+
+    quest.rewards = rewards.sort((a, b) => a.rank - b.rank);
+    quest.reward_distribution_mode = mode;
+    quest.reward_distribution_delay_days = delayDays;
+    quest.reward_distribution_scheduled_at = rewardDistributionScheduledAt(
+      quest,
+      mode,
+      delayDays,
+    );
+    quest.updatedAt = new Date().toISOString();
+    return ok(quest);
+  }
+
+  if (
+    path[0] === "point" &&
+    path[1] === "admin-quest" &&
+    path[2] &&
+    path[3] === "tasks"
+  ) {
+    const quest = mockQuestStore.find((q) => q._id === path[2]);
+    if (!quest) return jsonErr(404, { message: "Quest not found" });
+    const rawTasks = Array.isArray((b as { tasks?: unknown[] }).tasks)
+      ? ((b as { tasks: unknown[] }).tasks as Array<Record<string, unknown>>)
+      : [];
+    const seen = new Set<string>();
+    const tasks: MockQuestTask[] = [];
+    for (const raw of rawTasks) {
+      const offerId = String(raw.offer ?? "");
+      const offer = mockOffers.find((o) => o._id === offerId);
+      if (!offer) {
+        return jsonErr(400, { message: "Quest task offer is not valid" });
+      }
+      if (seen.has(offerId)) {
+        return jsonErr(400, { message: "Duplicate quest task offer" });
+      }
+      seen.add(offerId);
+      const extraPoint = Number(raw.extra_point);
+      if (
+        !Number.isInteger(extraPoint) ||
+        extraPoint < 2 ||
+        extraPoint > 10000
+      ) {
+        return jsonErr(400, { message: "Invalid quest task points" });
+      }
+      tasks.push({
+        offer,
+        offer_id: Number(raw.offer_id),
+        merchant_id: Number(raw.merchant_id),
+        extra_point: extraPoint,
+        sort_order: tasks.length,
+        enabled: raw.enabled !== false,
+        wording: String(raw.wording ?? ""),
+        notes: String(raw.notes ?? ""),
+      });
+    }
+
+    const previousTaskOfferIds = new Set(
+      quest.tasks.map((task) =>
+        typeof task.offer === "string" ? task.offer : task.offer._id,
+      ),
+    );
+    for (const offer of mockOffers as MockOffer[]) {
+      if (previousTaskOfferIds.has(offer._id)) offer.extra_point = 1;
+    }
+    for (const task of tasks) {
+      const offer =
+        typeof task.offer === "string"
+          ? (mockOffers as MockOffer[]).find((o) => o._id === task.offer)
+          : task.offer;
+      if (offer && task.enabled) offer.extra_point = task.extra_point;
+    }
+
+    quest.tasks = tasks;
+    quest.updatedAt = new Date().toISOString();
+    return ok(quest);
+  }
+
   if (path[0] === "admin" && path[1] === "update-fee-rate") {
     const patch = b as Record<string, unknown>;
     Object.assign(mockFee[0], patch, { updatedAt: new Date().toISOString() });
@@ -1946,6 +2389,10 @@ function requiredWritePermission(
 
   // Fee settings.
   if (p0 === "admin" && p1 === "update-fee-rate") return "fee:manage";
+
+  if (p0 === "point" && (p1 === "create-quest" || p1 === "admin-quest")) {
+    return "quest:manage";
+  }
 
   // Banners.
   if (

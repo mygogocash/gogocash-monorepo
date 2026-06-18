@@ -27,6 +27,7 @@ import {
   getCategoryExploreResults,
   getDesktopShellOffset,
   getResponsiveHomeLayoutMetrics,
+  getTopBrandHref,
   mobileShellLayout,
   type WebCategoryExploreSort,
   webCategoryExploreHealthBeauty,
@@ -34,7 +35,9 @@ import {
 import { motion } from "@mobile/theme/motion";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
-type CategoryStore = ReturnType<typeof getCategoryExploreResults>[number];
+type CategoryStore = ReturnType<typeof getCategoryExploreResults>[number] & {
+  href?: string;
+};
 
 const webSearchInputFocusReset = {
   outlineStyle: "none",
@@ -66,14 +69,6 @@ function categoryHref(category: string) {
   }
 
   return `/category/${encodeURIComponent(category)}`;
-}
-
-function brandHref(brand: string) {
-  return `/shop/${brand
-    .toLowerCase()
-    .replace(/&/g, "and")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")}`;
 }
 
 function getVisibleStoreCountLabel(count: number) {
@@ -420,7 +415,7 @@ function CategoryStoreCard({
   const visualHeight = Math.max(96, cardWidth - 16);
 
   return (
-    <Link asChild href={brandHref(store.brand) as never}>
+    <Link asChild href={(store.href ?? getTopBrandHref(store.brand)) as never}>
       <MotionPressable
         accessibilityLabel={store.brand}
         hoverLift

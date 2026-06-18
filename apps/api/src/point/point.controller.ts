@@ -17,8 +17,15 @@ import { Request } from 'express';
 import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
 import { TasksService } from './tasksService';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
-import { CloseQuestDto, CreateQuestDto } from './dto/create-quest.dto';
+import {
+  CloseQuestDto,
+  CreateQuestDto,
+  UpdateQuestRewardsDto,
+  UpdateQuestTasksDto,
+} from './dto/create-quest.dto';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import { RolesGuard } from 'src/admin/roles.guard';
+import { Roles } from 'src/admin/roles.decorator';
 @Controller('point')
 export class PointController {
   constructor(
@@ -97,6 +104,10 @@ export class PointController {
     return this.pointService.getQuestRankListOfPoint(startDate, endDate);
   }
 
+  @UseGuards(AuthAdminGuard, RolesGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Roles('superadmin')
   @Get('save-points')
   savePoint() {
     return this.tasksService.handleCron();
@@ -110,10 +121,11 @@ export class PointController {
       { name: 'sub_banner_th', maxCount: 1 },
     ]),
   )
-  @UseGuards(AuthAdminGuard)
+  @UseGuards(AuthAdminGuard, RolesGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
   @Post('create-quest')
+  @Roles('superadmin')
   @ApiBody({ type: CreateQuestDto })
   createQuest(
     @Body() createQuestDto: CreateQuestDto,
@@ -128,10 +140,11 @@ export class PointController {
     return this.pointService.createQuest(createQuestDto, files);
   }
 
-  @UseGuards(AuthAdminGuard)
+  @UseGuards(AuthAdminGuard, RolesGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
   @Patch('close-quest')
+  @Roles('superadmin')
   @ApiBody({ type: CloseQuestDto })
   closeQuest(@Body() closeQuestDto: CloseQuestDto) {
     return this.pointService.closeQuest(closeQuestDto);
@@ -143,6 +156,48 @@ export class PointController {
   @Get('admin-get-quest')
   getAdminQuestOpen() {
     return this.pointService.getQuestAdmin();
+  }
+
+  @UseGuards(AuthAdminGuard, RolesGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Roles('superadmin')
+  @Patch('admin-quest/:id/tasks')
+  @ApiBody({ type: UpdateQuestTasksDto })
+  updateQuestTasks(
+    @Param('id') id: string,
+    @Body() updateQuestTasksDto: UpdateQuestTasksDto,
+  ) {
+    return this.pointService.updateQuestTasks(id, updateQuestTasksDto);
+  }
+
+  @UseGuards(AuthAdminGuard, RolesGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Roles('superadmin')
+  @Patch('admin-quest/:id/rewards')
+  @ApiBody({ type: UpdateQuestRewardsDto })
+  updateQuestRewards(
+    @Param('id') id: string,
+    @Body() updateQuestRewardsDto: UpdateQuestRewardsDto,
+  ) {
+    return this.pointService.updateQuestRewards(id, updateQuestRewardsDto);
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Get('admin-quest/:id/leaderboard')
+  getQuestAdminLeaderboard(@Param('id') id: string) {
+    return this.pointService.getQuestAdminLeaderboard(id);
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Get('admin-quest/:id/task-deeplinks')
+  getQuestTaskDeeplinkSummary(@Param('id') id: string) {
+    return this.pointService.getQuestTaskDeeplinkSummary(id);
   }
 
   @Get('get-quest-open')

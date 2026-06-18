@@ -3,6 +3,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createElement } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -56,13 +57,24 @@ const questSource = readFileSync(
   "utf8"
 );
 
+function renderQuest(props?: { history?: boolean }) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      createElement(CustomerQuestScreen, props)
+    )
+  );
+}
+
 describe("CustomerQuestScreen (render)", () => {
   it("mounts the quest hub without throwing", () => {
-    expect(() => render(createElement(CustomerQuestScreen))).not.toThrow();
+    expect(() => renderQuest()).not.toThrow();
   });
 
   it("renders the default How-to-win hub with its three tabs", () => {
-    render(createElement(CustomerQuestScreen));
+    renderQuest();
     // Tab labels come straight from webQuestTabs; the leaderboard tab is prefixed "🏆 ".
     expect(screen.getByText("How to win!")).toBeTruthy();
     expect(screen.getByText("Tasks")).toBeTruthy();
@@ -72,11 +84,11 @@ describe("CustomerQuestScreen (render)", () => {
   });
 
   it("mounts the quest history view without throwing", () => {
-    expect(() => render(createElement(CustomerQuestScreen, { history: true }))).not.toThrow();
+    expect(() => renderQuest({ history: true })).not.toThrow();
   });
 
   it("renders the quest history leaderboard + month-over-month insight sections", () => {
-    render(createElement(CustomerQuestScreen, { history: true }));
+    renderQuest({ history: true });
     expect(screen.getByText("How shoppers rank")).toBeTruthy();
     expect(screen.getByText("A quick read on your months")).toBeTruthy();
     expect(screen.getByText("Which period do you want to see?")).toBeTruthy();

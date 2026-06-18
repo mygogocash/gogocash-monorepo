@@ -67,6 +67,93 @@ describe("mapBackendHomeBanners", () => {
       { id: "home-banner-4", href: "/", placement: "side", imageUri: "https://cdn/b4.png" },
     ]);
   });
+
+  it("given a backend file id image > then resolves it to a renderable remote image URL", () => {
+    const doc: BannerHomeDocument = {
+      image_1: "1wqlSrCi2LQ2Q6NohLnWbtpvbvO17_yKh",
+      link_1: "/quest",
+    };
+
+    expect(mapBackendHomeBanners(doc)).toEqual([
+      {
+        id: "home-banner-1",
+        href: "/quest",
+        placement: "main",
+        imageUri:
+          "https://drive.google.com/uc?export=view&id=1wqlSrCi2LQ2Q6NohLnWbtpvbvO17_yKh",
+      },
+    ]);
+  });
+
+  it("given disabled slots > then excludes only disabled ones", () => {
+    const doc: BannerHomeDocument = {
+      image_1: "https://cdn/b1.png",
+      enabled_1: false,
+      image_2: "https://cdn/b2.png",
+    };
+
+    expect(mapBackendHomeBanners(doc)).toEqual([
+      { id: "home-banner-2", href: "/", placement: "main", imageUri: "https://cdn/b2.png" },
+    ]);
+  });
+
+  it("given null enabled slot values > then treats them as legacy enabled slots", () => {
+    const doc: BannerHomeDocument = {
+      image_1: "https://cdn/b1.png",
+      enabled_1: null,
+    };
+
+    expect(mapBackendHomeBanners(doc)).toEqual([
+      { id: "home-banner-1", href: "/", placement: "main", imageUri: "https://cdn/b1.png" },
+    ]);
+  });
+
+  it("given per-slot date windows > then includes only active slots", () => {
+    const now = new Date();
+    const soonStarted = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
+    const ended = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
+    const later = new Date(now.getTime() + 60 * 60 * 1000).toISOString();
+
+    const doc: BannerHomeDocument = {
+      image_1: "https://cdn/b1.png",
+      image_2: "https://cdn/b2.png",
+      image_4: "https://cdn/b4.png",
+      start_date_1: later,
+      end_date_2: ended,
+      start_date_4: soonStarted,
+      end_date_4: later,
+      link_4: "/shop/4",
+      link_1: "/shop/1",
+    };
+
+    expect(mapBackendHomeBanners(doc)).toEqual([
+      {
+        id: "home-banner-4",
+        href: "/shop/4",
+        placement: "side",
+        imageUri: "https://cdn/b4.png",
+      },
+    ]);
+  });
+
+  it("given missing slot date fields > then uses document-level start_date/end_date as fallback", () => {
+    const now = new Date();
+    const legacyStart = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+    const legacyEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+
+    const doc: BannerHomeDocument = {
+      image_1: "https://cdn/b1.png",
+      image_2: "https://cdn/b2.png",
+      link_2: "/shop/2",
+      start_date: legacyStart,
+      end_date: legacyEnd,
+    };
+
+    expect(mapBackendHomeBanners(doc)).toEqual([
+      { id: "home-banner-1", href: "/", placement: "main", imageUri: "https://cdn/b1.png" },
+      { id: "home-banner-2", href: "/shop/2", placement: "main", imageUri: "https://cdn/b2.png" },
+    ]);
+  });
 });
 
 describe("resolveHomeHeroBanners", () => {
@@ -89,13 +176,29 @@ describe("resolveHomeHeroBanners", () => {
     ]);
   });
 
-  it("given backend source with a null doc > then falls back so the hero is never empty", () => {
-    expect(resolveHomeHeroBanners("backend", null, FIXTURE_BANNERS)).toEqual(FIXTURE_BANNERS);
+  it("given backend source with a null doc > then returns empty because backend config is authoritative", () => {
+    expect(resolveHomeHeroBanners("backend", null, FIXTURE_BANNERS)).toEqual([]);
   });
 
-  it("given backend source with no configured images > then falls back", () => {
+  it("given backend source with no configured images > then returns empty because admin has no visible banners", () => {
     const doc: BannerHomeDocument = { link_1: "/shop/1" };
 
-    expect(resolveHomeHeroBanners("backend", doc, FIXTURE_BANNERS)).toEqual(FIXTURE_BANNERS);
+    expect(resolveHomeHeroBanners("backend", doc, FIXTURE_BANNERS)).toEqual([]);
+  });
+
+  it("given backend source with only inactive configured banners > then returns empty instead of fixtures", () => {
+    const now = new Date();
+    const later = new Date(now.getTime() + 60 * 60 * 1000).toISOString();
+
+    const doc: BannerHomeDocument = {
+      image_1: "https://cdn/b1.png",
+      link_1: "/shop/1",
+      start_date_1: later,
+      image_2: "https://cdn/b2.png",
+      link_2: "/shop/2",
+      enabled_2: false,
+    };
+
+    expect(resolveHomeHeroBanners("backend", doc, FIXTURE_BANNERS)).toEqual([]);
   });
 });

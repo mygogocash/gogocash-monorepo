@@ -29,6 +29,71 @@ function qp(obj: Record<string, string | number | undefined>) {
   return p;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function dataArray<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) return payload as T[];
+  if (isRecord(payload) && Array.isArray(payload.data)) {
+    return payload.data as T[];
+  }
+  return [];
+}
+
+function numberOrDefault(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function emptyPage<T>(page = 1, limit = 10): Paginated<T> {
+  return {
+    data: [],
+    page,
+    limit,
+    total: 0,
+    totalPages: 0,
+  };
+}
+
+function paginated<T>(
+  payload: unknown,
+  params: { page?: number; limit?: number } = {},
+): Paginated<T> {
+  const page = params.page ?? 1;
+  const limit = params.limit ?? 10;
+
+  if (Array.isArray(payload)) {
+    return {
+      data: payload as T[],
+      page,
+      limit,
+      total: payload.length,
+      totalPages: payload.length > 0 ? Math.ceil(payload.length / limit) : 0,
+    };
+  }
+
+  if (!isRecord(payload)) return emptyPage<T>(page, limit);
+
+  const rows = dataArray<T>(payload);
+  return {
+    data: rows,
+    page: numberOrDefault(payload.page, page),
+    limit: numberOrDefault(payload.limit, limit),
+    total: numberOrDefault(payload.total, rows.length),
+    totalPages: numberOrDefault(
+      payload.totalPages,
+      rows.length > 0 ? Math.ceil(rows.length / limit) : 0,
+    ),
+  };
+}
+
+function isNotFound(error: unknown): boolean {
+  if (isRecord(error) && error.status === 404) return true;
+  return (
+    isRecord(error) && isRecord(error.response) && error.response.status === 404
+  );
+}
+
 /* Credit score */
 export async function getCreditScores(params: {
   page?: number;
@@ -38,42 +103,76 @@ export async function getCreditScores(params: {
   minScore?: number;
   maxScore?: number;
 }) {
-  const { data } = await client.get<Paginated<CreditScore>>("/admin/credit-scores", {
-    params: qp(params),
-  });
-  return data;
+  const { data } = await client.get<Paginated<CreditScore>>(
+    "/admin/credit-scores",
+    {
+      params: qp(params),
+    },
+  );
+  return paginated<CreditScore>(data, params);
 }
 
 export async function getCreditScoreConfig() {
-  const { data } = await client.get<ScoringConfig>("/admin/credit-scores/config");
-  return data;
-}
-
-export async function putCreditScoreConfig(body: ScoringConfig) {
-  const { data } = await client.put<{ success: boolean; config: ScoringConfig }>(
+  const { data } = await client.get<ScoringConfig>(
     "/admin/credit-scores/config",
-    body,
   );
   return data;
 }
 
-export async function getCreditScoreDetail(userId: string) {
-  const { data } = await client.get<CreditScore>(`/admin/credit-scores/${userId}`);
+export async function putCreditScoreConfig(body: ScoringConfig) {
+  const { data } = await client.put<{
+    success: boolean;
+    config: ScoringConfig;
+  }>("/admin/credit-scores/config", body);
   return data;
 }
 
+export async function getCreditScoreDetail(userId: string) {
+  if (!userId) return null;
+  try {
+    const { data } = await client.get<CreditScore | null>(
+      `/admin/credit-scores/${userId}`,
+    );
+    return isRecord(data) ? (data as CreditScore) : null;
+  } catch (error) {
+    if (isNotFound(error)) return null;
+    throw error;
+  }
+}
+
 export async function getCreditScoreAudit(userId: string) {
-  const { data } = await client.get<{
-    data: { adminId: string; fromScore: number; toScore: number; reason: string; timestamp: string }[];
-  }>(`/admin/credit-scores/${userId}/audit`);
-  return data.data;
+  if (!userId) return [];
+  try {
+    const { data } = await client.get<{
+      data?: {
+        adminId: string;
+        fromScore: number;
+        toScore: number;
+        reason: string;
+        timestamp: string;
+      }[];
+    }>(`/admin/credit-scores/${userId}/audit`);
+    return dataArray<{
+      adminId: string;
+      fromScore: number;
+      toScore: number;
+      reason: string;
+      timestamp: string;
+    }>(data);
+  } catch (error) {
+    if (isNotFound(error)) return [];
+    throw error;
+  }
 }
 
 export async function putCreditScoreOverride(
   userId: string,
   body: { newScore: number; reason: string; adminId: string },
 ) {
-  const { data } = await client.put(`/admin/credit-scores/${userId}/override`, body);
+  const { data } = await client.put(
+    `/admin/credit-scores/${userId}/override`,
+    body,
+  );
   return data;
 }
 
@@ -89,17 +188,30 @@ export async function getMembershipStats() {
 }
 
 export async function getMembershipTiers() {
-  const { data } = await client.get<{ data: MembershipTier[] }>("/admin/membership/tiers");
-  return data.data;
+  const { data } = await client.get<{ data: MembershipTier[] }>(
+    "/admin/membership/tiers",
+  );
+  return dataArray<MembershipTier>(data);
 }
 
-export async function postMembershipTier(body: Omit<MembershipTier, "id" | "memberCount"> & { memberCount?: number }) {
-  const { data } = await client.post<MembershipTier>("/admin/membership/tiers", body);
+export async function postMembershipTier(
+  body: Omit<MembershipTier, "id" | "memberCount"> & { memberCount?: number },
+) {
+  const { data } = await client.post<MembershipTier>(
+    "/admin/membership/tiers",
+    body,
+  );
   return data;
 }
 
-export async function putMembershipTier(id: string, body: Partial<MembershipTier>) {
-  const { data } = await client.put<MembershipTier>(`/admin/membership/tiers/${id}`, body);
+export async function putMembershipTier(
+  id: string,
+  body: Partial<MembershipTier>,
+) {
+  const { data } = await client.put<MembershipTier>(
+    `/admin/membership/tiers/${id}`,
+    body,
+  );
   return data;
 }
 
@@ -117,19 +229,27 @@ export async function getMembershipUsers(params: {
   sort?: string;
   autoRenew?: string;
 }) {
-  const { data } = await client.get<Paginated<UserMembership>>("/admin/membership/users", {
-    params: qp(params),
+  const { data } = await client.get<Paginated<UserMembership>>(
+    "/admin/membership/users",
+    {
+      params: qp(params),
+    },
+  );
+  return paginated<UserMembership>(data, params);
+}
+
+export async function putMembershipUserTier(userId: string, tierId: string) {
+  const { data } = await client.put(`/admin/membership/users/${userId}/tier`, {
+    tierId,
   });
   return data;
 }
 
-export async function putMembershipUserTier(userId: string, tierId: string) {
-  const { data } = await client.put(`/admin/membership/users/${userId}/tier`, { tierId });
-  return data;
-}
-
 export async function putMembershipUserCancel(userId: string) {
-  const { data } = await client.put(`/admin/membership/users/${userId}/cancel`, {});
+  const { data } = await client.put(
+    `/admin/membership/users/${userId}/cancel`,
+    {},
+  );
   return data;
 }
 
@@ -157,17 +277,28 @@ export async function getSubscriptionStats() {
 }
 
 export async function getSubscriptionPlans() {
-  const { data } = await client.get<{ data: SubscriptionPlan[] }>("/admin/subscription/plans");
-  return data.data;
+  const { data } = await client.get<{ data: SubscriptionPlan[] }>(
+    "/admin/subscription/plans",
+  );
+  return dataArray<SubscriptionPlan>(data);
 }
 
 export async function postSubscriptionPlan(body: SubscriptionPlan) {
-  const { data } = await client.post<SubscriptionPlan>("/admin/subscription/plans", body);
+  const { data } = await client.post<SubscriptionPlan>(
+    "/admin/subscription/plans",
+    body,
+  );
   return data;
 }
 
-export async function putSubscriptionPlan(id: string, body: Partial<SubscriptionPlan>) {
-  const { data } = await client.put<SubscriptionPlan>(`/admin/subscription/plans/${id}`, body);
+export async function putSubscriptionPlan(
+  id: string,
+  body: Partial<SubscriptionPlan>,
+) {
+  const { data } = await client.put<SubscriptionPlan>(
+    `/admin/subscription/plans/${id}`,
+    body,
+  );
   return data;
 }
 
@@ -184,21 +315,33 @@ export async function getSubscriptions(params: {
   plan?: string;
   autoRenew?: string;
 }) {
-  const { data } = await client.get<Paginated<Subscription>>("/admin/subscription/subscriptions", {
-    params: qp(params),
-  });
-  return data;
+  const { data } = await client.get<Paginated<Subscription>>(
+    "/admin/subscription/subscriptions",
+    {
+      params: qp(params),
+    },
+  );
+  return paginated<Subscription>(data, params);
 }
 
 export async function getSubscriptionDetail(id: string) {
   const { data } = await client.get<
-    Subscription & { billingHistory: { date: string; amount: number; status: string }[] }
+    Subscription & {
+      billingHistory: { date: string; amount: number; status: string }[];
+    }
   >(`/admin/subscription/subscriptions/${id}`);
   return data;
 }
 
-export async function putSubscriptionAction(id: string, action: "cancel" | "pause" | "resume" | "extend", body?: { days?: number }) {
-  const { data } = await client.put(`/admin/subscription/subscriptions/${id}/${action}`, body ?? {});
+export async function putSubscriptionAction(
+  id: string,
+  action: "cancel" | "pause" | "resume" | "extend",
+  body?: { days?: number },
+) {
+  const { data } = await client.put(
+    `/admin/subscription/subscriptions/${id}/${action}`,
+    body ?? {},
+  );
   return data;
 }
 
@@ -209,12 +352,22 @@ export async function getReferralConfig() {
 }
 
 export async function putReferralConfig(body: Partial<ReferralConfig>) {
-  const { data } = await client.put<ReferralConfig>("/admin/referral/config", body);
+  const { data } = await client.put<ReferralConfig>(
+    "/admin/referral/config",
+    body,
+  );
   return data;
 }
 
-export async function getReferrals(params: { page?: number; limit?: number; search?: string; status?: string }) {
-  const { data } = await client.get<Paginated<Referral>>("/admin/referrals", { params: qp(params) });
+export async function getReferrals(params: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: string;
+}) {
+  const { data } = await client.get<Paginated<Referral>>("/admin/referrals", {
+    params: qp(params),
+  });
   return data;
 }
 
@@ -252,14 +405,19 @@ export async function getMissingOrders(params: {
   from?: string;
   to?: string;
 }) {
-  const { data } = await client.get<Paginated<MissingOrderClaim>>("/admin/missing-orders", {
-    params: qp(params),
-  });
+  const { data } = await client.get<Paginated<MissingOrderClaim>>(
+    "/admin/missing-orders",
+    {
+      params: qp(params),
+    },
+  );
   return data;
 }
 
 export async function getMissingOrderDetail(id: string) {
-  const { data } = await client.get<MissingOrderClaim>(`/admin/missing-orders/${id}`);
+  const { data } = await client.get<MissingOrderClaim>(
+    `/admin/missing-orders/${id}`,
+  );
   return data;
 }
 
@@ -274,25 +432,39 @@ export async function putMissingOrderReject(id: string) {
 }
 
 export async function putMissingOrderAssign(id: string, assignee: string) {
-  const { data } = await client.put(`/admin/missing-orders/${id}/assign`, { assignee });
+  const { data } = await client.put(`/admin/missing-orders/${id}/assign`, {
+    assignee,
+  });
   return data;
 }
 
-export async function postMissingOrderNote(id: string, note: string, adminId: string, adminName: string) {
-  const { data } = await client.post(`/admin/missing-orders/${id}/notes`, { note, adminId, adminName });
+export async function postMissingOrderNote(
+  id: string,
+  note: string,
+  adminId: string,
+  adminName: string,
+) {
+  const { data } = await client.post(`/admin/missing-orders/${id}/notes`, {
+    note,
+    adminId,
+    adminName,
+  });
   return data;
 }
 
 /* Wallet */
 export async function getWalletDetail(userId: string) {
-  const { data } = await client.get<{ wallet: UserWallet; recentTransactions: Transaction[] }>(
-    `/admin/wallets/${userId}`,
-  );
+  const { data } = await client.get<{
+    wallet: UserWallet;
+    recentTransactions: Transaction[];
+  }>(`/admin/wallets/${userId}`);
   return data;
 }
 
 export async function getWalletAdjustments(userId: string) {
-  const { data } = await client.get<{ data: WalletAdjustment[] }>(`/admin/wallets/${userId}/adjustments`);
+  const { data } = await client.get<{ data: WalletAdjustment[] }>(
+    `/admin/wallets/${userId}/adjustments`,
+  );
   return data.data;
 }
 
@@ -340,14 +512,19 @@ export async function getTransactions(params: {
   type?: string;
   status?: string;
 }) {
-  const { data } = await client.get<Paginated<Transaction>>("/admin/transactions", {
-    params: qp(params),
-  });
+  const { data } = await client.get<Paginated<Transaction>>(
+    "/admin/transactions",
+    {
+      params: qp(params),
+    },
+  );
   return data;
 }
 
 export async function getTransactionExport() {
-  const { data } = await client.get<{ csv: string }>("/admin/transactions/export");
+  const { data } = await client.get<{ csv: string }>(
+    "/admin/transactions/export",
+  );
   return data;
 }
 
@@ -356,51 +533,94 @@ export async function getTransactionDetail(id: string) {
   return data;
 }
 
-export async function putTransactionFlag(id: string, flagged: boolean, reason: string) {
-  const { data } = await client.put(`/admin/transactions/${id}/flag`, { flagged, reason });
+export async function putTransactionFlag(
+  id: string,
+  flagged: boolean,
+  reason: string,
+) {
+  const { data } = await client.put(`/admin/transactions/${id}/flag`, {
+    flagged,
+    reason,
+  });
   return data;
 }
 
 /* Discover */
 export async function getDiscoverSections() {
   const { data } = await client.get<{
-    sections: { id: string; type: DiscoverSectionType; items: DiscoverItem[] }[];
+    sections: {
+      id: string;
+      type: DiscoverSectionType;
+      items: DiscoverItem[];
+    }[];
   }>("/admin/discover/sections");
   return data.sections;
 }
 
-export async function putDiscoverReorder(type: DiscoverSectionType, order: string[]) {
-  const { data } = await client.put(`/admin/discover/sections/${type}/reorder`, { order });
+export async function putDiscoverReorder(
+  type: DiscoverSectionType,
+  order: string[],
+) {
+  const { data } = await client.put(
+    `/admin/discover/sections/${type}/reorder`,
+    { order },
+  );
   return data;
 }
 
-export async function postDiscoverItem(type: DiscoverSectionType, body: Partial<DiscoverItem>) {
-  const { data } = await client.post<DiscoverItem>(`/admin/discover/sections/${type}/items`, body);
+export async function postDiscoverItem(
+  type: DiscoverSectionType,
+  body: Partial<DiscoverItem>,
+) {
+  const { data } = await client.post<DiscoverItem>(
+    `/admin/discover/sections/${type}/items`,
+    body,
+  );
   return data;
 }
 
-export async function putDiscoverItem(type: DiscoverSectionType, id: string, body: Partial<DiscoverItem>) {
-  const { data } = await client.put(`/admin/discover/sections/${type}/items/${id}`, body);
+export async function putDiscoverItem(
+  type: DiscoverSectionType,
+  id: string,
+  body: Partial<DiscoverItem>,
+) {
+  const { data } = await client.put(
+    `/admin/discover/sections/${type}/items/${id}`,
+    body,
+  );
   return data;
 }
 
-export async function deleteDiscoverItem(type: DiscoverSectionType, id: string) {
-  const { data } = await client.delete(`/admin/discover/sections/${type}/items/${id}`);
+export async function deleteDiscoverItem(
+  type: DiscoverSectionType,
+  id: string,
+) {
+  const { data } = await client.delete(
+    `/admin/discover/sections/${type}/items/${id}`,
+  );
   return data;
 }
 
 /* Search */
 export async function getFeaturedTerms() {
-  const { data } = await client.get<{ data: FeaturedSearchTerm[] }>("/admin/search/featured-terms");
+  const { data } = await client.get<{ data: FeaturedSearchTerm[] }>(
+    "/admin/search/featured-terms",
+  );
   return data.data;
 }
 
 export async function postFeaturedTerm(body: Partial<FeaturedSearchTerm>) {
-  const { data } = await client.post<FeaturedSearchTerm>("/admin/search/featured-terms", body);
+  const { data } = await client.post<FeaturedSearchTerm>(
+    "/admin/search/featured-terms",
+    body,
+  );
   return data;
 }
 
-export async function putFeaturedTerm(id: string, body: Partial<FeaturedSearchTerm>) {
+export async function putFeaturedTerm(
+  id: string,
+  body: Partial<FeaturedSearchTerm>,
+) {
   const { data } = await client.put(`/admin/search/featured-terms/${id}`, body);
   return data;
 }
@@ -411,17 +631,24 @@ export async function deleteFeaturedTerm(id: string) {
 }
 
 export async function putFeaturedTermsReorder(order: string[]) {
-  const { data } = await client.put("/admin/search/featured-terms/reorder", { order });
+  const { data } = await client.put("/admin/search/featured-terms/reorder", {
+    order,
+  });
   return data;
 }
 
 export async function getBoostRules() {
-  const { data } = await client.get<{ data: BoostRule[] }>("/admin/search/boost-rules");
+  const { data } = await client.get<{ data: BoostRule[] }>(
+    "/admin/search/boost-rules",
+  );
   return data.data;
 }
 
 export async function postBoostRule(body: Partial<BoostRule>) {
-  const { data } = await client.post<BoostRule>("/admin/search/boost-rules", body);
+  const { data } = await client.post<BoostRule>(
+    "/admin/search/boost-rules",
+    body,
+  );
   return data;
 }
 
@@ -436,12 +663,17 @@ export async function deleteBoostRule(id: string) {
 }
 
 export async function getSearchBlacklist() {
-  const { data } = await client.get<{ data: BlacklistKeyword[] }>("/admin/search/blacklist");
+  const { data } = await client.get<{ data: BlacklistKeyword[] }>(
+    "/admin/search/blacklist",
+  );
   return data.data;
 }
 
 export async function postSearchBlacklist(body: Partial<BlacklistKeyword>) {
-  const { data } = await client.post<BlacklistKeyword>("/admin/search/blacklist", body);
+  const { data } = await client.post<BlacklistKeyword>(
+    "/admin/search/blacklist",
+    body,
+  );
   return data;
 }
 
@@ -451,6 +683,8 @@ export async function deleteSearchBlacklist(id: string) {
 }
 
 export async function postSearchBlacklistImport(keywords: string[]) {
-  const { data } = await client.post("/admin/search/blacklist/import", { keywords });
+  const { data } = await client.post("/admin/search/blacklist/import", {
+    keywords,
+  });
   return data;
 }

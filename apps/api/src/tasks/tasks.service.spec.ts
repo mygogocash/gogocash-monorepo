@@ -40,6 +40,21 @@ interface Mocks {
   constructedPoints: Array<{ data: Record<string, unknown>; save: jest.Mock }>;
 }
 
+function expectClosedUnrewardedDueQuestQuery(query: unknown) {
+  expect(query).toMatchObject({
+    status: 'close',
+    reward_status: { $ne: true },
+    $or: [
+      { reward_distribution_mode: { $exists: false } },
+      { reward_distribution_mode: 'campaign_end' },
+      {
+        reward_distribution_mode: 'after_days',
+        reward_distribution_scheduled_at: { $lte: expect.any(Date) },
+      },
+    ],
+  });
+}
+
 async function buildService(): Promise<{
   service: TasksService;
   mocks: Mocks;
@@ -170,6 +185,24 @@ describe('TasksService', () => {
       expect(secondCall[0]).toEqual({ conversion_id: 102 });
     });
 
+    it('updateStatusConversionIsPending > given upstream conversions > then it does not print raw conversion payloads', async () => {
+      const { service, mocks } = await buildService();
+      const conversions = [
+        {
+          conversion_id: 101,
+          payout: 50,
+          aff_sub1: 'user_id:507f1f77bcf86cd799439011',
+        },
+      ];
+      mocks.involveService.getConversionAll.mockResolvedValueOnce({
+        data: { data: conversions, nextPage: false },
+      });
+
+      await service.updateStatusConversionIsPending();
+
+      expect(logSpy).not.toHaveBeenCalledWith('batch', conversions);
+    });
+
     // Pagination must follow `nextPage` until it is falsy and aggregate every
     // page — a dropped page would silently lose payouts.
     it('updateStatusConversionIsPending > given multiple pages > then it follows nextPage until exhausted and upserts all', async () => {
@@ -238,8 +271,8 @@ describe('TasksService', () => {
       expect(mocks.pointModel).not.toHaveBeenCalled();
     });
 
-    // The quest selection contract: only rounds with status 'close' and
-    // reward_status not yet true are eligible (prevents double-rewarding).
+    // The quest selection contract: only closed, not-yet-rewarded rounds whose
+    // configured automatic distribution time is due are eligible.
     it('getSpacialPointNextRound > given a quest exists > then it selects a closed, not-yet-rewarded round', async () => {
       const { service, mocks } = await buildService();
       mocks.questModel.findOne.mockResolvedValueOnce({
@@ -250,10 +283,9 @@ describe('TasksService', () => {
 
       await service.getSpacialPointNextRound();
 
-      expect(mocks.questModel.findOne).toHaveBeenCalledWith({
-        status: 'close',
-        reward_status: { $ne: true },
-      });
+      expectClosedUnrewardedDueQuestQuery(
+        mocks.questModel.findOne.mock.calls[0][0],
+      );
     });
 
     // Reward correctness: each leaderboard entry must produce exactly one Point

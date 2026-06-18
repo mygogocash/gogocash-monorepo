@@ -12,6 +12,7 @@ import {
   presetRangeDates,
 } from "@/lib/insightRange";
 import { formatDate } from "@/lib/dateFormat";
+import DatePicker from "@/components/form/date-picker";
 
 const OPTIONS: { value: DashboardInsightRange; label: string }[] = [
   { value: "7d", label: "7d" },
@@ -72,7 +73,7 @@ const buttonClass = (active: boolean): string =>
   }`;
 
 const dateInputClass =
-  "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:[color-scheme:dark] sm:w-40";
+  "h-11 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 pr-10 text-sm text-gray-900 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white sm:w-40";
 
 type Props = {
   value: DashboardInsightRangeValue;
@@ -142,30 +143,32 @@ export function DashboardInsightRangeControl({ value, onChange }: Props) {
           <span className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
             From
           </span>
-          <input
-            type="date"
+          <DatePicker
+            id="dashboard-insight-from-date"
             value={from}
-            max={to || undefined}
-            onChange={(e) => {
-              setFrom(e.target.value);
-              emitIfValid(e.target.value, to);
-            }}
+            maxDate={to || undefined}
+            ariaLabel="From date"
             className={dateInputClass}
+            onValueChange={(nextFrom) => {
+              setFrom(nextFrom);
+              emitIfValid(nextFrom, to);
+            }}
           />
         </label>
         <label className="block min-w-0">
           <span className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
             To
           </span>
-          <input
-            type="date"
+          <DatePicker
+            id="dashboard-insight-to-date"
             value={to}
-            min={from || undefined}
-            onChange={(e) => {
-              setTo(e.target.value);
-              emitIfValid(from, e.target.value);
-            }}
+            minDate={from || undefined}
+            ariaLabel="To date"
             className={dateInputClass}
+            onValueChange={(nextTo) => {
+              setTo(nextTo);
+              emitIfValid(from, nextTo);
+            }}
           />
         </label>
       </div>

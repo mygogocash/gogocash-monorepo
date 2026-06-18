@@ -167,10 +167,6 @@ export class InvolveService {
       );
       return res.data;
     } catch (error: any) {
-      console.error(
-        'Error creating deeplink:',
-        error.response?.data || error.message,
-      );
       if (error.response?.data?.status_code === 401) {
         await this.signIn();
         return this.createDeeplinkInvolve(createInvolveDto);
