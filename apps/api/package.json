@@ -40,9 +40,9 @@
     "@nestjs/jwt": "^11.0.0",
     "@nestjs/mongoose": "^11.0.4",
     "@nestjs/passport": "^11.0.5",
-    "@nestjs/platform-express": "^11.1.8",
+    "@nestjs/platform-express": "^11.1.27",
     "@nestjs/schedule": "^6.0.1",
-    "@nestjs/swagger": "^11.2.0",
+    "@nestjs/swagger": "^11.4.4",
     "@posthog/core": "^1.23.2",
     "@types/bcrypt": "^6.0.0",
     "@types/multer": "^2.0.0",
@@ -54,7 +54,7 @@
     "class-validator": "^0.15.1",
     "cookie-parser": "^1.4.7",
     "customerio-node": "^5.0.1",
-    "ethers": "^6.15.0",
+    "ethers": "^6.17.0",
     "express": "^5.1.0",
     "firebase-admin": "^14.0.0",
     "googleapis": "^173.0.0",
@@ -63,7 +63,7 @@
     "mime-types": "^3.0.1",
     "mongodb": "^7.3.0",
     "mongoose": "^9.7.0",
-    "multer": "^2.0.2",
+    "multer": "^2.2.0",
     "nestjs-telegraf": "^2.9.1",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
@@ -85,7 +85,6 @@
     "@types/jest": "^30.0.0",
     "@types/node": "^25",
     "@types/supertest": "^7.0.0",
-    "typescript-eslint": "^8",
     "eslint": "^10",
     "eslint-config-prettier": "^10",
     "eslint-plugin-prettier": "^5",
@@ -97,7 +96,8 @@
     "ts-loader": "^9.4.3",
     "ts-node": "^10.9.1",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8"
   },
   "jest": {
     "moduleFileExtensions": [
