@@ -27,7 +27,7 @@
     "build:firebase:ai-test": "cross-env BUILD_FOR_FIREBASE=1 next build",
     "deploy:firebase": "npm run build:firebase && firebase deploy",
     "deploy:firebase:staging": "node scripts/deploy-firebase-staging.mjs",
-    "postinstall": "node scripts/patch-apexcharts-border-radius.mjs"
+    "postinstall": "node scripts/patch-apexcharts-border-radius.mjs && node scripts/patch-firebase-tools-js-yaml.mjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

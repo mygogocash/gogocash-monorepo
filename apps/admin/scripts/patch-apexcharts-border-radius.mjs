@@ -9,10 +9,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const root = path.join(__dirname, "..");
-const apex = path.join(root, "node_modules", "apexcharts");
+const adminRoot = path.join(__dirname, "..");
+const repoRoot = path.resolve(adminRoot, "..", "..");
+const apex = [
+  path.join(adminRoot, "node_modules", "apexcharts"),
+  path.join(repoRoot, "node_modules", "apexcharts"),
+].find((candidate) => fs.existsSync(candidate));
 
-if (!fs.existsSync(apex)) {
+if (!apex) {
   console.warn("[patch-apexcharts] apexcharts not installed, skip");
   process.exit(0);
 }

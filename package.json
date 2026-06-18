@@ -13,6 +13,7 @@
   "scripts": {
     "build": "turbo run build",
     "lint": "turbo run lint",
+    "postinstall": "npm run postinstall -w apps/admin",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test"
   },
@@ -26,7 +27,11 @@
     "firebase-tools@15.21.0": {
       "@google-cloud/pubsub": {
         "@opentelemetry/core": "2.8.0"
-      }
+      },
+      "js-yaml": "4.2.0"
+    },
+    "@istanbuljs/load-nyc-config@1.1.0": {
+      "js-yaml": "4.2.0"
     },
     "@nestjs/platform-express@11.1.27": {
       "multer": "2.2.0"
