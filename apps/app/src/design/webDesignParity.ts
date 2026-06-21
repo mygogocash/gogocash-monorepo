@@ -111,7 +111,10 @@ export function getCarouselActiveIndex({
 }
 
 function getTopBrandGrid(viewportWidth: number) {
-  if (viewportWidth >= 1280) {
+  // Any desktop-class viewport (>=1024) uses the full 6-up grid. Previously this
+  // only kicked in at >=1280, so the 1024-1279 band fell through to the 3-column
+  // tablet rule and Top Brand cards ballooned (~305px wide) on common laptops.
+  if (getDeviceClass(viewportWidth) === "desktop") {
     return {
       columns: mobileShellLayout.topBrandDesktopColumns,
       gap: mobileShellLayout.topBrandDesktopGridGap,
