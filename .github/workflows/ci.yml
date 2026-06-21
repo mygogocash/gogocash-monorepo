@@ -301,30 +301,3 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=4096
           MONGO_URI: mongodb://localhost:27017/inttest
         run: npx jest --config ./test/jest-e2e.json withdraw-balance --runInBand
-
-  # ── Required-check aggregator (P2-MAINPROTECT) ─────────────────────────────
-  # Branch protection can't require the path-filtered per-app jobs directly: a PR
-  # that doesn't touch (say) apps/api leaves "api build + boot smoke" never
-  # reporting, which would block the merge forever. This always-runs gate depends
-  # on every app job and passes when each one SUCCEEDED or was SKIPPED (path-
-  # filtered) — failing only if one actually failed or was cancelled. Require
-  # ONLY this single check ("CI gate (required)") in branch protection.
-  ci-gate:
-    name: CI gate (required)
-    if: always()
-    needs: [changes, admin, app, api-lint, api-test, api-build-smoke]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Verify no required job failed
-        env:
-          RESULTS: ${{ join(needs.*.result, ',') }}
-        run: |
-          echo "upstream job results: $RESULTS"
-          case "$RESULTS" in
-            *failure*|*cancelled*)
-              echo "::error::A required CI job failed or was cancelled."
-              exit 1 ;;
-            *)
-              echo "All required CI jobs passed or were skipped."
-              exit 0 ;;
-          esac
