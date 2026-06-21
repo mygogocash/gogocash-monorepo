@@ -54,7 +54,7 @@ jobs:
     env:
       IMAGE: ${{ inputs.region }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ inputs.artifact_repo }}/${{ inputs.service_name }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v6
         if: ${{ inputs.prebuild_command != '' }}

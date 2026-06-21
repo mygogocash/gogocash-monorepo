@@ -18,13 +18,19 @@ export function useMobileLogout(): { logout: () => Promise<void>; pending: boole
 
   const logout = async () => {
     setPending(true);
-    // Success haptic acknowledges the destructive action before the session is
-    // torn down (fire-and-forget; no-op on web).
-    void haptics.success();
-    await clearMobileAppSession();
-    queryClient.clear();
-    resetObservabilityIdentity();
-    router.replace("/login" as never);
+    try {
+      // Success haptic acknowledges the destructive action before the session is
+      // torn down (fire-and-forget; no-op on web).
+      void haptics.success();
+      await clearMobileAppSession();
+      queryClient.clear();
+      resetObservabilityIdentity();
+      router.replace("/login" as never);
+    } finally {
+      // Always clear the spinner — otherwise a failed teardown leaves the
+      // logout control stuck in its pending state until the surface remounts.
+      setPending(false);
+    }
   };
 
   return { logout, pending };
