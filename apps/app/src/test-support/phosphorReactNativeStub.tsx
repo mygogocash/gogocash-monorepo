@@ -1,17 +1,104 @@
 import { createElement } from "react";
 import { View } from "react-native";
 
-// Test stub for phosphor-react-native (render-test config only). The real package
-// ships ESM with extensionless internal imports that vitest cannot resolve, and
-// the app imports icons via deep default paths
-// ("phosphor-react-native/lib/module/icons/<Name>"). The render config aliases
-// EVERY phosphor path to this single module via regex, so the default export must
-// satisfy all those default imports. Icons are leaf presentational nodes
-// irrelevant to render smoke tests, so each is a trivial View. Never bundled into
-// the app.
+// Test stub for phosphor-react-native (render-test config only). Icons are leaf
+// presentational nodes irrelevant to render smoke tests, so each is a trivial
+// View. Never bundled into the app.
 function StubIcon(props: Record<string, unknown>) {
   return createElement(View, { accessible: false, ...props });
 }
 
 export default StubIcon;
 export const Icon = StubIcon;
+export {
+  StubIcon as Airplane,
+  StubIcon as AirplaneTilt,
+  StubIcon as ArrowRight,
+  StubIcon as ArrowSquareOut,
+  StubIcon as ArrowsLeftRight,
+  StubIcon as Bank,
+  StubIcon as Bell,
+  StubIcon as BookOpen,
+  StubIcon as Calendar,
+  StubIcon as CalendarBlank,
+  StubIcon as CalendarCheck,
+  StubIcon as Camera,
+  StubIcon as CaretDown,
+  StubIcon as CaretLeft,
+  StubIcon as CaretRight,
+  StubIcon as CaretUp,
+  StubIcon as ChatCircle,
+  StubIcon as Check,
+  StubIcon as CheckCircle,
+  StubIcon as Clock,
+  StubIcon as Cloud,
+  StubIcon as Coins,
+  StubIcon as Cookie,
+  StubIcon as Copy,
+  StubIcon as CreditCard,
+  StubIcon as CurrencyCircleDollar,
+  StubIcon as CursorClick,
+  StubIcon as DeviceMobile,
+  StubIcon as DotsThreeCircle,
+  StubIcon as Download,
+  StubIcon as EnvelopeSimple,
+  StubIcon as Eye,
+  StubIcon as FileMagnifyingGlass,
+  StubIcon as FileText,
+  StubIcon as FloppyDisk,
+  StubIcon as ForkKnife,
+  StubIcon as GearSix,
+  StubIcon as Gift,
+  StubIcon as Globe,
+  StubIcon as GridFour,
+  StubIcon as Hash,
+  StubIcon as Headphones,
+  StubIcon as Heart,
+  StubIcon as Heartbeat,
+  StubIcon as Hourglass,
+  StubIcon as House,
+  StubIcon as ImageSquare,
+  StubIcon as Info,
+  StubIcon as Link,
+  StubIcon as LinkSimple,
+  StubIcon as List,
+  StubIcon as Lock,
+  StubIcon as LockKey,
+  StubIcon as MagnifyingGlass,
+  StubIcon as MapPin,
+  StubIcon as Money,
+  StubIcon as Monitor,
+  StubIcon as PencilSimple,
+  StubIcon as PencilSimpleLine,
+  StubIcon as Phone,
+  StubIcon as Plus,
+  StubIcon as PlusSquare,
+  StubIcon as Pulse,
+  StubIcon as Question,
+  StubIcon as Receipt,
+  StubIcon as SealCheck,
+  StubIcon as SealPercent,
+  StubIcon as ShareNetwork,
+  StubIcon as ShieldCheck,
+  StubIcon as ShoppingBag,
+  StubIcon as ShoppingCart,
+  StubIcon as SignOut,
+  StubIcon as SlidersHorizontal,
+  StubIcon as Sparkle,
+  StubIcon as SquaresFour,
+  StubIcon as Star,
+  StubIcon as Storefront,
+  StubIcon as Tag,
+  StubIcon as Trash,
+  StubIcon as Tray,
+  StubIcon as TrendUp,
+  StubIcon as TShirt,
+  StubIcon as Trophy,
+  StubIcon as User,
+  StubIcon as UserCircle,
+  StubIcon as UserPlus,
+  StubIcon as Wallet,
+  StubIcon as WarningCircle,
+  StubIcon as WifiSlash,
+  StubIcon as X,
+};
