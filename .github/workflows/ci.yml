@@ -72,7 +72,7 @@ jobs:
       api: ${{ steps.filter.outputs.api }}
       app: ${{ steps.filter.outputs.app }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: dorny/paths-filter@v4
         id: filter
         with:
@@ -101,7 +101,7 @@ jobs:
     if: ${{ needs.changes.outputs.admin == 'true' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
         with:
           node-version: "22"
@@ -132,7 +132,7 @@ jobs:
     if: ${{ needs.changes.outputs.app == 'true' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
         with:
           node-version: "22"
@@ -167,7 +167,7 @@ jobs:
     if: ${{ needs.changes.outputs.api == 'true' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
         with:
           node-version: "22"
@@ -188,7 +188,7 @@ jobs:
     if: ${{ needs.changes.outputs.api == 'true' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
         with:
           node-version: "22"
@@ -225,7 +225,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
         with:
           node-version: "22"
