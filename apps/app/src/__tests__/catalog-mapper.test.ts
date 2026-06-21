@@ -22,12 +22,16 @@ const sampleResponse: OfferListResponse = {
       commission_store: 3.5,
       logo: "https://img.involve.asia/ia_logo/803_unjtmslX.png",
       extra_store: true,
+      disabled: false,
+      status: "approved",
     },
     {
       // Sparse record: no display name, no category, no logo, no coupon flag.
       _id: "aaaa1111bbbb2222cccc3333",
       offer_name: "Mystery Shop - CPS",
       commission_store: "12",
+      disabled: false,
+      status: "approved",
     },
   ],
 };
@@ -58,6 +62,23 @@ describe("catalog mapper > mapOffersToCatalogBrands", () => {
     expect(brand.logo).toBeUndefined();
   });
 
+  it("given a percentage string from the backend > then it does not append a duplicate percent sign", () => {
+    const [brand] = mapOffersToCatalogBrands({
+      ...sampleResponse,
+      data: [
+        {
+          _id: "percent-string",
+          offer_name: "Percent String Shop",
+          commission_store: "8.5%",
+          disabled: false,
+          status: "approved",
+        },
+      ],
+    });
+
+    expect(brand.cashback).toBe("8.5%");
+  });
+
   it("given any record > then derives a stable tint from the brand name", () => {
     const first = mapOffersToCatalogBrands(sampleResponse);
     const second = mapOffersToCatalogBrands(sampleResponse);
@@ -79,6 +100,41 @@ describe("catalog mapper > mapOffersToCatalogBrands", () => {
 
   it("given an empty envelope > then returns an empty list", () => {
     expect(mapOffersToCatalogBrands({ ...sampleResponse, data: [] })).toEqual([]);
+  });
+
+  it("given hidden or unapproved records > then drops them from customer cards", () => {
+    const mapped = mapOffersToCatalogBrands({
+      ...sampleResponse,
+      data: [
+        ...sampleResponse.data,
+        {
+          _id: "hidden",
+          offer_name: "Hidden Brand",
+          disabled: true,
+          status: "approved",
+        },
+        {
+          _id: "pending",
+          offer_name: "Pending Brand",
+          disabled: false,
+          status: "pending",
+        },
+        {
+          _id: "pending-review",
+          offer_name: "Pending Review Brand",
+          disabled: false,
+          status: "pending_review",
+        },
+        {
+          _id: "rejected",
+          offer_name: "Rejected Brand",
+          disabled: false,
+          status: "rejected",
+        },
+      ],
+    });
+
+    expect(mapped.map((brand) => brand.name)).toEqual(["Klook Travel", "Mystery Shop - CPS"]);
   });
 });
 

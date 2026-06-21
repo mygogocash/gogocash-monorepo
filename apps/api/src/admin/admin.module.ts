@@ -56,10 +56,7 @@ import { User, UserSchema } from 'src/user/schemas/user.schema';
 import { Withdraw, WithdrawSchema } from 'src/withdraw/schemas/withdraw.schema';
 import { FeeRate, FeeRateSchema } from 'src/withdraw/schemas/feeRate.schema';
 import { Offer, OfferSchema } from 'src/offer/schemas/offer.schema';
-import {
-  Category,
-  CategorySchema,
-} from 'src/offer/schemas/category.schema';
+import { Category, CategorySchema } from 'src/offer/schemas/category.schema';
 import {
   Conversion,
   ConversionSchema,
@@ -69,6 +66,10 @@ import {
   UserMyCashbackSchema,
 } from 'src/user/schemas/user-my-cashback.schema';
 import { Banner, BannerSchema } from 'src/offer/schemas/banner.schema';
+import {
+  TopBrandConfig,
+  TopBrandConfigSchema,
+} from 'src/offer/schemas/top-brand-config.schema';
 import { Deeplink, DeeplinkSchema } from 'src/involve/schemas/deeplink.schema';
 import {
   WithdrawMethod,
@@ -162,6 +163,7 @@ import { AnalyticsModule } from 'src/analytics/analytics.module';
       { name: Conversion.name, schema: ConversionSchema },
       { name: UserMyCashback.name, schema: UserMyCashbackSchema },
       { name: Banner.name, schema: BannerSchema },
+      { name: TopBrandConfig.name, schema: TopBrandConfigSchema },
       { name: Deeplink.name, schema: DeeplinkSchema },
       { name: WithdrawMethod.name, schema: WithdrawMethodSchema },
       { name: Coupon.name, schema: CouponSchema },

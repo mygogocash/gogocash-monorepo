@@ -20,7 +20,6 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Point, PointDocument } from 'src/point/schemas/point.schema';
 import { getAdminAuth } from './firebase-admin.provider';
-import * as admin from 'firebase-admin';
 import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
 import { SiweNonce, SiweNonceDocument } from './schemas/siwe-nonce.schema';
@@ -132,8 +131,7 @@ export class AuthService {
 
   async signInFirebase(token: string, payload: SignInFirebaseDto) {
     try {
-      getAdminAuth();
-      const data = await admin.auth().verifyIdToken(token);
+      const data = await getAdminAuth().verifyIdToken(token);
       if (!data) {
         throw new Error('User not found in Gogocash');
       }
@@ -493,8 +491,7 @@ export class AuthService {
       }
       // console.log('token', token);
       // const admin = getAdminAuth();
-      getAdminAuth();
-      const decoded = await admin.auth().verifyIdToken(token); // const decoded = verifyIdToken(token);
+      const decoded = await getAdminAuth().verifyIdToken(token); // const decoded = verifyIdToken(token);
       // console.log('decode', decoded);
       // console.log('user', user);
       const checkMobileDup = await this.userService.findOne({
@@ -618,7 +615,9 @@ export class AuthService {
     const nonce = nonceMatch[1];
     const consumed = await this.siweNonceModel.findOneAndDelete({ nonce });
     if (!consumed) {
-      throw new UnauthorizedException('Nonce invalid, expired, or already used');
+      throw new UnauthorizedException(
+        'Nonce invalid, expired, or already used',
+      );
     }
 
     const syntheticFirebaseId = `minipay:${address.toLowerCase()}`;
@@ -725,7 +724,7 @@ export class AuthService {
       }
 
       return { email: decoded.email };
-    } catch (_error: any) {
+    } catch {
       throw new UnauthorizedException('Invalid or expired temporary token');
     }
   }
@@ -886,7 +885,7 @@ export class AuthService {
         },
       );
       return response.data;
-    } catch (error) {
+    } catch {
       throw new Error('Invalid LINE access token');
     }
   }
@@ -902,7 +901,7 @@ export class AuthService {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       return response.data;
-    } catch (error) {
+    } catch {
       throw new Error('Failed to verify LINE user identity');
     }
   }

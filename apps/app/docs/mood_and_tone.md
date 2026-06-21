@@ -34,4 +34,4 @@ GoGoCash is designed to feel:
 
 ### 2.4 Capped Mobile Width (Responsive Preview)
 - Large displays or desktop web previews must never stretch the mobile UI elements horizontally.
-- The interface caps at `448px` (for navigation controls) and `760px` (for screens), preserving centered balance.
+- Layout uses three device classes (Desktop / Tablet / Mobile) resolved per element (see `useDeviceClass`). Content columns are centered and capped per class: `448px` (bottom navigation, `bottomNavMaxWidth`), `720px` (portrait-tablet content, `tabletContentMaxWidth`), and `1440px` (mobile/desktop shell content, `contentMaxWidth` / `desktopContentMaxWidth`) — all from `src/design/webDesignParity.ts`.

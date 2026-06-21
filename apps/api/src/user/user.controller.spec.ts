@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
 import { Request } from 'express';
@@ -33,6 +34,32 @@ describe('UserController', () => {
     expect(controller).toBeDefined();
   });
 
+  // ---------------------------------------------------------------------------
+  // Authorization wiring (V-4). GET /user/balance/me/mycashback/admin/:id had
+  // NO guard, so anyone could read ANY user's cashback balance + use the route
+  // as an existence oracle by ObjectId. Pin the guard so a future edit dropping
+  // it fails CI instead of silently re-opening the leak.
+  // ---------------------------------------------------------------------------
+  describe('authorization wiring (V-4)', () => {
+    const proto = UserController.prototype as unknown as Record<
+      string,
+      unknown
+    >;
+    const guardsOf = (method: string): unknown[] =>
+      (Reflect.getMetadata(
+        '__guards__',
+        proto[method] as object,
+      ) as unknown[]) ?? [];
+
+    it('balanceMyCashbackAdmin > is protected by AuthAdminGuard (no unauthenticated balance/PII leak)', () => {
+      expect(guardsOf('balanceMyCashbackAdmin')).toContain(AuthAdminGuard);
+    });
+
+    it('balanceMyCashback (self) > stays protected by FirebaseAuthGuard', () => {
+      expect(guardsOf('balanceMyCashback')).toContain(FirebaseAuthGuard);
+    });
+  });
+
   describe('PATCH /user/:id', () => {
     it('update > given a different user id in the URL > then it edits the callers own record, not the targeted one (no IDOR)', async () => {
       const selfId = new Types.ObjectId();
@@ -47,7 +74,8 @@ describe('UserController', () => {
       // Must route through the allowlisted self-service path with the caller's
       // own id, never the attacker-supplied param id.
       expect(userService.updateProfile).toHaveBeenCalledTimes(1);
-      const calledId = userService.updateProfile.mock.calls[0][0] as Types.ObjectId;
+      const calledId = userService.updateProfile.mock
+        .calls[0][0] as Types.ObjectId;
       expect(calledId.toString()).toBe(selfId.toString());
       expect(calledId.toString()).not.toBe('0123456789abcdef01234567');
     });

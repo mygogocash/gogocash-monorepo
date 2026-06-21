@@ -12,9 +12,9 @@ The web app is the source of truth until a newer approved Figma or product spec 
 
 In scope:
 
-- Native Expo screens under `apps/mobile`.
+- Native Expo screens under `apps/app`.
 - Customer web reference routes under `src/app/[locale]`.
-- Shared visual decisions captured in `apps/mobile/src/design/webDesignParity.ts` and `apps/mobile/src/theme/tokens.ts`.
+- Shared visual decisions captured in `apps/app/src/design/webDesignParity.ts` and `apps/app/src/theme/tokens.ts`.
 - iOS simulator, Android emulator, and Expo web preview.
 - English and Thai copy where the web route supports both.
 
@@ -32,10 +32,10 @@ Use these references for every migrated route:
 - Web feature components: `src/features/**`
 - Web shared shell: `src/components/layouts/**`
 - Web mobile nav/search/menu constants: `src/constants/**`
-- Native route catalog: `apps/mobile/src/navigation/routes.ts`
-- Native parity constants: `apps/mobile/src/design/webDesignParity.ts`
-- Native tokens: `apps/mobile/src/theme/tokens.ts`
-- Mobile build plan: `apps/mobile/FRONTEND_PARITY_PLAN.md`
+- Native route catalog: `apps/app/src/navigation/routes.ts`
+- Native parity constants: `apps/app/src/design/webDesignParity.ts`
+- Native tokens: `apps/app/src/theme/tokens.ts`
+- Mobile build plan: `apps/app/FRONTEND_PARITY_PLAN.md`
 
 ## Required Viewports And Devices
 
@@ -137,16 +137,16 @@ Allowed variance:
 
 Unit and contract tests:
 
-- `apps/mobile/src/__tests__/web-design-parity.test.ts`
-- `apps/mobile/src/__tests__/account-resource-state-parity.test.ts`
+- `apps/app/src/__tests__/web-design-parity.test.ts`
+- `apps/app/src/__tests__/account-resource-state-parity.test.ts`
 - Token parity, route order, profile menu order, bottom nav order, shell width.
 - Account-resource endpoint ownership and backend-mode loading/empty/error/offline wiring.
 
 Web preview visual smoke:
 
-- Use Playwright against Expo web at `http://localhost:8081`.
-- Run `MOBILE_PLAYWRIGHT_NO_SERVER=1 npm run mobile:design-qa` when the Expo dev server is already running.
-- Run `npm run mobile:design-qa` to let Playwright start or reuse the Expo web server.
+- Use Playwright against Expo web at `http://localhost:8081` (config: `apps/app/playwright.config.ts`, spec: `apps/app/e2e/design-parity.spec.ts`).
+- Run `MOBILE_PLAYWRIGHT_NO_SERVER=1 npx --prefix apps/app playwright test` when the Expo dev server is already running.
+- Run `npx --prefix apps/app playwright test` to let Playwright start the Expo web server (`npm run web -- --port 8081`).
 - Assert migrated routes do not contain placeholder copy.
 - Assert shell max visible content width is `448px` on wide desktop preview.
 - Assert legal/support rows expose link roles and correct hrefs.
@@ -204,5 +204,5 @@ Release design QA is complete when:
 
 - All P0 route groups pass.
 - All app shell checks pass on iOS, Android, and Expo web.
-- `npm run validate`, `npm run mobile:test`, and `npm run mobile:typecheck` pass.
+- `npm --prefix apps/app run test` and `npm --prefix apps/app run typecheck` pass.
 - EAS preview builds install and pass smoke checks on both platforms.

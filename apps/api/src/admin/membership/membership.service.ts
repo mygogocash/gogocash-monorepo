@@ -156,10 +156,7 @@ export class MembershipService {
       throw new NotFoundException(`Tier ${tierId} not found`);
     }
 
-    const tier = await this.membershipTierModel
-      .findById(tierId)
-      .lean()
-      .exec();
+    const tier = await this.membershipTierModel.findById(tierId).lean().exec();
     if (!tier) {
       throw new NotFoundException(`Tier ${tierId} not found`);
     }
@@ -175,9 +172,7 @@ export class MembershipService {
       .exec();
 
     if (!membership) {
-      throw new NotFoundException(
-        `Membership for user ${userId} not found`,
-      );
+      throw new NotFoundException(`Membership for user ${userId} not found`);
     }
 
     return membership;
@@ -204,9 +199,7 @@ export class MembershipService {
       .exec();
 
     if (!membership) {
-      throw new NotFoundException(
-        `Membership for user ${userId} not found`,
-      );
+      throw new NotFoundException(`Membership for user ${userId} not found`);
     }
 
     return membership;

@@ -14,10 +14,52 @@ import { convertToTHB } from 'src/utils/helper';
 import { GroupedConversion } from './interface/point.interface';
 import { Offer } from 'src/offer/schemas/offer.schema';
 import { AnalyticsService } from 'src/analytics/analytics.service';
-import { Quest } from './schemas/quest.schema';
-import { CloseQuestDto, CreateQuestDto } from './dto/create-quest.dto';
+import {
+  Quest,
+  QuestReward,
+  QuestRewardDistributionMode,
+  QuestTask,
+} from './schemas/quest.schema';
+import {
+  CloseQuestDto,
+  CreateQuestDto,
+  UpdateQuestRewardsDto,
+  UpdateQuestTasksDto,
+} from './dto/create-quest.dto';
 import { SocialReward } from './schemas/social-reward.schema';
 import { GoogleDriveService } from 'src/google-drive/google-drive.service';
+import { Deeplink } from 'src/involve/schemas/deeplink.schema';
+
+const ACTIVE_OFFER_FILTER = {
+  disabled: { $ne: true },
+  status: { $nin: ['pending_review', 'rejected'] },
+};
+
+const QUEST_TASK_OFFER_SELECT =
+  'offer_id merchant_id offer_name offer_name_display logo logo_circle logo_mobile logo_desktop tracking_link preview_url disabled status extra_point';
+
+type NormalizedQuestTask = {
+  offer: Types.ObjectId;
+  offer_id: number;
+  merchant_id: number;
+  extra_point: number;
+  sort_order: number;
+  enabled: boolean;
+  wording: string;
+  notes: string;
+};
+
+type NormalizedQuestReward = {
+  rank: number;
+  reward: number;
+  currency: string;
+};
+
+type NormalizedQuestRewardDistribution = {
+  reward_distribution_mode: QuestRewardDistributionMode;
+  reward_distribution_delay_days: number;
+  reward_distribution_scheduled_at: Date | null;
+};
 
 @Injectable()
 export class PointService {
@@ -30,8 +72,31 @@ export class PointService {
     @InjectModel(Quest.name) private questModel: Model<Quest>,
     @InjectModel(SocialReward.name)
     private socialRewardModel: Model<SocialReward>,
+    @InjectModel(Deeplink.name) private deeplinkModel: Model<Deeplink>,
     private readonly googleDriveService: GoogleDriveService,
   ) {}
+
+  private activeQuestFilter(now = new Date()) {
+    return {
+      status: 'open',
+      $and: [
+        {
+          $or: [
+            { start_date: { $exists: false } },
+            { start_date: null },
+            { start_date: { $lte: now } },
+          ],
+        },
+        {
+          $or: [
+            { end_date: { $exists: false } },
+            { end_date: null },
+            { end_date: { $gte: now } },
+          ],
+        },
+      ],
+    };
+  }
 
   async addPointsToUser(
     userId: string,
@@ -76,9 +141,15 @@ export class PointService {
 
       return savedPoint;
     }
+
+    // Idempotent: a grant for this (user, conversion, action) tuple already
+    // exists. Return the existing Point so the Promise<Point> contract holds
+    // (it previously fell through to undefined) and a retried conversion
+    // approval resolves to the same record instead of double-paying.
+    return pointDup;
   }
-  create(createPointDto: CreatePointDto) {
-    console.log(createPointDto);
+  create(_createPointDto: CreatePointDto) {
+    void _createPointDto;
     return 'This action adds a new point';
   }
 
@@ -130,8 +201,8 @@ export class PointService {
     return { point: totalPoints };
   }
 
-  update(id: number, updatePointDto: UpdatePointDto) {
-    console.log(updatePointDto);
+  update(id: number, _updatePointDto: UpdatePointDto) {
+    void _updatePointDto;
     return `This action updates a #${id} point`;
   }
 
@@ -323,10 +394,10 @@ export class PointService {
         conversion_id: { $ne: null },
       };
     }
-    const extraOffer = await this.offerModel
-      .find({ extra_point: { $gt: 1 } })
-      .select('merchant_id extra_point')
-      .lean();
+    const extraOffer = await this.getQuestExtraPointTasksForRange(
+      startDate,
+      endDate,
+    );
 
     const extraPointReference = await this.pointModel.aggregate([
       {
@@ -592,6 +663,545 @@ export class PointService {
     };
   }
 
+  private questTaskOfferObjectId(
+    task: Partial<QuestTask> | any,
+  ): Types.ObjectId | null {
+    const raw = task?.offer?._id ?? task?.offer;
+    if (!raw) return null;
+    const value =
+      raw instanceof Types.ObjectId ? raw.toHexString() : String(raw);
+    return Types.ObjectId.isValid(value) ? new Types.ObjectId(value) : null;
+  }
+
+  private normalizeQuestTasks(
+    payload: UpdateQuestTasksDto,
+  ): NormalizedQuestTask[] {
+    const seenOffers = new Set<string>();
+
+    return (payload.tasks ?? []).map((task, index) => {
+      if (!Types.ObjectId.isValid(task.offer)) {
+        throw new HttpException('Invalid quest task offer id', 400);
+      }
+      const offer = new Types.ObjectId(task.offer);
+      const offerKey = offer.toHexString();
+      if (seenOffers.has(offerKey)) {
+        throw new HttpException(
+          'Quest tasks cannot contain duplicate offers',
+          400,
+        );
+      }
+      seenOffers.add(offerKey);
+
+      const extraPoint = Number(task.extra_point);
+      if (
+        !Number.isInteger(extraPoint) ||
+        extraPoint < 2 ||
+        extraPoint > 10000
+      ) {
+        throw new HttpException(
+          'Quest task extra_point must be between 2 and 10000',
+          400,
+        );
+      }
+
+      const offerId = Number(task.offer_id);
+      const merchantId = Number(task.merchant_id);
+      if (!Number.isInteger(offerId) || !Number.isInteger(merchantId)) {
+        throw new HttpException(
+          'Quest task offer_id and merchant_id are required',
+          400,
+        );
+      }
+
+      return {
+        offer,
+        offer_id: offerId,
+        merchant_id: merchantId,
+        extra_point: extraPoint,
+        sort_order: index,
+        enabled: task.enabled ?? true,
+        wording: task.wording?.trim() ?? '',
+        notes: task.notes?.trim() ?? '',
+      };
+    });
+  }
+
+  private normalizeQuestRewards(
+    payload: UpdateQuestRewardsDto,
+  ): NormalizedQuestReward[] {
+    const seenRanks = new Set<number>();
+
+    return [...(payload.rewards ?? [])]
+      .map((item) => {
+        const rank = Number(item.rank);
+        const reward = Number(item.reward);
+        const currency = (item.currency?.trim() || 'THB').toUpperCase();
+
+        if (!Number.isInteger(rank) || rank < 1 || rank > 1000) {
+          throw new HttpException(
+            'Quest reward rank must be between 1 and 1000',
+            400,
+          );
+        }
+        if (!Number.isFinite(reward) || reward < 0 || reward > 1000000) {
+          throw new HttpException(
+            'Quest reward amount must be between 0 and 1000000',
+            400,
+          );
+        }
+        if (!currency || currency.length > 12) {
+          throw new HttpException('Quest reward currency is invalid', 400);
+        }
+        if (seenRanks.has(rank)) {
+          throw new HttpException(
+            'Quest rewards cannot contain duplicate ranks',
+            400,
+          );
+        }
+        seenRanks.add(rank);
+
+        return { rank, reward, currency };
+      })
+      .sort((a, b) => a.rank - b.rank);
+  }
+
+  private normalizeQuestRewardDistribution(
+    payload: Partial<UpdateQuestRewardsDto>,
+    quest: Partial<Quest> | any,
+  ): NormalizedQuestRewardDistribution {
+    const mode = (payload.reward_distribution_mode ||
+      quest?.reward_distribution_mode ||
+      'campaign_end') as QuestRewardDistributionMode;
+
+    if (!['manual', 'campaign_end', 'after_days'].includes(mode)) {
+      throw new HttpException('Quest reward distribution mode is invalid', 400);
+    }
+
+    const rawDelay =
+      mode === 'after_days'
+        ? Number(
+            payload.reward_distribution_delay_days ??
+              quest?.reward_distribution_delay_days ??
+              7,
+          )
+        : 0;
+
+    if (
+      !Number.isInteger(rawDelay) ||
+      rawDelay < 0 ||
+      rawDelay > 365 ||
+      (mode === 'after_days' && rawDelay < 1)
+    ) {
+      throw new HttpException(
+        'Quest reward distribution delay must be between 1 and 365 days',
+        400,
+      );
+    }
+
+    const endDate = new Date(quest?.end_date);
+    const scheduledAt =
+      mode === 'manual' || Number.isNaN(endDate.getTime())
+        ? null
+        : new Date(endDate.getTime() + rawDelay * 86_400_000);
+
+    return {
+      reward_distribution_mode: mode,
+      reward_distribution_delay_days: rawDelay,
+      reward_distribution_scheduled_at: scheduledAt,
+    };
+  }
+
+  private formatQuestDate(value: Date | string): string {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
+  }
+
+  private shouldUseLatestAvailableLeaderboardFallback(): boolean {
+    return process.env.NODE_ENV !== 'production';
+  }
+
+  private questMonthRangeForDate(value: Date | string) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+
+    const start = new Date(
+      Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1),
+    );
+    const end = new Date(
+      Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0),
+    );
+
+    return {
+      startDate: this.formatQuestDate(start),
+      endDate: this.formatQuestDate(end),
+    };
+  }
+
+  private async getLatestAvailableQuestLeaderboardRange() {
+    const latestPointConversion = await this.pointModel.aggregate([
+      {
+        $match: {
+          type: 'add',
+          conversion_id: { $ne: null },
+        },
+      },
+      {
+        $lookup: {
+          from: 'conversions',
+          localField: 'conversion_id',
+          foreignField: 'conversion_id',
+          as: 'conversion',
+        },
+      },
+      { $unwind: '$conversion' },
+      {
+        $group: {
+          _id: null,
+          latestConversionDate: { $max: '$conversion.datetime_conversion' },
+        },
+      },
+    ]);
+
+    return this.questMonthRangeForDate(
+      latestPointConversion?.[0]?.latestConversionDate,
+    );
+  }
+
+  private rewardForRank(
+    rewards: Array<Partial<QuestReward>> | undefined,
+    rank: number,
+  ): NormalizedQuestReward {
+    const reward = (rewards ?? []).find((item) => Number(item.rank) === rank);
+    return {
+      rank,
+      reward: Number(reward?.reward ?? 0),
+      currency: (reward?.currency || 'THB').toUpperCase(),
+    };
+  }
+
+  private async assertQuestTaskOffersAreEligible(tasks: NormalizedQuestTask[]) {
+    if (tasks.length === 0) return;
+
+    const offerIds = tasks.map((task) => task.offer);
+    const offers = await this.offerModel
+      .find({
+        _id: { $in: offerIds },
+        ...ACTIVE_OFFER_FILTER,
+      } as any)
+      .lean();
+    const eligibleOfferIds = new Set(
+      offers.map((offer) => String((offer as any)._id)),
+    );
+    const missingOrInactive = tasks.filter(
+      (task) => !eligibleOfferIds.has(task.offer.toHexString()),
+    );
+    if (missingOrInactive.length > 0) {
+      throw new HttpException(
+        'Quest tasks can only use existing approved active offers',
+        400,
+      );
+    }
+  }
+
+  private async mirrorActiveQuestExtraPoints(
+    quest: Partial<Quest> | any,
+    tasks: NormalizedQuestTask[],
+  ) {
+    if (quest?.status !== 'open') return;
+
+    const previousActiveOfferIds = (quest.tasks ?? [])
+      .filter((task: Partial<QuestTask>) => task.enabled !== false)
+      .map((task: Partial<QuestTask>) => this.questTaskOfferObjectId(task))
+      .filter((id: Types.ObjectId | null): id is Types.ObjectId => Boolean(id));
+    const nextActiveTasks = tasks.filter((task) => task.enabled);
+    const nextActiveIds = new Set(
+      nextActiveTasks.map((task) => task.offer.toHexString()),
+    );
+    const resetOfferIds = previousActiveOfferIds.filter(
+      (id) => !nextActiveIds.has(id.toHexString()),
+    );
+
+    await this.offerModel.updateMany(
+      { _id: { $in: resetOfferIds } },
+      { $set: { extra_point: 1 } },
+    );
+
+    if (nextActiveTasks.length === 0) return;
+    await this.offerModel.bulkWrite(
+      nextActiveTasks.map((task) => ({
+        updateOne: {
+          filter: { _id: task.offer },
+          update: { $set: { extra_point: task.extra_point } },
+        },
+      })),
+    );
+  }
+
+  private async getQuestExtraPointTasksForRange(
+    startDate: string,
+    endDate: string,
+  ): Promise<Array<{ merchant_id: number; extra_point: number }>> {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const quest = await this.questModel
+      .findOne({
+        start_date: { $lte: start },
+        end_date: { $gte: end },
+      })
+      .lean();
+
+    const questTasks = ((quest as any)?.tasks ?? [])
+      .filter(
+        (task: Partial<QuestTask>) =>
+          task.enabled !== false &&
+          Number(task.extra_point) > 1 &&
+          Number.isFinite(Number(task.merchant_id)),
+      )
+      .sort(
+        (a: Partial<QuestTask>, b: Partial<QuestTask>) =>
+          Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0),
+      )
+      .map((task: Partial<QuestTask>) => ({
+        merchant_id: Number(task.merchant_id),
+        extra_point: Number(task.extra_point),
+      }));
+
+    if (questTasks.length > 0) return questTasks;
+
+    return this.offerModel
+      .find({ extra_point: { $gt: 1 }, ...ACTIVE_OFFER_FILTER } as any)
+      .select('merchant_id extra_point')
+      .lean();
+  }
+
+  async updateQuestTasks(id: string, payload: UpdateQuestTasksDto) {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new HttpException('Invalid quest id', 400);
+    }
+
+    const normalizedTasks = this.normalizeQuestTasks(payload);
+    const questId = new Types.ObjectId(id);
+    const quest = await this.questModel.findById(questId).lean();
+    if (!quest) {
+      throw new HttpException('Quest not found', 404);
+    }
+
+    await this.assertQuestTaskOffersAreEligible(normalizedTasks);
+
+    const updatedQuest = await this.questModel
+      .findOneAndUpdate(
+        { _id: questId },
+        { tasks: normalizedTasks },
+        { new: true },
+      )
+      .populate({ path: 'tasks.offer', select: QUEST_TASK_OFFER_SELECT })
+      .lean();
+
+    await this.mirrorActiveQuestExtraPoints(quest, normalizedTasks);
+
+    return updatedQuest;
+  }
+
+  async updateQuestRewards(id: string, payload: UpdateQuestRewardsDto) {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new HttpException('Invalid quest id', 400);
+    }
+
+    const normalizedRewards = this.normalizeQuestRewards(payload);
+    const questId = new Types.ObjectId(id);
+    const quest = await this.questModel.findById(questId).lean();
+    if (!quest) {
+      throw new HttpException('Quest not found', 404);
+    }
+    const rewardDistribution = this.normalizeQuestRewardDistribution(
+      payload,
+      quest,
+    );
+
+    return this.questModel
+      .findOneAndUpdate(
+        { _id: questId },
+        { rewards: normalizedRewards, ...rewardDistribution },
+        { new: true },
+      )
+      .populate({ path: 'tasks.offer', select: QUEST_TASK_OFFER_SELECT })
+      .lean();
+  }
+
+  async getQuestAdminLeaderboard(id: string) {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new HttpException('Invalid quest id', 400);
+    }
+
+    const quest = await this.questModel.findById(new Types.ObjectId(id)).lean();
+    if (!quest) {
+      throw new HttpException('Quest not found', 404);
+    }
+
+    const startDate = this.formatQuestDate(quest.start_date);
+    const endDate = this.formatQuestDate(quest.end_date);
+    let sourceStartDate = startDate;
+    let sourceEndDate = endDate;
+    let dataSource: 'quest_range' | 'latest_available' = 'quest_range';
+    let leaderboard = await this.getQuestRankListOfPoint(startDate, endDate);
+
+    if (
+      leaderboard.length === 0 &&
+      this.shouldUseLatestAvailableLeaderboardFallback()
+    ) {
+      const latestRange = await this.getLatestAvailableQuestLeaderboardRange();
+      if (
+        latestRange &&
+        (latestRange.startDate !== startDate || latestRange.endDate !== endDate)
+      ) {
+        const latestLeaderboard = await this.getQuestRankListOfPoint(
+          latestRange.startDate,
+          latestRange.endDate,
+        );
+
+        if (latestLeaderboard.length > 0) {
+          leaderboard = latestLeaderboard;
+          sourceStartDate = latestRange.startDate;
+          sourceEndDate = latestRange.endDate;
+          dataSource = 'latest_available';
+        }
+      }
+    }
+
+    return {
+      data_source: dataSource,
+      empty_range_start_date:
+        dataSource === 'latest_available' ? startDate : undefined,
+      empty_range_end_date:
+        dataSource === 'latest_available' ? endDate : undefined,
+      source_start_date: sourceStartDate,
+      source_end_date: sourceEndDate,
+      quest: {
+        _id: String((quest as any)._id),
+        start_date: quest.start_date,
+        end_date: quest.end_date,
+        status: quest.status,
+        reward_status: quest.reward_status,
+        reward_distribution_mode:
+          (quest as any).reward_distribution_mode ?? 'campaign_end',
+        reward_distribution_delay_days: Number(
+          (quest as any).reward_distribution_delay_days ?? 0,
+        ),
+        reward_distribution_scheduled_at:
+          (quest as any).reward_distribution_scheduled_at ?? null,
+      },
+      rewards: [...((quest as any).rewards ?? [])].sort(
+        (a: Partial<QuestReward>, b: Partial<QuestReward>) =>
+          Number(a.rank ?? 0) - Number(b.rank ?? 0),
+      ),
+      data: leaderboard.map((row: any, index: number) => {
+        const rank = index + 1;
+        const reward = this.rewardForRank((quest as any).rewards, rank);
+        return {
+          rank,
+          user_id: String(row.user_id ?? row._id ?? ''),
+          username: row.username ?? '',
+          email: row.email ?? '',
+          point: Number(row.point ?? 0),
+          extra_point_received: Number(row.extra_point_received ?? 0),
+          extra_point_referral: Number(row.extra_point_referral ?? 0),
+          point_social_reward: Number(row.point_social_reward ?? 0),
+          bonus_over_300_received: Number(row.bonus_over_300_received ?? 0),
+          reward: reward.reward,
+          currency: reward.currency,
+        };
+      }),
+    };
+  }
+
+  async getQuestTaskDeeplinkSummary(id: string) {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new HttpException('Invalid quest id', 400);
+    }
+
+    const quest = await this.questModel
+      .findById(new Types.ObjectId(id))
+      .populate({ path: 'tasks.offer', select: QUEST_TASK_OFFER_SELECT })
+      .lean();
+    if (!quest) {
+      throw new HttpException('Quest not found', 404);
+    }
+
+    const enabledTasks = ((quest as any).tasks ?? []).filter(
+      (task: Partial<QuestTask>) => task.enabled !== false,
+    );
+    const taskKeys = enabledTasks.map((task: Partial<QuestTask>) => ({
+      offer_id: Number(task.offer_id),
+      merchant_id: Number(task.merchant_id),
+    }));
+
+    if (taskKeys.length === 0) return { data: [] };
+
+    const summaries = await this.deeplinkModel.aggregate([
+      {
+        $match: {
+          $or: taskKeys,
+        },
+      },
+      {
+        $project: {
+          offer_id: 1,
+          merchant_id: 1,
+          deeplink: 1,
+          latest_click: { $max: '$click_date' },
+        },
+      },
+      {
+        $sort: { latest_click: -1 },
+      },
+      {
+        $group: {
+          _id: { offer_id: '$offer_id', merchant_id: '$merchant_id' },
+          generated_count: { $sum: 1 },
+          latest_click: { $max: '$latest_click' },
+          sample_deeplink: { $first: '$deeplink' },
+        },
+      },
+    ]);
+
+    const summaryByKey = new Map(
+      summaries.map((row) => [
+        `${row._id.offer_id}:${row._id.merchant_id}`,
+        row,
+      ]),
+    );
+
+    return {
+      data: enabledTasks
+        .sort(
+          (a: Partial<QuestTask>, b: Partial<QuestTask>) =>
+            Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0),
+        )
+        .map((task: Partial<QuestTask> | any) => {
+          const key = `${task.offer_id}:${task.merchant_id}`;
+          const summary = summaryByKey.get(key);
+          const offer = task.offer ?? {};
+          const offerObjectId =
+            offer?._id && Types.ObjectId.isValid(String(offer._id))
+              ? String(offer._id)
+              : String(task.offer ?? '');
+          return {
+            offer_id: Number(task.offer_id),
+            merchant_id: Number(task.merchant_id),
+            offer: offerObjectId,
+            offer_name: offer.offer_name_display || offer.offer_name || '',
+            extra_point: Number(task.extra_point),
+            sort_order: Number(task.sort_order ?? 0),
+            tracking_link: offer.tracking_link ?? '',
+            customer_path: offerObjectId ? `/shop/${offerObjectId}` : '',
+            generated_count: summary?.generated_count ?? 0,
+            latest_click: summary?.latest_click ?? null,
+            sample_deeplink: summary?.sample_deeplink ?? '',
+          };
+        }),
+    };
+  }
+
   async createQuest(
     createQuestDto: CreateQuestDto,
     files: {
@@ -601,6 +1211,8 @@ export class PointService {
       sub_banner_th?: Express.Multer.File[];
     },
   ) {
+    const questUpdate = { ...createQuestDto };
+    delete questUpdate._id;
     const filter = createQuestDto._id
       ? { _id: new Types.ObjectId(createQuestDto._id) }
       : { status: 'open' };
@@ -655,10 +1267,18 @@ export class PointService {
         );
       }
     }
+    const rewardDistribution = this.normalizeQuestRewardDistribution(
+      {},
+      {
+        ...(existingOpenQuest?.toObject?.() ?? existingOpenQuest ?? {}),
+        end_date: questUpdate.end_date ?? existingOpenQuest?.end_date,
+      },
+    );
     return this.questModel.findOneAndUpdate(
       filter,
       {
-        ...createQuestDto,
+        ...questUpdate,
+        ...rewardDistribution,
         banner_en: banner_en
           ? banner_en?.id
           : existingOpenQuest?.banner_en || null,
@@ -690,14 +1310,10 @@ export class PointService {
   }
 
   async getQuestOpen() {
-    const filter = {
-      status: 'open',
-      // start_date: {
-      //   $gte: new Date(startDate),
-      //   $lte: new Date(endDate),
-      // },
-    };
-    return this.questModel.findOne(filter).lean();
+    return this.questModel
+      .findOne(this.activeQuestFilter())
+      .populate({ path: 'tasks.offer', select: QUEST_TASK_OFFER_SELECT })
+      .lean();
   }
 
   async getQuestAdmin() {
@@ -708,11 +1324,16 @@ export class PointService {
       //   $lte: new Date(endDate),
       // },
     };
-    return this.questModel.find(filter).lean();
+    return this.questModel
+      .find(filter)
+      .populate({ path: 'tasks.offer', select: QUEST_TASK_OFFER_SELECT })
+      .lean();
   }
 
   async getQuestSocial(userId: string) {
-    const quest = await this.questModel.findOne({ status: 'open' }).lean();
+    const quest = await this.questModel
+      .findOne(this.activeQuestFilter())
+      .lean();
     if (!quest) {
       throw new HttpException('No open quest available', 400);
     }
@@ -727,7 +1348,9 @@ export class PointService {
     };
   }
   async questSocial(userId: string, type: string, action: string) {
-    const quest = await this.questModel.findOne({ status: 'open' }).lean();
+    const quest = await this.questModel
+      .findOne(this.activeQuestFilter())
+      .lean();
     if (!quest) {
       throw new HttpException('No open quest available', 400);
     }

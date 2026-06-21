@@ -1,9 +1,6 @@
 /**
- * Banner rows share one schedule (`start_date` / `end_date`) on the payload; each row shows status
- * for that slot given whether it has image or link.
- *
- * On banner list tables we only show **Active** and **Scheduled**; empty or past-end slots are
- * treated as inactive and summarized on the Popup history page.
+ * Banner rows use per-slot schedule and enabled state, with fallback to the legacy
+ * shared `start_date` / `end_date` fields when slot fields are absent.
  */
 
 import type { BannerData } from "@/types/banner";
@@ -21,6 +18,7 @@ export type InactiveBannerSlotInfo = {
 
 export type BannerSlotScheduleInput = {
   hasSlotContent: boolean;
+  enabled?: boolean;
   start_date?: string | null;
   end_date?: string | null;
   now?: Date;
@@ -40,6 +38,41 @@ function normYmd(raw: string | null | undefined): string | null {
   return m ? m[1] : null;
 }
 
+const resolveSlotValue = (
+  bannerData: BannerData | undefined,
+  slot: number,
+  key:
+    | "enabled_1"
+    | "enabled_2"
+    | "enabled_3"
+    | "enabled_4"
+    | "enabled_5"
+    | "start_date_1"
+    | "start_date_2"
+    | "start_date_3"
+    | "start_date_4"
+    | "start_date_5"
+    | "end_date_1"
+    | "end_date_2"
+    | "end_date_3"
+    | "end_date_4"
+    | "end_date_5",
+): string | boolean | null | undefined => {
+  const slotKey = `${key.slice(0, -1)}${slot}` as keyof BannerData;
+  const specific = bannerData?.[slotKey];
+  if (key.startsWith("enabled_")) {
+    return typeof specific === "boolean" ? specific : undefined;
+  }
+  if (typeof specific === "string") {
+    return specific;
+  }
+  const fallbackKey = key.startsWith("start")
+    ? ("start_date" as const)
+    : ("end_date" as const);
+  const fallback = bannerData?.[fallbackKey];
+  return typeof fallback === "string" ? fallback : null;
+};
+
 export function getBannerSlotStatus(input: BannerSlotScheduleInput): {
   status: BannerSlotUiStatus;
   badgeClass: string;
@@ -52,6 +85,13 @@ export function getBannerSlotStatus(input: BannerSlotScheduleInput): {
       status: "Empty",
       badgeClass:
         "inline-flex rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400",
+    };
+  }
+  if (input.enabled === false) {
+    return {
+      status: "Ended",
+      badgeClass:
+        "inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300",
     };
   }
 
@@ -98,13 +138,40 @@ export function getBannerTableStatusCell(input: BannerSlotScheduleInput):
 export function getBannerSlotRowFields(
   bannerData: BannerData | undefined,
   slot: number,
-): { imageId: string | null | undefined; link: string; hasSlotContent: boolean } {
+): {
+  imageId: string | null | undefined;
+  link: string;
+  hasSlotContent: boolean;
+  enabled: boolean;
+  startDate: string;
+  endDate: string;
+} {
   const imageId = bannerData?.[`image_${slot}` as keyof BannerData] as string | null | undefined;
   const link = (bannerData?.[`link_${slot}` as keyof BannerData] as string) || "";
+  const rawEnabled = resolveSlotValue(
+    bannerData,
+    slot,
+    `enabled_${slot}` as `enabled_${1 | 2 | 3 | 4 | 5}`,
+  );
+  const enabled = Boolean(rawEnabled === undefined ? true : rawEnabled);
+  const startDate = String(
+    resolveSlotValue(
+      bannerData,
+      slot,
+      `start_date_${slot}` as `start_date_${1 | 2 | 3 | 4 | 5}`,
+    ) || "",
+  );
+  const endDate = String(
+    resolveSlotValue(
+      bannerData,
+      slot,
+      `end_date_${slot}` as `end_date_${1 | 2 | 3 | 4 | 5}`,
+    ) || "",
+  );
   const hasSlotContent = Boolean(
     (imageId && String(imageId).trim().length > 0) || link.trim().length > 0,
   );
-  return { imageId, link, hasSlotContent };
+  return { imageId, link, hasSlotContent, enabled, startDate, endDate };
 }
 
 /** Slots that are empty or past end date — shown on Popup history, not as status badges on the banner table. */
@@ -114,11 +181,13 @@ export function listInactiveBannerSlots(
 ): InactiveBannerSlotInfo[] {
   const out: InactiveBannerSlotInfo[] = [];
   for (let slot = 1; slot <= 5; slot++) {
-    const { imageId, link, hasSlotContent } = getBannerSlotRowFields(bannerData, slot);
+    const { imageId, link, hasSlotContent, enabled, startDate, endDate } =
+      getBannerSlotRowFields(bannerData, slot);
     const full = getBannerSlotStatus({
       hasSlotContent,
-      start_date: bannerData?.start_date,
-      end_date: bannerData?.end_date,
+      enabled,
+      start_date: startDate,
+      end_date: endDate,
       now,
     });
     if (full.status === "Empty" || full.status === "Ended") {

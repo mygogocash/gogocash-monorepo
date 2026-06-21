@@ -67,9 +67,16 @@ export function GlobalSearchForm({
         </span>
         <input
           ref={inputRef}
+          id={`global-search-${variant}`}
+          name={`global-search-${variant}`}
           type="search"
           enterKeyHint="search"
           autoComplete="off"
+          aria-label={
+            variant === "desktop"
+              ? "Global dashboard search"
+              : "Mobile global dashboard search"
+          }
           value={searchQuery}
           onChange={(e) => onSearchQueryChange(e.target.value)}
           onFocus={() => searchQuery.trim() && onPreviewOpenChange(true)}
@@ -88,14 +95,14 @@ export function GlobalSearchForm({
           <div className={dropdownClassName}>
             {searchLoading ? (
               <div className="flex items-center gap-2 px-4 py-6 text-sm text-gray-500 dark:text-gray-400">
-                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
+                <span className="border-brand-500 inline-block h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" />
                 Searching...
               </div>
             ) : (
               <div className="max-h-[min(320px,70dvh)] overflow-y-auto overscroll-y-contain py-2">
                 {previewResults.users.length > 0 && (
                   <div className="px-2 pb-2">
-                    <div className="mb-1 px-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    <div className="mb-1 px-2 text-xs font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400">
                       Users
                     </div>
                     <ul className="space-y-0.5">
@@ -106,8 +113,12 @@ export function GlobalSearchForm({
                             onClick={() => onPreviewOpenChange(false)}
                             className="flex min-w-0 flex-col gap-0.5 rounded-lg px-3 py-2 text-sm text-gray-800 hover:bg-gray-100 sm:flex-row sm:items-center sm:gap-2 dark:text-white/90 dark:hover:bg-gray-800"
                           >
-                            <span className="truncate font-medium">{u.username ?? u.email}</span>
-                            <span className="truncate text-gray-500 dark:text-gray-400">{u.email}</span>
+                            <span className="truncate font-medium">
+                              {u.username ?? u.email}
+                            </span>
+                            <span className="truncate text-gray-500 dark:text-gray-400">
+                              {u.email}
+                            </span>
                           </Link>
                         </li>
                       ))}
@@ -116,7 +127,7 @@ export function GlobalSearchForm({
                 )}
                 {previewResults.offers.length > 0 && (
                   <div className="px-2 pb-2">
-                    <div className="mb-1 px-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    <div className="mb-1 px-2 text-xs font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400">
                       Brands
                     </div>
                     <ul className="space-y-0.5">
@@ -138,7 +149,7 @@ export function GlobalSearchForm({
                 )}
                 {previewResults.withdraws.length > 0 && (
                   <div className="px-2 pb-2">
-                    <div className="mb-1 px-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    <div className="mb-1 px-2 text-xs font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400">
                       Withdrawals
                     </div>
                     <ul className="space-y-0.5">

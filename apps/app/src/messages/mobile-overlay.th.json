@@ -333,5 +333,18 @@
   "mobileSec_302": "หน้าถัดไป",
   "mobileSec_303": "หมวดหมู่",
   "mobileSec_304": "ดูคอลเลกชันนี้",
-  "mobileSec_305": "แบรนด์"
+  "mobileSec_305": "แบรนด์",
+  "mobileGgs_1": "อนุญาตการเข้าถึงการใช้งาน",
+  "mobileGgs_2": "อนุญาตการเข้าถึงการใช้งานแล้ว",
+  "mobileGgs_3": "ยังไม่ได้อนุญาตการเข้าถึงการใช้งาน",
+  "mobileGgs_4": "การเข้าถึงการใช้งานใช้ได้เฉพาะบน Android เท่านั้น",
+  "mobileGgs_5": "มีเงินคืนรออยู่",
+  "mobileGgs_6": "เปิดใช้งานเงินคืนก่อนช้อปต่อ",
+  "mobileGgs_7": "เปิดใช้งานเงินคืน",
+  "mobileHomeSaveBrand": "บันทึกแบรนด์",
+  "mobileHomeRemoveSavedBrand": "ลบออกจากแบรนด์ที่บันทึกไว้",
+  "mobileGoLinkStepCopy": "คัดลอกลิงก์",
+  "mobileGoLinkStepPaste": "วางที่นี่",
+  "mobileGoLinkStepShop": "ช้อปและรับเงินคืน",
+  "mobileGoLinkTagline": "รับเงินคืนง่ายๆ เพียงคัดลอก วาง แล้วช้อป!"
 }

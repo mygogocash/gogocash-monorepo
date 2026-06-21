@@ -16,13 +16,15 @@ import { colors, radii, typography } from "@mobile/theme/tokens";
 
 type FooterSocialIconName = (typeof webDesktopFooter.socialLinks)[number]["icon"];
 
+type CustomerDesktopFooterProps = {
+  horizontalPadding: number;
+  viewportWidth: number;
+};
+
 export function CustomerDesktopFooter({
   horizontalPadding,
   viewportWidth,
-}: {
-  horizontalPadding: number;
-  viewportWidth: number;
-}) {
+}: CustomerDesktopFooterProps) {
   const contentWidth = getDesktopShellContentWidth(viewportWidth);
   const footerGrid = getDesktopFooterGrid(viewportWidth);
   const tc = useCopy();

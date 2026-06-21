@@ -107,6 +107,11 @@ export class UserController {
     return this.userService.getBalanceMyCashback(id);
   }
 
+  // V-4: admin-only. Was unguarded — leaked ANY user's cashback balance by
+  // ObjectId and doubled as a user-existence oracle.
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
   @Get('balance/me/mycashback/admin/:id')
   balanceMyCashbackAdmin(@Param('id') id: string) {
     return this.userService.getBalanceMyCashback(id);

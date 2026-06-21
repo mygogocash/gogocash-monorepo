@@ -997,13 +997,12 @@ const FormOffer = ({
       staleTime: 60_000,
     });
 
-  const categoriesSortedForTags = useMemo(
-    () => [...policyCategories].sort((a, b) => a.name.localeCompare(b.name)),
-    [policyCategories],
+  const categoriesSortedForTags = [...policyCategories].sort((a, b) =>
+    a.name.localeCompare(b.name),
   );
 
   /** One option per unique category name (duplicate names would break native select value matching). */
-  const categoriesForTagSelect = useMemo(() => {
+  const categoriesForTagSelect = (() => {
     const seen = new Set<string>();
     const out: ResCategoryList[] = [];
     for (const c of categoriesSortedForTags) {
@@ -1013,19 +1012,19 @@ const FormOffer = ({
       out.push(c);
     }
     return out;
-  }, [categoriesSortedForTags]);
+  })();
 
   const offerTagPreviewChips = useMemo(
     () => buildOfferTagPreviewChips(form.offer_display_tags, offer),
     [form.offer_display_tags, offer],
   );
 
-  const legacyBrandCategoryLabel = useMemo(() => {
+  const legacyBrandCategoryLabel = (() => {
     const cur = form.offer_display_tags.brand_category_label.trim();
     if (!cur) return null;
     if (categoriesForTagSelect.some((c) => c.name === cur)) return null;
     return cur;
-  }, [form.offer_display_tags.brand_category_label, categoriesForTagSelect]);
+  })();
 
   // Upsize per-product-line draft: the editor edits a transient draft; "Add"
   // commits it into upsize_product_types (the table) and clears it; "Cancel"

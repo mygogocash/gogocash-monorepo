@@ -1,4 +1,3 @@
-/* eslint-disable prettier/prettier */
 import {
   HttpException,
   Injectable,
@@ -17,9 +16,15 @@ import {
   UpdateWithdrawDto,
 } from './dto/update-withdraw.dto';
 import { ethers, keccak256, solidityPacked } from 'ethers';
-import { InjectModel } from '@nestjs/mongoose';
+import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { User } from 'src/user/schemas/user.schema';
-import { Model, Types } from 'mongoose';
+import {
+  ClientSession,
+  Connection,
+  isValidObjectId,
+  Model,
+  Types,
+} from 'mongoose';
 import { InvolveService } from 'src/involve/involve.service';
 import { Withdraw } from './schemas/withdraw.schema';
 import { FeeRate } from './schemas/feeRate.schema';
@@ -52,6 +57,7 @@ export class WithdrawService {
     private readonly involveService: InvolveService,
     private readonly pointService: PointService,
     private readonly customerIo: CustomerIoService,
+    @InjectConnection() private readonly connection: Connection,
   ) {}
   async getSign(msg: GETSignDTO): Promise<string> {
     // console.log('Generating EIP-712 signature for message:', msg);
@@ -192,7 +198,6 @@ export class WithdrawService {
         Number(process.env.CHAIN_ID_WITHDRAW_BNB),
       );
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const conversionIdsWithdrawedSonic =
       await this.getConversionIdsWithdrawedByUserId(
         user._id.toString(),
@@ -1118,7 +1123,7 @@ export class WithdrawService {
         {} as Record<string, { netAmount: number; count: number }>,
       );
 
-       const withdrawSumThbApproved = await Object.entries(
+    const withdrawSumThbApproved = await Object.entries(
       withdrawSumByCurrencyApproved,
     ).reduce(
       async (accPromise, [currency, item]) => {
@@ -1439,6 +1444,69 @@ export class WithdrawService {
     return data;
   }
 
+  // ── FX conversion (P1-FX): cached, timeout-bounded, fail-closed ─────────────
+  private readonly fxCache = new Map<
+    string,
+    { rate: number; expiresAt: number }
+  >();
+  private readonly FX_TTL_MS = 10 * 60 * 1000; // 10 min — FX moves little intraday
+  private readonly FX_TIMEOUT_MS = 5000;
+
+  /** Test seam: force every cached rate stale so the next call refetches. */
+  expireFxCacheForTest(): void {
+    for (const entry of this.fxCache.values()) {
+      entry.expiresAt = 0;
+    }
+  }
+
+  /**
+   * Fetch the `base -> target` exchange rate. Cached for FX_TTL_MS so the hot
+   * balance path (which converts the same currency ~20x per request) makes at
+   * most one upstream call per window, and so we have a value to fall back on.
+   *
+   * FAIL-CLOSED: on a fresh-fetch failure we serve the last known rate if we
+   * have one; only with a cold cache do we THROW. We never return null — callers
+   * do `value || 0`, so a null would silently zero a foreign-currency amount and
+   * corrupt the balance (under-counting withdrawals = over-stating available).
+   */
+  private async fetchRate(base: string, target: string): Promise<number> {
+    const key = `${base}->${target}`;
+    const now = Date.now();
+    const cached = this.fxCache.get(key);
+    if (cached && cached.expiresAt > now) {
+      return cached.rate;
+    }
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), this.FX_TIMEOUT_MS);
+      let rate: number | undefined;
+      try {
+        const response = await fetch(
+          `https://api.exchangerate-api.com/v4/latest/${base}`,
+          { signal: controller.signal },
+        );
+        if (!response.ok) {
+          throw new Error(`FX ${base} upstream HTTP ${response.status}`);
+        }
+        const data = await response.json();
+        rate = data?.rates?.[target];
+      } finally {
+        clearTimeout(timer);
+      }
+      if (!rate || !Number.isFinite(rate)) {
+        throw new Error(`FX rate ${key} missing in upstream response`);
+      }
+      this.fxCache.set(key, { rate, expiresAt: now + this.FX_TTL_MS });
+      return rate;
+    } catch {
+      if (cached) return cached.rate;
+      throw new HttpException(
+        { message: `Currency conversion temporarily unavailable (${base})` },
+        503,
+      );
+    }
+  }
+
   async convertCurrencyUsd(
     currency: string,
     amount: number,
@@ -1446,30 +1514,8 @@ export class WithdrawService {
     if (currency === 'USD') {
       return { usdAmount: amount, exchangeRate: 1 };
     }
-
-    try {
-      // Using a free currency conversion API (you can replace with your preferred service)
-      const response = await fetch(
-        `https://api.exchangerate-api.com/v4/latest/${currency}`,
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch exchange rate for ${currency}`);
-      }
-
-      const data = await response.json();
-      const exchangeRate = data.rates.USD;
-
-      if (!exchangeRate) {
-        throw new Error(`USD exchange rate not found for ${currency}`);
-      }
-
-      return { usdAmount: amount * exchangeRate, exchangeRate }; // Return the converted amount * exchangeRate;
-    } catch (error) {
-      console.error(`Error converting ${currency} to USD:`, error);
-      // Return original amount as fallback
-      return { usdAmount: null, exchangeRate: null };
-    }
+    const exchangeRate = await this.fetchRate(currency, 'USD');
+    return { usdAmount: amount * exchangeRate, exchangeRate };
   }
 
   async convertCurrencyThb(
@@ -1479,30 +1525,8 @@ export class WithdrawService {
     if (currency === 'THB') {
       return { amount: amount, exchangeRate: 1 };
     }
-
-    try {
-      // Using a free currency conversion API (you can replace with your preferred service)
-      const response = await fetch(
-        `https://api.exchangerate-api.com/v4/latest/${currency}`,
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch exchange rate for ${currency}`);
-      }
-
-      const data = await response.json();
-      const exchangeRate = data.rates.THB;
-
-      if (!exchangeRate) {
-        throw new Error(`THB exchange rate not found for ${currency}`);
-      }
-
-      return { amount: amount * exchangeRate, exchangeRate }; // Return the converted amount * exchangeRate;
-    } catch (error) {
-      console.error(`Error converting ${currency} to THB:`, error);
-      // Return original amount as fallback
-      return { amount: null, exchangeRate: null };
-    }
+    const exchangeRate = await this.fetchRate(currency, 'THB');
+    return { amount: amount * exchangeRate, exchangeRate };
   }
 
   // async createFeeRate() {
@@ -1561,6 +1585,40 @@ export class WithdrawService {
 
     return receipt.hash;
   }
+  /**
+   * Server-side balance gate shared by the on-chain `create` and `bank-transfer`
+   * withdraw paths (V-2). Re-derives the user's available balance via
+   * {@link checkWithdraw} — which already reconciles pending/approved/paid
+   * withdrawals — and refuses any request above it, so a client-supplied
+   * `amount_net` can never forge a payout larger than the funds actually owed.
+   * Currency-aware: THB compares against the THB payout, all $-pegged tokens
+   * (USD/USDT/USDC) against the USD payout. The 1e-6 epsilon absorbs float dust.
+   */
+  private async assertWithinBalance(
+    userId: string,
+    amount: number | undefined,
+    currency: string | undefined,
+  ): Promise<void> {
+    const balance = await this.checkWithdraw(userId);
+    const available =
+      currency === 'THB'
+        ? Number(balance?.netAmountTHB ?? 0)
+        : Number(balance?.netAmount ?? 0);
+    const requested = Number(amount ?? 0);
+    if (
+      !Number.isFinite(requested) ||
+      requested <= 0 ||
+      requested > available + 1e-6
+    ) {
+      throw new HttpException(
+        {
+          message: `Requested amount exceeds available balance (${available.toFixed(2)} ${currency === 'THB' ? 'THB' : 'USD'})`,
+        },
+        400,
+      );
+    }
+  }
+
   async create(createWithdrawDto: CreateWithdrawDto, id: string) {
     const user = await this.userModel.findOne({
       _id: new Types.ObjectId(id),
@@ -1568,6 +1626,13 @@ export class WithdrawService {
     if (!user) {
       throw new UnauthorizedException({ message: 'User not found' });
     }
+    // V-2: hard server-side balance gate BEFORE any on-chain call or DB write.
+    // The client's amount_net is never trusted as the payout ceiling.
+    await this.assertWithinBalance(
+      id,
+      createWithdrawDto.amount_net,
+      createWithdrawDto.currency,
+    );
     //TODO create record shop on contract
     const hash_record = await this.createRecordOnChain(
       user._id.toString(),
@@ -1576,7 +1641,11 @@ export class WithdrawService {
     );
     const dt = await this.withdrawModel.create({
       user_id: new Types.ObjectId(user._id),
-      status: createWithdrawDto.tx_hash ? 'approved' : 'pending',
+      // V-2b: always 'pending'. The server no longer self-approves from a
+      // client-supplied tx_hash — an admin confirms on-chain settlement via
+      // approveWithdrawRequest. Balance is already reserved either way:
+      // checkWithdraw counts 'pending' against available, same as 'approved'.
+      status: 'pending',
       address: createWithdrawDto.address || '',
       account_name: createWithdrawDto.account_name || '',
       bank_name: createWithdrawDto.bank_name || '',
@@ -1811,6 +1880,78 @@ export class WithdrawService {
     }
   }
 
+  /**
+   * Admin action (V-2b): approve a pending withdrawal — e.g. confirm the
+   * on-chain withdrawal tx actually settled. Replaces the old client-tx_hash ->
+   * 'approved' self-promotion. Idempotent on already-approved; refuses any other
+   * terminal state so a paid/rejected row cannot be flipped back to approved.
+   */
+  async approveWithdrawRequest(withdrawId: string, adminId: string) {
+    if (!isValidObjectId(withdrawId)) {
+      throw new HttpException({ message: 'Invalid withdraw id' }, 400);
+    }
+    const existing = await this.withdrawModel.findById(withdrawId);
+    if (!existing) {
+      throw new HttpException({ message: 'Withdraw not found' }, 404);
+    }
+    if (existing.status === 'approved') {
+      return { success: true, data: existing };
+    }
+    if (existing.status !== 'pending') {
+      throw new HttpException(
+        {
+          message: `Only pending withdrawals can be approved (current: ${existing.status})`,
+        },
+        409,
+      );
+    }
+    const updated = await this.withdrawModel.findByIdAndUpdate(
+      withdrawId,
+      {
+        $set: {
+          status: 'approved',
+          approved_by: adminId,
+          approved_at: new Date(),
+        },
+      },
+      { new: true },
+    );
+    return { success: true, data: updated };
+  }
+
+  /**
+   * Runs a withdraw balance-check + insert inside a per-user serialized Mongo
+   * transaction (P1-TX). The $inc on the user doc is a pure serialization point:
+   * two concurrent withdrawals for the same user contend on it, so the loser
+   * hits a WriteConflict, retries the whole callback, and re-evaluates the
+   * balance against the now-committed first withdrawal — closing the TOCTOU
+   * where both reads see the same balance and both insert. Requires a replica
+   * set (confirmed for staging/prod).
+   */
+  private async runSerializedWithdraw<T>(
+    userId: string,
+    work: (session: ClientSession) => Promise<T>,
+  ): Promise<T> {
+    const session = await this.connection.startSession();
+    try {
+      let result: T | undefined;
+      await session.withTransaction(async () => {
+        result = await work(session);
+        const user = await this.userModel.findOneAndUpdate(
+          { _id: new Types.ObjectId(userId) },
+          { $inc: { withdraw_lock_seq: 1 } },
+          { session },
+        );
+        if (!user) {
+          throw new UnauthorizedException({ message: 'User not found' });
+        }
+      });
+      return result as T;
+    } finally {
+      await session.endSession();
+    }
+  }
+
   async createBankTransfer(createWithdrawDto: CreateWithdrawDto, id: string) {
     // console.log(createWithdrawDto);
     const user = await this.userModel.findOne({
@@ -1850,30 +1991,38 @@ export class WithdrawService {
         400,
       );
     }
-    // if (conversionIdsWithdrawed.length > 0) {
-    //   throw new HttpException(
-    //     {
-    //       message: `Some conversion IDs have already been withdrawn.`,
-    //     },
-    //     400,
-    //   );
-    // }
-    const dt = await this.withdrawModel.create({
-      user_id: new Types.ObjectId(user._id),
-      status: 'pending',
-      address: '',
-      account_name: createWithdrawDto.account_name || '',
-      bank_name: createWithdrawDto.bank_name || '',
-      account_number: createWithdrawDto.account_number || '',
-      tx_hash: '',
-      tx_hash_record: '',
-      percent_fee: createWithdrawDto.percent_fee || 0,
-      amount_total: createWithdrawDto.amount_total || 0,
-      amount_net: createWithdrawDto.amount_net || 0,
-      method: 'bank_transfer',
-      currency: createWithdrawDto.currency || '',
-      conversion_id: createWithdrawDto.conversion_ids || [],
-      mycashback_id: [],
+    // V-2 + P1-TX: gate the balance AND persist the record inside a per-user
+    // serialized transaction, so two concurrent bank-transfer requests can't
+    // both pass the balance check and double-withdraw.
+    const dt = await this.runSerializedWithdraw(id, async (session) => {
+      await this.assertWithinBalance(
+        id,
+        createWithdrawDto.amount_net,
+        createWithdrawDto.currency,
+      );
+      const [record] = await this.withdrawModel.create(
+        [
+          {
+            user_id: new Types.ObjectId(user._id),
+            status: 'pending',
+            address: '',
+            account_name: createWithdrawDto.account_name || '',
+            bank_name: createWithdrawDto.bank_name || '',
+            account_number: createWithdrawDto.account_number || '',
+            tx_hash: '',
+            tx_hash_record: '',
+            percent_fee: createWithdrawDto.percent_fee || 0,
+            amount_total: createWithdrawDto.amount_total || 0,
+            amount_net: createWithdrawDto.amount_net || 0,
+            method: 'bank_transfer',
+            currency: createWithdrawDto.currency || '',
+            conversion_id: createWithdrawDto.conversion_ids || [],
+            mycashback_id: [],
+          },
+        ],
+        { session },
+      );
+      return record;
     });
 
     const MCBCashback = await this.checkWithdrawMyCashback(id);
@@ -2008,7 +2157,9 @@ export class WithdrawService {
       throw new UnauthorizedException({ message: 'User not found' });
     }
     const checkDup = await this.withdrawMethodModel.findOne({
-      account_no: createWithdrawMethod.account_no,
+      // account_no is number on the DTO but string on the schema; normalise to
+      // string (mongoose already cast number→string, so this matches stored rows).
+      account_no: String(createWithdrawMethod.account_no),
       user_id: new Types.ObjectId(user._id),
     });
     if (checkDup) {
@@ -2018,7 +2169,10 @@ export class WithdrawService {
       );
     }
     createWithdrawMethod['user_id'] = new Types.ObjectId(user._id);
-    const dt = await this.withdrawMethodModel.create(createWithdrawMethod);
+    const dt = await this.withdrawMethodModel.create({
+      ...createWithdrawMethod,
+      account_no: String(createWithdrawMethod.account_no),
+    });
     return {
       message: 'Withdraw method created',
       data: dt,
@@ -2030,8 +2184,14 @@ export class WithdrawService {
     return thaiBanks;
   }
 
-  getMethodId(id: string) {
-    return this.withdrawMethodModel.findById(id);
+  // V-3: scope by owner so a member can only read their OWN saved payout method
+  // (was findById on a raw id — any user could read another's bank details).
+  getMethodId(id: string, userId: string) {
+    if (!isValidObjectId(id)) return null;
+    return this.withdrawMethodModel.findOne({
+      _id: new Types.ObjectId(id),
+      user_id: new Types.ObjectId(userId),
+    });
   }
 
   async getMethodList(id: string) {
@@ -2046,14 +2206,29 @@ export class WithdrawService {
     });
   }
 
-  deleteMethodData(id: string) {
-    return this.withdrawMethodModel.findByIdAndDelete(id);
+  // V-3: scope the delete to the owner so a member cannot delete another user's
+  // saved payout method by guessing its _id (atomic findOneAndDelete).
+  deleteMethodData(id: string, userId: string) {
+    if (!isValidObjectId(id)) return null;
+    return this.withdrawMethodModel.findOneAndDelete({
+      _id: new Types.ObjectId(id),
+      user_id: new Types.ObjectId(userId),
+    });
   }
 
-  updateMethodData(id: string, updateData: Partial<CreateWithdrawMethod>) {
-    return this.withdrawMethodModel.findByIdAndUpdate(id, updateData, {
-      new: true,
-    });
+  // V-3: scope the update to the owner so a member cannot overwrite another
+  // user's bank details (payout-redirect) by guessing its _id.
+  updateMethodData(
+    id: string,
+    userId: string,
+    updateData: Partial<CreateWithdrawMethod>,
+  ) {
+    if (!isValidObjectId(id)) return null;
+    return this.withdrawMethodModel.findOneAndUpdate(
+      { _id: new Types.ObjectId(id), user_id: new Types.ObjectId(userId) },
+      updateData,
+      { new: true },
+    );
   }
 
   async adminAddRewardConversionForQuest() {
@@ -2072,20 +2247,30 @@ export class WithdrawService {
       new Date(questDate.end_date).toLocaleDateString('en-CA'),
     );
 
-    const rewardList = await this.rewardListModel.findOne({ name: 'quest' });
+    const questRewards = [...((questDate as any).rewards ?? [])]
+      .filter((item) => Number(item?.rank) >= 1)
+      .sort((a, b) => Number(a.rank) - Number(b.rank));
+    const rewardList =
+      questRewards.length > 0
+        ? { name: 'quest', data: questRewards }
+        : await this.rewardListModel.findOne({ name: 'quest' });
 
     if (!rewardList) {
       throw new HttpException({ message: 'Reward list not found' }, 400);
     }
 
     const list = [];
+    const rewardsByRank = new Map(
+      (rewardList?.data ?? []).map((item) => [Number(item.rank), item]),
+    );
     for (let i = 0; i < userReceivedReward.length; i++) {
       if (userReceivedReward[i]?.point <= 0) {
         continue; // Skip users with 0 or negative points
       }
-      if (rewardList?.data?.length <= i) {
-        break;
-      }
+      const rank = i + 1;
+      const rankReward =
+        rewardsByRank.get(rank) ?? rewardList?.data?.[i] ?? null;
+      if (!rankReward || Number(rankReward.reward) <= 0) continue;
       const user = userReceivedReward[i];
       const data = {
         conversion_id: new Date().getTime() + i, // Use timestamp as unique ID for simplicity
@@ -2108,11 +2293,15 @@ export class WithdrawService {
         bonus_payout: 0,
         // change data
         aff_sub1: `user_id:${user.user_id}`, // "user_id:68bf99fed9667685c1637607"
-        currency: rewardList?.data?.[i]?.currency || 'THB',
-        payout: rewardList?.data?.[i]?.reward || 0,
+        // P1-COLLSCAN: persist the indexed user_id alongside the legacy aff_sub1.
+        ...(isValidObjectId(user.user_id)
+          ? { user_id: new Types.ObjectId(user.user_id) }
+          : {}),
+        currency: rankReward?.currency || 'THB',
+        payout: Number(rankReward?.reward) || 0,
         sale_amount: 0,
       };
-      const payoutData = rewardList?.data?.[i]?.reward;
+      const payoutData = Number(rankReward?.reward) || 0;
 
       data.payout = payoutData;
 
@@ -2123,10 +2312,6 @@ export class WithdrawService {
     await this.questModel
       .findByIdAndUpdate(questDate._id, { reward_status: true })
       .exec();
-    console.log(
-      `done reward conversion for quest ${questDate._id} with ${list.length} users`,
-    );
-
     return rewardList;
   }
 
@@ -2184,6 +2369,8 @@ export class WithdrawService {
       aff_sub1: user_id?.startsWith('user_id:')
         ? user_id
         : `user_id:${user_id}`, // "user_id:68bf99fed9667685c1637607"
+      // P1-COLLSCAN: persist the indexed user_id alongside the legacy aff_sub1.
+      user_id: userData._id,
       currency: reward_currency || 'THB',
       payout: Number(reward_amount) || 0,
       sale_amount: 0,

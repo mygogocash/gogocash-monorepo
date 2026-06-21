@@ -84,8 +84,8 @@ NOT solve this — it stands up the infra and proves one string round-trips. Pha
   selection persists across reload. Not full coverage.
 
 ### Catalog access (monorepo boundary)
-Web catalogs are at repo-root `src/messages/`, mobile is `apps/mobile/`. Pick one:
-- **(preferred)** a small sync script copying `en.json`/`th.json` into `apps/mobile/src/messages/` (keeps Metro
+Web catalogs are at repo-root `src/messages/`, mobile is `apps/app/`. Pick one:
+- **(preferred)** a small sync script copying `en.json`/`th.json` into `apps/app/src/messages/` (keeps Metro
   inside the package; document the script so catalogs stay in sync), **or**
 - a Metro `watchFolders` + alias to import the root catalogs directly (no duplication, but widens Metro's root).
 Decide in Phase 1; Phase 2 depends on it.

@@ -1,8 +1,16 @@
 # GoGoCash Next.js → Expo Migration Plan
 
-> Status as of audit (2026-05-30). Source of truth for taking `apps/mobile`
+> Status as of audit (2026-05-30). Source of truth for taking the Expo app
 > from a fixture-backed parity app to a production cross-platform replacement
 > for the Next.js customer web app.
+
+> **Update (2026-06-21): merged into the Turborepo monorepo in PR #1.** The Expo
+> app now lives at `apps/app` (package `@gogocash/mobile`); the dated text below
+> still says `apps/mobile`, which is the pre-migration path. The `npm run
+> mobile:test:full` / `mobile:design-qa` / `npm run validate` commands referenced
+> below are not defined in this monorepo — use `npm --prefix apps/app run
+> test:full` (and `npx --prefix apps/app playwright test` for design QA). Phase
+> targets and audit verdicts are otherwise unchanged and preserved as written.
 
 ## ★ NORTH STAR — Expo is the single source of truth for ALL platforms
 

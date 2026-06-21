@@ -126,11 +126,12 @@ Document in your internal wiki who may access `gogocash-staging` and that this b
 
 ## 8. CI/CD — Firebase CI retired (app deploys on GCP Cloud Run)
 
-> **Update:** The Firebase Hosting GitHub Actions workflow was **retired** (commit `4a445d3`, "ci: retire Firebase Hosting workflows (migrated to GCP Cloud Run)"). There is **no `.github/workflows/` directory** in the repo anymore, so `.github/workflows/firebase-hosting-staging.yml` no longer exists. Automated deploys now run on **GCP Cloud Run** (`Dockerfile` + Cloud Build — it builds and serves the standard Next.js Node server, not a static export). The Firebase Hosting steps in this doc remain only as a **manual** static-export option for internal previews.
+> **Update:** The Firebase Hosting GitHub Actions workflow was **retired** (commit `4a445d3`, "ci: retire Firebase Hosting workflows (migrated to Railway)"). The repo (now the `gogocash-monorepo`) still has a `.github/workflows/` directory, but there is **no Firebase Hosting workflow** in it — `firebase-hosting-staging.yml` no longer exists. The admin app's automated deploy now runs on **GCP Cloud Run** via `.github/workflows/deploy-admin-staging.yml` (`workflow_dispatch` only) — an in-runner `docker build` of `apps/admin/Dockerfile` (the standalone Next.js Node server, not a static export) pushed to Artifact Registry and deployed to the Cloud Run service `gogocash-admin`. The Firebase Hosting steps in this doc remain only as a **manual** static-export option for internal previews.
 
 | Piece | Location |
 |--------|-----------|
-| **GitHub Actions (Firebase)** | _Retired — `.github/workflows/firebase-hosting-staging.yml` was removed (migrated to GCP Cloud Run)._ |
+| **GitHub Actions (Firebase)** | _Retired — `firebase-hosting-staging.yml` was removed; no Firebase Hosting workflow remains in `.github/workflows/`._ |
+| **GitHub Actions (admin deploy, current)** | `.github/workflows/deploy-admin-staging.yml` — `workflow_dispatch` only; `docker build` → Artifact Registry → Cloud Run (`gogocash-admin`). |
 | **Local scripted deploy (manual, still works)** | `npm run deploy:firebase:staging` → `scripts/deploy-firebase-staging.mjs` (requires `NEXTAUTH_SECRET`, `NEXTAUTH_URL` in the shell). |
 
 **Repository secrets** _(historical — these applied to the retired Firebase CI workflow; not used by the GCP Cloud Run deploy)_:
@@ -169,8 +170,8 @@ Hosting keeps previous releases in the console; you can **roll back** to a prior
 | Firebase hosting config | `firebase.json` (includes basic security headers), `.firebaserc` |
 | Static export toggle | `next.config.ts` when `BUILD_FOR_FIREBASE=1` |
 | NPM scripts | `build:firebase`, `deploy:firebase`, `deploy:firebase:staging` |
-| GCP Cloud Run deploy config | `Dockerfile` + Cloud Build — current automated deploy target |
-| CI workflow | _Retired — `.github/workflows/firebase-hosting-staging.yml` removed; deploys moved to GCP Cloud Run (see §8)._ |
+| GCP Cloud Run deploy config | `apps/admin/Dockerfile` (in-runner `docker build` → Artifact Registry → `gcloud run deploy`) — current automated deploy target |
+| CI workflow | Firebase Hosting CI retired (`firebase-hosting-staging.yml` removed); admin now deploys via `.github/workflows/deploy-admin-staging.yml` → Cloud Run (see §8). |
 | Local staging deploy script | `scripts/deploy-firebase-staging.mjs` |
 | NextAuth static export params | `src/app/api/auth/[...nextauth]/route.ts` (`generateStaticParams` when `BUILD_FOR_FIREBASE`) |
 

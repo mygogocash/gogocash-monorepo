@@ -15,6 +15,8 @@ import { CreateBrandDto } from './dto/create-brand.dto';
 import { UpdateBrandDto } from './dto/update-brand.dto';
 import { ListBrandsDto } from './dto/list-brands.dto';
 import { AuthAdminGuard } from '../admin/jwt-auth-admin.guard';
+import { RolesGuard } from '../admin/roles.guard';
+import { Roles } from '../admin/roles.decorator';
 
 @ApiTags('Brand')
 @Controller('brand')
@@ -55,27 +57,30 @@ export class BrandController {
     return this.brandService.findOne(id);
   }
 
-  @UseGuards(AuthAdminGuard)
+  @UseGuards(AuthAdminGuard, RolesGuard)
   @ApiBearerAuth()
   @ApiSecurity('access-token')
   @ApiBody({ type: CreateBrandDto })
+  @Roles('support')
   @Post()
   create(@Body() dto: CreateBrandDto) {
     return this.brandService.create(dto);
   }
 
-  @UseGuards(AuthAdminGuard)
+  @UseGuards(AuthAdminGuard, RolesGuard)
   @ApiBearerAuth()
   @ApiSecurity('access-token')
   @ApiBody({ type: UpdateBrandDto })
+  @Roles('support')
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateBrandDto) {
     return this.brandService.update(id, dto);
   }
 
-  @UseGuards(AuthAdminGuard)
+  @UseGuards(AuthAdminGuard, RolesGuard)
   @ApiBearerAuth()
   @ApiSecurity('access-token')
+  @Roles('support')
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.brandService.softDelete(id);

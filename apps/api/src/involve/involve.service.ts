@@ -1,4 +1,3 @@
-/* eslint-disable prettier/prettier */
 import { HttpException, Inject, Injectable } from '@nestjs/common';
 import {
   CreateAffiliateAiDto,
@@ -10,7 +9,7 @@ import axios from 'axios';
 import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 import { InjectModel } from '@nestjs/mongoose';
 import { Offer } from '../offer/schemas/offer.schema';
-import { Model, Types } from 'mongoose';
+import { isValidObjectId, Model, Types } from 'mongoose';
 import { Deeplink } from './schemas/deeplink.schema';
 import { User } from 'src/user/schemas/user.schema';
 import { ResponseGenerateDeeplink } from './dto/deeplink.dto';
@@ -68,6 +67,9 @@ export class InvolveService {
     return createLink;
   }
   async createAffiliate(createInvolveDto: CreateAffiliateDto, id: string) {
+    if (!isValidObjectId(id)) {
+      throw new Error('User not found');
+    }
     const user = await this.userModel.findOne({ _id: new Types.ObjectId(id) });
     if (!user) {
       throw new Error('User not found');
@@ -165,10 +167,6 @@ export class InvolveService {
       );
       return res.data;
     } catch (error: any) {
-      console.error(
-        'Error creating deeplink:',
-        error.response?.data || error.message,
-      );
       if (error.response?.data?.status_code === 401) {
         await this.signIn();
         return this.createDeeplinkInvolve(createInvolveDto);
@@ -291,6 +289,9 @@ export class InvolveService {
     payload: RequestGetConversion,
     id: string,
   ) {
+    if (!isValidObjectId(id)) {
+      throw new Error('User not found');
+    }
     const user = await this.userModel.findOne({ _id: new Types.ObjectId(id) });
     if (!user) {
       throw new Error('User not found');
@@ -539,6 +540,9 @@ export class InvolveService {
     // old version
     if (payload && 'data' in payload && payload.data) {
       payload = payload.data as RequestGetConversion;
+    }
+    if (!isValidObjectId(id)) {
+      throw new Error('User not found');
     }
     const user = await this.userModel.findOne({ _id: new Types.ObjectId(id) });
     if (!user) {

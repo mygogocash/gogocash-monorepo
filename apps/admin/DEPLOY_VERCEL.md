@@ -26,7 +26,7 @@ VERCEL_TOKEN=your_token_here VERCEL_PROJECT_ID=prj_UcjHt1tNVGgsYf3lFUiGiolode4V 
 
 ## Deploy
 
-From the project root (`gogocash_admin-main`):
+From the admin app folder (`apps/admin` in the `gogocash-monorepo`):
 
 **Production:**
 
@@ -34,11 +34,11 @@ From the project root (`gogocash_admin-main`):
 VERCEL_PROJECT_ID=prj_UcjHt1tNVGgsYf3lFUiGiolode4V npx vercel deploy --prod --yes
 ```
 
-Or, after linking once (e.g. after `vercel link --project prj_UcjHt1tNVGgsYf3lFUiGiolode4V`):
+Or, after linking once (e.g. after `vercel link --project prj_UcjHt1tNVGgsYf3lFUiGiolode4V`),
+run `npx vercel deploy --prod --yes` from the linked directory.
 
-```bash
-npm run deploy
-```
+> **Note:** there is no `npm run deploy` script in the admin `package.json`; use the
+> `npx vercel deploy` commands above (a `vercel.json` is present in `apps/admin`).
 
 **Preview:**
 
@@ -48,4 +48,5 @@ VERCEL_PROJECT_ID=prj_UcjHt1tNVGgsYf3lFUiGiolode4V npx vercel deploy --yes
 
 ## Root directory on Vercel
 
-If this repo is part of a monorepo, set **Root Directory** in the Vercel project settings to the folder that contains this Next.js app (e.g. `gogocash_admin-main` or `.` if the repo is this app only).
+This is a monorepo. Set **Root Directory** in the Vercel project settings to the folder
+that contains this Next.js app: **`apps/admin`**.

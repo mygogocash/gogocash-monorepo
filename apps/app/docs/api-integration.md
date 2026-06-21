@@ -1,7 +1,7 @@
 # GoGoCash Mobile — API & Auth Integration (Developer Handoff)
 
 **Audience:** a developer continuing the Expo app's backend integration.
-**Scope:** `apps/mobile/` only. The web app's API architecture (the contract this app mirrors) is documented in [`docs/API_INTEGRATION.md`](../../../docs/API_INTEGRATION.md) at the repo root.
+**Scope:** `apps/app/` only (package `@gogocash/mobile`). The web/admin app's API architecture (the contract this app mirrors) is documented in [`apps/admin/API_INTEGRATION.md`](../../admin/API_INTEGRATION.md).
 **Last verified:** 2026-06-10, against the live production API and the `gogocash-staging` Firebase project. Facts below marked *verified* were confirmed by live probes or passing tests, not assumed.
 
 ---
@@ -13,7 +13,7 @@
 | Data-source seam (`fixtures \| backend \| disabled`) | ✅ Built and shipped (pre-existing); default `fixtures` |
 | Live catalog (public `GET /offer`) → Favorite Brands screen | ✅ **Shipped + verified against production** (commit `e645186`) |
 | API DTOs + mapper pattern | ✅ `src/api/catalogTypes.ts` + `src/api/catalogMapper.ts` (the template for all other resources) |
-| Firebase project setup | ✅ Web app "GoGoCash Mobile" registered in `gogocash-staging`; client config in `apps/mobile/.env` (untracked — ask a teammate, or re-fetch from Firebase console → Project settings → Your apps) |
+| Firebase project setup | ✅ Web app "GoGoCash Mobile" registered in `gogocash-staging`; client config in `apps/app/.env` (untracked — ask a teammate, or re-fetch from Firebase console → Project settings → Your apps) |
 | Firebase auth plumbing (SDK, phone OTP, `/auth/log-in` exchange, session mapping) | ✅ Built + unit-tested (`src/auth/firebase*.ts`), **not yet wired into the login screen** |
 | Login-screen wiring | ⛔ Pending — `CustomerAuthScreen.tsx` still uses the demo-session stub (see §5) |
 | Auth-gated resources live (profile/wallet/referral/offers/merchant) | ⛔ Pending — endpoints verified to exist; need auth + per-resource mappers |
@@ -40,7 +40,7 @@ Screen
 ## 2. Running against the live API (verify recipe)
 
 ```bash
-# apps/mobile/.env
+# apps/app/.env
 EXPO_PUBLIC_ACCOUNT_DATA_SOURCE=backend
 EXPO_PUBLIC_API_URL=https://api.gogocash.co   # prod — read-only testing only! staging is down
 ```
@@ -70,7 +70,7 @@ To bring another resource live: write the DTO from a real response → TDD a map
 
 ## 5. Auth: what exists and how to finish it
 
-**Firebase project:** `gogocash-staging` (project number 729804769570). Phone sign-in is the **only enabled provider**; `localhost` is an authorized domain (Expo-web dev works). Social IdPs are not configured in staging. A web app registration **"GoGoCash Mobile"** exists; its client config lives in `apps/mobile/.env` (`EXPO_PUBLIC_FIREBASE_API_KEY/AUTH_DOMAIN/PROJECT_ID/APP_ID` — untracked file).
+**Firebase project:** `gogocash-staging` (project number 729804769570). Phone sign-in is the **only enabled provider**; `localhost` is an authorized domain (Expo-web dev works). Social IdPs are not configured in staging. A web app registration **"GoGoCash Mobile"** exists; its client config lives in `apps/app/.env` (`EXPO_PUBLIC_FIREBASE_API_KEY/AUTH_DOMAIN/PROJECT_ID/APP_ID` — untracked file).
 
 **Plumbing modules (built, unit-tested, unused by any screen yet):**
 

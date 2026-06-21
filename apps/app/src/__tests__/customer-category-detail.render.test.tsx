@@ -77,4 +77,10 @@ describe("CustomerCategoryDetailScreen — Wave B foundations adopted (source si
     // Wired into the sort selection handler that also sets sortBy.
     expect(categorySource).toMatch(/onPress=\{\(\)\s*=>\s*\{[\s\S]*haptics\.impact\(\)[\s\S]*setSortBy\(/);
   });
+
+  it("uses canonical shop hrefs for brand cards instead of deriving display-name slugs", () => {
+    expect(categorySource).toContain("getTopBrandHref");
+    expect(categorySource).toContain("store.href ?? getTopBrandHref(store.brand)");
+    expect(categorySource).not.toContain("href={brandHref(store.brand)");
+  });
 });

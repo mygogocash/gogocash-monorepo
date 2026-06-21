@@ -558,6 +558,8 @@ export interface Offer {
   banner_mobile: string;
   /** When true, treat as top-brand placement (API field name: extra_store). */
   extra_store: boolean;
+  /** Quest task bonus points. Values > 1 show on the customer Quest task list in legacy mode. */
+  extra_point?: number;
   /** Active policy (from category; optional if API provides it) */
   active_policy?: string | null;
   /** When set, T&C for this offer come from this category’s policy (Policy Management). Empty = use offer category name to resolve. */
@@ -584,6 +586,8 @@ export interface Offer {
   admin_commission_info?: string[];
   /** Short message from admin shown to end users for this offer (e.g. app offer detail). */
   note_to_user?: string | null;
+  /** Optional backend publication state; `disabled` remains the admin hide/live switch. */
+  status?: string | null;
   /** Affiliate / performance network name (e.g. Involve Asia). Optional; UI may derive from offer id in mock. */
   affiliate_partner?: string | null;
   /** Admin-selected advertiser line (e.g. `shopee_cps`, `shopee_cps_new`); sent as store= in URL. */
@@ -683,15 +687,23 @@ export interface OffersResponse {
   totalPages: number;
 }
 
-/** Curated homepage top-brand rail (admin). Mock: in-memory order of offer `_id`s. */
+export interface TopBrandConfigEntry {
+  /** Offer Mongo `_id` — the identity curated by the admin panel. */
+  offerId: string;
+  /** Customer-facing cashback copy shown on the Expo homepage card. */
+  cashback: string;
+}
+
+/** Curated homepage top-brand rail (admin). Mock: in-memory ordered entries. */
 export interface TopBrandsAdminResponse {
   order: string[];
+  brands: TopBrandConfigEntry[];
   items: Offer[];
 }
 
 export interface SaveTopBrandsResponse {
   success: boolean;
-  order: string[];
+  brands: TopBrandConfigEntry[];
   message?: string;
 }
 

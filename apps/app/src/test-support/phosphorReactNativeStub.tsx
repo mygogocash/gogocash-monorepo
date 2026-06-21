@@ -30,6 +30,7 @@ export {
   StubIcon as ChatCircle,
   StubIcon as Check,
   StubIcon as CheckCircle,
+  StubIcon as ClipboardText,
   StubIcon as Clock,
   StubIcon as Cloud,
   StubIcon as Coins,

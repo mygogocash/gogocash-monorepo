@@ -1,4 +1,3 @@
-/* eslint-disable prettier/prettier */
 import { HttpException, Injectable } from '@nestjs/common';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import {
@@ -21,6 +20,7 @@ import { Category } from 'src/offer/schemas/category.schema';
 import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 import { UserMyCashback } from 'src/user/schemas/user-my-cashback.schema';
 import { Banner } from 'src/offer/schemas/banner.schema';
+import { TopBrandConfig } from 'src/offer/schemas/top-brand-config.schema';
 import { UserService } from 'src/user/user.service';
 import { JobService } from 'src/withdraw/cronjob/job.service';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
@@ -38,6 +38,8 @@ export class AdminService {
     @InjectModel(UserMyCashback.name)
     private userMyCashbackModel: Model<UserMyCashback>,
     @InjectModel(Banner.name) private bannerModel: Model<Banner>,
+    @InjectModel(TopBrandConfig.name)
+    private topBrandConfigModel: Model<TopBrandConfig>,
     @InjectModel(Deeplink.name) private deeplinkModel: Model<Deeplink>,
 
     private readonly googleDriveService: GoogleDriveService,
@@ -45,8 +47,8 @@ export class AdminService {
     private userService: UserService,
     private readonly jobService: JobService,
   ) {}
-  create(createAdminDto: CreateAdminDto) {
-    console.log(createAdminDto);
+  create(_createAdminDto: CreateAdminDto) {
+    void _createAdminDto;
     return 'This action adds a new admin';
   }
 
@@ -108,9 +110,8 @@ export class AdminService {
       .exec();
   }
 
-  remove(id: string) {
-    console.log('remove admin id:', id);
-    // this.userAdminModel.findByIdAndDelete(id).exec();
+  remove(_id: string) {
+    void _id;
     return null;
   }
 
@@ -398,6 +399,7 @@ export class AdminService {
       commission_store?: number;
       max_cap?: number;
       extra_store?: boolean;
+      tracking_link?: string;
       product_type: ProductTypeDto[];
     },
   ) {
@@ -459,6 +461,11 @@ export class AdminService {
         await this.googleDriveService.deleteFile(offer.logo_circle);
       }
     }
+    const trackingLink =
+      typeof updateData.tracking_link === 'string' &&
+      updateData.tracking_link.trim()
+        ? updateData.tracking_link.trim()
+        : offer.tracking_link;
     return this.offerModel
       .findByIdAndUpdate(
         id,
@@ -478,6 +485,7 @@ export class AdminService {
             updateData.commission_store ?? offer.commission_store ?? 0,
           max_cap: updateData.max_cap ?? offer.max_cap ?? 0,
           extra_store: Boolean(updateData.extra_store ?? offer.extra_store),
+          tracking_link: trackingLink,
           product_type:
             typeof updateData.product_type === 'string'
               ? JSON.parse(updateData.product_type)
@@ -538,7 +546,9 @@ export class AdminService {
 
   async updateBannerHome(updateData: UpdateBannerHomeDto) {
     // logic update banner home
-    const data = await this.bannerModel.findOne().exec();
+    const data = (await this.bannerModel.findOne().exec()) ?? {};
+
+    const current = data as Record<string, any>;
 
     const folderId = '16AmK8RlgEYa16LbPYEgtGBL4U1ouDhiS';
     let file1;
@@ -547,8 +557,8 @@ export class AdminService {
         updateData.image_1 as unknown as Express.Multer.File,
         folderId,
       );
-      if (data && data.image_1) {
-        await this.googleDriveService.deleteFile(data.image_1);
+      if (current.image_1) {
+        await this.googleDriveService.deleteFile(current.image_1);
       }
     }
     let file2;
@@ -557,8 +567,8 @@ export class AdminService {
         updateData.image_2 as unknown as Express.Multer.File,
         folderId,
       );
-      if (data && data.image_2) {
-        await this.googleDriveService.deleteFile(data.image_2);
+      if (current.image_2) {
+        await this.googleDriveService.deleteFile(current.image_2);
       }
     }
 
@@ -568,8 +578,8 @@ export class AdminService {
         updateData.image_3 as unknown as Express.Multer.File,
         folderId,
       );
-      if (data && data.image_3) {
-        await this.googleDriveService.deleteFile(data.image_3);
+      if (current.image_3) {
+        await this.googleDriveService.deleteFile(current.image_3);
       }
     }
     let file4;
@@ -578,8 +588,8 @@ export class AdminService {
         updateData.image_4 as unknown as Express.Multer.File,
         folderId,
       );
-      if (data && data.image_4) {
-        await this.googleDriveService.deleteFile(data.image_4);
+      if (current.image_4) {
+        await this.googleDriveService.deleteFile(current.image_4);
       }
     }
 
@@ -589,28 +599,97 @@ export class AdminService {
         updateData.image_5 as unknown as Express.Multer.File,
         folderId,
       );
-      if (data && data.image_5) {
-        await this.googleDriveService.deleteFile(data.image_5);
+      if (current.image_5) {
+        await this.googleDriveService.deleteFile(current.image_5);
       }
     }
 
+    const resolveSlotLink = (value: unknown, existing: unknown) => {
+      if (value === undefined || value === null) {
+        return typeof existing === 'string' ? existing : '';
+      }
+      return String(value);
+    };
+
+    const payload: Record<string, any> = {
+      image_1: file1 ? file1.id : current.image_1,
+      image_2: file2 ? file2.id : current.image_2,
+      image_3: file3 ? file3.id : current.image_3,
+      image_4: file4 ? file4.id : current.image_4,
+      image_5: file5 ? file5.id : current.image_5,
+      link_1: resolveSlotLink(updateData.link_1, current.link_1),
+      link_2: resolveSlotLink(updateData.link_2, current.link_2),
+      link_3: resolveSlotLink(updateData.link_3, current.link_3),
+      link_4: resolveSlotLink(updateData.link_4, current.link_4),
+      link_5: resolveSlotLink(updateData.link_5, current.link_5),
+      // preserve legacy schedule window if present on the old schema.
+      start_date: current.start_date,
+      end_date: current.end_date,
+      // Persist the per-slot controls used by schedule/switch mechanics.
+      enabled_1:
+        updateData.enabled_1 === undefined
+          ? current.enabled_1
+          : updateData.enabled_1,
+      enabled_2:
+        updateData.enabled_2 === undefined
+          ? current.enabled_2
+          : updateData.enabled_2,
+      enabled_3:
+        updateData.enabled_3 === undefined
+          ? current.enabled_3
+          : updateData.enabled_3,
+      enabled_4:
+        updateData.enabled_4 === undefined
+          ? current.enabled_4
+          : updateData.enabled_4,
+      enabled_5:
+        updateData.enabled_5 === undefined
+          ? current.enabled_5
+          : updateData.enabled_5,
+      start_date_1:
+        updateData.start_date_1 === undefined
+          ? current.start_date_1
+          : updateData.start_date_1,
+      start_date_2:
+        updateData.start_date_2 === undefined
+          ? current.start_date_2
+          : updateData.start_date_2,
+      start_date_3:
+        updateData.start_date_3 === undefined
+          ? current.start_date_3
+          : updateData.start_date_3,
+      start_date_4:
+        updateData.start_date_4 === undefined
+          ? current.start_date_4
+          : updateData.start_date_4,
+      start_date_5:
+        updateData.start_date_5 === undefined
+          ? current.start_date_5
+          : updateData.start_date_5,
+      end_date_1:
+        updateData.end_date_1 === undefined
+          ? current.end_date_1
+          : updateData.end_date_1,
+      end_date_2:
+        updateData.end_date_2 === undefined
+          ? current.end_date_2
+          : updateData.end_date_2,
+      end_date_3:
+        updateData.end_date_3 === undefined
+          ? current.end_date_3
+          : updateData.end_date_3,
+      end_date_4:
+        updateData.end_date_4 === undefined
+          ? current.end_date_4
+          : updateData.end_date_4,
+      end_date_5:
+        updateData.end_date_5 === undefined
+          ? current.end_date_5
+          : updateData.end_date_5,
+    };
+
     await this.bannerModel
-      .findOneAndUpdate(
-        {},
-        {
-          image_1: file1 ? file1.id : data.image_1,
-          image_2: file2 ? file2.id : data.image_2,
-          image_3: file3 ? file3.id : data.image_3,
-          image_4: file4 ? file4.id : data.image_4,
-          image_5: file5 ? file5.id : data.image_5,
-          link_1: updateData.link_1 || '',
-          link_2: updateData.link_2 || '',
-          link_3: updateData.link_3 || '',
-          link_4: updateData.link_4 || '',
-          link_5: updateData.link_5 || '',
-        },
-        { upsert: true, new: true },
-      )
+      .findOneAndUpdate({}, { $set: payload }, { upsert: true, new: true })
       .exec();
     return { message: 'Update banner home success' };
   }
@@ -673,44 +752,62 @@ export class AdminService {
     };
   }
 
-  /** Top brands ranked by conversion count. */
+  /** Saved homepage top-brand config for the admin editor. */
   async getTopBrands() {
-    const topBrands = await this.conversionModel.aggregate([
-      { $group: { _id: '$offer_id', count: { $sum: 1 } } },
-      { $sort: { count: -1 } },
-      { $limit: 20 },
-      {
-        $lookup: {
-          from: 'offers',
-          localField: '_id',
-          foreignField: 'offer_id',
-          as: 'offer',
-        },
-      },
-      { $unwind: { path: '$offer', preserveNullAndEmptyArrays: true } },
-      {
-        $project: {
-          offer_id: '$_id',
-          conversions: '$count',
-          offer_name: '$offer.offer_name',
-          logo: '$offer.logo',
-          categories: '$offer.categories',
-        },
-      },
-    ]);
+    const config = await this.topBrandConfigModel.findOne().exec();
+    const brands = (config?.brands ?? [])
+      .map((entry) => ({
+        offerId: String(entry.offerId ?? '').trim(),
+        cashback: String(entry.cashback ?? '').trim(),
+      }))
+      .filter((entry) => entry.offerId);
 
-    return { data: topBrands };
+    if (brands.length === 0) {
+      return { order: [], brands: [], items: [] };
+    }
+
+    const order = brands.map((entry) => entry.offerId);
+    const offers = await this.offerModel.find({ _id: { $in: order } }).exec();
+    const offerById = new Map(
+      offers.map((offer) => [String(offer._id), offer]),
+    );
+
+    return {
+      order,
+      brands,
+      items: order
+        .map((offerId) => offerById.get(offerId))
+        .filter((offer) => offer != null),
+    };
   }
 
-  /** Save manual top brand ordering (array of offer IDs). */
-  async saveTopBrands(order: string[]) {
-    // Store as a banner-style config document
-    await this.bannerModel.updateOne(
-      { type: 'top_brands' },
-      { $set: { type: 'top_brands', order, updatedAt: new Date() } },
+  /**
+   * Save the admin-curated top-brands list: an ordered set of offer ids, each
+   * with an admin-typed cashback label. Stored as a single config doc (empty
+   * filter = the singleton) in its own collection, so it never collides with
+   * the image-banner doc that OfferService.getBannerHome() reads.
+   */
+  async saveTopBrands(brands: { offerId: string; cashback: string }[]) {
+    const seen = new Set<string>();
+    const normalizedBrands = (brands ?? [])
+      .map((entry) => ({
+        offerId: String(entry.offerId ?? '').trim(),
+        cashback: String(entry.cashback ?? '').trim(),
+      }))
+      .filter((entry) => {
+        if (!entry.offerId || seen.has(entry.offerId)) {
+          return false;
+        }
+        seen.add(entry.offerId);
+        return true;
+      });
+
+    await this.topBrandConfigModel.updateOne(
+      {},
+      { $set: { brands: normalizedBrands } },
       { upsert: true },
     );
-    return { success: true, order };
+    return { success: true, brands: normalizedBrands };
   }
 
   /**

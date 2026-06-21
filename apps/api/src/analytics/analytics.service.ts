@@ -188,10 +188,10 @@ export class AnalyticsService implements OnModuleDestroy {
         undefined,
         {
           personProperties: compactFlagProperties({
-          ...personProperties,
-          locale: context.locale,
-          region: context.region,
-          platform: context.platform,
+            ...personProperties,
+            locale: context.locale,
+            region: context.region,
+            platform: context.platform,
           }),
         },
       )) as T | undefined;

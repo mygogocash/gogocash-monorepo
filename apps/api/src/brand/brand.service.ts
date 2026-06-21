@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { FilterQuery, Model, Types } from 'mongoose';
+import { QueryFilter, Model, Types } from 'mongoose';
 import { Brand, BrandDocument } from './schemas/brand.schema';
 import { Offer, OfferDocument } from '../offer/schemas/offer.schema';
 import { CreateBrandDto } from './dto/create-brand.dto';
@@ -99,7 +99,7 @@ export class BrandService {
   async list(dto: ListBrandsDto): Promise<BrandListResponse> {
     const page = dto.page ?? 1;
     const limit = Math.min(dto.limit ?? 20, 200);
-    const filter: FilterQuery<Brand> = { disabled: false };
+    const filter: QueryFilter<Brand> = { disabled: false };
     if (dto.search) {
       filter.brand_name = { $regex: dto.search.trim(), $options: 'i' };
     }
@@ -118,8 +118,9 @@ export class BrandService {
     ]);
 
     const ids = brandsRaw.map((b) => b._id);
-    const variantFilter: FilterQuery<Offer> = { brand_id: { $in: ids } };
-    if (dto.country) variantFilter.countries = { $regex: dto.country, $options: 'i' };
+    const variantFilter: QueryFilter<Offer> = { brand_id: { $in: ids } };
+    if (dto.country)
+      variantFilter.countries = { $regex: dto.country, $options: 'i' };
     const variants = await this.offerModel
       .find(variantFilter)
       .select(
@@ -147,13 +148,17 @@ export class BrandService {
       page,
       limit,
       total: dto.country ? brands.length : totalAll,
-      totalPages: Math.max(1, Math.ceil((dto.country ? brands.length : totalAll) / limit)),
+      totalPages: Math.max(
+        1,
+        Math.ceil((dto.country ? brands.length : totalAll) / limit),
+      ),
     };
   }
 
   /** Single brand with all variants populated (for the admin edit drawer). */
   async findOne(id: string): Promise<BrandWithVariants> {
-    if (!Types.ObjectId.isValid(id)) throw new BadRequestException('Invalid brand id.');
+    if (!Types.ObjectId.isValid(id))
+      throw new BadRequestException('Invalid brand id.');
     const brand = await this.brandModel.findById(id).lean();
     if (!brand) throw new NotFoundException('Brand not found.');
     const variants = await this.offerModel.find({ brand_id: brand._id }).lean();
@@ -165,13 +170,20 @@ export class BrandService {
    * Mirrors the customer-app helper but server-side so deep-links (e.g. `/open/brand/apple`)
    * pick the right tracking link without a client round-trip.
    */
-  async resolveVariant(brandSlug: string, userCountry: string | null): Promise<BrandResolveResponse> {
+  async resolveVariant(
+    brandSlug: string,
+    userCountry: string | null,
+  ): Promise<BrandResolveResponse> {
     const brand = await this.brandModel
       .findOne({ brand_slug: brandSlug, disabled: false })
       .lean();
     if (!brand) throw new NotFoundException('Brand not found.');
     const variants = await this.offerModel
-      .find({ brand_id: brand._id, disabled: false })
+      .find({
+        brand_id: brand._id,
+        disabled: false,
+        status: { $nin: ['pending_review', 'rejected'] },
+      })
       .lean();
     if (variants.length === 0) {
       throw new NotFoundException('Brand has no active variants.');
@@ -199,14 +211,17 @@ export class BrandService {
   }
 
   async update(id: string, dto: UpdateBrandDto): Promise<BrandDocument> {
-    if (!Types.ObjectId.isValid(id)) throw new BadRequestException('Invalid brand id.');
+    if (!Types.ObjectId.isValid(id))
+      throw new BadRequestException('Invalid brand id.');
     if (dto.brand_slug) {
       const slug = dto.brand_slug.trim();
       const conflict = await this.brandModel
         .findOne({ brand_slug: slug, _id: { $ne: id } })
         .lean();
       if (conflict) {
-        throw new ConflictException(`Slug "${slug}" is already used by another brand.`);
+        throw new ConflictException(
+          `Slug "${slug}" is already used by another brand.`,
+        );
       }
     }
     if (dto.is_global === true && dto.default_country === '') {
@@ -224,7 +239,8 @@ export class BrandService {
     // consistent without a join. Touching only the changed flags avoids redundant writes.
     const variantPatch: Partial<Offer> = {};
     if (dto.is_global !== undefined) variantPatch.is_global = dto.is_global;
-    if (dto.default_country !== undefined) variantPatch.default_country = dto.default_country;
+    if (dto.default_country !== undefined)
+      variantPatch.default_country = dto.default_country;
     if (Object.keys(variantPatch).length > 0) {
       await this.offerModel.updateMany(
         { brand_id: updated._id },
@@ -240,7 +256,8 @@ export class BrandService {
    * Variants stay in the offers collection so historical orders/conversions remain valid.
    */
   async softDelete(id: string): Promise<{ id: string; disabled: true }> {
-    if (!Types.ObjectId.isValid(id)) throw new BadRequestException('Invalid brand id.');
+    if (!Types.ObjectId.isValid(id))
+      throw new BadRequestException('Invalid brand id.');
     const brand = await this.brandModel.findById(id);
     if (!brand) throw new NotFoundException('Brand not found.');
     brand.disabled = true;

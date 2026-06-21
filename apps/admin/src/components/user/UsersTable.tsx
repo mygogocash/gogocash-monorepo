@@ -76,19 +76,6 @@ export default function UsersTable() {
   });
   const [filterDim, setFilterDim] = useState<FilterDim>("tier");
 
-  // Apply ?search= from URL on mount (e.g. from Conversion "View user info")
-  useEffect(() => {
-    const initialSearch = searchParams.get("search") ?? "";
-    if (initialSearch) {
-      const q = { ...query, search: initialSearch, page: 1 };
-      setQuery(q);
-      fetchUsersWithQuery(q);
-    } else {
-      fetchUsersWithQuery(query);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   // Guards: ignore out-of-order responses; debounce free-text search.
   const reqIdRef = useRef(0);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -110,6 +97,19 @@ export default function UsersTable() {
     const queryToUse = newQuery ?? query;
     await fetchUsersWithQuery(queryToUse);
   };
+
+  // Apply ?search= from URL on mount (e.g. from Conversion "View user info")
+  useEffect(() => {
+    const initialSearch = searchParams.get("search") ?? "";
+    if (initialSearch) {
+      const q = { ...query, search: initialSearch, page: 1 };
+      setQuery(q);
+      fetchUsersWithQuery(q);
+    } else {
+      fetchUsersWithQuery(query);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Close actions dropdown when clicking outside
   useEffect(() => {

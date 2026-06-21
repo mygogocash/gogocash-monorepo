@@ -157,7 +157,9 @@ function normalizeOrigin(frontendUrl: string): string {
   return `https://${trimmed}`;
 }
 
-function normalizeLocale(locale?: CustomerBillingLocale): CustomerBillingLocale {
+function normalizeLocale(
+  locale?: CustomerBillingLocale,
+): CustomerBillingLocale {
   return locale === 'th' ? 'th' : 'en';
 }
 

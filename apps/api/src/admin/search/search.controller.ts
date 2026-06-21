@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Param,
+  Body,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { AuthAdminGuard } from '../jwt-auth-admin.guard';
 import { RolesGuard } from '../roles.guard';
@@ -40,7 +49,10 @@ export class SearchController {
   }
 
   @Put('featured-terms/:id')
-  updateFeaturedTerm(@Param('id') id: string, @Body() dto: UpdateFeaturedTermDto) {
+  updateFeaturedTerm(
+    @Param('id') id: string,
+    @Body() dto: UpdateFeaturedTermDto,
+  ) {
     return this.searchService.updateFeaturedTerm(id, dto);
   }
 

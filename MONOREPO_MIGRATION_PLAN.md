@@ -4,8 +4,15 @@
 > (`admin`, `api`, `app`). **Landing was removed** and stays in its own repo
 > (`mygogocash/gogocash-landing-page`). Ignore the `apps/landing` references below.
 
-> Status: PLAN (not started). Staging-only throughout; **prod cutover requires explicit approval**.
-> Decisions locked 2026-06-13.
+> **STATUS (2026-06-14):** Phases **0–2 DONE** and **Phase 3 CI DONE** — all 3 apps
+> are subtree-merged on `migrate/monorepo` with history preserved, workspaces +
+> Turborepo wired, and path-filtered CI green (admin `next build`, api `build +
+> boot smoke`, app `expo export`). Legacy Next.js customer web retired (Expo Web
+> replaces it). Now layering **dependency modernization** on top — see
+> [`UPGRADE_PLAN.md`](UPGRADE_PLAN.md) (TS 6, NestJS 11, jest 30, etc. landed).
+> Still pending: Phase 3 deploy lanes, Phase 4 shared packages, Phase 5 cutover.
+> Staging-only throughout; **prod cutover requires explicit approval**. Decisions
+> locked 2026-06-13.
 
 ## Decisions (locked)
 - **One monorepo, 4 apps.** Tooling: **npm workspaces + Turborepo** (all repos are Node 22 + npm; lowest-friction).

@@ -3,7 +3,8 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createElement } from "react";
-import { render } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 // CustomerHomeScreen reaches expo-localization (via the desktop header ->
@@ -49,6 +50,16 @@ function setViewportWidth(width: number) {
   });
 }
 
+// HomeHeroBanners now reads banners via useCustomerAccountResource (useQuery),
+// so the screen must mount inside a QueryClientProvider. In fixtures mode (default)
+// the query stays disabled and banners come from webHomeHeroBanners.
+function renderHome() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    createElement(QueryClientProvider, { client: queryClient }, createElement(CustomerHomeScreen))
+  );
+}
+
 afterEach(() => {
   setViewportWidth(DEFAULT_WINDOW_WIDTH);
 });
@@ -58,13 +69,26 @@ describe("CustomerHomeScreen (render)", () => {
     // < 1024 => getResponsiveHomeLayoutMetrics().isDesktop === false: sticky search,
     // BrowseShortcuts pills, Top Brands / promo sections, and the bottom nav render.
     setViewportWidth(390);
-    expect(() => render(createElement(CustomerHomeScreen))).not.toThrow();
+    expect(() => renderHome()).not.toThrow();
   });
 
   it("mounts the desktop layout without throwing", () => {
     // >= 1024 => isDesktop branch: desktop header chrome + capped content sections.
     setViewportWidth(1280);
-    expect(() => render(createElement(CustomerHomeScreen))).not.toThrow();
+    expect(() => renderHome()).not.toThrow();
+  });
+
+  it("favorites a Top Brands card on heart press (and the press does not navigate)", () => {
+    // The large (size="L") Top Brands card exposes a heart 'Save brand' toggle; the
+    // compact (size="S") rails have no heart. Pressing it flips the brand to favorited
+    // (label changes) in place — it must NOT bubble to the card's <Link> navigation.
+    setViewportWidth(1280);
+    renderHome();
+    const saveButtons = screen.queryAllByRole("button", { name: /^Save brand:/ });
+    expect(saveButtons.length).toBeGreaterThan(0);
+    const brand = (saveButtons[0].getAttribute("aria-label") ?? "").replace(/^Save brand:\s*/, "");
+    fireEvent.click(saveButtons[0]);
+    expect(screen.getByRole("button", { name: `Remove from saved brands: ${brand}` })).toBeTruthy();
   });
 });
 
@@ -73,10 +97,13 @@ describe("CustomerHomeScreen — Wave B Thai-truncation pass (source signals)", 
     // Before this pass, sectionTitle / sectionTitleSmall / shortcutText /
     // desktopCategoryNavText rendered with no line cap, so a longer Thai translation
     // could overflow its single-line row. Each gets a numberOfLines cap. The screen
-    // already had 9 numberOfLines props (brand/promo card titles, cashback captions,
-    // coupon + bottom-nav labels); the truncation pass adds at least 4 more.
+    // has 7 baseline numberOfLines props (shared BrandCard title + cashback caption,
+    // coupon label, compact logo-fallback, plus bottom-nav labels); the truncation
+    // pass adds at least 4 more (the four styles named above). Baseline dropped from
+    // 9 to 7 when the large/compact cards were unified into one BrandCard, which
+    // de-duplicated the title + caption markup without changing runtime capping.
     const numberOfLinesCount = (homeSource.match(/numberOfLines=\{/g) ?? []).length;
-    expect(numberOfLinesCount).toBeGreaterThanOrEqual(13);
+    expect(numberOfLinesCount).toBeGreaterThanOrEqual(11);
   });
 
   it("sets ellipsizeMode so clamped Thai labels show a trailing ellipsis", () => {

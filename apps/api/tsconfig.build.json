@@ -1,4 +1,18 @@
 {
   "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // TS 6.0 changed the default rootDir from "common dir of inputs" to "the
+    // tsconfig directory". Without this, src/main.ts emits to dist/src/main.js
+    // and `node dist/main` (start:prod / the CI boot smoke) breaks. Pin it back
+    // to ./src so the artifact stays dist/main.js.
+    "rootDir": "./src",
+    // Force a full emit on every build. The base config sets incremental:true
+    // (fine for the typecheck), but nest-cli's deleteOutDir wipes dist/ while
+    // tsc writes its *.tsbuildinfo to the project ROOT (TS 5.9 and 6.0 alike) —
+    // so a second `nest build` finds stale build-info, decides nothing changed,
+    // and emits NOTHING while still exiting 0 (no dist/main.js). Disabling
+    // incremental here makes `npm run build -w gogocash-api` deterministic.
+    "incremental": false
+  },
   "exclude": ["node_modules", "test", "dist", "scripts", "**/*spec.ts"]
 }

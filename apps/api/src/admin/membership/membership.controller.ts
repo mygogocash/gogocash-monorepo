@@ -47,10 +47,7 @@ export class MembershipController {
   }
 
   @Put('tiers/:id')
-  updateTier(
-    @Param('id') id: string,
-    @Body() dto: UpdateMembershipTierDto,
-  ) {
+  updateTier(@Param('id') id: string, @Body() dto: UpdateMembershipTierDto) {
     return this.membershipService.updateTier(id, dto);
   }
 
@@ -65,10 +62,7 @@ export class MembershipController {
   }
 
   @Put('users/:userId/tier')
-  changeTier(
-    @Param('userId') userId: string,
-    @Body() dto: ChangeTierDto,
-  ) {
+  changeTier(@Param('userId') userId: string, @Body() dto: ChangeTierDto) {
     return this.membershipService.changeTier(userId, dto.tierId);
   }
 

@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  OnApplicationBootstrap,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
@@ -10,10 +15,128 @@ import { promises as fs } from 'fs';
 import { Category } from './schemas/category.schema';
 import { FavoriteOffer } from './schemas/favorite-offer.schema';
 import { Banner } from './schemas/banner.schema';
+import { TopBrandConfig } from './schemas/top-brand-config.schema';
 import { Coupon } from './schemas/coupon.schema';
 import { UpdateCouponDto } from './dto/update-offer.dto';
 import { MissionOrder } from './schemas/missing-order.schema';
 import { GoogleDriveService } from 'src/google-drive/google-drive.service';
+import { Quest, QuestTask } from 'src/point/schemas/quest.schema';
+
+const ACTIVE_OFFER_FILTER = {
+  disabled: { $ne: true },
+  status: { $nin: ['pending_review', 'rejected'] },
+};
+
+function activeQuestFilter(now = new Date()) {
+  return {
+    status: 'open',
+    $and: [
+      {
+        $or: [
+          { start_date: { $exists: false } },
+          { start_date: null },
+          { start_date: { $lte: now } },
+        ],
+      },
+      {
+        $or: [
+          { end_date: { $exists: false } },
+          { end_date: null },
+          { end_date: { $gte: now } },
+        ],
+      },
+    ],
+  };
+}
+
+const PUBLIC_OFFER_DETAIL_FIELDS = [
+  '_id',
+  'offer_id',
+  'merchant_id',
+  'offer_name',
+  'description',
+  'preview_url',
+  'currency',
+  'logo',
+  'categories',
+  'countries',
+  'commissions',
+  'tracking_link',
+  'commission_tracking',
+  'tracking_type',
+  'directory_page',
+  'logo_desktop',
+  'logo_mobile',
+  'offer_name_display',
+  'banner',
+  'logo_circle',
+  'commission_store',
+  'max_cap',
+  'banner_mobile',
+  'extra_store',
+  'extra_point',
+  'product_type',
+  'source',
+  'brand_id',
+  'is_global',
+  'default_country',
+] as const;
+const PUBLIC_OFFER_DETAIL_SELECT = PUBLIC_OFFER_DETAIL_FIELDS.join(' ');
+
+function pickPublicOfferDetail(offer: Record<string, any> | null) {
+  if (!offer) return null;
+  return PUBLIC_OFFER_DETAIL_FIELDS.reduce<Record<string, any>>(
+    (acc, field) => {
+      if (offer[field] !== undefined) {
+        acc[field] = offer[field];
+      }
+      return acc;
+    },
+    {},
+  );
+}
+
+function parseBoolean(value: unknown, fallback = false): boolean {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true') return true;
+    if (normalized === 'false') return false;
+  }
+  return fallback;
+}
+
+function parseOptionalNumber(value: unknown): number | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function slugifyOfferLookup(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '');
+}
+
+function parseProductTypeRows(value: unknown): any[] {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== 'string' || !value.trim()) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 @Injectable()
 export class OfferService implements OnApplicationBootstrap {
   private readonly logger = new Logger(OfferService.name);
@@ -29,8 +152,11 @@ export class OfferService implements OnApplicationBootstrap {
     private favoriteOfferModel: Model<FavoriteOffer>,
     @InjectModel(Banner.name)
     private bannerModel: Model<Banner>,
+    @InjectModel(TopBrandConfig.name)
+    private topBrandConfigModel: Model<TopBrandConfig>,
     @InjectModel(MissionOrder.name)
     private missionOrderModel: Model<MissionOrder>,
+    @InjectModel(Quest.name) private questModel: Model<Quest>,
     private readonly googleDriveService: GoogleDriveService,
   ) {}
 
@@ -117,7 +243,107 @@ export class OfferService implements OnApplicationBootstrap {
   }
 
   async findOne(id: string) {
-    return this.offerModel.findById(id);
+    if (!Types.ObjectId.isValid(id)) {
+      return null;
+    }
+    const offer = await this.offerModel
+      .findOne({ _id: id, ...ACTIVE_OFFER_FILTER } as any)
+      .select(PUBLIC_OFFER_DETAIL_SELECT)
+      .lean();
+    return pickPublicOfferDetail(offer as Record<string, any> | null);
+  }
+
+  async createAdminOffer(
+    body: Record<string, any>,
+    files: {
+      banner_mobile?: Express.Multer.File[];
+      logo_desktop?: Express.Multer.File[];
+      logo_mobile?: Express.Multer.File[];
+      banner?: Express.Multer.File[];
+      logo_circle?: Express.Multer.File[];
+    } = {},
+  ) {
+    const brandName = String(
+      body.brand_name ?? body.offer_name_display ?? '',
+    ).trim();
+    if (!brandName) {
+      throw new BadRequestException('brand_name is required');
+    }
+    const trackingLink = String(
+      body.affiliate_tracking_link ?? body.tracking_link ?? '',
+    ).trim();
+    if (!trackingLink) {
+      throw new BadRequestException('affiliate_tracking_link is required');
+    }
+
+    const folderId = '1CliPCEtpvH8e8--EflAZ6NdCMuBSddpR';
+    const upload = async (file?: Express.Multer.File) =>
+      file ? (await this.googleDriveService.uploadFile(file, folderId)).id : '';
+    const [logoDesktop, logoMobile, banner, bannerMobile, logoCircle] =
+      await Promise.all([
+        upload(files.logo_desktop?.[0]),
+        upload(files.logo_mobile?.[0]),
+        upload(files.banner?.[0]),
+        upload(files.banner_mobile?.[0]),
+        upload(files.logo_circle?.[0]),
+      ]);
+
+    const now = new Date();
+    const manualId = Date.now();
+    const commissionStore = parseOptionalNumber(body.commission_store);
+    const maxCap = parseOptionalNumber(body.max_cap);
+
+    return this.offerModel.create({
+      offer_id: manualId,
+      merchant_id: manualId,
+      offer_name: `${brandName} - CPS`,
+      offer_name_display: brandName,
+      description: String(body.description ?? '').trim(),
+      preview_url: trackingLink,
+      currency: String(body.currency ?? 'THB').trim() || 'THB',
+      logo: logoDesktop || logoMobile || String(body.logo ?? ''),
+      lookup_value:
+        String(body.lookup_value ?? '').trim() ||
+        slugifyOfferLookup(brandName) ||
+        `brand_${manualId}`,
+      validation_terms: 30,
+      payment_terms: 60,
+      datetime_updated: now,
+      datetime_created: now,
+      marketplace_store_offer: true,
+      categories: String(body.categories ?? 'Shopping').trim() || 'Shopping',
+      countries: String(body.countries ?? 'Thailand').trim() || 'Thailand',
+      commissions: [
+        {
+          Commission:
+            commissionStore != null && !Number.isNaN(commissionStore)
+              ? `${commissionStore}%`
+              : '0%',
+        },
+      ],
+      special_commissions: [],
+      tracking_link: trackingLink,
+      commission_tracking: 'CPS',
+      tracking_type: 'link',
+      directory_page: trackingLink,
+      logo_desktop: logoDesktop,
+      logo_mobile: logoMobile,
+      banner,
+      banner_mobile: bannerMobile,
+      logo_circle: logoCircle,
+      disabled: parseBoolean(body.disabled, false),
+      commission_store: commissionStore,
+      max_cap: maxCap,
+      extra_store: parseBoolean(body.extra_store, false),
+      extra_point: parseOptionalNumber(body.extra_point) ?? 1,
+      product_type: parseProductTypeRows(
+        body.product_types ?? body.product_type,
+      ),
+      source: 'manual',
+      status: 'approved',
+      is_global: parseBoolean(body.is_global, false),
+      default_country: String(body.default_country ?? '').trim() || undefined,
+    });
   }
 
   async getCategoryList(search: string) {
@@ -223,6 +449,49 @@ export class OfferService implements OnApplicationBootstrap {
     return this.bannerModel.findOne().exec();
   }
 
+  /**
+   * Public home "top brands": the admin-curated, ordered list (saveTopBrands).
+   * Resolves each saved offerId to live brand name + logo, pairs it with the
+   * admin-set cashback label, and preserves the saved order. Unknown offer ids
+   * are dropped; no config → empty list (the client falls back to fixtures).
+   */
+  async getDisplayTopBrands() {
+    const config = await this.topBrandConfigModel.findOne().exec();
+    const entries = config?.brands ?? [];
+    if (entries.length === 0) {
+      return { data: [] };
+    }
+
+    const offers = await this.offerModel
+      .find({
+        _id: { $in: entries.map((entry) => entry.offerId) },
+        ...ACTIVE_OFFER_FILTER,
+      } as any)
+      .select('offer_id offer_name logo')
+      .exec();
+    const offerById = new Map(
+      offers.map((offer) => [String(offer._id), offer]),
+    );
+
+    const data = entries
+      .map((entry) => {
+        const offer = offerById.get(entry.offerId);
+        if (!offer) {
+          return null;
+        }
+        return {
+          _id: String((offer as any)._id),
+          offer_id: offer.offer_id,
+          brand: offer.offer_name,
+          logo: offer.logo,
+          cashback: entry.cashback,
+        };
+      })
+      .filter((brand) => brand !== null);
+
+    return { data };
+  }
+
   async updateCoupon(body: UpdateCouponDto) {
     // console.log('body', body);
     body.offer_id = new Types.ObjectId(body.offer_id);
@@ -230,7 +499,6 @@ export class OfferService implements OnApplicationBootstrap {
     body.quantity = body.quantity ? Number(body.quantity) : 0;
     body.disabled = body.disabled == 'true' ? true : false;
     if (body?.id) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       // const { id, ...updateData } = body;
       return this.couponModel.findByIdAndUpdate(
         new Types.ObjectId(body.id),
@@ -240,9 +508,14 @@ export class OfferService implements OnApplicationBootstrap {
         },
       );
     } else {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       delete body.id;
-      return this.couponModel.create(body);
+      // mongoose 9 types create() strictly; `disabled` is string|boolean on the
+      // DTO but boolean on the schema. Assert (do NOT coerce — Boolean("false")
+      // is true); mongoose casts the raw "false"/"true" value correctly at save.
+      return this.couponModel.create({
+        ...body,
+        disabled: body.disabled as boolean,
+      });
     }
   }
 
@@ -272,8 +545,71 @@ export class OfferService implements OnApplicationBootstrap {
       .populate('offer_id', ['offer_name']);
   }
 
+  private questTaskOfferObjectId(
+    task: Partial<QuestTask> | any,
+  ): Types.ObjectId | null {
+    const raw = task?.offer?._id ?? task?.offer;
+    if (!raw) return null;
+    const value =
+      raw instanceof Types.ObjectId ? raw.toHexString() : String(raw);
+    return Types.ObjectId.isValid(value) ? new Types.ObjectId(value) : null;
+  }
+
   async getOfferExtraPoint() {
-    return this.offerModel.find({ extra_point: { $gt: 1 } }).lean();
+    const quest = await this.questModel.findOne(activeQuestFilter()).lean();
+    const tasks = ((quest as any)?.tasks ?? [])
+      .filter(
+        (task: Partial<QuestTask>) =>
+          task.enabled !== false &&
+          Number(task.extra_point) > 1 &&
+          this.questTaskOfferObjectId(task),
+      )
+      .sort(
+        (a: Partial<QuestTask>, b: Partial<QuestTask>) =>
+          Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0),
+      );
+
+    if (tasks.length > 0) {
+      const orderedOfferIds = tasks.map((task: Partial<QuestTask>) =>
+        this.questTaskOfferObjectId(task),
+      ) as Types.ObjectId[];
+      const offers = await this.offerModel
+        .find({
+          _id: { $in: orderedOfferIds },
+          ...ACTIVE_OFFER_FILTER,
+        } as any)
+        .lean();
+      const offerById = new Map(
+        offers.map((offer) => [String((offer as any)._id), offer]),
+      );
+
+      return tasks
+        .map((task: Partial<QuestTask>) => {
+          const offerId = this.questTaskOfferObjectId(task);
+          if (!offerId) return null;
+          const offer = offerById.get(offerId.toHexString());
+          if (!offer) return null;
+          return {
+            ...offer,
+            extra_point: Number(task.extra_point),
+            quest_task_sort_order: Number(task.sort_order ?? 0),
+            quest_task_wording:
+              typeof task.wording === 'string' && task.wording.trim()
+                ? task.wording.trim()
+                : `Make an order on ${
+                    (offer as any).offer_name_display ||
+                    (offer as any).offer_name ||
+                    'this merchant'
+                  }`,
+          };
+        })
+        .filter((offer) => offer !== null);
+    }
+
+    return this.offerModel
+      .find({ extra_point: { $gt: 1 }, ...ACTIVE_OFFER_FILTER } as any)
+      .sort({ extra_point: -1, offer_name: 1 })
+      .lean();
   }
 
   async saveMissingOrder(

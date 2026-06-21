@@ -14,7 +14,10 @@ import { AuthAdminGuard } from '../jwt-auth-admin.guard';
 import { RolesGuard } from '../roles.guard';
 import { Roles } from '../roles.decorator';
 import { TransactionsService } from './transactions.service';
-import { TransactionQueryDto, FlagTransactionDto } from './dto/transaction-query.dto';
+import {
+  TransactionQueryDto,
+  FlagTransactionDto,
+} from './dto/transaction-query.dto';
 
 @ApiTags('Admin Transactions')
 @Controller('admin/transactions')
@@ -32,10 +35,7 @@ export class TransactionsController {
   // Bulk financial-PII export — restrict to support+ (not read-only viewers).
   @Roles('support')
   @Get('export')
-  async exportCsv(
-    @Query() query: TransactionQueryDto,
-    @Res() res: Response,
-  ) {
+  async exportCsv(@Query() query: TransactionQueryDto, @Res() res: Response) {
     const csv = await this.transactionsService.exportCsv(query);
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader(
@@ -52,10 +52,7 @@ export class TransactionsController {
 
   @Roles('approver')
   @Put(':id/flag')
-  flagTransaction(
-    @Param('id') id: string,
-    @Body() dto: FlagTransactionDto,
-  ) {
+  flagTransaction(@Param('id') id: string, @Body() dto: FlagTransactionDto) {
     return this.transactionsService.flagTransaction(
       id,
       dto.type,

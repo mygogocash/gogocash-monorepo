@@ -29,11 +29,28 @@ name: CI
 
 on:
   # `migrate/monorepo` is the integration branch until the migration lands on
-  # main — validate it (and PRs into it) too, so stacked work gets clean-CI.
+  # main — validate PRs into it so stacked work gets clean-CI.
   pull_request:
     branches: [staging, main, migrate/monorepo]
+  # Pushes to migrate/monorepo are handled by build-staging.yml (which calls
+  # this workflow as its gate via workflow_call), so it is intentionally NOT in
+  # the push list here — otherwise a merge would run CI twice.
   push:
-    branches: [staging, main, migrate/monorepo]
+    branches: [staging, main]
+  # Reusable: build-staging.yml calls this as its deploy gate AND reuses the
+  # per-app change outputs to decide which images to build (no duplicated tests
+  # or path-filter).
+  workflow_call:
+    outputs:
+      admin:
+        description: "true when apps/admin (or shared root config) changed"
+        value: ${{ jobs.changes.outputs.admin }}
+      api:
+        description: "true when apps/api (or shared root config) changed"
+        value: ${{ jobs.changes.outputs.api }}
+      app:
+        description: "true when apps/app (or shared root config) changed"
+        value: ${{ jobs.changes.outputs.app }}
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -55,8 +72,8 @@ jobs:
       api: ${{ steps.filter.outputs.api }}
       app: ${{ steps.filter.outputs.app }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v4
         id: filter
         with:
           filters: |
@@ -83,53 +100,58 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.admin == 'true' }}
     runs-on: ubuntu-latest
+    # Next.js build + vitest can exceed Node's ~2GB default heap on runners
+    # (exit 134 OOM). Bump it job-wide, same as the api jobs do per-step.
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: npm
       - name: Install (root, workspace-aware)
         run: npm ci
-      # Lint/Test are INFORMATIONAL — pre-existing source debt carried over from
-      # gogocash_admin (eslint errors, test gaps), not monorepo-integration
-      # issues. The BUILD is the gate.
-      - name: Lint (informational)
+      # Test + Build are GATES (P2-CI: admin unit suite verified green). LINT
+      # stays informational — ~54 React-Compiler/react-hooks warnings-as-errors
+      # (setState-synchronously-in-effect, refs-during-render) are real
+      # pre-existing component debt, not auto-fixable; tracked for a focused
+      # cleanup before flipping this last step to a gate.
+      - name: Lint (informational — react-hooks debt, see comment)
         continue-on-error: true
         run: npx turbo run lint --filter=gogocash-admin
-      - name: Test (informational)
-        continue-on-error: true
+      - name: Test (gate)
         run: npx turbo run test --filter=gogocash-admin
       - name: Build (gate)
         run: npx turbo run build --filter=gogocash-admin
 
   # ── app (@gogocash/mobile) — Expo / React Native (web+iOS+Android) ─────────
-  # The real build gate is the WEB EXPORT (`expo export --platform web`) — it
-  # exercises Metro workspace resolution + the single-hoisted-React dedupe and
-  # proves the customer web bundle builds from the monorepo. Typecheck + tests
-  # are INFORMATIONAL (pre-existing test-file type/mocks, not migration issues).
+  # Typecheck + unit + render tests are now GATES (P2-CI: all three verified
+  # green). The WEB EXPORT (`expo export --platform web`) remains a gate too — it
+  # exercises Metro workspace resolution + the single-hoisted-React dedupe.
   # Native builds run on EAS, not CI.
   app:
     name: app (@gogocash/mobile)
     needs: changes
     if: ${{ needs.changes.outputs.app == 'true' }}
     runs-on: ubuntu-latest
+    # Metro web export + vitest can exceed Node's ~2GB default heap on runners
+    # (exit 134 OOM). Bump it job-wide, same as the api jobs do per-step.
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: npm
       - name: Install (root, workspace-aware)
         run: npm ci
-      - name: Typecheck (informational)
-        continue-on-error: true
+      - name: Typecheck (gate)
         run: npx turbo run typecheck --filter=@gogocash/mobile
-      - name: Test (unit, informational)
-        continue-on-error: true
+      - name: Test (unit — gate)
         run: npm run test -w @gogocash/mobile
-      - name: Test (render, informational)
-        continue-on-error: true
+      - name: Test (render — gate)
         run: npm run test:render -w @gogocash/mobile
       - name: Build (web export — gate)
         env:
@@ -140,45 +162,50 @@ jobs:
         run: npm run export:web -w @gogocash/mobile
 
   # ── api (gogocash-api) — NestJS backend ───────────────────────────────────
-  # Lint and test are INFORMATIONAL (continue-on-error) per the original
-  # apps/api/.github/workflows/ci.yml: 14/21 jest suites are red on staging
-  # (nest-g scaffolding stubs with no deps wired). Do not gate merges on them
-  # until repaired; then drop continue-on-error.
+  # LINT and TEST are BOTH GATES now.
+  #   • Lint: the eslint 8→9 flat-config migration (Tier 1 #1) cleared the debt.
+  #   • Test: Tier 1 #6 replaced the 13 nest-g scaffold stubs (which only did
+  #     expect(x).toBeDefined() and failed on unwired deps) with real behavior
+  #     specs and bumped jest 29→30. The full suite is green (30 suites / 385
+  #     tests), so the "do not gate until repaired" note no longer applies —
+  #     continue-on-error dropped.
   api-lint:
-    name: api lint (informational)
+    name: api lint
     needs: changes
     if: ${{ needs.changes.outputs.api == 'true' }}
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: npm
       - name: Install (root, workspace-aware)
         run: npm ci
       - name: Lint (no --fix)
+        # Type-aware lint (typescript-eslint with parserOptions.project) builds
+        # a full TS program; under TypeScript 6 that exceeds Node's ~2GB default
+        # heap on the runner (exit 134 OOM). Bump it, same as the build/test jobs.
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         run: npm run lint:ci -w gogocash-api
 
   api-test:
-    name: api unit tests (informational)
+    name: api unit tests
     needs: changes
     if: ${{ needs.changes.outputs.api == 'true' }}
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: npm
       - name: Install (root, workspace-aware)
         run: npm ci
       - name: Jest
-        # Jest OOMs on the default ~2GB heap running all api suites (exit 134);
-        # bump heap so the job RUNS to completion (still informational — it then
-        # shows the known scaffold-stub failures rather than crashing).
+        # Jest exceeds Node's ~2GB default heap running all api suites (exit
+        # 134); bump it, same as the build/lint jobs.
         env:
           NODE_OPTIONS: --max-old-space-size=4096
         run: npm run test -w gogocash-api
@@ -188,8 +215,8 @@ jobs:
   # Catches DI / bootstrap crashes that tsc and the unit specs both miss.
   #
   # Branch protection (Settings → Branches, rules for staging and main):
-  #   Require status check:  "api build + boot smoke (required)"
-  #   Do NOT require api lint/test yet — see note above.
+  #   Require status checks:  "api build + boot smoke (required)", "api lint",
+  #   and "api unit tests" — all three are now gates.
   api-build-smoke:
     name: api build + boot smoke (required)
     needs: changes
@@ -206,8 +233,8 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: npm
@@ -260,3 +287,17 @@ jobs:
             exit 1
           fi
           echo "Booted and responded on / — DI graph resolved, app starts cleanly."
+
+      - name: Integration test (checkWithdraw vs real Mongo 7 / mongoose 9)
+        # Exercises the withdraw balance aggregation end-to-end against the
+        # ephemeral Mongo — covers the #36 risk (mongoose-9 strictQuery /
+        # sanitizeFilter / find-lean defaults) that the mock-based unit specs
+        # can't. Skips automatically when MONGO_URI is unset (e.g. local runs).
+        working-directory: apps/api
+        env:
+          # Booting the full Nest app against real Mongo for this e2e exceeds
+          # Node's ~2GB default heap on the runner (exit 134 OOM). Bump it, same
+          # as the Build (type-check) and Boot smoke steps above.
+          NODE_OPTIONS: --max-old-space-size=4096
+          MONGO_URI: mongodb://localhost:27017/inttest
+        run: npx jest --config ./test/jest-e2e.json withdraw-balance --runInBand
