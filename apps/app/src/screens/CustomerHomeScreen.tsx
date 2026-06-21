@@ -1006,11 +1006,7 @@ function DesktopGoLinkBanner({ onOpenGuideline, onResultHref }: DesktopGoLinkBan
 function BrowseShortcuts() {
   const tc = useCopy();
   return (
-    <ScrollView
-      contentContainerStyle={styles.shortcutRow}
-      horizontal
-      showsHorizontalScrollIndicator={false}
-    >
+    <View style={styles.shortcutRow}>
       {webBrowseShortcuts.map((shortcut) => (
         <Link asChild href={shortcut.href as never} key={shortcut.id}>
           <MotionPressable pressScale={motion.scale.subtlePress} style={styles.shortcutPill}>
@@ -1021,7 +1017,7 @@ function BrowseShortcuts() {
           </MotionPressable>
         </Link>
       ))}
-    </ScrollView>
+    </View>
   );
 }
 
@@ -2165,8 +2161,9 @@ const styles = StyleSheet.create({
     gap: mobileShellLayout.desktopHomeStackGap,
   },
   shortcutRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
-    paddingRight: spacing.md,
   },
   shortcutPill: {
     alignItems: "center",
