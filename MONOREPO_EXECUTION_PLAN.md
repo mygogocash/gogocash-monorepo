@@ -4,11 +4,12 @@
 > removed** — it stays in its own repo (`mygogocash/gogocash-landing-page`). Ignore
 > `apps/landing` task packets below.
 >
-> **STATUS:** Phase 0–2 packets and the Phase 3 **CI** packet (`P3-CI-1`) are **DONE**
-> — all 3 apps build in path-filtered CI on `migrate/monorepo`. Remaining: the
-> Phase 3 **deploy** packets (`P3-*-1`, manual `workflow_dispatch` only), Phase 4
-> shared packages, Phase 5 cutover. A separate **dependency-upgrade** track is in
-> flight on top of the assembled monorepo — see [`UPGRADE_PLAN.md`](UPGRADE_PLAN.md).
+> **STATUS (updated):** The migration has **landed on `main`** and the
+> `migrate/monorepo` integration branch has been **retired** — `main` is now the
+> single canonical branch (`mygogocash/gogocash-monorepo`). Phase 0–3 (CI) are
+> **DONE**, and the dependency-upgrade track also landed — see
+> [`UPGRADE_PLAN.md`](UPGRADE_PLAN.md). The phase packets below are kept as the
+> historical execution record.
 >
 > A **security/reliability hardening** pass (money + auth) also landed on top of
 > the assembled monorepo — see [`SECURITY_HARDENING.md`](SECURITY_HARDENING.md)

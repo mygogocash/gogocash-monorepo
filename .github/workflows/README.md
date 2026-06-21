@@ -7,15 +7,16 @@ build/test. (The landing site is a separate repo, not in this monorepo.)
 
 ## What runs
 
-`ci.yml` — runs on pull requests and pushes targeting `staging`, `main`, and
-the `migrate/monorepo` integration branch.
+`ci.yml` — runs on pull requests and pushes targeting `staging` and `main`.
+The `migrate/monorepo` integration branch has been **retired** now that the
+migration has landed on `main`.
 
 A `changes` job (using `dorny/paths-filter`) detects which app changed, then
 gates each app's job. A change confined to `apps/<X>/**` runs only `<X>`'s
 job; a change to shared root config (`package.json`, `package-lock.json`,
 `turbo.json`, `.nvmrc`, `.npmrc`, `ci.yml`) fans out to every app.
 
-Every job uses `actions/setup-node@v4` on **Node 22** and installs with a bare
+Every job uses `actions/setup-node@v6` on **Node 22** and installs with a bare
 `npm ci` at the repo root (the root `.npmrc` already sets
 `legacy-peer-deps=true`).
 
@@ -26,8 +27,6 @@ Every job uses `actions/setup-node@v4` on **Node 22** and installs with a bare
 | api | `gogocash-api` | **lint** | **gate** |
 | api | `gogocash-api` | **unit tests** | **gate** |
 | api | `gogocash-api` | **build + boot smoke + integration** | **required** — `nest build`, boots vs ephemeral Mongo, then runs the `checkWithdraw`↔Mongo integration test (`test/withdraw-balance.e2e-spec.ts`) |
-| (all) | — | **`ci-gate` (required)** | **aggregator** — always runs, `needs` every app job, passes when each one succeeded or was skipped (path-filtered), fails only on a real failure |
-
 Notes:
 - **app (`@gogocash/mobile`)** has no `build` script — Expo apps export via EAS,
   not a CI build. Its gates are `typecheck` + the unit and render suites + the
@@ -46,24 +45,25 @@ Notes:
   (`RESEND_API_KEY=re_ci_smoke_dummy`, `MONGO_URI`/`JWT_SECRET`/
   `JWT_ADMIN_SECRET`/`FIREBASE_PROJECT_ID` dummies); the smoke test never sends
   email.
-- **`ci-gate`** is the always-runs aggregator that makes branch protection work
-  with the path-filtered per-app jobs (a job that doesn't run reports `skipped`,
-  not a blocking `pending`).
+- There is **no aggregator job** — the `ci-gate` aggregator was removed. The
+  per-app jobs run directly; nothing requires them yet (no branch protection on
+  this free-plan repo, see below).
 
 ### Branch protection
 
-The per-app jobs are **path-filtered**, so requiring them directly would block
-any PR that doesn't touch that path (the check never reports). Require **only**
-the aggregator instead:
+There is **no branch protection** today — classic protection *and* rulesets both
+return `403 — Upgrade to GitHub Pro or make this repository public` on this
+private free-plan repo (tracked in #44), so nothing is enforced. The old
+`ci-gate` aggregator (which existed only to make path-filtered checks
+requirable) has been **removed**.
 
-- In Settings → Branches (or a Ruleset) for `migrate/monorepo` and `main`,
-  require the single status check **`CI gate (required)`**. Suggested:
-  `enforce_admins: false` (owner can bypass in an emergency), no required
-  reviews (solo maintainer).
-- ⚠️ **Currently blocked:** classic branch protection *and* rulesets both return
-  `403 — Upgrade to GitHub Pro or make this repository public` on this private
-  free-plan repo. Enable after upgrading the plan or making the repo public
-  (tracked in #44).
+When the plan allows protection, target **`main`** and require the per-app
+checks (or re-introduce a small aggregator): `enforce_admins: false` (owner can
+bypass in an emergency), no required reviews (solo maintainer).
+
+> ⚠️ Separately, GitHub Actions is currently **blocked org-wide by a billing /
+> spending-limit issue** (jobs fail at "Set up job" with 0 steps). Resolve it in
+> **Org → Settings → Billing & plans**; the workflows themselves are healthy.
 
 ## Staging CD — auto build, manual release
 
@@ -74,7 +74,7 @@ in one place.
 
 | Workflow | Trigger | Does |
 |----------|---------|------|
-| **`build-staging.yml`** | auto: push to `migrate/monorepo` (+ manual) | reuses `ci.yml` as the gate, then builds + pushes a `:staging-candidate` image for each **changed** app (path-filtered). **No deploy.** |
+| **`build-staging.yml`** | manual (`workflow_dispatch`) — ⚠️ its push trigger still targets the **retired** `migrate/monorepo` and must be repointed to `main` | reuses `ci.yml` as the gate, then builds + pushes a `:staging-candidate` image for each **changed** app (path-filtered). **No deploy.** |
 | **`release-staging.yml`** | manual `workflow_dispatch` (pick app + tag) | deploys the chosen candidate image to Cloud Run, then **health-smokes** the new revision. The dispatch **is** the approval. |
 | `_build-push.yml` | `workflow_call` | reusable: WIF auth → optional prebuild → docker build → push `:sha` + `:staging-candidate`. |
 | `_deploy-cloudrun.yml` | `workflow_call` | reusable: WIF auth → `gcloud run deploy` a given tag → post-deploy `curl` health check. |

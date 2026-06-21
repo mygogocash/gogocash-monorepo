@@ -101,6 +101,7 @@ Tasks:
 - [x] Center the app shell at web mobile width on large browser previews.
 - [x] Keep search, content, shortcuts, cards, and bottom nav capped at the same mobile width.
 - [x] Replace stretched browse shortcuts with compact fixed-height controls.
+- [x] Browse-shortcut pills wrap to fill the row on tablet/mobile (no horizontal scroll); Top Brands renders the 6-up grid across all desktop widths.
 - [x] Port real web iconography to native vector icons instead of placeholder glyphs.
 - [ ] Add screenshot comparison coverage for home/profile at mobile and wide desktop preview widths.
 
