@@ -149,8 +149,8 @@ describe("home Top Brands grid columns by device (tablet cards must not balloon)
     expect(getResponsiveHomeLayoutMetrics(960).topBrandColumns).toBe(4);
   });
 
-  it("desktop band 1024-1279 (1100) > 3 columns (unchanged)", () => {
-    expect(getResponsiveHomeLayoutMetrics(1100).topBrandColumns).toBe(3);
+  it("desktop band 1024-1279 (1100) > 6 columns (full desktop grid, no balloon)", () => {
+    expect(getResponsiveHomeLayoutMetrics(1100).topBrandColumns).toBe(6);
   });
 
   it("wide desktop >=1280 (1440) > 6 columns (unchanged)", () => {
