@@ -100,6 +100,10 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.admin == 'true' }}
     runs-on: ubuntu-latest
+    # Next.js build + vitest can exceed Node's ~2GB default heap on runners
+    # (exit 134 OOM). Bump it job-wide, same as the api jobs do per-step.
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -131,6 +135,10 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.app == 'true' }}
     runs-on: ubuntu-latest
+    # Metro web export + vitest can exceed Node's ~2GB default heap on runners
+    # (exit 134 OOM). Bump it job-wide, same as the api jobs do per-step.
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -287,6 +295,10 @@ jobs:
         # can't. Skips automatically when MONGO_URI is unset (e.g. local runs).
         working-directory: apps/api
         env:
+          # Booting the full Nest app against real Mongo for this e2e exceeds
+          # Node's ~2GB default heap on the runner (exit 134 OOM). Bump it, same
+          # as the Build (type-check) and Boot smoke steps above.
+          NODE_OPTIONS: --max-old-space-size=4096
           MONGO_URI: mongodb://localhost:27017/inttest
         run: npx jest --config ./test/jest-e2e.json withdraw-balance --runInBand
 

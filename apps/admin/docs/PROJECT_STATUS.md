@@ -68,7 +68,7 @@ Internal **Next.js 16 (App Router)** admin dashboard for GoGoCash — users, off
 ## 4. Tests & quality gates
 
 ```bash
-npm test          # vitest — 292 tests across 38 files (all green)
+npm test          # vitest — 456 tests across 64 files (all green)
 npx tsc --noEmit  # type check (clean)
 npm run lint      # eslint (clean; 1 pre-existing warning in OffersTable)
 npx prettier --check .

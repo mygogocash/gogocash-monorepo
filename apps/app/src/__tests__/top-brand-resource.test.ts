@@ -37,6 +37,7 @@ describe("mapBackendTopBrands", () => {
         brand: "Bravo",
         cashback: "10.0%",
         href: "/shop/id-b",
+        id: "id-b",
         label: "Grab Coupon",
         logoUri: "https://cdn/b.png",
         showGrabCoupon: false,
@@ -46,6 +47,7 @@ describe("mapBackendTopBrands", () => {
         brand: "Alpha",
         cashback: "12.5%",
         href: "/shop/id-a",
+        id: "id-a",
         label: "Grab Coupon",
         logoUri: "https://cdn/a.png",
         showGrabCoupon: false,
@@ -90,6 +92,28 @@ describe("mapBackendTopBrands", () => {
 
     expect(mapBackendTopBrands(payload).map((brand) => brand.brand)).toEqual(["Alpha"]);
   });
+
+  it("given two offers sharing a brand name > then assigns distinct stable ids (no duplicate React keys)", () => {
+    const payload: TopBrandsPayload = {
+      data: [
+        { _id: "id-1", offer_id: 1, brand: "DupBrand", logo: "https://cdn/1.png", cashback: "5.0%" },
+        { _id: "id-2", offer_id: 2, brand: "DupBrand", logo: "https://cdn/2.png", cashback: "6.0%" },
+      ],
+    };
+
+    const cards = mapBackendTopBrands(payload);
+
+    expect(cards.map((card) => card.id)).toEqual(["id-1", "id-2"]);
+    expect(new Set(cards.map((card) => card.id)).size).toBe(cards.length);
+  });
+
+  it("given an offer with no _id > then falls back to the numeric offer_id for a stable id", () => {
+    const payload: TopBrandsPayload = {
+      data: [{ offer_id: 42, brand: "NoUnderscoreId", logo: "https://cdn/x.png", cashback: "3.0%" }],
+    };
+
+    expect(mapBackendTopBrands(payload)[0]?.id).toBe("42");
+  });
 });
 
 describe("resolveTopBrands", () => {
@@ -107,6 +131,7 @@ describe("resolveTopBrands", () => {
         brand: "Alpha",
         cashback: "12.5%",
         href: "/shop/id-a",
+        id: "id-a",
         label: "Grab Coupon",
         logoUri: "https://cdn/a.png",
         showGrabCoupon: false,
@@ -171,6 +196,7 @@ describe("mapOfferCatalogToTopBrands", () => {
         brand: "Alpha",
         cashback: "12.5%",
         href: "/shop/offer-alpha",
+        id: "/shop/offer-alpha",
         label: "Grab Coupon",
         logoUri: "https://cdn/alpha.png",
         showGrabCoupon: false,

@@ -13,6 +13,18 @@ export const mobileShellLayout = {
   contentHorizontalPaddingMax: 120,
   contentHorizontalPaddingRatio: 0.04,
   desktopBreakpoint: 1024,
+  // Tablet tier (portrait tablets / split-view, ~768-1023px). Below desktop, above
+  // phone. Single-column content (forms, detail, hubs) is centered to
+  // tabletContentMaxWidth so it does not stretch edge-to-edge into a blown-up phone.
+  tabletBreakpoint: 768,
+  tabletContentMaxWidth: 720,
+  tabletContentHorizontalPadding: 32,
+  // Centered-canvas FIXED content width per class. As the window grows past these,
+  // the content width stays fixed and only the empty L/R gutters grow:
+  // contentWidth = min(viewportWidth, canvas{class}Width), centered.
+  canvasMobileWidth: 430,
+  canvasTabletWidth: 820,
+  canvasDesktopWidth: 1280,
   desktopContentHorizontalPadding: 16,
   desktopContentMaxWidth: 1440,
   desktopBottomClearance: 40,
@@ -24,8 +36,11 @@ export const mobileShellLayout = {
   desktopHomeTopGap: 76,
   desktopHomeStackGap: 40,
   contentTopGap: 24,
-  homeBannerAspectRatio: 800 / 450,
-  homeSideBannerAspectRatio: 203 / 158,
+  // Promotion banners are designed at 1920x1080 (16:9). Show the FULL design fit
+  // to width (no crop) on every class; size is governed by the per-class canvas
+  // width, never by cropping the banner.
+  homeBannerAspectRatio: 1920 / 1080,
+  homeSideBannerAspectRatio: 1920 / 1080,
   compactBrandGridGap: 10,
   compactBrandMobileColumns: 3,
   compactBrandMobileRowsPerPage: 2,
@@ -42,8 +57,13 @@ export const mobileShellLayout = {
   topBrandMobilePageCardCount: 4,
   topBrandMobileColumns: 2,
   topBrandTabletColumns: 3,
+  // Tablet portrait/split (768-1023px): 4 across so cards stay compact.
+  topBrandTabletPortraitColumns: 4,
   topBrandTabletGridGap: 16,
-  topBrandMetaHeight: 66,
+  // Space reserved below the square logo for the L BrandCard meta: 6 logo->title margin
+  // + 20 title line + 6 title->cashback margin + 22 cashback line (+2 buffer). Must stay
+  // >= that sum, else the flex-shrinkable title absorbs the overflow and clips its text.
+  topBrandMetaHeight: 56,
   compactBrandLogoCardHeight: 167,
   compactBrandLogoVisualHeight: 106,
   homePromoSectionGap: 24,
@@ -95,6 +115,16 @@ function getTopBrandGrid(viewportWidth: number) {
     return {
       columns: mobileShellLayout.topBrandDesktopColumns,
       gap: mobileShellLayout.topBrandDesktopGridGap,
+    };
+  }
+
+  // Tablet portrait/split (768-1023): use one more column than the large-phone
+  // tier so cards don't balloon (the old 3-across rule spanned 480-1279, making
+  // each Top Brand card ~288px wide on a wide tablet).
+  if (getDeviceClass(viewportWidth) === "tablet") {
+    return {
+      columns: mobileShellLayout.topBrandTabletPortraitColumns,
+      gap: mobileShellLayout.topBrandTabletGridGap,
     };
   }
 
@@ -203,6 +233,7 @@ export function getResponsiveHomeLayoutMetrics(viewportWidth: number) {
     contentMaxWidth,
     contentWidth,
     isDesktop,
+    mainBannerAspectRatio: mobileShellLayout.homeBannerAspectRatio,
     pageBottomPadding: isDesktop
       ? mobileShellLayout.desktopBottomClearance
       : mobileShellLayout.bottomNavClearance + 24,
@@ -249,6 +280,83 @@ export function getDesktopShellContentWidth(viewportWidth: number) {
   const shellPadding = getDesktopShellHorizontalPadding(viewportWidth);
 
   return Math.max(0, shellContentWidth - shellPadding * 2);
+}
+
+// ─── Tablet tier foundation ───────────────────────────────────────────────────
+// A canonical three-way device class so screens stop branching on the binary
+// `width >= desktopBreakpoint`. Tablet is the 768-1023px band.
+
+export type DeviceClass = "mobile" | "tablet" | "desktop";
+
+/**
+ * Canonical three-way device class. Use this instead of the binary
+ * `width >= desktopBreakpoint` so the 768-1023px tablet band gets first-class
+ * treatment rather than falling through to the phone shell.
+ */
+export function getDeviceClass(viewportWidth: number): DeviceClass {
+  if (viewportWidth >= mobileShellLayout.desktopBreakpoint) {
+    return "desktop";
+  }
+  if (viewportWidth >= mobileShellLayout.tabletBreakpoint) {
+    return "tablet";
+  }
+  return "mobile";
+}
+
+export interface TabletContentFrame {
+  /** Centered column width (capped at tabletContentMaxWidth, never wider than the viewport). */
+  maxWidth: number;
+  /** Inner horizontal padding applied inside the column. */
+  horizontalPadding: number;
+  /** Gutter on each side to center the column in the viewport. */
+  offset: number;
+  /** Usable content width inside the column after padding. */
+  contentWidth: number;
+}
+
+/**
+ * Centered content frame for single-column tablet screens (forms, detail, hubs).
+ * Caps the column at `tabletContentMaxWidth` and centers it so portrait-tablet
+ * content reads as an intentional centered layout instead of a stretched phone.
+ */
+export function getTabletContentFrame(viewportWidth: number): TabletContentFrame {
+  const maxWidth = Math.min(viewportWidth, mobileShellLayout.tabletContentMaxWidth);
+  const horizontalPadding = mobileShellLayout.tabletContentHorizontalPadding;
+  const offset = Math.max(0, (viewportWidth - maxWidth) / 2);
+  const contentWidth = Math.max(0, maxWidth - horizontalPadding * 2);
+
+  return { maxWidth, horizontalPadding, offset, contentWidth };
+}
+
+export interface CanvasFrame {
+  /** Centered content width = min(viewport, fixed width for the class). */
+  width: number;
+  /** Gutter on each side (page background) when the viewport exceeds the fixed width. */
+  offset: number;
+}
+
+/**
+ * Fixed content width for the current class, clamped to the viewport. As the
+ * window grows past the class's fixed width the result stays constant (only the
+ * gutters grow); below it, content fills the window so it never overflows.
+ */
+export function getCanvasWidth(viewportWidth: number): number {
+  const deviceClass = getDeviceClass(viewportWidth);
+  const fixedWidth =
+    deviceClass === "desktop"
+      ? mobileShellLayout.canvasDesktopWidth
+      : deviceClass === "tablet"
+        ? mobileShellLayout.canvasTabletWidth
+        : mobileShellLayout.canvasMobileWidth;
+
+  return Math.min(viewportWidth, fixedWidth);
+}
+
+/** Centered canvas: the fixed content width plus the equal L/R gutter offset. */
+export function getCanvasFrame(viewportWidth: number): CanvasFrame {
+  const width = getCanvasWidth(viewportWidth);
+
+  return { width, offset: Math.max(0, (viewportWidth - width) / 2) };
 }
 
 export const webHomeSearchPlaceholder = "Search brands, stores, products, or cashback";
@@ -526,14 +634,31 @@ export const webAccountPageSurface = {
  */
 export function getAccountShellFrameMetrics(
   viewportWidth: number,
-  options: { alignToNavbarShell?: boolean } = {}
+  options: { alignToNavbarShell?: boolean; tabletFluid?: boolean } = {}
 ): { maxWidth: number; paddingHorizontal: number } {
-  const isDesktop = viewportWidth >= mobileShellLayout.desktopBreakpoint;
+  const deviceClass = getDeviceClass(viewportWidth);
 
-  if (!isDesktop) {
+  if (deviceClass === "mobile") {
     return {
       maxWidth: mobileShellLayout.contentMaxWidth,
       paddingHorizontal: mobileShellLayout.contentHorizontalPadding,
+    };
+  }
+
+  // Tablet (768-1023): cap + center single-column shell content so it reads as an
+  // intentional centered layout instead of a stretched phone. Grid screens whose
+  // content is sized from the raw viewport width (e.g. Quest) opt out via
+  // `tabletFluid` to keep the full-bleed frame their grid math expects.
+  if (deviceClass === "tablet") {
+    if (options.tabletFluid) {
+      return {
+        maxWidth: mobileShellLayout.contentMaxWidth,
+        paddingHorizontal: mobileShellLayout.contentHorizontalPadding,
+      };
+    }
+    return {
+      maxWidth: mobileShellLayout.tabletContentMaxWidth,
+      paddingHorizontal: mobileShellLayout.tabletContentHorizontalPadding,
     };
   }
 
@@ -1185,31 +1310,31 @@ export function getCategoryDirectoryGridMetrics({
 export const webHomeHeroBanners = [
   {
     id: "main-grocery-galaxy",
-    asset: "home-banner",
+    asset: "home-promo-black-friday",
     href: "/shop/brand-grocery-galaxy-1001",
     placement: "main",
   },
   {
     id: "main-pocket-pantry",
-    asset: "home-side-watch",
+    asset: "home-promo-holiday",
     href: "/shop/brand-pocket-pantry-1002",
     placement: "main",
   },
   {
     id: "main-orbit-airways",
-    asset: "home-side-grocery",
+    asset: "home-promo-fashion",
     href: "/shop/brand-orbit-airways-1003",
     placement: "main",
   },
   {
     id: "side-pixelport",
-    asset: "home-side-watch",
+    asset: "home-promo-holiday",
     href: "/shop/brand-pixelport-1004",
     placement: "side",
   },
   {
     id: "side-bloom-beam",
-    asset: "home-side-grocery",
+    asset: "home-promo-fashion",
     href: "/shop/brand-bloom-beam-1006",
     placement: "side",
   },
@@ -1965,7 +2090,7 @@ export const webHomePromoSections = [
     title: "Trending Brands",
     link: "/brand",
     cardVariant: "brandLogoBadge",
-    dotCount: 6,
+    dotCount: 3,
     cards: [
       {
         brand: "Grocery Galaxy",
@@ -2009,6 +2134,15 @@ export const webHomePromoSections = [
         logoUri: "https://cdn.simpleicons.org/instacart/ffffff",
         tint: "#0F9F6E",
       },
+      { brand: "Stellar Mart", cashback: "9.0%", logoUri: "https://cdn.simpleicons.org/spotify/ffffff", tint: "#6366F1" },
+      { brand: "Cloud Pantry", cashback: "7.5%", logoUri: "https://cdn.simpleicons.org/amazon/ffffff", tint: "#2563EB" },
+      { brand: "Velvet Threads", cashback: "13.0%", logoUri: "https://cdn.simpleicons.org/ebay/ffffff", tint: "#0EA5E9" },
+      { brand: "Pixel Bazaar", cashback: "6.0%", logoUri: "https://cdn.simpleicons.org/ikea/ffffff", tint: "#10B981" },
+      { brand: "Lumen Living", cashback: "8.0%", logoUri: "https://cdn.simpleicons.org/instacart/ffffff", tint: "#F59E0B" },
+      { brand: "Verdant Grocer", cashback: "10.5%", logoUri: "https://cdn.simpleicons.org/nike/ffffff", tint: "#EF4444" },
+      { brand: "Crimson Couture", cashback: "16.0%", logoUri: "https://cdn.simpleicons.org/target/ffffff", tint: "#7F1D1D" },
+      { brand: "Harbor Goods", cashback: "5.5%", logoUri: "https://cdn.simpleicons.org/sony/ffffff", tint: "#0F9F6E" },
+      { brand: "Aurora Beauty", cashback: "17.0%", logoUri: "https://cdn.simpleicons.org/etsy/ffffff", tint: "#8B5CF6" },
     ],
   },
   {
@@ -2017,7 +2151,7 @@ export const webHomePromoSections = [
     link: "/category/Travel",
     icon: "✈️",
     cardVariant: "brandLogoBadge",
-    dotCount: 4,
+    dotCount: 3,
     cards: [
       {
         brand: "Orbit Airways",
@@ -2114,54 +2248,6 @@ export const webHomePromoSections = [
         cashback: "12.5%",
         logoUri: "https://cdn.simpleicons.org/airbnb/ffffff",
         tint: "#9F1239",
-      },
-      {
-        brand: "Lightflight",
-        cashback: "6.5%",
-        logoUri: "https://cdn.simpleicons.org/americanairlines/ffffff",
-        tint: "#2563EB",
-      },
-      {
-        brand: "Safari Roads",
-        cashback: "11.8%",
-        logoUri: "https://cdn.simpleicons.org/tripadvisor/ffffff",
-        tint: "#92400E",
-      },
-      {
-        brand: "CityBreak Club",
-        cashback: "7.0%",
-        logoUri: "https://cdn.simpleicons.org/meta/ffffff",
-        tint: "#0F766E",
-      },
-      {
-        brand: "Lagoon Lodge",
-        cashback: "9.1%",
-        logoUri: "https://cdn.simpleicons.org/airbnb/ffffff",
-        tint: "#0E7490",
-      },
-      {
-        brand: "MetroTrip",
-        cashback: "6.2%",
-        logoUri: "https://cdn.simpleicons.org/tripadvisor/ffffff",
-        tint: "#1D4ED8",
-      },
-      {
-        brand: "Altitude Tours",
-        cashback: "10.7%",
-        logoUri: "https://cdn.simpleicons.org/americanairlines/ffffff",
-        tint: "#334155",
-      },
-      {
-        brand: "SeaBreeze Ferries",
-        cashback: "5.4%",
-        logoUri: "https://cdn.simpleicons.org/tripadvisor/ffffff",
-        tint: "#0EA5E9",
-      },
-      {
-        brand: "QuickLayover",
-        cashback: "7.9%",
-        logoUri: "https://cdn.simpleicons.org/airbnb/ffffff",
-        tint: "#7C2D12",
       },
     ],
   },

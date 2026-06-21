@@ -1,8 +1,8 @@
 # GoGoCash Admin Dashboard (Internal — Mock only)
 
 > **Internal use only.** This build uses **mock data only**. All data is from `/api/mock` (550+ users, offers, withdrawals, conversions, coupons). No real API is used.  
-> **Framework**: Next.js 15.2.3 · React 19 · TypeScript  
-> **UI**: Tailwind CSS 4 + Material-UI 7 · ApexCharts · FullCalendar  
+> **Framework**: Next.js 16.2.9 · React 19 · TypeScript  
+> **UI**: Tailwind CSS 4 + Material-UI 9 · ApexCharts · FullCalendar  
 > **Auth**: NextAuth v4 (Credentials → JWT); mock sign-in: `admin@gogocash.co` / `1234`  
 > **Branch:** Push to **staging** only: `git push origin main:staging` (or your branch → `origin/staging`).
 
@@ -17,14 +17,16 @@ Admin dashboard for managing GoGoCash operations — users, offers, withdrawals,
 3. Run the dashboard: `npm run dev` → [http://localhost:3000](http://localhost:3000) (or `npm run dev:3001` and set `NEXTAUTH_URL=http://localhost:3001` in `.env.local`).
 4. Sign in with **`admin@gogocash.co`** / **`1234`**. All data is mock (internal use only).
 
-## Related Repositories
+## Related Workspaces
 
-- `../gogocash_api-feature-login-firebase`: backend contract source of truth for admin auth, metrics, offers, users, withdrawals, and configuration data.
-- `../gogocash_app-feature-login-firebase`: customer-facing app that consumes many of the same API payloads but has a separate UX and auth flow.
+This app is part of the `gogocash-monorepo`. Sibling workspaces:
+
+- `../api` (`gogocash-api`, NestJS): backend contract source of truth for admin auth, metrics, offers, users, withdrawals, and configuration data.
+- `../app` (`@gogocash/mobile`, Expo): customer-facing app that consumes many of the same API payloads but has a separate UX and auth flow.
 
 ## AI Handoff
 
-- Read these files first: `src/app/(admin)/layout.tsx`, `src/lib/api.ts`, `src/hooks/useApi.ts`, `src/components/auth/AuthGuard.tsx`, `src/middleware.ts`, `docs/CODE_REVIEW.md`.
+- Read these files first: `src/app/(admin)/layout.tsx`, `src/lib/api.ts`, `src/hooks/useApi.ts`, `src/components/auth/AuthGuard.tsx`, `src/proxy.ts`, `docs/CODE_REVIEW.md`.
 - Most pages are thin wrappers around API payloads. If a backend field changes, update both the table view and the matching form/detail component.
 - Admin login issues usually start at `POST /admin/login` in the API repo, not in this UI layer.
 - When you add, rename, or remove an admin capability, update this README and the matching API documentation in the backend repo in the same task.
@@ -34,7 +36,7 @@ Admin dashboard for managing GoGoCash operations — users, offers, withdrawals,
 ## Table of Contents
 
 - [Quick Start](#quick-start)
-- [Related Repositories](#related-repositories)
+- [Related Workspaces](#related-workspaces)
 - [AI Handoff](#ai-handoff)
 - [Architecture Overview](#architecture-overview)
 - [Directory Structure](#directory-structure)
@@ -58,7 +60,7 @@ Admin dashboard for managing GoGoCash operations — users, offers, withdrawals,
 
 ```text
 ┌─────────────────────────────────────────────────────────┐
-│                    Next.js 15 App Router                 │
+│                    Next.js 16 App Router                 │
 ├─────────────────────────────────────────────────────────┤
 │                                                         │
 │   (full-width-pages)/        (admin)/                   │
@@ -82,8 +84,8 @@ Admin dashboard for managing GoGoCash operations — users, offers, withdrawals,
 │    → Toaster → SidebarProvider → {children}             │
 ├─────────────────────────────────────────────────────────┤
 │                                                         │
-│   lib/api.ts (ApiClient)  →  GoGoCash Backend API       │
-│   hooks/useApi.ts         →  `https://api.gogocash.co`  │
+│   lib/api.ts (ApiClient)  →  Mock API routes           │
+│   hooks/useApi.ts         →  `/api/mock` (internal)    │
 │                                                         │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -268,7 +270,7 @@ NEXT_TELEMETRY_DISABLED=1
 ```text
 Provider:   Credentials (email + password)
 Strategy:   JWT (no database sessions)
-Max Age:    24 hours
+Max Age:    7 days (idle window; rolls forward on activity, updateAge 1h)
 Login API:  POST /admin/login → { _id, username, email, token }
 ```
 
@@ -291,7 +293,7 @@ Login API:  POST /admin/login → { _id, username, email, token }
                                                ▼
                                       ┌────────────────┐
                                       │  JWT Session   │
-                                      │  (24h expiry)  │
+                                      │  (7d idle exp) │
                                       └────────┬───────┘
                                                │
           accessToken stored in session        │
@@ -548,7 +550,7 @@ over data freshness.
 
 ### NextAuth Session
 
-JWT-based session with `accessToken` for API authorization. 24-hour expiry.
+JWT-based session with `accessToken` for API authorization. 7-day idle expiry (rolls forward on activity; `updateAge` 1h).
 
 ---
 
@@ -560,7 +562,7 @@ JWT-based session with `accessToken` for API authorization. 24-hour expiry.
 - **Dark mode**: Class-based (`dark:` prefix), toggled via `ThemeContext`
 - **Auto-sort**: Prettier plugin `prettier-plugin-tailwindcss`
 
-### Material-UI 7
+### Material-UI 9
 
 - `@mui/material` for DataGrid and complex components
 - `@emotion/react` + `@emotion/styled` for CSS-in-JS
@@ -625,74 +627,49 @@ interface Pagination { page, limit, total, totalPages }
 
 ## Deployment
 
-### Option 1: Google Cloud Run (Recommended)
+This app lives in a monorepo (`apps/admin`). The wired-up paths are a Docker image
+for Cloud Run, Firebase (App Hosting or static export), and Vercel. See the dedicated
+guides for step-by-step instructions:
 
-```bash
-# Build & deploy via Cloud Build
-gcloud builds submit --config=cloudbuild.yaml
+- [`DEPLOY_FIREBASE.md`](./DEPLOY_FIREBASE.md) — Firebase App Hosting (frontend + mock API) or static export.
+- [`DEPLOY_VERCEL.md`](./DEPLOY_VERCEL.md) — Vercel deploy.
+- [`DEPLOY_CLOUDFLARE.md`](./DEPLOY_CLOUDFLARE.md) — Cloudflare Workers/Pages via OpenNext (scaffolding present; npm scripts not yet wired).
+- [`DEPLOYMENT.md`](./DEPLOYMENT.md) — general Google Cloud notes.
 
-# Or manually:
-docker build -t gcr.io/PROJECT_ID/gogocash-admin .
-docker push gcr.io/PROJECT_ID/gogocash-admin
-gcloud run deploy gogocash-admin \
-  --image gcr.io/PROJECT_ID/gogocash-admin \
-  --region us-central1 \
-  --port 3000 \
-  --allow-unauthenticated
-```
+### Docker → Cloud Run
 
-### Option 2: Google Kubernetes Engine (GKE)
+The repo ships a multi-stage [`Dockerfile`](./Dockerfile) that builds the Next.js
+**standalone** output. Key facts:
 
-```bash
-# Apply k8s manifests
-kubectl apply -f k8s/secrets.yaml
-kubectl apply -f k8s/deployment.yaml
-kubectl apply -f k8s/service.yaml
-kubectl apply -f k8s/managed-cert.yaml
-kubectl apply -f k8s/ingress.yaml
-```
+- **Build context is the monorepo root**, not `apps/admin` (the single root
+  `package-lock.json` drives the npm workspace install):
+  ```bash
+  docker build -f apps/admin/Dockerfile -t gogocash-admin .
+  docker run -p 8080:8080 --env-file .env gogocash-admin
+  ```
+- Base image **`node:22-slim`**; install via **`npm ci --legacy-peer-deps`**; build
+  via `npm run build:standalone -w gogocash-admin`.
+- Runs as non-root (`nextjs:nodejs`); entrypoint `node apps/admin/server.js`; listens on **port 8080**.
+- Target image/region: `asia-southeast1-docker.pkg.dev/gogocash-staging/gogocash/gogocash-admin` (Cloud Run, asia-southeast1).
+- `NEXT_PUBLIC_API_URL` is inlined at build time and defaults to the **staging API**
+  (so the container talks to the real staging backend, not the in-process mock);
+  override with `--build-arg NEXT_PUBLIC_API_URL=...`.
 
-**K8s Configuration:**
+> **Note:** there is no admin-specific `cloudbuild.yaml` or `k8s/` directory in this
+> app today (the only `cloudbuild.yaml` in the repo belongs to `apps/api`). Earlier
+> versions of this README described Cloud Build, GKE, and `gcr.io`/`us-central1`
+> flows that no longer match the repo.
 
-- **Replicas**: 2
-- **Resources**: 256Mi–512Mi RAM, 250m–500m CPU
-- **Health checks**: Liveness (30s) + Readiness (5s)
-- **SSL**: Google-managed certificate
-- **Ingress**: Global static IP with HTTPS
+### App Engine (`app.yaml`)
 
-### Option 3: App Engine
+An [`app.yaml`](./app.yaml) is present:
+
+- Runtime: **Node.js 22**
+- Auto-scaling: 0–10 instances, CPU target 60%
+- Resources: 1 CPU, 0.5 GB RAM
 
 ```bash
 gcloud app deploy app.yaml
-```
-
-**App Engine Config** (`app.yaml`):
-
-- Runtime: Node.js 18
-- Auto-scaling: 0–10 instances
-- CPU target: 60%
-- Resources: 1 CPU, 0.5GB RAM
-
-### Docker Build
-
-Multi-stage Dockerfile:
-
-1. **deps**: Install with `yarn --frozen-lockfile`
-2. **builder**: `yarn build` (Next.js standalone output)
-3. **runner**: Production image, non-root user (`nextjs:nodejs`)
-
-```bash
-# Build locally
-docker build -t gogocash-admin .
-docker run -p 3000:3000 --env-file .env gogocash-admin
-```
-
-### CI/CD Pipeline (`cloudbuild.yaml`)
-
-```text
-1. Build Docker image  →  gcr.io/$PROJECT_ID/gogocash-admin:$COMMIT_SHA
-2. Push to GCR         →  Both :$COMMIT_SHA and :latest tags
-3. Deploy Cloud Run    →  us-central1, port 3000, unauthenticated
 ```
 
 ---
@@ -740,14 +717,14 @@ Others
 
 | Library | Version | Purpose |
 | --- | --- | --- |
-| `next` | 15.2.3 | React framework (App Router, SSR) |
-| `react` | 19.0.0 | UI library |
+| `next` | 16.2.9 | React framework (App Router, SSR) |
+| `react` | 19.2.0 | UI library |
 | `next-auth` | 4.24.13 | Authentication (JWT + Credentials) |
-| `@tanstack/react-query` | 5.90.9 | Server state management |
-| `axios` | 1.13.1 | HTTP client |
+| `@tanstack/react-query` | 5.101.0 | Server state management |
+| `axios` | 1.18.0 | HTTP client |
 | `tailwindcss` | 4.0.0 | Utility-first CSS |
-| `@mui/material` | 7.3.5 | Component library |
-| `apexcharts` | 4.3.0 | Interactive charts |
+| `@mui/material` | 9.1.1 | Component library |
+| `apexcharts` | 5.15.0 | Interactive charts |
 | `@fullcalendar/react` | 6.1.15 | Calendar component |
 | `@react-jvectormap/world` | - | World map visualization |
 | `react-hot-toast` | 2.6.0 | Toast notifications |
@@ -763,7 +740,7 @@ Others
 ## Developer Onboarding
 
 1. **Start here**: Read [Authentication](#authentication) and [Routes & Pages](#routes--pages) to understand the app structure.
-2. **Run locally**: `yarn dev` → open [http://localhost:3000](http://localhost:3000) → sign in with admin credentials.
+2. **Run locally**: `npm run dev` → open [http://localhost:3000](http://localhost:3000) → sign in with admin credentials.
 3. **Key files to read first**:
    - `src/app/(admin)/layout.tsx` — Admin shell layout
    - `src/lib/api.ts` — API client (all endpoints)
@@ -773,5 +750,5 @@ Others
    - Create route: `src/app/(admin)/(others-pages)/your-page/page.tsx`
    - Create component: `src/components/your-feature/YourTable.tsx`
    - Add API methods to `lib/api.ts` and `hooks/useApi.ts`
-   - Add sidebar entry in `layout/AppSidebar.tsx`
+   - Add sidebar entry in `layout/AppSidebarContent.tsx` (`navItems` / `othersItems`)
 5. **Follow the pattern**: Every management page uses `SearchTable` + data table + `Pagination`.

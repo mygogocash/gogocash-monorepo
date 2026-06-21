@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **SVG assets optimized (2026-06-21, PR #1):** ImgBot losslessly compressed 204 admin SVGs (112 under `src/icons/`, the rest under `public/images/`) when the admin app moved into `gogocash-monorepo`. No markup/behavior change.
 - Reorganized nav: **Admin Management** (Users Admin + Roles) split out from **Users Management**.
 - **App-wide formatting polish:** dates render `dd/mm/yyyy` (`src/lib/dateFormat.ts`), money shows the ISO currency code as a suffix (e.g. `149 THB`) instead of a symbol (`src/lib/currencyFormat.ts`), and status badges share a unified rounded-rect base (`src/lib/statusBadge.ts`) while cycle/tier badges stay rounded-full pills. Added a shared `NoData` empty state and a `StackedDateTime` cell, design-system buttons (`src/components/ui/button/`) with a `variant="outline"` PrimaryButton, and an `activeLabelClassName` prop on `Switch`.
 - Reorganized the user detail page into a **Benefits & Scoring** tab with member/admin benefit cards.

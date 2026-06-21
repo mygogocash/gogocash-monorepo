@@ -2,6 +2,17 @@
 
 > **Branch policy:** This project pushes to the **staging** branch only. Use `git push origin main:staging` (or push from your local branch to `origin/staging`) for deployments. Do not push to `main` on the remote.
 
+> **Monorepo note:** The admin app now lives at `apps/admin` inside `gogocash-monorepo`.
+> The repo ships an admin [`Dockerfile`](./Dockerfile) whose **build context is the
+> monorepo root** (`docker build -f apps/admin/Dockerfile -t <image> .`), produces
+> Next.js standalone output, and listens on **port 8080**. The target image lives in
+> **Artifact Registry** (`asia-southeast1-docker.pkg.dev/gogocash-staging/gogocash/gogocash-admin`),
+> deployed to Cloud Run in **asia-southeast1**. There is **no admin-specific
+> `cloudbuild.yaml` or `k8s/` directory** today — the Cloud Build / GKE / `gcr.io` /
+> `us-central1` snippets below are generic Google Cloud reference, not a description of
+> wired-up pipeline files. For the paths actually wired up, see
+> [`DEPLOY_FIREBASE.md`](./DEPLOY_FIREBASE.md) and [`DEPLOY_VERCEL.md`](./DEPLOY_VERCEL.md).
+
 This guide covers deploying the GoGoCash Admin Dashboard to Google Cloud using multiple deployment options.
 
 ## Prerequisites
@@ -36,10 +47,12 @@ Cloud Run is serverless and automatically scales based on demand.
 1. **Setup Cloud Build trigger:**
 ```bash
 # Connect your GitHub repository
+# (repo is now the monorepo gogocash-monorepo; you must supply a cloudbuild.yaml —
+#  none ships for the admin app today)
 gcloud builds triggers create github \
-  --repo-name=gogocash-admin-demo \
+  --repo-name=gogocash-monorepo \
   --repo-owner=mygogocash \
-  --branch-pattern="^main$" \
+  --branch-pattern="^staging$" \
   --build-config=cloudbuild.yaml
 ```
 

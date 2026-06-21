@@ -30,6 +30,12 @@ export type TopBrandCard = {
   brand: string;
   cashback: string;
   href?: string;
+  /**
+   * Stable unique id from the payload (offer `_id` / `offer_id`), used as the React key so
+   * two admin offers sharing a `brand` string don't collide. Absent on the static fixtures
+   * (whose brands are already unique), where the key falls back to `brand`.
+   */
+  id?: string;
   label: string;
   logoUri: string;
   showGrabCoupon: boolean;
@@ -50,6 +56,7 @@ export function mapBackendTopBrands(payload: TopBrandsPayload): TopBrandCard[] {
       brand: item.brand,
       cashback: item.cashback,
       href: item._id ? `/shop/${item._id}` : undefined,
+      id: item._id ?? String(item.offer_id),
       label: "Grab Coupon",
       logoUri: resolveRemoteImageUri(item.logo) ?? "",
       showGrabCoupon: false,
@@ -66,6 +73,7 @@ export function mapOfferCatalogToTopBrands(payload: unknown): TopBrandCard[] {
     brand: brand.name,
     cashback: brand.cashback,
     href: brand.href,
+    id: brand.href ?? brand.name,
     label: "Grab Coupon",
     logoUri: brand.logo ?? "",
     showGrabCoupon: brand.showGrabCoupon,

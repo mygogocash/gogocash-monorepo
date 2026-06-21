@@ -63,12 +63,20 @@ export function AccountPageShell({
   children,
   showProfileRail = false,
   showTitle = true,
+  tabletContentMode = "capped",
   title,
 }: {
   activeRouteId: AccountRouteId;
   children: ReactNode;
   showProfileRail?: boolean;
   showTitle?: boolean;
+  /**
+   * Tablet (768-1023px) content width strategy. "capped" (default) centers the
+   * content within a tablet max-width so single-column screens don't stretch.
+   * "fluid" keeps the full-bleed frame for screens whose content is sized from
+   * the raw viewport width (e.g. Quest's grids).
+   */
+  tabletContentMode?: "capped" | "fluid";
   title: string;
 }) {
   const insets = useSafeAreaInsets();
@@ -89,6 +97,7 @@ export function AccountPageShell({
   // internal hero/grid math depends on.
   const frameMetrics = getAccountShellFrameMetrics(width, {
     alignToNavbarShell: showDesktopRail,
+    tabletFluid: tabletContentMode === "fluid",
   });
   // Rail pages keep the footer inside the padded account frame, so they need an
   // offset back past the frame's centering gap + content padding. Quest/non-rail

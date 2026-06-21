@@ -6,7 +6,7 @@ This document maps all web routes of the GoGoCash customer app to native mobile 
 
 ## 1. Access Control & Routes Overview
 
-All routes are mapped inside [apps/mobile/src/navigation/routes.ts](file:///Users/kunanonjarat/Developer/Full%20App/gogocash_app-feature-login-firebase/apps/mobile/src/navigation/routes.ts).
+All routes are mapped inside [apps/app/src/navigation/routes.ts](../src/navigation/routes.ts).
 
 - **Public Screens**: Discover, Home, Categories, Shops, Brand, Privacy Policy, Login, Register, Auth Callback, Link MyCashback.
 - **Auth-Protected Screens**: Profile, Wallet, Withdraw, Payment Methods, Create Method, Favorites, Referral, Membership, Credit Score, Missing Orders, Privacy Center, Quest History, GoGoSense surfaces.
@@ -16,7 +16,7 @@ All routes are mapped inside [apps/mobile/src/navigation/routes.ts](file:///User
 ## 2. Core Discovery Screens
 
 ### 2.1 Home Screen (`/`)
-- **Visuals**: Sticky search pill (mint border), category browse shortcuts, carousel banner (800x450 aspect), and curated grid carousels (Top Brands, Trending Brands, curations with icons).
+- **Visuals**: Sticky search pill (mint border), category browse shortcuts, a 16:9 (1920x1080) hero made of 1 main banner + 2 side banners with equal gaps, and curated grid carousels (Top Brands, Trending Brands, Travel Deals, curations with icons). Each brand card (one `BrandCard` component with `size="L"` / `size="S"`) has a favorite heart toggle; the Trending Brands and Travel Deals rails are each capped at 16 cards.
 - **APIs Consumed**:
   - `GET /offer/banner-home` ( Curated banners)
   - `GET /offer/extra` ( curations / Top Brands)

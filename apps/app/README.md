@@ -1,21 +1,21 @@
 # GoGoCash Mobile
 
-Expo / react-native-web customer app — a desktop-and-mobile web-parity port of the Next.js app at the repo root (which remains the design + behavior source of truth). Separate npm project: run commands from `apps/mobile/`, or via the root `npm run mobile:*` proxies.
+Expo / react-native-web customer app (package `@gogocash/mobile`) — a desktop-and-mobile web-parity port of the Next.js customer app, the design + behavior source of truth. This is the `apps/app` workspace in the Turborepo monorepo; run commands with `npm --prefix apps/app run <script>` (or `npm run <script> -w @gogocash/mobile`).
 
 ## Local development
 
 ```bash
-npm --prefix apps/mobile install
-npm run mobile:start            # native dev client
-npm --prefix apps/mobile run web   # Expo web (the live-verify surface), port 19006
+npm install                        # installs all workspaces from the repo root
+npm --prefix apps/app run start    # native dev client (expo start)
+npm --prefix apps/app run web      # Expo web (the live-verify surface)
 ```
 
 ## Verification — the three gates
 
 ```bash
-npm run typecheck      # tsc --noEmit
-npm test               # node logic + source-grep contract/parity suite
-npm run test:render    # happy-dom render suite (@testing-library/react)
+npm --prefix apps/app run typecheck      # tsc --noEmit
+npm --prefix apps/app run test           # node logic + source-grep contract/parity suite
+npm --prefix apps/app run test:render    # happy-dom render suite (@testing-library/react)
 ```
 
 UI changes additionally require live verification on Expo web. Many tests are **contract tests** that pin endpoint strings, env defaults, the 15 session fields, and copy — if one fails after a rename, read the test before changing code (see `docs/api-integration.md` §6).
@@ -25,7 +25,7 @@ UI changes additionally require live verification on Expo web. Many tests are **
 The app runs on web-parity fixtures by default. A built-in seam (`src/account/customerAccountResource.ts`) switches per-environment:
 
 ```bash
-# apps/mobile/.env
+# apps/app/.env
 EXPO_PUBLIC_ACCOUNT_DATA_SOURCE=fixtures   # default; "backend" = live API, "disabled" = off
 EXPO_PUBLIC_API_URL=https://api-staging.gogocash.co
 EXPO_PUBLIC_APP_ENV=staging
@@ -51,8 +51,8 @@ GoGoSense detects when the user opens a partner merchant app (e.g. Shopee) and n
 ## Store builds
 
 ```bash
-npm --prefix apps/mobile run build:preview
-npm --prefix apps/mobile run build:production
+npm --prefix apps/app run build:preview
+npm --prefix apps/app run build:production
 ```
 
 Set Sentry, PostHog, Firebase, and EAS values through EAS secrets or local env files. Do not commit secrets.
@@ -61,4 +61,3 @@ Set Sentry, PostHog, Firebase, and EAS values through EAS secrets or local env f
 
 - [AGENTS.md](AGENTS.md) — working rules, conventions, react-native-web gotchas
 - [docs/api-integration.md](docs/api-integration.md) — API & auth integration handoff
-- [../../HANDOFF.md](../../HANDOFF.md) — branch-level state across web + mobile

@@ -340,5 +340,11 @@
   "mobileGgs_4": "Usage access is only available on Android",
   "mobileGgs_5": "Cashback available",
   "mobileGgs_6": "Activate cashback before you keep shopping",
-  "mobileGgs_7": "Activate cashback"
+  "mobileGgs_7": "Activate cashback",
+  "mobileHomeSaveBrand": "Save brand",
+  "mobileHomeRemoveSavedBrand": "Remove from saved brands",
+  "mobileGoLinkStepCopy": "Copy link",
+  "mobileGoLinkStepPaste": "Paste here",
+  "mobileGoLinkStepShop": "Shop & earn",
+  "mobileGoLinkTagline": "Easy to earn cashback by just copy, paste & shop!"
 }

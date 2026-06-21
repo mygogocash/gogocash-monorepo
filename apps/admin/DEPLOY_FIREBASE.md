@@ -11,8 +11,8 @@ App Hosting builds and runs your full Next.js app (including API routes), so the
 ### Requirements
 
 - Firebase project with [Blaze (pay-as-you-go)](https://firebase.google.com/docs/app-hosting/configure#billing) enabled
-- GitHub repo: `mygogocash/gogocash-admin-demo` (or your fork)
-- Node.js 18+
+- GitHub repo: `mygogocash/gogocash-monorepo` (or your fork) — the admin app lives at `apps/admin`
+- Node.js 22+ (the workspace `engines` field requires `>=22`)
 
 ### One-time setup
 
@@ -22,9 +22,9 @@ App Hosting builds and runs your full Next.js app (including API routes), so the
 2. **App Hosting**  
    - Open **Build** → **App Hosting** in the left menu.  
    - Click **Create backend**.  
-   - Connect your **GitHub** account and choose the repo (e.g. `gogocash-admin-demo`).  
-   - **Root directory:** leave as `/` (repo root).  
-   - **Branch:** e.g. `main`.  
+   - Connect your **GitHub** account and choose the repo (e.g. `gogocash-monorepo`).  
+   - **Root directory:** set to **`apps/admin`** (the admin app's folder in the monorepo).  
+   - **Branch:** e.g. `staging`.  
    - Enable **Automatic rollouts** if you want deploy on every push.
 
 3. **Secrets / env (for login)**  
@@ -37,12 +37,18 @@ App Hosting builds and runs your full Next.js app (including API routes), so the
 
 ### Deploying updates
 
-- **Automatic:** if automatic rollouts are on, push to the configured branch (e.g. `main`).  
+- **Automatic:** if automatic rollouts are on, push to the configured branch (e.g. `staging`).  
 - **Manual:** in Firebase Console → App Hosting → your backend → **Roll out** and choose the branch/commit.
 
-### Optional: `apphosting.yaml`
+### `apphosting.yaml`
 
-The repo includes an `apphosting.yaml` for run config (e.g. `minInstances: 0`). You can add env or secrets there if you prefer; see [Configure App Hosting](https://firebase.google.com/docs/app-hosting/configure).
+The admin app ships an [`apphosting.yaml`](./apphosting.yaml) with run config
+(`minInstances: 0`, `maxInstances: 10`, `concurrency: 40`, `cpu: 1`, `memoryMiB: 512`)
+and build/runtime env (`NODE_ENV`, `NEXT_TELEMETRY_DISABLED`, `CI`, and
+`NEXTAUTH_URL=https://admin-staging.gogocash.co`). Its header documents the
+first-time backend setup (backend ID `gogocash-admin`, branch `staging`, custom
+domain `admin-staging.gogocash.co`, and provisioning `NEXTAUTH_SECRET` in Secret
+Manager). See [Configure App Hosting](https://firebase.google.com/docs/app-hosting/configure).
 
 ---
 

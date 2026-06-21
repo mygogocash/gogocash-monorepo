@@ -29,7 +29,9 @@ describe("Expo home design parity", () => {
     );
 
     expect(homeFile).toContain("HomeHeroBanners");
-    expect(homeFile).toContain("BrandLogoOfferCard");
+    // Top Brands renders the shared BrandCard at its large size.
+    expect(homeFile).toContain("BrandCard");
+    expect(homeFile).toContain('size="L"');
     expect(homeFile).toContain("CustomerMobileBottomNav");
     expect(homeFile).not.toContain('webHomeSectionOrder.includes("goLinkBanner")');
   });
@@ -232,38 +234,38 @@ describe("Expo home design parity", () => {
     expect(homeFile).toContain("GoLinkGuidelineDialog");
     expect(homeFile).toContain("GoLinkResultDialog");
     expect(homeFile).toContain("isValidGoLinkUrl");
-    expect(homeFile).toContain("golinkBannerIllustrationImage");
+    expect(homeFile).toContain("desktopGoLinkSteps");
   });
 
   it("home design parity > given previous web hero layout > then keeps main and side banner contract", () => {
     expect(webHomeHeroBanners).toEqual([
       {
         id: "main-grocery-galaxy",
-        asset: "home-banner",
+        asset: "home-promo-black-friday",
         href: "/shop/brand-grocery-galaxy-1001",
         placement: "main",
       },
       {
         id: "main-pocket-pantry",
-        asset: "home-side-watch",
+        asset: "home-promo-holiday",
         href: "/shop/brand-pocket-pantry-1002",
         placement: "main",
       },
       {
         id: "main-orbit-airways",
-        asset: "home-side-grocery",
+        asset: "home-promo-fashion",
         href: "/shop/brand-orbit-airways-1003",
         placement: "main",
       },
       {
         id: "side-pixelport",
-        asset: "home-side-watch",
+        asset: "home-promo-holiday",
         href: "/shop/brand-pixelport-1004",
         placement: "side",
       },
       {
         id: "side-bloom-beam",
-        asset: "home-side-grocery",
+        asset: "home-promo-fashion",
         href: "/shop/brand-bloom-beam-1006",
         placement: "side",
       },
@@ -545,7 +547,7 @@ describe("Expo home design parity", () => {
   it("home design parity > given selected staging Trending Brands block > then compact card visuals match", () => {
     const trending = webHomePromoSections.find((section) => section.id === "trending");
 
-    expect(trending?.dotCount).toBe(6);
+    expect(trending?.dotCount).toBe(3);
     expect(trending?.cards.slice(0, 6)).toEqual([
       expect.objectContaining({
         brand: "Grocery Galaxy",
@@ -583,7 +585,7 @@ describe("Expo home design parity", () => {
   it("home design parity > given selected staging Travel Deals block > then compact card visuals match", () => {
     const travel = webHomePromoSections.find((section) => section.id === "travel");
 
-    expect(travel?.dotCount).toBe(4);
+    expect(travel?.dotCount).toBe(3);
     expect(travel?.cards.slice(0, 6)).toEqual([
       expect.objectContaining({
         brand: "Orbit Airways",
@@ -622,7 +624,9 @@ describe("Expo home design parity", () => {
     const travel = webHomePromoSections.find((section) => section.id === "travel");
     const mobileCardsPerPage = mobileShellLayout.compactBrandMobileColumns * 2;
 
-    expect(travel?.cards).toHaveLength((travel?.dotCount ?? 0) * mobileCardsPerPage);
+    // Every declared dot must map to a reachable mobile page — no phantom dots and
+    // no pages past the dots: dotCount === ceil(cards / mobileCardsPerPage).
+    expect(travel?.dotCount).toBe(Math.ceil((travel?.cards.length ?? 0) / mobileCardsPerPage));
   });
 
   it("home design parity > given selected staging Makeup Must Have block > then compact card visuals match", () => {
@@ -692,7 +696,9 @@ describe("Expo home design parity", () => {
       "utf8"
     );
 
-    expect(homeFile).toContain("CompactBrandLogoOfferCard");
+    // Secondary brand rails render the shared BrandCard at its small/compact size.
+    expect(homeFile).toContain("BrandCard");
+    expect(homeFile).toContain('size="S"');
     expect(homeFile).toContain("activeIndex={activePromoDot}");
     expect(homeFile).toContain("compactBrandLogoFallback");
     expect(homeFile).toContain("sectionDotCount");

@@ -96,8 +96,8 @@ describe("GoGoCash web design parity", () => {
       desktopHomeTopGap: 76,
       desktopSubNavHeight: 56,
       contentTopGap: 24,
-      homeBannerAspectRatio: 800 / 450,
-      homeSideBannerAspectRatio: 203 / 158,
+      homeBannerAspectRatio: 1920 / 1080,
+      homeSideBannerAspectRatio: 1920 / 1080,
       compactBrandGridGap: 10,
       compactBrandLogoVisualHeight: 106,
       compactBrandMobileColumns: 3,
@@ -115,7 +115,7 @@ describe("GoGoCash web design parity", () => {
       topBrandMobileGridGap: 12,
       topBrandMobilePageCardCount: 4,
       topBrandMobileColumns: 2,
-      topBrandMetaHeight: 66,
+      topBrandMetaHeight: 56,
       compactBrandMetaHeight: 43,
       homePromoSectionGap: 24,
       homeSectionHeaderHeight: 56,
@@ -171,7 +171,7 @@ describe("GoGoCash web design parity", () => {
       layout.compactBrandGap * (layout.compactBrandColumns - 1);
 
     expect(travel).toMatchObject({
-      dotCount: 4,
+      dotCount: 3,
       icon: "✈️",
       link: "/category/Travel",
       title: "Travel Deals are Here!",
@@ -200,7 +200,7 @@ describe("GoGoCash web design parity", () => {
       topBrandGap: 12,
     });
     expect(getResponsiveHomeLayoutMetrics(427).topBrandCardWidth).toBeCloseTo(190.42, 1);
-    expect(getResponsiveHomeLayoutMetrics(427).topBrandCardHeight).toBeCloseTo(256.42, 1);
+    expect(getResponsiveHomeLayoutMetrics(427).topBrandCardHeight).toBeCloseTo(246.42, 1);
   });
 
   it("home responsive layout > given staging tablet viewport > then Top Brands uses three 222px columns", () => {
@@ -229,7 +229,7 @@ describe("GoGoCash web design parity", () => {
     expect(getResponsiveHomeLayoutMetrics(1440).compactBrandCardWidth).toBeCloseTo(146, 1);
     expect(getResponsiveHomeLayoutMetrics(1440).compactBrandCardHeight).toBeCloseTo(189, 1);
     expect(getResponsiveHomeLayoutMetrics(1440).topBrandCardWidth).toBeCloseTo(193.33, 1);
-    expect(getResponsiveHomeLayoutMetrics(1440).topBrandCardHeight).toBeCloseTo(259.33, 1);
+    expect(getResponsiveHomeLayoutMetrics(1440).topBrandCardHeight).toBeCloseTo(249.33, 1);
   });
 
   it("desktop shell parity > given the Next desktop nav reference > then Expo keeps the same category nav order and cookie copy", () => {
@@ -312,12 +312,29 @@ describe("GoGoCash web design parity", () => {
     });
   });
 
-  it("account shell frame > given below the desktop breakpoint > then it uses the full-bleed mobile content width regardless of alignment", () => {
-    expect(getAccountShellFrameMetrics(800, { alignToNavbarShell: true })).toEqual({
+  it("account shell frame > given a phone width (<768) > then it uses the full-bleed mobile content width regardless of alignment", () => {
+    expect(getAccountShellFrameMetrics(500, { alignToNavbarShell: true })).toEqual({
       maxWidth: 1440,
       paddingHorizontal: 16,
     });
-    expect(getAccountShellFrameMetrics(800, { alignToNavbarShell: false })).toEqual({
+    expect(getAccountShellFrameMetrics(500, { alignToNavbarShell: false })).toEqual({
+      maxWidth: 1440,
+      paddingHorizontal: 16,
+    });
+  });
+
+  it("account shell frame > given a tablet width (768-1023) > then single-column shell content is capped + centered (was stretched-phone before the tablet tier)", () => {
+    expect(getAccountShellFrameMetrics(800)).toEqual({
+      maxWidth: 720,
+      paddingHorizontal: 32,
+    });
+    // alignToNavbarShell only governs the desktop branch; tablet still caps.
+    expect(getAccountShellFrameMetrics(800, { alignToNavbarShell: true })).toEqual({
+      maxWidth: 720,
+      paddingHorizontal: 32,
+    });
+    // Grid screens (e.g. Quest) opt out and keep the full-bleed frame their grid math needs.
+    expect(getAccountShellFrameMetrics(800, { tabletFluid: true })).toEqual({
       maxWidth: 1440,
       paddingHorizontal: 16,
     });
@@ -418,13 +435,13 @@ describe("GoGoCash web design parity", () => {
     const desktopLayout = getResponsiveHomeLayoutMetrics(1440);
     const travel = webHomePromoSections.find((section) => section.id === "travel");
 
-    expect(travel?.cards).toHaveLength(24);
+    expect(travel?.cards).toHaveLength(16);
     expect(getCarouselDotCount(travel?.cards.length ?? 0, mobileLayout.compactBrandCardsPerPage)).toBe(
-      4
+      3
     );
     expect(
       getCarouselDotCount(travel?.cards.length ?? 0, desktopLayout.compactBrandCardsPerPage)
-    ).toBe(2);
+    ).toBe(1);
   });
 
   it("home carousel dots > given Makeup Must Have responsive rail > then mobile and desktop dots map to reachable pages", () => {
