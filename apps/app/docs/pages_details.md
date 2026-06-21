@@ -16,7 +16,7 @@ All routes are mapped inside [apps/app/src/navigation/routes.ts](../src/navigati
 ## 2. Core Discovery Screens
 
 ### 2.1 Home Screen (`/`)
-- **Visuals**: Sticky search pill (mint border), category browse shortcuts, a 16:9 (1920x1080) hero made of 1 main banner + 2 side banners with equal gaps, and curated grid carousels (Top Brands, Trending Brands, Travel Deals, curations with icons). Each brand card (one `BrandCard` component with `size="L"` / `size="S"`) has a favorite heart toggle; the Trending Brands and Travel Deals rails are each capped at 16 cards.
+- **Visuals**: Sticky search pill (mint border), category browse shortcuts (pills that wrap to fill the row on tablet/mobile — no sideways scroll), a 16:9 (1920x1080) hero made of 1 main banner + 2 side banners with equal gaps, and curated grid carousels (Top Brands, Trending Brands, Travel Deals, curations with icons). Each brand card (one `BrandCard` component with `size="L"` / `size="S"`) has a favorite heart toggle; the Trending Brands and Travel Deals rails are each capped at 16 cards.
 - **APIs Consumed**:
   - `GET /offer/banner-home` ( Curated banners)
   - `GET /offer/extra` ( curations / Top Brands)

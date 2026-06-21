@@ -2,7 +2,7 @@
 
 A money/auth hardening pass over the monorepo, driven from a full project analysis
 (grade C+, 5 confirmed findings, 0 refuted). Every change is TDD'd and verified;
-this doc is the durable record. All work is on `migrate/monorepo`.
+this doc is the durable record. The work landed on **`main`** (the `migrate/monorepo` integration branch has since been retired).
 
 ## What shipped
 
