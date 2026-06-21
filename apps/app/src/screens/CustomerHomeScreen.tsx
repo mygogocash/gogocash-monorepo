@@ -2172,7 +2172,12 @@ const styles = StyleSheet.create({
     borderRadius: radii.chip,
     borderWidth: 1,
     flexDirection: "row",
+    // Grow to fill each wrapped line (flexBasis stays auto, so content width
+    // still drives where the row wraps): a balanced segmented nav on tablet,
+    // an even 2x2 grid on phones — no dead space on the trailing edge.
+    flexGrow: 1,
     gap: spacing.xs,
+    justifyContent: "center",
     minHeight: mobileShellLayout.shortcutPillHeight,
     paddingHorizontal: 12,
     boxShadow: shadows.cardCss,
