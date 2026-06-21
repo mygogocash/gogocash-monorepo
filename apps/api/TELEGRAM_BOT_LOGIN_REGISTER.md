@@ -22,7 +22,7 @@ Complete Telegram bot with user registration and login functionality. Users can 
 ### Security
 - ✅ Telegram ID as unique identifier
 - ✅ No password required (Telegram auth)
-- ✅ JWT tokens with 7-day expiry
+- ✅ JWT tokens with 1-day expiry (`signOptions: { expiresIn: '1d' }` in `telegram-bot.module.ts`)
 - ✅ Session management (1 hour)
 - ✅ Secure token delivery
 
@@ -52,14 +52,16 @@ User → Clicks link → Opens app (logged in)
 
 ## 📱 Bot Commands
 
-| Command | Description |
-|---------|-------------|
-| `/start` | Welcome message with all commands |
-| `/register` | Create a new account |
-| `/login` | Login to existing account |
-| `/openapp` | Open web app directly |
-| `/cancel` | Cancel current operation |
-| `/help` | Show help message |
+> Status (2026-06-21): in the current build, the live command handlers are `/start`, `/help`, `/register`, and `/openapp`. The `/login` and `/cancel` handlers are **commented out** in `telegram-bot.update.ts`; the login flow described below reflects the intended design rather than what is wired up today.
+
+| Command | Description | Status |
+|---------|-------------|--------|
+| `/start` | Welcome message with all commands | Active |
+| `/register` | Create a new account | Active |
+| `/openapp` | Open web app directly | Active |
+| `/help` | Show help message | Active |
+| `/login` | Login to existing account | Disabled (commented out) |
+| `/cancel` | Cancel current operation | Disabled (commented out) |
 
 ## 🚀 Quick Start Guide
 
@@ -173,10 +175,10 @@ When a user logs in:
 ## 🔧 Configuration
 
 ### Environment Variables
-Your `.env` already configured:
+Copy `.env.example` to `.env` and fill in real values (never commit secrets):
 ```bash
-TELEGRAM_BOT_TOKEN=8577974122:AAFSFCGvg3Y4hhnZ34bxpBY7wq2jCqY4JMU
-JWT_SECRET=8wzgsKXq4fTvKUjW9yd2VvKjb1dcJsJjYW/kpTG8akw=
+TELEGRAM_BOT_TOKEN=<your-bot-token-from-BotFather>
+JWT_SECRET=<your-jwt-secret>
 WEB_APP_URL=https://app.gogocash.co
 API_BASE_URL=http://localhost:8080
 MONGO_URI=mongodb+srv://...
@@ -253,7 +255,7 @@ MONGO_URI=mongodb+srv://...
 
 #### `generateJwtToken(userData, loginType)`
 - Creates JWT with user data
-- 7-day expiration
+- 1-day expiration (configured via `JwtModule` in `telegram-bot.module.ts`)
 - Includes Telegram ID
 
 ## 🔄 Session Management

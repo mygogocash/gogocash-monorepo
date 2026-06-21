@@ -424,14 +424,14 @@ const styles = StyleSheet.create({
   desktopCategoryNav: {
     alignItems: "center",
     backgroundColor: colors.white,
-    height: mobileShellLayout.desktopSubNavHeight,
+    // No fixed height: the bar fits its content (the nav items, which already carry
+    // their own vertical padding) instead of the taller desktopSubNavHeight.
     justifyContent: "center",
     width: "100%",
   },
   desktopCategoryNavInner: {
     alignItems: "center",
     alignSelf: "center",
-    height: mobileShellLayout.desktopSubNavHeight,
     justifyContent: "center",
   },
   desktopCategoryNavScroller: {

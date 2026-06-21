@@ -23,6 +23,8 @@ Align the Expo customer web desktop experience with the local Next.js reference 
 5. Tests include a RED parity contract before implementation, then focused green tests, full mobile tests, typecheck, Expo web export, and browser screenshots.
 6. Visual QA records screenshots for reference and Expo with filenames that include route, viewport, and app.
 
+> **Update (2026-06-21, merged in PR #1):** The Expo app now lives at `apps/app` (package `@gogocash/mobile`); the `apps/mobile` paths and `npm --prefix apps/mobile ...` / `mobile:*` commands below are historical — substitute `apps/app` and run the current scripts (`npm run test`, `npm run test:full`, `npm run typecheck`, `npm run export:web`) from inside `apps/app`. The former `LShopCard`/`SShopCard` were consolidated into a single `BrandCard` (`size="L"` / `size="S"`); the home hero is 1 main + 2 side banners at 16:9, the GoGoLink banner was redesigned, and the Trending Brands / Travel Deals rails are each capped to 16 cards.
+
 ## Current Status (2026-06-06)
 
 The desktop parity work has moved beyond the initial shell/auth gap. Current tests cover the desktop shell, footer, cookie banner, GoGoLink banner, auth phone/social/OTP contract, public directory pages, shop/category detail pages, account/profile surfaces, metadata, production env, app links, and typography.

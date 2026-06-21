@@ -10,8 +10,9 @@ import { Link, useRouter } from "expo-router";
 import {
   AirplaneTilt,
   BookOpen as BookOpenIcon,
-  ChevronRight as ChevronRightIcon,
   CircleUserRound as ProfileIcon,
+  ClipboardText as ClipboardIcon,
+  Copy as CopyIcon,
   DeviceMobile,
   Grid2X2 as GridIcon,
   Heart as HeartIcon,
@@ -33,6 +34,7 @@ import {
 } from "@mobile/theme/icons";
 import {
   Animated,
+  type GestureResponderEvent,
   Image,
   type ImageSourcePropType,
   type NativeScrollEvent,
@@ -51,7 +53,9 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import homeBannerImage from "../../assets/home-banner.png";
-import golinkBannerIllustrationImage from "../../assets/golink-banner-illustration.png";
+import promoBlackFridayImage from "../../assets/home-promo-black-friday.png";
+import promoHolidayImage from "../../assets/home-promo-holiday.png";
+import promoFashionImage from "../../assets/home-promo-fashion.png";
 import logoMarkImage from "../../assets/nav/logo.png";
 import menuFireImage from "../../assets/nav/menu-fire.png";
 import questHeaderImage from "../../assets/nav/quest-header.png";
@@ -122,6 +126,9 @@ const heroBannerAssets: Record<string, ImageSourcePropType> = {
   "home-banner": homeBannerImage,
   "home-side-grocery": sideGroceryImage,
   "home-side-watch": sideWatchImage,
+  "home-promo-black-friday": promoBlackFridayImage,
+  "home-promo-holiday": promoHolidayImage,
+  "home-promo-fashion": promoFashionImage,
 };
 
 // Backend banners carry a remote URL (imageUri); fixtures carry a bundled asset key.
@@ -167,6 +174,11 @@ const webSearchInputFocusReset = {
   outlineStyle: "none",
   outlineWidth: 0,
 } as unknown as TextStyle;
+// Web-only frosted-depth gradient for the GoLink banner surface (ignored on native,
+// where desktopGoLinkBackdrop's solid backgroundColor stands in).
+const goLinkBackdropGradient = {
+  backgroundImage: "linear-gradient(120deg, #E6F7EF 0%, #EEF4FF 58%, #E1EFFF 100%)",
+} as unknown as ViewStyle;
 
 type CompactBrandLogoOfferCardProps = {
   readonly brand: string;
@@ -897,7 +909,7 @@ function DesktopGoLinkBanner({ onOpenGuideline, onResultHref }: DesktopGoLinkBan
       style={styles.desktopGoLinkBanner}
       testID="desktop-golink-banner"
     >
-      <View style={[styles.desktopGoLinkBackdrop, { pointerEvents: "none" }]} />
+      <View style={[styles.desktopGoLinkBackdrop, goLinkBackdropGradient, { pointerEvents: "none" }]} />
       <View style={[styles.desktopGoLinkAccentGlow, { pointerEvents: "none" }]} />
       <MotionPressable
         accessibilityLabel={tc("About GoLink")}
@@ -908,19 +920,47 @@ function DesktopGoLinkBanner({ onOpenGuideline, onResultHref }: DesktopGoLinkBan
       >
         <InfoIcon color="rgba(10, 92, 74, 0.55)" size={18} strokeWidth={homeIconStrokeWidth} />
       </MotionPressable>
-      <View style={styles.desktopGoLinkIllustrationWrap}>
-        <Image
-          alt={tc("GoGoLink cashback link illustration")}
-          accessibilityIgnoresInvertColors
-          resizeMode="contain"
-          source={golinkBannerIllustrationImage}
-          style={styles.desktopGoLinkIllustration}
-        />
+      <View
+        accessibilityLabel={tc("GoGoLink cashback link illustration")}
+        style={styles.desktopGoLinkIllustrationWrap}
+      >
+        <LinkIcon color={colors.primary} size={46} strokeWidth={homeIconStrokeWidth} />
+        <View style={styles.desktopGoLinkGoBadge}>
+          <Text style={styles.desktopGoLinkGoBadgeText}>GO</Text>
+        </View>
       </View>
       <View style={styles.desktopGoLinkForm}>
+        <View style={styles.desktopGoLinkEyebrow}>
+          <Text style={styles.desktopGoLinkEyebrowText}>GoGoLink</Text>
+        </View>
         <Text nativeID="golink-banner-heading" style={styles.desktopGoLinkTitle}>
-          {tc(webGoLinkFeature.title)}
+          {tc("Easy to earn cashback by just copy, paste & shop!")}
         </Text>
+        <View style={styles.desktopGoLinkSteps}>
+          <View style={styles.desktopGoLinkStep}>
+            <View style={styles.desktopGoLinkStepNum}>
+              <Text style={styles.desktopGoLinkStepNumText}>1</Text>
+            </View>
+            <CopyIcon color={colors.primaryDark} size={15} strokeWidth={homeIconStrokeWidth} />
+            <Text style={styles.desktopGoLinkStepText}>{tc("Copy link")}</Text>
+          </View>
+          <Text style={styles.desktopGoLinkStepArrow}>›</Text>
+          <View style={styles.desktopGoLinkStep}>
+            <View style={styles.desktopGoLinkStepNum}>
+              <Text style={styles.desktopGoLinkStepNumText}>2</Text>
+            </View>
+            <ClipboardIcon color={colors.primaryDark} size={15} strokeWidth={homeIconStrokeWidth} />
+            <Text style={styles.desktopGoLinkStepText}>{tc("Paste here")}</Text>
+          </View>
+          <Text style={styles.desktopGoLinkStepArrow}>›</Text>
+          <View style={styles.desktopGoLinkStep}>
+            <View style={styles.desktopGoLinkStepNum}>
+              <Text style={styles.desktopGoLinkStepNumText}>3</Text>
+            </View>
+            <ShoppingBagIcon color={colors.primaryDark} size={15} strokeWidth={homeIconStrokeWidth} />
+            <Text style={styles.desktopGoLinkStepText}>{tc("Shop & earn")}</Text>
+          </View>
+        </View>
         <View style={styles.desktopGoLinkControls}>
           <View
             style={[
@@ -1030,7 +1070,7 @@ function HomeHeroBanners({ homeLayout }: { homeLayout: HomeLayoutMetrics }) {
         onLayout={(event) => setHeroBannerWidth(event.nativeEvent.layout.width)}
         style={[
           styles.mainHeroFrame,
-          styles.mainHeroFrameAspect,
+          { aspectRatio: homeLayout.mainBannerAspectRatio },
           homeLayout.isDesktop ? styles.mainHeroFrameDesktop : null,
         ]}
       >
@@ -1074,7 +1114,6 @@ function HomeHeroBanners({ homeLayout }: { homeLayout: HomeLayoutMetrics }) {
             </HeroBannerLink>
           ))}
         </Animated.ScrollView>
-        <HeroArrow size="large" />
         <CarouselDots
           activeIndex={activeHeroBannerPage}
           color={colors.white}
@@ -1104,7 +1143,6 @@ function HomeHeroBanners({ homeLayout }: { homeLayout: HomeLayoutMetrics }) {
               source={heroBannerSource(banner)}
               style={styles.heroImage}
             />
-            <HeroArrow size="small" />
           </HeroBannerLink>
         ))}
       </View>
@@ -1140,20 +1178,6 @@ function HeroBannerLink({
         {children}
       </MotionPressable>
     </Link>
-  );
-}
-
-function HeroArrow({ size }: { size: "large" | "small" }) {
-  return (
-    <View
-      style={[styles.heroArrow, size === "large" ? styles.heroArrowLarge : styles.heroArrowSmall]}
-    >
-      <ChevronRightIcon
-        color={colors.primaryDark}
-        size={size === "large" ? 28 : 22}
-        strokeWidth={2}
-      />
-    </View>
   );
 }
 
@@ -1243,11 +1267,12 @@ function TopBrandSection({
               ]}
             >
               {pageCards.map((card) => (
-                <BrandLogoOfferCard
+                <BrandCard
                   cardHeight={homeLayout.topBrandCardHeight}
                   cardWidth={homeLayout.topBrandCardWidth}
-                  key={card.brand}
+                  key={card.id ?? card.brand}
                   {...card}
+                  size="L"
                 />
               ))}
             </Animated.View>
@@ -1267,57 +1292,133 @@ function TopBrandSection({
   );
 }
 
-function BrandLogoOfferCard({
-  brand,
-  cardHeight,
-  cardWidth,
-  cashback,
-  href,
-  label,
-  logoUri,
-  showGrabCoupon,
-  tint,
-}: TopBrandCardProps & {
-  cardHeight: number;
-  cardWidth: number;
-}) {
+// BrandCard — the shared shop card. Both sizes are conceptually one "Brand Card":
+//   size="L" → the large Top Brands card (coupon chip + heart + 16px headline,
+//              aspect-ratio logo; gains a wider variant once cardWidth >= 200).
+//   size="S" → the small/compact card used in the secondary brand carousels
+//              (fallback-text-or-logo over a fixed logoVisualHeight, 14px headline).
+type BrandCardProps =
+  | (TopBrandCardProps & {
+      readonly size: "L";
+      readonly cardHeight: number;
+      readonly cardWidth: number;
+    })
+  | (CompactBrandLogoOfferCardProps & {
+      readonly size: "S";
+      readonly cardHeight: number;
+      readonly cardWidth: number;
+      readonly logoVisualHeight: number;
+    });
+
+function BrandCard(props: BrandCardProps) {
   const tc = useCopy();
-  const large = cardWidth >= 200;
-  const logoSource = logoUri ? { uri: logoUri } : shopeeLogo;
+  const { brand, cashback, href, tint } = props;
+  const wide = props.size === "L" && props.cardWidth >= 200;
+  // Favorite ("save brand") toggle for the large card's heart button. Local per-card
+  // state mirrors the existing ExploreShopCard pattern — this parity build has no global
+  // favorites store/API yet.
+  const [isFavorite, setIsFavorite] = useState(false);
+  const onToggleFavorite = (event: GestureResponderEvent) => {
+    // The heart sits inside the card's <Link>; stop the press from bubbling so saving a
+    // brand never triggers brand-page navigation.
+    event.stopPropagation?.();
+    event.preventDefault?.();
+    setIsFavorite((previous) => !previous);
+  };
 
   return (
     <Link asChild href={(href ?? brandHref(brand)) as never}>
       <MotionPressable
-        style={StyleSheet.flatten([styles.brandCard, { height: cardHeight, width: cardWidth }])}
+        style={StyleSheet.flatten([
+          props.size === "L" ? styles.brandCard : styles.compactBrandCard,
+          { height: props.cardHeight, width: props.cardWidth },
+        ])}
       >
-        <View style={[styles.brandVisual, { backgroundColor: tint }]}>
-          {showGrabCoupon ? (
-            <View style={styles.couponChip}>
-              <Text style={styles.couponIcon}>🧧</Text>
-              <Text numberOfLines={1} style={styles.couponText}>
-                {label}
-              </Text>
-            </View>
-          ) : null}
-          <View style={styles.heartCircle}>
-            <HeartIcon color={colors.primaryDark} size={21} strokeWidth={2} />
+        {props.size === "L" ? (
+          <View style={[styles.brandVisual, { backgroundColor: tint }]}>
+            {props.showGrabCoupon ? (
+              <View style={styles.couponChip}>
+                <Text style={styles.couponIcon}>🧧</Text>
+                <Text numberOfLines={1} style={styles.couponText}>
+                  {props.label}
+                </Text>
+              </View>
+            ) : null}
+            <Pressable
+              accessibilityLabel={
+                isFavorite
+                  ? `${tc("Remove from saved brands")}: ${brand}`
+                  : `${tc("Save brand")}: ${brand}`
+              }
+              accessibilityRole="button"
+              accessibilityState={{ selected: isFavorite }}
+              hitSlop={8}
+              onPress={onToggleFavorite}
+              style={styles.heartCircle}
+            >
+              <HeartIcon
+                color={colors.danger}
+                fill={isFavorite ? colors.danger : undefined}
+                size={21}
+                strokeWidth={isFavorite ? 0 : 2}
+              />
+            </Pressable>
+            <Image
+              alt={`${brand} logo`}
+              accessibilityLabel={`${brand} logo`}
+              resizeMode="contain"
+              source={props.logoUri ? { uri: props.logoUri } : shopeeLogo}
+              style={styles.brandLogo}
+            />
           </View>
-          <Image
-            alt={`${brand} logo`}
-            accessibilityLabel={`${brand} logo`}
-            resizeMode="contain"
-            source={logoSource}
-            style={styles.brandLogo}
-          />
-        </View>
-        <Text numberOfLines={2} style={[styles.brandName, large ? styles.brandNameLarge : null]}>
+        ) : (
+          <View
+            style={[
+              styles.compactBrandVisual,
+              { backgroundColor: tint, height: props.logoVisualHeight },
+            ]}
+          >
+            {props.logoFallbackText ? (
+              <Text numberOfLines={2} style={styles.compactBrandLogoFallback}>
+                {props.logoFallbackText}
+              </Text>
+            ) : (
+              <Image
+                alt={`${brand} logo`}
+                accessibilityLabel={`${brand} logo`}
+                resizeMode="contain"
+                source={
+                  props.logoUri
+                    ? { uri: props.logoUri }
+                    : props.logoAsset
+                      ? (brandLogoAssets[props.logoAsset] ?? shopeeLogo)
+                      : shopeeLogo
+                }
+                style={styles.compactBrandLogo}
+              />
+            )}
+          </View>
+        )}
+        <Text
+          numberOfLines={1}
+          style={props.size === "L" ? styles.lShopCardTitle : styles.compactBrandName}
+        >
           {brand}
         </Text>
-        <View style={styles.brandCashbackRow}>
-          <Text numberOfLines={1} style={styles.brandCashbackCaption}>
+        <View style={props.size === "L" ? styles.brandCashbackRow : styles.compactCashbackRow}>
+          <Text
+            numberOfLines={1}
+            style={props.size === "L" ? styles.brandCashbackCaption : styles.compactCashbackCaption}
+          >
             {tc("Cashback up to")}
           </Text>
-          <Text style={[styles.brandCashback, large ? styles.brandCashbackLarge : null]}>
+          <Text
+            style={
+              props.size === "L"
+                ? [styles.brandCashback, wide ? styles.brandCashbackLarge : null]
+                : styles.compactCashbackValue
+            }
+          >
             {cashback}
           </Text>
         </View>
@@ -1408,12 +1509,13 @@ function PromoSection({
               ]}
             >
               {pageCards.map((card) => (
-                <CompactBrandLogoOfferCard
+                <BrandCard
                   cardHeight={homeLayout.compactBrandCardHeight}
                   cardWidth={homeLayout.compactBrandCardWidth}
                   logoVisualHeight={homeLayout.compactBrandLogoVisualHeight}
                   key={`${title}-${card.brand}`}
                   {...card}
+                  size="S"
                 />
               ))}
             </Animated.View>
@@ -1432,62 +1534,6 @@ function PromoSection({
         ) : null}
       </View>
     </View>
-  );
-}
-
-function CompactBrandLogoOfferCard(
-  card: CompactBrandLogoOfferCardProps & {
-    cardHeight: number;
-    cardWidth: number;
-    logoVisualHeight: number;
-  }
-) {
-  const tc = useCopy();
-  const logoSource = card.logoUri
-    ? { uri: card.logoUri }
-    : card.logoAsset
-      ? (brandLogoAssets[card.logoAsset] ?? shopeeLogo)
-      : shopeeLogo;
-
-  return (
-    <Link asChild href={(card.href ?? brandHref(card.brand)) as never}>
-      <MotionPressable
-        style={StyleSheet.flatten([
-          styles.compactBrandCard,
-          { height: card.cardHeight, width: card.cardWidth },
-        ])}
-      >
-        <View
-          style={[
-            styles.compactBrandVisual,
-            { backgroundColor: card.tint, height: card.logoVisualHeight },
-          ]}
-        >
-          {card.logoFallbackText ? (
-            <Text numberOfLines={2} style={styles.compactBrandLogoFallback}>
-              {card.logoFallbackText}
-            </Text>
-          ) : (
-            <Image
-              alt={`${card.brand} logo`}
-              accessibilityLabel={`${card.brand} logo`}
-              resizeMode="contain"
-              source={logoSource}
-              style={styles.compactBrandLogo}
-            />
-          )}
-        </View>
-        <Text numberOfLines={1} style={styles.compactBrandName}>
-          {card.brand}
-        </Text>
-        <View style={styles.compactCashbackRow}>
-          <Text numberOfLines={1} style={styles.compactCashbackCaption}>
-            {tc("Cashback up to")}
-          </Text>
-          <Text style={styles.compactCashbackValue}>{card.cashback}</Text>
-        </View>
-      </MotionPressable>
-    </Link>
   );
 }
 
@@ -2168,11 +2214,11 @@ const styles = StyleSheet.create({
     height: "100%",
     flexShrink: 0,
   },
-  mainHeroFrameAspect: {
-    aspectRatio: mobileShellLayout.homeBannerAspectRatio,
-  },
   mainHeroFrameDesktop: {
-    flex: 1.72,
+    // Tuned (~2.07:1) so two 16:9 side banners + the 16px inner gap (which equals the
+    // outer main->side gap) add up to exactly the main banner height at the desktop
+    // content width: mainW = 2*sideW + (16/9)*gap.
+    flex: 2.069,
   },
   sideHeroRow: {
     flexDirection: "row",
@@ -2181,6 +2227,9 @@ const styles = StyleSheet.create({
   sideHeroRowDesktop: {
     flex: 1,
     flexDirection: "column",
+    // Inner gap between the two side banners == the outer main->side gap (both
+    // spacing.md) so the hero spacing reads as one uniform gutter; the tuned main
+    // flex above keeps the column aligned top-and-bottom with the main banner.
     gap: spacing.md,
   },
   sideHeroFrame: {
@@ -2192,33 +2241,19 @@ const styles = StyleSheet.create({
   },
   sideHeroFrameMobile: {
     aspectRatio: mobileShellLayout.homeSideBannerAspectRatio,
-    minHeight: 158,
   },
   sideHeroFrameDesktop: {
+    // Lock each side frame to the 1920x1080 banner ratio so the full banner shows
+    // (no cover-crop); size by aspect ratio rather than filling the column.
+    aspectRatio: mobileShellLayout.homeSideBannerAspectRatio,
+    flexBasis: "auto",
+    flexGrow: 0,
+    flexShrink: 0,
     minHeight: 0,
   },
   heroImage: {
     height: "100%",
     width: "100%",
-  },
-  heroArrow: {
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.88)",
-    borderRadius: radii.chip,
-    justifyContent: "center",
-    position: "absolute",
-  },
-  heroArrowLarge: {
-    bottom: spacing.md,
-    height: 48,
-    right: spacing.md,
-    width: 48,
-  },
-  heroArrowSmall: {
-    bottom: spacing.sm,
-    height: 36,
-    right: spacing.sm,
-    width: 36,
   },
   heroDots: {
     alignItems: "center",
@@ -2244,7 +2279,7 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     flexDirection: "row",
     gap: 48,
-    minHeight: 265,
+    minHeight: 240,
     overflow: "hidden",
     paddingHorizontal: 32,
     paddingVertical: 36,
@@ -2281,29 +2316,114 @@ const styles = StyleSheet.create({
     zIndex: 3,
   },
   desktopGoLinkIllustrationWrap: {
+    // Frosted disc holding the link glyph + GO badge (matches the approved preview).
+    alignItems: "center",
+    alignSelf: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.78)",
+    borderColor: "rgba(255, 255, 255, 0.9)",
+    borderRadius: 54,
+    borderWidth: 1,
     flexShrink: 0,
-    height: 190,
-    maxWidth: 420,
-    width: "32%",
+    height: 108,
+    justifyContent: "center",
+    position: "relative",
+    width: 108,
     zIndex: 1,
+    boxShadow: "0 18px 32px -14px rgba(6, 78, 59, 0.45)",
   },
-  desktopGoLinkIllustration: {
-    height: "100%",
-    width: "100%",
+  desktopGoLinkGoBadge: {
+    alignItems: "center",
+    backgroundColor: colors.primary,
+    borderColor: colors.white,
+    borderRadius: 21,
+    borderWidth: 3,
+    bottom: -6,
+    height: 42,
+    justifyContent: "center",
+    position: "absolute",
+    right: -6,
+    width: 42,
+    boxShadow: "0 8px 18px -6px rgba(0, 204, 153, 0.7)",
+  },
+  desktopGoLinkGoBadgeText: {
+    color: colors.white,
+    fontFamily: typography.family,
+    fontSize: 13,
+    fontWeight: "800",
+    letterSpacing: 0.5,
   },
   desktopGoLinkForm: {
     flex: 1,
-    gap: 22,
+    gap: 16,
     minWidth: 0,
     paddingRight: 28,
     zIndex: 1,
   },
-  desktopGoLinkTitle: {
+  desktopGoLinkEyebrow: {
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(255, 255, 255, 0.6)",
+    borderRadius: 999,
+    paddingHorizontal: 11,
+    paddingVertical: 4,
+  },
+  desktopGoLinkEyebrowText: {
     color: "#0A5C4A",
     fontFamily: typography.family,
-    fontSize: 32,
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1.3,
+    textTransform: "uppercase",
+  },
+  desktopGoLinkTitle: {
+    color: "#14252B",
+    fontFamily: typography.family,
+    fontSize: 26,
+    fontWeight: "700",
+    lineHeight: 32,
+  },
+  desktopGoLinkSteps: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  desktopGoLinkStep: {
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.6)",
+    borderColor: "rgba(255, 255, 255, 0.75)",
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 7,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  desktopGoLinkStepNum: {
+    alignItems: "center",
+    backgroundColor: colors.primary,
+    borderRadius: 9,
+    height: 18,
+    justifyContent: "center",
+    width: 18,
+  },
+  desktopGoLinkStepNumText: {
+    color: colors.white,
+    fontFamily: typography.family,
+    fontSize: 10,
+    fontWeight: "700",
+    lineHeight: 12,
+  },
+  desktopGoLinkStepText: {
+    color: "#0A5C4A",
+    fontFamily: typography.family,
+    fontSize: 13,
     fontWeight: "600",
-    lineHeight: 38,
+  },
+  desktopGoLinkStepArrow: {
+    color: "rgba(10, 92, 74, 0.45)",
+    fontFamily: typography.family,
+    fontSize: 16,
+    fontWeight: "700",
   },
   desktopGoLinkControls: {
     alignItems: "stretch",
@@ -2368,11 +2488,10 @@ const styles = StyleSheet.create({
     gap: mobileShellLayout.homePromoSectionGap,
   },
   sectionHeader: {
-    alignItems: "flex-start",
+    alignItems: "center",
     flexDirection: "row",
     gap: spacing.sm,
     justifyContent: "space-between",
-    minHeight: mobileShellLayout.homeSectionHeaderHeight,
   },
   titleRow: {
     alignItems: "center",
@@ -2490,11 +2609,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "rgba(255,255,255,0.92)",
     borderRadius: radii.chip,
+    bottom: 8,
     height: 34,
     justifyContent: "center",
     position: "absolute",
     right: 8,
-    top: 8,
     width: 34,
     zIndex: 2,
   },
@@ -2502,24 +2621,23 @@ const styles = StyleSheet.create({
     height: "62%",
     width: "72%",
   },
-  brandName: {
+  // BrandCard size="L" headline (Top Brands shop card) — 16px per design.
+  lShopCardTitle: {
     color: colors.ink,
     fontFamily: typography.family,
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: typography.labelWeight,
-    lineHeight: 17.5,
-    marginTop: spacing.sm,
-    minHeight: 35,
-  },
-  brandNameLarge: {
-    fontSize: 14,
+    lineHeight: 20,
+    marginTop: spacing.xs,
   },
   brandCashbackRow: {
     alignItems: "baseline",
     flexDirection: "row",
     gap: spacing.sm,
     justifyContent: "space-between",
-    marginTop: "auto",
+    // 6px gap below the title (card is fixed-height/full; pairs with the 6px
+    // logo->title margin for a uniform rhythm without crowding the bottom edge).
+    marginTop: spacing.xs,
   },
   brandCashbackCaption: {
     color: colors.textSoft,
@@ -2531,12 +2649,13 @@ const styles = StyleSheet.create({
   brandCashback: {
     color: colors.primaryDark,
     fontFamily: typography.family,
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: "700",
-    lineHeight: 18,
+    lineHeight: 22,
   },
   brandCashbackLarge: {
-    fontSize: 20,
+    fontSize: 24,
+    lineHeight: 24,
   },
   compactBrandGrid: {
     flexDirection: "row",
@@ -2593,12 +2712,15 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     width: "72%",
   },
+  // BrandCard size="S" headline (compact shop card) — 14px.
   compactBrandName: {
     color: colors.ink,
     fontFamily: typography.family,
-    fontSize: typography.caption,
+    fontSize: 14,
     fontWeight: typography.labelWeight,
-    lineHeight: 15,
+    lineHeight: 17.5,
+    // Stacks on top of the card's 4px gap → 6px logo→title gap per design.
+    marginTop: 2,
   },
   compactCashbackRow: {
     alignItems: "baseline",
@@ -2608,7 +2730,6 @@ const styles = StyleSheet.create({
   },
   compactCashbackCaption: {
     color: colors.textSoft,
-    flex: 1,
     fontFamily: typography.family,
     fontSize: 10,
     fontWeight: typography.bodyWeight,

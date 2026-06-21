@@ -29,6 +29,7 @@ import PhCaretUp from "phosphor-react-native/lib/module/icons/CaretUp";
 import PhChatCircle from "phosphor-react-native/lib/module/icons/ChatCircle";
 import PhCheck from "phosphor-react-native/lib/module/icons/Check";
 import PhCheckCircle from "phosphor-react-native/lib/module/icons/CheckCircle";
+import PhClipboardText from "phosphor-react-native/lib/module/icons/ClipboardText";
 import PhClock from "phosphor-react-native/lib/module/icons/Clock";
 import PhCloud from "phosphor-react-native/lib/module/icons/Cloud";
 import PhCoins from "phosphor-react-native/lib/module/icons/Coins";
@@ -147,6 +148,7 @@ export const CalendarDays: IconComponent = adapt(PhCalendarBlank, "CalendarDays"
 export const Camera: IconComponent = adapt(PhCamera, "Camera");
 export const Check: IconComponent = adapt(PhCheck, "Check");
 export const CheckCircle: IconComponent = adapt(PhCheckCircle, "CheckCircle");
+export const ClipboardText: IconComponent = adapt(PhClipboardText, "ClipboardText");
 export const CheckCircle2: IconComponent = adapt(PhCheckCircle, "CheckCircle2");
 export const ChevronDown: IconComponent = adapt(PhCaretDown, "ChevronDown");
 export const ChevronLeft: IconComponent = adapt(PhCaretLeft, "ChevronLeft");
