@@ -6,12 +6,37 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
+    // Pin esModuleInterop ON explicitly (it's TS 6.0's default, but make it
+    // version-independent): the default imports of CJS callables (cookie-parser,
+    // supertest) only emit the __importDefault helper — and stay callable at
+    // runtime — when this is true. Without it, a build that happened to transpile
+    // under TS 5.9 (esModuleInterop:false) would emit require("cookie-parser").default
+    // (undefined) and crash `app.use(cookieParser())` in the boot smoke.
+    "esModuleInterop": true,
     "target": "ES2021",
     "sourceMap": true,
     "outDir": "./dist",
     "baseUrl": "./",
     "incremental": true,
     "skipLibCheck": true,
+    // TS 6.0 flipped several defaults; the next three preserve the TS 5.9
+    // behavior this project was written under (see UPGRADE_PLAN Tier 1 #2):
+    //  - strict:false  — 6.0 defaults strict:true, which would newly enable
+    //    strictPropertyInitialization (breaks Mongoose @Prop fields) and
+    //    useUnknownInCatchVariables (breaks every catch(e)). Keep it off here;
+    //    tightening strictness is a separate, intentional effort.
+    //  - types — 6.0 dropped auto-include of node_modules/@types, so every
+    //    package contributing GLOBAL ambients/augmentations must be listed:
+    //    node (process/Buffer), jest (describe/it/expect), express (the base
+    //    global Express namespace), multer (Express.Multer.File — used in the
+    //    upload controllers), passport (Express.Request.user). Modules that are
+    //    imported by name don't need listing; only globals do.
+    //  - ignoreDeprecations:"6.0" — bridges baseUrl + the node10
+    //    moduleResolution default, both deprecated-to-error in 6.0 (hard
+    //    removal in 7.0). Matches apps/app.
+    "strict": false,
+    "types": ["node", "jest", "express", "multer", "passport"],
+    "ignoreDeprecations": "6.0",
     "strictNullChecks": false,
     "noImplicitAny": false,
     "strictBindCallApply": false,

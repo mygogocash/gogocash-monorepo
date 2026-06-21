@@ -18,6 +18,13 @@ export class ConsentData {
 }
 @Schema({ timestamps: true })
 export class User {
+  // P1-TX: monotonic counter bumped inside the withdraw transaction. It exists
+  // only to create write contention on this doc so two concurrent withdrawals
+  // for the same user serialize (the loser hits a WriteConflict + retries +
+  // re-checks the balance) — closing the balance-read/insert TOCTOU.
+  @Prop({ type: Number, required: false, default: 0 })
+  withdraw_lock_seq: number;
+
   @Prop({ required: false, unique: false, default: '' })
   address: string;
 
@@ -126,6 +133,5 @@ export class User {
   @Prop()
   consent?: ConsentData;
 }
-
 
 export const UserSchema = SchemaFactory.createForClass(User);

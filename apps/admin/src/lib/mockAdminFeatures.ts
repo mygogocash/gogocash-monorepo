@@ -645,7 +645,7 @@ export function tryMockAdminFeaturesRequest(
     if (m === "GET" && path[2] && path[2] !== "config") {
       const uid = path[2];
       const row = creditScoreRows.find((x) => x.userId === uid);
-      return row ? ok(row) : jsonErr(404, { message: "User not found" });
+      return row ? ok(row) : ok(null);
     }
     if (m === "PUT" && path[3] === "override" && path[2]) {
       const uid = path[2];

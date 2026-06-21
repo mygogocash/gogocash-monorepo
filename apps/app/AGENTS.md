@@ -1,8 +1,8 @@
 # AGENTS.md — GoGoCash Mobile (@gogocash/mobile)
 
-Concise guidance for AI coding agents and contributors working in `apps/mobile/`. **Dev/build basics live in [README.md](./README.md); deeper plans in `FRONTEND_PARITY_PLAN.md` and `MIGRATION_PLAN.md`.**
+Concise guidance for AI coding agents and contributors working in `apps/app/`. **Dev/build basics live in [README.md](./README.md); deeper plans in `FRONTEND_PARITY_PLAN.md` and `MIGRATION_PLAN.md`.**
 
-> This is a **separate npm project** from the web root (`gogocash-web`). Run mobile commands from `apps/mobile/` (or via the root `npm run mobile:*` proxies). The web app (`../../src`) is the **design + behavior source of truth** — this app is a react-native-web parity port of it.
+> This is the `apps/app` workspace (package `@gogocash/mobile`) in the Turborepo monorepo. Run commands with `npm --prefix apps/app run <script>` (or `npm run <script> -w @gogocash/mobile`). The Next.js customer app is the **design + behavior source of truth** — this app is a react-native-web parity port of it.
 
 ## Project
 
@@ -25,16 +25,17 @@ Concise guidance for AI coding agents and contributors working in `apps/mobile/`
 | Web-parity copy + fixtures    | `src/design/webDesignParity.ts`                                                                                |
 | Navigation model              | `src/navigation/routes.ts` (`mobileParityRoutes` + `requiresAuth`), `src/navigation/profileSectionNav.ts`     |
 | Shared UI                     | `src/components/MotionPressable.tsx`, `KeyboardAwareScreen.tsx`, `Toast.tsx`, `Skeleton.tsx`                   |
+| GoGoSense (Android detection) | `src/gogosense/*` (detector → session → hooks), `src/screens/CustomerGoGoSenseScreen.tsx`, native `modules/gogosense-detector/`. **Inject the live `gogosenseDetector` from the route, never import `detectorInstance` in the screen** — it pulls `expo-modules-core`, which crashes the happy-dom render harness. Data hooks resolve `null` off-device → static fallback. See [README.md#gogosense--android-cashback-detection](README.md). |
 
 ## Commands — the three gates (verify before claiming done)
 
 ```bash
-npm test               # node logic + source-parity suite (*.test.ts, vitest.config.ts)
-npm run test:render    # happy-dom render suite (*.render.test.tsx, vitest.render.config.ts)
-npm run typecheck      # tsc --noEmit
+npm --prefix apps/app run test           # node logic + source-parity suite (*.test.ts, vitest.config.ts)
+npm --prefix apps/app run test:render    # happy-dom render suite (*.render.test.tsx, vitest.render.config.ts)
+npm --prefix apps/app run typecheck      # tsc --noEmit
 ```
 
-- `npm run test:full` chains all gates + a web export. `npm run web` runs the Expo web build (the live-verify surface). From the repo root use `npm run mobile:test` / `mobile:typecheck`.
+- `npm --prefix apps/app run test:full` chains all gates + a web export. `npm --prefix apps/app run web` runs the Expo web build (the live-verify surface). From the repo root, `turbo run test --filter=@gogocash/mobile` runs the suite through Turborepo.
 - **"Done" = all three gates green AND, for visual/interaction changes, live-verified on Expo web.** Typecheck/lint alone is not sufficient for UI.
 
 ## Testing conventions
@@ -70,4 +71,4 @@ Guarded by `src/__tests__/web-style-deprecation-parity.test.ts` and `src/__tests
 - **Auth: demo stub on screen, real plumbing built.** The login screen still verifies a fixed demo code and writes a demo session (`useAuthGuardSession` flips `isAuthed` reactively via `notifyMobileSessionChange`). Real Firebase phone-auth modules exist and are unit-tested (`src/auth/firebaseClient.ts`, `firebasePhoneAuth.ts`, `firebaseLogin.ts` — project `gogocash-staging`, phone provider enabled); wiring them into `CustomerAuthScreen` is the open task ([docs/api-integration.md](./docs/api-integration.md) §5).
 - Commit/push only when asked; keep changes scoped to your task (a parallel desktop-parity effort may have other files uncommitted — do not stage files you did not change).
 
-When in doubt, search `apps/mobile/src` for an existing pattern before introducing a new abstraction.
+When in doubt, search `apps/app/src` for an existing pattern before introducing a new abstraction.

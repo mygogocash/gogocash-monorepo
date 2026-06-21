@@ -10,7 +10,7 @@ import { BANNER_ADMIN_SURFACES } from "@/lib/bannerAdminSurfaces";
 import { getBannerSlotRowFields, getBannerTableStatusCell } from "@/lib/bannerSlotStatus";
 import NoData from "@/components/common/NoData";
 import { pathImage } from "@/utils/helper";
-import type { BannerData, BannerRequestForm, BannerTableVariant } from "@/types/banner";
+import { type BannerData, type BannerRequestForm, type BannerTableVariant } from "@/types/banner";
 
 export type { BannerTableVariant } from "@/types/banner";
 
@@ -90,9 +90,26 @@ export default function BannerTable({ variant = "home" }: BannerTableProps) {
     link_3: "",
     link_4: "",
     link_5: "",
-    start_date: "",
-    end_date: "",
-    end_forever: true,
+    enabled_1: true,
+    enabled_2: true,
+    enabled_3: true,
+    enabled_4: true,
+    enabled_5: true,
+    start_date_1: "",
+    start_date_2: "",
+    start_date_3: "",
+    start_date_4: "",
+    start_date_5: "",
+    end_date_1: "",
+    end_date_2: "",
+    end_date_3: "",
+    end_date_4: "",
+    end_date_5: "",
+    end_forever_1: true,
+    end_forever_2: true,
+    end_forever_3: true,
+    end_forever_4: true,
+    end_forever_5: true,
     id: "",
   });
 
@@ -138,8 +155,6 @@ export default function BannerTable({ variant = "home" }: BannerTableProps) {
     setOpenActionsId(null);
     setOpenModal(true);
     setForm(() => {
-      const endRaw = bannerData.end_date ?? "";
-      const hasEnd = Boolean(String(endRaw).trim());
       return {
         image_1: bannerData.image_1 || null,
         image_2: bannerData.image_2 || null,
@@ -151,10 +166,32 @@ export default function BannerTable({ variant = "home" }: BannerTableProps) {
         link_3: bannerData.link_3 || "",
         link_4: bannerData.link_4 || "",
         link_5: bannerData.link_5 || "",
-        start_date: bannerData.start_date ?? "",
-        end_date: hasEnd ? String(endRaw) : "",
-        end_forever: !hasEnd,
-        id: slot.toString(),
+        enabled_1:
+          typeof bannerData.enabled_1 === "boolean" ? bannerData.enabled_1 : true,
+        enabled_2:
+          typeof bannerData.enabled_2 === "boolean" ? bannerData.enabled_2 : true,
+        enabled_3:
+          typeof bannerData.enabled_3 === "boolean" ? bannerData.enabled_3 : true,
+        enabled_4:
+          typeof bannerData.enabled_4 === "boolean" ? bannerData.enabled_4 : true,
+        enabled_5:
+          typeof bannerData.enabled_5 === "boolean" ? bannerData.enabled_5 : true,
+        start_date_1: bannerData.start_date_1 || "",
+        start_date_2: bannerData.start_date_2 || "",
+        start_date_3: bannerData.start_date_3 || "",
+        start_date_4: bannerData.start_date_4 || "",
+        start_date_5: bannerData.start_date_5 || "",
+        end_date_1: bannerData.end_date_1 || "",
+        end_date_2: bannerData.end_date_2 || "",
+        end_date_3: bannerData.end_date_3 || "",
+        end_date_4: bannerData.end_date_4 || "",
+        end_date_5: bannerData.end_date_5 || "",
+        end_forever_1: !Boolean(String(bannerData.end_date_1 || "").trim()),
+        end_forever_2: !Boolean(String(bannerData.end_date_2 || "").trim()),
+        end_forever_3: !Boolean(String(bannerData.end_date_3 || "").trim()),
+        end_forever_4: !Boolean(String(bannerData.end_date_4 || "").trim()),
+        end_forever_5: !Boolean(String(bannerData.end_date_5 || "").trim()),
+        id: String(slot),
       };
     });
   };
@@ -267,15 +304,17 @@ export default function BannerTable({ variant = "home" }: BannerTableProps) {
                     </tr>
                   ) : (
                   visibleSlots.map((item) => {
-                    const { imageId, link, hasSlotContent } = getBannerSlotRowFields(bannerData, item);
+                    const { imageId, link, hasSlotContent, enabled, startDate, endDate } =
+                      getBannerSlotRowFields(bannerData, item);
                     const imageSrc = imageId
                       ? pathImage(imageId) ||
                         `https://placehold.co/96x96.png/e2e8f0/64748b?text=Banner+${item}`
                       : null;
                     const statusCell = getBannerTableStatusCell({
                       hasSlotContent,
-                      start_date: bannerData?.start_date,
-                      end_date: bannerData?.end_date,
+                      enabled,
+                      start_date: startDate,
+                      end_date: endDate,
                     });
                     const actionKey = rowActionKey(item);
 

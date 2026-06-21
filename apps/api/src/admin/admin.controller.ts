@@ -1,4 +1,3 @@
-/* eslint-disable prettier/prettier */
 import {
   Controller,
   Get,
@@ -59,6 +58,106 @@ const adminAuthValidation = new ValidationPipe({
   transform: true,
   whitelist: true,
 });
+
+function coerceOptionalBoolean(value: unknown): boolean | undefined {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true' || normalized === '1') return true;
+    if (normalized === 'false' || normalized === '0') return false;
+  }
+  return undefined;
+}
+
+function coerceOptionalNumber(value: unknown): number | undefined {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : undefined;
+  }
+  if (typeof value === 'string') {
+    const normalized = value.trim();
+    if (!normalized || normalized === 'undefined') return undefined;
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+}
+
+type AdminRoleDef = {
+  id: string;
+  label: string;
+  description: string;
+  system: boolean;
+  permissions: string[];
+};
+
+const ADMIN_ROLE_PERMISSIONS = [
+  'dashboard',
+  'users',
+  'adminUsers',
+  'brands',
+  'withdraw',
+  'fee',
+  'conversion',
+  'banner',
+  'coupon',
+  'quest',
+] as const;
+
+const allViewPermissions = ADMIN_ROLE_PERMISSIONS.map(
+  (resource) => `${resource}:view`,
+);
+const allManagePermissions = ADMIN_ROLE_PERMISSIONS.map(
+  (resource) => `${resource}:manage`,
+);
+
+const builtInAdminRoles: AdminRoleDef[] = [
+  {
+    id: 'super_admin',
+    label: 'Super Admin',
+    description: 'Full access, including managing admin users and roles.',
+    system: true,
+    permissions: [
+      ...allViewPermissions,
+      ...allManagePermissions,
+      'withdraw:approve',
+    ],
+  },
+  {
+    id: 'admin',
+    label: 'Admin',
+    description: 'Full operational access; cannot manage admin users.',
+    system: true,
+    permissions: [
+      ...allViewPermissions,
+      ...allManagePermissions.filter(
+        (permission) => permission !== 'adminUsers:manage',
+      ),
+      'withdraw:approve',
+    ],
+  },
+  {
+    id: 'editor',
+    label: 'Editor',
+    description:
+      'Manage content (brands, banners, coupons, quests, conversions); read the rest.',
+    system: true,
+    permissions: [
+      ...allViewPermissions,
+      'brands:manage',
+      'banner:manage',
+      'coupon:manage',
+      'quest:manage',
+      'conversion:manage',
+    ],
+  },
+  {
+    id: 'viewer',
+    label: 'Viewer',
+    description: 'Read-only access to everything.',
+    system: true,
+    permissions: allViewPermissions,
+  },
+];
 
 // Admin auth is enforced at the CLASS level so every route fails closed by
 // default; genuinely public routes opt out explicitly with @Public(). This is
@@ -136,6 +235,19 @@ export class AdminController {
   @UseGuards(AuthAdminGuard)
   @ApiSecurity('access-token')
   @ApiBearerAuth()
+  @Get('roles')
+  getRoles() {
+    return {
+      data: builtInAdminRoles.map((role) => ({
+        ...role,
+        permissions: [...role.permissions],
+      })),
+    };
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
   @Get('created-conversions')
   getCreatedConversions(
     @Query('limit') limit?: number,
@@ -162,8 +274,10 @@ export class AdminController {
   // so it must not be reachable by a read-only viewer.
   @Roles('approver')
   @Put('top-brands')
-  saveTopBrands(@Body() body: { order: string[] }) {
-    return this.adminService.saveTopBrands(body.order);
+  saveTopBrands(
+    @Body() body: { brands: { offerId: string; cashback: string }[] },
+  ) {
+    return this.adminService.saveTopBrands(body.brands);
   }
 
   // Creating an admin account is a superadmin action (parallels the gated
@@ -223,7 +337,13 @@ export class AdminController {
     @Query('status') status?: string,
     @Query('key') key?: string,
   ) {
-    return this.adminService.getConversionAll(Number(page), Number(limit), search, key, status);
+    return this.adminService.getConversionAll(
+      Number(page),
+      Number(limit),
+      search,
+      key,
+      status,
+    );
   }
 
   @UseGuards(AuthAdminGuard)
@@ -327,7 +447,14 @@ export class AdminController {
   updateOffer(
     @Param('id') id: string,
     @Body() updateAdminDto: UpdateOfferAdminDto,
-    @UploadedFiles() files: { banner_mobile?: Express.Multer.File[], logo_desktop?: Express.Multer.File[], logo_mobile?: Express.Multer.File[], banner?: Express.Multer.File[], logo_circle?: Express.Multer.File[] }
+    @UploadedFiles()
+    files: {
+      banner_mobile?: Express.Multer.File[];
+      logo_desktop?: Express.Multer.File[];
+      logo_mobile?: Express.Multer.File[];
+      banner?: Express.Multer.File[];
+      logo_circle?: Express.Multer.File[];
+    },
   ) {
     return this.adminService.updateOffer(id, {
       logo_desktop: files?.logo_desktop ? files?.logo_desktop?.[0] : null,
@@ -336,14 +463,18 @@ export class AdminController {
       banner_mobile: files?.banner_mobile ? files?.banner_mobile?.[0] : null,
       logo_circle: files?.logo_circle ? files?.logo_circle?.[0] : null,
       offer_name_display: updateAdminDto.offer_name_display,
-      disabled: updateAdminDto?.disabled?.toString() == "true" ? true : false,
-      commission_store: updateAdminDto.commission_store && updateAdminDto.commission_store.toString() !== "undefined" ? updateAdminDto.commission_store : null,
-      max_cap: updateAdminDto.max_cap && updateAdminDto.max_cap.toString() !== "undefined" ? updateAdminDto.max_cap : null,
-      extra_store: updateAdminDto.extra_store === "true" ? true : false,
+      disabled: coerceOptionalBoolean(updateAdminDto?.disabled),
+      commission_store: coerceOptionalNumber(updateAdminDto.commission_store),
+      max_cap: coerceOptionalNumber(updateAdminDto.max_cap),
+      extra_store: coerceOptionalBoolean(updateAdminDto.extra_store),
+      tracking_link:
+        updateAdminDto.tracking_link &&
+        updateAdminDto.tracking_link.toString() !== 'undefined'
+          ? updateAdminDto.tracking_link
+          : undefined,
       product_type: updateAdminDto.product_type,
     });
   }
-
 
   @UseGuards(AuthAdminGuard)
   @ApiSecurity('access-token')
@@ -377,11 +508,7 @@ export class AdminController {
     return this.adminService.rejectOffer(id, adminId, body.reason);
   }
 
-  @UseInterceptors(
-    FileFieldsInterceptor([
-      { name: 'image', maxCount: 1 },
-    ]),
-  )
+  @UseInterceptors(FileFieldsInterceptor([{ name: 'image', maxCount: 1 }]))
   @UseGuards(AuthAdminGuard)
   @ApiSecurity('access-token')
   @ApiBearerAuth()
@@ -389,7 +516,7 @@ export class AdminController {
   @Patch('update-category/:id')
   updateCategory(
     @Param('id') id: string,
-    @UploadedFiles() files: { image?: Express.Multer.File[] }
+    @UploadedFiles() files: { image?: Express.Multer.File[] },
   ) {
     return this.adminService.updateCategory(id, {
       image: files?.image ? files?.image?.[0] : null,
@@ -402,10 +529,7 @@ export class AdminController {
   @ApiBody({ type: UpdateUserDto })
   @Roles('superadmin')
   @Post('update-user/:id')
-  updateUser(
-    @Param('id') id: string,
-    @Body() updateUserDto: UpdateUserDto,
-  ) {
+  updateUser(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
     return this.adminService.updateUser(id, updateUserDto?.mobile);
   }
 
@@ -414,9 +538,7 @@ export class AdminController {
   @ApiBearerAuth() // This directly applies Bearer authentication
   @ApiBody({ type: UpdateUserDto })
   @Get('get-mycashback-user/:id')
-  viewMyCahsback(
-    @Param('id') id: string,
-  ) {
+  viewMyCahsback(@Param('id') id: string) {
     return this.adminService.getMyCashBackUser(id);
   }
 
@@ -436,20 +558,42 @@ export class AdminController {
   @Roles('superadmin')
   @Post('banner-home')
   updateBannerHome(
-    @UploadedFiles() files: { image_1?: Express.Multer.File[], image_2?: Express.Multer.File[], image_3?: Express.Multer.File[], image_4?: Express.Multer.File[], image_5 ?: Express.Multer.File[] },
+    @UploadedFiles()
+    files: {
+      image_1?: Express.Multer.File[];
+      image_2?: Express.Multer.File[];
+      image_3?: Express.Multer.File[];
+      image_4?: Express.Multer.File[];
+      image_5?: Express.Multer.File[];
+    },
     @Body() body: UpdateBannerHomeDto,
   ) {
     const filesDto: UpdateBannerHomeDto = {
-      image_1: files?.image_1 ? files?.image_1?.[0] as any : null,
-      image_2: files?.image_2 ? files?.image_2?.[0] as any : null,
-      image_3: files?.image_3 ? files?.image_3?.[0] as any : null,
-      image_4: files?.image_4 ? files?.image_4?.[0] as any : null,
-      image_5: files?.image_5 ? files?.image_5?.[0] as any : null,
-      link_1: body.link_1 ? body.link_1 : null,
-      link_2: body.link_2 ? body.link_2 : null,
-      link_3: body.link_3 ? body.link_3 : null,
-      link_4: body.link_4 ? body.link_4 : null,
-      link_5: body.link_5 ? body.link_5 : null,
+      image_1: files?.image_1 ? (files?.image_1?.[0] as any) : null,
+      image_2: files?.image_2 ? (files?.image_2?.[0] as any) : null,
+      image_3: files?.image_3 ? (files?.image_3?.[0] as any) : null,
+      image_4: files?.image_4 ? (files?.image_4?.[0] as any) : null,
+      image_5: files?.image_5 ? (files?.image_5?.[0] as any) : null,
+      link_1: body.link_1 ?? null,
+      link_2: body.link_2 ?? null,
+      link_3: body.link_3 ?? null,
+      link_4: body.link_4 ?? null,
+      link_5: body.link_5 ?? null,
+      enabled_1: coerceOptionalBoolean(body.enabled_1),
+      enabled_2: coerceOptionalBoolean(body.enabled_2),
+      enabled_3: coerceOptionalBoolean(body.enabled_3),
+      enabled_4: coerceOptionalBoolean(body.enabled_4),
+      enabled_5: coerceOptionalBoolean(body.enabled_5),
+      start_date_1: body.start_date_1,
+      start_date_2: body.start_date_2,
+      start_date_3: body.start_date_3,
+      start_date_4: body.start_date_4,
+      start_date_5: body.start_date_5,
+      end_date_1: body.end_date_1,
+      end_date_2: body.end_date_2,
+      end_date_3: body.end_date_3,
+      end_date_4: body.end_date_4,
+      end_date_5: body.end_date_5,
     };
     return this.adminService.updateBannerHome(filesDto);
   }

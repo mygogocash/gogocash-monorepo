@@ -90,8 +90,20 @@ describe("desktop route shell parity", () => {
   it("account shell footer offset > given the capped + padded shell frame > then it passes a computed offset to the footer slot", () => {
     const shell = readMobileFile("src/components/AccountPageShell.tsx");
 
+    expect(shell, "shell should put non-rail desktop pages on the homepage footer path").toContain(
+      "const useDesktopHomepageFooter = isDesktop && !showDesktopRail"
+    );
     expect(shell, "shell should compute the footer offset from frame metrics").toContain(
       "getAccountShellFooterHorizontalPadding"
+    );
+    expect(shell, "shell should pass rail alignment to the footer offset helper").toContain(
+      "alignToNavbarShell: showDesktopRail"
+    );
+    expect(shell, "shell should use the same desktop footer offset as the homepage").toContain(
+      "getDesktopShellOffset(width)"
+    );
+    expect(shell, "shell should render the homepage footer element for desktop non-rail pages").toContain(
+      "<CustomerDesktopFooter"
     );
     expect(shell, "shell should pass the computed offset to the footer slot").toContain(
       "horizontalPadding={footerHorizontalPadding}"
@@ -164,6 +176,12 @@ describe("desktop route shell parity", () => {
     expect(header).not.toContain(
       "item.active ? <View style={styles.desktopCategoryUnderline} /> : null"
     );
+  });
+
+  it("desktop header search > given the shared navbar search field > then it has a stable web id for accessibility tooling", () => {
+    const header = readMobileFile("src/components/CustomerDesktopHeader.tsx");
+
+    expect(header).toContain('nativeID="desktop-header-search-input"');
   });
 
   it("desktop brand logo > given navbar and footer brand links > then both use the shared navbar logo treatment", () => {

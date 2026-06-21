@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-n
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
+import { TabletFrame } from "@mobile/components/TabletFrame";
 import { CustomerCookieConsentBanner } from "@mobile/components/CustomerCookieConsentBanner";
 import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
 import { CustomerDesktopHeader } from "@mobile/components/CustomerDesktopHeader";
@@ -70,7 +71,9 @@ export function CustomerPrivacyPolicyScreen() {
           ]}
           showsVerticalScrollIndicator={false}
         >
-          <PrivacyPolicyArticle isDesktop={isDesktop} />
+          <TabletFrame>
+            <PrivacyPolicyArticle isDesktop={isDesktop} />
+          </TabletFrame>
           {isDesktop ? (
             <View style={styles.desktopFooter}>
               <CustomerDesktopFooter horizontalPadding={0} viewportWidth={width} />

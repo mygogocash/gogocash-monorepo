@@ -6,7 +6,10 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from './roles.decorator';
-import { AdminRole, roleHasAccess } from './user-admin/schemas/user-admin.schema';
+import {
+  AdminRole,
+  roleHasAccess,
+} from './user-admin/schemas/user-admin.schema';
 
 /**
  * Enforces minimum-role on admin routes that declare `@Roles(...)`. Routes

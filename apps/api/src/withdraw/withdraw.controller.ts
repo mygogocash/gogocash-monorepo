@@ -152,6 +152,21 @@ export class WithdrawController {
     return this.withdrawService.markWithdrawPaid(id, body, adminId);
   }
 
+  /**
+   * Admin action (V-2b): approve a pending withdrawal (confirm on-chain
+   * settlement). Replaces the removed client-tx_hash -> 'approved' self-promotion
+   * in POST /withdraw.
+   */
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Patch(':id/approve')
+  approveWithdraw(@Req() req: Request, @Param('id') id: string) {
+    const admin = req['user'] as { sub?: string } | undefined;
+    const adminId = admin?.sub ?? 'unknown';
+    return this.withdrawService.approveWithdrawRequest(id, adminId);
+  }
+
   @UseGuards(FirebaseAuthGuard)
   @ApiBody({ type: CreateWithdrawMethod })
   @ApiSecurity('access-token') // Apply the security scheme defined globally
@@ -260,8 +275,11 @@ export class WithdrawController {
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth()
   @Get('methods/:id')
-  getMethodId(@Param('id') id: string) {
-    return this.withdrawService.getMethodId(id);
+  getMethodId(@Param('id') id: string, @Req() req: Request) {
+    // V-3 IDOR: scope to the authenticated caller so a member can only read
+    // their own saved payout method (was readable for ANY method ObjectId).
+    const userId = (req.user as { sub?: string } | undefined)?.sub;
+    return this.withdrawService.getMethodId(id, userId);
   }
 
   @UseGuards(FirebaseAuthGuard)
@@ -279,8 +297,11 @@ export class WithdrawController {
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth()
   @Delete('methods/:id')
-  deleteMethodData(@Param('id') id: string) {
-    return this.withdrawService.deleteMethodData(id);
+  deleteMethodData(@Param('id') id: string, @Req() req: Request) {
+    // V-3 IDOR: scope to the authenticated caller so a member cannot delete
+    // another user's saved payout method by guessing its _id.
+    const userId = (req.user as { sub?: string } | undefined)?.sub;
+    return this.withdrawService.deleteMethodData(id, userId);
   }
 
   @UseGuards(FirebaseAuthGuard)
@@ -291,8 +312,12 @@ export class WithdrawController {
   updateMethodData(
     @Param('id') id: string,
     @Body() body: CreateWithdrawMethod,
+    @Req() req: Request,
   ) {
-    return this.withdrawService.updateMethodData(id, body);
+    // V-3 IDOR: scope to the authenticated caller so a member cannot overwrite
+    // another user's bank details (payout redirect) by guessing its _id.
+    const userId = (req.user as { sub?: string } | undefined)?.sub;
+    return this.withdrawService.updateMethodData(id, userId, body);
   }
 
   // @Get(':id')

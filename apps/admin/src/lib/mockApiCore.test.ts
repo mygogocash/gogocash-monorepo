@@ -34,6 +34,196 @@ describe("pagination clamping", () => {
   });
 });
 
+describe("banner slot updates", () => {
+  it("persists only edited slot fields while preserving other slots", async () => {
+    const baseline = await call("GET", ["admin", "banner-home"]);
+    expect(baseline.status).toBe(200);
+    const before = baseline.body as Record<string, unknown>;
+
+    const update = await call("POST", ["admin", "banner-home"], {
+      body: {
+        link_1: "https://slot-1-updated.example",
+        image_1: "slot-1-updated",
+        enabled_1: false,
+        start_date_1: "2026-07-01",
+        end_date_1: "2026-07-31",
+      },
+    });
+    expect(update.status).toBe(200);
+
+    const updated = (await call("GET", ["admin", "banner-home"])).body as Record<
+      string,
+      unknown
+    >;
+    expect(updated.link_1).toBe("https://slot-1-updated.example");
+    expect(updated.image_1).toBe("slot-1-updated");
+    expect(updated.enabled_1).toBe(false);
+    expect(updated.start_date_1).toBe("2026-07-01");
+    expect(updated.end_date_1).toBe("2026-07-31");
+    expect(updated.link_2).toBe(before.link_2);
+    expect(updated.image_2).toBe(before.image_2);
+    expect(updated.enabled_2).toBe(before.enabled_2);
+
+    await call("POST", ["admin", "banner-home"], {
+      body: {
+        link_1: String(before.link_1 || ""),
+        image_1:
+          before.image_1 == null ? "" : String(before.image_1),
+        enabled_1: before.enabled_1,
+        start_date_1: String(before.start_date_1 || ""),
+        end_date_1: String(before.end_date_1 || ""),
+      },
+    });
+  });
+});
+
+describe("top-brands config", () => {
+  it("round-trips the saved brands payload with cashback labels", async () => {
+    const brands = [
+      { offerId: "o2", cashback: "12%" },
+      { offerId: "o1", cashback: "8%" },
+    ];
+
+    const put = await call("PUT", ["admin", "top-brands"], {
+      body: { brands },
+    });
+    expect(put.status).toBe(200);
+    expect(put.body).toMatchObject({ success: true, brands });
+
+    const get = await call("GET", ["admin", "top-brands"]);
+    expect(get.status).toBe(200);
+    const body = get.body as {
+      brands: typeof brands;
+      items: Array<{ _id: string }>;
+      order: string[];
+    };
+    expect(body.order).toEqual(["o2", "o1"]);
+    expect(body.brands).toEqual(brands);
+    expect(body.items.map((item) => item._id)).toEqual(["o2", "o1"]);
+  });
+});
+
+describe("quest task management", () => {
+  it("round-trips task saves and mirrors extra_point to mock offers", async () => {
+    const list = await call("GET", ["point", "admin-get-quest"]);
+    expect(list.status).toBe(200);
+    const quest = (list.body as Array<{ _id: string }>)[0];
+
+    const save = await call(
+      "PATCH",
+      ["point", "admin-quest", quest._id, "tasks"],
+      {
+        body: {
+          tasks: [
+            {
+              offer: "o1",
+              offer_id: 1001,
+              merchant_id: 5001,
+              extra_point: 80,
+              enabled: true,
+            },
+          ],
+        },
+      },
+    );
+
+    expect(save.status).toBe(200);
+    const updated = save.body as {
+      tasks: Array<{ extra_point: number; sort_order: number }>;
+    };
+    expect(updated.tasks).toMatchObject([{ extra_point: 80, sort_order: 0 }]);
+
+    const offer = await call("GET", ["offer", "o1"]);
+    expect((offer.body as { extra_point?: number }).extra_point).toBe(80);
+  });
+
+  it("rejects duplicate task offers", async () => {
+    const list = await call("GET", ["point", "admin-get-quest"]);
+    const quest = (list.body as Array<{ _id: string }>)[0];
+
+    const save = await call(
+      "PATCH",
+      ["point", "admin-quest", quest._id, "tasks"],
+      {
+        body: {
+          tasks: [
+            { offer: "o1", offer_id: 1001, merchant_id: 5001, extra_point: 50 },
+            { offer: "o1", offer_id: 1001, merchant_id: 5001, extra_point: 60 },
+          ],
+        },
+      },
+    );
+
+    expect(save.status).toBe(400);
+  });
+
+  it("round-trips reward saves with automatic distribution settings", async () => {
+    const list = await call("GET", ["point", "admin-get-quest"]);
+    const quest = (list.body as Array<{ _id: string }>)[0];
+
+    const save = await call(
+      "PATCH",
+      ["point", "admin-quest", quest._id, "rewards"],
+      {
+        body: {
+          reward_distribution_mode: "after_days",
+          reward_distribution_delay_days: 7,
+          rewards: [
+            { rank: 1, reward: 1200, currency: "THB" },
+            { rank: 2, reward: 800, currency: "THB" },
+          ],
+        },
+      },
+    );
+
+    expect(save.status).toBe(200);
+    expect(save.body).toMatchObject({
+      reward_distribution_mode: "after_days",
+      reward_distribution_delay_days: 7,
+      reward_distribution_scheduled_at: "2026-07-07T00:00:00.000Z",
+      rewards: [
+        { rank: 1, reward: 1200, currency: "THB" },
+        { rank: 2, reward: 800, currency: "THB" },
+      ],
+    });
+  });
+
+  it("returns a quest leaderboard response for the admin Quest page", async () => {
+    const list = await call("GET", ["point", "admin-get-quest"]);
+    const quest = (list.body as Array<{ _id: string }>)[0];
+
+    const res = await call("GET", [
+      "point",
+      "admin-quest",
+      quest._id,
+      "leaderboard",
+    ]);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      data_source: "quest_range",
+      quest: { _id: quest._id },
+      rewards: expect.arrayContaining([
+        { rank: 1, reward: 1200, currency: "THB" },
+      ]),
+    });
+    expect((res.body as { data: unknown[] }).data.length).toBeGreaterThan(0);
+  });
+});
+
+describe("mock credit score detail", () => {
+  it("returns null with 200 for unknown users so detail pages avoid browser 404 noise", async () => {
+    const res = await call("GET", [
+      "admin",
+      "credit-scores",
+      "000000000000000000009101",
+    ]);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toBeNull();
+  });
+});
+
 describe("PUT offer/user persistence", () => {
   it("returns 404 for an unknown offer id", async () => {
     const res = await call("PUT", ["offer", "does-not-exist"], {

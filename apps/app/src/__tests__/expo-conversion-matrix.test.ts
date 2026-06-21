@@ -15,52 +15,52 @@ const repoRoot = path.resolve(testDir, "../../../..");
 const publicBatchRoutes = [
   {
     component: "CustomerDiscoveryScreen",
-    file: "apps/mobile/app/(tabs)/discover.tsx",
+    file: "apps/app/app/(tabs)/discover.tsx",
     routeId: "discover",
   },
   {
     component: "CustomerDiscoveryScreen",
-    file: "apps/mobile/app/(tabs)/shops.tsx",
+    file: "apps/app/app/(tabs)/shops.tsx",
     routeId: "shops",
   },
-  { component: "CustomerDiscoveryScreen", file: "apps/mobile/app/brand.tsx", routeId: "brand" },
+  { component: "CustomerDiscoveryScreen", file: "apps/app/app/brand.tsx", routeId: "brand" },
   {
     component: "CustomerDiscoveryScreen",
-    file: "apps/mobile/app/category/index.tsx",
+    file: "apps/app/app/category/index.tsx",
     routeId: "category",
   },
-  { component: "CustomerGoLinkScreen", file: "apps/mobile/app/golink.tsx", routeId: "golink" },
+  { component: "CustomerGoLinkScreen", file: "apps/app/app/golink.tsx", routeId: "golink" },
 ] as const;
 
 const publicDetailBatchRoutes = [
   {
     component: "CustomerShopDetailScreen",
-    file: "apps/mobile/app/shop/[id].tsx",
+    file: "apps/app/app/shop/[id].tsx",
     routeId: "shopDetail",
   },
   {
     component: "CustomerCategoryDetailScreen",
-    file: "apps/mobile/app/category/[name].tsx",
+    file: "apps/app/app/category/[name].tsx",
     routeId: "categoryDetail",
   },
   {
     component: "CustomerPrivacyPolicyScreen",
-    file: "apps/mobile/app/privacy-policy.tsx",
+    file: "apps/app/app/privacy-policy.tsx",
     routeId: "privacyPolicy",
   },
 ] as const;
 
 const authBatchRoutes = [
-  { component: "CustomerAuthScreen", file: "apps/mobile/app/login.tsx", routeId: "login" },
-  { component: "CustomerAuthScreen", file: "apps/mobile/app/register.tsx", routeId: "register" },
+  { component: "CustomerAuthScreen", file: "apps/app/app/login.tsx", routeId: "login" },
+  { component: "CustomerAuthScreen", file: "apps/app/app/register.tsx", routeId: "register" },
   {
     component: "CustomerAccountSetupScreen",
-    file: "apps/mobile/app/account-setup.tsx",
+    file: "apps/app/app/account-setup.tsx",
     routeId: "accountSetup",
   },
   {
     component: "CustomerAuthCallbackScreen",
-    file: "apps/mobile/app/auth/callback.tsx",
+    file: "apps/app/app/auth/callback.tsx",
     routeId: "authCallback",
   },
 ] as const;
@@ -68,18 +68,18 @@ const authBatchRoutes = [
 const accountMoneyBatchRoutes = [
   {
     component: "CustomerProfileScreen",
-    file: "apps/mobile/app/(tabs)/profile.tsx",
+    file: "apps/app/app/(tabs)/profile.tsx",
     routeId: "profile",
   },
-  { component: "CustomerWalletScreen", file: "apps/mobile/app/wallet.tsx", routeId: "wallet" },
+  { component: "CustomerWalletScreen", file: "apps/app/app/wallet.tsx", routeId: "wallet" },
   {
     component: "CustomerMoneyActionScreen",
-    file: "apps/mobile/app/withdraw/index.tsx",
+    file: "apps/app/app/withdraw/index.tsx",
     routeId: "withdraw",
   },
   {
     component: "CustomerWithdrawMethodScreen",
-    file: "apps/mobile/app/method/index.tsx",
+    file: "apps/app/app/method/index.tsx",
     routeId: "method",
   },
 ] as const;
@@ -87,47 +87,47 @@ const accountMoneyBatchRoutes = [
 const profileDetailBatchRoutes = [
   {
     component: "CustomerProfileDetailScreen",
-    file: "apps/mobile/app/profile/info.tsx",
+    file: "apps/app/app/profile/info.tsx",
     routeId: "profileInfo",
   },
   {
     component: "CustomerProfilePhoneScreen",
-    file: "apps/mobile/app/profile/cf-phone.tsx",
+    file: "apps/app/app/profile/cf-phone.tsx",
     routeId: "profileConfirmPhone",
   },
   {
     component: "CustomerProfilePhoneScreen",
-    file: "apps/mobile/app/profile/verify-phone.tsx",
+    file: "apps/app/app/profile/verify-phone.tsx",
     routeId: "profileVerifyPhone",
   },
   {
     component: "Redirect",
-    file: "apps/mobile/app/profile/my-rating.tsx",
+    file: "apps/app/app/profile/my-rating.tsx",
     routeId: "profileRating",
   },
   {
     component: "CustomerProfileOffersScreen",
-    file: "apps/mobile/app/profile/offer.tsx",
+    file: "apps/app/app/profile/offer.tsx",
     routeId: "profileOffers",
   },
   {
     component: "CustomerFavoriteBrandsScreen",
-    file: "apps/mobile/app/favorite.tsx",
+    file: "apps/app/app/favorite.tsx",
     routeId: "favorite",
   },
   {
     component: "CustomerReferralScreen",
-    file: "apps/mobile/app/referral.tsx",
+    file: "apps/app/app/referral.tsx",
     routeId: "referral",
   },
   {
     component: "CustomerAccountSettingsScreen",
-    file: "apps/mobile/app/language.tsx",
+    file: "apps/app/app/language.tsx",
     routeId: "language",
   },
   {
     component: "CustomerPrivacyCenterScreen",
-    file: "apps/mobile/app/privacy-center.tsx",
+    file: "apps/app/app/privacy-center.tsx",
     routeId: "privacyCenter",
   },
 ] as const;
@@ -135,48 +135,48 @@ const profileDetailBatchRoutes = [
 const finalParityBatchRoutes = [
   {
     component: "CustomerAgeVerificationScreen",
-    file: "apps/mobile/app/age-verification.tsx",
+    file: "apps/app/app/age-verification.tsx",
     routeId: "ageVerification",
   },
   {
     component: "CustomerCreditScoreScreen",
-    file: "apps/mobile/app/credit-score.tsx",
+    file: "apps/app/app/credit-score.tsx",
     routeId: "creditScore",
   },
   {
     component: "CustomerLinkCashbackScreen",
-    file: "apps/mobile/app/link-mycashback/index.tsx",
+    file: "apps/app/app/link-mycashback/index.tsx",
     routeId: "linkMycashback",
   },
   {
     component: "CustomerMyCashbackSignInScreen",
-    file: "apps/mobile/app/link-mycashback/my-cashback-sign-in.tsx",
+    file: "apps/app/app/link-mycashback/my-cashback-sign-in.tsx",
     routeId: "linkMycashbackSignIn",
   },
   {
     component: "CustomerMembershipScreen",
-    file: "apps/mobile/app/membership.tsx",
+    file: "apps/app/app/membership.tsx",
     routeId: "membership",
   },
   {
     component: "CustomerMoneyActionScreen",
-    file: "apps/mobile/app/method/create.tsx",
+    file: "apps/app/app/method/create.tsx",
     routeId: "methodCreate",
   },
   {
     component: "CustomerMissingOrdersScreen",
-    file: "apps/mobile/app/missing-orders.tsx",
+    file: "apps/app/app/missing-orders.tsx",
     routeId: "missingOrders",
   },
-  { component: "CustomerQuestScreen", file: "apps/mobile/app/(tabs)/quest.tsx", routeId: "quest" },
+  { component: "CustomerQuestScreen", file: "apps/app/app/(tabs)/quest.tsx", routeId: "quest" },
   {
     component: "CustomerQuestScreen",
-    file: "apps/mobile/app/quest/history.tsx",
+    file: "apps/app/app/quest/history.tsx",
     routeId: "questHistory",
   },
   {
     component: "CustomerMoneyActionScreen",
-    file: "apps/mobile/app/withdraw/my-cashback.tsx",
+    file: "apps/app/app/withdraw/my-cashback.tsx",
     routeId: "withdrawMycashback",
   },
 ] as const;
@@ -184,56 +184,56 @@ const finalParityBatchRoutes = [
 const billingBatchRoutes = [
   {
     component: "CustomerSubscriptionScreen",
-    file: "apps/mobile/app/pricing.tsx",
+    file: "apps/app/app/pricing.tsx",
     routeId: "pricing",
   },
   {
     component: "CustomerSubscriptionScreen",
-    file: "apps/mobile/app/subscription.tsx",
+    file: "apps/app/app/subscription.tsx",
     routeId: "subscription",
   },
   {
     component: "CustomerSubscriptionScreen",
-    file: "apps/mobile/app/billing.tsx",
+    file: "apps/app/app/billing.tsx",
     routeId: "billing",
   },
 ] as const;
 
-function discoverNextCustomerRoutes() {
-  const appRoot = path.join(repoRoot, "src/app/[locale]");
-  const routes: string[] = [];
+// The Expo route tree lives under apps/app/app/. Resolve a customer webPath to its
+// Expo Router route file using Expo Router's filesystem conventions, trying the
+// candidate locations a given webPath could map to (group-folder tab routes,
+// nested index files, and dynamic [param] segments are all valid here).
+const expoAppRoot = path.join(repoRoot, "apps/app/app");
 
-  function walk(dir: string) {
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      const fullPath = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        walk(fullPath);
-      } else if (entry.name === "page.tsx") {
-        const route = path
-          .relative(appRoot, dir)
-          .split(path.sep)
-          .filter((part) => part !== "." && !part.startsWith("("))
-          .join("/");
-        routes.push(route ? `/${route}` : "/");
-      }
-    }
-  }
+function resolveExpoRouteFile(webPath: string): string | null {
+  const segments = webPath.split("/").filter((part) => part.length > 0);
+  // Tab routes live inside the (tabs) group folder; "/" is the home tab index.
+  const tabBase = path.join(expoAppRoot, "(tabs)", ...segments);
+  const base = path.join(expoAppRoot, ...segments);
+  const candidates =
+    segments.length === 0
+      ? [path.join(expoAppRoot, "(tabs)", "index.tsx"), path.join(expoAppRoot, "index.tsx")]
+      : [`${tabBase}.tsx`, path.join(tabBase, "index.tsx"), `${base}.tsx`, path.join(base, "index.tsx")];
 
-  walk(appRoot);
-
-  return routes
-    .filter((route) => !route.startsWith("/demo-") && !route.startsWith("/sentry-"))
-    .sort();
+  return candidates.find((candidate) => fs.existsSync(candidate)) ?? null;
 }
 
 describe("Expo customer conversion matrix", () => {
-  it("expo conversion matrix > given current Next customer routes > then every route has Expo ownership", () => {
-    const discoveredRoutes = discoverNextCustomerRoutes();
-
-    expect(nextCustomerRoutes.map((route) => route.webPath).sort()).toEqual(discoveredRoutes);
-    expect(expoConversionRouteOwnership.map((route) => route.webPath).sort()).toEqual(
-      discoveredRoutes
+  it("expo conversion matrix > given current customer routes > then every route has a real Expo route file", () => {
+    // The legacy Next customer web (src/app/[locale]) was retired; the static
+    // expoConversionRouteOwnership array is now the canonical route inventory.
+    // nextCustomerRoutes is derived from it, so the two must stay in lockstep...
+    expect(nextCustomerRoutes.map((route) => route.webPath).sort()).toEqual(
+      expoConversionRouteOwnership.map((route) => route.webPath).sort()
     );
+
+    // ...and no customer route may be forgotten: every owned webPath must resolve
+    // to an actual Expo Router file under apps/app/app/.
+    const unresolved = expoConversionRouteOwnership
+      .filter((route) => resolveExpoRouteFile(route.webPath) === null)
+      .map((route) => route.webPath);
+
+    expect(unresolved).toEqual([]);
   });
 
   it("expo conversion matrix > given migrated home route > then home is no longer parity shell", () => {
@@ -246,7 +246,7 @@ describe("Expo customer conversion matrix", () => {
 
   it("home route conversion > given Expo route file > then uses dedicated customer home screen", () => {
     const routeFile = fs.readFileSync(
-      path.join(repoRoot, "apps/mobile/app/(tabs)/index.tsx"),
+      path.join(repoRoot, "apps/app/app/(tabs)/index.tsx"),
       "utf8"
     );
 

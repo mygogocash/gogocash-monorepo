@@ -1,13 +1,7 @@
 "use client";
 
-import React, {
-  useState,
-  useRef,
-  useEffect,
-  useMemo,
-  useCallback,
-} from "react";
-import { useQuery } from "@tanstack/react-query";
+import React, { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Table,
   TableBody,
@@ -16,2747 +10,1695 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import Badge from "@/components/ui/badge/Badge";
-import { formatDate } from "@/lib/dateFormat";
-import { Modal } from "@/components/ui/modal";
+import Button from "@/components/ui/button/Button";
 import Label from "@/components/form/Label";
 import Input from "@/components/form/input/InputField";
-import { fetchOffersList, offersListQueryKey } from "@/lib/query/offersQueries";
-import { isDirty } from "@/lib/isDirty";
-import type { Offer, OffersQuery } from "@/types/api";
-import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
+import DatePicker from "@/components/form/date-picker";
+import { Modal } from "@/components/ui/modal";
 import NoData from "@/components/common/NoData";
-import { MOCK_QUESTS, mockQuestParticipantTotal } from "@/data/mockQuests";
+import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
+import { appLinks } from "@/lib/appLinks";
+import { formatDate } from "@/lib/dateFormat";
+import { usePermissions } from "@/hooks/usePermissions";
+import { fetchOffersList, offersListQueryKey } from "@/lib/query/offersQueries";
+import {
+  fetchAdminQuests,
+  fetchQuestLeaderboard,
+  fetchQuestTaskDeeplinkSummary,
+  questLeaderboardQueryKey,
+  questListQueryKey,
+  questTaskDeeplinkSummaryQueryKey,
+  saveQuestCampaign,
+  saveQuestRewards,
+  saveQuestTasks,
+} from "@/lib/query/questQueries";
+import type { Offer, OffersQuery } from "@/types/api";
 import type {
-  QuestCompletionLimit,
-  QuestDetails,
-  QuestTaskDisplay,
-  QuestTaskType,
-} from "@/types/questTable";
+  QuestReward,
+  QuestTask,
+  QuestTaskDeeplinkSummary,
+  ResponseQuestDate,
+} from "@/types/quest";
+import {
+  buildQuestRewardSavePayload,
+  type RewardDistributionDraft,
+  type RewardDraft,
+  validateQuestRewardDistribution,
+  validateQuestRewards,
+} from "./questRewardEditor";
+import {
+  bangkokDateTimeInputToISOString,
+  BANGKOK_TIMEZONE_LABEL,
+  toBangkokDateTimeInput,
+} from "./questDateTime";
+import {
+  buildQuestTaskPayloads,
+  sameJson,
+  type TaskDraft,
+  validateQuestTasks,
+} from "./questTaskEditor";
 
-export type {
-  QuestDetails,
-  QuestTaskDisplay,
-  QuestTaskType,
-  QuestCompletionLimit,
-};
-export type ConditionOperator = "<" | ">" | "=" | ">=" | "<=";
-export type ConditionMetric = "sale" | "conversion";
-
-export interface QuestTaskCondition {
-  operator: ConditionOperator;
-  metric: ConditionMetric;
-  amount: number;
-  currency: string;
-}
-
-export interface QuestTask {
-  id: string;
-  taskType: QuestTaskType;
-  offerId: string;
-  merchantId: string;
-  points: number;
-  completionLimit: QuestCompletionLimit;
-  condition: QuestTaskCondition | null;
-  /** Uploaded logo file (overrides offer/merchant logo when set) */
-  logoFile: File | null;
-  /** Object URL for logoFile preview (set when logoFile is set, cleared when cleared) */
-  logoPreviewUrl?: string;
-  /** Merchant or custom link URL for this task */
-  link: string;
-}
-
-const CONDITION_OPERATORS: { value: ConditionOperator; label: string }[] = [
-  { value: "<", label: "<" },
-  { value: ">", label: ">" },
-  { value: "=", label: "=" },
-  { value: ">=", label: ">=" },
-  { value: "<=", label: "<=" },
-];
-
-const MOCK_MERCHANTS = [
-  { id: "m1", name: "Merchant A" },
-  { id: "m2", name: "Merchant B" },
-  { id: "m3", name: "Merchant C" },
-];
-
-const CONDITION_CURRENCIES = ["THB", "USD", "EUR"] as const;
-
-function formatCondition(c: QuestTaskCondition | null): string {
-  if (!c) return "—";
-  const metric = c.metric === "sale" ? "Sale" : "Conversion";
-  return `${metric} ${c.operator} ${c.amount} ${c.currency}`;
-}
-
-type UserPointRow = {
-  userId: string;
-  email: string;
-  username: string;
-  points: number;
-  rewards: string;
+type CampaignDraft = {
+  startDate: string;
+  endDate: string;
+  status: string;
+  facebookPage: string;
+  facebookPost: string;
+  line: string;
+  bannerEn: File | null;
+  bannerTh: File | null;
+  subBannerEn: File | null;
+  subBannerTh: File | null;
 };
 
-type UserPointsSortKey = "points" | "userId" | "username" | "email" | "rewards";
-
-const USER_POINTS_SORT_OPTIONS: { value: UserPointsSortKey; label: string }[] =
-  [
-    { value: "points", label: "Points" },
-    { value: "userId", label: "User ID" },
-    { value: "username", label: "Username" },
-    { value: "email", label: "Email" },
-    { value: "rewards", label: "Rewards" },
-  ];
-
-function filterUserPointRows(rows: UserPointRow[], q: string): UserPointRow[] {
-  const s = q.trim().toLowerCase();
-  if (!s) return rows;
-  return rows.filter((r) => {
-    return (
-      r.userId.toLowerCase().includes(s) ||
-      r.username.toLowerCase().includes(s) ||
-      r.email.toLowerCase().includes(s) ||
-      r.rewards.toLowerCase().includes(s) ||
-      String(r.points).includes(s)
-    );
-  });
-}
-
-function sortUserPointRows(
-  rows: UserPointRow[],
-  sort: { key: UserPointsSortKey; dir: "asc" | "desc" },
-): UserPointRow[] {
-  const m = sort.dir === "asc" ? 1 : -1;
-  return [...rows].sort((a, b) => {
-    let v = 0;
-    switch (sort.key) {
-      case "points":
-        v = a.points - b.points;
-        break;
-      case "userId":
-        v = a.userId.localeCompare(b.userId, undefined, {
-          numeric: true,
-          sensitivity: "base",
-        });
-        break;
-      case "username":
-        v = a.username.localeCompare(b.username, undefined, {
-          sensitivity: "base",
-        });
-        break;
-      case "email":
-        v = a.email.localeCompare(b.email, undefined, { sensitivity: "base" });
-        break;
-      case "rewards":
-        v = a.rewards.localeCompare(b.rewards, undefined, {
-          numeric: true,
-          sensitivity: "base",
-        });
-        break;
-      default:
-        v = 0;
-    }
-    return v * m;
-  });
-}
-
-function first5(s: string): string {
-  if (s.length <= 5) return s;
-  return s.slice(0, 5) + "…";
-}
-
-function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function exportAsMarkdown(rows: UserPointRow[], questTitle: string): string {
-  const header = "| Rank | User ID | Username | Email | Points | Rewards |";
-  const sep = "|------|---------|----------|-------|--------|---------|";
-  const body = rows
-    .map(
-      (r, i) =>
-        `| ${i + 1} | ${r.userId} | ${r.username} | ${r.email} | ${r.points} | ${r.rewards} |`,
-    )
-    .join("\n");
-  return `# ${questTitle}\n\n${header}\n${sep}\n${body}\n`;
-}
-
-function exportAsCsv(rows: UserPointRow[]): string {
-  const escape = (v: string | number) => {
-    const s = String(v);
-    return s.includes(",") || s.includes('"') || s.includes("\n")
-      ? `"${s.replace(/"/g, '""')}"`
-      : s;
-  };
-  const header = ["Rank", "User ID", "Username", "Email", "Points", "Rewards"]
-    .map(escape)
-    .join(",");
-  const body = rows
-    .map((r, i) =>
-      [i + 1, r.userId, r.username, r.email, r.points, r.rewards]
-        .map(escape)
-        .join(","),
-    )
-    .join("\n");
-  return "\uFEFF" + header + "\n" + body;
-}
-
-function exportAsExcelXml(rows: UserPointRow[]): string {
-  const escape = (v: string) =>
-    String(v)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
-  const cols =
-    '<Column ss:Index="1" ss:Width="50"/><Column ss:Width="100"/><Column ss:Width="100"/><Column ss:Width="180"/><Column ss:Width="80"/><Column ss:Width="90"/>';
-  const headerRow =
-    '<Row><Cell><Data ss:Type="String">Rank</Data></Cell><Cell><Data ss:Type="String">User ID</Data></Cell><Cell><Data ss:Type="String">Username</Data></Cell><Cell><Data ss:Type="String">Email</Data></Cell><Cell><Data ss:Type="String">Points</Data></Cell><Cell><Data ss:Type="String">Rewards</Data></Cell></Row>';
-  const dataRows = rows
-    .map(
-      (r, i) =>
-        `<Row><Cell><Data ss:Type="Number">${i + 1}</Data></Cell><Cell><Data ss:Type="String">${escape(r.userId)}</Data></Cell><Cell><Data ss:Type="String">${escape(r.username)}</Data></Cell><Cell><Data ss:Type="String">${escape(r.email)}</Data></Cell><Cell><Data ss:Type="Number">${r.points}</Data></Cell><Cell><Data ss:Type="String">${escape(r.rewards)}</Data></Cell></Row>`,
-    )
-    .join("");
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<?mso-application progid="Excel.Sheet"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
-<Worksheet ss:Name="User points"><Table>${cols}${headerRow}${dataRows}</Table></Worksheet>
-</Workbook>`;
-}
-
-const POINTS_PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 500, 0] as const; // 0 = All
-
-// Format large numbers with commas for display
-function formatCount(n: number): string {
-  return n.toLocaleString();
-}
-
-// Mock user points per quest — supports 1000+ rows; real API would return paginated or full list
-function getMockUserPointsForQuest(questId: string): UserPointRow[] {
-  const rewardsOptions = [
-    "—",
-    "25 THB",
-    "50 THB",
-    "75 THB",
-    "80 THB",
-    "90 THB",
-    "100 THB",
-    "120 THB",
-    "140 THB",
-    "150 THB",
-    "200 THB",
-  ];
-  const total = mockQuestParticipantTotal(questId);
-  const rows: UserPointRow[] = [];
-  for (let i = 1; i <= total; i++) {
-    const points = 50 + ((i * 37 + i * i) % 500); // varied points 50–550
-    const rewards = rewardsOptions[i % rewardsOptions.length];
-    rows.push({
-      userId: `u${i}`,
-      email: `user${i}@example.com`,
-      username: `user${i}`,
-      points,
-      rewards,
-    });
-  }
-  return rows;
-}
-
-function createEmptyTask(): QuestTask {
-  return {
-    id: crypto.randomUUID?.() ?? String(Date.now()),
-    taskType: "offer",
-    offerId: "",
-    merchantId: "",
-    points: 0,
-    completionLimit: "multiple",
-    condition: null,
-    logoFile: null,
-    link: "",
-  };
-}
-
-const QUEST_MODAL_OFFERS_QUERY: OffersQuery = {
+const OFFERS_QUERY: OffersQuery = {
   search: "",
-  limit: 100,
+  limit: 300,
   page: 1,
   country: "",
 };
+const EMPTY_QUESTS: ResponseQuestDate[] = [];
+const EMPTY_OFFERS: Offer[] = [];
+
+type QuestDetailTab = "tasks" | "leaderboard" | "rewards";
+
+const REWARD_DISTRIBUTION_OPTIONS: {
+  value: RewardDistributionDraft["mode"];
+  label: string;
+}[] = [
+  {
+    value: "campaign_end",
+    label: "Automatically when campaign ends",
+  },
+  {
+    value: "after_days",
+    label: "Automatically after campaign ends",
+  },
+  {
+    value: "manual",
+    label: "Manual distribution",
+  },
+];
+
+const QUEST_DETAIL_TABS: {
+  key: QuestDetailTab;
+  label: string;
+  description: string;
+}[] = [
+  {
+    key: "tasks",
+    label: "Quest tasks",
+    description: "Manage brands, points, wording, and deeplink checks.",
+  },
+  {
+    key: "leaderboard",
+    label: "Leaderboard",
+    description: "Review campaign ranking, points, and matched reward values.",
+  },
+  {
+    key: "rewards",
+    label: "Rewards",
+    description: "Configure the payout amount for each winning rank.",
+  },
+];
+
+function detailTabButtonClass(active: boolean): string {
+  return `min-w-[150px] rounded-lg px-4 py-3 text-left text-sm font-semibold transition ${
+    active
+      ? "bg-white text-gray-900 shadow-theme-xs dark:bg-gray-800 dark:text-white"
+      : "text-gray-500 hover:bg-white/70 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800/70 dark:hover:text-white"
+  }`;
+}
+
+function questStatusLabel(status: string): string {
+  if (status === "open") return "opening for now";
+  if (status === "close" || status === "closed") return "quest already closed";
+  return status;
+}
+
+function rewardDistributionLabel(
+  mode: RewardDistributionDraft["mode"],
+): string {
+  return (
+    REWARD_DISTRIBUTION_OPTIONS.find((option) => option.value === mode)
+      ?.label ?? REWARD_DISTRIBUTION_OPTIONS[0].label
+  );
+}
+
+function RewardDistributionSelect({
+  disabled,
+  onChange,
+  value,
+}: {
+  disabled: boolean;
+  onChange: (mode: RewardDistributionDraft["mode"]) => void;
+  value: RewardDistributionDraft["mode"];
+}) {
+  const [open, setOpen] = useState(false);
+  const listboxId = "quest-reward-distribution-options";
+
+  return (
+    <div
+      className="relative"
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          setOpen(false);
+        }
+      }}
+    >
+      <button
+        type="button"
+        role="combobox"
+        aria-controls={listboxId}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        aria-label="Reward distribution schedule"
+        disabled={disabled}
+        onClick={() => setOpen((current) => !current)}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") setOpen(false);
+          if (event.key === "ArrowDown") {
+            event.preventDefault();
+            setOpen(true);
+          }
+        }}
+        className="focus:border-brand-300 focus:ring-brand-500/10 shadow-theme-xs flex h-11 w-full items-center justify-between gap-3 rounded-lg border border-gray-300 bg-white px-4 text-left text-sm text-gray-800 transition hover:border-gray-400 focus:ring-3 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:hover:border-gray-600"
+      >
+        <span className="truncate">{rewardDistributionLabel(value)}</span>
+        <svg
+          className={`h-4 w-4 shrink-0 text-gray-500 transition dark:text-gray-400 ${
+            open ? "rotate-180" : ""
+          }`}
+          fill="none"
+          viewBox="0 0 20 20"
+          aria-hidden="true"
+        >
+          <path
+            d="M5 7.5 10 12.5 15 7.5"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="1.7"
+          />
+        </svg>
+      </button>
+
+      {open && !disabled && (
+        <div
+          id={listboxId}
+          role="listbox"
+          className="absolute z-40 mt-2 w-full overflow-hidden rounded-xl border border-gray-200 bg-white p-1 shadow-lg dark:border-gray-700 dark:bg-gray-950"
+        >
+          {REWARD_DISTRIBUTION_OPTIONS.map((option) => {
+            const selected = option.value === value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="option"
+                aria-selected={selected}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  onChange(option.value);
+                  setOpen(false);
+                }}
+                className={`flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition ${
+                  selected
+                    ? "bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300"
+                    : "text-gray-700 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white"
+                }`}
+              >
+                <span>{option.label}</span>
+                {selected && (
+                  <span className="bg-brand-500 h-2 w-2 shrink-0 rounded-full" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function getTaskOfferId(task: QuestTask): string {
+  return typeof task.offer === "string" ? task.offer : task.offer._id;
+}
+
+function getTaskOffer(task: QuestTask): Offer | null {
+  return typeof task.offer === "string" ? null : task.offer;
+}
+
+function offerLabel(offer: Offer | null | undefined): string {
+  if (!offer) return "Unknown brand";
+  return (
+    offer.offer_name_display || offer.offer_name || `Offer ${offer.offer_id}`
+  );
+}
+
+function offerLogo(offer: Offer | null | undefined): string {
+  return (
+    offer?.logo_circle ||
+    offer?.logo_mobile ||
+    offer?.logo_desktop ||
+    offer?.logo ||
+    ""
+  );
+}
+
+function defaultTaskWording(offer: Offer | null | undefined): string {
+  return offer ? `Make an order on ${offerLabel(offer)}` : "";
+}
+
+function customerTaskWording(
+  task: Pick<TaskDraft, "wording">,
+  offer: Offer | null | undefined,
+) {
+  return task.wording?.trim() || defaultTaskWording(offer);
+}
+
+function makeCampaignDraft(quest?: ResponseQuestDate | null): CampaignDraft {
+  return {
+    startDate: toBangkokDateTimeInput(quest?.start_date),
+    endDate: toBangkokDateTimeInput(quest?.end_date),
+    status: quest?.status ?? "open",
+    facebookPage: quest?.facebook_page ?? "",
+    facebookPost: quest?.facebook_post ?? "",
+    line: quest?.line ?? "",
+    bannerEn: null,
+    bannerTh: null,
+    subBannerEn: null,
+    subBannerTh: null,
+  };
+}
+
+function makeTaskDrafts(quest?: ResponseQuestDate | null): TaskDraft[] {
+  return [...(quest?.tasks ?? [])]
+    .sort((a, b) => Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0))
+    .map((task, index) => ({
+      clientId: `${getTaskOfferId(task)}-${index}`,
+      offer: getTaskOfferId(task),
+      offer_id: Number(task.offer_id),
+      merchant_id: Number(task.merchant_id),
+      extra_point: Number(task.extra_point),
+      sort_order: index,
+      enabled: task.enabled !== false,
+      wording: task.wording ?? defaultTaskWording(getTaskOffer(task)),
+      notes: task.notes ?? "",
+    }));
+}
+
+function makeRewardDrafts(quest?: ResponseQuestDate | null): RewardDraft[] {
+  return [...(quest?.rewards ?? [])]
+    .sort((a, b) => Number(a.rank ?? 0) - Number(b.rank ?? 0))
+    .map((reward, index) => ({
+      clientId: `reward-${reward.rank}-${index}`,
+      rank: Number(reward.rank),
+      reward: Number(reward.reward),
+      currency: reward.currency || "THB",
+    }));
+}
+
+function makeRewardDistributionDraft(
+  quest?: ResponseQuestDate | null,
+): RewardDistributionDraft {
+  const mode = quest?.reward_distribution_mode ?? "campaign_end";
+  return {
+    mode,
+    delayDays:
+      mode === "after_days"
+        ? Math.max(1, Number(quest?.reward_distribution_delay_days ?? 7))
+        : 0,
+  };
+}
+
+function formatBangkokSchedule(value?: Date | string | null): string {
+  const inputValue = toBangkokDateTimeInput(value);
+  if (!inputValue) return "Not scheduled";
+  const [date, time] = inputValue.split("T");
+  const [year, month, day] = date.split("-");
+  return `${day}/${month}/${year} ${time} Bangkok time`;
+}
+
+function rewardDistributionPreview(
+  endDateInput: string,
+  distribution: RewardDistributionDraft,
+): string {
+  if (distribution.mode === "manual") {
+    return "Admin will distribute rewards manually.";
+  }
+
+  const endDateIso = bangkokDateTimeInputToISOString(endDateInput);
+  const endTime = new Date(endDateIso).getTime();
+  if (!endDateIso || Number.isNaN(endTime)) {
+    return "Set a campaign end time to calculate the payout schedule.";
+  }
+
+  const delayDays =
+    distribution.mode === "after_days" ? Number(distribution.delayDays) : 0;
+  const scheduledAt = new Date(endTime + delayDays * 86_400_000);
+  return `Scheduled for ${formatBangkokSchedule(scheduledAt)}`;
+}
+
+function rewardForRank(
+  rewards: QuestReward[] | undefined,
+  rank: number,
+): QuestReward {
+  return (
+    rewards?.find((reward) => Number(reward.rank) === rank) ?? {
+      rank,
+      reward: 0,
+      currency: "THB",
+    }
+  );
+}
+
+function formatReward(amount: number, currency: string): string {
+  return `${Number(amount || 0).toLocaleString()} ${currency || "THB"}`;
+}
+
+function summaryForTask(
+  summaries: QuestTaskDeeplinkSummary[],
+  task: TaskDraft,
+): QuestTaskDeeplinkSummary | undefined {
+  return summaries.find(
+    (s) => s.offer_id === task.offer_id && s.merchant_id === task.merchant_id,
+  );
+}
 
 export default function QuestTable() {
-  const [quests, setQuests] = useState<QuestDetails[]>(MOCK_QUESTS);
-  const [pointsModalQuest, setPointsModalQuest] = useState<
-    (typeof MOCK_QUESTS)[0] | null
-  >(null);
-  const [detailsModalQuest, setDetailsModalQuest] =
-    useState<QuestDetails | null>(null);
-  const [detailsEditMode, setDetailsEditMode] = useState(false);
-  const [editDraft, setEditDraft] = useState<QuestDetails | null>(null);
-  // Snapshot of the draft as loaded into edit mode — baseline for "unsaved
-  // changes" so Save stays disabled until a field actually differs.
-  const [editBaseline, setEditBaseline] = useState<QuestDetails | null>(null);
-  const [editSubmitting, setEditSubmitting] = useState(false);
+  const queryClient = useQueryClient();
+  const { role, can } = usePermissions();
+  const canEditCampaign = can("quest:manage");
+  const canEditTasks = role === "super_admin";
 
-  const startEditQuest = useCallback(() => {
-    if (!detailsModalQuest) return;
-    const initialDraft: QuestDetails = {
-      ...detailsModalQuest,
-      tasks: detailsModalQuest.tasks
-        ? detailsModalQuest.tasks.map((t, i) => ({
-            ...t,
-            id: t.id ?? crypto.randomUUID?.() ?? `task-${Date.now()}-${i}`,
-          }))
-        : undefined,
-    };
-    setEditDraft(initialDraft);
-    setEditBaseline(initialDraft);
-    setDetailsEditMode(true);
-  }, [detailsModalQuest]);
+  const [selectedQuestId, setSelectedQuestId] = useState<string | null>(null);
+  const [creatingNew, setCreatingNew] = useState(false);
+  const [campaignDraft, setCampaignDraft] = useState<CampaignDraft>(
+    makeCampaignDraft(null),
+  );
+  const [taskDrafts, setTaskDrafts] = useState<TaskDraft[]>([]);
+  const [rewardDrafts, setRewardDrafts] = useState<RewardDraft[]>([]);
+  const [rewardDistributionDraft, setRewardDistributionDraft] =
+    useState<RewardDistributionDraft>(makeRewardDistributionDraft(null));
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [activeDetailTab, setActiveDetailTab] =
+    useState<QuestDetailTab>("tasks");
 
-  const cancelEditQuest = useCallback(() => {
-    setDetailsEditMode(false);
-    setEditDraft(null);
-    setEditBaseline(null);
-  }, []);
-
-  const saveEditQuest = useCallback(() => {
-    if (!editDraft) return;
-    setEditSubmitting(true);
-    // Mock persistence — in production this would call the API.
-    setTimeout(() => {
-      setQuests((prev) =>
-        prev.map((q) => (q.id === editDraft.id ? editDraft : q)),
-      );
-      setDetailsModalQuest(editDraft);
-      setDetailsEditMode(false);
-      setEditDraft(null);
-      setEditBaseline(null);
-      setEditSubmitting(false);
-    }, 300);
-  }, [editDraft]);
-
-  const patchEditDraft = useCallback((patch: Partial<QuestDetails>) => {
-    setEditDraft((d) => (d ? { ...d, ...patch } : d));
-  }, []);
-
-  const closeDetailsModal = useCallback(() => {
-    setDetailsModalQuest(null);
-    setDetailsEditMode(false);
-    setEditDraft(null);
-    setEditBaseline(null);
-  }, []);
-  const [pointsModalPageSize, setPointsModalPageSize] = useState<number>(10);
-  const [pointsModalSearch, setPointsModalSearch] = useState("");
-  const [pointsSort, setPointsSort] = useState<{
-    key: UserPointsSortKey;
-    dir: "asc" | "desc";
-  }>({
-    key: "points",
-    dir: "desc",
+  const questsQuery = useQuery({
+    queryKey: questListQueryKey,
+    queryFn: fetchAdminQuests,
   });
-  const [exportOpen, setExportOpen] = useState(false);
-  const [createModalOpen, setCreateModalOpen] = useState(false);
-  const exportRef = useRef<HTMLDivElement>(null);
+  const quests = questsQuery.data ?? EMPTY_QUESTS;
 
-  // Create Quest form state
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [facebookPage, setFacebookPage] = useState("No");
-  const [facebookPageLink, setFacebookPageLink] = useState("");
-  const [facebookPost, setFacebookPost] = useState("No");
-  const [facebookPostLink, setFacebookPostLink] = useState("");
-  const [line, setLine] = useState("No");
-  const [lineLink, setLineLink] = useState("");
-  const [createSubmitting, setCreateSubmitting] = useState(false);
-  const [tasks, setTasks] = useState<QuestTask[]>([]);
+  const selectedQuest = useMemo(() => {
+    if (creatingNew) return null;
+    if (selectedQuestId) {
+      return quests.find((quest) => quest._id === selectedQuestId) ?? null;
+    }
+    return (
+      quests.find((quest) => quest._id === selectedQuestId) ?? quests[0] ?? null
+    );
+  }, [creatingNew, quests, selectedQuestId]);
 
-  const { data: offersData } = useQuery({
-    queryKey: offersListQueryKey(QUEST_MODAL_OFFERS_QUERY),
-    queryFn: () => fetchOffersList(QUEST_MODAL_OFFERS_QUERY),
-    enabled: createModalOpen || detailsEditMode,
+  const offersQuery = useQuery({
+    queryKey: offersListQueryKey(OFFERS_QUERY),
+    queryFn: () => fetchOffersList(OFFERS_QUERY),
     staleTime: 30_000,
   });
-  const offers: Offer[] = offersData?.data ?? [];
-
-  // Edit form has unsaved changes when the live draft differs from the
-  // snapshot captured when edit mode opened.
-  const editDirty = useMemo(
-    () => isDirty(editDraft, editBaseline),
-    [editDraft, editBaseline],
+  const offers = offersQuery.data?.data ?? EMPTY_OFFERS;
+  const offersById = useMemo(
+    () => new Map(offers.map((offer) => [offer._id, offer])),
+    [offers],
   );
 
-  // Create form has unsaved input when any editable field differs from its
-  // empty default (so "Create" stays disabled on a pristine form).
-  const createDirty = useMemo(
-    () =>
-      isDirty(
-        {
-          startDate,
-          endDate,
-          facebookPage,
-          facebookPageLink,
-          facebookPost,
-          facebookPostLink,
-          line,
-          lineLink,
-          tasks,
-        },
-        {
-          startDate: "",
-          endDate: "",
-          facebookPage: "No",
-          facebookPageLink: "",
-          facebookPost: "No",
-          facebookPostLink: "",
-          line: "No",
-          lineLink: "",
-          tasks: [] as QuestTask[],
-        },
-      ),
-    [
-      startDate,
-      endDate,
-      facebookPage,
-      facebookPageLink,
-      facebookPost,
-      facebookPostLink,
-      line,
-      lineLink,
-      tasks,
-    ],
-  );
+  const deeplinkSummaryQuery = useQuery({
+    queryKey: questTaskDeeplinkSummaryQueryKey(selectedQuest?._id ?? ""),
+    queryFn: () => fetchQuestTaskDeeplinkSummary(selectedQuest?._id ?? ""),
+    enabled: Boolean(selectedQuest?._id),
+  });
+  const deeplinkSummaries = deeplinkSummaryQuery.data?.data ?? [];
 
-  // Helpers for the inline task editor inside the Quest details edit mode.
-  const patchEditTask = useCallback(
-    (index: number, patch: Partial<QuestTaskDisplay>) => {
-      setEditDraft((d) => {
-        if (!d || !d.tasks) return d;
-        return {
-          ...d,
-          tasks: d.tasks.map((t, i) => (i === index ? { ...t, ...patch } : t)),
-        };
-      });
-    },
-    [],
-  );
-
-  const removeEditTask = useCallback((index: number) => {
-    setEditDraft((d) => {
-      if (!d || !d.tasks) return d;
-      return { ...d, tasks: d.tasks.filter((_, i) => i !== index) };
-    });
-  }, []);
-
-  const moveEditTask = useCallback((index: number, direction: -1 | 1) => {
-    setEditDraft((d) => {
-      if (!d || !d.tasks) return d;
-      const target = index + direction;
-      if (target < 0 || target >= d.tasks.length) return d;
-      const next = [...d.tasks];
-      [next[index], next[target]] = [next[target], next[index]];
-      return { ...d, tasks: next };
-    });
-  }, []);
-
-  // Drag-and-drop reorder for the edit-mode tasks list (uses native HTML5 DnD).
-  const [dragSrcIndex, setDragSrcIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-
-  const reorderEditTasks = useCallback((from: number, to: number) => {
-    setEditDraft((d) => {
-      if (!d || !d.tasks) return d;
-      if (
-        from === to ||
-        from < 0 ||
-        to < 0 ||
-        from >= d.tasks.length ||
-        to >= d.tasks.length
-      )
-        return d;
-      const next = [...d.tasks];
-      const [moved] = next.splice(from, 1);
-      next.splice(to, 0, moved);
-      return { ...d, tasks: next };
-    });
-  }, []);
-
-  const addEditTask = useCallback(() => {
-    setEditDraft((d) => {
-      if (!d) return d;
-      const empty: QuestTaskDisplay = {
-        id: crypto.randomUUID?.() ?? `task-${Date.now()}`,
-        taskType: "offer",
-        offerId: "",
-        offerName: "",
-        points: 0,
-        completionLimit: "once",
-        condition: null,
-        link: "",
-      };
-      return { ...d, tasks: d.tasks ? [...d.tasks, empty] : [empty] };
-    });
-  }, []);
-
-  const openPointsModal = (q: QuestDetails) => {
-    setPointsModalPageSize(10);
-    setPointsModalSearch("");
-    setPointsSort({ key: "points", dir: "desc" });
-    setExportOpen(false);
-    setPointsModalQuest(q);
-  };
-
-  const closePointsModal = () => {
-    setExportOpen(false);
-    setPointsModalSearch("");
-    setPointsModalQuest(null);
-  };
-
-  const onPointsSortHeaderClick = useCallback((key: UserPointsSortKey) => {
-    setPointsSort((s) =>
-      s.key === key
-        ? { key, dir: s.dir === "asc" ? "desc" : "asc" }
-        : { key, dir: key === "points" ? "desc" : "asc" },
-    );
-  }, []);
-
-  const pointsModalPrepared = useMemo(() => {
-    if (!pointsModalQuest) return null;
-    const all = getMockUserPointsForQuest(pointsModalQuest.id);
-    const filtered = filterUserPointRows(all, pointsModalSearch);
-    const sorted = sortUserPointRows(filtered, pointsSort);
-    const pageSize = pointsModalPageSize;
-    const display = pageSize === 0 ? sorted : sorted.slice(0, pageSize);
-    return { all, filtered, sorted, display };
-  }, [pointsModalQuest, pointsModalSearch, pointsSort, pointsModalPageSize]);
+  const leaderboardQuery = useQuery({
+    queryKey: questLeaderboardQueryKey(selectedQuest?._id ?? ""),
+    queryFn: () => fetchQuestLeaderboard(selectedQuest?._id ?? ""),
+    enabled: Boolean(selectedQuest?._id),
+  });
+  const leaderboardRows = leaderboardQuery.data?.data ?? [];
+  const leaderboardRewards = leaderboardQuery.data?.rewards ?? [];
+  const isLatestAvailableLeaderboard =
+    leaderboardQuery.data?.data_source === "latest_available";
 
   useEffect(() => {
-    if (!exportOpen) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (exportRef.current && !exportRef.current.contains(e.target as Node))
-        setExportOpen(false);
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [exportOpen]);
+    if (creatingNew) return;
+    setCampaignDraft(makeCampaignDraft(selectedQuest));
+    setTaskDrafts(makeTaskDrafts(selectedQuest));
+    setRewardDrafts(makeRewardDrafts(selectedQuest));
+    setRewardDistributionDraft(makeRewardDistributionDraft(selectedQuest));
+    setSaveError(null);
+  }, [creatingNew, selectedQuest]);
 
-  const handleExport = (format: "markdown" | "csv" | "excel") => {
-    if (!pointsModalQuest || !pointsModalPrepared) return;
-    const rows = pointsModalPrepared.sorted;
-    const slug = pointsModalQuest.id.slice(-8);
-    const questTitle = `Quest ${pointsModalQuest.id} (${formatDate(pointsModalQuest.startDate)} – ${formatDate(pointsModalQuest.endDate)})`;
-    if (format === "markdown") {
-      const text = exportAsMarkdown(rows, questTitle);
-      downloadBlob(
-        new Blob([text], { type: "text/markdown;charset=utf-8" }),
-        `quest-user-points-${slug}.md`,
+  const campaignBaseline = useMemo(
+    () => makeCampaignDraft(selectedQuest),
+    [selectedQuest],
+  );
+  const tasksBaseline = useMemo(
+    () => buildQuestTaskPayloads(makeTaskDrafts(selectedQuest)),
+    [selectedQuest],
+  );
+  const rewardsBaseline = useMemo(
+    () =>
+      buildQuestRewardSavePayload(
+        makeRewardDrafts(selectedQuest),
+        makeRewardDistributionDraft(selectedQuest),
+      ),
+    [selectedQuest],
+  );
+  const rewardsPayload = useMemo(
+    () => buildQuestRewardSavePayload(rewardDrafts, rewardDistributionDraft),
+    [rewardDrafts, rewardDistributionDraft],
+  );
+  const campaignDirty =
+    creatingNew || !sameJson(campaignDraft, campaignBaseline);
+  const tasksDirty = !sameJson(
+    buildQuestTaskPayloads(taskDrafts),
+    tasksBaseline,
+  );
+  const rewardsDirty = !sameJson(rewardsPayload, rewardsBaseline);
+  const taskValidationError = validateQuestTasks(taskDrafts);
+  const rewardValidationError =
+    validateQuestRewards(rewardDrafts) ??
+    validateQuestRewardDistribution(rewardDistributionDraft);
+
+  const campaignMutation = useMutation({
+    mutationFn: async () => {
+      const fd = new FormData();
+      if (selectedQuest?._id) fd.append("_id", selectedQuest._id);
+      fd.append(
+        "start_date",
+        bangkokDateTimeInputToISOString(campaignDraft.startDate),
       );
-    } else if (format === "csv") {
-      const text = exportAsCsv(rows);
-      downloadBlob(
-        new Blob([text], { type: "text/csv;charset=utf-8" }),
-        `quest-user-points-${slug}.csv`,
+      fd.append(
+        "end_date",
+        bangkokDateTimeInputToISOString(campaignDraft.endDate),
       );
-    } else {
-      const xml = exportAsExcelXml(rows);
-      downloadBlob(
-        new Blob([xml], { type: "application/vnd.ms-excel" }),
-        `quest-user-points-${slug}.xls`,
+      fd.append("status", campaignDraft.status);
+      fd.append("facebook_page", campaignDraft.facebookPage.trim());
+      fd.append("facebook_post", campaignDraft.facebookPost.trim());
+      fd.append("line", campaignDraft.line.trim());
+      if (campaignDraft.bannerEn)
+        fd.append("banner_en", campaignDraft.bannerEn);
+      if (campaignDraft.bannerTh)
+        fd.append("banner_th", campaignDraft.bannerTh);
+      if (campaignDraft.subBannerEn) {
+        fd.append("sub_banner_en", campaignDraft.subBannerEn);
+      }
+      if (campaignDraft.subBannerTh) {
+        fd.append("sub_banner_th", campaignDraft.subBannerTh);
+      }
+      return saveQuestCampaign(fd);
+    },
+    onSuccess: (quest) => {
+      queryClient.setQueryData<ResponseQuestDate[]>(
+        questListQueryKey,
+        (current = []) => [
+          quest,
+          ...current.filter((item) => item._id !== quest._id),
+        ],
       );
-    }
-    setExportOpen(false);
+      setCreatingNew(false);
+      setSelectedQuestId(quest._id);
+      setSaveError(null);
+    },
+    onError: (error) => {
+      setSaveError(error instanceof Error ? error.message : "Save failed");
+    },
+  });
+
+  const taskMutation = useMutation({
+    mutationFn: () =>
+      saveQuestTasks(
+        selectedQuest?._id ?? "",
+        buildQuestTaskPayloads(taskDrafts),
+      ),
+    onSuccess: () => {
+      setSaveError(null);
+      queryClient.invalidateQueries({ queryKey: questListQueryKey });
+      if (selectedQuest?._id) {
+        queryClient.invalidateQueries({
+          queryKey: questTaskDeeplinkSummaryQueryKey(selectedQuest._id),
+        });
+      }
+    },
+    onError: (error) => {
+      setSaveError(error instanceof Error ? error.message : "Save failed");
+    },
+  });
+
+  const rewardMutation = useMutation({
+    mutationFn: () =>
+      saveQuestRewards(selectedQuest?._id ?? "", rewardsPayload),
+    onSuccess: () => {
+      setSaveError(null);
+      queryClient.invalidateQueries({ queryKey: questListQueryKey });
+      if (selectedQuest?._id) {
+        queryClient.invalidateQueries({
+          queryKey: questLeaderboardQueryKey(selectedQuest._id),
+        });
+      }
+    },
+    onError: (error) => {
+      setSaveError(error instanceof Error ? error.message : "Save failed");
+    },
+  });
+
+  const beginCreate = () => {
+    setCreatingNew(true);
+    setSelectedQuestId(null);
+    setCampaignDraft(makeCampaignDraft(null));
+    setTaskDrafts([]);
+    setRewardDrafts([]);
+    setRewardDistributionDraft(makeRewardDistributionDraft(null));
+    setSaveError(null);
+    setActiveDetailTab("tasks");
   };
+
+  const addTask = () => {
+    const used = new Set(taskDrafts.map((task) => task.offer));
+    const offer = offers.find((item) => !used.has(item._id));
+    if (!offer) return;
+    setTaskDrafts((current) => [
+      ...current,
+      {
+        clientId: `new-${offer._id}-${Date.now()}`,
+        offer: offer._id,
+        offer_id: offer.offer_id,
+        merchant_id: offer.merchant_id,
+        extra_point: Number(offer.extra_point ?? 50),
+        sort_order: current.length,
+        enabled: true,
+        wording: defaultTaskWording(offer),
+        notes: "",
+      },
+    ]);
+  };
+
+  const updateTaskOffer = (index: number, offerId: string) => {
+    const offer = offersById.get(offerId);
+    if (!offer) return;
+    setTaskDrafts((current) =>
+      current.map((task, i) => {
+        if (i !== index) return task;
+        const previousOffer = offersById.get(task.offer);
+        const previousDefault = defaultTaskWording(previousOffer);
+        const shouldReplaceWording =
+          !task.wording?.trim() || task.wording.trim() === previousDefault;
+        return {
+          ...task,
+          offer: offer._id,
+          offer_id: offer.offer_id,
+          merchant_id: offer.merchant_id,
+          extra_point: Number(task.extra_point || offer.extra_point || 50),
+          wording: shouldReplaceWording
+            ? defaultTaskWording(offer)
+            : task.wording,
+        };
+      }),
+    );
+  };
+
+  const moveTask = (index: number, delta: -1 | 1) => {
+    setTaskDrafts((current) => {
+      const target = index + delta;
+      if (target < 0 || target >= current.length) return current;
+      const next = [...current];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next.map((task, i) => ({ ...task, sort_order: i }));
+    });
+  };
+
+  const removeTask = (index: number) => {
+    setTaskDrafts((current) =>
+      current
+        .filter((_, i) => i !== index)
+        .map((task, i) => ({ ...task, sort_order: i })),
+    );
+  };
+
+  const addReward = () => {
+    const usedRanks = new Set(rewardDrafts.map((reward) => reward.rank));
+    let nextRank = rewardDrafts.length + 1;
+    while (usedRanks.has(nextRank)) nextRank += 1;
+    setRewardDrafts((current) => [
+      ...current,
+      {
+        clientId: `reward-new-${Date.now()}`,
+        rank: nextRank,
+        reward: 0,
+        currency: "THB",
+      },
+    ]);
+  };
+
+  const updateReward = (
+    index: number,
+    patch: Partial<Omit<RewardDraft, "clientId">>,
+  ) => {
+    setRewardDrafts((current) =>
+      current.map((reward, i) =>
+        i === index ? { ...reward, ...patch } : reward,
+      ),
+    );
+  };
+
+  const removeReward = (index: number) => {
+    setRewardDrafts((current) => current.filter((_, i) => i !== index));
+  };
+
+  const selectedQuestLabel = selectedQuest
+    ? `${formatDate(selectedQuest.start_date)} - ${formatDate(selectedQuest.end_date)}`
+    : "New Quest";
 
   return (
     <div className="min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
       <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
         <div className="min-w-0">
           <h3 className="truncate text-base font-medium text-gray-800 dark:text-white/90">
-            Quest Lists
+            Quest Management
           </h3>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             Total: {quests.length}
           </p>
         </div>
-        <button
+        <Button
           type="button"
-          onClick={() => setCreateModalOpen(true)}
-          className="shrink-0 rounded bg-blue-500 px-2 py-1 text-sm font-medium text-white hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
+          size="sm"
+          variant="primary"
+          onClick={beginCreate}
+          disabled={!canEditCampaign}
         >
-          Create Quest
-        </button>
-      </div>
-      <div className="min-w-0 overflow-x-auto border-t border-gray-100 dark:border-gray-700 dark:bg-white/[0.02]">
-        <Table className="min-w-[480px]">
-          <TableHeader className="border-gray-100 dark:border-gray-800">
-            <TableRow>
-              <TableCell
-                isHeader
-                className="text-theme-xs py-3 text-center font-medium text-gray-500 dark:text-gray-400"
-              >
-                ID
-              </TableCell>
-              <TableCell
-                isHeader
-                className="text-theme-xs py-3 text-center font-medium text-gray-500 dark:text-gray-400"
-              >
-                Start Date
-              </TableCell>
-              <TableCell
-                isHeader
-                className="text-theme-xs py-3 text-center font-medium text-gray-500 dark:text-gray-400"
-              >
-                End Date
-              </TableCell>
-              <TableCell
-                isHeader
-                className="text-theme-xs py-3 text-center font-medium text-gray-500 dark:text-gray-400"
-              >
-                Status
-              </TableCell>
-              <TableCell
-                isHeader
-                className="text-theme-xs py-3 text-center font-medium text-gray-500 dark:text-gray-400"
-              >
-                Reward Status
-              </TableCell>
-              <TableCell
-                isHeader
-                className="text-theme-xs py-3 text-center font-medium text-gray-500 dark:text-gray-400"
-              >
-                Action
-              </TableCell>
-            </TableRow>
-          </TableHeader>
-          <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
-            {quests.map((q) => (
-              <TableRow
-                key={q.id}
-                title="Click row for quick view"
-                className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/80"
-                onClick={() => setDetailsModalQuest(q)}
-              >
-                <TableCell
-                  className="text-theme-sm py-3 text-center font-mono whitespace-nowrap text-gray-800 dark:text-white/90"
-                  title={q.id}
-                >
-                  <span className="inline-block max-w-full truncate px-1 sm:max-w-[180px]">
-                    {q.id}
-                  </span>
-                </TableCell>
-                <TableCell className="text-theme-sm py-3 text-center whitespace-nowrap text-gray-600 dark:text-gray-300">
-                  {formatDate(q.startDate)}
-                </TableCell>
-                <TableCell className="text-theme-sm py-3 text-center whitespace-nowrap text-gray-600 dark:text-gray-300">
-                  {formatDate(q.endDate)}
-                </TableCell>
-                <TableCell className="py-3 text-center whitespace-nowrap">
-                  <Badge
-                    size="sm"
-                    color={q.status === "active" ? "success" : "warning"}
-                  >
-                    {q.status}
-                  </Badge>
-                </TableCell>
-                <TableCell className="py-3 text-center whitespace-nowrap">
-                  <Badge
-                    size="sm"
-                    color={q.rewardStatus === "claimed" ? "success" : "warning"}
-                  >
-                    {q.rewardStatus}
-                  </Badge>
-                </TableCell>
-                <TableCell className="py-3 text-center whitespace-nowrap">
-                  <div
-                    className="flex flex-wrap items-center justify-center gap-2"
-                    onClick={(e) => e.stopPropagation()}
-                    onMouseDown={(e) => e.stopPropagation()}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setDetailsModalQuest(q)}
-                      className="shrink-0 rounded border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                    >
-                      View Quest details
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => openPointsModal(q)}
-                      className="shrink-0 rounded border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                    >
-                      View points
-                    </button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+          New Quest
+        </Button>
       </div>
 
-      <Modal
-        isOpen={!!pointsModalQuest}
-        onClose={closePointsModal}
-        isFullscreen
-        showCloseButton={false}
-        className="p-0"
-      >
-        <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 md:p-8 dark:border-gray-700 dark:bg-gray-800">
-          {/* Title + Close in header row */}
-          <div className="mb-4 flex w-full shrink-0 flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-4 dark:border-gray-700">
-            <div className="min-w-0">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                User points
-              </h3>
-              <p
-                className="mt-1 max-w-full text-sm break-words text-gray-500 dark:text-gray-400"
-                title={
-                  pointsModalQuest
-                    ? `Quest ${pointsModalQuest.id} (${formatDate(pointsModalQuest.startDate)} – ${formatDate(pointsModalQuest.endDate)})`
-                    : undefined
-                }
-              >
-                {pointsModalQuest
-                  ? `Quest ${pointsModalQuest.id} (${formatDate(pointsModalQuest.startDate)} – ${formatDate(pointsModalQuest.endDate)})`
-                  : ""}
+      <div className="border-t border-gray-100 dark:border-gray-700">
+        <div
+          data-testid="quest-campaign-selector"
+          aria-label="Quest campaigns"
+          className="border-b border-gray-100 p-4 sm:p-5 dark:border-gray-700"
+        >
+          {questsQuery.isLoading ? (
+            <div className="text-sm text-gray-500">Loading quests...</div>
+          ) : !creatingNew && quests.length === 0 ? (
+            <div className="rounded-xl border border-gray-100 dark:border-gray-700">
+              <NoData>No quests found.</NoData>
+            </div>
+          ) : (
+            <div className="flex gap-3 overflow-x-auto pb-1">
+              {creatingNew && (
+                <button
+                  type="button"
+                  aria-pressed="true"
+                  className="border-brand-300 bg-brand-50 shadow-theme-xs dark:border-brand-500/40 dark:bg-brand-500/10 min-w-[240px] rounded-xl border p-4 text-left transition"
+                  onClick={() => {
+                    setCreatingNew(true);
+                    setSelectedQuestId(null);
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-brand-700 dark:text-brand-300 truncate font-mono text-xs">
+                        unsaved
+                      </div>
+                      <div className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+                        New Quest draft
+                      </div>
+                    </div>
+                    <Badge size="sm" color="warning">
+                      draft
+                    </Badge>
+                  </div>
+                  <div className="text-brand-700 dark:text-brand-300 mt-3 text-xs">
+                    {campaignDraft.startDate && campaignDraft.endDate
+                      ? `${formatDate(campaignDraft.startDate)} - ${formatDate(campaignDraft.endDate)}`
+                      : "Set dates and save to create this campaign."}
+                  </div>
+                </button>
+              )}
+              {quests.map((quest) => {
+                const active = !creatingNew && selectedQuest?._id === quest._id;
+                return (
+                  <button
+                    key={quest._id}
+                    type="button"
+                    aria-pressed={active}
+                    className={`min-w-[240px] rounded-xl border p-4 text-left transition ${
+                      active
+                        ? "border-brand-300 bg-brand-50 shadow-theme-xs dark:border-brand-500/40 dark:bg-brand-500/10"
+                        : "border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900/30 dark:hover:bg-gray-900/70"
+                    }`}
+                    onClick={() => {
+                      setCreatingNew(false);
+                      setSelectedQuestId(quest._id);
+                    }}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="truncate font-mono text-xs text-gray-500">
+                          {quest._id.slice(-8)}
+                        </div>
+                        <div className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+                          {formatDate(quest.start_date)} -{" "}
+                          {formatDate(quest.end_date)}
+                        </div>
+                      </div>
+                      <Badge
+                        size="sm"
+                        color={quest.status === "open" ? "success" : "warning"}
+                      >
+                        {questStatusLabel(quest.status)}
+                      </Badge>
+                    </div>
+                    <div
+                      className={`mt-3 text-xs ${
+                        active
+                          ? "text-brand-700 dark:text-brand-300"
+                          : "text-gray-500 dark:text-gray-400"
+                      }`}
+                    >
+                      {quest.tasks?.length ?? 0} task
+                      {(quest.tasks?.length ?? 0) === 1 ? "" : "s"}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div data-testid="quest-detail-editor" className="min-w-0 p-4 sm:p-6">
+          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
+                {selectedQuestLabel}
+              </h4>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Task point values are saved by superadmin only.
               </p>
             </div>
-            <div className="flex shrink-0 items-center gap-3">
-              <button
+            {selectedQuest && (
+              <Button
                 type="button"
-                onClick={closePointsModal}
-                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                size="sm"
+                variant="outline"
+                onClick={() => setDetailsOpen(true)}
               >
-                Close
-              </button>
-            </div>
-          </div>
-
-          {/* Search + sort / page size / export toolbar */}
-          <div className="mb-4 flex shrink-0 flex-col gap-3 border-b border-gray-100 pb-4 dark:border-gray-700">
-            <div className="min-w-0 flex-1">
-              <label
-                htmlFor="points-search"
-                className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                Search participants
-              </label>
-              <Input
-                id="points-search"
-                type="search"
-                placeholder="User ID, username, email, points, rewards…"
-                value={pointsModalSearch}
-                onChange={(e) => setPointsModalSearch(e.target.value)}
-                className="w-full min-w-0 sm:max-w-xl"
-                autoComplete="off"
-                enterKeyHint="search"
-              />
-            </div>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <label
-                    htmlFor="points-sort-key"
-                    className="text-sm font-medium text-gray-700 dark:text-gray-300"
-                  >
-                    Sort by
-                  </label>
-                  <select
-                    id="points-sort-key"
-                    value={pointsSort.key}
-                    onChange={(e) => {
-                      const key = e.target.value as UserPointsSortKey;
-                      setPointsSort({
-                        key,
-                        dir: key === "points" ? "desc" : "asc",
-                      });
-                    }}
-                    className="focus:ring-brand-500/20 h-9 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-800 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                  >
-                    {USER_POINTS_SORT_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <label
-                    htmlFor="points-sort-dir"
-                    className="text-sm font-medium text-gray-700 dark:text-gray-300"
-                  >
-                    Order
-                  </label>
-                  <select
-                    id="points-sort-dir"
-                    value={pointsSort.dir}
-                    onChange={(e) =>
-                      setPointsSort((s) => ({
-                        ...s,
-                        dir: e.target.value as "asc" | "desc",
-                      }))
-                    }
-                    className="focus:ring-brand-500/20 h-9 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-800 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                  >
-                    <option value="asc">Ascending</option>
-                    <option value="desc">Descending</option>
-                  </select>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <label
-                    htmlFor="points-show"
-                    className="text-sm font-medium text-gray-700 dark:text-gray-300"
-                  >
-                    Show
-                  </label>
-                  <select
-                    id="points-show"
-                    value={pointsModalPageSize}
-                    onChange={(e) =>
-                      setPointsModalPageSize(Number(e.target.value))
-                    }
-                    className="focus:ring-brand-500/20 h-9 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-800 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                  >
-                    {POINTS_PAGE_SIZE_OPTIONS.map((n) => (
-                      <option key={n} value={n}>
-                        {n === 0 ? "All" : n}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
-                    {pointsModalPrepared
-                      ? (() => {
-                          const { all, filtered, display } =
-                            pointsModalPrepared;
-                          const showing = display.length;
-                          const matchTotal = filtered.length;
-                          const allTotal = all.length;
-                          const suffix =
-                            matchTotal !== allTotal || pointsModalSearch.trim()
-                              ? ` matching (${formatCount(allTotal)} total)`
-                              : "";
-                          return `${formatCount(showing)} of ${formatCount(matchTotal)}${suffix}`;
-                        })()
-                      : ""}
-                  </span>
-                </div>
-              </div>
-              <div className="relative shrink-0" ref={exportRef}>
-                <button
-                  type="button"
-                  onClick={() => setExportOpen((o) => !o)}
-                  className="shadow-theme-xs flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600"
-                  title={
-                    pointsModalQuest && pointsModalPrepared
-                      ? pointsModalSearch.trim() ||
-                        pointsModalPrepared.filtered.length !==
-                          pointsModalPrepared.all.length
-                        ? `Export ${formatCount(pointsModalPrepared.sorted.length)} matching participants (current sort & search)`
-                        : `Export all ${formatCount(pointsModalPrepared.all.length)} participants (current sort)`
-                      : undefined
-                  }
-                >
-                  <svg
-                    className="h-4 w-4 shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                    />
-                  </svg>
-                  Export
-                </button>
-                {exportOpen && (
-                  <div className="absolute top-full right-auto left-0 z-20 mt-1 max-w-[min(20rem,calc(100vw-1.5rem))] min-w-[200px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg sm:right-0 sm:left-auto sm:max-w-none dark:border-gray-600 dark:bg-gray-700">
-                    {pointsModalQuest && pointsModalPrepared && (
-                      <p className="border-b border-gray-100 px-4 py-2 text-xs text-gray-500 dark:border-gray-600 dark:text-gray-400">
-                        Export {formatCount(pointsModalPrepared.sorted.length)}{" "}
-                        {pointsModalPrepared.sorted.length === 1
-                          ? "row"
-                          : "rows"}
-                        {pointsModalSearch.trim() ||
-                        pointsModalPrepared.filtered.length !==
-                          pointsModalPrepared.all.length
-                          ? ` (search/filter; ${formatCount(pointsModalPrepared.all.length)} total in quest)`
-                          : ""}
-                        . Order matches the table.
-                      </p>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => handleExport("markdown")}
-                      className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-600"
-                    >
-                      Markdown (.md)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleExport("csv")}
-                      className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-600"
-                    >
-                      CSV (.csv)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleExport("excel")}
-                      className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-600"
-                    >
-                      Excel (.xls)
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Table — fills remaining space; min-height fits header + 10 rows (py-3 × 11 ≈ 520px) */}
-          <div
-            className="min-h-0 min-w-0 flex-1 overflow-auto rounded-lg border border-gray-200 dark:border-gray-600"
-            style={{ minHeight: 520 }}
-          >
-            <Table className="min-w-[380px]">
-              <TableHeader className="sticky top-0 z-[1] border-b border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-700">
-                <TableRow>
-                  <TableCell
-                    isHeader
-                    className="text-theme-xs py-3 text-center font-medium text-gray-500 dark:text-gray-400"
-                  >
-                    Rank
-                  </TableCell>
-                  {(
-                    [
-                      ["User ID", "userId"],
-                      ["Username", "username"],
-                      ["Email", "email"],
-                      ["Points", "points"],
-                      ["Rewards", "rewards"],
-                    ] as const
-                  ).map(([label, sortKey]) => {
-                    const active = pointsSort.key === sortKey;
-                    return (
-                      <TableCell
-                        key={sortKey}
-                        isHeader
-                        className="text-theme-xs p-0 text-center font-medium text-gray-500 dark:text-gray-400"
-                      >
-                        <button
-                          type="button"
-                          onClick={() => onPointsSortHeaderClick(sortKey)}
-                          className="text-theme-xs flex w-full items-center justify-center gap-1 px-2 py-3 font-medium text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-600/50"
-                          title={
-                            active
-                              ? `Sorted ${pointsSort.dir === "asc" ? "ascending" : "descending"}. Click to reverse.`
-                              : "Click to sort"
-                          }
-                        >
-                          <span>{label}</span>
-                          <span
-                            className="inline-flex h-4 w-3 flex-col justify-center gap-0 text-[9px] leading-[0.65]"
-                            aria-hidden
-                          >
-                            <span
-                              className={
-                                active && pointsSort.dir === "asc"
-                                  ? "text-gray-800 dark:text-white"
-                                  : "text-gray-300 dark:text-gray-600"
-                              }
-                            >
-                              {"\u25B2"}
-                            </span>
-                            <span
-                              className={
-                                active && pointsSort.dir === "desc"
-                                  ? "text-gray-800 dark:text-white"
-                                  : "text-gray-300 dark:text-gray-600"
-                              }
-                            >
-                              {"\u25BC"}
-                            </span>
-                          </span>
-                        </button>
-                      </TableCell>
-                    );
-                  })}
-                </TableRow>
-              </TableHeader>
-              <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
-                {pointsModalPrepared &&
-                  (pointsModalPrepared.display.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="px-4 py-6">
-                        <NoData>No participants match your search.</NoData>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    pointsModalPrepared.display.map((u, index) => (
-                      <TableRow key={u.userId}>
-                        <TableCell className="text-theme-sm py-3 text-center font-medium text-gray-800 dark:text-white/90">
-                          {index + 1}
-                        </TableCell>
-                        <TableCell
-                          className="text-theme-sm py-3 text-center font-mono text-gray-800 dark:text-white/90"
-                          title={u.userId}
-                        >
-                          {first5(u.userId)}
-                        </TableCell>
-                        <TableCell
-                          className="text-theme-sm py-3 text-center text-gray-600 dark:text-gray-300"
-                          title={u.username}
-                        >
-                          {first5(u.username)}
-                        </TableCell>
-                        <TableCell
-                          className="text-theme-sm py-3 text-center text-gray-600 dark:text-gray-300"
-                          title={u.email}
-                        >
-                          {first5(u.email)}
-                        </TableCell>
-                        <TableCell className="text-theme-sm py-3 text-center font-medium text-gray-800 dark:text-white/90">
-                          {u.points}
-                        </TableCell>
-                        <TableCell className="text-theme-sm py-3 text-center text-gray-600 dark:text-gray-300">
-                          {u.rewards}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ))}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Quest details modal — fullscreen */}
-      <Modal
-        isOpen={!!detailsModalQuest}
-        onClose={closeDetailsModal}
-        isFullscreen
-        showCloseButton={false}
-        className="p-0"
-      >
-        <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 md:p-8 dark:border-gray-700 dark:bg-gray-800">
-          <div className="mb-4 flex w-full shrink-0 flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-4 dark:border-gray-700">
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-              {detailsEditMode ? "Edit quest" : "Quest details"}
-            </h3>
-            <div className="flex shrink-0 items-center gap-2">
-              {detailsEditMode ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={cancelEditQuest}
-                    disabled={editSubmitting}
-                    className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={saveEditQuest}
-                    disabled={editSubmitting || !editDirty}
-                    className="border-brand-500 bg-brand-500 hover:bg-brand-600 dark:border-brand-500 dark:bg-brand-500 dark:hover:bg-brand-600 rounded-lg border px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-                  >
-                    {editSubmitting ? "Saving…" : "Save changes"}
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={startEditQuest}
-                    className="border-brand-500 bg-brand-500 hover:bg-brand-600 dark:border-brand-500 dark:bg-brand-500 dark:hover:bg-brand-600 rounded-lg border px-4 py-2 text-sm font-medium text-white"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={closeDetailsModal}
-                    className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-                  >
-                    Close
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-          <div className="min-h-0 flex-1 overflow-y-auto pb-4">
-            {detailsModalQuest && (
-              <>
-                <dl className="space-y-4 text-sm">
-                  <div>
-                    <dt className="font-medium text-gray-500 dark:text-gray-400">
-                      ID
-                    </dt>
-                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                      Unique identifier for this quest. Use it when referring to
-                      the quest in APIs or exports.
-                    </p>
-                    <dd
-                      className="mt-1 font-mono text-gray-800 dark:text-white/90"
-                      title={detailsModalQuest.id}
-                    >
-                      {detailsModalQuest.id}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="font-medium text-gray-500 dark:text-gray-400">
-                      Start Date
-                    </dt>
-                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                      When the quest becomes available for users to join and
-                      complete tasks.
-                    </p>
-                    {detailsEditMode && editDraft ? (
-                      <Input
-                        type="text"
-                        value={editDraft.startDate}
-                        onChange={(e) =>
-                          patchEditDraft({ startDate: e.target.value })
-                        }
-                        placeholder="Ex.(2026-02-01)"
-                        className="mt-2"
-                      />
-                    ) : (
-                      <dd className="mt-1 text-gray-800 dark:text-white/90">
-                        {formatDate(detailsModalQuest.startDate)}
-                      </dd>
-                    )}
-                  </div>
-                  <div>
-                    <dt className="font-medium text-gray-500 dark:text-gray-400">
-                      End Date
-                    </dt>
-                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                      Last day users can earn points or claim rewards for this
-                      quest.
-                    </p>
-                    {detailsEditMode && editDraft ? (
-                      <Input
-                        type="text"
-                        value={editDraft.endDate}
-                        onChange={(e) =>
-                          patchEditDraft({ endDate: e.target.value })
-                        }
-                        placeholder="Ex.(2026-02-28)"
-                        className="mt-2"
-                      />
-                    ) : (
-                      <dd className="mt-1 text-gray-800 dark:text-white/90">
-                        {formatDate(detailsModalQuest.endDate)}
-                      </dd>
-                    )}
-                  </div>
-                  <div>
-                    <dt className="font-medium text-gray-500 dark:text-gray-400">
-                      Status
-                    </dt>
-                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                      Whether the quest is currently active (live) or pending
-                      (scheduled).
-                    </p>
-                    {detailsEditMode && editDraft ? (
-                      <select
-                        value={editDraft.status}
-                        onChange={(e) =>
-                          patchEditDraft({ status: e.target.value })
-                        }
-                        className="focus:ring-brand-500/10 mt-2 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:ring-3 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                      >
-                        <option value="active">active</option>
-                        <option value="pending">pending</option>
-                      </select>
-                    ) : (
-                      <dd className="mt-1">
-                        <Badge
-                          size="sm"
-                          color={
-                            detailsModalQuest.status === "active"
-                              ? "success"
-                              : "warning"
-                          }
-                        >
-                          {detailsModalQuest.status}
-                        </Badge>
-                      </dd>
-                    )}
-                  </div>
-                  <div>
-                    <dt className="font-medium text-gray-500 dark:text-gray-400">
-                      Reward Status
-                    </dt>
-                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                      Whether the quest reward has been claimed or is still
-                      pending.
-                    </p>
-                    {detailsEditMode && editDraft ? (
-                      <select
-                        value={editDraft.rewardStatus}
-                        onChange={(e) =>
-                          patchEditDraft({ rewardStatus: e.target.value })
-                        }
-                        className="focus:ring-brand-500/10 mt-2 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:ring-3 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                      >
-                        <option value="claimed">claimed</option>
-                        <option value="pending">pending</option>
-                      </select>
-                    ) : (
-                      <dd className="mt-1">
-                        <Badge
-                          size="sm"
-                          color={
-                            detailsModalQuest.rewardStatus === "claimed"
-                              ? "success"
-                              : "warning"
-                          }
-                        >
-                          {detailsModalQuest.rewardStatus}
-                        </Badge>
-                      </dd>
-                    )}
-                  </div>
-                  <div>
-                    <dt className="font-medium text-gray-500 dark:text-gray-400">
-                      Facebook Page
-                    </dt>
-                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                      Whether this quest is promoted on the Facebook page (and
-                      if a link was set).
-                    </p>
-                    {detailsEditMode && editDraft ? (
-                      <select
-                        value={editDraft.facebookPage}
-                        onChange={(e) =>
-                          patchEditDraft({ facebookPage: e.target.value })
-                        }
-                        className="focus:ring-brand-500/10 mt-2 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:ring-3 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                      >
-                        <option value="Yes">Yes</option>
-                        <option value="No">No</option>
-                      </select>
-                    ) : (
-                      <dd className="mt-1 text-gray-800 dark:text-white/90">
-                        {detailsModalQuest.facebookPage}
-                      </dd>
-                    )}
-                  </div>
-                  <div>
-                    <dt className="font-medium text-gray-500 dark:text-gray-400">
-                      Facebook Post
-                    </dt>
-                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                      Whether this quest was announced in a Facebook post (and
-                      if a link was set).
-                    </p>
-                    {detailsEditMode && editDraft ? (
-                      <select
-                        value={editDraft.facebookPost}
-                        onChange={(e) =>
-                          patchEditDraft({ facebookPost: e.target.value })
-                        }
-                        className="focus:ring-brand-500/10 mt-2 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:ring-3 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                      >
-                        <option value="Yes">Yes</option>
-                        <option value="No">No</option>
-                      </select>
-                    ) : (
-                      <dd className="mt-1 text-gray-800 dark:text-white/90">
-                        {detailsModalQuest.facebookPost}
-                      </dd>
-                    )}
-                  </div>
-                  <div>
-                    <dt className="font-medium text-gray-500 dark:text-gray-400">
-                      Line
-                    </dt>
-                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                      Whether this quest is promoted via Line (and if a link was
-                      set).
-                    </p>
-                    {detailsEditMode && editDraft ? (
-                      <select
-                        value={editDraft.line}
-                        onChange={(e) =>
-                          patchEditDraft({ line: e.target.value })
-                        }
-                        className="focus:ring-brand-500/10 mt-2 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:ring-3 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                      >
-                        <option value="Yes">Yes</option>
-                        <option value="No">No</option>
-                      </select>
-                    ) : (
-                      <dd className="mt-1 text-gray-800 dark:text-white/90">
-                        {detailsModalQuest.line}
-                      </dd>
-                    )}
-                  </div>
-                  <div>
-                    <dt className="font-medium text-gray-500 dark:text-gray-400">
-                      Banner EN
-                    </dt>
-                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                      Whether an English main banner image was uploaded for this
-                      quest.
-                    </p>
-                    {detailsEditMode && editDraft ? (
-                      <select
-                        value={editDraft.bannerEn}
-                        onChange={(e) =>
-                          patchEditDraft({ bannerEn: e.target.value })
-                        }
-                        className="focus:ring-brand-500/10 mt-2 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:ring-3 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                      >
-                        <option value="Yes">Yes</option>
-                        <option value="No">No</option>
-                      </select>
-                    ) : (
-                      <dd className="mt-1 text-gray-800 dark:text-white/90">
-                        {detailsModalQuest.bannerEn}
-                      </dd>
-                    )}
-                  </div>
-                  <div>
-                    <dt className="font-medium text-gray-500 dark:text-gray-400">
-                      Banner TH
-                    </dt>
-                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                      Whether a Thai main banner image was uploaded for this
-                      quest.
-                    </p>
-                    {detailsEditMode && editDraft ? (
-                      <select
-                        value={editDraft.bannerTh}
-                        onChange={(e) =>
-                          patchEditDraft({ bannerTh: e.target.value })
-                        }
-                        className="focus:ring-brand-500/10 mt-2 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:ring-3 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                      >
-                        <option value="Yes">Yes</option>
-                        <option value="No">No</option>
-                      </select>
-                    ) : (
-                      <dd className="mt-1 text-gray-800 dark:text-white/90">
-                        {detailsModalQuest.bannerTh}
-                      </dd>
-                    )}
-                  </div>
-                  <div>
-                    <dt className="font-medium text-gray-500 dark:text-gray-400">
-                      Sub Banner EN
-                    </dt>
-                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                      Whether an English sub-banner image was uploaded for this
-                      quest.
-                    </p>
-                    {detailsEditMode && editDraft ? (
-                      <select
-                        value={editDraft.subBannerEn}
-                        onChange={(e) =>
-                          patchEditDraft({ subBannerEn: e.target.value })
-                        }
-                        className="focus:ring-brand-500/10 mt-2 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:ring-3 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                      >
-                        <option value="Yes">Yes</option>
-                        <option value="No">No</option>
-                      </select>
-                    ) : (
-                      <dd className="mt-1 text-gray-800 dark:text-white/90">
-                        {detailsModalQuest.subBannerEn}
-                      </dd>
-                    )}
-                  </div>
-                  <div>
-                    <dt className="font-medium text-gray-500 dark:text-gray-400">
-                      Sub Banner TH
-                    </dt>
-                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                      Whether a Thai sub-banner image was uploaded for this
-                      quest.
-                    </p>
-                    {detailsEditMode && editDraft ? (
-                      <select
-                        value={editDraft.subBannerTh}
-                        onChange={(e) =>
-                          patchEditDraft({ subBannerTh: e.target.value })
-                        }
-                        className="focus:ring-brand-500/10 mt-2 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:ring-3 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                      >
-                        <option value="Yes">Yes</option>
-                        <option value="No">No</option>
-                      </select>
-                    ) : (
-                      <dd className="mt-1 text-gray-800 dark:text-white/90">
-                        {detailsModalQuest.subBannerTh}
-                      </dd>
-                    )}
-                  </div>
-                </dl>
-
-                {/* Links section — shown when any social channel is Yes (uses draft when editing) */}
-                {(() => {
-                  const linkSource =
-                    detailsEditMode && editDraft
-                      ? editDraft
-                      : detailsModalQuest;
-                  const showSection =
-                    linkSource.facebookPage === "Yes" ||
-                    linkSource.facebookPost === "Yes" ||
-                    linkSource.line === "Yes";
-                  if (!showSection) return null;
-                  return (
-                    <section className="mt-6 border-t border-gray-200 pt-6 dark:border-gray-700">
-                      <h4 className="mb-3 text-base font-semibold text-gray-800 dark:text-white">
-                        Links
-                      </h4>
-                      <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
-                        URLs for promotion channels. Shown when the channel is
-                        enabled above.
-                      </p>
-                      <dl className="space-y-3 text-sm">
-                        {linkSource.facebookPage === "Yes" && (
-                          <div>
-                            <dt className="font-medium text-gray-500 dark:text-gray-400">
-                              Facebook Page link
-                            </dt>
-                            {detailsEditMode && editDraft ? (
-                              <Input
-                                type="url"
-                                value={editDraft.facebookPageLink ?? ""}
-                                onChange={(e) =>
-                                  patchEditDraft({
-                                    facebookPageLink: e.target.value,
-                                  })
-                                }
-                                placeholder="https://..."
-                                className="mt-2"
-                              />
-                            ) : (
-                              <dd className="mt-1">
-                                {detailsModalQuest.facebookPageLink ? (
-                                  <a
-                                    href={detailsModalQuest.facebookPageLink}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-brand-600 dark:text-brand-400 break-all hover:underline"
-                                  >
-                                    {detailsModalQuest.facebookPageLink}
-                                  </a>
-                                ) : (
-                                  <span className="text-gray-500 dark:text-gray-400">
-                                    Not set
-                                  </span>
-                                )}
-                              </dd>
-                            )}
-                          </div>
-                        )}
-                        {linkSource.facebookPost === "Yes" && (
-                          <div>
-                            <dt className="font-medium text-gray-500 dark:text-gray-400">
-                              Facebook Post link
-                            </dt>
-                            {detailsEditMode && editDraft ? (
-                              <Input
-                                type="url"
-                                value={editDraft.facebookPostLink ?? ""}
-                                onChange={(e) =>
-                                  patchEditDraft({
-                                    facebookPostLink: e.target.value,
-                                  })
-                                }
-                                placeholder="https://..."
-                                className="mt-2"
-                              />
-                            ) : (
-                              <dd className="mt-1">
-                                {detailsModalQuest.facebookPostLink ? (
-                                  <a
-                                    href={detailsModalQuest.facebookPostLink}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-brand-600 dark:text-brand-400 break-all hover:underline"
-                                  >
-                                    {detailsModalQuest.facebookPostLink}
-                                  </a>
-                                ) : (
-                                  <span className="text-gray-500 dark:text-gray-400">
-                                    Not set
-                                  </span>
-                                )}
-                              </dd>
-                            )}
-                          </div>
-                        )}
-                        {linkSource.line === "Yes" && (
-                          <div>
-                            <dt className="font-medium text-gray-500 dark:text-gray-400">
-                              Line link
-                            </dt>
-                            {detailsEditMode && editDraft ? (
-                              <Input
-                                type="url"
-                                value={editDraft.lineLink ?? ""}
-                                onChange={(e) =>
-                                  patchEditDraft({ lineLink: e.target.value })
-                                }
-                                placeholder="https://..."
-                                className="mt-2"
-                              />
-                            ) : (
-                              <dd className="mt-1">
-                                {detailsModalQuest.lineLink ? (
-                                  <a
-                                    href={detailsModalQuest.lineLink}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-brand-600 dark:text-brand-400 break-all hover:underline"
-                                  >
-                                    {detailsModalQuest.lineLink}
-                                  </a>
-                                ) : (
-                                  <span className="text-gray-500 dark:text-gray-400">
-                                    Not set
-                                  </span>
-                                )}
-                              </dd>
-                            )}
-                          </div>
-                        )}
-                      </dl>
-                    </section>
-                  );
-                })()}
-
-                {/* Tasks section — read-only in view mode, fully editable in edit mode (reorder/edit/remove/add) */}
-                {(() => {
-                  const taskSource =
-                    detailsEditMode && editDraft
-                      ? editDraft
-                      : detailsModalQuest;
-                  const tasksList = taskSource.tasks ?? [];
-                  const showSection = detailsEditMode || tasksList.length > 0;
-                  if (!showSection) return null;
-                  return (
-                    <section className="mt-6 border-t border-gray-200 pt-6 dark:border-gray-700">
-                      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <h4 className="text-base font-semibold text-gray-800 dark:text-white">
-                            Tasks
-                          </h4>
-                          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                            {detailsEditMode
-                              ? "Drag the ⋮⋮ handle (or use the arrow buttons) to reorder. Edit fields inline, or remove a task. Logo uploads stay in the Create Quest flow."
-                              : "Tasks linked to offers or merchants. Users complete these to earn points."}
-                          </p>
-                        </div>
-                        {detailsEditMode && (
-                          <button
-                            type="button"
-                            onClick={addEditTask}
-                            className="border-brand-500 bg-brand-500 hover:bg-brand-600 dark:border-brand-500 dark:bg-brand-500 dark:hover:bg-brand-600 shrink-0 rounded-lg border px-3 py-2 text-sm font-medium text-white"
-                          >
-                            Add task
-                          </button>
-                        )}
-                      </div>
-                      {tasksList.length === 0 ? (
-                        <NoData>
-                          No tasks yet. Click &quot;Add task&quot; to create
-                          one.
-                        </NoData>
-                      ) : (
-                        <div className="space-y-4">
-                          {tasksList.map((task, index) => {
-                            const isDragSource = dragSrcIndex === index;
-                            const isDragTarget =
-                              detailsEditMode &&
-                              dragSrcIndex !== null &&
-                              dragOverIndex === index &&
-                              dragSrcIndex !== index;
-                            return (
-                              <div
-                                key={task.id ?? index}
-                                onDragOver={
-                                  detailsEditMode
-                                    ? (e) => {
-                                        if (dragSrcIndex === null) return;
-                                        e.preventDefault();
-                                        e.dataTransfer.dropEffect = "move";
-                                        if (dragOverIndex !== index)
-                                          setDragOverIndex(index);
-                                      }
-                                    : undefined
-                                }
-                                onDrop={
-                                  detailsEditMode
-                                    ? (e) => {
-                                        e.preventDefault();
-                                        if (
-                                          dragSrcIndex !== null &&
-                                          dragSrcIndex !== index
-                                        ) {
-                                          reorderEditTasks(dragSrcIndex, index);
-                                        }
-                                        setDragSrcIndex(null);
-                                        setDragOverIndex(null);
-                                      }
-                                    : undefined
-                                }
-                                className={[
-                                  "rounded-lg border bg-gray-50/50 p-4 transition-all dark:bg-gray-800/40",
-                                  isDragSource
-                                    ? "border-brand-400 opacity-50"
-                                    : "border-gray-200 dark:border-gray-600",
-                                  isDragTarget
-                                    ? "border-brand-500 ring-brand-500/30 ring-2"
-                                    : "",
-                                ]
-                                  .filter(Boolean)
-                                  .join(" ")}
-                              >
-                                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                                  <div className="flex items-center gap-2">
-                                    {detailsEditMode && (
-                                      <button
-                                        type="button"
-                                        aria-label="Drag to reorder"
-                                        title="Drag to reorder"
-                                        draggable
-                                        onDragStart={(e) => {
-                                          setDragSrcIndex(index);
-                                          e.dataTransfer.effectAllowed = "move";
-                                          e.dataTransfer.setData(
-                                            "text/plain",
-                                            String(index),
-                                          );
-                                        }}
-                                        onDragEnd={() => {
-                                          setDragSrcIndex(null);
-                                          setDragOverIndex(null);
-                                        }}
-                                        className="cursor-grab rounded border border-gray-300 bg-white px-1.5 py-1 text-sm leading-none text-gray-500 select-none hover:bg-gray-100 active:cursor-grabbing dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-                                      >
-                                        <span aria-hidden>⋮⋮</span>
-                                      </button>
-                                    )}
-                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                      Task {index + 1}
-                                    </span>
-                                  </div>
-                                  {detailsEditMode && (
-                                    <div className="flex items-center gap-1">
-                                      <button
-                                        type="button"
-                                        aria-label="Move task up"
-                                        onClick={() => moveEditTask(index, -1)}
-                                        disabled={index === 0}
-                                        className="rounded border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-40 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-                                      >
-                                        ↑
-                                      </button>
-                                      <button
-                                        type="button"
-                                        aria-label="Move task down"
-                                        onClick={() => moveEditTask(index, 1)}
-                                        disabled={
-                                          index === tasksList.length - 1
-                                        }
-                                        className="rounded border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-40 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-                                      >
-                                        ↓
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => removeEditTask(index)}
-                                        className="ml-1 rounded border border-red-300 bg-white px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:border-red-700 dark:bg-gray-700 dark:text-red-400 dark:hover:bg-red-900/20"
-                                      >
-                                        Remove
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
-                                {detailsEditMode ? (
-                                  <div className="grid gap-x-4 gap-y-3 text-sm sm:grid-cols-2">
-                                    <div>
-                                      <Label className="text-xs">Type</Label>
-                                      <select
-                                        value={task.taskType}
-                                        onChange={(e) => {
-                                          const taskType = e.target
-                                            .value as QuestTaskType;
-                                          // Clear the now-irrelevant id/name when switching task type so we don't keep stale references.
-                                          patchEditTask(
-                                            index,
-                                            taskType === "offer"
-                                              ? {
-                                                  taskType,
-                                                  merchantId: undefined,
-                                                  merchantName: undefined,
-                                                }
-                                              : {
-                                                  taskType,
-                                                  offerId: undefined,
-                                                  offerName: undefined,
-                                                },
-                                          );
-                                        }}
-                                        className="focus:ring-brand-500/10 mt-2 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-3 py-2.5 text-sm text-gray-800 focus:ring-3 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                                      >
-                                        <option value="offer">Offer</option>
-                                        <option value="merchant">
-                                          Merchant
-                                        </option>
-                                      </select>
-                                    </div>
-                                    <div>
-                                      <Label className="text-xs">
-                                        {task.taskType === "offer"
-                                          ? "Offer"
-                                          : "Merchant"}
-                                      </Label>
-                                      {task.taskType === "offer" ? (
-                                        <select
-                                          value={task.offerId ?? ""}
-                                          onChange={(e) => {
-                                            const offerId = e.target.value;
-                                            const offer = offers.find(
-                                              (o) => o._id === offerId,
-                                            );
-                                            patchEditTask(index, {
-                                              offerId,
-                                              offerName:
-                                                offer?.offer_name ?? "",
-                                            });
-                                          }}
-                                          className="focus:ring-brand-500/10 mt-2 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-3 py-2.5 text-sm text-gray-800 focus:ring-3 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                                        >
-                                          <option value="">
-                                            — Select an offer —
-                                          </option>
-                                          {/* Keep existing offer visible even if not in fetched list */}
-                                          {task.offerId &&
-                                            !offers.find(
-                                              (o) => o._id === task.offerId,
-                                            ) && (
-                                              <option value={task.offerId}>
-                                                {task.offerName ?? task.offerId}
-                                              </option>
-                                            )}
-                                          {offers.map((o) => (
-                                            <option key={o._id} value={o._id}>
-                                              {o.offer_name}
-                                            </option>
-                                          ))}
-                                        </select>
-                                      ) : (
-                                        <select
-                                          value={task.merchantId ?? ""}
-                                          onChange={(e) => {
-                                            const merchantId = e.target.value;
-                                            const merchant =
-                                              MOCK_MERCHANTS.find(
-                                                (m) => m.id === merchantId,
-                                              );
-                                            patchEditTask(index, {
-                                              merchantId,
-                                              merchantName:
-                                                merchant?.name ?? "",
-                                            });
-                                          }}
-                                          className="focus:ring-brand-500/10 mt-2 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-3 py-2.5 text-sm text-gray-800 focus:ring-3 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                                        >
-                                          <option value="">
-                                            — Select a merchant —
-                                          </option>
-                                          {MOCK_MERCHANTS.map((m) => (
-                                            <option key={m.id} value={m.id}>
-                                              {m.name}
-                                            </option>
-                                          ))}
-                                        </select>
-                                      )}
-                                    </div>
-                                    <div>
-                                      <Label className="text-xs">Points</Label>
-                                      <Input
-                                        type="number"
-                                        min="0"
-                                        value={String(task.points)}
-                                        onChange={(e) =>
-                                          patchEditTask(index, {
-                                            points:
-                                              Number.parseInt(
-                                                e.target.value,
-                                                10,
-                                              ) || 0,
-                                          })
-                                        }
-                                        className="mt-2"
-                                      />
-                                    </div>
-                                    <div>
-                                      <Label className="text-xs">
-                                        Completion
-                                      </Label>
-                                      <select
-                                        value={task.completionLimit}
-                                        onChange={(e) =>
-                                          patchEditTask(index, {
-                                            completionLimit: e.target
-                                              .value as QuestCompletionLimit,
-                                          })
-                                        }
-                                        className="focus:ring-brand-500/10 mt-2 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-3 py-2.5 text-sm text-gray-800 focus:ring-3 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                                      >
-                                        <option value="once">Once</option>
-                                        <option value="multiple">
-                                          Multiple
-                                        </option>
-                                      </select>
-                                    </div>
-                                    <div className="sm:col-span-2">
-                                      <div className="flex items-center justify-between">
-                                        <Label className="text-xs">
-                                          Condition
-                                        </Label>
-                                        <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-                                          <input
-                                            type="checkbox"
-                                            checked={!!task.condition}
-                                            onChange={(e) =>
-                                              patchEditTask(index, {
-                                                condition: e.target.checked
-                                                  ? {
-                                                      operator: ">=",
-                                                      metric: "sale",
-                                                      amount: 0,
-                                                      currency: "THB",
-                                                    }
-                                                  : null,
-                                              })
-                                            }
-                                          />
-                                          Has condition
-                                        </label>
-                                      </div>
-                                      {task.condition ? (
-                                        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                                          <select
-                                            value={task.condition.metric}
-                                            onChange={(e) =>
-                                              patchEditTask(index, {
-                                                condition: {
-                                                  ...(task.condition as QuestTaskCondition),
-                                                  metric: e.target
-                                                    .value as ConditionMetric,
-                                                },
-                                              })
-                                            }
-                                            className="focus:ring-brand-500/10 h-11 rounded-lg border border-gray-200 bg-transparent px-2 text-sm text-gray-800 focus:ring-3 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                                          >
-                                            <option value="sale">Sale</option>
-                                            <option value="conversion">
-                                              Conversion
-                                            </option>
-                                          </select>
-                                          <select
-                                            value={task.condition.operator}
-                                            onChange={(e) =>
-                                              patchEditTask(index, {
-                                                condition: {
-                                                  ...(task.condition as QuestTaskCondition),
-                                                  operator: e.target
-                                                    .value as ConditionOperator,
-                                                },
-                                              })
-                                            }
-                                            className="focus:ring-brand-500/10 h-11 rounded-lg border border-gray-200 bg-transparent px-2 text-sm text-gray-800 focus:ring-3 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                                          >
-                                            {CONDITION_OPERATORS.map((op) => (
-                                              <option
-                                                key={op.value}
-                                                value={op.value}
-                                              >
-                                                {op.label}
-                                              </option>
-                                            ))}
-                                          </select>
-                                          <Input
-                                            type="number"
-                                            min="0"
-                                            value={String(
-                                              task.condition.amount,
-                                            )}
-                                            onChange={(e) =>
-                                              patchEditTask(index, {
-                                                condition: {
-                                                  ...(task.condition as QuestTaskCondition),
-                                                  amount:
-                                                    Number.parseFloat(
-                                                      e.target.value,
-                                                    ) || 0,
-                                                },
-                                              })
-                                            }
-                                          />
-                                          <select
-                                            value={task.condition.currency}
-                                            onChange={(e) =>
-                                              patchEditTask(index, {
-                                                condition: {
-                                                  ...(task.condition as QuestTaskCondition),
-                                                  currency: e.target.value,
-                                                },
-                                              })
-                                            }
-                                            className="focus:ring-brand-500/10 h-11 rounded-lg border border-gray-200 bg-transparent px-2 text-sm text-gray-800 focus:ring-3 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                                          >
-                                            {CONDITION_CURRENCIES.map((c) => (
-                                              <option key={c} value={c}>
-                                                {c}
-                                              </option>
-                                            ))}
-                                          </select>
-                                        </div>
-                                      ) : (
-                                        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                                          No condition — task completes
-                                          regardless of sale/conversion amount.
-                                        </p>
-                                      )}
-                                    </div>
-                                    <div className="sm:col-span-2">
-                                      <Label className="text-xs">Link</Label>
-                                      <Input
-                                        type="url"
-                                        value={task.link}
-                                        onChange={(e) =>
-                                          patchEditTask(index, {
-                                            link: e.target.value,
-                                          })
-                                        }
-                                        placeholder="https://..."
-                                        className="mt-2"
-                                      />
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <dl className="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
-                                    <div>
-                                      <dt className="text-gray-500 dark:text-gray-400">
-                                        Type
-                                      </dt>
-                                      <dd className="mt-0.5 text-gray-800 capitalize dark:text-white/90">
-                                        {task.taskType}
-                                      </dd>
-                                    </div>
-                                    <div>
-                                      <dt className="text-gray-500 dark:text-gray-400">
-                                        {task.taskType === "offer"
-                                          ? "Offer"
-                                          : "Merchant"}
-                                      </dt>
-                                      <dd className="mt-0.5 text-gray-800 dark:text-white/90">
-                                        {task.taskType === "offer"
-                                          ? (task.offerName ??
-                                            task.offerId ??
-                                            "—")
-                                          : (task.merchantName ??
-                                            task.merchantId ??
-                                            "—")}
-                                      </dd>
-                                    </div>
-                                    <div>
-                                      <dt className="text-gray-500 dark:text-gray-400">
-                                        Points
-                                      </dt>
-                                      <dd className="mt-0.5 text-gray-800 dark:text-white/90">
-                                        {task.points}
-                                      </dd>
-                                    </div>
-                                    <div>
-                                      <dt className="text-gray-500 dark:text-gray-400">
-                                        Completion
-                                      </dt>
-                                      <dd className="mt-0.5 text-gray-800 capitalize dark:text-white/90">
-                                        {task.completionLimit === "once"
-                                          ? "Once"
-                                          : "Multiple"}
-                                      </dd>
-                                    </div>
-                                    <div className="sm:col-span-2">
-                                      <dt className="text-gray-500 dark:text-gray-400">
-                                        Condition
-                                      </dt>
-                                      <dd className="mt-0.5 text-gray-800 dark:text-white/90">
-                                        {formatCondition(task.condition)}
-                                      </dd>
-                                    </div>
-                                    <div className="sm:col-span-2">
-                                      <dt className="text-gray-500 dark:text-gray-400">
-                                        Link
-                                      </dt>
-                                      <dd className="mt-0.5">
-                                        {task.link ? (
-                                          <a
-                                            href={task.link}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-brand-600 dark:text-brand-400 break-all hover:underline"
-                                          >
-                                            {task.link}
-                                          </a>
-                                        ) : (
-                                          <span className="text-gray-500 dark:text-gray-400">
-                                            Not set
-                                          </span>
-                                        )}
-                                      </dd>
-                                    </div>
-                                  </dl>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </section>
-                  );
-                })()}
-              </>
+                Preview
+              </Button>
             )}
           </div>
-        </div>
-      </Modal>
 
-      <Modal
-        isOpen={createModalOpen}
-        onClose={() => setCreateModalOpen(false)}
-        isFullscreen
-        showCloseButton={false}
-        className="p-0"
-      >
-        <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 md:p-8 dark:border-gray-700 dark:bg-gray-800">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!startDate.trim() || !endDate.trim()) {
-                alert("Please enter Start Date and End Date");
-                return;
-              }
-              setCreateSubmitting(true);
-              setTimeout(() => {
-                setCreateSubmitting(false);
-                setCreateModalOpen(false);
-                setStartDate("");
-                setEndDate("");
-                setFacebookPage("No");
-                setFacebookPageLink("");
-                setFacebookPost("No");
-                setFacebookPostLink("");
-                setLine("No");
-                setLineLink("");
-                setTasks([]);
-                alert("Quest created successfully (mock).");
-              }, 400);
-            }}
-            className="flex min-h-0 flex-1 flex-col overflow-hidden"
-          >
-            {/* Header: title + Close + Create */}
-            <div className="mb-4 flex w-full shrink-0 flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-4 dark:border-gray-700">
-              <div className="min-w-0">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  Create Quest
-                </h3>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  Set dates and upload banners for the new quest.
-                </p>
+          {saveError && (
+            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">
+              {saveError}
+            </div>
+          )}
+
+          <section className="mb-6">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <DatePicker
+                  id="quest-campaign-start-date"
+                  label="Start date and time"
+                  ariaLabel="Quest start date and time"
+                  hint={BANGKOK_TIMEZONE_LABEL}
+                  enableTime
+                  altInput
+                  dateFormat="Y-m-d\\TH:i"
+                  altFormat="d/m/Y, h:i K"
+                  minuteIncrement={1}
+                  time_24hr={false}
+                  value={campaignDraft.startDate}
+                  disabled={!canEditCampaign}
+                  onValueChange={(value) =>
+                    setCampaignDraft((draft) => ({
+                      ...draft,
+                      startDate: value,
+                    }))
+                  }
+                />
               </div>
-              <div className="flex shrink-0 items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setCreateModalOpen(false)}
-                  className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+              <div>
+                <DatePicker
+                  id="quest-campaign-end-date"
+                  label="End date and time"
+                  ariaLabel="Quest end date and time"
+                  hint={BANGKOK_TIMEZONE_LABEL}
+                  enableTime
+                  altInput
+                  dateFormat="Y-m-d\\TH:i"
+                  altFormat="d/m/Y, h:i K"
+                  minuteIncrement={1}
+                  time_24hr={false}
+                  value={campaignDraft.endDate}
+                  disabled={!canEditCampaign}
+                  onValueChange={(value) =>
+                    setCampaignDraft((draft) => ({
+                      ...draft,
+                      endDate: value,
+                    }))
+                  }
+                />
+              </div>
+              <div>
+                <Label htmlFor="quest-campaign-status">Status</Label>
+                <select
+                  id="quest-campaign-status"
+                  name="status"
+                  value={campaignDraft.status}
+                  disabled={!canEditCampaign}
+                  onChange={(e) =>
+                    setCampaignDraft((draft) => ({
+                      ...draft,
+                      status: e.target.value,
+                    }))
+                  }
+                  className="focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-800 focus:ring-3 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
                 >
-                  Close
-                </button>
-                <button
-                  type="submit"
-                  disabled={createSubmitting || !createDirty}
-                  className="border-brand-500 bg-brand-500 hover:bg-brand-600 dark:border-brand-500 dark:bg-brand-500 dark:hover:bg-brand-600 rounded-lg border px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-                >
-                  {createSubmitting ? "Creating…" : "Create"}
-                </button>
+                  <option value="open">{questStatusLabel("open")}</option>
+                  <option value="close">{questStatusLabel("close")}</option>
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="quest-campaign-facebook-page">
+                  Facebook page
+                </Label>
+                <Input
+                  id="quest-campaign-facebook-page"
+                  name="facebook_page"
+                  value={campaignDraft.facebookPage}
+                  disabled={!canEditCampaign}
+                  onChange={(e) =>
+                    setCampaignDraft((draft) => ({
+                      ...draft,
+                      facebookPage: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+              <div>
+                <Label htmlFor="quest-campaign-facebook-post">
+                  Facebook post
+                </Label>
+                <Input
+                  id="quest-campaign-facebook-post"
+                  name="facebook_post"
+                  value={campaignDraft.facebookPost}
+                  disabled={!canEditCampaign}
+                  onChange={(e) =>
+                    setCampaignDraft((draft) => ({
+                      ...draft,
+                      facebookPost: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+              <div>
+                <Label htmlFor="quest-campaign-line-link">LINE link</Label>
+                <Input
+                  id="quest-campaign-line-link"
+                  name="line"
+                  value={campaignDraft.line}
+                  disabled={!canEditCampaign}
+                  onChange={(e) =>
+                    setCampaignDraft((draft) => ({
+                      ...draft,
+                      line: e.target.value,
+                    }))
+                  }
+                />
               </div>
             </div>
-            {/* Scrollable form body */}
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pb-4">
-              <div>
-                <Label>Start Date</Label>
-                <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-                  First day of the quest period (e.g. 2026-02-01).
-                </p>
-                <Input
-                  type="text"
-                  placeholder="Ex.(2026-02-01)"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="mt-2"
-                />
-              </div>
-              <div>
-                <Label>End Date</Label>
-                <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-                  Last day of the quest period (e.g. 2026-02-28).
-                </p>
-                <Input
-                  type="text"
-                  placeholder="Ex.(2026-02-28)"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="mt-2"
-                />
-              </div>
-              <div>
-                <Label>Upload banner_en:</Label>
-                <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-                  Main banner image in English. Shown in the app for this quest.
-                </p>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="mt-2 block w-full text-sm text-gray-600 file:mr-2 file:rounded file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-gray-700 dark:text-gray-400 dark:file:bg-gray-700 dark:file:text-gray-200"
-                />
-              </div>
-              <div>
-                <Label>Upload banner_th:</Label>
-                <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-                  Main banner image in Thai. Shown in the app for this quest.
-                </p>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="mt-2 block w-full text-sm text-gray-600 file:mr-2 file:rounded file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-gray-700 dark:text-gray-400 dark:file:bg-gray-700 dark:file:text-gray-200"
-                />
-              </div>
-              <div>
-                <Label>Upload sub_banner_en:</Label>
-                <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-                  Secondary banner image in English (optional).
-                </p>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="mt-2 block w-full text-sm text-gray-600 file:mr-2 file:rounded file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-gray-700 dark:text-gray-400 dark:file:bg-gray-700 dark:file:text-gray-200"
-                />
-              </div>
-              <div>
-                <Label>Upload sub_banner_th:</Label>
-                <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-                  Secondary banner image in Thai (optional).
-                </p>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="mt-2 block w-full text-sm text-gray-600 file:mr-2 file:rounded file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-gray-700 dark:text-gray-400 dark:file:bg-gray-700 dark:file:text-gray-200"
-                />
-              </div>
-              <div>
-                <Label>Facebook Page:</Label>
-                <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-                  Whether this quest is promoted on the Facebook page.
-                </p>
-                <select
-                  value={facebookPage}
-                  onChange={(e) => setFacebookPage(e.target.value)}
-                  className="focus:ring-brand-500/10 mt-2 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:ring-3 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                >
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                </select>
-                {facebookPage === "Yes" && (
-                  <div className="mt-3">
-                    <Label className="text-sm">Facebook Page link</Label>
-                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                      URL to the Facebook page or post. You can update this
-                      link.
-                    </p>
-                    <Input
-                      type="url"
-                      placeholder="https://..."
-                      value={facebookPageLink}
-                      onChange={(e) => setFacebookPageLink(e.target.value)}
-                      className="mt-2"
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {[
+                ["Banner EN", "bannerEn"],
+                ["Banner TH", "bannerTh"],
+                ["Sub banner EN", "subBannerEn"],
+                ["Sub banner TH", "subBannerTh"],
+              ].map(([label, key]) => {
+                const fieldId = `quest-campaign-${key}`;
+                return (
+                  <div key={key}>
+                    <Label htmlFor={fieldId}>{label}</Label>
+                    <input
+                      id={fieldId}
+                      name={key}
+                      type="file"
+                      accept="image/*"
+                      disabled={!canEditCampaign}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] ?? null;
+                        setCampaignDraft((draft) => ({
+                          ...draft,
+                          [key]: file,
+                        }));
+                      }}
+                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
                     />
                   </div>
-                )}
-              </div>
-              <div>
-                <Label>Facebook Post:</Label>
-                <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-                  Whether this quest is announced in a Facebook post.
-                </p>
-                <select
-                  value={facebookPost}
-                  onChange={(e) => setFacebookPost(e.target.value)}
-                  className="focus:ring-brand-500/10 mt-2 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:ring-3 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                );
+              })}
+            </div>
+
+            <div className="mt-4 flex justify-end">
+              <Button
+                type="button"
+                size="sm"
+                variant="primary"
+                disabled={
+                  !canEditCampaign ||
+                  !campaignDirty ||
+                  !campaignDraft.startDate ||
+                  !campaignDraft.endDate ||
+                  campaignMutation.isPending
+                }
+                onClick={() => campaignMutation.mutate()}
+              >
+                Save campaign
+              </Button>
+            </div>
+          </section>
+
+          <div
+            role="tablist"
+            aria-label="Quest campaign management"
+            className="mb-5 grid gap-2 rounded-xl bg-gray-100 p-1 sm:grid-cols-3 dark:bg-gray-900"
+          >
+            {QUEST_DETAIL_TABS.map((tab) => {
+              const active = activeDetailTab === tab.key;
+              const count =
+                tab.key === "tasks"
+                  ? taskDrafts.length
+                  : tab.key === "leaderboard"
+                    ? leaderboardRows.length
+                    : rewardDrafts.length;
+              return (
+                <button
+                  key={tab.key}
+                  id={`quest-detail-tab-${tab.key}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  aria-controls={`quest-detail-panel-${tab.key}`}
+                  className={detailTabButtonClass(active)}
+                  onClick={() => setActiveDetailTab(tab.key)}
                 >
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                </select>
-                {facebookPost === "Yes" && (
-                  <div className="mt-3">
-                    <Label className="text-sm">Facebook Post link</Label>
-                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                      URL to the Facebook post. You can update this link.
+                  <span className="flex items-center justify-between gap-3">
+                    <span>{tab.label}</span>
+                    <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                      {count}
+                    </span>
+                  </span>
+                  <span className="mt-1 block text-xs font-normal text-gray-500 dark:text-gray-400">
+                    {tab.description}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {activeDetailTab === "tasks" && (
+            <section
+              id="quest-detail-panel-tasks"
+              role="tabpanel"
+              aria-labelledby="quest-detail-tab-tasks"
+            >
+              <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h5 className="text-base font-semibold text-gray-900 dark:text-white">
+                    Quest tasks
+                  </h5>
+                  {taskValidationError && (
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-300">
+                      {taskValidationError}
                     </p>
-                    <Input
-                      type="url"
-                      placeholder="https://..."
-                      value={facebookPostLink}
-                      onChange={(e) => setFacebookPostLink(e.target.value)}
-                      className="mt-2"
-                    />
-                  </div>
-                )}
-              </div>
-              <div>
-                <Label>Line:</Label>
-                <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-                  Whether this quest is promoted via Line.
-                </p>
-                <select
-                  value={line}
-                  onChange={(e) => setLine(e.target.value)}
-                  className="focus:ring-brand-500/10 mt-2 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:ring-3 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                >
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                </select>
-                {line === "Yes" && (
-                  <div className="mt-3">
-                    <Label className="text-sm">Line link</Label>
-                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                      URL for Line (e.g. Line official account or campaign
-                      page). You can update this link.
-                    </p>
-                    <Input
-                      type="url"
-                      placeholder="https://..."
-                      value={lineLink}
-                      onChange={(e) => setLineLink(e.target.value)}
-                      className="mt-2"
-                    />
-                  </div>
-                )}
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={!canEditTasks || offers.length === 0}
+                    onClick={addTask}
+                  >
+                    Add brand
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="primary"
+                    disabled={
+                      !canEditTasks ||
+                      !selectedQuest ||
+                      !tasksDirty ||
+                      Boolean(taskValidationError) ||
+                      taskMutation.isPending
+                    }
+                    onClick={() => taskMutation.mutate()}
+                  >
+                    Save tasks
+                  </Button>
+                </div>
               </div>
 
-              {/* Tasks: Offer or Merchant, points, completion limit, condition */}
-              <div className="border-t border-gray-200 pt-6 dark:border-gray-700">
-                <div className="mb-3 flex items-center justify-between">
-                  <div>
-                    <h4 className="text-base font-medium text-gray-900 dark:text-white">
-                      Tasks
-                    </h4>
-                    <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-                      Add tasks linked to an Offer or Merchant. Set points,
-                      whether the task can be done once or multiple times, and
-                      optional conditions on sale/conversion amount.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setTasks((prev) => [...prev, createEmptyTask()])
-                    }
-                    className="border-brand-500 bg-brand-500 hover:bg-brand-600 dark:border-brand-500 dark:bg-brand-500 dark:hover:bg-brand-600 shrink-0 rounded-lg border px-3 py-2 text-sm font-medium text-white"
-                  >
-                    Add task
-                  </button>
-                </div>
-                <div className="space-y-4">
-                  {tasks.map((task, index) => (
-                    <div
-                      key={task.id}
-                      className="rounded-lg border border-gray-200 bg-gray-50/50 p-4 dark:border-gray-600 dark:bg-gray-800/40"
+              <div className="space-y-4">
+                {taskDrafts.map((task, index) => {
+                  const offer = offersById.get(task.offer);
+                  const summary = summaryForTask(deeplinkSummaries, task);
+                  const taskFieldPrefix = `quest-task-${index}`;
+                  const brandFieldId = `${taskFieldPrefix}-brand`;
+                  const pointsFieldId = `${taskFieldPrefix}-points`;
+                  const wordingFieldId = `${taskFieldPrefix}-wording`;
+                  const enabledFieldId = `${taskFieldPrefix}-enabled`;
+                  const notesFieldId = `${taskFieldPrefix}-notes`;
+                  return (
+                    <article
+                      key={task.clientId}
+                      className="shadow-theme-xs rounded-xl border border-gray-100 bg-white p-4 dark:border-gray-700 dark:bg-gray-900/40"
                     >
-                      <div className="mb-3 flex items-center justify-between">
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                          Task {index + 1}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setTasks((prev) =>
-                              prev.filter((t) => t.id !== task.id),
-                            )
-                          }
-                          className="rounded border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                      {/* Logo: show existing from offer or uploaded, allow upload/clear */}
-                      <div className="mb-4 flex flex-wrap items-start gap-4 border-b border-gray-200 pb-4 dark:border-gray-600">
-                        <div>
-                          <Label className="mb-2 block">Logo</Label>
-                          {(() => {
-                            const selectedOffer =
-                              task.taskType === "offer" && task.offerId
-                                ? offers.find((o) => o._id === task.offerId)
-                                : null;
-                            const logoSrc =
-                              task.logoPreviewUrl ||
-                              (task.logoFile
-                                ? null
-                                : selectedOffer?.logo ||
-                                  selectedOffer?.logo_circle ||
-                                  selectedOffer?.logo_desktop ||
-                                  "");
-                            return (
-                              <div className="flex items-center gap-3">
-                                {logoSrc || task.logoPreviewUrl ? (
-                                  <RemoteOrBlobImage
-                                    src={
-                                      (task.logoPreviewUrl || logoSrc) as string
-                                    }
-                                    alt="Task logo"
-                                    width={56}
-                                    height={56}
-                                    className="h-14 w-14 shrink-0 rounded-lg border border-gray-200 object-cover dark:border-gray-600"
-                                  />
-                                ) : (
-                                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-100 text-xs text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400">
-                                    No logo
-                                  </div>
-                                )}
-                                <div className="flex flex-col gap-2">
-                                  <label className="cursor-pointer">
-                                    <span className="inline-block rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
-                                      {logoSrc && !task.logoFile
-                                        ? "Upload to replace"
-                                        : "Upload logo"}
-                                    </span>
-                                    <input
-                                      type="file"
-                                      accept="image/*"
-                                      className="hidden"
-                                      onChange={(e) => {
-                                        const file = e.target.files?.[0];
-                                        if (!file) return;
-                                        if (task.logoPreviewUrl)
-                                          URL.revokeObjectURL(
-                                            task.logoPreviewUrl,
-                                          );
-                                        setTasks((prev) =>
-                                          prev.map((t) =>
-                                            t.id === task.id
-                                              ? {
-                                                  ...t,
-                                                  logoFile: file,
-                                                  logoPreviewUrl:
-                                                    URL.createObjectURL(file),
-                                                }
-                                              : t,
-                                          ),
-                                        );
-                                      }}
-                                    />
-                                  </label>
-                                  {(task.logoFile || task.logoPreviewUrl) && (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        if (task.logoPreviewUrl)
-                                          URL.revokeObjectURL(
-                                            task.logoPreviewUrl,
-                                          );
-                                        setTasks((prev) =>
-                                          prev.map((t) =>
-                                            t.id === task.id
-                                              ? {
-                                                  ...t,
-                                                  logoFile: null,
-                                                  logoPreviewUrl: undefined,
-                                                }
-                                              : t,
-                                          ),
-                                        );
-                                      }}
-                                      className="text-left text-sm text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
-                                    >
-                                      Clear uploaded
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })()}
+                      <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+                        <div className="flex min-w-0 flex-1 items-start gap-3">
+                          <div className="bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-300 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold">
+                            {index + 1}
+                          </div>
+                          <RemoteOrBlobImage
+                            src={offerLogo(offer)}
+                            alt={offerLabel(offer)}
+                            width={44}
+                            height={44}
+                            className="h-11 w-11 shrink-0 rounded-full object-cover"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <label
+                              htmlFor={brandFieldId}
+                              className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400"
+                            >
+                              Brand
+                            </label>
+                            <select
+                              id={brandFieldId}
+                              name={brandFieldId}
+                              value={task.offer}
+                              disabled={!canEditTasks}
+                              onChange={(e) =>
+                                updateTaskOffer(index, e.target.value)
+                              }
+                              className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-800 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                            >
+                              {offers.map((item) => (
+                                <option key={item._id} value={item._id}>
+                                  {offerLabel(item)}
+                                </option>
+                              ))}
+                            </select>
+                            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
+                              <span>Offer {task.offer_id}</span>
+                              <span>Brand {task.merchant_id}</span>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <div>
-                          <Label>Type</Label>
-                          <select
-                            value={task.taskType}
-                            onChange={(e) =>
-                              setTasks((prev) =>
-                                prev.map((t) =>
-                                  t.id === task.id
-                                    ? {
-                                        ...t,
-                                        taskType: e.target
-                                          .value as QuestTaskType,
-                                        offerId:
-                                          t.taskType === "offer"
-                                            ? t.offerId
-                                            : "",
-                                        merchantId:
-                                          t.taskType === "merchant"
-                                            ? t.merchantId
-                                            : "",
-                                      }
-                                    : t,
-                                ),
-                              )
-                            }
-                            className="focus:ring-brand-500/10 mt-1 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:ring-3 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+
+                        <div className="flex flex-wrap gap-2 xl:justify-end">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={!canEditTasks || index === 0}
+                            onClick={() => moveTask(index, -1)}
                           >
-                            <option value="offer">Offer</option>
-                            <option value="merchant">Merchant</option>
-                          </select>
+                            Up
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={
+                              !canEditTasks || index === taskDrafts.length - 1
+                            }
+                            onClick={() => moveTask(index, 1)}
+                          >
+                            Down
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={!canEditTasks}
+                            onClick={() => removeTask(index)}
+                          >
+                            Remove
+                          </Button>
                         </div>
-                        {task.taskType === "offer" ? (
-                          <div>
-                            <Label>Offer</Label>
-                            <select
-                              value={task.offerId}
-                              onChange={(e) =>
-                                setTasks((prev) =>
-                                  prev.map((t) =>
-                                    t.id === task.id
-                                      ? { ...t, offerId: e.target.value }
-                                      : t,
-                                  ),
-                                )
-                              }
-                              className="focus:ring-brand-500/10 mt-1 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:ring-3 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                            >
-                              <option value="">Select offer</option>
-                              {offers.map((o) => (
-                                <option key={o._id} value={o._id}>
-                                  {o.offer_name_display ||
-                                    o.offer_name ||
-                                    o._id}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        ) : (
-                          <div>
-                            <Label>Merchant</Label>
-                            <select
-                              value={task.merchantId}
-                              onChange={(e) =>
-                                setTasks((prev) =>
-                                  prev.map((t) =>
-                                    t.id === task.id
-                                      ? { ...t, merchantId: e.target.value }
-                                      : t,
-                                  ),
-                                )
-                              }
-                              className="focus:ring-brand-500/10 mt-1 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:ring-3 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                            >
-                              <option value="">Select merchant</option>
-                              {MOCK_MERCHANTS.map((m) => (
-                                <option key={m.id} value={m.id}>
-                                  {m.name}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        )}
+                      </div>
+
+                      <div className="mt-4 grid gap-4 lg:grid-cols-[140px_minmax(280px,1fr)] xl:grid-cols-[140px_minmax(360px,1fr)_minmax(240px,320px)]">
                         <div>
-                          <Label>Points</Label>
-                          <Input
+                          <label
+                            htmlFor={pointsFieldId}
+                            className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400"
+                          >
+                            Points
+                          </label>
+                          <input
+                            id={pointsFieldId}
+                            name={pointsFieldId}
                             type="number"
-                            min="0"
-                            value={task.points || ""}
+                            min={2}
+                            max={10000}
+                            value={task.extra_point}
+                            disabled={!canEditTasks}
                             onChange={(e) =>
-                              setTasks((prev) =>
-                                prev.map((t) =>
-                                  t.id === task.id
+                              setTaskDrafts((current) =>
+                                current.map((row, i) =>
+                                  i === index
                                     ? {
-                                        ...t,
-                                        points: Math.max(
-                                          0,
-                                          parseInt(e.target.value, 10) || 0,
-                                        ),
+                                        ...row,
+                                        extra_point: Number(e.target.value),
                                       }
-                                    : t,
+                                    : row,
                                 ),
                               )
                             }
-                            className="mt-1"
-                            placeholder="0"
+                            className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-center text-sm disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
                           />
                         </div>
+
                         <div>
-                          <Label>Completion</Label>
-                          <select
-                            value={task.completionLimit}
+                          <label
+                            htmlFor={wordingFieldId}
+                            className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400"
+                          >
+                            Customer wording
+                          </label>
+                          <Input
+                            id={wordingFieldId}
+                            name={wordingFieldId}
+                            value={task.wording ?? ""}
+                            disabled={!canEditTasks}
+                            placeholder={defaultTaskWording(offer)}
                             onChange={(e) =>
-                              setTasks((prev) =>
-                                prev.map((t) =>
-                                  t.id === task.id
-                                    ? {
-                                        ...t,
-                                        completionLimit: e.target
-                                          .value as QuestCompletionLimit,
-                                      }
-                                    : t,
+                              setTaskDrafts((current) =>
+                                current.map((row, i) =>
+                                  i === index
+                                    ? { ...row, wording: e.target.value }
+                                    : row,
                                 ),
                               )
                             }
-                            className="focus:ring-brand-500/10 mt-1 h-11 w-full rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:ring-3 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                          />
+                          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            Shown on the customer Quest page. Leave blank to use
+                            the brand default.
+                          </div>
+                        </div>
+
+                        <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-300">
+                          <div className="mb-2 flex items-center justify-between gap-3">
+                            <label
+                              htmlFor={enabledFieldId}
+                              className="text-xs font-medium text-gray-500 uppercase dark:text-gray-400"
+                            >
+                              Enabled
+                            </label>
+                            <input
+                              id={enabledFieldId}
+                              name={enabledFieldId}
+                              type="checkbox"
+                              checked={task.enabled !== false}
+                              disabled={!canEditTasks}
+                              onChange={(e) =>
+                                setTaskDrafts((current) =>
+                                  current.map((row, i) =>
+                                    i === index
+                                      ? { ...row, enabled: e.target.checked }
+                                      : row,
+                                  ),
+                                )
+                              }
+                              className="h-4 w-4 rounded border-gray-300"
+                            />
+                          </div>
+                          <div>Generated: {summary?.generated_count ?? 0}</div>
+                          <div>
+                            Latest click:{" "}
+                            {summary?.latest_click
+                              ? formatDate(summary.latest_click)
+                              : "—"}
+                          </div>
+                          <a
+                            href={
+                              summary?.customer_path
+                                ? appLinks.path(summary.customer_path)
+                                : appLinks.offer(task.offer)
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-brand-600 dark:text-brand-400 mt-1 inline-block hover:underline"
                           >
-                            <option value="multiple">Multiple times</option>
-                            <option value="once">Once only</option>
-                          </select>
+                            Customer page
+                          </a>
                         </div>
                       </div>
+
                       <div className="mt-4">
-                        <Label className="block">Link (optional)</Label>
-                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                          Merchant link or custom URL for this task (e.g. offer
-                          page, landing page).
-                        </p>
+                        <label
+                          htmlFor={notesFieldId}
+                          className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400"
+                        >
+                          Notes
+                        </label>
                         <Input
-                          type="url"
-                          placeholder="https://..."
-                          value={task.link}
+                          id={notesFieldId}
+                          name={notesFieldId}
+                          value={task.notes ?? ""}
+                          disabled={!canEditTasks}
                           onChange={(e) =>
-                            setTasks((prev) =>
-                              prev.map((t) =>
-                                t.id === task.id
-                                  ? { ...t, link: e.target.value }
-                                  : t,
+                            setTaskDrafts((current) =>
+                              current.map((row, i) =>
+                                i === index
+                                  ? { ...row, notes: e.target.value }
+                                  : row,
                               ),
                             )
                           }
-                          className="mt-2"
                         />
                       </div>
-                      <div className="mt-4 border-t border-gray-200 pt-4 dark:border-gray-600">
-                        <Label className="mb-2 block">
-                          Condition (optional)
-                        </Label>
-                        <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-                          Require sale/conversion amount to match operator and
-                          value (e.g. sale ≥ 100 THB). Set currency for the
-                          amount.
-                        </p>
-                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                          <div>
-                            <Label className="text-xs">Operator</Label>
-                            <select
-                              value={task.condition?.operator ?? ""}
-                              onChange={(e) => {
-                                const op = e.target.value as
-                                  | ConditionOperator
-                                  | "";
-                                setTasks((prev) =>
-                                  prev.map((t) =>
-                                    t.id === task.id
-                                      ? {
-                                          ...t,
-                                          condition: op
-                                            ? {
-                                                operator: op,
-                                                metric:
-                                                  t.condition?.metric ?? "sale",
-                                                amount:
-                                                  t.condition?.amount ?? 0,
-                                                currency:
-                                                  t.condition?.currency ??
-                                                  "THB",
-                                              }
-                                            : null,
-                                        }
-                                      : t,
-                                  ),
-                                );
-                              }}
-                              className="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-transparent px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                            >
-                              <option value="">None</option>
-                              {CONDITION_OPERATORS.map((o) => (
-                                <option key={o.value} value={o.value}>
-                                  {o.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <Label className="text-xs">Metric</Label>
-                            <select
-                              value={task.condition?.metric ?? "sale"}
-                              onChange={(e) =>
-                                setTasks((prev) =>
-                                  prev.map((t) =>
-                                    t.id === task.id
-                                      ? {
-                                          ...t,
-                                          condition: t.condition
-                                            ? {
-                                                ...t.condition,
-                                                metric: e.target
-                                                  .value as ConditionMetric,
-                                              }
-                                            : {
-                                                operator:
-                                                  "=" as ConditionOperator,
-                                                metric: e.target
-                                                  .value as ConditionMetric,
-                                                amount: 0,
-                                                currency: "THB",
-                                              },
-                                        }
-                                      : t,
-                                  ),
-                                )
-                              }
-                              className="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-transparent px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                            >
-                              <option value="sale">Sale</option>
-                              <option value="conversion">Conversion</option>
-                            </select>
-                          </div>
-                          <div>
-                            <Label className="text-xs">Amount</Label>
-                            <Input
-                              type="number"
-                              min="0"
-                              value={task.condition?.amount ?? ""}
-                              onChange={(e) =>
-                                setTasks((prev) =>
-                                  prev.map((t) =>
-                                    t.id === task.id
-                                      ? {
-                                          ...t,
-                                          condition: t.condition
-                                            ? {
-                                                ...t.condition,
-                                                amount: Math.max(
-                                                  0,
-                                                  parseInt(
-                                                    e.target.value,
-                                                    10,
-                                                  ) || 0,
-                                                ),
-                                              }
-                                            : {
-                                                operator:
-                                                  "=" as ConditionOperator,
-                                                metric:
-                                                  "sale" as ConditionMetric,
-                                                amount: Math.max(
-                                                  0,
-                                                  parseInt(
-                                                    e.target.value,
-                                                    10,
-                                                  ) || 0,
-                                                ),
-                                                currency: "THB",
-                                              },
-                                        }
-                                      : t,
-                                  ),
-                                )
-                              }
-                              className="mt-1"
-                              placeholder="0"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs">Currency</Label>
-                            <select
-                              value={task.condition?.currency ?? "THB"}
-                              onChange={(e) =>
-                                setTasks((prev) =>
-                                  prev.map((t) =>
-                                    t.id === task.id
-                                      ? {
-                                          ...t,
-                                          condition: t.condition
-                                            ? {
-                                                ...t.condition,
-                                                currency: e.target.value,
-                                              }
-                                            : {
-                                                operator:
-                                                  "=" as ConditionOperator,
-                                                metric:
-                                                  "sale" as ConditionMetric,
-                                                amount: 0,
-                                                currency: e.target.value,
-                                              },
-                                        }
-                                      : t,
-                                  ),
-                                )
-                              }
-                              className="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-transparent px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                            >
-                              {CONDITION_CURRENCIES.map((c) => (
-                                <option key={c} value={c}>
-                                  {c}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="mt-4 flex justify-end border-t border-gray-200 pt-4 dark:border-gray-600">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const t = task;
-                            if (t.taskType === "offer" && !t.offerId) {
-                              alert("Please select an offer for this task.");
-                              return;
-                            }
-                            if (t.taskType === "merchant" && !t.merchantId) {
-                              alert("Please select a merchant for this task.");
-                              return;
-                            }
-                            alert(`Task ${index + 1} saved.`);
-                          }}
-                          className="border-brand-500 bg-brand-500 hover:bg-brand-600 dark:border-brand-500 dark:bg-brand-500 dark:hover:bg-brand-600 rounded-lg border px-4 py-2 text-sm font-medium text-white"
-                        >
-                          Save task
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                  {tasks.length === 0 && (
+                    </article>
+                  );
+                })}
+                {taskDrafts.length === 0 && (
+                  <div className="rounded-xl border border-gray-100 dark:border-gray-700">
                     <NoData>
-                      No tasks yet. Click &quot;Add task&quot; to add one.
+                      No quest tasks configured for this campaign.
                     </NoData>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {activeDetailTab === "leaderboard" && (
+            <section
+              id="quest-detail-panel-leaderboard"
+              role="tabpanel"
+              aria-labelledby="quest-detail-tab-leaderboard"
+            >
+              <div className="mb-3 flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
+                <div>
+                  <h5 className="text-base font-semibold text-gray-900 dark:text-white">
+                    Leaderboard
+                  </h5>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Review campaign ranking, point totals, bonuses, and matched
+                    rewards.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={!selectedQuest || leaderboardQuery.isFetching}
+                  onClick={() => leaderboardQuery.refetch()}
+                >
+                  Refresh leaderboard
+                </Button>
+              </div>
+
+              {isLatestAvailableLeaderboard && (
+                <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+                  No points were found for{" "}
+                  {formatDate(leaderboardQuery.data?.empty_range_start_date)} -{" "}
+                  {formatDate(leaderboardQuery.data?.empty_range_end_date)}.
+                  Showing latest available leaderboard from{" "}
+                  {formatDate(leaderboardQuery.data?.source_start_date)} -{" "}
+                  {formatDate(leaderboardQuery.data?.source_end_date)} for local
+                  QA.
+                </div>
+              )}
+
+              <div className="overflow-x-auto rounded-xl border border-gray-100 dark:border-gray-700">
+                {leaderboardQuery.isLoading ? (
+                  <div className="p-6 text-sm text-gray-500">
+                    Loading leaderboard...
+                  </div>
+                ) : leaderboardRows.length === 0 ? (
+                  <NoData>No leaderboard points for this campaign yet.</NoData>
+                ) : (
+                  <Table className="min-w-[820px]">
+                    <TableHeader>
+                      <TableRow>
+                        <TableCell isHeader className="px-4 py-3 text-center">
+                          Rank
+                        </TableCell>
+                        <TableCell isHeader className="px-4 py-3">
+                          User
+                        </TableCell>
+                        <TableCell isHeader className="px-4 py-3 text-right">
+                          Points
+                        </TableCell>
+                        <TableCell isHeader className="px-4 py-3 text-right">
+                          Reward
+                        </TableCell>
+                        <TableCell isHeader className="px-4 py-3 text-right">
+                          Bonuses
+                        </TableCell>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {leaderboardRows.map((row) => {
+                        const configuredReward = rewardForRank(
+                          leaderboardRewards,
+                          row.rank,
+                        );
+                        return (
+                          <TableRow key={`${row.rank}-${row.user_id}`}>
+                            <TableCell className="px-4 py-3 text-center text-sm font-semibold text-gray-800 dark:text-white/90">
+                              {row.rank}
+                            </TableCell>
+                            <TableCell className="px-4 py-3">
+                              <div className="max-w-[280px] truncate text-sm font-medium text-gray-900 dark:text-white">
+                                {row.username || "Unknown user"}
+                              </div>
+                              <div className="max-w-[280px] truncate text-xs text-gray-500 dark:text-gray-400">
+                                {row.email || row.user_id}
+                              </div>
+                            </TableCell>
+                            <TableCell className="px-4 py-3 text-right text-sm text-gray-700 dark:text-gray-300">
+                              {Number(row.point || 0).toLocaleString()}
+                            </TableCell>
+                            <TableCell className="px-4 py-3 text-right text-sm font-semibold text-gray-900 dark:text-white">
+                              {formatReward(
+                                row.reward ?? configuredReward.reward,
+                                row.currency ?? configuredReward.currency,
+                              )}
+                            </TableCell>
+                            <TableCell className="px-4 py-3 text-right text-xs text-gray-500 dark:text-gray-400">
+                              <div>
+                                Quest:{" "}
+                                {Number(
+                                  row.extra_point_received || 0,
+                                ).toLocaleString()}
+                              </div>
+                              <div>
+                                Referral:{" "}
+                                {Number(
+                                  row.extra_point_referral || 0,
+                                ).toLocaleString()}
+                              </div>
+                              <div>
+                                Social:{" "}
+                                {Number(
+                                  row.point_social_reward || 0,
+                                ).toLocaleString()}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
+            </section>
+          )}
+
+          {activeDetailTab === "rewards" && (
+            <section
+              id="quest-detail-panel-rewards"
+              role="tabpanel"
+              aria-labelledby="quest-detail-tab-rewards"
+            >
+              <div className="mb-3 flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
+                <div>
+                  <h5 className="text-base font-semibold text-gray-900 dark:text-white">
+                    Rewards
+                  </h5>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Configure the reward amount for each leaderboard rank in
+                    this Quest campaign.
+                  </p>
+                  {rewardValidationError && (
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-300">
+                      {rewardValidationError}
+                    </p>
                   )}
                 </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={!canEditTasks}
+                    onClick={addReward}
+                  >
+                    Add rank reward
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="primary"
+                    disabled={
+                      !canEditTasks ||
+                      !selectedQuest ||
+                      !rewardsDirty ||
+                      Boolean(rewardValidationError) ||
+                      rewardMutation.isPending
+                    }
+                    onClick={() => rewardMutation.mutate()}
+                  >
+                    Save rewards
+                  </Button>
+                </div>
               </div>
-            </div>
-          </form>
+
+              <article className="mb-4 rounded-xl border border-gray-100 bg-white p-4 dark:border-gray-700 dark:bg-gray-900/40">
+                <div className="grid gap-4 xl:grid-cols-[1fr_180px] xl:items-end">
+                  <div>
+                    <h6 className="text-sm font-semibold text-gray-900 dark:text-white">
+                      Reward distribution
+                    </h6>
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                      {rewardDistributionPreview(
+                        campaignDraft.endDate,
+                        rewardDistributionDraft,
+                      )}
+                    </p>
+                    <div className="mt-3 grid gap-3 md:grid-cols-2">
+                      <div>
+                        <div className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+                          Distribution schedule
+                        </div>
+                        <RewardDistributionSelect
+                          value={rewardDistributionDraft.mode}
+                          disabled={!canEditTasks}
+                          onChange={(mode) => {
+                            setRewardDistributionDraft((draft) => ({
+                              mode,
+                              delayDays:
+                                mode === "after_days"
+                                  ? Math.max(1, Number(draft.delayDays || 7))
+                                  : 0,
+                            }));
+                          }}
+                        />
+                      </div>
+                      {rewardDistributionDraft.mode === "after_days" && (
+                        <div>
+                          <label
+                            htmlFor="quest-reward-distribution-delay-days"
+                            className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400"
+                          >
+                            Delay after end date
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              id="quest-reward-distribution-delay-days"
+                              name="quest-reward-distribution-delay-days"
+                              type="number"
+                              min={1}
+                              max={365}
+                              aria-label="Reward distribution delay days"
+                              value={rewardDistributionDraft.delayDays}
+                              disabled={!canEditTasks}
+                              onChange={(e) =>
+                                setRewardDistributionDraft((draft) => ({
+                                  ...draft,
+                                  delayDays: Number(e.target.value),
+                                }))
+                              }
+                              className="h-11 w-28 rounded-lg border border-gray-300 bg-white px-3 text-center text-sm disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                            />
+                            <span className="text-sm text-gray-500 dark:text-gray-400">
+                              days
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 text-sm dark:border-gray-700 dark:bg-gray-950/30">
+                    <div className="text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
+                      Saved schedule
+                    </div>
+                    <div className="mt-1 font-semibold text-gray-900 dark:text-white">
+                      {formatBangkokSchedule(
+                        selectedQuest?.reward_distribution_scheduled_at,
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </article>
+
+              <div className="space-y-3">
+                {rewardDrafts.map((reward, index) => {
+                  const rewardFieldPrefix = `quest-reward-${index}`;
+                  const rankFieldId = `${rewardFieldPrefix}-rank`;
+                  const rewardFieldId = `${rewardFieldPrefix}-amount`;
+                  const currencyFieldId = `${rewardFieldPrefix}-currency`;
+                  return (
+                    <article
+                      key={reward.clientId}
+                      className="shadow-theme-xs rounded-xl border border-gray-100 bg-white p-4 dark:border-gray-700 dark:bg-gray-900/40"
+                    >
+                      <div className="grid gap-3 sm:grid-cols-[110px_1fr_110px_auto] sm:items-end">
+                        <div>
+                          <label
+                            htmlFor={rankFieldId}
+                            className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400"
+                          >
+                            Rank
+                          </label>
+                          <input
+                            id={rankFieldId}
+                            name={rankFieldId}
+                            type="number"
+                            min={1}
+                            max={1000}
+                            value={reward.rank}
+                            disabled={!canEditTasks}
+                            onChange={(e) =>
+                              updateReward(index, {
+                                rank: Number(e.target.value),
+                              })
+                            }
+                            className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-center text-sm disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                          />
+                        </div>
+                        <div>
+                          <label
+                            htmlFor={rewardFieldId}
+                            className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400"
+                          >
+                            Reward
+                          </label>
+                          <input
+                            id={rewardFieldId}
+                            name={rewardFieldId}
+                            type="number"
+                            min={0}
+                            max={1000000}
+                            value={reward.reward}
+                            disabled={!canEditTasks}
+                            onChange={(e) =>
+                              updateReward(index, {
+                                reward: Number(e.target.value),
+                              })
+                            }
+                            className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-right text-sm disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                          />
+                        </div>
+                        <div>
+                          <label
+                            htmlFor={currencyFieldId}
+                            className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400"
+                          >
+                            Currency
+                          </label>
+                          <Input
+                            id={currencyFieldId}
+                            name={currencyFieldId}
+                            value={reward.currency}
+                            disabled={!canEditTasks}
+                            onChange={(e) =>
+                              updateReward(index, {
+                                currency: e.target.value.toUpperCase(),
+                              })
+                            }
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={!canEditTasks}
+                          onClick={() => removeReward(index)}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    </article>
+                  );
+                })}
+                {rewardDrafts.length === 0 && (
+                  <div className="rounded-xl border border-gray-100 dark:border-gray-700">
+                    <NoData>
+                      No rank rewards configured for this campaign.
+                    </NoData>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+        </div>
+      </div>
+
+      <Modal isOpen={detailsOpen} onClose={() => setDetailsOpen(false)}>
+        <div className="p-4">
+          <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Customer Quest task preview
+          </h4>
+          <div className="mt-4 space-y-3">
+            {taskDrafts
+              .filter((task) => task.enabled !== false)
+              .map((task) => {
+                const offer = offersById.get(task.offer);
+                return (
+                  <div
+                    key={`preview-${task.clientId}`}
+                    className="flex items-center justify-between gap-4 border-b border-gray-100 pb-3 dark:border-gray-700"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <RemoteOrBlobImage
+                        src={offerLogo(offer)}
+                        alt={offerLabel(offer)}
+                        width={40}
+                        height={40}
+                        className="h-10 w-10 rounded-full object-cover"
+                      />
+                      <span className="truncate text-sm text-gray-900 dark:text-white">
+                        {customerTaskWording(task, offer)}
+                      </span>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-emerald-500 px-3 py-1 text-sm font-semibold text-white">
+                      +{task.extra_point} Points
+                    </span>
+                  </div>
+                );
+              })}
+          </div>
         </div>
       </Modal>
     </div>

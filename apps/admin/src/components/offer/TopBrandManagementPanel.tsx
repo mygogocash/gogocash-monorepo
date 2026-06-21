@@ -3,7 +3,8 @@
 import { useCallback, useMemo, useState, type DragEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
-import type { Offer } from "@/types/api";
+import { usePermissions } from "@/hooks/usePermissions";
+import type { Offer, TopBrandConfigEntry } from "@/types/api";
 import { fetchOffersList, offersListQueryKey } from "@/lib/query/offersQueries";
 import { pathImage } from "@/utils/helper";
 import NoData from "@/components/common/NoData";
@@ -15,7 +16,7 @@ import { OFFER_THUMB_SIZES } from "./offerMedia";
 
 const TOP_BRANDS_QUERY_KEY = ["admin", "top-brands"] as const;
 
-const EMPTY_ORDER: string[] = [];
+const EMPTY_BRANDS: TopBrandConfigEntry[] = [];
 
 /** Payload for HTML5 DnD (index into the ordered id list). */
 const DND_INDEX_KEY = "application/gogocash-top-brand-index";
@@ -71,10 +72,42 @@ function ordersEqual(a: string[], b: string[]): boolean {
   return a.every((id, i) => id === b[i]);
 }
 
+function cashbackByOfferId(
+  brands: readonly TopBrandConfigEntry[],
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const entry of brands) {
+    out[entry.offerId] = entry.cashback;
+  }
+  return out;
+}
+
+function brandEntriesEqual(
+  order: readonly string[],
+  cashbackById: Record<string, string>,
+  serverBrands: readonly TopBrandConfigEntry[],
+): boolean {
+  if (order.length !== serverBrands.length) return false;
+  return order.every((id, i) => {
+    const server = serverBrands[i];
+    return (
+      server?.offerId === id &&
+      (cashbackById[id] ?? "") === (server.cashback ?? "")
+    );
+  });
+}
+
 export default function TopBrandManagementPanel() {
   const queryClient = useQueryClient();
+  const { can } = usePermissions();
+  const canManageBrands = can("brands:manage");
   /** When non-null, unsaved edits; otherwise show server order from `data`. */
   const [draftOrder, setDraftOrder] = useState<string[] | null>(null);
+  /** When non-null, unsaved cashback edits keyed by offer `_id`. */
+  const [draftCashbackById, setDraftCashbackById] = useState<Record<
+    string,
+    string
+  > | null>(null);
   const [addOfferId, setAddOfferId] = useState("");
   const [pickerSearch, setPickerSearch] = useState("");
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
@@ -85,8 +118,28 @@ export default function TopBrandManagementPanel() {
     queryFn: () => apiClient.getTopBrands(),
   });
 
-  const serverOrder = useMemo(() => data?.order ?? EMPTY_ORDER, [data?.order]);
+  const serverBrands = useMemo(
+    () => data?.brands ?? EMPTY_BRANDS,
+    [data?.brands],
+  );
+  const serverOrder = useMemo(
+    () => data?.order ?? serverBrands.map((entry) => entry.offerId),
+    [data?.order, serverBrands],
+  );
+  const serverCashbackById = useMemo(
+    () => cashbackByOfferId(serverBrands),
+    [serverBrands],
+  );
   const localOrder = draftOrder ?? serverOrder;
+  const localCashbackById = draftCashbackById ?? serverCashbackById;
+  const localBrands = useMemo(
+    () =>
+      localOrder.map((offerId) => ({
+        offerId,
+        cashback: localCashbackById[offerId] ?? "",
+      })),
+    [localCashbackById, localOrder],
+  );
 
   const pickerQuery = useMemo(
     () => ({
@@ -137,17 +190,21 @@ export default function TopBrandManagementPanel() {
     return out;
   }, [offersPick?.data, localOrder, offerById]);
 
-  const dirty = draftOrder !== null && !ordersEqual(draftOrder, serverOrder);
+  const dirty =
+    !ordersEqual(localOrder, serverOrder) ||
+    !brandEntriesEqual(localOrder, localCashbackById, serverBrands);
 
   const saveMutation = useMutation({
-    mutationFn: (order: string[]) => apiClient.saveTopBrands(order),
+    mutationFn: (brands: TopBrandConfigEntry[]) =>
+      apiClient.saveTopBrands(brands),
     onSuccess: () => {
       setDraftOrder(null);
+      setDraftCashbackById(null);
       void queryClient.invalidateQueries({ queryKey: TOP_BRANDS_QUERY_KEY });
-      toast.success("Top brand order saved.");
+      toast.success("Top brands saved.");
     },
     onError: () => {
-      toast.error("Could not save top brand order.");
+      toast.error("Could not save top brands.");
     },
   });
 
@@ -181,6 +238,16 @@ export default function TopBrandManagementPanel() {
     });
     setAddOfferId("");
   }, [addOfferId, serverOrder]);
+
+  const updateCashback = useCallback(
+    (offerId: string, cashback: string) => {
+      setDraftCashbackById((draft) => ({
+        ...(draft ?? serverCashbackById),
+        [offerId]: cashback,
+      }));
+    },
+    [serverCashbackById],
+  );
 
   const handleRowDragStart = useCallback((e: DragEvent, index: number) => {
     setDraggingIndex(index);
@@ -259,6 +326,12 @@ export default function TopBrandManagementPanel() {
           <strong className="font-medium">Top Brands</strong> on each offer;
           this screen controls the curated homepage sequence consumers see.
         </p>
+        {!canManageBrands ? (
+          <p className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+            You have read-only access. Ask an admin with Brands Management
+            permission to change homepage top brands.
+          </p>
+        ) : null}
       </div>
 
       {staleIds.length > 0 && (
@@ -285,6 +358,7 @@ export default function TopBrandManagementPanel() {
               type="search"
               value={pickerSearch}
               onChange={(e) => setPickerSearch(e.target.value)}
+              disabled={!canManageBrands}
               placeholder="Search offers…"
               className="focus:border-brand-500 focus:ring-brand-500/20 dark:focus:border-brand-400 h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white"
             />
@@ -297,6 +371,7 @@ export default function TopBrandManagementPanel() {
               id="top-brand-add"
               value={addOfferId}
               onChange={(e) => setAddOfferId(e.target.value)}
+              disabled={!canManageBrands}
               className="focus:border-brand-500 focus:ring-brand-500/20 dark:focus:border-brand-400 h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white"
             >
               <option value="">Select an offer…</option>
@@ -312,7 +387,7 @@ export default function TopBrandManagementPanel() {
             type="button"
             size="sm"
             onClick={addSelected}
-            disabled={!addOfferId}
+            disabled={!canManageBrands || !addOfferId}
           >
             Add to list
           </Button>
@@ -354,17 +429,19 @@ export default function TopBrandManagementPanel() {
             return (
               <li
                 key={id}
-                draggable
+                draggable={canManageBrands}
                 aria-grabbed={isDragging ? true : undefined}
-                onDragStart={(e) => handleRowDragStart(e, index)}
-                onDragEnd={handleRowDragEnd}
-                onDragOver={(e) => handleRowDragOver(e, index)}
-                onDragLeave={handleRowDragLeave}
-                onDrop={(e) => handleRowDrop(e, index)}
+                onDragStart={canManageBrands ? (e) => handleRowDragStart(e, index) : undefined}
+                onDragEnd={canManageBrands ? handleRowDragEnd : undefined}
+                onDragOver={canManageBrands ? (e) => handleRowDragOver(e, index) : undefined}
+                onDragLeave={canManageBrands ? handleRowDragLeave : undefined}
+                onDrop={canManageBrands ? (e) => handleRowDrop(e, index) : undefined}
                 className={`flex flex-wrap items-center gap-3 rounded-xl border bg-gray-50/80 px-3 py-2.5 transition-[opacity,box-shadow] dark:bg-gray-900/40 ${
                   isDragging
                     ? "cursor-grabbing border-gray-200 opacity-60 dark:border-gray-700"
-                    : "cursor-grab border-gray-200 dark:border-gray-700"
+                    : canManageBrands
+                      ? "cursor-grab border-gray-200 dark:border-gray-700"
+                      : "border-gray-200 dark:border-gray-700"
                 } ${
                   isDropTarget
                     ? "border-brand-400 ring-brand-400/40 dark:border-brand-500 ring-2"
@@ -416,6 +493,17 @@ export default function TopBrandManagementPanel() {
                     Top Brands on
                   </span>
                 ) : null}
+                <input
+                  aria-label={`Cashback for ${offer ? offerLabel(offer) : id}`}
+                  type="text"
+                  value={localCashbackById[id] ?? ""}
+                  onChange={(e) => updateCashback(id, e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  draggable={false}
+                  disabled={!canManageBrands}
+                  placeholder="Cashback"
+                  className="focus:border-brand-500 focus:ring-brand-500/20 dark:focus:border-brand-400 min-w-32 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:outline-none sm:flex-none dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                />
                 <div
                   className="flex shrink-0 items-center gap-1"
                   onClick={(e) => e.stopPropagation()}
@@ -424,7 +512,7 @@ export default function TopBrandManagementPanel() {
                     type="button"
                     title="Move up"
                     draggable={false}
-                    disabled={index === 0}
+                    disabled={!canManageBrands || index === 0}
                     onClick={() => move(index, index - 1)}
                     className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-200 disabled:opacity-30 dark:hover:bg-gray-700"
                   >
@@ -434,7 +522,7 @@ export default function TopBrandManagementPanel() {
                     type="button"
                     title="Move down"
                     draggable={false}
-                    disabled={index >= localOrder.length - 1}
+                    disabled={!canManageBrands || index >= localOrder.length - 1}
                     onClick={() => move(index, index + 1)}
                     className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-200 disabled:opacity-30 dark:hover:bg-gray-700"
                   >
@@ -444,8 +532,9 @@ export default function TopBrandManagementPanel() {
                     type="button"
                     title="Remove from homepage list"
                     draggable={false}
+                    disabled={!canManageBrands}
                     onClick={() => removeAt(index)}
-                    className="rounded-lg px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
+                    className="rounded-lg px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40 dark:text-red-400 dark:hover:bg-red-950/40"
                   >
                     Remove
                   </button>
@@ -460,17 +549,20 @@ export default function TopBrandManagementPanel() {
         <Button
           type="button"
           size="sm"
-          disabled={!dirty || saveMutation.isPending}
-          onClick={() => saveMutation.mutate(localOrder)}
+          disabled={!canManageBrands || !dirty || saveMutation.isPending}
+          onClick={() => saveMutation.mutate(localBrands)}
         >
-          {saveMutation.isPending ? "Saving…" : "Save order"}
+          {saveMutation.isPending ? "Saving…" : "Save top brands"}
         </Button>
         <Button
           type="button"
           size="sm"
           variant="outline"
-          disabled={!dirty || saveMutation.isPending}
-          onClick={() => setDraftOrder(null)}
+          disabled={!canManageBrands || !dirty || saveMutation.isPending}
+          onClick={() => {
+            setDraftOrder(null);
+            setDraftCashbackById(null);
+          }}
         >
           Reset
         </Button>

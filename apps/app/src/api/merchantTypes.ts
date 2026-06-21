@@ -10,11 +10,16 @@ export type MerchantCommission = {
 export type MerchantOfferResponse = {
   _id: string;
   offer_name: string;
+  banner?: string;
   categories?: string;
   commission_store?: number | string;
   commissions?: MerchantCommission[];
   logo?: string;
+  logo_circle?: string;
+  logo_desktop?: string;
+  logo_mobile?: string;
   offer_name_display?: string;
+  tracking_link?: string;
 };
 
 /** Narrow an unknown backend payload to a single offer doc. */

@@ -22,7 +22,6 @@ export default async function BannerPage(props: DefaultAppPageProps) {
       <div className="space-y-6">
         <BannerSubNav />
         <BannerTable />
-        <BannerTable variant="homeSmall" />
       </div>
     </div>
   );

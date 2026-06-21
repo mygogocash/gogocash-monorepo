@@ -72,7 +72,11 @@ export default defineConfig({
         replacement: stub("safeAreaContextStub.tsx"),
       },
       // react-native is Flow-typed; render against react-native-web instead.
-      { find: "react-native", replacement: path.resolve(__dirname, "./node_modules/react-native-web") },
+      // Use the bare package name so node/vite resolution finds react-native-web
+      // wherever it is installed. In this monorepo it is HOISTED to the workspace
+      // root node_modules (not apps/app/node_modules), so a hardcoded per-app
+      // ./node_modules/react-native-web path would not exist.
+      { find: "react-native", replacement: "react-native-web" },
       { find: "@mobile", replacement: path.resolve(__dirname, "./src") },
     ],
   },

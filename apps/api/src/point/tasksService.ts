@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PointService } from './point.service';
 import { InvolveService } from 'src/involve/involve.service';
@@ -10,8 +10,6 @@ import { rateCurrencyUSD } from 'src/utils/helper';
 
 @Injectable()
 export class TasksService {
-  private readonly logger = new Logger(TasksService.name);
-
   constructor(
     private readonly pointService: PointService,
     private readonly involveService: InvolveService,
@@ -22,8 +20,6 @@ export class TasksService {
   // @Cron('0 31 0 7 * *')
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async handleCron() {
-    this.logger.debug('Called when the current time is 00.00');
-
     // const conversions = await this.involveService.getConversionAll({
     //   page: 1,
     //   limit: 10,
@@ -51,15 +47,14 @@ export class TasksService {
     const filterApproved = await this.conversionModel
       .find({
         aff_sub1: { $regex: '^user_id:' },
+        conversion_status: 'approved',
+        add_point: { $ne: true },
         datetime_conversion: {
           $gte: new Date(new Date().setDate(new Date().getDate() - 10)),
           $lt: new Date(),
         },
-        // conversion_status: 'approved',
-        // add_point: { $exists: false },
       })
       .lean();
-    console.log('filterApproved', filterApproved?.length);
     const rate = await rateCurrencyUSD();
 
     for (const conversion of filterApproved) {
@@ -84,10 +79,14 @@ export class TasksService {
       );
       await delay(1000);
     }
-    // await this.conversionModel.updateMany(
-    //   { _id: { $in: filterApproved.map((c) => new Types.ObjectId(c._id)) } },
-    //   { $set: { add_point: true } },
-    // );
-    console.log('add point done', filterApproved?.length);
+    const awardedIds = filterApproved
+      .map((conversion) => conversion._id)
+      .filter(Boolean);
+    if (awardedIds.length > 0) {
+      await this.conversionModel.updateMany(
+        { _id: { $in: awardedIds } },
+        { $set: { add_point: true } },
+      );
+    }
   }
 }

@@ -1,0 +1,53 @@
+# Dependabot — keeps dependencies patched continuously, CI-gated, with low PR
+# noise via grouping. Targets `migrate/monorepo` (the active integration branch
+# that becomes `main` at the prod cutover), so update PRs run the real CI gate.
+#
+# NOTE on the security tab: Dependabot *alerts* are evaluated against the
+# DEFAULT branch (`main` = old pre-modernization code), so most current alerts
+# are already fixed on `migrate/monorepo` and will close when it merges to main.
+# This config drives ongoing *update PRs* against the active branch.
+version: 2
+updates:
+  # ── npm (single root lockfile covers all workspaces) ──────────────────────
+  - package-ecosystem: npm
+    directory: "/"
+    target-branch: migrate/monorepo
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+    groups:
+      # One PR for all safe minor/patch bumps — keeps noise down, easy to merge.
+      npm-minor-patch:
+        update-types:
+          - minor
+          - patch
+      # Majors grouped separately so each breaking bump gets a deliberate review.
+      npm-major:
+        update-types:
+          - major
+    ignore:
+      # These majors are pinned on purpose (modernized stack / framework lock);
+      # let humans drive them, not weekly PRs.
+      - dependency-name: "next"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "expo"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "firebase-admin"
+        update-types: ["version-update:semver-major"]
+
+  # ── GitHub Actions (also addresses #50) ───────────────────────────────────
+  - package-ecosystem: github-actions
+    directory: "/"
+    target-branch: migrate/monorepo
+    schedule:
+      interval: weekly
+      day: monday
+    labels:
+      - dependencies
+    groups:
+      github-actions:
+        patterns:
+          - "*"

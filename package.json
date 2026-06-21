@@ -13,10 +13,34 @@
   "scripts": {
     "build": "turbo run build",
     "lint": "turbo run lint",
+    "postinstall": "npm run postinstall -w apps/admin",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test"
   },
   "devDependencies": {
     "turbo": "^2.3.0"
+  },
+  "overrides": {
+    "@google-cloud/pubsub@5.3.1": {
+      "@opentelemetry/core": "2.8.0"
+    },
+    "firebase-tools@15.21.0": {
+      "@google-cloud/pubsub": {
+        "@opentelemetry/core": "2.8.0"
+      },
+      "js-yaml": "4.2.0"
+    },
+    "@istanbuljs/load-nyc-config@1.1.0": {
+      "js-yaml": "4.2.0"
+    },
+    "@nestjs/platform-express@11.1.27": {
+      "multer": "2.2.0"
+    },
+    "@nestjs/swagger@11.4.4": {
+      "js-yaml": "4.2.0"
+    },
+    "viem@2.33.1": {
+      "ws": "8.21.0"
+    }
   }
 }

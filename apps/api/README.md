@@ -1,6 +1,6 @@
 # GoGoCash API (NestJS)
 
-Backend API for GoGoCash affiliate cashback, points, withdrawals, admin operations, Google Drive media storage, and Telegram bot authentication.
+Backend API for GoGoCash affiliate cashback, points, withdrawals, admin operations, Google Drive media storage, transactional email (Resend), and Telegram bot authentication.
 
 ## Quick Start
 
@@ -9,28 +9,30 @@ Backend API for GoGoCash affiliate cashback, points, withdrawals, admin operatio
 3. Run the API with `yarn start:dev`.
 4. Confirm the server at `http://localhost:8080` and Swagger at `http://localhost:8080/doc_68bf99fed9667685c1637607`.
 
-## Connected Repositories
+## Connected Workspaces
 
-- `../gogocash_app-feature-login-firebase`: customer-facing Next.js app consuming auth, offer, profile, wallet, and quest APIs.
-- `../gogocash_admin-main`: internal dashboard consuming admin auth, moderation, reporting, and operational endpoints.
+This API lives in the `gogocash-monorepo` Turborepo alongside the apps that consume it:
+
+- `../app`: customer-facing Expo / React Native (web) app (`@gogocash/mobile`) consuming auth, offer, profile, wallet, and quest APIs.
+- `../admin`: internal Next.js dashboard consuming admin auth, moderation, reporting, and operational endpoints.
 
 ## AI Handoff
 
 - Read these files first: `src/app.module.ts`, `src/auth/auth.service.ts`, `src/involve/involve.service.ts`, `src/withdraw/withdraw.service.ts`.
-- This repo is the contract source of truth. If you change controller response shapes, update both Next.js repos in the same task.
+- This repo is the contract source of truth. If you change controller response shapes, update both the `app` (Expo) and `admin` (Next.js) workspaces in the same task.
 - Legacy env names still exist, especially `INVOLVE_SECRET` and `INVOVLE_SECRET`. Keep both wired until the code is normalized.
 - Withdrawal, point, and conversion logic cross module boundaries. Search both controllers and services before changing finance behavior.
-- Product analytics now live in this repo too. Read `src/analytics/*`, `src/auth/auth.controller.ts`, `src/withdraw/cronjob/job.service.ts`, and `../POSTHOG_PRODUCT_OS.md` before touching PostHog events, headers, or flags.
+- Product analytics now live in this repo too. Read `src/analytics/*`, `src/auth/auth.controller.ts`, and `src/withdraw/cronjob/job.service.ts` before touching PostHog events, headers, or flags.
 
 ## Change Map
 
 | If you need to change... | Start here | Then check |
 | --- | --- | --- |
 | User login/register response fields or JWT/session contract | `src/auth/auth.service.ts`, `src/auth/auth.controller.ts` | customer web app NextAuth wiring and admin login only if admin payload changed |
-| Customer PostHog truth events or feature-flag evaluation | `src/analytics/*` plus the owning business service | `../POSTHOG_PRODUCT_OS.md` and the web app analytics runtime |
-| Deeplink generation, conversions, points, withdrawals | owning domain service first (`involve`, `withdraw`, `point`) | both Next.js repos if DTOs or UI labels changed |
-| CORS or request correlation headers | `src/main.ts`, `src/analytics/analytics-context.ts` | customer web app Axios/auth callers |
-| Admin-only operational behavior | `src/admin/*` | `gogocash_admin-main` tables/forms |
+| Customer PostHog truth events or feature-flag evaluation | `src/analytics/*` plus the owning business service | the customer app analytics runtime |
+| Deeplink generation, conversions, points, withdrawals | owning domain service first (`involve`, `withdraw`, `point`) | `app` and `admin` workspaces if DTOs or UI labels changed |
+| CORS or request correlation headers | `src/main.ts`, `src/analytics/analytics-context.ts` | customer app Axios/auth callers |
+| Admin-only operational behavior | `src/admin/*` | `apps/admin` tables/forms |
 
 ## 1. What This Service Does
 
@@ -53,12 +55,23 @@ This service is a **modular NestJS monolith** that handles:
 - PostHog truth events are currently wired for auth, deeplink generation, conversion sync/status, points, withdraw creation/completion/rejection, and withdraw method creation.
 - The admin dashboard consumes this API but is not part of the customer PostHog project.
 
+### Security hardening (2026-06-14)
+
+A money/auth hardening pass landed — see [`/SECURITY_HARDENING.md`](../../SECURITY_HARDENING.md) for the full register and follow-up issues:
+
+- **Global `ValidationPipe`** in `main.ts` (`transform` + `forbidUnknownValues:false`; whitelist deferred → #46) — class-validator decorators are now actually enforced.
+- **Withdraw balance gate** on `POST /withdraw` + `/withdraw/bank-transfer` (`assertWithinBalance`); `create()` no longer self-approves from a client `tx_hash` (now `pending` + admin `PATCH /withdraw/:id/approve`).
+- **Bank-transfer concurrency** serialized in a per-user Mongo transaction (closes the double-withdraw TOCTOU; on-chain `create()` reorder → #41).
+- **Authz fixes:** withdraw-method IDOR scoped to owner; guarded the unauth cashback-balance route, the involve offer-mutation/`create-affiliate-ai` routes (the AI route via a fail-closed API key, `INVOLVE_AI_API_KEY`).
+- **FX** conversion is cached + timeout-bounded + fail-closed (no more silent-null that zeroed foreign-currency balances).
+- A real `checkWithdraw`↔Mongo integration test runs in CI (`test/withdraw-balance.e2e-spec.ts`).
+
 ## 2. Tech Stack
 
 - **Framework**: NestJS
-- **Runtime**: Node.js 20
+- **Runtime**: Node.js 22 (`engines.node >= 22`; Docker image `node:22-alpine`)
 - **Language**: TypeScript
-- **DB**: MongoDB via Mongoose
+- **DB**: MongoDB via Mongoose (mongoose 9)
 - **Scheduler**: `@nestjs/schedule` cron jobs
 - **Auth**: JWT, Firebase Admin SDK, Crossmint integration
 - **External APIs**: Involve Asia, Google Drive API, ExchangeRate API
@@ -78,15 +91,24 @@ src/
   user/                   # user profile + MyCashback aggregation
   involve/                # Involve Asia integration (offers/conversions/deeplinks)
   offer/                  # offer listing, favorites, categories, coupons, banners
+  brand/                  # brand catalog
   point/                  # points + rankings + referral points
   withdraw/               # withdrawal checks, requests, methods, conversion sync cron
   admin/                  # admin auth + operational management APIs
   google-drive/           # upload/delete/proxy files
   telegram-bot/           # Telegram command/update handlers + auth verification pages
+  email/                  # transactional email via Resend (no-op when RESEND_API_KEY unset)
+  customer-io/            # Customer.io messaging integration
+  customer-billing/       # Stripe-based billing
+  gogosense/              # GogoSense feature module
+  policy/                 # policy module
+  tasks/                  # admin break-glass HTTP triggers for scheduled jobs
+  common/                 # shared utilities
   utils/helper.ts         # currency conversion + Thai bank metadata
 
 test/
   app.e2e-spec.ts
+  withdraw-balance.e2e-spec.ts   # real checkWithdraw <-> Mongo integration test (runs in CI)
 ```
 
 ## 4. Runtime Bootstrap and Request Lifecycle
@@ -108,8 +130,9 @@ Core imports:
 - `ScheduleModule.forRoot()`
 - `ConfigModule.forRoot({ load: [envConfig] })`
 - `MongooseModule.forRoot(process.env.MONGO_URI)`
-- Domain modules:
-  - `AuthModule`, `UserModule`, `AdminModule`, `OfferModule`, `WithdrawModule`, `GoogleDriveModule`, `PointModule`, `TelegramBotModule`
+- Platform modules: `AnalyticsModule`, `CustomerIoModule`, `PolicyModule`, `GogosenseModule`, `CustomerBillingModule`
+- Domain modules: `AuthModule`, `AdminModule`, `UserModule`, `OfferModule`, `BrandModule`, `WithdrawModule`, `GoogleDriveModule`, `PointModule`, `InvolveModule`, `TasksModule`
+- `TelegramBotModule` is registered conditionally — only when `TELEGRAM_BOT_TOKEN` is set and not `'PLACEHOLDER'`.
 
 ### 4.3 Request Flow Pattern
 
@@ -166,6 +189,13 @@ These are referenced in code and should be defined in `.env` for local/prod:
 - `GOOGLE_REDIRECT_URI`
 - `GOOGLE_REFRESH_TOKEN`
 
+### 5.5.1 Transactional Email (Resend)
+
+- `RESEND_API_KEY` (when unset, the email provider degrades to a logged no-op)
+- `MAIL_FROM`
+
+> See `.env.example` for the full, authoritative list (includes Customer.io, Optimise, Stripe billing, and SIWE settings not enumerated here).
+
 ### 5.6 Withdrawal / On-chain
 
 - `PRIVATE_KEY_WITHDRAW`
@@ -191,7 +221,7 @@ These are referenced in code and should be defined in `.env` for local/prod:
   - `is_new_user`
   - `auth_flow`
 - Backend truth events are emitted only after successful business outcomes through `src/analytics/analytics.service.ts`.
-- The shared event and flag contract lives in `../POSTHOG_PRODUCT_OS.md`.
+- The event and flag contract is defined by `src/analytics/*` (the source of truth for this repo).
 
 ### 6.1 Guard Types
 

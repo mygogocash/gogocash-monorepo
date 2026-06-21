@@ -12,7 +12,9 @@ const proto = AdminController.prototype as unknown as Record<string, unknown>;
 const GUARDS_METADATA = '__guards__';
 
 function rolesOf(method: string): string[] {
-  return (Reflect.getMetadata(ROLES_KEY, proto[method] as object) as string[]) ?? [];
+  return (
+    (Reflect.getMetadata(ROLES_KEY, proto[method] as object) as string[]) ?? []
+  );
 }
 function isPublic(method: string): boolean {
   return Reflect.getMetadata(IS_PUBLIC_KEY, proto[method] as object) === true;
@@ -20,7 +22,9 @@ function isPublic(method: string): boolean {
 
 describe('AdminController RBAC wiring', () => {
   it('protects the controller class with AuthAdminGuard by default (fail-closed)', () => {
-    const guards = (Reflect.getMetadata(GUARDS_METADATA, AdminController) as unknown[]) ?? [];
+    const guards =
+      (Reflect.getMetadata(GUARDS_METADATA, AdminController) as unknown[]) ??
+      [];
     expect(guards).toContain(AuthAdminGuard);
   });
 
@@ -33,7 +37,12 @@ describe('AdminController RBAC wiring', () => {
   });
 
   describe('public routes are @Public (token/credential authenticated, no admin JWT)', () => {
-    for (const method of ['login', 'acceptInvite', 'forgotPassword', 'resetPassword']) {
+    for (const method of [
+      'login',
+      'acceptInvite',
+      'forgotPassword',
+      'resetPassword',
+    ]) {
       it(`${method}`, () => {
         expect(isPublic(method)).toBe(true);
       });

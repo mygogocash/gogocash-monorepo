@@ -28,10 +28,14 @@ RUN npm run build -w gogocash-api
 FROM node:22-alpine
 WORKDIR /app
 
-# Production-only deps from the same root lockfile.
-COPY package.json package-lock.json .npmrc ./
+# Carry over the build stage's fully-resolved workspace node_modules (hoisted
+# to the monorepo root). A production `npm ci --omit=dev` here with only
+# apps/api/package.json present — not the sibling workspaces (admin/app) the
+# root lockfile references — fails to install hoisted runtime deps like
+# @nestjs/config, crashing the container with MODULE_NOT_FOUND on boot.
+COPY package.json ./
 COPY apps/api/package.json ./apps/api/package.json
-RUN npm ci --legacy-peer-deps --omit=dev
+COPY --from=build /app/node_modules ./node_modules
 
 # Compiled output and the runtime uploads target directory.
 COPY --from=build /app/apps/api/dist ./apps/api/dist

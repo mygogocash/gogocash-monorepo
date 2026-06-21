@@ -17,6 +17,10 @@ export type OfferRecord = {
   logo?: string;
   /** Extra-points / coupon flag — drives the "Grab Coupon" chip. */
   extra_store?: boolean;
+  /** Admin hide flag. Public API already filters this, mapper defends in case stale data leaks. */
+  disabled?: boolean;
+  /** Admin curation state. Public API already filters pending/rejected rows. */
+  status?: string;
 };
 
 export type OfferListResponse = {

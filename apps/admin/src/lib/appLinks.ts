@@ -7,12 +7,16 @@
  */
 
 const APP_BASE = (
-  process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+  process.env.NEXT_PUBLIC_APP_URL || "http://localhost:19006"
 ).replace(/\/$/, "");
 
 export const appLinks = {
   home: (): string => APP_BASE,
-  offer: (offerId: string | number): string => `${APP_BASE}/offer/${offerId}`,
+  path: (path: string): string =>
+    /^https?:\/\//i.test(path)
+      ? path
+      : `${APP_BASE}${path.startsWith("/") ? path : `/${path}`}`,
+  offer: (offerId: string | number): string => `${APP_BASE}/shop/${offerId}`,
   user: (userId: string): string => `${APP_BASE}/profile/${userId}`,
   login: (): string => `${APP_BASE}/login`,
 } as const;

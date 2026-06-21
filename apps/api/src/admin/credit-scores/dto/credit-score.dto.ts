@@ -89,7 +89,10 @@ class CreditScoreWeightsDto {
 }
 
 export class UpdateCreditScoreConfigDto {
-  @ApiPropertyOptional({ description: 'Credit score tiers', type: [CreditScoreTierDto] })
+  @ApiPropertyOptional({
+    description: 'Credit score tiers',
+    type: [CreditScoreTierDto],
+  })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })

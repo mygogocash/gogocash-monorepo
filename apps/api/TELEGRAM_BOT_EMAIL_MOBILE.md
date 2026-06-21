@@ -9,7 +9,7 @@ Telegram bot with email/mobile authentication that generates JWT tokens and send
 - ✅ Password authentication
 - ✅ JWT token generation
 - ✅ Deep link to web app with token
-- ✅ Session management (15-min expiry)
+- ✅ Session management (1-hour login-session expiry; verification link expires in 15 min)
 - ✅ Secure credential handling
 
 ## How It Works
@@ -34,10 +34,10 @@ Telegram bot with email/mobile authentication that generates JWT tokens and send
 ## Setup
 
 ### 1. Environment Variables
-Your `.env` is already configured:
+Copy `.env.example` to `.env` and fill in real values (never commit secrets):
 ```bash
-TELEGRAM_BOT_TOKEN=8577974122:AAFSFCGvg3Y4hhnZ34bxpBY7wq2jCqY4JMU
-JWT_SECRET=8wzgsKXq4fTvKUjW9yd2VvKjb1dcJsJjYW/kpTG8akw=
+TELEGRAM_BOT_TOKEN=<your-bot-token-from-BotFather>
+JWT_SECRET=<your-jwt-secret>
 API_BASE_URL=http://localhost:8080
 WEB_APP_URL=https://app.gogocash.co
 ```
@@ -59,12 +59,16 @@ yarn start:prod
 
 ## Bot Commands
 
-| Command | Description |
-|---------|-------------|
-| `/start` | Welcome message |
-| `/login` | Start authentication |
-| `/cancel` | Cancel current operation |
-| `/help` | Show help message |
+> Status (2026-06-21): the `/login` and `/cancel` handlers are currently **commented out** in `telegram-bot.update.ts`. The live commands are `/start`, `/help`, `/register`, and `/openapp`. The email/mobile + password login flow below describes the intended design but is not wired up in the current build.
+
+| Command | Description | Status |
+|---------|-------------|--------|
+| `/start` | Welcome message | Active |
+| `/help` | Show help message | Active |
+| `/register` | Create a new account | Active |
+| `/openapp` | Open web app directly | Active |
+| `/login` | Start authentication | Disabled (commented out) |
+| `/cancel` | Cancel current operation | Disabled (commented out) |
 
 ## Authentication Flow Details
 
@@ -106,13 +110,13 @@ yarn start:prod
 - ✅ Passwords are never sent to frontend
 
 ### Session Security
-- ✅ Unique session IDs (64 characters)
-- ✅ 15-minute auto-expiry
+- ✅ Unique session IDs (64 hex chars, `crypto.randomBytes(32)`)
+- ✅ Login session auto-expires after 1 hour (verification link expires in 15 min)
 - ✅ One-time use tokens
 - ✅ Session cleanup after use
 
 ### Token Security
-- ✅ JWT tokens with 7-day expiry
+- ✅ JWT tokens with 1-day expiry (`signOptions: { expiresIn: '1d' }` in `telegram-bot.module.ts`)
 - ✅ Signed with secret key
 - ✅ Contains user identification data
 - ✅ Secure transmission via HTTPS

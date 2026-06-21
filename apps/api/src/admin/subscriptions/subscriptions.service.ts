@@ -27,9 +27,7 @@ export class SubscriptionsService {
   async getStats() {
     const [statusCounts, revenueResult] = await Promise.all([
       this.subscriptionModel
-        .aggregate([
-          { $group: { _id: '$status', count: { $sum: 1 } } },
-        ])
+        .aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }])
         .exec(),
       this.subscriptionModel
         .aggregate([
@@ -60,7 +58,8 @@ export class SubscriptionsService {
 
     return {
       by_status: byStatus,
-      total_revenue: revenueResult.length > 0 ? revenueResult[0].total_revenue : 0,
+      total_revenue:
+        revenueResult.length > 0 ? revenueResult[0].total_revenue : 0,
     };
   }
 
@@ -95,9 +94,7 @@ export class SubscriptionsService {
       throw new NotFoundException(`Plan ${id} not found`);
     }
 
-    const plan = await this.subscriptionPlanModel
-      .findByIdAndDelete(id)
-      .exec();
+    const plan = await this.subscriptionPlanModel.findByIdAndDelete(id).exec();
     if (!plan) {
       throw new NotFoundException(`Plan ${id} not found`);
     }
@@ -139,9 +136,7 @@ export class SubscriptionsService {
         .exec();
 
       filter.user_id = {
-        $in: matchingUsers.map(
-          (u) => new Types.ObjectId(u._id?.toString()),
-        ),
+        $in: matchingUsers.map((u) => new Types.ObjectId(u._id?.toString())),
       };
     }
 
@@ -177,7 +172,10 @@ export class SubscriptionsService {
     const subscription = await this.subscriptionModel
       .findById(id)
       .populate('user_id', 'email username')
-      .populate('plan_id', 'name description price currency billing_cycle features')
+      .populate(
+        'plan_id',
+        'name description price currency billing_cycle features',
+      )
       .lean()
       .exec();
 
@@ -188,11 +186,7 @@ export class SubscriptionsService {
     return subscription;
   }
 
-  async performAction(
-    id: string,
-    action: string,
-    days?: number,
-  ) {
+  async performAction(id: string, action: string, days?: number) {
     if (!Types.ObjectId.isValid(id)) {
       throw new NotFoundException(`Subscription ${id} not found`);
     }

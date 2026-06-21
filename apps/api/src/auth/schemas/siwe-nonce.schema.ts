@@ -26,4 +26,7 @@ export const SiweNonceSchema = SchemaFactory.createForClass(SiweNonce);
 // TTL on Mongoose's `createdAt` (supplied by `timestamps: true`) — one
 // timestamp field instead of two keeps the insert path simple and can't
 // drift out of sync.
-SiweNonceSchema.index({ createdAt: 1 }, { expireAfterSeconds: SIWE_NONCE_TTL_SECONDS });
+SiweNonceSchema.index(
+  { createdAt: 1 },
+  { expireAfterSeconds: SIWE_NONCE_TTL_SECONDS },
+);

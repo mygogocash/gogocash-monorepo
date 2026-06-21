@@ -32,8 +32,7 @@ export class TasksController {
   @Get('update-offers/:id')
   async updateOffers(@Param('id') id: string) {
     if (id == process.env.FIREBASE_API_KEY) {
-      const allOffers = await this.involveService.findAll();
-      console.log('allOffers', allOffers?.length);
+      await this.involveService.findAll();
     } else {
       return { message: 'error' };
     }
@@ -56,7 +55,6 @@ export class TasksController {
           add_point: { $exists: false },
         })
         .lean();
-      console.log('filterApproved', filterApproved?.length);
       const rate = await rateCurrencyUSD();
 
       for (const conversion of filterApproved) {
@@ -78,8 +76,6 @@ export class TasksController {
         );
         // await delay(1000);
       }
-
-      console.log('add point done', filterApproved?.length);
     } else {
       return { message: 'error' };
     }
