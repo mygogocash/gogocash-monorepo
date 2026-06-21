@@ -126,7 +126,7 @@ export default function WithdrawTable() {
     const newQuery = { ...query, search: searchValue, page: 1 };
     setQuery(newQuery);
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
-    searchTimerRef.current = setTimeout(() => fetchOffers(newQuery), 300);
+    searchTimerRef.current = setTimeout(() => void fetchOffers(newQuery), 300);
   };
 
   useEffect(() => {
@@ -142,7 +142,7 @@ export default function WithdrawTable() {
       status: value ? value : undefined,
     };
     setQuery(newQuery);
-    fetchOffers(newQuery);
+    void fetchOffers(newQuery);
   };
 
   const handleMethodFilter = (value: string) => {
@@ -152,14 +152,14 @@ export default function WithdrawTable() {
       method: value ? value : undefined,
     };
     setQuery(newQuery);
-    fetchOffers(newQuery);
+    void fetchOffers(newQuery);
   };
 
   // Handle pagination
   const handlePageChange = (newPage: number) => {
     const newQuery = { ...query, page: newPage };
     setQuery(newQuery);
-    fetchOffers(newQuery);
+    void fetchOffers(newQuery);
   };
 
   // Format date as dd/mm/yyyy HH:mm:ss
@@ -418,8 +418,8 @@ export default function WithdrawTable() {
                           {list?.conversion_id?.length > 0 ? "GGC" : "MCB"}
                         </div>
                         <div className="max-w-[300px] overflow-auto text-xs text-gray-500 dark:text-gray-400">
-                          {list.conversion_id.length > 0
-                            ? `Conversion IDs: ${list.conversion_id.join(", ")}`
+                          {(list.conversion_id?.length ?? 0) > 0
+                            ? `Conversion IDs: ${list.conversion_id?.join(", ")}`
                             : "No Conversion IDs"}
                         </div>
                       </td>
@@ -519,7 +519,7 @@ export default function WithdrawTable() {
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   router.push(
-                                    `/withdraw/${list.user_id._id}?from=withdraw`,
+                                    `/withdraw/${list.user_id?._id}?from=withdraw`,
                                   );
                                   setOpenActionsId(null);
                                 }}
