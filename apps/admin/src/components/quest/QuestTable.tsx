@@ -417,9 +417,9 @@ export default function QuestTable() {
     if (selectedQuestId) {
       return quests.find((quest) => quest._id === selectedQuestId) ?? null;
     }
-    return (
-      quests.find((quest) => quest._id === selectedQuestId) ?? quests[0] ?? null
-    );
+    // selectedQuestId is null in this branch (the truthy case returns above),
+    // so the previous find() always missed — fall back to the first quest.
+    return quests[0] ?? null;
   }, [creatingNew, quests, selectedQuestId]);
 
   const offersQuery = useQuery({
