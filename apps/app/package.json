@@ -14,6 +14,7 @@
     "prepare:web-metadata": "node scripts/generate-web-metadata.mjs",
     "sync:i18n": "node scripts/sync-i18n-catalogs.mjs",
     "gen:i18n-review": "node scripts/gen-i18n-review.mjs",
+    "gogosense:preflight": "node scripts/gogosense-preflight.mjs",
     "export:web": "npm run prepare:web-metadata && expo export --platform web",
     "test": "vitest run --config vitest.config.ts",
     "test:full": "npm run test && npm run test:render && npm run typecheck && npm run export:web -- --output-dir /tmp/gogocash-expo-full-test-export",
