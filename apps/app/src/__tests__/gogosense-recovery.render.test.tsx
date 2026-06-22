@@ -32,6 +32,41 @@ describe("useGoGoSenseRecovery (render)", () => {
     });
   });
 
+  it("clears a stale manual recovery job when the next start fails", async () => {
+    const api = {
+      createScreenshotJob: vi
+        .fn()
+        .mockResolvedValueOnce({
+          _id: "screenshot-1",
+          status: "pending",
+        })
+        .mockRejectedValueOnce(new Error("network down")),
+      getScreenshotJob: vi.fn(async () => ({
+        _id: "screenshot-1",
+        status: "manual_review",
+        upload_url: "https://uploads.gogocash.test/screenshot-1",
+      })),
+    };
+
+    const { result } = renderHook(() => useGoGoSenseRecovery(api));
+
+    await act(async () => {
+      await result.current.startRecovery();
+    });
+    await waitFor(() => expect(result.current.job?.id).toBe("screenshot-1"));
+
+    await act(async () => {
+      await result.current.startRecovery();
+    });
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(api.createScreenshotJob).toHaveBeenCalledTimes(2);
+    expect(result.current.job).toBeNull();
+    expect(result.current.error).toBe(
+      "Recovery job could not be started. Try again from GoGoSense timeline."
+    );
+  });
+
   it("stays unavailable without an app api session", () => {
     const { result } = renderHook(() => useGoGoSenseRecovery(null));
 

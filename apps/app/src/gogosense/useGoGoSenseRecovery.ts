@@ -66,6 +66,7 @@ export function useGoGoSenseRecovery(apiOverride?: RecoveryApi | null) {
 
     setLoading(true);
     setError(null);
+    setJob(null);
     try {
       const created = mapGoGoSenseRecoveryJob(await api.createScreenshotJob());
       const refreshed =
