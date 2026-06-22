@@ -45,6 +45,10 @@ cd apps/app && eas build --profile development --platform android
 
 Install the resulting dev-client APK on an Android phone, then:
 
+`npm run gogosense:dev-client -w apps/app` starts Metro with the required
+localhost/IPv4 flags and configures `adb reverse tcp:8081 tcp:8081` for connected
+Android devices before Expo starts.
+
 1. Open GoGoCash → GoGoSense → **Permissions** → tap **Grant usage access** → enable
    GoGoCash in the OS "Usage access" screen → return; status should read *granted*.
 2. Open an **enabled** merchant app (e.g. Shopee), spend up to two minutes there, then return to GoGoCash → GoGoSense
