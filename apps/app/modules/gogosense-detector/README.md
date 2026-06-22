@@ -28,6 +28,10 @@ Prerequisites (owner-provided — not in the repo):
 3. **≥1 GoGoSense merchant enabled** in staging Mongo with a real Involve
    `offer_id`/`network_merchant_id` — all 30 seeds ship **disabled**, so `/gogosense/detect`
    matches nothing until then.
+   To upsert the default catalog and enable the first seed for a device pass:
+   ```bash
+   MONGO_URI="$STAGING_MONGO_URI" npm run gogosense:seed-merchants -w apps/api -- --enable-first
+   ```
 
 Build the dev client (CI or local):
 
