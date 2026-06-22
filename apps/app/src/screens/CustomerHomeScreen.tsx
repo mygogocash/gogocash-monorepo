@@ -80,7 +80,7 @@ import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter"
 import { CustomerCookieConsentBanner } from "@mobile/components/CustomerCookieConsentBanner";
 import { IntroAfterLoginModal } from "@mobile/components/IntroAfterLoginModal";
 import { CustomerLineOfficialFab } from "@mobile/components/CustomerLineOfficialFab";
-import { CarouselDots, getCarouselPageMotionStyle } from "@mobile/components/CarouselDots";
+import { CarouselDots } from "@mobile/components/CarouselDots";
 import { useReducedMotion } from "@mobile/hooks/useReducedMotion";
 import {
   getCarouselActiveIndex,
@@ -255,10 +255,10 @@ function getPromoSectionCards(
     : cards;
 }
 
-function getPromoSectionPageSize(sectionId: string, homeLayout: HomeLayoutMetrics) {
-  return ONE_ROW_PROMO_SECTION_IDS.has(sectionId) && homeLayout.isDesktop
-    ? homeLayout.compactBrandColumns
-    : homeLayout.compactBrandCardsPerPage;
+function getPromoSectionPageSize(homeLayout: HomeLayoutMetrics) {
+  // Every promo rail is a fixed 8-column x 2-row group (compactBrandCardsPerPage), matching
+  // Top Brands; the group slides as one unit and overflows narrow screens with a peek card.
+  return homeLayout.compactBrandCardsPerPage;
 }
 
 function getPagedScrollIndex(
@@ -1409,14 +1409,14 @@ function TopBrandSection({
           )}
           onMomentumScrollEnd={(event) =>
             setActiveTopBrandPage(
-              getPagedScrollIndex(event, homeLayout.brandSectionFrameWidth, topBrandMaxPageIndex)
+              getPagedScrollIndex(event, homeLayout.topBrandGroupWidth, topBrandMaxPageIndex)
             )
           }
           pagingEnabled
           scrollEventThrottle={16}
           showsHorizontalScrollIndicator={false}
           snapToAlignment="start"
-          snapToInterval={homeLayout.brandSectionFrameWidth}
+          snapToInterval={homeLayout.topBrandGroupWidth}
           style={styles.topBrandScroll}
         >
           {topBrandPages.map((pageCards, pageIndex) => (
@@ -1427,14 +1427,8 @@ function TopBrandSection({
                 styles.brandGrid,
                 {
                   gap: homeLayout.topBrandGap,
-                  width: homeLayout.brandSectionFrameWidth,
+                  width: homeLayout.topBrandGroupWidth,
                 },
-                getCarouselPageMotionStyle(
-                  topBrandScrollX,
-                  pageIndex,
-                  homeLayout.brandSectionFrameWidth,
-                  reducedMotion
-                ),
               ]}
             >
               {pageCards.map((card) => (
@@ -1454,7 +1448,7 @@ function TopBrandSection({
           color={colors.primary}
           containerStyle={styles.topBrandDots}
           count={topBrandDotCount}
-          pageWidth={homeLayout.brandSectionFrameWidth}
+          pageWidth={homeLayout.topBrandGroupWidth}
           scrollX={topBrandScrollX}
           size={12}
         />
@@ -1617,7 +1611,7 @@ function PromoSection({
 }) {
   const tc = useCopy();
   const sectionCards = getPromoSectionCards(id, cards);
-  const sectionPageSize = getPromoSectionPageSize(id, homeLayout);
+  const sectionPageSize = getPromoSectionPageSize(homeLayout);
   const promoPages = chunkCompactBrandCards(sectionCards, sectionPageSize);
   const sectionDotCount = homeLayout.isDesktop
     ? promoPages.length
@@ -1626,7 +1620,6 @@ function PromoSection({
   const promoMaxPageIndex = Math.max(0, promoPages.length - 1);
   const activePromoDot = Math.min(activePromoPage, sectionDotCount - 1);
   const promoScrollX = useMemo(() => new Animated.Value(0), []);
-  const reducedMotion = useReducedMotion();
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
@@ -1654,15 +1647,15 @@ function PromoSection({
           )}
           onMomentumScrollEnd={(event) =>
             setActivePromoPage(
-              getPagedScrollIndex(event, homeLayout.brandSectionFrameWidth, promoMaxPageIndex)
+              getPagedScrollIndex(event, homeLayout.compactBrandGroupWidth, promoMaxPageIndex)
             )
           }
           pagingEnabled
           scrollEventThrottle={16}
           showsHorizontalScrollIndicator={false}
           snapToAlignment="start"
-          snapToInterval={homeLayout.brandSectionFrameWidth}
-          style={[styles.promoScroll, { width: homeLayout.brandSectionFrameWidth }]}
+          snapToInterval={homeLayout.compactBrandGroupWidth}
+          style={styles.promoScroll}
         >
           {promoPages.map((pageCards, pageIndex) => (
             <Animated.View
@@ -1672,14 +1665,8 @@ function PromoSection({
                 styles.compactBrandGrid,
                 {
                   gap: homeLayout.compactBrandGap,
-                  width: homeLayout.brandSectionFrameWidth,
+                  width: homeLayout.compactBrandGroupWidth,
                 },
-                getCarouselPageMotionStyle(
-                  promoScrollX,
-                  pageIndex,
-                  homeLayout.brandSectionFrameWidth,
-                  reducedMotion
-                ),
               ]}
             >
               {pageCards.map((card) => (
@@ -1701,7 +1688,7 @@ function PromoSection({
             color={colors.primary}
             containerStyle={styles.promoSectionDots}
             count={sectionDotCount}
-            pageWidth={homeLayout.brandSectionFrameWidth}
+            pageWidth={homeLayout.compactBrandGroupWidth}
             scrollX={promoScrollX}
             size={12}
           />

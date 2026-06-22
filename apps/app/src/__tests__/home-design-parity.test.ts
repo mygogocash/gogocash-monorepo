@@ -406,7 +406,7 @@ describe("Expo home design parity", () => {
 
     expect(homeFile).toContain("horizontal");
     expect(homeFile).toContain("pagingEnabled");
-    expect(homeFile).toContain("snapToInterval={homeLayout.brandSectionFrameWidth}");
+    expect(homeFile).toContain("snapToInterval={homeLayout.topBrandGroupWidth}");
     expect(homeFile).toContain('decelerationRate="fast"');
     expect(homeFile).toContain("disableIntervalMomentum");
     expect(homeFile).toContain("styles.topBrandScroll");
@@ -563,7 +563,7 @@ describe("Expo home design parity", () => {
   it("home design parity > given selected staging Trending Brands block > then compact card visuals match", () => {
     const trending = webHomePromoSections.find((section) => section.id === "trending");
 
-    expect(trending?.dotCount).toBe(3);
+    expect(trending?.dotCount).toBe(1);
     expect(trending?.cards.slice(0, 6)).toEqual([
       expect.objectContaining({
         brand: "Grocery Galaxy",
@@ -601,7 +601,7 @@ describe("Expo home design parity", () => {
   it("home design parity > given selected staging Travel Deals block > then compact card visuals match", () => {
     const travel = webHomePromoSections.find((section) => section.id === "travel");
 
-    expect(travel?.dotCount).toBe(2);
+    expect(travel?.dotCount).toBe(1);
     expect(travel?.cards.slice(0, 6)).toEqual([
       expect.objectContaining({
         brand: "Orbit Airways",
@@ -636,32 +636,39 @@ describe("Expo home design parity", () => {
     ]);
   });
 
-  it("home design parity > given selected staging Travel Deals rail > then Travel data provides two desktop stops", () => {
+  it("home design parity > given selected staging Travel Deals rail > then Travel is one 8x2 desktop group", () => {
     const travel = webHomePromoSections.find((section) => section.id === "travel");
     const desktopLayout = getResponsiveHomeLayoutMetrics(1440);
-    const travelCards = travel?.cards.slice(0, 16) ?? [];
-    const desktopTravelCardsPerPage = desktopLayout.compactBrandColumns;
+    const travelCards = travel?.cards ?? [];
 
     expect(travelCards).toHaveLength(16);
-    expect(desktopTravelCardsPerPage).toBe(8);
-    expect(travel?.dotCount).toBe(Math.ceil(travelCards.length / desktopTravelCardsPerPage));
+    expect(desktopLayout.compactBrandColumns).toBe(8);
+    expect(desktopLayout.compactBrandCardsPerPage).toBe(16);
+    // 16 cards fill exactly one 8-column x 2-row group, so there is a single page / no dots.
+    expect(travel?.dotCount).toBe(1);
   });
 
-  it("mobile brand sections > given the padded white sheet > then carousel frames fit the mobile section width", () => {
+  it("mobile brand sections > given the padded white sheet > then the brand groups overflow and scroll", () => {
     const mobileLayout = getResponsiveHomeLayoutMetrics(389);
 
-    expect(mobileLayout.contentWidth).toBe(360);
-    expect(mobileLayout.brandSectionFrameWidth).toBe(312);
-    expect(mobileLayout.topBrandCardWidth).toBe(150);
-    expect(mobileLayout.topBrandGap).toBe(12);
+    expect(mobileLayout.contentWidth).toBe(357);
+    expect(mobileLayout.brandSectionFrameWidth).toBe(309);
+    // Both Top Brands (176px) and compact rails (144px) are fixed 8-column x 2-row groups with a
+    // fixed 16px gap; each group is far wider than the 309px mobile frame, so it overflows and
+    // scrolls with a peek card. The cards never resize.
+    expect(mobileLayout.topBrandCardWidth).toBe(176);
+    expect(mobileLayout.topBrandGap).toBe(16);
     expect(mobileLayout.compactBrandCardWidth).toBe(144);
-    expect(mobileLayout.compactBrandGap).toBe(24);
+    expect(mobileLayout.compactBrandGap).toBe(16);
+    expect(mobileLayout.compactBrandColumns).toBe(8);
+    expect(mobileLayout.compactBrandGroupWidth).toBe(1264);
+    expect(mobileLayout.compactBrandGroupWidth).toBeGreaterThan(mobileLayout.brandSectionFrameWidth);
   });
 
   it("home design parity > given selected staging Makeup Must Have block > then compact card visuals match", () => {
     const makeup = webHomePromoSections.find((section) => section.id === "makeup");
 
-    expect(makeup?.dotCount).toBe(2);
+    expect(makeup?.dotCount).toBe(1);
     expect(makeup?.cards.slice(0, 6)).toEqual([
       expect.objectContaining({
         brand: "Bloom & Beam",
@@ -758,17 +765,21 @@ describe("Expo home design parity", () => {
     expect(homeFile).toContain("styles.promoScroll");
     expect(homeFile).toContain("styles.promoPage");
     expect(homeFile).toContain("styles.promoPagerContent");
-    expect(homeFile).toContain("snapToInterval={homeLayout.brandSectionFrameWidth}");
+    expect(homeFile).toContain("snapToInterval={homeLayout.compactBrandGroupWidth}");
     expect(homeFile).not.toContain("<View style={styles.compactBrandGrid}>");
   });
 
-  it("home design parity > given lower promo rail viewport > then the scroller is constrained to measured content width", () => {
+  it("home design parity > given lower promo rail > then the 8x2 group slides and overflows like Top Brands", () => {
     const homeFile = fs.readFileSync(
       path.join(mobileRoot, "src/screens/CustomerHomeScreen.tsx"),
       "utf8"
     );
 
-    expect(homeFile).toContain("style={[styles.promoScroll, { width: homeLayout.brandSectionFrameWidth }]}");
+    // The rail scroller fills its section (100%) while each page is a fixed-width group that
+    // overflows and scrolls with a peek; no per-page slide animation.
+    expect(homeFile).toContain("style={styles.promoScroll}");
+    expect(homeFile).toContain("width: homeLayout.compactBrandGroupWidth,");
+    expect(homeFile).not.toContain("getCarouselPageMotionStyle");
   });
 
   it("home design parity > given lower staging section titles > then long titles can wrap like Next.js", () => {
@@ -908,7 +919,7 @@ describe("Expo home design parity", () => {
     expect(contentScrollStyle).toContain("borderTopRightRadius: 34");
     expect(homeScreenSource).toContain("paddingHorizontal: 24");
     expect(homeScreenSource).toContain("paddingTop: 24");
-    expect(homeScreenSource).toContain("homeLayout.brandSectionFrameWidth");
+    expect(homeScreenSource).toContain("homeLayout.compactBrandGroupWidth");
     expect(homeScreenSource).not.toContain("styles.mobileTabletSectionFrame");
     expect(contentScrollStyle).not.toContain("marginHorizontal: 40");
     expect(contentScrollStyle).toContain("marginTop: -40");
