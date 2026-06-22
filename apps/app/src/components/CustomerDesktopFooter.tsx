@@ -18,11 +18,15 @@ type FooterSocialIconName = (typeof webDesktopFooter.socialLinks)[number]["icon"
 
 type CustomerDesktopFooterProps = {
   horizontalPadding: number;
+  topMargin?: number;
+  topPadding?: number;
   viewportWidth: number;
 };
 
 export function CustomerDesktopFooter({
   horizontalPadding,
+  topMargin,
+  topPadding,
   viewportWidth,
 }: CustomerDesktopFooterProps) {
   const contentWidth = getDesktopShellContentWidth(viewportWidth);
@@ -40,6 +44,8 @@ export function CustomerDesktopFooter({
         styles.footerOuter,
         {
           marginLeft: -horizontalPadding,
+          ...(topMargin === undefined ? {} : { marginTop: topMargin }),
+          ...(topPadding === undefined ? {} : { paddingTop: topPadding }),
           width: viewportWidth,
         },
       ]}

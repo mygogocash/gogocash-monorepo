@@ -29,11 +29,11 @@ export const mobileShellLayout = {
   desktopContentMaxWidth: 1440,
   desktopBottomClearance: 40,
   desktopHeaderHeight: 80,
-  desktopHeaderPaddingMax: 80,
+  desktopHeaderPaddingMax: 120,
   desktopHeaderPaddingMin: 56,
   desktopHeaderPaddingRatio: 0.055,
   desktopSubNavHeight: 56,
-  desktopHomeTopGap: 76,
+  desktopHomeTopGap: 64,
   desktopHomeStackGap: 40,
   contentTopGap: 24,
   // Promotion banners are designed at 1920x1080 (16:9). Show the FULL design fit
@@ -185,40 +185,147 @@ export function getDesktopFooterGrid(viewportWidth: number) {
   return { columns: 1, gap: 32, columnBasis: "100%" as const };
 }
 
+// Fixed brand-card dimensions — product decision: a brand card is a constant size on
+// every display, no longer scaling with the viewport.
+//   L (Top Brands)     184 x 232
+//   S (compact brand)  144 x 184, logo area 117
+const FIXED_TOP_BRAND_CARD_WIDTH = 184;
+const FIXED_TOP_BRAND_CARD_HEIGHT = 232;
+const FIXED_COMPACT_BRAND_CARD_WIDTH = 144;
+const FIXED_COMPACT_BRAND_CARD_HEIGHT = 184;
+const FIXED_COMPACT_BRAND_LOGO_VISUAL_HEIGHT = 117;
+const MOBILE_TABLET_HOME_SECTION_HORIZONTAL_PADDING = 24;
+
+type HomeDesignVersion = "mobile" | "tablet" | "desktop";
+
+const homeDesignVersions: Record<
+  HomeDesignVersion,
+  {
+    compactBrandCardHeight: number;
+    compactBrandCardWidth: number;
+    compactBrandColumns: number;
+    compactBrandLogoVisualHeight: number;
+    contentWidth: number;
+    topBrandCardHeight: number;
+    topBrandCardWidth: number;
+    topBrandColumns: number;
+  }
+> = {
+  desktop: {
+    compactBrandCardHeight: FIXED_COMPACT_BRAND_CARD_HEIGHT,
+    compactBrandCardWidth: FIXED_COMPACT_BRAND_CARD_WIDTH,
+    compactBrandColumns: mobileShellLayout.compactBrandDesktopColumns,
+    compactBrandLogoVisualHeight: FIXED_COMPACT_BRAND_LOGO_VISUAL_HEIGHT,
+    contentWidth: 1200,
+    topBrandCardHeight: FIXED_TOP_BRAND_CARD_HEIGHT,
+    topBrandCardWidth: FIXED_TOP_BRAND_CARD_WIDTH,
+    topBrandColumns: mobileShellLayout.topBrandDesktopColumns,
+  },
+  tablet: {
+    compactBrandCardHeight: FIXED_COMPACT_BRAND_CARD_HEIGHT,
+    compactBrandCardWidth: FIXED_COMPACT_BRAND_CARD_WIDTH,
+    compactBrandColumns: 5,
+    compactBrandLogoVisualHeight: FIXED_COMPACT_BRAND_LOGO_VISUAL_HEIGHT,
+    contentWidth: 768,
+    topBrandCardHeight: FIXED_TOP_BRAND_CARD_HEIGHT,
+    topBrandCardWidth: FIXED_TOP_BRAND_CARD_WIDTH,
+    topBrandColumns: 4,
+  },
+  mobile: {
+    compactBrandCardHeight: FIXED_COMPACT_BRAND_CARD_HEIGHT,
+    compactBrandCardWidth: FIXED_COMPACT_BRAND_CARD_WIDTH,
+    compactBrandColumns: 2,
+    compactBrandLogoVisualHeight: FIXED_COMPACT_BRAND_LOGO_VISUAL_HEIGHT,
+    contentWidth: 360,
+    topBrandCardHeight: 216,
+    topBrandCardWidth: 168,
+    topBrandColumns: mobileShellLayout.topBrandMobileColumns,
+  },
+};
+
+function getHomeDesignVersion(viewportWidth: number): HomeDesignVersion {
+  if (viewportWidth >= 1280) {
+    return "desktop";
+  }
+
+  if (viewportWidth >= mobileShellLayout.tabletBreakpoint) {
+    return "tablet";
+  }
+
+  return "mobile";
+}
+
+function getProfileContentFrameWidth(viewportWidth: number, version: HomeDesignVersion) {
+  return roundLayoutValue(Math.max(0, Math.min(viewportWidth, homeDesignVersions[version].contentWidth)));
+}
+
+function getProfileHorizontalPadding(viewportWidth: number, contentWidth: number) {
+  return roundLayoutValue(
+    Math.max(0, (Math.min(viewportWidth, mobileShellLayout.contentMaxWidth) - contentWidth) / 2)
+  );
+}
+
+function getFlexibleProfileGap(contentWidth: number, cardWidth: number, columns: number) {
+  return columns > 1
+    ? Math.max(0, (contentWidth - cardWidth * columns) / (columns - 1))
+    : 0;
+}
+
+function getFittedCardWidth(
+  frameWidth: number,
+  preferredCardWidth: number,
+  columns: number,
+  preferredGap: number
+) {
+  if (columns <= 1) {
+    return Math.min(preferredCardWidth, frameWidth);
+  }
+
+  if (preferredCardWidth * columns <= frameWidth) {
+    return preferredCardWidth;
+  }
+
+  return floorLayoutValue(
+    Math.min(preferredCardWidth, (frameWidth - preferredGap * (columns - 1)) / columns)
+  );
+}
+
 export function getResponsiveHomeLayoutMetrics(viewportWidth: number) {
   const isDesktop = viewportWidth >= mobileShellLayout.desktopBreakpoint;
+  const designVersion = getHomeDesignVersion(viewportWidth);
+  const designFrame = homeDesignVersions[designVersion];
   const contentMaxWidth = mobileShellLayout.contentMaxWidth;
-  // Desktop: reuse the header's gutter so page content lines up with the navbar (logo/nav).
-  // Mobile: keep the viewport-ratio padding.
-  const contentHorizontalPadding = isDesktop
-    ? getDesktopShellHorizontalPadding(viewportWidth)
+  const contentWidth = getProfileContentFrameWidth(viewportWidth, designVersion);
+  const contentHorizontalPadding = getProfileHorizontalPadding(viewportWidth, contentWidth);
+  const brandSectionFrameWidth = isDesktop
+    ? contentWidth
     : roundLayoutValue(
-        clampLayoutValue(
-          viewportWidth * mobileShellLayout.contentHorizontalPaddingRatio,
-          mobileShellLayout.contentHorizontalPadding,
-          mobileShellLayout.contentHorizontalPaddingMax
-        )
+        Math.max(0, contentWidth - MOBILE_TABLET_HOME_SECTION_HORIZONTAL_PADDING * 2)
       );
-  const contentWidth = roundLayoutValue(
-    Math.max(0, Math.min(viewportWidth, contentMaxWidth) - contentHorizontalPadding * 2)
-  );
-  const topBrandGrid = getTopBrandGrid(viewportWidth);
-  const topBrandColumns = topBrandGrid.columns;
+  const topBrandColumns = designFrame.topBrandColumns;
   const isMobileTopBrandGrid = topBrandColumns === mobileShellLayout.topBrandMobileColumns;
-  const topBrandGap = topBrandGrid.gap;
-  const topBrandCardWidth = roundLayoutValue(
-    (contentWidth - topBrandGap * (topBrandColumns - 1)) / topBrandColumns
+  const topBrandPreferredGap =
+    designVersion === "mobile"
+      ? mobileShellLayout.topBrandMobileGridGap
+      : designVersion === "tablet"
+        ? mobileShellLayout.topBrandTabletGridGap
+        : mobileShellLayout.topBrandDesktopGridGap;
+  const topBrandCardWidth = getFittedCardWidth(
+    brandSectionFrameWidth,
+    designFrame.topBrandCardWidth,
+    topBrandColumns,
+    topBrandPreferredGap
   );
-  const compactBrandGrid = getCompactBrandGrid(viewportWidth);
-  const compactBrandColumns = compactBrandGrid.columns;
-  const compactBrandGap = compactBrandGrid.gap;
-  const compactBrandCardWidth = floorLayoutValue(
-    (contentWidth - compactBrandGap * (compactBrandColumns - 1)) / compactBrandColumns
+  const topBrandGap = getFlexibleProfileGap(brandSectionFrameWidth, topBrandCardWidth, topBrandColumns);
+  const compactBrandColumns = designFrame.compactBrandColumns;
+  const compactBrandCardWidth = designFrame.compactBrandCardWidth;
+  const compactBrandGap = getFlexibleProfileGap(
+    brandSectionFrameWidth,
+    compactBrandCardWidth,
+    compactBrandColumns
   );
-  const compactBrandLogoVisualHeight = floorLayoutValue(compactBrandCardWidth - 16);
-  const compactBrandCardHeight = floorLayoutValue(
-    compactBrandCardWidth + mobileShellLayout.compactBrandMetaHeight
-  );
+  const compactBrandLogoVisualHeight = designFrame.compactBrandLogoVisualHeight;
+  const compactBrandCardHeight = designFrame.compactBrandCardHeight;
   const compactBrandCardsPerPage =
     compactBrandColumns *
     (isDesktop
@@ -226,8 +333,9 @@ export function getResponsiveHomeLayoutMetrics(viewportWidth: number) {
       : mobileShellLayout.compactBrandMobileRowsPerPage);
 
   return {
-    compactBrandCardWidth,
+    brandSectionFrameWidth,
     compactBrandCardHeight,
+    compactBrandCardWidth,
     compactBrandCardsPerPage,
     compactBrandColumns,
     compactBrandGap,
@@ -235,13 +343,17 @@ export function getResponsiveHomeLayoutMetrics(viewportWidth: number) {
     contentHorizontalPadding,
     contentMaxWidth,
     contentWidth,
+    designVersion,
     isDesktop,
     mainBannerAspectRatio: mobileShellLayout.homeBannerAspectRatio,
     pageBottomPadding: isDesktop
       ? mobileShellLayout.desktopBottomClearance
       : mobileShellLayout.bottomNavClearance + 24,
     showBottomNav: !isDesktop,
-    topBrandCardHeight: roundLayoutValue(topBrandCardWidth + mobileShellLayout.topBrandMetaHeight),
+    topBrandCardHeight:
+      topBrandCardWidth === designFrame.topBrandCardWidth
+        ? designFrame.topBrandCardHeight
+        : roundLayoutValue(topBrandCardWidth + mobileShellLayout.topBrandMetaHeight),
     topBrandCardWidth,
     topBrandCardsPerPage: isMobileTopBrandGrid
       ? mobileShellLayout.topBrandMobilePageCardCount
@@ -2154,7 +2266,7 @@ export const webHomePromoSections = [
     link: "/category/Travel",
     icon: "✈️",
     cardVariant: "brandLogoBadge",
-    dotCount: 3,
+    dotCount: 2,
     cards: [
       {
         brand: "Orbit Airways",
@@ -2260,7 +2372,7 @@ export const webHomePromoSections = [
     link: "/category/Health & Beauty",
     icon: "💄",
     cardVariant: "brandLogoBadge",
-    dotCount: 3,
+    dotCount: 2,
     cards: [
       {
         brand: "Bloom & Beam",

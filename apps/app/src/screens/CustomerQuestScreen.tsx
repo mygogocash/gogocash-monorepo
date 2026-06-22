@@ -151,18 +151,10 @@ export function CustomerQuestScreen({ history = false }: { history?: boolean }) 
 
 function getQuestExploreLayout(viewportWidth: number, contentWidth: number): HomeLayoutMetrics {
   const homeLayout = getResponsiveHomeLayoutMetrics(viewportWidth);
-  const compactBrandCardWidth = Math.floor(
-    (contentWidth - homeLayout.compactBrandGap * (homeLayout.compactBrandColumns - 1)) /
-      homeLayout.compactBrandColumns
-  );
-
+  // Brand cards are a fixed size on every display — keep homeLayout's fixed compact-card
+  // dimensions; only the quest content width is screen-specific.
   return {
     ...homeLayout,
-    compactBrandCardHeight: Math.floor(
-      compactBrandCardWidth + mobileShellLayout.compactBrandMetaHeight
-    ),
-    compactBrandCardWidth,
-    compactBrandLogoVisualHeight: Math.floor(compactBrandCardWidth - 16),
     contentWidth,
   };
 }

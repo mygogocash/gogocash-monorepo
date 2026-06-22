@@ -15,6 +15,8 @@ import {
   Copy as CopyIcon,
   DeviceMobile,
   Grid2X2 as GridIcon,
+  ChevronDown as ChevronDownIcon,
+  ChevronUp as ChevronUpIcon,
   Heart as HeartIcon,
   Heartbeat,
   Home as HomeIcon,
@@ -179,6 +181,9 @@ const webSearchInputFocusReset = {
 const goLinkBackdropGradient = {
   backgroundImage: "linear-gradient(120deg, #E6F7EF 0%, #EEF4FF 58%, #E1EFFF 100%)",
 } as unknown as ViewStyle;
+const mobileTabletHeaderGradient = {
+  backgroundImage: "linear-gradient(135deg, #006B52 0%, #009D78 48%, #20C7A1 100%)",
+} as unknown as ViewStyle;
 
 type CompactBrandLogoOfferCardProps = {
   readonly brand: string;
@@ -197,6 +202,16 @@ type HomeLayoutMetrics = ReturnType<typeof getResponsiveHomeLayoutMetrics>;
 type DesktopGoLinkBannerProps = {
   readonly onOpenGuideline: () => void;
   readonly onResultHref: (href: string) => void;
+  readonly variant?: "default" | "mobileTabletHeader";
+};
+
+type MobileTabletHomeHeaderProps = {
+  greetingName?: string;
+  readonly homeLayout: HomeLayoutMetrics;
+  readonly isGoLinkCovered: boolean;
+  readonly onOpenGoLinkGuideline: () => void;
+  readonly onOpenSearchPopover: () => void;
+  readonly onGoLinkResultHref: (href: string) => void;
 };
 const viewAllLabel = "View all  →";
 const homeGoLinkShopNowRoute = "/shop/brand-orbit-airways-1003?golinkContinue=1";
@@ -228,6 +243,24 @@ function chunkCompactBrandCards(
   return promoPages;
 }
 
+const ONE_ROW_PROMO_SECTION_IDS = new Set(["travel", "makeup"]);
+const ONE_ROW_PROMO_MAX_CARDS = 16;
+
+function getPromoSectionCards(
+  sectionId: string,
+  cards: readonly CompactBrandLogoOfferCardProps[]
+) {
+  return ONE_ROW_PROMO_SECTION_IDS.has(sectionId)
+    ? cards.slice(0, ONE_ROW_PROMO_MAX_CARDS)
+    : cards;
+}
+
+function getPromoSectionPageSize(sectionId: string, homeLayout: HomeLayoutMetrics) {
+  return ONE_ROW_PROMO_SECTION_IDS.has(sectionId) && homeLayout.isDesktop
+    ? homeLayout.compactBrandColumns
+    : homeLayout.compactBrandCardsPerPage;
+}
+
 function getPagedScrollIndex(
   event: NativeSyntheticEvent<NativeScrollEvent>,
   pageWidth: number,
@@ -241,6 +274,10 @@ function getPagedScrollIndex(
 }
 
 export function CustomerHomeScreen() {
+  const session = useMobileSessionSnapshot();
+  const mobileTabletGreetingName =
+    typeof session?.username === "string" ? session.username.trim() || undefined : undefined;
+  const [mobileTabletGoLinkCovered, setMobileTabletGoLinkCovered] = useState(false);
   const tc = useCopy();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -281,20 +318,16 @@ export function CustomerHomeScreen() {
 
   const homeSections = (
     <>
-      {webHomeSectionOrder.includes("browseShortcuts") ? (
-        homeLayout.isDesktop ? null : (
-          <BrowseShortcuts />
-        )
-      ) : null}
+      {webHomeSectionOrder.includes("browseShortcuts") && homeLayout.isDesktop ? null : null}
       {webHomeSectionOrder.includes("banner") ? (
         <HomeHeroBanners homeLayout={homeLayout} />
       ) : null}
-      {homeLayout.isDesktop ? (
-        <DesktopGoLinkBanner
-          onOpenGuideline={() => setDesktopGoLinkGuidelineOpen(true)}
-          onResultHref={setDesktopGoLinkResultHref}
-        />
-      ) : null}
+        {homeLayout.isDesktop ? (
+          <DesktopGoLinkBanner
+            onOpenGuideline={() => setDesktopGoLinkGuidelineOpen(true)}
+            onResultHref={setDesktopGoLinkResultHref}
+          />
+        ) : null}
       {webHomeSectionOrder.includes("extra") ? (
         <TopBrandSection brandCatalogData={brandCatalogResource.data} homeLayout={homeLayout} />
       ) : null}
@@ -337,10 +370,12 @@ export function CustomerHomeScreen() {
             <View
               style={[styles.desktopFooterCap, { maxWidth: homeLayout.contentMaxWidth }]}
             >
-              <CustomerDesktopFooter
-                horizontalPadding={desktopFooterHorizontalOffset}
-                viewportWidth={width}
-              />
+                <CustomerDesktopFooter
+                  horizontalPadding={desktopFooterHorizontalOffset}
+                  topMargin={24}
+                  topPadding={56}
+                  viewportWidth={width}
+                />
             </View>
           </ScrollView>
         </View>
@@ -381,11 +416,25 @@ export function CustomerHomeScreen() {
   return (
     <View style={styles.viewport}>
       <View style={[styles.phoneFrame, { maxWidth: homeLayout.contentMaxWidth }]}>
+        <ScrollView
+          style={styles.mobileTabletPageScroll}
+          contentContainerStyle={styles.mobileTabletPageScrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <MobileTabletHomeHeader
+            greetingName={mobileTabletGreetingName}
+            homeLayout={homeLayout}
+            isGoLinkCovered={mobileTabletGoLinkCovered}
+            onGoLinkResultHref={setDesktopGoLinkResultHref}
+            onOpenGoLinkGuideline={() => setDesktopGoLinkGuidelineOpen(true)}
+            onOpenSearchPopover={openSearchPopover}
+          />
         <View
           style={[
             styles.stickySearch,
+            styles.mobileTabletLegacySearchHidden,
             {
-              paddingHorizontal: homeLayout.contentHorizontalPadding,
+              paddingHorizontal: homeLayout.contentWidth === 768 ? homeLayout.contentHorizontalPadding : 16,
               paddingTop: searchTopPadding,
             },
           ]}
@@ -398,7 +447,7 @@ export function CustomerHomeScreen() {
             <SearchIcon color={colors.primaryDark} size={20} strokeWidth={homeIconStrokeWidth} />
             <TextInput
               accessibilityLabel={tc("Search brands, stores, products, and cashback offers")}
-              nativeID="home-search-input"
+              nativeID="home-search-input-hidden"
               onBlur={() => undefined}
               onChangeText={setSearchQuery}
               onFocus={openSearchPopover}
@@ -406,24 +455,41 @@ export function CustomerHomeScreen() {
               placeholder={tc(webHomeSearchPlaceholder)}
               placeholderTextColor={colors.textSoft}
               style={[styles.searchInput, webSearchInputFocusReset]}
-              testID="home-search-input"
+              testID="home-search-input-hidden"
               value={searchQuery}
             />
           </MotionPressable>
         </View>
 
-        <ScrollView
-          contentContainerStyle={[
-            styles.page,
+          <View
+            style={[
+              styles.page,
+              styles.mobileTabletContentScroll,
+              styles.mobileTabletContentSheet,
             {
               paddingBottom: homeLayout.pageBottomPadding,
-              paddingHorizontal: homeLayout.contentHorizontalPadding,
-              paddingTop: mobileShellLayout.contentTopGap,
+              paddingHorizontal: 24,
+              paddingTop: 24,
             },
-          ]}
-          showsVerticalScrollIndicator={false}
-        >
-          {homeSections}
+            ]}
+          >
+            <MotionPressable
+              accessibilityLabel={tc(
+                mobileTabletGoLinkCovered ? "Show GoLink banner" : "Cover GoLink banner",
+              )}
+              accessibilityRole="button"
+              onPress={() => setMobileTabletGoLinkCovered((covered) => !covered)}
+              pressScale={motion.scale.subtlePress}
+              style={styles.mobileTabletSheetToggleButton}
+            >
+              {mobileTabletGoLinkCovered ? (
+                <ChevronDownIcon color="#111827" size={18} strokeWidth={homeIconStrokeWidth} />
+              ) : (
+                <ChevronUpIcon color="#111827" size={18} strokeWidth={homeIconStrokeWidth} />
+              )}
+            </MotionPressable>
+            {homeSections}
+          </View>
         </ScrollView>
 
         {homeLayout.showBottomNav ? (
@@ -880,7 +946,72 @@ function DesktopCategoryNavIcon({
   );
 }
 
-function DesktopGoLinkBanner({ onOpenGuideline, onResultHref }: DesktopGoLinkBannerProps) {
+function MobileTabletHomeHeader({
+  greetingName,
+  homeLayout,
+  isGoLinkCovered,
+  onGoLinkResultHref,
+  onOpenGoLinkGuideline,
+  onOpenSearchPopover,
+}: MobileTabletHomeHeaderProps) {
+  const tc = useCopy();
+  const isTabletFrame = homeLayout.contentWidth === 768;
+  const horizontalPadding = isTabletFrame ? homeLayout.contentHorizontalPadding : 16;
+  const headerActionIconSize = isTabletFrame ? 24 : 20;
+
+  return (
+    <View
+      style={[
+        styles.mobileTabletHomeHeader,
+        mobileTabletHeaderGradient,
+        isTabletFrame ? styles.mobileTabletHomeHeaderTablet : null,
+        { paddingHorizontal: horizontalPadding },
+      ]}
+    >
+      <View style={styles.mobileTabletHeaderTopRow}>
+        <View style={styles.mobileTabletHeaderCopy}>
+          <Text style={styles.mobileTabletHeaderGreeting}>
+            {greetingName ? `Hi ${greetingName}!` : tc("Hi!")}
+          </Text>
+          <Text style={styles.mobileTabletHeaderSubcopy}>{tc("Earn cashback with GoLink")}</Text>
+        </View>
+        <View style={styles.mobileTabletHeaderActions}>
+          <MotionPressable
+            accessibilityLabel={tc("Search")}
+            accessibilityRole="button"
+            onPress={onOpenSearchPopover}
+            pressScale={motion.scale.subtlePress}
+            style={[
+              styles.mobileTabletHeaderIconButton,
+              !isTabletFrame ? styles.mobileHeaderIconButtonSmall : null,
+            ]}
+          >
+            <SearchIcon color="#303846" size={headerActionIconSize} strokeWidth={homeIconStrokeWidth} />
+          </MotionPressable>
+        </View>
+      </View>
+
+      {isGoLinkCovered ? null : (
+        <DesktopGoLinkBanner
+          onOpenGuideline={onOpenGoLinkGuideline}
+          onResultHref={onGoLinkResultHref}
+          variant="mobileTabletHeader"
+        />
+      )}
+
+      <View style={styles.mobileTabletHeaderShortcutDock}>
+        <BrowseShortcuts />
+      </View>
+    </View>
+  );
+}
+
+function DesktopGoLinkBanner({
+  onOpenGuideline,
+  onResultHref,
+  variant = "default",
+}: DesktopGoLinkBannerProps) {
+  const isMobileTabletHeader = variant === "mobileTabletHeader";
   const [goLinkError, setGoLinkError] = useState("");
   const [goLinkInput, setGoLinkInput] = useState("");
   const tc = useCopy();
@@ -905,12 +1036,26 @@ function DesktopGoLinkBanner({ onOpenGuideline, onResultHref }: DesktopGoLinkBan
 
   return (
     <View
-      accessibilityLabel={tc("GoGoLink desktop banner")}
-      style={styles.desktopGoLinkBanner}
-      testID="desktop-golink-banner"
+      accessibilityLabel={tc(isMobileTabletHeader ? "GoGoLink header banner" : "GoGoLink desktop banner")}
+      style={[
+        styles.desktopGoLinkBanner,
+        isMobileTabletHeader ? styles.mobileTabletGoLinkBanner : null,
+      ]}
+      testID={isMobileTabletHeader ? "mobile-tablet-golink-banner" : "desktop-golink-banner"}
     >
-      <View style={[styles.desktopGoLinkBackdrop, goLinkBackdropGradient, { pointerEvents: "none" }]} />
-      <View style={[styles.desktopGoLinkAccentGlow, { pointerEvents: "none" }]} />
+      <View
+        style={[
+          styles.desktopGoLinkBackdrop,
+          goLinkBackdropGradient,
+          { pointerEvents: "none" },
+        ]}
+      />
+      <View
+        style={[
+          styles.desktopGoLinkAccentGlow,
+          { pointerEvents: "none" },
+        ]}
+      />
       <MotionPressable
         accessibilityLabel={tc("About GoLink")}
         accessibilityRole="button"
@@ -922,46 +1067,67 @@ function DesktopGoLinkBanner({ onOpenGuideline, onResultHref }: DesktopGoLinkBan
       </MotionPressable>
       <View
         accessibilityLabel={tc("GoGoLink cashback link illustration")}
-        style={styles.desktopGoLinkIllustrationWrap}
+        style={[
+          styles.desktopGoLinkIllustrationWrap,
+          isMobileTabletHeader ? styles.mobileTabletGoLinkIllustrationWrap : null,
+        ]}
       >
         <LinkIcon color={colors.primary} size={46} strokeWidth={homeIconStrokeWidth} />
         <View style={styles.desktopGoLinkGoBadge}>
           <Text style={styles.desktopGoLinkGoBadgeText}>GO</Text>
         </View>
       </View>
-      <View style={styles.desktopGoLinkForm}>
+      <View
+        style={[
+          styles.desktopGoLinkForm,
+          isMobileTabletHeader ? styles.mobileTabletGoLinkForm : null,
+        ]}
+      >
         <View style={styles.desktopGoLinkEyebrow}>
           <Text style={styles.desktopGoLinkEyebrowText}>GoGoLink</Text>
         </View>
-        <Text nativeID="golink-banner-heading" style={styles.desktopGoLinkTitle}>
-          {tc("Easy to earn cashback by just copy, paste & shop!")}
-        </Text>
-        <View style={styles.desktopGoLinkSteps}>
-          <View style={styles.desktopGoLinkStep}>
-            <View style={styles.desktopGoLinkStepNum}>
-              <Text style={styles.desktopGoLinkStepNumText}>1</Text>
+        <View style={styles.desktopGoLinkHeadlineRow}>
+          <Text
+            nativeID="golink-banner-heading"
+            style={[
+              styles.desktopGoLinkTitle,
+              isMobileTabletHeader ? styles.mobileTabletGoLinkTitle : null,
+            ]}
+          >
+            {tc("Easy to earn cashback by just")}
+          </Text>
+          <View style={styles.desktopGoLinkSteps}>
+            <View style={styles.desktopGoLinkStep}>
+              <View style={styles.desktopGoLinkStepNum}>
+                <Text style={styles.desktopGoLinkStepNumText}>1</Text>
+              </View>
+              <CopyIcon color={colors.primaryDark} size={15} strokeWidth={homeIconStrokeWidth} />
+              <Text style={styles.desktopGoLinkStepText}>{tc("Copy link")}</Text>
             </View>
-            <CopyIcon color={colors.primaryDark} size={15} strokeWidth={homeIconStrokeWidth} />
-            <Text style={styles.desktopGoLinkStepText}>{tc("Copy link")}</Text>
-          </View>
-          <Text style={styles.desktopGoLinkStepArrow}>›</Text>
-          <View style={styles.desktopGoLinkStep}>
-            <View style={styles.desktopGoLinkStepNum}>
-              <Text style={styles.desktopGoLinkStepNumText}>2</Text>
+            <Text style={styles.desktopGoLinkStepArrow}>›</Text>
+            <View style={styles.desktopGoLinkStep}>
+              <View style={styles.desktopGoLinkStepNum}>
+                <Text style={styles.desktopGoLinkStepNumText}>2</Text>
+              </View>
+              <ClipboardIcon color={colors.primaryDark} size={15} strokeWidth={homeIconStrokeWidth} />
+              <Text style={styles.desktopGoLinkStepText}>{tc("Paste here")}</Text>
             </View>
-            <ClipboardIcon color={colors.primaryDark} size={15} strokeWidth={homeIconStrokeWidth} />
-            <Text style={styles.desktopGoLinkStepText}>{tc("Paste here")}</Text>
-          </View>
-          <Text style={styles.desktopGoLinkStepArrow}>›</Text>
-          <View style={styles.desktopGoLinkStep}>
-            <View style={styles.desktopGoLinkStepNum}>
-              <Text style={styles.desktopGoLinkStepNumText}>3</Text>
+            <Text style={styles.desktopGoLinkStepArrow}>›</Text>
+            <View style={styles.desktopGoLinkStep}>
+              <View style={styles.desktopGoLinkStepNum}>
+                <Text style={styles.desktopGoLinkStepNumText}>3</Text>
+              </View>
+              <ShoppingBagIcon color={colors.primaryDark} size={15} strokeWidth={homeIconStrokeWidth} />
+              <Text style={styles.desktopGoLinkStepText}>{tc("Shop & earn")}</Text>
             </View>
-            <ShoppingBagIcon color={colors.primaryDark} size={15} strokeWidth={homeIconStrokeWidth} />
-            <Text style={styles.desktopGoLinkStepText}>{tc("Shop & earn")}</Text>
           </View>
         </View>
-        <View style={styles.desktopGoLinkControls}>
+        <View
+          style={[
+            styles.desktopGoLinkControls,
+            isMobileTabletHeader ? styles.mobileTabletGoLinkControls : null,
+          ]}
+        >
           <View
             style={[
               styles.desktopGoLinkInputShell,
@@ -992,7 +1158,10 @@ function DesktopGoLinkBanner({ onOpenGuideline, onResultHref }: DesktopGoLinkBan
             accessibilityRole="button"
             onPress={handlePasteAndGo}
             pressScale={motion.scale.subtlePress}
-            style={styles.desktopGoLinkAction}
+            style={[
+              styles.desktopGoLinkAction,
+              isMobileTabletHeader ? styles.mobileTabletGoLinkAction : null,
+            ]}
           >
             <Text style={styles.desktopGoLinkActionText}>{tc(webGoLinkFeature.ctaLabel)}</Text>
           </MotionPressable>
@@ -1062,6 +1231,12 @@ function HomeHeroBanners({ homeLayout }: { homeLayout: HomeLayoutMetrics }) {
 
   return (
     <View style={[styles.heroStack, homeLayout.isDesktop ? styles.heroStackDesktop : null]}>
+      <View
+        style={[
+          styles.heroBannerSection,
+          homeLayout.isDesktop ? styles.heroBannerSectionDesktop : null,
+        ]}
+      >
       <View
         onLayout={(event) => setHeroBannerWidth(event.nativeEvent.layout.width)}
         style={[
@@ -1142,6 +1317,7 @@ function HomeHeroBanners({ homeLayout }: { homeLayout: HomeLayoutMetrics }) {
           </HeroBannerLink>
         ))}
       </View>
+      </View>
     </View>
   );
 }
@@ -1205,7 +1381,6 @@ function TopBrandSection({
   const activeTopBrandDot = Math.min(activeTopBrandPage, topBrandDotCount - 1);
   const topBrandScrollX = useMemo(() => new Animated.Value(0), []);
   const reducedMotion = useReducedMotion();
-
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
@@ -1234,14 +1409,14 @@ function TopBrandSection({
           )}
           onMomentumScrollEnd={(event) =>
             setActiveTopBrandPage(
-              getPagedScrollIndex(event, homeLayout.contentWidth, topBrandMaxPageIndex)
+              getPagedScrollIndex(event, homeLayout.brandSectionFrameWidth, topBrandMaxPageIndex)
             )
           }
           pagingEnabled
           scrollEventThrottle={16}
           showsHorizontalScrollIndicator={false}
           snapToAlignment="start"
-          snapToInterval={homeLayout.contentWidth}
+          snapToInterval={homeLayout.brandSectionFrameWidth}
           style={styles.topBrandScroll}
         >
           {topBrandPages.map((pageCards, pageIndex) => (
@@ -1252,12 +1427,12 @@ function TopBrandSection({
                 styles.brandGrid,
                 {
                   gap: homeLayout.topBrandGap,
-                  width: homeLayout.contentWidth,
+                  width: homeLayout.brandSectionFrameWidth,
                 },
                 getCarouselPageMotionStyle(
                   topBrandScrollX,
                   pageIndex,
-                  homeLayout.contentWidth,
+                  homeLayout.brandSectionFrameWidth,
                   reducedMotion
                 ),
               ]}
@@ -1279,7 +1454,7 @@ function TopBrandSection({
           color={colors.primary}
           containerStyle={styles.topBrandDots}
           count={topBrandDotCount}
-          pageWidth={homeLayout.contentWidth}
+          pageWidth={homeLayout.brandSectionFrameWidth}
           scrollX={topBrandScrollX}
           size={12}
         />
@@ -1428,6 +1603,7 @@ function PromoSection({
   dotCount,
   homeLayout,
   icon,
+  id,
   link,
   title,
 }: {
@@ -1435,20 +1611,22 @@ function PromoSection({
   dotCount?: number;
   homeLayout: HomeLayoutMetrics;
   icon?: string;
+  id: string;
   link: string;
   title: string;
 }) {
   const tc = useCopy();
-  const promoPages = chunkCompactBrandCards(cards, homeLayout.compactBrandCardsPerPage);
+  const sectionCards = getPromoSectionCards(id, cards);
+  const sectionPageSize = getPromoSectionPageSize(id, homeLayout);
+  const promoPages = chunkCompactBrandCards(sectionCards, sectionPageSize);
   const sectionDotCount = homeLayout.isDesktop
     ? promoPages.length
-    : (dotCount ?? promoPages.length);
+    : Math.max(promoPages.length, dotCount ?? 0);
   const [activePromoPage, setActivePromoPage] = useState(0);
   const promoMaxPageIndex = Math.max(0, promoPages.length - 1);
   const activePromoDot = Math.min(activePromoPage, sectionDotCount - 1);
   const promoScrollX = useMemo(() => new Animated.Value(0), []);
   const reducedMotion = useReducedMotion();
-
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
@@ -1476,15 +1654,15 @@ function PromoSection({
           )}
           onMomentumScrollEnd={(event) =>
             setActivePromoPage(
-              getPagedScrollIndex(event, homeLayout.contentWidth, promoMaxPageIndex)
+              getPagedScrollIndex(event, homeLayout.brandSectionFrameWidth, promoMaxPageIndex)
             )
           }
           pagingEnabled
           scrollEventThrottle={16}
           showsHorizontalScrollIndicator={false}
           snapToAlignment="start"
-          snapToInterval={homeLayout.contentWidth}
-          style={[styles.promoScroll, { width: homeLayout.contentWidth }]}
+          snapToInterval={homeLayout.brandSectionFrameWidth}
+          style={[styles.promoScroll, { width: homeLayout.brandSectionFrameWidth }]}
         >
           {promoPages.map((pageCards, pageIndex) => (
             <Animated.View
@@ -1494,12 +1672,12 @@ function PromoSection({
                 styles.compactBrandGrid,
                 {
                   gap: homeLayout.compactBrandGap,
-                  width: homeLayout.contentWidth,
+                  width: homeLayout.brandSectionFrameWidth,
                 },
                 getCarouselPageMotionStyle(
                   promoScrollX,
                   pageIndex,
-                  homeLayout.contentWidth,
+                  homeLayout.brandSectionFrameWidth,
                   reducedMotion
                 ),
               ]}
@@ -1523,7 +1701,7 @@ function PromoSection({
             color={colors.primary}
             containerStyle={styles.promoSectionDots}
             count={sectionDotCount}
-            pageWidth={homeLayout.contentWidth}
+            pageWidth={homeLayout.brandSectionFrameWidth}
             scrollX={promoScrollX}
             size={12}
           />
@@ -1881,8 +2059,141 @@ const styles = StyleSheet.create({
   },
   stickySearch: {
     backgroundColor: colors.background,
-    paddingBottom: spacing.sm,
     paddingHorizontal: spacing.md,
+  },
+  mobileTabletHomeHeader: {
+    backgroundColor: "#009D78",
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    boxSizing: "border-box",
+    gap: 16,
+    paddingBottom: 72,
+    maxWidth: "100%",
+    overflow: "hidden",
+    paddingTop: 28,
+    position: "relative",
+    width: "100%",
+    boxShadow: "0 18px 44px rgba(0, 89, 69, 0.18)",
+  },
+  mobileTabletHomeHeaderTablet: {
+    paddingBottom: 54,
+    paddingTop: 42,
+  },
+  mobileTabletHeaderTopRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 16,
+    justifyContent: "space-between",
+  },
+  mobileTabletHeaderCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  mobileTabletHeaderGreeting: {
+    color: "#FFFFFF",
+    fontFamily: typography.family,
+    fontSize: 32,
+    fontWeight: "800",
+    lineHeight: 38,
+  },
+  mobileTabletHeaderSubcopy: {
+    color: "rgba(255, 255, 255, 0.88)",
+    fontFamily: typography.family,
+    fontSize: 14,
+    fontWeight: "700",
+    lineHeight: 20,
+    marginTop: 2,
+  },
+  mobileTabletHeaderActions: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 10,
+  },
+  mobileTabletHeaderIconButton: {
+    alignItems: "center",
+    backgroundColor: "#F7F8FA",
+    borderRadius: 27,
+    height: 54,
+    justifyContent: "center",
+    width: 54,
+    boxShadow: "0 8px 18px rgba(48, 56, 70, 0.14)",
+  },
+  mobileHeaderIconButtonSmall: {
+    borderRadius: 20,
+    height: 40,
+    width: 40,
+  },
+  mobileTabletHeaderSearchBox: {
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    boxSizing: "border-box",
+    flexDirection: "row",
+    gap: 12,
+    maxWidth: "100%",
+    minHeight: 54,
+    paddingHorizontal: 18,
+    width: "100%",
+    boxShadow: "0 9px 18px rgba(48, 56, 70, 0.12)",
+  },
+  mobileTabletHeaderSearchInput: {
+    color: colors.ink,
+    flex: 1,
+    flexShrink: 1,
+    fontFamily: typography.family,
+    fontSize: 16,
+    fontWeight: "600",
+    minWidth: 0,
+    width: 0,
+  },
+  mobileTabletHeaderShortcutDock: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 22,
+    display: "none",
+    overflow: "hidden",
+    paddingVertical: 4,
+    boxShadow: "0 9px 20px rgba(48, 56, 70, 0.12)",
+  },
+  mobileTabletLegacySearchHidden: {
+    display: "none",
+  },
+  mobileTabletPageScroll: {
+    flex: 1,
+    width: "100%",
+  },
+  mobileTabletPageScrollContent: {
+    width: "100%",
+  },
+  mobileTabletContentScroll: {
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 34,
+    borderTopRightRadius: 34,
+    boxSizing: "border-box",
+    marginTop: -40,
+    maxWidth: "100%",
+    overflow: "visible",
+    position: "relative",
+    width: "100%",
+  },
+  mobileTabletSheetToggleButton: {
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    boxShadow: "0 6px 18px rgba(15, 23, 42, 0.12)",
+    height: 24,
+    justifyContent: "center",
+    left: "50%",
+    marginLeft: -12,
+    position: "absolute",
+    top: -12,
+    width: 24,
+    zIndex: 4,
+  },
+  mobileTabletContentSheet: {
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 34,
+    borderTopRightRadius: 34,
+    paddingTop: 50,
   },
   searchPill: {
     alignItems: "center",
@@ -2196,6 +2507,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: spacing.md,
   },
+  heroBannerSection: {
+    gap: spacing.sm,
+    width: "100%",
+  },
+  heroBannerSectionDesktop: {
+    alignItems: "stretch",
+    flexDirection: "row",
+    gap: spacing.md,
+  },
   mainHeroFrame: {
     borderRadius: radii.lg,
     overflow: "hidden",
@@ -2281,13 +2601,27 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     flexDirection: "row",
     gap: 48,
-    minHeight: 240,
+    minHeight: 216,
     overflow: "hidden",
     paddingHorizontal: 32,
-    paddingVertical: 36,
+    paddingVertical: 24,
     position: "relative",
     width: "100%",
     boxShadow: "0 4px 10px rgba(4, 16, 34, 0.06), 0 25px 75px rgba(7, 33, 102, 0.12)",
+  },
+  mobileTabletGoLinkBanner: {
+    alignItems: "stretch",
+    alignSelf: "stretch",
+    borderRadius: 24,
+    boxSizing: "border-box",
+    flexDirection: "column",
+    gap: 14,
+    maxWidth: "100%",
+    minHeight: 0,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    width: "100%",
+    boxShadow: "0 9px 22px rgba(48, 56, 70, 0.14)",
   },
   desktopGoLinkBackdrop: {
     backgroundColor: "#EAF4FF",
@@ -2333,6 +2667,9 @@ const styles = StyleSheet.create({
     zIndex: 1,
     boxShadow: "0 18px 32px -14px rgba(6, 78, 59, 0.45)",
   },
+  mobileTabletGoLinkIllustrationWrap: {
+    display: "none",
+  },
   desktopGoLinkGoBadge: {
     alignItems: "center",
     backgroundColor: colors.primary,
@@ -2361,6 +2698,10 @@ const styles = StyleSheet.create({
     paddingRight: 28,
     zIndex: 1,
   },
+  mobileTabletGoLinkForm: {
+    paddingRight: 0,
+    width: "100%",
+  },
   desktopGoLinkEyebrow: {
     alignSelf: "flex-start",
     backgroundColor: "rgba(255, 255, 255, 0.6)",
@@ -2383,11 +2724,22 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     lineHeight: 32,
   },
+  mobileTabletGoLinkTitle: {
+    fontSize: 22,
+    lineHeight: 28,
+  },
+  desktopGoLinkHeadlineRow: {
+    alignItems: "flex-start",
+    flexDirection: "column",
+    gap: 12,
+  },
   desktopGoLinkSteps: {
     alignItems: "center",
     flexDirection: "row",
+    flexShrink: 1,
     flexWrap: "wrap",
     gap: 8,
+    maxWidth: "100%",
   },
   desktopGoLinkStep: {
     alignItems: "center",
@@ -2432,6 +2784,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 12,
   },
+  mobileTabletGoLinkControls: {
+    flexDirection: "column",
+  },
   desktopGoLinkInputShell: {
     alignItems: "center",
     backgroundColor: "rgba(255, 255, 255, 0.95)",
@@ -2472,6 +2827,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
     boxShadow: "0 8px 28px -6px rgba(0, 204, 153, 0.55)",
   },
+  mobileTabletGoLinkAction: {
+    minWidth: 0,
+    width: "100%",
+  },
   desktopGoLinkActionText: {
     color: colors.white,
     fontFamily: typography.family,
@@ -2505,25 +2864,25 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: "#103522",
     fontFamily: typography.family,
-    fontSize: typography.sectionTitle,
+    fontSize: 18,
     fontWeight: typography.sectionTitleWeight,
-    lineHeight: 34,
+    lineHeight: 24,
   },
   sectionTitleSmall: {
     color: "#103522",
     flexShrink: 1,
     fontFamily: typography.family,
-    fontSize: typography.sectionTitle,
+    fontSize: 18,
     fontWeight: typography.sectionTitleWeight,
-    lineHeight: 34,
+    lineHeight: 24,
   },
   sectionEmoji: {
-    fontSize: 24,
-    lineHeight: 28,
+    fontSize: 18,
+    lineHeight: 24,
   },
   topBrandEmoji: {
-    fontSize: 30,
-    lineHeight: 34,
+    fontSize: 18,
+    lineHeight: 24,
   },
   sectionAction: {
     color: colors.primaryDark,
@@ -2612,11 +2971,11 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.92)",
     borderRadius: radii.chip,
     bottom: 8,
-    height: 34,
+    height: 28,
     justifyContent: "center",
     position: "absolute",
     right: 8,
-    width: 34,
+    width: 28,
     zIndex: 2,
   },
   brandLogo: {
@@ -2651,13 +3010,13 @@ const styles = StyleSheet.create({
   brandCashback: {
     color: colors.primaryDark,
     fontFamily: typography.family,
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: "700",
-    lineHeight: 22,
+    lineHeight: 18,
   },
   brandCashbackLarge: {
-    fontSize: 24,
-    lineHeight: 24,
+    fontSize: 18,
+    lineHeight: 18,
   },
   compactBrandGrid: {
     flexDirection: "row",

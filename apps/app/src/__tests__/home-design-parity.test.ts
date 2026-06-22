@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import {
+  getResponsiveHomeLayoutMetrics,
   getTopBrandHref,
   webCookieConsentBanner,
   webDesktopHeaderNavItems,
@@ -32,6 +33,9 @@ describe("Expo home design parity", () => {
     // Top Brands renders the shared BrandCard at its large size.
     expect(homeFile).toContain("BrandCard");
     expect(homeFile).toContain('size="L"');
+    expect(homeFile).toMatch(/heartCircle:\s*\{[\s\S]*?height: 28,[\s\S]*?width: 28,/);
+    expect(homeFile).toContain("topMargin={24}");
+    expect(homeFile).toContain("topPadding={56}");
     expect(homeFile).toContain("CustomerMobileBottomNav");
     expect(homeFile).not.toContain('webHomeSectionOrder.includes("goLinkBanner")');
   });
@@ -224,6 +228,10 @@ describe("Expo home design parity", () => {
     });
     expect(homeFile).toContain("DesktopGoLinkBanner");
     expect(homeFile).toContain("homeLayout.isDesktop ? (");
+    expect(homeFile).toContain("MobileTabletHomeHeader");
+    expect(homeFile).toContain('variant="mobileTabletHeader"');
+    expect(homeFile).toContain("mobile-tablet-golink-banner");
+    expect(homeFile).toContain("mobileTabletContentSheet");
     expect(homeFile).toContain("<DesktopGoLinkBanner");
     expect(homeFile.indexOf("<HomeHeroBanners homeLayout={homeLayout} />")).toBeLessThan(
       homeFile.indexOf("<DesktopGoLinkBanner")
@@ -235,6 +243,12 @@ describe("Expo home design parity", () => {
     expect(homeFile).toContain("GoLinkResultDialog");
     expect(homeFile).toContain("isValidGoLinkUrl");
     expect(homeFile).toContain("desktopGoLinkSteps");
+    expect(homeFile).toMatch(
+      /desktopGoLinkHeadlineRow: \{\s+alignItems: "flex-start",\s+flexDirection: "column",\s+gap: 12,\s+\}/,
+    );
+    expect(homeFile).toMatch(
+      /desktopGoLinkSteps: \{\s+alignItems: "center",\s+flexDirection: "row",\s+flexShrink: 1,\s+flexWrap: "wrap",\s+gap: 8,\s+maxWidth: "100%",\s+\}/,
+    );
   });
 
   it("home design parity > given previous web hero layout > then keeps main and side banner contract", () => {
@@ -392,7 +406,7 @@ describe("Expo home design parity", () => {
 
     expect(homeFile).toContain("horizontal");
     expect(homeFile).toContain("pagingEnabled");
-    expect(homeFile).toContain("snapToInterval={homeLayout.contentWidth}");
+    expect(homeFile).toContain("snapToInterval={homeLayout.brandSectionFrameWidth}");
     expect(homeFile).toContain('decelerationRate="fast"');
     expect(homeFile).toContain("disableIntervalMomentum");
     expect(homeFile).toContain("styles.topBrandScroll");
@@ -410,6 +424,7 @@ describe("Expo home design parity", () => {
     expect(homeFile).toContain("homeLayout.showBottomNav");
     expect(homeFile).toContain("homeLayout.contentMaxWidth");
     expect(homeFile).toContain("homeLayout.compactBrandCardWidth");
+    expect(homeFile).toContain("homeLayout.compactBrandCardHeight");
     expect(homeFile).toContain("homeLayout.pageBottomPadding");
     expect(homeFile).not.toContain('width: "31.4%"');
     expect(homeFile).not.toContain("paddingBottom: mobileShellLayout.bottomNavClearance + 24");
@@ -463,7 +478,8 @@ describe("Expo home design parity", () => {
     expect(homeFile).toContain(
       'accessibilityLabel={tc("Search brands, stores, products, and cashback offers")}'
     );
-    expect(homeFile).toContain('nativeID="home-search-input"');
+    expect(homeFile).toContain('nativeID="home-search-input-hidden"');
+    expect(homeFile).not.toContain("<View style={styles.mobileTabletHeaderSearchBox}>");
     expect(homeFile).not.toContain("Search shops, brands, cashback");
   });
 
@@ -585,7 +601,7 @@ describe("Expo home design parity", () => {
   it("home design parity > given selected staging Travel Deals block > then compact card visuals match", () => {
     const travel = webHomePromoSections.find((section) => section.id === "travel");
 
-    expect(travel?.dotCount).toBe(3);
+    expect(travel?.dotCount).toBe(2);
     expect(travel?.cards.slice(0, 6)).toEqual([
       expect.objectContaining({
         brand: "Orbit Airways",
@@ -620,19 +636,32 @@ describe("Expo home design parity", () => {
     ]);
   });
 
-  it("home design parity > given selected staging Travel Deals rail > then Travel data provides enough cards for every declared pagination dot", () => {
+  it("home design parity > given selected staging Travel Deals rail > then Travel data provides two desktop stops", () => {
     const travel = webHomePromoSections.find((section) => section.id === "travel");
-    const mobileCardsPerPage = mobileShellLayout.compactBrandMobileColumns * 2;
+    const desktopLayout = getResponsiveHomeLayoutMetrics(1440);
+    const travelCards = travel?.cards.slice(0, 16) ?? [];
+    const desktopTravelCardsPerPage = desktopLayout.compactBrandColumns;
 
-    // Every declared dot must map to a reachable mobile page — no phantom dots and
-    // no pages past the dots: dotCount === ceil(cards / mobileCardsPerPage).
-    expect(travel?.dotCount).toBe(Math.ceil((travel?.cards.length ?? 0) / mobileCardsPerPage));
+    expect(travelCards).toHaveLength(16);
+    expect(desktopTravelCardsPerPage).toBe(8);
+    expect(travel?.dotCount).toBe(Math.ceil(travelCards.length / desktopTravelCardsPerPage));
+  });
+
+  it("mobile brand sections > given the padded white sheet > then carousel frames fit the mobile section width", () => {
+    const mobileLayout = getResponsiveHomeLayoutMetrics(389);
+
+    expect(mobileLayout.contentWidth).toBe(360);
+    expect(mobileLayout.brandSectionFrameWidth).toBe(312);
+    expect(mobileLayout.topBrandCardWidth).toBe(150);
+    expect(mobileLayout.topBrandGap).toBe(12);
+    expect(mobileLayout.compactBrandCardWidth).toBe(144);
+    expect(mobileLayout.compactBrandGap).toBe(24);
   });
 
   it("home design parity > given selected staging Makeup Must Have block > then compact card visuals match", () => {
     const makeup = webHomePromoSections.find((section) => section.id === "makeup");
 
-    expect(makeup?.dotCount).toBe(3);
+    expect(makeup?.dotCount).toBe(2);
     expect(makeup?.cards.slice(0, 6)).toEqual([
       expect.objectContaining({
         brand: "Bloom & Beam",
@@ -723,10 +752,13 @@ describe("Expo home design parity", () => {
     expect(homeFile).toContain("chunkCompactBrandCards");
     expect(homeFile).toContain("promoPages.map");
     expect(homeFile).toContain("homeLayout.compactBrandCardsPerPage");
+    expect(homeFile).toContain("ONE_ROW_PROMO_MAX_CARDS");
+    expect(homeFile).toContain("getPromoSectionPageSize");
+    expect(homeFile).toContain("Math.max(promoPages.length, dotCount ?? 0)");
     expect(homeFile).toContain("styles.promoScroll");
     expect(homeFile).toContain("styles.promoPage");
     expect(homeFile).toContain("styles.promoPagerContent");
-    expect(homeFile).toContain("snapToInterval={homeLayout.contentWidth}");
+    expect(homeFile).toContain("snapToInterval={homeLayout.brandSectionFrameWidth}");
     expect(homeFile).not.toContain("<View style={styles.compactBrandGrid}>");
   });
 
@@ -736,7 +768,7 @@ describe("Expo home design parity", () => {
       "utf8"
     );
 
-    expect(homeFile).toContain("style={[styles.promoScroll, { width: homeLayout.contentWidth }]}");
+    expect(homeFile).toContain("style={[styles.promoScroll, { width: homeLayout.brandSectionFrameWidth }]}");
   });
 
   it("home design parity > given lower staging section titles > then long titles can wrap like Next.js", () => {
@@ -746,7 +778,10 @@ describe("Expo home design parity", () => {
     );
 
     expect(homeFile).not.toContain("<Text numberOfLines={1} style={styles.sectionTitleSmall}>");
-    expect(homeFile).toMatch(/sectionTitleSmall:\s*\{[^}]*lineHeight:\s*34,/);
+    expect(homeFile).toMatch(/sectionTitle:\s*\{[\s\S]*?fontSize:\s*18,[\s\S]*?lineHeight:\s*24,/);
+    expect(homeFile).toMatch(/sectionTitleSmall:\s*\{[\s\S]*?fontSize:\s*18,[\s\S]*?lineHeight:\s*24,/);
+    expect(homeFile).toMatch(/sectionEmoji:\s*\{[\s\S]*?fontSize:\s*18,[\s\S]*?lineHeight:\s*24,/);
+    expect(homeFile).toMatch(/topBrandEmoji:\s*\{[\s\S]*?fontSize:\s*18,[\s\S]*?lineHeight:\s*24,/);
     expect(homeFile).toContain("flexShrink: 1");
   });
 
@@ -760,5 +795,140 @@ describe("Expo home design parity", () => {
     expect(homeFile).not.toContain("strokeWidth={2.4}");
     expect(homeFile).not.toContain("strokeWidth={2.6}");
     expect(homeFile).not.toContain("strokeWidth={3}");
+  });
+
+  it("mobile/tablet home header greeting > given a signed-in user > then it uses their username with a Hi fallback", () => {
+    const homeScreenSource = fs.readFileSync(
+      new URL("../screens/CustomerHomeScreen.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(homeScreenSource).toContain("const mobileTabletGreetingName =");
+    expect(homeScreenSource).toContain("session?.username");
+    expect(homeScreenSource).toContain("greetingName={mobileTabletGreetingName}");
+    expect(homeScreenSource).toContain('greetingName ? `Hi ${greetingName}!` : tc("Hi!")');
+  });
+
+  it("home hero banners > given main and side promos render > then they are wrapped as one visual section", () => {
+    const homeScreenSource = fs.readFileSync(
+      new URL("../screens/CustomerHomeScreen.tsx", import.meta.url),
+      "utf8",
+    );
+    const heroSectionStyle =
+      homeScreenSource.match(/heroBannerSection:\s*\{[\s\S]*?\n  \}/)?.[0] ?? "";
+    const heroSectionDesktopStyle =
+      homeScreenSource.match(/heroBannerSectionDesktop:\s*\{[\s\S]*?\n  \}/)?.[0] ?? "";
+
+    expect(homeScreenSource.indexOf("styles.heroBannerSection")).toBeLessThan(
+      homeScreenSource.indexOf("styles.mainHeroFrame"),
+    );
+    expect(homeScreenSource.indexOf("styles.heroBannerSection")).toBeLessThan(
+      homeScreenSource.indexOf("styles.sideHeroRow"),
+    );
+    expect(heroSectionStyle).toContain("gap: spacing.sm");
+    expect(heroSectionStyle).toContain('width: "100%"');
+    expect(heroSectionDesktopStyle).toContain('flexDirection: "row"');
+    expect(heroSectionDesktopStyle).toContain("gap: spacing.md");
+  });
+
+  it("mobile/tablet GoLink header > given the home header renders > then it keeps search only and can cover the GoLink banner", () => {
+    const homeScreenSource = fs.readFileSync(
+      new URL("../screens/CustomerHomeScreen.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(homeScreenSource).toContain("const headerActionIconSize = isTabletFrame ? 24 : 20");
+    expect(homeScreenSource).toContain("const [mobileTabletGoLinkCovered, setMobileTabletGoLinkCovered] = useState(false)");
+    expect(homeScreenSource).toContain("isGoLinkCovered={mobileTabletGoLinkCovered}");
+    expect(homeScreenSource).toContain("setMobileTabletGoLinkCovered((covered) => !covered)");
+    expect(homeScreenSource).toContain("isGoLinkCovered ? null : (");
+    expect(homeScreenSource).toContain('"Cover GoLink banner"');
+    expect(homeScreenSource).toContain('"Show GoLink banner"');
+    expect(homeScreenSource).toContain("<ChevronUpIcon");
+    expect(homeScreenSource).toContain("<ChevronDownIcon");
+    expect(homeScreenSource).toContain("!isTabletFrame ? styles.mobileHeaderIconButtonSmall : null");
+    expect(homeScreenSource).toMatch(/mobileHeaderIconButtonSmall:\s*\{[\s\S]*?height:\s*40,[\s\S]*?width:\s*40,/);
+    expect(homeScreenSource).toContain('accessibilityLabel={tc("Search")}');
+    expect(homeScreenSource).not.toContain('accessibilityLabel={tc("GoLink")}');
+    expect(homeScreenSource).not.toContain("isGoLinkBannerVisible");
+    expect(homeScreenSource).not.toContain("setGoLinkBannerVisible");
+    expect(homeScreenSource).toContain('variant="mobileTabletHeader"');
+    expect(homeScreenSource).toMatch(
+      /<DesktopGoLinkBanner[\s\S]*?variant="mobileTabletHeader"[\s\S]*?\/>/,
+    );
+    expect(homeScreenSource).not.toContain("mobileTabletGoLinkBackdropHidden");
+    expect(homeScreenSource).not.toContain('backgroundColor: "rgba(255, 255, 255, 0.96)"');
+  });
+
+  it("mobile/tablet GoLink header > given the banner renders in the colored frame > then it fills the frame width", () => {
+    const homeScreenSource = fs.readFileSync(
+      new URL("../screens/CustomerHomeScreen.tsx", import.meta.url),
+      "utf8",
+    );
+    const bannerStyle =
+      homeScreenSource.match(/mobileTabletGoLinkBanner:\s*\{[\s\S]*?\n  \}/)?.[0] ?? "";
+    const toggleButtonStyle =
+      homeScreenSource.match(/mobileTabletSheetToggleButton:\s*\{[\s\S]*?\n  \}/)?.[0] ?? "";
+
+    expect(bannerStyle).toContain('alignSelf: "stretch"');
+    expect(bannerStyle).toContain('maxWidth: "100%"');
+    expect(bannerStyle).toContain('width: "100%"');
+    expect(bannerStyle).not.toContain("marginRight");
+    expect(toggleButtonStyle).toContain("height: 24");
+    expect(toggleButtonStyle).toContain("width: 24");
+    expect(toggleButtonStyle).toContain("top: -12");
+  });
+
+  it("mobile/tablet colored header > given it meets the white content sheet > then the header bottom corners stay square", () => {
+    const homeScreenSource = fs.readFileSync(
+      new URL("../screens/CustomerHomeScreen.tsx", import.meta.url),
+      "utf8",
+    );
+    const headerStyle = homeScreenSource.match(/mobileTabletHomeHeader:\s*\{[\s\S]*?\n  \}/)?.[0] ?? "";
+    const pageScrollStyle = homeScreenSource.match(/mobileTabletPageScroll:\s*\{[\s\S]*?\n  \}/)?.[0] ?? "";
+    const pageScrollContentStyle = homeScreenSource.match(/mobileTabletPageScrollContent:\s*\{[\s\S]*?\n  \}/)?.[0] ?? "";
+    const contentScrollStyle = homeScreenSource.match(/mobileTabletContentScroll:\s*\{[\s\S]*?\n  \}/)?.[0] ?? "";
+    const contentSheetStyle = homeScreenSource.match(/mobileTabletContentSheet:\s*\{[\s\S]*?\n  \}/)?.[0] ?? "";
+
+    expect(homeScreenSource.indexOf("<MobileTabletHomeHeader")).toBeGreaterThan(
+      homeScreenSource.indexOf("style={styles.mobileTabletPageScroll}"),
+    );
+    expect(homeScreenSource.indexOf("styles.mobileTabletContentScroll")).toBeGreaterThan(
+      homeScreenSource.indexOf("<MobileTabletHomeHeader"),
+    );
+    expect(headerStyle).toContain("borderBottomLeftRadius: 0");
+    expect(headerStyle).toContain("borderBottomRightRadius: 0");
+    expect(headerStyle).toContain('backgroundColor: "#009D78"');
+    expect(headerStyle).not.toContain("height: 550");
+    expect(headerStyle).toContain("paddingBottom: 72");
+    expect(pageScrollStyle).toContain("flex: 1");
+    expect(pageScrollContentStyle).toContain('width: "100%"');
+    expect(contentScrollStyle).toContain('backgroundColor: "#FFFFFF"');
+    expect(contentScrollStyle).toContain("borderTopLeftRadius: 34");
+    expect(contentScrollStyle).toContain("borderTopRightRadius: 34");
+    expect(homeScreenSource).toContain("paddingHorizontal: 24");
+    expect(homeScreenSource).toContain("paddingTop: 24");
+    expect(homeScreenSource).toContain("homeLayout.brandSectionFrameWidth");
+    expect(homeScreenSource).not.toContain("styles.mobileTabletSectionFrame");
+    expect(contentScrollStyle).not.toContain("marginHorizontal: 40");
+    expect(contentScrollStyle).toContain("marginTop: -40");
+    expect(contentScrollStyle).toContain('overflow: "visible"');
+    expect(contentScrollStyle).toContain('position: "relative"');
+    expect(contentScrollStyle).toContain('width: "100%"');
+    expect(contentSheetStyle).toContain("borderTopLeftRadius: 34");
+    expect(contentSheetStyle).toContain("borderTopRightRadius: 34");
+  });
+
+  it("mobile/tablet colored header > given the green reference design > then it uses the teal gradient palette", () => {
+    const homeScreenSource = fs.readFileSync(
+      new URL("../screens/CustomerHomeScreen.tsx", import.meta.url),
+      "utf8",
+    );
+    const headerStyle = homeScreenSource.match(/mobileTabletHomeHeader:\s*\{[\s\S]*?\n  \}/)?.[0] ?? "";
+
+    expect(homeScreenSource).toContain("const mobileTabletHeaderGradient =");
+    expect(homeScreenSource).toContain("linear-gradient(135deg, #006B52 0%, #009D78 48%, #20C7A1 100%)");
+    expect(homeScreenSource).toContain("mobileTabletHeaderGradient");
+    expect(headerStyle).toContain('backgroundColor: "#009D78"');
   });
 });

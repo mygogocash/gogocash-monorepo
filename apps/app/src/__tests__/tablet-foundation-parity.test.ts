@@ -140,8 +140,8 @@ describe("home Top Brands grid columns by device (tablet cards must not balloon)
     expect(getResponsiveHomeLayoutMetrics(390).topBrandColumns).toBe(2);
   });
 
-  it("large phone 480-767 (600) > 3 columns (unchanged)", () => {
-    expect(getResponsiveHomeLayoutMetrics(600).topBrandColumns).toBe(3);
+  it("large phone 480-767 (600) > 2 columns (mobile profile)", () => {
+    expect(getResponsiveHomeLayoutMetrics(600).topBrandColumns).toBe(2);
   });
 
   it("tablet 768-1023 (834, 960) > 4 columns (smaller cards, was 3)", () => {
@@ -149,11 +149,11 @@ describe("home Top Brands grid columns by device (tablet cards must not balloon)
     expect(getResponsiveHomeLayoutMetrics(960).topBrandColumns).toBe(4);
   });
 
-  it("desktop band 1024-1279 (1100) > 6 columns (full desktop grid, no balloon)", () => {
-    expect(getResponsiveHomeLayoutMetrics(1100).topBrandColumns).toBe(6);
+  it("desktop band 1024-1279 (1100) > 4 columns (tablet design profile)", () => {
+    expect(getResponsiveHomeLayoutMetrics(1100).topBrandColumns).toBe(4);
   });
 
-  it("wide desktop >=1280 (1440) > 6 columns (unchanged)", () => {
+  it("wide desktop >=1280 (1440) > 6 columns (two-row desktop grid)", () => {
     expect(getResponsiveHomeLayoutMetrics(1440).topBrandColumns).toBe(6);
   });
 });
