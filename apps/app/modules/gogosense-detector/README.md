@@ -16,6 +16,9 @@ only by an **EAS dev-client build**. The web export + `vitest` suites never load
 platform selector falls back to the unsupported detector). The full JS layer is
 verified by `vitest` + `tsc`; the native half is verified **on a real Android device**.
 
+**Theming:** GoGoSense screens and `GoGoSenseDetectionBanner` use `useThemedStyles` /
+`ThemeColors` like the rest of the customer app — see `docs/dark-mode.md`.
+
 ## Phase 4 — build + verify on a device (owner)
 
 Prerequisites (owner-provided — not in the repo):

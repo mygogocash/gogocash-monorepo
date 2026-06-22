@@ -86,3 +86,7 @@ As a customer, I want a retry option when account data cannot load so that I can
 - Backend-mode Expo web export with `EXPO_PUBLIC_ACCOUNT_DATA_SOURCE=backend` and a local fake API at `http://127.0.0.1:19107`.
 - Playwright proof for `/wallet` at `428x919` and `1495x919`: the route calls `/withdraw/check` with the stored bearer token and renders retryable error/offline states instead of fixture wallet content.
 - `npm run test:full`
+
+---
+
+**Related:** Resource state cards use themed surfaces — [dark-mode.md](./dark-mode.md).

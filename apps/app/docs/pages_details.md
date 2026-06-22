@@ -78,3 +78,7 @@ All routes are mapped inside [apps/app/src/navigation/routes.ts](../src/navigati
   - `POST /auth/log-in` ( credentials auth)
   - `POST /auth/register` ( user registration)
   - `POST /auth/send-otp` ( mobile code verification)
+
+---
+
+**Theming:** Screen visuals use `ThemeColors` (light/dark) — see [dark-mode.md](./dark-mode.md). Light values in this catalog describe the web-parity baseline.

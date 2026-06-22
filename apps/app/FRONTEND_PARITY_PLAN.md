@@ -3,6 +3,8 @@
 This plan tracks the native Expo app work needed to match the current GoGoCash customer web UI without using a WebView.
 
 > **Update (2026-06-21): merged into the Turborepo monorepo in PR #1.** The Expo app now lives at `apps/app` (package `@gogocash/mobile`), not `apps/mobile`, and there is no separate `expo-module` branch. The root `npm run mobile:*` / `npm run validate` proxies referenced in the dated entries below no longer exist; run the gates with `npm --prefix apps/app run test` / `test:render` / `typecheck` (or `turbo run test --filter=@gogocash/mobile`), and the Playwright design-QA via `npx --prefix apps/app playwright test`. The historical snapshots below are preserved as-is for the record. Also landed in PR #1: the home `BrandCard` consolidates the former `LShopCard`/`SShopCard` into one component with a `size` prop (`L`/`S`), each large card has a local-only favorite heart, and the Trending Brands / Travel Deals home rails are capped to 16 cards (`dotCount: 3`).
+>
+> **Update (2026-06-22):** Customer-app **dark mode** shipped — System / Light / Dark in Account Settings, `ThemeProvider` + `colorPalettes.ts`, themed shared chrome and core screens. See `docs/dark-mode.md`. Stack: RN **0.86**, react-native-web **0.21.2**.
 
 ## Current Progress Snapshot (2026-06-06)
 

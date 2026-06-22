@@ -1,6 +1,8 @@
 # Executive Summary
 Align the Expo desktop header language and region flow with the Next.js `LocalePanel` popover selected from the globe button.
 
+> **Theming (2026-06-22):** The globe trigger and popover surfaces use `ThemeColors` via `CustomerLocaleRegionControl` — verify in both light and dark appearance. See `docs/dark-mode.md`.
+
 # Business Goals
 Customers should see the same language and region chooser in Expo web desktop previews that they see in the Next.js customer shell.
 

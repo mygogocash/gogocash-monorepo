@@ -19,6 +19,7 @@ capture (keyboard avoidance, perceived-performance, haptics, reduce-motion, refr
   - B4 discovery/home: Thai-truncation (`numberOfLines`) everywhere + selection haptics; ShopDetail (async) got skeleton + refresh; Home/Discovery/Category are **synchronous parity data** so skeleton/real-refresh were honestly skipped.
   - B5 engagement: GoLink reduce-motion on sheet/popover enter+exit; Subscription + Referral (async) got skeleton + refresh; Quest/GoGoSense/Membership/CreditScore got haptics + truncation.
   - **Architecture finding:** skeleton + pull-to-refresh apply only to async resource-backed screens (Wallet, ShopDetail, Subscription, Referral). Directory/landing/quest/credit screens render synchronous in-memory `webDesignParity` data — no refetch — so those treatments were skipped there rather than faked.
+- **Wave C (dark mode): ✅ COMPLETE (2026-06-22)** — System / Light / Dark in Account Settings; `ThemeProvider`, `colorPalettes.ts`, themed shared chrome + core screens + GoGoSense. See `docs/dark-mode.md`. Gates: typecheck 0 · source 613 · render 303.
 
 ## Working rules (every task)
 - **TDD** (house rule): write the failing test first, see it fail for the right reason, implement, then

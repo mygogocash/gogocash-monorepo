@@ -4,6 +4,10 @@
 > Two adversarially-verified workflows: (1) page + user-flow parity, (2) icon + desktop/mobile responsive parity.
 > Every finding below was **re-read and confirmed** by a second verifier agent — the "refuted/false-positive" class
 > from earlier passes is excluded. Where a finding is unverified, it is labelled so.
+>
+> **Post-report note (2026-06-22):** This report predates customer-app **dark mode** (`docs/dark-mode.md`).
+> Light-theme visual findings remain valid for the web parity baseline; dark-appearance regressions are
+> out of scope for this snapshot — use `DESIGN_QA_PLAN.md` § Dark mode QA instead.
 
 ## ⚠️ Coverage caveats (read first — this report is partial)
 

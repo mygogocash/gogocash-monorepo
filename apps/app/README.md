@@ -7,8 +7,22 @@ Expo / react-native-web customer app (package `@gogocash/mobile`) — a desktop-
 ```bash
 npm install                        # installs all workspaces from the repo root
 npm --prefix apps/app run start    # native dev client (expo start)
-npm --prefix apps/app run web      # Expo web (the live-verify surface)
+npm --prefix apps/app run web      # Expo web (the live-verify surface, default :8081)
 ```
+
+**Monorepo local stack** (when exercising live API or admin alongside the customer app):
+
+| Service | Path | Port |
+| --- | --- | --- |
+| API (NestJS) | `apps/api` | `:8080` |
+| Admin (Next.js) | `apps/admin` | `:3000` |
+| Customer app (Expo web) | `apps/app` | `:8081` |
+
+npm workspaces hoist inconsistently — run `npm ci` at the repo root. If workspace dev commands fail module resolution, start from the app directory or set `NODE_PATH` (e.g. API: `NODE_PATH=./node_modules node dist/main` from `apps/api`).
+
+## Appearance (light / dark)
+
+Account Settings → **Appearance** offers **System**, **Light**, and **Dark**. Preference persists as `gogocash.theme.preference`. Implementation details: **[docs/dark-mode.md](docs/dark-mode.md)**.
 
 ## Verification — the three gates
 

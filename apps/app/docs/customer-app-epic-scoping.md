@@ -141,3 +141,7 @@ Effort S(≤1d)/M(2-4d)/L(1-2wk)/XL(>2wk). Untested money/auth = R0.
 - **D3** retiring the `123456` demo / turning live auth on.
 
 **Dissent:** the seam *looks* finished, tempting a one-line `eas.json` flip to go live. That single edit (A4) is the riskiest action in the epic and depends on ~6 other things being true first. Treat the flip as the **last** step, never the first.
+
+---
+
+**Related:** Customer UI theming — [dark-mode.md](./dark-mode.md). Stack: Expo SDK 56, React Native 0.86 (`apps/app`).

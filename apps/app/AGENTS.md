@@ -78,7 +78,7 @@ When in doubt, search `apps/app/src` for an existing pattern before introducing 
 
 - Dark mode scope is **customer app only** (`apps/app`); do not add tri-state theme work to admin as part of mobile tasks.
 - Ship **System / Light / Dark** in Account Settings from day one — not a system-only v1 with toggle deferred.
-- Finish **core app dark mode before GoGoSense** surfaces get dark styling.
+- Core customer-app dark mode (screens + shared chrome + GoGoSense) is **shipped**; optional follow-up is semantic status/metric pastels on a few content screens (Discovery, Quest, etc. — wallet is the template).
 - No Next.js customer-web dark tokens exist — draft palette in-repo (`colorPalettes.ts`, `docs/dark-mode.md`).
 
 ## Learned Workspace Facts
@@ -86,5 +86,5 @@ When in doubt, search `apps/app/src` for an existing pattern before introducing 
 - Monorepo sibling apps for local dev: `apps/api` NestJS **:8080**, `apps/admin` Next.js **:3000**, `apps/app` Expo web **:8081**.
 - npm workspaces hoist inconsistently — run `npm ci` at the monorepo root; if `-w` workspace dev commands fail module resolution, start from `apps/app` or `apps/admin`, or run the API with `NODE_PATH=./node_modules node dist/main`.
 - Theme preference persists under `gogocash.theme.preference` (web `localStorage`, native `expo-secure-store`); default is `system`.
-- New themed UI: `useThemedStyles(createStyles)` + `useTheme()` for live colors; avoid new static `import { colors }` except legacy/parity paths.
+- New themed UI: `useThemedStyles(createStyles)` + `useTheme()` for live colors; avoid new static `import { colors }` except legacy/parity paths. Gate web-only light `backgroundImage` gradients with `colors.isDark`.
 - Render suite: `vitest.render.setup.ts` wraps all mounts in `<ThemeProvider>`.
