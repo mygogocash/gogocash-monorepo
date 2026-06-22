@@ -25,10 +25,13 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     adb: env.ADB_PATH || findDefaultAdb(),
     apiUrl: env.GOGOSENSE_API_URL || env.EXPO_PUBLIC_API_URL || defaultApiUrl,
     appPackage: env.GOGOCASH_ANDROID_PACKAGE || defaultAppPackage,
+    authToken: env.GOGOSENSE_AUTH_TOKEN || "",
     device: env.ANDROID_SERIAL || "",
+    detectPackage: env.GOGOSENSE_DETECT_PACKAGE || "",
     expectedPackages: splitList(env.GOGOSENSE_MERCHANT_PACKAGES || ""),
     help: false,
     json: false,
+    requireAuth: false,
     requireForeground: false,
   };
 
@@ -42,9 +45,12 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     if (arg === "--adb") options.adb = next();
     else if (arg === "--api-url") options.apiUrl = next();
     else if (arg === "--app-package") options.appPackage = next();
+    else if (arg === "--auth-token") options.authToken = next();
     else if (arg === "--device") options.device = next();
+    else if (arg === "--detect-package") options.detectPackage = next();
     else if (arg === "--merchant-packages") options.expectedPackages = splitList(next());
     else if (arg === "--json") options.json = true;
+    else if (arg === "--require-auth") options.requireAuth = true;
     else if (arg === "--require-foreground") options.requireForeground = true;
     else if (arg === "--help" || arg === "-h") options.help = true;
     else throw new Error(`Unknown argument: ${arg}`);
@@ -89,6 +95,38 @@ async function fetchMerchants(apiUrl) {
   } catch (error) {
     throw new Error(`GET /gogosense/merchants returned invalid JSON: ${error.message}`);
   }
+}
+
+async function fetchProtectedJson(apiUrl, path, authToken, init = {}) {
+  const response = await fetch(`${apiUrl}${path}`, {
+    ...init,
+    headers: {
+      accept: "application/json",
+      authorization: `Bearer ${authToken}`,
+      ...(init.body ? { "content-type": "application/json" } : {}),
+      ...(init.headers || {}),
+    },
+  });
+  const text = await response.text();
+
+  if (!response.ok) {
+    throw new Error(`${init.method || "GET"} ${path} returned ${response.status}: ${text.slice(0, 200)}`);
+  }
+
+  try {
+    return text ? JSON.parse(text) : null;
+  } catch (error) {
+    throw new Error(`${init.method || "GET"} ${path} returned invalid JSON: ${error.message}`);
+  }
+}
+
+function buildDetectionRequest(packageName) {
+  return {
+    detectedAt: new Date().toISOString(),
+    method: "android_package",
+    packageName,
+    platform: "android",
+  };
 }
 
 function merchantPackages(merchants) {
@@ -163,6 +201,8 @@ async function runPreflight(options) {
     adb: options.adb,
     apiUrl: options.apiUrl,
     appPackage: options.appPackage,
+    authTokenPresent: Boolean(options.authToken),
+    detectPackage: options.detectPackage || null,
     device: options.device || null,
     foregroundPackage: "",
     installedMerchantPackages: [],
@@ -193,8 +233,45 @@ async function runPreflight(options) {
           "fail",
           "merchant Android package list",
           "no Android packages found in the merchant catalog; pass --merchant-packages for a controlled QA run"
-        )
+      )
   );
+
+  if (!options.authToken) {
+    results.push(
+      result(
+        options.requireAuth ? "fail" : "warn",
+        "authenticated GoGoSense API",
+        "no token provided; set GOGOSENSE_AUTH_TOKEN or pass --auth-token"
+      )
+    );
+  } else {
+    try {
+      await fetchProtectedJson(options.apiUrl, "/gogosense/settings", options.authToken);
+      results.push(result("pass", "authenticated GoGoSense API", "GET /gogosense/settings accepted token"));
+    } catch (error) {
+      results.push(result("fail", "authenticated GoGoSense API", error.message));
+    }
+
+    if (options.detectPackage) {
+      try {
+        const response = await fetchProtectedJson(options.apiUrl, "/gogosense/detect", options.authToken, {
+          body: JSON.stringify(buildDetectionRequest(options.detectPackage)),
+          method: "POST",
+        });
+        results.push(
+          result(
+            response?.matched ? "pass" : "fail",
+            "protected detection probe",
+            response?.matched
+              ? `matched ${response.merchantName || response.merchantId || options.detectPackage}`
+              : `no match for ${options.detectPackage}`
+          )
+        );
+      } catch (error) {
+        results.push(result("fail", "protected detection probe", error.message));
+      }
+    }
+  }
 
   const adbVersion = run(options.adb, ["version"]);
   if (!adbVersion.ok) {
@@ -296,9 +373,12 @@ Checks the Android/runtime prerequisites for GoGoSense PRD acceptance.
 Options:
   --api-url <url>              API base URL (default: ${defaultApiUrl})
   --adb <path>                 adb executable (default: Android SDK adb or adb on PATH)
+  --auth-token <token>         Firebase/backend bearer token for protected GoGoSense API checks
   --device <serial>            adb device serial (default: ANDROID_SERIAL or first device)
+  --detect-package <package>   Explicitly POST /gogosense/detect for this package
   --app-package <package>      GoGoCash Android package (default: ${defaultAppPackage})
   --merchant-packages <list>   Comma-separated merchant packages for controlled QA
+  --require-auth               Fail when no auth token is provided
   --require-foreground         Fail unless a supported merchant package is foreground
   --json                       Print machine-readable JSON
 `);
@@ -328,6 +408,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
 }
 
 export {
+  buildDetectionRequest,
   findDefaultAdb,
   merchantPackages,
   parseArgs,

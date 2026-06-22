@@ -37,7 +37,18 @@ describe("GoGoSense Android preflight script helpers", () => {
   it("supports environment defaults and command-line overrides", () => {
     expect(
       preflight.parseArgs(
-        ["--api-url", "https://api.example.test/", "--merchant-packages", "com.a, com.b", "--require-foreground"],
+        [
+          "--api-url",
+          "https://api.example.test/",
+          "--auth-token",
+          "token-1",
+          "--detect-package",
+          "com.a",
+          "--merchant-packages",
+          "com.a, com.b",
+          "--require-auth",
+          "--require-foreground",
+        ],
         {
           ADB_PATH: "/tmp/adb",
           ANDROID_SERIAL: "device-1",
@@ -49,9 +60,23 @@ describe("GoGoSense Android preflight script helpers", () => {
       adb: "/tmp/adb",
       apiUrl: "https://api.example.test",
       appPackage: "co.test.app",
+      authToken: "token-1",
+      detectPackage: "com.a",
       device: "device-1",
       expectedPackages: ["com.a", "com.b"],
+      requireAuth: true,
       requireForeground: true,
     });
+  });
+
+  it("builds the protected detection probe request expected by the API", () => {
+    expect(preflight.buildDetectionRequest("com.shopee.th")).toMatchObject({
+      method: "android_package",
+      packageName: "com.shopee.th",
+      platform: "android",
+    });
+    expect(new Date(preflight.buildDetectionRequest("com.shopee.th").detectedAt).toString()).not.toBe(
+      "Invalid Date"
+    );
   });
 });
