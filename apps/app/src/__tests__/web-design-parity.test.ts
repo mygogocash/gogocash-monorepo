@@ -134,9 +134,9 @@ describe("GoGoCash web design parity", () => {
       isDesktop: false,
       pageBottomPadding: 132,
       showBottomNav: true,
-      topBrandCardsPerPage: 4,
-      topBrandColumns: 2,
-      topBrandDotCount: 4,
+      topBrandCardsPerPage: 16,
+      topBrandColumns: 8,
+      topBrandDotCount: 3,
     });
     expect(getResponsiveHomeLayoutMetrics(390).compactBrandCardWidth).toBeCloseTo(144, 1);
   });
@@ -192,10 +192,10 @@ describe("GoGoCash web design parity", () => {
   it("home responsive layout > given staging mobile Top Brands viewport > then uses the same card grid width", () => {
     expect(getResponsiveHomeLayoutMetrics(427)).toMatchObject({
       brandSectionFrameWidth: 347,
-      topBrandCardsPerPage: 4,
-      topBrandColumns: 2,
-      topBrandDotCount: 4,
-      topBrandGap: 0,
+      topBrandCardsPerPage: 16,
+      topBrandColumns: 8,
+      topBrandDotCount: 3,
+      topBrandGap: 16,
     });
     expect(getResponsiveHomeLayoutMetrics(427).topBrandCardWidth).toBeCloseTo(176, 1);
     expect(getResponsiveHomeLayoutMetrics(427).topBrandCardHeight).toBeCloseTo(224, 1);
@@ -205,10 +205,10 @@ describe("GoGoCash web design parity", () => {
     expect(getResponsiveHomeLayoutMetrics(834)).toMatchObject({
       contentHorizontalPadding: 24,
       contentWidth: 786,
-      topBrandCardsPerPage: 8,
-      topBrandColumns: 4,
+      topBrandCardsPerPage: 16,
+      topBrandColumns: 8,
     });
-    expect(getResponsiveHomeLayoutMetrics(834).topBrandGap).toBeCloseTo(11.33, 1);
+    expect(getResponsiveHomeLayoutMetrics(834).topBrandGap).toBeCloseTo(16, 1);
     expect(getResponsiveHomeLayoutMetrics(834).topBrandCardWidth).toBeCloseTo(176, 1);
   });
 
@@ -220,8 +220,8 @@ describe("GoGoCash web design parity", () => {
       isDesktop: true,
       pageBottomPadding: 40,
       showBottomNav: false,
-      topBrandCardsPerPage: 12,
-      topBrandColumns: 6,
+      topBrandCardsPerPage: 16,
+      topBrandColumns: 8,
       topBrandDotCount: 3,
     });
     expect(getResponsiveHomeLayoutMetrics(1440).compactBrandCardWidth).toBeCloseTo(144, 1);
@@ -238,8 +238,8 @@ describe("GoGoCash web design parity", () => {
     expect(desktopLayout.compactBrandColumns).toBe(8);
     expect(desktopLayout.compactBrandCardsPerPage).toBe(16);
     expect(compactRowWidth).toBeCloseTo(desktopLayout.contentWidth, 3);
-    expect(desktopLayout.topBrandGap).toBeCloseTo(28.8, 3);
-    expect(topBrandRowWidth).toBeCloseTo(desktopLayout.contentWidth, 3);
+    expect(desktopLayout.topBrandGap).toBeCloseTo(16, 3);
+    expect(topBrandRowWidth).toBeCloseTo(desktopLayout.topBrandGroupWidth, 3);
   });
 
   it("desktop shell parity > given the Next desktop nav reference > then Expo keeps the same category nav order and cookie copy", () => {
@@ -434,9 +434,9 @@ describe("GoGoCash web design parity", () => {
     const mobileLayout = getResponsiveHomeLayoutMetrics(427);
     const desktopLayout = getResponsiveHomeLayoutMetrics(1440);
 
-    expect(getCarouselDotCount(webTopBrandCards.length, mobileLayout.topBrandCardsPerPage)).toBe(8);
+    expect(getCarouselDotCount(webTopBrandCards.length, mobileLayout.topBrandCardsPerPage)).toBe(2);
     expect(getCarouselDotCount(webTopBrandCards.length, desktopLayout.topBrandCardsPerPage)).toBe(
-      3
+      2
     );
   });
 
@@ -492,14 +492,14 @@ describe("GoGoCash web design parity", () => {
         pageCount,
         pageWidth: mobileLayout.contentWidth,
       })
-    ).toBe(2);
+    ).toBe(1);
     expect(
       getCarouselActiveIndex({
         contentOffsetX: mobileLayout.contentWidth * 100,
         pageCount,
         pageWidth: mobileLayout.contentWidth,
       })
-    ).toBe(7);
+    ).toBe(1);
   });
 
   it("discover product cards > given Next Product Discovery feed > then shared product card fixture matches the first products", () => {

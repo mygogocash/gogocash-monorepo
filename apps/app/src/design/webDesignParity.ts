@@ -287,12 +287,16 @@ export function getResponsiveHomeLayoutMetrics(viewportWidth: number) {
     : roundLayoutValue(
         Math.max(0, contentWidth - MOBILE_TABLET_HOME_SECTION_HORIZONTAL_PADDING * 2)
       );
-  const topBrandColumns = designFrame.topBrandColumns;
-  const isMobileTopBrandGrid = topBrandColumns === mobileShellLayout.topBrandMobileColumns;
-  // The L (Top Brands) card is a FIXED size on every display — no fit-to-frame shrinking,
-  // matching the compact (S) card. On narrow frames the carousel scrolls horizontally.
+  // Top Brands is a fixed 8-column x 2-row "group" with a fixed gap that slides as a unit
+  // (no animation). The group is wider than the viewport on most screens, so ~6 cards show
+  // with a partial peek card at the edge; the card itself never resizes.
+  const topBrandColumns = 8;
+  const isMobileTopBrandGrid = false;
   const topBrandCardWidth = designFrame.topBrandCardWidth;
-  const topBrandGap = getFlexibleProfileGap(brandSectionFrameWidth, topBrandCardWidth, topBrandColumns);
+  const topBrandGap = 16;
+  const topBrandGroupWidth = roundLayoutValue(
+    topBrandColumns * topBrandCardWidth + (topBrandColumns - 1) * topBrandGap
+  );
   const compactBrandColumns = designFrame.compactBrandColumns;
   const compactBrandCardWidth = designFrame.compactBrandCardWidth;
   const compactBrandGap = getFlexibleProfileGap(
@@ -339,6 +343,7 @@ export function getResponsiveHomeLayoutMetrics(viewportWidth: number) {
       ? mobileShellLayout.topBrandMobileDotCount
       : mobileShellLayout.topBrandDesktopDotCount,
     topBrandGap,
+    topBrandGroupWidth,
   };
 }
 

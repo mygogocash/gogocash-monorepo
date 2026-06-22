@@ -132,30 +132,19 @@ function getDesktopShellHorizontalPaddingProbe(width: number): number {
   return mobileShellLayout.desktopHeaderPaddingMin;
 }
 
-describe("home Top Brands grid columns by device (tablet cards must not balloon)", () => {
-  // The Top Brands carousel previously used 3 columns across the entire 480-1279px
-  // range, so on a wide tablet (~960px) each card grew to ~288px. The tablet band
-  // (768-1023) now uses 4 columns so cards stay a sensible size.
-  it("phone <480 (390) > 2 columns (unchanged)", () => {
-    expect(getResponsiveHomeLayoutMetrics(390).topBrandColumns).toBe(2);
-  });
-
-  it("large phone 480-767 (600) > 2 columns (mobile profile)", () => {
-    expect(getResponsiveHomeLayoutMetrics(600).topBrandColumns).toBe(2);
-  });
-
-  it("tablet 768-1023 (834, 960) > 4 columns (smaller cards, was 3)", () => {
-    expect(getResponsiveHomeLayoutMetrics(834).topBrandColumns).toBe(4);
-    expect(getResponsiveHomeLayoutMetrics(960).topBrandColumns).toBe(4);
-  });
-
-  it("desktop band 1024-1279 (1100) > 4 columns (tablet design profile)", () => {
-    expect(getResponsiveHomeLayoutMetrics(1100).topBrandColumns).toBe(4);
-  });
-
-  it("wide desktop >=1280 (1440) > 6 columns (two-row desktop grid)", () => {
-    expect(getResponsiveHomeLayoutMetrics(1440).topBrandColumns).toBe(6);
-  });
+describe("home Top Brands grid columns by device (fixed 8-column group, cards never balloon)", () => {
+  // Top Brands is a fixed 8-column x 2-row "group" with a fixed 16px gap on every device.
+  // The card is a fixed 176px and never resizes; the group is wider than narrow viewports
+  // and scrolls (showing ~6 + a peek), so cards can never balloon to fill the width.
+  it.each([390, 600, 834, 960, 1100, 1440])(
+    "viewport %i > 8 columns with fixed 176px cards and a 16px gap",
+    (viewportWidth) => {
+      const layout = getResponsiveHomeLayoutMetrics(viewportWidth);
+      expect(layout.topBrandColumns).toBe(8);
+      expect(layout.topBrandCardWidth).toBe(176);
+      expect(layout.topBrandGap).toBe(16);
+    }
+  );
 });
 
 describe("home banner aspect ratio (full 1920x1080 design, fit to width, no crop)", () => {

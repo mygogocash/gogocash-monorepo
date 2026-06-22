@@ -652,10 +652,10 @@ describe("Expo home design parity", () => {
 
     expect(mobileLayout.contentWidth).toBe(357);
     expect(mobileLayout.brandSectionFrameWidth).toBe(309);
-    // L (Top Brands) cards are a fixed 176px and overflow the 312 mobile frame (carousel
-    // scrolls), so the flexible gap clamps to 0; compact cards still fit two-up.
+    // L (Top Brands) cards are a fixed 176px in a fixed 8-column group with a fixed 16px gap;
+    // the group overflows the mobile frame and scrolls. Compact cards still fit two-up.
     expect(mobileLayout.topBrandCardWidth).toBe(176);
-    expect(mobileLayout.topBrandGap).toBe(0);
+    expect(mobileLayout.topBrandGap).toBe(16);
     expect(mobileLayout.compactBrandCardWidth).toBe(144);
     expect(mobileLayout.compactBrandGap).toBe(21);
   });

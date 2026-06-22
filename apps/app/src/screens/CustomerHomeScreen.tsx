@@ -1409,14 +1409,14 @@ function TopBrandSection({
           )}
           onMomentumScrollEnd={(event) =>
             setActiveTopBrandPage(
-              getPagedScrollIndex(event, homeLayout.brandSectionFrameWidth, topBrandMaxPageIndex)
+              getPagedScrollIndex(event, homeLayout.topBrandGroupWidth, topBrandMaxPageIndex)
             )
           }
           pagingEnabled
           scrollEventThrottle={16}
           showsHorizontalScrollIndicator={false}
           snapToAlignment="start"
-          snapToInterval={homeLayout.brandSectionFrameWidth}
+          snapToInterval={homeLayout.topBrandGroupWidth}
           style={styles.topBrandScroll}
         >
           {topBrandPages.map((pageCards, pageIndex) => (
@@ -1427,14 +1427,8 @@ function TopBrandSection({
                 styles.brandGrid,
                 {
                   gap: homeLayout.topBrandGap,
-                  width: homeLayout.brandSectionFrameWidth,
+                  width: homeLayout.topBrandGroupWidth,
                 },
-                getCarouselPageMotionStyle(
-                  topBrandScrollX,
-                  pageIndex,
-                  homeLayout.brandSectionFrameWidth,
-                  reducedMotion
-                ),
               ]}
             >
               {pageCards.map((card) => (
@@ -1454,7 +1448,7 @@ function TopBrandSection({
           color={colors.primary}
           containerStyle={styles.topBrandDots}
           count={topBrandDotCount}
-          pageWidth={homeLayout.brandSectionFrameWidth}
+          pageWidth={homeLayout.topBrandGroupWidth}
           scrollX={topBrandScrollX}
           size={12}
         />
