@@ -47,7 +47,7 @@ Install the resulting dev-client APK on an Android phone, then:
 
 1. Open GoGoCash → GoGoSense → **Permissions** → tap **Grant usage access** → enable
    GoGoCash in the OS "Usage access" screen → return; status should read *granted*.
-2. Open an **enabled** merchant app (e.g. Shopee), then return to GoGoCash → GoGoSense
+2. Open an **enabled** merchant app (e.g. Shopee), spend up to two minutes there, then return to GoGoCash → GoGoSense
    hub. Expect a **POST `/gogosense/detect`** (matched) and the **Activate cashback**
    nudge. Tap it → **POST `/gogosense/activate`** → the affiliate deeplink opens.
 3. GoGoSense → **Timeline** shows the detection; **Settings** toggles persist

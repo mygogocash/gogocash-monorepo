@@ -18,6 +18,7 @@ describe("GoGoSense native UsageStats source contract", () => {
     expect(nativeModuleSource).toContain("private fun isForegroundEvent(eventType: Int)");
     expect(nativeModuleSource).toContain("UsageEvents.Event.MOVE_TO_FOREGROUND");
     expect(nativeModuleSource).toContain("UsageEvents.Event.ACTIVITY_RESUMED");
+    expect(nativeModuleSource).toContain("private const val LOOKBACK_MS = 120_000L");
     expect(nativeModuleSource).toContain("Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q");
     expect(nativeModuleSource).toContain("if (isForegroundEvent(event.eventType)");
   });

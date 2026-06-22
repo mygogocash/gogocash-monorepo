@@ -78,7 +78,7 @@ class GogosenseDetectorModule : Module() {
   }
 
   /**
-   * Most-recent foreground app package over a short trailing window, excluding
+   * Most-recent foreground app package over a two-minute trailing window, excluding
    * GoGoCash itself. Returns null when Usage Access is not granted or no
    * other-app foreground event occurred. MOVE_TO_FOREGROUND (== ACTIVITY_RESUMED
    * on API 29+, same constant value) works across supported API levels.
@@ -111,7 +111,7 @@ class GogosenseDetectorModule : Module() {
   }
 
   companion object {
-    private const val LOOKBACK_MS = 10_000L
+    private const val LOOKBACK_MS = 120_000L
   }
 }
 
