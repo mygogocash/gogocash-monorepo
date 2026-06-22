@@ -76,3 +76,39 @@ describe("GoGoSenseDetectionBanner (render)", () => {
     expect(screen.queryByText("Activate cashback")).toBeNull();
   });
 });
+
+describe("GoGoSenseDetectionBanner activation failures", () => {
+  it("matched detection > given activation rejects > does not open a stale deeplink", async () => {
+    const api: GoGoSenseHookApi = {
+      detect: vi.fn(async () => ({
+        matched: true,
+        merchantId: "shopee",
+        merchantName: "Shopee",
+        offerId: 101,
+        networkMerchantId: 201,
+        recommendedAction: "activate" as const,
+      })),
+      activate: vi.fn(async () => {
+        throw new Error("Unauthorized");
+      }),
+    };
+    const openUrl = vi.fn();
+
+    render(
+      createElement(GoGoSenseDetectionBanner, {
+        api,
+        detector: detector("com.shopee.th"),
+        openUrl,
+      })
+    );
+
+    await act(async () => {});
+    const button = await screen.findByText("Activate cashback");
+    await act(async () => {
+      fireEvent.click(button);
+    });
+
+    expect(api.activate).toHaveBeenCalledTimes(1);
+    expect(openUrl).not.toHaveBeenCalled();
+  });
+});

@@ -53,11 +53,14 @@ export function GoGoSenseDetectionBanner({
 
   const onActivate = useCallback(() => {
     void haptics.impact();
-    void activate().then((result) => {
-      if (result) {
-        (openUrl ?? Linking.openURL)(result.deeplink);
-      }
-    });
+    void activate()
+      .then((result) => {
+        if (result) {
+          return (openUrl ?? Linking.openURL)(result.deeplink);
+        }
+        return undefined;
+      })
+      .catch(() => undefined);
   }, [activate, openUrl]);
 
   const match = state.lastMatch;
@@ -128,4 +131,3 @@ function createGoGoSenseDetectionBannerStyles(colors: ThemeColors) {
   },
 });
 }
-
