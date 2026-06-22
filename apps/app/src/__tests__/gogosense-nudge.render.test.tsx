@@ -78,6 +78,39 @@ describe("GoGoSenseDetectionBanner (render)", () => {
   });
 });
 
+describe("GoGoSenseDetectionBanner incomplete activation matches", () => {
+  it("matched detection > given activation fields are missing > shows activation failure instead of a dead button", async () => {
+    const api: GoGoSenseHookApi = {
+      detect: vi.fn(async () => ({
+        matched: true,
+        merchantId: "shopee",
+        merchantName: "Shopee",
+        recommendedAction: "activate" as const,
+      })),
+      activate: vi.fn(),
+    };
+    const openUrl = vi.fn();
+
+    render(
+      createElement(GoGoSenseDetectionBanner, {
+        api,
+        detector: detector("com.shopee.th"),
+        openUrl,
+      })
+    );
+
+    await act(async () => {});
+    const button = await screen.findByText("Activate cashback");
+    await act(async () => {
+      fireEvent.click(button);
+    });
+
+    expect(api.activate).not.toHaveBeenCalled();
+    expect(openUrl).not.toHaveBeenCalled();
+    expect(await screen.findByText("Cashback activation failed. Please try again.")).toBeTruthy();
+  });
+});
+
 describe("GoGoSenseDetectionBanner activation failures", () => {
   it("matched detection > given activation rejects > does not open a stale deeplink", async () => {
     const activate = vi

@@ -69,6 +69,7 @@ export function GoGoSenseDetectionBanner({
     void activate()
       .then((result) => {
         if (!result) {
+          setActivationError(true);
           return undefined;
         }
         return Promise.resolve((openUrl ?? Linking.openURL)(result.deeplink)).then(() => {
