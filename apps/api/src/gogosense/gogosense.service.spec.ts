@@ -246,6 +246,25 @@ describe('GogosenseService detection and activation', () => {
     expect(involveService.createAffiliate).not.toHaveBeenCalled();
     expect(activationEventModel.create).not.toHaveBeenCalled();
   });
+
+  it('activation > given gogosense source without detection event > rejects before deeplink creation', async () => {
+    const { activationEventModel, detectionEventModel, involveService, service } =
+      makeService();
+
+    await expect(
+      service.activate('user-1', {
+        merchantId: 'merchant-shopee',
+        offerId: 101,
+        networkMerchantId: 201,
+        source: 'gogosense',
+      }),
+    ).rejects.toThrow('GoGoSense activation requires a detection event');
+
+    expect(detectionEventModel.findOne).not.toHaveBeenCalled();
+    expect(involveService.createAffiliate).not.toHaveBeenCalled();
+    expect(activationEventModel.create).not.toHaveBeenCalled();
+  });
+
 describe('GogosenseService settings and timeline', () => {
   it('settings > given partial update > then only writes provided flags', async () => {
     const { service } = makeService();

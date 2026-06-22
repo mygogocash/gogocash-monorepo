@@ -269,6 +269,12 @@ export class GogosenseService {
     request: ActivationRequestDto,
   ) {
     if (!request.detectionEventId) {
+      if (request.source === 'gogosense') {
+        throw new BadRequestException(
+          'GoGoSense activation requires a detection event',
+        );
+      }
+
       return;
     }
 
