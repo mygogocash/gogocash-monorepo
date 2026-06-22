@@ -195,6 +195,26 @@ function result(status, name, detail = "") {
   return { status, name, detail };
 }
 
+function catalogResult(merchants, expectedPackages = []) {
+  if (merchants.length > 0) {
+    return result("pass", "staging merchant catalog", `${merchants.length} merchant(s) returned`);
+  }
+
+  if (expectedPackages.length > 0) {
+    return result(
+      "warn",
+      "staging merchant catalog",
+      "GET /gogosense/merchants returned []; using --merchant-packages for controlled QA, seed staging before final acceptance"
+    );
+  }
+
+  return result(
+    "fail",
+    "staging merchant catalog",
+    "GET /gogosense/merchants returned []; seed staging with apps/api gogosense:seed-merchants"
+  );
+}
+
 async function runPreflight(options) {
   const results = [];
   const context = {
@@ -212,15 +232,7 @@ async function runPreflight(options) {
   let merchants = [];
   try {
     merchants = await fetchMerchants(options.apiUrl);
-    results.push(
-      merchants.length > 0
-        ? result("pass", "staging merchant catalog", `${merchants.length} merchant(s) returned`)
-        : result(
-            "fail",
-            "staging merchant catalog",
-            "GET /gogosense/merchants returned []; seed staging with apps/api gogosense:seed-merchants"
-          )
-    );
+    results.push(catalogResult(merchants, options.expectedPackages));
   } catch (error) {
     results.push(result("fail", "staging merchant catalog", error.message));
   }
@@ -409,6 +421,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
 
 export {
   buildDetectionRequest,
+  catalogResult,
   findDefaultAdb,
   merchantPackages,
   parseArgs,

@@ -15,6 +15,25 @@ describe("GoGoSense Android preflight script helpers", () => {
     ).toEqual(["com.agoda.mobile.consumer", "com.example.single", "com.lazada.android", "com.shopee.th"]);
   });
 
+  it("classifies staging merchant catalog readiness for final and controlled QA", () => {
+    expect(preflight.catalogResult([{ merchant_id: "shopee" }], [])).toEqual({
+      detail: "1 merchant(s) returned",
+      name: "staging merchant catalog",
+      status: "pass",
+    });
+    expect(preflight.catalogResult([], [])).toEqual({
+      detail: "GET /gogosense/merchants returned []; seed staging with apps/api gogosense:seed-merchants",
+      name: "staging merchant catalog",
+      status: "fail",
+    });
+    expect(preflight.catalogResult([], ["com.shopee.th"])).toEqual({
+      detail:
+        "GET /gogosense/merchants returned []; using --merchant-packages for controlled QA, seed staging before final acceptance",
+      name: "staging merchant catalog",
+      status: "warn",
+    });
+  });
+
   it("parses adb device, appops, package, and foreground output", () => {
     expect(
       preflight.parseDevices("List of devices attached\nemulator-5554\tdevice\nabc123\toffline\n")
