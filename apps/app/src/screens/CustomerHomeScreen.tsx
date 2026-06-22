@@ -296,8 +296,6 @@ function getPagedScrollIndex(
   pageWidth: number,
   maxPageIndex: number
 ) {
-  const styles = useHomeScreenStyles();
-  const colors = useHomeScreenColors();
   return getCarouselActiveIndex({
     contentOffsetX: event.nativeEvent.contentOffset.x,
     pageCount: maxPageIndex + 1,
@@ -3221,4 +3219,3 @@ function createHomeScreenStyles(colors: ThemeColors, surfaces: ThemeSurfaces) {
   },
 });
 }
-

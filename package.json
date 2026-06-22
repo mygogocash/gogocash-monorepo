@@ -18,6 +18,9 @@
     "test": "turbo run test"
   },
   "devDependencies": {
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-test-renderer": "19.2.3",
     "turbo": "^2.3.0"
   },
   "overrides": {
