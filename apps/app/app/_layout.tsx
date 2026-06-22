@@ -1,9 +1,14 @@
-import { Stack } from "expo-router";
-import { StatusBar } from "expo-status-bar";
+import {
+  DarkTheme,
+  DefaultTheme,
+  Stack,
+  ThemeProvider as NavThemeProvider,
+} from "expo-router";
 
 import { useAuthGuardSession } from "@mobile/auth/useAuthGuardSession";
 import { CustomerDesktopRouteChrome } from "@mobile/components/CustomerDesktopRouteChrome";
 import { AppProviders } from "@mobile/providers/AppProviders";
+import { ThemedStatusBar, useThemeColors } from "@mobile/theme/ThemeProvider";
 
 // Authenticated-only routes — the `requiresAuth: true` entries from
 // `mobileParityRoutes` (src/navigation/routes.ts). Listed as expo-router screen
@@ -44,7 +49,7 @@ const PROTECTED_SCREEN_NAMES = [
 export default function RootLayout() {
   return (
     <AppProviders>
-      <StatusBar style="dark" />
+      <ThemedStatusBar />
       <CustomerDesktopRouteChrome>
         <RootStack />
       </CustomerDesktopRouteChrome>
@@ -70,9 +75,34 @@ export default function RootLayout() {
  */
 function RootStack() {
   const { isAuthed } = useAuthGuardSession();
+  const colors = useThemeColors();
+
+  // React Navigation paints the scene background from its theme (DefaultTheme is the
+  // light #F2F2F2). Feed it our resolved palette so every screen's backdrop follows
+  // the customer's appearance setting, not just our own View backgrounds.
+  const baseNavTheme = colors.isDark ? DarkTheme : DefaultTheme;
+  const navTheme = {
+    ...baseNavTheme,
+    colors: {
+      ...baseNavTheme.colors,
+      background: colors.background,
+      card: colors.card,
+      text: colors.ink,
+      border: colors.border,
+      primary: colors.primary,
+    },
+  };
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <NavThemeProvider value={navTheme}>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        // Theme the navigator scene background; otherwise React Navigation's default
+        // light (#F2F2F2) shows through behind every screen in dark mode.
+        contentStyle: { backgroundColor: colors.background },
+      }}
+    >
       {/* Unauthenticated-only. Declared first → the fallback target for a denied
           protected route is `/login`. */}
       <Stack.Protected guard={!isAuthed}>
@@ -92,5 +122,6 @@ function RootStack() {
         ))}
       </Stack.Protected>
     </Stack>
+    </NavThemeProvider>
   );
 }

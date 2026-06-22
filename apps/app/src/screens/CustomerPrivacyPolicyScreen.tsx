@@ -13,7 +13,10 @@ import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot"
 import { useCopy } from "@mobile/i18n/useCopy";
 import { mobileShellLayout, webPrivacyPolicyPage } from "@mobile/design/webDesignParity";
 import { privacyPolicyMarkdown } from "@mobile/legal/privacyPolicyMarkdown";
-import { colors, radii, spacing, typography } from "@mobile/theme/tokens";
+import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, spacing, typography } from "@mobile/theme/tokens";
 
 type LegalMarkdownBlock =
   | { kind: "heading"; level: 1 | 2 | 3; text: string }
@@ -25,6 +28,7 @@ const legalArticleMaxWidth = webPrivacyPolicyPage.legalArticleMaxWidth;
 const legalBlocks = parseLegalMarkdown(privacyPolicyMarkdown);
 
 export function CustomerPrivacyPolicyScreen() {
+  const styles = useThemedStyles(createPrivacyPolicyScreenStyles);
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
@@ -91,6 +95,7 @@ export function CustomerPrivacyPolicyScreen() {
 }
 
 function PrivacyPolicyArticle({ isDesktop }: { isDesktop: boolean }) {
+  const styles = useThemedStyles(createPrivacyPolicyScreenStyles);
   const tc = useCopy();
   return (
     <View
@@ -115,6 +120,7 @@ function LegalMarkdownBlock({
   block: LegalMarkdownBlock;
   isDesktop: boolean;
 }) {
+  const styles = useThemedStyles(createPrivacyPolicyScreenStyles);
   if (block.kind === "heading") {
     const headingStyle =
       block.level === 1
@@ -161,6 +167,7 @@ function LegalMarkdownBlock({
 }
 
 function renderLegalInline(text: string): ReactNode[] {
+  const styles = useThemedStyles(createPrivacyPolicyScreenStyles);
   const parts = text.split(/(\*\*[^*]+\*\*)/g);
 
   return parts
@@ -249,7 +256,8 @@ function parseLegalMarkdown(markdown: string): LegalMarkdownBlock[] {
   return blocks;
 }
 
-const styles = StyleSheet.create({
+function createPrivacyPolicyScreenStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   viewport: {
     alignItems: "center",
     backgroundColor: colors.background,
@@ -298,7 +306,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   legalH1: {
-    color: "#1A1A1A",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 24,
     fontWeight: "600",
@@ -311,7 +319,7 @@ const styles = StyleSheet.create({
     lineHeight: 38,
   },
   legalH2: {
-    color: "#1A1A1A",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 20,
     fontWeight: "600",
@@ -324,7 +332,7 @@ const styles = StyleSheet.create({
     lineHeight: 32,
   },
   legalH3: {
-    color: "#1A1A1A",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 16,
     fontWeight: "600",
@@ -337,7 +345,7 @@ const styles = StyleSheet.create({
     lineHeight: 26,
   },
   legalBody: {
-    color: "#3B3B3B",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 14,
     fontWeight: "400",
@@ -362,7 +370,7 @@ const styles = StyleSheet.create({
     paddingLeft: 16,
   },
   legalBullet: {
-    color: "#3B3B3B",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 14,
     lineHeight: 22,
@@ -379,3 +387,5 @@ const styles = StyleSheet.create({
     width: "100%",
   },
 });
+}
+

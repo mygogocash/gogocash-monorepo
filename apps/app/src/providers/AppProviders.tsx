@@ -13,6 +13,7 @@ import { LocaleProvider } from "@mobile/i18n/LocaleProvider";
 import { getObservabilityConfig, initObservability } from "@mobile/observability/client";
 import { PrivacyScreenGuard } from "@mobile/security/PrivacyScreenGuard";
 import { gogoCashRuntimeFonts } from "@mobile/theme/appFonts";
+import { ThemeProvider } from "@mobile/theme/ThemeProvider";
 
 // A no-op PostHog client used when no posthogKey is configured (local/web dev).
 // We mount <PostHogProvider> in BOTH cases so usePostHog() always resolves a
@@ -60,33 +61,32 @@ export function AppProviders({ children }: PropsWithChildren) {
   );
 
   if ((!fontsLoaded && !fontError) || !sessionReady) {
-    // Gate on BOTH the runtime fonts AND the initial session read (one-time bootstrap on app
-    // start) so `Stack.Protected` mounts with a correct, synchronous guard and is never unmounted
-    // mid-navigation. LocaleProvider must wrap this branch too — CustomerRouteState renders the
-    // desktop chrome (incl. the footer, which now calls useCopy/useIntl), so it needs the
-    // IntlProvider ancestry.
     return (
-      <LocaleProvider>
-        <CustomerRouteState
-          body="Preparing your GoGoCash experience."
-          title="Loading GoGoCash"
-          variant="loading"
-        />
-      </LocaleProvider>
+      <ThemeProvider>
+        <LocaleProvider>
+          <CustomerRouteState
+            body="Preparing your GoGoCash experience."
+            title="Loading GoGoCash"
+            variant="loading"
+          />
+        </LocaleProvider>
+      </ThemeProvider>
     );
   }
 
   const appTree = (
-    <LocaleProvider>
-      <SafeAreaProvider>
-        <PrivacyScreenGuard>
-          <QueryClientProvider client={queryClient}>
-            <RouteAnalyticsTracker />
-            <ToastProvider>{children}</ToastProvider>
-          </QueryClientProvider>
-        </PrivacyScreenGuard>
-      </SafeAreaProvider>
-    </LocaleProvider>
+    <ThemeProvider>
+      <LocaleProvider>
+        <SafeAreaProvider>
+          <PrivacyScreenGuard>
+            <QueryClientProvider client={queryClient}>
+              <RouteAnalyticsTracker />
+              <ToastProvider>{children}</ToastProvider>
+            </QueryClientProvider>
+          </PrivacyScreenGuard>
+        </SafeAreaProvider>
+      </LocaleProvider>
+    </ThemeProvider>
   );
 
   // Keyless (local/web dev): still mount the provider with a no-op client and

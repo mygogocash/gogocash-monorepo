@@ -1,4 +1,6 @@
 import { Link } from "expo-router";
+import { type ComponentType } from "react";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import {
   CircleUserRound as ProfileIcon,
   Home as HomeIcon,
@@ -6,13 +8,15 @@ import {
   Trophy as TrophyIcon,
   WalletCards as WalletIcon,
 } from "@mobile/theme/icons";
-import { type ComponentType } from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
 import profileAvatarImage from "../../assets/profile-avatar.png";
 import { mobileShellLayout, webMobileBottomNavItems } from "@mobile/design/webDesignParity";
 import { useCopy } from "@mobile/i18n/useCopy";
-import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
+import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { getThemeSurfaces } from "@mobile/theme/themeSurfaces";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 type BottomNavRouteId = "home" | "golink" | "wallet" | "quest" | "profile";
 type BottomNavIconComponent = ComponentType<{
@@ -37,6 +41,10 @@ export function CustomerMobileBottomNav({
   bottomInset: number;
 }) {
   const tc = useCopy();
+  const { colors, resolved } = useTheme();
+  const surfaces = getThemeSurfaces(colors, resolved);
+  const styles = useThemedStyles(createBottomNavStyles);
+
   return (
     <View
       style={[
@@ -46,7 +54,15 @@ export function CustomerMobileBottomNav({
         },
       ]}
     >
-      <View style={styles.bottomNav}>
+      <View
+        style={[
+          styles.bottomNav,
+          {
+            backgroundColor: surfaces.bottomNavBackground,
+            borderColor: surfaces.bottomNavBorder,
+          },
+        ]}
+      >
         {webMobileBottomNavItems.map((item) => {
           const active = getBottomNavRouteId(item.href) === activeRouteId;
           const emphasized = "emphasized" in item && item.emphasized;
@@ -93,6 +109,8 @@ function BottomNavIcon({
   emphasized: boolean;
   name: string;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createBottomNavStyles);
   const Icon = bottomNavIcons[name] ?? HomeIcon;
   const color = emphasized ? colors.white : active ? colors.primaryDark : colors.muted;
 
@@ -119,72 +137,72 @@ function getBottomNavRouteId(href: string): BottomNavRouteId {
   return href.replace("/", "") as BottomNavRouteId;
 }
 
-const styles = StyleSheet.create({
-  bottomNavWrap: {
-    bottom: 0,
-    left: 0,
-    marginHorizontal: "auto",
-    maxWidth: mobileShellLayout.bottomNavMaxWidth,
-    paddingHorizontal: spacing.md,
-    position: "absolute",
-    right: 0,
-  },
-  bottomNav: {
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.95)",
-    borderColor: "rgba(216,226,217,0.7)",
-    borderRadius: 28,
-    borderWidth: 1,
-    boxShadow: shadows.bottomNavCss,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    minHeight: 86,
-    paddingHorizontal: spacing.sm,
-  },
-  bottomNavItem: {
-    alignItems: "center",
-    borderRadius: radii.lg,
-    flex: 1,
-    gap: spacing.xs,
-    justifyContent: "center",
-    minHeight: 62,
-  },
-  bottomNavItemActive: {
-    backgroundColor: colors.primarySoft,
-  },
-  bottomNavItemEmphasized: {
-    marginTop: -32,
-  },
-  bottomNavIcon: {
-    alignItems: "center",
-    height: 28,
-    justifyContent: "center",
-    minWidth: 28,
-  },
-  bottomNavIconEmphasized: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primarySoft,
-    borderRadius: radii.chip,
-    borderWidth: 8,
-    height: 64,
-    width: 64,
-  },
-  bottomNavProfileAvatar: {
-    borderRadius: radii.chip,
-    height: 28,
-    width: 28,
-  },
-  bottomNavLabel: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: typography.caption,
-    fontWeight: typography.navLabelWeight,
-    maxWidth: 74,
-  },
-  bottomNavLabelEmphasized: {
-    color: colors.accent,
-  },
-  bottomNavTextActive: {
-    color: colors.primaryDark,
-  },
-});
+function createBottomNavStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    bottomNavWrap: {
+      bottom: 0,
+      left: 0,
+      marginHorizontal: "auto",
+      maxWidth: mobileShellLayout.bottomNavMaxWidth,
+      paddingHorizontal: spacing.md,
+      position: "absolute",
+      right: 0,
+    },
+    bottomNav: {
+      alignItems: "center",
+      borderRadius: 28,
+      borderWidth: 1,
+      boxShadow: shadows.bottomNavCss,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      minHeight: 86,
+      paddingHorizontal: spacing.sm,
+    },
+    bottomNavItem: {
+      alignItems: "center",
+      borderRadius: radii.lg,
+      flex: 1,
+      gap: spacing.xs,
+      justifyContent: "center",
+      minHeight: 62,
+    },
+    bottomNavItemActive: {
+      backgroundColor: colors.primarySoft,
+    },
+    bottomNavItemEmphasized: {
+      marginTop: -32,
+    },
+    bottomNavIcon: {
+      alignItems: "center",
+      height: 28,
+      justifyContent: "center",
+      minWidth: 28,
+    },
+    bottomNavIconEmphasized: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primarySoft,
+      borderRadius: radii.chip,
+      borderWidth: 8,
+      height: 64,
+      width: 64,
+    },
+    bottomNavProfileAvatar: {
+      borderRadius: radii.chip,
+      height: 28,
+      width: 28,
+    },
+    bottomNavLabel: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: typography.caption,
+      fontWeight: typography.navLabelWeight,
+      maxWidth: 74,
+    },
+    bottomNavLabelEmphasized: {
+      color: colors.accent,
+    },
+    bottomNavTextActive: {
+      color: colors.primaryDark,
+    },
+  });
+}

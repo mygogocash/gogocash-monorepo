@@ -8,7 +8,10 @@ import { webProfileHeroCard, webProfileWalletSummary } from "@mobile/design/webD
 import { useCopy } from "@mobile/i18n/useCopy";
 import { copyToClipboard } from "@mobile/lib/clipboard";
 import { useToast } from "@mobile/hooks/useToast";
-import { colors, radii, spacing, typography } from "@mobile/theme/tokens";
+import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, spacing, typography } from "@mobile/theme/tokens";
 
 import profileAvatarImage from "../../assets/profile-avatar.png";
 
@@ -27,6 +30,8 @@ const AVATAR_SIZE = 96;
 export function ProfileHeroCard({ session }: { session: MobileSession }) {
   const tc = useCopy();
   const toast = useToast();
+  const styles = useThemedStyles(createProfileHeroCardStyles);
+  const { colors } = useTheme();
 
   const username =
     typeof session.username === "string" && session.username
@@ -113,7 +118,8 @@ const bannerGradient = {
   backgroundSize: "100% 100%",
 } as unknown as ViewStyle;
 
-const styles = StyleSheet.create({
+function createProfileHeroCardStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   banner: {
     alignItems: "center",
     backgroundColor: colors.primary,
@@ -152,7 +158,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   userIdText: {
-    color: "#7F7F7F",
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: 16,
     lineHeight: 22,
@@ -197,3 +203,5 @@ const styles = StyleSheet.create({
     fontWeight: "400",
   },
 });
+}
+

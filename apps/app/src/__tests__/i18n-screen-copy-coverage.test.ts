@@ -409,6 +409,11 @@ describe("i18n screen copy coverage — CustomerAccountSettingsScreen", () => {
   it("translates all account-settings prose copy to Thai", () => {
     expectAllTranslatedToThai([
       "Account Settings",
+      "Appearance",
+      "System follows your phone or browser setting.",
+      "System default",
+      "Light",
+      "Dark",
       "Your Subscription",
       "View and manage your GoGoCash subscription billing on Stripe.",
       "Open Stripe Subscription",

@@ -3,6 +3,7 @@ import { Animated, Easing, StyleSheet, View } from "react-native";
 import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 
 import { motion } from "@mobile/theme/motion";
+import { useThemeColors } from "@mobile/theme/ThemeProvider";
 
 // GoGoPass profile ring. RN has no CSS conic-gradient or @keyframes, so the web's rotating gold
 // conic ring is approximated with a react-native-svg gradient-stroked circle spun by Animated.loop.
@@ -25,6 +26,7 @@ export function GoGoPassAvatar({
   tier?: string;
 }) {
   const spin = useRef(new Animated.Value(0)).current;
+  const colors = useThemeColors();
   const premium = isPremiumTier(tier);
 
   useEffect(() => {
@@ -82,7 +84,7 @@ export function GoGoPassAvatar({
       </Animated.View>
       <View
         style={{
-          backgroundColor: "#FFFFFF",
+          backgroundColor: colors.card,
           borderRadius: size / 2,
           height: size,
           overflow: "hidden",

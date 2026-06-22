@@ -6,7 +6,10 @@ import { StyleSheet, Text, View } from "react-native";
 import { webCookieConsentBanner } from "@mobile/design/webDesignParity";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { motion } from "@mobile/theme/motion";
-import { colors, radii, typography } from "@mobile/theme/tokens";
+import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, typography } from "@mobile/theme/tokens";
 
 function shouldShowCookieBanner() {
   try {
@@ -21,6 +24,7 @@ function shouldShowCookieBanner() {
 }
 
 export function CustomerCookieConsentBanner({ isDesktop }: { isDesktop: boolean }) {
+  const styles = useThemedStyles(createCookieConsentBannerStyles);
   const router = useRouter();
   const [visible, setVisible] = useState(shouldShowCookieBanner);
 
@@ -134,7 +138,8 @@ export function CustomerCookieConsentBanner({ isDesktop }: { isDesktop: boolean 
   );
 }
 
-const styles = StyleSheet.create({
+function createCookieConsentBannerStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   cookieBanner: {
     backgroundColor: "#1D1929",
     borderColor: "rgba(255,255,255,0.06)",
@@ -273,3 +278,5 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
 });
+}
+

@@ -116,14 +116,15 @@ describe("Expo auth design parity", () => {
       'fontWeight: "600"',
       "lineHeight: 32.5",
     ]);
+    // Theme tokens (light value == the web hex): muted #7F7F7F, ink #3B3B3B.
     expectStyleBlock(authFile, "formSubtitle", [
-      'color: "#7F7F7F"',
+      "color: colors.muted",
       "fontSize: 13",
       'fontWeight: "400"',
       "lineHeight: 17.875",
     ]);
     expectStyleBlock(authFile, "fieldLabel", [
-      'color: "#3B3B3B"',
+      "color: colors.ink",
       'fontWeight: "500"',
       "lineHeight: 19.25",
     ]);
@@ -134,7 +135,7 @@ describe("Expo auth design parity", () => {
       "lineHeight: 20",
     ]);
     expectStyleBlock(authFile, "dividerText", [
-      'color: "#7F7F7F"',
+      "color: colors.muted",
       "fontSize: 12",
       'fontWeight: "400"',
       "lineHeight: 16",

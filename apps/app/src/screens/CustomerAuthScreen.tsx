@@ -37,7 +37,10 @@ import {
   webAuthPage,
 } from "@mobile/design/webDesignParity";
 import { motion } from "@mobile/theme/motion";
-import { colors, radii, typography } from "@mobile/theme/tokens";
+import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, typography } from "@mobile/theme/tokens";
 
 // Premium polish for the consent checkbox checked state (web-only smoothing + brand-green glow).
 const webConsentCheckboxMotionStyle = {
@@ -105,6 +108,8 @@ function formatOtpCountdown(totalSeconds: number) {
 }
 
 export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
+  const styles = useThemedStyles(createAuthScreenStyles);
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -744,6 +749,7 @@ function PhoneOtpBoxes({
   onChangeText: (value: string) => void;
   value: string;
 }) {
+  const styles = useThemedStyles(createAuthScreenStyles);
   const [isFocused, setIsFocused] = useState(false);
   const otpDigits = Array.from({ length: 6 }, (_, index) => value[index] ?? "");
   const activeIndex = isFocused && value.length < otpDigits.length ? value.length : -1;
@@ -794,6 +800,7 @@ function SocialProviderButton({
   isMobile?: boolean;
   provider: SocialProvider;
 }) {
+  const styles = useThemedStyles(createAuthScreenStyles);
   const [hovered, setHovered] = useState(false);
   return (
     <MotionPressable
@@ -949,7 +956,8 @@ function WalletConnectBrandIcon() {
   );
 }
 
-const styles = StyleSheet.create({
+function createAuthScreenStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   viewport: {
     alignItems: "center",
     backgroundColor: colors.background,
@@ -1000,8 +1008,8 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   heroFrame: {
-    backgroundColor: colors.white,
-    borderColor: "#E4E4E4",
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderRadius: 24,
     borderWidth: 2,
     height: webAuthPage.desktop.cardHeight,
@@ -1014,8 +1022,8 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   card: {
-    backgroundColor: colors.white,
-    borderColor: "#E4E4E4",
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderRadius: 24,
     borderWidth: 2,
     overflow: "hidden",
@@ -1067,7 +1075,7 @@ const styles = StyleSheet.create({
     lineHeight: 32.5,
   },
   formSubtitle: {
-    color: "#7F7F7F",
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: 13,
     fontWeight: "400",
@@ -1105,7 +1113,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   fieldLabel: {
-    color: "#3B3B3B",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 14,
     fontWeight: "500",
@@ -1113,7 +1121,7 @@ const styles = StyleSheet.create({
   },
   countrySelect: {
     alignItems: "center",
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderColor: "#56D4AA",
     borderRadius: 16,
     borderWidth: 2,
@@ -1149,7 +1157,7 @@ const styles = StyleSheet.create({
     borderColor: "#00CC99",
   },
   countryMenu: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderColor: "#E6E8EC",
     borderRadius: 16,
     borderWidth: 1.5,
@@ -1171,14 +1179,14 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
   },
   countryMenuItemSelected: {
-    backgroundColor: "#ECFDF5",
+    backgroundColor: pickThemed(colors, "#ECFDF5", colors.primarySoft),
   },
   countryMenuFlag: {
     fontSize: 20,
     lineHeight: 22,
   },
   countryMenuLabel: {
-    color: "#1F2937",
+    color: colors.ink,
     flex: 1,
     fontFamily: typography.family,
     fontSize: 15,
@@ -1186,7 +1194,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   countryMenuDial: {
-    color: "#6B7280",
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: 13,
     fontWeight: "500",
@@ -1201,7 +1209,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   countryText: {
-    color: "#3B3B3B",
+    color: colors.ink,
     flex: 1,
     fontFamily: typography.family,
     fontSize: 16,
@@ -1215,8 +1223,8 @@ const styles = StyleSheet.create({
   },
   dialCodeBox: {
     alignItems: "center",
-    backgroundColor: colors.white,
-    borderColor: "#E4E4E4",
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1.5,
     height: 48,
@@ -1231,8 +1239,8 @@ const styles = StyleSheet.create({
     lineHeight: 23,
   },
   phoneInput: {
-    backgroundColor: colors.white,
-    borderColor: "#E4E4E4",
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1.5,
     color: colors.ink,
@@ -1254,7 +1262,7 @@ const styles = StyleSheet.create({
   },
   privacyWrap: {
     alignItems: "center",
-    borderColor: "#E4E4E4",
+    borderColor: colors.border,
     borderRadius: 14,
     borderWidth: 1.5,
     flexDirection: "row",
@@ -1274,7 +1282,7 @@ const styles = StyleSheet.create({
   },
   checkbox: {
     alignItems: "center",
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderColor: "#D0D5DD",
     borderRadius: 7,
     borderWidth: 2,
@@ -1287,7 +1295,7 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   privacyText: {
-    color: "#3B3B3B",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 13,
     fontWeight: "400",
@@ -1390,8 +1398,8 @@ const styles = StyleSheet.create({
   },
   otpBox: {
     alignItems: "center",
-    backgroundColor: colors.white,
-    borderColor: "#E4E4E4",
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderRadius: 14,
     borderWidth: 1.5,
     flex: 1,
@@ -1460,7 +1468,7 @@ const styles = StyleSheet.create({
     height: 1,
   },
   dividerText: {
-    color: "#7F7F7F",
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: 12,
     fontWeight: "400",
@@ -1497,8 +1505,8 @@ const styles = StyleSheet.create({
   },
   socialButton: {
     alignItems: "center",
-    backgroundColor: colors.white,
-    borderColor: "#E8E8E8",
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderRadius: 14,
     borderWidth: 1.5,
     gap: 4,
@@ -1537,3 +1545,5 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 });
+}
+

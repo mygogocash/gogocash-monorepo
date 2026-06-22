@@ -31,7 +31,7 @@ describe("mobile Expo SDK target", () => {
     expect(packageJson.dependencies.expo).toMatch(/^\^?~?56\./);
     expect(packageJson.dependencies.react).toMatch(/^19\.2\./);
     expect(packageJson.dependencies["react-dom"]).toMatch(/^19\.2\./);
-    expect(packageJson.dependencies["react-native"]).toMatch(/^0\.85\./);
+    expect(packageJson.dependencies["react-native"]).toMatch(/^0\.86\./);
 
     const unpinnedRuntimeDependencies = latestExpoRuntimeDependencies.filter(
       (dependencyName) => packageJson.dependencies[dependencyName] === "latest"

@@ -39,7 +39,10 @@ import { useReducedMotion } from "@mobile/hooks/useReducedMotion";
 import { haptics } from "@mobile/lib/haptics";
 import { getGoLinkSourceHost, isValidGoLinkUrl } from "@mobile/features/golink";
 import { motion } from "@mobile/theme/motion";
-import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
+import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 const guidelineSteps = [
   {
@@ -71,6 +74,8 @@ function useDismissableOverlayMotion({
   exitTranslateY = 24,
   onDismiss,
 }: DismissableOverlayMotionOptions) {
+  const styles = useThemedStyles(createGoLinkScreenStyles);
+  const { colors } = useTheme();
   // Wave B (B5): reduce-motion gate for the sheet/popover/overlay motion. When the platform
   // "reduce motion" flag is on, every enter/exit Animated.timing collapses to a 0ms duration so
   // overlays appear/dismiss instantly with the SAME end state (opacity 1/0, translateY 0/exit). The
@@ -151,6 +156,8 @@ export function CustomerGoLinkScreen({
   onClose?: () => void;
   presentation?: GoLinkPresentation;
 }) {
+  const styles = useThemedStyles(createGoLinkScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -374,6 +381,8 @@ export function CustomerGoLinkScreen({
 }
 
 export function GoLinkGuidelineDialog({ onClose }: { onClose: () => void }) {
+  const styles = useThemedStyles(createGoLinkScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const { contentTranslateY, isClosing, overlayOpacity, runExitAnimation } =
     useDismissableOverlayMotion({ onDismiss: onClose });
@@ -460,6 +469,8 @@ export function GoLinkResultDialog({
   onClose: () => void;
   onShopNow: () => void;
 }) {
+  const styles = useThemedStyles(createGoLinkScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const sourceHost = getGoLinkSourceHost(href);
   const [termsPanelOpen, setTermsPanelOpen] = useState(false);
@@ -612,6 +623,7 @@ export function GoLinkResultDialog({
 }
 
 function GoLinkTermsPanel({ onBack }: { onBack: () => void }) {
+  const styles = useThemedStyles(createGoLinkScreenStyles);
   const tc = useCopy();
   const terms = [
     {
@@ -671,7 +683,8 @@ function GoLinkTermsPanel({ onBack }: { onBack: () => void }) {
     </ScrollView>
   );
 }
-const styles = StyleSheet.create({
+function createGoLinkScreenStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   viewport: {
     alignItems: "center",
     backgroundColor: colors.background,
@@ -721,7 +734,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
   },
   sheetChrome: {
-    backgroundColor: "#F6F6F6",
+    backgroundColor: colors.background,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     height: webGoLinkModalLayout.sheetMobileHeight,
@@ -771,7 +784,7 @@ const styles = StyleSheet.create({
     width: 44,
   },
   modalHeroCard: {
-    backgroundColor: "#F8FBFF",
+    backgroundColor: pickThemed(colors, "#F8FBFF", colors.card),
     borderColor: "#BEE8DE",
     borderRadius: webGoLinkModalLayout.cardRadius,
     borderWidth: 1,
@@ -785,7 +798,7 @@ const styles = StyleSheet.create({
     boxShadow: shadows.cardCss,
   },
   modalHeroBackdrop: {
-    backgroundColor: "#EAF4FF",
+    backgroundColor: pickThemed(colors, "#EAF4FF", colors.card),
     bottom: 0,
     left: 0,
     position: "absolute",
@@ -905,7 +918,7 @@ const styles = StyleSheet.create({
     top: 0,
   },
   resultDialog: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: 24,
     maxHeight: 800,
     maxWidth: 640,
@@ -956,14 +969,14 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   resultTitle: {
-    color: "#3B3B3B",
+    color: colors.ink,
     fontSize: 18,
     fontWeight: "400",
     lineHeight: 25,
     paddingRight: 32,
   },
   resultHost: {
-    color: "#7F7F7F",
+    color: colors.muted,
     fontSize: typography.caption,
   },
   resultPriceRow: {
@@ -973,20 +986,20 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   resultPriceAmount: {
-    color: "#3B3B3B",
+    color: colors.ink,
     fontSize: 24,
     fontWeight: "600",
     lineHeight: 29,
   },
   resultPriceCurrency: {
-    color: "#3B3B3B",
+    color: colors.ink,
     fontSize: 18,
     fontWeight: "600",
     lineHeight: 24,
   },
   resultCashbackBox: {
     alignSelf: "stretch",
-    borderColor: "#E4E4E4",
+    borderColor: colors.border,
     borderRadius: 8,
     borderWidth: 1,
     overflow: "hidden",
@@ -1000,7 +1013,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   resultCashbackText: {
-    color: "#3B3B3B",
+    color: colors.ink,
     fontSize: 18,
     fontWeight: "600",
     lineHeight: 24,
@@ -1026,7 +1039,7 @@ const styles = StyleSheet.create({
   },
   resultDisclaimer: {
     alignSelf: "stretch",
-    color: "#7F7F7F",
+    color: colors.muted,
     fontSize: 12,
     lineHeight: 17,
   },
@@ -1088,12 +1101,12 @@ const styles = StyleSheet.create({
     width: 36,
   },
   termsBackText: {
-    color: "#3B3B3B",
+    color: colors.ink,
     fontSize: 28,
     lineHeight: 30,
   },
   termsTitle: {
-    color: "#3B3B3B",
+    color: colors.ink,
     flex: 1,
     fontSize: 20,
     fontWeight: "600",
@@ -1103,7 +1116,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   termsItem: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderBottomColor: "#B7E7DB",
     borderBottomWidth: 1,
     gap: spacing.sm,
@@ -1118,7 +1131,7 @@ const styles = StyleSheet.create({
   },
   termsHelpDot: {
     alignItems: "center",
-    backgroundColor: "#EAF4FF",
+    backgroundColor: pickThemed(colors, "#EAF4FF", colors.card),
     borderRadius: radii.chip,
     height: 21,
     justifyContent: "center",
@@ -1130,32 +1143,32 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   termsItemTitle: {
-    color: "#3B3B3B",
+    color: colors.ink,
     flex: 1,
     fontSize: typography.body,
     fontWeight: "500",
   },
   termsItemBody: {
-    color: "#7F7F7F",
+    color: colors.muted,
     fontSize: typography.caption,
     lineHeight: 19,
     paddingLeft: 29,
   },
   cashbackTipsBlock: {
     backgroundColor: "#F0FDFA",
-    borderColor: "#E4E4E4",
+    borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,
     gap: spacing.xs,
     padding: spacing.md,
   },
   cashbackTipsTitle: {
-    color: "#3B3B3B",
+    color: colors.ink,
     fontSize: typography.body,
     fontWeight: "700",
   },
   cashbackTipsText: {
-    color: "#7F7F7F",
+    color: colors.muted,
     fontSize: typography.caption,
     lineHeight: 18,
   },
@@ -1223,7 +1236,7 @@ const styles = StyleSheet.create({
     top: 0,
   },
   guidelineDialog: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: 24,
     maxHeight: 720,
     maxWidth: 560,
@@ -1261,7 +1274,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   guidelineTitle: {
-    color: "#3B3B3B",
+    color: colors.ink,
     fontSize: 20,
     fontWeight: "600",
     lineHeight: 27,
@@ -1281,13 +1294,13 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   guidelineMiddleStepRow: {
-    borderBottomColor: "#E4E4E4",
+    borderBottomColor: colors.border,
     borderBottomWidth: 1,
-    borderTopColor: "#E4E4E4",
+    borderTopColor: colors.border,
     borderTopWidth: 1,
   },
   guidelineStepThumb: {
-    backgroundColor: "#F3F4F6",
+    backgroundColor: colors.fieldMuted,
     borderRadius: 8,
     height: 96,
     overflow: "hidden",
@@ -1298,9 +1311,11 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   guidelineStepText: {
-    color: "#3B3B3B",
+    color: colors.ink,
     flex: 1,
     fontSize: 14,
     lineHeight: 20,
   },
 });
+}
+

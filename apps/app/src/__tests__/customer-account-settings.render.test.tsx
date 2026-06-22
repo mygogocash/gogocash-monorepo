@@ -18,6 +18,8 @@ vi.mock("expo-localization", () => ({
 
 import { CustomerAccountSettingsScreen } from "@mobile/screens/CustomerAccountSettingsScreen";
 import { ToastProvider } from "@mobile/components/Toast";
+import { LocaleProvider } from "@mobile/i18n/LocaleProvider";
+import { ThemeProvider } from "@mobile/theme/ThemeProvider";
 
 // Wave B (B2) per-screen UX pass for the account-settings screen. RENDER suite: it
 // MOUNTS the screen (react-native -> react-native-web, happy-dom) to prove it still
@@ -47,7 +49,17 @@ const settingsSource = readFileSync(
 // The screen now consumes useToast() (PDPA actions), so mount inside a ToastProvider — the same
 // pattern the other useToast-backed screen render tests use.
 const renderScreen = () =>
-  render(createElement(ToastProvider, {}, createElement(CustomerAccountSettingsScreen)));
+  render(
+    createElement(
+      ThemeProvider,
+      {},
+      createElement(
+        LocaleProvider,
+        {},
+        createElement(ToastProvider, {}, createElement(CustomerAccountSettingsScreen))
+      )
+    )
+  );
 
 describe("CustomerAccountSettingsScreen (render)", () => {
   it("mounts without throwing", () => {
@@ -58,6 +70,10 @@ describe("CustomerAccountSettingsScreen (render)", () => {
     renderScreen();
     // Section titles (the topbar title duplicates "Account Settings").
     expect(screen.getAllByText("Account Settings").length).toBeGreaterThan(0);
+    expect(screen.getByText("Appearance")).toBeTruthy();
+    expect(screen.getByText("System default")).toBeTruthy();
+    expect(screen.getByText("Light")).toBeTruthy();
+    expect(screen.getByText("Dark")).toBeTruthy();
     expect(screen.getByText("Your Subscription")).toBeTruthy();
     expect(screen.getByText("Receive Notifications about Updates")).toBeTruthy();
     expect(screen.getByText("Join our Community")).toBeTruthy();

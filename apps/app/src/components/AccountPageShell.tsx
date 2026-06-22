@@ -49,7 +49,11 @@ import {
   webProfileWalletHeroSurface,
   webWalletSummaryMetrics,
 } from "@mobile/design/webDesignParity";
-import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
+import { useMemo } from "react";
+import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { getThemeSurfaces, type ThemeSurfaces } from "@mobile/theme/themeSurfaces";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 export type AccountRouteId = "wallet" | "quest" | "profile";
 type WalletMetric = (typeof webWalletSummaryMetrics)[number];
@@ -79,6 +83,7 @@ export function AccountPageShell({
   tabletContentMode?: "capped" | "fluid";
   title: string;
 }) {
+  const styles = useAccountPageShellStyles();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
@@ -198,6 +203,8 @@ export function AccountPageShell({
  * Out. Active state is derived from the current route via `usePathname`.
  */
 function DesktopProfileRail() {
+  const styles = useAccountPageShellStyles();
+  const { colors } = useTheme();
   const tc = useCopy();
   const pathname = usePathname();
   const [profileSubOpen, setProfileSubOpen] = useState(() => shouldAutoExpandProfileSubNav(pathname));
@@ -330,6 +337,8 @@ export function AccountWalletHeroCard({
   tier?: string;
   title?: string;
 }) {
+  const styles = useAccountPageShellStyles();
+  const { colors } = useTheme();
   const tc = useCopy();
   return (
     <View style={styles.walletHeroCard}>
@@ -374,6 +383,8 @@ export function AccountWalletHeroCard({
 }
 
 export function CashbackSummaryBreakdown() {
+  const styles = useAccountPageShellStyles();
+  const { colors } = useTheme();
   return (
     <View style={styles.cashbackSummaryCard}>
       <View style={styles.cashbackSummaryHeader}>
@@ -398,6 +409,8 @@ export function CashbackSummaryBreakdown() {
 }
 
 function CashbackMetricTile({ metric, primary }: { metric: WalletMetric; primary?: boolean }) {
+  const styles = useAccountPageShellStyles();
+  const { colors } = useTheme();
   const Icon = primary
     ? WalletCardsIcon
     : metric.label === "Pending Cashback"
@@ -421,14 +434,24 @@ function CashbackMetricTile({ metric, primary }: { metric: WalletMetric; primary
   );
 }
 
-const styles = StyleSheet.create({
+function useAccountPageShellStyles() {
+  const { colors, resolved } = useTheme();
+  return useMemo(
+    () => createAccountPageShellStyles(colors, getThemeSurfaces(colors, resolved)),
+    [colors, resolved]
+  );
+}
+
+
+function createAccountPageShellStyles(colors: ThemeColors, surfaces: ThemeSurfaces) {
+  return StyleSheet.create({
   viewport: {
     alignItems: "center",
-    backgroundColor: webAccountPageSurface.shellBackground,
+    backgroundColor: colors.background,
     flex: 1,
   },
   frame: {
-    backgroundColor: webAccountPageSurface.shellBackground,
+    backgroundColor: colors.background,
     flex: 1,
     position: "relative",
     width: "100%",
@@ -448,7 +471,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   profileSurfaceMobile: {
-    backgroundColor: "rgba(255,255,255,0.9)",
+    backgroundColor: surfaces.profileSurfaceMobile,
     boxShadow: "0 4px 10px rgba(0, 0, 0, 0.1)",
     padding: 8,
   },
@@ -527,7 +550,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   profileContentMobileInner: {
-    backgroundColor: "rgba(255,255,255,0.8)",
+    backgroundColor: surfaces.profileContentInner,
     borderRadius: 24,
     padding: 16,
   },
@@ -535,7 +558,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   mobileTitle: {
-    color: webAccountPageSurface.titleColor,
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 24,
     fontWeight: "600",
@@ -723,12 +746,12 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   metricTilePrimary: {
-    backgroundColor: "#F0FDF9",
-    borderColor: "rgba(0,204,153,0.2)",
+    backgroundColor: surfaces.metricTilePrimaryBackground,
+    borderColor: surfaces.metricTilePrimaryBorder,
   },
   metricIcon: {
     alignItems: "center",
-    backgroundColor: "#F3FCF9",
+    backgroundColor: surfaces.metricIconBackground,
     borderRadius: 12,
     height: 36,
     justifyContent: "center",
@@ -766,3 +789,4 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
 });
+}

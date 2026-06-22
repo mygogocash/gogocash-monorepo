@@ -13,7 +13,10 @@ import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { mobileShellLayout } from "@mobile/design/webDesignParity";
-import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
+import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 export type CustomerRouteStateVariant =
   | "empty"
@@ -34,6 +37,8 @@ export type CustomerRouteStateAction = {
 // else fall back to the descriptor's English `defaultMessage`. Reading IntlContext directly (rather
 // than useIntl()) is non-throwing, so the component still renders when mounted in isolation.
 function useSafeFormatMessage(): (descriptor: MessageDescriptor) => string {
+  const styles = useThemedStyles(createRouteStateStyles);
+  const { colors } = useTheme();
   const intl = useContext(IntlContext);
   return (descriptor: MessageDescriptor): string =>
     intl ? intl.formatMessage(descriptor) : (descriptor.defaultMessage as string);
@@ -98,6 +103,8 @@ export function CustomerRouteState({
   title?: string;
   variant: CustomerRouteStateVariant;
 }) {
+  const styles = useThemedStyles(createRouteStateStyles);
+  const { colors } = useTheme();
   const formatMessage = useSafeFormatMessage();
   const copy = routeStateCopy[variant];
   const isAlertVariant = variant === "error" || variant === "offline";
@@ -121,7 +128,7 @@ export function CustomerRouteState({
             {variant === "loading" ? (
               <ActivityIndicator color={colors.primaryDark} size="large" />
             ) : (
-              renderStateIcon(variant)
+              renderStateIcon(variant, colors)
             )}
           </View>
           <Text style={styles.title}>{title ?? formatMessage(copy.title)}</Text>
@@ -141,7 +148,7 @@ export function CustomerRouteState({
   );
 }
 
-function renderStateIcon(variant: Exclude<CustomerRouteStateVariant, "loading">) {
+function renderStateIcon(variant: Exclude<CustomerRouteStateVariant, "loading">, colors: ThemeColors) {
   if (variant === "error") {
     return <AlertIcon color={colors.danger} size={34} strokeWidth={typography.iconStrokeWidth} />;
   }
@@ -172,6 +179,7 @@ function RouteStateAction({
   action: CustomerRouteStateAction;
   emphasis: "primary" | "secondary";
 }) {
+  const styles = useThemedStyles(createRouteStateStyles);
   const button = (
     <MotionPressable
       accessibilityLabel={action.accessibilityLabel}
@@ -205,7 +213,8 @@ function RouteStateAction({
   );
 }
 
-const styles = StyleSheet.create({
+function createRouteStateStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   viewport: {
     alignItems: "center",
     backgroundColor: colors.background,
@@ -247,7 +256,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySoft,
   },
   errorIconShell: {
-    backgroundColor: "#FFE8E8",
+    backgroundColor: colors.warningSoft,
   },
   loadingIconShell: {
     backgroundColor: colors.primarySoft,
@@ -259,7 +268,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySoft,
   },
   unauthenticatedIconShell: {
-    backgroundColor: "#EAF7F3",
+    backgroundColor: colors.primarySoft,
   },
   title: {
     color: colors.ink,
@@ -307,3 +316,5 @@ const styles = StyleSheet.create({
     color: colors.primaryDark,
   },
 });
+}
+

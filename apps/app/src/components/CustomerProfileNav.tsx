@@ -7,7 +7,10 @@ import { CustomerProfileMenu } from "@mobile/components/CustomerProfileMenu";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { motion } from "@mobile/theme/motion";
-import { colors, radii } from "@mobile/theme/tokens";
+import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii } from "@mobile/theme/tokens";
 
 type CustomerProfileNavProps = {
   readonly session: MobileSession;
@@ -21,6 +24,7 @@ type CustomerProfileNavProps = {
  * on selecting a row. Mirrors `CustomerLocaleRegionControl`'s popover mechanics.
  */
 export function CustomerProfileNav({ session, onExpandedChange }: CustomerProfileNavProps) {
+  const styles = useThemedStyles(createProfileNavStyles);
   const tc = useCopy();
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -125,7 +129,8 @@ export function CustomerProfileNav({ session, onExpandedChange }: CustomerProfil
   );
 }
 
-const styles = StyleSheet.create({
+function createProfileNavStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   root: {
     position: "relative",
     zIndex: 95,
@@ -136,8 +141,8 @@ const styles = StyleSheet.create({
     borderRadius: radii.chip,
   },
   popover: {
-    backgroundColor: colors.white,
-    borderColor: "#E5E7EB",
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderRadius: 18,
     borderWidth: 1,
     boxShadow: "0 18px 40px rgba(15, 23, 42, 0.16)",
@@ -149,3 +154,5 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
 });
+}
+

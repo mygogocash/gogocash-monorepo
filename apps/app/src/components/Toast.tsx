@@ -14,7 +14,9 @@ import {
   type ToastContextValue,
   type ToastOptions,
 } from "@mobile/hooks/useToast";
-import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
+import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 import { motion } from "@mobile/theme/motion";
 
 /** Default auto-dismiss timeout for a toast (~2.5s). */
@@ -36,6 +38,7 @@ type ToastViewProps = {
 // motion is on it appears instantly (no slide/fade), per A1.
 function ToastView({ message, toastKey }: ToastViewProps) {
   const reducedMotion = useReducedMotion();
+  const styles = useThemedStyles(createToastStyles);
   const opacity = useRef(new Animated.Value(reducedMotion ? 1 : 0)).current;
   const translateY = useRef(new Animated.Value(reducedMotion ? 0 : 12)).current;
 
@@ -124,37 +127,39 @@ export function ToastProvider({ children }: PropsWithChildren) {
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    bottom: 0,
-    left: 0,
-    paddingBottom: spacing.xl,
-    paddingHorizontal: spacing.lg,
-    // Non-interactive overlay — kept in style (not the deprecated prop) so touches pass
-    // through to the app content below. Cross-platform in RN 0.85 + react-native-web 0.21.
-    pointerEvents: "none",
-    position: "absolute",
-    right: 0,
-    // Keep the toast above app content.
-    zIndex: 9999,
-  },
-  toast: {
-    alignSelf: "center",
-    backgroundColor: colors.ink,
-    borderRadius: radii.md,
-    maxWidth: 480,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    // Use the boxShadow token (cross-platform on RN 0.85; react-native-web
-    // deprecates the spread-in shadow* props) to match the app-wide card pattern.
-    boxShadow: shadows.cardCss,
-  },
-  text: {
-    color: colors.white,
-    fontFamily: typography.family,
-    fontSize: typography.body,
-    fontWeight: typography.actionWeight,
-    lineHeight: typography.bodyLineHeight,
-    textAlign: "center",
-  },
-});
+function createToastStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    overlay: {
+      bottom: 0,
+      left: 0,
+      paddingBottom: spacing.xl,
+      paddingHorizontal: spacing.lg,
+      // Non-interactive overlay — kept in style (not the deprecated prop) so touches pass
+      // through to the app content below. Cross-platform in RN 0.85 + react-native-web 0.21.
+      pointerEvents: "none",
+      position: "absolute",
+      right: 0,
+      // Keep the toast above app content.
+      zIndex: 9999,
+    },
+    toast: {
+      alignSelf: "center",
+      backgroundColor: colors.ink,
+      borderRadius: radii.md,
+      maxWidth: 480,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+      // Use the boxShadow token (cross-platform on RN 0.85; react-native-web
+      // deprecates the spread-in shadow* props) to match the app-wide card pattern.
+      boxShadow: shadows.cardCss,
+    },
+    text: {
+      color: colors.white,
+      fontFamily: typography.family,
+      fontSize: typography.body,
+      fontWeight: typography.actionWeight,
+      lineHeight: typography.bodyLineHeight,
+      textAlign: "center",
+    },
+  });
+}

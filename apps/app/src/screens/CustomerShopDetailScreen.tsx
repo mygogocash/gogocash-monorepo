@@ -44,7 +44,10 @@ import {
   mobileShellLayout,
   webShopDetailGroceryGalaxy,
 } from "@mobile/design/webDesignParity";
-import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
+import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 const shopBannerAssets = {
   "home-side-watch": sideWatchImage,
@@ -68,6 +71,7 @@ type ShopDetail = Omit<typeof webShopDetailGroceryGalaxy, "brand" | "cashback" |
 type TrackingStep = ShopDetail["trackingPeriod"][number];
 
 export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
+  const styles = useThemedStyles(createShopDetailScreenStyles);
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const tc = useCopy();
@@ -176,6 +180,7 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
 }
 
 function ShopHero({ onShopNow, shop }: { onShopNow: () => void; shop: ShopDetail }) {
+  const styles = useThemedStyles(createShopDetailScreenStyles);
   return (
     <View style={styles.heroWrap}>
       <View style={styles.heroBanner}>
@@ -206,6 +211,8 @@ function ShopHero({ onShopNow, shop }: { onShopNow: () => void; shop: ShopDetail
 }
 
 function ShopHeroSummaryCard({ onShopNow, shop }: { onShopNow: () => void; shop: ShopDetail }) {
+  const styles = useThemedStyles(createShopDetailScreenStyles);
+  const { colors } = useTheme();
   return (
     <View style={styles.summaryCard}>
       <Text numberOfLines={1} style={styles.summaryTitle}>
@@ -232,6 +239,8 @@ function ShopHeroSummaryCard({ onShopNow, shop }: { onShopNow: () => void; shop:
 }
 
 function ShopCashbackRail({ shop }: { shop: ShopDetail }) {
+  const styles = useThemedStyles(createShopDetailScreenStyles);
+  const { colors } = useTheme();
   return (
     <View style={styles.cashbackRail}>
       <View style={styles.cashbackHeader}>
@@ -277,6 +286,7 @@ function ShopCashbackRail({ shop }: { shop: ShopDetail }) {
 }
 
 function ShopTrackingPeriod({ shop }: { shop: ShopDetail }) {
+  const styles = useThemedStyles(createShopDetailScreenStyles);
   return (
     <View style={styles.trackingSection}>
       <Text style={styles.sectionTitle}>Cashback Tracking Period</Text>
@@ -294,6 +304,7 @@ function ShopTrackingPeriod({ shop }: { shop: ShopDetail }) {
 }
 
 function TrackingStepItem({ showConnector, step }: { showConnector: boolean; step: TrackingStep }) {
+  const styles = useThemedStyles(createShopDetailScreenStyles);
   return (
     <View style={styles.trackingItemWrap}>
       <View style={styles.trackingItem}>
@@ -307,6 +318,7 @@ function TrackingStepItem({ showConnector, step }: { showConnector: boolean; ste
 }
 
 function TrackingIcon({ name }: { name: TrackingStep["icon"] }) {
+  const { colors } = useTheme();
   const Icon =
     name === "shopping" ? ShoppingBagIcon : name === "check" ? CheckCircleIcon : BanknoteIcon;
 
@@ -314,6 +326,8 @@ function TrackingIcon({ name }: { name: TrackingStep["icon"] }) {
 }
 
 function ShopReferralCard({ onShare, shop }: { onShare: () => void; shop: ShopDetail }) {
+  const styles = useThemedStyles(createShopDetailScreenStyles);
+  const { colors } = useTheme();
   return (
     <View style={styles.referralCard}>
       <View style={styles.referralIcon}>
@@ -343,6 +357,7 @@ function ShopReferralCard({ onShare, shop }: { onShare: () => void; shop: ShopDe
 }
 
 function ShopQuestBanner({ shop }: { shop: ShopDetail }) {
+  const styles = useThemedStyles(createShopDetailScreenStyles);
   const questBannerFrameStyle = StyleSheet.flatten([
     styles.questBannerFrame,
     {
@@ -371,6 +386,7 @@ function ShopQuestBanner({ shop }: { shop: ShopDetail }) {
 }
 
 function ShopDealsEmptyState({ shop }: { shop: ShopDetail }) {
+  const styles = useThemedStyles(createShopDetailScreenStyles);
   return (
     <View style={styles.dealsSection}>
       <Text style={styles.sectionTitle}>{shop.deals.title}</Text>
@@ -390,6 +406,7 @@ function ShopDealsEmptyState({ shop }: { shop: ShopDetail }) {
 }
 
 function ShopCashbackTips({ shop }: { shop: ShopDetail }) {
+  const styles = useThemedStyles(createShopDetailScreenStyles);
   const illustrationAspectRatio =
     shop.cashbackTips.illustrationWidth / shop.cashbackTips.illustrationHeight;
 
@@ -413,6 +430,8 @@ function ShopCashbackTips({ shop }: { shop: ShopDetail }) {
 }
 
 function ShopTermsPanel({ shop }: { shop: ShopDetail }) {
+  const styles = useThemedStyles(createShopDetailScreenStyles);
+  const { colors } = useTheme();
   return (
     <View style={styles.termsPanel}>
       <View style={styles.termsHeader}>
@@ -437,6 +456,8 @@ function ShopTermsPanel({ shop }: { shop: ShopDetail }) {
 }
 
 function ShopExploreRelated() {
+  const styles = useThemedStyles(createShopDetailScreenStyles);
+  const { colors } = useTheme();
   const related = getShopDirectoryResults().filter(
     (store) => store.id !== webShopDetailGroceryGalaxy.id
   );
@@ -497,6 +518,7 @@ function ShopExploreRelated() {
 // (Skeleton/SkeletonText) already hide themselves from screen readers and skip the pulse
 // loop under reduced motion (Wave A).
 function ShopDetailSkeleton() {
+  const styles = useThemedStyles(createShopDetailScreenStyles);
   return (
     <View style={styles.skeletonWrap} testID="shop-detail-skeleton">
       <Skeleton height={200} radius={radii.lg} width="100%" />
@@ -507,7 +529,8 @@ function ShopDetailSkeleton() {
   );
 }
 
-const styles = StyleSheet.create({
+function createShopDetailScreenStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   viewport: {
     alignItems: "center",
     backgroundColor: colors.background,
@@ -556,7 +579,7 @@ const styles = StyleSheet.create({
   },
   logoBadge: {
     alignItems: "center",
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: 16,
     boxShadow: "0 8px 22px rgba(0,0,0,0.12)",
     height: 58,
@@ -579,7 +602,7 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     alignItems: "center",
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: 32,
     boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
     flexDirection: "row",
@@ -602,7 +625,7 @@ const styles = StyleSheet.create({
   },
   favoriteButton: {
     alignItems: "center",
-    backgroundColor: "#E6F7ED",
+    backgroundColor: pickThemed(colors, "#E6F7ED", colors.primarySoft),
     borderColor: "#E6F7ED",
     borderRadius: radii.chip,
     borderWidth: 1,
@@ -840,7 +863,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   referralCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderColor: "#C8EBE0",
     borderRadius: 20,
     borderWidth: 1,
@@ -950,7 +973,7 @@ const styles = StyleSheet.create({
     width: 24,
   },
   cashbackTipsTitle: {
-    color: "#000000",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 20,
     fontWeight: "600",
@@ -970,7 +993,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   termsPanel: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderColor: colors.border,
     borderRadius: 20,
     borderWidth: 1,
@@ -1032,7 +1055,7 @@ const styles = StyleSheet.create({
     paddingRight: spacing.md,
   },
   relatedCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1,
@@ -1057,7 +1080,7 @@ const styles = StyleSheet.create({
   },
   relatedCouponBadge: {
     alignItems: "center",
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderColor: colors.border,
     borderRadius: 999,
     borderWidth: 1,
@@ -1082,7 +1105,7 @@ const styles = StyleSheet.create({
   },
   relatedFavoriteButton: {
     alignItems: "center",
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderColor: colors.border,
     borderRadius: 999,
     borderWidth: 1,
@@ -1118,3 +1141,5 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 });
+}
+

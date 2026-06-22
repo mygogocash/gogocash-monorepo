@@ -33,7 +33,10 @@ import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { haptics } from "@mobile/lib/haptics";
 import { mobileShellLayout, webMissingOrdersPage } from "@mobile/design/webDesignParity";
-import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
+import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 type MissingOrdersSection = (typeof webMissingOrdersPage.sections)[number];
 type MissingOrdersField = MissingOrdersSection["fields"][number];
@@ -71,6 +74,7 @@ type MissingOrderImage = { id: string; name: string; uri: string };
 // On web it uses a real hidden file input; on native (where this mock is not exercised) it
 // registers a single placeholder so the required-attachment flow still works.
 function pickMissingOrderImages(onPicked: (images: MissingOrderImage[]) => void): void {
+  const styles = useThemedStyles(createMissingOrdersScreenStyles);
   if (Platform.OS !== "web" || typeof document === "undefined") {
     onPicked([{ id: `mock-${Date.now()}`, name: "receipt.png", uri: "" }]);
     return;
@@ -93,6 +97,7 @@ function pickMissingOrderImages(onPicked: (images: MissingOrderImage[]) => void)
 }
 
 export function CustomerMissingOrdersScreen() {
+  const styles = useThemedStyles(createMissingOrdersScreenStyles);
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
   return (
@@ -108,6 +113,7 @@ export function CustomerMissingOrdersScreen() {
 }
 
 function MissingOrdersSubPage({ children }: { children: ReactNode }) {
+  const styles = useThemedStyles(createMissingOrdersScreenStyles);
   const tc = useCopy();
   return (
     <AccountPageShell activeRouteId="profile" showTitle={false} title={tc(webMissingOrdersPage.title)}>
@@ -124,6 +130,8 @@ function MissingOrdersSubPage({ children }: { children: ReactNode }) {
 }
 
 function MissingOrdersTopBar() {
+  const styles = useThemedStyles(createMissingOrdersScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   return (
     <Link asChild href="/profile">
@@ -136,6 +144,8 @@ function MissingOrdersTopBar() {
 }
 
 function MissingOrdersFormPanel() {
+  const styles = useThemedStyles(createMissingOrdersScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
@@ -389,6 +399,7 @@ function MissingOrdersFormSection({
   children: ReactNode;
   section: MissingOrdersSection;
 }) {
+  const styles = useThemedStyles(createMissingOrdersScreenStyles);
   const tc = useCopy();
   return (
     <View style={styles.formSection}>
@@ -422,6 +433,8 @@ function MissingOrdersTextField({
   required?: boolean;
   value: string;
 }) {
+  const styles = useThemedStyles(createMissingOrdersScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const [focused, setFocused] = useState(false);
   const labelText = `${tc(label)}${required ? " *" : ""}`;
@@ -468,6 +481,8 @@ function MissingOrdersUserIdField({
   label: string;
   userId: string;
 }) {
+  const styles = useThemedStyles(createMissingOrdersScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const [revealed, setRevealed] = useState(false);
   return (
@@ -511,6 +526,8 @@ function MissingOrdersSelectField({
   open: boolean;
   value: string;
 }) {
+  const styles = useThemedStyles(createMissingOrdersScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const ref = useRef<View>(null);
   const floated = open || value.length > 0;
@@ -557,6 +574,7 @@ function MissingOrdersDateField({
   onChange: (value: string) => void;
   value: string;
 }) {
+  const styles = useThemedStyles(createMissingOrdersScreenStyles);
   const tc = useCopy();
   const [focused, setFocused] = useState(false);
   return (
@@ -593,6 +611,7 @@ function MissingOrdersAttachmentField({
   onAdd: (images: MissingOrderImage[]) => void;
   onRemove: (id: string) => void;
 }) {
+  const styles = useThemedStyles(createMissingOrdersScreenStyles);
   const tc = useCopy();
   return (
     <View style={styles.attachmentBox}>
@@ -643,6 +662,7 @@ function MissingOrdersAttachmentField({
 }
 
 function MissingOrdersQuickCards() {
+  const styles = useThemedStyles(createMissingOrdersScreenStyles);
   const { width } = useWindowDimensions();
   const desktop = width >= mobileShellLayout.desktopBreakpoint;
 
@@ -662,6 +682,7 @@ function MissingOrdersQuickCard({
   card: MissingOrdersQuickCard;
   desktop: boolean;
 }) {
+  const styles = useThemedStyles(createMissingOrdersScreenStyles);
   const tc = useCopy();
   return (
     <MotionPressable
@@ -682,6 +703,8 @@ function MissingOrdersQuickCard({
 }
 
 function MissingOrdersFaqSection() {
+  const styles = useThemedStyles(createMissingOrdersScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   // Web parity: the FAQ is an Accordion (first item expanded by default); tapping a
   // question toggles its answer and flips the chevron.
@@ -725,6 +748,7 @@ function MissingOrdersFaqSection() {
 
 
 function renderQuickCardIcon(icon: MissingOrdersQuickCard["icon"], size: number): ReactNode {
+  const { colors } = useTheme();
   const iconProps = {
     color: colors.primaryDark,
     size,
@@ -748,7 +772,8 @@ const quickCardArtGradient = {
     "radial-gradient(ellipse at top right, rgba(0,204,153,0.35) 0%, rgba(255,255,255,0.95) 55%, rgb(217,217,217) 100%)",
 } as unknown as ViewStyle;
 
-const styles = StyleSheet.create({
+function createMissingOrdersScreenStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   surface: {
     backgroundColor: colors.card,
     borderColor: colors.border,
@@ -861,8 +886,8 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   formSection: {
-    backgroundColor: "#F9FAFB",
-    borderColor: "#E6E6E6",
+    backgroundColor: colors.fieldMuted,
+    borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,
     gap: 14,
@@ -893,7 +918,7 @@ const styles = StyleSheet.create({
   inputBox: {
     alignItems: "center",
     backgroundColor: colors.card,
-    borderColor: "rgba(152, 152, 152, 0.4)",
+    borderColor: colors.border,
     borderRadius: 8,
     borderWidth: 1,
     flexDirection: "row",
@@ -1232,7 +1257,7 @@ const styles = StyleSheet.create({
   },
   attachmentChip: {
     alignItems: "center",
-    backgroundColor: "#F6F6F6",
+    backgroundColor: colors.background,
     borderColor: colors.border,
     borderRadius: 10,
     borderWidth: 1,
@@ -1349,3 +1374,5 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 });
+}
+

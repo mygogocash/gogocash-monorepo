@@ -1,7 +1,10 @@
 import { StyleSheet, Text, View } from "react-native";
 
 import { useCopy } from "@mobile/i18n/useCopy";
-import { colors, typography } from "@mobile/theme/tokens";
+import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { typography } from "@mobile/theme/tokens";
 
 /**
  * Desktop header "Sign in" pill.
@@ -12,6 +15,7 @@ import { colors, typography } from "@mobile/theme/tokens";
  * live in CustomerDesktopHeader; this component is just the visual pill.
  */
 export function CustomerSignInNavGraphic() {
+  const styles = useThemedStyles(createSignInNavGraphicStyles);
   const tc = useCopy();
 
   return (
@@ -23,7 +27,8 @@ export function CustomerSignInNavGraphic() {
   );
 }
 
-const styles = StyleSheet.create({
+function createSignInNavGraphicStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   pill: {
     alignItems: "center",
     backgroundColor: colors.primary,
@@ -41,3 +46,5 @@ const styles = StyleSheet.create({
     lineHeight: typography.actionLineHeight,
   },
 });
+}
+

@@ -43,7 +43,10 @@ import {
   webQuestMyRank,
   webQuestTabs,
 } from "@mobile/design/webDesignParity";
-import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
+import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 type QuestTabId = (typeof webQuestTabs)[number]["id"];
 
@@ -59,6 +62,7 @@ type QuestExploreShopCard = {
 };
 
 export function CustomerQuestScreen({ history = false }: { history?: boolean }) {
+  const styles = useThemedStyles(createQuestScreenStyles);
   const tc = useCopy();
   const [activeTab, setActiveTab] = useState<QuestTabId>(history ? "leaderboard" : "how-to-win");
   const { width } = useWindowDimensions();
@@ -160,6 +164,7 @@ function getQuestExploreLayout(viewportWidth: number, contentWidth: number): Hom
 }
 
 function QuestTaskPanel() {
+  const styles = useThemedStyles(createQuestScreenStyles);
   const tc = useCopy();
   const questTasks = useQuestTaskRows();
   return (
@@ -173,6 +178,7 @@ function QuestTaskPanel() {
 }
 
 function QuestTaskListRow({ task }: { task: QuestTaskRow }) {
+  const styles = useThemedStyles(createQuestScreenStyles);
   const tc = useCopy();
   const content = (
     <>
@@ -211,6 +217,8 @@ const taskGlyphByIcon: Record<string, IconComponent> = {
 };
 
 function TaskLogo({ task }: { task: QuestTaskRow }) {
+  const styles = useThemedStyles(createQuestScreenStyles);
+  const { colors } = useTheme();
   const Glyph = taskGlyphByIcon[task.icon] ?? StorefrontIcon;
   if (task.logoUri) {
     return (
@@ -233,6 +241,8 @@ function TaskLogo({ task }: { task: QuestTaskRow }) {
 }
 
 function TaskPointsPill({ points }: { points: string }) {
+  const styles = useThemedStyles(createQuestScreenStyles);
+  const { colors } = useTheme();
   return (
     <View style={styles.taskPointsPill}>
       <Text numberOfLines={1} style={styles.taskPointsText}>
@@ -256,6 +266,8 @@ type QuestMyRankData = {
 };
 
 function QuestMyRankCard({ data = webQuestMyRank }: { data?: QuestMyRankData }) {
+  const styles = useThemedStyles(createQuestScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const [expanded, setExpanded] = useState(false);
   return (
@@ -316,6 +328,8 @@ function QuestMyRankCard({ data = webQuestMyRank }: { data?: QuestMyRankData }) 
 }
 
 function QuestLeaderboardPanel({ mediaColumnWidth }: { mediaColumnWidth: number }) {
+  const styles = useThemedStyles(createQuestScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   return (
     <View style={styles.leaderboardPanel}>
@@ -360,6 +374,7 @@ function QuestLeaderboardPanel({ mediaColumnWidth }: { mediaColumnWidth: number 
 const rankTrophyImages = [questRank1, questRank2, questRank3, questRank4, questRank5] as const;
 
 function RankTrophy({ index }: { index: number }) {
+  const styles = useThemedStyles(createQuestScreenStyles);
   const source = rankTrophyImages[index] ?? questRank6to10;
   return (
     <View style={styles.rankTrophy}>
@@ -374,6 +389,7 @@ function RankTrophy({ index }: { index: number }) {
 }
 
 function ExploreOtherShops({ layout }: { layout: HomeLayoutMetrics }) {
+  const styles = useThemedStyles(createQuestScreenStyles);
   const tc = useCopy();
   const fallbackCards = exploreOtherShops?.cards ?? [];
   const brandCatalogResource = useCustomerAccountResource({
@@ -428,6 +444,7 @@ function CompactExploreShopCard({
   cardWidth: number;
   logoVisualHeight: number;
 }) {
+  const styles = useThemedStyles(createQuestScreenStyles);
   const tc = useCopy();
   const logoSource = "logoUri" in card && card.logoUri ? { uri: card.logoUri } : null;
   const logoFallback =
@@ -597,6 +614,7 @@ function QuestRankRows({
   onView?: (index: number) => void;
   viewLabel?: string;
 }) {
+  const styles = useThemedStyles(createQuestScreenStyles);
   const tc = useCopy();
   return (
     <>
@@ -635,6 +653,7 @@ function QuestRankRows({
 // Month-over-month insight (web parity: GogoquestHistoryInsightSection). Static example values
 // since this build has no live monthly data.
 function QuestHistoryInsight() {
+  const styles = useThemedStyles(createQuestScreenStyles);
   const tc = useCopy();
   // Derive the insight from the mock monthly data so it stays consistent (recent vs previous month).
   const [recentMonth, olderMonth] = QUEST_HISTORY_MOCK.monthly;
@@ -666,6 +685,7 @@ function QuestHistoryInsight() {
 // "How shoppers rank" leaderboard: section + period picker + ranking table + my-rank (web parity,
 // static data). The per-player "View" drill-down dialog is intentionally not ported in this pass.
 function QuestHistoryLeaderboard() {
+  const styles = useThemedStyles(createQuestScreenStyles);
   const tc = useCopy();
   const [selectedPeriod, setSelectedPeriod] = useState<string>(QUEST_HISTORY_LEADERBOARD_PERIODS[0]);
   const periodLabel = (period: string) => (period === "This round" ? tc("This round") : period);
@@ -732,6 +752,7 @@ function QuestPlayerSummaryDialog({
   player: QuestHistoryPlayer | null;
   onClose: () => void;
 }) {
+  const styles = useThemedStyles(createQuestScreenStyles);
   const tc = useCopy();
   if (!player) {
     return null;
@@ -776,6 +797,7 @@ function QuestPlayerSummaryDialog({
 }
 
 function QuestHistoryView() {
+  const styles = useThemedStyles(createQuestScreenStyles);
   const tc = useCopy();
   return (
     <View style={styles.historyView}>
@@ -897,7 +919,8 @@ function QuestHistoryView() {
   );
 }
 
-const styles = StyleSheet.create({
+function createQuestScreenStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   historyView: {
     gap: spacing.xl,
   },
@@ -931,7 +954,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   historyPlanCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,
@@ -968,7 +991,7 @@ const styles = StyleSheet.create({
   },
   historyPlanCtaSecondary: {
     alignItems: "center",
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderColor: colors.primaryDark,
     borderRadius: radii.chip,
     borderWidth: 1,
@@ -1014,7 +1037,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   historyCampaignCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderColor: colors.border,
     borderRadius: radii.lg,
     borderWidth: 1,
@@ -1056,7 +1079,7 @@ const styles = StyleSheet.create({
   },
   historyDaysLeftBadge: {
     alignSelf: "flex-start",
-    backgroundColor: "#E6FAF5",
+    backgroundColor: pickThemed(colors, "#E6FAF5", colors.primarySoft),
     borderRadius: radii.chip,
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
@@ -1074,7 +1097,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   historyMonthlyCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderColor: colors.border,
     borderRadius: radii.lg,
     borderWidth: 1,
@@ -1114,7 +1137,7 @@ const styles = StyleSheet.create({
     width: 64,
   },
   historyRewardsCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderColor: colors.border,
     borderRadius: radii.lg,
     borderWidth: 1,
@@ -1168,7 +1191,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   historyRewardPointsPill: {
-    backgroundColor: "#E8FBF5",
+    backgroundColor: pickThemed(colors, "#E8FBF5", colors.primarySoft),
     borderRadius: radii.chip,
     paddingHorizontal: spacing.md,
     paddingVertical: 6,
@@ -1181,7 +1204,7 @@ const styles = StyleSheet.create({
   },
   historyInsightCard: {
     backgroundColor: "#F6FDFB",
-    borderColor: "#D8F8EF",
+    borderColor: pickThemed(colors, "#D8F8EF", colors.border),
     borderRadius: radii.lg,
     borderWidth: 1,
     gap: spacing.xs,
@@ -1227,7 +1250,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   historyChip: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderColor: colors.border,
     borderRadius: radii.chip,
     borderWidth: 1,
@@ -1264,7 +1287,7 @@ const styles = StyleSheet.create({
   },
   tabButton: {
     alignItems: "center",
-    backgroundColor: "#F0F0F0",
+    backgroundColor: colors.fieldMuted,
     borderTopLeftRadius: radii.md,
     borderTopRightRadius: radii.md,
     flex: 1,
@@ -1333,7 +1356,7 @@ const styles = StyleSheet.create({
   },
   taskLogo: {
     alignItems: "center",
-    backgroundColor: "#E8FBF5",
+    backgroundColor: pickThemed(colors, "#E8FBF5", colors.primarySoft),
     borderRadius: radii.chip,
     height: 52,
     justifyContent: "center",
@@ -1350,7 +1373,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   taskName: {
-    color: "#000000",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 18,
     fontWeight: typography.bodyWeight,
@@ -1377,7 +1400,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   myRankCard: {
-    backgroundColor: "#F1FFFC",
+    backgroundColor: pickThemed(colors, "#F1FFFC", colors.primarySoft),
     borderColor: colors.primary,
     borderRadius: radii.xl,
     borderWidth: 1,
@@ -1426,7 +1449,7 @@ const styles = StyleSheet.create({
   },
   myRankBreakdown: {
     alignItems: "center",
-    borderColor: "#CECBCB",
+    borderColor: colors.border,
     borderRadius: radii.sm,
     borderWidth: 1,
     flexDirection: "row",
@@ -1442,7 +1465,7 @@ const styles = StyleSheet.create({
     fontSize: typography.caption,
   },
   myRankBreakdownValue: {
-    color: "#000000",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 24,
     fontWeight: "500",
@@ -1491,7 +1514,7 @@ const styles = StyleSheet.create({
   },
   rankRow: {
     alignItems: "center",
-    borderBottomColor: "#E0E0E0",
+    borderBottomColor: colors.border,
     borderBottomWidth: 1,
     flexDirection: "row",
     gap: spacing.md,
@@ -1504,7 +1527,7 @@ const styles = StyleSheet.create({
     width: 46,
   },
   rankName: {
-    color: "#000000",
+    color: colors.ink,
     flex: 1,
     fontFamily: typography.family,
     fontSize: 18,
@@ -1540,7 +1563,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   dialogCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: radii.lg,
     gap: spacing.md,
     maxWidth: 420,
@@ -1606,7 +1629,7 @@ const styles = StyleSheet.create({
   },
   rankPointRow: {
     alignItems: "center",
-    backgroundColor: "#F6F6F6",
+    backgroundColor: colors.background,
     borderRadius: radii.chip,
     flexDirection: "row",
     gap: spacing.xs,
@@ -1706,3 +1729,5 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
 });
+}
+

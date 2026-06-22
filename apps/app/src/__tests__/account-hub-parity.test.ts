@@ -268,10 +268,13 @@ describe("Account hub route parity", () => {
     expect(designFile).toContain('glassBorderColor: "rgba(255, 255, 255, 0.4)"');
     expect(designFile).toContain("glassBackgroundImage");
     expect(shellFile).toContain("profileSurfaceMobile");
-    expect(shellFile).toContain('backgroundColor: "rgba(255,255,255,0.9)"');
+    expect(shellFile).toContain("backgroundColor: surfaces.profileSurfaceMobile");
     expect(shellFile).toContain('boxShadow: "0 4px 10px rgba(0, 0, 0, 0.1)"');
     expect(shellFile).toContain("profileContentMobileInner");
-    expect(shellFile).toContain('backgroundColor: "rgba(255,255,255,0.8)"');
+    expect(shellFile).toContain("backgroundColor: surfaces.profileContentInner");
+    const surfacesFile = readMobileFile("src/theme/themeSurfaces.ts");
+    expect(surfacesFile).toContain('profileSurfaceMobile: isDark ? "rgba(26,31,29,0.9)" : "rgba(255,255,255,0.9)"');
+    expect(surfacesFile).toContain('profileContentInner: isDark ? "rgba(26,31,29,0.8)" : "rgba(255,255,255,0.8)"');
     expect(shellFile).toContain("padding: 16");
     expect(shellFile).toContain("walletHeroTopBand");
     expect(shellFile).toContain("walletHeroGlassPanel");

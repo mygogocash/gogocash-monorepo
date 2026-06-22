@@ -65,10 +65,10 @@ import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { haptics } from "@mobile/lib/haptics";
 import { motion } from "@mobile/theme/motion";
-import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
-
-// B4 pull-to-refresh tint — reuse the brand primary so the spinner matches the directory chrome.
-const REFRESH_TINT = colors.primaryDark;
+import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 type DiscoveryVariant = Extract<MobileRouteId, "brand" | "category" | "discover" | "shops">;
 type CategoryDirectoryItem = (typeof webCategoryDirectory.cards)[number];
@@ -136,6 +136,8 @@ export function CustomerDiscoveryScreen({ routeId }: { routeId: DiscoveryVariant
 }
 
 function BrandDirectoryScreen() {
+  const styles = useThemedStyles(createDiscoveryScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -387,7 +389,7 @@ function BrandDirectoryScreen() {
             },
           ]}
           refreshControl={
-            <RefreshControl onRefresh={onRefresh} refreshing={refreshing} tintColor={REFRESH_TINT} />
+            <RefreshControl onRefresh={onRefresh} refreshing={refreshing} tintColor={colors.primaryDark} />
           }
           showsVerticalScrollIndicator={false}
         >
@@ -414,6 +416,8 @@ function BrandDirectoryCategoryAside({
   onSelectCategory: (category: string) => void;
   width: number;
 }) {
+  const styles = useThemedStyles(createDiscoveryScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   return (
     <View
@@ -487,6 +491,8 @@ function BrandDirectoryStoreCard({
   cardWidth: number;
   store: BrandDirectoryStore;
 }) {
+  const styles = useThemedStyles(createDiscoveryScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   return (
     <Link asChild href={store.href as never}>
@@ -543,6 +549,8 @@ function BrandDirectoryStoreCard({
 }
 
 function ProductDiscoveryScreen() {
+  const styles = useThemedStyles(createDiscoveryScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -824,7 +832,7 @@ function ProductDiscoveryScreen() {
             },
           ]}
           refreshControl={
-            <RefreshControl onRefresh={onRefresh} refreshing={refreshing} tintColor={REFRESH_TINT} />
+            <RefreshControl onRefresh={onRefresh} refreshing={refreshing} tintColor={colors.primaryDark} />
           }
           showsVerticalScrollIndicator={false}
         >
@@ -853,6 +861,7 @@ function ProductDiscoveryMobileFilters({
   onSelectCashback: (cashback: WebProductDiscoveryCashbackMin) => void;
   onSelectCategory: (category: string) => void;
 }) {
+  const styles = useThemedStyles(createDiscoveryScreenStyles);
   const tc = useCopy();
   return (
     <View style={styles.productDiscoveryMobileFilters}>
@@ -928,6 +937,8 @@ function ProductDiscoverySidebar({
   onSelectCategory: (category: string) => void;
   width: number;
 }) {
+  const styles = useThemedStyles(createDiscoveryScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   return (
     <View style={[styles.productDiscoverySidebar, { width }]}>
@@ -984,6 +995,8 @@ function ProductDiscoveryCard({
   onOpenTerms: () => void;
   product: WebProductDiscoveryProduct;
 }) {
+  const styles = useThemedStyles(createDiscoveryScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const imageSource = productImageAssets[product.imageAsset] ?? homeBannerImage;
 
@@ -1064,6 +1077,7 @@ function ProductDiscoveryTermsDialog({
   onClose: () => void;
   visible: boolean;
 }) {
+  const styles = useThemedStyles(createDiscoveryScreenStyles);
   const tc = useCopy();
   if (!visible) {
     return null;
@@ -1105,6 +1119,8 @@ function ProductDiscoveryTermsDialog({
 }
 
 function ShopDirectoryScreen() {
+  const styles = useThemedStyles(createDiscoveryScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -1396,7 +1412,7 @@ function ShopDirectoryScreen() {
             },
           ]}
           refreshControl={
-            <RefreshControl onRefresh={onRefresh} refreshing={refreshing} tintColor={REFRESH_TINT} />
+            <RefreshControl onRefresh={onRefresh} refreshing={refreshing} tintColor={colors.primaryDark} />
           }
           showsVerticalScrollIndicator={false}
         >
@@ -1421,6 +1437,7 @@ function ShopDirectoryPromo({
   isDesktop: boolean;
   promo?: DirectoryPromo;
 }) {
+  const styles = useThemedStyles(createDiscoveryScreenStyles);
   const tc = useCopy();
   const [activeIndex, setActiveIndex] = useState(0);
   const slideGap = 24;
@@ -1500,6 +1517,8 @@ function ShopDirectoryCategoryAside({
   onSelectCategory: (category: string) => void;
   width: number;
 }) {
+  const styles = useThemedStyles(createDiscoveryScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   return (
     <View
@@ -1573,6 +1592,8 @@ function ShopDirectoryStoreCard({
   cardWidth: number;
   store: ShopDirectoryStore;
 }) {
+  const styles = useThemedStyles(createDiscoveryScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   return (
     <Link asChild href={store.href as never}>
@@ -1636,6 +1657,8 @@ function ShopDirectoryPagination({
   onChangePage: (page: number) => void;
   totalPages: number;
 }) {
+  const styles = useThemedStyles(createDiscoveryScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const pages = Array.from({ length: totalPages }).map((_, index) => index + 1);
 
@@ -1707,6 +1730,8 @@ function getShopTypeLabel(shopType: string) {
 }
 
 function CategoryDirectoryScreen() {
+  const styles = useThemedStyles(createDiscoveryScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -1879,7 +1904,7 @@ function CategoryDirectoryScreen() {
             },
           ]}
           refreshControl={
-            <RefreshControl onRefresh={onRefresh} refreshing={refreshing} tintColor={REFRESH_TINT} />
+            <RefreshControl onRefresh={onRefresh} refreshing={refreshing} tintColor={colors.primaryDark} />
           }
           showsVerticalScrollIndicator={false}
         >
@@ -1907,6 +1932,8 @@ function CategoryDirectoryCard({
   index: number;
   isDesktop: boolean;
 }) {
+  const styles = useThemedStyles(createDiscoveryScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const imageSource = categoryDirectoryImageAssets[category.imageAsset] ?? homeBannerImage;
 
@@ -1976,6 +2003,7 @@ function CategoryDirectoryPagination({
   onChangePage: (page: number) => void;
   totalPages: number;
 }) {
+  const styles = useThemedStyles(createDiscoveryScreenStyles);
   return (
     <View style={styles.categoryDirectoryPagination}>
       <ShopDirectoryPagination
@@ -1987,7 +2015,8 @@ function CategoryDirectoryPagination({
   );
 }
 
-const styles = StyleSheet.create({
+function createDiscoveryScreenStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   viewport: {
     alignItems: "center",
     backgroundColor: colors.background,
@@ -2059,7 +2088,7 @@ const styles = StyleSheet.create({
     maxWidth: 672,
   },
   productDiscoveryTitle: {
-    color: "#3B3B3B",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 28,
     fontWeight: "800",
@@ -2095,7 +2124,7 @@ const styles = StyleSheet.create({
     paddingRight: spacing.sm,
   },
   productDiscoverySidebar: {
-    backgroundColor: "#FAFAFA",
+    backgroundColor: colors.fieldMuted,
     borderColor: colors.border,
     borderRadius: 24,
     borderWidth: 1,
@@ -2455,7 +2484,7 @@ const styles = StyleSheet.create({
     minHeight: 56,
   },
   shopDirectoryPromoTitle: {
-    color: "#3B3B3B",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 22,
     fontWeight: "600",
@@ -2510,7 +2539,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   shopDirectoryTitle: {
-    color: "#3B3B3B",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 28,
     fontWeight: "800",
@@ -2543,14 +2572,14 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   shopDirectoryCategoryAsideDesktop: {
-    backgroundColor: "#FAFAFA",
+    backgroundColor: colors.fieldMuted,
     borderColor: colors.border,
     borderRadius: 24,
     borderWidth: 1,
     padding: 24,
   },
   shopDirectoryCategoryTitle: {
-    color: "#3B3B3B",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 20,
     fontWeight: "600",
@@ -2604,7 +2633,7 @@ const styles = StyleSheet.create({
     width: 20,
   },
   shopDirectoryCategoryText: {
-    color: "#3B3B3B",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 14,
     fontWeight: typography.bodyWeight,
@@ -2899,7 +2928,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   categoryDirectoryTitle: {
-    color: "#103522",
+    color: pickThemed(colors, "#103522", colors.accent),
     fontFamily: typography.family,
     fontSize: 26.4,
     fontWeight: "800",
@@ -2972,7 +3001,7 @@ const styles = StyleSheet.create({
   },
   categoryDirectoryImageFrame: {
     aspectRatio: 1.08,
-    backgroundColor: "#F8FBF5",
+    backgroundColor: pickThemed(colors, "#F8FBF5", colors.primarySoft),
     borderRadius: 20,
     overflow: "hidden",
     position: "relative",
@@ -3007,7 +3036,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
   },
   categoryDirectoryCardTitle: {
-    color: "#102217",
+    color: pickThemed(colors, "#102217", colors.accent),
     fontFamily: typography.family,
     fontSize: 16,
     fontWeight: "600",
@@ -3215,7 +3244,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   discoverTitle: {
-    color: "#103522",
+    color: pickThemed(colors, "#103522", colors.accent),
     fontFamily: typography.family,
     fontSize: typography.sectionTitle,
     fontWeight: typography.sectionTitleWeight,
@@ -3238,7 +3267,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
   },
   discoverSidebar: {
-    backgroundColor: "#FAFAFA",
+    backgroundColor: colors.fieldMuted,
     borderColor: colors.border,
     borderRadius: radii.lg,
     borderWidth: 1,
@@ -3388,3 +3417,5 @@ const styles = StyleSheet.create({
     textDecorationLine: "underline",
   },
 });
+}
+

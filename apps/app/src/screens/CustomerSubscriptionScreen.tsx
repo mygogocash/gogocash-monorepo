@@ -19,7 +19,10 @@ import { Skeleton, SkeletonText } from "@mobile/components/Skeleton";
 import { haptics } from "@mobile/lib/haptics";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { mobileShellLayout } from "@mobile/design/webDesignParity";
-import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
+import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 type SubscriptionMode = "pricing" | "subscription" | "billing";
 type BillingPeriod = "annual" | "monthly";
@@ -68,6 +71,7 @@ const pageModels = {
 >;
 
 export function CustomerSubscriptionScreen({ mode }: { mode: SubscriptionMode }) {
+  const styles = useThemedStyles(createSubscriptionScreenStyles);
   const tc = useCopy();
   const insets = useSafeAreaInsets();
   const [period, setPeriod] = useState<BillingPeriod>("annual");
@@ -145,6 +149,7 @@ export function CustomerSubscriptionScreen({ mode }: { mode: SubscriptionMode })
 // body lines + CTA) plus one status card so the loading state shows familiar chrome
 // instead of the generic spinner. Decorative — Skeleton hides it from screen readers.
 function SubscriptionSkeleton() {
+  const styles = useThemedStyles(createSubscriptionScreenStyles);
   return (
     <View style={styles.viewport}>
       <View style={styles.phoneFrame}>
@@ -166,6 +171,8 @@ function SubscriptionSkeleton() {
 }
 
 function DisabledStripeNotice() {
+  const styles = useThemedStyles(createSubscriptionScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   return (
     <View style={styles.disabledNotice}>
@@ -182,6 +189,8 @@ function PricingPanel({
   period: BillingPeriod;
   setPeriod: (period: BillingPeriod) => void;
 }) {
+  const styles = useThemedStyles(createSubscriptionScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   return (
     <View style={styles.card}>
@@ -239,6 +248,8 @@ function PricingPanel({
 }
 
 function SubscriptionStatusPanel() {
+  const styles = useThemedStyles(createSubscriptionScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   return (
     <View style={styles.card}>
@@ -274,6 +285,8 @@ function SubscriptionStatusPanel() {
 }
 
 function BillingPanel() {
+  const styles = useThemedStyles(createSubscriptionScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   return (
     <View style={styles.card}>
@@ -310,7 +323,8 @@ function BillingPanel() {
   );
 }
 
-const styles = StyleSheet.create({
+function createSubscriptionScreenStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   viewport: {
     alignItems: "center",
     backgroundColor: colors.background,
@@ -410,7 +424,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   toggleRow: {
-    backgroundColor: "#F6F6F6",
+    backgroundColor: colors.background,
     borderRadius: radii.chip,
     flexDirection: "row",
     gap: spacing.xs,
@@ -445,7 +459,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   planCard: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.fieldMuted,
     borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,
@@ -543,3 +557,5 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 });
+}
+

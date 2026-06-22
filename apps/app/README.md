@@ -61,3 +61,4 @@ Set Sentry, PostHog, Firebase, and EAS values through EAS secrets or local env f
 
 - [AGENTS.md](AGENTS.md) — working rules, conventions, react-native-web gotchas
 - [docs/api-integration.md](docs/api-integration.md) — API & auth integration handoff
+- [docs/dark-mode.md](docs/dark-mode.md) — customer app light/dark theme system

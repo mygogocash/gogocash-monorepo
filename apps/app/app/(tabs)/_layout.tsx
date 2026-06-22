@@ -1,14 +1,17 @@
 import { Tabs } from "expo-router";
 
-import { colors } from "@mobile/theme/tokens";
+import { useThemeColors } from "@mobile/theme/ThemeProvider";
 
 export default function TabLayout() {
+  const colors = useThemeColors();
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.primaryDark,
         tabBarInactiveTintColor: colors.muted,
+        // Theme the tab scene background (React Navigation defaults to light #F2F2F2).
+        sceneStyle: { backgroundColor: colors.background },
         tabBarStyle: {
           borderTopColor: colors.border,
           display: "none",

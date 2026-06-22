@@ -9,7 +9,9 @@ import {
 } from "react-native";
 
 import { useReducedMotion } from "@mobile/hooks/useReducedMotion";
-import { colors, radii, spacing } from "@mobile/theme/tokens";
+import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, spacing } from "@mobile/theme/tokens";
 import { motion } from "@mobile/theme/motion";
 
 // A3 — skeleton primitives. Perceived-performance placeholders shown while data
@@ -54,6 +56,7 @@ export function Skeleton({
   testID,
 }: SkeletonProps) {
   const reducedMotion = useReducedMotion();
+  const styles = useThemedStyles(createSkeletonStyles);
   const opacity = useRef(new Animated.Value(reducedMotion ? PULSE_MAX_OPACITY : PULSE_MIN_OPACITY))
     .current;
 
@@ -143,6 +146,8 @@ type WalletSkeletonProps = {
  * for Phase-B reuse on data-backed screens while the real content loads.
  */
 export function WalletSkeleton({ style, testID }: WalletSkeletonProps) {
+  const styles = useThemedStyles(createSkeletonStyles);
+
   return (
     <View {...a11yHidden} style={[styles.walletCard, style]} testID={testID}>
       <Skeleton height={14} radius={radii.sm} width="40%" />
@@ -152,20 +157,22 @@ export function WalletSkeleton({ style, testID }: WalletSkeletonProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  block: {
-    backgroundColor: colors.border,
-  },
-  walletBalance: {
-    marginTop: spacing.sm,
-  },
-  walletCard: {
-    backgroundColor: colors.card,
-    borderRadius: radii.lg,
-    gap: spacing.sm,
-    padding: spacing.lg,
-  },
-  walletRows: {
-    marginTop: spacing.md,
-  },
-});
+function createSkeletonStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    block: {
+      backgroundColor: colors.border,
+    },
+    walletBalance: {
+      marginTop: spacing.sm,
+    },
+    walletCard: {
+      backgroundColor: colors.card,
+      borderRadius: radii.lg,
+      gap: spacing.sm,
+      padding: spacing.lg,
+    },
+    walletRows: {
+      marginTop: spacing.md,
+    },
+  });
+}

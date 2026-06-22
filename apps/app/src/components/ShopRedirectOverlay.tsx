@@ -2,7 +2,10 @@ import { useEffect, useRef } from "react";
 import { ActivityIndicator, Animated, StyleSheet, Text, View } from "react-native";
 
 import { motion } from "@mobile/theme/motion";
-import { colors, typography } from "@mobile/theme/tokens";
+import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { typography } from "@mobile/theme/tokens";
 
 // Mirrors the web LoadingShop interstitial ("Moving to <brand> . . ." + spinner + manual
 // fallback) shown after Shop Now. The mock has no real merchant URL, so the redirect
@@ -18,6 +21,7 @@ export function ShopRedirectOverlay({
   brand: string;
   onComplete: () => void;
 }) {
+  const styles = useThemedStyles(createShopRedirectOverlayStyles);
   const fade = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -56,7 +60,8 @@ export function ShopRedirectOverlay({
   );
 }
 
-const styles = StyleSheet.create({
+function createShopRedirectOverlayStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   overlay: {
     alignItems: "center",
     backgroundColor: "rgba(255, 255, 255, 0.97)",
@@ -93,7 +98,7 @@ const styles = StyleSheet.create({
     minHeight: 80,
   },
   fallback: {
-    color: "#A9A9A9",
+    color: colors.textSoft,
     fontFamily: typography.family,
     fontSize: 15,
     lineHeight: 22,
@@ -104,3 +109,5 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 });
+}
+

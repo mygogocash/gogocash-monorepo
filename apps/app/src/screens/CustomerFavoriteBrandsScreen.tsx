@@ -18,7 +18,10 @@ import type { OfferListResponse } from "@mobile/api/catalogTypes";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { mobileShellLayout, webFavoriteBrandsPage } from "@mobile/design/webDesignParity";
-import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
+import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 import favoriteHeroBagImage from "../../assets/favorite-hero-bag.png";
 import favoriteHeroLogoImage from "../../assets/favorite-hero-logo.png";
 
@@ -51,6 +54,7 @@ const INITIAL_FAVORITE_IDS: readonly string[] = [
 ];
 
 export function CustomerFavoriteBrandsScreen() {
+  const styles = useThemedStyles(createFavoriteBrandsScreenStyles);
   const tc = useCopy();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
@@ -106,6 +110,7 @@ export function CustomerFavoriteBrandsScreen() {
 }
 
 function FavoriteBrandsSubPage({ children }: { children: ReactNode }) {
+  const styles = useThemedStyles(createFavoriteBrandsScreenStyles);
   const tc = useCopy();
   return (
     <AccountPageShell activeRouteId="profile" showTitle={false} title={tc(webFavoriteBrandsPage.title)}>
@@ -115,6 +120,8 @@ function FavoriteBrandsSubPage({ children }: { children: ReactNode }) {
 }
 
 function FavoriteBrandsTopBar() {
+  const styles = useThemedStyles(createFavoriteBrandsScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   return (
     <Link asChild href="/profile">
@@ -127,6 +134,7 @@ function FavoriteBrandsTopBar() {
 }
 
 function FavoriteBrandsHero() {
+  const styles = useThemedStyles(createFavoriteBrandsScreenStyles);
   const tc = useCopy();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
@@ -172,6 +180,7 @@ function RecentlyVisitedBrandsGrid({
   favoriteIds: readonly string[];
   onToggleFavorite: (id: string) => void;
 }) {
+  const styles = useThemedStyles(createFavoriteBrandsScreenStyles);
   const tc = useCopy();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
@@ -202,6 +211,8 @@ function FavoriteBrandsListPreview({
   favoriteIds: readonly string[];
   onToggleFavorite: (id: string) => void;
 }) {
+  const styles = useThemedStyles(createFavoriteBrandsScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
@@ -251,6 +262,8 @@ function FavoriteBrandCard({
   isFavorite?: boolean;
   onToggleFavorite: (id: string) => void;
 }) {
+  const styles = useThemedStyles(createFavoriteBrandsScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const tint = brand.tint ?? FAVORITE_BRAND_TINTS[brand.id] ?? FAVORITE_BRAND_FALLBACK_TINT;
   return (
@@ -325,7 +338,8 @@ function FavoriteBrandCard({
   );
 }
 
-const styles = StyleSheet.create({
+function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   surface: {
     backgroundColor: colors.card,
     borderColor: colors.border,
@@ -481,8 +495,8 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   brandCardLink: {
-    backgroundColor: colors.white,
-    borderColor: "#E4E4E4",
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1,
     boxShadow: "0 3px 8px rgba(16, 53, 34, 0.06)",
@@ -511,8 +525,8 @@ const styles = StyleSheet.create({
   },
   couponBadge: {
     alignItems: "center",
-    backgroundColor: colors.white,
-    borderColor: "#D8E2D9",
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderRadius: radii.chip,
     borderWidth: 1,
     flexDirection: "row",
@@ -594,8 +608,8 @@ const styles = StyleSheet.create({
   },
   searchPill: {
     alignItems: "center",
-    backgroundColor: colors.white,
-    borderColor: "#D8E2D9",
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1,
     flexDirection: "row",
@@ -611,7 +625,7 @@ const styles = StyleSheet.create({
   },
   heartButton: {
     alignItems: "center",
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: 16,
     boxShadow: "0 2px 6px rgba(16, 53, 34, 0.16)",
     height: 32,
@@ -629,8 +643,8 @@ const styles = StyleSheet.create({
   },
   favoritesEmpty: {
     alignItems: "center",
-    backgroundColor: colors.white,
-    borderColor: "#E4E4E4",
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1,
     gap: 10,
@@ -662,3 +676,5 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 });
+}
+

@@ -33,7 +33,10 @@ import {
   webCategoryExploreHealthBeauty,
 } from "@mobile/design/webDesignParity";
 import { motion } from "@mobile/theme/motion";
-import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
+import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 type CategoryStore = ReturnType<typeof getCategoryExploreResults>[number] & {
   href?: string;
@@ -88,6 +91,8 @@ function getCategoryGridMetrics({
   isDesktop: boolean;
   viewportWidth: number;
 }) {
+  const styles = useThemedStyles(createCategoryDetailScreenStyles);
+  const { colors } = useTheme();
   const layoutGap = isDesktop ? 32 : 0;
   const sidebarWidth = isDesktop ? 280 : 0;
   const gridWidth = Math.max(0, contentWidth - sidebarWidth - layoutGap);
@@ -118,6 +123,8 @@ function getCategoryGridMetrics({
 }
 
 export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: string }) {
+  const styles = useThemedStyles(createCategoryDetailScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -331,6 +338,7 @@ function CategoryAside({
   activeCategory: string;
   isDesktop: boolean;
 }) {
+  const styles = useThemedStyles(createCategoryDetailScreenStyles);
   const tc = useCopy();
   return (
     <View style={[styles.categoryAside, isDesktop ? styles.categoryAsideDesktop : null]}>
@@ -369,6 +377,8 @@ function CategoryNavItem({
   category: string;
   isDesktop: boolean;
 }) {
+  const styles = useThemedStyles(createCategoryDetailScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const Icon = getCategoryIcon(category);
   const iconColor = active ? colors.white : colors.accent;
@@ -410,6 +420,8 @@ function CategoryStoreCard({
   index: number;
   store: CategoryStore;
 }) {
+  const styles = useThemedStyles(createCategoryDetailScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const logoSource: ImageSourcePropType = store.logoUri ? { uri: store.logoUri } : shopeeLogo;
   const visualHeight = Math.max(96, cardWidth - 16);
@@ -455,7 +467,8 @@ function CategoryStoreCard({
   );
 }
 
-const styles = StyleSheet.create({
+function createCategoryDetailScreenStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   viewport: {
     alignItems: "center",
     backgroundColor: colors.background,
@@ -530,7 +543,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   categoryAsideDesktop: {
-    backgroundColor: "#FAFAFA",
+    backgroundColor: colors.fieldMuted,
     borderColor: colors.border,
     borderRadius: radii.lg,
     borderWidth: 1,
@@ -810,3 +823,5 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 });
+}
+

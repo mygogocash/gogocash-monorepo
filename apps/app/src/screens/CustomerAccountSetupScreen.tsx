@@ -41,7 +41,10 @@ import {
   type PromptPayChoice,
 } from "@mobile/features/accountSetup";
 import { motion } from "@mobile/theme/motion";
-import { colors, radii, spacing, typography } from "@mobile/theme/tokens";
+import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, spacing, typography } from "@mobile/theme/tokens";
 
 type SavedPromptPayMethod = {
   accountName: string;
@@ -50,6 +53,7 @@ type SavedPromptPayMethod = {
 };
 
 export function CustomerAccountSetupScreen() {
+  const styles = useThemedStyles(createAccountSetupScreenStyles);
   const tc = useCopy();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -297,6 +301,7 @@ export function CustomerAccountSetupScreen() {
 }
 
 function CardBody({ scroll, children }: { scroll: boolean; children: React.ReactNode }) {
+  const styles = useThemedStyles(createAccountSetupScreenStyles);
   // On wide desktop the card has a fixed height (to sit flush beside the hero), so its
   // content must scroll internally; on stacked/mobile the card grows and the page scrolls.
   if (scroll) {
@@ -315,6 +320,7 @@ function CardBody({ scroll, children }: { scroll: boolean; children: React.React
 }
 
 function AccountSetupHeader() {
+  const styles = useThemedStyles(createAccountSetupScreenStyles);
   const tc = useCopy();
   return (
     <View style={styles.brandBlock}>
@@ -333,6 +339,7 @@ function AccountSetupHeader() {
 }
 
 function PromptPayBadge() {
+  const styles = useThemedStyles(createAccountSetupScreenStyles);
   return (
     <View accessibilityLabel="PromptPay" style={styles.promptPayBadge}>
       <Text style={styles.promptPayPrimary}>{webAccountSetupFlow.promptPay.primary}</Text>
@@ -363,6 +370,7 @@ function IntroStep({
   setChoice: (choice: PromptPayChoice) => void;
   statusMessage: string;
 }) {
+  const styles = useThemedStyles(createAccountSetupScreenStyles);
   const tc = useCopy();
   const registeredLabel = hasRegisteredPhone
     ? webAccountSetupFlow.options.registeredPhone.replace("{tail}", maskedTail)
@@ -443,6 +451,7 @@ function PhoneInputStep({
   setValue: (value: string) => void;
   value: string;
 }) {
+  const styles = useThemedStyles(createAccountSetupScreenStyles);
   const tc = useCopy();
   return (
     <View style={styles.stack}>
@@ -479,6 +488,7 @@ function OtpStep({
   setValue: (value: string) => void;
   value: string;
 }) {
+  const styles = useThemedStyles(createAccountSetupScreenStyles);
   const tc = useCopy();
   // Interpolated template ("...{tail}...") — left untranslated; no clean static sub-part to wrap.
   const description = webAccountSetupFlow.steps.otp.description.replace("{tail}", phoneTail);
@@ -520,6 +530,7 @@ function CitizenIdStep({
   setValue: (value: string) => void;
   value: string;
 }) {
+  const styles = useThemedStyles(createAccountSetupScreenStyles);
   const tc = useCopy();
   return (
     <View style={styles.stack}>
@@ -558,6 +569,7 @@ function NameStep({
   setFirstName: (value: string) => void;
   setLastName: (value: string) => void;
 }) {
+  const styles = useThemedStyles(createAccountSetupScreenStyles);
   const tc = useCopy();
   const firstNameError =
     nameSubmitted && !isNameValid(firstName) ? tc(webAccountSetupFlow.steps.name.required) : "";
@@ -594,6 +606,7 @@ function NameStep({
 }
 
 function SectionHeading({ description, title }: { description: string; title: string }) {
+  const styles = useThemedStyles(createAccountSetupScreenStyles);
   return (
     <View style={styles.sectionHeading}>
       <Text style={styles.sectionTitle}>{title}</Text>
@@ -615,6 +628,7 @@ function RadioCard({
   label: string;
   onPress: () => void;
 }) {
+  const styles = useThemedStyles(createAccountSetupScreenStyles);
   return (
     <MotionPressable
       accessibilityRole="radio"
@@ -655,6 +669,7 @@ function FieldInput({
   placeholder: string;
   value: string;
 }) {
+  const styles = useThemedStyles(createAccountSetupScreenStyles);
   return (
     <View style={styles.fieldWrap}>
       <TextInput
@@ -686,6 +701,7 @@ function StepFooter({
   onBack: () => void;
   onNext: () => void;
 }) {
+  const styles = useThemedStyles(createAccountSetupScreenStyles);
   const tc = useCopy();
   return (
     <View style={styles.actionRow}>
@@ -696,6 +712,7 @@ function StepFooter({
 }
 
 function PrimaryButton({ label, onPress }: { label: string; onPress: () => void }) {
+  const styles = useThemedStyles(createAccountSetupScreenStyles);
   return (
     <MotionPressable
       accessibilityRole="button"
@@ -710,6 +727,7 @@ function PrimaryButton({ label, onPress }: { label: string; onPress: () => void 
 }
 
 function SecondaryButton({ label, onPress }: { label: string; onPress: () => void }) {
+  const styles = useThemedStyles(createAccountSetupScreenStyles);
   return (
     <MotionPressable
       accessibilityRole="button"
@@ -732,6 +750,7 @@ function AltMethodButton({
   label: string;
   onPress: () => void;
 }) {
+  const styles = useThemedStyles(createAccountSetupScreenStyles);
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={styles.altMethodCard}>
       {icon}
@@ -740,7 +759,8 @@ function AltMethodButton({
   );
 }
 
-const styles = StyleSheet.create({
+function createAccountSetupScreenStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   viewport: {
     alignItems: "center",
     backgroundColor: colors.background,
@@ -787,8 +807,8 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   heroFrame: {
-    backgroundColor: colors.white,
-    borderColor: "#E4E4E4",
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderRadius: radii.xl,
     borderWidth: 2,
     height: webAccountSetupFlow.desktop.cardHeight,
@@ -801,8 +821,8 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   card: {
-    backgroundColor: colors.white,
-    borderColor: "#E4E4E4",
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderRadius: radii.xl,
     borderWidth: 2,
     overflow: "hidden",
@@ -858,7 +878,7 @@ const styles = StyleSheet.create({
   },
   promptPayBadge: {
     alignItems: "center",
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderColor: "rgba(0, 47, 108, 0.2)",
     borderRadius: radii.sm,
     borderWidth: 1,
@@ -898,7 +918,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   sectionTitle: {
-    color: "#103522",
+    color: pickThemed(colors, "#103522", colors.accent),
     fontFamily: typography.family,
     fontSize: 16,
     fontWeight: "700",
@@ -916,7 +936,7 @@ const styles = StyleSheet.create({
   },
   radioCard: {
     alignItems: "center",
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderColor: "#E4EAE6",
     borderRadius: radii.md,
     borderWidth: 1,
@@ -957,7 +977,7 @@ const styles = StyleSheet.create({
     width: 26,
   },
   radioLabel: {
-    color: "#103522",
+    color: pickThemed(colors, "#103522", colors.accent),
     flex: 1,
     fontFamily: typography.family,
     fontSize: 14,
@@ -994,7 +1014,7 @@ const styles = StyleSheet.create({
   },
   secondaryAction: {
     alignItems: "center",
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderColor: colors.primary,
     borderRadius: radii.chip,
     borderWidth: 1,
@@ -1037,7 +1057,7 @@ const styles = StyleSheet.create({
   },
   altMethodCard: {
     alignItems: "center",
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderColor: "#E4EAE6",
     borderRadius: radii.md,
     borderWidth: 1,
@@ -1049,7 +1069,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   altMethodLabel: {
-    color: "#103522",
+    color: pickThemed(colors, "#103522", colors.accent),
     fontFamily: typography.family,
     fontSize: 14,
     fontWeight: "600",
@@ -1060,11 +1080,11 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   input: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderColor: "#E4EAE6",
     borderRadius: radii.md,
     borderWidth: 1,
-    color: "#103522",
+    color: pickThemed(colors, "#103522", colors.accent),
     fontFamily: typography.family,
     fontSize: 15,
     minHeight: 56,
@@ -1098,9 +1118,11 @@ const styles = StyleSheet.create({
     borderColor: colors.danger,
   },
   otpBoxText: {
-    color: "#103522",
+    color: pickThemed(colors, "#103522", colors.accent),
     fontFamily: typography.family,
     fontSize: 18,
     fontWeight: "700",
   },
 });
+}
+

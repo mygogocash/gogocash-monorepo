@@ -13,7 +13,10 @@ import { useCopy } from "@mobile/i18n/useCopy";
 import { haptics } from "@mobile/lib/haptics";
 import { parseDmyDate } from "@mobile/lib/birthdate";
 import { mobileShellLayout } from "@mobile/design/webDesignParity";
-import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
+import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 const pdpaAgeVerifyTitle = "Age verification";
 const pdpaAgeVerifyBody =
@@ -48,6 +51,8 @@ export function isOver20(dateInput: string, now = new Date()) {
 }
 
 export function CustomerAgeVerificationScreen() {
+  const styles = useThemedStyles(createAgeVerificationScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
@@ -153,7 +158,8 @@ export function CustomerAgeVerificationScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createAgeVerificationScreenStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   surface: {
     backgroundColor: colors.card,
     borderColor: colors.border,
@@ -180,7 +186,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   card: {
-    backgroundColor: "#F6FBF9",
+    backgroundColor: colors.primarySoft,
     gap: spacing.md,
     padding: spacing.lg,
   },
@@ -223,7 +229,7 @@ const styles = StyleSheet.create({
   input: {
     alignItems: "center",
     flexDirection: "row",
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,
@@ -271,3 +277,5 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 });
+}
+

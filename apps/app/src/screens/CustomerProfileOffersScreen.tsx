@@ -13,7 +13,10 @@ import { useToast } from "@mobile/hooks/useToast";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { copyToClipboard } from "@mobile/lib/clipboard";
 import { haptics } from "@mobile/lib/haptics";
-import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
+import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 const myOfferRows = [
   {
@@ -33,6 +36,8 @@ const myOfferRows = [
 ] as const;
 
 export function CustomerProfileOffersScreen() {
+  const styles = useThemedStyles(createProfileOffersScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const toast = useToast();
   const { width } = useWindowDimensions();
@@ -139,7 +144,8 @@ export function CustomerProfileOffersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createProfileOffersScreenStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   surface: {
     backgroundColor: colors.card,
     borderColor: colors.border,
@@ -182,14 +188,14 @@ const styles = StyleSheet.create({
     lineHeight: 23,
   },
   table: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.fieldMuted,
     borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,
     overflow: "hidden",
   },
   headerRow: {
-    backgroundColor: "#F6F6F6",
+    backgroundColor: colors.background,
     flexDirection: "row",
     minHeight: 46,
     paddingHorizontal: spacing.md,
@@ -263,3 +269,5 @@ const styles = StyleSheet.create({
     width: 34,
   },
 });
+}
+

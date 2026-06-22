@@ -8,7 +8,10 @@ import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { KeyboardAwareScreen } from "@mobile/components/KeyboardAwareScreen";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { haptics } from "@mobile/lib/haptics";
-import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
+import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 // Tap-target expansion for icon/text-only buttons shorter than the 44px minimum
 // (chevron back-link + the text-only "Back" buttons). 12px on each side lifts the
@@ -22,6 +25,8 @@ export function CustomerProfilePhoneScreen({ mode }: { mode: PhoneMode }) {
 }
 
 function PhoneNumberScreen() {
+  const styles = useThemedStyles(createProfilePhoneScreenStyles);
+  const { colors } = useTheme();
   const router = useRouter();
   const tc = useCopy();
   const [phone, setPhone] = useState("");
@@ -100,6 +105,8 @@ function PhoneNumberScreen() {
 }
 
 function PhoneOtpScreen() {
+  const styles = useThemedStyles(createProfilePhoneScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const [code, setCode] = useState("");
   // Swap the resting border for a brand-green focus ring (and suppress the orange OS-accent UA
@@ -154,6 +161,8 @@ function PhoneOtpScreen() {
 }
 
 function PhoneSubPage({ children, title }: { children: ReactNode; title: string }) {
+  const styles = useThemedStyles(createProfilePhoneScreenStyles);
+  const { colors } = useTheme();
   return (
     <AccountPageShell activeRouteId="profile" showTitle={false} title={title}>
       <View style={styles.surface}>
@@ -173,7 +182,8 @@ function PhoneSubPage({ children, title }: { children: ReactNode; title: string 
   );
 }
 
-const styles = StyleSheet.create({
+function createProfilePhoneScreenStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   surface: {
     backgroundColor: colors.card,
     borderColor: colors.border,
@@ -359,3 +369,5 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
 });
+}
+

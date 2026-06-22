@@ -2,7 +2,8 @@ import { useCallback, type ChangeEvent } from "react";
 
 import type { BirthDateFieldProps } from "@mobile/components/BirthDateField.types";
 import { dmyToIso, isoToDmy } from "@mobile/lib/birthdate";
-import { colors, typography } from "@mobile/theme/tokens";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { typography } from "@mobile/theme/tokens";
 
 function todayIso(): string {
   const now = new Date();
@@ -28,6 +29,7 @@ export function BirthDateField({
   onBlur,
   testID,
 }: BirthDateFieldProps) {
+  const { colors, resolved } = useTheme();
   const handleChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
       onChange(isoToDmy(event.target.value));
@@ -50,7 +52,7 @@ export function BirthDateField({
         backgroundColor: "transparent",
         border: "none",
         color: colors.ink,
-        colorScheme: "light",
+        colorScheme: resolved,
         cursor: editable ? "pointer" : "default",
         flex: 1,
         fontFamily: typography.family,

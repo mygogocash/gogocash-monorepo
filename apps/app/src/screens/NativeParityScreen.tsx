@@ -12,7 +12,10 @@ import {
   webSampleShopCards,
 } from "@mobile/design/webDesignParity";
 import { findRouteById, mobileParityRoutes, type MobileRouteId } from "@mobile/navigation/routes";
-import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
+import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 type NativeParityScreenProps = {
   detailLabel?: string;
@@ -113,6 +116,7 @@ const homeOfferSections: readonly HomeOfferSectionModel[] = [
 ] as const;
 
 export function NativeParityScreen({ detailLabel, routeId }: NativeParityScreenProps) {
+  const styles = useThemedStyles(createNativeParityScreenStyles);
   const insets = useSafeAreaInsets();
   const route = findRouteById(routeId);
   const isHome = route.id === "home";
@@ -167,6 +171,7 @@ function HomeDesignParityContent() {
 }
 
 function HomeBanner() {
+  const styles = useThemedStyles(createNativeParityScreenStyles);
   return (
     <View style={styles.homeBannerFrame}>
       <Image
@@ -181,6 +186,7 @@ function HomeBanner() {
 }
 
 function GoLinkWebBanner() {
+  const styles = useThemedStyles(createNativeParityScreenStyles);
   return (
     <View style={styles.webGoLinkBanner}>
       <View
@@ -221,6 +227,7 @@ function HomeOfferSection({
   cards: readonly HomeOfferCard[];
   title: string;
 }) {
+  const styles = useThemedStyles(createNativeParityScreenStyles);
   return (
     <View style={styles.offerSection}>
       <View style={styles.sectionHeader}>
@@ -247,6 +254,7 @@ function RouteDesignParityContent({
   detailLabel?: string;
   routeId: MobileRouteId;
 }) {
+  const styles = useThemedStyles(createNativeParityScreenStyles);
   const route = findRouteById(routeId);
 
   if (route.id === "profile") {
@@ -337,6 +345,7 @@ function RouteDesignParityContent({
 }
 
 function BrowseShortcuts() {
+  const styles = useThemedStyles(createNativeParityScreenStyles);
   return (
     <ScrollView
       contentContainerStyle={styles.shortcutRow}
@@ -356,6 +365,7 @@ function BrowseShortcuts() {
 }
 
 function ProfileHubContent() {
+  const styles = useThemedStyles(createNativeParityScreenStyles);
   return (
     <View style={styles.profileHub} testID="profile-hub-screen">
       <Text style={styles.profilePageTitle}>Profile</Text>
@@ -390,6 +400,7 @@ function ProfileHubContent() {
 }
 
 function WalletSummaryCard() {
+  const styles = useThemedStyles(createNativeParityScreenStyles);
   return (
     <View style={styles.walletSummaryCard}>
       <View style={styles.walletHeader}>
@@ -419,6 +430,7 @@ function WalletSummaryCard() {
 }
 
 function WalletHubContent() {
+  const styles = useThemedStyles(createNativeParityScreenStyles);
   return (
     <View style={styles.p0Screen}>
       <Text style={styles.profilePageTitle}>Wallet</Text>
@@ -447,6 +459,7 @@ function WalletHubContent() {
 }
 
 function QuestHubContent() {
+  const styles = useThemedStyles(createNativeParityScreenStyles);
   return (
     <View style={styles.p0Screen}>
       <View style={styles.questHero}>
@@ -487,6 +500,7 @@ function QuestHubContent() {
 }
 
 function GoLinkHubContent() {
+  const styles = useThemedStyles(createNativeParityScreenStyles);
   return (
     <View style={styles.p0Screen}>
       <View style={styles.goLinkHero}>
@@ -533,6 +547,7 @@ function ProfileNavRow({
   icon: string;
   label: string;
 }) {
+  const styles = useThemedStyles(createNativeParityScreenStyles);
   const row = (
     <Pressable
       style={StyleSheet.flatten([styles.profileRow, active ? styles.profileRowActive : null])}
@@ -566,6 +581,7 @@ function WebMobileBottomNav({
   activeRouteId: MobileRouteId;
   bottomPadding: number;
 }) {
+  const styles = useThemedStyles(createNativeParityScreenStyles);
   return (
     <View style={[styles.bottomNavSafe, { paddingBottom: bottomPadding }]}>
       <View style={styles.bottomNav}>
@@ -621,6 +637,7 @@ function ShopCard({
   label: string;
   title: string;
 }) {
+  const styles = useThemedStyles(createNativeParityScreenStyles);
   return (
     <View style={styles.shopCard}>
       <View style={styles.shopImage}>
@@ -698,7 +715,8 @@ function getProfileMenuGlyph(label: string): string {
   return "•";
 }
 
-const styles = StyleSheet.create({
+function createNativeParityScreenStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   avatar: {
     alignItems: "center",
     backgroundColor: colors.primary,
@@ -883,7 +901,7 @@ const styles = StyleSheet.create({
   },
   goLinkInputMock: {
     alignItems: "center",
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderColor: "rgba(0,170,128,0.35)",
     borderRadius: radii.md,
     borderWidth: 1,
@@ -970,7 +988,7 @@ const styles = StyleSheet.create({
   },
   heroBadge: {
     alignItems: "center",
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: radii.lg,
     justifyContent: "center",
     minHeight: 96,
@@ -1139,7 +1157,7 @@ const styles = StyleSheet.create({
     gap: spacing.homeStackGap,
   },
   profilePageTitle: {
-    color: "#103522",
+    color: pickThemed(colors, "#103522", colors.accent),
     fontSize: 24,
     fontWeight: "800",
     marginTop: 4,
@@ -1339,7 +1357,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   sectionTitle: {
-    color: "#103522",
+    color: pickThemed(colors, "#103522", colors.accent),
     fontSize: 26,
     fontWeight: "700",
     lineHeight: 30,
@@ -1351,7 +1369,7 @@ const styles = StyleSheet.create({
   },
   shopBadge: {
     alignSelf: "flex-start",
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderColor: colors.border,
     borderRadius: radii.chip,
     borderWidth: 1,
@@ -1467,7 +1485,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   webGoLinkBanner: {
-    backgroundColor: "#EAF4FF",
+    backgroundColor: pickThemed(colors, "#EAF4FF", colors.card),
     borderColor: "#D3EFE7",
     borderRadius: 32,
     borderWidth: 1,
@@ -1612,3 +1630,5 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 });
+}
+

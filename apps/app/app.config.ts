@@ -44,7 +44,7 @@ const mobileExpoConfig = ({ config }: ConfigContext): ExpoConfig => ({
   scheme: appIdentity.scheme,
   version: "0.1.0",
   orientation: "portrait",
-  userInterfaceStyle: "light",
+  userInterfaceStyle: "automatic",
   icon: "./assets/icon.png",
   ios: {
     bundleIdentifier: appIdentity.iosBundleIdentifier,
