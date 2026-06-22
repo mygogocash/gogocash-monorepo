@@ -1,6 +1,6 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { NestExpressApplication } from '@nestjs/platform-express';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { json, urlencoded } from 'express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
@@ -13,7 +13,7 @@ async function bootstrap() {
   // rawBody is required by the Customer.io webhook controller for HMAC
   // signature verification — NestJS preserves the unparsed buffer on
   // request.rawBody for any route that needs it.
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+  const app = await NestFactory.create(AppModule, {
     rawBody: true,
   });
   // Security headers. CSP is disabled because the app serves Swagger UI
@@ -117,7 +117,9 @@ async function bootstrap() {
     // .addCookieAuth('refresh_token') // ✅ เพิ่ม refresh token ด้วย
     .build();
 
-  app.useStaticAssets(path.join(__dirname, '../uploads'));
+  (app as unknown as NestExpressApplication).useStaticAssets(
+    path.join(__dirname, '../uploads'),
+  );
 
   const document = SwaggerModule.createDocument(app, config);
 
