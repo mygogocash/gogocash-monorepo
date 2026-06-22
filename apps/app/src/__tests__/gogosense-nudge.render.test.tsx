@@ -79,6 +79,13 @@ describe("GoGoSenseDetectionBanner (render)", () => {
 
 describe("GoGoSenseDetectionBanner activation failures", () => {
   it("matched detection > given activation rejects > does not open a stale deeplink", async () => {
+    const activate = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Unauthorized"))
+      .mockResolvedValueOnce({
+        activationEventId: "e2",
+        deeplink: "https://track.gogocash.co/retry",
+      });
     const api: GoGoSenseHookApi = {
       detect: vi.fn(async () => ({
         matched: true,
@@ -88,9 +95,7 @@ describe("GoGoSenseDetectionBanner activation failures", () => {
         networkMerchantId: 201,
         recommendedAction: "activate" as const,
       })),
-      activate: vi.fn(async () => {
-        throw new Error("Unauthorized");
-      }),
+      activate,
     };
     const openUrl = vi.fn();
 
@@ -111,5 +116,13 @@ describe("GoGoSenseDetectionBanner activation failures", () => {
     expect(api.activate).toHaveBeenCalledTimes(1);
     expect(openUrl).not.toHaveBeenCalled();
     expect(await screen.findByText("Cashback activation failed. Please try again.")).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.click(button);
+    });
+
+    expect(api.activate).toHaveBeenCalledTimes(2);
+    expect(openUrl).toHaveBeenCalledWith("https://track.gogocash.co/retry");
+    expect(screen.queryByText("Cashback activation failed. Please try again.")).toBeNull();
   });
 });

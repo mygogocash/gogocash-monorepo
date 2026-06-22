@@ -70,6 +70,13 @@ export function GoGoSenseDetectionBanner({
     match != null &&
     match.response.matched &&
     match.response.recommendedAction === "activate";
+  const matchKey = showNudge
+    ? `${match.packageName}:${match.response.detectionEventId ?? match.response.merchantId ?? ""}`
+    : null;
+
+  useEffect(() => {
+    setActivationError(false);
+  }, [matchKey]);
 
   if (!showNudge) {
     return null;
