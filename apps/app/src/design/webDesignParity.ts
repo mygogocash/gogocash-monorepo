@@ -187,12 +187,12 @@ export function getDesktopFooterGrid(viewportWidth: number) {
 
 // Fixed brand-card dimensions — product decision: a brand card is a constant size on
 // every display, no longer scaling with the viewport.
-//   L (Top Brands)     184 x 232
-//   S (compact brand)  144 x 184, logo area 117
-const FIXED_TOP_BRAND_CARD_WIDTH = 184;
-const FIXED_TOP_BRAND_CARD_HEIGHT = 232;
+//   L (Top Brands)     176 x 224
+//   S (compact brand)  144 x 176, logo area 117 (117 + 43 meta + 16 padding = 176)
+const FIXED_TOP_BRAND_CARD_WIDTH = 176;
+const FIXED_TOP_BRAND_CARD_HEIGHT = 224;
 const FIXED_COMPACT_BRAND_CARD_WIDTH = 144;
-const FIXED_COMPACT_BRAND_CARD_HEIGHT = 184;
+const FIXED_COMPACT_BRAND_CARD_HEIGHT = 176;
 const FIXED_COMPACT_BRAND_LOGO_VISUAL_HEIGHT = 117;
 const MOBILE_TABLET_HOME_SECTION_HORIZONTAL_PADDING = 24;
 
@@ -226,7 +226,7 @@ const homeDesignVersions: Record<
     compactBrandCardWidth: FIXED_COMPACT_BRAND_CARD_WIDTH,
     compactBrandColumns: 5,
     compactBrandLogoVisualHeight: FIXED_COMPACT_BRAND_LOGO_VISUAL_HEIGHT,
-    contentWidth: 768,
+    contentWidth: 900,
     topBrandCardHeight: FIXED_TOP_BRAND_CARD_HEIGHT,
     topBrandCardWidth: FIXED_TOP_BRAND_CARD_WIDTH,
     topBrandColumns: 4,
@@ -236,9 +236,9 @@ const homeDesignVersions: Record<
     compactBrandCardWidth: FIXED_COMPACT_BRAND_CARD_WIDTH,
     compactBrandColumns: 2,
     compactBrandLogoVisualHeight: FIXED_COMPACT_BRAND_LOGO_VISUAL_HEIGHT,
-    contentWidth: 360,
-    topBrandCardHeight: 216,
-    topBrandCardWidth: 168,
+    contentWidth: 480,
+    topBrandCardHeight: FIXED_TOP_BRAND_CARD_HEIGHT,
+    topBrandCardWidth: FIXED_TOP_BRAND_CARD_WIDTH,
     topBrandColumns: mobileShellLayout.topBrandMobileColumns,
   },
 };
@@ -256,38 +256,23 @@ function getHomeDesignVersion(viewportWidth: number): HomeDesignVersion {
 }
 
 function getProfileContentFrameWidth(viewportWidth: number, version: HomeDesignVersion) {
-  return roundLayoutValue(Math.max(0, Math.min(viewportWidth, homeDesignVersions[version].contentWidth)));
+  // Content fills the device minus a consistent edge gap, capped per tier so it never gets
+  // too wide on large screens. Whatever's left becomes flexible side padding that centers
+  // the content (see getProfileHorizontalPadding) — so a single frame fits every device.
+  const tierMaxWidth = homeDesignVersions[version].contentWidth;
+  const minEdgePadding = version === "mobile" ? 16 : 24;
+  return roundLayoutValue(Math.max(0, Math.min(tierMaxWidth, viewportWidth - minEdgePadding * 2)));
 }
 
 function getProfileHorizontalPadding(viewportWidth: number, contentWidth: number) {
-  return roundLayoutValue(
-    Math.max(0, (Math.min(viewportWidth, mobileShellLayout.contentMaxWidth) - contentWidth) / 2)
-  );
+  // Flexible: whatever's left after the capped content frame, split evenly to center it.
+  return roundLayoutValue(Math.max(0, (viewportWidth - contentWidth) / 2));
 }
 
 function getFlexibleProfileGap(contentWidth: number, cardWidth: number, columns: number) {
   return columns > 1
     ? Math.max(0, (contentWidth - cardWidth * columns) / (columns - 1))
     : 0;
-}
-
-function getFittedCardWidth(
-  frameWidth: number,
-  preferredCardWidth: number,
-  columns: number,
-  preferredGap: number
-) {
-  if (columns <= 1) {
-    return Math.min(preferredCardWidth, frameWidth);
-  }
-
-  if (preferredCardWidth * columns <= frameWidth) {
-    return preferredCardWidth;
-  }
-
-  return floorLayoutValue(
-    Math.min(preferredCardWidth, (frameWidth - preferredGap * (columns - 1)) / columns)
-  );
 }
 
 export function getResponsiveHomeLayoutMetrics(viewportWidth: number) {
@@ -304,18 +289,9 @@ export function getResponsiveHomeLayoutMetrics(viewportWidth: number) {
       );
   const topBrandColumns = designFrame.topBrandColumns;
   const isMobileTopBrandGrid = topBrandColumns === mobileShellLayout.topBrandMobileColumns;
-  const topBrandPreferredGap =
-    designVersion === "mobile"
-      ? mobileShellLayout.topBrandMobileGridGap
-      : designVersion === "tablet"
-        ? mobileShellLayout.topBrandTabletGridGap
-        : mobileShellLayout.topBrandDesktopGridGap;
-  const topBrandCardWidth = getFittedCardWidth(
-    brandSectionFrameWidth,
-    designFrame.topBrandCardWidth,
-    topBrandColumns,
-    topBrandPreferredGap
-  );
+  // The L (Top Brands) card is a FIXED size on every display — no fit-to-frame shrinking,
+  // matching the compact (S) card. On narrow frames the carousel scrolls horizontally.
+  const topBrandCardWidth = designFrame.topBrandCardWidth;
   const topBrandGap = getFlexibleProfileGap(brandSectionFrameWidth, topBrandCardWidth, topBrandColumns);
   const compactBrandColumns = designFrame.compactBrandColumns;
   const compactBrandCardWidth = designFrame.compactBrandCardWidth;

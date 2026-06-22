@@ -129,7 +129,7 @@ describe("GoGoCash web design parity", () => {
   it("home responsive layout > given mobile viewport > then keeps mobile shell and bottom nav", () => {
     expect(getResponsiveHomeLayoutMetrics(390)).toMatchObject({
       compactBrandColumns: 2,
-      contentHorizontalPadding: 15,
+      contentHorizontalPadding: 16,
       contentMaxWidth: 1440,
       isDesktop: false,
       pageBottomPadding: 132,
@@ -143,11 +143,11 @@ describe("GoGoCash web design parity", () => {
 
   it("home responsive layout > given staging mobile Trending Brands viewport > then compact cards match selected section", () => {
     expect(getResponsiveHomeLayoutMetrics(427)).toMatchObject({
-      compactBrandCardHeight: 184,
+      compactBrandCardHeight: 176,
       compactBrandColumns: 2,
-      compactBrandGap: 24,
+      compactBrandGap: 59,
       compactBrandLogoVisualHeight: 117,
-      brandSectionFrameWidth: 312,
+      brandSectionFrameWidth: 347,
     });
     expect(getResponsiveHomeLayoutMetrics(427).compactBrandCardWidth).toBeCloseTo(144, 1);
   });
@@ -191,25 +191,25 @@ describe("GoGoCash web design parity", () => {
 
   it("home responsive layout > given staging mobile Top Brands viewport > then uses the same card grid width", () => {
     expect(getResponsiveHomeLayoutMetrics(427)).toMatchObject({
-      brandSectionFrameWidth: 312,
+      brandSectionFrameWidth: 347,
       topBrandCardsPerPage: 4,
       topBrandColumns: 2,
       topBrandDotCount: 4,
-      topBrandGap: 12,
+      topBrandGap: 0,
     });
-    expect(getResponsiveHomeLayoutMetrics(427).topBrandCardWidth).toBeCloseTo(150, 1);
-    expect(getResponsiveHomeLayoutMetrics(427).topBrandCardHeight).toBeCloseTo(206, 1);
+    expect(getResponsiveHomeLayoutMetrics(427).topBrandCardWidth).toBeCloseTo(176, 1);
+    expect(getResponsiveHomeLayoutMetrics(427).topBrandCardHeight).toBeCloseTo(224, 1);
   });
 
   it("home responsive layout > given vertical tablet viewport > then Top Brands uses the tablet frame", () => {
     expect(getResponsiveHomeLayoutMetrics(834)).toMatchObject({
-      contentHorizontalPadding: 33,
-      contentWidth: 768,
+      contentHorizontalPadding: 24,
+      contentWidth: 786,
       topBrandCardsPerPage: 8,
       topBrandColumns: 4,
     });
-    expect(getResponsiveHomeLayoutMetrics(834).topBrandGap).toBeCloseTo(16, 1);
-    expect(getResponsiveHomeLayoutMetrics(834).topBrandCardWidth).toBeCloseTo(168, 1);
+    expect(getResponsiveHomeLayoutMetrics(834).topBrandGap).toBeCloseTo(11.33, 1);
+    expect(getResponsiveHomeLayoutMetrics(834).topBrandCardWidth).toBeCloseTo(176, 1);
   });
 
   it("home responsive layout > given desktop viewport > then expands content and removes mobile bottom nav", () => {
@@ -225,9 +225,9 @@ describe("GoGoCash web design parity", () => {
       topBrandDotCount: 3,
     });
     expect(getResponsiveHomeLayoutMetrics(1440).compactBrandCardWidth).toBeCloseTo(144, 1);
-    expect(getResponsiveHomeLayoutMetrics(1440).compactBrandCardHeight).toBeCloseTo(184, 1);
-    expect(getResponsiveHomeLayoutMetrics(1440).topBrandCardWidth).toBeCloseTo(184, 1);
-    expect(getResponsiveHomeLayoutMetrics(1440).topBrandCardHeight).toBeCloseTo(232, 1);
+    expect(getResponsiveHomeLayoutMetrics(1440).compactBrandCardHeight).toBeCloseTo(176, 1);
+    expect(getResponsiveHomeLayoutMetrics(1440).topBrandCardWidth).toBeCloseTo(176, 1);
+    expect(getResponsiveHomeLayoutMetrics(1440).topBrandCardHeight).toBeCloseTo(224, 1);
     const desktopLayout = getResponsiveHomeLayoutMetrics(1440);
     const compactRowWidth =
       desktopLayout.compactBrandColumns * desktopLayout.compactBrandCardWidth +
@@ -238,7 +238,7 @@ describe("GoGoCash web design parity", () => {
     expect(desktopLayout.compactBrandColumns).toBe(8);
     expect(desktopLayout.compactBrandCardsPerPage).toBe(16);
     expect(compactRowWidth).toBeCloseTo(desktopLayout.contentWidth, 3);
-    expect(desktopLayout.topBrandGap).toBeCloseTo(19.2, 3);
+    expect(desktopLayout.topBrandGap).toBeCloseTo(28.8, 3);
     expect(topBrandRowWidth).toBeCloseTo(desktopLayout.contentWidth, 3);
   });
 

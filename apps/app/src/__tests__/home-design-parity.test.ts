@@ -650,12 +650,14 @@ describe("Expo home design parity", () => {
   it("mobile brand sections > given the padded white sheet > then carousel frames fit the mobile section width", () => {
     const mobileLayout = getResponsiveHomeLayoutMetrics(389);
 
-    expect(mobileLayout.contentWidth).toBe(360);
-    expect(mobileLayout.brandSectionFrameWidth).toBe(312);
-    expect(mobileLayout.topBrandCardWidth).toBe(150);
-    expect(mobileLayout.topBrandGap).toBe(12);
+    expect(mobileLayout.contentWidth).toBe(357);
+    expect(mobileLayout.brandSectionFrameWidth).toBe(309);
+    // L (Top Brands) cards are a fixed 176px and overflow the 312 mobile frame (carousel
+    // scrolls), so the flexible gap clamps to 0; compact cards still fit two-up.
+    expect(mobileLayout.topBrandCardWidth).toBe(176);
+    expect(mobileLayout.topBrandGap).toBe(0);
     expect(mobileLayout.compactBrandCardWidth).toBe(144);
-    expect(mobileLayout.compactBrandGap).toBe(24);
+    expect(mobileLayout.compactBrandGap).toBe(21);
   });
 
   it("home design parity > given selected staging Makeup Must Have block > then compact card visuals match", () => {
