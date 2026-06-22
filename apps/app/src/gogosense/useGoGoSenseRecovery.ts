@@ -6,6 +6,7 @@ export type GoGoSenseRecoveryJob = {
   id: string;
   status: "pending" | "processing" | "matched" | "manual_review" | "failed" | string;
   uploadUrl?: string;
+  expiresAt?: string;
   merchantId?: string;
 };
 
@@ -48,6 +49,7 @@ export function mapGoGoSenseRecoveryJob(data: unknown): GoGoSenseRecoveryJob | n
     id,
     status: asString(pick(record, "status")) ?? "pending",
     uploadUrl: asString(pick(record, "uploadUrl", "upload_url")),
+    expiresAt: asString(pick(record, "expiresAt", "expires_at")),
     merchantId: asString(pick(record, "merchantId", "merchant_id")),
   };
 }
