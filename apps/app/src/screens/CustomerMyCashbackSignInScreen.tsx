@@ -28,7 +28,10 @@ import {
 } from "@mobile/design/webDesignParity";
 import { Check, CheckCircle } from "@mobile/theme/icons";
 import { motion } from "@mobile/theme/motion";
-import { colors, radii, spacing, typography } from "@mobile/theme/tokens";
+import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, spacing, typography } from "@mobile/theme/tokens";
 
 // Mirrors the web LinkMyCashback copy (web link-mycashback/constants.ts). Mock OTP is 123456.
 const LINK_VERIFY_OTP = "123456";
@@ -101,6 +104,8 @@ function LinkOtpBoxes({
   onChangeText: (value: string) => void;
   value: string;
 }) {
+  const styles = useThemedStyles(createMyCashbackSignInScreenStyles);
+  const { colors } = useTheme();
   const [isFocused, setIsFocused] = useState(false);
   const otpDigits = Array.from({ length: 6 }, (_, index) => value[index] ?? "");
   const activeIndex = isFocused && value.length < otpDigits.length ? value.length : -1;
@@ -144,6 +149,8 @@ function LinkOtpBoxes({
 }
 
 export function CustomerMyCashbackSignInScreen() {
+  const styles = useThemedStyles(createMyCashbackSignInScreenStyles);
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -546,7 +553,8 @@ export function CustomerMyCashbackSignInScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createMyCashbackSignInScreenStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   viewport: {
     alignItems: "center",
     backgroundColor: colors.background,
@@ -567,7 +575,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   pageDesktop: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
   },
   pageMobile: {
     backgroundColor: webLinkMyCashbackIntro.backgroundColor,
@@ -637,14 +645,14 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   stepTitle: {
-    color: "#3B3B3B",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 16,
     fontWeight: "500",
     lineHeight: 22,
   },
   stepDescription: {
-    color: "#7F7F7F",
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: 14,
     fontWeight: "400",
@@ -665,7 +673,7 @@ const styles = StyleSheet.create({
   },
   radioOuter: {
     alignItems: "center",
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderColor: "#989898",
     borderRadius: 12,
     borderWidth: 2,
@@ -678,13 +686,13 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   radioInner: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: 5,
     height: 10,
     width: 10,
   },
   radioLabel: {
-    color: "#3B3B3B",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 16,
     fontWeight: "400",
@@ -704,16 +712,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   phonePrefixText: {
-    color: "#3B3B3B",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 16,
   },
   input: {
-    backgroundColor: colors.white,
-    borderColor: "rgba(152, 152, 152, 0.4)",
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1,
-    color: "#3B3B3B",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 16,
     minHeight: 56,
@@ -734,7 +742,7 @@ const styles = StyleSheet.create({
   },
   consentRow: {
     alignItems: "center",
-    borderColor: "#E4E4E4",
+    borderColor: colors.border,
     borderRadius: 14,
     borderWidth: 1.5,
     flexDirection: "row",
@@ -747,7 +755,7 @@ const styles = StyleSheet.create({
   },
   consentCheckbox: {
     alignItems: "center",
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderColor: "#D0D5DD",
     borderRadius: 6,
     borderWidth: 2,
@@ -760,7 +768,7 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   consentText: {
-    color: "#3B3B3B",
+    color: colors.ink,
     flexShrink: 1,
     fontFamily: typography.family,
     fontSize: 13,
@@ -781,13 +789,13 @@ const styles = StyleSheet.create({
     rowGap: 2,
   },
   sentLabel: {
-    color: "#7F7F7F",
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: 14,
     lineHeight: 20,
   },
   sentDestination: {
-    color: "#3B3B3B",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 14,
     fontVariant: ["tabular-nums"],
@@ -818,8 +826,8 @@ const styles = StyleSheet.create({
   },
   otpCell: {
     alignItems: "center",
-    backgroundColor: colors.white,
-    borderColor: "#E4E4E4",
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderRadius: 14,
     borderWidth: 1.5,
     flex: 1,
@@ -856,7 +864,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   resendText: {
-    color: "#7F7F7F",
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: 12,
     textDecorationLine: "underline",
@@ -866,7 +874,7 @@ const styles = StyleSheet.create({
     textDecorationLine: "none",
   },
   resendCountdown: {
-    color: "#0064D6",
+    color: colors.link,
     fontFamily: typography.family,
     fontSize: 12,
     fontVariant: ["tabular-nums"],
@@ -893,7 +901,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   backButton: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderColor: colors.primary,
     borderWidth: 1,
   },
@@ -904,13 +912,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   nextButtonDisabled: {
-    backgroundColor: "#F6F6F6",
+    backgroundColor: colors.background,
   },
   nextButtonText: {
     color: colors.white,
   },
   nextButtonTextDisabled: {
-    color: "#989898",
+    color: colors.textSoft,
   },
   successBody: {
     alignItems: "center",
@@ -919,7 +927,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   successTitle: {
-    color: "#103522",
+    color: pickThemed(colors, "#103522", colors.accent),
     fontFamily: typography.family,
     fontSize: 20,
     fontWeight: "700",
@@ -964,6 +972,8 @@ const styles = StyleSheet.create({
     textDecorationLine: "underline",
   },
   desktopFooter: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
   },
 });
+}
+

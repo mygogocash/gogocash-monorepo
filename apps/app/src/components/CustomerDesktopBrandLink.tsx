@@ -4,7 +4,9 @@ import { Image, StyleSheet, Text, View, type ViewStyle } from "react-native";
 
 import logoMarkImage from "../../assets/nav/logo.png";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import type { ThemeColors } from "@mobile/theme/colorPalettes";
 import { getInteractionTransformStyle, motion } from "@mobile/theme/motion";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, spacing, typography } from "@mobile/theme/tokens";
 
 type CustomerDesktopBrandLinkProps = {
@@ -34,6 +36,7 @@ export function CustomerDesktopBrandLink({
   label = "GoGoCash",
 }: CustomerDesktopBrandLinkProps) {
   const [logoHovered, setLogoHovered] = useState(false);
+  const styles = useThemedStyles(createBrandLinkStyles);
 
   return (
     <Link asChild href="/">
@@ -65,25 +68,27 @@ export function CustomerDesktopBrandLink({
   );
 }
 
-const styles = StyleSheet.create({
-  logoLink: {
-    alignItems: "center",
-    borderRadius: radii.md,
-    flexDirection: "row",
-    gap: spacing.sm,
-    minHeight: 44,
-  },
-  logoMark: {
-    borderRadius: 16,
-    height: 56,
-    width: 56,
-  },
-  logoText: {
-    color: "#1F2937",
-    fontFamily: typography.family,
-    fontSize: 20,
-    fontWeight: "700",
-    letterSpacing: 0,
-    lineHeight: 28,
-  },
-});
+function createBrandLinkStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    logoLink: {
+      alignItems: "center",
+      borderRadius: radii.md,
+      flexDirection: "row",
+      gap: spacing.sm,
+      minHeight: 44,
+    },
+    logoMark: {
+      borderRadius: 16,
+      height: 56,
+      width: 56,
+    },
+    logoText: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 20,
+      fontWeight: "700",
+      letterSpacing: 0,
+      lineHeight: 28,
+    },
+  });
+}

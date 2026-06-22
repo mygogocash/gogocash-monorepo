@@ -42,13 +42,17 @@ import {
   webWalletSupportBanner,
   webWalletTransactionTabs,
 } from "@mobile/design/webDesignParity";
-import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
+import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 // Widened to the live view shape so fixture rows and backend-mapped rows
 // share one metric card type (fixture literals are assignable to it).
 type WalletMetric = WalletMetricView;
 
 export function CustomerWalletScreen() {
+  const styles = useThemedStyles(createWalletScreenStyles);
   const tc = useCopy();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
@@ -126,6 +130,8 @@ const WALLET_TX_ROWS: readonly WalletTxRow[] = [
 
 const WALLET_TX_MAX_TS = Math.max(...WALLET_TX_ROWS.map((row) => row.ts));
 function WalletTransactions({ onRefresh }: { onRefresh: () => void }) {
+  const styles = useThemedStyles(createWalletScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const [activeTab, setActiveTab] = useState(0);
   const [search, setSearch] = useState("");
@@ -258,8 +264,8 @@ function WalletTransactions({ onRefresh }: { onRefresh: () => void }) {
                   >
                     {`${row.amount} ${row.currency}`}
                   </Text>
-                  <View style={[styles.txStatusPill, walletStatusPillStyle(row.status)]}>
-                    <Text style={[styles.txStatusText, walletStatusTextStyle(row.status)]}>
+                  <View style={[styles.txStatusPill, walletStatusPillStyle(row.status, styles)]}>
+                    <Text style={[styles.txStatusText, walletStatusTextStyle(row.status, styles)]}>
                       {tc(row.statusLabel)}
                     </Text>
                   </View>
@@ -326,6 +332,8 @@ function WalletFilterOption({
   onSelect: () => void;
   selected: boolean;
 }) {
+  const styles = useThemedStyles(createWalletScreenStyles);
+  const { colors } = useTheme();
   return (
     <MotionPressable
       accessibilityRole="button"
@@ -345,7 +353,7 @@ function WalletFilterOption({
   );
 }
 
-function walletStatusPillStyle(status: WalletTxStatus) {
+function walletStatusPillStyle(status: WalletTxStatus, styles: ReturnType<typeof createWalletScreenStyles>) {
   return status === "success"
     ? styles.txStatusPillSuccess
     : status === "pending"
@@ -353,7 +361,7 @@ function walletStatusPillStyle(status: WalletTxStatus) {
       : styles.txStatusPillFailed;
 }
 
-function walletStatusTextStyle(status: WalletTxStatus) {
+function walletStatusTextStyle(status: WalletTxStatus, styles: ReturnType<typeof createWalletScreenStyles>) {
   return status === "success"
     ? styles.txStatusTextSuccess
     : status === "pending"
@@ -362,6 +370,8 @@ function walletStatusTextStyle(status: WalletTxStatus) {
 }
 
 function WalletHeader() {
+  const styles = useThemedStyles(createWalletScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   return (
     <View style={styles.walletHeader}>
@@ -385,6 +395,8 @@ function WalletHeader() {
 }
 
 function WalletSupportBanner() {
+  const styles = useThemedStyles(createWalletScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   return (
     <View style={styles.supportBanner}>
@@ -410,6 +422,7 @@ function WalletSupportBanner() {
 }
 
 function WalletCashbackSummary({ liveMetrics }: { liveMetrics: WalletMetricView[] | null }) {
+  const styles = useThemedStyles(createWalletScreenStyles);
   const tc = useCopy();
   return (
     <View accessibilityLabel={webWalletAccessibleSummary} style={styles.cashbackSummaryCard}>
@@ -430,6 +443,8 @@ function WalletCashbackSummary({ liveMetrics }: { liveMetrics: WalletMetricView[
 }
 
 function WalletMetricCard({ metric }: { metric: WalletMetric }) {
+  const styles = useThemedStyles(createWalletScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   // Icon selection keys off the raw English label (a stable discriminant), not the translated copy.
   const Icon =
@@ -471,6 +486,8 @@ function FilterPill({
   label: string;
   onPress?: () => void;
 }) {
+  const styles = useThemedStyles(createWalletScreenStyles);
+  const { colors } = useTheme();
   const Icon =
     icon === "search" ? SearchIcon : icon === "calendar" ? CalendarIcon : ChevronDownIcon;
 
@@ -490,7 +507,8 @@ function FilterPill({
   );
 }
 
-const styles = StyleSheet.create({
+function createWalletScreenStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   walletHeader: {
     alignItems: "center",
     borderBottomColor: "#C9D9E8",
@@ -534,7 +552,7 @@ const styles = StyleSheet.create({
   },
   supportContactCard: {
     alignItems: "center",
-    backgroundColor: "#F6F6F6",
+    backgroundColor: colors.background,
     borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,
@@ -546,7 +564,7 @@ const styles = StyleSheet.create({
   },
   lineBadge: {
     alignItems: "center",
-    backgroundColor: "#D5F4EF",
+    backgroundColor: pickThemed(colors, "#D5F4EF", colors.primarySoft),
     borderRadius: radii.sm,
     height: 48,
     justifyContent: "center",
@@ -563,13 +581,13 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   supportContactTitle: {
-    color: "#1B3854",
+    color: pickThemed(colors, "#1B3854", colors.ink),
     fontFamily: typography.family,
     fontSize: 18,
     fontWeight: "700",
   },
   supportContactSubtitle: {
-    color: "#6E88A5",
+    color: pickThemed(colors, "#6E88A5", colors.muted),
     fontFamily: typography.family,
     fontSize: typography.body,
   },
@@ -592,13 +610,13 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   cashbackTitle: {
-    color: "#314761",
+    color: pickThemed(colors, "#314761", colors.ink),
     fontFamily: typography.family,
     fontSize: 24,
     fontWeight: "800",
   },
   cashbackSubtitle: {
-    color: "#7289A0",
+    color: pickThemed(colors, "#7289A0", colors.muted),
     fontFamily: typography.family,
     fontSize: typography.body,
     lineHeight: 24,
@@ -607,7 +625,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   metricCard: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.fieldMuted,
     borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,
@@ -615,7 +633,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   metricCardPrimary: {
-    backgroundColor: "#E4F8F9",
+    backgroundColor: pickThemed(colors, "#E4F8F9", colors.primarySoft),
     borderColor: "rgba(0, 204, 153, 0.25)",
   },
   metricTopRow: {
@@ -625,7 +643,7 @@ const styles = StyleSheet.create({
   },
   metricIcon: {
     alignItems: "center",
-    backgroundColor: "#EEF9FA",
+    backgroundColor: pickThemed(colors, "#EEF9FA", colors.card),
     borderRadius: radii.sm,
     height: 42,
     justifyContent: "center",
@@ -639,13 +657,13 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   metricLabel: {
-    color: "#1B3854",
+    color: pickThemed(colors, "#1B3854", colors.ink),
     fontFamily: typography.family,
     fontSize: 18,
     fontWeight: "700",
   },
   metricHint: {
-    color: "#7289A0",
+    color: pickThemed(colors, "#7289A0", colors.muted),
     fontFamily: typography.family,
     fontSize: typography.body,
     lineHeight: 22,
@@ -679,7 +697,7 @@ const styles = StyleSheet.create({
   },
   tabButton: {
     alignItems: "center",
-    backgroundColor: "#F0F0F0",
+    backgroundColor: colors.fieldMuted,
     borderBottomColor: "transparent",
     borderBottomWidth: 2,
     borderTopLeftRadius: radii.md,
@@ -850,7 +868,7 @@ const styles = StyleSheet.create({
     color: "#00B14F",
   },
   txAmountWithdraw: {
-    color: "#C0392B",
+    color: pickThemed(colors, "#C0392B", colors.danger),
   },
   txStatusPill: {
     borderRadius: 999,
@@ -863,26 +881,26 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   txStatusPillSuccess: {
-    backgroundColor: "#E6F7ED",
+    backgroundColor: pickThemed(colors, "#E6F7ED", colors.primarySoft),
   },
   txStatusTextSuccess: {
     color: "#00B14F",
   },
   txStatusPillPending: {
-    backgroundColor: "#FFF4E5",
+    backgroundColor: pickThemed(colors, "#FFF4E5", colors.warningSoft),
   },
   txStatusTextPending: {
-    color: "#B26A00",
+    color: pickThemed(colors, "#B26A00", "#E8B057"),
   },
   txStatusPillFailed: {
-    backgroundColor: "#FDECEC",
+    backgroundColor: pickThemed(colors, "#FDECEC", "rgba(248, 113, 113, 0.16)"),
   },
   txStatusTextFailed: {
-    color: "#C0392B",
+    color: pickThemed(colors, "#C0392B", colors.danger),
   },
   tableShell: {
-    backgroundColor: "#F9FAFB",
-    borderColor: "#E0E0E0",
+    backgroundColor: colors.fieldMuted,
+    borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,
     boxShadow: shadows.cardCss,
@@ -923,3 +941,4 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 });
+}

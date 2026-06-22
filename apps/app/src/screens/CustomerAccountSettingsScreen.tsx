@@ -19,12 +19,16 @@ import {
 } from "react-native";
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
+import { AppearanceSection } from "@mobile/components/AppearanceSection";
 import { LineAppIcon } from "@mobile/components/LineAppIcon";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { useToast } from "@mobile/hooks/useToast";
 import { mobileShellLayout, webAccountSettingsPage } from "@mobile/design/webDesignParity";
-import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
+import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 // Web-parity "Join our Community" banner images. The "Join Us on" text + brand logo are baked
 // into each PNG, matching the web SubPage which renders /images/account-settings/community/<id>.png.
@@ -63,6 +67,7 @@ const communityBanners: Record<CommunityCardModel["id"], ImageSourcePropType> = 
 };
 
 export function CustomerAccountSettingsScreen() {
+  const styles = useThemedStyles(createAccountSettingsScreenStyles);
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
 
@@ -72,6 +77,7 @@ export function CustomerAccountSettingsScreen() {
           (web parity: the SubPage topbar is md:hidden). */}
       {isDesktop ? null : <AccountSettingsTopBar />}
       <View style={styles.content}>
+        <AppearanceSection />
         <SubscriptionSection />
         <NotificationSection />
         <CommunitySection />
@@ -82,6 +88,7 @@ export function CustomerAccountSettingsScreen() {
 }
 
 function AccountSettingsSubPage({ children }: { children: ReactNode }) {
+  const styles = useThemedStyles(createAccountSettingsScreenStyles);
   const tc = useCopy();
   return (
     <AccountPageShell activeRouteId="profile" showTitle={false} title={tc(webAccountSettingsPage.title)}>
@@ -91,6 +98,8 @@ function AccountSettingsSubPage({ children }: { children: ReactNode }) {
 }
 
 function AccountSettingsTopBar() {
+  const styles = useThemedStyles(createAccountSettingsScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   return (
     <Link asChild href="/profile">
@@ -103,6 +112,7 @@ function AccountSettingsTopBar() {
 }
 
 function SubscriptionSection() {
+  const styles = useThemedStyles(createAccountSettingsScreenStyles);
   const tc = useCopy();
   return (
     <View style={styles.section}>
@@ -125,6 +135,7 @@ function SubscriptionSection() {
 }
 
 function NotificationSection() {
+  const styles = useThemedStyles(createAccountSettingsScreenStyles);
   const tc = useCopy();
   // Defaults match the web (Figma): Line off, Email on. The toggles are display-only
   // ("Coming soon"), so the value is fixed — there is no setter wired.
@@ -154,6 +165,8 @@ function NotificationRow({
   enabled: boolean;
   row: NotificationRowModel;
 }) {
+  const styles = useThemedStyles(createAccountSettingsScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
 
   return (
@@ -177,9 +190,9 @@ function NotificationRow({
       <Switch
         accessibilityLabel={tc(row.label)}
         disabled
-        ios_backgroundColor="#F0F0F0"
+        ios_backgroundColor={colors.border}
         thumbColor={colors.white}
-        trackColor={{ false: "#F0F0F0", true: colors.primary }}
+        trackColor={{ false: colors.border, true: colors.primary }}
         value={enabled}
       />
     </View>
@@ -187,6 +200,7 @@ function NotificationRow({
 }
 
 function CommunitySection() {
+  const styles = useThemedStyles(createAccountSettingsScreenStyles);
   const tc = useCopy();
   const { width } = useWindowDimensions();
   const columns = width >= mobileShellLayout.desktopBreakpoint ? 3 : 2;
@@ -210,6 +224,7 @@ function CommunityCard({
   card: CommunityCardModel;
   columns: 2 | 3;
 }) {
+  const styles = useThemedStyles(createAccountSettingsScreenStyles);
   const tc = useCopy();
   const joinLabel = tc(webAccountSettingsPage.community.joinLabel);
 
@@ -232,14 +247,15 @@ function CommunityCard({
   );
 }
 
-// Web parity colors for the PDPA cards (web: text-[#00AA80] green action, text-[#c45c00] delete accent).
-const PDPA_GREEN = "#00AA80";
+// Web parity accent for PDPA delete actions (web: text-[#c45c00]).
 const PDPA_DANGER = "#C45C00";
 
 // PDPA data portability + erasure (web parity: PdpaDataRightsSection). Copy comes from the synced
 // i18n catalog via tc(). The web POSTs to /api/pdpa/data-subject-requests then toasts on success;
 // this build has no backend wired here, so both actions confirm via the same success toast.
 function PdpaDataRightsSection() {
+  const styles = useThemedStyles(createAccountSettingsScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const toast = useToast();
 
@@ -253,7 +269,7 @@ function PdpaDataRightsSection() {
       <View style={styles.pdpaCards}>
         <View style={styles.pdpaCard}>
           <View style={styles.pdpaCardHeader}>
-            <DownloadIcon color={PDPA_GREEN} size={24} strokeWidth={typography.iconStrokeWidth} />
+            <DownloadIcon color={colors.primaryDark} size={24} strokeWidth={typography.iconStrokeWidth} />
             <Text style={styles.pdpaCardTitle}>{tc("Download my data")}</Text>
           </View>
           <Text style={styles.pdpaCardBody}>
@@ -291,7 +307,8 @@ function PdpaDataRightsSection() {
   );
 }
 
-const styles = StyleSheet.create({
+function createAccountSettingsScreenStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   surface: {
     backgroundColor: colors.card,
     borderColor: colors.border,
@@ -341,7 +358,7 @@ const styles = StyleSheet.create({
     lineHeight: 28,
   },
   subscriptionCard: {
-    borderColor: "rgba(152,152,152,0.4)",
+    borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,
     gap: 12,
@@ -381,7 +398,7 @@ const styles = StyleSheet.create({
   },
   notificationRow: {
     alignItems: "center",
-    borderColor: "rgba(152,152,152,0.4)",
+    borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,
     flexDirection: "row",
@@ -406,13 +423,13 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   comingSoonPill: {
-    backgroundColor: "#F0F0F0",
+    backgroundColor: colors.border,
     borderRadius: radii.chip,
     paddingHorizontal: 10,
     paddingVertical: 2,
   },
   comingSoonText: {
-    color: "#6B7280",
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: 12,
     fontWeight: "500",
@@ -441,7 +458,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   pdpaSection: {
-    borderTopColor: "#E4E4E4",
+    borderTopColor: colors.border,
     borderTopWidth: 1,
     gap: spacing.md,
     paddingTop: spacing.lg,
@@ -450,16 +467,16 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   pdpaCard: {
-    backgroundColor: colors.white,
-    borderColor: "#E4E4E4",
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,
     gap: 12,
     padding: spacing.md,
   },
   pdpaCardDanger: {
-    backgroundColor: "#FFFAF5",
-    borderColor: "#F0E6D6",
+    backgroundColor: colors.warningSoft,
+    borderColor: colors.border,
   },
   pdpaCardHeader: {
     alignItems: "center",
@@ -473,14 +490,14 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   pdpaCardBody: {
-    color: "#5A5A5A",
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: 14,
     lineHeight: 20,
   },
   pdpaPrimaryButton: {
     alignItems: "center",
-    backgroundColor: PDPA_GREEN,
+    backgroundColor: colors.primaryDark,
     borderRadius: radii.chip,
     justifyContent: "center",
     minHeight: 44,
@@ -513,10 +530,12 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   pdpaFootnote: {
-    color: "#6B7280",
+    color: colors.textSoft,
     fontFamily: typography.family,
     fontSize: 12,
     lineHeight: 18,
     textAlign: "center",
   },
 });
+}
+

@@ -5,7 +5,10 @@ import type { MobileSession } from "@mobile/auth/session";
 import { GoGoPassAvatar } from "@mobile/components/GoGoPassAvatar";
 import { GoGoPassMark } from "@mobile/components/GoGoPassMark";
 import { webProfileWalletSummary } from "@mobile/design/webDesignParity";
-import { colors, typography } from "@mobile/theme/tokens";
+import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { typography } from "@mobile/theme/tokens";
 
 import profileAvatarImage from "../../assets/profile-avatar.png";
 
@@ -18,6 +21,8 @@ function isPremiumTier(tier?: string): boolean {
 // Flat 16x9 chevron — parity with the web `ArrowIcon`. Points down; rotates 180°
 // (to point up) while the account popover is open, mirroring `rotate-180`.
 function ProfileChevron({ open }: { open?: boolean }) {
+  const styles = useThemedStyles(createProfileBarStyles);
+  const { colors } = useTheme();
   return (
     <View style={open ? styles.chevronOpen : undefined}>
       <Svg fill="none" height={9} viewBox="0 0 16 9" width={16}>
@@ -42,6 +47,8 @@ function ProfileChevron({ open }: { open?: boolean }) {
  * while the account popover is open; the wrapping press lives in the header.
  */
 export function CustomerProfileBar({ open, session }: { open?: boolean; session: MobileSession }) {
+  const styles = useThemedStyles(createProfileBarStyles);
+  const { colors } = useTheme();
   const username =
     typeof session.username === "string" && session.username
       ? session.username
@@ -65,7 +72,7 @@ export function CustomerProfileBar({ open, session }: { open?: boolean; session:
   const premium = isPremiumTier(tier);
 
   return (
-    <View style={[styles.panel, softPanelGradient]}>
+    <View style={[styles.panel, colors.isDark ? null : softPanelGradient]}>
       <GoGoPassAvatar ringWidth={2} size={AVATAR_SIZE} tier={tier}>
         <Image
           accessibilityLabel="Avatar"
@@ -101,11 +108,12 @@ const softPanelGradient = {
   backgroundImage: "linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 250, 244, 0.92))",
 } as unknown as ViewStyle;
 
-const styles = StyleSheet.create({
+function createProfileBarStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   panel: {
     alignItems: "center",
-    backgroundColor: "#FBFEFB",
-    borderColor: "rgba(195, 209, 196, 0.75)",
+    backgroundColor: colors.card,
+    borderColor: pickThemed(colors, "rgba(195, 209, 196, 0.75)", colors.border),
     borderRadius: 999,
     borderWidth: 1,
     boxShadow: "0 4px 10px rgba(0, 0, 0, 0.1)",
@@ -132,7 +140,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   namePremium: {
-    color: "#3B3B3B",
+    color: colors.ink,
     fontWeight: "600",
   },
   nameFree: {
@@ -152,3 +160,5 @@ const styles = StyleSheet.create({
     transform: [{ rotate: "180deg" }],
   },
 });
+}
+

@@ -14,7 +14,10 @@ import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { haptics } from "@mobile/lib/haptics";
 import { mobileShellLayout, webMembershipLanding } from "@mobile/design/webDesignParity";
-import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
+import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 const memberBenefits = [
   "2 fee-free withdrawals",
@@ -49,6 +52,8 @@ const MEMBERSHIP_TRUST = [
 ] as const;
 
 export function CustomerMembershipScreen() {
+  const styles = useThemedStyles(createMembershipScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
@@ -247,6 +252,8 @@ function PerkCard({
   icon: "sparkles" | "support" | "wallet";
   title: string;
 }) {
+  const styles = useThemedStyles(createMembershipScreenStyles);
+  const { colors } = useTheme();
   const Icon = icon === "wallet" ? WalletIcon : icon === "support" ? HeadphonesIcon : SparklesIcon;
   const tc = useCopy();
 
@@ -261,7 +268,8 @@ function PerkCard({
   );
 }
 
-const styles = StyleSheet.create({
+function createMembershipScreenStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   membershipStack: {
     gap: spacing.homeStackGap,
     width: "100%",
@@ -586,3 +594,5 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 });
+}
+

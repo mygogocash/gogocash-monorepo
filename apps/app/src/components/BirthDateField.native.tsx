@@ -6,7 +6,9 @@ import DateTimePicker, {
 
 import type { BirthDateFieldProps } from "@mobile/components/BirthDateField.types";
 import { dateToDmy, parseDmyDate } from "@mobile/lib/birthdate";
-import { colors, typography } from "@mobile/theme/tokens";
+import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { typography } from "@mobile/theme/tokens";
 
 const DEFAULT_DOB = new Date(2000, 0, 1);
 
@@ -25,6 +27,7 @@ export function BirthDateField({
   onBlur,
   testID,
 }: BirthDateFieldProps) {
+  const styles = useThemedStyles(createBirthDateFieldNativeStyles);
   const [open, setOpen] = useState(false);
   const selected = parseDmyDate(value) ?? DEFAULT_DOB;
 
@@ -66,20 +69,22 @@ export function BirthDateField({
   );
 }
 
-const styles = StyleSheet.create({
-  trigger: {
-    flex: 1,
-    justifyContent: "center",
-    minHeight: 24,
-  },
-  value: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 16,
-  },
-  placeholder: {
-    color: "#7F7F7F",
-    fontFamily: typography.family,
-    fontSize: 16,
-  },
-});
+function createBirthDateFieldNativeStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    trigger: {
+      flex: 1,
+      justifyContent: "center",
+      minHeight: 24,
+    },
+    value: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 16,
+    },
+    placeholder: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 16,
+    },
+  });
+}

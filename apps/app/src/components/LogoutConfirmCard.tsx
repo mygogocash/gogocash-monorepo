@@ -2,7 +2,10 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
-import { colors, radii, spacing, typography } from "@mobile/theme/tokens";
+import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, spacing, typography } from "@mobile/theme/tokens";
 
 /**
  * Confirm prompt shown before tearing down the session. Shared by the mobile
@@ -18,6 +21,7 @@ export function LogoutConfirmCard({
   pending: boolean;
 }) {
   const tc = useCopy();
+  const styles = useThemedStyles(createLogoutConfirmCardStyles);
   return (
     <View style={styles.card}>
       <Text style={styles.title}>{tc("Log out of GoGoCash?")}</Text>
@@ -48,7 +52,8 @@ export function LogoutConfirmCard({
   );
 }
 
-const styles = StyleSheet.create({
+function createLogoutConfirmCardStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   card: {
     backgroundColor: colors.card,
     borderColor: colors.border,
@@ -103,3 +108,5 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 });
+}
+

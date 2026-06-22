@@ -29,7 +29,8 @@ describe("Expo ProfileBar pixel parity", () => {
     expect(profileBar).toContain("borderRadius: 999");
     expect(profileBar).toContain("gap: 10");
     expect(profileBar).toContain("paddingHorizontal: 8");
-    expect(profileBar).toContain('borderColor: "rgba(195, 209, 196, 0.75)"');
+    // Border keeps its light literal but adapts in dark via pickThemed.
+    expect(profileBar).toContain('"rgba(195, 209, 196, 0.75)"');
     // --gc-shadow-soft: 0 4px 10px rgba(0, 0, 0, 0.1)
     expect(profileBar).toContain('boxShadow: "0 4px 10px rgba(0, 0, 0, 0.1)"');
     expect(profileBar).toContain(
@@ -48,7 +49,8 @@ describe("Expo ProfileBar pixel parity", () => {
   it("profile bar > given name + balance > then matches the web typography", () => {
     // name: text-[13px], premium font-semibold text-[#3B3B3B] / free text-[#87948B]
     expect(profileBar).toContain("fontSize: 13");
-    expect(profileBar).toContain('color: "#3B3B3B"');
+    // Theme token (light value == the web #3B3B3B); free tier keeps the literal grey.
+    expect(profileBar).toContain("color: colors.ink");
     expect(profileBar).toContain('color: "#87948B"');
     // balance: text-[14px] font-medium tabular-nums, color designSystemColor.mint (#00cc99 = colors.primary)
     expect(profileBar).toContain("fontSize: 14");

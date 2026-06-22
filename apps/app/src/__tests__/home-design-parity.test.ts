@@ -914,7 +914,7 @@ describe("Expo home design parity", () => {
     expect(headerStyle).toContain("paddingBottom: 72");
     expect(pageScrollStyle).toContain("flex: 1");
     expect(pageScrollContentStyle).toContain('width: "100%"');
-    expect(contentScrollStyle).toContain('backgroundColor: "#FFFFFF"');
+    expect(contentScrollStyle).toContain("backgroundColor: colors.card");
     expect(contentScrollStyle).toContain("borderTopLeftRadius: 34");
     expect(contentScrollStyle).toContain("borderTopRightRadius: 34");
     expect(homeScreenSource).toContain("paddingHorizontal: 24");

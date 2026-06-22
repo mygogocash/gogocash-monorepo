@@ -1,22 +1,9 @@
+import { lightColors } from "@mobile/theme/colorPalettes";
+
 const isNativeRuntime = process.env.EXPO_OS === "ios" || process.env.EXPO_OS === "android";
 
-export const colors = {
-  background: "#F6F6F6",
-  border: "#E4E4E4",
-  borderStrong: "#D8E2D9",
-  card: "#FFFFFF",
-  ink: "#3B3B3B",
-  muted: "#7F7F7F",
-  primary: "#00CC99",
-  primaryDark: "#00AA80",
-  primarySoft: "#D8F8EF",
-  accent: "#005D46",
-  accentSoft: "#007D5E",
-  textSoft: "#989898",
-  warningSoft: "#FFF7E6",
-  white: "#FFFFFF",
-  danger: "#CD0D0D",
-} as const;
+/** @deprecated Prefer `useThemeColors()` for theme-aware UI. Static light palette for legacy imports. */
+export const colors = lightColors;
 
 export const radii = {
   sm: 8,

@@ -5,7 +5,10 @@ import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { haptics } from "@mobile/lib/haptics";
 import { motion } from "@mobile/theme/motion";
-import { colors, radii, spacing } from "@mobile/theme/tokens";
+import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, spacing } from "@mobile/theme/tokens";
 
 import type { GoGoSenseDetector } from "./detector";
 import { useGoGoSense, type GoGoSenseHookApi } from "./useGoGoSense";
@@ -32,6 +35,7 @@ export function GoGoSenseDetectionBanner({
   api: apiOverride,
   openUrl,
 }: GoGoSenseDetectionBannerProps) {
+  const styles = useThemedStyles(createGoGoSenseDetectionBannerStyles);
   const tc = useCopy();
   const liveApi = useGoGoSenseApi();
   const api = apiOverride ?? liveApi ?? inertApi;
@@ -92,7 +96,8 @@ export function GoGoSenseDetectionBanner({
   );
 }
 
-const styles = StyleSheet.create({
+function createGoGoSenseDetectionBannerStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   banner: {
     backgroundColor: colors.primarySoft,
     borderRadius: radii.lg,
@@ -122,3 +127,5 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 });
+}
+

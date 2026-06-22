@@ -39,7 +39,10 @@ import { WalletSkeleton } from "@mobile/components/Skeleton";
 import { useToast } from "@mobile/hooks/useToast";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { mobileShellLayout, profileInviteUrl, webReferralPage } from "@mobile/design/webDesignParity";
-import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
+import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 import referralGiftImage from "../../assets/referral-gift.png";
 import helpBubbleIconImage from "../../assets/referral-help-bubble-icon.png";
 // referral-step-banner.png is no longer used — the steps render as numbered cards.
@@ -49,6 +52,7 @@ type SocialLinkId = SocialLink["id"];
 type FaqItem = (typeof webReferralPage.faq.items)[number];
 
 export function CustomerReferralScreen() {
+  const styles = useThemedStyles(createReferralScreenStyles);
   const tc = useCopy();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
@@ -120,6 +124,7 @@ function useCopyReferralLink(): () => void {
 }
 
 function ReferralSubPage({ children }: { children: ReactNode }) {
+  const styles = useThemedStyles(createReferralScreenStyles);
   const tc = useCopy();
   return (
     <AccountPageShell activeRouteId="profile" showTitle={false} title={tc(webReferralPage.title)}>
@@ -129,6 +134,8 @@ function ReferralSubPage({ children }: { children: ReactNode }) {
 }
 
 function ReferralTopBar() {
+  const styles = useThemedStyles(createReferralScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   return (
     <Link asChild href="/profile">
@@ -147,6 +154,8 @@ function ReferralEarnCard({
   isDesktop: boolean;
   onCopyLink: () => void;
 }) {
+  const styles = useThemedStyles(createReferralScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const [copied, setCopied] = useState(false);
   // Referral code = the path segment of the (mock) invite URL — not invented.
@@ -275,6 +284,7 @@ function handleSocialPress(id: SocialLinkId, onCopyLink: () => void) {
 }
 
 function SocialIconButton({ link, onCopyLink }: { link: SocialLink; onCopyLink: () => void }) {
+  const styles = useThemedStyles(createReferralScreenStyles);
   return (
     <MotionPressable
       accessibilityLabel={link.label}
@@ -305,6 +315,7 @@ const REFERRAL_INVITE_ROWS = [
 ] as const;
 
 function ReferralInvitationPanel({ liveRows }: { liveRows: ReferralInviteRow[] | null }) {
+  const styles = useThemedStyles(createReferralScreenStyles);
   const tc = useCopy();
   const [activeTab, setActiveTab] = useState(0);
   return (
@@ -323,6 +334,7 @@ function ReferralInvitationTabs({
   activeTab: number;
   onSelectTab: (index: number) => void;
 }) {
+  const styles = useThemedStyles(createReferralScreenStyles);
   const tc = useCopy();
   return (
     <View accessibilityRole="tablist" style={styles.tabs}>
@@ -356,6 +368,7 @@ function ReferralInvitationTable({
   activeTab: number;
   liveRows: ReferralInviteRow[] | null;
 }) {
+  const styles = useThemedStyles(createReferralScreenStyles);
   const tc = useCopy();
   const category = REFERRAL_TAB_CATEGORIES[activeTab] ?? null;
   const sourceRows: readonly ReferralInviteRow[] = liveRows ?? REFERRAL_INVITE_ROWS;
@@ -390,6 +403,7 @@ function ReferralInvitationTable({
 // Premium "how it works": the 3 fixture steps as numbered cards (was a single flat banner image),
 // so the copy → share → earn flow is scannable at a glance.
 function ReferralStepsSection() {
+  const styles = useThemedStyles(createReferralScreenStyles);
   const tc = useCopy();
   return (
     <View style={styles.stepsSection}>
@@ -410,6 +424,7 @@ function ReferralStepsSection() {
 }
 
 function ReferralFaqsSection() {
+  const styles = useThemedStyles(createReferralScreenStyles);
   const tc = useCopy();
   const [expandedFaqIndex, setExpandedFaqIndex] = useState(0);
 
@@ -439,6 +454,7 @@ function ReferralFaqItem({
   item: FaqItem;
   onPress: () => void;
 }) {
+  const styles = useThemedStyles(createReferralScreenStyles);
   const tc = useCopy();
   return (
     <View style={styles.faqCard}>
@@ -478,6 +494,8 @@ const exploreShops: readonly ExploreShop[] = [
 ];
 
 function ReferralExploreShopsSection({ isDesktop }: { isDesktop: boolean }) {
+  const styles = useThemedStyles(createReferralScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   return (
     <View style={styles.exploreSection}>
@@ -508,6 +526,8 @@ function ReferralExploreShopsSection({ isDesktop }: { isDesktop: boolean }) {
 }
 
 function ExploreShopCard({ isDesktop, shop }: { isDesktop: boolean; shop: ExploreShop }) {
+  const styles = useThemedStyles(createReferralScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const [isFavorite, setIsFavorite] = useState(false);
   return (
@@ -569,7 +589,8 @@ function ExploreShopCard({ isDesktop, shop }: { isDesktop: boolean; shop: Explor
   );
 }
 
-const styles = StyleSheet.create({
+function createReferralScreenStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   surface: {
     backgroundColor: colors.card,
     borderColor: colors.border,
@@ -617,7 +638,7 @@ const styles = StyleSheet.create({
     paddingTop: 32,
   },
   earnCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderColor: "#EFEFEF",
     borderRadius: 24,
     borderWidth: 1,
@@ -652,7 +673,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   earnTitle: {
-    color: "#103522",
+    color: pickThemed(colors, "#103522", colors.accent),
     fontFamily: typography.family,
     fontSize: 32,
     fontWeight: "700",
@@ -669,7 +690,7 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   shareTitle: {
-    color: "#103522",
+    color: pickThemed(colors, "#103522", colors.accent),
     fontFamily: typography.family,
     fontSize: 21,
     fontWeight: "400",
@@ -718,7 +739,7 @@ const styles = StyleSheet.create({
   },
   codeChip: {
     alignItems: "center",
-    backgroundColor: "#E6F7ED",
+    backgroundColor: pickThemed(colors, "#E6F7ED", colors.primarySoft),
     borderColor: "rgba(0, 170, 128, 0.28)",
     borderRadius: 999,
     borderWidth: 1,
@@ -737,13 +758,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   socialSection: {
-    borderTopColor: "#EAEAEA",
+    borderTopColor: colors.border,
     borderTopWidth: 1,
     gap: 18,
     paddingTop: 24,
   },
   socialTitle: {
-    color: "#1A1A1A",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 17,
     fontWeight: "400",
@@ -757,8 +778,8 @@ const styles = StyleSheet.create({
   },
   socialButton: {
     alignItems: "center",
-    backgroundColor: colors.white,
-    borderColor: "#EEEEEE",
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderRadius: 24,
     borderWidth: 1,
     boxShadow: "0 2px 8px rgba(16, 53, 34, 0.08)",
@@ -780,7 +801,7 @@ const styles = StyleSheet.create({
     lineHeight: 40,
   },
   tabs: {
-    borderBottomColor: "#E4E4E4",
+    borderBottomColor: colors.border,
     borderBottomWidth: 1,
     flexDirection: "row",
     gap: 12,
@@ -801,11 +822,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   tabButtonActive: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderBottomColor: "#00CC99",
   },
   tabButtonInactive: {
-    backgroundColor: "#F0F0F0",
+    backgroundColor: colors.fieldMuted,
   },
   tabText: {
     fontFamily: typography.family,
@@ -818,7 +839,7 @@ const styles = StyleSheet.create({
     color: "#00B89D",
   },
   tabTextInactive: {
-    color: "#7F7F7F",
+    color: colors.muted,
   },
   tableCard: {
     backgroundColor: "rgba(255,255,255,0.36)",
@@ -860,7 +881,7 @@ const styles = StyleSheet.create({
   },
   invitationStatusPill: {
     alignSelf: "flex-start",
-    backgroundColor: "#E6F7ED",
+    backgroundColor: pickThemed(colors, "#E6F7ED", colors.primarySoft),
     borderRadius: 30,
     paddingHorizontal: 12,
     paddingVertical: 4,
@@ -875,7 +896,7 @@ const styles = StyleSheet.create({
   rewardPill: {
     alignItems: "center",
     alignSelf: "flex-start",
-    backgroundColor: "#E6F7ED",
+    backgroundColor: pickThemed(colors, "#E6F7ED", colors.primarySoft),
     borderRadius: 999,
     flexDirection: "row",
     gap: 8,
@@ -914,7 +935,7 @@ const styles = StyleSheet.create({
   },
   stepCard: {
     alignItems: "center",
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderColor: "#EFEFEF",
     borderRadius: 16,
     borderWidth: 1,
@@ -926,7 +947,7 @@ const styles = StyleSheet.create({
   },
   stepNumberBadge: {
     alignItems: "center",
-    backgroundColor: "#E6F7ED",
+    backgroundColor: pickThemed(colors, "#E6F7ED", colors.primarySoft),
     borderRadius: 18,
     height: 36,
     justifyContent: "center",
@@ -949,7 +970,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   faqTitle: {
-    color: "#3B3B3B",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 24,
     fontWeight: "700",
@@ -959,7 +980,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   faqCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderColor: "#B7E7DB",
     borderRadius: 16,
     borderWidth: 1,
@@ -984,7 +1005,7 @@ const styles = StyleSheet.create({
     width: 21,
   },
   faqQuestion: {
-    color: "#3B3B3B",
+    color: colors.ink,
     flex: 1,
     fontFamily: typography.family,
     fontSize: 16,
@@ -995,7 +1016,7 @@ const styles = StyleSheet.create({
     transform: [{ rotate: "180deg" }],
   },
   faqAnswer: {
-    color: "#7F7F7F",
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: 14,
     lineHeight: 21,
@@ -1004,7 +1025,7 @@ const styles = StyleSheet.create({
     paddingRight: 16,
   },
   exploreSection: {
-    borderTopColor: "#F0F0F0",
+    borderTopColor: colors.border,
     borderTopWidth: 1,
     gap: 24,
     marginTop: 48,
@@ -1018,7 +1039,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   exploreTitle: {
-    color: "#3B3B3B",
+    color: colors.ink,
     flex: 1,
     fontFamily: typography.family,
     fontSize: 24,
@@ -1051,8 +1072,8 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   exploreCard: {
-    backgroundColor: colors.white,
-    borderColor: "#E4E4E4",
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1,
     boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
@@ -1068,7 +1089,7 @@ const styles = StyleSheet.create({
   exploreCardBanner: {
     alignItems: "center",
     aspectRatio: 16 / 10,
-    backgroundColor: "#F6F6F6",
+    backgroundColor: colors.background,
     justifyContent: "center",
     width: "100%",
   },
@@ -1081,7 +1102,7 @@ const styles = StyleSheet.create({
   },
   exploreCardBody: {
     alignItems: "flex-start",
-    borderTopColor: "#F0F0F0",
+    borderTopColor: colors.border,
     borderTopWidth: 1,
     flexDirection: "row",
     gap: 8,
@@ -1095,7 +1116,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   exploreCardName: {
-    color: "#3B3B3B",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 15,
     fontWeight: "600",
@@ -1113,7 +1134,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   exploreCashbackLabel: {
-    color: "#7F7F7F",
+    color: colors.muted,
     flexShrink: 1,
     fontFamily: typography.family,
     fontSize: 12,
@@ -1137,7 +1158,7 @@ const styles = StyleSheet.create({
   },
   exploreFavoriteButton: {
     alignItems: "center",
-    backgroundColor: "#E6F7ED",
+    backgroundColor: pickThemed(colors, "#E6F7ED", colors.primarySoft),
     borderColor: "#E6F7ED",
     borderRadius: 999,
     borderWidth: 1,
@@ -1147,3 +1168,5 @@ const styles = StyleSheet.create({
     width: 40,
   },
 });
+}
+

@@ -27,7 +27,10 @@ import { KeyboardAwareScreen } from "@mobile/components/KeyboardAwareScreen";
 import { haptics } from "@mobile/lib/haptics";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { mobileShellLayout, webWithdrawMethodPage } from "@mobile/design/webDesignParity";
-import { colors, radii, spacing, typography, shadows } from "@mobile/theme/tokens";
+import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, spacing, typography, shadows } from "@mobile/theme/tokens";
 
 type MoneyActionMode = "method" | "methodCreate" | "myCashback" | "withdraw";
 
@@ -162,6 +165,8 @@ function MoneyActionSelect({
   hasError?: boolean;
   testID?: string;
 }) {
+  const styles = useThemedStyles(createMoneyActionScreenStyles);
+  const { colors } = useTheme();
   const [open, setOpen] = useState(false);
   const selected = options.find((option) => option.value === value) ?? null;
   const showError = hasError && !selected;
@@ -216,6 +221,8 @@ function MoneyActionSelect({
 }
 
 export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
+  const styles = useThemedStyles(createMoneyActionScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -939,7 +946,8 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
   );
 }
 
-const styles = StyleSheet.create({
+function createMoneyActionScreenStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   // Desktop "Add/Edit Withdrawal Method" sub-page form column (web parity max-w-[720px]).
   methodCreateDesktopWrap: {
     gap: spacing.md,
@@ -1077,7 +1085,7 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   tabStrip: {
-    backgroundColor: "#EBF3FA",
+    backgroundColor: pickThemed(colors, "#EBF3FA", colors.card),
     borderRadius: radii.lg,
     flexDirection: "row",
     gap: 4,
@@ -1169,7 +1177,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   switchInner: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: radii.chip,
     height: 20,
     width: 20,
@@ -1285,7 +1293,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   withdrawCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: radii.lg,
     gap: spacing.lg,
     padding: spacing.lg,
@@ -1530,3 +1538,5 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 });
+}
+

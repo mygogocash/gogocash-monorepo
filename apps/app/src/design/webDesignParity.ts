@@ -3018,6 +3018,15 @@ export const webWithdrawMethodPage = {
 
 export const webAccountSettingsPage = {
   title: "Account Settings",
+  appearance: {
+    title: "Appearance",
+    helper: "System follows your phone or browser setting.",
+    options: [
+      { id: "system", label: "System default" },
+      { id: "light", label: "Light" },
+      { id: "dark", label: "Dark" },
+    ],
+  },
   subscription: {
     title: "Your Subscription",
     description: "View and manage your GoGoCash subscription billing on Stripe.",

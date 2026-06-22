@@ -6,7 +6,10 @@ import { useLocale } from "@mobile/i18n/LocaleProvider";
 import { Globe } from "@mobile/theme/icons";
 import { webLocaleRegionPanel } from "@mobile/design/webDesignParity";
 import { motion } from "@mobile/theme/motion";
-import { colors, radii, typography } from "@mobile/theme/tokens";
+import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, typography } from "@mobile/theme/tokens";
 
 type LocaleRegionCode = (typeof webLocaleRegionPanel.regions)[number]["code"];
 
@@ -17,6 +20,7 @@ type CustomerLocaleRegionControlProps = {
 export function CustomerLocaleRegionControl({
   onExpandedChange,
 }: CustomerLocaleRegionControlProps) {
+  const styles = useThemedStyles(createLocaleRegionControlStyles);
   const [localePanelOpen, setLocalePanelOpen] = useState(false);
   const [localePanelMounted, setLocalePanelMounted] = useState(false);
   const { locale, setLocale } = useLocale();
@@ -154,6 +158,7 @@ export function CustomerLocaleRegionControl({
 }
 
 function LocaleSectionTitle({ children }: { children: string }) {
+  const styles = useThemedStyles(createLocaleRegionControlStyles);
   return <Text style={styles.desktopLocaleSectionTitle}>{children}</Text>;
 }
 
@@ -168,6 +173,7 @@ function LocaleOption({
   onPress: () => void;
   selected: boolean;
 }) {
+  const styles = useThemedStyles(createLocaleRegionControlStyles);
   return (
     <MotionPressable
       accessibilityRole="button"
@@ -189,11 +195,12 @@ function LocaleOption({
   );
 }
 
-const styles = StyleSheet.create({
+function createLocaleRegionControlStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   desktopLocaleButton: {
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.9)",
-    borderColor: "#E5E7EB",
+    backgroundColor: pickThemed(colors, "rgba(255,255,255,0.9)", colors.card),
+    borderColor: colors.border,
     borderRadius: radii.chip,
     borderWidth: 1,
     boxShadow: "0 2px 8px rgba(15, 23, 42, 0.12)",
@@ -202,7 +209,7 @@ const styles = StyleSheet.create({
     width: 44,
   },
   desktopLocaleButtonOpen: {
-    backgroundColor: "#E8FAF5",
+    backgroundColor: pickThemed(colors, "#E8FAF5", colors.primarySoft),
     borderColor: "rgba(0, 204, 153, 0.4)",
   },
   desktopLocaleRoot: {
@@ -210,8 +217,8 @@ const styles = StyleSheet.create({
     zIndex: 90,
   },
   desktopLocalePopover: {
-    backgroundColor: colors.white,
-    borderColor: "#E5E7EB",
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1,
     boxShadow: "0 18px 40px rgba(15, 23, 42, 0.16)",
@@ -223,7 +230,7 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   desktopLocaleSectionTitle: {
-    color: "#9CA3AF",
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: 12,
     fontWeight: "700",
@@ -262,7 +269,7 @@ const styles = StyleSheet.create({
     color: "#00CC99",
   },
   desktopLocaleDivider: {
-    backgroundColor: "#F3F4F6",
+    backgroundColor: colors.fieldMuted,
     height: 1,
     marginBottom: 16,
     marginTop: 16,
@@ -277,3 +284,5 @@ const styles = StyleSheet.create({
     paddingRight: 4,
   },
 });
+}
+

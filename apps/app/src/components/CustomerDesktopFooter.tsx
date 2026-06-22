@@ -1,4 +1,5 @@
 import { Link } from "expo-router";
+import { useMemo } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
@@ -12,7 +13,10 @@ import {
   webDesktopFooter,
 } from "@mobile/design/webDesignParity";
 import { motion } from "@mobile/theme/motion";
-import { colors, radii, typography } from "@mobile/theme/tokens";
+import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { getThemeSurfaces, type ThemeSurfaces } from "@mobile/theme/themeSurfaces";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { radii, typography } from "@mobile/theme/tokens";
 
 type FooterSocialIconName = (typeof webDesktopFooter.socialLinks)[number]["icon"];
 
@@ -32,6 +36,7 @@ export function CustomerDesktopFooter({
   const contentWidth = getDesktopShellContentWidth(viewportWidth);
   const footerGrid = getDesktopFooterGrid(viewportWidth);
   const tc = useCopy();
+  const styles = useFooterStyles();
   const copyright = tc(webDesktopFooter.copyrightTemplate).replace(
     "{year}",
     String(new Date().getFullYear())
@@ -123,6 +128,7 @@ function FooterTextLink({
   label: string;
 }) {
   const tc = useCopy();
+  const styles = useFooterStyles();
   return (
     <Link
       asChild
@@ -143,6 +149,7 @@ function FooterTextLink({
 }
 
 function FooterCloudflareTrust() {
+  const styles = useFooterStyles();
   return (
     <View style={styles.cloudflareBlock}>
       <Text style={styles.cloudflareLabel}>{webDesktopFooter.cloudflare.label}</Text>
@@ -172,10 +179,11 @@ function FooterCloudflareTrust() {
 }
 
 function FooterSocialIcon({ name }: { name: FooterSocialIconName }) {
+  const { colors } = useTheme();
   const path = footerSocialIconPaths[name];
 
   return (
-    <Svg fill="#3F3F46" height={18} viewBox="0 0 24 24" width={18}>
+    <Svg fill={colors.muted} height={18} viewBox="0 0 24 24" width={18}>
       <Path d={path} />
     </Svg>
   );
@@ -198,13 +206,22 @@ const footerSocialIconPaths: Record<FooterSocialIconName, string> = {
     "M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z",
 };
 
-const styles = StyleSheet.create({
-  footerOuter: {
-    backgroundColor: colors.white,
-    marginTop: 40,
-    paddingBottom: 32,
-    paddingTop: 80,
-  },
+function useFooterStyles() {
+  const { colors, resolved } = useTheme();
+  return useMemo(
+    () => createFooterStyles(colors, getThemeSurfaces(colors, resolved)),
+    [colors, resolved]
+  );
+}
+
+function createFooterStyles(colors: ThemeColors, surfaces: ThemeSurfaces) {
+  return StyleSheet.create({
+    footerOuter: {
+      backgroundColor: colors.card,
+      marginTop: 40,
+      paddingBottom: 32,
+      paddingTop: 80,
+    },
   footerContent: {
     alignSelf: "center",
   },
@@ -226,8 +243,8 @@ const styles = StyleSheet.create({
   footerColumn: {
     minWidth: 150,
   },
-  columnHeading: {
-    color: "#1F2937",
+    columnHeading: {
+      color: surfaces.footerHeading,
     fontFamily: typography.family,
     fontSize: 14,
     fontWeight: "600",
@@ -242,8 +259,8 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
     minHeight: 22,
   },
-  textLink: {
-    color: "#6B7280",
+    textLink: {
+      color: surfaces.footerLink,
     fontFamily: typography.family,
     fontSize: 14,
     fontWeight: typography.bodyWeight,
@@ -254,8 +271,8 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 24,
   },
-  cloudflareLabel: {
-    color: "#6B7280",
+    cloudflareLabel: {
+      color: surfaces.footerLink,
     fontFamily: typography.family,
     fontSize: 12,
     fontWeight: "500",
@@ -274,9 +291,9 @@ const styles = StyleSheet.create({
     height: 32,
     width: 96,
   },
-  footerBottom: {
-    alignItems: "center",
-    borderColor: "#F3F4F6",
+    footerBottom: {
+      alignItems: "center",
+      borderColor: surfaces.footerDivider,
     borderTopWidth: 1,
     flexDirection: "row",
     gap: 24,
@@ -284,8 +301,8 @@ const styles = StyleSheet.create({
     marginTop: 64,
     paddingTop: 32,
   },
-  copyright: {
-    color: "#6B7280",
+    copyright: {
+      color: surfaces.footerLink,
     fontFamily: typography.family,
     fontSize: 14,
     fontWeight: typography.bodyWeight,
@@ -305,12 +322,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 44,
   },
-  disclaimer: {
-    color: "#9CA3AF",
+    disclaimer: {
+      color: surfaces.footerMuted,
     fontFamily: typography.family,
     fontSize: 12,
     fontWeight: typography.bodyWeight,
     lineHeight: 20,
     marginTop: 32,
-  },
-});
+    },
+  });
+}

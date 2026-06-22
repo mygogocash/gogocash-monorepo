@@ -2,7 +2,9 @@ import { useEffect, useState, type ReactNode } from "react";
 import { AppState, type AppStateStatus, Image, StyleSheet, View } from "react-native";
 
 import logoMarkImage from "../../assets/nav/logo.png";
-import { colors } from "@mobile/theme/tokens";
+import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 
 // Device-lifecycle privacy: when the app leaves the foreground — the iOS app
 // switcher (state "inactive"), a backgrounded app (state "background"), or the
@@ -11,6 +13,7 @@ import { colors } from "@mobile/theme/tokens";
 // background screenshot. Pure React Native (AppState), so it works on web/native
 // without a custom native module.
 export function PrivacyScreenGuard({ children }: { children: ReactNode }) {
+  const styles = useThemedStyles(createPrivacyScreenGuardStyles);
   const [covered, setCovered] = useState(false);
 
   useEffect(() => {
@@ -39,7 +42,8 @@ export function PrivacyScreenGuard({ children }: { children: ReactNode }) {
   );
 }
 
-const styles = StyleSheet.create({
+function createPrivacyScreenGuardStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   root: {
     flex: 1,
   },
@@ -61,3 +65,5 @@ const styles = StyleSheet.create({
     width: 48,
   },
 });
+}
+

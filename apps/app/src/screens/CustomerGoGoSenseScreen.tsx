@@ -21,7 +21,10 @@ import { haptics } from "@mobile/lib/haptics";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { mobileShellLayout } from "@mobile/design/webDesignParity";
 import { motion } from "@mobile/theme/motion";
-import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
+import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 import {
   createUnsupportedGoGoSenseDetector,
   type GoGoSenseDetector,
@@ -159,6 +162,8 @@ export function CustomerGoGoSenseScreen({
   mode,
   detector = createUnsupportedGoGoSenseDetector(),
 }: GoGoSenseScreenProps) {
+  const styles = useThemedStyles(createGoGoSenseScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const insets = useSafeAreaInsets();
   const copy = gogoSenseFlowCopy[mode];
@@ -225,6 +230,7 @@ export function CustomerGoGoSenseScreen({
 }
 
 function HubContent({ detector }: { detector: GoGoSenseDetector }) {
+  const styles = useThemedStyles(createGoGoSenseScreenStyles);
   return (
     <>
       <GoGoSenseDetectionBanner detector={detector} />
@@ -264,6 +270,7 @@ function HubContent({ detector }: { detector: GoGoSenseDetector }) {
 }
 
 function OnboardingContent() {
+  const styles = useThemedStyles(createGoGoSenseScreenStyles);
   const tc = useCopy();
   return (
     <>
@@ -286,6 +293,7 @@ function OnboardingContent() {
 }
 
 function PermissionsContent({ detector }: { detector: GoGoSenseDetector }) {
+  const styles = useThemedStyles(createGoGoSenseScreenStyles);
   return (
     <>
       <View style={styles.card}>
@@ -316,6 +324,7 @@ const permissionsScopeApi = {
 };
 
 function UsageAccessControl({ detector }: { detector: GoGoSenseDetector }) {
+  const styles = useThemedStyles(createGoGoSenseScreenStyles);
   const tc = useCopy();
   const { state, refreshPermission, requestPermission } = useGoGoSense({
     detector,
@@ -365,6 +374,7 @@ function UsageAccessControl({ detector }: { detector: GoGoSenseDetector }) {
 }
 
 function TimelineContent({ api }: { api?: { getTimeline(): Promise<unknown> } | null } = {}) {
+  const styles = useThemedStyles(createGoGoSenseScreenStyles);
   const liveEntries = useGoGoSenseTimeline(api);
   return (
     <>
@@ -396,6 +406,8 @@ function TimelineContent({ api }: { api?: { getTimeline(): Promise<unknown> } | 
 }
 
 function SettingsContent() {
+  const styles = useThemedStyles(createGoGoSenseScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const { settings, setField } = useGoGoSenseSettings();
   return (
@@ -431,6 +443,7 @@ function SettingsContent() {
 }
 
 function RecoveryContent() {
+  const styles = useThemedStyles(createGoGoSenseScreenStyles);
   return (
     <>
       <View style={styles.card}>
@@ -456,6 +469,7 @@ function RecoveryContent() {
 }
 
 function MerchantContent() {
+  const styles = useThemedStyles(createGoGoSenseScreenStyles);
   return (
     <>
       <View style={styles.card}>
@@ -492,6 +506,8 @@ function SectionHeader({
   subtitle: string;
   title: string;
 }) {
+  const styles = useThemedStyles(createGoGoSenseScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   return (
     <View style={styles.sectionHeader}>
@@ -520,6 +536,8 @@ function InfoRow({
   icon: GoGoSenseIcon;
   title: string;
 }) {
+  const styles = useThemedStyles(createGoGoSenseScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   return (
     <View style={styles.infoRow}>
@@ -540,6 +558,7 @@ function InfoRow({
 }
 
 function TimelineRow({ body, status, title }: { body: string; status: string; title: string }) {
+  const styles = useThemedStyles(createGoGoSenseScreenStyles);
   const tc = useCopy();
   return (
     <View style={styles.timelineRow}>
@@ -566,6 +585,7 @@ function TimelineRow({ body, status, title }: { body: string; status: string; ti
 }
 
 function PrimaryLink({ href, label }: { href: string; label: string }) {
+  const styles = useThemedStyles(createGoGoSenseScreenStyles);
   const tc = useCopy();
   return (
     <Link asChild href={href as never}>
@@ -586,6 +606,7 @@ function PrimaryLink({ href, label }: { href: string; label: string }) {
 }
 
 function SecondaryLink({ href, label }: { href: string; label: string }) {
+  const styles = useThemedStyles(createGoGoSenseScreenStyles);
   const tc = useCopy();
   return (
     <Link asChild href={href as never}>
@@ -605,7 +626,8 @@ function SecondaryLink({ href, label }: { href: string; label: string }) {
   );
 }
 
-const styles = StyleSheet.create({
+function createGoGoSenseScreenStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   viewport: {
     alignItems: "center",
     backgroundColor: colors.background,
@@ -828,7 +850,7 @@ const styles = StyleSheet.create({
     width: 48,
   },
   settingSwitchKnob: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: 11,
     height: 22,
     width: 22,
@@ -873,3 +895,5 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 });
+}
+

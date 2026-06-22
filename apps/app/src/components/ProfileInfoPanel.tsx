@@ -22,7 +22,10 @@ import { parseDmyDate } from "@mobile/lib/birthdate";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { useToast } from "@mobile/hooks/useToast";
 import { mobileShellLayout, webProfileInfoCashbackCard } from "@mobile/design/webDesignParity";
-import { colors, radii, spacing, typography } from "@mobile/theme/tokens";
+import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, spacing, typography } from "@mobile/theme/tokens";
 
 // Identity validators were too loose — passport was length-only (accepted "#@!ABC1" despite the
 // "alphanumeric" copy), and birthdate was format-only (accepted "45-13-2026" and future dates).
@@ -169,6 +172,7 @@ const PROFILE_SOCIAL_PROVIDERS: { brand: ProfileSocialBrand; label: string }[] =
  * Linking routes to /link-mycashback; unlink is a placeholder (toast) like the web demo.
  */
 function ProfileMyCashbackLinkSection() {
+  const styles = useThemedStyles(createProfileInfoPanelStyles);
   const tc = useCopy();
   const toast = useToast();
   return (
@@ -217,6 +221,7 @@ function ProfileMyCashbackLinkSection() {
  * mark + a green Link pill. Linking is a placeholder (toast) like the web demo. 2-col on desktop.
  */
 function ProfileSocialLinkSection() {
+  const styles = useThemedStyles(createProfileInfoPanelStyles);
   const tc = useCopy();
   const toast = useToast();
   const { width } = useWindowDimensions();
@@ -254,6 +259,8 @@ function ProfileSocialLinkSection() {
 }
 
 function ProfileCashbackSummaryCard() {
+  const styles = useThemedStyles(createProfileInfoPanelStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   return (
     <View style={styles.profileCashbackCard}>
@@ -361,6 +368,8 @@ function ProfilePersonalInformationPanel({
   username: string;
   zip: string;
 }) {
+  const styles = useThemedStyles(createProfileInfoPanelStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
@@ -421,7 +430,7 @@ function ProfilePersonalInformationPanel({
             onChangeText={setUsername}
             onFocus={() => setFocusedField("name")}
             placeholder={tc("Name")}
-            placeholderTextColor={FIELD_PLACEHOLDER}
+            placeholderTextColor={colors.muted}
             style={styles.textInput}
             value={username}
           />
@@ -459,7 +468,7 @@ function ProfilePersonalInformationPanel({
             onChangeText={setIdNumber}
             onFocus={() => setFocusedField("id")}
             placeholder={tc("Citizen or Passport ID")}
-            placeholderTextColor={FIELD_PLACEHOLDER}
+            placeholderTextColor={colors.muted}
             style={styles.textInput}
             value={idNumber}
           />
@@ -473,7 +482,7 @@ function ProfilePersonalInformationPanel({
             onChangeText={setAddress}
             onFocus={() => setFocusedField("address")}
             placeholder={tc("Legal Address")}
-            placeholderTextColor={FIELD_PLACEHOLDER}
+            placeholderTextColor={colors.muted}
             style={styles.textInput}
             value={address}
           />
@@ -507,7 +516,7 @@ function ProfilePersonalInformationPanel({
                     onChangeText={setZip}
                     onFocus={() => setFocusedField("zip")}
                     placeholder={tc("Zip Code")}
-                    placeholderTextColor={FIELD_PLACEHOLDER}
+                    placeholderTextColor={colors.muted}
                     style={styles.textInput}
                     value={zip}
                   />
@@ -527,7 +536,7 @@ function ProfilePersonalInformationPanel({
               <TextInput
                 editable={false}
                 placeholder={tc("Email")}
-                placeholderTextColor={FIELD_PLACEHOLDER}
+                placeholderTextColor={colors.muted}
                 style={styles.textInput}
                 value={email}
               />
@@ -541,7 +550,7 @@ function ProfilePersonalInformationPanel({
               <TextInput
                 editable={false}
                 placeholder={tc("Phone Number")}
-                placeholderTextColor={FIELD_PLACEHOLDER}
+                placeholderTextColor={colors.muted}
                 style={styles.textInput}
                 value={phone}
               />
@@ -581,6 +590,8 @@ function ProfilePersonalInformationPanel({
 }
 
 function ProfileDropdownDisplay({ placeholder, value }: { placeholder: string; value: string }) {
+  const styles = useThemedStyles(createProfileInfoPanelStyles);
+  const { colors } = useTheme();
   return (
     <View style={styles.dropdownBox}>
       <Text style={value ? styles.dropdownValue : styles.dropdownPlaceholder}>
@@ -591,9 +602,8 @@ function ProfileDropdownDisplay({ placeholder, value }: { placeholder: string; v
   );
 }
 
-const FIELD_PLACEHOLDER = "#7F7F7F";
-
-const styles = StyleSheet.create({
+function createProfileInfoPanelStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   profileCashbackCard: {
     backgroundColor: colors.card,
     borderColor: colors.border,
@@ -602,8 +612,8 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   profileCashbackTop: {
-    backgroundColor: "#F3FCF9",
-    borderBottomColor: "#E8F5EF",
+    backgroundColor: pickThemed(colors, "#F3FCF9", colors.primarySoft),
+    borderBottomColor: pickThemed(colors, "#E8F5EF", colors.border),
     borderBottomWidth: 1,
     gap: spacing.lg,
     padding: spacing.lg,
@@ -615,8 +625,8 @@ const styles = StyleSheet.create({
   },
   profileCashbackIconBubble: {
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.82)",
-    borderColor: "#D1FAE5",
+    backgroundColor: pickThemed(colors, "rgba(255,255,255,0.82)", colors.card),
+    borderColor: pickThemed(colors, "#D1FAE5", colors.border),
     borderRadius: 16,
     borderWidth: 1,
     boxShadow: "0 2px 8px rgba(16,53,34,0.08)",
@@ -656,8 +666,8 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   profileCashbackAvailableBox: {
-    backgroundColor: "rgba(255,255,255,0.9)",
-    borderColor: "rgba(209,250,229,0.8)",
+    backgroundColor: pickThemed(colors, "rgba(255,255,255,0.9)", colors.card),
+    borderColor: pickThemed(colors, "rgba(209,250,229,0.8)", colors.border),
     borderRadius: 16,
     borderWidth: 1,
     paddingHorizontal: spacing.md,
@@ -683,9 +693,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0,
   },
   profileCashbackCurrencyPill: {
-    backgroundColor: "#E7F8EE",
+    backgroundColor: pickThemed(colors, "#E7F8EE", colors.primarySoft),
     borderRadius: radii.chip,
-    color: "#0F5132",
+    color: pickThemed(colors, "#0F5132", colors.accent),
     fontFamily: typography.family,
     fontSize: 14,
     fontWeight: "600",
@@ -705,8 +715,8 @@ const styles = StyleSheet.create({
   },
   profileCashbackBreakdownRow: {
     alignItems: "center",
-    backgroundColor: "#FAFAFA",
-    borderColor: "#F0F0F0",
+    backgroundColor: colors.fieldMuted,
+    borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1,
     flexDirection: "row",
@@ -783,21 +793,21 @@ const styles = StyleSheet.create({
     outlineWidth: 0,
   },
   myCashbackLinkCta: {
-    color: "#0064D6",
+    color: colors.link,
     fontFamily: typography.family,
     fontSize: 16,
     fontWeight: "500",
     textDecorationLine: "underline",
   },
   myCashbackDescription: {
-    color: "#7F7F7F",
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: 14,
     lineHeight: 21,
   },
   linkedAccountRow: {
     alignItems: "center",
-    borderColor: "rgba(152, 152, 152, 0.4)",
+    borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,
     flexDirection: "row",
@@ -843,7 +853,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   unlinkText: {
-    color: "#0064D6",
+    color: colors.link,
     fontFamily: typography.family,
     fontSize: 12,
     fontWeight: "500",
@@ -862,8 +872,8 @@ const styles = StyleSheet.create({
   },
   socialRow: {
     alignItems: "center",
-    backgroundColor: colors.white,
-    borderColor: "#E4E4E4",
+    backgroundColor: colors.field,
+    borderColor: colors.border,
     borderRadius: radii.chip,
     borderWidth: 1,
     flexDirection: "row",
@@ -953,8 +963,8 @@ const styles = StyleSheet.create({
   },
   inputBox: {
     alignItems: "center",
-    backgroundColor: colors.white,
-    borderColor: "rgba(152,152,152,0.4)",
+    backgroundColor: colors.field,
+    borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1,
     flexDirection: "row",
@@ -1020,8 +1030,8 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   regionBox: {
-    backgroundColor: "#FAFAFA",
-    borderColor: "#E4E4E4",
+    backgroundColor: colors.fieldMuted,
+    borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1,
     padding: 16,
@@ -1052,8 +1062,8 @@ const styles = StyleSheet.create({
   },
   dropdownBox: {
     alignItems: "center",
-    backgroundColor: colors.white,
-    borderColor: "rgba(152,152,152,0.4)",
+    backgroundColor: colors.field,
+    borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1,
     flexDirection: "row",
@@ -1070,7 +1080,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   dropdownPlaceholder: {
-    color: "#7F7F7F",
+    color: colors.muted,
     flex: 1,
     fontFamily: typography.family,
     fontSize: 16,
@@ -1085,7 +1095,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   linkText: {
-    color: "#0064D6",
+    color: colors.link,
     fontFamily: typography.family,
     fontSize: 14,
     textAlign: "right",
@@ -1132,3 +1142,5 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 });
+}
+

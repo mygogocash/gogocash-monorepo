@@ -12,11 +12,15 @@ import { MotionPressable } from "@mobile/components/MotionPressable";
 import { haptics } from "@mobile/lib/haptics";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { mobileShellLayout, webWithdrawMethodPage } from "@mobile/design/webDesignParity";
-import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
+import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 type WithdrawMethod = (typeof webWithdrawMethodPage.methods)[number];
 
 export function CustomerWithdrawMethodScreen() {
+  const styles = useThemedStyles(createWithdrawMethodScreenStyles);
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
 
@@ -34,6 +38,7 @@ export function CustomerWithdrawMethodScreen() {
 }
 
 function WithdrawMethodSubPage({ children }: { children: ReactNode }) {
+  const styles = useThemedStyles(createWithdrawMethodScreenStyles);
   const tc = useCopy();
   return (
     <AccountPageShell activeRouteId="profile" showTitle={false} title={tc(webWithdrawMethodPage.title)}>
@@ -43,6 +48,8 @@ function WithdrawMethodSubPage({ children }: { children: ReactNode }) {
 }
 
 function WithdrawMethodTopBar() {
+  const styles = useThemedStyles(createWithdrawMethodScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   return (
     <Link asChild href="/profile">
@@ -57,6 +64,8 @@ function WithdrawMethodTopBar() {
 }
 
 function WithdrawMethodHeader() {
+  const styles = useThemedStyles(createWithdrawMethodScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   return (
     <View style={styles.headerRow}>
@@ -72,6 +81,7 @@ function WithdrawMethodHeader() {
 }
 
 function WithdrawMethodGrid() {
+  const styles = useThemedStyles(createWithdrawMethodScreenStyles);
   const { width } = useWindowDimensions();
   const twoColumn = width >= mobileShellLayout.desktopBreakpoint;
 
@@ -95,6 +105,8 @@ function WithdrawMethodBankCard({
   method: WithdrawMethod;
   style: object;
 }) {
+  const styles = useThemedStyles(createWithdrawMethodScreenStyles);
+  const { colors } = useTheme();
   return (
     <Link asChild href={`/method/create?id=${method.id}` as never}>
       {/* Wave B (B3) — selecting a saved payout method is a meaningful pick, so a
@@ -125,6 +137,7 @@ function WithdrawMethodBankCard({
 }
 
 function DefaultBadge() {
+  const styles = useThemedStyles(createWithdrawMethodScreenStyles);
   const tc = useCopy();
   return (
     <View style={styles.defaultBadge}>
@@ -133,7 +146,8 @@ function DefaultBadge() {
   );
 }
 
-const styles = StyleSheet.create({
+function createWithdrawMethodScreenStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   surface: {
     backgroundColor: colors.card,
     borderColor: colors.border,
@@ -178,7 +192,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   heading: {
-    color: "#102217",
+    color: pickThemed(colors, "#102217", colors.accent),
     flex: 1,
     fontFamily: typography.family,
     fontSize: 22,
@@ -238,7 +252,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   methodAccountName: {
-    color: "#103522",
+    color: pickThemed(colors, "#103522", colors.accent),
     fontFamily: typography.family,
     fontSize: 20,
     fontWeight: "600",
@@ -277,3 +291,5 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 });
+}
+

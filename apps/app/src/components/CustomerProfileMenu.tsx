@@ -27,7 +27,10 @@ import { webProfileWalletHeroSurface, webProfileWalletSummary } from "@mobile/de
 import { profileHubMenuItems } from "@mobile/design/webDesignParity";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { ExternalLink as ExternalLinkIcon, LogOut as LogOutIcon } from "@mobile/theme/icons";
-import { colors, typography } from "@mobile/theme/tokens";
+import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { typography } from "@mobile/theme/tokens";
 
 import profileAvatarImage from "../../assets/profile-avatar.png";
 
@@ -47,12 +50,14 @@ function deriveSummary(session: MobileSession) {
 
 // Down-arrow-into-tray glyph — parity with the web `WithdrawIcon`
 // (src/components/icons/WithdrawIcon.tsx) used on the popover's Withdraw pill.
-function WithdrawGlyph({ color = colors.white, size = 16 }: { color?: string; size?: number }) {
+function WithdrawGlyph({ color, size = 16 }: { color?: string; size?: number }) {
+  const { colors } = useTheme();
+  const strokeColor = color ?? colors.white;
   return (
     <Svg fill="none" height={size} viewBox="0 0 29 29" width={size}>
       <Path
         d="M17 1.26667C16.1378 1.09067 15.2489 1.00178 14.3333 1C6.96933 1 1 6.96933 1 14.3333C1 21.6973 6.96933 27.6667 14.3333 27.6667C21.6973 27.6667 27.6667 21.6973 27.6667 14.3333C27.6649 13.4178 27.576 12.5289 27.4 11.6667"
-        stroke={color}
+        stroke={strokeColor}
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth={2}
@@ -102,6 +107,8 @@ function PopoverWalletHeroCard({
   tier?: string;
   title: string;
 }) {
+  const styles = useThemedStyles(createProfileMenuStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   return (
     <View style={styles.heroCard}>
@@ -178,6 +185,8 @@ function MenuRow({
   label: string;
   onClose: () => void;
 }) {
+  const styles = useThemedStyles(createProfileMenuStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const row = (
     <MotionPressable
@@ -231,6 +240,8 @@ export function CustomerProfileMenu({
   session: MobileSession;
   onNavigate: () => void;
 }) {
+  const styles = useThemedStyles(createProfileMenuStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const summary = deriveSummary(session);
 
@@ -292,7 +303,8 @@ export function CustomerProfileMenu({
   );
 }
 
-const styles = StyleSheet.create({
+function createProfileMenuStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   scroller: {
     maxHeight: 560,
   },
@@ -470,7 +482,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   rowLabel: {
-    color: "#3B3B3B",
+    color: colors.ink,
     flex: 1,
     fontFamily: typography.family,
     fontSize: 16,
@@ -483,3 +495,5 @@ const styles = StyleSheet.create({
     width: "100%",
   },
 });
+}
+

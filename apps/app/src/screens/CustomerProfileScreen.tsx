@@ -30,11 +30,16 @@ import {
   profileHubSubNavItems,
   webProfileWalletSummary,
 } from "@mobile/design/webDesignParity";
-import { colors, radii, spacing, typography } from "@mobile/theme/tokens";
+import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, spacing, typography } from "@mobile/theme/tokens";
 import { LogoutConfirmCard } from "@mobile/components/LogoutConfirmCard";
 import { getProfileMenuIcon, type ProfileMenuIcon } from "@mobile/components/profileMenuIcons";
 
 export function CustomerProfileScreen() {
+  const styles = useThemedStyles(createProfileScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const session = useMobileSessionSnapshot();
   const { width } = useWindowDimensions();
@@ -147,6 +152,8 @@ function ProfilePanelHeader({
   onPress: () => void;
   profileSubNavOpen: boolean;
 }) {
+  const styles = useThemedStyles(createProfileScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   return (
     <MotionPressable
@@ -171,6 +178,8 @@ function ProfilePanelHeader({
 }
 
 function InviteFriendsRow({ href }: { href: string }) {
+  const styles = useThemedStyles(createProfileScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   const router = useRouter();
   const toast = useToast();
@@ -232,6 +241,8 @@ function ProfileNavRow({
   icon: ProfileMenuIcon;
   label: string;
 }) {
+  const styles = useThemedStyles(createProfileScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   return (
     <Link
@@ -281,7 +292,8 @@ function maskSessionId(value: string | boolean | null | undefined): string | nul
   return `***${suffix}`;
 }
 
-const styles = StyleSheet.create({
+function createProfileScreenStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   profileHubStack: {
     gap: spacing.md,
     width: "100%",
@@ -425,3 +437,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
 });
+}

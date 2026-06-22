@@ -10,7 +10,10 @@ import { ProfileInfoPanel } from "@mobile/components/ProfileInfoPanel";
 import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { mobileShellLayout } from "@mobile/design/webDesignParity";
-import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
+import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 // Re-exported from the shared panel (which now owns the personal-info form) so existing
 // unit tests can keep importing the identity validators from this screen module.
@@ -93,6 +96,7 @@ const models: Record<
 };
 
 export function CustomerProfileDetailScreen({ mode }: { mode: ProfileDetailMode }) {
+  const styles = useThemedStyles(createProfileDetailScreenStyles);
   const tc = useCopy();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -154,6 +158,7 @@ export function CustomerProfileDetailScreen({ mode }: { mode: ProfileDetailMode 
 }
 
 function ProfileInfoSubPage({ children }: { children: ReactNode }) {
+  const styles = useThemedStyles(createProfileDetailScreenStyles);
   const tc = useCopy();
   return (
     <AccountPageShell activeRouteId="profile" showTitle={false} title={tc("Profile")}>
@@ -163,6 +168,8 @@ function ProfileInfoSubPage({ children }: { children: ReactNode }) {
 }
 
 function ProfileInfoTopBar() {
+  const styles = useThemedStyles(createProfileDetailScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   return (
     <Link asChild href="/profile">
@@ -174,7 +181,8 @@ function ProfileInfoTopBar() {
   );
 }
 
-const styles = StyleSheet.create({
+function createProfileDetailScreenStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   viewport: {
     alignItems: "center",
     backgroundColor: colors.background,
@@ -297,3 +305,5 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 });
+}
+

@@ -346,5 +346,13 @@
   "mobileGoLinkStepCopy": "Copy link",
   "mobileGoLinkStepPaste": "Paste here",
   "mobileGoLinkStepShop": "Shop & earn",
-  "mobileGoLinkTagline": "Easy to earn cashback by just copy, paste & shop!"
+  "mobileGoLinkTagline": "Easy to earn cashback by just copy, paste & shop!",
+  "mobileAppearanceTitle": "Appearance",
+  "mobileAppearanceHelper": "System follows your phone or browser setting.",
+  "mobileAppearanceSystem": "System default",
+  "mobileAppearanceLight": "Light",
+  "mobileAppearanceDark": "Dark",
+  "mobileHomeGreetingHi": "Hi!",
+  "mobileHomeGoLinkSubcopy": "Earn cashback with GoLink",
+  "mobileHomeGoLinkLead": "Easy to earn cashback by just"
 }

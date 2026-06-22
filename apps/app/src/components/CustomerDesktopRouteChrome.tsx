@@ -1,10 +1,11 @@
-import { usePathname } from "expo-router";
 import type { ReactNode } from "react";
 import { StyleSheet, useWindowDimensions, View } from "react-native";
+import { usePathname } from "expo-router";
 
 import { CustomerDesktopHeader } from "@mobile/components/CustomerDesktopHeader";
 import { mobileShellLayout } from "@mobile/design/webDesignParity";
-import { colors } from "@mobile/theme/tokens";
+import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 
 export const desktopSelfChromePathnames = [
   "/",
@@ -36,6 +37,7 @@ export function CustomerDesktopRouteChrome({ children }: { children: ReactNode }
   const pathname = usePathname();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
+  const styles = useThemedStyles(createRouteChromeStyles);
 
   if (!isDesktop || isDesktopSelfChromePathname(pathname)) {
     return <>{children}</>;
@@ -49,16 +51,18 @@ export function CustomerDesktopRouteChrome({ children }: { children: ReactNode }
   );
 }
 
-const styles = StyleSheet.create({
-  desktopViewport: {
-    backgroundColor: colors.white,
-    flex: 1,
-    minHeight: "100%",
-    width: "100%",
-  },
-  routeContent: {
-    flex: 1,
-    minHeight: 0,
-    width: "100%",
-  },
-});
+function createRouteChromeStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    desktopViewport: {
+      backgroundColor: colors.card,
+      flex: 1,
+      minHeight: "100%",
+      width: "100%",
+    },
+    routeContent: {
+      flex: 1,
+      minHeight: 0,
+      width: "100%",
+    },
+  });
+}

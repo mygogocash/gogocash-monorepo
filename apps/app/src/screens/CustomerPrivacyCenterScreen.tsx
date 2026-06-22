@@ -8,7 +8,10 @@ import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { mobileShellLayout, webPrivacyCenterPage } from "@mobile/design/webDesignParity";
-import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
+import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 type OptionalPurpose = (typeof webPrivacyCenterPage.optionalPurposes)[number];
 type OptionalPurposeId = OptionalPurpose["id"];
@@ -21,6 +24,7 @@ const initialOptionalConsentState: Record<OptionalPurposeId, boolean> = {
 };
 
 export function CustomerPrivacyCenterScreen() {
+  const styles = useThemedStyles(createPrivacyCenterScreenStyles);
   const tc = useCopy();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
@@ -76,6 +80,7 @@ export function CustomerPrivacyCenterScreen() {
 }
 
 function PrivacyCenterSubPage({ children }: { children: ReactNode }) {
+  const styles = useThemedStyles(createPrivacyCenterScreenStyles);
   const tc = useCopy();
   return (
     <AccountPageShell activeRouteId="profile" showTitle={false} title={tc(webPrivacyCenterPage.title)}>
@@ -85,6 +90,8 @@ function PrivacyCenterSubPage({ children }: { children: ReactNode }) {
 }
 
 function PrivacyCenterTopBar() {
+  const styles = useThemedStyles(createPrivacyCenterScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   return (
     <Link asChild href="/profile">
@@ -103,6 +110,7 @@ function ConsentHeroCard({
   allOptionalEnabled: boolean;
   onAcceptAll: () => void;
 }) {
+  const styles = useThemedStyles(createPrivacyCenterScreenStyles);
   const tc = useCopy();
   return (
     <View style={styles.heroCard}>
@@ -137,6 +145,7 @@ function OptionalConsentCard({
   onToggle: () => void;
   purpose: OptionalPurpose;
 }) {
+  const styles = useThemedStyles(createPrivacyCenterScreenStyles);
   const tc = useCopy();
   return (
     <View style={styles.optionalCard}>
@@ -163,6 +172,8 @@ function OptionalConsentCard({
 }
 
 function RequiredConsentCard() {
+  const styles = useThemedStyles(createPrivacyCenterScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   return (
     <View style={styles.requiredCard}>
@@ -178,10 +189,11 @@ function RequiredConsentCard() {
   );
 }
 
-const styles = StyleSheet.create({
+function createPrivacyCenterScreenStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   surface: {
-    backgroundColor: "#F3FCF9",
-    borderColor: "#E8F5EF",
+    backgroundColor: pickThemed(colors, "#F3FCF9", colors.primarySoft),
+    borderColor: pickThemed(colors, "#E8F5EF", colors.border),
     borderRadius: 24,
     borderWidth: 1,
     boxShadow: shadows.cardCss,
@@ -193,7 +205,7 @@ const styles = StyleSheet.create({
     marginTop: 18,
   },
   privacyTintShell: {
-    backgroundColor: "#F3FCF9",
+    backgroundColor: pickThemed(colors, "#F3FCF9", colors.primarySoft),
     minHeight: 780,
     width: "100%",
   },
@@ -238,7 +250,7 @@ const styles = StyleSheet.create({
   },
   heroCard: {
     backgroundColor: "rgba(243, 252, 249, 0.92)",
-    borderColor: "#D1FAE5",
+    borderColor: pickThemed(colors, "#D1FAE5", colors.border),
     borderRadius: 18,
     borderWidth: 1,
     boxShadow: "0 2px 8px rgba(16, 53, 34, 0.12)",
@@ -302,7 +314,7 @@ const styles = StyleSheet.create({
   },
   optionalCard: {
     backgroundColor: "rgba(243, 252, 249, 0.72)",
-    borderColor: "#D1FAE5",
+    borderColor: pickThemed(colors, "#D1FAE5", colors.border),
     borderRadius: 18,
     borderWidth: 1,
     gap: spacing.lg,
@@ -350,7 +362,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryDark,
   },
   toggleThumb: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: radii.chip,
     boxShadow: "0 1px 4px rgba(16, 37, 63, 0.2)",
     height: 28,
@@ -362,7 +374,7 @@ const styles = StyleSheet.create({
   },
   requiredCard: {
     backgroundColor: "rgba(243, 252, 249, 0.72)",
-    borderColor: "#D1FAE5",
+    borderColor: pickThemed(colors, "#D1FAE5", colors.border),
     borderRadius: 18,
     borderWidth: 1,
     gap: spacing.sm,
@@ -401,3 +413,5 @@ const styles = StyleSheet.create({
     lineHeight: 21,
   },
 });
+}
+

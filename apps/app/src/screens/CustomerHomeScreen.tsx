@@ -1,4 +1,4 @@
-import {
+import React, {
   useCallback,
   useEffect,
   useMemo,
@@ -120,7 +120,37 @@ import { trackPromotionSelect } from "@mobile/analytics/events";
 import { useAnalytics } from "@mobile/analytics/useAnalytics";
 import { isValidGoLinkUrl } from "@mobile/features/golink";
 import { motion } from "@mobile/theme/motion";
-import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
+
+type HomeScreenStyles = ReturnType<typeof createHomeScreenStyles>;
+type HomeScreenTheme = {
+  readonly styles: HomeScreenStyles;
+  readonly colors: ThemeColors;
+  readonly surfaces: ThemeSurfaces;
+};
+
+const HomeScreenThemeContext = React.createContext<HomeScreenTheme | null>(null);
+
+function useHomeScreenTheme(): HomeScreenTheme {
+  const theme = React.useContext(HomeScreenThemeContext);
+  if (!theme) {
+    throw new Error("useHomeScreenTheme must be used within CustomerHomeScreen");
+  }
+  return theme;
+}
+
+function useHomeScreenStyles(): HomeScreenStyles {
+  return useHomeScreenTheme().styles;
+}
+
+function useHomeScreenColors(): ThemeColors {
+  return useHomeScreenTheme().colors;
+}
+
+import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
+import { getThemeSurfaces, type ThemeSurfaces } from "@mobile/theme/themeSurfaces";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 type HomeIconComponent = IconComponent;
 
@@ -266,6 +296,8 @@ function getPagedScrollIndex(
   pageWidth: number,
   maxPageIndex: number
 ) {
+  const styles = useHomeScreenStyles();
+  const colors = useHomeScreenColors();
   return getCarouselActiveIndex({
     contentOffsetX: event.nativeEvent.contentOffset.x,
     pageCount: maxPageIndex + 1,
@@ -274,6 +306,13 @@ function getPagedScrollIndex(
 }
 
 export function CustomerHomeScreen() {
+  const { colors, resolved } = useTheme();
+  const surfaces = getThemeSurfaces(colors, resolved);
+  const styles = useThemedStyles((palette) => createHomeScreenStyles(palette, surfaces));
+  const homeTheme = React.useMemo(
+    () => ({ styles, colors, surfaces }),
+    [styles, colors, surfaces]
+  );
   const session = useMobileSessionSnapshot();
   const mobileTabletGreetingName =
     typeof session?.username === "string" ? session.username.trim() || undefined : undefined;
@@ -341,6 +380,7 @@ export function CustomerHomeScreen() {
   // width; only the content sections are capped at contentMaxWidth and centered.
   if (homeLayout.isDesktop) {
     return (
+      <HomeScreenThemeContext.Provider value={homeTheme}>
       <View style={styles.viewport}>
         <View style={styles.desktopShellFrame}>
           <CustomerDesktopHeader viewportWidth={width} />
@@ -409,11 +449,13 @@ export function CustomerHomeScreen() {
         <CustomerCookieConsentBanner isDesktop />
         <CustomerLineOfficialFab />
       </View>
+      </HomeScreenThemeContext.Provider>
     );
   }
 
   // MOBILE: unchanged — capped phoneFrame with sticky search and bottom nav.
   return (
+    <HomeScreenThemeContext.Provider value={homeTheme}>
     <View style={styles.viewport}>
       <View style={[styles.phoneFrame, { maxWidth: homeLayout.contentMaxWidth }]}>
         <ScrollView
@@ -518,6 +560,7 @@ export function CustomerHomeScreen() {
       <IntroAfterLoginModal />
       <CustomerCookieConsentBanner isDesktop={false} />
     </View>
+    </HomeScreenThemeContext.Provider>
   );
 }
 
@@ -536,6 +579,7 @@ function HomeSearchPopularPopover({
   top: number;
   visible: boolean;
 }) {
+  const styles = useHomeScreenStyles();
   const tc = useCopy();
   const searchMatches = getHomeSearchMatches(query);
   const hasSearchQuery = query.trim().length > 0;
@@ -668,6 +712,8 @@ function HomeSearchPopularPopover({
 }
 
 function HomeSearchIntro({ variant }: { variant: "compact" | "large" }) {
+  const styles = useHomeScreenStyles();
+  const colors = useHomeScreenColors();
   const tc = useCopy();
   const compact = variant === "compact";
 
@@ -702,6 +748,7 @@ function HomeSearchResultRow({
   item: HomeSearchPanelItem;
   variant: "compact" | "large";
 }) {
+  const styles = useHomeScreenStyles();
   const tc = useCopy();
   const compact = variant === "compact";
 
@@ -776,6 +823,7 @@ function HomeSearchResultRow({
 }
 
 function DesktopHeader({ viewportWidth }: { viewportWidth: number }) {
+  const styles = useHomeScreenStyles();
   const tc = useCopy();
   const session = useMobileSessionSnapshot();
   const shellPadding = getDesktopShellHorizontalPadding(viewportWidth);
@@ -862,6 +910,7 @@ function DesktopCategoryNav({
   shellContentWidth: number;
   shellPadding: number;
 }) {
+  const styles = useHomeScreenStyles();
   const tc = useCopy();
   return (
     <View accessibilityLabel={tc("Category navigation")} style={styles.desktopCategoryNav}>
@@ -926,6 +975,7 @@ function DesktopCategoryNavIcon({
   active: boolean;
   name: (typeof webDesktopHeaderNavItems)[number]["icon"];
 }) {
+  const styles = useHomeScreenStyles();
   if (name === "none") {
     return null;
   }
@@ -954,6 +1004,7 @@ function MobileTabletHomeHeader({
   onOpenGoLinkGuideline,
   onOpenSearchPopover,
 }: MobileTabletHomeHeaderProps) {
+  const styles = useHomeScreenStyles();
   const tc = useCopy();
   const isTabletFrame = homeLayout.contentWidth === 768;
   const horizontalPadding = isTabletFrame ? homeLayout.contentHorizontalPadding : 16;
@@ -1011,6 +1062,8 @@ function DesktopGoLinkBanner({
   onResultHref,
   variant = "default",
 }: DesktopGoLinkBannerProps) {
+  const styles = useHomeScreenStyles();
+  const colors = useHomeScreenColors();
   const isMobileTabletHeader = variant === "mobileTabletHeader";
   const [goLinkError, setGoLinkError] = useState("");
   const [goLinkInput, setGoLinkInput] = useState("");
@@ -1046,7 +1099,8 @@ function DesktopGoLinkBanner({
       <View
         style={[
           styles.desktopGoLinkBackdrop,
-          goLinkBackdropGradient,
+          // Web-only light frosted gradient; in dark mode the solid dark backdrop stands in.
+          colors.isDark ? null : goLinkBackdropGradient,
           { pointerEvents: "none" },
         ]}
       />
@@ -1173,6 +1227,7 @@ function DesktopGoLinkBanner({
 }
 
 function BrowseShortcuts() {
+  const styles = useHomeScreenStyles();
   const tc = useCopy();
   return (
     <View style={styles.shortcutRow}>
@@ -1191,6 +1246,8 @@ function BrowseShortcuts() {
 }
 
 function HomeHeroBanners({ homeLayout }: { homeLayout: HomeLayoutMetrics }) {
+  const styles = useHomeScreenStyles();
+  const colors = useHomeScreenColors();
   const heroBannerResource = useCustomerAccountResource<readonly HomeHeroBanner[], BannerHomeDocument>({
     fixtureData: webHomeHeroBanners,
     resourceId: "homeBanner",
@@ -1360,6 +1417,8 @@ function TopBrandSection({
   brandCatalogData: unknown;
   homeLayout: HomeLayoutMetrics;
 }) {
+  const styles = useHomeScreenStyles();
+  const colors = useHomeScreenColors();
   const tc = useCopy();
   const topBrandResource = useCustomerAccountResource<readonly TopBrandCardProps[], TopBrandsPayload>({
     fixtureData: webTopBrandCards,
@@ -1476,6 +1535,8 @@ type BrandCardProps =
     });
 
 function BrandCard(props: BrandCardProps) {
+  const styles = useHomeScreenStyles();
+  const colors = useHomeScreenColors();
   const tc = useCopy();
   const { brand, cashback, href, tint } = props;
   const wide = props.size === "L" && props.cardWidth >= 200;
@@ -1609,6 +1670,8 @@ function PromoSection({
   link: string;
   title: string;
 }) {
+  const styles = useHomeScreenStyles();
+  const colors = useHomeScreenColors();
   const tc = useCopy();
   const sectionCards = getPromoSectionCards(id, cards);
   const sectionPageSize = getPromoSectionPageSize(homeLayout);
@@ -1705,6 +1768,7 @@ function CustomerMobileBottomNav({
   bottomInset: number;
   onGoLinkPress: () => void;
 }) {
+  const styles = useHomeScreenStyles();
   const tc = useCopy();
   return (
     <View
@@ -1772,6 +1836,7 @@ function CustomerMobileBottomNav({
 }
 
 function ShortcutIcon({ name }: { name: string }) {
+  const colors = useHomeScreenColors();
   const Icon = shortcutIcons[name] ?? ShoppingBagIcon;
 
   return <Icon color={colors.primaryDark} size={18} strokeWidth={homeIconStrokeWidth} />;
@@ -1786,13 +1851,15 @@ function BottomNavIcon({
   emphasized: boolean;
   name: string;
 }) {
+  const colors = useHomeScreenColors();
   const Icon = bottomNavIcons[name] ?? HomeIcon;
   const color = emphasized ? colors.white : active ? colors.primaryDark : colors.muted;
 
   return <Icon color={color} size={emphasized ? 28 : 24} strokeWidth={homeIconStrokeWidth} />;
 }
 
-const styles = StyleSheet.create({
+function createHomeScreenStyles(colors: ThemeColors, surfaces: ThemeSurfaces) {
+  return StyleSheet.create({
   viewport: {
     alignItems: "center",
     backgroundColor: colors.background,
@@ -1824,13 +1891,13 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   desktopShell: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     zIndex: 20,
-    boxShadow: "0 1px 0 rgba(229, 231, 235, 0.75)",
+    boxShadow: surfaces.desktopShellShadow,
   },
   desktopHeader: {
     alignItems: "center",
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     height: mobileShellLayout.desktopHeaderHeight,
     justifyContent: "center",
     width: "100%",
@@ -1860,7 +1927,7 @@ const styles = StyleSheet.create({
     width: 56,
   },
   desktopLogoText: {
-    color: "#1F2937",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 20,
     fontWeight: "700",
@@ -1894,7 +1961,7 @@ const styles = StyleSheet.create({
   desktopLocaleButton: {
     alignItems: "center",
     backgroundColor: "rgba(255,255,255,0.9)",
-    borderColor: "#E5E7EB",
+    borderColor: colors.border,
     borderRadius: radii.chip,
     borderWidth: 1,
     height: 44,
@@ -1911,8 +1978,8 @@ const styles = StyleSheet.create({
     zIndex: 90,
   },
   desktopLocalePopover: {
-    backgroundColor: colors.white,
-    borderColor: "#E5E7EB",
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1,
     boxShadow: "0 18px 40px rgba(15, 23, 42, 0.16)",
@@ -1924,7 +1991,7 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   desktopLocaleSectionTitle: {
-    color: "#9CA3AF",
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: 12,
     fontWeight: "700",
@@ -1963,7 +2030,7 @@ const styles = StyleSheet.create({
     color: "#00CC99",
   },
   desktopLocaleDivider: {
-    backgroundColor: "#F3F4F6",
+    backgroundColor: colors.fieldMuted,
     height: 1,
     marginBottom: 16,
     marginTop: 16,
@@ -1979,7 +2046,7 @@ const styles = StyleSheet.create({
   },
   desktopCategoryNav: {
     alignItems: "center",
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     height: mobileShellLayout.desktopSubNavHeight,
     justifyContent: "center",
     width: "100%",
@@ -2112,7 +2179,7 @@ const styles = StyleSheet.create({
   },
   mobileTabletHeaderSearchBox: {
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.card,
     borderRadius: 18,
     boxSizing: "border-box",
     flexDirection: "row",
@@ -2134,7 +2201,7 @@ const styles = StyleSheet.create({
     width: 0,
   },
   mobileTabletHeaderShortcutDock: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.card,
     borderRadius: 22,
     display: "none",
     overflow: "hidden",
@@ -2152,7 +2219,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   mobileTabletContentScroll: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.card,
     borderTopLeftRadius: 34,
     borderTopRightRadius: 34,
     boxSizing: "border-box",
@@ -2164,7 +2231,7 @@ const styles = StyleSheet.create({
   },
   mobileTabletSheetToggleButton: {
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.card,
     borderRadius: 12,
     boxShadow: "0 6px 18px rgba(15, 23, 42, 0.12)",
     height: 24,
@@ -2177,7 +2244,7 @@ const styles = StyleSheet.create({
     zIndex: 4,
   },
   mobileTabletContentSheet: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.card,
     borderTopLeftRadius: 34,
     borderTopRightRadius: 34,
     paddingTop: 50,
@@ -2261,7 +2328,7 @@ const styles = StyleSheet.create({
   },
   searchTrendingIcon: {
     alignItems: "center",
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: radii.md,
     height: 64,
     justifyContent: "center",
@@ -2277,7 +2344,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   searchPopoverTitle: {
-    color: "#103522",
+    color: pickThemed(colors, "#103522", colors.accent),
     fontFamily: typography.family,
     fontSize: 20,
     fontWeight: "700",
@@ -2305,7 +2372,7 @@ const styles = StyleSheet.create({
   },
   searchNoMatchCard: {
     backgroundColor: "rgba(255,255,255,0.9)",
-    borderColor: "#E5E7EB",
+    borderColor: colors.border,
     borderRadius: 12,
     borderWidth: 1,
     color: "#64748B",
@@ -2347,7 +2414,7 @@ const styles = StyleSheet.create({
   },
   searchResultRow: {
     alignItems: "center",
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderColor: "#E8F0EC",
     borderRadius: radii.md,
     borderWidth: 1,
@@ -2581,7 +2648,7 @@ const styles = StyleSheet.create({
     width: 8,
   },
   heroDotActive: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
   },
   desktopGoLinkBanner: {
     alignItems: "center",
@@ -2611,7 +2678,7 @@ const styles = StyleSheet.create({
     boxShadow: "0 9px 22px rgba(48, 56, 70, 0.14)",
   },
   desktopGoLinkBackdrop: {
-    backgroundColor: "#EAF4FF",
+    backgroundColor: pickThemed(colors, "#EAF4FF", colors.card),
     bottom: 0,
     left: 0,
     position: "absolute",
@@ -2660,7 +2727,7 @@ const styles = StyleSheet.create({
   desktopGoLinkGoBadge: {
     alignItems: "center",
     backgroundColor: colors.primary,
-    borderColor: colors.white,
+    borderColor: colors.border,
     borderRadius: 21,
     borderWidth: 3,
     bottom: -6,
@@ -2705,7 +2772,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   desktopGoLinkTitle: {
-    color: "#14252B",
+    color: pickThemed(colors, "#14252B", colors.ink),
     fontFamily: typography.family,
     fontSize: 26,
     fontWeight: "700",
@@ -2849,14 +2916,14 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   sectionTitle: {
-    color: "#103522",
+    color: pickThemed(colors, "#103522", colors.accent),
     fontFamily: typography.family,
     fontSize: 18,
     fontWeight: typography.sectionTitleWeight,
     lineHeight: 24,
   },
   sectionTitleSmall: {
-    color: "#103522",
+    color: pickThemed(colors, "#103522", colors.accent),
     flexShrink: 1,
     fontFamily: typography.family,
     fontSize: 18,
@@ -3101,8 +3168,8 @@ const styles = StyleSheet.create({
   },
   bottomNav: {
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.95)",
-    borderColor: "rgba(216,226,217,0.7)",
+    backgroundColor: surfaces.bottomNavBackground,
+    borderColor: surfaces.bottomNavBorder,
     borderRadius: 28,
     borderWidth: 1,
     flexDirection: "row",
@@ -3153,3 +3220,5 @@ const styles = StyleSheet.create({
     color: colors.primaryDark,
   },
 });
+}
+

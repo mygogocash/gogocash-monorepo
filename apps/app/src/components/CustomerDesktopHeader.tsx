@@ -1,5 +1,5 @@
 import { Link, usePathname } from "expo-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Image, ScrollView, StyleSheet, Text, TextInput, View, type ViewStyle } from "react-native";
 
 import menuFireImage from "../../assets/nav/menu-fire.png";
@@ -28,7 +28,10 @@ import {
   type IconComponent,
 } from "@mobile/theme/icons";
 import { motion } from "@mobile/theme/motion";
-import { colors, radii, spacing, typography } from "@mobile/theme/tokens";
+import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { getThemeSurfaces, type ThemeSurfaces } from "@mobile/theme/themeSurfaces";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { radii, spacing, typography } from "@mobile/theme/tokens";
 
 const desktopNavIcons: Partial<
   Record<(typeof webDesktopHeaderNavItems)[number]["icon"], IconComponent>
@@ -71,6 +74,14 @@ function isDesktopNavItemActive(pathname: string, href: string): boolean {
   return current === target;
 }
 
+function useDesktopHeaderStyles() {
+  const { colors, resolved } = useTheme();
+  return useMemo(
+    () => createDesktopHeaderStyles(colors, getThemeSurfaces(colors, resolved)),
+    [colors, resolved]
+  );
+}
+
 export function CustomerDesktopHeader({ viewportWidth }: { viewportWidth: number }) {
   const shellPadding = getDesktopShellHorizontalPadding(viewportWidth);
   const shellContentWidth = Math.min(viewportWidth, mobileShellLayout.desktopContentMaxWidth);
@@ -78,6 +89,8 @@ export function CustomerDesktopHeader({ viewportWidth }: { viewportWidth: number
   const [profilePanelOpen, setProfilePanelOpen] = useState(false);
   const tc = useCopy();
   const session = useMobileSessionSnapshot();
+  const { colors } = useTheme();
+  const styles = useDesktopHeaderStyles();
 
   return (
     <View style={[styles.desktopShell, { width: viewportWidth }]}>
@@ -158,6 +171,7 @@ function DesktopCategoryTab({
 }) {
   const [hovered, setHovered] = useState(false);
   const tc = useCopy();
+  const styles = useDesktopHeaderStyles();
   const underlineOpacity = active ? 1 : hovered ? webSubNavHoverUnderlineOpacity : 0;
 
   return (
@@ -208,6 +222,7 @@ function DesktopCategoryNav({
   shellPadding: number;
 }) {
   const pathname = usePathname();
+  const styles = useDesktopHeaderStyles();
   return (
     <View accessibilityLabel="Category navigation" style={styles.desktopCategoryNav}>
       <View
@@ -242,6 +257,9 @@ function DesktopCategoryNavIcon({
   active: boolean;
   name: (typeof webDesktopHeaderNavItems)[number]["icon"];
 }) {
+  const { colors } = useTheme();
+  const styles = useDesktopHeaderStyles();
+
   if (name === "none") {
     return null;
   }
@@ -254,7 +272,7 @@ function DesktopCategoryNavIcon({
 
   return (
     <IconComponent
-      color={active ? "#00B14F" : "#3B3B3B"}
+      color={active ? colors.primaryDark : colors.ink}
       size={16}
       style={styles.desktopCategoryNavIcon}
       weight="regular"
@@ -262,15 +280,16 @@ function DesktopCategoryNavIcon({
   );
 }
 
-const styles = StyleSheet.create({
-  desktopShell: {
-    backgroundColor: colors.white,
-    boxShadow: "0 1px 0 rgba(229, 231, 235, 0.75)",
-    zIndex: 20,
-  },
-  desktopHeader: {
-    alignItems: "center",
-    backgroundColor: colors.white,
+function createDesktopHeaderStyles(colors: ThemeColors, surfaces: ThemeSurfaces) {
+  return StyleSheet.create({
+    desktopShell: {
+      backgroundColor: colors.card,
+      boxShadow: surfaces.desktopShellShadow,
+      zIndex: 20,
+    },
+    desktopHeader: {
+      alignItems: "center",
+      backgroundColor: colors.card,
     height: mobileShellLayout.desktopHeaderHeight,
     justifyContent: "center",
     width: "100%",
@@ -335,10 +354,10 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     width: 160,
   },
-  desktopLocaleButton: {
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.9)",
-    borderColor: "#E5E7EB",
+    desktopLocaleButton: {
+      alignItems: "center",
+      backgroundColor: surfaces.localeButtonBackground,
+      borderColor: surfaces.localeButtonBorder,
     borderRadius: radii.chip,
     borderWidth: 1,
     boxShadow: "0 2px 8px rgba(15, 23, 42, 0.12)",
@@ -346,17 +365,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 44,
   },
-  desktopLocaleButtonOpen: {
-    backgroundColor: "#E8FAF5",
-    borderColor: "rgba(0, 204, 153, 0.4)",
-  },
+    desktopLocaleButtonOpen: {
+      backgroundColor: surfaces.localeButtonOpenBackground,
+      borderColor: surfaces.localeButtonOpenBorder,
+    },
   desktopLocaleRoot: {
     position: "relative",
     zIndex: 90,
   },
-  desktopLocalePopover: {
-    backgroundColor: colors.white,
-    borderColor: "#E5E7EB",
+    desktopLocalePopover: {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1,
     boxShadow: "0 18px 40px rgba(15, 23, 42, 0.16)",
@@ -367,8 +386,8 @@ const styles = StyleSheet.create({
     width: 288,
     zIndex: 100,
   },
-  desktopLocaleSectionTitle: {
-    color: "#9CA3AF",
+    desktopLocaleSectionTitle: {
+      color: colors.textSoft,
     fontFamily: typography.family,
     fontSize: 12,
     fontWeight: "700",
@@ -389,25 +408,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
-  desktopLocaleOptionSelected: {
-    backgroundColor: "#E8FAF5",
-  },
+    desktopLocaleOptionSelected: {
+      backgroundColor: colors.primarySoft,
+    },
   desktopLocaleOptionFlag: {
     fontSize: 18,
     lineHeight: 20,
   },
-  desktopLocaleOptionLabel: {
-    color: "#374151",
+    desktopLocaleOptionLabel: {
+      color: colors.ink,
     fontFamily: typography.family,
     fontSize: 14,
     fontWeight: "600",
     lineHeight: 20,
   },
-  desktopLocaleOptionLabelSelected: {
-    color: "#00CC99",
-  },
-  desktopLocaleDivider: {
-    backgroundColor: "#F3F4F6",
+    desktopLocaleOptionLabelSelected: {
+      color: colors.primary,
+    },
+    desktopLocaleDivider: {
+      backgroundColor: colors.border,
     height: 1,
     marginBottom: 16,
     marginTop: 16,
@@ -421,9 +440,9 @@ const styles = StyleSheet.create({
     gap: 2,
     paddingRight: 4,
   },
-  desktopCategoryNav: {
-    alignItems: "center",
-    backgroundColor: colors.white,
+    desktopCategoryNav: {
+      alignItems: "center",
+      backgroundColor: colors.card,
     // No fixed height: the bar fits its content (the nav items, which already carry
     // their own vertical padding) instead of the taller desktopSubNavHeight.
     justifyContent: "center",
@@ -479,13 +498,14 @@ const styles = StyleSheet.create({
     height: 16,
     width: 13,
   },
-  desktopCategoryUnderline: {
-    backgroundColor: "#00B14F",
+    desktopCategoryUnderline: {
+      backgroundColor: colors.primaryDark,
     borderRadius: radii.chip,
     bottom: 0,
     height: 2,
     left: 16,
     position: "absolute",
     right: 16,
-  },
-});
+    },
+  });
+}

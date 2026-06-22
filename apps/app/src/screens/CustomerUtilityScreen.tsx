@@ -2,7 +2,10 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { mobileShellLayout } from "@mobile/design/webDesignParity";
-import { colors, radii, spacing, typography } from "@mobile/theme/tokens";
+import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, spacing, typography } from "@mobile/theme/tokens";
 
 type UtilityMode = "ageVerification" | "creditScore" | "membership" | "missingOrders";
 
@@ -42,6 +45,7 @@ const models: Record<
 };
 
 export function CustomerUtilityScreen({ mode }: { mode: UtilityMode }) {
+  const styles = useThemedStyles(createUtilityScreenStyles);
   const insets = useSafeAreaInsets();
   const model = models[mode];
 
@@ -78,7 +82,8 @@ export function CustomerUtilityScreen({ mode }: { mode: UtilityMode }) {
   );
 }
 
-const styles = StyleSheet.create({
+function createUtilityScreenStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   viewport: {
     alignItems: "center",
     backgroundColor: colors.background,
@@ -156,3 +161,5 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 });
+}
+

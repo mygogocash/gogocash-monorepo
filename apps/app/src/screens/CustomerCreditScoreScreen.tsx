@@ -9,9 +9,13 @@ import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { haptics } from "@mobile/lib/haptics";
 import { mobileShellLayout, webCreditScorePage } from "@mobile/design/webDesignParity";
-import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
+import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 export function CustomerCreditScoreScreen() {
+  const styles = useThemedStyles(createCreditScoreScreenStyles);
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
 
@@ -34,6 +38,7 @@ export function CustomerCreditScoreScreen() {
 }
 
 function CreditScoreSubPage({ children }: { children: ReactNode }) {
+  const styles = useThemedStyles(createCreditScoreScreenStyles);
   const tc = useCopy();
   return (
     <AccountPageShell activeRouteId="profile" showTitle={false} title={tc(webCreditScorePage.title)}>
@@ -43,6 +48,8 @@ function CreditScoreSubPage({ children }: { children: ReactNode }) {
 }
 
 function CreditScoreTopBar() {
+  const styles = useThemedStyles(createCreditScoreScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   return (
     <Link asChild href="/profile">
@@ -55,6 +62,7 @@ function CreditScoreTopBar() {
 }
 
 function CreditScoreHero() {
+  const styles = useThemedStyles(createCreditScoreScreenStyles);
   const tc = useCopy();
   const heroProgress = `${webCreditScorePage.score}%` as DimensionValue;
 
@@ -78,6 +86,7 @@ function CreditScoreHero() {
 }
 
 function CreditScoreProgressCard() {
+  const styles = useThemedStyles(createCreditScoreScreenStyles);
   const tc = useCopy();
   return (
     <View style={styles.progressCard}>
@@ -92,6 +101,7 @@ function CreditScoreProgressCard() {
 }
 
 function ProgressTrack({ progress, slim = false }: { progress: DimensionValue; slim?: boolean }) {
+  const styles = useThemedStyles(createCreditScoreScreenStyles);
   return (
     <View style={[styles.progressTrack, slim ? styles.progressTrackSlim : null]}>
       <View style={[styles.progressFill, progressFillGradient, { width: progress }]} />
@@ -100,6 +110,7 @@ function ProgressTrack({ progress, slim = false }: { progress: DimensionValue; s
 }
 
 function CreditScoreBreakdown() {
+  const styles = useThemedStyles(createCreditScoreScreenStyles);
   const tc = useCopy();
   return (
     <View style={styles.breakdownSection}>
@@ -140,6 +151,7 @@ function ScoreRow({
   points: string;
   subLabel?: string;
 }) {
+  const styles = useThemedStyles(createCreditScoreScreenStyles);
   const tc = useCopy();
   return (
     <View style={[styles.scoreRow, complete ? styles.scoreRowComplete : styles.scoreRowTodo]}>
@@ -169,6 +181,7 @@ function ScoreRow({
 }
 
 function CreditScoreBenefits() {
+  const styles = useThemedStyles(createCreditScoreScreenStyles);
   const tc = useCopy();
   return (
     <View style={styles.benefitsSection}>
@@ -193,6 +206,7 @@ function CreditScoreBenefits() {
 }
 
 function BenefitGroup({ children, label }: { children: ReactNode; label: string }) {
+  const styles = useThemedStyles(createCreditScoreScreenStyles);
   const tc = useCopy();
   return (
     <View style={styles.benefitGroup}>
@@ -211,6 +225,7 @@ function BenefitCard({
   item: { icon: string; label: string; note?: string; status?: string };
   locked?: boolean;
 }) {
+  const styles = useThemedStyles(createCreditScoreScreenStyles);
   const tc = useCopy();
   return (
     <View style={[styles.benefitCard, locked ? styles.benefitCardLocked : null]}>
@@ -238,6 +253,7 @@ function BenefitCard({
 }
 
 function CreditScoreStreakCard() {
+  const styles = useThemedStyles(createCreditScoreScreenStyles);
   const tc = useCopy();
   return (
     <View style={styles.streakCard}>
@@ -288,6 +304,7 @@ function CreditScoreStreakCard() {
 }
 
 function CreditScoreBoostCard() {
+  const styles = useThemedStyles(createCreditScoreScreenStyles);
   const tc = useCopy();
   return (
     <View style={styles.boostCard}>
@@ -310,7 +327,8 @@ const progressFillGradient = {
   backgroundImage: "linear-gradient(to right, #00AA80, #00CC99)",
 } as unknown as ViewStyle;
 
-const styles = StyleSheet.create({
+function createCreditScoreScreenStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   surface: {
     backgroundColor: colors.card,
     borderColor: colors.border,
@@ -386,7 +404,7 @@ const styles = StyleSheet.create({
   scoreValue: {
     // Web parity: text-7xl font-black #103522. The app's typography rule caps weights at
     // 800 (DM Sans ships no true 900), so 800 stands in for the web's font-black.
-    color: "#103522",
+    color: pickThemed(colors, "#103522", colors.accent),
     fontFamily: typography.family,
     fontSize: 72,
     fontWeight: "800",
@@ -394,7 +412,7 @@ const styles = StyleSheet.create({
     lineHeight: 78,
   },
   progressTrack: {
-    backgroundColor: "#F6F6F6",
+    backgroundColor: colors.background,
     borderColor: colors.border,
     borderRadius: radii.chip,
     borderWidth: 1,
@@ -454,7 +472,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   breakdownTitle: {
-    color: "#103522",
+    color: pickThemed(colors, "#103522", colors.accent),
     fontFamily: typography.family,
     fontSize: 36,
     fontWeight: "600",
@@ -487,7 +505,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
   },
   scoreRowTodo: {
-    backgroundColor: "#F6F6F6",
+    backgroundColor: colors.background,
   },
   scoreRowCopy: {
     flex: 1,
@@ -535,7 +553,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   benefitsTitle: {
-    color: "#103522",
+    color: pickThemed(colors, "#103522", colors.accent),
     fontFamily: typography.family,
     fontSize: 32,
     fontWeight: "600",
@@ -578,7 +596,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   statusPill: {
-    backgroundColor: "#F6F6F6",
+    backgroundColor: colors.background,
     borderRadius: radii.chip,
     color: colors.textSoft,
     fontFamily: typography.family,
@@ -689,7 +707,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FEF3C7",
   },
   monthStatusPillLocked: {
-    backgroundColor: "#F6F6F6",
+    backgroundColor: colors.background,
   },
   boostCard: {
     backgroundColor: colors.primarySoft,
@@ -728,3 +746,5 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 });
+}
+

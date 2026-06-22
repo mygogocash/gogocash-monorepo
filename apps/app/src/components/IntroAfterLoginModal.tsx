@@ -3,13 +3,17 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { consumeIntroModalPending } from "@mobile/features/introModal/introModalSession";
 import { webIntroModal } from "@mobile/design/webDesignParity";
-import { colors, spacing, typography } from "@mobile/theme/tokens";
+import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { spacing, typography } from "@mobile/theme/tokens";
 
 // First-visit "Every Purchase Pays You Back." modal. Mirrors the web ModalAfterLogin:
 // shows once after sign-in on the home screen, auto-dismisses after 30s. Self-managing — reads
 // the session flag on mount and renders an overlay (View-based, matching the app's overlay
 // pattern — no RN <Modal>) or null.
 export function IntroAfterLoginModal() {
+  const styles = useThemedStyles(createIntroAfterLoginModalStyles);
   const [visible, setVisible] = useState(() => consumeIntroModalPending());
 
   useEffect(() => {
@@ -58,7 +62,8 @@ export function IntroAfterLoginModal() {
   );
 }
 
-const styles = StyleSheet.create({
+function createIntroAfterLoginModalStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   overlay: {
     alignItems: "center",
     bottom: 0,
@@ -92,7 +97,7 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     alignItems: "center",
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: 999,
     height: 40,
     justifyContent: "center",
@@ -102,7 +107,7 @@ const styles = StyleSheet.create({
     width: 40,
   },
   closeIcon: {
-    color: "#3B3B3B",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 18,
     fontWeight: "600",
@@ -121,3 +126,5 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
 });
+}
+

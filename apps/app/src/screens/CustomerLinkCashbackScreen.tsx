@@ -22,9 +22,13 @@ import {
   mobileShellLayout,
   webLinkMyCashbackIntro,
 } from "@mobile/design/webDesignParity";
-import { colors, radii, spacing, typography } from "@mobile/theme/tokens";
+import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
+import { useThemedStyles } from "@mobile/theme/useThemedStyles";
+import { radii, spacing, typography } from "@mobile/theme/tokens";
 
 export function CustomerLinkCashbackScreen({ mode }: { mode: "link" | "signIn" }) {
+  const styles = useThemedStyles(createLinkCashbackScreenStyles);
   const tc = useCopy();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -133,7 +137,8 @@ export function CustomerLinkCashbackScreen({ mode }: { mode: "link" | "signIn" }
   );
 }
 
-const styles = StyleSheet.create({
+function createLinkCashbackScreenStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   viewport: {
     alignItems: "center",
     backgroundColor: colors.background,
@@ -154,7 +159,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   pageDesktop: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
   },
   pageMobile: {
     backgroundColor: webLinkMyCashbackIntro.backgroundColor,
@@ -221,7 +226,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   cardTitle: {
-    color: "#103522",
+    color: pickThemed(colors, "#103522", colors.accent),
     fontFamily: typography.family,
     fontSize: 18,
     fontWeight: typography.titleWeight,
@@ -286,3 +291,5 @@ const styles = StyleSheet.create({
     marginTop: -40,
   },
 });
+}
+

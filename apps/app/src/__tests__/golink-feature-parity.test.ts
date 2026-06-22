@@ -90,8 +90,9 @@ describe("GoGoLink feature parity", () => {
     expect(screenFile).toContain("modalIllustrationWrap");
     expect(screenFile).toContain("offscreenGuideCard");
     expect(screenFile).toContain("webGoLinkModalLayout");
-    expect(screenFile).toContain('backgroundColor: "#F6F6F6"');
-    expect(screenFile).toContain('backgroundColor: "#F8FBFF"');
+    expect(screenFile).toContain("backgroundColor: colors.background");
+    // Mint/blue hero tint keeps its light literal but adapts in dark via pickThemed.
+    expect(screenFile).toContain('"#F8FBFF"');
     expect(screenFile).toContain('borderTopLeftRadius: 28');
     expect(screenFile).toContain("height: webGoLinkModalLayout.sheetMobileHeight");
     expect(screenFile).toContain("minHeight: webGoLinkModalLayout.sheetMobileHeight");

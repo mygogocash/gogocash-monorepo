@@ -6,10 +6,10 @@ Concise guidance for AI coding agents and contributors working in `apps/app/`. *
 
 ## Project
 
-- **Stack:** Expo SDK 56 + React Native 0.85.3 + **react-native-web 0.21.2**, React 19.2.3, TypeScript (strict). No `react-native-reanimated` — use the `Animated` API + `src/theme/motion.ts`.
+- **Stack:** Expo SDK 56 + React Native 0.86.0 + **react-native-web 0.21.2**, React 19.2.3, TypeScript (strict). No `react-native-reanimated` — use the `Animated` API + `src/theme/motion.ts`.
 - **Routing:** **expo-router** ~56.2.5 (file-based, `app/`). Auth gating via `Stack.Protected` in `app/_layout.tsx`, driven by `useAuthGuardSession` (synchronous-on-first-render so the guard is correct on first paint).
 - **i18n:** `tc()` from `src/i18n/useCopy.ts` — a **text-based reverse-lookup** into the reused web ICU catalogs, falling back to the English in `src/design/webDesignParity.ts`. Render copy inline as `tc("English string")`; do not invent new keys.
-- **Design tokens:** `src/theme/tokens.ts` (`colors.primary` = `#00CC99`, `radii`, `spacing`, `typography`), icons `src/theme/icons.tsx` (phosphor adapters), motion `src/theme/motion.ts`.
+- **Design tokens:** `src/theme/colorPalettes.ts` (`lightColors` / `darkColors`) via `ThemeProvider` + `useTheme()` / `useThemeColors()` / `useThemedStyles()`; `src/theme/tokens.ts` holds `radii`, `spacing`, `typography` and a **legacy** static `colors` (= `lightColors`); icons `src/theme/icons.tsx` (phosphor adapters), motion `src/theme/motion.ts`. See [docs/dark-mode.md](./docs/dark-mode.md).
 - **Data:** fixture-driven by default, with a live-API seam: `src/account/customerAccountResource.ts` switches on `EXPO_PUBLIC_ACCOUNT_DATA_SOURCE` (`fixtures` default | `backend` | `disabled`). The public offer catalog is already wired live (Favorite Brands screen); auth-gated resources pend real auth. See [docs/api-integration.md](./docs/api-integration.md).
 - **Imports:** path alias `@mobile/*` → `src/*` (`tsconfig.json`, both vitest configs).
 
@@ -25,6 +25,7 @@ Concise guidance for AI coding agents and contributors working in `apps/app/`. *
 | Web-parity copy + fixtures    | `src/design/webDesignParity.ts`                                                                                |
 | Navigation model              | `src/navigation/routes.ts` (`mobileParityRoutes` + `requiresAuth`), `src/navigation/profileSectionNav.ts`     |
 | Shared UI                     | `src/components/MotionPressable.tsx`, `KeyboardAwareScreen.tsx`, `Toast.tsx`, `Skeleton.tsx`                   |
+| Dark mode / theming           | `src/theme/ThemeProvider.tsx`, `useThemedStyles.ts`, `AppearanceSection.tsx`, `CustomerAccountSettingsScreen` — System / Light / Dark preference in Account Settings. Customer app only; admin has its own theme. |
 | GoGoSense (Android detection) | `src/gogosense/*` (detector → session → hooks), `src/screens/CustomerGoGoSenseScreen.tsx`, native `modules/gogosense-detector/`. **Inject the live `gogosenseDetector` from the route, never import `detectorInstance` in the screen** — it pulls `expo-modules-core`, which crashes the happy-dom render harness. Data hooks resolve `null` off-device → static fallback. See [README.md#gogosense--android-cashback-detection](README.md). |
 
 ## Commands — the three gates (verify before claiming done)
@@ -49,7 +50,7 @@ npm --prefix apps/app run typecheck      # tsc --noEmit
 
 Guarded by `src/__tests__/web-style-deprecation-parity.test.ts` and `src/__tests__/input-focus-parity.test.ts`:
 
-- **Deprecated style props → cross-platform form** (RN 0.85 + rnw 0.21):
+- **Deprecated style props → cross-platform form** (RN 0.86 + rnw 0.21):
   - `...shadows.card` → `boxShadow: shadows.cardCss`
   - `textShadow*` → `Platform.select({ web: { textShadow: "…" }, default: { textShadowColor/Offset/Radius } })`
   - `pointerEvents="none"` (prop) → `style={{ pointerEvents: "none" }}`
@@ -72,3 +73,18 @@ Guarded by `src/__tests__/web-style-deprecation-parity.test.ts` and `src/__tests
 - Commit/push only when asked; keep changes scoped to your task (a parallel desktop-parity effort may have other files uncommitted — do not stage files you did not change).
 
 When in doubt, search `apps/app/src` for an existing pattern before introducing a new abstraction.
+
+## Learned User Preferences
+
+- Dark mode scope is **customer app only** (`apps/app`); do not add tri-state theme work to admin as part of mobile tasks.
+- Ship **System / Light / Dark** in Account Settings from day one — not a system-only v1 with toggle deferred.
+- Finish **core app dark mode before GoGoSense** surfaces get dark styling.
+- No Next.js customer-web dark tokens exist — draft palette in-repo (`colorPalettes.ts`, `docs/dark-mode.md`).
+
+## Learned Workspace Facts
+
+- Monorepo sibling apps for local dev: `apps/api` NestJS **:8080**, `apps/admin` Next.js **:3000**, `apps/app` Expo web **:8081**.
+- npm workspaces hoist inconsistently — run `npm ci` at the monorepo root; if `-w` workspace dev commands fail module resolution, start from `apps/app` or `apps/admin`, or run the API with `NODE_PATH=./node_modules node dist/main`.
+- Theme preference persists under `gogocash.theme.preference` (web `localStorage`, native `expo-secure-store`); default is `system`.
+- New themed UI: `useThemedStyles(createStyles)` + `useTheme()` for live colors; avoid new static `import { colors }` except legacy/parity paths.
+- Render suite: `vitest.render.setup.ts` wraps all mounts in `<ThemeProvider>`.

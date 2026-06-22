@@ -346,5 +346,13 @@
   "mobileGoLinkStepCopy": "คัดลอกลิงก์",
   "mobileGoLinkStepPaste": "วางที่นี่",
   "mobileGoLinkStepShop": "ช้อปและรับเงินคืน",
-  "mobileGoLinkTagline": "รับเงินคืนง่ายๆ เพียงคัดลอก วาง แล้วช้อป!"
+  "mobileGoLinkTagline": "รับเงินคืนง่ายๆ เพียงคัดลอก วาง แล้วช้อป!",
+  "mobileAppearanceTitle": "การแสดงผล",
+  "mobileAppearanceHelper": "โหมดระบบจะตามการตั้งค่าของโทรศัพท์หรือเบราว์เซอร์ของคุณ",
+  "mobileAppearanceSystem": "ตามระบบ",
+  "mobileAppearanceLight": "สว่าง",
+  "mobileAppearanceDark": "มืด",
+  "mobileHomeGreetingHi": "สวัสดี!",
+  "mobileHomeGoLinkSubcopy": "รับเงินคืนด้วย GoGoLink",
+  "mobileHomeGoLinkLead": "รับเงินคืนง่ายๆ แค่"
 }
