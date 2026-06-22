@@ -87,4 +87,13 @@ describe("CustomerGoGoSenseScreen — Wave B (B5) foundations adopted (source si
     expect(gogoSenseSource).toMatch(/numberOfLines=\{1\}\s+style=\{styles\.primaryButtonText\}/);
     expect(gogoSenseSource).toMatch(/numberOfLines=\{1\}\s+style=\{styles\.secondaryButtonText\}/);
   });
+
+  it("keeps merchant-detail copy aligned to the Android UsageStats MVP boundary", () => {
+    expect(gogoSenseSource).toContain("Android package detection");
+    expect(gogoSenseSource).toContain("Checking live merchant catalog.");
+    expect(gogoSenseSource).toContain("Android Usage Access");
+    expect(gogoSenseSource).not.toMatch(
+      /notification matching|NotificationListenerService|merchant tracking notifications|merchant confirmation notices|notificationListenerEnabled/i,
+    );
+  });
 });

@@ -14,5 +14,7 @@ android {
   namespace "co.gogocash.gogosense"
   defaultConfig {
     minSdkVersion 24
+    versionCode 1
+    versionName "0.1.0"
   }
 }

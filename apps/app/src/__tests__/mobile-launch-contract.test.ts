@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -68,6 +69,7 @@ const expectedRouteIds = [
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const mobileRoot = path.resolve(testDir, "../..");
+const requireFromTest = createRequire(import.meta.url);
 
 describe("GoGoCash mobile launch contract", () => {
   it("mobile route catalog > given web customer routes > then maps every route to a native screen", () => {
@@ -211,6 +213,38 @@ describe("GoGoCash mobile launch contract", () => {
       "avatar_url",
       "membership_tier",
     ]);
+  });
+
+  it("gogosense config > given Android UsageStats MVP > then declares only Usage Access", () => {
+    const appConfigSource = fs.readFileSync(path.join(mobileRoot, "app.config.ts"), "utf8");
+    const pluginSource = fs.readFileSync(
+      path.join(mobileRoot, "plugins/withGogosenseUsageAccess.js"),
+      "utf8",
+    );
+    const {
+      applyGogosenseUsageAccessManifest,
+      GOGOSENSE_USAGE_STATS_PERMISSION,
+    } = requireFromTest("../../plugins/withGogosenseUsageAccess.js") as {
+      applyGogosenseUsageAccessManifest: (manifest: Record<string, any>) => Record<string, any>;
+      GOGOSENSE_USAGE_STATS_PERMISSION: string;
+    };
+    const manifest = applyGogosenseUsageAccessManifest({ manifest: { $: {} } }.manifest);
+    const duplicateSafeManifest = applyGogosenseUsageAccessManifest(manifest);
+    const usagePermissions = duplicateSafeManifest["uses-permission"] as Array<{
+      $?: Record<string, string>;
+    }>;
+
+    expect(appConfigSource).toContain("./plugins/withGogosenseUsageAccess");
+    expect(pluginSource).toContain("android.permission.PACKAGE_USAGE_STATS");
+    expect(pluginSource).not.toContain("android.permission.QUERY_ALL_PACKAGES");
+    expect(pluginSource).not.toContain("BIND_NOTIFICATION_LISTENER_SERVICE");
+    expect(pluginSource).not.toContain("<service");
+    expect(duplicateSafeManifest.$["xmlns:tools"]).toBe("http://schemas.android.com/tools");
+    expect(usagePermissions).toHaveLength(1);
+    expect(usagePermissions[0]?.$).toMatchObject({
+      "android:name": GOGOSENSE_USAGE_STATS_PERMISSION,
+      "tools:ignore": "ProtectedPermissions",
+    });
   });
 
   it("mobile route lookup > given a native path > then returns the matching route contract", () => {

@@ -429,7 +429,7 @@ const frontendFlowContracts: FrontendFlowContract[] = [
   {
     appFile: "app/gogosense/permissions.tsx",
     expectedLinks: ["/gogosense/settings", "/gogosense/timeline"],
-    landmarks: ["Permission checklist", "Usage access", "Notification listener"],
+    landmarks: ["Permission checklist", "Usage access", "Usage access disclosure"],
     routeId: "gogosensePermissions",
     routeMarkers: ["CustomerGoGoSenseScreen", 'mode="permissions"'],
     screenFiles: ["src/screens/CustomerGoGoSenseScreen.tsx"],
@@ -469,7 +469,7 @@ const frontendFlowContracts: FrontendFlowContract[] = [
   {
     appFile: "app/gogosense/merchant/[id].tsx",
     expectedLinks: ["/gogosense/timeline", "/gogosense/recovery"],
-    landmarks: ["Merchant tracking detail", "Detection methods", "merchantId"],
+    landmarks: ["Merchant tracking detail", "Catalog status", "Android package detection"],
     routeId: "gogosenseMerchant",
     routeMarkers: [
       "useLocalSearchParams",

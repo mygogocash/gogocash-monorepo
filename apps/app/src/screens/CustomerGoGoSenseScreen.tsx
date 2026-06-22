@@ -31,6 +31,11 @@ import {
 } from "@mobile/gogosense/detector";
 import { GoGoSenseDetectionBanner } from "@mobile/gogosense/GoGoSenseDetectionBanner";
 import { useGoGoSense } from "@mobile/gogosense/useGoGoSense";
+import {
+  type GoGoSenseMerchant,
+  useGoGoSenseMerchants,
+} from "@mobile/gogosense/useGoGoSenseMerchants";
+import { useGoGoSenseRecovery } from "@mobile/gogosense/useGoGoSenseRecovery";
 import { useGoGoSenseSettings } from "@mobile/gogosense/useGoGoSenseSettings";
 import { useGoGoSenseTimeline } from "@mobile/gogosense/useGoGoSenseTimeline";
 
@@ -77,7 +82,7 @@ const gogoSenseFlowCopy = {
   timeline: {
     eyebrow: "Tracking history",
     title: "Tracking timeline",
-    body: "Review detected shopping sessions, activation status, and recovery tasks without exposing raw notification or screenshot content.",
+    body: "Review detected shopping sessions, activation status, and recovery tasks without exposing raw receipt or screenshot content.",
   },
   settings: {
     eyebrow: "Privacy controls",
@@ -103,8 +108,8 @@ const permissionRows = [
     icon: EyeIcon,
   },
   {
-    title: "Notification listener",
-    body: "Read only merchant tracking notifications needed for cashback evidence.",
+    title: "Usage access disclosure",
+    body: "Check foreground merchant sessions only after Android Usage Access is granted.",
     icon: BellIcon,
   },
   {
@@ -142,17 +147,12 @@ const setupRows = [
 const settingRows = [
   {
     title: "Usage access detection",
-    body: "Use app and browser transitions for supported merchant sessions.",
+    body: "Use foreground app transitions for supported Android merchant sessions.",
     field: "usageStatsEnabled",
   },
   {
-    title: "Notification listener",
-    body: "Capture merchant confirmation notices after checkout.",
-    field: "notificationListenerEnabled",
-  },
-  {
     title: "PII minimization",
-    body: "Redact notification and screenshot data before upload.",
+    body: "Redact receipt and screenshot data before upload.",
     field: "screenshotRecoveryEnabled",
   },
 ] as const;
@@ -167,6 +167,13 @@ export function CustomerGoGoSenseScreen({
   const tc = useCopy();
   const insets = useSafeAreaInsets();
   const copy = gogoSenseFlowCopy[mode];
+  const merchantRouteId = mode === "merchant" ? merchantId : undefined;
+  const { loading: merchantLoading, merchant } = useGoGoSenseMerchants(
+    merchantRouteId,
+    undefined,
+    mode === "merchant",
+  );
+  const merchantLabel = merchant?.name ?? merchantRouteId;
   const topPadding = Math.max(spacing.md, insets.top + spacing.md);
   const bottomPadding = Math.max(
     mobileShellLayout.bottomNavClearance,
@@ -209,8 +216,10 @@ export function CustomerGoGoSenseScreen({
             <Text style={styles.body}>{tc(copy.body)}</Text>
             {merchantId ? (
               <View style={styles.merchantIdPill}>
-                <Text style={styles.merchantIdLabel}>merchantId</Text>
-                <Text style={styles.merchantIdValue}>{merchantId}</Text>
+                <Text style={styles.merchantIdLabel}>
+                  {merchant ? "merchant" : "merchantId"}
+                </Text>
+                <Text style={styles.merchantIdValue}>{merchantLabel}</Text>
               </View>
             ) : null}
           </View>
@@ -221,7 +230,9 @@ export function CustomerGoGoSenseScreen({
           {mode === "timeline" ? <TimelineContent /> : null}
           {mode === "settings" ? <SettingsContent /> : null}
           {mode === "recovery" ? <RecoveryContent /> : null}
-          {mode === "merchant" ? <MerchantContent /> : null}
+          {mode === "merchant" ? (
+            <MerchantContent loading={merchantLoading} merchant={merchant} merchantId={merchantId} />
+          ) : null}
           <CustomerDesktopFooterSlot style={styles.desktopFooter} />
         </ScrollView>
       </View>
@@ -444,6 +455,15 @@ function SettingsContent() {
 
 function RecoveryContent() {
   const styles = useThemedStyles(createGoGoSenseScreenStyles);
+  const { available, error, job, loading, startRecovery } = useGoGoSenseRecovery();
+  const recoveryStatus = job
+    ? `Recovery job ${job.id} is ${job.status}.`
+    : available
+      ? "Create a manual recovery job before sending evidence to support."
+      : "Manual recovery is available after sign-in on the Android app.";
+  const uploadStatus = job?.uploadUrl
+    ? "Upload link is ready for customer-provided receipt evidence."
+    : "Support can attach receipt evidence after the recovery job is created.";
   return (
     <>
       <View style={styles.card}>
@@ -462,26 +482,71 @@ function RecoveryContent() {
           icon={StoreIcon}
           title="Manual merchant review"
         />
+        <InfoRow
+          body={recoveryStatus}
+          icon={FileSearchIcon}
+          title="Recovery job status"
+        />
+        <InfoRow
+          body={error ?? uploadStatus}
+          icon={CameraIcon}
+          title="Evidence upload"
+        />
       </View>
-      <PrimaryLink href="/gogosense/timeline" label="Back to timeline" />
+      <View style={styles.actionGrid}>
+        <MotionPressable
+          accessibilityRole="button"
+          disabled={!available || loading}
+          onPress={startRecovery}
+          pressScale={motion.scale.subtlePress}
+          style={[styles.primaryButton, (!available || loading) && styles.disabledButton]}
+        >
+          <Text numberOfLines={1} style={styles.primaryButtonText}>
+            {loading ? "Creating recovery job" : "Create recovery job"}
+          </Text>
+        </MotionPressable>
+        <SecondaryLink href="/gogosense/timeline" label="Back to timeline" />
+      </View>
     </>
   );
 }
 
-function MerchantContent() {
+type MerchantContentProps = {
+  loading: boolean;
+  merchant: GoGoSenseMerchant | null;
+  merchantId?: string;
+};
+
+function MerchantContent({ loading, merchant, merchantId }: MerchantContentProps) {
   const styles = useThemedStyles(createGoGoSenseScreenStyles);
+  const merchantName = merchant?.name ?? merchantId ?? "Selected merchant";
+  const catalogStatus = loading
+    ? "Checking live merchant catalog."
+    : merchant
+      ? merchant.enabled
+        ? "Live catalog marks this merchant as supported."
+        : "Live catalog found this merchant, but tracking is disabled."
+      : "Merchant is not in the live GoGoSense catalog yet.";
+  const packageSummary = merchant?.androidPackages.length
+    ? `Android packages: ${merchant.androidPackages.join(", ")}.`
+    : "Android package detection details are not available for this route yet.";
   return (
     <>
       <View style={styles.card}>
         <SectionHeader
           icon={StoreIcon}
           subtitle="Merchant support is explicit so unsupported flows do not look tracked."
-          title="Detection methods"
+          title={merchantName}
         />
         <InfoRow
-          body="GoGoLink activation, supported app transitions, and merchant notification matching."
+          body={catalogStatus}
           icon={ActivityIcon}
-          title="Supported signals"
+          title="Catalog status"
+        />
+        <InfoRow
+          body={packageSummary}
+          icon={StoreIcon}
+          title="Android package detection"
         />
         <InfoRow
           body="Use recovery when the session is missing from the timeline."
@@ -872,6 +937,9 @@ function createGoGoSenseScreenStyles(colors: ThemeColors) {
     justifyContent: "center",
     paddingHorizontal: spacing.lg,
   },
+  disabledButton: {
+    opacity: 0.5,
+  },
   primaryButtonText: {
     color: colors.white,
     fontFamily: typography.family,
@@ -896,4 +964,3 @@ function createGoGoSenseScreenStyles(colors: ThemeColors) {
   },
 });
 }
-

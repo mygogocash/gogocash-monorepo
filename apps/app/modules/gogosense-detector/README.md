@@ -54,3 +54,13 @@ Install the resulting dev-client APK on an Android phone, then:
 `PACKAGE_USAGE_STATS` (the only restricted permission added) needs an in-app
 disclosure + a privacy-policy entry describing the Usage-Access usage. No
 `QUERY_ALL_PACKAGES`.
+
+## Local pre-device checks
+
+Run these before the EAS/dev-client device pass:
+
+```bash
+npm run test -w apps/app -- src/__tests__/mobile-launch-contract.test.ts src/__tests__/gogosense-api.test.ts src/__tests__/gogosense-detection-runner.test.ts src/__tests__/gogosense-session.test.ts --reporter=dot
+npm run test:render -w apps/app -- src/__tests__/customer-gogosense.render.test.tsx src/__tests__/gogosense-hook.render.test.tsx src/__tests__/gogosense-permissions.render.test.tsx src/__tests__/gogosense-timeline.render.test.tsx --reporter=dot
+npm run typecheck -w apps/app
+```
