@@ -244,7 +244,7 @@ const homeDesignVersions: Record<
 };
 
 function getHomeDesignVersion(viewportWidth: number): HomeDesignVersion {
-  if (viewportWidth >= 1280) {
+  if (viewportWidth >= 1200) {
     return "desktop";
   }
 
@@ -269,12 +269,6 @@ function getProfileHorizontalPadding(viewportWidth: number, contentWidth: number
   return roundLayoutValue(Math.max(0, (viewportWidth - contentWidth) / 2));
 }
 
-function getFlexibleProfileGap(contentWidth: number, cardWidth: number, columns: number) {
-  return columns > 1
-    ? Math.max(0, (contentWidth - cardWidth * columns) / (columns - 1))
-    : 0;
-}
-
 export function getResponsiveHomeLayoutMetrics(viewportWidth: number) {
   const isDesktop = viewportWidth >= mobileShellLayout.desktopBreakpoint;
   const designVersion = getHomeDesignVersion(viewportWidth);
@@ -297,12 +291,14 @@ export function getResponsiveHomeLayoutMetrics(viewportWidth: number) {
   const topBrandGroupWidth = roundLayoutValue(
     topBrandColumns * topBrandCardWidth + (topBrandColumns - 1) * topBrandGap
   );
-  const compactBrandColumns = designFrame.compactBrandColumns;
+  // Compact rails mirror Top Brands: a fixed 8-column x 2-row "group" with a fixed 16px gap
+  // that slides as one unit (no animation). The group is wider than the viewport on most
+  // screens, so it overflows and scrolls with a partial peek card; the card never resizes.
+  const compactBrandColumns = 8;
   const compactBrandCardWidth = designFrame.compactBrandCardWidth;
-  const compactBrandGap = getFlexibleProfileGap(
-    brandSectionFrameWidth,
-    compactBrandCardWidth,
-    compactBrandColumns
+  const compactBrandGap = 16;
+  const compactBrandGroupWidth = roundLayoutValue(
+    compactBrandColumns * compactBrandCardWidth + (compactBrandColumns - 1) * compactBrandGap
   );
   const compactBrandLogoVisualHeight = designFrame.compactBrandLogoVisualHeight;
   const compactBrandCardHeight = designFrame.compactBrandCardHeight;
@@ -319,6 +315,7 @@ export function getResponsiveHomeLayoutMetrics(viewportWidth: number) {
     compactBrandCardsPerPage,
     compactBrandColumns,
     compactBrandGap,
+    compactBrandGroupWidth,
     compactBrandLogoVisualHeight,
     contentHorizontalPadding,
     contentMaxWidth,
@@ -2186,7 +2183,8 @@ export const webHomePromoSections = [
     title: "Trending Brands",
     link: "/brand",
     cardVariant: "brandLogoBadge",
-    dotCount: 3,
+    // Each rail is a single 8-column x 2-row group (<=16 cards), so there is one page / no dots.
+    dotCount: 1,
     cards: [
       {
         brand: "Grocery Galaxy",
@@ -2247,7 +2245,7 @@ export const webHomePromoSections = [
     link: "/category/Travel",
     icon: "✈️",
     cardVariant: "brandLogoBadge",
-    dotCount: 2,
+    dotCount: 1,
     cards: [
       {
         brand: "Orbit Airways",
@@ -2353,7 +2351,7 @@ export const webHomePromoSections = [
     link: "/category/Health & Beauty",
     icon: "💄",
     cardVariant: "brandLogoBadge",
-    dotCount: 2,
+    dotCount: 1,
     cards: [
       {
         brand: "Bloom & Beam",

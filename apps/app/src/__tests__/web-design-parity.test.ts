@@ -128,7 +128,7 @@ describe("GoGoCash web design parity", () => {
 
   it("home responsive layout > given mobile viewport > then keeps mobile shell and bottom nav", () => {
     expect(getResponsiveHomeLayoutMetrics(390)).toMatchObject({
-      compactBrandColumns: 2,
+      compactBrandColumns: 8,
       contentHorizontalPadding: 16,
       contentMaxWidth: 1440,
       isDesktop: false,
@@ -144,8 +144,8 @@ describe("GoGoCash web design parity", () => {
   it("home responsive layout > given staging mobile Trending Brands viewport > then compact cards match selected section", () => {
     expect(getResponsiveHomeLayoutMetrics(427)).toMatchObject({
       compactBrandCardHeight: 176,
-      compactBrandColumns: 2,
-      compactBrandGap: 59,
+      compactBrandColumns: 8,
+      compactBrandGap: 16,
       compactBrandLogoVisualHeight: 117,
       brandSectionFrameWidth: 347,
     });
@@ -154,39 +154,37 @@ describe("GoGoCash web design parity", () => {
 
   it("home responsive layout > given 455px mobile Trending Brands viewport > then compact promo cards keep fixed width and scroll", () => {
     const layout = getResponsiveHomeLayoutMetrics(455);
-    const usedWidth =
+    const groupWidth =
       layout.compactBrandCardWidth * layout.compactBrandColumns +
       layout.compactBrandGap * (layout.compactBrandColumns - 1);
 
-    expect(layout.compactBrandColumns).toBe(2);
-    expect(usedWidth).toBeCloseTo(layout.brandSectionFrameWidth, 3);
-    expect(layout.contentHorizontalPadding * 2 + usedWidth).toBeLessThanOrEqual(455);
+    expect(layout.compactBrandColumns).toBe(8);
+    expect(layout.compactBrandGap).toBe(16);
+    expect(groupWidth).toBeCloseTo(layout.compactBrandGroupWidth, 3);
+    // The fixed 8-column group is wider than the mobile section frame, so it scrolls (peek).
+    expect(layout.compactBrandGroupWidth).toBeGreaterThan(layout.brandSectionFrameWidth);
   });
 
   it("home responsive layout > given 455px mobile Travel Deals viewport > then compact promo cards keep fixed width and scroll", () => {
     const layout = getResponsiveHomeLayoutMetrics(455);
     const travel = webHomePromoSections.find((section) => section.id === "travel");
-    const usedWidth =
+    const groupWidth =
       layout.compactBrandCardWidth * layout.compactBrandColumns +
       layout.compactBrandGap * (layout.compactBrandColumns - 1);
 
     expect(travel).toMatchObject({
-      dotCount: 2,
+      dotCount: 1,
       icon: "✈️",
       link: "/category/Travel",
       title: "Travel Deals are Here!",
     });
-    expect(travel?.cards.slice(0, layout.compactBrandCardsPerPage).map((card) => card.brand)).toEqual(
-      [
-        "Orbit Airways",
-        "Nova Travel Club",
-        "Horizon Escapes",
-        "CloudNine Travel",
-      ]
-    );
-    expect(layout.compactBrandColumns).toBe(2);
-    expect(layout.compactBrandCardsPerPage).toBe(4);
-    expect(usedWidth).toBeCloseTo(layout.brandSectionFrameWidth, 3);
+    // One 8-column x 2-row group holds all 16 travel cards (a single page).
+    expect(layout.compactBrandColumns).toBe(8);
+    expect(layout.compactBrandCardsPerPage).toBe(16);
+    expect(travel?.cards.slice(0, layout.compactBrandCardsPerPage)).toHaveLength(16);
+    expect(travel?.cards[0]?.brand).toBe("Orbit Airways");
+    expect(groupWidth).toBeCloseTo(layout.compactBrandGroupWidth, 3);
+    expect(layout.compactBrandGroupWidth).toBeGreaterThan(layout.brandSectionFrameWidth);
   });
 
   it("home responsive layout > given staging mobile Top Brands viewport > then uses the same card grid width", () => {
@@ -229,17 +227,21 @@ describe("GoGoCash web design parity", () => {
     expect(getResponsiveHomeLayoutMetrics(1440).topBrandCardWidth).toBeCloseTo(176, 1);
     expect(getResponsiveHomeLayoutMetrics(1440).topBrandCardHeight).toBeCloseTo(224, 1);
     const desktopLayout = getResponsiveHomeLayoutMetrics(1440);
-    const compactRowWidth =
+    const compactGroupWidth =
       desktopLayout.compactBrandColumns * desktopLayout.compactBrandCardWidth +
       (desktopLayout.compactBrandColumns - 1) * desktopLayout.compactBrandGap;
     const topBrandRowWidth =
       desktopLayout.topBrandColumns * desktopLayout.topBrandCardWidth +
       (desktopLayout.topBrandColumns - 1) * desktopLayout.topBrandGap;
     expect(desktopLayout.compactBrandColumns).toBe(8);
+    expect(desktopLayout.compactBrandGap).toBe(16);
     expect(desktopLayout.compactBrandCardsPerPage).toBe(16);
-    expect(compactRowWidth).toBeCloseTo(desktopLayout.contentWidth, 3);
+    // Both brand groups are wider than the desktop content frame, so they overflow and peek.
+    expect(compactGroupWidth).toBeCloseTo(desktopLayout.compactBrandGroupWidth, 3);
+    expect(desktopLayout.compactBrandGroupWidth).toBeGreaterThan(desktopLayout.contentWidth);
     expect(desktopLayout.topBrandGap).toBeCloseTo(16, 3);
     expect(topBrandRowWidth).toBeCloseTo(desktopLayout.topBrandGroupWidth, 3);
+    expect(desktopLayout.topBrandGroupWidth).toBeGreaterThan(desktopLayout.contentWidth);
   });
 
   it("desktop shell parity > given the Next desktop nav reference > then Expo keeps the same category nav order and cookie copy", () => {
@@ -444,32 +446,32 @@ describe("GoGoCash web design parity", () => {
     const mobileLayout = getResponsiveHomeLayoutMetrics(455);
     const desktopLayout = getResponsiveHomeLayoutMetrics(1440);
     const travel = webHomePromoSections.find((section) => section.id === "travel");
-    const desktopTravelCardsPerPage = desktopLayout.compactBrandColumns;
 
     expect(travel?.cards).toHaveLength(16);
+    // 16 cards fill exactly one 8x2 group on every tier, so there is a single page / no dots.
+    expect(mobileLayout.compactBrandCardsPerPage).toBe(16);
     expect(getCarouselDotCount(travel?.cards.length ?? 0, mobileLayout.compactBrandCardsPerPage)).toBe(
-      4
+      1
     );
     expect(
-      getCarouselDotCount(travel?.cards.length ?? 0, desktopTravelCardsPerPage)
-    ).toBe(2);
-    expect(travel?.dotCount).toBe(2);
+      getCarouselDotCount(travel?.cards.length ?? 0, desktopLayout.compactBrandCardsPerPage)
+    ).toBe(1);
+    expect(travel?.dotCount).toBe(1);
   });
 
   it("home carousel dots > given Makeup Must Have responsive rail > then mobile and desktop dots map to reachable pages", () => {
     const mobileLayout = getResponsiveHomeLayoutMetrics(455);
     const desktopLayout = getResponsiveHomeLayoutMetrics(1440);
     const makeup = webHomePromoSections.find((section) => section.id === "makeup");
-    const desktopMakeupCardsPerPage = desktopLayout.compactBrandColumns;
 
     expect(makeup?.cards).toHaveLength(13);
     expect(getCarouselDotCount(makeup?.cards.length ?? 0, mobileLayout.compactBrandCardsPerPage)).toBe(
-      4
+      1
     );
     expect(
-      getCarouselDotCount(makeup?.cards.length ?? 0, desktopMakeupCardsPerPage)
-    ).toBe(2);
-    expect(makeup?.dotCount).toBe(2);
+      getCarouselDotCount(makeup?.cards.length ?? 0, desktopLayout.compactBrandCardsPerPage)
+    ).toBe(1);
+    expect(makeup?.dotCount).toBe(1);
   });
 
   it("home carousel dots > given horizontal scroll offsets > then active dot follows the selected page", () => {
