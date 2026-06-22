@@ -2,9 +2,11 @@
 
 This document defines the typography, color system, spacing, radius, shadows, and motion properties for the GoGoCash native mobile app, matching the Next.js staging web client.
 
+**Implementation:** Light values below map to `lightColors` in `src/theme/colorPalettes.ts`. Dark mode uses a parallel `darkColors` palette via `ThemeProvider` — see **[dark-mode.md](./dark-mode.md)** for the full token list, migration patterns, and agent conventions. Static `tokens.colors` remains `lightColors` for legacy parity tests.
+
 ---
 
-## 1. Visual Colors
+## 1. Visual Colors (light baseline)
 
 | Category | Token | HEX Code | Purpose / Application |
 | :--- | :--- | :--- | :--- |
@@ -26,6 +28,25 @@ This document defines the typography, color system, spacing, radius, shadows, an
 | **Utility** | `gc-danger` | `#CD0D0D` | Error text, verification alerts, delete buttons |
 | | `gc-warning` | `#FFD700` | Warning, yellow highlights, star elements |
 | | `gc-success` | `#00A148` | Success badges, green positive text |
+
+### 1.1 Dark theme mapping (`ThemeColors`)
+
+The customer app resolves appearance at runtime. Use these mappings when authoring themed styles (`useThemedStyles` + `create*Styles(colors)`):
+
+| Light / web token (§1) | `ThemeColors` key | Dark surface (draft) |
+| :--- | :--- | :--- |
+| `bg-background` / `surface-muted` | `background` | `#0F1110` |
+| `text-default` | `ink` | `#E8ECEA` |
+| `surface-card` | `card` | `#1A1F1D` |
+| input / control fill on card | `field` | `#121615` |
+| subtle inset (`#FAFAFA`) | `fieldMuted` | `#161B19` |
+| `gc-text-muted` | `muted` | `#9AA3A0` |
+| `gc-border` | `border` | `#2A302E` |
+| `gc-primary` | `primary` | `#00CC99` (unchanged) |
+| `gc-primary-soft` | `primarySoft` | `#0D3D32` |
+| hyperlinks | `link` | `#5B9BFF` |
+
+Brand mint greens (`gc-primary`, `gc-primary-strong`) stay on-brand in both themes; invert surfaces and body text, not the primary CTA color.
 
 ---
 
@@ -81,3 +102,7 @@ This document defines the typography, color system, spacing, radius, shadows, an
 2. **Carousel Swiping**: Slides spring into place gently.
 3. **Sub-page Transitions**: Sidebar routes fade and translate horizontally by `6px` using standard easing.
 4. **Loading Skeletons**: Standard shimmer opacity pulses slowly.
+
+---
+
+**See also:** [dark-mode.md](./dark-mode.md) — runtime palette and migration patterns.

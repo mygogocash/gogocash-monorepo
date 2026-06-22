@@ -14,7 +14,7 @@ In scope:
 
 - Native Expo screens under `apps/app`.
 - Customer web reference routes under `src/app/[locale]`.
-- Shared visual decisions captured in `apps/app/src/design/webDesignParity.ts` and `apps/app/src/theme/tokens.ts`.
+- Shared visual decisions captured in `apps/app/src/design/webDesignParity.ts`, `apps/app/src/theme/colorPalettes.ts` (light/dark), and `apps/app/src/theme/tokens.ts` (radii/spacing/typography; legacy static `colors` = light).
 - iOS simulator, Android emulator, and Expo web preview.
 - English and Thai copy where the web route supports both.
 
@@ -34,7 +34,8 @@ Use these references for every migrated route:
 - Web mobile nav/search/menu constants: `src/constants/**`
 - Native route catalog: `apps/app/src/navigation/routes.ts`
 - Native parity constants: `apps/app/src/design/webDesignParity.ts`
-- Native tokens: `apps/app/src/theme/tokens.ts`
+- Native theme tokens: `apps/app/src/theme/colorPalettes.ts`, `useThemedStyles` — see `apps/app/docs/dark-mode.md`
+- Native layout tokens: `apps/app/src/theme/tokens.ts`
 - Mobile build plan: `apps/app/FRONTEND_PARITY_PLAN.md`
 
 ## Required Viewports And Devices
@@ -80,7 +81,7 @@ Run this checklist per route.
 - [ ] Native screenshot captured from Expo web and at least one simulator/emulator.
 - [ ] Layout width matches web mobile shell and does not stretch on wide desktop preview.
 - [ ] Safe areas, sticky search/header, scroll padding, and bottom nav clearance match web behavior.
-- [ ] Colors match token values: background, card, primary mint, primary soft, text, muted, border.
+- [ ] Colors match token values for the **active appearance**: background, card, primary mint, primary soft, text, muted, border. Re-run checklist in **Light** and **Dark** (Account Settings → Appearance).
 - [ ] Border radius and shadow match the web card/nav pattern.
 - [ ] Typography hierarchy matches: page title, section title, body text, caption, button text.
 - [ ] Spacing rhythm matches web: section gaps, card padding, row heights, chip spacing.
@@ -93,7 +94,20 @@ Run this checklist per route.
 - [ ] External links show the same destinations as web.
 - [ ] Auth-required routes handle unauthenticated and offline states consistently with web expectations.
 - [ ] No route-contract placeholder text remains on migrated screens.
+- [ ] No near-white panels, inputs, or navigator backdrops remain in dark mode (common regressions: module-level `StyleSheet`, web-only gradients, `colors.white` as `backgroundColor`).
 - [ ] No console errors, React Native Web warnings, or simulator red screens.
+
+## Dark mode QA (customer app)
+
+Run after any styling change touching shared chrome or account settings:
+
+1. Expo web at `http://localhost:8081` — set Appearance to **Dark**, then **System** with OS dark enabled.
+2. Spot-check P0 routes: home, wallet, profile, account settings, GoGoSense hub, auth login shell.
+3. Confirm header logo text, profile chip, globe/locale control, tab bar, and scene background are not light-gray leaks.
+4. Toggle back to **Light** — web-parity light baseline should still match existing screenshot baselines.
+5. `npm --prefix apps/app run test` — parity tests pin light literals where required; `web-design-parity.test.ts` intentionally asserts static `tokens.colors`.
+
+Reference: `apps/app/docs/dark-mode.md`.
 
 ## Screenshot Comparison Rules
 

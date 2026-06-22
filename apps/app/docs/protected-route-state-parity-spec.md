@@ -21,6 +21,7 @@ Keep customer account flows aligned with the Next.js reference by preventing bla
 # Requirements
 - Shared variants: loading, empty, error, offline, unauthenticated.
 - Typography must use `typography.family`, `typography.titleWeight`, and body line-height tokens.
+- Surface colors must resolve through `ThemeColors` (`useThemedStyles`) so loading/error/offline cards remain readable in dark mode — see `docs/dark-mode.md`.
 - Error and offline variants must expose alert semantics.
 - CTAs must use the same motion pressable pattern as other customer surfaces.
 

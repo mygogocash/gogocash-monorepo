@@ -11,6 +11,10 @@
 > below are not defined in this monorepo — use `npm --prefix apps/app run
 > test:full` (and `npx --prefix apps/app playwright test` for design QA). Phase
 > targets and audit verdicts are otherwise unchanged and preserved as written.
+>
+> **Update (2026-06-22):** Customer-app **dark mode** (System / Light / Dark) shipped
+> in `apps/app` — see `docs/dark-mode.md`. Stack is Expo SDK 56 + **RN 0.86** +
+> react-native-web 0.21.2 (not 0.85).
 
 ## ★ NORTH STAR — Expo is the single source of truth for ALL platforms
 
@@ -141,8 +145,8 @@ opportunistically inside Phase 3; **do not spend a dedicated re-sync phase.**
 
 ## 0. Reality Check (what the audit actually found)
 
-This is **not** a framework conversion. `apps/mobile` is already a mature Expo
-SDK 56 app (expo-router, RN 0.85, React 19, react-native-web) with ~48 route
+This is **not** a framework conversion. `apps/app` is already a mature Expo
+SDK 56 app (expo-router, RN 0.86, React 19, react-native-web) with ~48 route
 files, a 2,478-line home screen, a 1,042-line auth screen, ~35 parity tests,
 and a 2,332-line design handbook. The last handoff reported 204–259 tests green
 + Expo web export + 77 design-QA checks.

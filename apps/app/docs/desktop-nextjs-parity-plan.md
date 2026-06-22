@@ -24,6 +24,8 @@ Align the Expo customer web desktop experience with the local Next.js reference 
 6. Visual QA records screenshots for reference and Expo with filenames that include route, viewport, and app.
 
 > **Update (2026-06-21, merged in PR #1):** The Expo app now lives at `apps/app` (package `@gogocash/mobile`); the `apps/mobile` paths and `npm --prefix apps/mobile ...` / `mobile:*` commands below are historical — substitute `apps/app` and run the current scripts (`npm run test`, `npm run test:full`, `npm run typecheck`, `npm run export:web`) from inside `apps/app`. The former `LShopCard`/`SShopCard` were consolidated into a single `BrandCard` (`size="L"` / `size="S"`); the home hero is 1 main + 2 side banners at 16:9, the GoGoLink banner was redesigned, and the Trending Brands / Travel Deals rails are each capped to 16 cards.
+>
+> **Update (2026-06-22):** Customer-app dark mode shipped (`docs/dark-mode.md`). Desktop parity QA for dark appearance: verify header/footer/nav in **Dark** as well as light web baseline. Expo web default port is **8081** (not 19006) when using `npm run web`.
 
 ## Current Status (2026-06-06)
 

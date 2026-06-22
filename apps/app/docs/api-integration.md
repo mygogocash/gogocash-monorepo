@@ -112,3 +112,8 @@ Switching production to live data later = a deliberate edit of `mobile-launch-co
 4. Per-resource mappers for `profile`, `wallet`, `referral`, `offers`, `merchant` (template in §3); repoint or retire `billing`.
 5. Expand the catalog (home/shop/discovery lists, favorites `POST /offer/favorite/:offer_id` — the heart toggles are already functional UI-side).
 6. Production flip: EAS profile + pinned-test edits + `.env.example`.
+
+## 8. Related docs
+
+- [dark-mode.md](./dark-mode.md) — customer app appearance (System / Light / Dark); admin has its own theme
+- [AGENTS.md](../AGENTS.md) — agent conventions and verification gates

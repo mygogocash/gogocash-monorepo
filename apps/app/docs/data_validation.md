@@ -65,3 +65,7 @@ When updating profile details or performing KYC validation, fields must be valid
   - Zip Code: Digits only, length 5 (Thai postal code format).
 - **Gender**: Selected from Male, Female, Other, or left empty (Optional).
 - **Birthdate**: Date picker format `YYYY-MM-DD`. Must ensure age is **18 years or older** at the time of verification.
+
+---
+
+**Related:** Form field surfaces use `ThemeColors.field` / `fieldMuted` in dark mode — [dark-mode.md](./dark-mode.md).

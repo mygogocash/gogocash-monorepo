@@ -341,3 +341,6 @@ These 334 strings are **mobile-only** copy with no web-catalog equivalent. Their
 | ☐ | `mobileSec_303` | Category | หมวดหมู่ |
 | ☐ | `mobileSec_304` | Browse this collection | ดูคอลเลกชันนี้ |
 
+---
+
+**Related:** Copy renders through `tc()` on themed screens — appearance does not change ICU keys. Theme docs: [dark-mode.md](./dark-mode.md).

@@ -99,3 +99,7 @@ sequenceDiagram
     API-->>UI: Complete withdrawal log
     UI->>User: Display success modal and updated balance
 ```
+
+---
+
+**Related:** Customer app UI theming — [dark-mode.md](./dark-mode.md).
