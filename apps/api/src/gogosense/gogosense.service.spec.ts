@@ -52,6 +52,15 @@ function makeService() {
   const detectionEventModel = {
     create: jest.fn(async (doc) => ({ _id: 'detection-1', ...doc })),
     find: jest.fn().mockReturnValue(makeQueryResult([])),
+    findOne: jest.fn().mockReturnValue(
+      makeQueryResult({
+        _id: 'detection-1',
+        user_id: 'user-1',
+        merchant_id: 'merchant-shopee',
+        network_merchant_id: 201,
+        matched: true,
+      }),
+    ),
   };
   const activationEventModel = {
     create: jest.fn(async (doc) => ({ _id: 'activation-1', ...doc })),
@@ -177,7 +186,8 @@ describe('GogosenseService detection and activation', () => {
   });
 
   it('activation > given matched merchant > then creates or reuses deeplink', async () => {
-    const { activationEventModel, involveService, service } = makeService();
+    const { activationEventModel, detectionEventModel, involveService, service } =
+      makeService();
     const request = {
       detectionEventId: 'detection-1',
       merchantId: 'merchant-shopee',
@@ -189,6 +199,14 @@ describe('GogosenseService detection and activation', () => {
     await expect(service.activate('user-1', request)).resolves.toEqual({
       activationEventId: 'activation-1',
       deeplink: 'https://track.gogocash.co/shopee',
+    });
+
+    expect(detectionEventModel.findOne).toHaveBeenCalledWith({
+      _id: 'detection-1',
+      user_id: 'user-1',
+      merchant_id: 'merchant-shopee',
+      network_merchant_id: 201,
+      matched: true,
     });
 
     expect(involveService.createAffiliate).toHaveBeenCalledWith(
@@ -210,6 +228,24 @@ describe('GogosenseService detection and activation', () => {
   });
 });
 
+  it('activation > given an invalid detection event id > rejects before deeplink creation', async () => {
+    const { activationEventModel, detectionEventModel, involveService, service } =
+      makeService();
+    detectionEventModel.findOne.mockReturnValueOnce(makeQueryResult(null));
+
+    await expect(
+      service.activate('user-1', {
+        detectionEventId: 'detection-1',
+        merchantId: 'merchant-shopee',
+        offerId: 101,
+        networkMerchantId: 201,
+        source: 'gogosense',
+      }),
+    ).rejects.toThrow('Invalid GoGoSense detection event for activation');
+
+    expect(involveService.createAffiliate).not.toHaveBeenCalled();
+    expect(activationEventModel.create).not.toHaveBeenCalled();
+  });
 describe('GogosenseService settings and timeline', () => {
   it('settings > given partial update > then only writes provided flags', async () => {
     const { service } = makeService();

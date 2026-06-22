@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { AnalyticsService } from 'src/analytics/analytics.service';
@@ -221,6 +221,8 @@ export class GogosenseService {
     userId: string,
     request: ActivationRequestDto,
   ): Promise<ActivationResponse> {
+    await this.assertDetectionEventMatchesActivation(userId, request);
+
     const deeplinkDoc = await this.involveService.createAffiliate(
       {
         offer_id: request.offerId,
@@ -260,6 +262,31 @@ export class GogosenseService {
       activationEventId: getDocumentId(activation) || '',
       deeplink,
     };
+  }
+
+  private async assertDetectionEventMatchesActivation(
+    userId: string,
+    request: ActivationRequestDto,
+  ) {
+    if (!request.detectionEventId) {
+      return;
+    }
+
+    const detectionEvent = await this.detectionEventModel
+      .findOne({
+        _id: request.detectionEventId,
+        user_id: userId,
+        merchant_id: request.merchantId,
+        network_merchant_id: request.networkMerchantId,
+        matched: true,
+      })
+      .lean();
+
+    if (!detectionEvent) {
+      throw new BadRequestException(
+        'Invalid GoGoSense detection event for activation',
+      );
+    }
   }
 
   async getTimeline(userId: string) {
