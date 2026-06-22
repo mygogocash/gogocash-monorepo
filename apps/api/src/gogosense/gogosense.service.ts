@@ -62,6 +62,8 @@ export type ActivationResponse = {
   expiresAt?: string;
 };
 
+const SCREENSHOT_JOB_TTL_MS = 24 * 60 * 60 * 1000;
+
 const normalizePackageName = (packageName?: string) =>
   packageName?.trim().toLowerCase() || undefined;
 
@@ -316,12 +318,17 @@ export class GogosenseService {
     return this.screenshotJobModel.create({
       user_id: userId,
       status: 'pending',
+      expires_at: new Date(Date.now() + SCREENSHOT_JOB_TTL_MS),
     });
   }
 
   async getScreenshotJob(userId: string, jobId: string) {
     return this.screenshotJobModel
-      .findOne({ _id: jobId, user_id: userId })
+      .findOne({
+        _id: jobId,
+        user_id: userId,
+        expires_at: { $gt: new Date() },
+      })
       .lean();
   }
 

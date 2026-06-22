@@ -296,6 +296,38 @@ describe('GogosenseService settings and timeline', () => {
       user_id: 'user-1',
     });
   });
+
+  it('screenshot recovery > given new job > then writes a 24 hour expiry', async () => {
+    const now = Date.parse('2026-05-23T09:00:00.000Z');
+    const dateNowSpy = jest.spyOn(Date, 'now').mockReturnValue(now);
+    const { service } = makeService();
+    const screenshotJobModel = (service as any).screenshotJobModel;
+
+    try {
+      await service.createScreenshotJob('user-1');
+    } finally {
+      dateNowSpy.mockRestore();
+    }
+
+    expect(screenshotJobModel.create).toHaveBeenCalledWith({
+      user_id: 'user-1',
+      status: 'pending',
+      expires_at: new Date('2026-05-24T09:00:00.000Z'),
+    });
+  });
+
+  it('screenshot recovery > given job lookup > then requires owner and unexpired job', async () => {
+    const { service } = makeService();
+    const screenshotJobModel = (service as any).screenshotJobModel;
+
+    await service.getScreenshotJob('user-1', 'screenshot-1');
+
+    expect(screenshotJobModel.findOne).toHaveBeenCalledWith({
+      _id: 'screenshot-1',
+      user_id: 'user-1',
+      expires_at: { $gt: expect.any(Date) },
+    });
+  });
 });
 
 describe('GoGoSense merchant seed catalog', () => {
