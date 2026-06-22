@@ -47,6 +47,7 @@ export function createGoGoSenseSession(options: GoGoSenseSessionOptions) {
   let permissionGranted = false;
   let running = false;
   let lastMatch: GoGoSenseMatch | null = null;
+  let matchedDuringPoll = false;
 
   const emitChange = () => options.onChange?.();
 
@@ -58,6 +59,7 @@ export function createGoGoSenseSession(options: GoGoSenseSessionOptions) {
     now: options.now,
     onDetection: (event) => {
       if (event.response.matched) {
+        matchedDuringPoll = true;
         lastMatch = event;
         emitChange();
       }
@@ -108,7 +110,14 @@ export function createGoGoSenseSession(options: GoGoSenseSessionOptions) {
     },
 
     async poll(): Promise<void> {
-      await runner.pollForegroundPackage();
+      matchedDuringPoll = false;
+      const result = await runner.pollForegroundPackage();
+      const shouldClearMatch =
+        !result.detected || (!result.suppressed && !matchedDuringPoll);
+      if (shouldClearMatch && lastMatch != null) {
+        lastMatch = null;
+        emitChange();
+      }
     },
 
     // Activates cashback for the surfaced match: turns lastMatch into an
