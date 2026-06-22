@@ -639,7 +639,7 @@ function createReferralScreenStyles(colors: ThemeColors) {
   },
   earnCard: {
     backgroundColor: colors.card,
-    borderColor: "#EFEFEF",
+    borderColor: colors.border,
     borderRadius: 24,
     borderWidth: 1,
     boxShadow: "0 8px 28px rgba(16, 53, 34, 0.08)",
@@ -842,8 +842,8 @@ function createReferralScreenStyles(colors: ThemeColors) {
     color: colors.muted,
   },
   tableCard: {
-    backgroundColor: "rgba(255,255,255,0.36)",
-    borderColor: "#B8D4EF",
+    backgroundColor: pickThemed(colors, "rgba(255,255,255,0.36)", colors.card),
+    borderColor: pickThemed(colors, "#B8D4EF", colors.border),
     borderRadius: 24,
     borderWidth: 1,
     overflow: "hidden",
@@ -936,7 +936,7 @@ function createReferralScreenStyles(colors: ThemeColors) {
   stepCard: {
     alignItems: "center",
     backgroundColor: colors.card,
-    borderColor: "#EFEFEF",
+    borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1,
     boxShadow: "0 4px 16px rgba(16, 53, 34, 0.06)",
@@ -1159,7 +1159,7 @@ function createReferralScreenStyles(colors: ThemeColors) {
   exploreFavoriteButton: {
     alignItems: "center",
     backgroundColor: pickThemed(colors, "#E6F7ED", colors.primarySoft),
-    borderColor: "#E6F7ED",
+    borderColor: pickThemed(colors, "#E6F7ED", colors.border),
     borderRadius: 999,
     borderWidth: 1,
     flexShrink: 0,

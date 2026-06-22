@@ -846,7 +846,7 @@ function createGoLinkScreenStyles(colors: ThemeColors) {
   },
   inputShell: {
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.82)",
+    backgroundColor: pickThemed(colors, "rgba(255, 255, 255, 0.82)", colors.field),
     borderColor: "rgba(0, 170, 128, 0.35)",
     borderRadius: radii.md,
     borderWidth: 1,
@@ -1155,7 +1155,7 @@ function createGoLinkScreenStyles(colors: ThemeColors) {
     paddingLeft: 29,
   },
   cashbackTipsBlock: {
-    backgroundColor: "#F0FDFA",
+    backgroundColor: pickThemed(colors, "#F0FDFA", colors.primarySoft),
     borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,

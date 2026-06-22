@@ -1203,7 +1203,7 @@ function createQuestScreenStyles(colors: ThemeColors) {
     fontWeight: "700",
   },
   historyInsightCard: {
-    backgroundColor: "#F6FDFB",
+    backgroundColor: pickThemed(colors, "#F6FDFB", colors.card),
     borderColor: pickThemed(colors, "#D8F8EF", colors.border),
     borderRadius: radii.lg,
     borderWidth: 1,
