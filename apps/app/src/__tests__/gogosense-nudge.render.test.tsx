@@ -110,5 +110,6 @@ describe("GoGoSenseDetectionBanner activation failures", () => {
 
     expect(api.activate).toHaveBeenCalledTimes(1);
     expect(openUrl).not.toHaveBeenCalled();
+    expect(await screen.findByText("Cashback activation failed. Please try again.")).toBeTruthy();
   });
 });

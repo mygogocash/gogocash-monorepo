@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AppState, Linking, StyleSheet, Text, View } from "react-native";
 
 import { MotionPressable } from "@mobile/components/MotionPressable";
@@ -40,6 +40,7 @@ export function GoGoSenseDetectionBanner({
   const liveApi = useGoGoSenseApi();
   const api = apiOverride ?? liveApi ?? inertApi;
   const { state, start, poll, activate } = useGoGoSense({ detector, api });
+  const [activationError, setActivationError] = useState(false);
 
   useEffect(() => {
     void start().then(() => poll());
@@ -52,6 +53,7 @@ export function GoGoSenseDetectionBanner({
   }, [start, poll]);
 
   const onActivate = useCallback(() => {
+    setActivationError(false);
     void haptics.impact();
     void activate()
       .then((result) => {
@@ -60,7 +62,7 @@ export function GoGoSenseDetectionBanner({
         }
         return undefined;
       })
-      .catch(() => undefined);
+      .catch(() => setActivationError(true));
   }, [activate, openUrl]);
 
   const match = state.lastMatch;
@@ -95,6 +97,9 @@ export function GoGoSenseDetectionBanner({
           {tc("Activate cashback")}
         </Text>
       </MotionPressable>
+      {activationError ? (
+        <Text style={styles.error}>{tc("Cashback activation failed. Please try again.")}</Text>
+      ) : null}
     </View>
   );
 }
@@ -128,6 +133,12 @@ function createGoGoSenseDetectionBannerStyles(colors: ThemeColors) {
     color: colors.white,
     fontSize: 14,
     fontWeight: "700",
+  },
+  error: {
+    color: colors.danger,
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 16,
   },
 });
 }
