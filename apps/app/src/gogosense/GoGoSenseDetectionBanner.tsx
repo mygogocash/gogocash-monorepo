@@ -41,6 +41,7 @@ export function GoGoSenseDetectionBanner({
   const api = apiOverride ?? liveApi ?? inertApi;
   const { state, start, poll, activate } = useGoGoSense({ detector, api });
   const [activationError, setActivationError] = useState(false);
+  const [activatedMatchKey, setActivatedMatchKey] = useState<string | null>(null);
 
   useEffect(() => {
     void start().then(() => poll());
@@ -52,27 +53,30 @@ export function GoGoSenseDetectionBanner({
     return () => subscription.remove();
   }, [start, poll]);
 
+  const match = state.lastMatch;
+  const matchIsActionable =
+    match != null &&
+    match.response.matched &&
+    match.response.recommendedAction === "activate";
+  const matchKey = matchIsActionable
+    ? `${match.packageName}:${match.response.detectionEventId ?? match.response.merchantId ?? ""}`
+    : null;
+  const showNudge = matchIsActionable && matchKey !== activatedMatchKey;
+
   const onActivate = useCallback(() => {
     setActivationError(false);
     void haptics.impact();
     void activate()
       .then((result) => {
-        if (result) {
-          return (openUrl ?? Linking.openURL)(result.deeplink);
+        if (!result) {
+          return undefined;
         }
-        return undefined;
+        return Promise.resolve((openUrl ?? Linking.openURL)(result.deeplink)).then(() => {
+          setActivatedMatchKey(matchKey);
+        });
       })
       .catch(() => setActivationError(true));
-  }, [activate, openUrl]);
-
-  const match = state.lastMatch;
-  const showNudge =
-    match != null &&
-    match.response.matched &&
-    match.response.recommendedAction === "activate";
-  const matchKey = showNudge
-    ? `${match.packageName}:${match.response.detectionEventId ?? match.response.merchantId ?? ""}`
-    : null;
+  }, [activate, matchKey, openUrl]);
 
   useEffect(() => {
     setActivationError(false);

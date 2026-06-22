@@ -58,6 +58,7 @@ describe("GoGoSenseDetectionBanner (render)", () => {
 
     await waitFor(() => expect(api.activate).toHaveBeenCalled());
     expect(openUrl).toHaveBeenCalledWith("https://track.gogocash.co/shopee");
+    await waitFor(() => expect(screen.queryByText("Activate cashback")).toBeNull());
   });
 
   it("no match > renders nothing", async () => {
