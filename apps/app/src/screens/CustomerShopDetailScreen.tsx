@@ -626,7 +626,7 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
   favoriteButton: {
     alignItems: "center",
     backgroundColor: pickThemed(colors, "#E6F7ED", colors.primarySoft),
-    borderColor: "#E6F7ED",
+    borderColor: pickThemed(colors, "#E6F7ED", colors.border),
     borderRadius: radii.chip,
     borderWidth: 1,
     height: 48,
@@ -716,8 +716,8 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
   },
   extraTag: {
     alignItems: "center",
-    backgroundColor: "#F7FDFB",
-    borderColor: "#C8EBE0",
+    backgroundColor: pickThemed(colors, "#F7FDFB", colors.card),
+    borderColor: pickThemed(colors, "#C8EBE0", colors.border),
     borderRadius: radii.chip,
     borderWidth: 1,
     flexDirection: "row",
@@ -793,8 +793,8 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
     fontWeight: "600",
   },
   noteBox: {
-    backgroundColor: "#F7FDFB",
-    borderColor: "#C8EBE0",
+    backgroundColor: pickThemed(colors, "#F7FDFB", colors.card),
+    borderColor: pickThemed(colors, "#C8EBE0", colors.border),
     borderRadius: 12,
     borderWidth: 1,
     paddingHorizontal: 12,
@@ -864,7 +864,7 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
   },
   referralCard: {
     backgroundColor: colors.card,
-    borderColor: "#C8EBE0",
+    borderColor: pickThemed(colors, "#C8EBE0", colors.border),
     borderRadius: 20,
     borderWidth: 1,
     gap: 14,
@@ -980,7 +980,7 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
     lineHeight: 30,
   },
   cashbackTipsFigure: {
-    backgroundColor: "#F0FDFA",
+    backgroundColor: pickThemed(colors, "#F0FDFA", colors.primarySoft),
     borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1,

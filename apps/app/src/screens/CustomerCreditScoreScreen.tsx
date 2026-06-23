@@ -634,7 +634,7 @@ function createCreditScoreScreenStyles(colors: ThemeColors) {
   },
   monthTrack: {
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.75)",
+    backgroundColor: pickThemed(colors, "rgba(255,255,255,0.75)", colors.field),
     borderColor: colors.border,
     borderRadius: 12,
     borderWidth: 1,
@@ -704,7 +704,7 @@ function createCreditScoreScreenStyles(colors: ThemeColors) {
     paddingVertical: 4,
   },
   monthStatusPillProgress: {
-    backgroundColor: "#FEF3C7",
+    backgroundColor: pickThemed(colors, "#FEF3C7", colors.warningSoft),
   },
   monthStatusPillLocked: {
     backgroundColor: colors.background,

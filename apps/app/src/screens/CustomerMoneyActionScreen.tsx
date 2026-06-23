@@ -1167,7 +1167,7 @@ function createMoneyActionScreenStyles(colors: ThemeColors) {
     marginVertical: 4,
   },
   switchOuter: {
-    backgroundColor: "#E4E4E4",
+    backgroundColor: colors.border,
     borderRadius: radii.chip,
     height: 24,
     padding: 2,

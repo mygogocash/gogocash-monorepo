@@ -6,11 +6,15 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { Platform, useColorScheme } from "react-native";
 
-import { getColorsForTheme, type ThemeColors } from "@mobile/theme/colorPalettes";
+import {
+  getColorsForTheme,
+  type ThemeColors,
+} from "@mobile/theme/colorPalettes";
 import { resolveTheme, type ResolvedTheme } from "@mobile/theme/resolveTheme";
 import {
   DEFAULT_THEME_PREFERENCE,
@@ -49,8 +53,9 @@ function applyWebColorScheme(resolved: ResolvedTheme) {
 
 export function ThemeProvider({ children }: PropsWithChildren) {
   const systemScheme = useColorScheme();
+  const preferenceVersionRef = useRef(0);
   const [preference, setPreferenceState] = useState<ThemePreference>(
-    () => resolveInitialPreference() ?? DEFAULT_THEME_PREFERENCE
+    () => resolveInitialPreference() ?? DEFAULT_THEME_PREFERENCE,
   );
 
   useEffect(() => {
@@ -58,9 +63,14 @@ export function ThemeProvider({ children }: PropsWithChildren) {
       return;
     }
     let active = true;
+    const hydrationVersion = preferenceVersionRef.current;
     void (async () => {
       const stored = await readStoredThemePreference();
-      if (active && stored !== null) {
+      if (
+        active &&
+        stored !== null &&
+        preferenceVersionRef.current === hydrationVersion
+      ) {
         setPreferenceState(stored);
       }
     })();
@@ -71,7 +81,7 @@ export function ThemeProvider({ children }: PropsWithChildren) {
 
   const resolved = useMemo(
     () => resolveTheme(preference, systemScheme),
-    [preference, systemScheme]
+    [preference, systemScheme],
   );
   const colors = useMemo(() => getColorsForTheme(resolved), [resolved]);
 
@@ -80,6 +90,7 @@ export function ThemeProvider({ children }: PropsWithChildren) {
   }, [resolved]);
 
   const setPreference = useCallback((next: ThemePreference) => {
+    preferenceVersionRef.current += 1;
     setPreferenceState(next);
     void writeStoredThemePreference(next);
   }, []);
@@ -92,10 +103,12 @@ export function ThemeProvider({ children }: PropsWithChildren) {
       ready: true,
       setPreference,
     }),
-    [preference, resolved, colors, setPreference]
+    [preference, resolved, colors, setPreference],
   );
 
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+  return (
+    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
+  );
 }
 
 export function useTheme(): ThemeContextValue {
@@ -123,7 +136,7 @@ export function ThemePreferenceOverride({
   const systemScheme = useColorScheme();
   const resolved = useMemo(
     () => resolveTheme(preference, systemScheme),
-    [preference, systemScheme]
+    [preference, systemScheme],
   );
   const overrideColors = useMemo(() => getColorsForTheme(resolved), [resolved]);
   const value = useMemo<ThemeContextValue>(
@@ -133,10 +146,12 @@ export function ThemePreferenceOverride({
       resolved,
       colors: overrideColors,
     }),
-    [parent, preference, resolved, overrideColors]
+    [parent, preference, resolved, overrideColors],
   );
 
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+  return (
+    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
+  );
 }
 
 export function ThemedStatusBar() {
