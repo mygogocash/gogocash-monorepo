@@ -68,6 +68,9 @@ Android devices before Expo starts.
 2. Open an **enabled** merchant app (e.g. Shopee), spend up to two minutes there, then return to GoGoCash → GoGoSense
    hub. Expect a **POST `/gogosense/detect`** (matched) and the **Activate cashback**
    nudge. Tap it → **POST `/gogosense/activate`** → the affiliate deeplink opens.
+   Device automation can target the activation nudge with
+   `testID="gogosense-activate-cashback-button"` or the accessibility label
+   `Activate GoGoSense cashback`.
 3. GoGoSense → **Timeline** shows the detection; **Settings** toggles persist
    (POST `/gogosense/settings`).
 

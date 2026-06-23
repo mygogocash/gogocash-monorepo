@@ -113,9 +113,13 @@ export function GoGoSenseDetectionBanner({
         {merchantSuffix}
       </Text>
       <MotionPressable
+        accessibilityLabel={tc("Activate GoGoSense cashback")}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: isActivating }}
         onPress={onActivate}
         pressScale={motion.scale.subtlePress}
         style={[styles.button, isActivating ? styles.buttonDisabled : null]}
+        testID="gogosense-activate-cashback-button"
       >
         <Text numberOfLines={1} style={styles.buttonText}>
           {tc(isActivating ? "Activating cashback" : "Activate cashback")}

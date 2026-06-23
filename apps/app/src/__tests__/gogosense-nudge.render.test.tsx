@@ -52,6 +52,10 @@ describe("GoGoSenseDetectionBanner (render)", () => {
     });
 
     const button = await screen.findByText("Activate cashback");
+    const activationButton = screen.getByTestId("gogosense-activate-cashback-button");
+    expect(screen.getByLabelText("Activate GoGoSense cashback")).toBe(activationButton);
+    expect(activationButton.getAttribute("role")).toBe("button");
+
     await act(async () => {
       fireEvent.click(button);
     });
