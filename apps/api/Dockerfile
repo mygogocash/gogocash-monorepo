@@ -14,10 +14,12 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 # Install deps from the root lockfile. .npmrc carries legacy-peer-deps=true
 # (NestJS v10/v11 peer mix), so npm ci resolves without a manual flag — but we
-# pass it explicitly too as a guard against an unread .npmrc.
+# pass it explicitly too as a guard against an unread .npmrc. Ignore lifecycle
+# scripts because the root postinstall patches admin assets that are not copied
+# into this API-only image.
 COPY package.json package-lock.json .npmrc ./
 COPY apps/api/package.json ./apps/api/package.json
-RUN npm ci --legacy-peer-deps
+RUN npm ci --legacy-peer-deps --ignore-scripts
 
 # Copy the api source and build only its workspace (@nestjs/cli is a devDep,
 # already installed above).
