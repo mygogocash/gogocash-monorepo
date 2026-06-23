@@ -408,6 +408,27 @@ describe('GogosenseService detection and activation', () => {
   });
 });
 
+it('detect > minimizes URL and notification text before storing detection event', async () => {
+  const { detectionEventModel, service } = makeService();
+
+  await service.detect('user-1', {
+    method: 'notification',
+    notificationText:
+      'Shopee order 123456789 for +66 81 234 5678 user test@example.com https://shopee.co.th/orders?token=secret',
+    observedAt: '2026-05-23T09:00:00.000Z',
+    platform: 'android',
+    url: 'https://shopee.co.th/orders?token=secret#fragment',
+  });
+
+  expect(detectionEventModel.create).toHaveBeenCalledWith(
+    expect.objectContaining({
+      notification_text:
+        'Shopee order [redacted-number] for [redacted-phone] user [redacted-email] [redacted-url]',
+      url: 'https://shopee.co.th',
+    }),
+  );
+});
+
 describe('GogosenseService settings and timeline', () => {
   it('settings > given partial update > then only writes provided flags', async () => {
     const { service } = makeService();

@@ -85,6 +85,31 @@ const normalizeDomain = (urlOrDomain?: string) => {
   }
 };
 
+const sanitizeDetectionUrl = (url?: string) => {
+  const domain = normalizeDomain(url);
+  return domain ? `https://${domain}` : undefined;
+};
+
+const sanitizeDetectionText = (text?: string) => {
+  if (!text) return undefined;
+
+  const sanitized = text
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, '[redacted-email]')
+    .replace(/\b\d{8,}\b/g, '[redacted-number]')
+    .replace(/\+?\b(?:\d[\d\s().-]{7,}\d)\b/g, '[redacted-phone]')
+    .replace(/https?:\/\/\S+/gi, '[redacted-url]')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return sanitized ? sanitized.slice(0, 240) : undefined;
+};
+
+const sanitizeDetectionRequest = (request: DetectionRequestDto) => ({
+  ...request,
+  url: sanitizeDetectionUrl(request.url),
+  notificationText: sanitizeDetectionText(request.notificationText),
+});
+
 const domainMatches = (candidateDomain: string, merchantDomain: string) => {
   const normalizedMerchantDomain = normalizeDomain(merchantDomain);
   if (!normalizedMerchantDomain) return false;
@@ -179,38 +204,42 @@ export class GogosenseService {
     userId: string,
     request: DetectionRequestDto,
   ): Promise<DetectionResponse> {
+    const detectionRequest = sanitizeDetectionRequest(request);
     const settings = await this.getSettings(userId);
     if (settings?.enabled === false) {
       throw new BadRequestException('GoGoSense tracking is disabled');
     }
     if (
-      request.method === 'android_package' &&
+      detectionRequest.method === 'android_package' &&
       settings?.usage_stats_enabled === false
     ) {
       throw new BadRequestException('Usage access detection is disabled');
     }
     if (
-      request.method === 'notification' &&
+      detectionRequest.method === 'notification' &&
       settings?.notification_listener_enabled === false
     ) {
       throw new BadRequestException('Notification detection is disabled');
     }
     if (
-      request.method === 'screenshot_ocr' &&
+      detectionRequest.method === 'screenshot_ocr' &&
       settings?.screenshot_recovery_enabled === false
     ) {
       throw new BadRequestException('Screenshot recovery is disabled');
     }
-    if (request.method === 'screenshot_ocr' && !request.screenshotJobId) {
+    if (
+      detectionRequest.method === 'screenshot_ocr' &&
+      !detectionRequest.screenshotJobId
+    ) {
       throw new BadRequestException(
         'Screenshot recovery job is required for screenshot OCR detection',
       );
     }
-    const match = await this.matchMerchant(request);
-    if (request.screenshotJobId) {
+    const match = await this.matchMerchant(detectionRequest);
+    if (detectionRequest.screenshotJobId) {
       const screenshotJob = await this.getScreenshotJob(
         userId,
-        request.screenshotJobId,
+        detectionRequest.screenshotJobId,
       );
       if (!screenshotJob) {
         throw new BadRequestException(
@@ -230,9 +259,9 @@ export class GogosenseService {
       confidence_score: match.confidenceScore,
       matched: match.matched,
       package_name: request.packageName,
-      url: request.url,
-      notification_text: request.notificationText,
-      screenshot_job_id: request.screenshotJobId,
+      url: detectionRequest.url,
+      notification_text: detectionRequest.notificationText,
+      screenshot_job_id: detectionRequest.screenshotJobId,
       observed_at: new Date(request.observedAt),
       platform: request.platform,
       app_version: request.appVersion,
