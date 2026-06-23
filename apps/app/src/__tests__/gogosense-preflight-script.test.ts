@@ -65,6 +65,8 @@ describe("GoGoSense Android preflight script helpers", () => {
           "--auth-token",
           "token-1",
           "--capture-device-evidence",
+          "--checkpoint-delay-ms",
+          "1500",
           "--detect-package",
           "com.a",
           "--evidence-dir",
@@ -92,6 +94,7 @@ describe("GoGoSense Android preflight script helpers", () => {
       appPackage: "co.test.app",
       authToken: "token-1",
       captureDeviceEvidence: true,
+      checkpointDelayMs: 1500,
       detectPackage: "com.a",
       device: "device-1",
       evidenceDir: "/tmp/gogosense-evidence",
@@ -402,6 +405,7 @@ echo "ok"
         openMerchant: true,
         returnToGogosense: true,
         captureDeviceEvidence: true,
+        checkpointDelayMs: 0,
         evidenceDir: tempDir,
       });
 

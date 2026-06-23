@@ -17,6 +17,21 @@ function splitList(value) {
     .filter(Boolean);
 }
 
+function nonNegativeInt(value, fallback = 0) {
+  const parsed = Number.parseInt(String(value ?? ""), 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+function wait(ms) {
+  return new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
+}
+
+async function waitForCheckpoint(options) {
+  if (options.captureDeviceEvidence && options.evidenceDir && options.checkpointDelayMs > 0) {
+    await wait(options.checkpointDelayMs);
+  }
+}
+
 function findDefaultAdb() {
   const sdkAdb = resolve(homedir(), "Library/Android/sdk/platform-tools/adb");
   return existsSync(sdkAdb) ? sdkAdb : "adb";
@@ -30,6 +45,7 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     activate: env.GOGOSENSE_ACTIVATE === "1",
     authToken: env.GOGOSENSE_AUTH_TOKEN || "",
     captureDeviceEvidence: env.GOGOSENSE_CAPTURE_DEVICE_EVIDENCE === "1",
+    checkpointDelayMs: nonNegativeInt(env.GOGOSENSE_CHECKPOINT_DELAY_MS, 0),
     device: env.ANDROID_SERIAL || "",
     detectPackage: env.GOGOSENSE_DETECT_PACKAGE || "",
     evidenceDir: env.GOGOSENSE_EVIDENCE_DIR || "",
@@ -59,6 +75,7 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     else if (arg === "--activate") options.activate = true;
     else if (arg === "--auth-token") options.authToken = next();
     else if (arg === "--capture-device-evidence") options.captureDeviceEvidence = true;
+    else if (arg === "--checkpoint-delay-ms") options.checkpointDelayMs = nonNegativeInt(next(), 0);
     else if (arg === "--device") options.device = next();
     else if (arg === "--detect-package") options.detectPackage = next();
     else if (arg === "--evidence-dir") options.evidenceDir = next();
@@ -833,6 +850,7 @@ async function runPreflight(options) {
     );
   }
 
+  await waitForCheckpoint(options);
   writeDeviceCheckpointEvidence({ context, results }, options, "merchant-foreground");
 
   if (options.returnToGogosense) {
@@ -853,6 +871,7 @@ async function runPreflight(options) {
       { timeout: 15000 }
     );
     results.push(gogosenseHubReturnResult(defaultGogosenseUrl, options.appPackage, returnRun));
+    await waitForCheckpoint(options);
     writeDeviceCheckpointEvidence({ context, results }, options, "gogosense-hub");
   }
 
@@ -881,6 +900,7 @@ async function runPreflight(options) {
               openRun.error?.message || openRun.stderr || openRun.stdout || "adb am start failed"
             )
       );
+      await waitForCheckpoint(options);
       writeDeviceCheckpointEvidence({ context, results }, options, "activation-deeplink");
     }
   }
@@ -912,6 +932,7 @@ Options:
   --adb <path>                 adb executable (default: Android SDK adb or adb on PATH)
   --auth-token <token>         Firebase/backend bearer token for protected GoGoSense API checks
   --capture-device-evidence    With --evidence-dir, capture dumpsys window, logcat, and screencap files
+  --checkpoint-delay-ms <ms>    Wait before each checkpoint screenshot capture (default: 0)
   --device <serial>            adb device serial (default: ANDROID_SERIAL or first device)
   --detect-package <package>   Explicitly POST /gogosense/detect for this package
   --evidence-dir <path>        Write preflight-report.json, summary.txt, and activation-deeplink.txt
