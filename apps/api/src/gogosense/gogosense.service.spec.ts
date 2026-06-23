@@ -382,6 +382,25 @@ describe('GogosenseService settings and timeline', () => {
     });
   });
 
+  it('screenshot recovery > given disabled recovery setting > then rejects job creation', async () => {
+    const { service } = makeService();
+    const screenshotJobModel = (service as any).screenshotJobModel;
+    const userSettingsModel = (service as any).userSettingsModel;
+    userSettingsModel.findOne.mockReturnValueOnce(
+      makeQueryResult({
+        user_id: 'user-1',
+        enabled: true,
+        screenshot_recovery_enabled: false,
+      }),
+    );
+
+    await expect(service.createScreenshotJob('user-1')).rejects.toThrow(
+      'Screenshot recovery is disabled',
+    );
+
+    expect(screenshotJobModel.create).not.toHaveBeenCalled();
+  });
+
   it('screenshot recovery > given job lookup > then requires owner and unexpired job', async () => {
     const { service } = makeService();
     const screenshotJobModel = (service as any).screenshotJobModel;

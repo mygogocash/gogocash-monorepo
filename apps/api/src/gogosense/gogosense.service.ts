@@ -331,6 +331,16 @@ export class GogosenseService {
   }
 
   async createScreenshotJob(userId: string) {
+    const settings = await this.userSettingsModel
+      .findOne({ user_id: userId })
+      .lean();
+    if (
+      settings &&
+      (settings.enabled === false ||
+        settings.screenshot_recovery_enabled === false)
+    ) {
+      throw new BadRequestException('Screenshot recovery is disabled');
+    }
     return this.screenshotJobModel.create({
       user_id: userId,
       status: 'pending',
