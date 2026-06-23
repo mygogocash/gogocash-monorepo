@@ -180,6 +180,17 @@ export class GogosenseService {
     request: DetectionRequestDto,
   ): Promise<DetectionResponse> {
     const match = await this.matchMerchant(request);
+    if (request.screenshotJobId) {
+      const screenshotJob = await this.getScreenshotJob(
+        userId,
+        request.screenshotJobId,
+      );
+      if (!screenshotJob) {
+        throw new BadRequestException(
+          'Screenshot recovery job is invalid or expired',
+        );
+      }
+    }
     const event = await this.detectionEventModel.create({
       user_id: userId,
       detection_method: request.method,

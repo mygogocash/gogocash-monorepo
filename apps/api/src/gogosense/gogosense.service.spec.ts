@@ -185,6 +185,55 @@ describe('GogosenseService detection and activation', () => {
     );
   });
 
+  it('detection > given screenshot job id > then requires active user-owned job', async () => {
+    const { detectionEventModel, service } = makeService();
+    const screenshotJobModel = (service as any).screenshotJobModel;
+    screenshotJobModel.findOne.mockReturnValueOnce(
+      makeQueryResult({
+        _id: 'screenshot-1',
+        user_id: 'user-1',
+        expires_at: new Date('2026-05-24T09:00:00.000Z'),
+      }),
+    );
+
+    await service.detect('user-1', {
+      ...baseDetectionRequest,
+      packageName: 'com.shopee.th',
+      screenshotJobId: 'screenshot-1',
+    });
+
+    expect(screenshotJobModel.findOne).toHaveBeenCalledWith({
+      _id: 'screenshot-1',
+      user_id: 'user-1',
+      expires_at: { $gt: expect.any(Date) },
+    });
+    expect(detectionEventModel.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        screenshot_job_id: 'screenshot-1',
+      }),
+    );
+  });
+
+  it('detection > given missing or expired screenshot job > then rejects without event', async () => {
+    const { detectionEventModel, service } = makeService();
+    const screenshotJobModel = (service as any).screenshotJobModel;
+
+    await expect(
+      service.detect('user-1', {
+        ...baseDetectionRequest,
+        packageName: 'com.shopee.th',
+        screenshotJobId: 'screenshot-1',
+      }),
+    ).rejects.toThrow('Screenshot recovery job is invalid or expired');
+
+    expect(screenshotJobModel.findOne).toHaveBeenCalledWith({
+      _id: 'screenshot-1',
+      user_id: 'user-1',
+      expires_at: { $gt: expect.any(Date) },
+    });
+    expect(detectionEventModel.create).not.toHaveBeenCalled();
+  });
+
   it('activation > given matched merchant > then creates or reuses deeplink', async () => {
     const { activationEventModel, detectionEventModel, involveService, service } =
       makeService();
