@@ -7,6 +7,7 @@ import { spawnSync } from "node:child_process";
 
 const defaultApiUrl = "https://api-staging.gogocash.co";
 const defaultAppPackage = "co.gogocash.app";
+const defaultGogosenseUrl = "gogocash://gogosense";
 const merchantCatalogPath = "/gogosense/merchants";
 
 function splitList(value) {
@@ -35,6 +36,7 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     installApk: env.GOGOSENSE_DEV_CLIENT_APK || "",
     merchantApks: splitList(env.GOGOSENSE_MERCHANT_APKS || ""),
     openMerchant: env.GOGOSENSE_OPEN_MERCHANT === "1",
+    returnToGogosense: env.GOGOSENSE_RETURN_TO_GOGOSENSE === "1",
     expectedPackages: splitList(env.GOGOSENSE_MERCHANT_PACKAGES || ""),
     help: false,
     grantUsageAccess: env.GOGOSENSE_GRANT_USAGE_ACCESS === "1",
@@ -66,6 +68,7 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     else if (arg === "--json") options.json = true;
     else if (arg === "--grant-usage-access") options.grantUsageAccess = true;
     else if (arg === "--open-merchant") options.openMerchant = true;
+    else if (arg === "--return-to-gogosense") options.returnToGogosense = true;
     else if (arg === "--open-deeplink") {
       options.activate = true;
       options.openDeeplink = true;
@@ -292,6 +295,7 @@ const acceptanceChecklistItems = [
   ["Supported merchant app installed", "supported merchant app installed"],
   ["Supported merchant launched", "supported merchant launch"],
   ["Supported merchant foreground", "supported merchant foreground"],
+  ["GoGoSense hub returned", "GoGoSense hub return"],
   ["Authenticated API reachable", "authenticated GoGoSense API"],
   ["Detection probe matched", "protected detection probe"],
   ["Activation deeplink returned", "protected activation probe"],
@@ -511,6 +515,18 @@ function merchantLaunchResult(packageName, launchRun) {
     "fail",
     "supported merchant launch",
     launchRun.stderr || launchRun.stdout || `adb monkey launch failed for ${packageName}`
+  );
+}
+
+function gogosenseHubReturnResult(url, appPackage, launchRun) {
+  if (launchRun.ok) {
+    return result("pass", "GoGoSense hub return", `${url} opened in ${appPackage}`);
+  }
+
+  return result(
+    "fail",
+    "GoGoSense hub return",
+    launchRun.stderr || launchRun.stdout || `adb am start failed for ${url}`
   );
 }
 
@@ -771,6 +787,26 @@ async function runPreflight(options) {
     );
   }
 
+  if (options.returnToGogosense) {
+    const returnRun = run(
+      options.adb,
+      [
+        "-s",
+        context.device,
+        "shell",
+        "am",
+        "start",
+        "-a",
+        "android.intent.action.VIEW",
+        "-d",
+        defaultGogosenseUrl,
+        options.appPackage,
+      ],
+      { timeout: 15000 }
+    );
+    results.push(gogosenseHubReturnResult(defaultGogosenseUrl, options.appPackage, returnRun));
+  }
+
   if (options.openDeeplink) {
     if (!activationDeeplink) {
       results.push(result("fail", "activation deeplink open", "activation did not return a deeplink"));
@@ -836,6 +872,7 @@ Options:
   --app-package <package>      GoGoCash Android package (default: ${defaultAppPackage})
   --merchant-apks <paths>      Comma-separated merchant APK or split APK files to install
   --open-merchant              Launch the first installed/supported merchant package before foreground checks
+  --return-to-gogosense        Reopen gogocash://gogosense after merchant foreground proof
   --merchant-packages <list>   Comma-separated merchant packages for controlled QA
   --require-auth               Fail when no auth token is provided
   --require-foreground         Fail unless a supported merchant package is foreground

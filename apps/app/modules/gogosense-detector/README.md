@@ -74,11 +74,12 @@ node apps/app/scripts/gogosense-preflight.mjs \
   --evidence-dir /path/to/gogosense-evidence \
   --capture-device-evidence \
   --require-foreground \
+  --return-to-gogosense \
   --activate \
   --open-deeplink
 ```
 
-`--merchant-apks` accepts a comma-separated base/split APK list and runs `adb install-multiple -r` on the selected device before checking `pm list packages`. `--open-merchant` sends an Android launcher intent to the first installed/supported merchant package before the foreground check, so final QA records both package install and foreground evidence from the same command. `--grant-usage-access` runs `adb shell appops set <package> GET_USAGE_STATS allow` before the permission readback so the preflight verifies the granted state. `--evidence-dir` writes `acceptance-checklist.md`, `preflight-report.json`, `summary.txt`, and `activation-deeplink.txt` for the PR/device acceptance record. `--capture-device-evidence` adds external ADB evidence files (`device-window.txt`, `device-logcat.txt`, `device-screenshot.png`) without changing the GoGoSense runtime module scope.
+`--merchant-apks` accepts a comma-separated base/split APK list and runs `adb install-multiple -r` on the selected device before checking `pm list packages`. `--open-merchant` sends an Android launcher intent to the first installed/supported merchant package before the foreground check, so final QA records both package install and foreground evidence from the same command. `--return-to-gogosense` reopens `gogocash://gogosense` after the merchant foreground proof so the GoGoCash hub/nudge surface is the next device state before optional deeplink opening. `--grant-usage-access` runs `adb shell appops set <package> GET_USAGE_STATS allow` before the permission readback so the preflight verifies the granted state. `--evidence-dir` writes `acceptance-checklist.md`, `preflight-report.json`, `summary.txt`, and `activation-deeplink.txt` for the PR/device acceptance record. `--capture-device-evidence` adds external ADB evidence files (`device-window.txt`, `device-logcat.txt`, `device-screenshot.png`) without changing the GoGoSense runtime module scope.
 
 ## Play Console (before any production submission)
 

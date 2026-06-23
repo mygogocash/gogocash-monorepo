@@ -289,6 +289,10 @@ if [ "$1" = "shell" ] && [ "$2" = "monkey" ]; then
   printf 'Events injected: 1\n'
   exit 0
 fi
+if [ "$1" = "shell" ] && [ "$2" = "am" ]; then
+  printf 'Starting: Intent { act=android.intent.action.VIEW dat=gogocash://gogosense pkg=co.gogocash.app }\n'
+  exit 0
+fi
 if [ "$1" = "shell" ] && [ "$2" = "dumpsys" ]; then
   echo "mCurrentFocus=Window{u0 com.shopee.th/com.shopee.app.ui.home.HomeActivity}"
   exit 0
@@ -396,6 +400,7 @@ echo "ok"
         merchantApks: [shopeeBase, shopeeConfig],
         expectedPackages: ["com.shopee.th"],
         openMerchant: true,
+        returnToGogosense: true,
       });
 
       const commands = await readFile(commandLog, "utf8");
@@ -406,9 +411,18 @@ echo "ok"
       expect(commands.indexOf("shell monkey -p com.shopee.th")).toBeLessThan(
         commands.indexOf("shell dumpsys window")
       );
+      expect(commands).toContain(
+        "shell am start -a android.intent.action.VIEW -d gogocash://gogosense co.gogocash.app"
+      );
+      expect(commands.indexOf("shell dumpsys window")).toBeLessThan(
+        commands.indexOf("shell am start -a android.intent.action.VIEW -d gogocash://gogosense co.gogocash.app")
+      );
       expect(
         report.results.some((item) => item.name === "supported merchant launch" && item.status === "pass")
       ).toBe(true);
+      expect(report.results.some((item) => item.name === "GoGoSense hub return" && item.status === "pass")).toBe(
+        true
+      );
       expect(commands).toContain("shell appops set co.gogocash.app GET_USAGE_STATS allow");
       expect(commands.indexOf("shell appops set")).toBeLessThan(commands.indexOf("shell appops get"));
       expect(report.results).toContainEqual(
