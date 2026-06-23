@@ -28,15 +28,14 @@
 name: CI
 
 on:
-  # `migrate/monorepo` is the integration branch until the migration lands on
-  # main — validate PRs into it so stacked work gets clean-CI.
+  # Validate PRs into live integration branches so stacked work gets clean-CI.
   pull_request:
-    branches: [staging, main, migrate/monorepo]
-  # Pushes to migrate/monorepo are handled by build-staging.yml (which calls
+    branches: [staging, main]
+  # Pushes to main are handled by build-staging.yml (which calls
   # this workflow as its gate via workflow_call), so it is intentionally NOT in
   # the push list here — otherwise a merge would run CI twice.
   push:
-    branches: [staging, main]
+    branches: [staging]
   # Reusable: build-staging.yml calls this as its deploy gate AND reuses the
   # per-app change outputs to decide which images to build (no duplicated tests
   # or path-filter).

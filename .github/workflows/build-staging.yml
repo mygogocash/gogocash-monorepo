@@ -1,6 +1,6 @@
 # Staging CD — BUILD half (automatic).
 #
-# On every merge to `migrate/monorepo`: run CI, then build + push a
+# On every merge to `main`: run CI, then build + push a
 # `:staging-candidate` image for each CHANGED app. It does NOT deploy — the
 # release is a deliberate human step (release-staging.yml). This is the
 # "auto build + approval gate" model: builds are automatic, releases are not.
@@ -12,7 +12,7 @@ name: Build (staging)
 
 on:
   push:
-    branches: [migrate/monorepo]
+    branches: [main]
   workflow_dispatch: {}
 
 concurrency:
