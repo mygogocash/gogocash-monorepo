@@ -327,6 +327,12 @@ function acceptanceChecklist(report) {
   lines.push("- device-window.txt");
   lines.push("- device-logcat.txt");
   lines.push("- device-screenshot.png");
+  lines.push("- merchant-foreground-window.txt");
+  lines.push("- merchant-foreground-screenshot.png");
+  lines.push("- gogosense-hub-window.txt");
+  lines.push("- gogosense-hub-screenshot.png");
+  lines.push("- activation-deeplink-window.txt");
+  lines.push("- activation-deeplink-screenshot.png");
   lines.push("");
 
   return `${lines.join("\n")}\n`;
@@ -528,6 +534,46 @@ function gogosenseHubReturnResult(url, appPackage, launchRun) {
     "GoGoSense hub return",
     launchRun.stderr || launchRun.stdout || `adb am start failed for ${url}`
   );
+}
+
+function writeDeviceCheckpointEvidence(report, options, checkpoint) {
+  if (!options.captureDeviceEvidence || !options.evidenceDir || !report.context.device) return;
+
+  const slug = checkpoint
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  const adbArgs = (args) => ["-s", report.context.device, ...args];
+
+  mkdirSync(options.evidenceDir, { recursive: true });
+
+  const windowRun = run(options.adb, adbArgs(["shell", "dumpsys", "window"]), { timeout: 30000 });
+  writeFileSync(
+    `${options.evidenceDir}/${slug}-window.txt`,
+    commandEvidence(`${checkpoint}: adb shell dumpsys window`, windowRun)
+  );
+
+  const screenshotRun = spawnSync(options.adb, adbArgs(["exec-out", "screencap", "-p"]), {
+    encoding: "buffer",
+    timeout: 30000,
+  });
+  const screenshot = {
+    error: screenshotRun.error,
+    ok: screenshotRun.status === 0 && !screenshotRun.error,
+    status: screenshotRun.status ?? 0,
+    stderr: screenshotRun.stderr?.toString("utf8") || "",
+    stdout: screenshotRun.stdout || Buffer.alloc(0),
+  };
+  writeFileSync(
+    `${options.evidenceDir}/${slug}-screenshot.txt`,
+    commandEvidence(`${checkpoint}: adb exec-out screencap -p`, {
+      ...screenshot,
+      stdout: screenshot.stdout?.length ? `<${screenshot.stdout.length} bytes>` : "",
+    })
+  );
+  if (screenshot.ok && screenshot.stdout?.length) {
+    writeFileSync(`${options.evidenceDir}/${slug}-screenshot.png`, screenshot.stdout);
+  }
 }
 
 async function runPreflight(options) {
@@ -787,6 +833,8 @@ async function runPreflight(options) {
     );
   }
 
+  writeDeviceCheckpointEvidence({ context, results }, options, "merchant-foreground");
+
   if (options.returnToGogosense) {
     const returnRun = run(
       options.adb,
@@ -805,6 +853,7 @@ async function runPreflight(options) {
       { timeout: 15000 }
     );
     results.push(gogosenseHubReturnResult(defaultGogosenseUrl, options.appPackage, returnRun));
+    writeDeviceCheckpointEvidence({ context, results }, options, "gogosense-hub");
   }
 
   if (options.openDeeplink) {
@@ -832,6 +881,7 @@ async function runPreflight(options) {
               openRun.error?.message || openRun.stderr || openRun.stdout || "adb am start failed"
             )
       );
+      writeDeviceCheckpointEvidence({ context, results }, options, "activation-deeplink");
     }
   }
 

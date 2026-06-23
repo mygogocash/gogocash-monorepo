@@ -401,6 +401,8 @@ echo "ok"
         expectedPackages: ["com.shopee.th"],
         openMerchant: true,
         returnToGogosense: true,
+        captureDeviceEvidence: true,
+        evidenceDir: tempDir,
       });
 
       const commands = await readFile(commandLog, "utf8");
@@ -422,6 +424,18 @@ echo "ok"
       ).toBe(true);
       expect(report.results.some((item) => item.name === "GoGoSense hub return" && item.status === "pass")).toBe(
         true
+      );
+      await expect(readFile(join(tempDir, "merchant-foreground-window.txt"), "utf8")).resolves.toContain(
+        "merchant-foreground: adb shell dumpsys window"
+      );
+      await expect(readFile(join(tempDir, "merchant-foreground-screenshot.txt"), "utf8")).resolves.toContain(
+        "merchant-foreground: adb exec-out screencap -p"
+      );
+      await expect(readFile(join(tempDir, "gogosense-hub-window.txt"), "utf8")).resolves.toContain(
+        "gogosense-hub: adb shell dumpsys window"
+      );
+      await expect(readFile(join(tempDir, "gogosense-hub-screenshot.txt"), "utf8")).resolves.toContain(
+        "gogosense-hub: adb exec-out screencap -p"
       );
       expect(commands).toContain("shell appops set co.gogocash.app GET_USAGE_STATS allow");
       expect(commands.indexOf("shell appops set")).toBeLessThan(commands.indexOf("shell appops get"));
