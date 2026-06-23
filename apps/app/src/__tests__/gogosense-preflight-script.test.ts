@@ -577,4 +577,77 @@ exit 0
       await rm(tempDir, { force: true, recursive: true });
     }
   });
+
+  it("runPreflight > verifies the supplied APK hash even when the app is already installed", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "gogosense-apk-installed-"));
+    const adbPath = join(tempDir, "adb");
+    const apkPath = join(tempDir, "gogocash-development.apk");
+    const logPath = join(tempDir, "adb.log");
+    const originalFetch = globalThis.fetch;
+
+    try {
+      await writeFile(apkPath, "dev-client");
+      await writeFile(
+        adbPath,
+        `#!/bin/sh
+echo "$*" >> "${logPath}"
+if [ "$1" = "version" ]; then
+  echo "Android Debug Bridge version 1.0.41"
+  exit 0
+fi
+if [ "$1" = "devices" ]; then
+  printf 'List of devices attached\\nemulator-5554\\tdevice\\n'
+  exit 0
+fi
+if [ "$1" = "-s" ]; then
+  shift 2
+fi
+if [ "$1" = "shell" ] && [ "$2" = "pm" ] && [ "$3" = "path" ]; then
+  echo "package:/data/app/co.gogocash.app/base.apk"
+  exit 0
+fi
+if [ "$1" = "install" ]; then
+  echo "unexpected install" >&2
+  exit 42
+fi
+exit 0
+`
+      );
+      await chmod(adbPath, 0o755);
+
+      globalThis.fetch = async (url) => {
+        if (String(url).endsWith("/gogosense/merchants")) {
+          return new Response(JSON.stringify([]), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        }
+
+        return new Response("{}", {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      };
+
+      const report = await preflight.runPreflight({
+        ...preflight.parseArgs([], { ...process.env }),
+        adb: adbPath,
+        apiUrl: "https://api.example.test",
+        appPackage: "co.gogocash.app",
+        installApk: apkPath,
+        installApkSha256: "5bdad05fe54f21e7b583966a2204f67b0029856d73b01c702585eaa71d909e7a",
+      });
+
+      expect(report.results).toContainEqual(
+        expect.objectContaining({
+          name: "GoGoCash dev-client APK SHA-256",
+          status: "fail",
+        })
+      );
+      await expect(readFile(logPath, "utf8")).resolves.not.toContain("install -r");
+    } finally {
+      globalThis.fetch = originalFetch;
+      await rm(tempDir, { force: true, recursive: true });
+    }
+  });
 });

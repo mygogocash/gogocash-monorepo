@@ -297,6 +297,14 @@ function devClientApkSha256Result(apkPath, expectedSha256) {
     return result("fail", "GoGoCash dev-client APK SHA-256", "expected SHA-256 must be 64 hex characters");
   }
 
+  if (!apkPath) {
+    return result(
+      "fail",
+      "GoGoCash dev-client APK SHA-256",
+      "install APK path is required when SHA-256 is set"
+    );
+  }
+
   if (!existsSync(apkPath)) {
     return result("fail", "GoGoCash dev-client APK SHA-256", `APK not found: ${apkPath}`);
   }
@@ -765,16 +773,16 @@ async function runPreflight(options) {
   let appInstalled = run(options.adb, adbArgs(deviceOptions, ["shell", "pm", "path", options.appPackage]));
   let appInstalledOk = Boolean(appInstalled.ok && appInstalled.stdout);
 
+  const sha256Outcome = devClientApkSha256Result(options.installApk, options.installApkSha256);
+  if (sha256Outcome) {
+    results.push(sha256Outcome);
+    if (sha256Outcome.status === "fail") return { context, results };
+  }
+
   if (!appInstalledOk && options.installApk) {
     if (!existsSync(options.installApk)) {
       results.push(result("fail", "GoGoCash dev-client install", `APK not found: ${options.installApk}`));
     } else {
-      const sha256Outcome = devClientApkSha256Result(options.installApk, options.installApkSha256);
-      if (sha256Outcome) {
-        results.push(sha256Outcome);
-        if (sha256Outcome.status === "fail") return { context, results };
-      }
-
       const installRun = run(options.adb, adbArgs(deviceOptions, ["install", "-r", options.installApk]));
       const installOutcome = devClientInstallResult(options.installApk, installRun);
       results.push(installOutcome);
