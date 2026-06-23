@@ -92,8 +92,64 @@ jobs:
 
       # ── build: produces native binaries on EAS (managed credentials) ────────
       - name: EAS Build
+        id: eas-build
         if: ${{ inputs.action == 'build' }}
-        run: eas build --non-interactive --no-wait --platform ${{ inputs.platform }} --profile ${{ inputs.profile }}
+        run: |
+          eas build \
+            --non-interactive \
+            --json \
+            --platform ${{ inputs.platform }} \
+            --profile ${{ inputs.profile }} \
+            > "$RUNNER_TEMP/eas-build.json"
+
+      - name: Capture Android build artifact URL
+        if: ${{ inputs.action == 'build' && inputs.platform != 'ios' }}
+        env:
+          EAS_BUILD_JSON: ${{ runner.temp }}/eas-build.json
+        run: |
+          node <<'NODE'
+          const fs = require("fs");
+
+          const raw = fs.readFileSync(process.env.EAS_BUILD_JSON, "utf8").trim();
+          const parsed = JSON.parse(raw);
+          const builds = Array.isArray(parsed)
+            ? parsed
+            : Array.isArray(parsed.builds)
+              ? parsed.builds
+              : [parsed];
+          const androidBuild =
+            builds.find((build) => String(build.platform || "").toLowerCase() === "android") || builds[0];
+          const artifactUrl =
+            androidBuild?.artifacts?.applicationArchiveUrl ||
+            androidBuild?.artifacts?.buildUrl ||
+            androidBuild?.artifacts?.apkUrl ||
+            androidBuild?.buildUrl ||
+            "";
+
+          if (!artifactUrl) {
+            console.error("EAS build completed but no Android artifact URL was present.");
+            console.error(JSON.stringify(androidBuild, null, 2));
+            process.exit(1);
+          }
+
+          fs.appendFileSync(process.env.GITHUB_ENV, `EAS_BUILD_ID=${androidBuild.id || ""}\n`);
+          fs.appendFileSync(process.env.GITHUB_ENV, `EAS_BUILD_ARTIFACT_URL=${artifactUrl}\n`);
+          NODE
+
+      - name: Download Android build artifact
+        if: ${{ inputs.action == 'build' && inputs.platform != 'ios' }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/eas-artifacts"
+          curl --fail --location "$EAS_BUILD_ARTIFACT_URL" \
+            --output "$RUNNER_TEMP/eas-artifacts/gogocash-${{ inputs.profile }}-android.apk"
+
+      - name: Upload Android build artifact
+        if: ${{ inputs.action == 'build' && inputs.platform != 'ios' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: gogocash-${{ inputs.profile }}-android
+          path: ${{ runner.temp }}/eas-artifacts/gogocash-${{ inputs.profile }}-android.apk
+          if-no-files-found: error
 
       # ── update: OTA JS/asset update to a channel (no store review) ──────────
       #   Pass user-provided inputs via env (not inline) to avoid shell-injection

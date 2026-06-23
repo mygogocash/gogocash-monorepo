@@ -88,8 +88,10 @@ plan for private repos (see #44). Until then the approval is the manual
 `staging` environment and the release pauses for one-click approval (no workflow
 change needed).
 
-**Native app** (`deploy-app-native-eas.yml`) stays a manual EAS scaffold
-(needs `EXPO_TOKEN`).
+**Native app** (`deploy-app-native-eas.yml`) stays manual for build/update/submit
+(needs `EXPO_TOKEN`). Android `build` runs wait for EAS to finish, download the
+completed archive, and upload it as a GitHub artifact so device QA can install
+the dev client without local EAS auth.
 
 > The legacy `deploy-{api,admin,app-web}-staging.yml` lanes are kept as a manual
 > fallback during cutover; delete them once `build-staging` + `release-staging`
