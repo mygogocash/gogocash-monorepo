@@ -97,7 +97,7 @@ describe("GoGoSense Android preflight script helpers", () => {
       packageName: "com.shopee.th",
       platform: "android",
     });
-    expect(new Date(preflight.buildDetectionRequest("com.shopee.th").detectedAt).toString()).not.toBe(
+    expect(new Date(preflight.buildDetectionRequest("com.shopee.th").observedAt).toString()).not.toBe(
       "Invalid Date"
     );
   });

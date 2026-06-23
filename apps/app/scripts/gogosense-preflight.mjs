@@ -139,7 +139,7 @@ async function fetchProtectedJson(apiUrl, path, authToken, init = {}) {
 
 function buildDetectionRequest(packageName) {
   return {
-    detectedAt: new Date().toISOString(),
+    observedAt: new Date().toISOString(),
     method: "android_package",
     packageName,
     platform: "android",
