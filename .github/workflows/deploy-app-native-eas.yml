@@ -70,7 +70,7 @@ jobs:
     name: EAS ${{ inputs.action }}
     runs-on: ubuntu-latest
     env:
-      NODE_PATH: ${{ github.workspace }}/apps/app/node_modules
+      NODE_PATH: ${{ github.workspace }}/node_modules:${{ github.workspace }}/apps/app/node_modules
     defaults:
       run:
         working-directory: apps/app
@@ -92,6 +92,12 @@ jobs:
         working-directory: .
         run: npm ci
 
+      - name: Verify Expo config
+        if: ${{ inputs.action == 'build' }}
+        run: |
+          node -e "console.log(require.resolve('expo/config-plugins'))"
+          npx expo config --json > "$RUNNER_TEMP/expo-config.json"
+
       # ── build: produces native binaries on EAS (managed credentials) ────────
       - name: EAS Build
         id: eas-build
@@ -102,7 +108,10 @@ jobs:
             --json \
             --platform ${{ inputs.platform }} \
             --profile ${{ inputs.profile }} \
-            > "$RUNNER_TEMP/eas-build.json"
+            > "$RUNNER_TEMP/eas-build.json" || {
+              cat "$RUNNER_TEMP/eas-build.json"
+              exit 1
+            }
 
       - name: Capture Android build artifact URL
         if: ${{ inputs.action == 'build' && inputs.platform != 'ios' }}
