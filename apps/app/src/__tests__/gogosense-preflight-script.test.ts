@@ -44,6 +44,16 @@ describe("GoGoSense Android preflight script helpers", () => {
       { serial: "emulator-5554", state: "device" },
       { serial: "abc123", state: "offline" },
     ]);
+
+    expect(preflight.deviceConnectionDetail([])).toBe(
+      "no adb devices listed; connect an Android device or start an emulator"
+    );
+    expect(preflight.deviceConnectionDetail([{ serial: "abc123", state: "offline" }])).toBe(
+      "no adb device in state=device; connected states: abc123:offline; reconnect the device or run adb kill-server/start-server"
+    );
+    expect(preflight.deviceConnectionDetail([{ serial: "abc123", state: "unauthorized" }])).toBe(
+      "no adb device in state=device; connected states: abc123:unauthorized; accept the USB debugging prompt or reset adb authorization"
+    );
     expect(preflight.parseUsageAccess("GET_USAGE_STATS: allow")).toBe(true);
     expect(preflight.parseUsageAccess("GET_USAGE_STATS: ignore")).toBe(false);
     expect(preflight.parseInstalledPackages("package:co.gogocash.app\npackage:com.shopee.th\n")).toEqual(

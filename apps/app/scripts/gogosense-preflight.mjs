@@ -257,6 +257,23 @@ function parseDevices(output) {
     });
 }
 
+function deviceConnectionDetail(devices) {
+  if (!devices.length) {
+    return "no adb devices listed; connect an Android device or start an emulator";
+  }
+
+  const states = devices.map((device) => `${device.serial}:${device.state || "unknown"}`).join(", ");
+  if (devices.some((device) => device.state === "unauthorized")) {
+    return `no adb device in state=device; connected states: ${states}; accept the USB debugging prompt or reset adb authorization`;
+  }
+
+  if (devices.some((device) => device.state === "offline")) {
+    return `no adb device in state=device; connected states: ${states}; reconnect the device or run adb kill-server/start-server`;
+  }
+
+  return `no adb device in state=device; connected states: ${states}`;
+}
+
 function parseInstalledPackages(output) {
   return new Set(
     output
@@ -762,7 +779,7 @@ async function runPreflight(options) {
   const devices = parseDevices(devicesResult.stdout);
   const usableDevices = devices.filter((device) => device.state === "device");
   if (usableDevices.length === 0) {
-    results.push(result("fail", "android device connected", "no adb device in state=device"));
+    results.push(result("fail", "android device connected", deviceConnectionDetail(devices)));
     context.activationDeeplink = activationDeeplink;
     return { context, results };
   }
@@ -1024,6 +1041,7 @@ export {
   buildActivationRequest,
   buildDetectionRequest,
   catalogResult,
+  deviceConnectionDetail,
   devClientApkSha256Result,
   devClientInstallResult,
   findDefaultAdb,
