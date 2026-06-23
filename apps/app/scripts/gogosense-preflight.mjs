@@ -400,10 +400,13 @@ function acceptanceChecklist(report) {
   lines.push("- device-screenshot.png");
   lines.push("- merchant-foreground-window.txt");
   lines.push("- merchant-foreground-screenshot.png");
+  lines.push("- merchant-foreground-ui.xml");
   lines.push("- gogosense-hub-window.txt");
   lines.push("- gogosense-hub-screenshot.png");
+  lines.push("- gogosense-hub-ui.xml");
   lines.push("- activation-deeplink-window.txt");
   lines.push("- activation-deeplink-screenshot.png");
+  lines.push("- activation-deeplink-ui.xml");
   lines.push("");
 
   return `${lines.join("\n")}\n`;
@@ -663,6 +666,16 @@ function writeDeviceCheckpointEvidence(report, options, checkpoint) {
   if (screenshot.ok && screenshot.stdout?.length) {
     writeFileSync(`${options.evidenceDir}/${slug}-screenshot.png`, screenshot.stdout);
   }
+
+  const uiDump = run(
+    options.adb,
+    adbArgs(["exec-out", "uiautomator", "dump", "/dev/tty"]),
+    { timeout: 30000 }
+  );
+  writeFileSync(
+    `${options.evidenceDir}/${slug}-ui.xml`,
+    uiDump.status === 0 ? uiDump.stdout : uiDump.stderr || uiDump.stdout
+  );
 }
 
 async function runPreflight(options) {
@@ -1009,7 +1022,7 @@ Options:
   --api-url <url>              API base URL (default: ${defaultApiUrl})
   --adb <path>                 adb executable (default: Android SDK adb or adb on PATH)
   --auth-token <token>         Firebase/backend bearer token for protected GoGoSense API checks
-  --capture-device-evidence    With --evidence-dir, capture dumpsys window, logcat, and screencap files
+  --capture-device-evidence    With --evidence-dir, capture dumpsys window, logcat, screencap, and UI XML files
   --checkpoint-delay-ms <ms>    Wait before each checkpoint screenshot capture (default: 0)
   --device <serial>            adb device serial (default: ANDROID_SERIAL or first device)
   --detect-package <package>   Explicitly POST /gogosense/detect for this package
