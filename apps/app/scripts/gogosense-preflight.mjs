@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 
 const defaultApiUrl = "https://api-staging.gogocash.co";
 const defaultAppPackage = "co.gogocash.app";
@@ -50,6 +51,7 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     detectPackage: env.GOGOSENSE_DETECT_PACKAGE || "",
     evidenceDir: env.GOGOSENSE_EVIDENCE_DIR || "",
     installApk: env.GOGOSENSE_DEV_CLIENT_APK || "",
+    installApkSha256: env.GOGOSENSE_DEV_CLIENT_APK_SHA256 || "",
     merchantApks: splitList(env.GOGOSENSE_MERCHANT_APKS || ""),
     openMerchant: env.GOGOSENSE_OPEN_MERCHANT === "1",
     returnToGogosense: env.GOGOSENSE_RETURN_TO_GOGOSENSE === "1",
@@ -80,6 +82,7 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     else if (arg === "--detect-package") options.detectPackage = next();
     else if (arg === "--evidence-dir") options.evidenceDir = next();
     else if (arg === "--install-apk") options.installApk = next();
+    else if (arg === "--install-apk-sha256") options.installApkSha256 = next();
     else if (arg === "--merchant-apks") options.merchantApks = splitList(next());
     else if (arg === "--merchant-packages") options.expectedPackages = splitList(next());
     else if (arg === "--json") options.json = true;
@@ -284,6 +287,30 @@ function parseForegroundPackage(output) {
 
 function result(status, name, detail = "") {
   return { status, name, detail };
+}
+
+function devClientApkSha256Result(apkPath, expectedSha256) {
+  const expected = String(expectedSha256 || "").trim().toLowerCase();
+  if (!expected) return null;
+
+  if (!/^[a-f0-9]{64}$/.test(expected)) {
+    return result("fail", "GoGoCash dev-client APK SHA-256", "expected SHA-256 must be 64 hex characters");
+  }
+
+  if (!existsSync(apkPath)) {
+    return result("fail", "GoGoCash dev-client APK SHA-256", `APK not found: ${apkPath}`);
+  }
+
+  const actual = createHash("sha256").update(readFileSync(apkPath)).digest("hex");
+  if (actual !== expected) {
+    return result(
+      "fail",
+      "GoGoCash dev-client APK SHA-256",
+      `expected ${expected}, got ${actual}`
+    );
+  }
+
+  return result("pass", "GoGoCash dev-client APK SHA-256", actual);
 }
 
 function evidenceSummary(report) {
@@ -742,6 +769,12 @@ async function runPreflight(options) {
     if (!existsSync(options.installApk)) {
       results.push(result("fail", "GoGoCash dev-client install", `APK not found: ${options.installApk}`));
     } else {
+      const sha256Outcome = devClientApkSha256Result(options.installApk, options.installApkSha256);
+      if (sha256Outcome) {
+        results.push(sha256Outcome);
+        if (sha256Outcome.status === "fail") return { context, results };
+      }
+
       const installRun = run(options.adb, adbArgs(deviceOptions, ["install", "-r", options.installApk]));
       const installOutcome = devClientInstallResult(options.installApk, installRun);
       results.push(installOutcome);
@@ -939,6 +972,7 @@ Options:
   --activate                  POST /gogosense/activate after a matched detection probe
   --open-deeplink             Open the activation deeplink on the selected Android device
   --install-apk <path>         Install a GoGoCash Android dev-client APK before device checks if missing
+  --install-apk-sha256 <hash>  Verify the dev-client APK SHA-256 before installing it
   --grant-usage-access         Run adb appops set <package> GET_USAGE_STATS allow before permission check
   --app-package <package>      GoGoCash Android package (default: ${defaultAppPackage})
   --merchant-apks <paths>      Comma-separated merchant APK or split APK files to install
@@ -982,6 +1016,7 @@ export {
   buildActivationRequest,
   buildDetectionRequest,
   catalogResult,
+  devClientApkSha256Result,
   devClientInstallResult,
   findDefaultAdb,
   merchantPackages,

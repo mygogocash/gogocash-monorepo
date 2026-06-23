@@ -78,6 +78,7 @@ For real-device acceptance, the preflight can now install the GoGoCash dev-clien
 ```bash
 node apps/app/scripts/gogosense-preflight.mjs \
   --install-apk /path/to/gogocash-development-android.apk \
+  --install-apk-sha256 5bdad05fe54f21e7b583966a2204f67b0029856d73b01c702585eaa71d909e7a \
   --merchant-apks /path/to/com.shopee.th.apk,/path/to/config.arm64_v8a.apk,/path/to/config.mdpi.apk \
   --merchant-packages com.shopee.th \
   --grant-usage-access \
@@ -91,7 +92,7 @@ node apps/app/scripts/gogosense-preflight.mjs \
   --open-deeplink
 ```
 
-`--merchant-apks` accepts a comma-separated base/split APK list and runs `adb install-multiple -r` on the selected device before checking `pm list packages`. `--open-merchant` sends an Android launcher intent to the first installed/supported merchant package before the foreground check, so final QA records both package install and foreground evidence from the same command. `--return-to-gogosense` reopens `gogocash://gogosense` after the merchant foreground proof so the GoGoCash hub/nudge surface is the next device state before optional deeplink opening. `--grant-usage-access` runs `adb shell appops set <package> GET_USAGE_STATS allow` before the permission readback so the preflight verifies the granted state. `--evidence-dir` writes `acceptance-checklist.md`, `preflight-report.json`, `summary.txt`, and `activation-deeplink.txt` for the PR/device acceptance record. `--capture-device-evidence` adds final external ADB evidence files (`device-window.txt`, `device-logcat.txt`, `device-screenshot.png`) plus checkpoint window/screenshot files for `merchant-foreground`, `gogosense-hub`, and `activation-deeplink` when those stages run. `--checkpoint-delay-ms` gives Android time to settle after stage transitions before checkpoint screenshots are captured. These preflight flags do not change the GoGoSense runtime module scope.
+`--install-apk-sha256` verifies the dev-client artifact before any `adb install` runs. `--merchant-apks` accepts a comma-separated base/split APK list and runs `adb install-multiple -r` on the selected device before checking `pm list packages`. `--open-merchant` sends an Android launcher intent to the first installed/supported merchant package before the foreground check, so final QA records both package install and foreground evidence from the same command. `--return-to-gogosense` reopens `gogocash://gogosense` after the merchant foreground proof so the GoGoCash hub/nudge surface is the next device state before optional deeplink opening. `--grant-usage-access` runs `adb shell appops set <package> GET_USAGE_STATS allow` before the permission readback so the preflight verifies the granted state. `--evidence-dir` writes `acceptance-checklist.md`, `preflight-report.json`, `summary.txt`, and `activation-deeplink.txt` for the PR/device acceptance record. `--capture-device-evidence` adds final external ADB evidence files (`device-window.txt`, `device-logcat.txt`, `device-screenshot.png`) plus checkpoint window/screenshot files for `merchant-foreground`, `gogosense-hub`, and `activation-deeplink` when those stages run. `--checkpoint-delay-ms` gives Android time to settle after stage transitions before checkpoint screenshots are captured. These preflight flags do not change the GoGoSense runtime module scope.
 
 ## Play Console (before any production submission)
 
