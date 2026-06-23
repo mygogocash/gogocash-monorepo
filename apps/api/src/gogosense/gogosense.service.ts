@@ -179,6 +179,28 @@ export class GogosenseService {
     userId: string,
     request: DetectionRequestDto,
   ): Promise<DetectionResponse> {
+    const settings = await this.getSettings(userId);
+    if (settings?.enabled === false) {
+      throw new BadRequestException('GoGoSense tracking is disabled');
+    }
+    if (
+      request.method === 'android_package' &&
+      settings?.usage_stats_enabled === false
+    ) {
+      throw new BadRequestException('Usage access detection is disabled');
+    }
+    if (
+      request.method === 'notification' &&
+      settings?.notification_listener_enabled === false
+    ) {
+      throw new BadRequestException('Notification detection is disabled');
+    }
+    if (
+      request.method === 'screenshot_ocr' &&
+      settings?.screenshot_recovery_enabled === false
+    ) {
+      throw new BadRequestException('Screenshot recovery is disabled');
+    }
     if (request.method === 'screenshot_ocr' && !request.screenshotJobId) {
       throw new BadRequestException(
         'Screenshot recovery job is required for screenshot OCR detection',

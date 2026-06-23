@@ -185,6 +185,48 @@ describe('GogosenseService detection and activation', () => {
     );
   });
 
+  it('detection > given disabled GoGoSense setting > then rejects without event', async () => {
+    const { detectionEventModel, service } = makeService();
+    const userSettingsModel = (service as any).userSettingsModel;
+    userSettingsModel.findOne.mockReturnValueOnce(
+      makeQueryResult({
+        user_id: 'user-1',
+        enabled: false,
+        usage_stats_enabled: true,
+      }),
+    );
+
+    await expect(
+      service.detect('user-1', {
+        ...baseDetectionRequest,
+        packageName: 'com.shopee.th',
+      }),
+    ).rejects.toThrow('GoGoSense tracking is disabled');
+
+    expect(detectionEventModel.create).not.toHaveBeenCalled();
+  });
+
+  it('detection > given disabled usage stats setting > then rejects Android package event', async () => {
+    const { detectionEventModel, service } = makeService();
+    const userSettingsModel = (service as any).userSettingsModel;
+    userSettingsModel.findOne.mockReturnValueOnce(
+      makeQueryResult({
+        user_id: 'user-1',
+        enabled: true,
+        usage_stats_enabled: false,
+      }),
+    );
+
+    await expect(
+      service.detect('user-1', {
+        ...baseDetectionRequest,
+        packageName: 'com.shopee.th',
+      }),
+    ).rejects.toThrow('Usage access detection is disabled');
+
+    expect(detectionEventModel.create).not.toHaveBeenCalled();
+  });
+
   it('detection > given screenshot OCR without job id > then rejects without event', async () => {
     const { detectionEventModel, service } = makeService();
     const screenshotJobModel = (service as any).screenshotJobModel;
