@@ -359,6 +359,7 @@ function evidenceSummary(report) {
 
 const acceptanceChecklistItems = [
   ["Android device connected", "android device connected"],
+  ["Device evidence captured", "device evidence captured"],
   ["GoGoCash dev client installed", "GoGoCash app installed"],
   ["Dev-client APK hash verified", "GoGoCash dev-client APK SHA-256"],
   ["Usage Access granted", "GoGoCash usage access"],
@@ -474,6 +475,24 @@ function writeDeviceEvidenceBundle(report, options) {
       })
     );
   }
+}
+
+function deviceEvidenceBundleResult(options) {
+  if (!options.captureDeviceEvidence || !options.evidenceDir) return null;
+
+  const requiredFiles = [
+    "device-evidence.txt",
+    "device-window.txt",
+    "device-logcat.txt",
+    "device-screenshot.png",
+  ];
+  const missingFiles = requiredFiles.filter((file) => !existsSync(`${options.evidenceDir}/${file}`));
+
+  if (missingFiles.length > 0) {
+    return result("fail", "device evidence captured", `missing ${missingFiles.join(", ")}`);
+  }
+
+  return result("pass", "device evidence captured", requiredFiles.join(", "));
 }
 
 function catalogResult(merchants, expectedPackages = []) {
@@ -1019,8 +1038,10 @@ async function main() {
   }
 
   const report = await runPreflight(options);
-  writeEvidenceBundle(report, options.evidenceDir);
   writeDeviceEvidenceBundle(report, options);
+  const deviceEvidenceResult = deviceEvidenceBundleResult(options);
+  if (deviceEvidenceResult) report.results.push(deviceEvidenceResult);
+  writeEvidenceBundle(report, options.evidenceDir);
   if (options.json) console.log(JSON.stringify(report, null, 2));
   else printText(report);
 
@@ -1042,6 +1063,7 @@ export {
   buildActivationRequest,
   buildDetectionRequest,
   catalogResult,
+  deviceEvidenceBundleResult,
   deviceConnectionDetail,
   devClientApkSha256Result,
   devClientInstallResult,

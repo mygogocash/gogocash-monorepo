@@ -527,6 +527,60 @@ describe("GoGoSense acceptance checklist", () => {
       })
     ).toContain("- [x] Dev-client APK hash verified: pass");
   });
+
+  it("marks device evidence as captured when the evidence result passes", () => {
+    expect(
+      preflight.acceptanceChecklist({
+        context: { device: "emulator-5554" },
+        results: [
+          { name: "android device connected", status: "pass" },
+          { name: "device evidence captured", status: "pass" },
+        ],
+      })
+    ).toContain("- [x] Device evidence captured: pass");
+  });
+});
+
+describe("GoGoSense device evidence bundle result", () => {
+  it("passes only when all required device evidence artifacts exist", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "gogosense-device-result-"));
+
+    try {
+      await Promise.all(
+        [
+          "device-evidence.txt",
+          "device-window.txt",
+          "device-logcat.txt",
+          "device-screenshot.png",
+        ].map((file) => writeFile(join(tempDir, file), "ok"))
+      );
+
+      expect(
+        preflight.deviceEvidenceBundleResult({
+          captureDeviceEvidence: true,
+          evidenceDir: tempDir,
+        })
+      ).toEqual({
+        status: "pass",
+        name: "device evidence captured",
+        detail: "device-evidence.txt, device-window.txt, device-logcat.txt, device-screenshot.png",
+      });
+
+      await rm(join(tempDir, "device-screenshot.png"), { force: true });
+      expect(
+        preflight.deviceEvidenceBundleResult({
+          captureDeviceEvidence: true,
+          evidenceDir: tempDir,
+        })
+      ).toEqual({
+        status: "fail",
+        name: "device evidence captured",
+        detail: "missing device-screenshot.png",
+      });
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("GoGoSense Android preflight dev-client APK integrity", () => {
