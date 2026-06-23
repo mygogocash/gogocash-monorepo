@@ -70,6 +70,7 @@ jobs:
     name: EAS ${{ inputs.action }}
     runs-on: ubuntu-latest
     env:
+      EXPO_PUBLIC_EAS_PROJECT_ID: 0039c25f-f88e-491d-8da9-85b8d6e66558
       NODE_PATH: ${{ github.workspace }}/node_modules:${{ github.workspace }}/apps/app/node_modules
     defaults:
       run:
