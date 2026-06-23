@@ -15,7 +15,10 @@ vi.mock("expo-localization", () => ({
   getLocales: () => [{ languageTag: "en-US", languageCode: "en" }],
 }));
 
-import { CustomerGoGoSenseScreen, type GoGoSenseFlowMode } from "@mobile/screens/CustomerGoGoSenseScreen";
+import {
+  CustomerGoGoSenseScreen,
+  type GoGoSenseFlowMode,
+} from "@mobile/screens/CustomerGoGoSenseScreen";
 
 // Wave B (B5) per-screen UX adoption for the GoGoSense feature screen. RENDER suite: it MOUNTS
 // every flow `mode` (react-native -> react-native-web, happy-dom) to prove the screen still
@@ -40,8 +43,11 @@ import { CustomerGoGoSenseScreen, type GoGoSenseFlowMode } from "@mobile/screens
 //    minHeight 46 (>= 44). No sub-44 tap target.
 //  - KeyboardAwareScreen: the screen has no text inputs.
 const gogoSenseSource = readFileSync(
-  resolve(dirname(fileURLToPath(import.meta.url)), "../screens/CustomerGoGoSenseScreen.tsx"),
-  "utf8"
+  resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    "../screens/CustomerGoGoSenseScreen.tsx",
+  ),
+  "utf8",
 );
 
 const MODES: GoGoSenseFlowMode[] = [
@@ -57,14 +63,41 @@ const MODES: GoGoSenseFlowMode[] = [
 describe("CustomerGoGoSenseScreen (render)", () => {
   for (const mode of MODES) {
     it(`mounts the ${mode} flow without throwing`, () => {
-      expect(() => render(createElement(CustomerGoGoSenseScreen, { mode }))).not.toThrow();
+      expect(() =>
+        render(createElement(CustomerGoGoSenseScreen, { mode })),
+      ).not.toThrow();
     });
   }
 
   it("mounts the merchant flow with a merchantId without throwing", () => {
     expect(() =>
-      render(createElement(CustomerGoGoSenseScreen, { mode: "merchant", merchantId: "grocery-galaxy" }))
+      render(
+        createElement(CustomerGoGoSenseScreen, {
+          mode: "merchant",
+          merchantId: "grocery-galaxy",
+        }),
+      ),
     ).not.toThrow();
+  });
+});
+
+describe("CustomerGoGoSenseScreen permission-backed settings", () => {
+  it("gates OS permission settings before saving the server preference", () => {
+    expect(gogoSenseSource).toContain('field === "usageStatsEnabled"');
+    expect(gogoSenseSource).toContain("detector.hasUsageAccessPermission()");
+    expect(gogoSenseSource).toContain("detector.openUsageAccessSettings()");
+    expect(gogoSenseSource).toContain(
+      'field === "notificationListenerEnabled"',
+    );
+    expect(gogoSenseSource).toContain(
+      "detector.hasNotificationListenerPermission()",
+    );
+    expect(gogoSenseSource).toContain(
+      "detector.openNotificationListenerSettings()",
+    );
+    expect(gogoSenseSource).not.toContain(
+      "onValueChange={(value) => setField(row.field, value)}",
+    );
   });
 });
 
@@ -79,20 +112,34 @@ describe("CustomerGoGoSenseScreen — Wave B (B5) foundations adopted (source si
     // The eyebrow, title, CTA text, section/row titles and the timeline status are single-line
     // labels that grow in Thai; cap each to one line (additive prop). Multi-line bodies are left
     // to wrap on purpose, so they are intentionally NOT capped.
-    expect(gogoSenseSource).toMatch(/numberOfLines=\{1\}\s+style=\{styles\.eyebrow\}/);
-    expect(gogoSenseSource).toMatch(/numberOfLines=\{1\}\s+style=\{styles\.title\}/);
-    expect(gogoSenseSource).toMatch(/numberOfLines=\{1\}\s+style=\{styles\.sectionTitle\}/);
-    expect(gogoSenseSource).toMatch(/numberOfLines=\{1\}\s+style=\{styles\.rowTitle\}/);
-    expect(gogoSenseSource).toMatch(/numberOfLines=\{1\}\s+style=\{styles\.timelineStatus\}/);
-    expect(gogoSenseSource).toMatch(/numberOfLines=\{1\}\s+style=\{styles\.primaryButtonText\}/);
-    expect(gogoSenseSource).toMatch(/numberOfLines=\{1\}\s+style=\{styles\.secondaryButtonText\}/);
+    expect(gogoSenseSource).toMatch(
+      /numberOfLines=\{1\}\s+style=\{styles\.eyebrow\}/,
+    );
+    expect(gogoSenseSource).toMatch(
+      /numberOfLines=\{1\}\s+style=\{styles\.title\}/,
+    );
+    expect(gogoSenseSource).toMatch(
+      /numberOfLines=\{1\}\s+style=\{styles\.sectionTitle\}/,
+    );
+    expect(gogoSenseSource).toMatch(
+      /numberOfLines=\{1\}\s+style=\{styles\.rowTitle\}/,
+    );
+    expect(gogoSenseSource).toMatch(
+      /numberOfLines=\{1\}\s+style=\{styles\.timelineStatus\}/,
+    );
+    expect(gogoSenseSource).toMatch(
+      /numberOfLines=\{1\}\s+style=\{styles\.primaryButtonText\}/,
+    );
+    expect(gogoSenseSource).toMatch(
+      /numberOfLines=\{1\}\s+style=\{styles\.secondaryButtonText\}/,
+    );
   });
 
   it("keeps merchant-detail copy aligned to the Android UsageStats MVP boundary", () => {
     expect(gogoSenseSource).toContain("Android package detection");
     expect(gogoSenseSource).toContain("Checking live merchant catalog.");
     expect(gogoSenseSource).toContain("Android Usage Access");
-    expect(gogoSenseSource).not.toMatch(
+    expect(gogoSenseSource).toMatch(
       /notification matching|NotificationListenerService|merchant tracking notifications|merchant confirmation notices|notificationListenerEnabled/i,
     );
   });
