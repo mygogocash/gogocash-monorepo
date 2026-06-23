@@ -285,6 +285,10 @@ describe("GoGoSense Android preflight device evidence capture", () => {
 if [ "$1" = "-s" ]; then
   shift 2
 fi
+if [ "$1" = "shell" ] && [ "$2" = "monkey" ]; then
+  printf 'Events injected: 1\n'
+  exit 0
+fi
 if [ "$1" = "shell" ] && [ "$2" = "dumpsys" ]; then
   echo "mCurrentFocus=Window{u0 com.shopee.th/com.shopee.app.ui.home.HomeActivity}"
   exit 0
@@ -391,11 +395,20 @@ echo "ok"
         grantUsageAccess: true,
         merchantApks: [shopeeBase, shopeeConfig],
         expectedPackages: ["com.shopee.th"],
+        openMerchant: true,
       });
 
       const commands = await readFile(commandLog, "utf8");
 
       expect(commands).toContain(`install-multiple -r ${shopeeBase} ${shopeeConfig}`);
+      expect(commands).toContain("shell monkey -p com.shopee.th -c android.intent.category.LAUNCHER 1");
+      expect(commands.indexOf("shell monkey -p com.shopee.th")).toBeGreaterThanOrEqual(0);
+      expect(commands.indexOf("shell monkey -p com.shopee.th")).toBeLessThan(
+        commands.indexOf("shell dumpsys window")
+      );
+      expect(
+        report.results.some((item) => item.name === "supported merchant launch" && item.status === "pass")
+      ).toBe(true);
       expect(commands).toContain("shell appops set co.gogocash.app GET_USAGE_STATS allow");
       expect(commands.indexOf("shell appops set")).toBeLessThan(commands.indexOf("shell appops get"));
       expect(report.results).toContainEqual(

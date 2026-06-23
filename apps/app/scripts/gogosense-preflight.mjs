@@ -34,6 +34,7 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     evidenceDir: env.GOGOSENSE_EVIDENCE_DIR || "",
     installApk: env.GOGOSENSE_DEV_CLIENT_APK || "",
     merchantApks: splitList(env.GOGOSENSE_MERCHANT_APKS || ""),
+    openMerchant: env.GOGOSENSE_OPEN_MERCHANT === "1",
     expectedPackages: splitList(env.GOGOSENSE_MERCHANT_PACKAGES || ""),
     help: false,
     grantUsageAccess: env.GOGOSENSE_GRANT_USAGE_ACCESS === "1",
@@ -64,6 +65,7 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     else if (arg === "--merchant-packages") options.expectedPackages = splitList(next());
     else if (arg === "--json") options.json = true;
     else if (arg === "--grant-usage-access") options.grantUsageAccess = true;
+    else if (arg === "--open-merchant") options.openMerchant = true;
     else if (arg === "--open-deeplink") {
       options.activate = true;
       options.openDeeplink = true;
@@ -288,6 +290,7 @@ const acceptanceChecklistItems = [
   ["GoGoCash dev client installed", "GoGoCash app installed"],
   ["Usage Access granted", "GoGoCash usage access"],
   ["Supported merchant app installed", "supported merchant app installed"],
+  ["Supported merchant launched", "supported merchant launch"],
   ["Supported merchant foreground", "supported merchant foreground"],
   ["Authenticated API reachable", "authenticated GoGoSense API"],
   ["Detection probe matched", "protected detection probe"],
@@ -499,6 +502,18 @@ function merchantApkInstallResult(apkPaths, installRun) {
   );
 }
 
+function merchantLaunchResult(packageName, launchRun) {
+  if (launchRun.ok) {
+    return result("pass", "supported merchant launch", `${packageName} launcher intent sent`);
+  }
+
+  return result(
+    "fail",
+    "supported merchant launch",
+    launchRun.stderr || launchRun.stdout || `adb monkey launch failed for ${packageName}`
+  );
+}
+
 async function runPreflight(options) {
   const results = [];
   let activationDeeplink = "";
@@ -699,6 +714,36 @@ async function runPreflight(options) {
   context.installedMerchantPackages = context.merchantPackages.filter((packageName) => installedPackages.has(packageName));
   results.push(supportedMerchantInstallResult(context.installedMerchantPackages, context.merchantPackages));
 
+  if (options.openMerchant) {
+    const merchantPackageToOpen = context.installedMerchantPackages[0] || context.merchantPackages[0] || "";
+    if (!merchantPackageToOpen) {
+      results.push(
+        result(
+          "fail",
+          "supported merchant launch",
+          "no merchant package available to launch; pass --merchant-packages or populate the staging catalog"
+        )
+      );
+    } else {
+      const launchRun = run(
+        options.adb,
+        [
+          "-s",
+          context.device,
+          "shell",
+          "monkey",
+          "-p",
+          merchantPackageToOpen,
+          "-c",
+          "android.intent.category.LAUNCHER",
+          "1",
+        ],
+        { timeout: 15000 }
+      );
+      results.push(merchantLaunchResult(merchantPackageToOpen, launchRun));
+    }
+  }
+
   const foreground = run(options.adb, adbArgs(deviceOptions, ["shell", "dumpsys", "window"]));
   context.foregroundPackage = parseForegroundPackage(foreground.stdout);
   const foregroundSupported = context.installedMerchantPackages.includes(context.foregroundPackage);
@@ -790,6 +835,7 @@ Options:
   --grant-usage-access         Run adb appops set <package> GET_USAGE_STATS allow before permission check
   --app-package <package>      GoGoCash Android package (default: ${defaultAppPackage})
   --merchant-apks <paths>      Comma-separated merchant APK or split APK files to install
+  --open-merchant              Launch the first installed/supported merchant package before foreground checks
   --merchant-packages <list>   Comma-separated merchant packages for controlled QA
   --require-auth               Fail when no auth token is provided
   --require-foreground         Fail unless a supported merchant package is foreground
