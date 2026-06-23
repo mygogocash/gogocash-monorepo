@@ -360,6 +360,7 @@ function evidenceSummary(report) {
 const acceptanceChecklistItems = [
   ["Android device connected", "android device connected"],
   ["GoGoCash dev client installed", "GoGoCash app installed"],
+  ["Dev-client APK hash verified", "GoGoCash dev-client APK SHA-256"],
   ["Usage Access granted", "GoGoCash usage access"],
   ["Supported merchant app installed", "supported merchant app installed"],
   ["Supported merchant launched", "supported merchant launch"],

@@ -515,6 +515,20 @@ echo "ok"
   });
 });
 
+describe("GoGoSense acceptance checklist", () => {
+  it("marks the dev-client APK hash as verified when the SHA preflight result passes", () => {
+    expect(
+      preflight.acceptanceChecklist({
+        context: { device: "emulator-5554" },
+        results: [
+          { name: "android device connected", status: "pass" },
+          { name: "GoGoCash dev-client APK SHA-256", status: "pass" },
+        ],
+      })
+    ).toContain("- [x] Dev-client APK hash verified: pass");
+  });
+});
+
 describe("GoGoSense Android preflight dev-client APK integrity", () => {
   it("runPreflight > stops before adb install when the dev-client APK SHA-256 mismatches", async () => {
     const tempDir = await mkdtemp(join(tmpdir(), "gogosense-apk-integrity-"));
