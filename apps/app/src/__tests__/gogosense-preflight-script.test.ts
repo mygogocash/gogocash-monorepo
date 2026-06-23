@@ -70,6 +70,7 @@ describe("GoGoSense Android preflight script helpers", () => {
           "/tmp/gogocash-dev-client.apk",
           "--merchant-apks",
           "/tmp/shopee-base.apk,/tmp/shopee-arm64.apk",
+          "--grant-usage-access",
           "--merchant-packages",
           "com.a, com.b",
           "--require-auth",
@@ -90,6 +91,7 @@ describe("GoGoSense Android preflight script helpers", () => {
       detectPackage: "com.a",
       device: "device-1",
       expectedPackages: ["com.a", "com.b"],
+      grantUsageAccess: true,
       installApk: "/tmp/gogocash-dev-client.apk",
       merchantApks: ["/tmp/shopee-base.apk", "/tmp/shopee-arm64.apk"],
       requireAuth: true,
@@ -281,16 +283,25 @@ echo "ok"
         ...preflight.parseArgs([], { ...process.env }),
         adb: fakeAdb,
         apiUrl: "https://api.example.test",
+        grantUsageAccess: true,
         merchantApks: [shopeeBase, shopeeConfig],
         expectedPackages: ["com.shopee.th"],
       });
 
-      await expect(readFile(commandLog, "utf8")).resolves.toContain(
-        `install-multiple -r ${shopeeBase} ${shopeeConfig}`
-      );
+      const commands = await readFile(commandLog, "utf8");
+
+      expect(commands).toContain(`install-multiple -r ${shopeeBase} ${shopeeConfig}`);
+      expect(commands).toContain("shell appops set co.gogocash.app GET_USAGE_STATS allow");
+      expect(commands.indexOf("shell appops set")).toBeLessThan(commands.indexOf("shell appops get"));
       expect(report.results).toContainEqual(
         expect.objectContaining({
           name: "supported merchant APK install",
+          status: "pass",
+        })
+      );
+      expect(report.results).toContainEqual(
+        expect.objectContaining({
+          name: "GoGoCash usage access grant",
           status: "pass",
         })
       );

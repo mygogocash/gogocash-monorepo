@@ -34,6 +34,7 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     merchantApks: splitList(env.GOGOSENSE_MERCHANT_APKS || ""),
     expectedPackages: splitList(env.GOGOSENSE_MERCHANT_PACKAGES || ""),
     help: false,
+    grantUsageAccess: env.GOGOSENSE_GRANT_USAGE_ACCESS === "1",
     json: false,
     openDeeplink: env.GOGOSENSE_OPEN_DEEPLINK === "1",
     requireAuth: false,
@@ -58,6 +59,7 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     else if (arg === "--merchant-apks") options.merchantApks = splitList(next());
     else if (arg === "--merchant-packages") options.expectedPackages = splitList(next());
     else if (arg === "--json") options.json = true;
+    else if (arg === "--grant-usage-access") options.grantUsageAccess = true;
     else if (arg === "--open-deeplink") {
       options.activate = true;
       options.openDeeplink = true;
@@ -282,6 +284,24 @@ function usageAccessResult(appInstalledOk, appops, appPackage) {
       );
 }
 
+function grantUsageAccessResult(appPackage, grantRun) {
+  if (grantRun.ok) {
+    return result(
+      "pass",
+      "GoGoCash usage access grant",
+      grantRun.stdout || `${appPackage} GET_USAGE_STATS set to allow`
+    );
+  }
+
+  return result(
+    "fail",
+    "GoGoCash usage access grant",
+    grantRun.stderr ||
+      grantRun.stdout ||
+      `adb shell appops set ${appPackage} GET_USAGE_STATS allow failed`
+  );
+}
+
 function supportedMerchantInstallResult(installedMerchantPackages, merchantPackages) {
   if (installedMerchantPackages.length > 0) {
     return result("pass", "supported merchant app installed", installedMerchantPackages.join(", "));
@@ -495,6 +515,13 @@ async function runPreflight(options) {
   );
 
   if (appInstalledOk) {
+    if (options.grantUsageAccess) {
+      const grantRun = run(
+        options.adb,
+        adbArgs(deviceOptions, ["shell", "appops", "set", options.appPackage, "GET_USAGE_STATS", "allow"])
+      );
+      results.push(grantUsageAccessResult(options.appPackage, grantRun));
+    }
     const appops = run(options.adb, adbArgs(deviceOptions, ["shell", "appops", "get", options.appPackage, "GET_USAGE_STATS"]));
     results.push(usageAccessResult(true, appops, options.appPackage));
   } else {
@@ -607,6 +634,7 @@ Options:
   --activate                  POST /gogosense/activate after a matched detection probe
   --open-deeplink             Open the activation deeplink on the selected Android device
   --install-apk <path>         Install a GoGoCash Android dev-client APK before device checks if missing
+  --grant-usage-access         Run adb appops set <package> GET_USAGE_STATS allow before permission check
   --app-package <package>      GoGoCash Android package (default: ${defaultAppPackage})
   --merchant-apks <paths>      Comma-separated merchant APK or split APK files to install
   --merchant-packages <list>   Comma-separated merchant packages for controlled QA

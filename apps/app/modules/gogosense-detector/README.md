@@ -69,12 +69,13 @@ node apps/app/scripts/gogosense-preflight.mjs \
   --install-apk /path/to/gogocash-development-android.apk \
   --merchant-apks /path/to/com.shopee.th.apk,/path/to/config.arm64_v8a.apk,/path/to/config.mdpi.apk \
   --merchant-packages com.shopee.th \
+  --grant-usage-access \
   --require-foreground \
   --activate \
   --open-deeplink
 ```
 
-`--merchant-apks` accepts a comma-separated base/split APK list and runs `adb install-multiple -r` on the selected device before checking `pm list packages`.
+`--merchant-apks` accepts a comma-separated base/split APK list and runs `adb install-multiple -r` on the selected device before checking `pm list packages`. `--grant-usage-access` runs `adb shell appops set <package> GET_USAGE_STATS allow` before the permission readback so the preflight verifies the granted state.
 
 ## Play Console (before any production submission)
 
