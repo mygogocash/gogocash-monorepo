@@ -7,6 +7,7 @@ import { spawnSync } from "node:child_process";
 
 const defaultApiUrl = "https://api-staging.gogocash.co";
 const defaultAppPackage = "co.gogocash.app";
+const merchantCatalogPath = "/gogosense/merchants";
 
 function splitList(value) {
   return value
@@ -80,13 +81,13 @@ function run(command, args, options = {}) {
 }
 
 async function fetchMerchants(apiUrl) {
-  const response = await fetch(`${apiUrl}/gogosense/merchants`, {
+  const response = await fetch(`${apiUrl}${merchantCatalogPath}`, {
     headers: { accept: "application/json" },
   });
   const text = await response.text();
 
   if (!response.ok) {
-    throw new Error(`GET /gogosense/merchants returned ${response.status}: ${text.slice(0, 200)}`);
+    throw new Error(merchantCatalogFetchError(response.status, text));
   }
 
   try {
@@ -95,6 +96,21 @@ async function fetchMerchants(apiUrl) {
   } catch (error) {
     throw new Error(`GET /gogosense/merchants returned invalid JSON: ${error.message}`);
   }
+}
+
+function merchantCatalogFetchError(status, text = "") {
+  const base = `GET ${merchantCatalogPath} returned ${status}: ${text.slice(0, 200)}`;
+
+  if (status === 404) {
+    return [
+      base,
+      "GoGoSense API route is missing at this base URL.",
+      "Verify GOGOSENSE_API_URL/EXPO_PUBLIC_API_URL, deploy the current API to staging,",
+      "then seed merchants with npm run gogosense:seed-merchants -w apps/api.",
+    ].join("; ");
+  }
+
+  return base;
 }
 
 async function fetchProtectedJson(apiUrl, path, authToken, init = {}) {
@@ -424,6 +440,7 @@ export {
   catalogResult,
   findDefaultAdb,
   merchantPackages,
+  merchantCatalogFetchError,
   parseArgs,
   parseDevices,
   parseForegroundPackage,

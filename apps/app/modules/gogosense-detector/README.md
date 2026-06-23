@@ -32,6 +32,9 @@ Prerequisites (owner-provided — not in the repo):
    ```bash
    MONGO_URI="$STAGING_MONGO_URI" npm run gogosense:seed-merchants -w apps/api -- --enable-first
    ```
+   If preflight reports `GET /gogosense/merchants returned 404`, the public API
+   base URL is serving a deployment without the GoGoSense module. Redeploy the
+   current API to staging before seeding or running final device acceptance.
 
 Build the dev client (CI or local):
 
