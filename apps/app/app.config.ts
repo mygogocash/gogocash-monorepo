@@ -7,6 +7,13 @@ const appIdentity = {
   androidPackage: "co.gogocash.app",
 } as const;
 
+type ConfigRequire = { resolve: (specifier: string) => string };
+
+const workspaceRoot = process.env.GITHUB_WORKSPACE || process.cwd().replace(/\/apps\/app$/, "");
+var require: ConfigRequire =
+  (globalThis as typeof globalThis & { require?: ConfigRequire }).require ??
+  { resolve: (specifier: string) => `${workspaceRoot}/node_modules/${specifier}` };
+
 const envDefaults = {
   accountDataSource: "fixtures",
   apiUrl: "https://api-staging.gogocash.co",
