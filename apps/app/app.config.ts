@@ -74,7 +74,7 @@ const mobileExpoConfig = ({ config }: ConfigContext): ExpoConfig => ({
   },
   plugins: [
     "expo-router",
-    "expo-secure-store",
+    "expo-secure-store/app.plugin",
     "expo-localization",
     "@react-native-community/datetimepicker",
     [
