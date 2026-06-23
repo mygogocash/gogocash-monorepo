@@ -64,6 +64,7 @@ describe("GoGoSense Android preflight script helpers", () => {
           "https://api.example.test/",
           "--auth-token",
           "token-1",
+          "--capture-device-evidence",
           "--detect-package",
           "com.a",
           "--evidence-dir",
@@ -90,6 +91,7 @@ describe("GoGoSense Android preflight script helpers", () => {
       apiUrl: "https://api.example.test",
       appPackage: "co.test.app",
       authToken: "token-1",
+      captureDeviceEvidence: true,
       detectPackage: "com.a",
       device: "device-1",
       evidenceDir: "/tmp/gogosense-evidence",
@@ -259,6 +261,60 @@ describe("GoGoSense Android preflight evidence bundle", () => {
       const report = JSON.parse(await readFile(join(tempDir, "preflight-report.json"), "utf8"));
       expect(report.context.device).toBe("emulator-5554");
       expect(report.results).toHaveLength(3);
+    } finally {
+      await rm(tempDir, { force: true, recursive: true });
+    }
+  });
+});
+
+describe("GoGoSense Android preflight device evidence capture", () => {
+  it("writeDeviceEvidenceBundle > captures foreground, logcat, and screenshot evidence", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "gogosense-device-evidence-"));
+    const fakeAdb = join(tempDir, "adb");
+
+    await writeFile(
+      fakeAdb,
+      `#!/bin/sh
+if [ "$1" = "-s" ]; then
+  shift 2
+fi
+if [ "$1" = "shell" ] && [ "$2" = "dumpsys" ]; then
+  echo "mCurrentFocus=Window{u0 com.shopee.th/com.shopee.app.ui.home.HomeActivity}"
+  exit 0
+fi
+if [ "$1" = "logcat" ]; then
+  echo "GoGoSense Activate cashback"
+  exit 0
+fi
+if [ "$1" = "exec-out" ] && [ "$2" = "screencap" ]; then
+  printf 'PNGDATA'
+  exit 0
+fi
+echo "ok"
+`
+    );
+    await chmod(fakeAdb, 0o755);
+
+    try {
+      preflight.writeDeviceEvidenceBundle(
+        { context: { device: "emulator-5554" }, results: [] },
+        {
+          adb: fakeAdb,
+          captureDeviceEvidence: true,
+          evidenceDir: tempDir,
+        }
+      );
+
+      await expect(readFile(join(tempDir, "device-window.txt"), "utf8")).resolves.toContain(
+        "com.shopee.th"
+      );
+      await expect(readFile(join(tempDir, "device-logcat.txt"), "utf8")).resolves.toContain(
+        "Activate cashback"
+      );
+      await expect(readFile(join(tempDir, "device-screenshot.png"), "utf8")).resolves.toBe("PNGDATA");
+      await expect(readFile(join(tempDir, "device-screenshot.txt"), "utf8")).resolves.toContain(
+        "ok=true"
+      );
     } finally {
       await rm(tempDir, { force: true, recursive: true });
     }

@@ -71,12 +71,13 @@ node apps/app/scripts/gogosense-preflight.mjs \
   --merchant-packages com.shopee.th \
   --grant-usage-access \
   --evidence-dir /path/to/gogosense-evidence \
+  --capture-device-evidence \
   --require-foreground \
   --activate \
   --open-deeplink
 ```
 
-`--merchant-apks` accepts a comma-separated base/split APK list and runs `adb install-multiple -r` on the selected device before checking `pm list packages`. `--grant-usage-access` runs `adb shell appops set <package> GET_USAGE_STATS allow` before the permission readback so the preflight verifies the granted state. `--evidence-dir` writes `preflight-report.json`, `summary.txt`, and `activation-deeplink.txt` for the PR/device acceptance record.
+`--merchant-apks` accepts a comma-separated base/split APK list and runs `adb install-multiple -r` on the selected device before checking `pm list packages`. `--grant-usage-access` runs `adb shell appops set <package> GET_USAGE_STATS allow` before the permission readback so the preflight verifies the granted state. `--evidence-dir` writes `preflight-report.json`, `summary.txt`, and `activation-deeplink.txt` for the PR/device acceptance record. `--capture-device-evidence` adds external ADB evidence files (`device-window.txt`, `device-logcat.txt`, `device-screenshot.png`) without changing the GoGoSense runtime module scope.
 
 ## Play Console (before any production submission)
 

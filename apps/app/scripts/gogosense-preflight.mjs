@@ -28,6 +28,7 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     appPackage: env.GOGOCASH_ANDROID_PACKAGE || defaultAppPackage,
     activate: env.GOGOSENSE_ACTIVATE === "1",
     authToken: env.GOGOSENSE_AUTH_TOKEN || "",
+    captureDeviceEvidence: env.GOGOSENSE_CAPTURE_DEVICE_EVIDENCE === "1",
     device: env.ANDROID_SERIAL || "",
     detectPackage: env.GOGOSENSE_DETECT_PACKAGE || "",
     evidenceDir: env.GOGOSENSE_EVIDENCE_DIR || "",
@@ -54,6 +55,7 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     else if (arg === "--app-package") options.appPackage = next();
     else if (arg === "--activate") options.activate = true;
     else if (arg === "--auth-token") options.authToken = next();
+    else if (arg === "--capture-device-evidence") options.captureDeviceEvidence = true;
     else if (arg === "--device") options.device = next();
     else if (arg === "--detect-package") options.detectPackage = next();
     else if (arg === "--evidence-dir") options.evidenceDir = next();
@@ -92,6 +94,20 @@ function run(command, args, options = {}) {
     status: result.status,
     stderr: (result.stderr || "").trim(),
     stdout: (result.stdout || "").trim(),
+  };
+}
+
+function runBinary(command, args, options = {}) {
+  const result = spawnSync(command, args, {
+    timeout: options.timeoutMs || 30000,
+  });
+
+  return {
+    error: result.error,
+    ok: result.status === 0,
+    status: result.status,
+    stderr: result.stderr?.toString("utf8") || "",
+    stdout: result.stdout || Buffer.alloc(0),
   };
 }
 
@@ -276,6 +292,61 @@ function writeEvidenceBundle(report, evidenceDir) {
 
   if (report.context.activationDeeplink) {
     writeFileSync(`${evidenceDir}/activation-deeplink.txt`, `${report.context.activationDeeplink}\n`);
+  }
+}
+
+function commandEvidence(command, result) {
+  return [
+    `command=${command}`,
+    `ok=${result.ok ? "true" : "false"}`,
+    `status=${result.status ?? "unknown"}`,
+    "--- stdout ---",
+    result.stdout || "",
+    "--- stderr ---",
+    result.stderr || result.error?.message || "",
+    "",
+  ].join("\n");
+}
+
+function writeDeviceEvidenceBundle(report, options) {
+  if (!options.evidenceDir || !options.captureDeviceEvidence) return;
+
+  mkdirSync(options.evidenceDir, { recursive: true });
+
+  if (!report.context.device) {
+    writeFileSync(`${options.evidenceDir}/device-evidence.txt`, "skipped: no adb device in state=device\n");
+    return;
+  }
+
+  const deviceOptions = { ...options, device: report.context.device };
+  const windowRun = run(options.adb, adbArgs(deviceOptions, ["shell", "dumpsys", "window"]), {
+    timeoutMs: 30000,
+  });
+  writeFileSync(
+    `${options.evidenceDir}/device-window.txt`,
+    commandEvidence("adb shell dumpsys window", windowRun)
+  );
+
+  const logcatRun = run(options.adb, adbArgs(deviceOptions, ["logcat", "-d", "-t", "300"]), {
+    timeoutMs: 30000,
+  });
+  writeFileSync(
+    `${options.evidenceDir}/device-logcat.txt`,
+    commandEvidence("adb logcat -d -t 300", logcatRun)
+  );
+
+  const screenshotRun = runBinary(options.adb, adbArgs(deviceOptions, ["exec-out", "screencap", "-p"]));
+  if (screenshotRun.ok && screenshotRun.stdout.length > 0) {
+    writeFileSync(`${options.evidenceDir}/device-screenshot.png`, screenshotRun.stdout);
+    writeFileSync(`${options.evidenceDir}/device-screenshot.txt`, "command=adb exec-out screencap -p\nok=true\n");
+  } else {
+    writeFileSync(
+      `${options.evidenceDir}/device-screenshot.txt`,
+      commandEvidence("adb exec-out screencap -p", {
+        ...screenshotRun,
+        stdout: "",
+      })
+    );
   }
 }
 
@@ -666,6 +737,7 @@ Options:
   --api-url <url>              API base URL (default: ${defaultApiUrl})
   --adb <path>                 adb executable (default: Android SDK adb or adb on PATH)
   --auth-token <token>         Firebase/backend bearer token for protected GoGoSense API checks
+  --capture-device-evidence    With --evidence-dir, capture dumpsys window, logcat, and screencap files
   --device <serial>            adb device serial (default: ANDROID_SERIAL or first device)
   --detect-package <package>   Explicitly POST /gogosense/detect for this package
   --evidence-dir <path>        Write preflight-report.json, summary.txt, and activation-deeplink.txt
@@ -691,6 +763,7 @@ async function main() {
 
   const report = await runPreflight(options);
   writeEvidenceBundle(report, options.evidenceDir);
+  writeDeviceEvidenceBundle(report, options);
   if (options.json) console.log(JSON.stringify(report, null, 2));
   else printText(report);
 
@@ -724,4 +797,5 @@ export {
   supportedMerchantInstallResult,
   usageAccessResult,
   writeEvidenceBundle,
+  writeDeviceEvidenceBundle,
 };
