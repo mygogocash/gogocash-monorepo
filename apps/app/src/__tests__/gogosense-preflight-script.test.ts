@@ -63,6 +63,8 @@ describe("GoGoSense Android preflight script helpers", () => {
           "token-1",
           "--detect-package",
           "com.a",
+          "--install-apk",
+          "/tmp/gogocash-dev-client.apk",
           "--merchant-packages",
           "com.a, com.b",
           "--require-auth",
@@ -83,6 +85,7 @@ describe("GoGoSense Android preflight script helpers", () => {
       detectPackage: "com.a",
       device: "device-1",
       expectedPackages: ["com.a", "com.b"],
+      installApk: "/tmp/gogocash-dev-client.apk",
       requireAuth: true,
       requireForeground: true,
     });

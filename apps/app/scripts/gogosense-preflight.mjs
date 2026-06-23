@@ -29,6 +29,7 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     authToken: env.GOGOSENSE_AUTH_TOKEN || "",
     device: env.ANDROID_SERIAL || "",
     detectPackage: env.GOGOSENSE_DETECT_PACKAGE || "",
+    installApk: env.GOGOSENSE_DEV_CLIENT_APK || "",
     expectedPackages: splitList(env.GOGOSENSE_MERCHANT_PACKAGES || ""),
     help: false,
     json: false,
@@ -49,6 +50,7 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     else if (arg === "--auth-token") options.authToken = next();
     else if (arg === "--device") options.device = next();
     else if (arg === "--detect-package") options.detectPackage = next();
+    else if (arg === "--install-apk") options.installApk = next();
     else if (arg === "--merchant-packages") options.expectedPackages = splitList(next());
     else if (arg === "--json") options.json = true;
     else if (arg === "--require-auth") options.requireAuth = true;
@@ -268,6 +270,18 @@ function supportedMerchantInstallResult(installedMerchantPackages, merchantPacka
   );
 }
 
+function devClientInstallResult(apkPath, installRun) {
+  if (installRun.ok) {
+    return result("pass", "GoGoCash dev-client install", installRun.stdout || `installed ${apkPath}`);
+  }
+
+  return result(
+    "fail",
+    "GoGoCash dev-client install",
+    installRun.stderr || installRun.stdout || `adb install -r ${apkPath} failed`
+  );
+}
+
 async function runPreflight(options) {
   const results = [];
   const context = {
@@ -356,8 +370,23 @@ async function runPreflight(options) {
   results.push(result("pass", "android device connected", context.device));
 
   const deviceOptions = { ...options, device: context.device };
-  const appInstalled = run(options.adb, adbArgs(deviceOptions, ["shell", "pm", "path", options.appPackage]));
-  const appInstalledOk = Boolean(appInstalled.ok && appInstalled.stdout);
+  let appInstalled = run(options.adb, adbArgs(deviceOptions, ["shell", "pm", "path", options.appPackage]));
+  let appInstalledOk = Boolean(appInstalled.ok && appInstalled.stdout);
+
+  if (!appInstalledOk && options.installApk) {
+    if (!existsSync(options.installApk)) {
+      results.push(result("fail", "GoGoCash dev-client install", `APK not found: ${options.installApk}`));
+    } else {
+      const installRun = run(options.adb, adbArgs(deviceOptions, ["install", "-r", options.installApk]));
+      const installOutcome = devClientInstallResult(options.installApk, installRun);
+      results.push(installOutcome);
+      if (installOutcome.status === "pass") {
+        appInstalled = run(options.adb, adbArgs(deviceOptions, ["shell", "pm", "path", options.appPackage]));
+        appInstalledOk = Boolean(appInstalled.ok && appInstalled.stdout);
+      }
+    }
+  }
+
   results.push(
     appInstalledOk
       ? result("pass", "GoGoCash app installed", options.appPackage)
@@ -430,6 +459,7 @@ Options:
   --auth-token <token>         Firebase/backend bearer token for protected GoGoSense API checks
   --device <serial>            adb device serial (default: ANDROID_SERIAL or first device)
   --detect-package <package>   Explicitly POST /gogosense/detect for this package
+  --install-apk <path>         Install a GoGoCash Android dev-client APK before device checks if missing
   --app-package <package>      GoGoCash Android package (default: ${defaultAppPackage})
   --merchant-packages <list>   Comma-separated merchant packages for controlled QA
   --require-auth               Fail when no auth token is provided
@@ -464,6 +494,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
 export {
   buildDetectionRequest,
   catalogResult,
+  devClientInstallResult,
   findDefaultAdb,
   merchantPackages,
   merchantCatalogFetchError,

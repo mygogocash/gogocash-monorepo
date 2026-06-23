@@ -57,4 +57,32 @@ describe("GoGoSense preflight diagnostics", () => {
       detail: "none installed from: com.shopee.th, com.lazada.android",
     });
   });
+
+  it("reports a successful dev-client APK install", () => {
+    expect(
+      preflight.devClientInstallResult("/tmp/gogocash.apk", {
+        ok: true,
+        stdout: "Success",
+        stderr: "",
+      }),
+    ).toEqual({
+      status: "pass",
+      name: "GoGoCash dev-client install",
+      detail: "Success",
+    });
+  });
+
+  it("reports a failed dev-client APK install with adb stderr", () => {
+    expect(
+      preflight.devClientInstallResult("/tmp/gogocash.apk", {
+        ok: false,
+        stdout: "",
+        stderr: "INSTALL_FAILED_VERSION_DOWNGRADE",
+      }),
+    ).toEqual({
+      status: "fail",
+      name: "GoGoCash dev-client install",
+      detail: "INSTALL_FAILED_VERSION_DOWNGRADE",
+    });
+  });
 });
