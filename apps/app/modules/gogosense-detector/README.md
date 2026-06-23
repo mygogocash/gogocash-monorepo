@@ -46,6 +46,17 @@ gh workflow run deploy-app-native-eas.yml -f action=build -f platform=android -f
 cd apps/app && eas build --profile development --platform android
 ```
 
+If the local `/tmp` APK cache is gone, recover the successful GitHub Actions
+artifact before the device pass:
+
+```bash
+gh run download <run-id> --dir /tmp/gogocash-eas-artifacts-<run-id>
+shasum -a 256 /tmp/gogocash-eas-artifacts-<run-id>/gogocash-development-android/gogocash-development-android.apk
+```
+
+For the current accepted Android dev-client artifact, run `28014696785` produced
+SHA-256 `5bdad05fe54f21e7b583966a2204f67b0029856d73b01c702585eaa71d909e7a`.
+
 Install the resulting dev-client APK on an Android phone, then:
 
 `npm run gogosense:dev-client -w apps/app` starts Metro with the required
