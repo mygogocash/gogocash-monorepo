@@ -185,6 +185,23 @@ describe('GogosenseService detection and activation', () => {
     );
   });
 
+  it('detection > given screenshot OCR without job id > then rejects without event', async () => {
+    const { detectionEventModel, service } = makeService();
+    const screenshotJobModel = (service as any).screenshotJobModel;
+
+    await expect(
+      service.detect('user-1', {
+        ...baseDetectionRequest,
+        method: 'screenshot_ocr',
+      }),
+    ).rejects.toThrow(
+      'Screenshot recovery job is required for screenshot OCR detection',
+    );
+
+    expect(screenshotJobModel.findOne).not.toHaveBeenCalled();
+    expect(detectionEventModel.create).not.toHaveBeenCalled();
+  });
+
   it('detection > given screenshot job id > then requires active user-owned job', async () => {
     const { detectionEventModel, service } = makeService();
     const screenshotJobModel = (service as any).screenshotJobModel;

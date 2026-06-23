@@ -179,6 +179,11 @@ export class GogosenseService {
     userId: string,
     request: DetectionRequestDto,
   ): Promise<DetectionResponse> {
+    if (request.method === 'screenshot_ocr' && !request.screenshotJobId) {
+      throw new BadRequestException(
+        'Screenshot recovery job is required for screenshot OCR detection',
+      );
+    }
     const match = await this.matchMerchant(request);
     if (request.screenshotJobId) {
       const screenshotJob = await this.getScreenshotJob(
