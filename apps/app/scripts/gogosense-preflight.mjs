@@ -283,10 +283,53 @@ function evidenceSummary(report) {
   return `${lines.join("\n")}\n`;
 }
 
+const acceptanceChecklistItems = [
+  ["Android device connected", "android device connected"],
+  ["GoGoCash dev client installed", "GoGoCash app installed"],
+  ["Usage Access granted", "GoGoCash usage access"],
+  ["Supported merchant app installed", "supported merchant app installed"],
+  ["Supported merchant foreground", "supported merchant foreground"],
+  ["Authenticated API reachable", "authenticated GoGoSense API"],
+  ["Detection probe matched", "protected detection probe"],
+  ["Activation deeplink returned", "protected activation probe"],
+  ["Activation deeplink opened", "activation deeplink open"],
+];
+
+function acceptanceChecklist(report) {
+  const lines = [
+    "# GoGoSense Acceptance Checklist",
+    "",
+    `Device: ${report.context.device || "none"}`,
+    `Foreground package: ${report.context.foregroundPackage || "none"}`,
+    `Activation deeplink: ${report.context.activationDeeplink || "none"}`,
+    "",
+  ];
+
+  for (const [label, resultName] of acceptanceChecklistItems) {
+    const item = report.results.find((candidate) => candidate.name === resultName);
+    const status = item?.status || "missing";
+    const detail = item?.detail ? ` - ${item.detail}` : "";
+    lines.push(`- [${status === "pass" ? "x" : " "}] ${label}: ${status}${detail}`);
+  }
+
+  lines.push("");
+  lines.push("Evidence files to attach when present:");
+  lines.push("- preflight-report.json");
+  lines.push("- summary.txt");
+  lines.push("- activation-deeplink.txt");
+  lines.push("- device-window.txt");
+  lines.push("- device-logcat.txt");
+  lines.push("- device-screenshot.png");
+  lines.push("");
+
+  return `${lines.join("\n")}\n`;
+}
+
 function writeEvidenceBundle(report, evidenceDir) {
   if (!evidenceDir) return;
 
   mkdirSync(evidenceDir, { recursive: true });
+  writeFileSync(`${evidenceDir}/acceptance-checklist.md`, acceptanceChecklist(report));
   writeFileSync(`${evidenceDir}/preflight-report.json`, `${JSON.stringify(report, null, 2)}\n`);
   writeFileSync(`${evidenceDir}/summary.txt`, evidenceSummary(report));
 
@@ -781,6 +824,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
 
 export {
   activationPayloadErrors,
+  acceptanceChecklist,
   buildActivationRequest,
   buildDetectionRequest,
   catalogResult,

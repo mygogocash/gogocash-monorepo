@@ -245,6 +245,7 @@ describe("GoGoSense Android preflight evidence bundle", () => {
           results: [
             { name: "android device connected", status: "pass" },
             { name: "GoGoCash usage access", status: "pass" },
+            { name: "protected activation probe", status: "pass", detail: "https://invl.me/example" },
             { name: "activation deeplink open", status: "warn" },
           ],
         },
@@ -257,10 +258,16 @@ describe("GoGoSense Android preflight evidence bundle", () => {
       await expect(readFile(join(tempDir, "summary.txt"), "utf8")).resolves.toContain(
         "activationDeeplink=https://invl.me/example"
       );
+      await expect(readFile(join(tempDir, "acceptance-checklist.md"), "utf8")).resolves.toContain(
+        "- [x] Activation deeplink returned: pass - https://invl.me/example"
+      );
+      await expect(readFile(join(tempDir, "acceptance-checklist.md"), "utf8")).resolves.toContain(
+        "- [ ] Activation deeplink opened: warn"
+      );
 
       const report = JSON.parse(await readFile(join(tempDir, "preflight-report.json"), "utf8"));
       expect(report.context.device).toBe("emulator-5554");
-      expect(report.results).toHaveLength(3);
+      expect(report.results).toHaveLength(4);
     } finally {
       await rm(tempDir, { force: true, recursive: true });
     }
