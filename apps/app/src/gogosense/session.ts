@@ -20,13 +20,20 @@ export type GoGoSenseSessionState = {
 };
 
 type SessionApi = {
-  detect(request: GoGoSenseDetectionRequest): Promise<GoGoSenseDetectionResponse>;
-  activate?(request: GoGoSenseActivationRequest): Promise<GoGoSenseActivationResponse>;
+  detect(
+    request: GoGoSenseDetectionRequest,
+  ): Promise<GoGoSenseDetectionResponse>;
+  activate?(
+    request: GoGoSenseActivationRequest,
+  ): Promise<GoGoSenseActivationResponse>;
 };
 
 export type GoGoSenseStartResult =
   | { started: true }
-  | { started: false; reason: "android_unsupported" | "usage_permission_denied" };
+  | {
+      started: false;
+      reason: "android_unsupported" | "usage_permission_denied";
+    };
 
 export type GoGoSenseSessionOptions = {
   api: SessionApi;
@@ -111,7 +118,16 @@ export function createGoGoSenseSession(options: GoGoSenseSessionOptions) {
 
     async poll(): Promise<void> {
       matchedDuringPoll = false;
-      const result = await runner.pollForegroundPackage();
+      let result: Awaited<ReturnType<typeof runner.pollForegroundPackage>>;
+      try {
+        result = await runner.pollForegroundPackage();
+      } catch {
+        if (lastMatch) {
+          lastMatch = null;
+          emitChange();
+        }
+        return;
+      }
       const shouldClearMatch =
         !result.detected || (!result.suppressed && !matchedDuringPoll);
       if (shouldClearMatch && lastMatch != null) {

@@ -294,8 +294,12 @@ describe('GogosenseService detection and activation', () => {
   });
 
   it('activation > given matched merchant > then creates or reuses deeplink', async () => {
-    const { activationEventModel, detectionEventModel, involveService, service } =
-      makeService();
+    const {
+      activationEventModel,
+      detectionEventModel,
+      involveService,
+      service,
+    } = makeService();
     const request = {
       detectionEventId: 'detection-1',
       merchantId: 'merchant-shopee',
@@ -334,8 +338,6 @@ describe('GogosenseService detection and activation', () => {
       }),
     );
   });
-});
-
   it('activation > given disabled GoGoSense setting > then rejects gogosense activation', async () => {
     const { activationEventModel, involveService, service } = makeService();
     const userSettingsModel = (service as any).userSettingsModel;
@@ -361,8 +363,12 @@ describe('GogosenseService detection and activation', () => {
   });
 
   it('activation > given an invalid detection event id > rejects before deeplink creation', async () => {
-    const { activationEventModel, detectionEventModel, involveService, service } =
-      makeService();
+    const {
+      activationEventModel,
+      detectionEventModel,
+      involveService,
+      service,
+    } = makeService();
     detectionEventModel.findOne.mockReturnValueOnce(makeQueryResult(null));
 
     await expect(
@@ -380,8 +386,12 @@ describe('GogosenseService detection and activation', () => {
   });
 
   it('activation > given gogosense source without detection event > rejects before deeplink creation', async () => {
-    const { activationEventModel, detectionEventModel, involveService, service } =
-      makeService();
+    const {
+      activationEventModel,
+      detectionEventModel,
+      involveService,
+      service,
+    } = makeService();
 
     await expect(
       service.activate('user-1', {
@@ -396,6 +406,7 @@ describe('GogosenseService detection and activation', () => {
     expect(involveService.createAffiliate).not.toHaveBeenCalled();
     expect(activationEventModel.create).not.toHaveBeenCalled();
   });
+});
 
 describe('GogosenseService settings and timeline', () => {
   it('settings > given partial update > then only writes provided flags', async () => {

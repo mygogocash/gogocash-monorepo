@@ -14,9 +14,11 @@ describe('GoGoSense merchant seed script helpers', () => {
       enableSelected: true,
       willSetEnabled: true,
     });
-    expect(operations.slice(1).every((operation) => operation.willSetEnabled === undefined)).toBe(
-      true,
-    );
+    expect(
+      operations
+        .slice(1)
+        .every((operation) => operation.willSetEnabled === undefined),
+    ).toBe(true);
   });
 
   it('matches explicit selectors against Android package names', () => {
@@ -35,8 +37,12 @@ describe('GoGoSense merchant seed script helpers', () => {
     const options = parseSeedOptions(['--enable=shopee', '--reset-enabled']);
     const operations = buildSeedOperations(options);
 
-    expect(operations.some((operation) => operation.willSetEnabled === true)).toBe(true);
-    expect(operations.some((operation) => operation.willSetEnabled === false)).toBe(true);
+    expect(
+      operations.some((operation) => operation.willSetEnabled === true),
+    ).toBe(true);
+    expect(
+      operations.some((operation) => operation.willSetEnabled === false),
+    ).toBe(true);
   });
 
   it('rejects unknown arguments instead of silently ignoring them', () => {

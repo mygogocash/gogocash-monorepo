@@ -5,5 +5,4 @@ import { CreateBrandDto } from './create-brand.dto';
  * `PATCH /brand/:id` — every field on `CreateBrandDto` is optional here.
  * Slug is technically updatable but the service guards uniqueness.
  */
-export interface UpdateBrandDto extends Partial<CreateBrandDto> {}
 export class UpdateBrandDto extends PartialType(CreateBrandDto) {}
