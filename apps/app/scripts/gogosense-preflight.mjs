@@ -103,11 +103,10 @@ function merchantCatalogFetchError(status, text = "") {
 
   if (status === 404) {
     return [
-      base,
-      "GoGoSense API route is missing at this base URL.",
+      `${base}; GoGoSense API route is missing at this base URL.`,
       "Verify GOGOSENSE_API_URL/EXPO_PUBLIC_API_URL, deploy the current API to staging,",
       "then seed merchants with npm run gogosense:seed-merchants -w apps/api.",
-    ].join("; ");
+    ].join(" ");
   }
 
   return base;
