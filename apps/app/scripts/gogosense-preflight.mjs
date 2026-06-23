@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -30,6 +30,7 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     authToken: env.GOGOSENSE_AUTH_TOKEN || "",
     device: env.ANDROID_SERIAL || "",
     detectPackage: env.GOGOSENSE_DETECT_PACKAGE || "",
+    evidenceDir: env.GOGOSENSE_EVIDENCE_DIR || "",
     installApk: env.GOGOSENSE_DEV_CLIENT_APK || "",
     merchantApks: splitList(env.GOGOSENSE_MERCHANT_APKS || ""),
     expectedPackages: splitList(env.GOGOSENSE_MERCHANT_PACKAGES || ""),
@@ -55,6 +56,7 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     else if (arg === "--auth-token") options.authToken = next();
     else if (arg === "--device") options.device = next();
     else if (arg === "--detect-package") options.detectPackage = next();
+    else if (arg === "--evidence-dir") options.evidenceDir = next();
     else if (arg === "--install-apk") options.installApk = next();
     else if (arg === "--merchant-apks") options.merchantApks = splitList(next());
     else if (arg === "--merchant-packages") options.expectedPackages = splitList(next());
@@ -246,6 +248,37 @@ function result(status, name, detail = "") {
   return { status, name, detail };
 }
 
+function evidenceSummary(report) {
+  const counts = report.results.reduce(
+    (summary, item) => ({ ...summary, [item.status]: (summary[item.status] || 0) + 1 }),
+    {}
+  );
+  const lines = [
+    `api=${report.context.apiUrl}`,
+    `adb=${report.context.adb}`,
+    `device=${report.context.device || "none"}`,
+    `foreground=${report.context.foregroundPackage || "none"}`,
+    `activationDeeplink=${report.context.activationDeeplink || "none"}`,
+    `pass=${counts.pass || 0}`,
+    `warn=${counts.warn || 0}`,
+    `fail=${counts.fail || 0}`,
+  ];
+
+  return `${lines.join("\n")}\n`;
+}
+
+function writeEvidenceBundle(report, evidenceDir) {
+  if (!evidenceDir) return;
+
+  mkdirSync(evidenceDir, { recursive: true });
+  writeFileSync(`${evidenceDir}/preflight-report.json`, `${JSON.stringify(report, null, 2)}\n`);
+  writeFileSync(`${evidenceDir}/summary.txt`, evidenceSummary(report));
+
+  if (report.context.activationDeeplink) {
+    writeFileSync(`${evidenceDir}/activation-deeplink.txt`, `${report.context.activationDeeplink}\n`);
+  }
+}
+
 function catalogResult(merchants, expectedPackages = []) {
   if (merchants.length > 0) {
     return result("pass", "staging merchant catalog", `${merchants.length} merchant(s) returned`);
@@ -359,6 +392,7 @@ async function runPreflight(options) {
   const context = {
     adb: options.adb,
     apiUrl: options.apiUrl,
+    activationDeeplink,
     appPackage: options.appPackage,
     authTokenPresent: Boolean(options.authToken),
     detectPackage: options.detectPackage || null,
@@ -476,6 +510,7 @@ async function runPreflight(options) {
   const adbVersion = run(options.adb, ["version"]);
   if (!adbVersion.ok) {
     results.push(result("fail", "adb available", adbVersion.error?.message || adbVersion.stderr || "adb failed"));
+    context.activationDeeplink = activationDeeplink;
     return { context, results };
   }
   results.push(result("pass", "adb available", adbVersion.stdout.split(/\r?\n/)[0] || options.adb));
@@ -485,6 +520,7 @@ async function runPreflight(options) {
   const usableDevices = devices.filter((device) => device.state === "device");
   if (usableDevices.length === 0) {
     results.push(result("fail", "android device connected", "no adb device in state=device"));
+    context.activationDeeplink = activationDeeplink;
     return { context, results };
   }
   context.device = options.device || usableDevices[0].serial;
@@ -604,6 +640,7 @@ async function runPreflight(options) {
     }
   }
 
+  context.activationDeeplink = activationDeeplink;
   return { context, results };
 }
 
@@ -631,6 +668,7 @@ Options:
   --auth-token <token>         Firebase/backend bearer token for protected GoGoSense API checks
   --device <serial>            adb device serial (default: ANDROID_SERIAL or first device)
   --detect-package <package>   Explicitly POST /gogosense/detect for this package
+  --evidence-dir <path>        Write preflight-report.json, summary.txt, and activation-deeplink.txt
   --activate                  POST /gogosense/activate after a matched detection probe
   --open-deeplink             Open the activation deeplink on the selected Android device
   --install-apk <path>         Install a GoGoCash Android dev-client APK before device checks if missing
@@ -652,6 +690,7 @@ async function main() {
   }
 
   const report = await runPreflight(options);
+  writeEvidenceBundle(report, options.evidenceDir);
   if (options.json) console.log(JSON.stringify(report, null, 2));
   else printText(report);
 
@@ -684,4 +723,5 @@ export {
   runPreflight,
   supportedMerchantInstallResult,
   usageAccessResult,
+  writeEvidenceBundle,
 };

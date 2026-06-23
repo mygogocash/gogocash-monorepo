@@ -66,6 +66,8 @@ describe("GoGoSense Android preflight script helpers", () => {
           "token-1",
           "--detect-package",
           "com.a",
+          "--evidence-dir",
+          "/tmp/gogosense-evidence",
           "--install-apk",
           "/tmp/gogocash-dev-client.apk",
           "--merchant-apks",
@@ -90,6 +92,7 @@ describe("GoGoSense Android preflight script helpers", () => {
       authToken: "token-1",
       detectPackage: "com.a",
       device: "device-1",
+      evidenceDir: "/tmp/gogosense-evidence",
       expectedPackages: ["com.a", "com.b"],
       grantUsageAccess: true,
       installApk: "/tmp/gogocash-dev-client.apk",
@@ -190,7 +193,7 @@ describe("gogosense preflight activation options", () => {
             "--auth-token",
             "token",
             "--detect-package",
-            "com.shopee.th",
+          "com.shopee.th",
             "--activate",
           ],
           { ...process.env }
@@ -219,6 +222,45 @@ describe("gogosense preflight activation options", () => {
       });
     } finally {
       globalThis.fetch = originalFetch;
+    }
+  });
+});
+
+describe("GoGoSense Android preflight evidence bundle", () => {
+  it("writeEvidenceBundle > writes report, summary, and deeplink evidence files", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "gogosense-evidence-"));
+
+    try {
+      preflight.writeEvidenceBundle(
+        {
+          context: {
+            adb: "/tmp/adb",
+            apiUrl: "https://api.example.test",
+            activationDeeplink: "https://invl.me/example",
+            device: "emulator-5554",
+            foregroundPackage: "com.shopee.th",
+          },
+          results: [
+            { name: "android device connected", status: "pass" },
+            { name: "GoGoCash usage access", status: "pass" },
+            { name: "activation deeplink open", status: "warn" },
+          ],
+        },
+        tempDir
+      );
+
+      await expect(readFile(join(tempDir, "activation-deeplink.txt"), "utf8")).resolves.toBe(
+        "https://invl.me/example\n"
+      );
+      await expect(readFile(join(tempDir, "summary.txt"), "utf8")).resolves.toContain(
+        "activationDeeplink=https://invl.me/example"
+      );
+
+      const report = JSON.parse(await readFile(join(tempDir, "preflight-report.json"), "utf8"));
+      expect(report.context.device).toBe("emulator-5554");
+      expect(report.results).toHaveLength(3);
+    } finally {
+      await rm(tempDir, { force: true, recursive: true });
     }
   });
 });
