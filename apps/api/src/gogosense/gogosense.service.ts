@@ -261,6 +261,12 @@ export class GogosenseService {
     userId: string,
     request: ActivationRequestDto,
   ): Promise<ActivationResponse> {
+    if (request.source === 'gogosense') {
+      const settings = await this.getSettings(userId);
+      if (settings?.enabled === false) {
+        throw new BadRequestException('GoGoSense tracking is disabled');
+      }
+    }
     await this.assertDetectionEventMatchesActivation(userId, request);
 
     const deeplinkDoc = await this.involveService.createAffiliate(

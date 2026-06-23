@@ -336,6 +336,30 @@ describe('GogosenseService detection and activation', () => {
   });
 });
 
+  it('activation > given disabled GoGoSense setting > then rejects gogosense activation', async () => {
+    const { activationEventModel, involveService, service } = makeService();
+    const userSettingsModel = (service as any).userSettingsModel;
+    userSettingsModel.findOne.mockReturnValueOnce(
+      makeQueryResult({
+        user_id: 'user-1',
+        enabled: false,
+      }),
+    );
+
+    await expect(
+      service.activate('user-1', {
+        detectionEventId: 'detection-1',
+        merchantId: 'merchant-shopee',
+        networkMerchantId: 201,
+        offerId: 101,
+        source: 'gogosense',
+      }),
+    ).rejects.toThrow('GoGoSense tracking is disabled');
+
+    expect(involveService.createAffiliate).not.toHaveBeenCalled();
+    expect(activationEventModel.create).not.toHaveBeenCalled();
+  });
+
   it('activation > given an invalid detection event id > rejects before deeplink creation', async () => {
     const { activationEventModel, detectionEventModel, involveService, service } =
       makeService();
