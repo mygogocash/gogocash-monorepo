@@ -62,6 +62,7 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     openDeeplink: env.GOGOSENSE_OPEN_DEEPLINK === "1",
     requireAuth: false,
     requireForeground: false,
+    requireNudge: false,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -95,6 +96,7 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     }
     else if (arg === "--require-auth") options.requireAuth = true;
     else if (arg === "--require-foreground") options.requireForeground = true;
+    else if (arg === "--require-nudge") options.requireNudge = true;
     else if (arg === "--help" || arg === "-h") options.help = true;
     else throw new Error(`Unknown argument: ${arg}`);
   }
@@ -367,6 +369,7 @@ const acceptanceChecklistItems = [
   ["Supported merchant launched", "supported merchant launch"],
   ["Supported merchant foreground", "supported merchant foreground"],
   ["GoGoSense hub returned", "GoGoSense hub return"],
+  ["GoGoSense activation nudge visible", "GoGoSense activation nudge visible"],
   ["Authenticated API reachable", "authenticated GoGoSense API"],
   ["Detection probe matched", "protected detection probe"],
   ["Activation deeplink returned", "protected activation probe"],
@@ -625,6 +628,41 @@ function gogosenseHubReturnResult(url, appPackage, launchRun) {
     "fail",
     "GoGoSense hub return",
     launchRun.stderr || launchRun.stdout || `adb am start failed for ${url}`
+  );
+}
+
+function activationNudgeEvidenceResult(options, checkpoint = "gogosense-hub") {
+  if (!options.evidenceDir) {
+    return result(
+      options.requireNudge ? "fail" : "warn",
+      "GoGoSense activation nudge visible",
+      "--require-nudge needs --evidence-dir with --capture-device-evidence"
+    );
+  }
+
+  const uiPath = `${options.evidenceDir}/${checkpoint}-ui.xml`;
+  if (!existsSync(uiPath)) {
+    return result(
+      options.requireNudge ? "fail" : "warn",
+      "GoGoSense activation nudge visible",
+      `${uiPath} not found; run with --capture-device-evidence`
+    );
+  }
+
+  const uiXml = readFileSync(uiPath, "utf8");
+  const nudgeVisible =
+    uiXml.includes("Activate cashback") ||
+    uiXml.includes("gogosense-activate-cashback-button") ||
+    uiXml.includes("Activate cashback for");
+
+  if (nudgeVisible) {
+    return result("pass", "GoGoSense activation nudge visible", `${uiPath} contains activation nudge evidence`);
+  }
+
+  return result(
+    options.requireNudge ? "fail" : "warn",
+    "GoGoSense activation nudge visible",
+    `${uiPath} does not contain Activate cashback or gogosense-activate-cashback-button`
   );
 }
 
@@ -964,6 +1002,9 @@ async function runPreflight(options) {
     results.push(gogosenseHubReturnResult(defaultGogosenseUrl, options.appPackage, returnRun));
     await waitForCheckpoint(options);
     writeDeviceCheckpointEvidence({ context, results }, options, "gogosense-hub");
+    if (options.requireNudge || options.captureDeviceEvidence) {
+      results.push(activationNudgeEvidenceResult(options));
+    }
   }
 
   if (options.openDeeplink) {
