@@ -1,3 +1,6 @@
+import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 // @ts-ignore - The app preflight helper is a Node .mjs CLI, not a typed app module.
@@ -65,6 +68,8 @@ describe("GoGoSense Android preflight script helpers", () => {
           "com.a",
           "--install-apk",
           "/tmp/gogocash-dev-client.apk",
+          "--merchant-apks",
+          "/tmp/shopee-base.apk,/tmp/shopee-arm64.apk",
           "--merchant-packages",
           "com.a, com.b",
           "--require-auth",
@@ -86,6 +91,7 @@ describe("GoGoSense Android preflight script helpers", () => {
       device: "device-1",
       expectedPackages: ["com.a", "com.b"],
       installApk: "/tmp/gogocash-dev-client.apk",
+      merchantApks: ["/tmp/shopee-base.apk", "/tmp/shopee-arm64.apk"],
       requireAuth: true,
       requireForeground: true,
     });
@@ -211,6 +217,92 @@ describe("gogosense preflight activation options", () => {
       });
     } finally {
       globalThis.fetch = originalFetch;
+    }
+  });
+});
+
+describe("GoGoSense Android preflight merchant APK install", () => {
+  it("runPreflight > installs merchant split APKs before supported merchant verification", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "gogosense-preflight-"));
+    const commandLog = join(tempDir, "adb.log");
+    const fakeAdb = join(tempDir, "adb");
+    const shopeeBase = join(tempDir, "com.shopee.th.apk");
+    const shopeeConfig = join(tempDir, "config.arm64_v8a.apk");
+    const originalFetch = globalThis.fetch;
+
+    await writeFile(shopeeBase, "");
+    await writeFile(shopeeConfig, "");
+    await writeFile(
+      fakeAdb,
+      `#!/bin/sh
+echo "$@" >> "${commandLog}"
+if [ "$1" = "devices" ]; then
+  printf 'List of devices attached\\nemulator-5554\\tdevice\\n'
+  exit 0
+fi
+if [ "$1" = "-s" ]; then
+  shift 2
+fi
+if [ "$1" = "install-multiple" ]; then
+  echo "Success"
+  exit 0
+fi
+if [ "$1" = "shell" ] && [ "$2" = "pm" ]; then
+  printf 'package:co.gogocash.app\\npackage:com.shopee.th\\n'
+  exit 0
+fi
+if [ "$1" = "shell" ] && [ "$2" = "appops" ]; then
+  echo "GET_USAGE_STATS: allow"
+  exit 0
+fi
+if [ "$1" = "shell" ] && [ "$2" = "dumpsys" ]; then
+  echo "mCurrentFocus=Window{u0 com.shopee.th/com.shopee.app.ui.home.HomeActivity}"
+  exit 0
+fi
+echo "ok"
+`
+    );
+    await chmod(fakeAdb, 0o755);
+
+    globalThis.fetch = (async () =>
+      new Response(
+        JSON.stringify([
+          {
+            merchant_id: "shopee-th",
+            enabled: true,
+            android_packages: ["com.shopee.th"],
+          },
+        ]),
+        { status: 200, headers: { "content-type": "application/json" } }
+      )) as typeof fetch;
+
+    try {
+      const report = await preflight.runPreflight({
+        ...preflight.parseArgs([], { ...process.env }),
+        adb: fakeAdb,
+        apiUrl: "https://api.example.test",
+        merchantApks: [shopeeBase, shopeeConfig],
+        expectedPackages: ["com.shopee.th"],
+      });
+
+      await expect(readFile(commandLog, "utf8")).resolves.toContain(
+        `install-multiple -r ${shopeeBase} ${shopeeConfig}`
+      );
+      expect(report.results).toContainEqual(
+        expect.objectContaining({
+          name: "supported merchant APK install",
+          status: "pass",
+        })
+      );
+      expect(report.results).toContainEqual(
+        expect.objectContaining({
+          name: "supported merchant app installed",
+          status: "pass",
+        })
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+      await rm(tempDir, { force: true, recursive: true });
     }
   });
 });

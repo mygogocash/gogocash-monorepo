@@ -31,6 +31,7 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     device: env.ANDROID_SERIAL || "",
     detectPackage: env.GOGOSENSE_DETECT_PACKAGE || "",
     installApk: env.GOGOSENSE_DEV_CLIENT_APK || "",
+    merchantApks: splitList(env.GOGOSENSE_MERCHANT_APKS || ""),
     expectedPackages: splitList(env.GOGOSENSE_MERCHANT_PACKAGES || ""),
     help: false,
     json: false,
@@ -54,6 +55,7 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     else if (arg === "--device") options.device = next();
     else if (arg === "--detect-package") options.detectPackage = next();
     else if (arg === "--install-apk") options.installApk = next();
+    else if (arg === "--merchant-apks") options.merchantApks = splitList(next());
     else if (arg === "--merchant-packages") options.expectedPackages = splitList(next());
     else if (arg === "--json") options.json = true;
     else if (arg === "--open-deeplink") {
@@ -312,6 +314,24 @@ function devClientInstallResult(apkPath, installRun) {
   );
 }
 
+function merchantApkInstallResult(apkPaths, installRun) {
+  if (installRun.ok) {
+    return result(
+      "pass",
+      "supported merchant APK install",
+      installRun.stdout || `installed ${apkPaths.length} APK file(s)`
+    );
+  }
+
+  return result(
+    "fail",
+    "supported merchant APK install",
+    installRun.stderr ||
+      installRun.stdout ||
+      `adb install-multiple -r ${apkPaths.join(" ")} failed`
+  );
+}
+
 async function runPreflight(options) {
   const results = [];
   let activationDeeplink = "";
@@ -481,6 +501,22 @@ async function runPreflight(options) {
     results.push(usageAccessResult(false, { ok: false, stdout: "", stderr: "" }, options.appPackage));
   }
 
+  if (options.merchantApks.length > 0) {
+    const missingApks = options.merchantApks.filter((apkPath) => !existsSync(apkPath));
+
+    if (missingApks.length > 0) {
+      results.push(
+        result("fail", "supported merchant APK install", `APK not found: ${missingApks.join(", ")}`)
+      );
+    } else {
+      const installRun = run(
+        options.adb,
+        adbArgs(deviceOptions, ["install-multiple", "-r", ...options.merchantApks])
+      );
+      results.push(merchantApkInstallResult(options.merchantApks, installRun));
+    }
+  }
+
   const packagesResult = run(options.adb, adbArgs(deviceOptions, ["shell", "pm", "list", "packages"]));
   const installedPackages = parseInstalledPackages(packagesResult.stdout);
   context.installedMerchantPackages = context.merchantPackages.filter((packageName) => installedPackages.has(packageName));
@@ -572,6 +608,7 @@ Options:
   --open-deeplink             Open the activation deeplink on the selected Android device
   --install-apk <path>         Install a GoGoCash Android dev-client APK before device checks if missing
   --app-package <package>      GoGoCash Android package (default: ${defaultAppPackage})
+  --merchant-apks <paths>      Comma-separated merchant APK or split APK files to install
   --merchant-packages <list>   Comma-separated merchant packages for controlled QA
   --require-auth               Fail when no auth token is provided
   --require-foreground         Fail unless a supported merchant package is foreground

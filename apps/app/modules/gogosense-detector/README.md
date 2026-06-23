@@ -60,6 +60,22 @@ Android devices before Expo starts.
 3. GoGoSense → **Timeline** shows the detection; **Settings** toggles persist
    (POST `/gogosense/settings`).
 
+### Installing the supported merchant APKs
+
+For real-device acceptance, the preflight can now install the GoGoCash dev-client APK and the supported merchant split APKs in one pass:
+
+```bash
+node apps/app/scripts/gogosense-preflight.mjs \
+  --install-apk /path/to/gogocash-development-android.apk \
+  --merchant-apks /path/to/com.shopee.th.apk,/path/to/config.arm64_v8a.apk,/path/to/config.mdpi.apk \
+  --merchant-packages com.shopee.th \
+  --require-foreground \
+  --activate \
+  --open-deeplink
+```
+
+`--merchant-apks` accepts a comma-separated base/split APK list and runs `adb install-multiple -r` on the selected device before checking `pm list packages`.
+
 ## Play Console (before any production submission)
 
 `PACKAGE_USAGE_STATS` (the only restricted permission added) needs an in-app
