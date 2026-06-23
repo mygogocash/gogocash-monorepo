@@ -230,6 +230,44 @@ function catalogResult(merchants, expectedPackages = []) {
   );
 }
 
+function usageAccessResult(appInstalledOk, appops, appPackage) {
+  if (!appInstalledOk) {
+    return result(
+      "fail",
+      "Usage Access grant",
+      `${appPackage} is not installed; install the GoGoCash dev client before granting Android Usage Access`
+    );
+  }
+
+  return appops.ok && parseUsageAccess(appops.stdout)
+    ? result("pass", "Usage Access grant", appops.stdout)
+    : result(
+        "fail",
+        "Usage Access grant",
+        appops.stdout || appops.stderr || `grant with: adb shell appops set ${appPackage} GET_USAGE_STATS allow`
+      );
+}
+
+function supportedMerchantInstallResult(installedMerchantPackages, merchantPackages) {
+  if (installedMerchantPackages.length > 0) {
+    return result("pass", "supported merchant app installed", installedMerchantPackages.join(", "));
+  }
+
+  if (merchantPackages.length === 0) {
+    return result(
+      "fail",
+      "supported merchant app installed",
+      "no merchant packages to check; fix the merchant catalog or pass --merchant-packages for controlled QA"
+    );
+  }
+
+  return result(
+    "fail",
+    "supported merchant app installed",
+    `none installed from: ${merchantPackages.slice(0, 8).join(", ")}${merchantPackages.length > 8 ? ", ..." : ""}`
+  );
+}
+
 async function runPreflight(options) {
   const results = [];
   const context = {
@@ -319,35 +357,24 @@ async function runPreflight(options) {
 
   const deviceOptions = { ...options, device: context.device };
   const appInstalled = run(options.adb, adbArgs(deviceOptions, ["shell", "pm", "path", options.appPackage]));
+  const appInstalledOk = Boolean(appInstalled.ok && appInstalled.stdout);
   results.push(
-    appInstalled.ok && appInstalled.stdout
+    appInstalledOk
       ? result("pass", "GoGoCash app installed", options.appPackage)
       : result("fail", "GoGoCash app installed", `${options.appPackage} is not installed on ${context.device}`)
   );
 
-  const appops = run(options.adb, adbArgs(deviceOptions, ["shell", "appops", "get", options.appPackage, "GET_USAGE_STATS"]));
-  results.push(
-    appops.ok && parseUsageAccess(appops.stdout)
-      ? result("pass", "Usage Access grant", appops.stdout)
-      : result(
-          "fail",
-          "Usage Access grant",
-          appops.stdout || appops.stderr || `grant with: adb shell appops set ${options.appPackage} GET_USAGE_STATS allow`
-        )
-  );
+  if (appInstalledOk) {
+    const appops = run(options.adb, adbArgs(deviceOptions, ["shell", "appops", "get", options.appPackage, "GET_USAGE_STATS"]));
+    results.push(usageAccessResult(true, appops, options.appPackage));
+  } else {
+    results.push(usageAccessResult(false, { ok: false, stdout: "", stderr: "" }, options.appPackage));
+  }
 
   const packagesResult = run(options.adb, adbArgs(deviceOptions, ["shell", "pm", "list", "packages"]));
   const installedPackages = parseInstalledPackages(packagesResult.stdout);
   context.installedMerchantPackages = context.merchantPackages.filter((packageName) => installedPackages.has(packageName));
-  results.push(
-    context.installedMerchantPackages.length > 0
-      ? result("pass", "supported merchant app installed", context.installedMerchantPackages.join(", "))
-      : result(
-          "fail",
-          "supported merchant app installed",
-          `none installed from: ${context.merchantPackages.slice(0, 8).join(", ")}${context.merchantPackages.length > 8 ? ", ..." : ""}`
-        )
-  );
+  results.push(supportedMerchantInstallResult(context.installedMerchantPackages, context.merchantPackages));
 
   const foreground = run(options.adb, adbArgs(deviceOptions, ["shell", "dumpsys", "window"]));
   context.foregroundPackage = parseForegroundPackage(foreground.stdout);
@@ -446,4 +473,6 @@ export {
   parseInstalledPackages,
   parseUsageAccess,
   runPreflight,
+  supportedMerchantInstallResult,
+  usageAccessResult,
 };
