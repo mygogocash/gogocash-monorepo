@@ -26,6 +26,7 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     adb: env.ADB_PATH || findDefaultAdb(),
     apiUrl: env.GOGOSENSE_API_URL || env.EXPO_PUBLIC_API_URL || defaultApiUrl,
     appPackage: env.GOGOCASH_ANDROID_PACKAGE || defaultAppPackage,
+    activate: env.GOGOSENSE_ACTIVATE === "1",
     authToken: env.GOGOSENSE_AUTH_TOKEN || "",
     device: env.ANDROID_SERIAL || "",
     detectPackage: env.GOGOSENSE_DETECT_PACKAGE || "",
@@ -33,6 +34,7 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     expectedPackages: splitList(env.GOGOSENSE_MERCHANT_PACKAGES || ""),
     help: false,
     json: false,
+    openDeeplink: env.GOGOSENSE_OPEN_DEEPLINK === "1",
     requireAuth: false,
     requireForeground: false,
   };
@@ -47,12 +49,17 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     if (arg === "--adb") options.adb = next();
     else if (arg === "--api-url") options.apiUrl = next();
     else if (arg === "--app-package") options.appPackage = next();
+    else if (arg === "--activate") options.activate = true;
     else if (arg === "--auth-token") options.authToken = next();
     else if (arg === "--device") options.device = next();
     else if (arg === "--detect-package") options.detectPackage = next();
     else if (arg === "--install-apk") options.installApk = next();
     else if (arg === "--merchant-packages") options.expectedPackages = splitList(next());
     else if (arg === "--json") options.json = true;
+    else if (arg === "--open-deeplink") {
+      options.activate = true;
+      options.openDeeplink = true;
+    }
     else if (arg === "--require-auth") options.requireAuth = true;
     else if (arg === "--require-foreground") options.requireForeground = true;
     else if (arg === "--help" || arg === "-h") options.help = true;
@@ -144,6 +151,29 @@ function buildDetectionRequest(packageName) {
     packageName,
     platform: "android",
   };
+}
+
+function buildActivationRequest(detectionResponse) {
+  const payload = {
+    merchantId: detectionResponse?.merchantId || "",
+    offerId: Number(detectionResponse?.offerId),
+    networkMerchantId: Number(detectionResponse?.networkMerchantId),
+    source: "gogosense",
+  };
+
+  if (detectionResponse?.detectionEventId) {
+    payload.detectionEventId = detectionResponse.detectionEventId;
+  }
+
+  return payload;
+}
+
+function activationPayloadErrors(payload) {
+  const errors = [];
+  if (!payload.merchantId) errors.push("merchantId");
+  if (!Number.isFinite(payload.offerId)) errors.push("offerId");
+  if (!Number.isFinite(payload.networkMerchantId)) errors.push("networkMerchantId");
+  return errors;
 }
 
 function merchantPackages(merchants) {
@@ -284,6 +314,8 @@ function devClientInstallResult(apkPath, installRun) {
 
 async function runPreflight(options) {
   const results = [];
+  let activationDeeplink = "";
+  let detectionResponse = null;
   const context = {
     adb: options.adb,
     apiUrl: options.apiUrl,
@@ -333,21 +365,70 @@ async function runPreflight(options) {
 
     if (options.detectPackage) {
       try {
-        const response = await fetchProtectedJson(options.apiUrl, "/gogosense/detect", options.authToken, {
+        detectionResponse = await fetchProtectedJson(options.apiUrl, "/gogosense/detect", options.authToken, {
           body: JSON.stringify(buildDetectionRequest(options.detectPackage)),
           method: "POST",
         });
         results.push(
           result(
-            response?.matched ? "pass" : "fail",
+            detectionResponse?.matched ? "pass" : "fail",
             "protected detection probe",
-            response?.matched
-              ? `matched ${response.merchantName || response.merchantId || options.detectPackage}`
+            detectionResponse?.matched
+              ? `matched ${detectionResponse.merchantName || detectionResponse.merchantId || options.detectPackage}`
               : `no match for ${options.detectPackage}`
           )
         );
       } catch (error) {
         results.push(result("fail", "protected detection probe", error.message));
+      }
+    }
+
+    if (options.activate) {
+      if (!detectionResponse?.matched) {
+        results.push(
+          result(
+            "fail",
+            "protected activation probe",
+            options.detectPackage
+              ? "requires a matched protected detection probe"
+              : "requires --detect-package before activation"
+          )
+        );
+      } else {
+        const activationPayload = buildActivationRequest(detectionResponse);
+        const payloadErrors = activationPayloadErrors(activationPayload);
+
+        if (payloadErrors.length > 0) {
+          results.push(
+            result(
+              "fail",
+              "protected activation probe",
+              `detection response missing ${payloadErrors.join(", ")}`
+            )
+          );
+        } else {
+          try {
+            const activationResponse = await fetchProtectedJson(
+              options.apiUrl,
+              "/gogosense/activate",
+              options.authToken,
+              {
+                body: JSON.stringify(activationPayload),
+                method: "POST",
+              }
+            );
+            activationDeeplink = activationResponse?.deeplink || "";
+            results.push(
+              result(
+                activationDeeplink ? "pass" : "fail",
+                "protected activation probe",
+                activationDeeplink || "activation response did not include a deeplink"
+              )
+            );
+          } catch (error) {
+            results.push(result("fail", "protected activation probe", error.message));
+          }
+        }
       }
     }
   }
@@ -432,6 +513,34 @@ async function runPreflight(options) {
     );
   }
 
+  if (options.openDeeplink) {
+    if (!activationDeeplink) {
+      results.push(result("fail", "activation deeplink open", "activation did not return a deeplink"));
+    } else {
+      const openRun = run(
+        options.adb,
+        adbArgs(deviceOptions, [
+          "shell",
+          "am",
+          "start",
+          "-a",
+          "android.intent.action.VIEW",
+          "-d",
+          activationDeeplink,
+        ])
+      );
+      results.push(
+        openRun.ok
+          ? result("pass", "activation deeplink open", activationDeeplink)
+          : result(
+              "fail",
+              "activation deeplink open",
+              openRun.error?.message || openRun.stderr || openRun.stdout || "adb am start failed"
+            )
+      );
+    }
+  }
+
   return { context, results };
 }
 
@@ -459,6 +568,8 @@ Options:
   --auth-token <token>         Firebase/backend bearer token for protected GoGoSense API checks
   --device <serial>            adb device serial (default: ANDROID_SERIAL or first device)
   --detect-package <package>   Explicitly POST /gogosense/detect for this package
+  --activate                  POST /gogosense/activate after a matched detection probe
+  --open-deeplink             Open the activation deeplink on the selected Android device
   --install-apk <path>         Install a GoGoCash Android dev-client APK before device checks if missing
   --app-package <package>      GoGoCash Android package (default: ${defaultAppPackage})
   --merchant-packages <list>   Comma-separated merchant packages for controlled QA
@@ -492,6 +603,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
 }
 
 export {
+  activationPayloadErrors,
+  buildActivationRequest,
   buildDetectionRequest,
   catalogResult,
   devClientInstallResult,

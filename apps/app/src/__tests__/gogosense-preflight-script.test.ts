@@ -102,3 +102,115 @@ describe("GoGoSense Android preflight script helpers", () => {
     );
   });
 });
+describe("gogosense preflight activation options", () => {
+  it("parseArgs > enables activation and deeplink opening flags", () => {
+    expect(preflight.parseArgs(["--activate"], { ...process.env }).activate).toBe(true);
+
+    const openOptions = preflight.parseArgs(["--open-deeplink"], { ...process.env });
+
+    expect(openOptions.activate).toBe(true);
+    expect(openOptions.openDeeplink).toBe(true);
+  });
+
+  it("buildActivationRequest > maps matched detection fields to backend activation payload", () => {
+    expect(
+      preflight.buildActivationRequest({
+        detectionEventId: "det_123",
+        merchantId: "merchant-shopee",
+        offerId: "5030",
+        networkMerchantId: "103876",
+      })
+    ).toEqual({
+      detectionEventId: "det_123",
+      merchantId: "merchant-shopee",
+      offerId: 5030,
+      networkMerchantId: 103876,
+      source: "gogosense",
+    });
+  });
+
+  it("activationPayloadErrors > reports missing activation contract fields", () => {
+    expect(
+      preflight.activationPayloadErrors({
+        merchantId: "",
+        offerId: Number.NaN,
+        networkMerchantId: Number.NaN,
+        source: "gogosense",
+      })
+    ).toEqual(["merchantId", "offerId", "networkMerchantId"]);
+  });
+
+  it("runPreflight > posts activation after a matched protected detection", async () => {
+    const fetchCalls: Array<{ init?: RequestInit; url: string }> = [];
+    const originalFetch = globalThis.fetch;
+
+    globalThis.fetch = async (input, init) => {
+      const url = String(input);
+      fetchCalls.push({ init, url });
+
+      let body: unknown = {};
+      if (url.endsWith("/gogosense/merchants")) {
+        body = [{ android_packages: ["com.shopee.th"] }];
+      } else if (url.endsWith("/gogosense/detect")) {
+        body = {
+          detectionEventId: "det_123",
+          matched: true,
+          merchantId: "merchant-shopee",
+          merchantName: "Shopee",
+          networkMerchantId: 103876,
+          offerId: 5030,
+        };
+      } else if (url.endsWith("/gogosense/activate")) {
+        body = { deeplink: "https://invl.me/example" };
+      }
+
+      return {
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify(body),
+      } as Response;
+    };
+
+    try {
+      const report = await preflight.runPreflight(
+        preflight.parseArgs(
+          [
+            "--adb",
+            "/definitely/missing-adb",
+            "--api-url",
+            "https://api.example.test",
+            "--auth-token",
+            "token",
+            "--detect-package",
+            "com.shopee.th",
+            "--activate",
+          ],
+          { ...process.env }
+        )
+      );
+
+      expect(fetchCalls.map((call) => call.url)).toEqual([
+        "https://api.example.test/gogosense/merchants",
+        "https://api.example.test/gogosense/settings",
+        "https://api.example.test/gogosense/detect",
+        "https://api.example.test/gogosense/activate",
+      ]);
+      expect(JSON.parse(String(fetchCalls[3].init?.body))).toEqual(
+        {
+          detectionEventId: "det_123",
+          merchantId: "merchant-shopee",
+          offerId: 5030,
+          networkMerchantId: 103876,
+          source: "gogosense",
+        }
+      );
+      expect(report.results).toContainEqual({
+        detail: "https://invl.me/example",
+        name: "protected activation probe",
+        status: "pass",
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
