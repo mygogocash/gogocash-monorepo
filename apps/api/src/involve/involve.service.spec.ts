@@ -305,7 +305,10 @@ describe('InvolveService', () => {
           deeplink: '',
           user_id: 'u',
         } as never),
-      ).rejects.toThrow('boom');
+      ).rejects.toMatchObject({
+        message: 'boom',
+        response: { data: { status_code: 500 } },
+      });
       // one deeplink attempt only; no signIn + retry pair
       expect(mockedAxios.post).toHaveBeenCalledTimes(1);
     });
