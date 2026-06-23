@@ -12,7 +12,8 @@
         "EXPO_PUBLIC_API_URL": "https://api-staging.gogocash.co",
         "EXPO_PUBLIC_APP_ENV": "staging",
         "EXPO_PUBLIC_ACCOUNT_DATA_SOURCE": "fixtures",
-        "EXPO_PUBLIC_FRONTEND_URL": "https://app-staging.gogocash.co"
+        "EXPO_PUBLIC_FRONTEND_URL": "https://app-staging.gogocash.co",
+        "NODE_PATH": "apps/app/node_modules:node_modules"
       }
     },
     "preview": {
@@ -22,7 +23,8 @@
         "EXPO_PUBLIC_API_URL": "https://api-staging.gogocash.co",
         "EXPO_PUBLIC_APP_ENV": "staging",
         "EXPO_PUBLIC_ACCOUNT_DATA_SOURCE": "fixtures",
-        "EXPO_PUBLIC_FRONTEND_URL": "https://app-staging.gogocash.co"
+        "EXPO_PUBLIC_FRONTEND_URL": "https://app-staging.gogocash.co",
+        "NODE_PATH": "apps/app/node_modules:node_modules"
       }
     },
     "production": {
@@ -31,7 +33,8 @@
         "EXPO_PUBLIC_API_URL": "https://api.gogocash.co",
         "EXPO_PUBLIC_APP_ENV": "production",
         "EXPO_PUBLIC_ACCOUNT_DATA_SOURCE": "disabled",
-        "EXPO_PUBLIC_FRONTEND_URL": "https://app.gogocash.co"
+        "EXPO_PUBLIC_FRONTEND_URL": "https://app.gogocash.co",
+        "NODE_PATH": "apps/app/node_modules:node_modules"
       }
     }
   },
