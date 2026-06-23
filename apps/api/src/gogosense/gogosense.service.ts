@@ -298,6 +298,21 @@ export class GogosenseService {
     }
     await this.assertDetectionEventMatchesActivation(userId, request);
 
+    if (request.detectionEventId) {
+      const existingActivation = await this.activationEventModel
+        .findOne({
+          user_id: userId,
+          detection_event_id: request.detectionEventId,
+        })
+        .lean();
+
+      if (existingActivation) {
+        throw new BadRequestException(
+          'GoGoSense detection event has already been activated',
+        );
+      }
+    }
+
     const deeplinkDoc = await this.involveService.createAffiliate(
       {
         offer_id: request.offerId,

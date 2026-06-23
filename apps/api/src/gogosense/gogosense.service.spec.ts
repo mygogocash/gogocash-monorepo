@@ -63,6 +63,7 @@ function makeService() {
     ),
   };
   const activationEventModel = {
+    findOne: jest.fn().mockReturnValue(makeQueryResult(null)),
     create: jest.fn(async (doc) => ({ _id: 'activation-1', ...doc })),
     find: jest.fn().mockReturnValue(makeQueryResult([])),
   };
@@ -338,6 +339,34 @@ describe('GogosenseService detection and activation', () => {
       }),
     );
   });
+  it('activation > given detection event was already activated > rejects before deeplink creation', async () => {
+    const { activationEventModel, involveService, service } = makeService();
+    activationEventModel.findOne.mockReturnValueOnce(
+      makeQueryResult({
+        _id: 'activation-existing',
+        detection_event_id: 'detection-1',
+        user_id: 'user-1',
+      }),
+    );
+
+    await expect(
+      service.activate('user-1', {
+        detectionEventId: 'detection-1',
+        merchantId: 'merchant-shopee',
+        offerId: 101,
+        networkMerchantId: 201,
+        source: 'gogosense',
+      }),
+    ).rejects.toThrow('GoGoSense detection event has already been activated');
+
+    expect(activationEventModel.findOne).toHaveBeenCalledWith({
+      user_id: 'user-1',
+      detection_event_id: 'detection-1',
+    });
+    expect(involveService.createAffiliate).not.toHaveBeenCalled();
+    expect(activationEventModel.create).not.toHaveBeenCalled();
+  });
+
   it('activation > given disabled GoGoSense setting > then rejects gogosense activation', async () => {
     const { activationEventModel, involveService, service } = makeService();
     const userSettingsModel = (service as any).userSettingsModel;
