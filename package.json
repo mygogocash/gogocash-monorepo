@@ -21,6 +21,7 @@
     "@nestjs/common": "11.1.27",
     "@nestjs/core": "11.1.27",
     "@nestjs/platform-express": "11.1.27",
+    "expo": "^56.0.12",
     "mongoose": "9.7.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
