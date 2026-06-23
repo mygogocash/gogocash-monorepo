@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, HttpException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { AnalyticsService } from 'src/analytics/analytics.service';
@@ -124,6 +124,26 @@ const getDocumentId = (doc: unknown) => {
   const id = (doc as { _id?: { toString?: () => string } | string })?._id;
   return typeof id === 'string' ? id : id?.toString?.();
 };
+
+type AffiliateNetworkError = {
+  response?: {
+    status?: number;
+    data?: {
+      status_code?: number;
+    };
+  };
+};
+
+const GOGOSENSE_DEEPLINK_UNAVAILABLE = 'GOGOSENSE_DEEPLINK_UNAVAILABLE';
+
+function getAffiliateNetworkStatusCode(error: unknown): number | undefined {
+  if (!error || typeof error !== 'object') {
+    return undefined;
+  }
+
+  const response = (error as AffiliateNetworkError).response;
+  return response?.data?.status_code ?? response?.status;
+}
 
 @Injectable()
 export class GogosenseService {
@@ -313,14 +333,32 @@ export class GogosenseService {
       }
     }
 
-    const deeplinkDoc = await this.involveService.createAffiliate(
-      {
-        offer_id: request.offerId,
-        merchant_id: request.networkMerchantId,
-        deeplink: '',
-      },
-      userId,
-    );
+    let deeplinkDoc: unknown;
+    try {
+      deeplinkDoc = await this.involveService.createAffiliate(
+        {
+          offer_id: request.offerId,
+          merchant_id: request.networkMerchantId,
+          deeplink: '',
+        },
+        userId,
+      );
+    } catch (error) {
+      const upstreamStatusCode = getAffiliateNetworkStatusCode(error);
+      if ([400, 404, 422].includes(upstreamStatusCode ?? 0)) {
+        throw new HttpException(
+          {
+            message:
+              'GoGoSense deeplink is unavailable for this merchant activation.',
+            code: GOGOSENSE_DEEPLINK_UNAVAILABLE,
+            upstreamStatusCode,
+          },
+          422,
+        );
+      }
+
+      throw error;
+    }
     const deeplink =
       (deeplinkDoc as { deeplink?: string; tracking_link?: string })
         ?.deeplink ||

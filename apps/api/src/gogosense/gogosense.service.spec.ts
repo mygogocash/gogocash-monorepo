@@ -1,3 +1,5 @@
+import { HttpException } from '@nestjs/common';
+
 import { GogosenseService } from './gogosense.service';
 import type { ActivationRequestDto } from './dto/activation-request.dto';
 import type { DetectionRequestDto } from './dto/detection-request.dto';
@@ -339,6 +341,50 @@ describe('GogosenseService detection and activation', () => {
       }),
     );
   });
+
+  it('activation > given affiliate network rejects merchant mapping > then surfaces a clear 422 without recording activation', async () => {
+    const {
+      activationEventModel,
+      detectionEventModel,
+      involveService,
+      service,
+    } = makeService();
+    const error = new Error('Request failed with status code 422') as Error & {
+      response: { status: number; data: { status_code: number } };
+    };
+    error.response = { status: 422, data: { status_code: 422 } };
+    involveService.createAffiliate.mockRejectedValueOnce(error);
+
+    try {
+      await service.activate('user-1', {
+        detectionEventId: 'detection-1',
+        merchantId: 'merchant-shopee',
+        offerId: 101,
+        networkMerchantId: 201,
+        source: 'gogosense',
+      });
+      throw new Error('Expected GoGoSense activation to fail');
+    } catch (caught) {
+      expect(caught).toBeInstanceOf(HttpException);
+      expect((caught as HttpException).getStatus()).toBe(422);
+      expect((caught as HttpException).getResponse()).toEqual(
+        expect.objectContaining({
+          code: 'GOGOSENSE_DEEPLINK_UNAVAILABLE',
+          upstreamStatusCode: 422,
+        }),
+      );
+    }
+
+    expect(detectionEventModel.findOne).toHaveBeenCalledWith({
+      _id: 'detection-1',
+      user_id: 'user-1',
+      merchant_id: 'merchant-shopee',
+      network_merchant_id: 201,
+      matched: true,
+    });
+    expect(activationEventModel.create).not.toHaveBeenCalled();
+  });
+
   it('activation > given detection event was already activated > rejects before deeplink creation', async () => {
     const { activationEventModel, involveService, service } = makeService();
     activationEventModel.findOne.mockReturnValueOnce(
