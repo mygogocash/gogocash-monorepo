@@ -91,7 +91,10 @@ change needed).
 **Native app** (`deploy-app-native-eas.yml`) stays manual for build/update/submit
 (needs `EXPO_TOKEN`). Android `build` runs wait for EAS to finish, download the
 completed archive, and upload it as a GitHub artifact so device QA can install
-the dev client without local EAS auth.
+the dev client without local EAS auth. If the `GCP_EAS_ARTIFACT_BUCKET` Actions
+variable is set, the same APK and SHA-256 sidecar are also archived to
+`gs://$GCP_EAS_ARTIFACT_BUCKET/eas/android/<profile>/<run-id>/` using the
+existing `GCP_WIF_PROVIDER` and `GCP_SERVICE_ACCOUNT` workload identity setup.
 
 > The legacy `deploy-{api,admin,app-web}-staging.yml` lanes are kept as a manual
 > fallback during cutover; delete them once `build-staging` + `release-staging`

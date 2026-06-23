@@ -64,6 +64,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   eas:
@@ -162,6 +163,36 @@ jobs:
           name: gogocash-${{ inputs.profile }}-android
           path: ${{ runner.temp }}/eas-artifacts/gogocash-${{ inputs.profile }}-android.apk
           if-no-files-found: error
+
+      - name: Authenticate to Google Cloud for Android artifact archive
+        if: ${{ inputs.action == 'build' && inputs.platform != 'ios' && vars.GCP_EAS_ARTIFACT_BUCKET != '' }}
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Google Cloud SDK for Android artifact archive
+        if: ${{ inputs.action == 'build' && inputs.platform != 'ios' && vars.GCP_EAS_ARTIFACT_BUCKET != '' }}
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Archive Android build artifact to GCS
+        if: ${{ inputs.action == 'build' && inputs.platform != 'ios' && vars.GCP_EAS_ARTIFACT_BUCKET != '' }}
+        env:
+          APK_PATH: ${{ runner.temp }}/eas-artifacts/gogocash-${{ inputs.profile }}-android.apk
+          GCS_BUCKET: ${{ vars.GCP_EAS_ARTIFACT_BUCKET }}
+          GCS_PREFIX: eas/android/${{ inputs.profile }}/${{ github.run_id }}
+        run: |
+          SHA_PATH="${APK_PATH}.sha256"
+          sha256sum "$APK_PATH" | tee "$SHA_PATH"
+
+          gcloud storage cp "$APK_PATH" "gs://${GCS_BUCKET}/${GCS_PREFIX}/gogocash-${{ inputs.profile }}-android.apk"
+          gcloud storage cp "$SHA_PATH" "gs://${GCS_BUCKET}/${GCS_PREFIX}/gogocash-${{ inputs.profile }}-android.apk.sha256"
+
+          {
+            echo "### Android APK archive"
+            echo "- APK: \`gs://${GCS_BUCKET}/${GCS_PREFIX}/gogocash-${{ inputs.profile }}-android.apk\`"
+            echo "- SHA-256: \`$(cut -d ' ' -f1 "$SHA_PATH")\`"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       # ── update: OTA JS/asset update to a channel (no store review) ──────────
       #   Pass user-provided inputs via env (not inline) to avoid shell-injection
