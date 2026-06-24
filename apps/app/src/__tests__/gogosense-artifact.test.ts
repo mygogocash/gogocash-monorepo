@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -23,6 +23,7 @@ describe("GoGoSense artifact helper", () => {
     expect(artifact.parseArgs(["--run-id", "28014696785"])).toMatchObject({
       artifactName: "gogocash-development-android",
       authTokenEnv: "GOGOSENSE_AUTH_TOKEN",
+      commandFile: "/tmp/gogocash-eas-artifacts-28014696785/gogosense-preflight-command.sh",
       evidenceDir:
         "/tmp/gogocash-eas-artifacts-28014696785/gogosense-acceptance-evidence",
       outputDir: "/tmp/gogocash-eas-artifacts-28014696785",
@@ -60,6 +61,7 @@ describe("GoGoSense artifact helper", () => {
       gcsPrefix: "gs://gogocash-native-artifacts/gogosense/development",
       gcsUri:
         "gs://gogocash-native-artifacts/gogosense/development/gogocash-development-android.apk",
+      commandFile: "/tmp/gogocash-eas-artifacts-gcs/gogosense-preflight-command.sh",
       evidenceDir: "/tmp/gogocash-eas-artifacts-gcs/gogosense-acceptance-evidence",
       outputDir: "/tmp/gogocash-eas-artifacts-gcs",
       source: "gcs",
@@ -71,13 +73,34 @@ describe("GoGoSense artifact helper", () => {
       artifact.parseArgs([
         "--run-id",
         "28014696785",
+        "--command-file",
+        "/tmp/custom-gogosense-command.sh",
         "--evidence-dir",
         "/tmp/custom-gogosense-evidence",
       ])
     ).toMatchObject({
+      commandFile: "/tmp/custom-gogosense-command.sh",
       evidenceDir: "/tmp/custom-gogosense-evidence",
       outputDir: "/tmp/gogocash-eas-artifacts-28014696785",
     });
+  });
+
+  it("writes a replayable preflight command file", async () => {
+    const outputDir = await tempDir();
+    const commandFile = join(outputDir, "nested", "gogosense-preflight-command.sh");
+    const preflightCommand =
+      "PATH=/opt/homebrew/bin:$PATH /opt/homebrew/bin/npx npm@10.9.0 run gogosense:preflight -w @gogocash/mobile -- --require-auth";
+
+    expect(artifact.writePreflightCommandFile(commandFile, preflightCommand)).toBe(commandFile);
+
+    await expect(readFile(commandFile, "utf8")).resolves.toBe(
+      `#!/usr/bin/env bash
+set -euo pipefail
+
+${preflightCommand}
+`
+    );
+    expect((await stat(commandFile)).mode & 0o111).toBeGreaterThan(0);
   });
 
   it("builds the gcloud download plan for a mirrored native artifact", () => {

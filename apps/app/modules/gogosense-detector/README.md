@@ -135,7 +135,9 @@ API probes instead of being accepted as a warning. If `--evidence-dir` is not
 supplied, the printed command writes device evidence to
 `/tmp/gogocash-eas-artifacts-<run-id>/gogosense-acceptance-evidence`. It does
 not replace the real-device acceptance run; it only prepares the installable
-dev-client inputs.
+dev-client inputs. The same command is written as an executable
+`gogosense-preflight-command.sh` under the artifact output directory so the
+device acceptance run can be replayed exactly.
 
 If the workflow mirrored the native build to GCS, use the same helper against
 the bucket prefix instead of the GitHub artifact:

@@ -3,13 +3,15 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   readdirSync,
   readFileSync,
   statSync,
+  writeFileSync,
 } from "node:fs";
-import { basename, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const defaultProfile = "development";
@@ -46,6 +48,7 @@ export function parseArgs(argv = process.argv.slice(2)) {
     else if (arg === "--api-url") options.apiUrl = nextValue(argv, index++, arg);
     else if (arg === "--auth-token-env") options.authTokenEnv = nextValue(argv, index++, arg);
     else if (arg === "--checkpoint-delay-ms") options.checkpointDelayMs = nextValue(argv, index++, arg);
+    else if (arg === "--command-file") options.commandFile = nextValue(argv, index++, arg);
     else if (arg === "--detect-package") options.detectPackage = nextValue(argv, index++, arg);
     else if (arg === "--device") options.device = nextValue(argv, index++, arg);
     else if (arg === "--evidence-dir") options.evidenceDir = nextValue(argv, index++, arg);
@@ -89,6 +92,7 @@ export function parseArgs(argv = process.argv.slice(2)) {
   }
 
   options.outputDir ??= join("/tmp", `gogocash-eas-artifacts-${options.runId ?? "gcs"}`);
+  options.commandFile ??= defaultCommandFileFor(options);
   options.evidenceDir ??= defaultEvidenceDirFor(options);
 
   return options;
@@ -100,6 +104,10 @@ export function buildGhDownloadArgs({ artifactName, outputDir, runId }) {
 
 export function defaultEvidenceDirFor({ outputDir }) {
   return join(resolve(outputDir), "gogosense-acceptance-evidence");
+}
+
+export function defaultCommandFileFor({ outputDir }) {
+  return join(resolve(outputDir), "gogosense-preflight-command.sh");
 }
 
 export function gcsApkUriFor({
@@ -245,6 +253,18 @@ export function buildPreflightCommand({
   return command.join(" ");
 }
 
+export function writePreflightCommandFile(commandFile, preflightCommand) {
+  const content = `#!/usr/bin/env bash
+set -euo pipefail
+
+${preflightCommand}
+`;
+  mkdirSync(dirname(commandFile), { recursive: true });
+  writeFileSync(commandFile, content, "utf8");
+  chmodSync(commandFile, 0o755);
+  return commandFile;
+}
+
 function shellQuote(value) {
   return `'${String(value).replaceAll("'", "'\\''")}'`;
 }
@@ -259,6 +279,7 @@ Options:
   --api-url <url>          Pass through to gogosense:preflight
   --auth-token-env <name>  Env var used in the printed preflight command (default: GOGOSENSE_AUTH_TOKEN)
   --checkpoint-delay-ms <n> Pass through to gogosense:preflight checkpoint capture delay
+  --command-file <path>    Write replayable preflight shell command here (default: <output-dir>/gogosense-preflight-command.sh)
   --detect-package <pkg>   Pass through to gogosense:preflight detection probe package
   --device <serial>        Pass through to gogosense:preflight device selector
   --evidence-dir <path>    Pass through to gogosense:preflight evidence output directory
@@ -337,9 +358,11 @@ export function main(argv = process.argv.slice(2), env = process.env, logger = c
     metroPort: options.metroPort,
     sha256: artifact.sha256,
   });
+  writePreflightCommandFile(options.commandFile, preflightCommand);
   const output = {
     ...artifact,
     artifactName: options.artifactName,
+    commandFile: options.commandFile,
     gcsUri: options.gcsUri,
     preflightCommand,
     source: options.source,
