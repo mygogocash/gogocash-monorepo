@@ -93,4 +93,22 @@ describe("GoGoSense mobile API wrapper", () => {
       }),
     );
   });
+  it("detect > strips URL credentials before upload", async () => {
+    const baseClient = createBaseClient();
+    const api = createGoGoSenseApi(baseClient);
+
+    await api.detect({
+      method: "browser_url",
+      observedAt: "2026-05-23T09:00:00.000Z",
+      platform: "android",
+      url: "https://user:secret@Merchant.Example:8443/path?token=secret#fragment",
+    });
+
+    expect(baseClient.post).toHaveBeenCalledWith(
+      "/gogosense/detect",
+      expect.objectContaining({
+        url: "https://merchant.example:8443",
+      }),
+    );
+  });
 });
