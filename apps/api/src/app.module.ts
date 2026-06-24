@@ -19,6 +19,7 @@ import { CustomerIoModule } from './customer-io/customer-io.module';
 import { PolicyModule } from './policy/policy.module';
 import { GogosenseModule } from './gogosense/gogosense.module';
 import { CustomerBillingModule } from './customer-billing/customer-billing.module';
+import { CatalogModule } from './catalog/catalog.module';
 import { InvolveModule } from './involve/involve.module';
 import { TasksModule } from './tasks/tasks.module';
 @Module({
@@ -32,6 +33,7 @@ import { TasksModule } from './tasks/tasks.module';
     PolicyModule,
     GogosenseModule,
     CustomerBillingModule,
+    CatalogModule,
     ConfigModule.forRoot({
       load: [envConfig],
     }),

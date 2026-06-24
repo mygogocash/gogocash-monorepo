@@ -1,5 +1,5 @@
 import { CustomerCatalogHomeScreen } from "@mobile/screens/CustomerCatalogScreens";
 
-export default function ShopsRoute() {
+export default function CatalogRoute() {
   return <CustomerCatalogHomeScreen />;
 }

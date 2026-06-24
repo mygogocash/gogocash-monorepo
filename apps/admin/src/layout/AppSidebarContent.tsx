@@ -114,6 +114,19 @@ export const navItems: NavItem[] = [
   },
   {
     icon: <ListIcon />,
+    name: "Catalog",
+    permission: "catalog:view",
+    subItems: [
+      { name: "Overview", path: "/catalog", pro: false, permission: "catalog:view" },
+      { name: "Banners", path: "/catalog/banners", pro: false, permission: "catalog:view" },
+      { name: "Shops", path: "/catalog/shops", pro: false, permission: "catalog:view" },
+      { name: "Products", path: "/catalog/products", pro: false, permission: "catalog:view" },
+      { name: "Inventory", path: "/catalog/inventory", pro: false, permission: "inventory:view" },
+      { name: "Orders", path: "/catalog/orders", pro: false, permission: "orders:view" },
+    ],
+  },
+  {
+    icon: <ListIcon />,
     name: "Coupon Management",
     subItems: [
       { name: "Coupon", path: "/coupon", pro: false, permission: "coupon:view" },
