@@ -61,6 +61,7 @@ describe("GoGoSense preflight evidence bundle", () => {
   it("fails the required activation nudge gate when hub UI evidence is missing the nudge", async () => {
     tempDir = await mkdtemp(join(tmpdir(), "gogosense-nudge-evidence-"));
     const fakeAdb = join(tempDir, "adb");
+    const foregroundFile = join(tempDir, "foreground.txt");
 
     await writeFile(
       fakeAdb,
@@ -95,10 +96,15 @@ if [ "$1" = "shell" ] && [ "$2" = "monkey" ]; then
   exit 0
 fi
 if [ "$1" = "shell" ] && [ "$2" = "dumpsys" ] && [ "$3" = "window" ]; then
-  echo "mCurrentFocus=Window{abc u0 com.shopee.th/com.shopee.MainActivity}"
+  if [ -f "${foregroundFile}" ]; then
+    cat "${foregroundFile}"
+  else
+    echo "mCurrentFocus=Window{abc u0 com.shopee.th/com.shopee.MainActivity}"
+  fi
   exit 0
 fi
 if [ "$1" = "shell" ] && [ "$2" = "am" ]; then
+  echo "mCurrentFocus=Window{abc u0 co.gogocash.app/.MainActivity}" > "${foregroundFile}"
   echo "Starting: Intent"
   exit 0
 fi
@@ -180,6 +186,7 @@ exit 1
   it("taps the activation nudge center from the captured UI hierarchy", async () => {
     tempDir = await mkdtemp(join(tmpdir(), "gogosense-nudge-tap-"));
     const fakeAdb = join(tempDir, "adb");
+    const foregroundFile = join(tempDir, "foreground.txt");
     const tapFile = join(tempDir, "tap.txt");
 
     await writeFile(
@@ -215,10 +222,15 @@ if [ "$1" = "shell" ] && [ "$2" = "monkey" ]; then
   exit 0
 fi
 if [ "$1" = "shell" ] && [ "$2" = "dumpsys" ] && [ "$3" = "window" ]; then
-  echo "mCurrentFocus=Window{abc u0 com.shopee.th/com.shopee.MainActivity}"
+  if [ -f "${foregroundFile}" ]; then
+    cat "${foregroundFile}"
+  else
+    echo "mCurrentFocus=Window{abc u0 com.shopee.th/com.shopee.MainActivity}"
+  fi
   exit 0
 fi
 if [ "$1" = "shell" ] && [ "$2" = "am" ]; then
+  echo "mCurrentFocus=Window{abc u0 co.gogocash.app/.MainActivity}" > "${foregroundFile}"
   echo "Starting: Intent"
   exit 0
 fi
@@ -250,6 +262,30 @@ exit 1
             { headers: { "content-type": "application/json" }, status: 200 }
           );
         }
+        if (requestUrl.endsWith("/gogosense/settings")) {
+          return new Response(JSON.stringify({ enabled: true }), {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          });
+        }
+        if (requestUrl.endsWith("/gogosense/detect")) {
+          return new Response(
+            JSON.stringify({
+              detectionEventId: "event-1",
+              merchantId: 101,
+              matched: true,
+              networkMerchantId: 201,
+              offerId: 301,
+            }),
+            { headers: { "content-type": "application/json" }, status: 200 }
+          );
+        }
+        if (requestUrl.endsWith("/gogosense/activate")) {
+          return new Response(JSON.stringify({ deeplink: "https://track.gogocash.co/shopee" }), {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          });
+        }
 
         throw new Error(`unexpected fetch ${requestUrl}`);
       })
@@ -259,9 +295,13 @@ exit 1
       ...preflight.parseArgs([], { ...process.env }),
       adb: fakeAdb,
       apiUrl: "https://api.example.test",
+      authToken: "token-1",
+      activate: true,
       captureDeviceEvidence: true,
       device: "emulator-5554",
+      detectPackage: "com.shopee.th",
       evidenceDir: tempDir,
+      openDeeplink: true,
       openMerchant: true,
       requireForeground: true,
       requireNudge: true,
@@ -269,11 +309,15 @@ exit 1
       tapNudge: true,
     });
     const tapResult = report.results.find((item) => item.name === "GoGoSense activation nudge tap");
+    const resultSummary = report.results.map((item) => `${item.name}:${item.status}`);
 
     expect(tapResult).toMatchObject({
       status: "pass",
       detail: expect.stringContaining("tapped at 60,120"),
     });
+    expect(resultSummary).toContain("activation deeplink open:pass");
+    expect(resultSummary).toContain("activation deeplink foreground:pass");
+    expect(report.context.activationDeeplinkForegroundPackage).toBe("co.gogocash.app");
     await expect(readFile(tapFile, "utf8")).resolves.toBe("60,120\n");
     await expect(readFile(join(tempDir, "activation-nudge-tap.txt"), "utf8")).resolves.toContain("x=60\ny=120");
     await expect(readFile(join(tempDir, "activation-nudge-tap-ui.xml"), "utf8")).resolves.toContain(

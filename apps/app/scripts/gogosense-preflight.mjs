@@ -310,6 +310,28 @@ function result(status, name, detail = "") {
   return { status, name, detail };
 }
 
+function activationDeeplinkForegroundResult(foregroundRun, foregroundPackage, appPackage) {
+  if (!foregroundRun.ok) {
+    return result(
+      "fail",
+      "activation deeplink foreground",
+      foregroundRun.error?.message || foregroundRun.stderr || foregroundRun.stdout || "adb dumpsys window failed"
+    );
+  }
+
+  if (foregroundPackage === appPackage) {
+    return result("pass", "activation deeplink foreground", foregroundPackage);
+  }
+
+  return result(
+    "fail",
+    "activation deeplink foreground",
+    foregroundPackage
+      ? `${foregroundPackage} is foreground after activation deeplink; expected ${appPackage}`
+      : `could not detect foreground package after activation deeplink; expected ${appPackage}`
+  );
+}
+
 function devClientApkSha256Result(apkPath, expectedSha256) {
   const expected = String(expectedSha256 || "").trim().toLowerCase();
   if (!expected) return null;
@@ -352,6 +374,7 @@ function evidenceSummary(report) {
     `adb=${report.context.adb}`,
     `device=${report.context.device || "none"}`,
     `foreground=${report.context.foregroundPackage || "none"}`,
+    `activationDeeplinkForeground=${report.context.activationDeeplinkForegroundPackage || "none"}`,
     `activationDeeplink=${report.context.activationDeeplink || "none"}`,
     `pass=${counts.pass || 0}`,
     `warn=${counts.warn || 0}`,
@@ -377,6 +400,7 @@ const acceptanceChecklistItems = [
   ["Detection probe matched", "protected detection probe"],
   ["Activation deeplink returned", "protected activation probe"],
   ["Activation deeplink opened", "activation deeplink open"],
+  ["GoGoCash foreground after activation deeplink", "activation deeplink foreground"],
 ];
 
 function acceptanceChecklist(report) {
@@ -385,6 +409,7 @@ function acceptanceChecklist(report) {
     "",
     `Device: ${report.context.device || "none"}`,
     `Foreground package: ${report.context.foregroundPackage || "none"}`,
+    `Activation deeplink foreground package: ${report.context.activationDeeplinkForegroundPackage || "none"}`,
     `Activation deeplink: ${report.context.activationDeeplink || "none"}`,
     "",
   ];
@@ -794,6 +819,7 @@ async function runPreflight(options) {
     detectPackage: options.detectPackage || null,
     device: options.device || null,
     foregroundPackage: "",
+    activationDeeplinkForegroundPackage: "",
     installedMerchantPackages: [],
     merchantPackages: [],
   };
@@ -1122,6 +1148,26 @@ async function runPreflight(options) {
             )
       );
       await waitForCheckpoint(options);
+      if (openRun.ok) {
+        const activationForeground = run(options.adb, adbArgs(deviceOptions, ["shell", "dumpsys", "window"]));
+        context.activationDeeplinkForegroundPackage = parseForegroundPackage(activationForeground.stdout);
+        results.push(
+          activationDeeplinkForegroundResult(
+            activationForeground,
+            context.activationDeeplinkForegroundPackage,
+            options.appPackage
+          )
+        );
+      } else {
+        context.activationDeeplinkForegroundPackage = "";
+        results.push(
+          result(
+            "fail",
+            "activation deeplink foreground",
+            "activation deeplink did not open; cannot verify app foreground"
+          )
+        );
+      }
       writeDeviceCheckpointEvidence({ context, results }, options, "activation-deeplink");
     }
   }
