@@ -102,11 +102,21 @@ describe("CustomerGoGoSenseScreen permission-backed settings", () => {
 });
 
 describe("CustomerGoGoSenseScreen route wiring", () => {
-  it("settings route passes the native GoGoSense detector into permission controls", () => {
-    const settingsRouteSource = readFileSync("app/gogosense/settings.tsx", "utf8");
+  it("GoGoSense routes pass the native detector into the shared screen", () => {
+    [
+      "app/gogosense/index.tsx",
+      "app/gogosense/onboarding.tsx",
+      "app/gogosense/permissions.tsx",
+      "app/gogosense/timeline.tsx",
+      "app/gogosense/settings.tsx",
+      "app/gogosense/recovery.tsx",
+      "app/gogosense/merchant/[id].tsx",
+    ].forEach((routeFile) => {
+      const routeSource = readFileSync(routeFile, "utf8");
 
-    expect(settingsRouteSource).toContain("gogosenseDetector");
-    expect(settingsRouteSource).toContain("detector={gogosenseDetector}");
+      expect(routeSource).toContain("gogosenseDetector");
+      expect(routeSource).toContain("detector={gogosenseDetector}");
+    });
   });
 });
 
