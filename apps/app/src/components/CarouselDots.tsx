@@ -46,6 +46,7 @@ export function CarouselDots({
   }
 
   const expandedWidth = Math.round(size * activeScale);
+  const inactiveScale = size / expandedWidth;
   // Guard against a zero page width (pre-layout) which would make the interpolation input range
   // collapse and yield NaN.
   const safePageWidth = pageWidth > 0 ? pageWidth : 1;
@@ -55,13 +56,13 @@ export function CarouselDots({
       {Array.from({ length: count }, (_, index) => {
         const inputRange = [(index - 1) * safePageWidth, index * safePageWidth, (index + 1) * safePageWidth];
 
-        const width = reducedMotion
+        const scaleX = reducedMotion
           ? index === activeIndex
-            ? expandedWidth
-            : size
+            ? 1
+            : inactiveScale
           : scrollX.interpolate({
               inputRange,
-              outputRange: [size, expandedWidth, size],
+              outputRange: [inactiveScale, 1, inactiveScale],
               extrapolate: "clamp",
             });
 
@@ -83,7 +84,8 @@ export function CarouselDots({
               borderRadius: size / 2,
               height: size,
               opacity,
-              width,
+              transform: [{ scaleX }],
+              width: expandedWidth,
             }}
           />
         );

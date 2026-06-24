@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
+import { filterShopCashbackTipsForCategory } from "@mobile/components/shop/shopCashbackTipsTypes";
 import { webShopDetailGroceryGalaxy } from "@mobile/design/webDesignParity";
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
@@ -49,15 +50,79 @@ describe("Shop detail parity", () => {
     });
   });
 
-  it("shop detail parity > given selected staging Cashback Tips > then shared tips illustration contract matches", () => {
-    expect(webShopDetailGroceryGalaxy.cashbackTips).toEqual({
-      title: "Cashback Tips",
-      illustrationAsset: "merchant-cashback-tips-terms",
-      illustrationWidth: 368,
-      illustrationHeight: 1337,
-      illustrationAlt:
-        "Cashback tips: excluded Live and Video cart items; check terms and caps; start from this platform; avoid ad blockers and third-party links; empty cart when required; restart if payment fails; accept store cookies.",
+  it("shop detail parity > given selected staging Cashback Tips > then shared structured tips contract matches", () => {
+    expect(webShopDetailGroceryGalaxy.cashbackTips.title).toBe("Cashback Tips");
+    expect(webShopDetailGroceryGalaxy.cashbackTips.tips).toHaveLength(7);
+
+    expect(webShopDetailGroceryGalaxy.cashbackTips.tips[0]).toEqual({
+      id: "excluded-products",
+      kind: "highlight",
+      badgeKey: "excludedProductsLabel",
+      leadKey: "excludedProductsTipLead",
+      emphasisKey: "excludedProductsTipEmphasis",
+      showLiveVideoLabels: true,
     });
+
+    expect(webShopDetailGroceryGalaxy.cashbackTips.tips.slice(1, 4)).toEqual([
+      {
+        id: "check-terms",
+        kind: "text",
+        titleKey: "merchantCashbackTipCheckTermsTitle",
+        bodyKey: "merchantCashbackTipCheckTermsBody",
+      },
+      {
+        id: "restart-platform",
+        kind: "text",
+        titleKey: "merchantCashbackTipRestartPlatformTitle",
+        bodyKey: "merchantCashbackTipRestartPlatformBody",
+      },
+      {
+        id: "no-adblock",
+        kind: "text",
+        titleKey: "merchantCashbackTipNoAdblockTitle",
+        bodyKey: "merchantCashbackTipNoAdblockBody",
+      },
+    ]);
+
+    const travelTips = webShopDetailGroceryGalaxy.cashbackTips.tips.slice(4);
+    expect(travelTips).toEqual([
+      {
+        id: "empty-cart",
+        kind: "text",
+        titleKey: "merchantCashbackTipEmptyCartTitle",
+        bodyKey: "merchantCashbackTipEmptyCartBody",
+        merchantCategories: ["travel"],
+      },
+      {
+        id: "payment-fail",
+        kind: "text",
+        titleKey: "merchantCashbackTipPaymentFailTitle",
+        bodyKey: "merchantCashbackTipPaymentFailBody",
+        merchantCategories: ["travel"],
+      },
+      {
+        id: "accept-cookies",
+        kind: "text",
+        titleKey: "merchantCashbackTipAcceptCookiesTitle",
+        bodyKey: "merchantCashbackTipAcceptCookiesBody",
+        merchantCategories: ["travel"],
+      },
+    ]);
+  });
+
+  it("shop detail parity > given Grocery Galaxy category others > then travel-only tips are filtered out", () => {
+    const visibleTips = filterShopCashbackTipsForCategory(
+      webShopDetailGroceryGalaxy.cashbackTips.tips,
+      webShopDetailGroceryGalaxy.category
+    );
+
+    expect(visibleTips).toHaveLength(4);
+    expect(visibleTips.map((tip) => tip.id)).toEqual([
+      "excluded-products",
+      "check-terms",
+      "restart-platform",
+      "no-adblock",
+    ]);
   });
 
   it("shop detail parity > given selected staging shop detail > then Expo renders hero summary, cashback rail, tracking, deals, terms, and bottom nav", () => {
@@ -69,12 +134,12 @@ describe("Shop detail parity", () => {
     expect(shopFile).toContain("ShopTrackingPeriod");
     expect(shopFile).toContain("ShopReferralCard");
     expect(shopFile).toContain("ShopDealsEmptyState");
-    expect(shopFile).toContain("ShopCashbackTips");
+    expect(shopFile).toContain("ShopCashbackTipsPanel");
     expect(shopFile).toContain("ShopTermsPanel");
     expect(shopFile).toContain("CustomerMobileBottomNav");
     expect(shopFile).toContain("activeRouteId={undefined}");
     expect(shopFile).toContain("home-side-watch");
-    expect(shopFile).toContain("Cashback up to");
+    expect(shopFile).toContain("Cashback upto");
     expect(shopFile).toContain("Extra Cashback");
     expect(shopFile).toContain("Cashback starting from");
     expect(shopFile).toContain("Cashback Tracking Period");
@@ -99,15 +164,40 @@ describe("Shop detail parity", () => {
     expect(shopFile).toContain("<ShopQuestBanner shop={shop} />\n              <ShopDealsEmptyState");
   });
 
-  it("shop detail parity > given selected staging Cashback Tips > then Expo renders illustration card after deals", () => {
+  it("shop detail parity > given selected staging Cashback Tips > then Expo renders structured panel after deals", () => {
+    const shopFile = readMobileFile("src/screens/CustomerShopDetailScreen.tsx");
+    const panelFile = readMobileFile("src/components/shop/ShopCashbackTipsPanel.tsx");
+
+    expect(shopFile).not.toContain("merchantCashbackTipsImage");
+    expect(shopFile).not.toContain("merchant-cashback-tips-terms");
+    expect(shopFile).toContain(
+      "<ShopDealsEmptyState shop={shop} />\n              <ShopCashbackTipsPanel shop={shop} />"
+    );
+    expect(panelFile).toContain("filterShopCashbackTipsForCategory");
+    expect(panelFile).toContain("CashbackTipHighlightCard");
+    expect(panelFile).toContain("CashbackTipTextCard");
+    expect(panelFile).toContain('tc("Cashback Tips")');
+  });
+
+  it("shop detail parity > given cashback tips > then each tip renders a friendly illustration", () => {
+    const illustrationFile = readMobileFile("src/components/shop/CashbackTipIllustration.tsx");
+    const highlightFile = readMobileFile("src/components/shop/CashbackTipHighlightCard.tsx");
+    const textFile = readMobileFile("src/components/shop/CashbackTipTextCard.tsx");
+
+    expect(illustrationFile).toContain('"excluded-products"');
+    expect(illustrationFile).toContain('"check-terms"');
+    expect(illustrationFile).toContain('"accept-cookies"');
+    expect(highlightFile).toContain("<CashbackTipIllustration tipId={tip.id} />");
+    expect(textFile).toContain("<CashbackTipIllustration tipId={tip.id} />");
+    expect(textFile).not.toContain("numberBadge");
+  });
+
+  it("shop detail parity > given dark mode > then Shop Now CTA keeps contrast via pickThemed", () => {
     const shopFile = readMobileFile("src/screens/CustomerShopDetailScreen.tsx");
 
-    expect(shopFile).toContain("merchantCashbackTipsImage");
-    expect(shopFile).toContain("function ShopCashbackTips");
-    expect(shopFile).toContain("<ShopDealsEmptyState shop={shop} />\n              <ShopCashbackTips shop={shop} />");
-    expect(shopFile).toContain("shop.cashbackTips.title");
-    expect(shopFile).toContain("shop.cashbackTips.illustrationAlt");
-    expect(shopFile).toContain("styles.cashbackTipsFigure");
-    expect(shopFile).toContain("styles.cashbackTipsImage");
+    expect(shopFile).toMatch(
+      /shopNowButton:\s*\{[\s\S]*?backgroundColor: pickThemed\(colors, colors\.ink, colors\.primary\)/,
+    );
+    expect(shopFile).toMatch(/shopNowText:\s*\{[\s\S]*?color: colors\.white/);
   });
 });

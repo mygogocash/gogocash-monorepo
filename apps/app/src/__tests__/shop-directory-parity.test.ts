@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import * as webDesignParity from "@mobile/design/webDesignParity";
+import { readDiscoverySources } from "../test-support/discoverySource";
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const mobileRoot = path.resolve(testDir, "../..");
@@ -137,19 +138,16 @@ describe("Shops directory parity", () => {
     expect(
       parity.getShopDirectoryGridMetrics?.({ contentWidth: 1200, viewportWidth: 1440 })
     ).toEqual({
-      cardWidth: 180,
-      columns: 6,
+      cardWidth: 220.8,
+      columns: 5,
       gap: 24,
     });
   });
 
   it("shops screen > given /shops route > then it renders the dedicated directory instead of the generic placeholder", () => {
-    const screenFile = fs.readFileSync(
-      path.join(mobileRoot, "src/screens/CustomerDiscoveryScreen.tsx"),
-      "utf8"
-    );
+    const screenFile = readDiscoverySources(mobileRoot);
 
-    expect(screenFile).toContain("ShopDirectoryScreen");
+    expect(screenFile).toContain("CustomerShopDirectoryScreen");
     expect(screenFile).toContain("webShopDirectory");
     expect(screenFile).toContain("getShopDirectoryResults");
     expect(screenFile).toContain("shopDirectoryPromo");

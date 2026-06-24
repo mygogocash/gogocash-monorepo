@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import {
   getAccountShellFooterHorizontalPadding,
@@ -10,6 +13,7 @@ import {
   getDesktopShellContentWidth,
   getDesktopShellHorizontalPadding,
   getHomeSearchMatches,
+  getScaledCompactBrandCardMetrics,
   getResponsiveHomeLayoutMetrics,
   mobileShellLayout,
   webCookieConsentBanner,
@@ -29,6 +33,9 @@ import {
   webTopBrandCards,
 } from "@mobile/design/webDesignParity";
 import { colors, radii, shadows, spacing, typography } from "@mobile/theme/tokens";
+
+const testDir = path.dirname(fileURLToPath(import.meta.url));
+const mobileRoot = path.resolve(testDir, "../..");
 
 describe("GoGoCash web design parity", () => {
   it("design tokens > given web CSS variables > then mobile uses the same GoGoCash palette", () => {
@@ -93,6 +100,8 @@ describe("GoGoCash web design parity", () => {
       desktopHeaderPaddingMin: 56,
       desktopHeaderPaddingRatio: 0.055,
       desktopHomeStackGap: 40,
+      desktopFooterTopMargin: 40,
+      desktopFooterTopPadding: 56,
       desktopHomeTopGap: 64,
       desktopSubNavHeight: 56,
       contentTopGap: 24,
@@ -139,6 +148,23 @@ describe("GoGoCash web design parity", () => {
       topBrandDotCount: 3,
     });
     expect(getResponsiveHomeLayoutMetrics(390).compactBrandCardWidth).toBeCloseTo(144, 1);
+  });
+
+  it("home responsive layout > given desktop viewport > then brand grid heights reserve two rows", () => {
+    const layout = getResponsiveHomeLayoutMetrics(1404);
+
+    expect(layout.topBrandGridHeight).toBe(
+      layout.topBrandCardHeight * 2 + layout.topBrandGap
+    );
+    expect(layout.compactBrandGridHeight).toBe(
+      layout.compactBrandCardHeight * 2 + layout.compactBrandGap
+    );
+    expect(layout.topBrandColumns).toBe(6);
+    expect(layout.compactBrandColumns).toBe(7);
+    expect(layout.topBrandGroupWidth).toBe(layout.brandSectionFrameWidth);
+    expect(layout.compactBrandGroupWidth).toBe(layout.brandSectionFrameWidth);
+    expect(layout.topBrandCardsPerPage).toBe(12);
+    expect(layout.compactBrandCardsPerPage).toBe(14);
   });
 
   it("home responsive layout > given staging mobile Trending Brands viewport > then compact cards match selected section", () => {
@@ -212,14 +238,14 @@ describe("GoGoCash web design parity", () => {
 
   it("home responsive layout > given desktop viewport > then expands content and removes mobile bottom nav", () => {
     expect(getResponsiveHomeLayoutMetrics(1440)).toMatchObject({
-      compactBrandColumns: 8,
+      compactBrandColumns: 7,
       contentHorizontalPadding: 120,
       contentMaxWidth: 1440,
       isDesktop: true,
       pageBottomPadding: 40,
       showBottomNav: false,
-      topBrandCardsPerPage: 16,
-      topBrandColumns: 8,
+      topBrandCardsPerPage: 12,
+      topBrandColumns: 6,
       topBrandDotCount: 3,
     });
     expect(getResponsiveHomeLayoutMetrics(1440).compactBrandCardWidth).toBeCloseTo(144, 1);
@@ -233,15 +259,14 @@ describe("GoGoCash web design parity", () => {
     const topBrandRowWidth =
       desktopLayout.topBrandColumns * desktopLayout.topBrandCardWidth +
       (desktopLayout.topBrandColumns - 1) * desktopLayout.topBrandGap;
-    expect(desktopLayout.compactBrandColumns).toBe(8);
+    expect(desktopLayout.compactBrandColumns).toBe(7);
     expect(desktopLayout.compactBrandGap).toBe(16);
-    expect(desktopLayout.compactBrandCardsPerPage).toBe(16);
-    // Both brand groups are wider than the desktop content frame, so they overflow and peek.
-    expect(compactGroupWidth).toBeCloseTo(desktopLayout.compactBrandGroupWidth, 3);
-    expect(desktopLayout.compactBrandGroupWidth).toBeGreaterThan(desktopLayout.contentWidth);
+    expect(desktopLayout.compactBrandCardsPerPage).toBe(14);
+    expect(compactGroupWidth).toBeLessThanOrEqual(desktopLayout.compactBrandGroupWidth);
+    expect(desktopLayout.compactBrandGroupWidth).toBe(desktopLayout.brandSectionFrameWidth);
     expect(desktopLayout.topBrandGap).toBeCloseTo(16, 3);
-    expect(topBrandRowWidth).toBeCloseTo(desktopLayout.topBrandGroupWidth, 3);
-    expect(desktopLayout.topBrandGroupWidth).toBeGreaterThan(desktopLayout.contentWidth);
+    expect(topBrandRowWidth).toBeLessThanOrEqual(desktopLayout.topBrandGroupWidth);
+    expect(desktopLayout.topBrandGroupWidth).toBe(desktopLayout.brandSectionFrameWidth);
   });
 
   it("desktop shell parity > given the Next desktop nav reference > then Expo keeps the same category nav order and cookie copy", () => {
@@ -438,7 +463,7 @@ describe("GoGoCash web design parity", () => {
 
     expect(getCarouselDotCount(webTopBrandCards.length, mobileLayout.topBrandCardsPerPage)).toBe(2);
     expect(getCarouselDotCount(webTopBrandCards.length, desktopLayout.topBrandCardsPerPage)).toBe(
-      2
+      Math.ceil(webTopBrandCards.length / desktopLayout.topBrandCardsPerPage)
     );
   });
 
@@ -455,8 +480,7 @@ describe("GoGoCash web design parity", () => {
     );
     expect(
       getCarouselDotCount(travel?.cards.length ?? 0, desktopLayout.compactBrandCardsPerPage)
-    ).toBe(1);
-    expect(travel?.dotCount).toBe(1);
+    ).toBe(2);
   });
 
   it("home carousel dots > given Makeup Must Have responsive rail > then mobile and desktop dots map to reachable pages", () => {
@@ -680,6 +704,8 @@ describe("GoGoCash web design parity", () => {
     expect(footerSource).toContain("getDesktopFooterGrid(viewportWidth)");
     expect(footerSource).toContain("getDesktopShellContentWidth(viewportWidth)");
     expect(footerSource).toContain("marginLeft: -horizontalPadding");
+    expect(footerSource).toContain("mobileShellLayout.desktopFooterTopMargin");
+    expect(footerSource).toContain("mobileShellLayout.desktopFooterTopPadding");
     expect(footerSource).toContain("topMargin?: number");
     expect(footerSource).toContain("topPadding?: number");
     expect(footerSource).toContain("marginTop: topMargin");
@@ -689,5 +715,29 @@ describe("GoGoCash web design parity", () => {
     expect(footerSource).toContain('flexWrap: "wrap"');
     expect(footerSource).toContain("gap: footerGrid.gap");
     expect(footerSource).toContain("flexBasis: footerGrid.columnBasis");
+  });
+
+  it("fixture brand logos > given simpleicons CDN urls > then they avoid known 404 slugs", () => {
+    const paritySource = fs.readFileSync(
+      path.join(mobileRoot, "src/design/webDesignParity.ts"),
+      "utf8"
+    );
+
+    // simpleicons CDN returns 404 for some legacy slugs; broken logo requests surface as
+    // browser console errors on Expo web.
+    expect(paritySource).not.toContain("simpleicons.org/amazon/");
+  });
+
+  it("scaled compact brand cards > given a narrower grid column > then card height reserves fixed meta typography", () => {
+    const atDesignWidth = getScaledCompactBrandCardMetrics(144);
+    expect(atDesignWidth).toEqual({
+      cardHeight: 176,
+      logoVisualHeight: 117,
+    });
+
+    const at135 = getScaledCompactBrandCardMetrics(135);
+    expect(at135.logoVisualHeight).toBe(110);
+    expect(at135.cardHeight).toBe(169);
+    expect(at135.cardHeight).toBeGreaterThan(Math.round(176 * (135 / 144)));
   });
 });

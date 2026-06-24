@@ -488,7 +488,7 @@ function CompactExploreShopCard({
         </Text>
         <View style={styles.shopCashbackRow}>
           <Text numberOfLines={1} style={styles.shopCashbackLabel}>
-            {tc("Cashback up to")}
+            {tc("Cashback upto")}
           </Text>
           <Text style={styles.shopCashback}>{card.cashback}</Text>
         </View>
@@ -1049,7 +1049,7 @@ function createQuestScreenStyles(colors: ThemeColors) {
     gap: spacing.xs,
   },
   historyCampaignLabel: {
-    color: colors.textSoft,
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: typography.caption,
     fontWeight: "500",
@@ -1072,7 +1072,7 @@ function createQuestScreenStyles(colors: ThemeColors) {
     fontSize: typography.body,
   },
   historyScoreFootnote: {
-    color: colors.textSoft,
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: typography.caption,
     lineHeight: 16,
@@ -1186,7 +1186,7 @@ function createQuestScreenStyles(colors: ThemeColors) {
     fontSize: 12,
   },
   historyRewardDate: {
-    color: colors.textSoft,
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: 12,
   },
@@ -1714,7 +1714,7 @@ function createQuestScreenStyles(colors: ThemeColors) {
     justifyContent: "space-between",
   },
   shopCashbackLabel: {
-    color: colors.textSoft,
+    color: colors.muted,
     flex: 1,
     fontFamily: typography.family,
     fontSize: 10,

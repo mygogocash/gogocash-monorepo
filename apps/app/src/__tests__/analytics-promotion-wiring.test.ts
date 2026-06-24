@@ -2,6 +2,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
 
+import { readHomeSources } from "../test-support/homeSource";
 import { describe, expect, it } from "vitest";
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
@@ -18,7 +19,7 @@ function readMobileFile(relativePath: string) {
 // defaultPrevented). Props mirror web trackPromotionSelect, using only REAL
 // HomeHeroBanner fields (id/placement/href — there is no separate name field).
 describe("home banner select_promotion wiring", () => {
-  const home = readMobileFile("src/screens/CustomerHomeScreen.tsx");
+  const home = readHomeSources(mobileRoot);
 
   it("imports the analytics hook and the promotion event helper", () => {
     expect(home).toContain("useAnalytics");

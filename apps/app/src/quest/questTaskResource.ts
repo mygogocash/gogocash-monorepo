@@ -56,7 +56,6 @@ export function useQuestTaskRows(): QuestTaskResourceResult {
     queryFn: () => fetchQuestTaskPayload(env.apiUrl),
     queryKey: ["quest-task-rows", env.apiUrl, questTaskEndpoint],
     retry: false,
-    staleTime: 1000 * 60,
   });
 
   const retry = () => {

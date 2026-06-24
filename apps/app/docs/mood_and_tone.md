@@ -37,6 +37,7 @@ GoGoCash is designed to feel:
 ### 2.4 Capped Mobile Width (Responsive Preview)
 - Large displays or desktop web previews must never stretch the mobile UI elements horizontally.
 - Layout uses three device classes (Desktop / Tablet / Mobile) resolved per element (see `useDeviceClass`). Content columns are centered and capped per class: `448px` (bottom navigation, `bottomNavMaxWidth`), `720px` (portrait-tablet content, `tabletContentMaxWidth`), and `1440px` (mobile/desktop shell content, `contentMaxWidth` / `desktopContentMaxWidth`) — all from `src/design/webDesignParity.ts`.
+- On **desktop home**, brand carousel pages use **`brandSectionFrameWidth`** with **two rows** (`getDesktopBrandColumnsPerRow`) — not a single full-viewport horizontal strip. Header and footer bands break out to **full viewport width** while main content stays in the 1440px column.
 
 ---
 

@@ -21,13 +21,13 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import golinkBannerIllustrationImage from "../../assets/golink-banner-illustration.png";
-import golinkGuidelineFlowImage from "../../assets/golink-guideline-copy-paste-flow.png";
-import golinkGuidelineStep1Image from "../../assets/golink-guideline-step-preview-1.png";
-import golinkGuidelineStep2Image from "../../assets/golink-guideline-step-preview-2.png";
-import golinkGuidelineStep3Image from "../../assets/golink-guideline-step-preview-3.png";
 import golinkResultProductImage from "../../assets/golink-result-product-demo.png";
 import golinkResultShopBadgeImage from "../../assets/golink-result-shop-badge.png";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
+import {
+  GoLinkGuidelineFlowIllustration,
+  GoLinkGuidelineStepIllustration,
+} from "@mobile/components/golink/GoLinkGuidelineIllustrations";
 import { useCopy } from "@mobile/i18n/useCopy";
 import {
   mobileShellLayout,
@@ -46,15 +46,15 @@ import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 const guidelineSteps = [
   {
-    image: golinkGuidelineStep1Image,
+    step: 1 as const,
     text: "Go to marketplace to look for the products you want, and tap “Share” to copy the link.",
   },
   {
-    image: golinkGuidelineStep2Image,
+    step: 2 as const,
     text: "Come back to GoGoCash, click “Paste and Go”, and check your receivable cashback.",
   },
   {
-    image: golinkGuidelineStep3Image,
+    step: 3 as const,
     text: "Tap “Shop Now” to go directly to the shop in the marketplace, then wait for your cashback to be approved.",
   },
 ] as const;
@@ -416,17 +416,11 @@ export function GoLinkGuidelineDialog({ onClose }: { onClose: () => void }) {
           pressScale={motion.scale.subtlePress}
           style={styles.guidelineCloseButton}
         >
-          <CloseIcon color="#3B3B3B" size={22} strokeWidth={typography.iconStrokeWidth} />
+          <CloseIcon color={colors.ink} size={22} strokeWidth={typography.iconStrokeWidth} />
         </MotionPressable>
 
         <View style={styles.guidelineFlowWrap}>
-          <Image
-            alt={tc("Copy · Paste")}
-            accessibilityIgnoresInvertColors
-            resizeMode="contain"
-            source={golinkGuidelineFlowImage}
-            style={styles.guidelineFlowImage}
-          />
+          <GoLinkGuidelineFlowIllustration />
         </View>
 
         <View style={styles.guidelineCopyBlock}>
@@ -443,13 +437,7 @@ export function GoLinkGuidelineDialog({ onClose }: { onClose: () => void }) {
               style={[styles.guidelineStepRow, index === 1 && styles.guidelineMiddleStepRow]}
             >
               <View style={styles.guidelineStepThumb}>
-                <Image
-                  alt={tc("Step illustration for GoLink how it works")}
-                  accessibilityIgnoresInvertColors
-                  resizeMode="contain"
-                  source={step.image}
-                  style={styles.guidelineStepImage}
-                />
+                <GoLinkGuidelineStepIllustration step={step.step} />
               </View>
               <Text style={styles.guidelineStepText}>{tc(step.text)}</Text>
             </View>
@@ -506,7 +494,7 @@ export function GoLinkResultDialog({
           pressScale={motion.scale.subtlePress}
           style={styles.resultCloseButton}
         >
-          <CloseIcon color="#3B3B3B" size={22} strokeWidth={typography.iconStrokeWidth} />
+          <CloseIcon color={colors.ink} size={22} strokeWidth={typography.iconStrokeWidth} />
         </MotionPressable>
 
         {termsPanelOpen ? (
@@ -1260,14 +1248,9 @@ function createGoLinkScreenStyles(colors: ThemeColors) {
   },
   guidelineFlowWrap: {
     alignItems: "center",
-    height: 90,
     justifyContent: "center",
     marginBottom: 40,
-    width: "100%",
-  },
-  guidelineFlowImage: {
-    height: 90,
-    maxWidth: 552,
+    minHeight: 90,
     width: "100%",
   },
   guidelineCopyBlock: {
@@ -1280,7 +1263,7 @@ function createGoLinkScreenStyles(colors: ThemeColors) {
     lineHeight: 27,
   },
   guidelineSubtitle: {
-    color: "rgba(59, 59, 59, 0.9)",
+    color: colors.muted,
     fontSize: 16,
     lineHeight: 22,
   },
@@ -1300,15 +1283,10 @@ function createGoLinkScreenStyles(colors: ThemeColors) {
     borderTopWidth: 1,
   },
   guidelineStepThumb: {
-    backgroundColor: colors.fieldMuted,
-    borderRadius: 8,
+    borderRadius: 12,
     height: 96,
     overflow: "hidden",
     width: 96,
-  },
-  guidelineStepImage: {
-    height: "100%",
-    width: "100%",
   },
   guidelineStepText: {
     color: colors.ink,

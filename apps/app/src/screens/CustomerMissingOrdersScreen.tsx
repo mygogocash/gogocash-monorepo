@@ -862,7 +862,7 @@ function createMissingOrdersScreenStyles(colors: ThemeColors) {
     fontWeight: "600",
   },
   disabledButtonText: {
-    color: colors.textSoft,
+    color: colors.muted,
   },
   lineButton: {
     alignItems: "center",
@@ -993,7 +993,7 @@ function createMissingOrdersScreenStyles(colors: ThemeColors) {
     color: colors.danger,
   },
   attachmentHint: {
-    color: colors.textSoft,
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: 12,
     lineHeight: 17,

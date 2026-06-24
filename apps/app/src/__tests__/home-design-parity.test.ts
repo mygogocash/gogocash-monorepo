@@ -3,6 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
+import { readHomeRouter, readHomeSources } from "../test-support/homeSource";
+
 import {
   getResponsiveHomeLayoutMetrics,
   getTopBrandHref,
@@ -22,29 +24,36 @@ import {
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const mobileRoot = path.resolve(testDir, "../..");
 
+function readHomeFile() {
+  return readHomeSources(mobileRoot);
+}
+
 describe("Expo home design parity", () => {
   it("home design parity > given migrated Expo home > then includes staging mobile landmarks", () => {
-    const homeFile = fs.readFileSync(
-      path.join(mobileRoot, "src/screens/CustomerHomeScreen.tsx"),
-      "utf8"
-    );
+    const homeFile = readHomeFile();
+    const homeRouter = readHomeRouter(mobileRoot);
 
     expect(homeFile).toContain("HomeHeroBanners");
     // Top Brands renders the shared BrandCard at its large size.
     expect(homeFile).toContain("BrandCard");
     expect(homeFile).toContain('size="L"');
-    expect(homeFile).toMatch(/heartCircle:\s*\{[\s\S]*?height: 28,[\s\S]*?width: 28,/);
-    expect(homeFile).toContain("topMargin={24}");
-    expect(homeFile).toContain("topPadding={56}");
+    const brandCardFile = fs.readFileSync(
+      path.join(mobileRoot, "src/components/BrandCard.tsx"),
+      "utf8"
+    );
+    expect(brandCardFile).toMatch(/heartCircle:\s*\{[\s\S]*?height: 28,[\s\S]*?width: 28,/);
+    expect(homeFile).toContain("styles.desktopScrollContent");
+    expect(homeRouter).toContain("desktopFooterCap");
+    expect(homeRouter).toContain("horizontalPadding={desktopFooterHorizontalOffset}");
+    expect(homeRouter).not.toContain("topMargin={0}");
+    expect(homeFile).toContain("height: homeLayout.topBrandGridHeight");
+    expect(homeFile).toContain("height: homeLayout.compactBrandGridHeight");
     expect(homeFile).toContain("CustomerMobileBottomNav");
     expect(homeFile).not.toContain('webHomeSectionOrder.includes("goLinkBanner")');
   });
 
   it("home desktop shell parity > given desktop Expo web > then renders the Next header, category nav, and cookie banner contract", () => {
-    const homeFile = fs.readFileSync(
-      path.join(mobileRoot, "src/screens/CustomerHomeScreen.tsx"),
-      "utf8"
-    );
+    const homeFile = readHomeFile();
 
     expect(webDesktopHeaderNavItems.map((item) => item.label)).toEqual([
       "Top Brands",
@@ -90,10 +99,7 @@ describe("Expo home design parity", () => {
   });
 
   it("desktop navbar icons > given the Phosphor icon contract > then home and auth headers do not use legacy PNG category icons", () => {
-    const homeFile = fs.readFileSync(
-      path.join(mobileRoot, "src/screens/CustomerHomeScreen.tsx"),
-      "utf8"
-    );
+    const homeFile = readHomeFile();
     const desktopHeaderFile = fs.readFileSync(
       path.join(mobileRoot, "src/components/CustomerDesktopHeader.tsx"),
       "utf8"
@@ -128,10 +134,7 @@ describe("Expo home design parity", () => {
   });
 
   it("desktop locale flow > given Next language region popover > then Expo header renders the same chooser contract", () => {
-    const homeFile = fs.readFileSync(
-      path.join(mobileRoot, "src/screens/CustomerHomeScreen.tsx"),
-      "utf8"
-    );
+    const homeFile = readHomeFile();
     const desktopHeaderFile = fs.readFileSync(
       path.join(mobileRoot, "src/components/CustomerDesktopHeader.tsx"),
       "utf8"
@@ -177,6 +180,9 @@ describe("Expo home design parity", () => {
     expect(localeControlFile).toContain("setLocalePanelMounted(false)");
     expect(localeControlFile).toContain("webLocaleRegionPanel");
     expect(localeControlFile).toContain("accessibilityLabel={webLocaleRegionPanel.ariaLabel}");
+    expect(localeControlFile).toContain("color: colors.ink");
+    expect(localeControlFile).toContain('pickThemed(colors, "#E8FAF5", colors.primarySoft)');
+    expect(localeControlFile).toContain("color: colors.primary");
     for (const sourceFile of [homeFile, desktopHeaderFile]) {
       expect(sourceFile).toContain("CustomerLocaleRegionControl");
       expect(sourceFile).toContain("CustomerProfileNav");
@@ -187,10 +193,7 @@ describe("Expo home design parity", () => {
   });
 
   it("desktop sign-in button parity > given Next header uses a vector pill > then Expo does not render live text with mismatched font", () => {
-    const homeFile = fs.readFileSync(
-      path.join(mobileRoot, "src/screens/CustomerHomeScreen.tsx"),
-      "utf8"
-    );
+    const homeFile = readHomeFile();
     const desktopHeaderFile = fs.readFileSync(
       path.join(mobileRoot, "src/components/CustomerDesktopHeader.tsx"),
       "utf8"
@@ -216,10 +219,7 @@ describe("Expo home design parity", () => {
   });
 
   it("home desktop GoGoLink parity > given desktop home > then renders the Next banner between hero and Top Brands", () => {
-    const homeFile = fs.readFileSync(
-      path.join(mobileRoot, "src/screens/CustomerHomeScreen.tsx"),
-      "utf8"
-    );
+    const homeFile = readHomeFile();
 
     expect(webGoLinkFeature).toMatchObject({
       ctaLabel: "Paste and Go",
@@ -287,10 +287,7 @@ describe("Expo home design parity", () => {
   });
 
   it("home design parity > given production hero banners > then Expo keeps banners clickable and animated", () => {
-    const homeFile = fs.readFileSync(
-      path.join(mobileRoot, "src/screens/CustomerHomeScreen.tsx"),
-      "utf8"
-    );
+    const homeFile = readHomeFile();
 
     expect(homeFile).toContain("HeroBannerLink");
     expect(homeFile).toContain("href={banner.href as never}");
@@ -300,10 +297,7 @@ describe("Expo home design parity", () => {
   });
 
   it("home design parity > given selected staging hero swiper > then Expo pages main banners horizontally with synced dots", () => {
-    const homeFile = fs.readFileSync(
-      path.join(mobileRoot, "src/screens/CustomerHomeScreen.tsx"),
-      "utf8"
-    );
+    const homeFile = readHomeFile();
 
     expect(homeFile).toContain("activeHeroBannerPage");
     // Banners now flow through useCustomerAccountResource + resolveHomeHeroBanners
@@ -382,11 +376,24 @@ describe("Expo home design parity", () => {
     ]);
   });
 
-  it("home design parity > given staging top brands carousel > then Expo uses a two-row grid instead of a single horizontal row", () => {
-    const homeFile = fs.readFileSync(
-      path.join(mobileRoot, "src/screens/CustomerHomeScreen.tsx"),
-      "utf8"
+  it("home design parity > given dark mode > then Top Brands coupon chip adapts via pickThemed", () => {
+    const homeFile = readHomeFile();
+    const brandCardFile = fs.readFileSync(
+      path.join(mobileRoot, "src/components/BrandCard.tsx"),
+      "utf8",
     );
+
+    expect(brandCardFile).toMatch(
+      /couponChip:\s*\{[\s\S]*?backgroundColor: pickThemed\(colors, "rgba\(255,255,255,0\.92\)", colors\.card\)/,
+    );
+    expect(brandCardFile).toMatch(
+      /heartCircle:\s*\{[\s\S]*?backgroundColor: pickThemed\(colors, "rgba\(255,255,255,0\.92\)", colors\.card\)/,
+    );
+    expect(homeFile).toContain("backgroundColor: surfaces.localeButtonBackground");
+  });
+
+  it("home design parity > given staging top brands carousel > then Expo uses a two-row grid instead of a single horizontal row", () => {
+    const homeFile = readHomeFile();
 
     expect(homeFile).toContain("useWindowDimensions");
     expect(homeFile).toContain("getResponsiveHomeLayoutMetrics");
@@ -399,10 +406,7 @@ describe("Expo home design parity", () => {
   });
 
   it("home design parity > given staging Top Brands mobile carousel > then Expo pages horizontally through card grids", () => {
-    const homeFile = fs.readFileSync(
-      path.join(mobileRoot, "src/screens/CustomerHomeScreen.tsx"),
-      "utf8"
-    );
+    const homeFile = readHomeFile();
 
     expect(homeFile).toContain("horizontal");
     expect(homeFile).toContain("pagingEnabled");
@@ -416,10 +420,7 @@ describe("Expo home design parity", () => {
   });
 
   it("home design parity > given desktop and mobile web widths > then Expo uses responsive measured layout values", () => {
-    const homeFile = fs.readFileSync(
-      path.join(mobileRoot, "src/screens/CustomerHomeScreen.tsx"),
-      "utf8"
-    );
+    const homeFile = readHomeFile();
 
     expect(homeFile).toContain("homeLayout.showBottomNav");
     expect(homeFile).toContain("homeLayout.contentMaxWidth");
@@ -444,20 +445,14 @@ describe("Expo home design parity", () => {
   });
 
   it("home design parity > given Expo Router asChild links > then root Pressable styles are flattened", () => {
-    const homeFile = fs.readFileSync(
-      path.join(mobileRoot, "src/screens/CustomerHomeScreen.tsx"),
-      "utf8"
-    );
+    const homeFile = readHomeFile();
 
     expect(homeFile.match(/<Link asChild[\s\S]*?<Pressable\b[^>]*\n\s*style=\{\[/g)).toEqual(null);
     expect(homeFile).not.toContain("style={[styles.brandCard");
   });
 
   it("home design parity > given home navigation > then uses icon components instead of placeholder glyph maps", () => {
-    const homeFile = fs.readFileSync(
-      path.join(mobileRoot, "src/screens/CustomerHomeScreen.tsx"),
-      "utf8"
-    );
+    const homeFile = readHomeFile();
 
     expect(homeFile).toContain('from "@mobile/theme/icons"');
     expect(homeFile).not.toContain("lucide-react-native");
@@ -468,10 +463,7 @@ describe("Expo home design parity", () => {
   });
 
   it("home design parity > given staging search copy > then renders the shared placeholder", () => {
-    const homeFile = fs.readFileSync(
-      path.join(mobileRoot, "src/screens/CustomerHomeScreen.tsx"),
-      "utf8"
-    );
+    const homeFile = readHomeFile();
 
     expect(webHomeSearchPlaceholder).toContain("brands, stores, products");
     expect(homeFile).toContain("webHomeSearchPlaceholder");
@@ -484,10 +476,7 @@ describe("Expo home design parity", () => {
   });
 
   it("home design parity > given selected staging search click state > then renders popular popover contract", () => {
-    const homeFile = fs.readFileSync(
-      path.join(mobileRoot, "src/screens/CustomerHomeScreen.tsx"),
-      "utf8"
-    );
+    const homeFile = readHomeFile();
 
     expect(webHomeSearchPopularPanel).toMatchObject({
       title: "Popular right now",
@@ -530,10 +519,7 @@ describe("Expo home design parity", () => {
   });
 
   it("home design parity > given selected staging search focus state > then Expo suppresses the browser focus outline", () => {
-    const homeFile = fs.readFileSync(
-      path.join(mobileRoot, "src/screens/CustomerHomeScreen.tsx"),
-      "utf8"
-    );
+    const homeFile = readHomeFile();
 
     expect(homeFile).toContain("webSearchInputFocusReset");
     expect(homeFile).toContain("outlineStyle");
@@ -542,10 +528,7 @@ describe("Expo home design parity", () => {
   });
 
   it("home design parity > given lower staging home rails > then Expo renders the same section titles", () => {
-    const homeFile = fs.readFileSync(
-      path.join(mobileRoot, "src/screens/CustomerHomeScreen.tsx"),
-      "utf8"
-    );
+    const homeFile = readHomeFile();
 
     expect(webHomePromoSections.map((section) => section.title)).toEqual([
       "Trending Brands",
@@ -636,16 +619,16 @@ describe("Expo home design parity", () => {
     ]);
   });
 
-  it("home design parity > given selected staging Travel Deals rail > then Travel is one 8x2 desktop group", () => {
+  it("home design parity > given selected staging Travel Deals rail > then Travel paginates two desktop rows per page", () => {
     const travel = webHomePromoSections.find((section) => section.id === "travel");
     const desktopLayout = getResponsiveHomeLayoutMetrics(1440);
     const travelCards = travel?.cards ?? [];
 
     expect(travelCards).toHaveLength(16);
-    expect(desktopLayout.compactBrandColumns).toBe(8);
-    expect(desktopLayout.compactBrandCardsPerPage).toBe(16);
-    // 16 cards fill exactly one 8-column x 2-row group, so there is a single page / no dots.
-    expect(travel?.dotCount).toBe(1);
+    expect(desktopLayout.compactBrandColumns).toBe(7);
+    expect(desktopLayout.compactBrandCardsPerPage).toBe(14);
+    // 16 cards need two 7x2 desktop pages (14 + 2).
+    expect(Math.ceil(travelCards.length / desktopLayout.compactBrandCardsPerPage)).toBe(2);
   });
 
   it("mobile brand sections > given the padded white sheet > then the brand groups overflow and scroll", () => {
@@ -727,16 +710,17 @@ describe("Expo home design parity", () => {
   });
 
   it("home design parity > given lower staging home rails > then Expo uses compact brand logo cards", () => {
-    const homeFile = fs.readFileSync(
-      path.join(mobileRoot, "src/screens/CustomerHomeScreen.tsx"),
-      "utf8"
-    );
+    const homeFile = readHomeFile();
 
     // Secondary brand rails render the shared BrandCard at its small/compact size.
     expect(homeFile).toContain("BrandCard");
     expect(homeFile).toContain('size="S"');
     expect(homeFile).toContain("activeIndex={activePromoDot}");
-    expect(homeFile).toContain("compactBrandLogoFallback");
+    const brandCardFile = fs.readFileSync(
+      path.join(mobileRoot, "src/components/BrandCard.tsx"),
+      "utf8"
+    );
+    expect(brandCardFile).toContain("compactBrandLogoFallback");
     expect(homeFile).toContain("sectionDotCount");
     expect(homeFile).toContain("const sectionDotCount = homeLayout.isDesktop");
     expect(homeFile).toContain("? promoPages.length");
@@ -747,10 +731,7 @@ describe("Expo home design parity", () => {
   });
 
   it("home design parity > given selected staging lower promo rail > then Expo pages compact cards horizontally", () => {
-    const homeFile = fs.readFileSync(
-      path.join(mobileRoot, "src/screens/CustomerHomeScreen.tsx"),
-      "utf8"
-    );
+    const homeFile = readHomeFile();
     const firstPageCardCount = mobileShellLayout.compactBrandMobileColumns * 2;
 
     expect(webHomePromoSections.every((section) => section.cards.length > firstPageCardCount)).toBe(
@@ -770,23 +751,17 @@ describe("Expo home design parity", () => {
   });
 
   it("home design parity > given lower promo rail > then the 8x2 group slides and overflows like Top Brands", () => {
-    const homeFile = fs.readFileSync(
-      path.join(mobileRoot, "src/screens/CustomerHomeScreen.tsx"),
-      "utf8"
-    );
+    const homeFile = readHomeFile();
 
     // The rail scroller fills its section (100%) while each page is a fixed-width group that
     // overflows and scrolls with a peek; no per-page slide animation.
-    expect(homeFile).toContain("style={styles.promoScroll}");
+    expect(homeFile).toContain("style={[styles.promoScroll, { height: homeLayout.compactBrandGridHeight }]}");
     expect(homeFile).toContain("width: homeLayout.compactBrandGroupWidth,");
     expect(homeFile).not.toContain("getCarouselPageMotionStyle");
   });
 
   it("home design parity > given lower staging section titles > then long titles can wrap like Next.js", () => {
-    const homeFile = fs.readFileSync(
-      path.join(mobileRoot, "src/screens/CustomerHomeScreen.tsx"),
-      "utf8"
-    );
+    const homeFile = readHomeFile();
 
     expect(homeFile).not.toContain("<Text numberOfLines={1} style={styles.sectionTitleSmall}>");
     expect(homeFile).toMatch(/sectionTitle:\s*\{[\s\S]*?fontSize:\s*18,[\s\S]*?lineHeight:\s*24,/);
@@ -797,10 +772,7 @@ describe("Expo home design parity", () => {
   });
 
   it("home design parity > given staging mobile icon weight > then Expo avoids heavier placeholder strokes", () => {
-    const homeFile = fs.readFileSync(
-      path.join(mobileRoot, "src/screens/CustomerHomeScreen.tsx"),
-      "utf8"
-    );
+    const homeFile = readHomeFile();
 
     expect(homeFile).toContain("homeIconStrokeWidth");
     expect(homeFile).not.toContain("strokeWidth={2.4}");
@@ -809,10 +781,7 @@ describe("Expo home design parity", () => {
   });
 
   it("mobile/tablet home header greeting > given a signed-in user > then it uses their username with a Hi fallback", () => {
-    const homeScreenSource = fs.readFileSync(
-      new URL("../screens/CustomerHomeScreen.tsx", import.meta.url),
-      "utf8",
-    );
+    const homeScreenSource = readHomeFile();
 
     expect(homeScreenSource).toContain("const mobileTabletGreetingName =");
     expect(homeScreenSource).toContain("session?.username");
@@ -821,10 +790,7 @@ describe("Expo home design parity", () => {
   });
 
   it("home hero banners > given main and side promos render > then they are wrapped as one visual section", () => {
-    const homeScreenSource = fs.readFileSync(
-      new URL("../screens/CustomerHomeScreen.tsx", import.meta.url),
-      "utf8",
-    );
+    const homeScreenSource = readHomeFile();
     const heroSectionStyle =
       homeScreenSource.match(/heroBannerSection:\s*\{[\s\S]*?\n  \}/)?.[0] ?? "";
     const heroSectionDesktopStyle =
@@ -843,10 +809,7 @@ describe("Expo home design parity", () => {
   });
 
   it("mobile/tablet GoLink header > given the home header renders > then it keeps search only and can cover the GoLink banner", () => {
-    const homeScreenSource = fs.readFileSync(
-      new URL("../screens/CustomerHomeScreen.tsx", import.meta.url),
-      "utf8",
-    );
+    const homeScreenSource = readHomeFile();
 
     expect(homeScreenSource).toContain("const headerActionIconSize = isTabletFrame ? 24 : 20");
     expect(homeScreenSource).toContain("const [mobileTabletGoLinkCovered, setMobileTabletGoLinkCovered] = useState(false)");
@@ -872,10 +835,7 @@ describe("Expo home design parity", () => {
   });
 
   it("mobile/tablet GoLink header > given the banner renders in the colored frame > then it fills the frame width", () => {
-    const homeScreenSource = fs.readFileSync(
-      new URL("../screens/CustomerHomeScreen.tsx", import.meta.url),
-      "utf8",
-    );
+    const homeScreenSource = readHomeFile();
     const bannerStyle =
       homeScreenSource.match(/mobileTabletGoLinkBanner:\s*\{[\s\S]*?\n  \}/)?.[0] ?? "";
     const toggleButtonStyle =
@@ -891,10 +851,7 @@ describe("Expo home design parity", () => {
   });
 
   it("mobile/tablet colored header > given it meets the white content sheet > then the header bottom corners stay square", () => {
-    const homeScreenSource = fs.readFileSync(
-      new URL("../screens/CustomerHomeScreen.tsx", import.meta.url),
-      "utf8",
-    );
+    const homeScreenSource = readHomeFile();
     const headerStyle = homeScreenSource.match(/mobileTabletHomeHeader:\s*\{[\s\S]*?\n  \}/)?.[0] ?? "";
     const pageScrollStyle = homeScreenSource.match(/mobileTabletPageScroll:\s*\{[\s\S]*?\n  \}/)?.[0] ?? "";
     const pageScrollContentStyle = homeScreenSource.match(/mobileTabletPageScrollContent:\s*\{[\s\S]*?\n  \}/)?.[0] ?? "";
@@ -931,13 +888,10 @@ describe("Expo home design parity", () => {
   });
 
   it("mobile/tablet colored header > given the green reference design > then it uses the teal gradient palette", () => {
-    const homeScreenSource = fs.readFileSync(
-      new URL("../screens/CustomerHomeScreen.tsx", import.meta.url),
-      "utf8",
-    );
+    const homeScreenSource = readHomeFile();
     const headerStyle = homeScreenSource.match(/mobileTabletHomeHeader:\s*\{[\s\S]*?\n  \}/)?.[0] ?? "";
 
-    expect(homeScreenSource).toContain("const mobileTabletHeaderGradient =");
+    expect(homeScreenSource).toContain("mobileTabletHeaderGradient =");
     expect(homeScreenSource).toContain("linear-gradient(135deg, #006B52 0%, #009D78 48%, #20C7A1 100%)");
     expect(homeScreenSource).toContain("mobileTabletHeaderGradient");
     expect(headerStyle).toContain('backgroundColor: "#009D78"');

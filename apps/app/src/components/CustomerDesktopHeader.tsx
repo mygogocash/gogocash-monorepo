@@ -191,6 +191,8 @@ function DesktopCategoryTab({
                 >
                   <DesktopCategoryNavIcon name={item.icon} active={active} />
                   <Text
+                    ellipsizeMode="tail"
+                    numberOfLines={1}
                     style={[
                       styles.desktopCategoryNavText,
                       "menuTypography" in item && item.menuTypography === "lead"
@@ -387,7 +389,7 @@ function createDesktopHeaderStyles(colors: ThemeColors, surfaces: ThemeSurfaces)
     zIndex: 100,
   },
     desktopLocaleSectionTitle: {
-      color: colors.textSoft,
+      color: colors.muted,
     fontFamily: typography.family,
     fontSize: 12,
     fontWeight: "700",
@@ -486,7 +488,7 @@ function createDesktopHeaderStyles(colors: ThemeColors, surfaces: ThemeSurfaces)
     color: colors.ink,
     fontFamily: typography.family,
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: typography.bodyWeight,
     lineHeight: 21,
   },
   desktopCategoryNavTextLead: {

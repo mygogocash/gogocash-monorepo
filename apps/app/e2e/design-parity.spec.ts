@@ -167,7 +167,7 @@ const p0Routes = [
       "Recently Visited Brands",
       "Your Favorite Brands",
       "Grab Coupon",
-      "Cashback up to",
+      "Cashback upto",
     ],
   },
   {
@@ -251,7 +251,7 @@ const p0Routes = [
       "13 stores in this category",
       "Pure Ritual",
       "Pearl Polish",
-      "Cashback up to",
+      "Cashback upto",
     ],
   },
   {
@@ -259,7 +259,7 @@ const p0Routes = [
     requiredText: [
       "Grocery Galaxy",
       "Shop Now",
-      "Cashback up to",
+      "Cashback upto",
       "26.5%",
       "Extra Cashback 14%",
       "Cashback starting from",

@@ -154,7 +154,6 @@ export function useCustomerAccountResource<TFixture, TBackend = unknown>({
     },
     queryKey: ["customer-account-resource", resourceId, endpoint, env.apiUrl],
     retry: false,
-    staleTime: 1000 * 60,
   });
 
   const retry = () => {

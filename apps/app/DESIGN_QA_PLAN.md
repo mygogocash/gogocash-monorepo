@@ -109,6 +109,18 @@ Run after any styling change touching shared chrome or account settings:
 
 Reference: `apps/app/docs/dark-mode.md`.
 
+## Desktop home QA (≥1024px)
+
+Run after changes to `CustomerHomeScreen`, home sections, or `CustomerDesktopFooter`:
+
+1. Expo web at `http://localhost:8081/` — viewport ≥1024px (e.g. 1624×900).
+2. **Footer scroll:** scroll the page — footer must move with content (not pinned to viewport bottom). Footer dark band starts at viewport `x=0`, same width as header.
+3. **Brand rails:** Top Brands, Trending, Travel, Makeup each show **two rows** of cards per carousel page (not a single horizontal strip).
+4. **Copy:** brand cards read **`Cashback upto {rate}%`** (no space in "upto").
+5. No large empty gap between last home section and footer (spacing from `desktopFooterTopMargin` / `desktopFooterTopPadding` only — do not stack scroll `gap` before footer).
+
+Reference: `apps/app/AGENTS.md` (Desktop shell / footer), `apps/app/docs/desktop-nextjs-parity-plan.md`.
+
 ## Screenshot Comparison Rules
 
 Use screenshot comparison as a signal, not the only sign-off gate.

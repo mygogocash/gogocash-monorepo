@@ -132,17 +132,26 @@ function getDesktopShellHorizontalPaddingProbe(width: number): number {
   return mobileShellLayout.desktopHeaderPaddingMin;
 }
 
-describe("home Top Brands grid columns by device (fixed 8-column group, cards never balloon)", () => {
-  // Top Brands is a fixed 8-column x 2-row "group" with a fixed 16px gap on every device.
-  // The card is a fixed 176px and never resizes; the group is wider than narrow viewports
-  // and scrolls (showing ~6 + a peek), so cards can never balloon to fill the width.
-  it.each([390, 600, 834, 960, 1100, 1440])(
-    "viewport %i > 8 columns with fixed 176px cards and a 16px gap",
+describe("home Top Brands grid columns by device", () => {
+  it.each([390, 600, 834, 960])(
+    "viewport %i > mobile/tablet keeps the fixed 8-column sliding group",
     (viewportWidth) => {
       const layout = getResponsiveHomeLayoutMetrics(viewportWidth);
       expect(layout.topBrandColumns).toBe(8);
       expect(layout.topBrandCardWidth).toBe(176);
       expect(layout.topBrandGap).toBe(16);
+      expect(layout.topBrandGroupWidth).toBeGreaterThan(layout.brandSectionFrameWidth);
+    }
+  );
+
+  it.each([1100, 1440])(
+    "viewport %i > desktop fits two rows inside the content frame",
+    (viewportWidth) => {
+      const layout = getResponsiveHomeLayoutMetrics(viewportWidth);
+      expect(layout.isDesktop).toBe(true);
+      expect(layout.topBrandCardsPerPage).toBe(layout.topBrandColumns * 2);
+      expect(layout.topBrandGroupWidth).toBe(layout.brandSectionFrameWidth);
+      expect(layout.compactBrandGroupWidth).toBe(layout.brandSectionFrameWidth);
     }
   );
 });

@@ -2,7 +2,7 @@
 
 Dark mode applies to the **customer mobile app** (`apps/app`) only. Admin stays on its own theme.
 
-**Status (2026-06-22):** System / Light / Dark shipped in Account Settings. Core screens, shared chrome (header, profile bar, bottom nav, tab navigator), GoGoSense hub/banner, and wallet semantic status tints are migrated. Optional follow-up: colored metric/status pastels on Discovery, Quest, Credit Score, Referral, Money Action, and Shop Detail (wallet is the reference pattern).
+**Status (2026-06-24):** System / Light / Dark shipped in Account Settings. Core screens, shared chrome (header, profile bar, bottom nav, tab navigator, desktop footer), GoGoSense hub/banner, and wallet semantic status tints are migrated. Customer copy uses `colors.muted` instead of legacy `textSoft` where themed. Wallet/profile glass hero text on popover cards uses `pickThemed(colors, "#3B3B3B", …)` so dark mode keeps readable body ink on frosted panels. Optional follow-up: colored metric/status pastels on Discovery, Quest, Credit Score, Referral, Money Action, and Shop Detail (wallet is the reference pattern).
 
 ## User control
 

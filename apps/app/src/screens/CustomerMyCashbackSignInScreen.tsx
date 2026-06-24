@@ -246,6 +246,11 @@ export function CustomerMyCashbackSignInScreen() {
             style={[
               styles.heroBand,
               {
+                backgroundColor: pickThemed(
+                  colors,
+                  webLinkMyCashbackIntro.backgroundColor,
+                  isDesktop ? colors.card : colors.background
+                ),
                 paddingBottom: isDesktop ? 56 : Math.max(64, insets.bottom + spacing.xl),
                 paddingHorizontal: shellPadding,
                 paddingTop: isDesktop ? 52 : Math.max(spacing.xl, insets.top + spacing.xl),
@@ -344,7 +349,7 @@ export function CustomerMyCashbackSignInScreen() {
                         }
                         onFocus={() => setInputFocused(true)}
                         placeholder={linkCopy.phonePlaceholder}
-                        placeholderTextColor="#7F7F7F"
+                        placeholderTextColor={colors.muted}
                         style={[styles.input, styles.inputFlex, isInputFocused ? styles.inputFocused : null]}
                         value={phoneLocal}
                       />
@@ -360,7 +365,7 @@ export function CustomerMyCashbackSignInScreen() {
                       onChangeText={setEmailValue}
                       onFocus={() => setInputFocused(true)}
                       placeholder={linkCopy.emailPlaceholder}
-                      placeholderTextColor="#7F7F7F"
+                      placeholderTextColor={colors.muted}
                       style={[styles.input, styles.inputFull, isInputFocused ? styles.inputFocused : null]}
                       value={emailValue}
                     />
@@ -578,11 +583,10 @@ function createMyCashbackSignInScreenStyles(colors: ThemeColors) {
     backgroundColor: colors.card,
   },
   pageMobile: {
-    backgroundColor: webLinkMyCashbackIntro.backgroundColor,
+    backgroundColor: colors.background,
   },
   heroBand: {
     alignItems: "center",
-    backgroundColor: webLinkMyCashbackIntro.backgroundColor,
     flexGrow: 1,
     justifyContent: "center",
     minHeight: 620,
@@ -609,7 +613,7 @@ function createMyCashbackSignInScreenStyles(colors: ThemeColors) {
     textAlign: "center",
   },
   subtitle: {
-    color: "#4F6C78",
+    color: pickThemed(colors, "#4F6C78", colors.muted),
     fontFamily: typography.family,
     fontSize: typography.body,
     fontWeight: typography.bodyWeight,
@@ -673,8 +677,8 @@ function createMyCashbackSignInScreenStyles(colors: ThemeColors) {
   },
   radioOuter: {
     alignItems: "center",
-    backgroundColor: colors.card,
-    borderColor: "#989898",
+    backgroundColor: colors.field,
+    borderColor: pickThemed(colors, "#989898", colors.borderStrong),
     borderRadius: 12,
     borderWidth: 2,
     height: 24,
@@ -686,7 +690,7 @@ function createMyCashbackSignInScreenStyles(colors: ThemeColors) {
     borderColor: colors.primary,
   },
   radioInner: {
-    backgroundColor: colors.card,
+    backgroundColor: pickThemed(colors, colors.card, colors.ink),
     borderRadius: 5,
     height: 10,
     width: 10,
@@ -704,7 +708,8 @@ function createMyCashbackSignInScreenStyles(colors: ThemeColors) {
   },
   phonePrefix: {
     alignItems: "center",
-    borderColor: "rgba(169, 169, 169, 0.5)",
+    backgroundColor: colors.field,
+    borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1,
     justifyContent: "center",
@@ -717,7 +722,7 @@ function createMyCashbackSignInScreenStyles(colors: ThemeColors) {
     fontSize: 16,
   },
   input: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.field,
     borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1,
@@ -755,8 +760,8 @@ function createMyCashbackSignInScreenStyles(colors: ThemeColors) {
   },
   consentCheckbox: {
     alignItems: "center",
-    backgroundColor: colors.card,
-    borderColor: "#D0D5DD",
+    backgroundColor: colors.field,
+    borderColor: pickThemed(colors, "#D0D5DD", colors.borderStrong),
     borderRadius: 6,
     borderWidth: 2,
     height: 20,
@@ -775,7 +780,7 @@ function createMyCashbackSignInScreenStyles(colors: ThemeColors) {
     lineHeight: 18,
   },
   consentLink: {
-    color: colors.primaryDark,
+    color: pickThemed(colors, colors.primaryDark, colors.link),
     fontFamily: typography.family,
     fontSize: 13,
     fontWeight: "700",
@@ -901,24 +906,24 @@ function createMyCashbackSignInScreenStyles(colors: ThemeColors) {
     textAlign: "center",
   },
   backButton: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.field,
     borderColor: colors.primary,
     borderWidth: 1,
   },
   backButtonText: {
-    color: colors.primary,
+    color: pickThemed(colors, colors.primaryDark, colors.primary),
   },
   nextButton: {
     backgroundColor: colors.primary,
   },
   nextButtonDisabled: {
-    backgroundColor: colors.background,
+    backgroundColor: pickThemed(colors, "#ECECEC", colors.fieldMuted),
   },
   nextButtonText: {
     color: colors.white,
   },
   nextButtonTextDisabled: {
-    color: colors.textSoft,
+    color: colors.muted,
   },
   successBody: {
     alignItems: "center",
@@ -935,7 +940,7 @@ function createMyCashbackSignInScreenStyles(colors: ThemeColors) {
     textAlign: "center",
   },
   successDescription: {
-    color: "#5B6B61",
+    color: pickThemed(colors, "#5B6B61", colors.muted),
     fontFamily: typography.family,
     fontSize: 15,
     lineHeight: 22,
@@ -965,7 +970,7 @@ function createMyCashbackSignInScreenStyles(colors: ThemeColors) {
     fontWeight: "800",
   },
   successEditCodeText: {
-    color: colors.primaryDark,
+    color: pickThemed(colors, colors.primaryDark, colors.primary),
     fontFamily: typography.family,
     fontSize: 14,
     fontWeight: "600",

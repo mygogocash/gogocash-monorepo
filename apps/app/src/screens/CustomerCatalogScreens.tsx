@@ -64,7 +64,7 @@ export function CustomerCatalogHomeScreen() {
           <Image source={{ uri: data.banners[0].image_url }} style={styles.heroImage} />
           <View style={styles.heroText}>
             <Text style={[styles.heroTitle, { color: colors.ink }]}>{data.banners[0].title}</Text>
-            {data.banners[0].subtitle ? <Text style={[styles.bodyText, { color: colors.textSoft }]}>{data.banners[0].subtitle}</Text> : null}
+            {data.banners[0].subtitle ? <Text style={[styles.bodyText, { color: colors.muted }]}>{data.banners[0].subtitle}</Text> : null}
           </View>
         </Pressable>
       ) : null}
@@ -77,6 +77,7 @@ export function CustomerCatalogHomeScreen() {
           </View>
         ))}
       </View>
+      {!loading && !data.shops.length ? <StateText label="No shops available yet." /> : null}
       <SectionTitle title="Products" />
       <View style={styles.productGrid}>
         {data.products.map((product) => (
@@ -116,7 +117,7 @@ export function CustomerProductDetailScreen() {
       {product.images?.[0] ? <Image source={{ uri: product.images[0] }} style={styles.detailImage} /> : null}
       <Text style={[styles.title, { color: colors.ink }]}>{product.title}</Text>
       <Text style={[styles.price, { color: colors.ink }]}>{formatMoney(product.price_amount, product.currency)}</Text>
-      {product.description ? <Text style={[styles.bodyText, { color: colors.textSoft }]}>{product.description}</Text> : null}
+      {product.description ? <Text style={[styles.bodyText, { color: colors.muted }]}>{product.description}</Text> : null}
       <Pressable disabled={adding} onPress={addToCart} style={[styles.primaryButton, adding ? styles.disabledButton : null]}>
         <Text style={styles.primaryButtonText}>{adding ? "Adding..." : "Add to cart"}</Text>
       </Pressable>
@@ -148,7 +149,7 @@ export function CustomerCartScreen() {
       {cart?.items.map((item) => (
         <View key={`${item.product_id}-${item.variant_sku}`} style={[styles.rowCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.tileTitle, { color: colors.ink }]}>{item.title}</Text>
-          <Text style={[styles.bodyText, { color: colors.textSoft }]}>Qty {item.quantity} · {formatMoney(item.unit_amount, item.currency)}</Text>
+          <Text style={[styles.bodyText, { color: colors.muted }]}>Qty {item.quantity} · {formatMoney(item.unit_amount, item.currency)}</Text>
         </View>
       ))}
       {!cart?.items.length && !loading ? <StateText label="Your cart is empty." /> : null}
@@ -172,7 +173,7 @@ export function CustomerOrdersScreen() {
       {orders.map((order) => (
         <View key={order._id} style={[styles.rowCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.tileTitle, { color: colors.ink }]}>{order.order_number}</Text>
-          <Text style={[styles.bodyText, { color: colors.textSoft }]}>{order.status.replaceAll("_", " ")} · {formatMoney(order.total_amount, order.currency)}</Text>
+          <Text style={[styles.bodyText, { color: colors.muted }]}>{order.status.replaceAll("_", " ")} · {formatMoney(order.total_amount, order.currency)}</Text>
         </View>
       ))}
       {!orders.length && !loading ? <StateText label="No orders yet." /> : null}
@@ -196,7 +197,7 @@ function ProductCard({ product }: { product: CustomerCatalogProduct }) {
     <Pressable onPress={() => router.push(`/catalog/product/${product.slug}`)} style={[styles.productCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
       {product.images?.[0] ? <Image source={{ uri: product.images[0] }} style={styles.productImage} /> : <View style={[styles.productImage, { backgroundColor: colors.border }]} />}
       <Text numberOfLines={2} style={[styles.tileTitle, { color: colors.ink }]}>{product.title}</Text>
-      <Text style={[styles.bodyText, { color: colors.textSoft }]}>{formatMoney(product.price_amount, product.currency)}</Text>
+      <Text style={[styles.bodyText, { color: colors.muted }]}>{formatMoney(product.price_amount, product.currency)}</Text>
     </Pressable>
   );
 }
@@ -208,7 +209,7 @@ function SectionTitle({ title }: { title: string }) {
 
 function StateText({ label }: { label: string }) {
   const { colors } = useTheme();
-  return <Text style={[styles.bodyText, { color: colors.textSoft }]}>{label}</Text>;
+  return <Text style={[styles.bodyText, { color: colors.muted }]}>{label}</Text>;
 }
 
 function StatePage({ label, actionLabel, onAction }: { label: string; actionLabel?: string; onAction?: () => void }) {

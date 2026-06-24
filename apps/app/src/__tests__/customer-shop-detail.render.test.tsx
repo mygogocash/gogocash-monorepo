@@ -125,4 +125,9 @@ describe("CustomerShopDetailScreen — Wave B foundations adopted (source signal
   it("encodes dynamic category links so backend categories with spaces and ampersands route correctly", () => {
     expect(shopSource).toContain("encodeURIComponent(shop.category)");
   });
+
+  it("related store captions > given dark mode > then secondary cashback copy uses muted ink", () => {
+    expect(shopSource).toMatch(/relatedCashbackCaption:[\s\S]*?color: colors\.muted/);
+    expect(shopSource).not.toMatch(/relatedCashbackCaption:[\s\S]*?color: colors\.textSoft/);
+  });
 });

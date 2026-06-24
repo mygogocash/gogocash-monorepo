@@ -30,6 +30,7 @@ Account Settings → **Appearance** offers **System**, **Light**, and **Dark**. 
 npm --prefix apps/app run typecheck      # tsc --noEmit
 npm --prefix apps/app run test           # node logic + source-grep contract/parity suite
 npm --prefix apps/app run test:render    # happy-dom render suite (@testing-library/react)
+npm --prefix apps/app run measure:bundle # optional web bundle size budget check
 ```
 
 UI changes additionally require live verification on Expo web. Many tests are **contract tests** that pin endpoint strings, env defaults, the 15 session fields, and copy — if one fails after a rename, read the test before changing code (see `docs/api-integration.md` §6).

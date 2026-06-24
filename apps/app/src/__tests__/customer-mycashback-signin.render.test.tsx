@@ -59,4 +59,12 @@ describe("CustomerMyCashbackSignInScreen — Wave A adoption (source)", () => {
     expect(src).toContain("haptics.success(");
     expect(src).toContain("haptics.error(");
   });
+
+  it("themes the linking form for dark mode (field surfaces, muted placeholders, themed hero band)", () => {
+    expect(src).toContain("isDesktop ? colors.card : colors.background");
+    expect(src).toContain("placeholderTextColor={colors.muted}");
+    expect(src).toContain("backgroundColor: colors.field");
+    expect(src).toContain('pickThemed(colors, colors.primaryDark, colors.link)');
+    expect(src).toContain('pickThemed(colors, "#ECECEC", colors.fieldMuted)');
+  });
 });

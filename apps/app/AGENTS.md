@@ -24,7 +24,8 @@ Concise guidance for AI coding agents and contributors working in `apps/app/`. *
 | Session fields / env          | `src/config/mobileAppConfig.ts` (`mobileSessionFields`), `src/config/env.ts` (`getMobileEnv`)                  |
 | Web-parity copy + fixtures    | `src/design/webDesignParity.ts`                                                                                |
 | Navigation model              | `src/navigation/routes.ts` (`mobileParityRoutes` + `requiresAuth`), `src/navigation/profileSectionNav.ts`     |
-| Shared UI                     | `src/components/MotionPressable.tsx`, `KeyboardAwareScreen.tsx`, `Toast.tsx`, `Skeleton.tsx`                   |
+| Shared UI                     | `src/components/BrandCard.tsx` (compact `size="S"` / Top Brands `size="L"`), `CustomerDesktopFooter.tsx`, `CustomerDesktopHeader.tsx`, `MotionPressable.tsx`, `KeyboardAwareScreen.tsx`, `Toast.tsx`, `Skeleton.tsx` |
+| Desktop shell / footer        | Header: full viewport width. Footer: same full-bleed band (`marginLeft: -horizontalPadding`, `width: viewportWidth`); **inside page `ScrollView`** in `desktopFooterCap`, not a flex sibling below scroll. Pass `horizontalPadding={getDesktopShellOffset(width)}` when the cap is centered at 1440px. |
 | Dark mode / theming           | `src/theme/ThemeProvider.tsx`, `useThemedStyles.ts`, `AppearanceSection.tsx`, `CustomerAccountSettingsScreen` — System / Light / Dark preference in Account Settings. Customer app only; admin has its own theme. |
 | GoGoSense (Android detection) | `src/gogosense/*` (detector → session → hooks), `src/screens/CustomerGoGoSenseScreen.tsx`, native `modules/gogosense-detector/`. **Inject the live `gogosenseDetector` from the route, never import `detectorInstance` in the screen** — it pulls `expo-modules-core`, which crashes the happy-dom render harness. Data hooks resolve `null` off-device → static fallback. See [README.md#gogosense--android-cashback-detection](README.md). |
 
@@ -80,11 +81,20 @@ When in doubt, search `apps/app/src` for an existing pattern before introducing 
 - Ship **System / Light / Dark** in Account Settings from day one — not a system-only v1 with toggle deferred.
 - Core customer-app dark mode (screens + shared chrome + GoGoSense) is **shipped**; optional follow-up is semantic status/metric pastels on a few content screens (Discovery, Quest, etc. — wallet is the template).
 - No Next.js customer-web dark tokens exist — draft palette in-repo (`colorPalettes.ts`, `docs/dark-mode.md`).
+- Category/store grids should reuse home compact **`BrandCard` (`size="S"`)**, not bespoke per-screen card layouts.
+- Keep Expo web preview console clean on main routes — no RN Web deprecation warnings, no broken fixture logo CDN 404s.
 
 ## Learned Workspace Facts
 
 - Monorepo sibling apps for local dev: `apps/api` NestJS **:8080**, `apps/admin` Next.js **:3000**, `apps/app` Expo web **:8081**.
 - npm workspaces hoist inconsistently — run `npm ci` at the monorepo root; if `-w` workspace dev commands fail module resolution, start from `apps/app` or `apps/admin`, or run the API with `NODE_PATH=./node_modules node dist/main`.
 - Theme preference persists under `gogocash.theme.preference` (web `localStorage`, native `expo-secure-store`); default is `system`.
-- New themed UI: `useThemedStyles(createStyles)` + `useTheme()` for live colors; avoid new static `import { colors }` except legacy/parity paths. Gate web-only light `backgroundImage` gradients with `colors.isDark`.
+- New themed UI: `useThemedStyles(createStyles)` + `useTheme()` for live colors; use `colors.field` / `colors.fieldMuted` / `colors.link` for nested controls on cards (not `colors.white` as a surface). Parity-pinned light hex: `pickThemed(colors, light, dark)` from `colorPalettes.ts`. Gate web-only light `backgroundImage` gradients with `colors.isDark`.
 - Render suite: `vitest.render.setup.ts` wraps all mounts in `<ThemeProvider>`.
+- Shared **`BrandCard`** (`src/components/BrandCard.tsx`): `size="S"` compact (Trending Brands rails, category grids), `size="L"` Top Brands (coupon chip + heart).
+- Scaled compact grid cards: **`getScaledCompactBrandCardMetrics()`** in `webDesignParity.ts` — logo area scales with column width; card height must reserve fixed **`compactBrandMetaHeight`** (typography stays 14px/16px).
+- Shop/brand directory desktop grid: **`getShopDirectoryGridMetrics`** caps at **5 columns** for ≥1024px (`/shops` and `/brand` share the helper).
+- Desktop home brand rails (Top Brands, Trending, Travel, Makeup): **2 rows** via **`getDesktopBrandColumnsPerRow()`**; carousel page width = **`brandSectionFrameWidth`** (not the old fixed 8-column strip). Mobile/tablet keep 3-column × 2-row sliding groups.
+- Cashback card label copy is **`Cashback upto`** (no space) — `webDesignParity.cashbackLabel` + i18n; do not revert to "Cashback up to".
+- Home desktop spacing tokens: `desktopHomeTopGap` (64), `desktopHomeStackGap` (40), `desktopFooterTopMargin` (40), `desktopFooterTopPadding` (56) — do not also gap the scroll container before the footer (that stacks empty space).
+- Optional bundle budget check: `npm --prefix apps/app run measure:bundle` (`scripts/measure-web-bundle.mjs`).

@@ -1,12 +1,17 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readHomeSources } from "../test-support/homeSource";
 import { describe, expect, it } from "vitest";
 
 import { getInteractionTransformStyle, getPressedScaleStyle, motion } from "@mobile/theme/motion";
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const mobileRoot = path.resolve(testDir, "../..");
+
+function readHomeFile() {
+  return readHomeSources(mobileRoot);
+}
 
 describe("Expo motion interaction parity", () => {
   it("motion tokens > given Next css motion contract > then Expo exports matching values", () => {
@@ -77,10 +82,7 @@ describe("Expo motion interaction parity", () => {
   });
 
   it("home interactions > given staged carousels > then Expo tracks active dots from scroll", () => {
-    const homeFile = fs.readFileSync(
-      path.join(mobileRoot, "src/screens/CustomerHomeScreen.tsx"),
-      "utf8"
-    );
+    const homeFile = readHomeFile();
 
     expect(homeFile).toContain("getPagedScrollIndex");
     expect(homeFile).toContain("getCarouselDotCount");
@@ -96,10 +98,7 @@ describe("Expo motion interaction parity", () => {
   });
 
   it("home interactions > given tappable home cards and bottom nav > then Expo uses shared press feedback", () => {
-    const homeFile = fs.readFileSync(
-      path.join(mobileRoot, "src/screens/CustomerHomeScreen.tsx"),
-      "utf8"
-    );
+    const homeFile = readHomeFile();
     const motionPressableFile = fs.readFileSync(
       path.join(mobileRoot, "src/components/MotionPressable.tsx"),
       "utf8"
@@ -117,10 +116,7 @@ describe("Expo motion interaction parity", () => {
   });
 
   it("home interactions > given search popover is dismissed > then Expo runs exit animation before unmounting", () => {
-    const homeFile = fs.readFileSync(
-      path.join(mobileRoot, "src/screens/CustomerHomeScreen.tsx"),
-      "utf8"
-    );
+    const homeFile = readHomeFile();
 
     expect(homeFile).toContain("searchPopoverMounted");
     expect(homeFile).toContain("closeSearchPopover");

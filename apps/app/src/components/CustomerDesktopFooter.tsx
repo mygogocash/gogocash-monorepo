@@ -10,6 +10,7 @@ import { useCopy } from "@mobile/i18n/useCopy";
 import {
   getDesktopFooterGrid,
   getDesktopShellContentWidth,
+  mobileShellLayout,
   webDesktopFooter,
 } from "@mobile/design/webDesignParity";
 import { motion } from "@mobile/theme/motion";
@@ -218,9 +219,9 @@ function createFooterStyles(colors: ThemeColors, surfaces: ThemeSurfaces) {
   return StyleSheet.create({
     footerOuter: {
       backgroundColor: colors.card,
-      marginTop: 40,
+      marginTop: mobileShellLayout.desktopFooterTopMargin,
       paddingBottom: 32,
-      paddingTop: 80,
+      paddingTop: mobileShellLayout.desktopFooterTopPadding,
     },
   footerContent: {
     alignSelf: "center",

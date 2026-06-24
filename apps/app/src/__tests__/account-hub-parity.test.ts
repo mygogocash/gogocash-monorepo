@@ -287,6 +287,9 @@ describe("Account hub route parity", () => {
     expect(shellFile).toContain("webProfileWalletHeroSurface.outerColor");
     expect(shellFile).toContain("webProfileWalletHeroSurface.glassFallbackColor");
     expect(shellFile).toContain("webProfileWalletHeroSurface.glassBorderColor");
+    expect(shellFile).toContain('const walletGlassInk = "#3B3B3B"');
+    expect(shellFile).toContain("color: walletGlassInk");
+    expect(shellFile).not.toMatch(/walletKicker:\s*\{[^}]*color:\s*colors\.ink/);
     expect(shellFile).not.toContain('backgroundColor: "rgba(194, 232, 246, 0.88)"');
     expect(shellFile).not.toContain('backgroundColor: "rgba(112, 157, 255, 0.28)"');
     expect(shellFile).toContain("marginTop: -10");

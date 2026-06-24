@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import * as webDesignParity from "@mobile/design/webDesignParity";
+import { readDiscoverySources } from "../test-support/discoverySource";
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const mobileRoot = path.resolve(testDir, "../..");
@@ -157,12 +158,9 @@ describe("Product discovery parity", () => {
   });
 
   it("product discovery screen > given /discover route > then it renders the dedicated page instead of the generic placeholder", () => {
-    const screenFile = fs.readFileSync(
-      path.join(mobileRoot, "src/screens/CustomerDiscoveryScreen.tsx"),
-      "utf8"
-    );
+    const screenFile = readDiscoverySources(mobileRoot);
 
-    expect(screenFile).toContain("ProductDiscoveryScreen");
+    expect(screenFile).toContain("CustomerProductDiscoveryScreen");
     expect(screenFile).toContain("webProductDiscovery");
     expect(screenFile).toContain("getProductDiscoveryResults");
     expect(screenFile).toContain("productDiscoveryMobileFilters");

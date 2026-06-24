@@ -444,6 +444,9 @@ function useAccountPageShellStyles() {
 
 
 function createAccountPageShellStyles(colors: ThemeColors, surfaces: ThemeSurfaces) {
+  // Frosted wallet glass stays light in every theme; body copy stays #3B3B3B.
+  const walletGlassInk = "#3B3B3B";
+
   return StyleSheet.create({
   viewport: {
     alignItems: "center",
@@ -650,7 +653,7 @@ function createAccountPageShellStyles(colors: ThemeColors, surfaces: ThemeSurfac
     paddingTop: 24,
   },
   walletKicker: {
-    color: colors.ink,
+    color: walletGlassInk,
     fontFamily: typography.family,
     fontSize: 15,
     fontWeight: typography.bodyWeight,
@@ -662,21 +665,21 @@ function createAccountPageShellStyles(colors: ThemeColors, surfaces: ThemeSurfac
     gap: spacing.xs,
   },
   walletAmount: {
-    color: colors.ink,
+    color: walletGlassInk,
     fontFamily: typography.family,
     fontSize: 48,
     fontWeight: "600",
     lineHeight: 56,
   },
   walletCurrency: {
-    color: colors.ink,
+    color: walletGlassInk,
     fontFamily: typography.family,
     fontSize: 20,
     fontWeight: "600",
     paddingBottom: 7,
   },
   walletUpdated: {
-    color: colors.ink,
+    color: walletGlassInk,
     fontFamily: typography.family,
     fontSize: 14,
   },

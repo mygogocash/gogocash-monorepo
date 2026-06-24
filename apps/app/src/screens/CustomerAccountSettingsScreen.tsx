@@ -530,7 +530,7 @@ function createAccountSettingsScreenStyles(colors: ThemeColors) {
     fontWeight: "600",
   },
   pdpaFootnote: {
-    color: colors.textSoft,
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: 12,
     lineHeight: 18,

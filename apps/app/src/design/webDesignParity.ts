@@ -35,6 +35,10 @@ export const mobileShellLayout = {
   desktopSubNavHeight: 56,
   desktopHomeTopGap: 64,
   desktopHomeStackGap: 40,
+  // Space between page content and the full-bleed desktop footer band (margin + inner
+  // padding). Do not also gap the scroll container before the footer — that stacks.
+  desktopFooterTopMargin: 40,
+  desktopFooterTopPadding: 56,
   contentTopGap: 24,
   // Promotion banners are designed at 1920x1080 (16:9). Show the FULL design fit
   // to width (no crop) on every class; size is governed by the per-class canvas
@@ -196,6 +200,29 @@ const FIXED_COMPACT_BRAND_CARD_HEIGHT = 176;
 const FIXED_COMPACT_BRAND_LOGO_VISUAL_HEIGHT = 117;
 const MOBILE_TABLET_HOME_SECTION_HORIZONTAL_PADDING = 24;
 
+/** How many fixed-width brand cards fit in one row inside the desktop content frame. */
+export function getDesktopBrandColumnsPerRow(
+  frameWidth: number,
+  cardWidth: number,
+  gap: number
+) {
+  return Math.max(1, Math.floor((frameWidth + gap) / (cardWidth + gap)));
+}
+
+export function getScaledCompactBrandCardMetrics(cardWidth: number) {
+  const scale = cardWidth / FIXED_COMPACT_BRAND_CARD_WIDTH;
+  const logoVisualHeight = Math.round(FIXED_COMPACT_BRAND_LOGO_VISUAL_HEIGHT * scale);
+  // Logo area scales with column width, but title + cashback typography stays fixed
+  // (14px / 16px). Reserve compactBrandMetaHeight so scaled grid cards never clip text.
+  const cardHeight =
+    16 + logoVisualHeight + mobileShellLayout.compactBrandMetaHeight;
+
+  return {
+    cardHeight,
+    logoVisualHeight,
+  };
+}
+
 type HomeDesignVersion = "mobile" | "tablet" | "desktop";
 
 const homeDesignVersions: Record<
@@ -281,40 +308,67 @@ export function getResponsiveHomeLayoutMetrics(viewportWidth: number) {
     : roundLayoutValue(
         Math.max(0, contentWidth - MOBILE_TABLET_HOME_SECTION_HORIZONTAL_PADDING * 2)
       );
-  // Top Brands is a fixed 8-column x 2-row "group" with a fixed gap that slides as a unit
-  // (no animation). The group is wider than the viewport on most screens, so ~6 cards show
-  // with a partial peek card at the edge; the card itself never resizes.
-  const topBrandColumns = 8;
-  const isMobileTopBrandGrid = false;
+  // Mobile/tablet: fixed 8-column x 2-row groups slide horizontally with a peek card.
+  // Desktop: fit the content frame — two rows, as many columns as the frame allows.
+  const mobileGroupBrandColumns = 8;
   const topBrandCardWidth = designFrame.topBrandCardWidth;
   const topBrandGap = 16;
-  const topBrandGroupWidth = roundLayoutValue(
-    topBrandColumns * topBrandCardWidth + (topBrandColumns - 1) * topBrandGap
-  );
-  // Compact rails mirror Top Brands: a fixed 8-column x 2-row "group" with a fixed 16px gap
-  // that slides as one unit (no animation). The group is wider than the viewport on most
-  // screens, so it overflows and scrolls with a partial peek card; the card never resizes.
-  const compactBrandColumns = 8;
+  const isMobileTopBrandGrid = false;
+  const topBrandColumnsPerRow = isDesktop
+    ? getDesktopBrandColumnsPerRow(brandSectionFrameWidth, topBrandCardWidth, topBrandGap)
+    : mobileGroupBrandColumns;
+  const topBrandGroupWidth = isDesktop
+    ? brandSectionFrameWidth
+    : roundLayoutValue(
+        mobileGroupBrandColumns * topBrandCardWidth +
+          (mobileGroupBrandColumns - 1) * topBrandGap
+      );
   const compactBrandCardWidth = designFrame.compactBrandCardWidth;
   const compactBrandGap = 16;
-  const compactBrandGroupWidth = roundLayoutValue(
-    compactBrandColumns * compactBrandCardWidth + (compactBrandColumns - 1) * compactBrandGap
-  );
+  const compactBrandColumnsPerRow = isDesktop
+    ? getDesktopBrandColumnsPerRow(
+        brandSectionFrameWidth,
+        compactBrandCardWidth,
+        compactBrandGap
+      )
+    : mobileGroupBrandColumns;
+  const compactBrandGroupWidth = isDesktop
+    ? brandSectionFrameWidth
+    : roundLayoutValue(
+        mobileGroupBrandColumns * compactBrandCardWidth +
+          (mobileGroupBrandColumns - 1) * compactBrandGap
+      );
   const compactBrandLogoVisualHeight = designFrame.compactBrandLogoVisualHeight;
   const compactBrandCardHeight = designFrame.compactBrandCardHeight;
   const compactBrandCardsPerPage =
-    compactBrandColumns *
+    compactBrandColumnsPerRow *
     (isDesktop
       ? mobileShellLayout.compactBrandDesktopRowsPerPage
       : mobileShellLayout.compactBrandMobileRowsPerPage);
+  const topBrandRowsPerPage = 2;
+  const compactBrandRowsPerPage = isDesktop
+    ? mobileShellLayout.compactBrandDesktopRowsPerPage
+    : mobileShellLayout.compactBrandMobileRowsPerPage;
+  const topBrandCardHeight =
+    topBrandCardWidth === designFrame.topBrandCardWidth
+      ? designFrame.topBrandCardHeight
+      : roundLayoutValue(topBrandCardWidth + mobileShellLayout.topBrandMetaHeight);
+  const topBrandGridHeight = roundLayoutValue(
+    topBrandRowsPerPage * topBrandCardHeight + (topBrandRowsPerPage - 1) * topBrandGap
+  );
+  const compactBrandGridHeight = roundLayoutValue(
+    compactBrandRowsPerPage * compactBrandCardHeight +
+      (compactBrandRowsPerPage - 1) * compactBrandGap
+  );
 
   return {
     brandSectionFrameWidth,
     compactBrandCardHeight,
     compactBrandCardWidth,
     compactBrandCardsPerPage,
-    compactBrandColumns,
+    compactBrandColumns: compactBrandColumnsPerRow,
     compactBrandGap,
+    compactBrandGridHeight,
     compactBrandGroupWidth,
     compactBrandLogoVisualHeight,
     contentHorizontalPadding,
@@ -327,19 +381,17 @@ export function getResponsiveHomeLayoutMetrics(viewportWidth: number) {
       ? mobileShellLayout.desktopBottomClearance
       : mobileShellLayout.bottomNavClearance + 24,
     showBottomNav: !isDesktop,
-    topBrandCardHeight:
-      topBrandCardWidth === designFrame.topBrandCardWidth
-        ? designFrame.topBrandCardHeight
-        : roundLayoutValue(topBrandCardWidth + mobileShellLayout.topBrandMetaHeight),
+    topBrandCardHeight,
     topBrandCardWidth,
     topBrandCardsPerPage: isMobileTopBrandGrid
       ? mobileShellLayout.topBrandMobilePageCardCount
-      : topBrandColumns * 2,
-    topBrandColumns,
+      : topBrandColumnsPerRow * topBrandRowsPerPage,
+    topBrandColumns: topBrandColumnsPerRow,
     topBrandDotCount: isMobileTopBrandGrid
       ? mobileShellLayout.topBrandMobileDotCount
       : mobileShellLayout.topBrandDesktopDotCount,
     topBrandGap,
+    topBrandGridHeight,
     topBrandGroupWidth,
   };
 }
@@ -2108,15 +2160,13 @@ export function getShopDirectoryGridMetrics({
   viewportWidth: number;
 }) {
   const columns =
-    viewportWidth >= 1280
-      ? 6
-      : viewportWidth >= 1024
-        ? 5
-        : viewportWidth >= 768
-          ? 4
-          : viewportWidth >= 640
-            ? 3
-            : 2;
+    viewportWidth >= 1024
+      ? 5
+      : viewportWidth >= 768
+        ? 4
+        : viewportWidth >= 640
+          ? 3
+          : 2;
   const gap = viewportWidth >= 1024 ? 24 : viewportWidth >= 640 ? 16 : 12;
   const cardWidth = roundLayoutValue((contentWidth - gap * Math.max(0, columns - 1)) / columns);
 
@@ -2229,7 +2279,7 @@ export const webHomePromoSections = [
         tint: "#0F9F6E",
       },
       { brand: "Stellar Mart", cashback: "9.0%", logoUri: "https://cdn.simpleicons.org/spotify/ffffff", tint: "#6366F1" },
-      { brand: "Cloud Pantry", cashback: "7.5%", logoUri: "https://cdn.simpleicons.org/amazon/ffffff", tint: "#2563EB" },
+      { brand: "Cloud Pantry", cashback: "7.5%", logoUri: "https://cdn.simpleicons.org/instacart/ffffff", tint: "#2563EB" },
       { brand: "Velvet Threads", cashback: "13.0%", logoUri: "https://cdn.simpleicons.org/ebay/ffffff", tint: "#0EA5E9" },
       { brand: "Pixel Bazaar", cashback: "6.0%", logoUri: "https://cdn.simpleicons.org/ikea/ffffff", tint: "#10B981" },
       { brand: "Lumen Living", cashback: "8.0%", logoUri: "https://cdn.simpleicons.org/instacart/ffffff", tint: "#F59E0B" },
@@ -2943,11 +2993,55 @@ export const webShopDetailGroceryGalaxy = {
   },
   cashbackTips: {
     title: "Cashback Tips",
-    illustrationAsset: "merchant-cashback-tips-terms",
-    illustrationWidth: 368,
-    illustrationHeight: 1337,
-    illustrationAlt:
-      "Cashback tips: excluded Live and Video cart items; check terms and caps; start from this platform; avoid ad blockers and third-party links; empty cart when required; restart if payment fails; accept store cookies.",
+    tips: [
+      {
+        id: "excluded-products",
+        kind: "highlight",
+        badgeKey: "excludedProductsLabel",
+        leadKey: "excludedProductsTipLead",
+        emphasisKey: "excludedProductsTipEmphasis",
+        showLiveVideoLabels: true,
+      },
+      {
+        id: "check-terms",
+        kind: "text",
+        titleKey: "merchantCashbackTipCheckTermsTitle",
+        bodyKey: "merchantCashbackTipCheckTermsBody",
+      },
+      {
+        id: "restart-platform",
+        kind: "text",
+        titleKey: "merchantCashbackTipRestartPlatformTitle",
+        bodyKey: "merchantCashbackTipRestartPlatformBody",
+      },
+      {
+        id: "no-adblock",
+        kind: "text",
+        titleKey: "merchantCashbackTipNoAdblockTitle",
+        bodyKey: "merchantCashbackTipNoAdblockBody",
+      },
+      {
+        id: "empty-cart",
+        kind: "text",
+        titleKey: "merchantCashbackTipEmptyCartTitle",
+        bodyKey: "merchantCashbackTipEmptyCartBody",
+        merchantCategories: ["travel"],
+      },
+      {
+        id: "payment-fail",
+        kind: "text",
+        titleKey: "merchantCashbackTipPaymentFailTitle",
+        bodyKey: "merchantCashbackTipPaymentFailBody",
+        merchantCategories: ["travel"],
+      },
+      {
+        id: "accept-cookies",
+        kind: "text",
+        titleKey: "merchantCashbackTipAcceptCookiesTitle",
+        bodyKey: "merchantCashbackTipAcceptCookiesBody",
+        merchantCategories: ["travel"],
+      },
+    ],
   },
   terms: {
     eyebrow: "💡",
@@ -3078,7 +3172,7 @@ export const webFavoriteBrandsPage = {
   searchPlaceholder: "Search brands",
   sortLabel: "Sort by",
   grabCouponLabel: "Grab Coupon",
-  cashbackLabel: "Cashback up to",
+  cashbackLabel: "Cashback upto",
   recentBrands: [
     {
       id: "brand-grocery-galaxy-1001",

@@ -650,7 +650,7 @@ function ShopCard({
       <View style={styles.shopTitleRow}>
         <View style={styles.shopTitleCopy}>
           <Text style={styles.shopTitle}>{title}</Text>
-          <Text style={styles.cashbackLabel}>Cashback up to</Text>
+          <Text style={styles.cashbackLabel}>Cashback upto</Text>
         </View>
         <Text style={styles.cashbackValue}>{cashback}</Text>
       </View>
@@ -735,8 +735,8 @@ function createNativeParityScreenStyles(colors: ThemeColors) {
   bottomNav: {
     alignItems: "flex-end",
     alignSelf: "center",
-    backgroundColor: "rgba(255,255,255,0.92)",
-    borderColor: "rgba(255,255,255,0.6)",
+    backgroundColor: pickThemed(colors, "rgba(255,255,255,0.92)", colors.card),
+    borderColor: pickThemed(colors, "rgba(255,255,255,0.6)", colors.border),
     borderRadius: 28,
     borderWidth: 1,
     flexDirection: "row",
@@ -774,7 +774,7 @@ function createNativeParityScreenStyles(colors: ThemeColors) {
     marginBottom: spacing.sm,
   },
   cashbackLabel: {
-    color: colors.textSoft,
+    color: colors.muted,
     fontSize: 8,
   },
   cashbackValue: {
@@ -936,8 +936,8 @@ function createNativeParityScreenStyles(colors: ThemeColors) {
   },
   goLinkIllustration: {
     alignSelf: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.62)",
-    borderColor: "rgba(0, 170, 128, 0.16)",
+    backgroundColor: pickThemed(colors, "rgba(255, 255, 255, 0.62)", colors.field),
+    borderColor: pickThemed(colors, "rgba(0, 170, 128, 0.16)", "rgba(0, 204, 153, 0.25)"),
     borderRadius: 24,
     borderWidth: 1,
     gap: 10,
@@ -996,7 +996,7 @@ function createNativeParityScreenStyles(colors: ThemeColors) {
     padding: spacing.md,
   },
   heroBadgeLabel: {
-    color: colors.textSoft,
+    color: colors.muted,
     fontSize: typography.caption,
     marginTop: 2,
   },
@@ -1337,7 +1337,7 @@ function createNativeParityScreenStyles(colors: ThemeColors) {
     width: "100%",
   },
   searchPlaceholder: {
-    color: colors.textSoft,
+    color: colors.muted,
     flexShrink: 1,
     fontSize: typography.body,
   },
@@ -1513,8 +1513,8 @@ function createNativeParityScreenStyles(colors: ThemeColors) {
   },
   webGoLinkInput: {
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.96)",
-    borderColor: "rgba(0, 170, 128, 0.35)",
+    backgroundColor: pickThemed(colors, "rgba(255, 255, 255, 0.96)", colors.field),
+    borderColor: pickThemed(colors, "rgba(0, 170, 128, 0.35)", "rgba(0, 204, 153, 0.35)"),
     borderRadius: radii.md,
     borderWidth: 1,
     flexDirection: "row",
@@ -1544,8 +1544,8 @@ function createNativeParityScreenStyles(colors: ThemeColors) {
   },
   walletBody: {
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.36)",
-    borderColor: "rgba(255,255,255,0.4)",
+    backgroundColor: pickThemed(colors, "rgba(255,255,255,0.36)", "rgba(255,255,255,0.1)"),
+    borderColor: pickThemed(colors, "rgba(255,255,255,0.4)", "rgba(255,255,255,0.16)"),
     borderRadius: 16,
     borderWidth: 1,
     flex: 1,

@@ -553,7 +553,7 @@ function ExploreShopCard({ isDesktop, shop }: { isDesktop: boolean; shop: Explor
                 isDesktop ? styles.exploreCashbackLabelDesktop : null,
               ]}
             >
-              {tc("Cashback up to")}
+              {tc("Cashback upto")}
             </Text>
             <Text
               style={[

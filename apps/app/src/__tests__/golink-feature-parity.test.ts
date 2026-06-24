@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import * as webDesignParity from "@mobile/design/webDesignParity";
+import { readHomeSources } from "../test-support/homeSource";
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const mobileRoot = path.resolve(testDir, "../..");
@@ -102,6 +103,24 @@ describe("GoGoLink feature parity", () => {
     expect(screenFile).toContain('top: 9999');
   });
 
+  it("golink home banner > given dark mode > then frosted pills and controls adapt via pickThemed", () => {
+    const homeFile = readHomeSources(mobileRoot);
+
+    expect(homeFile).toMatch(
+      /desktopGoLinkStep:\s*\{[\s\S]*?backgroundColor: pickThemed\(colors, "rgba\(255, 255, 255, 0\.6\)"/,
+    );
+    expect(homeFile).toMatch(
+      /desktopGoLinkEyebrow:\s*\{[\s\S]*?backgroundColor: pickThemed\(colors/,
+    );
+    expect(homeFile).toMatch(
+      /desktopGoLinkIllustrationWrap:\s*\{[\s\S]*?backgroundColor: pickThemed\(colors/,
+    );
+    expect(homeFile).toMatch(
+      /desktopGoLinkInputShell:\s*\{[\s\S]*?backgroundColor: pickThemed\(colors/,
+    );
+    expect(homeFile).toContain('pickThemed(colors, "rgba(10, 92, 74, 0.55)"');
+  });
+
   it("golink home modal > given selected Next home sheet > then Expo keeps measured first viewport layout and close contract", () => {
     expect((webDesignParity as { webGoLinkModalLayout?: unknown }).webGoLinkModalLayout).toEqual({
       sheetMobileHeight: 464,
@@ -115,10 +134,7 @@ describe("GoGoLink feature parity", () => {
       inputActionGap: 12,
     });
 
-    const homeFile = fs.readFileSync(
-      path.join(mobileRoot, "src/screens/CustomerHomeScreen.tsx"),
-      "utf8"
-    );
+    const homeFile = readHomeSources(mobileRoot);
     const screenFile = fs.readFileSync(
       path.join(mobileRoot, "src/screens/CustomerGoLinkScreen.tsx"),
       "utf8"
@@ -155,10 +171,10 @@ describe("GoGoLink feature parity", () => {
       "utf8"
     );
 
-    expect(screenFile).toContain("golinkGuidelineFlowImage");
-    expect(screenFile).toContain("golink-guideline-copy-paste-flow.png");
-    expect(screenFile).toContain("golinkGuidelineStep1Image");
-    expect(screenFile).toContain("golink-guideline-step-preview-1.png");
+    expect(screenFile).toContain("GoLinkGuidelineFlowIllustration");
+    expect(screenFile).toContain("GoLinkGuidelineStepIllustration");
+    expect(screenFile).not.toContain("golink-guideline-copy-paste-flow.png");
+    expect(screenFile).not.toContain("golink-guideline-step-preview-1.png");
     expect(screenFile).toContain("guidelineOpen");
     expect(screenFile).toContain("GoLinkGuidelineDialog");
     expect(screenFile).toContain("Easy to earn cashback by GoGoLink");
@@ -167,10 +183,12 @@ describe("GoGoLink feature parity", () => {
     expect(screenFile).toContain("guidelineDialog");
     expect(screenFile).toContain("guidelineFlowWrap");
     expect(screenFile).toContain("guidelineStepThumb");
+    expect(screenFile).toMatch(/guidelineSubtitle:\s*\{[\s\S]*?color: colors\.muted/);
+    expect(screenFile).toContain("CloseIcon color={colors.ink}");
     expect(screenFile).toContain('backgroundColor: "rgba(0, 0, 0, 0.45)"');
     expect(screenFile).toContain('borderRadius: 24');
     expect(screenFile).toContain('maxWidth: 560');
-    expect(screenFile).toContain('height: 90');
+    expect(screenFile).toContain('minHeight: 90');
     expect(screenFile).toContain('height: 96');
     expect(screenFile).toContain('paddingTop: 56');
     expect(screenFile).toContain('paddingHorizontal: 24');

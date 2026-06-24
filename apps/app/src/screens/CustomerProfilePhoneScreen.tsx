@@ -70,7 +70,7 @@ function PhoneNumberScreen() {
             onChangeText={setPhone}
             onFocus={() => setInputFocused(true)}
             placeholder="08x xxx xxxx"
-            placeholderTextColor={colors.textSoft}
+            placeholderTextColor={colors.muted}
             style={[styles.input, isInputFocused ? styles.inputFocused : null]}
             value={phone}
           />
@@ -131,7 +131,7 @@ function PhoneOtpScreen() {
           onChangeText={setCode}
           onFocus={() => setInputFocused(true)}
           placeholder="000000"
-          placeholderTextColor={colors.textSoft}
+          placeholderTextColor={colors.muted}
           style={[styles.otpInput, isInputFocused ? styles.inputFocused : null]}
           value={code}
         />

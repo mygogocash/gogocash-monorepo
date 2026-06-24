@@ -1,10 +1,8 @@
 import { useMemo, useState } from "react";
 import { Link } from "expo-router";
-import { Heart as HeartIcon, Search as SearchIcon } from "@mobile/theme/icons";
+import { Search as SearchIcon } from "@mobile/theme/icons";
 import { getCategoryIcon } from "@mobile/theme/categoryIcons";
 import {
-  Image,
-  type ImageSourcePropType,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,7 +14,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import shopeeLogo from "../../assets/partner-shopee.png";
+import { BrandCard } from "@mobile/components/BrandCard";
 import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
@@ -27,20 +25,17 @@ import {
   getCategoryExploreResults,
   getDesktopShellOffset,
   getResponsiveHomeLayoutMetrics,
-  getTopBrandHref,
+  getScaledCompactBrandCardMetrics,
   mobileShellLayout,
   type WebCategoryExploreSort,
   webCategoryExploreHealthBeauty,
 } from "@mobile/design/webDesignParity";
 import { motion } from "@mobile/theme/motion";
-import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
-type CategoryStore = ReturnType<typeof getCategoryExploreResults>[number] & {
-  href?: string;
-};
 
 const webSearchInputFocusReset = {
   outlineStyle: "none",
@@ -91,8 +86,6 @@ function getCategoryGridMetrics({
   isDesktop: boolean;
   viewportWidth: number;
 }) {
-  const styles = useThemedStyles(createCategoryDetailScreenStyles);
-  const { colors } = useTheme();
   const layoutGap = isDesktop ? 32 : 0;
   const sidebarWidth = isDesktop ? 280 : 0;
   const gridWidth = Math.max(0, contentWidth - sidebarWidth - layoutGap);
@@ -110,10 +103,12 @@ function getCategoryGridMetrics({
         : 2;
   const columns = Math.max(1, preferredColumns);
   const cardWidth = (gridWidth - gap * Math.max(0, columns - 1)) / columns;
+  const scaledCard = getScaledCompactBrandCardMetrics(cardWidth);
 
   return {
-    cardHeight: cardWidth + (isDesktop ? 92 : 96),
+    cardHeight: scaledCard.cardHeight,
     cardWidth,
+    logoVisualHeight: scaledCard.logoVisualHeight,
     columns,
     gap,
     gridWidth,
@@ -182,7 +177,7 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
           <View style={styles.filterCard}>
             <View style={styles.searchBox}>
               <SearchIcon
-                color={colors.textSoft}
+                color={colors.muted}
                 size={18}
                 strokeWidth={typography.iconStrokeWidth}
               />
@@ -193,7 +188,7 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
                 inputMode="search"
                 onChangeText={setSearchQuery}
                 placeholder={searchPlaceholder}
-                placeholderTextColor={colors.textSoft}
+                placeholderTextColor={colors.muted}
                 returnKeyType="search"
                 style={[styles.searchInput, webSearchInputFocusReset]}
                 value={searchQuery}
@@ -234,12 +229,18 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
           {stores.length > 0 ? (
             <View style={[styles.storeGrid, { gap: gridMetrics.gap }]}>
               {stores.map((store, index) => (
-                <CategoryStoreCard
+                <BrandCard
+                  accessibilityLabel={store.brand}
+                  brand={store.brand}
                   cardHeight={gridMetrics.cardHeight}
                   cardWidth={gridMetrics.cardWidth}
-                  index={index}
+                  cashback={store.cashback}
                   key={store.brand}
-                  store={store}
+                  logoUri={store.logoUri}
+                  logoVisualHeight={gridMetrics.logoVisualHeight}
+                  size="S"
+                  testID={`category-result-card-${index}`}
+                  tint={store.tint}
                 />
               ))}
             </View>
@@ -263,7 +264,6 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
         <View style={styles.desktopShellFrame}>
           <ScrollView
             contentContainerStyle={[
-              styles.page,
               styles.pageDesktopFullBleed,
               {
                 paddingBottom: mobileShellLayout.desktopBottomClearance,
@@ -409,64 +409,6 @@ function CategoryNavItem({
   );
 }
 
-function CategoryStoreCard({
-  cardHeight,
-  cardWidth,
-  index,
-  store,
-}: {
-  cardHeight: number;
-  cardWidth: number;
-  index: number;
-  store: CategoryStore;
-}) {
-  const styles = useThemedStyles(createCategoryDetailScreenStyles);
-  const { colors } = useTheme();
-  const tc = useCopy();
-  const logoSource: ImageSourcePropType = store.logoUri ? { uri: store.logoUri } : shopeeLogo;
-  const visualHeight = Math.max(96, cardWidth - 16);
-
-  return (
-    <Link asChild href={(store.href ?? getTopBrandHref(store.brand)) as never}>
-      <MotionPressable
-        accessibilityLabel={store.brand}
-        hoverLift
-        pressScale={motion.scale.subtlePress}
-        style={StyleSheet.flatten([styles.storeCard, { height: cardHeight, width: cardWidth }])}
-        testID={`category-result-card-${index}`}
-      >
-        <View style={[styles.storeVisual, { backgroundColor: store.tint, height: visualHeight }]}>
-          <View style={styles.couponChip}>
-            <Text style={styles.couponIcon}>🧧</Text>
-            <Text numberOfLines={1} style={styles.couponText}>
-              {tc("Grab Coupon")}
-            </Text>
-          </View>
-          <View style={styles.favoriteButton}>
-            <HeartIcon color={colors.primaryDark} size={20} strokeWidth={2} />
-          </View>
-          <Image
-            alt={`${store.brand} logo`}
-            accessibilityLabel={`${store.brand} logo`}
-            resizeMode="contain"
-            source={logoSource}
-            style={styles.storeLogo}
-          />
-        </View>
-        <Text numberOfLines={2} style={styles.storeName}>
-          {store.brand}
-        </Text>
-        <View style={styles.cashbackRow}>
-          <Text numberOfLines={1} style={styles.cashbackCaption}>
-            {tc("Cashback up to")}
-          </Text>
-          <Text style={styles.cashbackValue}>{store.cashback}</Text>
-        </View>
-      </MotionPressable>
-    </Link>
-  );
-}
-
 function createCategoryDetailScreenStyles(colors: ThemeColors) {
   return StyleSheet.create({
   viewport: {
@@ -498,10 +440,10 @@ function createCategoryDetailScreenStyles(colors: ThemeColors) {
     paddingHorizontal: 0,
   },
   page: {
-    minHeight: "100%",
+    gap: spacing.homeStackGap,
   },
   desktopFooter: {
-    marginTop: 64,
+    marginTop: 0,
   },
   header: {
     gap: spacing.md,
@@ -623,7 +565,7 @@ function createCategoryDetailScreenStyles(colors: ThemeColors) {
     width: "100%",
   },
   filterCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    backgroundColor: pickThemed(colors, "rgba(255, 255, 255, 0.9)", colors.card),
     borderColor: colors.border,
     borderRadius: radii.lg,
     borderWidth: 1,
@@ -697,7 +639,7 @@ function createCategoryDetailScreenStyles(colors: ThemeColors) {
     color: colors.white,
   },
   storeCount: {
-    color: colors.textSoft,
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: 16,
     fontWeight: typography.bodyWeight,
@@ -709,98 +651,6 @@ function createCategoryDetailScreenStyles(colors: ThemeColors) {
     flexDirection: "row",
     flexWrap: "wrap",
     width: "100%",
-  },
-  storeCard: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    gap: spacing.sm,
-    overflow: "hidden",
-    padding: spacing.sm,
-    boxShadow: shadows.cardCss,
-  },
-  storeVisual: {
-    borderRadius: radii.sm,
-    overflow: "hidden",
-    position: "relative",
-    width: "100%",
-  },
-  couponChip: {
-    alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.92)",
-    borderColor: colors.border,
-    borderRadius: radii.chip,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: 4,
-    left: spacing.xs,
-    maxWidth: "70%",
-    minHeight: 22,
-    paddingHorizontal: spacing.xs,
-    position: "absolute",
-    top: spacing.xs,
-    zIndex: 2,
-  },
-  couponIcon: {
-    fontSize: 10,
-    lineHeight: 12,
-  },
-  couponText: {
-    color: colors.ink,
-    flexShrink: 1,
-    fontFamily: typography.family,
-    fontSize: 11,
-    fontWeight: typography.bodyWeight,
-    lineHeight: 14,
-  },
-  favoriteButton: {
-    alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-    borderColor: colors.border,
-    borderRadius: radii.chip,
-    borderWidth: 1,
-    height: 34,
-    justifyContent: "center",
-    position: "absolute",
-    right: spacing.xs,
-    top: spacing.xs,
-    width: 34,
-    zIndex: 2,
-  },
-  storeLogo: {
-    height: "100%",
-    width: "100%",
-  },
-  storeName: {
-    color: colors.ink,
-    flex: 1,
-    fontFamily: typography.family,
-    fontSize: 16,
-    fontWeight: "700",
-    lineHeight: 20,
-    minHeight: 38,
-  },
-  cashbackRow: {
-    alignItems: "baseline",
-    flexDirection: "row",
-    gap: spacing.xs,
-    justifyContent: "space-between",
-  },
-  cashbackCaption: {
-    color: colors.textSoft,
-    flex: 1,
-    fontFamily: typography.family,
-    fontSize: 12,
-    fontWeight: typography.bodyWeight,
-    lineHeight: 16,
-  },
-  cashbackValue: {
-    color: colors.primaryDark,
-    fontFamily: typography.family,
-    fontSize: 22,
-    fontWeight: "800",
-    lineHeight: 26,
   },
   emptyState: {
     backgroundColor: colors.card,

@@ -32,13 +32,40 @@ describe("react-native-web style deprecation warnings stay fixed", () => {
     expect(toast).not.toContain("...shadows.bottomNav");
   });
 
-  it("non-interactive overlays > given Toast + PrivacyScreenGuard > then pointerEvents lives in style, not the deprecated prop", () => {
+  it("non-interactive overlays > given customer UI sources > then pointerEvents lives in style, not the deprecated prop", () => {
     // react-native-web 0.21 deprecates `pointerEvents` as a PROP (logs "props.pointerEvents
     // is deprecated. Use style.pointerEvents"). RN 0.85 supports `style.pointerEvents` on web
     // AND native, so the cross-platform fix moves it into the style object.
+    const srcRoot = path.join(mobileRoot, "src");
+    const files: string[] = [];
+
+    function walk(dir: string) {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          if (entry.name === "__tests__" || entry.name === "test-support") {
+            continue;
+          }
+          walk(fullPath);
+          continue;
+        }
+        if (entry.isFile() && (entry.name.endsWith(".tsx") || entry.name.endsWith(".ts"))) {
+          files.push(fullPath);
+        }
+      }
+    }
+
+    walk(srcRoot);
+
+    for (const file of files) {
+      const source = fs.readFileSync(file, "utf8");
+      expect(source, `${path.relative(mobileRoot, file)} must not pass pointerEvents as a prop`).not.toMatch(
+        /pointerEvents=/
+      );
+    }
+
     for (const file of ["src/components/Toast.tsx", "src/security/PrivacyScreenGuard.tsx"]) {
       const source = readMobileFile(file);
-      expect(source, `${file} must not pass pointerEvents as a prop`).not.toMatch(/pointerEvents=/);
       expect(source, `${file} must keep the non-interactive intent in style`).toContain(
         'pointerEvents: "none"'
       );
