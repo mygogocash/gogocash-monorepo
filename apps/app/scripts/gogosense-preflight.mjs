@@ -441,6 +441,7 @@ function acceptanceChecklist(report) {
   lines.push("Evidence files to attach when present:");
   lines.push("- preflight-report.json");
   lines.push("- summary.txt");
+  lines.push("- preflight-command.txt");
   lines.push("- activation-deeplink.txt");
   lines.push("- device-adb-reverse.txt");
   lines.push("- device-window.txt");
@@ -464,13 +465,36 @@ function acceptanceChecklist(report) {
   return `${lines.join("\n")}\n`;
 }
 
-function writeEvidenceBundle(report, evidenceDir) {
+function shellQuote(value) {
+  return `'${String(value).replaceAll("'", "'\\''")}'`;
+}
+
+function redactedPreflightInvocation(argv = process.argv.slice(2)) {
+  const redactedArgs = [];
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === "--auth-token") {
+      redactedArgs.push(arg, "<redacted>");
+      index += 1;
+    } else if (arg.startsWith("--auth-token=")) {
+      redactedArgs.push("--auth-token=<redacted>");
+    } else {
+      redactedArgs.push(arg);
+    }
+  }
+
+  return ["node", "scripts/gogosense-preflight.mjs", ...redactedArgs].map(shellQuote).join(" ");
+}
+
+function writeEvidenceBundle(report, evidenceDir, command = redactedPreflightInvocation()) {
   if (!evidenceDir) return;
 
   mkdirSync(evidenceDir, { recursive: true });
   writeFileSync(`${evidenceDir}/acceptance-checklist.md`, acceptanceChecklist(report));
   writeFileSync(`${evidenceDir}/preflight-report.json`, `${JSON.stringify(report, null, 2)}\n`);
   writeFileSync(`${evidenceDir}/summary.txt`, evidenceSummary(report));
+  writeFileSync(`${evidenceDir}/preflight-command.txt`, `${command}\n`);
 
   if (report.context.activationDeeplink) {
     writeFileSync(`${evidenceDir}/activation-deeplink.txt`, `${report.context.activationDeeplink}\n`);
@@ -1268,7 +1292,7 @@ async function main() {
   writeDeviceEvidenceBundle(report, options);
   const deviceEvidenceResult = deviceEvidenceBundleResult(options);
   if (deviceEvidenceResult) report.results.push(deviceEvidenceResult);
-  writeEvidenceBundle(report, options.evidenceDir);
+  writeEvidenceBundle(report, options.evidenceDir, redactedPreflightInvocation());
   if (options.json) console.log(JSON.stringify(report, null, 2));
   else printText(report);
 
@@ -1305,6 +1329,7 @@ export {
   runPreflight,
   supportedMerchantInstallResult,
   usageAccessResult,
+  redactedPreflightInvocation,
   writeEvidenceBundle,
   writeDeviceEvidenceBundle,
 };

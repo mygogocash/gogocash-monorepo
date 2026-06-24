@@ -283,8 +283,28 @@ describe("gogosense preflight activation options", () => {
   });
 });
 
+describe("GoGoSense Android preflight command redaction", () => {
+  it("redacts auth token values from replayable evidence", () => {
+    expect(
+      preflight.redactedPreflightInvocation([
+        "--api-url",
+        "https://api.example.test",
+        "--auth-token",
+        "secret-token",
+        "--open-deeplink",
+      ])
+    ).toBe(
+      "'node' 'scripts/gogosense-preflight.mjs' '--api-url' 'https://api.example.test' '--auth-token' '<redacted>' '--open-deeplink'"
+    );
+
+    expect(
+      preflight.redactedPreflightInvocation(["--auth-token=another-secret"])
+    ).toBe("'node' 'scripts/gogosense-preflight.mjs' '--auth-token=<redacted>'");
+  });
+});
+
 describe("GoGoSense Android preflight evidence bundle", () => {
-  it("writeEvidenceBundle > writes report, summary, and deeplink evidence files", async () => {
+  it("writeEvidenceBundle > writes report, summary, command, and deeplink evidence files", async () => {
     const tempDir = await mkdtemp(join(tmpdir(), "gogosense-evidence-"));
 
     try {
@@ -304,9 +324,13 @@ describe("GoGoSense Android preflight evidence bundle", () => {
             { name: "activation deeplink open", status: "warn" },
           ],
         },
-        tempDir
+        tempDir,
+        "node scripts/gogosense-preflight.mjs --auth-token '<redacted>' --open-deeplink"
       );
 
+      await expect(readFile(join(tempDir, "preflight-command.txt"), "utf8")).resolves.toBe(
+        "node scripts/gogosense-preflight.mjs --auth-token '<redacted>' --open-deeplink\n"
+      );
       await expect(readFile(join(tempDir, "activation-deeplink.txt"), "utf8")).resolves.toBe(
         "https://invl.me/example\n"
       );

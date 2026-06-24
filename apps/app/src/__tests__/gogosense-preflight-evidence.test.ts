@@ -44,6 +44,7 @@ describe("GoGoSense preflight evidence bundle", () => {
 
     const checklist = await readFile(join(tempDir, "acceptance-checklist.md"), "utf8");
 
+    expect(checklist).toContain("- preflight-command.txt");
     expect(checklist).toContain("- device-adb-reverse.txt");
     expect(checklist).toContain("- merchant-foreground-ui.xml");
     expect(checklist).toContain("- gogosense-hub-ui.xml");
