@@ -65,7 +65,7 @@ If `REPOSITORY_RESOURCE` uses a regional Cloud Build connection, set
 
 The setup script creates these triggers:
 
-- `gogocash-ci-pr`: PR CI gate targeting `main`.
+- `gogocash-ci-pr`: PR CI gate targeting `main`; PR builds run without a manual trigger comment.
 - `gogocash-build-staging-main`: builds all staging images on pushes to `main`.
 
 The current GCP connection uses the legacy GitHub App trigger source. With that

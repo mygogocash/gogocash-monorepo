@@ -16,7 +16,9 @@ steps:
       - -ceu
       - |
         npm install -g "npm@${_NPM_VERSION}"
-        npm run lint
+        export NODE_OPTIONS=--max-old-space-size=4096
+        npm run lint:ci --workspace gogocash-api
+        npm run lint --workspace gogocash-admin
 
   - id: test
     name: node:22-bookworm
@@ -25,6 +27,7 @@ steps:
       - -ceu
       - |
         npm install -g "npm@${_NPM_VERSION}"
+        export NODE_OPTIONS=--max-old-space-size=4096
         npm run test
 
   - id: build
@@ -34,6 +37,7 @@ steps:
       - -ceu
       - |
         npm install -g "npm@${_NPM_VERSION}"
+        export NODE_OPTIONS=--max-old-space-size=4096
         npm run build
 
 substitutions:
