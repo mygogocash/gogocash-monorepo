@@ -58,6 +58,7 @@ steps:
           --min-instances "$${MIN_INSTANCES}"
           --max-instances "$${MAX_INSTANCES}"
           --port "$${PORT}"
+          --allow-unauthenticated
           --quiet
         )
 

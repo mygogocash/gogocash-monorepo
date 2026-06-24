@@ -129,6 +129,7 @@ main() {
       --name gogocash-ci-pr \
       "${github_source_args[@]}" \
       --pull-request-pattern '^main$' \
+      --comment-control COMMENTS_DISABLED \
       --build-config cloudbuild/ci.yaml \
       --service-account "$CB_SA_RESOURCE" \
       --include-logs-with-status
