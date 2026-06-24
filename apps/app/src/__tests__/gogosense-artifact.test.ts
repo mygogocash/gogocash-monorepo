@@ -23,6 +23,8 @@ describe("GoGoSense artifact helper", () => {
     expect(artifact.parseArgs(["--run-id", "28014696785"])).toMatchObject({
       artifactName: "gogocash-development-android",
       authTokenEnv: "GOGOSENSE_AUTH_TOKEN",
+      evidenceDir:
+        "/tmp/gogocash-eas-artifacts-28014696785/gogosense-acceptance-evidence",
       outputDir: "/tmp/gogocash-eas-artifacts-28014696785",
       platform: "android",
       profile: "development",
@@ -58,8 +60,23 @@ describe("GoGoSense artifact helper", () => {
       gcsPrefix: "gs://gogocash-native-artifacts/gogosense/development",
       gcsUri:
         "gs://gogocash-native-artifacts/gogosense/development/gogocash-development-android.apk",
+      evidenceDir: "/tmp/gogocash-eas-artifacts-gcs/gogosense-acceptance-evidence",
       outputDir: "/tmp/gogocash-eas-artifacts-gcs",
       source: "gcs",
+    });
+  });
+
+  it("preserves an explicit evidence directory for acceptance artifacts", () => {
+    expect(
+      artifact.parseArgs([
+        "--run-id",
+        "28014696785",
+        "--evidence-dir",
+        "/tmp/custom-gogosense-evidence",
+      ])
+    ).toMatchObject({
+      evidenceDir: "/tmp/custom-gogosense-evidence",
+      outputDir: "/tmp/gogocash-eas-artifacts-28014696785",
     });
   });
 

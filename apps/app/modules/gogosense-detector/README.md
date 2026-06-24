@@ -129,8 +129,11 @@ The helper downloads the `gogocash-development-android` GitHub Actions artifact
 to `/tmp/gogocash-eas-artifacts-<run-id>`, finds the extracted APK, reads the
 published `.sha256` file when present, and prints a `gogosense:preflight`
 command with the install hash, Metro reverse, usage-access, nudge, tap,
-deeplink, and device-evidence gates already included. It does not replace the
-real-device acceptance run; it only prepares the installable dev-client inputs.
+deeplink, and device-evidence gates already included. If `--evidence-dir` is
+not supplied, the printed command writes device evidence to
+`/tmp/gogocash-eas-artifacts-<run-id>/gogosense-acceptance-evidence`. It does
+not replace the real-device acceptance run; it only prepares the installable
+dev-client inputs.
 
 If the workflow mirrored the native build to GCS, use the same helper against
 the bucket prefix instead of the GitHub artifact:

@@ -89,12 +89,17 @@ export function parseArgs(argv = process.argv.slice(2)) {
   }
 
   options.outputDir ??= join("/tmp", `gogocash-eas-artifacts-${options.runId ?? "gcs"}`);
+  options.evidenceDir ??= defaultEvidenceDirFor(options);
 
   return options;
 }
 
 export function buildGhDownloadArgs({ artifactName, outputDir, runId }) {
   return ["run", "download", String(runId), "--name", artifactName, "--dir", outputDir];
+}
+
+export function defaultEvidenceDirFor({ outputDir }) {
+  return join(resolve(outputDir), "gogosense-acceptance-evidence");
 }
 
 export function gcsApkUriFor({
