@@ -284,6 +284,19 @@ describe("gogosense preflight activation options", () => {
 });
 
 describe("GoGoSense Android preflight command redaction", () => {
+  it("parseArgs preserves dev-client artifact inputs for report context", () => {
+    const sha256 = "5bdad05fe54f21e7b583966a2204f67b0029856d73b01c702585eaa71d909e7a";
+    const options = preflight.parseArgs([
+      "--install-apk",
+      "/tmp/gogocash-development-android.apk",
+      "--install-apk-sha256",
+      sha256,
+    ]);
+
+    expect(options.installApk).toBe("/tmp/gogocash-development-android.apk");
+    expect(options.installApkSha256).toBe(sha256);
+  });
+
   it("redacts auth token values from replayable evidence", () => {
     expect(
       preflight.redactedPreflightInvocation([
@@ -315,6 +328,9 @@ describe("GoGoSense Android preflight evidence bundle", () => {
             apiUrl: "https://api.example.test",
             activationDeeplink: "https://invl.me/example",
             device: "emulator-5554",
+          installApk: "/tmp/gogocash-development-android.apk",
+          installApkSha256:
+            "5bdad05fe54f21e7b583966a2204f67b0029856d73b01c702585eaa71d909e7a",
             foregroundPackage: "com.shopee.th",
           },
           results: [
@@ -346,6 +362,10 @@ describe("GoGoSense Android preflight evidence bundle", () => {
 
       const report = JSON.parse(await readFile(join(tempDir, "preflight-report.json"), "utf8"));
       expect(report.context.device).toBe("emulator-5554");
+      expect(report.context.installApk).toBe("/tmp/gogocash-development-android.apk");
+      expect(report.context.installApkSha256).toBe(
+        "5bdad05fe54f21e7b583966a2204f67b0029856d73b01c702585eaa71d909e7a"
+      );
       expect(report.results).toHaveLength(4);
     } finally {
       await rm(tempDir, { force: true, recursive: true });

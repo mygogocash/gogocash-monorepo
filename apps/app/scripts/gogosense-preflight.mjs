@@ -866,6 +866,8 @@ async function runPreflight(options) {
     activationDeeplink,
     appPackage: options.appPackage,
     authTokenPresent: Boolean(options.authToken),
+    installApk: options.installApk || "",
+    installApkSha256: options.installApkSha256 || "",
     detectPackage: options.detectPackage || null,
     device: options.device || null,
     foregroundPackage: "",
