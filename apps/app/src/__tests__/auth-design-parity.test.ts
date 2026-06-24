@@ -87,6 +87,7 @@ describe("Expo auth design parity", () => {
     expect(authFile).toContain("TelegramBrandIcon");
     expect(authFile).toContain("AppleBrandIcon");
     expect(authFile).toContain("XBrandIcon");
+    expect(authFile).toContain("monochromeBrandFill");
     expect(authFile).toContain("MicrosoftBrandIcon");
     expect(authFile).toContain("WalletConnectBrandIcon");
     expect(authFile).toContain('fill="#1877F2"');
@@ -159,10 +160,15 @@ describe("Expo auth design parity", () => {
       'fontWeight: "400"',
     ]);
     expectStyleBlock(authFile, "socialLabel", [
-      'color: "#5C5C5C"',
+      "color: colors.muted",
       "fontSize: 10",
       'fontWeight: "500"',
       "lineHeight: 12.5",
+    ]);
+    expectStyleBlock(authFile, "privacyLink", [
+      'pickThemed(colors, "#3E3E3E", colors.link)',
+      "fontSize: 13",
+      'fontWeight: "600"',
     ]);
   });
 

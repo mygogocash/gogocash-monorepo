@@ -598,7 +598,7 @@ function createCreditScoreScreenStyles(colors: ThemeColors) {
   statusPill: {
     backgroundColor: colors.background,
     borderRadius: radii.chip,
-    color: colors.textSoft,
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: 12,
     overflow: "hidden",

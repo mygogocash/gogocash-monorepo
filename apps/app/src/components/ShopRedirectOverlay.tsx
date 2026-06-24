@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { ActivityIndicator, Animated, StyleSheet, Text, View } from "react-native";
 
 import { motion } from "@mobile/theme/motion";
-import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { typography } from "@mobile/theme/tokens";
@@ -64,7 +64,7 @@ function createShopRedirectOverlayStyles(colors: ThemeColors) {
   return StyleSheet.create({
   overlay: {
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.97)",
+    backgroundColor: pickThemed(colors, "rgba(255, 255, 255, 0.97)", colors.background),
     bottom: 0,
     justifyContent: "center",
     left: 0,
@@ -98,14 +98,14 @@ function createShopRedirectOverlayStyles(colors: ThemeColors) {
     minHeight: 80,
   },
   fallback: {
-    color: colors.textSoft,
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: 15,
     lineHeight: 22,
     textAlign: "center",
   },
   fallbackLink: {
-    color: FALLBACK_LINK_BLUE,
+    color: pickThemed(colors, FALLBACK_LINK_BLUE, colors.link),
     fontWeight: "600",
   },
 });

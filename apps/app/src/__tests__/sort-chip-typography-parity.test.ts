@@ -4,6 +4,8 @@ import fs from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
+import { readDiscoverySources } from "../test-support/discoverySource";
+
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const mobileRoot = path.resolve(testDir, "../..");
 
@@ -23,14 +25,14 @@ function styleBlock(source: string, name: string) {
 // the web app's font-semibold) per design choice.
 describe("sort-chip typography parity (14 / normal weight)", () => {
   it("Discovery > given the brand/product/shop sort bars > then all three use the unified directorySortPillText", () => {
-    const discovery = readMobileFile("src/screens/CustomerDiscoveryScreen.tsx");
+    const discovery = readDiscoverySources(mobileRoot);
     // \b after the name excludes the ...Active variant, so this counts only the base refs.
     const refs = discovery.match(/styles\.directorySortPillText\b/g) ?? [];
     expect(refs.length).toBeGreaterThanOrEqual(3);
   });
 
   it("Discovery > given the unified sort-chip style > then it is fontSize 14 / normal weight", () => {
-    const discovery = readMobileFile("src/screens/CustomerDiscoveryScreen.tsx");
+    const discovery = readDiscoverySources(mobileRoot);
     const block = styleBlock(discovery, "directorySortPillText");
     expect(block, "directorySortPillText style should exist").not.toBeNull();
     expect(block).toContain("fontSize: 14");

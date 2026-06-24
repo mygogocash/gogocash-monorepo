@@ -15,6 +15,11 @@
 > **Update (2026-06-22):** Customer-app **dark mode** (System / Light / Dark) shipped
 > in `apps/app` — see `docs/dark-mode.md`. Stack is Expo SDK 56 + **RN 0.86** +
 > react-native-web 0.21.2 (not 0.85).
+>
+> **Update (2026-06-24):** Desktop home layout polish — scrollable full-bleed footer
+> (`CustomerDesktopFooter` inside home `ScrollView`), 2-row desktop brand carousels,
+> unified **`Cashback upto`** on `BrandCard`. See `FRONTEND_PARITY_PLAN.md` and
+> `docs/desktop-nextjs-parity-plan.md`.
 
 ## ★ NORTH STAR — Expo is the single source of truth for ALL platforms
 

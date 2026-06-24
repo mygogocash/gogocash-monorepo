@@ -8,6 +8,9 @@
 > **Post-report note (2026-06-22):** This report predates customer-app **dark mode** (`docs/dark-mode.md`).
 > Light-theme visual findings remain valid for the web parity baseline; dark-appearance regressions are
 > out of scope for this snapshot — use `DESIGN_QA_PLAN.md` § Dark mode QA instead.
+>
+> **Post-report note (2026-06-24):** Home desktop footer scroll + 2-row brand grids + **`Cashback upto`** copy
+> landed after this snapshot — use `DESIGN_QA_PLAN.md` § Desktop home QA for the current contract.
 
 ## ⚠️ Coverage caveats (read first — this report is partial)
 

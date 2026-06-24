@@ -9,6 +9,7 @@ out/
 build/
 .expo/
 web-build/
+apps/app/.bundle-measure/
 
 # turborepo
 .turbo/

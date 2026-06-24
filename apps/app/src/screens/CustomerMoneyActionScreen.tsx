@@ -466,7 +466,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                     keyboardType="decimal-pad"
                     onChangeText={setWithdrawAmount}
                     placeholder="0.00"
-                    placeholderTextColor={colors.textSoft}
+                    placeholderTextColor={colors.muted}
                     style={styles.amountInput}
                     value={withdrawAmount}
                   />
@@ -695,7 +695,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                           onChangeText={setBankName}
                           onFocus={() => setFocusedField("bankName")}
                           placeholder={tc("Select bank (e.g. SCB, Kasikorn)")}
-                          placeholderTextColor={colors.textSoft}
+                          placeholderTextColor={colors.muted}
                           style={styles.textInput}
                           value={bankName}
                         />
@@ -710,7 +710,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                           onChangeText={setBankAccountNo}
                           onFocus={() => setFocusedField("bankAccountNo")}
                           placeholder={tc("Account Number")}
-                          placeholderTextColor={colors.textSoft}
+                          placeholderTextColor={colors.muted}
                           style={styles.textInput}
                           value={bankAccountNo}
                         />
@@ -724,7 +724,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                           onChangeText={setBankAccountName}
                           onFocus={() => setFocusedField("bankAccountName")}
                           placeholder={tc("Full Name")}
-                          placeholderTextColor={colors.textSoft}
+                          placeholderTextColor={colors.muted}
                           style={styles.textInput}
                           value={bankAccountName}
                         />
@@ -778,7 +778,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                           onChangeText={setPpCode}
                           onFocus={() => setFocusedField("ppCode")}
                           placeholder={tc("Phone number or 13-digit ID")}
-                          placeholderTextColor={colors.textSoft}
+                          placeholderTextColor={colors.muted}
                           style={styles.textInput}
                           value={ppCode}
                         />
@@ -793,7 +793,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                           onChangeText={setPpThaiName}
                           onFocus={() => setFocusedField("ppThaiName")}
                           placeholder={tc("ภาษาไทย")}
-                          placeholderTextColor={colors.textSoft}
+                          placeholderTextColor={colors.muted}
                           style={styles.textInput}
                           value={ppThaiName}
                         />
@@ -808,7 +808,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                           onChangeText={setPpEnglishName}
                           onFocus={() => setFocusedField("ppEnglishName")}
                           placeholder={tc("English Name")}
-                          placeholderTextColor={colors.textSoft}
+                          placeholderTextColor={colors.muted}
                           style={styles.textInput}
                           value={ppEnglishName}
                         />
@@ -837,7 +837,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                           onChangeText={setCryptoAddress}
                           onFocus={() => setFocusedField("cryptoAddress")}
                           placeholder="0x..."
-                          placeholderTextColor={colors.textSoft}
+                          placeholderTextColor={colors.muted}
                           style={styles.textInput}
                           value={cryptoAddress}
                         />
@@ -1199,7 +1199,7 @@ function createMoneyActionScreenStyles(colors: ThemeColors) {
   idTypeBtnActive: {},
   radioOuter: {
     alignItems: "center",
-    borderColor: colors.textSoft,
+    borderColor: colors.border,
     borderRadius: radii.chip,
     borderWidth: 1,
     height: 20,
@@ -1472,7 +1472,7 @@ function createMoneyActionScreenStyles(colors: ThemeColors) {
     justifyContent: "space-between",
   },
   totalRowLabel: {
-    color: colors.textSoft,
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: 15,
   },

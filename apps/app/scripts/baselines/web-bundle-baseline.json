@@ -1,0 +1,33 @@
+{
+  "measuredAt": "2026-06-24T15:44:26.507Z",
+  "outputDir": ".bundle-measure",
+  "platform": "web",
+  "topChunks": [
+    {
+      "bytes": 11847679,
+      "path": "_expo/static/js/web/entry-3bd53e765ffd5c384a71b325e732a8fe.js"
+    },
+    {
+      "bytes": 284932,
+      "path": "_expo/static/js/web/firebasePhoneAuth-50bd7cc3827a4db1927697a0d4eb8a56.js"
+    },
+    {
+      "bytes": 8992,
+      "path": "_expo/static/js/web/Clipboard-29d2e2de3fb0eb8e4db513900b36cce3.js"
+    },
+    {
+      "bytes": 3608,
+      "path": "_expo/static/js/web/Haptics-5b07c46a8d5aec61249354ac63525f06.js"
+    },
+    {
+      "bytes": 2427,
+      "path": "_expo/static/js/web/SecureStore-1b6cff9cb066d127b7b894c8c454ecd5.js"
+    },
+    {
+      "bytes": 1275,
+      "path": "_expo/static/js/web/firebaseLogin-4dac8d046ce26a500439d20dffffd5ba.js"
+    }
+  ],
+  "totalJsBytes": 12148913,
+  "totalJsFiles": 6
+}

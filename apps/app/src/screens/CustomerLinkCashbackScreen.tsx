@@ -162,11 +162,11 @@ function createLinkCashbackScreenStyles(colors: ThemeColors) {
     backgroundColor: colors.card,
   },
   pageMobile: {
-    backgroundColor: webLinkMyCashbackIntro.backgroundColor,
+    backgroundColor: colors.background,
   },
   linkHeroBand: {
     alignItems: "center",
-    backgroundColor: webLinkMyCashbackIntro.backgroundColor,
+    backgroundColor: pickThemed(colors, webLinkMyCashbackIntro.backgroundColor, colors.background),
     width: "100%",
   },
   linkHeroBandDesktop: {
@@ -199,7 +199,7 @@ function createLinkCashbackScreenStyles(colors: ThemeColors) {
     textAlign: "center",
   },
   subtitle: {
-    color: "#4F6C78",
+    color: pickThemed(colors, "#4F6C78", colors.muted),
     fontFamily: typography.family,
     fontSize: typography.body,
     fontWeight: typography.bodyWeight,
@@ -235,7 +235,7 @@ function createLinkCashbackScreenStyles(colors: ThemeColors) {
     textAlign: "center",
   },
   cardDescription: {
-    color: "#4F6C78",
+    color: pickThemed(colors, "#4F6C78", colors.muted),
     fontFamily: typography.family,
     fontSize: typography.label,
     fontWeight: typography.bodyWeight,
@@ -272,7 +272,7 @@ function createLinkCashbackScreenStyles(colors: ThemeColors) {
     backgroundColor: colors.primary,
   },
   skipActionText: {
-    color: colors.primaryDark,
+    color: pickThemed(colors, colors.primaryDark, colors.primary),
     fontFamily: typography.family,
     fontSize: typography.action,
     fontWeight: typography.actionWeight,

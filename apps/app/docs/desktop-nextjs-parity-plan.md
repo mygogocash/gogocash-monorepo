@@ -26,6 +26,8 @@ Align the Expo customer web desktop experience with the local Next.js reference 
 > **Update (2026-06-21, merged in PR #1):** The Expo app now lives at `apps/app` (package `@gogocash/mobile`); the `apps/mobile` paths and `npm --prefix apps/mobile ...` / `mobile:*` commands below are historical — substitute `apps/app` and run the current scripts (`npm run test`, `npm run test:full`, `npm run typecheck`, `npm run export:web`) from inside `apps/app`. The former `LShopCard`/`SShopCard` were consolidated into a single `BrandCard` (`size="L"` / `size="S"`); the home hero is 1 main + 2 side banners at 16:9, the GoGoLink banner was redesigned, and the Trending Brands / Travel Deals rails are each capped to 16 cards.
 >
 > **Update (2026-06-22):** Customer-app dark mode shipped (`docs/dark-mode.md`). Desktop parity QA for dark appearance: verify header/footer/nav in **Dark** as well as light web baseline. Expo web default port is **8081** (not 19006) when using `npm run web`.
+>
+> **Update (2026-06-24):** Home desktop footer regression fixed — footer must stay **inside** the page `ScrollView` (wrapped in `desktopFooterCap` on `CustomerHomeScreen`) so it scrolls away with content; placing it as a sibling below `flex:1` scroll pinned it to the viewport and obscured content. Full-bleed alignment: `CustomerDesktopFooter` receives `horizontalPadding={getDesktopShellOffset(width)}` + `viewportWidth={width}` so the dark band starts at viewport `x=0`, matching `CustomerDesktopHeader`. Desktop brand carousels: 2-row grids via `getDesktopBrandColumnsPerRow()`. Copy: **`Cashback upto`** on `BrandCard`.
 
 ## Current Status (2026-06-06)
 

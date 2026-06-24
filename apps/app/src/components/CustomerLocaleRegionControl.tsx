@@ -8,6 +8,7 @@ import { webLocaleRegionPanel } from "@mobile/design/webDesignParity";
 import { motion } from "@mobile/theme/motion";
 import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
+import { getThemeSurfaces, type ThemeSurfaces } from "@mobile/theme/themeSurfaces";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, typography } from "@mobile/theme/tokens";
 
@@ -17,10 +18,17 @@ type CustomerLocaleRegionControlProps = {
   readonly onExpandedChange?: (expanded: boolean) => void;
 };
 
+function useLocaleRegionControlStyles() {
+  const { colors, resolved } = useTheme();
+  const surfaces = getThemeSurfaces(colors, resolved);
+  return useThemedStyles((palette) => createLocaleRegionControlStyles(palette, surfaces));
+}
+
 export function CustomerLocaleRegionControl({
   onExpandedChange,
 }: CustomerLocaleRegionControlProps) {
-  const styles = useThemedStyles(createLocaleRegionControlStyles);
+  const { colors } = useTheme();
+  const styles = useLocaleRegionControlStyles();
   const [localePanelOpen, setLocalePanelOpen] = useState(false);
   const [localePanelMounted, setLocalePanelMounted] = useState(false);
   const { locale, setLocale } = useLocale();
@@ -113,7 +121,11 @@ export function CustomerLocaleRegionControl({
         ]}
       >
         <Animated.View style={desktopLocaleIconMotion}>
-          <Globe color={localePanelOpen ? "#00CC99" : "#1F2937"} size={22} weight="regular" />
+          <Globe
+            color={localePanelOpen ? colors.primary : colors.ink}
+            size={22}
+            weight="regular"
+          />
         </Animated.View>
       </MotionPressable>
       {localePanelMounted ? (
@@ -158,7 +170,7 @@ export function CustomerLocaleRegionControl({
 }
 
 function LocaleSectionTitle({ children }: { children: string }) {
-  const styles = useThemedStyles(createLocaleRegionControlStyles);
+  const styles = useLocaleRegionControlStyles();
   return <Text style={styles.desktopLocaleSectionTitle}>{children}</Text>;
 }
 
@@ -173,7 +185,7 @@ function LocaleOption({
   onPress: () => void;
   selected: boolean;
 }) {
-  const styles = useThemedStyles(createLocaleRegionControlStyles);
+  const styles = useLocaleRegionControlStyles();
   return (
     <MotionPressable
       accessibilityRole="button"
@@ -195,12 +207,12 @@ function LocaleOption({
   );
 }
 
-function createLocaleRegionControlStyles(colors: ThemeColors) {
+function createLocaleRegionControlStyles(colors: ThemeColors, surfaces: ThemeSurfaces) {
   return StyleSheet.create({
   desktopLocaleButton: {
     alignItems: "center",
-    backgroundColor: pickThemed(colors, "rgba(255,255,255,0.9)", colors.card),
-    borderColor: colors.border,
+    backgroundColor: surfaces.localeButtonBackground,
+    borderColor: surfaces.localeButtonBorder,
     borderRadius: radii.chip,
     borderWidth: 1,
     boxShadow: "0 2px 8px rgba(15, 23, 42, 0.12)",
@@ -209,8 +221,8 @@ function createLocaleRegionControlStyles(colors: ThemeColors) {
     width: 44,
   },
   desktopLocaleButtonOpen: {
-    backgroundColor: pickThemed(colors, "#E8FAF5", colors.primarySoft),
-    borderColor: "rgba(0, 204, 153, 0.4)",
+    backgroundColor: surfaces.localeButtonOpenBackground,
+    borderColor: surfaces.localeButtonOpenBorder,
   },
   desktopLocaleRoot: {
     position: "relative",
@@ -252,21 +264,21 @@ function createLocaleRegionControlStyles(colors: ThemeColors) {
     paddingVertical: 10,
   },
   desktopLocaleOptionSelected: {
-    backgroundColor: "#E8FAF5",
+    backgroundColor: pickThemed(colors, "#E8FAF5", colors.primarySoft),
   },
   desktopLocaleOptionFlag: {
     fontSize: 18,
     lineHeight: 20,
   },
   desktopLocaleOptionLabel: {
-    color: "#374151",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 14,
     fontWeight: "600",
     lineHeight: 20,
   },
   desktopLocaleOptionLabelSelected: {
-    color: "#00CC99",
+    color: colors.primary,
   },
   desktopLocaleDivider: {
     backgroundColor: colors.fieldMuted,

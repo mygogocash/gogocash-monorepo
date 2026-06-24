@@ -999,7 +999,7 @@ function createProfileInfoPanelStyles(colors: ThemeColors) {
   },
   radioOuter: {
     alignItems: "center",
-    borderColor: colors.textSoft,
+    borderColor: colors.border,
     borderRadius: radii.chip,
     borderWidth: 1,
     height: 20,

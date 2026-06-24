@@ -304,6 +304,10 @@ export function CustomerProfileMenu({
 }
 
 function createProfileMenuStyles(colors: ThemeColors) {
+  // Web frosted glass keeps its mint/blue wash in every theme; body copy stays
+  // #3B3B3B and must not follow colors.ink (light in dark mode).
+  const heroGlassInk = "#3B3B3B";
+
   return StyleSheet.create({
   scroller: {
     maxHeight: 560,
@@ -407,7 +411,7 @@ function createProfileMenuStyles(colors: ThemeColors) {
   },
   heroKicker: {
     // text-xs font-normal leading-normal, text-[#3B3B3B]
-    color: colors.ink,
+    color: heroGlassInk,
     fontFamily: typography.family,
     fontSize: 12,
     fontWeight: "400",
@@ -425,7 +429,7 @@ function createProfileMenuStyles(colors: ThemeColors) {
     // text-[40px] font-semibold leading-none. The web's tracking-tight is
     // intentionally NOT reproduced: negative letterSpacing clips DM Sans in RN
     // (project typography-parity guard), and the page-variant card omits it too.
-    color: colors.ink,
+    color: heroGlassInk,
     fontFamily: typography.family,
     fontSize: 40,
     fontWeight: "600",
@@ -434,7 +438,7 @@ function createProfileMenuStyles(colors: ThemeColors) {
   },
   heroCurrency: {
     // text-lg font-semibold leading-none
-    color: colors.ink,
+    color: heroGlassInk,
     fontFamily: typography.family,
     fontSize: 18,
     fontWeight: "600",
@@ -442,7 +446,7 @@ function createProfileMenuStyles(colors: ThemeColors) {
   },
   heroUpdated: {
     // text-xs font-normal text-[#3B3B3B]
-    color: colors.ink,
+    color: heroGlassInk,
     fontFamily: typography.family,
     fontSize: 12,
     fontWeight: "400",

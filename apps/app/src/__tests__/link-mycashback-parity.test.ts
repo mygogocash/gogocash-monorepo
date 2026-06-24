@@ -46,6 +46,10 @@ describe("Link MyCashback parity", () => {
     expect(screenFile).toContain("link-mycashback-shop.png");
     expect(screenFile).toContain("logoMarkImage");
     expect(screenFile).toContain("linkHeroBand");
+    expect(screenFile).toContain(
+      "pickThemed(colors, webLinkMyCashbackIntro.backgroundColor, colors.background)"
+    );
+    expect(screenFile).toContain('pickThemed(colors, "#4F6C78", colors.muted)');
     expect(screenFile).toContain("connectorDots");
     expect(screenFile).toContain("introActions");
     expect(screenFile).toContain('href="/method/create"');

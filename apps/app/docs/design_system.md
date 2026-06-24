@@ -75,16 +75,27 @@ Brand mint greens (`gc-primary`, `gc-primary-strong`) stay on-brand in both them
 - **Header/Footer Shadow**: `0 4px 16px rgba(0, 0, 0, 0.05)`
 - **Bottom Navigation Active Glow**: Soft shadow offset with light mint glow.
 
+### Brand cards
+- Shared component: `src/components/BrandCard.tsx` — `size="L"` (Top Brands, coupon chip + heart) and `size="S"` (compact rails/grids).
+- Cashback line copy: **`Cashback upto {rate}%`** (`webDesignParity.cashbackLabel` + i18n) — no space in "upto".
+
 ---
 
 ## 4. Spacing and Breakpoints
 
+Source of truth: `mobileShellLayout` in `src/design/webDesignParity.ts`.
+
 - **Breakpoint Desktop (`desktopBreakpoint`)**: `1024px`
-- **Content Max Width (`contentMaxWidth`)**: `760px` (Locked to mobile frame on wider browser previews)
-- **Bottom Nav Max Width (`bottomNavMaxWidth`)**: `448px` (Horizontally centered to match bottom actions)
+- **Breakpoint Tablet (`tabletBreakpoint`)**: `768px`
+- **Content Max Width (`contentMaxWidth` / `desktopContentMaxWidth`)**: `1440px` — centered shell column on wide desktop web previews; header/footer break out to full viewport width
+- **Tablet content cap (`tabletContentMaxWidth`)**: `720px`
+- **Bottom Nav Max Width (`bottomNavMaxWidth`)**: `448px` (horizontally centered on phone/tablet)
+- **Canvas widths (fixed content per device class)**: mobile `430px`, tablet `820px`, desktop `1280px`
+- **Desktop header**: `80px` tall (`desktopHeaderHeight`); sub-nav `56px` (`desktopSubNavHeight`)
+- **Home desktop rhythm**: top gap `64px` (`desktopHomeTopGap`), section stack gap `40px` (`desktopHomeStackGap`), footer lead-in margin `40px` + inner padding `56px` (`desktopFooterTopMargin` / `desktopFooterTopPadding`)
+- **Mobile home stack gap (`contentTopGap`)**: `24px`
 - **Safe Area Top Gap**: `Math.max(8, insets.top + 8)`
 - **Safe Area Bottom clearance**: `Math.max(14, insets.bottom + 8)`
-- **Home Stack gap**: `24px` (Consistent vertical rhythm)
 
 ---
 

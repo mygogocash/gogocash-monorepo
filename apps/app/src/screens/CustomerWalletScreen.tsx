@@ -204,7 +204,7 @@ function WalletTransactions({ onRefresh }: { onRefresh: () => void }) {
       </View>
       <View style={styles.filterRow}>
         <View style={styles.searchPill}>
-          <SearchIcon color={colors.textSoft} size={18} strokeWidth={typography.iconStrokeWidth} />
+          <SearchIcon color={colors.muted} size={18} strokeWidth={typography.iconStrokeWidth} />
           <TextInput
             onChangeText={setSearch}
             placeholder={tc("Search")}
@@ -499,7 +499,7 @@ function FilterPill({
       pressScale={0.98}
       style={styles.filterPill}
     >
-      <Icon color={colors.textSoft} size={18} strokeWidth={typography.iconStrokeWidth} />
+      <Icon color={colors.muted} size={18} strokeWidth={typography.iconStrokeWidth} />
       <Text numberOfLines={1} style={styles.filterText}>
         {label}
       </Text>
@@ -851,7 +851,7 @@ function createWalletScreenStyles(colors: ThemeColors) {
     fontSize: typography.caption,
   },
   txInfo: {
-    color: colors.textSoft,
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: typography.caption,
   },

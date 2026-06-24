@@ -6,7 +6,7 @@ import {
   ShoppingCart as ShoppingCartIcon,
 } from "@mobile/theme/icons";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
@@ -18,6 +18,13 @@ import type { OfferListResponse } from "@mobile/api/catalogTypes";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { mobileShellLayout, webFavoriteBrandsPage } from "@mobile/design/webDesignParity";
+import {
+  DirectoryVirtualizedGrid,
+} from "@mobile/screens/discovery/directoryVirtualizedGrid";
+import {
+  getFavoriteBrandCardHeight,
+  getFavoriteBrandGridMetrics,
+} from "@mobile/screens/favoriteBrandGrid";
 import type { ThemeColors } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
@@ -188,16 +195,12 @@ function RecentlyVisitedBrandsGrid({
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{tc(webFavoriteBrandsPage.recentTitle)}</Text>
-      <View style={[styles.brandGrid, isDesktop ? styles.brandGridDesktop : null]}>
-        {brands.map((brand) => (
-          <FavoriteBrandCard
-            brand={brand}
-            isFavorite={favoriteIds.includes(brand.id)}
-            key={brand.id}
-            onToggleFavorite={onToggleFavorite}
-          />
-        ))}
-      </View>
+      <FavoriteBrandsVirtualizedGrid
+        brands={brands}
+        favoriteIds={favoriteIds}
+        isDesktop={isDesktop}
+        onToggleFavorite={onToggleFavorite}
+      />
     </View>
   );
 }
@@ -223,7 +226,7 @@ function FavoriteBrandsListPreview({
       <View style={styles.favoriteListHeader}>
         <Text style={styles.sectionTitle}>{tc(webFavoriteBrandsPage.favoritesTitle)}</Text>
         <View style={styles.searchPill}>
-          <SearchIcon color={colors.textSoft} size={16} strokeWidth={typography.iconStrokeWidth} />
+          <SearchIcon color={colors.muted} size={16} strokeWidth={typography.iconStrokeWidth} />
           <Text style={styles.searchText}>{tc(webFavoriteBrandsPage.searchPlaceholder)}</Text>
         </View>
       </View>
@@ -238,22 +241,74 @@ function FavoriteBrandsListPreview({
           </Text>
         </View>
       ) : (
-        <View style={[styles.brandGrid, isDesktop ? styles.brandGridDesktop : null]}>
-          {savedBrands.map((brand) => (
-            <FavoriteBrandCard
-              brand={brand}
-              isFavorite
-              key={`favorite-${brand.id}`}
-              onToggleFavorite={onToggleFavorite}
-            />
-          ))}
-        </View>
+        <FavoriteBrandsVirtualizedGrid
+          brands={savedBrands}
+          favoriteIds={favoriteIds}
+          isDesktop={isDesktop}
+          onToggleFavorite={onToggleFavorite}
+        />
       )}
     </View>
   );
 }
 
-function FavoriteBrandCard({
+function FavoriteBrandsVirtualizedGrid({
+  brands,
+  favoriteIds,
+  isDesktop,
+  onToggleFavorite,
+}: {
+  brands: readonly FavoriteBrand[];
+  favoriteIds: readonly string[];
+  isDesktop: boolean;
+  onToggleFavorite: (id: string) => void;
+}) {
+  const { width } = useWindowDimensions();
+  const [gridWidth, setGridWidth] = useState(0);
+  const layoutWidth = gridWidth > 0 ? gridWidth : Math.max(320, width > 0 ? width - 48 : 360);
+  const metrics = useMemo(
+    () => getFavoriteBrandGridMetrics(layoutWidth, isDesktop),
+    [isDesktop, layoutWidth]
+  );
+  const estimatedRowHeight = getFavoriteBrandCardHeight(metrics.cardWidth);
+  const renderBrandCard = useCallback(
+    (brand: FavoriteBrand) => (
+      <FavoriteBrandCard
+        brand={brand}
+        isFavorite={favoriteIds.includes(brand.id)}
+        onToggleFavorite={onToggleFavorite}
+      />
+    ),
+    [favoriteIds, onToggleFavorite]
+  );
+
+  if (brands.length === 0) {
+    return (
+      <View
+        onLayout={(event) => setGridWidth(event.nativeEvent.layout.width)}
+        style={{ width: "100%" }}
+      />
+    );
+  }
+
+  return (
+    <View
+      onLayout={(event) => setGridWidth(event.nativeEvent.layout.width)}
+      style={{ width: "100%" }}
+    >
+      <DirectoryVirtualizedGrid
+        cardWidth={metrics.cardWidth}
+        columns={metrics.columns}
+        estimatedRowHeight={estimatedRowHeight}
+        gap={metrics.gap}
+        items={brands}
+        renderItemContent={renderBrandCard}
+      />
+    </View>
+  );
+}
+
+const FavoriteBrandCard = memo(function FavoriteBrandCard({
   brand,
   isFavorite = false,
   onToggleFavorite,
@@ -336,7 +391,7 @@ function FavoriteBrandCard({
       </MotionPressable>
     </View>
   );
-}
+});
 
 function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
   return StyleSheet.create({
@@ -488,11 +543,8 @@ function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
     gap: 18,
   },
   brandCard: {
-    flexBasis: "48%",
-    flexGrow: 1,
-    maxWidth: 280,
-    minWidth: 172,
     position: "relative",
+    width: "100%",
   },
   brandCardLink: {
     backgroundColor: colors.card,
@@ -589,7 +641,7 @@ function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
     lineHeight: 22,
   },
   cashbackCaption: {
-    color: colors.textSoft,
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: 12,
     lineHeight: 16,
@@ -618,7 +670,7 @@ function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
     paddingHorizontal: spacing.md,
   },
   searchText: {
-    color: colors.textSoft,
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: 15,
     lineHeight: 20,

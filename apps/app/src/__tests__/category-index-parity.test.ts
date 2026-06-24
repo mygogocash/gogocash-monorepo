@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import * as webDesignParity from "@mobile/design/webDesignParity";
+import { readDiscoverySources } from "../test-support/discoverySource";
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const mobileRoot = path.resolve(testDir, "../..");
@@ -130,12 +131,9 @@ describe("Category index parity", () => {
   });
 
   it("category index screen > given /category route > then it renders the web directory instead of the generic discovery placeholder", () => {
-    const screenFile = fs.readFileSync(
-      path.join(mobileRoot, "src/screens/CustomerDiscoveryScreen.tsx"),
-      "utf8"
-    );
+    const screenFile = readDiscoverySources(mobileRoot);
 
-    expect(screenFile).toContain("webCategoryDirectory");
+    expect(screenFile).toContain("CustomerCategoryDirectoryScreen");
     expect(screenFile).toContain("getCategoryDirectoryMatches");
     expect(screenFile).toContain("getCategoryDirectoryGridMetrics");
     expect(screenFile).toContain("getCategoryDirectoryPage");

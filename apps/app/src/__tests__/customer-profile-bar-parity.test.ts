@@ -138,6 +138,15 @@ describe("Expo profile dropdown menu navigation", () => {
     expect(menu).toContain("clearMobileAppSession");
   });
 
+  it("popover wallet hero glass > given dark theme > then keeps dark ink on the light frosted panel", () => {
+    // The mint glass gradient is unchanged in dark mode; colors.ink flips to #E8ECEA
+    // and disappears on the pale wash. Lock body copy to the web's #3B3B3B.
+    expect(menu).toContain("const heroGlassInk = \"#3B3B3B\"");
+    expect(menu).toContain("color: heroGlassInk");
+    expect(menu).not.toMatch(/heroKicker:\s*\{[^}]*color:\s*colors\.ink/);
+    expect(menu).not.toMatch(/heroAmount:\s*\{[^}]*color:\s*colors\.ink/);
+  });
+
   it("menu > given external rows > then point at the web's external URLs", () => {
     // Match the web ProfileHeaderPopperContent external hrefs (GOGOCASH_MARKETING_ORIGIN
     // = gogocash.co; supportHref = lin.ee LINE; linktree). Locks them against drift.

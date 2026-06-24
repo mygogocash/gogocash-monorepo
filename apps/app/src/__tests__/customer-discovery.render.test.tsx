@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -16,6 +15,7 @@ vi.mock("expo-localization", () => ({
 }));
 
 import { CustomerDiscoveryScreen } from "@mobile/screens/CustomerDiscoveryScreen";
+import { readDiscoverySources } from "../test-support/discoverySource";
 
 // Wave B (B4) per-screen UX adoption for the discovery DIRECTORY (categories, brand/shop/
 // product cards). RENDER suite: it MOUNTS each directory variant (react-native ->
@@ -41,9 +41,8 @@ import { CustomerDiscoveryScreen } from "@mobile/screens/CustomerDiscoveryScreen
 //    render a skeleton into. Skipped by design.
 //  - KeyboardAwareScreen: the search fields are inline filter inputs inside scrollable
 //    directories, not focus-and-submit forms — no keyboard-avoidance target.
-const discoverySource = readFileSync(
-  resolve(dirname(fileURLToPath(import.meta.url)), "../screens/CustomerDiscoveryScreen.tsx"),
-  "utf8"
+const discoverySource = readDiscoverySources(
+  resolve(dirname(fileURLToPath(import.meta.url)), "../.."),
 );
 
 describe("CustomerDiscoveryScreen (render)", () => {
@@ -96,5 +95,26 @@ describe("CustomerDiscoveryScreen — Wave B (B4) foundations adopted (source si
     expect(
       discoverySource
     ).toMatch(/numberOfLines=\{1\}\s*\n\s*style=\{styles\.productDiscoverySortLabel\}/);
+  });
+
+  it("directory chrome > given dark mode > then background secondary copy uses muted ink", () => {
+    expect(discoverySource).toMatch(/searchText:[\s\S]*?color: colors\.muted/);
+    expect(discoverySource).toMatch(/shopDirectoryResultsCount:[\s\S]*?color: colors\.muted/);
+    expect(discoverySource).toMatch(/productDiscoveryResultsCount:[\s\S]*?color: colors\.muted/);
+    expect(discoverySource).not.toMatch(/placeholderTextColor=\{colors\.textSoft\}/);
+  });
+
+  it("gives the sub-44px pagination buttons a hitSlop so the tap target reaches 44px", () => {
+    expect(discoverySource).toContain("shopDirectoryPageButton");
+    expect(discoverySource).toMatch(/hitSlop=\{6\}[\s\S]*?styles\.shopDirectoryPageButton/);
+  });
+
+  it("caps category directory count and card CTA labels with numberOfLines", () => {
+    expect(discoverySource).toMatch(
+      /numberOfLines=\{1\}(?:(?!<Text)[\s\S])*?style=\{styles\.categoryDirectoryCount\}/,
+    );
+    expect(discoverySource).toMatch(
+      /numberOfLines=\{1\}(?:(?!<Text)[\s\S])*?style=\{styles\.categoryDirectoryCardCta\}/,
+    );
   });
 });

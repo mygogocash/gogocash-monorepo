@@ -1,0 +1,56 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
+
+import { CUSTOMER_QUERY_STALE_TIME_MS } from "../query/queryDefaults";
+import { readHomeSources } from "../test-support/homeSource";
+
+const testDir = path.dirname(fileURLToPath(import.meta.url));
+const mobileRoot = path.resolve(testDir, "../..");
+
+function readMobileFile(relativePath: string) {
+  return fs.readFileSync(path.join(mobileRoot, relativePath), "utf8");
+}
+
+describe("perf wave 4 — query cache, carousel driver, expo-image", () => {
+  it("query defaults > given AppProviders > then staleTime is shared with account resources", () => {
+    const providers = readMobileFile("src/providers/AppProviders.tsx");
+    const accountResource = readMobileFile("src/account/customerAccountResource.ts");
+    const questResource = readMobileFile("src/quest/questTaskResource.ts");
+
+    expect(CUSTOMER_QUERY_STALE_TIME_MS).toBe(1000 * 60 * 5);
+    expect(providers).toContain("customerQueryDefaults");
+    expect(accountResource).not.toContain("staleTime:");
+    expect(questResource).not.toContain("staleTime:");
+    expect(accountResource).toContain("retry: false");
+    expect(questResource).toContain("retry: false");
+  });
+
+  it("home carousels > given hero top-brand and promo pagers > then scroll events branch useNativeDriver via motion (web-safe)", () => {
+    const homeSource = readHomeSources(mobileRoot);
+
+    expect(homeSource).not.toContain("useNativeDriver: false");
+    expect(homeSource).not.toContain("useNativeDriver: true");
+    expect(homeSource.match(/motion\.useNativeDriver/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
+  });
+
+  it("CarouselDots > given scroll-linked pills > then width is fixed and scaleX is animated", () => {
+    const dotsSource = readMobileFile("src/components/CarouselDots.tsx");
+
+    expect(dotsSource).toContain("transform: [{ scaleX }]");
+    expect(dotsSource).toContain("width: expandedWidth");
+    expect(dotsSource).not.toContain("outputRange: [size, expandedWidth, size]");
+  });
+
+  it("BrandCard > given partner logos > then expo-image is used with contentFit contain", () => {
+    const brandCard = readMobileFile("src/components/BrandCard.tsx");
+
+    expect(brandCard).toContain('from "expo-image"');
+    expect(brandCard).toContain('contentFit="contain"');
+    expect(brandCard).toContain("recyclingKey=");
+    expect(brandCard).not.toMatch(
+      /import\s*\{[^}]*\bImage\b[^}]*\}\s*from\s*"react-native"/
+    );
+  });
+});

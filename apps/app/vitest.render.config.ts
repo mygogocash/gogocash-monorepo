@@ -71,6 +71,10 @@ export default defineConfig({
         find: "react-native-safe-area-context",
         replacement: stub("safeAreaContextStub.tsx"),
       },
+      // @shopify/flash-list ships types the render harness cannot parse; directory
+      // grids are source-tested separately. Stub to a passthrough list for mounts.
+      { find: "@shopify/flash-list", replacement: stub("flashListStub.tsx") },
+      { find: "expo-image", replacement: stub("expoImageStub.tsx") },
       // react-native is Flow-typed; render against react-native-web instead.
       // Use the bare package name so node/vite resolution finds react-native-web
       // wherever it is installed. In this monorepo it is HOISTED to the workspace

@@ -36,7 +36,7 @@ export function getThemeSurfaces(colors: ThemeColors, resolved: ResolvedTheme): 
     footerDivider: colors.border,
     footerHeading: colors.ink,
     footerLink: colors.muted,
-    footerMuted: colors.textSoft,
+    footerMuted: colors.muted,
     metricTilePrimaryBackground: colors.primarySoft,
     metricTilePrimaryBorder: isDark ? "rgba(0,204,153,0.35)" : "rgba(0,204,153,0.2)",
     metricIconBackground: isDark ? colors.card : "#F3FCF9",

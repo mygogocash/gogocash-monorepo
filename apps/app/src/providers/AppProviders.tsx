@@ -11,6 +11,7 @@ import { CustomerRouteState } from "@mobile/components/CustomerRouteState";
 import { ToastProvider } from "@mobile/components/Toast";
 import { LocaleProvider } from "@mobile/i18n/LocaleProvider";
 import { getObservabilityConfig, initObservability } from "@mobile/observability/client";
+import { customerQueryDefaults } from "@mobile/query/queryDefaults";
 import { PrivacyScreenGuard } from "@mobile/security/PrivacyScreenGuard";
 import { gogoCashRuntimeFonts } from "@mobile/theme/appFonts";
 import { ThemeProvider } from "@mobile/theme/ThemeProvider";
@@ -40,10 +41,7 @@ export function AppProviders({ children }: PropsWithChildren) {
     () =>
       new QueryClient({
         defaultOptions: {
-          queries: {
-            retry: 2,
-            staleTime: 1000 * 60 * 5,
-          },
+          queries: customerQueryDefaults,
         },
       }),
     []

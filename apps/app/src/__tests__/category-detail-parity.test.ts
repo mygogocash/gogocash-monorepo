@@ -143,6 +143,25 @@ describe("Category detail parity", () => {
     expect(screenFile).not.toContain("Discover more");
   });
 
+  it("category detail card > given category result grid > then it renders the shared compact BrandCard", () => {
+    const screenFile = fs.readFileSync(
+      path.join(mobileRoot, "src/screens/CustomerCategoryDetailScreen.tsx"),
+      "utf8"
+    );
+    const brandCardFile = fs.readFileSync(
+      path.join(mobileRoot, "src/components/BrandCard.tsx"),
+      "utf8"
+    );
+
+    expect(screenFile).toContain('import { BrandCard } from "@mobile/components/BrandCard"');
+    expect(screenFile).toContain('size="S"');
+    expect(screenFile).toContain("getScaledCompactBrandCardMetrics");
+    expect(screenFile).toContain("category-result-card");
+    expect(screenFile).not.toContain("Grab Coupon");
+    expect(screenFile).not.toContain("favoriteButton");
+    expect(brandCardFile).toContain("compactBrandLogoFallback");
+  });
+
   it("category detail grid > given lg desktop width 1024-1279 > then it uses a 5-column tier matching web List.tsx", () => {
     const screenFile = fs.readFileSync(
       path.join(mobileRoot, "src/screens/CustomerCategoryDetailScreen.tsx"),

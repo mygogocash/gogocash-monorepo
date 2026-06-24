@@ -24,6 +24,7 @@
     "test:security": "vitest run --config vitest.config.ts src/__tests__/security-pentest.test.ts",
     "test:render": "vitest run --config vitest.render.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
+    "measure:bundle": "node scripts/measure-web-bundle.mjs",
     "typecheck": "tsc --noEmit",
     "build:preview": "eas build --profile preview",
     "build:production": "eas build --profile production"
@@ -34,6 +35,7 @@
     "@expo/metro-runtime": "~56.0.11",
     "@react-native-community/datetimepicker": "9.1.0",
     "@sentry/react-native": "~8.14.0",
+    "@shopify/flash-list": "2.0.2",
     "@tanstack/react-query": "5.101.0",
     "expo": "^56.0.0",
     "expo-clipboard": "~56.0.3",
@@ -41,6 +43,7 @@
     "expo-dev-client": "~56.0.20",
     "expo-font": "~56.0.5",
     "expo-haptics": "~56.0.3",
+    "expo-image": "~56.0.11",
     "expo-linking": "~56.0.11",
     "expo-localization": "~56.0.6",
     "expo-modules-core": "~56.0.16",

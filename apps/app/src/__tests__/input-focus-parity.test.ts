@@ -105,11 +105,11 @@ const WRAPPER_CLIP_FIELD_STYLES = [
   { file: "src/screens/CustomerMoneyActionScreen.tsx", styleName: "inputBox" },
   // App-wide sweep (search boxes + the withdraw select bar) — same rounded-wrapper structure.
   { file: "src/components/CustomerDesktopHeader.tsx", styleName: "desktopHeaderSearch" },
-  { file: "src/screens/CustomerHomeScreen.tsx", styleName: "searchPill" },
-  { file: "src/screens/CustomerHomeScreen.tsx", styleName: "desktopGoLinkInputShell" },
-  { file: "src/screens/CustomerDiscoveryScreen.tsx", styleName: "shopDirectorySearchBox" },
-  { file: "src/screens/CustomerDiscoveryScreen.tsx", styleName: "productDiscoverySearchBox" },
-  { file: "src/screens/CustomerDiscoveryScreen.tsx", styleName: "categorySearchBox" },
+  { file: "src/screens/home/customerHomeStyles.ts", styleName: "searchPill" },
+  { file: "src/screens/home/customerHomeStyles.ts", styleName: "desktopGoLinkInputShell" },
+  { file: "src/screens/discovery/customerDiscoveryStyles.ts", styleName: "shopDirectorySearchBox" },
+  { file: "src/screens/discovery/customerDiscoveryStyles.ts", styleName: "productDiscoverySearchBox" },
+  { file: "src/screens/discovery/customerDiscoveryStyles.ts", styleName: "categorySearchBox" },
   { file: "src/screens/CustomerCategoryDetailScreen.tsx", styleName: "searchBox" },
   { file: "src/screens/CustomerMoneyActionScreen.tsx", styleName: "selectBar" },
 ] as const;

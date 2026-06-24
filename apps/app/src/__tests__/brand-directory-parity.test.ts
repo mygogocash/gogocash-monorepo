@@ -5,6 +5,8 @@ import { describe, expect, it } from "vitest";
 
 import * as webDesignParity from "@mobile/design/webDesignParity";
 
+import { readDiscoverySources } from "../test-support/discoverySource";
+
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const mobileRoot = path.resolve(testDir, "../..");
 
@@ -137,19 +139,16 @@ describe("Brand directory parity", () => {
     expect(
       parity.getBrandDirectoryGridMetrics?.({ contentWidth: 1200, viewportWidth: 1440 })
     ).toEqual({
-      cardWidth: 180,
-      columns: 6,
+      cardWidth: 220.8,
+      columns: 5,
       gap: 24,
     });
   });
 
   it("brand screen > given /brand route > then it renders the dedicated brand directory instead of the generic placeholder", () => {
-    const screenFile = fs.readFileSync(
-      path.join(mobileRoot, "src/screens/CustomerDiscoveryScreen.tsx"),
-      "utf8"
-    );
+    const screenFile = readDiscoverySources(mobileRoot);
 
-    expect(screenFile).toContain("BrandDirectoryScreen");
+    expect(screenFile).toContain("CustomerBrandDirectoryScreen");
     expect(screenFile).toContain("webBrandDirectory");
     expect(screenFile).toContain("getBrandDirectoryResults");
     expect(screenFile).toContain("getBrandDirectoryGridMetrics");
@@ -164,10 +163,7 @@ describe("Brand directory parity", () => {
   // getCategoryIcon (web shows a distinct glyph per category), not a single
   // uniform SlidersHorizontal filter glyph on every row.
   it("category aside icons > given directory category rows > then each uses getCategoryIcon, not a uniform filter glyph", () => {
-    const screenSource = fs.readFileSync(
-      path.join(mobileRoot, "src/screens/CustomerDiscoveryScreen.tsx"),
-      "utf8"
-    );
+    const screenSource = readDiscoverySources(mobileRoot);
 
     expect(screenSource).toContain('from "@mobile/theme/categoryIcons"');
     const lookups = screenSource.match(/getCategoryIcon\(/g) ?? [];

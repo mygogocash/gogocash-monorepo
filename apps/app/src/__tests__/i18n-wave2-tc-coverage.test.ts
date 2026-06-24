@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { translateCopy } from "@mobile/i18n/messages";
+import { readHomeSources } from "../test-support/homeSource";
 
 // Source-of-truth coverage for the parallel-wrapped wave-2 screens: extract every static string literal
 // passed to tc("...") / tc('...') directly from each screen's source, and assert it resolves to Thai.
@@ -12,6 +13,7 @@ import { translateCopy } from "@mobile/i18n/messages";
 // missed strings and any overlay `en` value that does not match the screen verbatim — the failure mode
 // that would otherwise show English silently in Thai mode.
 const screensDir = resolve(dirname(fileURLToPath(import.meta.url)), "../screens");
+const mobileRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
 const WAVE2_SCREENS = [
   "CustomerProfileDetailScreen.tsx",
@@ -56,7 +58,10 @@ function extractTcLiterals(source: string): string[] {
 describe("i18n wave-2 tc() literal coverage (source-of-truth)", () => {
   for (const file of WAVE2_SCREENS) {
     it(`every tc() literal in ${file} resolves to Thai`, () => {
-      const source = readFileSync(resolve(screensDir, file), "utf8");
+      const source =
+        file === "CustomerHomeScreen.tsx"
+          ? readHomeSources(mobileRoot)
+          : readFileSync(resolve(screensDir, file), "utf8");
       const literals = extractTcLiterals(source);
       // Note: prop/constant-wrapped screens (e.g. AccountSetup, GoGoSense) expose few/no inline tc("...")
       // literals — their copy is bare string props rendered via tc(prop). Those are covered by the

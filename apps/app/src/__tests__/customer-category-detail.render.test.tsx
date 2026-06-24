@@ -34,8 +34,7 @@ import { CustomerCategoryDetailScreen } from "@mobile/screens/CustomerCategoryDe
 // pure getCategoryExploreResults — no async resource / refetch seam, no loading branch,
 // no CustomerAccountResourceState delegation); toast (no copy/clipboard action on this
 // screen); KeyboardAwareScreen (the lone TextInput is a filter, not a submit form);
-// hitSlop (the favorite heart is decorative chrome, not a Pressable — nothing icon-only
-// and tappable is < 44px).
+// hitSlop (no icon-only Pressable controls under 44px on this screen after BrandCard adoption).
 const categorySource = readFileSync(
   resolve(dirname(fileURLToPath(import.meta.url)), "../screens/CustomerCategoryDetailScreen.tsx"),
   "utf8"
@@ -79,8 +78,14 @@ describe("CustomerCategoryDetailScreen — Wave B foundations adopted (source si
   });
 
   it("uses canonical shop hrefs for brand cards instead of deriving display-name slugs", () => {
-    expect(categorySource).toContain("getTopBrandHref");
-    expect(categorySource).toContain("store.href ?? getTopBrandHref(store.brand)");
+    const brandCardFile = readFileSync(
+      resolve(dirname(fileURLToPath(import.meta.url)), "../components/BrandCard.tsx"),
+      "utf8",
+    );
+
+    expect(categorySource).toContain('import { BrandCard } from "@mobile/components/BrandCard"');
+    expect(brandCardFile).toContain("getTopBrandHref");
+    expect(brandCardFile).toContain("href ?? brandHref(brand)");
     expect(categorySource).not.toContain("href={brandHref(store.brand)");
   });
 });

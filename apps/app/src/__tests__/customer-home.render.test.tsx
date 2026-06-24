@@ -22,6 +22,8 @@ vi.mock("@mobile/observability/client", () => ({
   resetObservabilityIdentity: vi.fn(),
 }));
 
+import { readHomeSources } from "../test-support/homeSource";
+
 import { CustomerHomeScreen } from "@mobile/screens/CustomerHomeScreen";
 
 // Wave B (B4) per-screen UX adoption for the discovery/home landing screen. This is
@@ -35,8 +37,11 @@ import { CustomerHomeScreen } from "@mobile/screens/CustomerHomeScreen";
 // KeyboardAwareScreen, and copy haptics/toast are intentionally NOT adopted — see the
 // agent report for the per-treatment rationale (no resource/refetch, no
 // CustomerAccountResourceState loading delegation, no text-input form, no copy action).
-const homeSource = readFileSync(
-  resolve(dirname(fileURLToPath(import.meta.url)), "../screens/CustomerHomeScreen.tsx"),
+const testDir = dirname(fileURLToPath(import.meta.url));
+const mobileRoot = resolve(testDir, "../..");
+const homeSource = readHomeSources(mobileRoot);
+const brandCardSource = readFileSync(
+  resolve(dirname(fileURLToPath(import.meta.url)), "../components/BrandCard.tsx"),
   "utf8"
 );
 
@@ -102,7 +107,9 @@ describe("CustomerHomeScreen — Wave B Thai-truncation pass (source signals)", 
     // pass adds at least 4 more (the four styles named above). Baseline dropped from
     // 9 to 7 when the large/compact cards were unified into one BrandCard, which
     // de-duplicated the title + caption markup without changing runtime capping.
-    const numberOfLinesCount = (homeSource.match(/numberOfLines=\{/g) ?? []).length;
+    const numberOfLinesCount =
+      (homeSource.match(/numberOfLines=\{/g) ?? []).length +
+      (brandCardSource.match(/numberOfLines=\{/g) ?? []).length;
     expect(numberOfLinesCount).toBeGreaterThanOrEqual(11);
   });
 
@@ -123,5 +130,19 @@ describe("CustomerHomeScreen — Wave B Thai-truncation pass (source signals)", 
 
   it("caps the browse/category shortcut pill label", () => {
     expect(homeSource).toMatch(/numberOfLines=\{1\}(?:(?!<Text)[\s\S])*?style=\{styles\.shortcutText\}/);
+  });
+});
+
+describe("CustomerHomeScreen — Wave 2 mobile-friendly P0 (source signals)", () => {
+  it("home search chrome > given dark mode > then placeholder and pill copy use muted ink", () => {
+    expect(homeSource).toMatch(/searchText:[\s\S]*?color: colors\.muted/);
+    expect(homeSource).toContain("placeholderTextColor={colors.muted}");
+    expect(homeSource).not.toMatch(
+      /placeholderTextColor=\{pickThemed\(colors, "rgba\(92, 114, 107, 0\.55\)", colors\.textSoft\)\}/,
+    );
+  });
+
+  it("gives the sub-44px GoLink info icon button a hitSlop so the tap target reaches 44px", () => {
+    expect(homeSource).toMatch(/hitSlop=\{10\}[\s\S]*?styles\.desktopGoLinkInfoButton/);
   });
 });

@@ -23,7 +23,6 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import sideWatchImage from "../../assets/home-side-watch.png";
-import merchantCashbackTipsImage from "../../assets/shop/merchant-cashback-tips-terms.png";
 import questBannerImage from "../../assets/quest-banner-en.png";
 import walletNoDataImage from "../../assets/wallet-no-data.png";
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
@@ -33,6 +32,7 @@ import { isMerchantOfferResponse } from "@mobile/api/merchantTypes";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { ShopCashbackTipsPanel } from "@mobile/components/shop/ShopCashbackTipsPanel";
 import { ShopRedirectOverlay } from "@mobile/components/ShopRedirectOverlay";
 import { Skeleton, SkeletonText } from "@mobile/components/Skeleton";
 import { useToast } from "@mobile/hooks/useToast";
@@ -147,7 +147,7 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
             <View style={[styles.rightColumn, isDesktop ? styles.rightColumnDesktop : null]}>
               <ShopQuestBanner shop={shop} />
               <ShopDealsEmptyState shop={shop} />
-              <ShopCashbackTips shop={shop} />
+              <ShopCashbackTipsPanel shop={shop} />
             </View>
           </View>
           {!isDesktop ? <ShopTermsPanel shop={shop} /> : null}
@@ -244,7 +244,7 @@ function ShopCashbackRail({ shop }: { shop: ShopDetail }) {
   return (
     <View style={styles.cashbackRail}>
       <View style={styles.cashbackHeader}>
-        <Text style={styles.cashbackLabel}>Cashback up to</Text>
+        <Text style={styles.cashbackLabel}>Cashback upto</Text>
         <Text style={styles.cashbackValue}>{shop.cashback}</Text>
       </View>
       <View style={styles.tagRow} accessibilityLabel="Offer highlights">
@@ -405,30 +405,6 @@ function ShopDealsEmptyState({ shop }: { shop: ShopDetail }) {
   );
 }
 
-function ShopCashbackTips({ shop }: { shop: ShopDetail }) {
-  const styles = useThemedStyles(createShopDetailScreenStyles);
-  const illustrationAspectRatio =
-    shop.cashbackTips.illustrationWidth / shop.cashbackTips.illustrationHeight;
-
-  return (
-    <View style={styles.cashbackTipsSection}>
-      <View style={styles.cashbackTipsHeader}>
-        <Text style={styles.cashbackTipsEmoji}>💡</Text>
-        <Text style={styles.cashbackTipsTitle}>{shop.cashbackTips.title}</Text>
-      </View>
-      <View style={[styles.cashbackTipsFigure, { aspectRatio: illustrationAspectRatio }]}>
-        <Image
-          accessibilityLabel={shop.cashbackTips.illustrationAlt}
-          alt={shop.cashbackTips.illustrationAlt}
-          resizeMode="contain"
-          source={merchantCashbackTipsImage}
-          style={styles.cashbackTipsImage}
-        />
-      </View>
-    </View>
-  );
-}
-
 function ShopTermsPanel({ shop }: { shop: ShopDetail }) {
   const styles = useThemedStyles(createShopDetailScreenStyles);
   const { colors } = useTheme();
@@ -501,7 +477,7 @@ function ShopExploreRelated() {
                 {store.brand}
               </Text>
               <View style={styles.relatedCashbackRow}>
-                <Text style={styles.relatedCashbackCaption}>Cashback up to</Text>
+                <Text style={styles.relatedCashbackCaption}>Cashback upto</Text>
                 <Text style={styles.relatedCashbackValue}>{store.cashback}</Text>
               </View>
             </MotionPressable>
@@ -635,7 +611,7 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
   },
   shopNowButton: {
     alignItems: "center",
-    backgroundColor: colors.ink,
+    backgroundColor: pickThemed(colors, colors.ink, colors.primary),
     borderRadius: radii.chip,
     height: 48,
     justifyContent: "center",
@@ -953,45 +929,6 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
     maxWidth: 360,
     textAlign: "center",
   },
-  cashbackTipsSection: {
-    alignItems: "flex-start",
-    gap: 16,
-    minWidth: 0,
-    width: "100%",
-  },
-  cashbackTipsHeader: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    gap: 8,
-    width: "100%",
-  },
-  cashbackTipsEmoji: {
-    fontSize: 20,
-    height: 24,
-    lineHeight: 24,
-    textAlign: "center",
-    width: 24,
-  },
-  cashbackTipsTitle: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 20,
-    fontWeight: "600",
-    lineHeight: 30,
-  },
-  cashbackTipsFigure: {
-    backgroundColor: pickThemed(colors, "#F0FDFA", colors.primarySoft),
-    borderColor: colors.border,
-    borderRadius: 16,
-    borderWidth: 1,
-    minWidth: 0,
-    overflow: "hidden",
-    width: "100%",
-  },
-  cashbackTipsImage: {
-    height: "100%",
-    width: "100%",
-  },
   termsPanel: {
     backgroundColor: colors.card,
     borderColor: colors.border,
@@ -1129,7 +1066,7 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
     justifyContent: "space-between",
   },
   relatedCashbackCaption: {
-    color: colors.textSoft,
+    color: colors.muted,
     flex: 1,
     fontFamily: typography.family,
     fontSize: 11,

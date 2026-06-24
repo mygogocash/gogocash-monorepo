@@ -9,6 +9,8 @@ import {
   mobileParityRoutes,
   type MobileRouteId,
 } from "@mobile/navigation/routes";
+import { readDiscoverySources } from "../test-support/discoverySource";
+import { readHomeSources } from "../test-support/homeSource";
 
 type FrontendFlowContract = {
   appFile: string;
@@ -36,7 +38,7 @@ const frontendFlowContracts: FrontendFlowContract[] = [
   },
   {
     appFile: "app/(tabs)/discover.tsx",
-    landmarks: ["ProductDiscoveryScreen", "webProductDiscovery", "ProductDiscoveryMobileFilters"],
+    landmarks: ["CustomerProductDiscoveryScreen", "webProductDiscovery", "ProductDiscoveryMobileFilters"],
     routeId: "discover",
     routeMarkers: ["CustomerDiscoveryScreen", 'routeId="discover"'],
     screenFiles: ["src/screens/CustomerDiscoveryScreen.tsx"],
@@ -44,7 +46,7 @@ const frontendFlowContracts: FrontendFlowContract[] = [
   },
   {
     appFile: "app/brand.tsx",
-    landmarks: ["BrandDirectoryScreen", "webBrandDirectory", "BrandDirectoryCategoryAside"],
+    landmarks: ["CustomerBrandDirectoryScreen", "webBrandDirectory", "BrandDirectoryCategoryAside"],
     routeId: "brand",
     routeMarkers: ["CustomerDiscoveryScreen", 'routeId="brand"'],
     screenFiles: ["src/screens/CustomerDiscoveryScreen.tsx"],
@@ -52,7 +54,7 @@ const frontendFlowContracts: FrontendFlowContract[] = [
   },
   {
     appFile: "app/category/index.tsx",
-    landmarks: ["CategoryDirectoryScreen", "webCategoryDirectory", "getCategoryDirectoryMatches"],
+    landmarks: ["CustomerCategoryDirectoryScreen", "webCategoryDirectory", "getCategoryDirectoryMatches"],
     routeId: "category",
     routeMarkers: ["CustomerDiscoveryScreen", 'routeId="category"'],
     screenFiles: ["src/screens/CustomerDiscoveryScreen.tsx"],
@@ -60,7 +62,7 @@ const frontendFlowContracts: FrontendFlowContract[] = [
   },
   {
     appFile: "app/category/[name].tsx",
-    expectedLinks: ["encodeURIComponent(category)", "getTopBrandHref(store.brand)"],
+    expectedLinks: ["encodeURIComponent(category)", '@mobile/components/BrandCard"'],
     landmarks: [
       "Explore your Favorite",
       "webCategoryExploreHealthBeauty",
@@ -74,7 +76,7 @@ const frontendFlowContracts: FrontendFlowContract[] = [
   },
   {
     appFile: "app/(tabs)/shops.tsx",
-    landmarks: ["ShopDirectoryScreen", "webShopDirectory", "getShopDirectoryResults"],
+    landmarks: ["CustomerShopDirectoryScreen", "webShopDirectory", "getShopDirectoryResults"],
     routeId: "shops",
     routeMarkers: ["CustomerDiscoveryScreen", 'routeId="shops"'],
     screenFiles: ["src/screens/CustomerDiscoveryScreen.tsx"],
@@ -487,6 +489,24 @@ function readMobileFile(relativePath: string) {
   return fs.readFileSync(path.join(mobileRoot, relativePath), "utf8");
 }
 
+function readScreenContractSources(screenFiles: string[]) {
+  if (
+    screenFiles.length === 1 &&
+    screenFiles[0] === "src/screens/CustomerDiscoveryScreen.tsx"
+  ) {
+    return readDiscoverySources(mobileRoot);
+  }
+
+  if (
+    screenFiles.length === 1 &&
+    screenFiles[0] === "src/screens/CustomerHomeScreen.tsx"
+  ) {
+    return readHomeSources(mobileRoot);
+  }
+
+  return screenFiles.map((file) => readMobileFile(file)).join("\n");
+}
+
 function readRepoFile(relativePath: string) {
   return fs.readFileSync(path.join(repoRoot, relativePath), "utf8");
 }
@@ -519,9 +539,7 @@ describe("Expo frontend user-flow parity", () => {
 
   it("frontend landmarks > given every flow contract > then screens keep the expected user-facing state anchors", () => {
     for (const contract of frontendFlowContracts) {
-      const screenText = normalizeWhitespace(
-        contract.screenFiles.map((file) => readMobileFile(file)).join("\n")
-      );
+      const screenText = normalizeWhitespace(readScreenContractSources(contract.screenFiles));
 
       for (const landmark of contract.landmarks) {
         expect(screenText, `${contract.routeId} landmark: ${landmark}`).toContain(landmark);
@@ -566,7 +584,7 @@ describe("Expo frontend user-flow parity", () => {
       nextDerivedRouteIds.has(flow.routeId)
     )) {
       const routeFile = readMobileFile(contract.appFile);
-      const screenText = contract.screenFiles.map((file) => readMobileFile(file)).join("\n");
+      const screenText = readScreenContractSources(contract.screenFiles);
 
       expect(routeFile, `${contract.routeId} route file`).not.toContain("NativeParityScreen");
       for (const text of forbiddenPlaceholderText) {
@@ -604,7 +622,7 @@ describe("Expo frontend user-flow parity", () => {
     expect(gogosenseContracts).toHaveLength(7);
     for (const contract of gogosenseContracts) {
       const routeFile = readMobileFile(contract.appFile);
-      const screenText = contract.screenFiles.map((file) => readMobileFile(file)).join("\n");
+      const screenText = readScreenContractSources(contract.screenFiles);
 
       expect(routeFile, `${contract.routeId} route`).toContain("CustomerGoGoSenseScreen");
       expect(routeFile, `${contract.routeId} route`).not.toContain("NativeParityScreen");

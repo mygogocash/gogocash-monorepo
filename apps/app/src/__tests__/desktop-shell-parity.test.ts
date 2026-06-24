@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { mobileParityRoutes } from "@mobile/navigation/routes";
+import { readDiscoverySources } from "../test-support/discoverySource";
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const mobileRoot = path.resolve(testDir, "../..");
@@ -49,8 +50,11 @@ const rootChromeFooterSlotOwners = [
 const cappedDesktopFooterScreens = [
   "src/screens/CustomerHomeScreen.tsx",
   "src/screens/CustomerCategoryDetailScreen.tsx",
-  "src/screens/CustomerDiscoveryScreen.tsx",
 ];
+
+function readDiscoveryChromeSources() {
+  return readDiscoverySources(mobileRoot);
+}
 
 describe("desktop route shell parity", () => {
   it("desktop route chrome > given every migrated customer route > then Expo guarantees a navbar and footer on desktop", () => {
@@ -81,7 +85,10 @@ describe("desktop route shell parity", () => {
     }
 
     for (const screenPath of rootChromeFooterSlotOwners) {
-      const screenFile = readMobileFile(screenPath);
+      const screenFile =
+        screenPath === "src/screens/CustomerDiscoveryScreen.tsx"
+          ? readDiscoveryChromeSources()
+          : readMobileFile(screenPath);
 
       expect(screenFile, `${screenPath} desktop footer slot`).toContain("CustomerDesktopFooterSlot");
     }
@@ -127,6 +134,17 @@ describe("desktop route shell parity", () => {
         "CustomerDesktopFooter horizontalPadding={0} viewportWidth={width}"
       );
     }
+
+    const discoveryScreens = readDiscoveryChromeSources();
+    expect(discoveryScreens, "discovery screens should compute centered shell offset").toContain(
+      "getDesktopShellOffset"
+    );
+    expect(discoveryScreens, "discovery screens should pass shell offset to footer").toContain(
+      "horizontalPadding={desktopFooterHorizontalOffset}"
+    );
+    expect(discoveryScreens, "discovery screens should not leave capped footer at parent x").not.toContain(
+      "CustomerDesktopFooter horizontalPadding={0} viewportWidth={width}"
+    );
   });
 
   // Regression guard: every directory sub-screen inside CustomerDiscoveryScreen
@@ -136,26 +154,24 @@ describe("desktop route shell parity", () => {
   // nav, so the bottom nav appeared on /category and /shop/[id] but vanished on
   // the directory routes — inconsistent chrome across sibling routes.
   it("mobile bottom nav > given every Discovery directory sub-screen > then each renders CustomerMobileBottomNav at mobile width", () => {
-    const discovery = readMobileFile("src/screens/CustomerDiscoveryScreen.tsx");
+    const discovery = readDiscoveryChromeSources();
 
-    // Slice each function's true body: from its `function Xxx()` definition up to
-    // the next top-level `function ` definition (or the styles block).
     function functionBody(name: string): string {
       const defMarker = `function ${name}(`;
       const start = discovery.indexOf(defMarker);
       expect(start, `${defMarker} definition not found`).toBeGreaterThan(-1);
       const after = discovery.indexOf("\nfunction ", start + defMarker.length);
-      const stylesAt = discovery.indexOf("\nconst styles = StyleSheet.create(", start);
-      const candidates = [after, stylesAt].filter((n) => n > start);
+      const exportAfter = discovery.indexOf("\nexport function ", start + defMarker.length);
+      const candidates = [after, exportAfter].filter((n) => n > start);
       const end = candidates.length ? Math.min(...candidates) : discovery.length;
       return discovery.slice(start, end);
     }
 
     for (const name of [
-      "BrandDirectoryScreen",
-      "ProductDiscoveryScreen",
-      "ShopDirectoryScreen",
-      "CategoryDirectoryScreen",
+      "CustomerBrandDirectoryScreen",
+      "CustomerProductDiscoveryScreen",
+      "CustomerShopDirectoryScreen",
+      "CustomerCategoryDirectoryScreen",
     ]) {
       expect(functionBody(name), `${name} should render CustomerMobileBottomNav`).toContain(
         "CustomerMobileBottomNav"
