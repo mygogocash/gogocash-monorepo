@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, HttpException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { AnalyticsService } from 'src/analytics/analytics.service';
@@ -62,6 +62,8 @@ export type ActivationResponse = {
   expiresAt?: string;
 };
 
+const SCREENSHOT_JOB_TTL_MS = 24 * 60 * 60 * 1000;
+
 const normalizePackageName = (packageName?: string) =>
   packageName?.trim().toLowerCase() || undefined;
 
@@ -83,6 +85,31 @@ const normalizeDomain = (urlOrDomain?: string) => {
   }
 };
 
+const sanitizeDetectionUrl = (url?: string) => {
+  const domain = normalizeDomain(url);
+  return domain ? `https://${domain}` : undefined;
+};
+
+const sanitizeDetectionText = (text?: string) => {
+  if (!text) return undefined;
+
+  const sanitized = text
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, '[redacted-email]')
+    .replace(/\b\d{8,}\b/g, '[redacted-number]')
+    .replace(/\+?\b(?:\d[\d\s().-]{7,}\d)\b/g, '[redacted-phone]')
+    .replace(/https?:\/\/\S+/gi, '[redacted-url]')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return sanitized ? sanitized.slice(0, 240) : undefined;
+};
+
+const sanitizeDetectionRequest = (request: DetectionRequestDto) => ({
+  ...request,
+  url: sanitizeDetectionUrl(request.url),
+  notificationText: sanitizeDetectionText(request.notificationText),
+});
+
 const domainMatches = (candidateDomain: string, merchantDomain: string) => {
   const normalizedMerchantDomain = normalizeDomain(merchantDomain);
   if (!normalizedMerchantDomain) return false;
@@ -97,6 +124,26 @@ const getDocumentId = (doc: unknown) => {
   const id = (doc as { _id?: { toString?: () => string } | string })?._id;
   return typeof id === 'string' ? id : id?.toString?.();
 };
+
+type AffiliateNetworkError = {
+  response?: {
+    status?: number;
+    data?: {
+      status_code?: number;
+    };
+  };
+};
+
+const GOGOSENSE_DEEPLINK_UNAVAILABLE = 'GOGOSENSE_DEEPLINK_UNAVAILABLE';
+
+function getAffiliateNetworkStatusCode(error: unknown): number | undefined {
+  if (!error || typeof error !== 'object') {
+    return undefined;
+  }
+
+  const response = (error as AffiliateNetworkError).response;
+  return response?.data?.status_code ?? response?.status;
+}
 
 @Injectable()
 export class GogosenseService {
@@ -177,7 +224,49 @@ export class GogosenseService {
     userId: string,
     request: DetectionRequestDto,
   ): Promise<DetectionResponse> {
-    const match = await this.matchMerchant(request);
+    const detectionRequest = sanitizeDetectionRequest(request);
+    const settings = await this.getSettings(userId);
+    if (settings?.enabled === false) {
+      throw new BadRequestException('GoGoSense tracking is disabled');
+    }
+    if (
+      detectionRequest.method === 'android_package' &&
+      settings?.usage_stats_enabled === false
+    ) {
+      throw new BadRequestException('Usage access detection is disabled');
+    }
+    if (
+      detectionRequest.method === 'notification' &&
+      settings?.notification_listener_enabled === false
+    ) {
+      throw new BadRequestException('Notification detection is disabled');
+    }
+    if (
+      detectionRequest.method === 'screenshot_ocr' &&
+      settings?.screenshot_recovery_enabled === false
+    ) {
+      throw new BadRequestException('Screenshot recovery is disabled');
+    }
+    if (
+      detectionRequest.method === 'screenshot_ocr' &&
+      !detectionRequest.screenshotJobId
+    ) {
+      throw new BadRequestException(
+        'Screenshot recovery job is required for screenshot OCR detection',
+      );
+    }
+    const match = await this.matchMerchant(detectionRequest);
+    if (detectionRequest.screenshotJobId) {
+      const screenshotJob = await this.getScreenshotJob(
+        userId,
+        detectionRequest.screenshotJobId,
+      );
+      if (!screenshotJob) {
+        throw new BadRequestException(
+          'Screenshot recovery job is invalid or expired',
+        );
+      }
+    }
     const event = await this.detectionEventModel.create({
       user_id: userId,
       detection_method: request.method,
@@ -190,9 +279,9 @@ export class GogosenseService {
       confidence_score: match.confidenceScore,
       matched: match.matched,
       package_name: request.packageName,
-      url: request.url,
-      notification_text: request.notificationText,
-      screenshot_job_id: request.screenshotJobId,
+      url: detectionRequest.url,
+      notification_text: detectionRequest.notificationText,
+      screenshot_job_id: detectionRequest.screenshotJobId,
       observed_at: new Date(request.observedAt),
       platform: request.platform,
       app_version: request.appVersion,
@@ -221,14 +310,55 @@ export class GogosenseService {
     userId: string,
     request: ActivationRequestDto,
   ): Promise<ActivationResponse> {
-    const deeplinkDoc = await this.involveService.createAffiliate(
-      {
-        offer_id: request.offerId,
-        merchant_id: request.networkMerchantId,
-        deeplink: '',
-      },
-      userId,
-    );
+    if (request.source === 'gogosense') {
+      const settings = await this.getSettings(userId);
+      if (settings?.enabled === false) {
+        throw new BadRequestException('GoGoSense tracking is disabled');
+      }
+    }
+    await this.assertDetectionEventMatchesActivation(userId, request);
+
+    if (request.detectionEventId) {
+      const existingActivation = await this.activationEventModel
+        .findOne({
+          user_id: userId,
+          detection_event_id: request.detectionEventId,
+        })
+        .lean();
+
+      if (existingActivation) {
+        throw new BadRequestException(
+          'GoGoSense detection event has already been activated',
+        );
+      }
+    }
+
+    let deeplinkDoc: unknown;
+    try {
+      deeplinkDoc = await this.involveService.createAffiliate(
+        {
+          offer_id: request.offerId,
+          merchant_id: request.networkMerchantId,
+          deeplink: '',
+        },
+        userId,
+      );
+    } catch (error) {
+      const upstreamStatusCode = getAffiliateNetworkStatusCode(error);
+      if ([400, 404, 422].includes(upstreamStatusCode ?? 0)) {
+        throw new HttpException(
+          {
+            message:
+              'GoGoSense deeplink is unavailable for this merchant activation.',
+            code: GOGOSENSE_DEEPLINK_UNAVAILABLE,
+            upstreamStatusCode,
+          },
+          422,
+        );
+      }
+
+      throw error;
+    }
     const deeplink =
       (deeplinkDoc as { deeplink?: string; tracking_link?: string })
         ?.deeplink ||
@@ -262,6 +392,37 @@ export class GogosenseService {
     };
   }
 
+  private async assertDetectionEventMatchesActivation(
+    userId: string,
+    request: ActivationRequestDto,
+  ) {
+    if (!request.detectionEventId) {
+      if (request.source === 'gogosense') {
+        throw new BadRequestException(
+          'GoGoSense activation requires a detection event',
+        );
+      }
+
+      return;
+    }
+
+    const detectionEvent = await this.detectionEventModel
+      .findOne({
+        _id: request.detectionEventId,
+        user_id: userId,
+        merchant_id: request.merchantId,
+        network_merchant_id: request.networkMerchantId,
+        matched: true,
+      })
+      .lean();
+
+    if (!detectionEvent) {
+      throw new BadRequestException(
+        'Invalid GoGoSense detection event for activation',
+      );
+    }
+  }
+
   async getTimeline(userId: string) {
     const [detections, activations] = await Promise.all([
       this.detectionEventModel
@@ -280,15 +441,30 @@ export class GogosenseService {
   }
 
   async createScreenshotJob(userId: string) {
+    const settings = await this.userSettingsModel
+      .findOne({ user_id: userId })
+      .lean();
+    if (
+      settings &&
+      (settings.enabled === false ||
+        settings.screenshot_recovery_enabled === false)
+    ) {
+      throw new BadRequestException('Screenshot recovery is disabled');
+    }
     return this.screenshotJobModel.create({
       user_id: userId,
       status: 'pending',
+      expires_at: new Date(Date.now() + SCREENSHOT_JOB_TTL_MS),
     });
   }
 
   async getScreenshotJob(userId: string, jobId: string) {
     return this.screenshotJobModel
-      .findOne({ _id: jobId, user_id: userId })
+      .findOne({
+        _id: jobId,
+        user_id: userId,
+        expires_at: { $gt: new Date() },
+      })
       .lean();
   }
 

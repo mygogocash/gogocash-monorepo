@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Linking, StyleSheet, Text, View } from "react-native";
 
 import { MotionPressable } from "@mobile/components/MotionPressable";
@@ -40,6 +40,10 @@ export function GoGoSenseDetectionBanner({
   const liveApi = useGoGoSenseApi();
   const api = apiOverride ?? liveApi ?? inertApi;
   const { state, start, poll, activate } = useGoGoSense({ detector, api });
+  const [activationError, setActivationError] = useState(false);
+  const [isActivating, setIsActivating] = useState(false);
+  const activationInFlightRef = useRef(false);
+  const [activatedMatchKey, setActivatedMatchKey] = useState<string | null>(null);
 
   useEffect(() => {
     void start().then(() => poll());
@@ -51,20 +55,45 @@ export function GoGoSenseDetectionBanner({
     return () => subscription.remove();
   }, [start, poll]);
 
-  const onActivate = useCallback(() => {
-    void haptics.impact();
-    void activate().then((result) => {
-      if (result) {
-        (openUrl ?? Linking.openURL)(result.deeplink);
-      }
-    });
-  }, [activate, openUrl]);
-
   const match = state.lastMatch;
-  const showNudge =
+  const matchIsActionable =
     match != null &&
     match.response.matched &&
     match.response.recommendedAction === "activate";
+  const matchKey = matchIsActionable
+    ? `${match.packageName}:${match.response.detectionEventId ?? match.response.merchantId ?? ""}`
+    : null;
+  const showNudge = matchIsActionable && matchKey !== activatedMatchKey;
+
+  const onActivate = useCallback(() => {
+    if (activationInFlightRef.current) return;
+
+    activationInFlightRef.current = true;
+    setIsActivating(true);
+    setActivationError(false);
+    void haptics.impact();
+    void activate()
+      .then((result) => {
+        if (!result) {
+          setActivationError(true);
+          return undefined;
+        }
+        return Promise.resolve((openUrl ?? Linking.openURL)(result.deeplink)).then(() => {
+          setActivatedMatchKey(matchKey);
+        });
+      })
+      .catch(() => setActivationError(true))
+      .finally(() => {
+        activationInFlightRef.current = false;
+        setIsActivating(false);
+      });
+  }, [activate, matchKey, openUrl]);
+
+  useEffect(() => {
+    activationInFlightRef.current = false;
+    setActivationError(false);
+    setIsActivating(false);
+  }, [matchKey]);
 
   if (!showNudge) {
     return null;
@@ -84,14 +113,21 @@ export function GoGoSenseDetectionBanner({
         {merchantSuffix}
       </Text>
       <MotionPressable
+        accessibilityLabel={tc("Activate GoGoSense cashback")}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: isActivating }}
         onPress={onActivate}
         pressScale={motion.scale.subtlePress}
-        style={styles.button}
+        style={[styles.button, isActivating ? styles.buttonDisabled : null]}
+        testID="gogosense-activate-cashback-button"
       >
         <Text numberOfLines={1} style={styles.buttonText}>
-          {tc("Activate cashback")}
+          {tc(isActivating ? "Activating cashback" : "Activate cashback")}
         </Text>
       </MotionPressable>
+      {activationError ? (
+        <Text style={styles.error}>{tc("Cashback activation failed. Please try again.")}</Text>
+      ) : null}
     </View>
   );
 }
@@ -121,11 +157,19 @@ function createGoGoSenseDetectionBannerStyles(colors: ThemeColors) {
     minHeight: 46,
     paddingHorizontal: spacing.md,
   },
+  buttonDisabled: {
+    opacity: 0.72,
+  },
   buttonText: {
     color: colors.white,
     fontSize: 14,
     fontWeight: "700",
   },
+  error: {
+    color: colors.danger,
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 16,
+  },
 });
 }
-

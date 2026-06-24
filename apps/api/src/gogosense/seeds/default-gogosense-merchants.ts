@@ -16,11 +16,16 @@ type GogosenseMerchantSeed = {
 
 const platforms = ['android', 'ios', 'web', 'line'];
 
+const SHOPEE_TH_OFFER_ID = 5030;
+const SHOPEE_TH_NETWORK_MERCHANT_ID = 103876;
+
 const candidate = (
   slug: string,
   merchantName: string,
   androidPackages: string[],
   domains: string[],
+  offerId = 0,
+  networkMerchantId = 0,
 ): GogosenseMerchantSeed => ({
   merchant_id: `merchant-${slug}`,
   brand_id: `brand-${slug}`,
@@ -28,8 +33,8 @@ const candidate = (
   merchant_name: merchantName,
   android_packages: androidPackages,
   domains,
-  offer_id: 0,
-  network_merchant_id: 0,
+  offer_id: offerId,
+  network_merchant_id: networkMerchantId,
   cashback_rate: '',
   affiliate_network: 'involve',
   supported_platforms: platforms,
@@ -40,7 +45,14 @@ const candidate = (
 // Disabled by default until ops maps each row to verified Involve offer and
 // network merchant IDs. These rows freeze the first MVP detection target list.
 export const defaultGogosenseMerchants: GogosenseMerchantSeed[] = [
-  candidate('shopee', 'Shopee', ['com.shopee.th'], ['shopee.co.th']),
+  candidate(
+    'shopee',
+    'Shopee',
+    ['com.shopee.th'],
+    ['shopee.co.th'],
+    SHOPEE_TH_OFFER_ID,
+    SHOPEE_TH_NETWORK_MERCHANT_ID,
+  ),
   candidate('lazada', 'Lazada', ['com.lazada.android'], ['lazada.co.th']),
   candidate('temu', 'Temu', ['com.einnovation.temu'], ['temu.com']),
   candidate('tiktok-shop', 'TikTok Shop', [], ['shop.tiktok.com']),

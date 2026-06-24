@@ -71,12 +71,13 @@ export function useGoGoSenseSettings(apiOverride?: SettingsApi | null) {
 
   const setField = useCallback(
     (field: GoGoSenseSettingsField, value: boolean) => {
+      const previous = settings;
       setSettings((prev) => ({ ...prev, [field]: value }));
       void api?.updateSettings({ [field]: value }).catch(() => {
-        // Optimistic: a failed persist is left as-is for the MVP.
+        setSettings(previous);
       });
     },
-    [api],
+    [api, settings],
   );
 
   return { settings, setField };

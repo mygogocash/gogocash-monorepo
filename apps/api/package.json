@@ -30,7 +30,8 @@
     "backfill:conversion-userid": "ts-node -r tsconfig-paths/register scripts/backfill-conversion-userid.ts",
     "backfill:conversion-userid:dry": "ts-node -r tsconfig-paths/register scripts/backfill-conversion-userid.ts --dry-run",
     "backfill:quest-tasks": "ts-node -r tsconfig-paths/register scripts/backfill-quest-tasks.ts",
-    "backfill:quest-tasks:dry": "ts-node -r tsconfig-paths/register scripts/backfill-quest-tasks.ts --dry-run"
+    "backfill:quest-tasks:dry": "ts-node -r tsconfig-paths/register scripts/backfill-quest-tasks.ts --dry-run",
+    "gogosense:seed-merchants": "ts-node -r tsconfig-paths/register scripts/seed-gogosense-merchants.ts"
   },
   "dependencies": {
     "@crossmint/server-sdk": "^1.2.41",

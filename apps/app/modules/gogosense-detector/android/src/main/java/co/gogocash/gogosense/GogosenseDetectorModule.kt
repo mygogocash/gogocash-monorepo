@@ -78,11 +78,17 @@ class GogosenseDetectorModule : Module() {
   }
 
   /**
-   * Most-recent foreground app package over a short trailing window, excluding
+   * Most-recent foreground app package over a two-minute trailing window, excluding
    * GoGoCash itself. Returns null when Usage Access is not granted or no
    * other-app foreground event occurred. MOVE_TO_FOREGROUND (== ACTIVITY_RESUMED
    * on API 29+, same constant value) works across supported API levels.
    */
+  private fun isForegroundEvent(eventType: Int): Boolean {
+    return eventType == UsageEvents.Event.MOVE_TO_FOREGROUND ||
+      (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+        eventType == UsageEvents.Event.ACTIVITY_RESUMED)
+  }
+
   private fun currentForegroundPackage(): String? {
     if (!hasUsageAccess()) return null
     val context = requireContext()
@@ -95,7 +101,7 @@ class GogosenseDetectorModule : Module() {
     var latestPackage: String? = null
     while (events.hasNextEvent()) {
       events.getNextEvent(event)
-      if (event.eventType == UsageEvents.Event.MOVE_TO_FOREGROUND &&
+      if (isForegroundEvent(event.eventType) &&
         event.packageName != context.packageName
       ) {
         latestPackage = event.packageName
@@ -105,7 +111,7 @@ class GogosenseDetectorModule : Module() {
   }
 
   companion object {
-    private const val LOOKBACK_MS = 10_000L
+    private const val LOOKBACK_MS = 120_000L
   }
 }
 

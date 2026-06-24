@@ -31,6 +31,11 @@ import {
 } from "@mobile/gogosense/detector";
 import { GoGoSenseDetectionBanner } from "@mobile/gogosense/GoGoSenseDetectionBanner";
 import { useGoGoSense } from "@mobile/gogosense/useGoGoSense";
+import {
+  type GoGoSenseMerchant,
+  useGoGoSenseMerchants,
+} from "@mobile/gogosense/useGoGoSenseMerchants";
+import { useGoGoSenseRecovery } from "@mobile/gogosense/useGoGoSenseRecovery";
 import { useGoGoSenseSettings } from "@mobile/gogosense/useGoGoSenseSettings";
 import { useGoGoSenseTimeline } from "@mobile/gogosense/useGoGoSenseTimeline";
 
@@ -77,7 +82,7 @@ const gogoSenseFlowCopy = {
   timeline: {
     eyebrow: "Tracking history",
     title: "Tracking timeline",
-    body: "Review detected shopping sessions, activation status, and recovery tasks without exposing raw notification or screenshot content.",
+    body: "Review detected shopping sessions, activation status, and recovery tasks without exposing raw receipt or screenshot content.",
   },
   settings: {
     eyebrow: "Privacy controls",
@@ -103,8 +108,8 @@ const permissionRows = [
     icon: EyeIcon,
   },
   {
-    title: "Notification listener",
-    body: "Read only merchant tracking notifications needed for cashback evidence.",
+    title: "Usage access disclosure",
+    body: "Check foreground merchant sessions only after Android Usage Access is granted.",
     icon: BellIcon,
   },
   {
@@ -142,17 +147,17 @@ const setupRows = [
 const settingRows = [
   {
     title: "Usage access detection",
-    body: "Use app and browser transitions for supported merchant sessions.",
+    body: "Use foreground app transitions for supported Android merchant sessions.",
     field: "usageStatsEnabled",
   },
   {
-    title: "Notification listener",
-    body: "Capture merchant confirmation notices after checkout.",
+    title: "Notification listener matching",
+    body: "Read merchant confirmation notices only after notification access is granted.",
     field: "notificationListenerEnabled",
   },
   {
     title: "PII minimization",
-    body: "Redact notification and screenshot data before upload.",
+    body: "Redact receipt and screenshot data before upload.",
     field: "screenshotRecoveryEnabled",
   },
 ] as const;
@@ -167,10 +172,17 @@ export function CustomerGoGoSenseScreen({
   const tc = useCopy();
   const insets = useSafeAreaInsets();
   const copy = gogoSenseFlowCopy[mode];
+  const merchantRouteId = mode === "merchant" ? merchantId : undefined;
+  const { loading: merchantLoading, merchant } = useGoGoSenseMerchants(
+    merchantRouteId,
+    undefined,
+    mode === "merchant",
+  );
+  const merchantLabel = merchant?.name ?? merchantRouteId;
   const topPadding = Math.max(spacing.md, insets.top + spacing.md);
   const bottomPadding = Math.max(
     mobileShellLayout.bottomNavClearance,
-    insets.bottom + spacing.xl
+    insets.bottom + spacing.xl,
   );
 
   return (
@@ -194,34 +206,38 @@ export function CustomerGoGoSenseScreen({
                 strokeWidth={typography.iconStrokeWidth}
               />
             </View>
-            <Text
-              numberOfLines={1}
-              style={styles.eyebrow}
-            >
+            <Text numberOfLines={1} style={styles.eyebrow}>
               {tc(copy.eyebrow)}
             </Text>
-            <Text
-              numberOfLines={1}
-              style={styles.title}
-            >
+            <Text numberOfLines={1} style={styles.title}>
               {tc(copy.title)}
             </Text>
             <Text style={styles.body}>{tc(copy.body)}</Text>
             {merchantId ? (
               <View style={styles.merchantIdPill}>
-                <Text style={styles.merchantIdLabel}>merchantId</Text>
-                <Text style={styles.merchantIdValue}>{merchantId}</Text>
+                <Text style={styles.merchantIdLabel}>
+                  {merchant ? "merchant" : "merchantId"}
+                </Text>
+                <Text style={styles.merchantIdValue}>{merchantLabel}</Text>
               </View>
             ) : null}
           </View>
 
           {mode === "hub" ? <HubContent detector={detector} /> : null}
           {mode === "onboarding" ? <OnboardingContent /> : null}
-          {mode === "permissions" ? <PermissionsContent detector={detector} /> : null}
+          {mode === "permissions" ? (
+            <PermissionsContent detector={detector} />
+          ) : null}
           {mode === "timeline" ? <TimelineContent /> : null}
-          {mode === "settings" ? <SettingsContent /> : null}
+          {mode === "settings" ? <SettingsContent detector={detector} /> : null}
           {mode === "recovery" ? <RecoveryContent /> : null}
-          {mode === "merchant" ? <MerchantContent /> : null}
+          {mode === "merchant" ? (
+            <MerchantContent
+              loading={merchantLoading}
+              merchant={merchant}
+              merchantId={merchantId}
+            />
+          ) : null}
           <CustomerDesktopFooterSlot style={styles.desktopFooter} />
         </ScrollView>
       </View>
@@ -242,7 +258,12 @@ function HubContent({ detector }: { detector: GoGoSenseDetector }) {
         />
         <View style={styles.permissionGrid}>
           {permissionRows.map((row) => (
-            <InfoRow body={row.body} icon={row.icon} key={row.title} title={row.title} />
+            <InfoRow
+              body={row.body}
+              icon={row.icon}
+              key={row.title}
+              title={row.title}
+            />
           ))}
         </View>
       </View>
@@ -254,7 +275,12 @@ function HubContent({ detector }: { detector: GoGoSenseDetector }) {
           title="Tracking timeline"
         />
         {timelineRows.map((row) => (
-          <TimelineRow body={row.body} key={row.title} status={row.status} title={row.title} />
+          <TimelineRow
+            body={row.body}
+            key={row.title}
+            status={row.status}
+            title={row.title}
+          />
         ))}
       </View>
 
@@ -287,7 +313,10 @@ function OnboardingContent() {
           </View>
         ))}
       </View>
-      <PrimaryLink href="/gogosense/permissions" label="Continue to permissions" />
+      <PrimaryLink
+        href="/gogosense/permissions"
+        label="Continue to permissions"
+      />
     </>
   );
 }
@@ -304,7 +333,12 @@ function PermissionsContent({ detector }: { detector: GoGoSenseDetector }) {
         />
         <View style={styles.permissionGrid}>
           {permissionRows.map((row) => (
-            <InfoRow body={row.body} icon={row.icon} key={row.title} title={row.title} />
+            <InfoRow
+              body={row.body}
+              icon={row.icon}
+              key={row.title}
+              title={row.title}
+            />
           ))}
         </View>
       </View>
@@ -373,7 +407,9 @@ function UsageAccessControl({ detector }: { detector: GoGoSenseDetector }) {
   );
 }
 
-function TimelineContent({ api }: { api?: { getTimeline(): Promise<unknown> } | null } = {}) {
+function TimelineContent({
+  api,
+}: { api?: { getTimeline(): Promise<unknown> } | null } = {}) {
   const styles = useThemedStyles(createGoGoSenseScreenStyles);
   const liveEntries = useGoGoSenseTimeline(api);
   return (
@@ -394,7 +430,12 @@ function TimelineContent({ api }: { api?: { getTimeline(): Promise<unknown> } | 
               />
             ))
           : timelineRows.map((row) => (
-              <TimelineRow body={row.body} key={row.title} status={row.status} title={row.title} />
+              <TimelineRow
+                body={row.body}
+                key={row.title}
+                status={row.status}
+                title={row.title}
+              />
             ))}
       </View>
       <View style={styles.actionGrid}>
@@ -405,11 +446,35 @@ function TimelineContent({ api }: { api?: { getTimeline(): Promise<unknown> } | 
   );
 }
 
-function SettingsContent() {
+function SettingsContent({ detector }: { detector: GoGoSenseDetector }) {
   const styles = useThemedStyles(createGoGoSenseScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
   const { settings, setField } = useGoGoSenseSettings();
+
+  async function handleSettingChange(
+    field: (typeof settingRows)[number]["field"],
+    value: boolean,
+  ) {
+    if (value && field === "usageStatsEnabled") {
+      const granted = await detector.hasUsageAccessPermission();
+      if (!granted) {
+        await detector.openUsageAccessSettings();
+        return;
+      }
+    }
+
+    if (value && field === "notificationListenerEnabled") {
+      const granted = await detector.hasNotificationListenerPermission();
+      if (!granted) {
+        await detector.openNotificationListenerSettings();
+        return;
+      }
+    }
+
+    void setField(field, value);
+  }
+
   return (
     <>
       <View style={styles.card}>
@@ -421,15 +486,14 @@ function SettingsContent() {
         {settingRows.map((row) => (
           <View key={row.title} style={styles.settingRow}>
             <Switch
-              onValueChange={(value) => setField(row.field, value)}
+              onValueChange={(value) =>
+                void handleSettingChange(row.field, value)
+              }
               trackColor={{ false: colors.border, true: colors.primary }}
               value={settings[row.field]}
             />
             <View style={styles.settingCopy}>
-              <Text
-                numberOfLines={1}
-                style={styles.rowTitle}
-              >
+              <Text numberOfLines={1} style={styles.rowTitle}>
                 {tc(row.title)}
               </Text>
               <Text style={styles.rowBody}>{tc(row.body)}</Text>
@@ -437,13 +501,26 @@ function SettingsContent() {
           </View>
         ))}
       </View>
-      <SecondaryLink href="/gogosense/permissions" label="Permission checklist" />
+      <SecondaryLink
+        href="/gogosense/permissions"
+        label="Permission checklist"
+      />
     </>
   );
 }
 
 function RecoveryContent() {
   const styles = useThemedStyles(createGoGoSenseScreenStyles);
+  const { available, error, job, loading, startRecovery } =
+    useGoGoSenseRecovery();
+  const recoveryStatus = job
+    ? `Recovery job ${job.id} is ${job.status}.`
+    : available
+      ? "Create a manual recovery job before sending evidence to support."
+      : "Manual recovery is available after sign-in on the Android app.";
+  const uploadStatus = job?.uploadUrl
+    ? "Upload link is ready for customer-provided receipt evidence."
+    : "Support can attach receipt evidence after the recovery job is created.";
   return (
     <>
       <View style={styles.card}>
@@ -462,26 +539,78 @@ function RecoveryContent() {
           icon={StoreIcon}
           title="Manual merchant review"
         />
+        <InfoRow
+          body={recoveryStatus}
+          icon={FileSearchIcon}
+          title="Recovery job status"
+        />
+        <InfoRow
+          body={error ?? uploadStatus}
+          icon={CameraIcon}
+          title="Evidence upload"
+        />
       </View>
-      <PrimaryLink href="/gogosense/timeline" label="Back to timeline" />
+      <View style={styles.actionGrid}>
+        <MotionPressable
+          accessibilityRole="button"
+          disabled={!available || loading}
+          onPress={startRecovery}
+          pressScale={motion.scale.subtlePress}
+          style={[
+            styles.primaryButton,
+            (!available || loading) && styles.disabledButton,
+          ]}
+        >
+          <Text numberOfLines={1} style={styles.primaryButtonText}>
+            {loading ? "Creating recovery job" : "Create recovery job"}
+          </Text>
+        </MotionPressable>
+        <SecondaryLink href="/gogosense/timeline" label="Back to timeline" />
+      </View>
     </>
   );
 }
 
-function MerchantContent() {
+type MerchantContentProps = {
+  loading: boolean;
+  merchant: GoGoSenseMerchant | null;
+  merchantId?: string;
+};
+
+function MerchantContent({
+  loading,
+  merchant,
+  merchantId,
+}: MerchantContentProps) {
   const styles = useThemedStyles(createGoGoSenseScreenStyles);
+  const merchantName = merchant?.name ?? merchantId ?? "Selected merchant";
+  const catalogStatus = loading
+    ? "Checking live merchant catalog."
+    : merchant
+      ? merchant.enabled
+        ? "Live catalog marks this merchant as supported."
+        : "Live catalog found this merchant, but tracking is disabled."
+      : "Merchant is not in the live GoGoSense catalog yet.";
+  const packageSummary = merchant?.androidPackages.length
+    ? `Android packages: ${merchant.androidPackages.join(", ")}.`
+    : "Android package detection details are not available for this route yet.";
   return (
     <>
       <View style={styles.card}>
         <SectionHeader
           icon={StoreIcon}
           subtitle="Merchant support is explicit so unsupported flows do not look tracked."
-          title="Detection methods"
+          title={merchantName}
         />
         <InfoRow
-          body="GoGoLink activation, supported app transitions, and merchant notification matching."
+          body={catalogStatus}
           icon={ActivityIcon}
-          title="Supported signals"
+          title="Catalog status"
+        />
+        <InfoRow
+          body={packageSummary}
+          icon={StoreIcon}
+          title="Android package detection"
         />
         <InfoRow
           body="Use recovery when the session is missing from the timeline."
@@ -512,13 +641,14 @@ function SectionHeader({
   return (
     <View style={styles.sectionHeader}>
       <View style={styles.sectionIcon}>
-        <Icon color={colors.primaryDark} size={20} strokeWidth={typography.iconStrokeWidth} />
+        <Icon
+          color={colors.primaryDark}
+          size={20}
+          strokeWidth={typography.iconStrokeWidth}
+        />
       </View>
       <View style={styles.sectionCopy}>
-        <Text
-          numberOfLines={1}
-          style={styles.sectionTitle}
-        >
+        <Text numberOfLines={1} style={styles.sectionTitle}>
           {tc(title)}
         </Text>
         <Text style={styles.sectionSubtitle}>{tc(subtitle)}</Text>
@@ -542,13 +672,14 @@ function InfoRow({
   return (
     <View style={styles.infoRow}>
       <View style={styles.infoIcon}>
-        <Icon color={colors.primaryDark} size={18} strokeWidth={typography.iconStrokeWidth} />
+        <Icon
+          color={colors.primaryDark}
+          size={18}
+          strokeWidth={typography.iconStrokeWidth}
+        />
       </View>
       <View style={styles.infoCopy}>
-        <Text
-          numberOfLines={1}
-          style={styles.rowTitle}
-        >
+        <Text numberOfLines={1} style={styles.rowTitle}>
           {tc(title)}
         </Text>
         <Text style={styles.rowBody}>{tc(body)}</Text>
@@ -557,7 +688,15 @@ function InfoRow({
   );
 }
 
-function TimelineRow({ body, status, title }: { body: string; status: string; title: string }) {
+function TimelineRow({
+  body,
+  status,
+  title,
+}: {
+  body: string;
+  status: string;
+  title: string;
+}) {
   const styles = useThemedStyles(createGoGoSenseScreenStyles);
   const tc = useCopy();
   return (
@@ -565,16 +704,10 @@ function TimelineRow({ body, status, title }: { body: string; status: string; ti
       <View style={styles.timelineDot} />
       <View style={styles.timelineCopy}>
         <View style={styles.timelineTitleRow}>
-          <Text
-            numberOfLines={1}
-            style={styles.rowTitle}
-          >
+          <Text numberOfLines={1} style={styles.rowTitle}>
             {tc(title)}
           </Text>
-          <Text
-            numberOfLines={1}
-            style={styles.timelineStatus}
-          >
+          <Text numberOfLines={1} style={styles.timelineStatus}>
             {tc(status)}
           </Text>
         </View>
@@ -628,272 +761,274 @@ function SecondaryLink({ href, label }: { href: string; label: string }) {
 
 function createGoGoSenseScreenStyles(colors: ThemeColors) {
   return StyleSheet.create({
-  viewport: {
-    alignItems: "center",
-    backgroundColor: colors.background,
-    flex: 1,
-  },
-  phoneFrame: {
-    backgroundColor: colors.background,
-    flex: 1,
-    maxWidth: mobileShellLayout.contentMaxWidth,
-    width: "100%",
-  },
-  page: {
-    gap: spacing.md,
-    paddingHorizontal: spacing.md,
-  },
-  desktopFooter: {
-    marginTop: 64,
-  },
-  hero: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    gap: spacing.sm,
-    padding: spacing.lg,
-    boxShadow: shadows.cardCss,
-  },
-  heroIcon: {
-    alignItems: "center",
-    backgroundColor: colors.primary,
-    borderRadius: 18,
-    height: 52,
-    justifyContent: "center",
-    width: 52,
-  },
-  eyebrow: {
-    color: colors.primaryDark,
-    fontFamily: typography.family,
-    fontSize: typography.caption,
-    fontWeight: "700",
-    textTransform: "uppercase",
-  },
-  title: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: typography.title,
-    fontWeight: "700",
-    lineHeight: 34,
-  },
-  body: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: typography.body,
-    lineHeight: 22,
-  },
-  merchantIdPill: {
-    alignSelf: "flex-start",
-    backgroundColor: colors.primarySoft,
-    borderColor: colors.primary,
-    borderRadius: radii.chip,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  merchantIdLabel: {
-    color: colors.primaryDark,
-    fontFamily: typography.family,
-    fontSize: typography.caption,
-    fontWeight: "700",
-  },
-  merchantIdValue: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: typography.caption,
-    fontWeight: "700",
-  },
-  card: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    gap: spacing.md,
-    padding: spacing.lg,
-    boxShadow: shadows.cardCss,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    gap: spacing.md,
-  },
-  sectionIcon: {
-    alignItems: "center",
-    backgroundColor: colors.primarySoft,
-    borderRadius: 14,
-    height: 40,
-    justifyContent: "center",
-    width: 40,
-  },
-  sectionCopy: {
-    flex: 1,
-    gap: 4,
-  },
-  sectionTitle: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 18,
-    fontWeight: "800",
-    lineHeight: 24,
-  },
-  sectionSubtitle: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: typography.caption,
-    lineHeight: 18,
-  },
-  permissionGrid: {
-    gap: spacing.sm,
-  },
-  infoRow: {
-    alignItems: "flex-start",
-    backgroundColor: colors.background,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: spacing.md,
-    padding: spacing.md,
-  },
-  infoIcon: {
-    alignItems: "center",
-    backgroundColor: colors.primarySoft,
-    borderRadius: 12,
-    height: 34,
-    justifyContent: "center",
-    width: 34,
-  },
-  infoCopy: {
-    flex: 1,
-    gap: 4,
-  },
-  rowTitle: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: typography.body,
-    fontWeight: "800",
-  },
-  rowBody: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: typography.caption,
-    lineHeight: 18,
-  },
-  timelineRow: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    gap: spacing.md,
-  },
-  timelineDot: {
-    backgroundColor: colors.primary,
-    borderRadius: 6,
-    height: 12,
-    marginTop: 4,
-    width: 12,
-  },
-  timelineCopy: {
-    flex: 1,
-    gap: 4,
-  },
-  timelineTitleRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.sm,
-    justifyContent: "space-between",
-  },
-  timelineStatus: {
-    color: colors.primaryDark,
-    fontFamily: typography.family,
-    fontSize: 11,
-    fontWeight: "800",
-  },
-  stepRow: {
-    alignItems: "center",
-    backgroundColor: colors.background,
-    borderRadius: radii.md,
-    flexDirection: "row",
-    gap: spacing.md,
-    padding: spacing.md,
-  },
-  stepIndex: {
-    color: colors.white,
-    fontFamily: typography.family,
-    fontSize: typography.caption,
-    fontWeight: "800",
-    textAlign: "center",
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    overflow: "hidden",
-    width: 24,
-  },
-  stepText: {
-    color: colors.ink,
-    flex: 1,
-    fontFamily: typography.family,
-    fontSize: typography.body,
-    fontWeight: "700",
-  },
-  settingRow: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    gap: spacing.md,
-  },
-  settingSwitch: {
-    alignItems: "flex-end",
-    backgroundColor: colors.primary,
-    borderRadius: 16,
-    height: 28,
-    justifyContent: "center",
-    paddingHorizontal: 3,
-    width: 48,
-  },
-  settingSwitchKnob: {
-    backgroundColor: colors.card,
-    borderRadius: 11,
-    height: 22,
-    width: 22,
-  },
-  settingCopy: {
-    flex: 1,
-    gap: 4,
-  },
-  actionGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-  },
-  primaryButton: {
-    alignItems: "center",
-    backgroundColor: colors.primary,
-    borderRadius: radii.chip,
-    minHeight: 46,
-    justifyContent: "center",
-    paddingHorizontal: spacing.lg,
-  },
-  primaryButtonText: {
-    color: colors.white,
-    fontFamily: typography.family,
-    fontSize: typography.body,
-    fontWeight: "800",
-  },
-  secondaryButton: {
-    alignItems: "center",
-    backgroundColor: colors.card,
-    borderColor: colors.primary,
-    borderRadius: radii.chip,
-    borderWidth: 1,
-    minHeight: 46,
-    justifyContent: "center",
-    paddingHorizontal: spacing.lg,
-  },
-  secondaryButtonText: {
-    color: colors.primaryDark,
-    fontFamily: typography.family,
-    fontSize: typography.body,
-    fontWeight: "800",
-  },
-});
+    viewport: {
+      alignItems: "center",
+      backgroundColor: colors.background,
+      flex: 1,
+    },
+    phoneFrame: {
+      backgroundColor: colors.background,
+      flex: 1,
+      maxWidth: mobileShellLayout.contentMaxWidth,
+      width: "100%",
+    },
+    page: {
+      gap: spacing.md,
+      paddingHorizontal: spacing.md,
+    },
+    desktopFooter: {
+      marginTop: 64,
+    },
+    hero: {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderRadius: radii.lg,
+      borderWidth: 1,
+      gap: spacing.sm,
+      padding: spacing.lg,
+      boxShadow: shadows.cardCss,
+    },
+    heroIcon: {
+      alignItems: "center",
+      backgroundColor: colors.primary,
+      borderRadius: 18,
+      height: 52,
+      justifyContent: "center",
+      width: 52,
+    },
+    eyebrow: {
+      color: colors.primaryDark,
+      fontFamily: typography.family,
+      fontSize: typography.caption,
+      fontWeight: "700",
+      textTransform: "uppercase",
+    },
+    title: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: typography.title,
+      fontWeight: "700",
+      lineHeight: 34,
+    },
+    body: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: typography.body,
+      lineHeight: 22,
+    },
+    merchantIdPill: {
+      alignSelf: "flex-start",
+      backgroundColor: colors.primarySoft,
+      borderColor: colors.primary,
+      borderRadius: radii.chip,
+      borderWidth: 1,
+      flexDirection: "row",
+      gap: spacing.sm,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+    },
+    merchantIdLabel: {
+      color: colors.primaryDark,
+      fontFamily: typography.family,
+      fontSize: typography.caption,
+      fontWeight: "700",
+    },
+    merchantIdValue: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: typography.caption,
+      fontWeight: "700",
+    },
+    card: {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderRadius: radii.lg,
+      borderWidth: 1,
+      gap: spacing.md,
+      padding: spacing.lg,
+      boxShadow: shadows.cardCss,
+    },
+    sectionHeader: {
+      flexDirection: "row",
+      gap: spacing.md,
+    },
+    sectionIcon: {
+      alignItems: "center",
+      backgroundColor: colors.primarySoft,
+      borderRadius: 14,
+      height: 40,
+      justifyContent: "center",
+      width: 40,
+    },
+    sectionCopy: {
+      flex: 1,
+      gap: 4,
+    },
+    sectionTitle: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 18,
+      fontWeight: "800",
+      lineHeight: 24,
+    },
+    sectionSubtitle: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: typography.caption,
+      lineHeight: 18,
+    },
+    permissionGrid: {
+      gap: spacing.sm,
+    },
+    infoRow: {
+      alignItems: "flex-start",
+      backgroundColor: colors.background,
+      borderColor: colors.border,
+      borderRadius: radii.md,
+      borderWidth: 1,
+      flexDirection: "row",
+      gap: spacing.md,
+      padding: spacing.md,
+    },
+    infoIcon: {
+      alignItems: "center",
+      backgroundColor: colors.primarySoft,
+      borderRadius: 12,
+      height: 34,
+      justifyContent: "center",
+      width: 34,
+    },
+    infoCopy: {
+      flex: 1,
+      gap: 4,
+    },
+    rowTitle: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: typography.body,
+      fontWeight: "800",
+    },
+    rowBody: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: typography.caption,
+      lineHeight: 18,
+    },
+    timelineRow: {
+      alignItems: "flex-start",
+      flexDirection: "row",
+      gap: spacing.md,
+    },
+    timelineDot: {
+      backgroundColor: colors.primary,
+      borderRadius: 6,
+      height: 12,
+      marginTop: 4,
+      width: 12,
+    },
+    timelineCopy: {
+      flex: 1,
+      gap: 4,
+    },
+    timelineTitleRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: spacing.sm,
+      justifyContent: "space-between",
+    },
+    timelineStatus: {
+      color: colors.primaryDark,
+      fontFamily: typography.family,
+      fontSize: 11,
+      fontWeight: "800",
+    },
+    stepRow: {
+      alignItems: "center",
+      backgroundColor: colors.background,
+      borderRadius: radii.md,
+      flexDirection: "row",
+      gap: spacing.md,
+      padding: spacing.md,
+    },
+    stepIndex: {
+      color: colors.white,
+      fontFamily: typography.family,
+      fontSize: typography.caption,
+      fontWeight: "800",
+      textAlign: "center",
+      backgroundColor: colors.primary,
+      borderRadius: 12,
+      overflow: "hidden",
+      width: 24,
+    },
+    stepText: {
+      color: colors.ink,
+      flex: 1,
+      fontFamily: typography.family,
+      fontSize: typography.body,
+      fontWeight: "700",
+    },
+    settingRow: {
+      alignItems: "flex-start",
+      flexDirection: "row",
+      gap: spacing.md,
+    },
+    settingSwitch: {
+      alignItems: "flex-end",
+      backgroundColor: colors.primary,
+      borderRadius: 16,
+      height: 28,
+      justifyContent: "center",
+      paddingHorizontal: 3,
+      width: 48,
+    },
+    settingSwitchKnob: {
+      backgroundColor: colors.card,
+      borderRadius: 11,
+      height: 22,
+      width: 22,
+    },
+    settingCopy: {
+      flex: 1,
+      gap: 4,
+    },
+    actionGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.sm,
+    },
+    primaryButton: {
+      alignItems: "center",
+      backgroundColor: colors.primary,
+      borderRadius: radii.chip,
+      minHeight: 46,
+      justifyContent: "center",
+      paddingHorizontal: spacing.lg,
+    },
+    disabledButton: {
+      opacity: 0.5,
+    },
+    primaryButtonText: {
+      color: colors.white,
+      fontFamily: typography.family,
+      fontSize: typography.body,
+      fontWeight: "800",
+    },
+    secondaryButton: {
+      alignItems: "center",
+      backgroundColor: colors.card,
+      borderColor: colors.primary,
+      borderRadius: radii.chip,
+      borderWidth: 1,
+      minHeight: 46,
+      justifyContent: "center",
+      paddingHorizontal: spacing.lg,
+    },
+    secondaryButtonText: {
+      color: colors.primaryDark,
+      fontFamily: typography.family,
+      fontSize: typography.body,
+      fontWeight: "800",
+    },
+  });
 }
-

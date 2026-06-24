@@ -52,12 +52,17 @@ describe("GoGoSenseDetectionBanner (render)", () => {
     });
 
     const button = await screen.findByText("Activate cashback");
+    const activationButton = screen.getByTestId("gogosense-activate-cashback-button");
+    expect(screen.getByLabelText("Activate GoGoSense cashback")).toBe(activationButton);
+    expect(activationButton.getAttribute("role")).toBe("button");
+
     await act(async () => {
       fireEvent.click(button);
     });
 
     await waitFor(() => expect(api.activate).toHaveBeenCalled());
     expect(openUrl).toHaveBeenCalledWith("https://track.gogocash.co/shopee");
+    await waitFor(() => expect(screen.queryByText("Activate cashback")).toBeNull());
   });
 
   it("no match > renders nothing", async () => {
@@ -74,5 +79,141 @@ describe("GoGoSenseDetectionBanner (render)", () => {
     });
 
     expect(screen.queryByText("Activate cashback")).toBeNull();
+  });
+});
+
+describe("GoGoSenseDetectionBanner incomplete activation matches", () => {
+  it("matched detection > given activation fields are missing > shows activation failure instead of a dead button", async () => {
+    const api: GoGoSenseHookApi = {
+      detect: vi.fn(async () => ({
+        matched: true,
+        merchantId: "shopee",
+        merchantName: "Shopee",
+        recommendedAction: "activate" as const,
+      })),
+      activate: vi.fn(),
+    };
+    const openUrl = vi.fn();
+
+    render(
+      createElement(GoGoSenseDetectionBanner, {
+        api,
+        detector: detector("com.shopee.th"),
+        openUrl,
+      })
+    );
+
+    await act(async () => {});
+    const button = await screen.findByText("Activate cashback");
+    await act(async () => {
+      fireEvent.click(button);
+    });
+
+    expect(api.activate).not.toHaveBeenCalled();
+    expect(openUrl).not.toHaveBeenCalled();
+    expect(await screen.findByText("Cashback activation failed. Please try again.")).toBeTruthy();
+  });
+});
+
+describe("GoGoSenseDetectionBanner activation failures", () => {
+  it("matched detection > given activation rejects > does not open a stale deeplink", async () => {
+    const activate = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Unauthorized"))
+      .mockResolvedValueOnce({
+        activationEventId: "e2",
+        deeplink: "https://track.gogocash.co/retry",
+      });
+    const api: GoGoSenseHookApi = {
+      detect: vi.fn(async () => ({
+        matched: true,
+        merchantId: "shopee",
+        merchantName: "Shopee",
+        offerId: 101,
+        networkMerchantId: 201,
+        recommendedAction: "activate" as const,
+      })),
+      activate,
+    };
+    const openUrl = vi.fn();
+
+    render(
+      createElement(GoGoSenseDetectionBanner, {
+        api,
+        detector: detector("com.shopee.th"),
+        openUrl,
+      })
+    );
+
+    await act(async () => {});
+    const button = await screen.findByText("Activate cashback");
+    await act(async () => {
+      fireEvent.click(button);
+    });
+
+    expect(api.activate).toHaveBeenCalledTimes(1);
+    expect(openUrl).not.toHaveBeenCalled();
+    expect(await screen.findByText("Cashback activation failed. Please try again.")).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.click(button);
+    });
+
+    expect(api.activate).toHaveBeenCalledTimes(2);
+    expect(openUrl).toHaveBeenCalledWith("https://track.gogocash.co/retry");
+    expect(screen.queryByText("Cashback activation failed. Please try again.")).toBeNull();
+  });
+
+  it("activation in flight > ignores rapid duplicate taps until the request settles", async () => {
+    type ActivateFn = NonNullable<GoGoSenseHookApi["activate"]>;
+    let resolveActivation!: (value: Awaited<ReturnType<ActivateFn>>) => void;
+    const activationPromise = new Promise<Awaited<ReturnType<ActivateFn>>>((resolve) => {
+      resolveActivation = resolve;
+    });
+    const activate = vi.fn(() => activationPromise);
+    const api: GoGoSenseHookApi = {
+      detect: vi.fn(async () => ({
+        matched: true,
+        merchantId: "shopee",
+        merchantName: "Shopee",
+        offerId: 101,
+        networkMerchantId: 201,
+        detectionEventId: "e3",
+        recommendedAction: "activate" as const,
+      })),
+      activate,
+    };
+    const openUrl = vi.fn();
+
+    await act(async () => {
+      render(
+        createElement(GoGoSenseDetectionBanner, {
+          detector: detector("com.shopee.th"),
+          api,
+          openUrl,
+        }),
+      );
+    });
+
+    await screen.findByText("Cashback available");
+
+    const button = screen.getByText("Activate cashback");
+    await act(async () => {
+      fireEvent.click(button);
+      fireEvent.click(button);
+    });
+
+    expect(activate).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText("Activating cashback")).toBeTruthy();
+
+    await act(async () => {
+      resolveActivation({
+        activationEventId: "activation-3",
+        deeplink: "https://track.gogocash.co/shopee",
+      });
+      await activationPromise;
+    });
+
+    await waitFor(() => expect(openUrl).toHaveBeenCalledWith("https://track.gogocash.co/shopee"));
   });
 });

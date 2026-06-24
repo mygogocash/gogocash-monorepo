@@ -171,7 +171,11 @@ export class InvolveService {
         await this.signIn();
         return this.createDeeplinkInvolve(createInvolveDto);
       }
-      throw new Error(error.message || 'Failed to create deeplink');
+      const wrappedError = new Error(
+        error.message || 'Failed to create deeplink',
+      ) as Error & { response?: unknown };
+      wrappedError.response = error.response;
+      throw wrappedError;
     }
   }
 

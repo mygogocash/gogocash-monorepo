@@ -23,6 +23,18 @@ function shouldShowCookieBanner() {
   }
 }
 
+function dispatchCookieDismissedEvent() {
+  if (
+    typeof window === "undefined" ||
+    typeof window.dispatchEvent !== "function" ||
+    typeof CustomEvent !== "function"
+  ) {
+    return;
+  }
+
+  window.dispatchEvent(new CustomEvent(webCookieConsentBanner.dismissedEventName));
+}
+
 export function CustomerCookieConsentBanner({ isDesktop }: { isDesktop: boolean }) {
   const styles = useThemedStyles(createCookieConsentBannerStyles);
   const router = useRouter();
@@ -35,9 +47,7 @@ export function CustomerCookieConsentBanner({ isDesktop }: { isDesktop: boolean 
       // Ignore unavailable storage in native previews.
     }
     setVisible(false);
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent(webCookieConsentBanner.dismissedEventName));
-    }
+    dispatchCookieDismissedEvent();
   }, []);
 
   const acceptCookieBanner = useCallback(() => {
@@ -279,4 +289,3 @@ function createCookieConsentBannerStyles(colors: ThemeColors) {
   },
 });
 }
-

@@ -23,6 +23,9 @@ export class GogosenseScreenshotJob {
 
   @Prop({ required: false, type: Number })
   confidence_score?: number;
+
+  @Prop({ required: true, type: Date, index: true })
+  expires_at: Date;
 }
 
 export const GogosenseScreenshotJobSchema = SchemaFactory.createForClass(
@@ -30,3 +33,4 @@ export const GogosenseScreenshotJobSchema = SchemaFactory.createForClass(
 );
 
 GogosenseScreenshotJobSchema.index({ user_id: 1, createdAt: -1 });
+GogosenseScreenshotJobSchema.index({ user_id: 1, expires_at: 1 });

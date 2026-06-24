@@ -75,7 +75,7 @@ in one place.
 | Workflow | Trigger | Does |
 |----------|---------|------|
 | **`build-staging.yml`** | push to `main` + manual (`workflow_dispatch`) | reuses `ci.yml` as the gate, then builds + pushes a `:staging-candidate` image for each **changed** app (path-filtered). **No deploy.** |
-| **`release-staging.yml`** | manual `workflow_dispatch` (pick app + tag) | deploys the chosen candidate image to Cloud Run, then **health-smokes** the new revision. The dispatch **is** the approval. |
+| **`release-staging.yml`** | manual `workflow_dispatch` (pick app + tag) | deploys the chosen candidate image to Cloud Run, then **health-smokes** the new revision. API releases smoke `/gogosense/merchants` so stale deployments without the GoGoSense module fail before device acceptance. The dispatch **is** the approval. |
 | `_build-push.yml` | `workflow_call` | reusable: WIF auth → optional prebuild → docker build → push `:sha` + `:staging-candidate`. |
 | `_deploy-cloudrun.yml` | `workflow_call` | reusable: WIF auth → `gcloud run deploy` a given tag → post-deploy `curl` health check. |
 
@@ -88,8 +88,13 @@ plan for private repos (see #44). Until then the approval is the manual
 `staging` environment and the release pauses for one-click approval (no workflow
 change needed).
 
-**Native app** (`deploy-app-native-eas.yml`) stays a manual EAS scaffold
-(needs `EXPO_TOKEN`).
+**Native app** (`deploy-app-native-eas.yml`) stays manual for build/update/submit
+(needs `EXPO_TOKEN`). Android `build` runs wait for EAS to finish, download the
+completed archive, and upload it as a GitHub artifact so device QA can install
+the dev client without local EAS auth. If the `GCP_EAS_ARTIFACT_BUCKET` Actions
+variable is set, the same APK and SHA-256 sidecar are also archived to
+`gs://$GCP_EAS_ARTIFACT_BUCKET/eas/android/<profile>/<run-id>/` using the
+existing `GCP_WIF_PROVIDER` and `GCP_SERVICE_ACCOUNT` workload identity setup.
 
 > The legacy `deploy-{api,admin,app-web}-staging.yml` lanes are kept as a manual
 > fallback during cutover; delete them once `build-staging` + `release-staging`

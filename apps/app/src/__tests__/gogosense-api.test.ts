@@ -5,8 +5,12 @@ import type { GoGoSenseBaseClient } from "@mobile/gogosense/api";
 
 function createBaseClient() {
   return {
-    get: vi.fn(async () => ({ ok: true })) as unknown as GoGoSenseBaseClient["get"],
-    post: vi.fn(async () => ({ ok: true })) as unknown as GoGoSenseBaseClient["post"],
+    get: vi.fn(async () => ({
+      ok: true,
+    })) as unknown as GoGoSenseBaseClient["get"],
+    post: vi.fn(async () => ({
+      ok: true,
+    })) as unknown as GoGoSenseBaseClient["post"],
   } as GoGoSenseBaseClient & {
     get: ReturnType<typeof vi.fn>;
     post: ReturnType<typeof vi.fn>;
@@ -63,5 +67,30 @@ describe("GoGoSense mobile API wrapper", () => {
     expect(baseClient.post).toHaveBeenCalledWith("/gogosense/settings", {
       enabled: true,
     });
+  });
+  it("detect > minimizes URL and notification text before upload", async () => {
+    const baseClient = createBaseClient();
+    const api = createGoGoSenseApi(baseClient);
+
+    await api.detect({
+      method: "notification",
+      notificationText:
+        "Shopee order 123456789 for +66 81 234 5678 user test@example.com https://merchant.example/receipt?token=secret",
+      observedAt: "2026-05-23T09:00:00.000Z",
+      platform: "android",
+      url: "https://pages.lazada.co.th/wow/i/th/campaign?token=secret#fragment",
+    });
+
+    expect(baseClient.post).toHaveBeenCalledWith(
+      "/gogosense/detect",
+      expect.objectContaining({
+        method: "notification",
+        notificationText:
+          "Shopee order [redacted-number] for [redacted-phone] user [redacted-email] [redacted-url]",
+        observedAt: "2026-05-23T09:00:00.000Z",
+        platform: "android",
+        url: "https://pages.lazada.co.th",
+      }),
+    );
   });
 });

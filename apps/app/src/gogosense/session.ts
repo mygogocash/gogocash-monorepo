@@ -20,13 +20,20 @@ export type GoGoSenseSessionState = {
 };
 
 type SessionApi = {
-  detect(request: GoGoSenseDetectionRequest): Promise<GoGoSenseDetectionResponse>;
-  activate?(request: GoGoSenseActivationRequest): Promise<GoGoSenseActivationResponse>;
+  detect(
+    request: GoGoSenseDetectionRequest,
+  ): Promise<GoGoSenseDetectionResponse>;
+  activate?(
+    request: GoGoSenseActivationRequest,
+  ): Promise<GoGoSenseActivationResponse>;
 };
 
 export type GoGoSenseStartResult =
   | { started: true }
-  | { started: false; reason: "android_unsupported" | "usage_permission_denied" };
+  | {
+      started: false;
+      reason: "android_unsupported" | "usage_permission_denied";
+    };
 
 export type GoGoSenseSessionOptions = {
   api: SessionApi;
@@ -47,6 +54,7 @@ export function createGoGoSenseSession(options: GoGoSenseSessionOptions) {
   let permissionGranted = false;
   let running = false;
   let lastMatch: GoGoSenseMatch | null = null;
+  let matchedDuringPoll = false;
 
   const emitChange = () => options.onChange?.();
 
@@ -58,6 +66,7 @@ export function createGoGoSenseSession(options: GoGoSenseSessionOptions) {
     now: options.now,
     onDetection: (event) => {
       if (event.response.matched) {
+        matchedDuringPoll = true;
         lastMatch = event;
         emitChange();
       }
@@ -108,7 +117,23 @@ export function createGoGoSenseSession(options: GoGoSenseSessionOptions) {
     },
 
     async poll(): Promise<void> {
-      await runner.pollForegroundPackage();
+      matchedDuringPoll = false;
+      let result: Awaited<ReturnType<typeof runner.pollForegroundPackage>>;
+      try {
+        result = await runner.pollForegroundPackage();
+      } catch {
+        if (lastMatch) {
+          lastMatch = null;
+          emitChange();
+        }
+        return;
+      }
+      const shouldClearMatch =
+        !result.detected || (!result.suppressed && !matchedDuringPoll);
+      if (shouldClearMatch && lastMatch != null) {
+        lastMatch = null;
+        emitChange();
+      }
     },
 
     // Activates cashback for the surfaced match: turns lastMatch into an

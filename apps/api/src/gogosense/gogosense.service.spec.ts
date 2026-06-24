@@ -1,3 +1,5 @@
+import { HttpException } from '@nestjs/common';
+
 import { GogosenseService } from './gogosense.service';
 import type { ActivationRequestDto } from './dto/activation-request.dto';
 import type { DetectionRequestDto } from './dto/detection-request.dto';
@@ -52,8 +54,18 @@ function makeService() {
   const detectionEventModel = {
     create: jest.fn(async (doc) => ({ _id: 'detection-1', ...doc })),
     find: jest.fn().mockReturnValue(makeQueryResult([])),
+    findOne: jest.fn().mockReturnValue(
+      makeQueryResult({
+        _id: 'detection-1',
+        user_id: 'user-1',
+        merchant_id: 'merchant-shopee',
+        network_merchant_id: 201,
+        matched: true,
+      }),
+    ),
   };
   const activationEventModel = {
+    findOne: jest.fn().mockReturnValue(makeQueryResult(null)),
     create: jest.fn(async (doc) => ({ _id: 'activation-1', ...doc })),
     find: jest.fn().mockReturnValue(makeQueryResult([])),
   };
@@ -176,8 +188,121 @@ describe('GogosenseService detection and activation', () => {
     );
   });
 
+  it('detection > given disabled GoGoSense setting > then rejects without event', async () => {
+    const { detectionEventModel, service } = makeService();
+    const userSettingsModel = (service as any).userSettingsModel;
+    userSettingsModel.findOne.mockReturnValueOnce(
+      makeQueryResult({
+        user_id: 'user-1',
+        enabled: false,
+        usage_stats_enabled: true,
+      }),
+    );
+
+    await expect(
+      service.detect('user-1', {
+        ...baseDetectionRequest,
+        packageName: 'com.shopee.th',
+      }),
+    ).rejects.toThrow('GoGoSense tracking is disabled');
+
+    expect(detectionEventModel.create).not.toHaveBeenCalled();
+  });
+
+  it('detection > given disabled usage stats setting > then rejects Android package event', async () => {
+    const { detectionEventModel, service } = makeService();
+    const userSettingsModel = (service as any).userSettingsModel;
+    userSettingsModel.findOne.mockReturnValueOnce(
+      makeQueryResult({
+        user_id: 'user-1',
+        enabled: true,
+        usage_stats_enabled: false,
+      }),
+    );
+
+    await expect(
+      service.detect('user-1', {
+        ...baseDetectionRequest,
+        packageName: 'com.shopee.th',
+      }),
+    ).rejects.toThrow('Usage access detection is disabled');
+
+    expect(detectionEventModel.create).not.toHaveBeenCalled();
+  });
+
+  it('detection > given screenshot OCR without job id > then rejects without event', async () => {
+    const { detectionEventModel, service } = makeService();
+    const screenshotJobModel = (service as any).screenshotJobModel;
+
+    await expect(
+      service.detect('user-1', {
+        ...baseDetectionRequest,
+        method: 'screenshot_ocr',
+      }),
+    ).rejects.toThrow(
+      'Screenshot recovery job is required for screenshot OCR detection',
+    );
+
+    expect(screenshotJobModel.findOne).not.toHaveBeenCalled();
+    expect(detectionEventModel.create).not.toHaveBeenCalled();
+  });
+
+  it('detection > given screenshot job id > then requires active user-owned job', async () => {
+    const { detectionEventModel, service } = makeService();
+    const screenshotJobModel = (service as any).screenshotJobModel;
+    screenshotJobModel.findOne.mockReturnValueOnce(
+      makeQueryResult({
+        _id: 'screenshot-1',
+        user_id: 'user-1',
+        expires_at: new Date('2026-05-24T09:00:00.000Z'),
+      }),
+    );
+
+    await service.detect('user-1', {
+      ...baseDetectionRequest,
+      packageName: 'com.shopee.th',
+      screenshotJobId: 'screenshot-1',
+    });
+
+    expect(screenshotJobModel.findOne).toHaveBeenCalledWith({
+      _id: 'screenshot-1',
+      user_id: 'user-1',
+      expires_at: { $gt: expect.any(Date) },
+    });
+    expect(detectionEventModel.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        screenshot_job_id: 'screenshot-1',
+      }),
+    );
+  });
+
+  it('detection > given missing or expired screenshot job > then rejects without event', async () => {
+    const { detectionEventModel, service } = makeService();
+    const screenshotJobModel = (service as any).screenshotJobModel;
+
+    await expect(
+      service.detect('user-1', {
+        ...baseDetectionRequest,
+        packageName: 'com.shopee.th',
+        screenshotJobId: 'screenshot-1',
+      }),
+    ).rejects.toThrow('Screenshot recovery job is invalid or expired');
+
+    expect(screenshotJobModel.findOne).toHaveBeenCalledWith({
+      _id: 'screenshot-1',
+      user_id: 'user-1',
+      expires_at: { $gt: expect.any(Date) },
+    });
+    expect(detectionEventModel.create).not.toHaveBeenCalled();
+  });
+
   it('activation > given matched merchant > then creates or reuses deeplink', async () => {
-    const { activationEventModel, involveService, service } = makeService();
+    const {
+      activationEventModel,
+      detectionEventModel,
+      involveService,
+      service,
+    } = makeService();
     const request = {
       detectionEventId: 'detection-1',
       merchantId: 'merchant-shopee',
@@ -189,6 +314,14 @@ describe('GogosenseService detection and activation', () => {
     await expect(service.activate('user-1', request)).resolves.toEqual({
       activationEventId: 'activation-1',
       deeplink: 'https://track.gogocash.co/shopee',
+    });
+
+    expect(detectionEventModel.findOne).toHaveBeenCalledWith({
+      _id: 'detection-1',
+      user_id: 'user-1',
+      merchant_id: 'merchant-shopee',
+      network_merchant_id: 201,
+      matched: true,
     });
 
     expect(involveService.createAffiliate).toHaveBeenCalledWith(
@@ -208,6 +341,167 @@ describe('GogosenseService detection and activation', () => {
       }),
     );
   });
+
+  it('activation > given affiliate network rejects merchant mapping > then surfaces a clear 422 without recording activation', async () => {
+    const {
+      activationEventModel,
+      detectionEventModel,
+      involveService,
+      service,
+    } = makeService();
+    const error = new Error('Request failed with status code 422') as Error & {
+      response: { status: number; data: { status_code: number } };
+    };
+    error.response = { status: 422, data: { status_code: 422 } };
+    involveService.createAffiliate.mockRejectedValueOnce(error);
+
+    try {
+      await service.activate('user-1', {
+        detectionEventId: 'detection-1',
+        merchantId: 'merchant-shopee',
+        offerId: 101,
+        networkMerchantId: 201,
+        source: 'gogosense',
+      });
+      throw new Error('Expected GoGoSense activation to fail');
+    } catch (caught) {
+      expect(caught).toBeInstanceOf(HttpException);
+      expect((caught as HttpException).getStatus()).toBe(422);
+      expect((caught as HttpException).getResponse()).toEqual(
+        expect.objectContaining({
+          code: 'GOGOSENSE_DEEPLINK_UNAVAILABLE',
+          upstreamStatusCode: 422,
+        }),
+      );
+    }
+
+    expect(detectionEventModel.findOne).toHaveBeenCalledWith({
+      _id: 'detection-1',
+      user_id: 'user-1',
+      merchant_id: 'merchant-shopee',
+      network_merchant_id: 201,
+      matched: true,
+    });
+    expect(activationEventModel.create).not.toHaveBeenCalled();
+  });
+
+  it('activation > given detection event was already activated > rejects before deeplink creation', async () => {
+    const { activationEventModel, involveService, service } = makeService();
+    activationEventModel.findOne.mockReturnValueOnce(
+      makeQueryResult({
+        _id: 'activation-existing',
+        detection_event_id: 'detection-1',
+        user_id: 'user-1',
+      }),
+    );
+
+    await expect(
+      service.activate('user-1', {
+        detectionEventId: 'detection-1',
+        merchantId: 'merchant-shopee',
+        offerId: 101,
+        networkMerchantId: 201,
+        source: 'gogosense',
+      }),
+    ).rejects.toThrow('GoGoSense detection event has already been activated');
+
+    expect(activationEventModel.findOne).toHaveBeenCalledWith({
+      user_id: 'user-1',
+      detection_event_id: 'detection-1',
+    });
+    expect(involveService.createAffiliate).not.toHaveBeenCalled();
+    expect(activationEventModel.create).not.toHaveBeenCalled();
+  });
+
+  it('activation > given disabled GoGoSense setting > then rejects gogosense activation', async () => {
+    const { activationEventModel, involveService, service } = makeService();
+    const userSettingsModel = (service as any).userSettingsModel;
+    userSettingsModel.findOne.mockReturnValueOnce(
+      makeQueryResult({
+        user_id: 'user-1',
+        enabled: false,
+      }),
+    );
+
+    await expect(
+      service.activate('user-1', {
+        detectionEventId: 'detection-1',
+        merchantId: 'merchant-shopee',
+        networkMerchantId: 201,
+        offerId: 101,
+        source: 'gogosense',
+      }),
+    ).rejects.toThrow('GoGoSense tracking is disabled');
+
+    expect(involveService.createAffiliate).not.toHaveBeenCalled();
+    expect(activationEventModel.create).not.toHaveBeenCalled();
+  });
+
+  it('activation > given an invalid detection event id > rejects before deeplink creation', async () => {
+    const {
+      activationEventModel,
+      detectionEventModel,
+      involveService,
+      service,
+    } = makeService();
+    detectionEventModel.findOne.mockReturnValueOnce(makeQueryResult(null));
+
+    await expect(
+      service.activate('user-1', {
+        detectionEventId: 'detection-1',
+        merchantId: 'merchant-shopee',
+        offerId: 101,
+        networkMerchantId: 201,
+        source: 'gogosense',
+      }),
+    ).rejects.toThrow('Invalid GoGoSense detection event for activation');
+
+    expect(involveService.createAffiliate).not.toHaveBeenCalled();
+    expect(activationEventModel.create).not.toHaveBeenCalled();
+  });
+
+  it('activation > given gogosense source without detection event > rejects before deeplink creation', async () => {
+    const {
+      activationEventModel,
+      detectionEventModel,
+      involveService,
+      service,
+    } = makeService();
+
+    await expect(
+      service.activate('user-1', {
+        merchantId: 'merchant-shopee',
+        offerId: 101,
+        networkMerchantId: 201,
+        source: 'gogosense',
+      }),
+    ).rejects.toThrow('GoGoSense activation requires a detection event');
+
+    expect(detectionEventModel.findOne).not.toHaveBeenCalled();
+    expect(involveService.createAffiliate).not.toHaveBeenCalled();
+    expect(activationEventModel.create).not.toHaveBeenCalled();
+  });
+});
+
+it('detect > minimizes URL and notification text before storing detection event', async () => {
+  const { detectionEventModel, service } = makeService();
+
+  await service.detect('user-1', {
+    method: 'notification',
+    notificationText:
+      'Shopee order 123456789 for +66 81 234 5678 user test@example.com https://shopee.co.th/orders?token=secret',
+    observedAt: '2026-05-23T09:00:00.000Z',
+    platform: 'android',
+    url: 'https://shopee.co.th/orders?token=secret#fragment',
+  });
+
+  expect(detectionEventModel.create).toHaveBeenCalledWith(
+    expect.objectContaining({
+      notification_text:
+        'Shopee order [redacted-number] for [redacted-phone] user [redacted-email] [redacted-url]',
+      url: 'https://shopee.co.th',
+    }),
+  );
 });
 
 describe('GogosenseService settings and timeline', () => {
@@ -239,6 +533,57 @@ describe('GogosenseService settings and timeline', () => {
     });
     expect(activationEventModel.find).toHaveBeenCalledWith({
       user_id: 'user-1',
+    });
+  });
+
+  it('screenshot recovery > given new job > then writes a 24 hour expiry', async () => {
+    const now = Date.parse('2026-05-23T09:00:00.000Z');
+    const dateNowSpy = jest.spyOn(Date, 'now').mockReturnValue(now);
+    const { service } = makeService();
+    const screenshotJobModel = (service as any).screenshotJobModel;
+
+    try {
+      await service.createScreenshotJob('user-1');
+    } finally {
+      dateNowSpy.mockRestore();
+    }
+
+    expect(screenshotJobModel.create).toHaveBeenCalledWith({
+      user_id: 'user-1',
+      status: 'pending',
+      expires_at: new Date('2026-05-24T09:00:00.000Z'),
+    });
+  });
+
+  it('screenshot recovery > given disabled recovery setting > then rejects job creation', async () => {
+    const { service } = makeService();
+    const screenshotJobModel = (service as any).screenshotJobModel;
+    const userSettingsModel = (service as any).userSettingsModel;
+    userSettingsModel.findOne.mockReturnValueOnce(
+      makeQueryResult({
+        user_id: 'user-1',
+        enabled: true,
+        screenshot_recovery_enabled: false,
+      }),
+    );
+
+    await expect(service.createScreenshotJob('user-1')).rejects.toThrow(
+      'Screenshot recovery is disabled',
+    );
+
+    expect(screenshotJobModel.create).not.toHaveBeenCalled();
+  });
+
+  it('screenshot recovery > given job lookup > then requires owner and unexpired job', async () => {
+    const { service } = makeService();
+    const screenshotJobModel = (service as any).screenshotJobModel;
+
+    await service.getScreenshotJob('user-1', 'screenshot-1');
+
+    expect(screenshotJobModel.findOne).toHaveBeenCalledWith({
+      _id: 'screenshot-1',
+      user_id: 'user-1',
+      expires_at: { $gt: expect.any(Date) },
     });
   });
 });
