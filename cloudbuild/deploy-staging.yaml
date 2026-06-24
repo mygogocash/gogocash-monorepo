@@ -45,45 +45,45 @@ steps:
             ;;
         esac
 
-        IMAGE="${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REPO}/${SERVICE}:${_IMAGE_TAG}"
+        IMAGE="${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REPO}/$${SERVICE}:${_IMAGE_TAG}"
 
         args=(
-          run deploy "$SERVICE"
+          run deploy "$${SERVICE}"
           --project "$PROJECT_ID"
           --region "${_REGION}"
           --platform managed
-          --image "$IMAGE"
-          --memory "$MEMORY"
-          --cpu "$CPU"
-          --min-instances "$MIN_INSTANCES"
-          --max-instances "$MAX_INSTANCES"
-          --port "$PORT"
+          --image "$${IMAGE}"
+          --memory "$${MEMORY}"
+          --cpu "$${CPU}"
+          --min-instances "$${MIN_INSTANCES}"
+          --max-instances "$${MAX_INSTANCES}"
+          --port "$${PORT}"
           --quiet
         )
 
-        [ -n "$ENV_VARS" ] && args+=(--set-env-vars "$ENV_VARS")
-        [ -n "$SECRETS_MAP" ] && args+=(--set-secrets "$SECRETS_MAP")
+        [ -n "$${ENV_VARS}" ] && args+=(--set-env-vars "$${ENV_VARS}")
+        [ -n "$${SECRETS_MAP}" ] && args+=(--set-secrets "$${SECRETS_MAP}")
 
         gcloud "${args[@]}"
 
-        URL="$(gcloud run services describe "$SERVICE" \
+        URL="$(gcloud run services describe "$${SERVICE}" \
           --project "$PROJECT_ID" \
           --region "${_REGION}" \
           --format='value(status.url)')"
 
         for attempt in 1 2 3 4 5 6; do
-          code="$(curl -L -sS -o /dev/null -w '%{http_code}' "${URL}${HEALTH_PATH}" || true)"
-          case "$code" in
+          code="$(curl -L -sS -o /dev/null -w '%{http_code}' "$${URL}$${HEALTH_PATH}" || true)"
+          case "$${code}" in
             2*|3*)
-              echo "Cloud Run smoke passed for ${SERVICE}: ${URL}${HEALTH_PATH} -> ${code}"
+              echo "Cloud Run smoke passed for $${SERVICE}: $${URL}$${HEALTH_PATH} -> $${code}"
               exit 0
               ;;
           esac
-          echo "Smoke attempt ${attempt} failed for ${SERVICE}: ${URL}${HEALTH_PATH} -> ${code}; retrying"
+          echo "Smoke attempt $${attempt} failed for $${SERVICE}: $${URL}$${HEALTH_PATH} -> $${code}; retrying"
           sleep 10
         done
 
-        echo "Cloud Run smoke failed for ${SERVICE}: ${URL}${HEALTH_PATH}" >&2
+        echo "Cloud Run smoke failed for $${SERVICE}: $${URL}$${HEALTH_PATH}" >&2
         exit 1
 
 substitutions:
