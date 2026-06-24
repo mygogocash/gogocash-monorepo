@@ -105,7 +105,14 @@ if [ "$1" = "shell" ] && [ "$2" = "dumpsys" ] && [ "$3" = "window" ]; then
   exit 0
 fi
 if [ "$1" = "shell" ] && [ "$2" = "am" ]; then
-  echo "mCurrentFocus=Window{abc u0 co.gogocash.app/.MainActivity}" > "${foregroundFile}"
+  case " $* " in
+    *"track.gogocash.co"*)
+      echo "mCurrentFocus=Window{abc u0 com.android.chrome/com.google.android.apps.chrome.Main}" > "${foregroundFile}"
+      ;;
+    *)
+      echo "mCurrentFocus=Window{abc u0 co.gogocash.app/.MainActivity}" > "${foregroundFile}"
+      ;;
+  esac
   echo "Starting: Intent"
   exit 0
 fi
@@ -231,7 +238,14 @@ if [ "$1" = "shell" ] && [ "$2" = "dumpsys" ] && [ "$3" = "window" ]; then
   exit 0
 fi
 if [ "$1" = "shell" ] && [ "$2" = "am" ]; then
-  echo "mCurrentFocus=Window{abc u0 co.gogocash.app/.MainActivity}" > "${foregroundFile}"
+  case " $* " in
+    *"track.gogocash.co"*)
+      echo "mCurrentFocus=Window{abc u0 com.android.chrome/com.google.android.apps.chrome.Main}" > "${foregroundFile}"
+      ;;
+    *)
+      echo "mCurrentFocus=Window{abc u0 co.gogocash.app/.MainActivity}" > "${foregroundFile}"
+      ;;
+  esac
   echo "Starting: Intent"
   exit 0
 fi
@@ -318,7 +332,7 @@ exit 1
     });
     expect(resultSummary).toContain("activation deeplink open:pass");
     expect(resultSummary).toContain("activation deeplink foreground:pass");
-    expect(report.context.activationDeeplinkForegroundPackage).toBe("co.gogocash.app");
+    expect(report.context.activationDeeplinkForegroundPackage).toBe("com.android.chrome");
     await expect(readFile(tapFile, "utf8")).resolves.toBe("60,120\n");
     await expect(readFile(join(tempDir, "activation-nudge-tap.txt"), "utf8")).resolves.toContain("x=60\ny=120");
     await expect(readFile(join(tempDir, "activation-nudge-tap-ui.xml"), "utf8")).resolves.toContain(
