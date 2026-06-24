@@ -410,6 +410,7 @@ function acceptanceChecklist(report) {
   lines.push("- gogosense-hub-window.txt");
   lines.push("- gogosense-hub-screenshot.png");
   lines.push("- gogosense-hub-ui.xml");
+  lines.push("- activation-nudge-tap.txt");
   lines.push("- activation-nudge-tap-window.txt");
   lines.push("- activation-nudge-tap-screenshot.png");
   lines.push("- activation-nudge-tap-ui.xml");
@@ -707,6 +708,11 @@ function activationNudgeTapResult(options, device, checkpoint = "gogosense-hub")
   if (!target) {
     return result("fail", "GoGoSense activation nudge tap", `${uiPath} does not contain activation nudge bounds`);
   }
+
+  writeFileSync(
+    `${options.evidenceDir}/activation-nudge-tap.txt`,
+    `sourceUi=${uiPath}\nx=${target.x}\ny=${target.y}\n`
+  );
 
   const tapRun = run(
     options.adb,

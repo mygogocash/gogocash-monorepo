@@ -46,6 +46,7 @@ describe("GoGoSense preflight evidence bundle", () => {
 
     expect(checklist).toContain("- merchant-foreground-ui.xml");
     expect(checklist).toContain("- gogosense-hub-ui.xml");
+    expect(checklist).toContain("- activation-nudge-tap.txt");
     expect(checklist).toContain("- activation-nudge-tap-ui.xml");
     expect(checklist).toContain("- activation-deeplink-ui.xml");
   });
@@ -274,6 +275,7 @@ exit 1
       detail: expect.stringContaining("tapped at 60,120"),
     });
     await expect(readFile(tapFile, "utf8")).resolves.toBe("60,120\n");
+    await expect(readFile(join(tempDir, "activation-nudge-tap.txt"), "utf8")).resolves.toContain("x=60\ny=120");
     await expect(readFile(join(tempDir, "activation-nudge-tap-ui.xml"), "utf8")).resolves.toContain(
       "Activate cashback"
     );
