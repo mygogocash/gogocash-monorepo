@@ -83,4 +83,30 @@ describe("GoGoSense detection runner", () => {
 
     expect(api.detect).toHaveBeenCalledTimes(1);
   });
+
+  it("throttling > given detection upload fails > then does not suppress retry", async () => {
+    const detector = createDetector();
+    const api = {
+      detect: vi
+        .fn()
+        .mockRejectedValueOnce(new Error("network unavailable"))
+        .mockResolvedValueOnce({ matched: true }),
+    };
+    const runner = createGoGoSenseDetectionRunner({
+      api,
+      cooldownMs: 30_000,
+      detector,
+      now: () => new Date("2026-05-23T09:00:00.000Z"),
+    });
+
+    await runner.start();
+    await expect(runner.pollForegroundPackage()).rejects.toThrow("network unavailable");
+    await expect(runner.pollForegroundPackage()).resolves.toEqual({
+      detected: true,
+      packageName: "com.shopee.th",
+      suppressed: false,
+    });
+
+    expect(api.detect).toHaveBeenCalledTimes(2);
+  });
 });

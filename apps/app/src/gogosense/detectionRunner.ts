@@ -80,7 +80,6 @@ export function createGoGoSenseDetectionRunner(options: DetectionRunnerOptions) 
         return { detected: false, packageName, suppressed: true };
       }
 
-      lastDetectionByPackage.set(packageName, observedAt.getTime());
       const response = await options.api.detect({
         appVersion: options.appVersion,
         method: "android_package",
@@ -88,6 +87,7 @@ export function createGoGoSenseDetectionRunner(options: DetectionRunnerOptions) 
         packageName,
         platform: "android",
       });
+      lastDetectionByPackage.set(packageName, observedAt.getTime());
       options.onDetection?.({ packageName, response });
 
       return { detected: true, packageName, suppressed: false };

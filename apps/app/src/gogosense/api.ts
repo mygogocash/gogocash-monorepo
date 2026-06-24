@@ -58,13 +58,21 @@ export type GoGoSenseBaseClient = {
 };
 
 const sanitizeDetectionUrl = (url?: string) => {
-  if (!url) return undefined;
+  const trimmedUrl = url?.trim();
+  if (!trimmedUrl) return undefined;
 
-  const match = url.trim().match(/^(https?:\/\/)?([^/?#\s]+)(?:[/?#].*)?$/i);
-  if (!match) return undefined;
+  const candidate = /^https?:\/\//i.test(trimmedUrl) ? trimmedUrl : `https://${trimmedUrl}`;
 
-  const protocol = match[1]?.toLowerCase() || "https://";
-  return `${protocol}${match[2].toLowerCase()}`;
+  try {
+    const parsedUrl = new URL(candidate);
+    if (!["http:", "https:"].includes(parsedUrl.protocol) || !parsedUrl.hostname) {
+      return undefined;
+    }
+
+    return parsedUrl.origin.toLowerCase();
+  } catch {
+    return undefined;
+  }
 };
 
 const sanitizeDetectionText = (text?: string) => {
