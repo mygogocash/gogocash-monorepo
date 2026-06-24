@@ -1,0 +1,69 @@
+steps:
+  - id: build-api
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --file
+      - apps/api/Dockerfile
+      - --tag
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/gogocash-api-staging:$COMMIT_SHA
+      - --tag
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/gogocash-api-staging:staging-candidate
+      - .
+
+  - id: build-admin
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --file
+      - apps/admin/Dockerfile
+      - --tag
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/gogocash-admin:$COMMIT_SHA
+      - --tag
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/gogocash-admin:staging-candidate
+      - .
+
+  - id: export-app-web
+    name: node:22-bookworm
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        npm install -g "npm@${_NPM_VERSION}"
+        npm ci
+        EXPO_PUBLIC_API_URL=https://api-staging.gogocash.co \
+          EXPO_PUBLIC_APP_ENV=staging \
+          EXPO_PUBLIC_ACCOUNT_DATA_SOURCE=fixtures \
+          EXPO_PUBLIC_FRONTEND_URL=https://app-staging.gogocash.co \
+          npm run export:web -w @gogocash/mobile
+
+  - id: build-app-web
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --file
+      - apps/app/Dockerfile.web
+      - --tag
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/gogocash-app-web-staging:$COMMIT_SHA
+      - --tag
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/gogocash-app-web-staging:staging-candidate
+      - apps/app
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/gogocash-api-staging:$COMMIT_SHA
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/gogocash-api-staging:staging-candidate
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/gogocash-admin:$COMMIT_SHA
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/gogocash-admin:staging-candidate
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/gogocash-app-web-staging:$COMMIT_SHA
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/gogocash-app-web-staging:staging-candidate
+
+substitutions:
+  _ARTIFACT_REPO: gogocash
+  _NPM_VERSION: "10.9.0"
+  _REGION: asia-southeast1
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+
+timeout: 2400s

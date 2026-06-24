@@ -1,0 +1,98 @@
+steps:
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        case "${_APP}" in
+          api)
+            SERVICE="gogocash-api-staging"
+            MEMORY="512Mi"
+            CPU="1"
+            MIN_INSTANCES="0"
+            MAX_INSTANCES="5"
+            PORT="8080"
+            HEALTH_PATH="/gogosense/merchants"
+            ENV_VARS="NODE_ENV=production,WEB_APP_URL=https://app-staging.gogocash.co,API_BASE_URL=https://api-staging.gogocash.co,POSTHOG_HOST=https://us.i.posthog.com,POSTHOG_ENABLED=true,MAIL_FROM=GoGoCash <noreply@gogocash.co>,ADMIN_APP_URL=https://admin-staging.gogocash.co"
+            SECRETS_MAP="MONGO_URI=gogocash-staging-mongo-uri:latest,JWT_SECRET=gogocash-staging-jwt-secret:latest,JWT_ADMIN_SECRET=gogocash-staging-jwt-admin-secret:latest,FIREBASE_PROJECT_ID=gogocash-staging-firebase-project-id:latest,INVOLVE_SECRET=gogocash-staging-involve-secret:latest,POSTHOG_KEY=gogocash-staging-posthog-key:latest,TELEGRAM_BOT_TOKEN=gogocash-staging-telegram-bot-token:latest,CROSSMINT_AUTH_BASE=gogocash-staging-crossmint-auth-base:latest,CROSSMINT_PROJECT_ID=gogocash-staging-crossmint-project-id:latest,CROSSMINT_SECRET=gogocash-staging-crossmint-secret:latest,RESEND_API_KEY=gogocash-staging-resend-api-key:latest"
+            ;;
+          admin)
+            SERVICE="gogocash-admin"
+            MEMORY="512Mi"
+            CPU="1"
+            MIN_INSTANCES="0"
+            MAX_INSTANCES="3"
+            PORT="8080"
+            HEALTH_PATH="/"
+            ENV_VARS="NODE_ENV=production,NEXT_PUBLIC_API_URL=https://api-staging.gogocash.co"
+            SECRETS_MAP=""
+            ;;
+          app-web)
+            SERVICE="gogocash-app-web-staging"
+            MEMORY="256Mi"
+            CPU="1"
+            MIN_INSTANCES="0"
+            MAX_INSTANCES="3"
+            PORT="8080"
+            HEALTH_PATH="/"
+            ENV_VARS="NODE_ENV=production,EXPO_PUBLIC_API_URL=https://api-staging.gogocash.co,EXPO_PUBLIC_FRONTEND_URL=https://app-staging.gogocash.co"
+            SECRETS_MAP=""
+            ;;
+          *)
+            echo "Unsupported _APP=${_APP}. Use api, admin, or app-web." >&2
+            exit 2
+            ;;
+        esac
+
+        IMAGE="${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REPO}/${SERVICE}:${_IMAGE_TAG}"
+
+        args=(
+          run deploy "$SERVICE"
+          --project "$PROJECT_ID"
+          --region "${_REGION}"
+          --platform managed
+          --image "$IMAGE"
+          --memory "$MEMORY"
+          --cpu "$CPU"
+          --min-instances "$MIN_INSTANCES"
+          --max-instances "$MAX_INSTANCES"
+          --port "$PORT"
+          --quiet
+        )
+
+        [ -n "$ENV_VARS" ] && args+=(--set-env-vars "$ENV_VARS")
+        [ -n "$SECRETS_MAP" ] && args+=(--set-secrets "$SECRETS_MAP")
+
+        gcloud "${args[@]}"
+
+        URL="$(gcloud run services describe "$SERVICE" \
+          --project "$PROJECT_ID" \
+          --region "${_REGION}" \
+          --format='value(status.url)')"
+
+        for attempt in 1 2 3 4 5 6; do
+          code="$(curl -L -sS -o /dev/null -w '%{http_code}' "${URL}${HEALTH_PATH}" || true)"
+          case "$code" in
+            2*|3*)
+              echo "Cloud Run smoke passed for ${SERVICE}: ${URL}${HEALTH_PATH} -> ${code}"
+              exit 0
+              ;;
+          esac
+          echo "Smoke attempt ${attempt} failed for ${SERVICE}: ${URL}${HEALTH_PATH} -> ${code}; retrying"
+          sleep 10
+        done
+
+        echo "Cloud Run smoke failed for ${SERVICE}: ${URL}${HEALTH_PATH}" >&2
+        exit 1
+
+substitutions:
+  _APP: api
+  _ARTIFACT_REPO: gogocash
+  _IMAGE_TAG: staging-candidate
+  _REGION: asia-southeast1
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: 900s
