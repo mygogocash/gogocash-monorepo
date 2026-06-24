@@ -8,6 +8,7 @@ import { createHash } from "node:crypto";
 
 const defaultApiUrl = "https://api-staging.gogocash.co";
 const defaultAppPackage = "co.gogocash.app";
+const defaultMetroPort = 8081;
 const defaultGogosenseUrl = "gogocash://gogosense";
 const merchantCatalogPath = "/gogosense/merchants";
 
@@ -53,6 +54,8 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     installApk: env.GOGOSENSE_DEV_CLIENT_APK || "",
     installApkSha256: env.GOGOSENSE_DEV_CLIENT_APK_SHA256 || "",
     merchantApks: splitList(env.GOGOSENSE_MERCHANT_APKS || ""),
+    configureMetroReverse: env.GOGOSENSE_CONFIGURE_METRO_REVERSE === "1",
+    metroPort: nonNegativeInt(env.GOGOSENSE_METRO_PORT, defaultMetroPort),
     openMerchant: env.GOGOSENSE_OPEN_MERCHANT === "1",
     returnToGogosense: env.GOGOSENSE_RETURN_TO_GOGOSENSE === "1",
     expectedPackages: splitList(env.GOGOSENSE_MERCHANT_PACKAGES || ""),
@@ -86,6 +89,8 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     else if (arg === "--install-apk") options.installApk = next();
     else if (arg === "--install-apk-sha256") options.installApkSha256 = next();
     else if (arg === "--merchant-apks") options.merchantApks = splitList(next());
+    else if (arg === "--configure-metro-reverse") options.configureMetroReverse = true;
+    else if (arg === "--metro-port") options.metroPort = nonNegativeInt(next(), defaultMetroPort);
     else if (arg === "--merchant-packages") options.expectedPackages = splitList(next());
     else if (arg === "--json") options.json = true;
     else if (arg === "--grant-usage-access") options.grantUsageAccess = true;
@@ -332,6 +337,18 @@ function activationDeeplinkForegroundResult(foregroundRun, foregroundPackage, ap
   );
 }
 
+function metroReverseResult(reverseRun, port) {
+  if (reverseRun.ok) {
+    return result("pass", "Metro adb reverse", `tcp:${port} -> tcp:${port}`);
+  }
+
+  return result(
+    "fail",
+    "Metro adb reverse",
+    reverseRun.error?.message || reverseRun.stderr || reverseRun.stdout || `adb reverse tcp:${port} tcp:${port} failed`
+  );
+}
+
 function devClientApkSha256Result(apkPath, expectedSha256) {
   const expected = String(expectedSha256 || "").trim().toLowerCase();
   if (!expected) return null;
@@ -389,6 +406,7 @@ const acceptanceChecklistItems = [
   ["Device evidence captured", "device evidence captured"],
   ["GoGoCash dev client installed", "GoGoCash app installed"],
   ["Dev-client APK hash verified", "GoGoCash dev-client APK SHA-256"],
+  ["Metro ADB reverse configured", "Metro adb reverse"],
   ["Usage Access granted", "GoGoCash usage access"],
   ["Supported merchant app installed", "supported merchant app installed"],
   ["Supported merchant launched", "supported merchant launch"],
@@ -426,6 +444,7 @@ function acceptanceChecklist(report) {
   lines.push("- preflight-report.json");
   lines.push("- summary.txt");
   lines.push("- activation-deeplink.txt");
+  lines.push("- device-adb-reverse.txt");
   lines.push("- device-window.txt");
   lines.push("- device-logcat.txt");
   lines.push("- device-screenshot.png");
@@ -484,6 +503,14 @@ function writeDeviceEvidenceBundle(report, options) {
   }
 
   const deviceOptions = { ...options, device: report.context.device };
+  const reverseListRun = run(options.adb, adbArgs(deviceOptions, ["reverse", "--list"]), {
+    timeoutMs: 30000,
+  });
+  writeFileSync(
+    `${options.evidenceDir}/device-adb-reverse.txt`,
+    commandEvidence("adb reverse --list", reverseListRun)
+  );
+
   const windowRun = run(options.adb, adbArgs(deviceOptions, ["shell", "dumpsys", "window"]), {
     timeoutMs: 30000,
   });
@@ -520,6 +547,7 @@ function deviceEvidenceBundleResult(options) {
 
   const requiredFiles = [
     "device-evidence.txt",
+    "device-adb-reverse.txt",
     "device-window.txt",
     "device-logcat.txt",
     "device-screenshot.png",
@@ -952,6 +980,15 @@ async function runPreflight(options) {
   let appInstalled = run(options.adb, adbArgs(deviceOptions, ["shell", "pm", "path", options.appPackage]));
   let appInstalledOk = Boolean(appInstalled.ok && appInstalled.stdout);
 
+  if (options.configureMetroReverse) {
+    const reverseRun = run(
+      options.adb,
+      adbArgs(deviceOptions, ["reverse", `tcp:${options.metroPort}`, `tcp:${options.metroPort}`]),
+      { timeoutMs: 15000 }
+    );
+    results.push(metroReverseResult(reverseRun, options.metroPort));
+  }
+
   const sha256Outcome = devClientApkSha256Result(options.installApk, options.installApkSha256);
   if (sha256Outcome) {
     results.push(sha256Outcome);
@@ -1207,6 +1244,8 @@ Options:
   --open-deeplink             Open the activation deeplink on the selected Android device
   --install-apk <path>         Install a GoGoCash Android dev-client APK before device checks if missing
   --install-apk-sha256 <hash>  Verify the dev-client APK SHA-256 before installing it
+  --configure-metro-reverse    Run adb reverse tcp:<metro-port> tcp:<metro-port> for the dev-client
+  --metro-port <port>          Metro port for --configure-metro-reverse (default: ${defaultMetroPort})
   --grant-usage-access         Run adb appops set <package> GET_USAGE_STATS allow before permission check
   --app-package <package>      GoGoCash Android package (default: ${defaultAppPackage})
   --merchant-apks <paths>      Comma-separated merchant APK or split APK files to install

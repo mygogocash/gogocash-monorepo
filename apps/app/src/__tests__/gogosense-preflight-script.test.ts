@@ -87,6 +87,9 @@ describe("GoGoSense Android preflight script helpers", () => {
           "5bdad05fe54f21e7b583966a2204f67b0029856d73b01c702585eaa71d909e7a",
           "--merchant-apks",
           "/tmp/shopee-base.apk,/tmp/shopee-arm64.apk",
+          "--configure-metro-reverse",
+          "--metro-port",
+          "19000",
           "--grant-usage-access",
           "--merchant-packages",
           "com.a, com.b",
@@ -111,10 +114,12 @@ describe("GoGoSense Android preflight script helpers", () => {
       device: "device-1",
       evidenceDir: "/tmp/gogosense-evidence",
       expectedPackages: ["com.a", "com.b"],
+      configureMetroReverse: true,
       grantUsageAccess: true,
       installApk: "/tmp/gogocash-dev-client.apk",
       installApkSha256: "5bdad05fe54f21e7b583966a2204f67b0029856d73b01c702585eaa71d909e7a",
       merchantApks: ["/tmp/shopee-base.apk", "/tmp/shopee-arm64.apk"],
+      metroPort: 19000,
       requireAuth: true,
       requireForeground: true,
     });
@@ -373,6 +378,9 @@ echo "ok"
       await expect(readFile(join(tempDir, "device-window.txt"), "utf8")).resolves.toContain(
         "com.shopee.th"
       );
+      await expect(readFile(join(tempDir, "device-adb-reverse.txt"), "utf8")).resolves.toContain(
+        "adb reverse --list"
+      );
       await expect(readFile(join(tempDir, "device-logcat.txt"), "utf8")).resolves.toContain(
         "Activate cashback"
       );
@@ -444,11 +452,13 @@ echo "ok"
     try {
       const report = await preflight.runPreflight({
         ...preflight.parseArgs([], { ...process.env }),
-        adb: fakeAdb,
-        apiUrl: "https://api.example.test",
-        grantUsageAccess: true,
-        merchantApks: [shopeeBase, shopeeConfig],
-        expectedPackages: ["com.shopee.th"],
+      adb: fakeAdb,
+      apiUrl: "https://api.example.test",
+      configureMetroReverse: true,
+      grantUsageAccess: true,
+      merchantApks: [shopeeBase, shopeeConfig],
+      metroPort: 19000,
+      expectedPackages: ["com.shopee.th"],
         openMerchant: true,
         returnToGogosense: true,
         captureDeviceEvidence: true,
@@ -457,6 +467,7 @@ echo "ok"
       });
 
       const commands = await readFile(commandLog, "utf8");
+      expect(commands).toContain("reverse tcp:19000 tcp:19000");
 
       expect(commands).toContain(`install-multiple -r ${shopeeBase} ${shopeeConfig}`);
       expect(commands).toContain("shell monkey -p com.shopee.th -c android.intent.category.LAUNCHER 1");
@@ -528,6 +539,18 @@ describe("GoGoSense acceptance checklist", () => {
     ).toContain("- [x] Dev-client APK hash verified: pass");
   });
 
+  it("marks Metro adb reverse as configured when the preflight result passes", () => {
+    expect(
+      preflight.acceptanceChecklist({
+        context: { device: "emulator-5554" },
+        results: [
+          { name: "android device connected", status: "pass" },
+          { name: "Metro adb reverse", status: "pass" },
+        ],
+      })
+    ).toContain("- [x] Metro ADB reverse configured: pass");
+  });
+
   it("marks device evidence as captured when the evidence result passes", () => {
     expect(
       preflight.acceptanceChecklist({
@@ -549,6 +572,7 @@ describe("GoGoSense device evidence bundle result", () => {
       await Promise.all(
         [
           "device-evidence.txt",
+          "device-adb-reverse.txt",
           "device-window.txt",
           "device-logcat.txt",
           "device-screenshot.png",
@@ -563,7 +587,8 @@ describe("GoGoSense device evidence bundle result", () => {
       ).toEqual({
         status: "pass",
         name: "device evidence captured",
-        detail: "device-evidence.txt, device-window.txt, device-logcat.txt, device-screenshot.png",
+        detail:
+          "device-evidence.txt, device-adb-reverse.txt, device-window.txt, device-logcat.txt, device-screenshot.png",
       });
 
       await rm(join(tempDir, "device-screenshot.png"), { force: true });
