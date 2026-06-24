@@ -63,6 +63,7 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     requireAuth: false,
     requireForeground: false,
     requireNudge: false,
+    tapNudge: false,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -97,6 +98,7 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     else if (arg === "--require-auth") options.requireAuth = true;
     else if (arg === "--require-foreground") options.requireForeground = true;
     else if (arg === "--require-nudge") options.requireNudge = true;
+    else if (arg === "--tap-nudge") options.tapNudge = true;
     else if (arg === "--help" || arg === "-h") options.help = true;
     else throw new Error(`Unknown argument: ${arg}`);
   }
@@ -370,6 +372,7 @@ const acceptanceChecklistItems = [
   ["Supported merchant foreground", "supported merchant foreground"],
   ["GoGoSense hub returned", "GoGoSense hub return"],
   ["GoGoSense activation nudge visible", "GoGoSense activation nudge visible"],
+  ["GoGoSense activation nudge tapped", "GoGoSense activation nudge tap"],
   ["Authenticated API reachable", "authenticated GoGoSense API"],
   ["Detection probe matched", "protected detection probe"],
   ["Activation deeplink returned", "protected activation probe"],
@@ -407,6 +410,9 @@ function acceptanceChecklist(report) {
   lines.push("- gogosense-hub-window.txt");
   lines.push("- gogosense-hub-screenshot.png");
   lines.push("- gogosense-hub-ui.xml");
+  lines.push("- activation-nudge-tap-window.txt");
+  lines.push("- activation-nudge-tap-screenshot.png");
+  lines.push("- activation-nudge-tap-ui.xml");
   lines.push("- activation-deeplink-window.txt");
   lines.push("- activation-deeplink-screenshot.png");
   lines.push("- activation-deeplink-ui.xml");
@@ -663,6 +669,59 @@ function activationNudgeEvidenceResult(options, checkpoint = "gogosense-hub") {
     options.requireNudge ? "fail" : "warn",
     "GoGoSense activation nudge visible",
     `${uiPath} does not contain Activate cashback or gogosense-activate-cashback-button`
+  );
+}
+
+function activationNudgeTapTarget(uiXml) {
+  for (const nodeMatch of uiXml.matchAll(/<node\b[^>]*>/g)) {
+    const node = nodeMatch[0];
+    const hasNudgeMarker =
+      node.includes("Activate cashback") ||
+      node.includes("gogosense-activate-cashback-button") ||
+      node.includes("Activate cashback for");
+    const bounds = node.match(/bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
+
+    if (!hasNudgeMarker || !bounds) continue;
+
+    const [, left, top, right, bottom] = bounds.map(Number);
+    return {
+      x: Math.round((left + right) / 2),
+      y: Math.round((top + bottom) / 2),
+    };
+  }
+
+  return null;
+}
+
+function activationNudgeTapResult(options, device, checkpoint = "gogosense-hub") {
+  if (!options.evidenceDir) {
+    return result("fail", "GoGoSense activation nudge tap", "--tap-nudge needs --evidence-dir");
+  }
+
+  const uiPath = `${options.evidenceDir}/${checkpoint}-ui.xml`;
+  if (!existsSync(uiPath)) {
+    return result("fail", "GoGoSense activation nudge tap", `${uiPath} not found; run with --capture-device-evidence`);
+  }
+
+  const target = activationNudgeTapTarget(readFileSync(uiPath, "utf8"));
+  if (!target) {
+    return result("fail", "GoGoSense activation nudge tap", `${uiPath} does not contain activation nudge bounds`);
+  }
+
+  const tapRun = run(
+    options.adb,
+    adbArgs({ device }, ["shell", "input", "tap", String(target.x), String(target.y)]),
+    { timeout: 15000 }
+  );
+
+  if (tapRun.ok) {
+    return result("pass", "GoGoSense activation nudge tap", `${uiPath} tapped at ${target.x},${target.y}`);
+  }
+
+  return result(
+    "fail",
+    "GoGoSense activation nudge tap",
+    tapRun.error?.message || tapRun.stderr || tapRun.stdout || `adb input tap failed at ${target.x},${target.y}`
   );
 }
 
@@ -1005,14 +1064,30 @@ async function runPreflight(options) {
     if (options.requireNudge || options.captureDeviceEvidence) {
       results.push(activationNudgeEvidenceResult(options));
     }
-  } else if (options.requireNudge) {
-    results.push(
-      result(
-        "fail",
-        "GoGoSense activation nudge visible",
-        "--require-nudge needs --return-to-gogosense so gogosense-hub-ui.xml can be captured"
-      )
-    );
+    if (options.tapNudge) {
+      results.push(activationNudgeTapResult(options, context.device));
+      await waitForCheckpoint(options);
+      writeDeviceCheckpointEvidence({ context, results }, options, "activation-nudge-tap");
+    }
+  } else if (options.requireNudge || options.tapNudge) {
+    if (options.tapNudge) {
+      results.push(
+        result(
+          "fail",
+          "GoGoSense activation nudge tap",
+          "--tap-nudge needs --return-to-gogosense so gogosense-hub-ui.xml can be captured"
+        )
+      );
+    }
+    if (options.requireNudge) {
+      results.push(
+        result(
+          "fail",
+          "GoGoSense activation nudge visible",
+          "--require-nudge needs --return-to-gogosense so gogosense-hub-ui.xml can be captured"
+        )
+      );
+    }
   }
 
   if (options.openDeeplink) {
@@ -1089,6 +1164,7 @@ Options:
   --require-auth               Fail when no auth token is provided
   --require-foreground         Fail unless a supported merchant package is foreground
   --require-nudge             Fail unless --return-to-gogosense captures visible activation nudge evidence
+  --tap-nudge                 Tap the activation nudge from gogosense-hub-ui.xml via adb input tap
   --json                       Print machine-readable JSON
 `);
 }
