@@ -142,3 +142,15 @@ npm run gogosense:artifact -w @gogocash/mobile -- --gcs-prefix gs://<bucket>/<pr
 The GCS form downloads `gogocash-development-android.apk` and the adjacent
 `.sha256` sidecar with `gcloud storage cp`; if the sidecar is absent, the helper
 computes the APK hash locally and still prints the preflight command.
+
+For controlled merchant foreground acceptance, pass the merchant install and
+package inputs through the helper so the printed preflight command keeps the
+APK, merchant, device, and evidence settings together:
+
+```bash
+npm run gogosense:artifact -w @gogocash/mobile -- --run-id <github-actions-run-id> \
+  --device <adb-serial> \
+  --merchant-apks /tmp/com.shopee.th.apk,/tmp/config.arm64_v8a.apk \
+  --merchant-packages com.shopee.th \
+  --evidence-dir /tmp/gogosense-acceptance
+```

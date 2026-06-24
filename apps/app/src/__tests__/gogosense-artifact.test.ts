@@ -135,21 +135,37 @@ describe("GoGoSense artifact helper", () => {
 
   it("prints the acceptance preflight command with install, nudge, and deeplink gates", () => {
     const command = artifact.buildPreflightCommand({
+      apiUrl: "https://api-staging.gogocash.co",
       apkPath: "/tmp/gogocash-eas-artifacts-28014696785/gogocash-development-android/gogocash-development-android.apk",
       authTokenEnv: "GOGOSENSE_AUTH_TOKEN",
+      checkpointDelayMs: "1500",
+      detectPackage: "com.shopee.th",
+      device: "emulator-5554",
+      evidenceDir: "/tmp/gogosense-acceptance",
+      merchantApks: "/tmp/com.shopee.th.apk,/tmp/config.arm64_v8a.apk",
+      merchantPackages: "com.shopee.th,com.lazada.android",
+      metroPort: "8081",
       sha256: "5bdad05fe54f21e7b583966a2204f67b0029856d73b01c702585eaa71d909e7a",
     });
 
     expect(command).toContain("run gogosense:preflight -w @gogocash/mobile --");
     expect(command).toContain("--auth-token \"$GOGOSENSE_AUTH_TOKEN\"");
+    expect(command).toContain("--api-url 'https://api-staging.gogocash.co'");
+    expect(command).toContain("--device 'emulator-5554'");
     expect(command).toContain("--install-apk '/tmp/gogocash-eas-artifacts-28014696785/");
     expect(command).toContain(
       "--install-apk-sha256 5bdad05fe54f21e7b583966a2204f67b0029856d73b01c702585eaa71d909e7a"
     );
+    expect(command).toContain("--merchant-apks '/tmp/com.shopee.th.apk,/tmp/config.arm64_v8a.apk'");
+    expect(command).toContain("--merchant-packages 'com.shopee.th,com.lazada.android'");
     expect(command).toContain("--configure-metro-reverse");
+    expect(command).toContain("--metro-port 8081");
+    expect(command).toContain("--detect-package 'com.shopee.th'");
     expect(command).toContain("--require-nudge");
     expect(command).toContain("--tap-nudge");
     expect(command).toContain("--open-deeplink");
     expect(command).toContain("--capture-device-evidence");
+    expect(command).toContain("--evidence-dir '/tmp/gogosense-acceptance'");
+    expect(command).toContain("--checkpoint-delay-ms 1500");
   });
 });

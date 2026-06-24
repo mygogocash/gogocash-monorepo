@@ -43,7 +43,12 @@ export function parseArgs(argv = process.argv.slice(2)) {
     const arg = argv[index];
 
     if (arg === "--artifact-name") options.artifactName = nextValue(argv, index++, arg);
+    else if (arg === "--api-url") options.apiUrl = nextValue(argv, index++, arg);
     else if (arg === "--auth-token-env") options.authTokenEnv = nextValue(argv, index++, arg);
+    else if (arg === "--checkpoint-delay-ms") options.checkpointDelayMs = nextValue(argv, index++, arg);
+    else if (arg === "--detect-package") options.detectPackage = nextValue(argv, index++, arg);
+    else if (arg === "--device") options.device = nextValue(argv, index++, arg);
+    else if (arg === "--evidence-dir") options.evidenceDir = nextValue(argv, index++, arg);
     else if (arg === "--gcs-prefix") {
       options.gcsPrefix = nextValue(argv, index++, arg);
       options.source = "gcs";
@@ -52,6 +57,9 @@ export function parseArgs(argv = process.argv.slice(2)) {
       options.source = "gcs";
     }
     else if (arg === "--json") options.outputJson = true;
+    else if (arg === "--merchant-apks") options.merchantApks = nextValue(argv, index++, arg);
+    else if (arg === "--merchant-packages") options.merchantPackages = nextValue(argv, index++, arg);
+    else if (arg === "--metro-port") options.metroPort = nextValue(argv, index++, arg);
     else if (arg === "--output-dir") options.outputDir = nextValue(argv, index++, arg);
     else if (arg === "--platform") options.platform = nextValue(argv, index++, arg);
     else if (arg === "--profile") options.profile = nextValue(argv, index++, arg);
@@ -166,8 +174,25 @@ export function resolveDownloadedArtifact({ artifactName, outputDir }) {
   };
 }
 
-export function buildPreflightCommand({ apkPath, authTokenEnv = defaultAuthTokenEnv, sha256 }) {
-  return [
+function appendOptionalFlag(command, flag, value, { quote = true } = {}) {
+  if (value === undefined || value === null || value === "") return;
+  command.push(flag, quote ? shellQuote(value) : String(value));
+}
+
+export function buildPreflightCommand({
+  apiUrl,
+  apkPath,
+  authTokenEnv = defaultAuthTokenEnv,
+  checkpointDelayMs,
+  detectPackage,
+  device,
+  evidenceDir,
+  merchantApks,
+  merchantPackages,
+  metroPort,
+  sha256,
+}) {
+  const command = [
     "PATH=/opt/homebrew/bin:$PATH",
     "/opt/homebrew/bin/npx",
     "npm@10.9.0",
@@ -178,19 +203,40 @@ export function buildPreflightCommand({ apkPath, authTokenEnv = defaultAuthToken
     "--",
     "--auth-token",
     `\"$${authTokenEnv}\"`,
+  ];
+
+  appendOptionalFlag(command, "--api-url", apiUrl);
+  appendOptionalFlag(command, "--device", device);
+
+  command.push(
     "--install-apk",
     shellQuote(apkPath),
     "--install-apk-sha256",
     sha256,
-    "--configure-metro-reverse",
-    "--grant-usage-access",
+  );
+
+  appendOptionalFlag(command, "--merchant-apks", merchantApks);
+  appendOptionalFlag(command, "--merchant-packages", merchantPackages);
+
+  command.push("--configure-metro-reverse");
+  appendOptionalFlag(command, "--metro-port", metroPort, { quote: false });
+
+  command.push("--grant-usage-access");
+  appendOptionalFlag(command, "--detect-package", detectPackage);
+
+  command.push(
     "--open-merchant",
     "--return-to-gogosense",
     "--require-nudge",
     "--tap-nudge",
     "--open-deeplink",
     "--capture-device-evidence",
-  ].join(" ");
+  );
+
+  appendOptionalFlag(command, "--evidence-dir", evidenceDir);
+  appendOptionalFlag(command, "--checkpoint-delay-ms", checkpointDelayMs, { quote: false });
+
+  return command.join(" ");
 }
 
 function shellQuote(value) {
@@ -204,10 +250,18 @@ function printUsage() {
 
 Options:
   --artifact-name <name>   GitHub artifact name (default: gogocash-development-android)
+  --api-url <url>          Pass through to gogosense:preflight
   --auth-token-env <name>  Env var used in the printed preflight command (default: GOGOSENSE_AUTH_TOKEN)
+  --checkpoint-delay-ms <n> Pass through to gogosense:preflight checkpoint capture delay
+  --detect-package <pkg>   Pass through to gogosense:preflight detection probe package
+  --device <serial>        Pass through to gogosense:preflight device selector
+  --evidence-dir <path>    Pass through to gogosense:preflight evidence output directory
   --gcs-prefix <uri>       GCS prefix containing gogocash-<profile>-<platform>.apk
   --gcs-uri <uri>          Direct GCS URI to the APK; .sha256 is read from the adjacent URI
   --json                   Print machine-readable artifact details
+  --merchant-apks <paths>  Pass through to gogosense:preflight merchant APK install list
+  --merchant-packages <pkgs> Pass through to gogosense:preflight controlled merchant packages
+  --metro-port <port>      Pass through to gogosense:preflight Metro reverse port
   --output-dir <path>      Download/extract destination (default: /tmp/gogocash-eas-artifacts-<run-id>)
   --platform <platform>    Artifact platform segment (default: android)
   --profile <profile>      Artifact profile segment (default: development)
@@ -265,8 +319,16 @@ export function main(argv = process.argv.slice(2), env = process.env, logger = c
 
   const artifact = resolveDownloadedArtifact(options);
   const preflightCommand = buildPreflightCommand({
+    apiUrl: options.apiUrl,
     apkPath: artifact.apkPath,
     authTokenEnv: options.authTokenEnv,
+    checkpointDelayMs: options.checkpointDelayMs,
+    detectPackage: options.detectPackage,
+    device: options.device,
+    evidenceDir: options.evidenceDir,
+    merchantApks: options.merchantApks,
+    merchantPackages: options.merchantPackages,
+    metroPort: options.metroPort,
     sha256: artifact.sha256,
   });
   const output = {
