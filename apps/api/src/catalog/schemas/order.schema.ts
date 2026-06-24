@@ -9,11 +9,20 @@ export type CommerceOrderStatus =
   | 'fulfilled'
   | 'cancelled'
   | 'refunded';
-export type CommercePaymentStatus = 'unpaid' | 'pending' | 'paid' | 'failed' | 'refunded';
+export type CommercePaymentStatus =
+  | 'unpaid'
+  | 'pending'
+  | 'paid'
+  | 'failed'
+  | 'refunded';
 
 @Schema({ _id: false })
 export class CommerceOrderItem {
-  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'CatalogProduct', required: true })
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'CatalogProduct',
+    required: true,
+  })
   product_id!: Types.ObjectId;
 
   @Prop({ required: true, trim: true })
@@ -46,7 +55,13 @@ export class CommerceOrder {
   @Prop({ type: [CommerceOrderItem], default: [] })
   items!: CommerceOrderItem[];
 
-  @Prop({ required: true, uppercase: true, minlength: 3, maxlength: 3, default: 'THB' })
+  @Prop({
+    required: true,
+    uppercase: true,
+    minlength: 3,
+    maxlength: 3,
+    default: 'THB',
+  })
   currency!: string;
 
   @Prop({ required: true, min: 0 })
@@ -55,10 +70,25 @@ export class CommerceOrder {
   @Prop({ required: true, min: 0 })
   total_amount!: number;
 
-  @Prop({ default: 'pending_payment', enum: ['pending_payment', 'paid', 'processing', 'fulfilled', 'cancelled', 'refunded'], index: true })
+  @Prop({
+    default: 'pending_payment',
+    enum: [
+      'pending_payment',
+      'paid',
+      'processing',
+      'fulfilled',
+      'cancelled',
+      'refunded',
+    ],
+    index: true,
+  })
   status!: CommerceOrderStatus;
 
-  @Prop({ default: 'unpaid', enum: ['unpaid', 'pending', 'paid', 'failed', 'refunded'], index: true })
+  @Prop({
+    default: 'unpaid',
+    enum: ['unpaid', 'pending', 'paid', 'failed', 'refunded'],
+    index: true,
+  })
   payment_status!: CommercePaymentStatus;
 
   @Prop({ default: 'stripe', trim: true })

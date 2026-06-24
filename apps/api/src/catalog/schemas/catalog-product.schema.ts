@@ -39,13 +39,24 @@ export class CatalogProduct {
   @Prop({ required: true, trim: true, maxlength: 160 })
   title!: string;
 
-  @Prop({ required: true, trim: true, lowercase: true, unique: true, index: true })
+  @Prop({
+    required: true,
+    trim: true,
+    lowercase: true,
+    unique: true,
+    index: true,
+  })
   slug!: string;
 
   @Prop({ trim: true, maxlength: 2000 })
   description?: string;
 
-  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Brand', required: true, index: true })
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'Brand',
+    required: true,
+    index: true,
+  })
   brand_id!: Types.ObjectId;
 
   @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Offer', index: true })
@@ -78,7 +89,11 @@ export class CatalogProduct {
   @Prop({ type: [String], default: [] })
   tags!: string[];
 
-  @Prop({ default: 'draft', enum: ['draft', 'published', 'archived'], index: true })
+  @Prop({
+    default: 'draft',
+    enum: ['draft', 'published', 'archived'],
+    index: true,
+  })
   status!: CatalogProductStatus;
 
   @Prop({ type: Date, index: true })
@@ -103,8 +118,13 @@ export class CatalogProduct {
   updated_by?: string;
 }
 
-export const CatalogProductSchema = SchemaFactory.createForClass(CatalogProduct);
+export const CatalogProductSchema =
+  SchemaFactory.createForClass(CatalogProduct);
 
-CatalogProductSchema.index({ status: 1, scheduled_start_at: 1, scheduled_end_at: 1 });
+CatalogProductSchema.index({
+  status: 1,
+  scheduled_start_at: 1,
+  scheduled_end_at: 1,
+});
 CatalogProductSchema.index({ brand_id: 1, status: 1 });
 CatalogProductSchema.index({ shop_slug: 1, status: 1 });

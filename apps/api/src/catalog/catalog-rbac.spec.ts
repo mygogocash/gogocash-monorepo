@@ -12,9 +12,13 @@ import {
   CommercePaymentsController,
 } from './catalog.controller';
 
-const guardsOnClass = (target: Function) => Reflect.getMetadata(GUARDS_METADATA, target) ?? [];
-const rolesOnClass = (target: Function) => Reflect.getMetadata(ROLES_KEY, target) ?? [];
-const rolesOnMethod = (target: Function, method: string) =>
+type ControllerClass = abstract new (...args: never[]) => unknown;
+
+const guardsOnClass = (target: ControllerClass) =>
+  Reflect.getMetadata(GUARDS_METADATA, target) ?? [];
+const rolesOnClass = (target: ControllerClass) =>
+  Reflect.getMetadata(ROLES_KEY, target) ?? [];
+const rolesOnMethod = (target: ControllerClass, method: string) =>
   Reflect.getMetadata(ROLES_KEY, target.prototype[method]) ?? [];
 
 describe('catalog and commerce route guards', () => {
@@ -23,9 +27,38 @@ describe('catalog and commerce route guards', () => {
     expect(guardsOnClass(CommercePaymentsController)).toEqual([]);
   });
 
-  it('protects admin catalog routes with admin auth and support-level role', () => {
-    expect(guardsOnClass(AdminCatalogController)).toEqual(expect.arrayContaining([AuthAdminGuard, RolesGuard]));
-    expect(rolesOnClass(AdminCatalogController)).toContain('support');
+  it('protects admin catalog reads with admin auth and viewer-level role', () => {
+    expect(guardsOnClass(AdminCatalogController)).toEqual(
+      expect.arrayContaining([AuthAdminGuard, RolesGuard]),
+    );
+    expect(rolesOnClass(AdminCatalogController)).toContain('viewer');
+  });
+
+  it('requires approver or higher for admin catalog mutations', () => {
+    expect(rolesOnMethod(AdminCatalogController, 'createBanner')).toContain(
+      'approver',
+    );
+    expect(rolesOnMethod(AdminCatalogController, 'updateBanner')).toContain(
+      'approver',
+    );
+    expect(rolesOnMethod(AdminCatalogController, 'archiveBanner')).toContain(
+      'approver',
+    );
+    expect(rolesOnMethod(AdminCatalogController, 'updateShop')).toContain(
+      'approver',
+    );
+    expect(rolesOnMethod(AdminCatalogController, 'createProduct')).toContain(
+      'approver',
+    );
+    expect(rolesOnMethod(AdminCatalogController, 'updateProduct')).toContain(
+      'approver',
+    );
+    expect(rolesOnMethod(AdminCatalogController, 'archiveProduct')).toContain(
+      'approver',
+    );
+    expect(
+      rolesOnMethod(AdminCatalogController, 'createMediaUpload'),
+    ).toContain('approver');
   });
 
   it('protects customer cart and checkout routes with Firebase auth', () => {
@@ -33,7 +66,12 @@ describe('catalog and commerce route guards', () => {
   });
 
   it('requires approver or higher for admin order status updates', () => {
-    expect(guardsOnClass(AdminCommerceController)).toEqual(expect.arrayContaining([AuthAdminGuard, RolesGuard]));
-    expect(rolesOnMethod(AdminCommerceController, 'updateOrderStatus')).toContain('approver');
+    expect(guardsOnClass(AdminCommerceController)).toEqual(
+      expect.arrayContaining([AuthAdminGuard, RolesGuard]),
+    );
+    expect(rolesOnClass(AdminCommerceController)).toContain('viewer');
+    expect(
+      rolesOnMethod(AdminCommerceController, 'updateOrderStatus'),
+    ).toContain('approver');
   });
 });

@@ -23,7 +23,11 @@ describe('catalog offer backfill', () => {
   });
 
   it('skips unsafe records without a brand link or title', () => {
-    expect(buildDraftProductFromOffer({ offer_name_display: 'No brand' })).toBeNull();
-    expect(buildDraftProductFromOffer({ brand_id: '64b7f5f6f1f1f1f1f1f1f1f1' })).toBeNull();
+    expect(
+      buildDraftProductFromOffer({ offer_name_display: 'No brand' }),
+    ).toBeNull();
+    expect(
+      buildDraftProductFromOffer({ brand_id: '64b7f5f6f1f1f1f1f1f1f1f1' }),
+    ).toBeNull();
   });
 });

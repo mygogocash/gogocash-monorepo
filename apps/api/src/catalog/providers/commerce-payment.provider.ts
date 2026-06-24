@@ -30,8 +30,13 @@ export type CommerceWebhookEvent = {
 };
 
 export interface CommercePaymentProvider {
-  createCheckoutSession(input: CreateCommerceCheckoutInput): Promise<CommerceCheckoutSession>;
-  parseWebhook(payload: unknown, signature?: string): Promise<CommerceWebhookEvent>;
+  createCheckoutSession(
+    input: CreateCommerceCheckoutInput,
+  ): Promise<CommerceCheckoutSession>;
+  parseWebhook(
+    payload: unknown,
+    signature?: string,
+  ): Promise<CommerceWebhookEvent>;
 }
 
 export const COMMERCE_PAYMENT_PROVIDER = Symbol('COMMERCE_PAYMENT_PROVIDER');

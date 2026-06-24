@@ -3,9 +3,19 @@ import { HydratedDocument } from 'mongoose';
 
 export type CatalogBannerDocument = HydratedDocument<CatalogBanner>;
 export type CatalogBannerStatus = 'draft' | 'published' | 'archived';
-export type CatalogBannerPlacement = 'home_hero' | 'home_grid' | 'shop_list' | 'product_detail' | 'modal';
+export type CatalogBannerPlacement =
+  | 'home_hero'
+  | 'home_grid'
+  | 'shop_list'
+  | 'product_detail'
+  | 'modal';
 export type CatalogBannerDevice = 'all' | 'mobile' | 'tablet' | 'desktop';
-export type CatalogBannerCtaType = 'none' | 'shop' | 'product' | 'offer' | 'url';
+export type CatalogBannerCtaType =
+  | 'none'
+  | 'shop'
+  | 'product'
+  | 'offer'
+  | 'url';
 
 @Schema({ collection: 'catalog_banners', timestamps: true })
 export class CatalogBanner {
@@ -21,13 +31,21 @@ export class CatalogBanner {
   @Prop({ trim: true })
   image_alt?: string;
 
-  @Prop({ required: true, enum: ['home_hero', 'home_grid', 'shop_list', 'product_detail', 'modal'], index: true })
+  @Prop({
+    required: true,
+    enum: ['home_hero', 'home_grid', 'shop_list', 'product_detail', 'modal'],
+    index: true,
+  })
   placement!: CatalogBannerPlacement;
 
   @Prop({ default: 'all', trim: true, index: true })
   locale!: string;
 
-  @Prop({ default: 'all', enum: ['all', 'mobile', 'tablet', 'desktop'], index: true })
+  @Prop({
+    default: 'all',
+    enum: ['all', 'mobile', 'tablet', 'desktop'],
+    index: true,
+  })
   device!: CatalogBannerDevice;
 
   @Prop({ default: 'none', enum: ['none', 'shop', 'product', 'offer', 'url'] })
@@ -39,7 +57,11 @@ export class CatalogBanner {
   @Prop({ default: 0, min: 0, index: true })
   priority!: number;
 
-  @Prop({ default: 'draft', enum: ['draft', 'published', 'archived'], index: true })
+  @Prop({
+    default: 'draft',
+    enum: ['draft', 'published', 'archived'],
+    index: true,
+  })
   status!: CatalogBannerStatus;
 
   @Prop({ type: Date, index: true })

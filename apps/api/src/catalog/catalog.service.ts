@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, QueryFilter, Types } from 'mongoose';
 
@@ -20,14 +25,19 @@ type Actor = { userId?: string; email?: string };
 @Injectable()
 export class CatalogService {
   constructor(
-    @InjectModel(CatalogBanner.name) private readonly bannerModel: Model<CatalogBanner>,
-    @InjectModel(CatalogProduct.name) private readonly productModel: Model<CatalogProduct>,
+    @InjectModel(CatalogBanner.name)
+    private readonly bannerModel: Model<CatalogBanner>,
+    @InjectModel(CatalogProduct.name)
+    private readonly productModel: Model<CatalogProduct>,
     @InjectModel(Brand.name) private readonly brandModel: Model<Brand>,
   ) {}
 
   async getHome(query: ListCatalogDto) {
     const [banners, shops, products] = await Promise.all([
-      this.listPublishedBanners({ ...query, placement: query.placement || 'home_hero' }),
+      this.listPublishedBanners({
+        ...query,
+        placement: query.placement || 'home_hero',
+      }),
       this.listPublishedShops(query),
       this.listPublishedProducts(query),
     ]);
@@ -40,11 +50,17 @@ export class CatalogService {
     const filter: QueryFilter<CatalogBanner> = {
       status: 'published',
       $and: [
-        { $or: [{ starts_at: { $exists: false } }, { starts_at: { $lte: now } }] },
+        {
+          $or: [
+            { starts_at: { $exists: false } },
+            { starts_at: { $lte: now } },
+          ],
+        },
         { $or: [{ ends_at: { $exists: false } }, { ends_at: { $gte: now } }] },
       ],
     };
-    if (query.placement) filter.placement = this.toBannerPlacement(query.placement);
+    if (query.placement)
+      filter.placement = this.toBannerPlacement(query.placement);
     if (query.locale) filter.locale = { $in: ['all', query.locale] };
 
     return this.bannerModel
@@ -56,14 +72,7 @@ export class CatalogService {
   }
 
   async listPublishedProducts(query: ListCatalogDto = {}) {
-    const now = new Date();
-    const filter: QueryFilter<CatalogProduct> = {
-      status: 'published',
-      $and: [
-        { $or: [{ scheduled_start_at: { $exists: false } }, { scheduled_start_at: { $lte: now } }] },
-        { $or: [{ scheduled_end_at: { $exists: false } }, { scheduled_end_at: { $gte: now } }] },
-      ],
-    };
+    const filter = this.publishedProductFilter();
     if (query.shop_slug) filter.shop_slug = query.shop_slug;
     if (query.search) filter.title = { $regex: query.search, $options: 'i' };
 
@@ -76,7 +85,10 @@ export class CatalogService {
   }
 
   async getPublishedProduct(slug: string) {
-    const product = await this.productModel.findOne({ slug, status: 'published' }).lean().exec();
+    const product = await this.productModel
+      .findOne(this.publishedProductFilter({ slug }))
+      .lean()
+      .exec();
     if (!product) throw new NotFoundException('Product not found');
     return product;
   }
@@ -87,7 +99,8 @@ export class CatalogService {
       shop_visible: true,
       shop_status: 'published',
     };
-    if (query.search) filter.brand_name = { $regex: query.search, $options: 'i' };
+    if (query.search)
+      filter.brand_name = { $regex: query.search, $options: 'i' };
 
     return this.brandModel
       .find(filter)
@@ -99,8 +112,14 @@ export class CatalogService {
 
   listAdminBanners(query: ListCatalogDto = {}) {
     const filter: QueryFilter<CatalogBanner> = {};
-    if (query.placement) filter.placement = this.toBannerPlacement(query.placement);
-    return this.bannerModel.find(filter).sort({ updatedAt: -1 }).limit(Math.min(query.limit || 50, 100)).lean().exec();
+    if (query.placement)
+      filter.placement = this.toBannerPlacement(query.placement);
+    return this.bannerModel
+      .find(filter)
+      .sort({ updatedAt: -1 })
+      .limit(Math.min(query.limit || 50, 100))
+      .lean()
+      .exec();
   }
 
   async createBanner(dto: CreateCatalogBannerDto, actor?: Actor) {
@@ -135,14 +154,23 @@ export class CatalogService {
   }
 
   archiveBanner(id: string, actor?: Actor) {
-    return this.updateBanner(id, { status: 'archived' } as UpdateCatalogBannerDto, actor);
+    return this.updateBanner(
+      id,
+      { status: 'archived' } as UpdateCatalogBannerDto,
+      actor,
+    );
   }
 
   listAdminProducts(query: ListCatalogDto = {}) {
     const filter: QueryFilter<CatalogProduct> = {};
     if (query.shop_slug) filter.shop_slug = query.shop_slug;
     if (query.search) filter.title = { $regex: query.search, $options: 'i' };
-    return this.productModel.find(filter).sort({ updatedAt: -1 }).limit(Math.min(query.limit || 50, 100)).lean().exec();
+    return this.productModel
+      .find(filter)
+      .sort({ updatedAt: -1 })
+      .limit(Math.min(query.limit || 50, 100))
+      .lean()
+      .exec();
   }
 
   async createProduct(dto: CreateCatalogProductDto, actor?: Actor) {
@@ -156,8 +184,12 @@ export class CatalogService {
       slug: this.normalizeSlug(dto.slug),
       currency: dto.currency.toUpperCase(),
       published_at: dto.status === 'published' ? new Date() : undefined,
-      scheduled_start_at: dto.scheduled_start_at ? new Date(dto.scheduled_start_at) : undefined,
-      scheduled_end_at: dto.scheduled_end_at ? new Date(dto.scheduled_end_at) : undefined,
+      scheduled_start_at: dto.scheduled_start_at
+        ? new Date(dto.scheduled_start_at)
+        : undefined,
+      scheduled_end_at: dto.scheduled_end_at
+        ? new Date(dto.scheduled_end_at)
+        : undefined,
       created_by: actor?.email || actor?.userId,
       updated_by: actor?.email || actor?.userId,
     });
@@ -178,22 +210,37 @@ export class CatalogService {
     if (dto.slug) patch.slug = this.normalizeSlug(dto.slug);
     if (dto.currency) patch.currency = dto.currency.toUpperCase();
     if (dto.status === 'published') patch.published_at = new Date();
-    if (dto.scheduled_start_at) patch.scheduled_start_at = new Date(dto.scheduled_start_at);
-    if (dto.scheduled_end_at) patch.scheduled_end_at = new Date(dto.scheduled_end_at);
+    if (dto.scheduled_start_at)
+      patch.scheduled_start_at = new Date(dto.scheduled_start_at);
+    if (dto.scheduled_end_at)
+      patch.scheduled_end_at = new Date(dto.scheduled_end_at);
 
-    const updated = await this.productModel.findByIdAndUpdate(id, patch, { new: true }).lean().exec();
+    const updated = await this.productModel
+      .findByIdAndUpdate(id, patch, { new: true })
+      .lean()
+      .exec();
     if (!updated) throw new NotFoundException('Product not found');
     return updated;
   }
 
   archiveProduct(id: string, actor?: Actor) {
-    return this.updateProduct(id, { status: 'archived' } as UpdateCatalogProductDto, actor);
+    return this.updateProduct(
+      id,
+      { status: 'archived' } as UpdateCatalogProductDto,
+      actor,
+    );
   }
 
   listAdminShops(query: ListCatalogDto = {}) {
     const filter: QueryFilter<Brand> = { disabled: false };
-    if (query.search) filter.brand_name = { $regex: query.search, $options: 'i' };
-    return this.brandModel.find(filter).sort({ updatedAt: -1, brand_name: 1 }).limit(Math.min(query.limit || 50, 100)).lean().exec();
+    if (query.search)
+      filter.brand_name = { $regex: query.search, $options: 'i' };
+    return this.brandModel
+      .find(filter)
+      .sort({ updatedAt: -1, brand_name: 1 })
+      .limit(Math.min(query.limit || 50, 100))
+      .lean()
+      .exec();
   }
 
   listAdminBrands(query: ListCatalogDto = {}) {
@@ -203,7 +250,10 @@ export class CatalogService {
   async updateShop(brandId: string, dto: UpdateShopDto, actor?: Actor) {
     this.assertObjectId(brandId);
     if (dto.shop_slug) {
-      const existing = await this.brandModel.findOne({ shop_slug: dto.shop_slug, _id: { $ne: brandId } }).lean().exec();
+      const existing = await this.brandModel
+        .findOne({ shop_slug: dto.shop_slug, _id: { $ne: brandId } })
+        .lean()
+        .exec();
       if (existing) throw new ConflictException('Shop slug already exists');
     }
 
@@ -212,7 +262,9 @@ export class CatalogService {
         brandId,
         {
           ...dto,
-          shop_slug: dto.shop_slug ? this.normalizeSlug(dto.shop_slug) : dto.shop_slug,
+          shop_slug: dto.shop_slug
+            ? this.normalizeSlug(dto.shop_slug)
+            : dto.shop_slug,
           fulfillment_owner: dto.fulfillment_owner || 'gogocash',
           updated_by: actor?.email || actor?.userId,
         },
@@ -248,7 +300,11 @@ export class CatalogService {
   }
 
   private assertValidSchedule(startsAt?: string, endsAt?: string) {
-    if (startsAt && endsAt && new Date(startsAt).getTime() > new Date(endsAt).getTime()) {
+    if (
+      startsAt &&
+      endsAt &&
+      new Date(startsAt).getTime() > new Date(endsAt).getTime()
+    ) {
       throw new BadRequestException('Schedule start must be before end');
     }
   }
@@ -259,8 +315,38 @@ export class CatalogService {
     }
   }
 
+  private publishedProductFilter(
+    filter: QueryFilter<CatalogProduct> = {},
+  ): QueryFilter<CatalogProduct> {
+    const now = new Date();
+    return {
+      ...filter,
+      status: 'published',
+      $and: [
+        {
+          $or: [
+            { scheduled_start_at: { $exists: false } },
+            { scheduled_start_at: { $lte: now } },
+          ],
+        },
+        {
+          $or: [
+            { scheduled_end_at: { $exists: false } },
+            { scheduled_end_at: { $gte: now } },
+          ],
+        },
+      ],
+    };
+  }
+
   private toBannerPlacement(value: string): CatalogBannerPlacement {
-    const allowed: CatalogBannerPlacement[] = ['home_hero', 'home_grid', 'shop_list', 'product_detail', 'modal'];
+    const allowed: CatalogBannerPlacement[] = [
+      'home_hero',
+      'home_grid',
+      'shop_list',
+      'product_detail',
+      'modal',
+    ];
     if (!allowed.includes(value as CatalogBannerPlacement)) {
       throw new BadRequestException('Invalid banner placement');
     }

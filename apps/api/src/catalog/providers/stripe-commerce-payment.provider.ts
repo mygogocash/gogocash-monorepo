@@ -12,7 +12,9 @@ import {
 export class StripeCommercePaymentProvider implements CommercePaymentProvider {
   private stripe?: Stripe;
 
-  async createCheckoutSession(input: CreateCommerceCheckoutInput): Promise<CommerceCheckoutSession> {
+  async createCheckoutSession(
+    input: CreateCommerceCheckoutInput,
+  ): Promise<CommerceCheckoutSession> {
     const stripe = this.getStripe();
 
     const session = await stripe.checkout.sessions.create(
@@ -41,7 +43,9 @@ export class StripeCommercePaymentProvider implements CommercePaymentProvider {
     );
 
     if (!session.url) {
-      throw new ServiceUnavailableException('Stripe checkout session did not return a checkout URL');
+      throw new ServiceUnavailableException(
+        'Stripe checkout session did not return a checkout URL',
+      );
     }
 
     return {
@@ -51,7 +55,10 @@ export class StripeCommercePaymentProvider implements CommercePaymentProvider {
     };
   }
 
-  async parseWebhook(payload: unknown, signature?: string): Promise<CommerceWebhookEvent> {
+  async parseWebhook(
+    payload: unknown,
+    signature?: string,
+  ): Promise<CommerceWebhookEvent> {
     const webhookSecret = process.env.STRIPE_COMMERCE_WEBHOOK_SECRET;
     let event: Stripe.Event;
 
@@ -59,8 +66,15 @@ export class StripeCommercePaymentProvider implements CommercePaymentProvider {
       if (!signature) {
         throw new ServiceUnavailableException('Missing Stripe signature');
       }
-      const body = typeof payload === 'string' || Buffer.isBuffer(payload) ? payload : JSON.stringify(payload);
-      event = this.getStripe().webhooks.constructEvent(body, signature, webhookSecret);
+      const body =
+        typeof payload === 'string' || Buffer.isBuffer(payload)
+          ? payload
+          : JSON.stringify(payload);
+      event = this.getStripe().webhooks.constructEvent(
+        body,
+        signature,
+        webhookSecret,
+      );
     } else {
       event = payload as Stripe.Event;
     }
@@ -77,7 +91,9 @@ export class StripeCommercePaymentProvider implements CommercePaymentProvider {
     if (!this.stripe) {
       const apiKey = process.env.STRIPE_SECRET_KEY;
       if (!apiKey) {
-        throw new ServiceUnavailableException('Stripe commerce is not configured');
+        throw new ServiceUnavailableException(
+          'Stripe commerce is not configured',
+        );
       }
       this.stripe = new Stripe(apiKey, { apiVersion: '2026-05-27.dahlia' });
     }

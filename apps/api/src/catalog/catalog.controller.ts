@@ -1,4 +1,16 @@
-import { Body, Controller, Delete, Get, Headers, Param, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  Param,
+  Post,
+  Put,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiSecurity, ApiTags } from '@nestjs/swagger';
 
 import { AuthAdminGuard } from '../admin/jwt-auth-admin.guard';
@@ -21,7 +33,12 @@ import {
   UpsertCartItemDto,
 } from './dto/catalog.dto';
 
-type RequestUser = { userId?: string; uid?: string; sub?: string; email?: string };
+type RequestUser = {
+  userId?: string;
+  uid?: string;
+  sub?: string;
+  email?: string;
+};
 
 function requestUserId(req: { user?: RequestUser }) {
   return req.user?.userId || req.user?.uid || req.user?.sub;
@@ -60,7 +77,7 @@ export class CatalogController {
 @ApiTags('Admin Catalog')
 @Controller('admin/catalog')
 @UseGuards(AuthAdminGuard, RolesGuard)
-@Roles('support')
+@Roles('viewer')
 @ApiBearerAuth()
 @ApiSecurity('access-token')
 export class AdminCatalogController {
@@ -75,16 +92,26 @@ export class AdminCatalogController {
   }
 
   @Post('banners')
-  createBanner(@Body() dto: CreateCatalogBannerDto, @Req() req: { user?: RequestUser }) {
+  @Roles('approver')
+  createBanner(
+    @Body() dto: CreateCatalogBannerDto,
+    @Req() req: { user?: RequestUser },
+  ) {
     return this.catalogService.createBanner(dto, requestActor(req));
   }
 
   @Put('banners/:id')
-  updateBanner(@Param('id') id: string, @Body() dto: UpdateCatalogBannerDto, @Req() req: { user?: RequestUser }) {
+  @Roles('approver')
+  updateBanner(
+    @Param('id') id: string,
+    @Body() dto: UpdateCatalogBannerDto,
+    @Req() req: { user?: RequestUser },
+  ) {
     return this.catalogService.updateBanner(id, dto, requestActor(req));
   }
 
   @Delete('banners/:id')
+  @Roles('approver')
   archiveBanner(@Param('id') id: string, @Req() req: { user?: RequestUser }) {
     return this.catalogService.archiveBanner(id, requestActor(req));
   }
@@ -100,7 +127,12 @@ export class AdminCatalogController {
   }
 
   @Put('shops/:brandId')
-  updateShop(@Param('brandId') brandId: string, @Body() dto: UpdateShopDto, @Req() req: { user?: RequestUser }) {
+  @Roles('approver')
+  updateShop(
+    @Param('brandId') brandId: string,
+    @Body() dto: UpdateShopDto,
+    @Req() req: { user?: RequestUser },
+  ) {
     return this.catalogService.updateShop(brandId, dto, requestActor(req));
   }
 
@@ -110,21 +142,32 @@ export class AdminCatalogController {
   }
 
   @Post('products')
-  createProduct(@Body() dto: CreateCatalogProductDto, @Req() req: { user?: RequestUser }) {
+  @Roles('approver')
+  createProduct(
+    @Body() dto: CreateCatalogProductDto,
+    @Req() req: { user?: RequestUser },
+  ) {
     return this.catalogService.createProduct(dto, requestActor(req));
   }
 
   @Put('products/:id')
-  updateProduct(@Param('id') id: string, @Body() dto: UpdateCatalogProductDto, @Req() req: { user?: RequestUser }) {
+  @Roles('approver')
+  updateProduct(
+    @Param('id') id: string,
+    @Body() dto: UpdateCatalogProductDto,
+    @Req() req: { user?: RequestUser },
+  ) {
     return this.catalogService.updateProduct(id, dto, requestActor(req));
   }
 
   @Delete('products/:id')
+  @Roles('approver')
   archiveProduct(@Param('id') id: string, @Req() req: { user?: RequestUser }) {
     return this.catalogService.archiveProduct(id, requestActor(req));
   }
 
   @Post('media/uploads')
+  @Roles('approver')
   createMediaUpload(@Body() dto: CreateMediaUploadDto) {
     return this.mediaService.createSignedUpload(dto);
   }
@@ -143,18 +186,32 @@ export class CommerceController {
   }
 
   @Put('cart/items')
-  upsertCartItem(@Req() req: { user?: RequestUser }, @Body() dto: UpsertCartItemDto) {
+  upsertCartItem(
+    @Req() req: { user?: RequestUser },
+    @Body() dto: UpsertCartItemDto,
+  ) {
     return this.commerceService.upsertCartItem(requestUserId(req) || '', dto);
   }
 
   @Post('cart/items')
-  postCartItem(@Req() req: { user?: RequestUser }, @Body() dto: UpsertCartItemDto) {
+  postCartItem(
+    @Req() req: { user?: RequestUser },
+    @Body() dto: UpsertCartItemDto,
+  ) {
     return this.commerceService.upsertCartItem(requestUserId(req) || '', dto);
   }
 
   @Delete('cart/items/:productId/:variantSku')
-  removeCartItem(@Req() req: { user?: RequestUser }, @Param('productId') productId: string, @Param('variantSku') variantSku: string) {
-    return this.commerceService.removeCartItem(requestUserId(req) || '', productId, variantSku);
+  removeCartItem(
+    @Req() req: { user?: RequestUser },
+    @Param('productId') productId: string,
+    @Param('variantSku') variantSku: string,
+  ) {
+    return this.commerceService.removeCartItem(
+      requestUserId(req) || '',
+      productId,
+      variantSku,
+    );
   }
 
   @Post('checkout/session')
@@ -163,7 +220,11 @@ export class CommerceController {
     @Headers('idempotency-key') idempotencyKey: string | undefined,
     @Body() dto: CreateCheckoutSessionDto,
   ) {
-    return this.commerceService.createCheckoutSession(requestUserId(req) || '', dto, idempotencyKey || dto.idempotency_key);
+    return this.commerceService.createCheckoutSession(
+      requestUserId(req) || '',
+      dto,
+      idempotencyKey || dto.idempotency_key,
+    );
   }
 
   @Get('orders')
@@ -175,7 +236,7 @@ export class CommerceController {
 @ApiTags('Admin Commerce')
 @Controller('admin/commerce')
 @UseGuards(AuthAdminGuard, RolesGuard)
-@Roles('support')
+@Roles('viewer')
 @ApiBearerAuth()
 @ApiSecurity('access-token')
 export class AdminCommerceController {
@@ -188,7 +249,10 @@ export class AdminCommerceController {
 
   @Put('orders/:id/status')
   @Roles('approver')
-  updateOrderStatus(@Param('id') id: string, @Body() dto: UpdateOrderStatusDto) {
+  updateOrderStatus(
+    @Param('id') id: string,
+    @Body() dto: UpdateOrderStatusDto,
+  ) {
     return this.commerceService.updateOrderStatus(id, dto);
   }
 }
@@ -199,7 +263,13 @@ export class CommercePaymentsController {
   constructor(private readonly commerceService: CommerceService) {}
 
   @Post('stripe/webhook')
-  handleStripeWebhook(@Req() req: { rawBody?: Buffer; body?: unknown }, @Headers('stripe-signature') signature?: string) {
-    return this.commerceService.handleWebhook(req.rawBody || req.body, signature);
+  handleStripeWebhook(
+    @Req() req: { rawBody?: Buffer; body?: unknown },
+    @Headers('stripe-signature') signature?: string,
+  ) {
+    return this.commerceService.handleWebhook(
+      req.rawBody || req.body,
+      signature,
+    );
   }
 }

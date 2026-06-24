@@ -2,11 +2,22 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
 
 export type PaymentAttemptDocument = HydratedDocument<PaymentAttempt>;
-export type PaymentAttemptStatus = 'created' | 'pending' | 'succeeded' | 'failed' | 'expired' | 'refunded';
+export type PaymentAttemptStatus =
+  | 'created'
+  | 'pending'
+  | 'succeeded'
+  | 'failed'
+  | 'expired'
+  | 'refunded';
 
 @Schema({ collection: 'commerce_payment_attempts', timestamps: true })
 export class PaymentAttempt {
-  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'CommerceOrder', required: true, index: true })
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'CommerceOrder',
+    required: true,
+    index: true,
+  })
   order_id!: Types.ObjectId;
 
   @Prop({ required: true, index: true, trim: true })
@@ -30,13 +41,18 @@ export class PaymentAttempt {
   @Prop({ required: true, uppercase: true, minlength: 3, maxlength: 3 })
   currency!: string;
 
-  @Prop({ default: 'created', enum: ['created', 'pending', 'succeeded', 'failed', 'expired', 'refunded'], index: true })
+  @Prop({
+    default: 'created',
+    enum: ['created', 'pending', 'succeeded', 'failed', 'expired', 'refunded'],
+    index: true,
+  })
   status!: PaymentAttemptStatus;
 
   @Prop({ type: [String], default: [] })
   provider_event_ids!: string[];
 }
 
-export const PaymentAttemptSchema = SchemaFactory.createForClass(PaymentAttempt);
+export const PaymentAttemptSchema =
+  SchemaFactory.createForClass(PaymentAttempt);
 
 PaymentAttemptSchema.index({ provider: 1, provider_session_id: 1 });

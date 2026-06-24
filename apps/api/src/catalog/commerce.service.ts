@@ -3,32 +3,46 @@ import {
   Inject,
   Injectable,
   NotFoundException,
-  ServiceUnavailableException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Model, QueryFilter, Types } from 'mongoose';
 
 import {
   COMMERCE_PAYMENT_PROVIDER,
   CommercePaymentProvider,
   CommerceWebhookEvent,
 } from './providers/commerce-payment.provider';
-import { CreateCheckoutSessionDto, UpsertCartItemDto, UpdateOrderStatusDto } from './dto/catalog.dto';
+import {
+  CreateCheckoutSessionDto,
+  UpsertCartItemDto,
+  UpdateOrderStatusDto,
+} from './dto/catalog.dto';
 import { Cart } from './schemas/cart.schema';
 import { CatalogProduct } from './schemas/catalog-product.schema';
 import { CommerceOrder } from './schemas/order.schema';
 import { InventoryReservation } from './schemas/inventory-reservation.schema';
 import { PaymentAttempt } from './schemas/payment-attempt.schema';
 
+type ReservationItem = {
+  product_id: Types.ObjectId;
+  variant_sku: string;
+  quantity: number;
+};
+
 @Injectable()
 export class CommerceService {
   constructor(
     @InjectModel(Cart.name) private readonly cartModel: Model<Cart>,
-    @InjectModel(CatalogProduct.name) private readonly productModel: Model<CatalogProduct>,
-    @InjectModel(CommerceOrder.name) private readonly orderModel: Model<CommerceOrder>,
-    @InjectModel(InventoryReservation.name) private readonly reservationModel: Model<InventoryReservation>,
-    @InjectModel(PaymentAttempt.name) private readonly paymentAttemptModel: Model<PaymentAttempt>,
-    @Inject(COMMERCE_PAYMENT_PROVIDER) private readonly paymentProvider: CommercePaymentProvider,
+    @InjectModel(CatalogProduct.name)
+    private readonly productModel: Model<CatalogProduct>,
+    @InjectModel(CommerceOrder.name)
+    private readonly orderModel: Model<CommerceOrder>,
+    @InjectModel(InventoryReservation.name)
+    private readonly reservationModel: Model<InventoryReservation>,
+    @InjectModel(PaymentAttempt.name)
+    private readonly paymentAttemptModel: Model<PaymentAttempt>,
+    @Inject(COMMERCE_PAYMENT_PROVIDER)
+    private readonly paymentProvider: CommercePaymentProvider,
   ) {}
 
   getCart(userId: string) {
@@ -36,10 +50,15 @@ export class CommerceService {
   }
 
   async upsertCartItem(userId: string, dto: UpsertCartItemDto) {
-    const product = await this.productModel.findOne({ _id: dto.product_id, status: 'published' }).lean().exec();
+    const product = await this.productModel
+      .findOne(this.publishedProductFilter({ _id: dto.product_id }))
+      .lean()
+      .exec();
     if (!product) throw new NotFoundException('Product not found');
 
-    const variant = product.variants?.find((v) => v.sku === dto.variant_sku && v.active) || {
+    const variant = product.variants?.find(
+      (v) => v.sku === dto.variant_sku && v.active,
+    ) || {
       sku: product.default_sku,
       price_amount: product.price_amount,
       currency: product.currency,
@@ -47,9 +66,13 @@ export class CommerceService {
       reserved_quantity: product.reserved_quantity,
       image_url: product.images?.[0],
     };
-    if (variant.sku !== dto.variant_sku) throw new BadRequestException('Product variant not found');
+    if (variant.sku !== dto.variant_sku)
+      throw new BadRequestException('Product variant not found');
 
-    const available = Math.max(0, (variant.inventory_quantity ?? 0) - (variant.reserved_quantity ?? 0));
+    const available = Math.max(
+      0,
+      (variant.inventory_quantity ?? 0) - (variant.reserved_quantity ?? 0),
+    );
     if (available < dto.quantity) {
       throw new BadRequestException('Insufficient inventory');
     }
@@ -64,9 +87,16 @@ export class CommerceService {
       title: product.title,
       image_url: variant.image_url || product.images?.[0],
     };
-    const nextItems = cart.items.filter((cartItem) => String(cartItem.product_id) !== dto.product_id || cartItem.variant_sku !== dto.variant_sku);
+    const nextItems = cart.items.filter(
+      (cartItem) =>
+        String(cartItem.product_id) !== dto.product_id ||
+        cartItem.variant_sku !== dto.variant_sku,
+    );
     nextItems.push(item);
-    const subtotal = nextItems.reduce((sum, cartItem) => sum + cartItem.unit_amount * cartItem.quantity, 0);
+    const subtotal = nextItems.reduce(
+      (sum, cartItem) => sum + cartItem.unit_amount * cartItem.quantity,
+      0,
+    );
 
     return this.cartModel
       .findByIdAndUpdate(
@@ -84,15 +114,37 @@ export class CommerceService {
 
   async removeCartItem(userId: string, productId: string, variantSku: string) {
     const cart = await this.getOrCreateActiveCart(userId);
-    const nextItems = cart.items.filter((item) => String(item.product_id) !== productId || item.variant_sku !== variantSku);
-    const subtotal = nextItems.reduce((sum, item) => sum + item.unit_amount * item.quantity, 0);
-    return this.cartModel.findByIdAndUpdate(cart._id, { items: nextItems, subtotal_amount: subtotal }, { new: true }).lean().exec();
+    const nextItems = cart.items.filter(
+      (item) =>
+        String(item.product_id) !== productId ||
+        item.variant_sku !== variantSku,
+    );
+    const subtotal = nextItems.reduce(
+      (sum, item) => sum + item.unit_amount * item.quantity,
+      0,
+    );
+    return this.cartModel
+      .findByIdAndUpdate(
+        cart._id,
+        { items: nextItems, subtotal_amount: subtotal },
+        { new: true },
+      )
+      .lean()
+      .exec();
   }
 
-  async createCheckoutSession(userId: string, dto: CreateCheckoutSessionDto, idempotencyKey?: string) {
-    if (!idempotencyKey) throw new BadRequestException('Idempotency-Key header is required');
+  async createCheckoutSession(
+    userId: string,
+    dto: CreateCheckoutSessionDto,
+    idempotencyKey?: string,
+  ) {
+    if (!idempotencyKey)
+      throw new BadRequestException('Idempotency-Key header is required');
 
-    const existingAttempt = await this.paymentAttemptModel.findOne({ idempotency_key: idempotencyKey }).lean().exec();
+    const existingAttempt = await this.paymentAttemptModel
+      .findOne({ idempotency_key: idempotencyKey })
+      .lean()
+      .exec();
     if (existingAttempt?.checkout_url) {
       return {
         order_id: String(existingAttempt.order_id),
@@ -116,17 +168,28 @@ export class CommerceService {
       shipping_address: dto.shipping_address || {},
     });
 
-    await this.reserveInventory(order._id as Types.ObjectId, userId, cart.items);
+    await this.reserveInventory(
+      order._id as Types.ObjectId,
+      userId,
+      cart.items,
+    );
 
-    const origin = process.env.CUSTOMER_APP_URL || process.env.ADMIN_APP_URL || 'https://gogocash.co';
+    const origin =
+      process.env.CUSTOMER_APP_URL ||
+      process.env.ADMIN_APP_URL ||
+      'https://gogocash.co';
     const checkout = await this.paymentProvider.createCheckoutSession({
       orderId: String(order._id),
       orderNumber: order.order_number,
       userId,
       amount: order.total_amount,
       currency: order.currency,
-      successUrl: dto.success_url || `${origin}/commerce/checkout/success?order=${order._id}`,
-      cancelUrl: dto.cancel_url || `${origin}/commerce/checkout/cancel?order=${order._id}`,
+      successUrl:
+        dto.success_url ||
+        `${origin}/commerce/checkout/success?order=${order._id}`,
+      cancelUrl:
+        dto.cancel_url ||
+        `${origin}/commerce/checkout/cancel?order=${order._id}`,
       idempotencyKey,
       lineItems: cart.items.map((item) => ({
         name: item.title,
@@ -137,7 +200,11 @@ export class CommerceService {
     });
 
     await Promise.all([
-      this.orderModel.findByIdAndUpdate(order._id, { checkout_session_id: checkout.providerSessionId }).exec(),
+      this.orderModel
+        .findByIdAndUpdate(order._id, {
+          checkout_session_id: checkout.providerSessionId,
+        })
+        .exec(),
       this.paymentAttemptModel.create({
         order_id: order._id,
         user_id: userId,
@@ -161,17 +228,28 @@ export class CommerceService {
   }
 
   listCustomerOrders(userId: string) {
-    return this.orderModel.find({ user_id: userId }).sort({ createdAt: -1 }).limit(50).lean().exec();
+    return this.orderModel
+      .find({ user_id: userId })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean()
+      .exec();
   }
 
   listAdminOrders(query: { status?: string; limit?: number } = {}) {
     const filter: Record<string, string> = {};
     if (query.status) filter.status = query.status;
-    return this.orderModel.find(filter).sort({ createdAt: -1 }).limit(Math.min(query.limit || 50, 100)).lean().exec();
+    return this.orderModel
+      .find(filter)
+      .sort({ createdAt: -1 })
+      .limit(Math.min(query.limit || 50, 100))
+      .lean()
+      .exec();
   }
 
   async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
-    if (!Types.ObjectId.isValid(id)) throw new BadRequestException('Invalid order id');
+    if (!Types.ObjectId.isValid(id))
+      throw new BadRequestException('Invalid order id');
     const patch: Record<string, unknown> = {
       status: dto.status,
       admin_note: dto.admin_note,
@@ -179,7 +257,10 @@ export class CommerceService {
     if (dto.status === 'fulfilled') patch.fulfilled_at = new Date();
     if (dto.status === 'refunded') patch.payment_status = 'refunded';
 
-    const updated = await this.orderModel.findByIdAndUpdate(id, patch, { new: true }).lean().exec();
+    const updated = await this.orderModel
+      .findByIdAndUpdate(id, patch, { new: true })
+      .lean()
+      .exec();
     if (!updated) throw new NotFoundException('Order not found');
     return updated;
   }
@@ -190,7 +271,9 @@ export class CommerceService {
       return { received: true, ignored: true };
     }
 
-    const attempt = await this.paymentAttemptModel.findOne({ provider_session_id: event.providerSessionId }).exec();
+    const attempt = await this.paymentAttemptModel
+      .findOne({ provider_session_id: event.providerSessionId })
+      .exec();
     if (!attempt) {
       return { received: true, ignored: true };
     }
@@ -204,42 +287,80 @@ export class CommerceService {
     return { received: true };
   }
 
-  private async applyPaymentEvent(attempt: PaymentAttempt, event: CommerceWebhookEvent) {
-    if (event.type === 'checkout.session.completed' || event.type === 'payment_intent.succeeded') {
+  private async applyPaymentEvent(
+    attempt: PaymentAttempt,
+    event: CommerceWebhookEvent,
+  ) {
+    if (
+      event.type === 'checkout.session.completed' ||
+      event.type === 'payment_intent.succeeded'
+    ) {
       attempt.status = 'succeeded';
+      const committedReservations = await this.transitionActiveReservations(
+        attempt.order_id,
+        'committed',
+      );
+      await this.commitReservedInventory(committedReservations);
       await Promise.all([
         this.orderModel.findByIdAndUpdate(attempt.order_id, {
           status: 'paid',
           payment_status: 'paid',
           paid_at: new Date(),
         }),
-        this.reservationModel.updateMany({ order_id: attempt.order_id, status: 'active' }, { status: 'committed' }),
       ]);
-      const order = await this.orderModel.findById(attempt.order_id).lean().exec();
-      if (order) await this.cartModel.updateMany({ user_id: order.user_id, status: 'active' }, { status: 'converted' });
+      const order = await this.orderModel
+        .findById(attempt.order_id)
+        .lean()
+        .exec();
+      if (order)
+        await this.cartModel.updateMany(
+          { user_id: order.user_id, status: 'active' },
+          { status: 'converted' },
+        );
       return;
     }
 
-    if (event.type === 'checkout.session.expired' || event.type === 'payment_intent.payment_failed') {
-      attempt.status = event.type === 'checkout.session.expired' ? 'expired' : 'failed';
+    if (
+      event.type === 'checkout.session.expired' ||
+      event.type === 'payment_intent.payment_failed'
+    ) {
+      attempt.status =
+        event.type === 'checkout.session.expired' ? 'expired' : 'failed';
+      const releasedReservations = await this.transitionActiveReservations(
+        attempt.order_id,
+        'released',
+      );
+      await this.releaseReservedInventory(releasedReservations);
       await Promise.all([
         this.orderModel.findByIdAndUpdate(attempt.order_id, {
           status: 'cancelled',
           payment_status: 'failed',
         }),
-        this.reservationModel.updateMany({ order_id: attempt.order_id, status: 'active' }, { status: 'released' }),
       ]);
     }
   }
 
   private async getOrCreateActiveCart(userId: string) {
-    const existing = await this.cartModel.findOne({ user_id: userId, status: 'active' }).lean().exec();
+    const existing = await this.cartModel
+      .findOne({ user_id: userId, status: 'active' })
+      .lean()
+      .exec();
     if (existing) return existing;
-    return this.cartModel.create({ user_id: userId, items: [], subtotal_amount: 0, currency: 'THB' });
+    return this.cartModel.create({
+      user_id: userId,
+      items: [],
+      subtotal_amount: 0,
+      currency: 'THB',
+    });
   }
 
-  private async reserveInventory(orderId: Types.ObjectId, userId: string, items: Array<{ product_id: Types.ObjectId; variant_sku: string; quantity: number }>) {
+  private async reserveInventory(
+    orderId: Types.ObjectId,
+    userId: string,
+    items: ReservationItem[],
+  ) {
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+    const reservedItems: ReservationItem[] = [];
     const reservations = items.map((item) => ({
       product_id: item.product_id,
       order_id: orderId,
@@ -248,7 +369,198 @@ export class CommerceService {
       quantity: item.quantity,
       expires_at: expiresAt,
     }));
-    await this.reservationModel.insertMany(reservations);
+
+    try {
+      for (const item of items) {
+        await this.reserveItemInventory(item);
+        reservedItems.push(item);
+      }
+      await this.reservationModel.insertMany(reservations);
+    } catch (error) {
+      await this.releaseReservedInventory(reservedItems);
+      throw error;
+    }
+  }
+
+  private async reserveItemInventory(item: ReservationItem) {
+    const variantResult = await this.productModel
+      .updateOne(this.availableVariantFilter(item), {
+        $inc: { 'variants.$.reserved_quantity': item.quantity },
+      })
+      .exec();
+    if (variantResult.modifiedCount > 0) return;
+
+    const defaultResult = await this.productModel
+      .updateOne(this.availableDefaultSkuFilter(item), {
+        $inc: { reserved_quantity: item.quantity },
+      })
+      .exec();
+    if (defaultResult.modifiedCount > 0) return;
+
+    throw new BadRequestException('Insufficient inventory');
+  }
+
+  private async transitionActiveReservations(
+    orderId: Types.ObjectId,
+    status: 'committed' | 'released',
+  ): Promise<ReservationItem[]> {
+    const reservations: ReservationItem[] = [];
+
+    while (true) {
+      const reservation = await this.reservationModel
+        .findOneAndUpdate(
+          { order_id: orderId, status: 'active' },
+          { status },
+          { new: false },
+        )
+        .lean()
+        .exec();
+      if (!reservation) return reservations;
+      reservations.push({
+        product_id: reservation.product_id as Types.ObjectId,
+        variant_sku: reservation.variant_sku,
+        quantity: reservation.quantity,
+      });
+    }
+  }
+
+  private async commitReservedInventory(items: ReservationItem[]) {
+    await Promise.all(
+      items.map(async (item) => {
+        const variantResult = await this.productModel
+          .updateOne(
+            { _id: item.product_id, 'variants.sku': item.variant_sku },
+            {
+              $inc: {
+                'variants.$.inventory_quantity': -item.quantity,
+                'variants.$.reserved_quantity': -item.quantity,
+              },
+            },
+          )
+          .exec();
+        if (variantResult.modifiedCount > 0) return;
+
+        await this.productModel
+          .updateOne(
+            { _id: item.product_id, default_sku: item.variant_sku },
+            {
+              $inc: {
+                inventory_quantity: -item.quantity,
+                reserved_quantity: -item.quantity,
+              },
+            },
+          )
+          .exec();
+      }),
+    );
+  }
+
+  private async releaseReservedInventory(items: ReservationItem[]) {
+    await Promise.all(
+      items.map(async (item) => {
+        const variantResult = await this.productModel
+          .updateOne(
+            { _id: item.product_id, 'variants.sku': item.variant_sku },
+            { $inc: { 'variants.$.reserved_quantity': -item.quantity } },
+          )
+          .exec();
+        if (variantResult.modifiedCount > 0) return;
+
+        await this.productModel
+          .updateOne(
+            { _id: item.product_id, default_sku: item.variant_sku },
+            { $inc: { reserved_quantity: -item.quantity } },
+          )
+          .exec();
+      }),
+    );
+  }
+
+  private availableVariantFilter(item: ReservationItem) {
+    return {
+      ...this.publishedProductFilter({
+        _id: item.product_id,
+        variants: { $elemMatch: { sku: item.variant_sku, active: true } },
+      }),
+      $expr: {
+        $gte: [
+          {
+            $let: {
+              vars: {
+                variant: {
+                  $first: {
+                    $filter: {
+                      input: '$variants',
+                      as: 'variant',
+                      cond: {
+                        $and: [
+                          { $eq: ['$$variant.sku', item.variant_sku] },
+                          { $eq: ['$$variant.active', true] },
+                        ],
+                      },
+                    },
+                  },
+                },
+              },
+              in: {
+                $subtract: [
+                  { $ifNull: ['$$variant.inventory_quantity', 0] },
+                  { $ifNull: ['$$variant.reserved_quantity', 0] },
+                ],
+              },
+            },
+          },
+          item.quantity,
+        ],
+      },
+    } as QueryFilter<CatalogProduct>;
+  }
+
+  private availableDefaultSkuFilter(item: ReservationItem) {
+    return {
+      ...this.publishedProductFilter({
+        _id: item.product_id,
+        default_sku: item.variant_sku,
+        variants: {
+          $not: { $elemMatch: { sku: item.variant_sku, active: true } },
+        },
+      }),
+      $expr: {
+        $gte: [
+          {
+            $subtract: [
+              { $ifNull: ['$inventory_quantity', 0] },
+              { $ifNull: ['$reserved_quantity', 0] },
+            ],
+          },
+          item.quantity,
+        ],
+      },
+    } as QueryFilter<CatalogProduct>;
+  }
+
+  private publishedProductFilter(
+    filter: QueryFilter<CatalogProduct> = {},
+  ): QueryFilter<CatalogProduct> {
+    const now = new Date();
+    return {
+      ...filter,
+      status: 'published',
+      $and: [
+        {
+          $or: [
+            { scheduled_start_at: { $exists: false } },
+            { scheduled_start_at: { $lte: now } },
+          ],
+        },
+        {
+          $or: [
+            { scheduled_end_at: { $exists: false } },
+            { scheduled_end_at: { $gte: now } },
+          ],
+        },
+      ],
+    };
   }
 
   private createOrderNumber() {

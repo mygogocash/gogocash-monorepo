@@ -24,13 +24,20 @@ export type CatalogProductDraftBackfill = {
   status: 'draft';
 };
 
-export function buildDraftProductFromOffer(offer: OfferBackfillInput): CatalogProductDraftBackfill | null {
-  if (!offer.brand_id || !Types.ObjectId.isValid(String(offer.brand_id))) return null;
+export function buildDraftProductFromOffer(
+  offer: OfferBackfillInput,
+): CatalogProductDraftBackfill | null {
+  if (!offer.brand_id || !Types.ObjectId.isValid(String(offer.brand_id)))
+    return null;
   const title = offer.offer_name_display?.trim() || offer.offer_name?.trim();
   if (!title) return null;
 
-  const offerObjectId = offer._id && Types.ObjectId.isValid(String(offer._id)) ? new Types.ObjectId(String(offer._id)) : undefined;
-  const skuSource = offer.offer_id?.trim() || offerObjectId?.toHexString() || title;
+  const offerObjectId =
+    offer._id && Types.ObjectId.isValid(String(offer._id))
+      ? new Types.ObjectId(String(offer._id))
+      : undefined;
+  const skuSource =
+    offer.offer_id?.trim() || offerObjectId?.toHexString() || title;
 
   return {
     title,
@@ -41,7 +48,9 @@ export function buildDraftProductFromOffer(offer: OfferBackfillInput): CatalogPr
     price_amount: 0,
     currency: 'THB',
     inventory_quantity: 0,
-    images: [offer.logo_desktop, offer.banner].filter((value): value is string => Boolean(value?.trim())),
+    images: [offer.logo_desktop, offer.banner].filter(
+      (value): value is string => Boolean(value?.trim()),
+    ),
     status: 'draft',
   };
 }

@@ -22,7 +22,9 @@ describe('catalog DTO validation', () => {
 
     const errors = await validate(dto);
 
-    expect(errors.map((error) => error.property)).toEqual(expect.arrayContaining(['currency', 'inventory_quantity']));
+    expect(errors.map((error) => error.property)).toEqual(
+      expect.arrayContaining(['currency', 'inventory_quantity']),
+    );
   });
 
   it('accepts a publishable product payload with scheduled dates', async () => {
@@ -52,7 +54,9 @@ describe('catalog DTO validation', () => {
 
     const errors = await validate(dto);
 
-    expect(errors.map((error) => error.property)).toEqual(expect.arrayContaining(['content_type', 'size_bytes']));
+    expect(errors.map((error) => error.property)).toEqual(
+      expect.arrayContaining(['content_type', 'size_bytes']),
+    );
   });
 
   it('keeps admin order transitions in the fulfillment/refund set', async () => {
