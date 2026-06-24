@@ -1005,6 +1005,14 @@ async function runPreflight(options) {
     if (options.requireNudge || options.captureDeviceEvidence) {
       results.push(activationNudgeEvidenceResult(options));
     }
+  } else if (options.requireNudge) {
+    results.push(
+      result(
+        "fail",
+        "GoGoSense activation nudge visible",
+        "--require-nudge needs --return-to-gogosense so gogosense-hub-ui.xml can be captured"
+      )
+    );
   }
 
   if (options.openDeeplink) {
@@ -1080,6 +1088,7 @@ Options:
   --merchant-packages <list>   Comma-separated merchant packages for controlled QA
   --require-auth               Fail when no auth token is provided
   --require-foreground         Fail unless a supported merchant package is foreground
+  --require-nudge             Fail unless --return-to-gogosense captures visible activation nudge evidence
   --json                       Print machine-readable JSON
 `);
 }

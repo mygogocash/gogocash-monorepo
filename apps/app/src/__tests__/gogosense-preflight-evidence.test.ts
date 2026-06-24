@@ -173,4 +173,99 @@ exit 1
     expect(nudgeResult?.status).toBe("fail");
     await expect(readFile(join(tempDir, "gogosense-hub-ui.xml"), "utf8")).resolves.toContain("GoGoSense hub");
   });
+
+  it("fails the required activation nudge gate when the hub return step is omitted", async () => {
+    tempDir = await mkdtemp(join(tmpdir(), "gogosense-nudge-precondition-"));
+    const fakeAdb = join(tempDir, "adb");
+
+    await writeFile(
+      fakeAdb,
+      `#!/bin/sh
+if [ "$1" = "version" ]; then
+  echo "Android Debug Bridge version 1.0.41"
+  exit 0
+fi
+case " $* " in
+  *" devices "*|*" devices")
+    printf 'List of devices attached\\nemulator-5554\\tdevice\\n'
+    exit 0
+    ;;
+esac
+if [ "$1" = "-s" ]; then
+  shift 2
+fi
+if [ "$1" = "shell" ] && [ "$2" = "pm" ] && [ "$3" = "path" ]; then
+  echo "package:/data/app/co.gogocash.app/base.apk"
+  exit 0
+fi
+if [ "$1" = "shell" ] && [ "$2" = "appops" ]; then
+  echo "GET_USAGE_STATS: allow"
+  exit 0
+fi
+if [ "$1" = "shell" ] && [ "$2" = "pm" ] && [ "$3" = "list" ]; then
+  printf 'package:co.gogocash.app\\npackage:com.shopee.th\\n'
+  exit 0
+fi
+if [ "$1" = "shell" ] && [ "$2" = "monkey" ]; then
+  echo "Events injected: 1"
+  exit 0
+fi
+if [ "$1" = "shell" ] && [ "$2" = "dumpsys" ] && [ "$3" = "window" ]; then
+  echo "mCurrentFocus=Window{abc u0 com.shopee.th/com.shopee.MainActivity}"
+  exit 0
+fi
+if [ "$1" = "exec-out" ] && [ "$2" = "screencap" ]; then
+  printf 'PNGDATA'
+  exit 0
+fi
+if [ "$1" = "exec-out" ] && [ "$2" = "uiautomator" ]; then
+  printf '<hierarchy />'
+  exit 0
+fi
+echo "unexpected adb args: $*" >&2
+exit 1
+`
+    );
+    await chmod(fakeAdb, 0o755);
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL) => {
+        const requestUrl = String(url);
+        if (requestUrl.endsWith("/gogosense/merchants")) {
+          return new Response(
+            JSON.stringify([{ enabled: true, merchant_id: "shopee-th", android_packages: ["com.shopee.th"] }]),
+            { headers: { "content-type": "application/json" }, status: 200 }
+          );
+        }
+        if (requestUrl.endsWith("/gogosense/settings")) {
+          return new Response(JSON.stringify({ enabled: true }), {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          });
+        }
+
+        throw new Error(`unexpected fetch ${requestUrl}`);
+      })
+    );
+
+    const report = await preflight.runPreflight({
+      ...preflight.parseArgs([], { ...process.env }),
+      adb: fakeAdb,
+      apiUrl: "https://api.example.test",
+      authToken: "token-1",
+      captureDeviceEvidence: true,
+      device: "emulator-5554",
+      evidenceDir: tempDir,
+      openMerchant: true,
+      requireForeground: true,
+      requireNudge: true,
+    });
+    const nudgeResult = report.results.find((item) => item.name === "GoGoSense activation nudge visible");
+
+    expect(nudgeResult).toMatchObject({
+      status: "fail",
+      detail: "--require-nudge needs --return-to-gogosense so gogosense-hub-ui.xml can be captured",
+    });
+  });
 });
