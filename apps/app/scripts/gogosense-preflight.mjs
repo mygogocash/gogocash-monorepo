@@ -379,6 +379,13 @@ function devClientApkSha256Result(apkPath, expectedSha256) {
   return result("pass", "GoGoCash dev-client APK SHA-256", actual);
 }
 
+function resolvedInstallApkSha256(installApkSha256) {
+  if (!installApkSha256) return "";
+  if (!existsSync(installApkSha256)) return installApkSha256;
+
+  return readFileSync(installApkSha256, "utf8").trim().split(/\s+/)[0] || installApkSha256;
+}
+
 function evidenceSummary(report) {
   const counts = report.results.reduce(
     (summary, item) => ({ ...summary, [item.status]: (summary[item.status] || 0) + 1 }),
@@ -867,7 +874,7 @@ async function runPreflight(options) {
     appPackage: options.appPackage,
     authTokenPresent: Boolean(options.authToken),
     installApk: options.installApk || "",
-    installApkSha256: options.installApkSha256 || "",
+    installApkSha256: resolvedInstallApkSha256(options.installApkSha256),
     detectPackage: options.detectPackage || null,
     device: options.device || null,
     foregroundPackage: "",
@@ -1317,6 +1324,7 @@ export {
   buildDetectionRequest,
   catalogResult,
   deviceEvidenceBundleResult,
+  resolvedInstallApkSha256,
   deviceConnectionDetail,
   devClientApkSha256Result,
   devClientInstallResult,

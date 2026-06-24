@@ -297,6 +297,20 @@ describe("GoGoSense Android preflight command redaction", () => {
     expect(options.installApkSha256).toBe(sha256);
   });
 
+  it("normalizes dev-client SHA sidecar files for report context", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "gogosense-sha-"));
+    const sha256 = "5bdad05fe54f21e7b583966a2204f67b0029856d73b01c702585eaa71d909e7a";
+    const sidecarPath = join(tempDir, "gogocash-development-android.apk.sha256");
+
+    try {
+      await writeFile(sidecarPath, `${sha256}  gogocash-development-android.apk\n`);
+
+      expect(preflight.resolvedInstallApkSha256(sidecarPath)).toBe(sha256);
+    } finally {
+      await rm(tempDir, { force: true, recursive: true });
+    }
+  });
+
   it("redacts auth token values from replayable evidence", () => {
     expect(
       preflight.redactedPreflightInvocation([
