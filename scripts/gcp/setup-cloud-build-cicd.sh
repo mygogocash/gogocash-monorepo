@@ -116,13 +116,10 @@ main() {
   done
 
   github_source_args=()
-  manual_source_args=()
   if [ -n "$REPOSITORY_RESOURCE" ]; then
     github_source_args=(--repository "$REPOSITORY_RESOURCE")
-    manual_source_args=(--repository "$REPOSITORY_RESOURCE")
   else
     github_source_args=(--repo-owner "$REPO_OWNER" --repo-name "$REPO_NAME")
-    manual_source_args=(--repo "https://github.com/${REPO_OWNER}/${REPO_NAME}")
   fi
 
   ensure_trigger gogocash-ci-pr \
@@ -148,27 +145,20 @@ main() {
       --service-account "$CB_SA_RESOURCE" \
       --include-logs-with-status
 
-  ensure_trigger gogocash-deploy-staging-manual \
-    gcloud builds triggers create manual \
-      --project "$PROJECT_ID" \
-      --region "$BUILD_REGION" \
-      --name gogocash-deploy-staging-manual \
-      "${manual_source_args[@]}" \
-      --branch main \
-      --build-config cloudbuild/deploy-staging.yaml \
-      --substitutions "_APP=api,_REGION=${REGION},_ARTIFACT_REPO=${ARTIFACT_REPO},_IMAGE_TAG=staging-candidate" \
-      --service-account "$CB_SA_RESOURCE"
+  cat <<EOF
 
-  ensure_trigger gogocash-cleanup-accidental-cloudrun \
-    gcloud builds triggers create manual \
-      --project "$PROJECT_ID" \
-      --region "$BUILD_REGION" \
-      --name gogocash-cleanup-accidental-cloudrun \
-      "${manual_source_args[@]}" \
-      --branch main \
-      --build-config cloudbuild/cleanup-accidental-cloudrun.yaml \
-      --substitutions "_REGION=europe-west1,_SERVICE=gogocash-monorepo" \
-      --service-account "$CB_SA_RESOURCE"
+Cloud Build PR/build triggers are ready.
+
+This project currently uses the legacy GitHub App trigger source. For staging
+release and cleanup, run the Cloud Build configs directly with:
+
+  gcloud builds submit --project ${PROJECT_ID} --config cloudbuild/deploy-staging.yaml --substitutions _APP=api,_REGION=${REGION},_ARTIFACT_REPO=${ARTIFACT_REPO},_IMAGE_TAG=staging-candidate .
+
+  gcloud builds submit --project ${PROJECT_ID} --config cloudbuild/cleanup-accidental-cloudrun.yaml --substitutions _REGION=europe-west1,_SERVICE=gogocash-monorepo --no-source
+
+If you later connect the repository through Cloud Build repository connections,
+manual triggers can be added on top of these same config files.
+EOF
 }
 
 main "$@"

@@ -27,7 +27,7 @@ Do not use the accidental Cloud Run source-deploy service:
 - `cloudbuild/cleanup-accidental-cloudrun.yaml` deletes the accidental
   `europe-west1/gogocash-monorepo` Cloud Run service.
 - `scripts/gcp/setup-cloud-build-cicd.sh` enables APIs, creates IAM, creates
-  Artifact Registry if needed, and creates Cloud Build triggers.
+  Artifact Registry if needed, and creates supported Cloud Build triggers.
 
 ## One-Time Setup
 
@@ -67,9 +67,13 @@ The setup script creates these triggers:
 
 - `gogocash-ci-pr`: PR CI gate targeting `main`.
 - `gogocash-build-staging-main`: builds all staging images on pushes to `main`.
-- `gogocash-deploy-staging-manual`: manual staging deploy. Default `_APP=api`.
-- `gogocash-cleanup-accidental-cloudrun`: manual cleanup for the accidental
-  `europe-west1/gogocash-monorepo` service.
+
+The current GCP connection uses the legacy GitHub App trigger source. With that
+source type, deploy and cleanup are run as direct Cloud Build submissions from
+this repo rather than repository-backed manual triggers. If the repo is later
+connected through Cloud Build repository connections, manual triggers can be
+created using the same `cloudbuild/deploy-staging.yaml` and
+`cloudbuild/cleanup-accidental-cloudrun.yaml` configs.
 
 ## Manual Build And Release
 
@@ -85,43 +89,41 @@ gcloud builds triggers run gogocash-build-staging-main \
 Deploy API staging from the current `staging-candidate` tag:
 
 ```bash
-gcloud builds triggers run gogocash-deploy-staging-manual \
+gcloud builds submit \
   --project gogocash-staging \
-  --region global \
-  --branch main \
+  --config cloudbuild/deploy-staging.yaml \
   --substitutions _APP=api,_IMAGE_TAG=staging-candidate,_REGION=asia-southeast1,_ARTIFACT_REPO=gogocash
 ```
 
 Deploy admin or customer web by changing `_APP`:
 
 ```bash
-gcloud builds triggers run gogocash-deploy-staging-manual \
+gcloud builds submit \
   --project gogocash-staging \
-  --region global \
-  --branch main \
+  --config cloudbuild/deploy-staging.yaml \
   --substitutions _APP=admin,_IMAGE_TAG=staging-candidate,_REGION=asia-southeast1,_ARTIFACT_REPO=gogocash
 ```
 
 ```bash
-gcloud builds triggers run gogocash-deploy-staging-manual \
+gcloud builds submit \
   --project gogocash-staging \
-  --region global \
-  --branch main \
+  --config cloudbuild/deploy-staging.yaml \
   --substitutions _APP=app-web,_IMAGE_TAG=staging-candidate,_REGION=asia-southeast1,_ARTIFACT_REPO=gogocash
 ```
 
-If using a regional Cloud Build repository connection, replace `--region global`
-with that trigger region.
+Run these commands from the repo root so Cloud Build can upload the checked-out
+config file.
 
 ## Cleanup Accidental Cloud Run Service
 
 After setup, run:
 
 ```bash
-gcloud builds triggers run gogocash-cleanup-accidental-cloudrun \
+gcloud builds submit \
   --project gogocash-staging \
-  --region global \
-  --branch main
+  --config cloudbuild/cleanup-accidental-cloudrun.yaml \
+  --substitutions _REGION=europe-west1,_SERVICE=gogocash-monorepo \
+  --no-source
 ```
 
 If a Cloud Build trigger was created by Cloud Run's console source-deploy flow,
@@ -138,7 +140,7 @@ Do not delete GitHub Actions workflows until these are true:
 
 - `gogocash-ci-pr` passes on a PR.
 - `gogocash-build-staging-main` builds all three images from `main`.
-- `gogocash-deploy-staging-manual` deploys `api` and the smoke check passes.
+- `cloudbuild/deploy-staging.yaml` deploys `api` and the smoke check passes.
 - Optional: deploy `admin` and `app-web` once to validate their Cloud Run services.
 - Branch protection is updated to require Cloud Build checks instead of GitHub
   Actions checks.
