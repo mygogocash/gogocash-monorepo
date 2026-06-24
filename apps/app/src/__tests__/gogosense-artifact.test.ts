@@ -167,6 +167,7 @@ describe("GoGoSense artifact helper", () => {
 
     expect(command).toContain("run gogosense:preflight -w @gogocash/mobile --");
     expect(command).toContain("--auth-token \"$GOGOSENSE_AUTH_TOKEN\"");
+    expect(command).toContain("--require-auth");
     expect(command).toContain("--api-url 'https://api-staging.gogocash.co'");
     expect(command).toContain("--device 'emulator-5554'");
     expect(command).toContain("--install-apk '/tmp/gogocash-eas-artifacts-28014696785/");

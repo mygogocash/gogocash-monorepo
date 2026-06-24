@@ -208,6 +208,7 @@ export function buildPreflightCommand({
     "--",
     "--auth-token",
     `\"$${authTokenEnv}\"`,
+    "--require-auth",
   ];
 
   appendOptionalFlag(command, "--api-url", apiUrl);

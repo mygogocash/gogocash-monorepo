@@ -129,8 +129,10 @@ The helper downloads the `gogocash-development-android` GitHub Actions artifact
 to `/tmp/gogocash-eas-artifacts-<run-id>`, finds the extracted APK, reads the
 published `.sha256` file when present, and prints a `gogosense:preflight`
 command with the install hash, Metro reverse, usage-access, nudge, tap,
-deeplink, and device-evidence gates already included. If `--evidence-dir` is
-not supplied, the printed command writes device evidence to
+deeplink, and device-evidence gates already included. The generated command
+also includes `--require-auth`, so missing `GOGOSENSE_AUTH_TOKEN` fails the
+API probes instead of being accepted as a warning. If `--evidence-dir` is not
+supplied, the printed command writes device evidence to
 `/tmp/gogocash-eas-artifacts-<run-id>/gogosense-acceptance-evidence`. It does
 not replace the real-device acceptance run; it only prepares the installable
 dev-client inputs.
