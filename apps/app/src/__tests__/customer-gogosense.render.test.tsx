@@ -101,6 +101,15 @@ describe("CustomerGoGoSenseScreen permission-backed settings", () => {
   });
 });
 
+describe("CustomerGoGoSenseScreen route wiring", () => {
+  it("settings route passes the native GoGoSense detector into permission controls", () => {
+    const settingsRouteSource = readFileSync("app/gogosense/settings.tsx", "utf8");
+
+    expect(settingsRouteSource).toContain("gogosenseDetector");
+    expect(settingsRouteSource).toContain("detector={gogosenseDetector}");
+  });
+});
+
 describe("CustomerGoGoSenseScreen — Wave B (B5) foundations adopted (source signals)", () => {
   it("fires haptics.impact() on the navigation CTAs", () => {
     // Wired onto the EXISTING Link-button press (selection cue), not a new navigation path.
