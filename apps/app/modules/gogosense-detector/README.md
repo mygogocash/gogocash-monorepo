@@ -115,3 +115,19 @@ npm run test -w apps/app -- src/__tests__/mobile-launch-contract.test.ts src/__t
 npm run test:render -w apps/app -- src/__tests__/customer-gogosense.render.test.tsx src/__tests__/gogosense-hook.render.test.tsx src/__tests__/gogosense-permissions.render.test.tsx src/__tests__/gogosense-timeline.render.test.tsx --reporter=dot
 npm run typecheck -w apps/app
 ```
+
+## Native Build Artifact Helper
+
+After the `deploy-app-native-eas.yml` workflow produces a development Android
+build, resolve the APK and SHA inputs for device acceptance with:
+
+```bash
+npm run gogosense:artifact -w @gogocash/mobile -- --run-id <github-actions-run-id>
+```
+
+The helper downloads the `gogocash-development-android` GitHub Actions artifact
+to `/tmp/gogocash-eas-artifacts-<run-id>`, finds the extracted APK, reads the
+published `.sha256` file when present, and prints a `gogosense:preflight`
+command with the install hash, Metro reverse, usage-access, nudge, tap,
+deeplink, and device-evidence gates already included. It does not replace the
+real-device acceptance run; it only prepares the installable dev-client inputs.

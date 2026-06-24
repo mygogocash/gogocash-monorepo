@@ -12,6 +12,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "gogosense:dev-client": "node scripts/gogosense-dev-client.mjs",
+    "gogosense:artifact": "node scripts/gogosense-artifact.mjs",
     "prepare:web-metadata": "node scripts/generate-web-metadata.mjs",
     "sync:i18n": "node scripts/sync-i18n-catalogs.mjs",
     "gen:i18n-review": "node scripts/gen-i18n-review.mjs",
