@@ -131,3 +131,14 @@ published `.sha256` file when present, and prints a `gogosense:preflight`
 command with the install hash, Metro reverse, usage-access, nudge, tap,
 deeplink, and device-evidence gates already included. It does not replace the
 real-device acceptance run; it only prepares the installable dev-client inputs.
+
+If the workflow mirrored the native build to GCS, use the same helper against
+the bucket prefix instead of the GitHub artifact:
+
+```bash
+npm run gogosense:artifact -w @gogocash/mobile -- --gcs-prefix gs://<bucket>/<prefix>
+```
+
+The GCS form downloads `gogocash-development-android.apk` and the adjacent
+`.sha256` sidecar with `gcloud storage cp`; if the sidecar is absent, the helper
+computes the APK hash locally and still prints the preflight command.

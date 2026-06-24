@@ -48,6 +48,48 @@ describe("GoGoSense artifact helper", () => {
     ]);
   });
 
+  it("parses a GCS artifact prefix without requiring a GitHub run id", () => {
+    expect(
+      artifact.parseArgs([
+        "--gcs-prefix",
+        "gs://gogocash-native-artifacts/gogosense/development",
+      ])
+    ).toMatchObject({
+      gcsPrefix: "gs://gogocash-native-artifacts/gogosense/development",
+      gcsUri:
+        "gs://gogocash-native-artifacts/gogosense/development/gogocash-development-android.apk",
+      outputDir: "/tmp/gogocash-eas-artifacts-gcs",
+      source: "gcs",
+    });
+  });
+
+  it("builds the gcloud download plan for a mirrored native artifact", () => {
+    expect(
+      artifact.buildGcloudDownloadPlan({
+        gcsUri:
+          "gs://gogocash-native-artifacts/gogosense/development/gogocash-development-android.apk",
+        outputDir: "/tmp/gogocash-eas-artifacts-gcs",
+      })
+    ).toEqual({
+      apkPath: "/tmp/gogocash-eas-artifacts-gcs/gogocash-development-android.apk",
+      commands: [
+        [
+          "storage",
+          "cp",
+          "gs://gogocash-native-artifacts/gogosense/development/gogocash-development-android.apk",
+          "/tmp/gogocash-eas-artifacts-gcs/gogocash-development-android.apk",
+        ],
+        [
+          "storage",
+          "cp",
+          "gs://gogocash-native-artifacts/gogosense/development/gogocash-development-android.apk.sha256",
+          "/tmp/gogocash-eas-artifacts-gcs/gogocash-development-android.apk.sha256",
+        ],
+      ],
+      shaPath: "/tmp/gogocash-eas-artifacts-gcs/gogocash-development-android.apk.sha256",
+    });
+  });
+
   it("resolves a downloaded APK and published SHA file from the extracted artifact", async () => {
     const outputDir = await tempDir();
     const artifactDir = join(outputDir, "gogocash-development-android");

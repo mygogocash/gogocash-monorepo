@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url";
 const defaultProfile = "development";
 const defaultPlatform = "android";
 const defaultAuthTokenEnv = "GOGOSENSE_AUTH_TOKEN";
+const defaultSource = "github";
 
 function nextValue(argv, index, flag) {
   const value = argv[index + 1];
@@ -35,6 +36,7 @@ export function parseArgs(argv = process.argv.slice(2)) {
     platform: defaultPlatform,
     profile: defaultProfile,
     skipDownload: false,
+    source: defaultSource,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -42,11 +44,19 @@ export function parseArgs(argv = process.argv.slice(2)) {
 
     if (arg === "--artifact-name") options.artifactName = nextValue(argv, index++, arg);
     else if (arg === "--auth-token-env") options.authTokenEnv = nextValue(argv, index++, arg);
+    else if (arg === "--gcs-prefix") {
+      options.gcsPrefix = nextValue(argv, index++, arg);
+      options.source = "gcs";
+    } else if (arg === "--gcs-uri") {
+      options.gcsUri = nextValue(argv, index++, arg);
+      options.source = "gcs";
+    }
     else if (arg === "--json") options.outputJson = true;
     else if (arg === "--output-dir") options.outputDir = nextValue(argv, index++, arg);
     else if (arg === "--platform") options.platform = nextValue(argv, index++, arg);
     else if (arg === "--profile") options.profile = nextValue(argv, index++, arg);
     else if (arg === "--run-id") options.runId = nextValue(argv, index++, arg);
+    else if (arg === "--source") options.source = nextValue(argv, index++, arg);
     else if (arg === "--skip-download") options.skipDownload = true;
     else if (arg === "--help" || arg === "-h") options.help = true;
     else throw new Error(`Unknown argument: ${arg}`);
@@ -54,17 +64,59 @@ export function parseArgs(argv = process.argv.slice(2)) {
 
   options.artifactName ??= artifactNameFor(options);
 
-  if (!options.help && !options.runId) {
-    throw new Error("--run-id is required");
+  if (!["github", "gcs"].includes(options.source)) {
+    throw new Error("--source must be github or gcs");
   }
 
-  options.outputDir ??= join("/tmp", `gogocash-eas-artifacts-${options.runId}`);
+  if (options.source === "gcs" && !options.gcsUri && options.gcsPrefix) {
+    options.gcsUri = gcsApkUriFor(options);
+  }
+
+  if (!options.help && options.source === "github" && !options.runId) {
+    throw new Error("--run-id is required for GitHub artifact downloads");
+  }
+
+  if (!options.help && options.source === "gcs" && !options.gcsUri) {
+    throw new Error("--gcs-uri or --gcs-prefix is required for GCS artifact downloads");
+  }
+
+  options.outputDir ??= join("/tmp", `gogocash-eas-artifacts-${options.runId ?? "gcs"}`);
 
   return options;
 }
 
 export function buildGhDownloadArgs({ artifactName, outputDir, runId }) {
   return ["run", "download", String(runId), "--name", artifactName, "--dir", outputDir];
+}
+
+export function gcsApkUriFor({
+  gcsPrefix,
+  platform = defaultPlatform,
+  profile = defaultProfile,
+} = {}) {
+  if (!gcsPrefix) {
+    throw new Error("--gcs-prefix is required");
+  }
+
+  return `${String(gcsPrefix).replace(/\/+$/, "")}/gogocash-${profile}-${platform}.apk`;
+}
+
+export function buildGcloudDownloadPlan({ gcsUri, outputDir }) {
+  if (!gcsUri) {
+    throw new Error("--gcs-uri is required");
+  }
+
+  const apkPath = join(resolve(outputDir), basename(gcsUri));
+  const shaPath = `${apkPath}.sha256`;
+
+  return {
+    apkPath,
+    commands: [
+      ["storage", "cp", gcsUri, apkPath],
+      ["storage", "cp", `${gcsUri}.sha256`, shaPath],
+    ],
+    shaPath,
+  };
 }
 
 function walkFiles(dir) {
@@ -148,15 +200,19 @@ function shellQuote(value) {
 function printUsage() {
   console.log(`Usage:
   node scripts/gogosense-artifact.mjs --run-id <github-actions-run-id> [options]
+  node scripts/gogosense-artifact.mjs --gcs-prefix gs://<bucket>/<prefix> [options]
 
 Options:
   --artifact-name <name>   GitHub artifact name (default: gogocash-development-android)
   --auth-token-env <name>  Env var used in the printed preflight command (default: GOGOSENSE_AUTH_TOKEN)
+  --gcs-prefix <uri>       GCS prefix containing gogocash-<profile>-<platform>.apk
+  --gcs-uri <uri>          Direct GCS URI to the APK; .sha256 is read from the adjacent URI
   --json                   Print machine-readable artifact details
   --output-dir <path>      Download/extract destination (default: /tmp/gogocash-eas-artifacts-<run-id>)
   --platform <platform>    Artifact platform segment (default: android)
   --profile <profile>      Artifact profile segment (default: development)
   --skip-download          Reuse files already present under --output-dir
+  --source <github|gcs>    Artifact source (default: github; inferred as gcs with --gcs-prefix/--gcs-uri)
 `);
 }
 
@@ -171,16 +227,39 @@ export function main(argv = process.argv.slice(2), env = process.env, logger = c
   mkdirSync(options.outputDir, { recursive: true });
 
   if (!options.skipDownload) {
-    const gh = env.GH_BIN || "gh";
-    const ghArgs = buildGhDownloadArgs(options);
-    const result = spawnSync(gh, ghArgs, { encoding: "utf8", stdio: "pipe" });
+    if (options.source === "gcs") {
+      const gcloud = env.GCLOUD_BIN || "gcloud";
+      const plan = buildGcloudDownloadPlan({
+        gcsUri: options.gcsUri,
+        outputDir: options.outputDir,
+      });
 
-    if (result.status !== 0) {
-      throw new Error(
-        `Failed to download artifact ${options.artifactName} from run ${options.runId}: ${
-          result.stderr || result.stdout || "gh run download failed"
-        }`.trim()
-      );
+      for (const [index, args] of plan.commands.entries()) {
+        const result = spawnSync(gcloud, args, { encoding: "utf8", stdio: "pipe" });
+
+        if (result.status !== 0) {
+          const message = result.stderr || result.stdout || "gcloud storage cp failed";
+          if (index === 1) {
+            logger.warn?.(
+              `[gogosense:artifact] SHA sidecar download failed; will compute SHA from APK. ${message}`.trim()
+            );
+          } else {
+            throw new Error(`Failed to download GCS artifact ${options.gcsUri}: ${message}`.trim());
+          }
+        }
+      }
+    } else {
+      const gh = env.GH_BIN || "gh";
+      const ghArgs = buildGhDownloadArgs(options);
+      const result = spawnSync(gh, ghArgs, { encoding: "utf8", stdio: "pipe" });
+
+      if (result.status !== 0) {
+        throw new Error(
+          `Failed to download artifact ${options.artifactName} from run ${options.runId}: ${
+            result.stderr || result.stdout || "gh run download failed"
+          }`.trim()
+        );
+      }
     }
   }
 
@@ -190,12 +269,20 @@ export function main(argv = process.argv.slice(2), env = process.env, logger = c
     authTokenEnv: options.authTokenEnv,
     sha256: artifact.sha256,
   });
-  const output = { ...artifact, artifactName: options.artifactName, preflightCommand };
+  const output = {
+    ...artifact,
+    artifactName: options.artifactName,
+    gcsUri: options.gcsUri,
+    preflightCommand,
+    source: options.source,
+  };
 
   if (options.outputJson) {
     logger.log(JSON.stringify(output, null, 2));
   } else {
     logger.log(`GoGoSense dev-client artifact: ${options.artifactName}`);
+    logger.log(`Source: ${options.source}`);
+    if (options.gcsUri) logger.log(`GCS URI: ${options.gcsUri}`);
     logger.log(`APK: ${artifact.apkPath}`);
     logger.log(`SHA-256: ${artifact.sha256}`);
     logger.log(`SHA source: ${artifact.sha256Source}`);
