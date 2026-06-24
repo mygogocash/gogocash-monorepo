@@ -1,11 +1,61 @@
 import { createElement, type PropsWithChildren, type ReactElement } from "react";
 import { afterEach, vi } from "vitest";
 
+function createMemoryStorage(): Storage {
+  const store = new Map<string, string>();
+
+  return {
+    get length() {
+      return store.size;
+    },
+    clear() {
+      store.clear();
+    },
+    getItem(key: string) {
+      return store.get(key) ?? null;
+    },
+    key(index: number) {
+      return Array.from(store.keys())[index] ?? null;
+    },
+    removeItem(key: string) {
+      store.delete(key);
+    },
+    setItem(key: string, value: string) {
+      store.set(key, value);
+    },
+  };
+}
+
+function ensureLocalStorage() {
+  const existingStorage =
+    typeof globalThis.localStorage === "undefined"
+      ? createMemoryStorage()
+      : globalThis.localStorage;
+
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: existingStorage,
+    writable: true,
+  });
+
+  if (typeof window !== "undefined") {
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      value: existingStorage,
+      writable: true,
+    });
+  }
+}
+
 // React Native code guards dev-only branches behind the __DEV__ global (Metro defines
 // it at build time). vitest doesn't, so any RN module that reads __DEV__ at load throws
 // "ReferenceError: __DEV__ is not defined" (e.g. the legal/markdown chain pulled in by
 // the privacy-policy screen). Define it for the render harness, matching Metro's dev default.
 (globalThis as { __DEV__?: boolean }).__DEV__ = true;
+ensureLocalStorage();
+
+const renderFetch = vi.fn(async () => new Response(null, { status: 204 }));
+vi.stubGlobal("fetch", renderFetch);
 
 vi.mock("@testing-library/react", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@testing-library/react")>();
@@ -33,5 +83,6 @@ import { cleanup } from "@testing-library/react";
 
 // Unmount React trees between render tests so happy-dom state never leaks.
 afterEach(() => {
+  renderFetch.mockClear();
   cleanup();
 });

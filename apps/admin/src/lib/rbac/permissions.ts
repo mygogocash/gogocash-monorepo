@@ -14,12 +14,16 @@ export const RESOURCES = [
   "fee",
   "conversion",
   "banner",
+  "catalog",
+  "inventory",
+  "orders",
+  "payments",
   "coupon",
   "quest",
 ] as const;
 export type Resource = (typeof RESOURCES)[number];
 export type Action = "view" | "manage";
-export type Permission = `${Resource}:${Action}` | "withdraw:approve";
+export type Permission = `${Resource}:${Action}` | "withdraw:approve" | "payments:refund";
 
 const allView = RESOURCES.map((r) => `${r}:view` as Permission);
 const allManage = RESOURCES.map((r) => `${r}:manage` as Permission);
@@ -28,15 +32,17 @@ const allManage = RESOURCES.map((r) => `${r}:manage` as Permission);
 export const ALL_PERMISSIONS: Permission[] = [
   ...RESOURCES.flatMap((r) => [`${r}:view`, `${r}:manage`] as Permission[]),
   "withdraw:approve",
+  "payments:refund",
 ];
 
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
-  super_admin: [...allView, ...allManage, "withdraw:approve"],
+  super_admin: [...allView, ...allManage, "withdraw:approve", "payments:refund"],
   // Full operational access, but cannot manage other admins / their roles.
   admin: [
     ...allView,
     ...allManage.filter((p) => p !== "adminUsers:manage"),
     "withdraw:approve",
+    "payments:refund",
   ],
   // Content operations only; read everything else.
   editor: [
@@ -71,6 +77,12 @@ const ROUTE_VIEW_PERMISSION: { prefix: string; permission: Permission }[] = [
   { prefix: "/conversion", permission: "conversion:view" },
   { prefix: "/transactions", permission: "conversion:view" },
   { prefix: "/banner", permission: "banner:view" },
+  { prefix: "/catalog/orders", permission: "orders:view" },
+  { prefix: "/catalog/inventory", permission: "inventory:view" },
+  { prefix: "/catalog/products", permission: "catalog:view" },
+  { prefix: "/catalog/shops", permission: "catalog:view" },
+  { prefix: "/catalog/banners", permission: "catalog:view" },
+  { prefix: "/catalog", permission: "catalog:view" },
   { prefix: "/coupon", permission: "coupon:view" },
   { prefix: "/quest", permission: "quest:view" },
   { prefix: "/reward", permission: "quest:view" },

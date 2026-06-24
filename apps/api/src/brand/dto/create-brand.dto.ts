@@ -1,16 +1,19 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsArray,
   IsBoolean,
+  IsEmail,
+  IsEnum,
   IsOptional,
   IsString,
+  IsUrl,
   MaxLength,
   MinLength,
 } from 'class-validator';
 
 /**
- * Payload for `POST /brand` — creates a new parent Brand entity. Country variants
- * (Offer rows) are added separately via `POST /offer` with `brand_id` referencing
- * the new brand, OR via `POST /brand/:id/variant` which delegates to the same path.
+ * Payload for `POST /brand` — creates a new parent Brand entity. Country
+ * variants remain represented by Offer records linked through `brand_id`.
  */
 export class CreateBrandDto {
   @ApiProperty({ example: 'Apple' })
@@ -19,23 +22,16 @@ export class CreateBrandDto {
   @MaxLength(120)
   brand_name: string;
 
-  /**
-   * URL-safe slug. When omitted, the service generates one from `brand_name`.
-   * Must be unique across the brands collection.
-   */
   @ApiPropertyOptional({ example: 'apple' })
   @IsOptional()
   @IsString()
   @MaxLength(120)
   brand_slug?: string;
 
-  @ApiPropertyOptional({
-    description:
-      'Fallback country variant when a global brand is opened by a user whose country has no dedicated variant.',
-    example: 'Thailand',
-  })
+  @ApiPropertyOptional({ example: 'Thailand' })
   @IsOptional()
   @IsString()
+  @MaxLength(120)
   default_country?: string;
 
   @ApiPropertyOptional({ default: false })
@@ -61,10 +57,55 @@ export class CreateBrandDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   description?: string;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  categories?: string[];
+
+  @ApiPropertyOptional({ example: 'apple-store' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  shop_slug?: string;
+
+  @ApiPropertyOptional({ enum: ['draft', 'published', 'archived'] })
+  @IsOptional()
+  @IsEnum(['draft', 'published', 'archived'])
+  shop_status?: 'draft' | 'published' | 'archived';
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  shop_visible?: boolean;
+
+  @ApiPropertyOptional({ enum: ['gogocash'] })
+  @IsOptional()
+  @IsEnum(['gogocash'])
+  fulfillment_owner?: 'gogocash';
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsEmail()
+  support_email?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUrl({ require_tld: false })
+  support_url?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  categories?: string;
+  @MaxLength(2000)
+  return_policy?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  shipping_policy?: string;
 }
