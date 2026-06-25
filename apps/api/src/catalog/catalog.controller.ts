@@ -17,6 +17,8 @@ import { AuthAdminGuard } from '../admin/jwt-auth-admin.guard';
 import { RolesGuard } from '../admin/roles.guard';
 import { Roles } from '../admin/roles.decorator';
 import { FirebaseAuthGuard } from '../auth/firebase-auth.guard';
+import { RateLimitGuard } from '../auth/rate-limit.guard';
+import { RateLimit } from '../auth/rate-limit.decorator';
 import { CatalogMediaService } from './media.service';
 import { CatalogService } from './catalog.service';
 import { CommerceService } from './commerce.service';
@@ -50,20 +52,24 @@ function requestActor(req: { user?: RequestUser }) {
 
 @ApiTags('Catalog')
 @Controller('catalog')
+@UseGuards(RateLimitGuard)
 export class CatalogController {
   constructor(private readonly catalogService: CatalogService) {}
 
   @Get('home')
+  @RateLimit({ windowMs: 60_000, max: 120 })
   getHome(@Query() query: ListCatalogDto) {
     return this.catalogService.getHome(query);
   }
 
   @Get('shops')
+  @RateLimit({ windowMs: 60_000, max: 120 })
   getShops(@Query() query: ListCatalogDto) {
     return this.catalogService.listPublishedShops(query);
   }
 
   @Get('products')
+  @RateLimit({ windowMs: 60_000, max: 120 })
   getProducts(@Query() query: ListCatalogDto) {
     return this.catalogService.listPublishedProducts(query);
   }
@@ -175,7 +181,7 @@ export class AdminCatalogController {
 
 @ApiTags('Commerce')
 @Controller('commerce')
-@UseGuards(FirebaseAuthGuard)
+@UseGuards(FirebaseAuthGuard, RateLimitGuard)
 @ApiBearerAuth()
 export class CommerceController {
   constructor(private readonly commerceService: CommerceService) {}
@@ -215,6 +221,7 @@ export class CommerceController {
   }
 
   @Post('checkout/session')
+  @RateLimit({ windowMs: 60_000, max: 10 })
   createCheckoutSession(
     @Req() req: { user?: RequestUser },
     @Headers('idempotency-key') idempotencyKey: string | undefined,

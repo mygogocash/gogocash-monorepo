@@ -4,6 +4,7 @@ import { AuthAdminGuard } from '../admin/jwt-auth-admin.guard';
 import { ROLES_KEY } from '../admin/roles.decorator';
 import { RolesGuard } from '../admin/roles.guard';
 import { FirebaseAuthGuard } from '../auth/firebase-auth.guard';
+import { RateLimitGuard } from '../auth/rate-limit.guard';
 import {
   AdminCatalogController,
   AdminCommerceController,
@@ -23,8 +24,16 @@ const rolesOnMethod = (target: ControllerClass, method: string) =>
 
 describe('catalog and commerce route guards', () => {
   it('leaves public catalog and payment webhook routes unauthenticated', () => {
-    expect(guardsOnClass(CatalogController)).toEqual([]);
+    expect(guardsOnClass(CatalogController)).toEqual(
+      expect.arrayContaining([RateLimitGuard]),
+    );
     expect(guardsOnClass(CommercePaymentsController)).toEqual([]);
+  });
+
+  it('rate-limits customer checkout while keeping Firebase auth', () => {
+    expect(guardsOnClass(CommerceController)).toEqual(
+      expect.arrayContaining([FirebaseAuthGuard, RateLimitGuard]),
+    );
   });
 
   it('protects admin catalog reads with admin auth and viewer-level role', () => {
@@ -59,10 +68,6 @@ describe('catalog and commerce route guards', () => {
     expect(
       rolesOnMethod(AdminCatalogController, 'createMediaUpload'),
     ).toContain('approver');
-  });
-
-  it('protects customer cart and checkout routes with Firebase auth', () => {
-    expect(guardsOnClass(CommerceController)).toContain(FirebaseAuthGuard);
   });
 
   it('requires approver or higher for admin order status updates', () => {

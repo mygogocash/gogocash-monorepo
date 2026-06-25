@@ -16,6 +16,7 @@ import {
   UpdateCatalogProductDto,
   UpdateShopDto,
 } from './dto/catalog.dto';
+import { escapeRegexLiteral } from './escape-regex';
 import { CatalogBanner } from './schemas/catalog-banner.schema';
 import type { CatalogBannerPlacement } from './schemas/catalog-banner.schema';
 import { CatalogProduct } from './schemas/catalog-product.schema';
@@ -74,7 +75,12 @@ export class CatalogService {
   async listPublishedProducts(query: ListCatalogDto = {}) {
     const filter = this.publishedProductFilter();
     if (query.shop_slug) filter.shop_slug = query.shop_slug;
-    if (query.search) filter.title = { $regex: query.search, $options: 'i' };
+    if (query.search) {
+      filter.title = {
+        $regex: escapeRegexLiteral(query.search),
+        $options: 'i',
+      };
+    }
 
     return this.productModel
       .find(filter)
@@ -99,8 +105,12 @@ export class CatalogService {
       shop_visible: true,
       shop_status: 'published',
     };
-    if (query.search)
-      filter.brand_name = { $regex: query.search, $options: 'i' };
+    if (query.search) {
+      filter.brand_name = {
+        $regex: escapeRegexLiteral(query.search),
+        $options: 'i',
+      };
+    }
 
     return this.brandModel
       .find(filter)
@@ -164,7 +174,12 @@ export class CatalogService {
   listAdminProducts(query: ListCatalogDto = {}) {
     const filter: QueryFilter<CatalogProduct> = {};
     if (query.shop_slug) filter.shop_slug = query.shop_slug;
-    if (query.search) filter.title = { $regex: query.search, $options: 'i' };
+    if (query.search) {
+      filter.title = {
+        $regex: escapeRegexLiteral(query.search),
+        $options: 'i',
+      };
+    }
     return this.productModel
       .find(filter)
       .sort({ updatedAt: -1 })
@@ -233,8 +248,12 @@ export class CatalogService {
 
   listAdminShops(query: ListCatalogDto = {}) {
     const filter: QueryFilter<Brand> = { disabled: false };
-    if (query.search)
-      filter.brand_name = { $regex: query.search, $options: 'i' };
+    if (query.search) {
+      filter.brand_name = {
+        $regex: escapeRegexLiteral(query.search),
+        $options: 'i',
+      };
+    }
     return this.brandModel
       .find(filter)
       .sort({ updatedAt: -1, brand_name: 1 })

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Inject,
   Injectable,
   NotFoundException,
@@ -22,6 +23,10 @@ import { CatalogProduct } from './schemas/catalog-product.schema';
 import { CommerceOrder } from './schemas/order.schema';
 import { InventoryReservation } from './schemas/inventory-reservation.schema';
 import { PaymentAttempt } from './schemas/payment-attempt.schema';
+import { buildCheckoutRedirectUrls } from './commerce-checkout-urls';
+import { validateAdminOrderStatusTransition } from './commerce-order-status';
+
+const PENDING_PAYMENT_STATUSES = ['pending', 'unpaid'] as const;
 
 type ReservationItem = {
   product_id: Types.ObjectId;
@@ -141,17 +146,39 @@ export class CommerceService {
     if (!idempotencyKey)
       throw new BadRequestException('Idempotency-Key header is required');
 
-    const existingAttempt = await this.paymentAttemptModel
-      .findOne({ idempotency_key: idempotencyKey })
+    const ownAttempt = await this.paymentAttemptModel
+      .findOne({ idempotency_key: idempotencyKey, user_id: userId })
       .lean()
       .exec();
-    if (existingAttempt?.checkout_url) {
+    if (ownAttempt?.checkout_url) {
       return {
-        order_id: String(existingAttempt.order_id),
-        checkout_url: existingAttempt.checkout_url,
-        provider: existingAttempt.provider,
+        order_id: String(ownAttempt.order_id),
+        checkout_url: ownAttempt.checkout_url,
+        provider: ownAttempt.provider,
         reused: true,
       };
+    }
+
+    const foreignAttempt = await this.paymentAttemptModel
+      .findOne({ idempotency_key: idempotencyKey, user_id: { $ne: userId } })
+      .lean()
+      .exec();
+    if (foreignAttempt) {
+      throw new ConflictException('Idempotency key already used by another user');
+    }
+
+    const reusedPending = await this.findReusablePendingCheckout(userId);
+    if (reusedPending) return reusedPending;
+
+    const pendingCount = await this.orderModel.countDocuments({
+      user_id: userId,
+      status: 'pending_payment',
+      payment_status: { $in: [...PENDING_PAYMENT_STATUSES] },
+    });
+    if (pendingCount > 0) {
+      throw new BadRequestException(
+        'Complete or wait for your pending checkout before starting another',
+      );
     }
 
     const cart = await this.getOrCreateActiveCart(userId);
@@ -174,22 +201,15 @@ export class CommerceService {
       cart.items,
     );
 
-    const origin =
-      process.env.CUSTOMER_APP_URL ||
-      process.env.ADMIN_APP_URL ||
-      'https://gogocash.co';
+    const { successUrl, cancelUrl } = buildCheckoutRedirectUrls(String(order._id));
     const checkout = await this.paymentProvider.createCheckoutSession({
       orderId: String(order._id),
       orderNumber: order.order_number,
       userId,
       amount: order.total_amount,
       currency: order.currency,
-      successUrl:
-        dto.success_url ||
-        `${origin}/commerce/checkout/success?order=${order._id}`,
-      cancelUrl:
-        dto.cancel_url ||
-        `${origin}/commerce/checkout/cancel?order=${order._id}`,
+      successUrl,
+      cancelUrl,
       idempotencyKey,
       lineItems: cart.items.map((item) => ({
         name: item.title,
@@ -250,12 +270,38 @@ export class CommerceService {
   async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
     if (!Types.ObjectId.isValid(id))
       throw new BadRequestException('Invalid order id');
+
+    const order = await this.orderModel.findById(id).lean().exec();
+    if (!order) throw new NotFoundException('Order not found');
+
+    validateAdminOrderStatusTransition(
+      { status: order.status, payment_status: order.payment_status },
+      dto.status as 'processing' | 'fulfilled' | 'cancelled' | 'refunded',
+    );
+
+    if (dto.status === 'cancelled') {
+      await this.releasePendingOrderInventory(order._id as Types.ObjectId);
+    }
+    if (dto.status === 'refunded') {
+      await this.restoreInventoryForRefund(order);
+      await this.paymentAttemptModel
+        .updateMany(
+          {
+            order_id: order._id,
+            status: { $in: ['created', 'pending', 'succeeded'] },
+          },
+          { status: 'refunded' },
+        )
+        .exec();
+    }
+
     const patch: Record<string, unknown> = {
       status: dto.status,
       admin_note: dto.admin_note,
     };
     if (dto.status === 'fulfilled') patch.fulfilled_at = new Date();
     if (dto.status === 'refunded') patch.payment_status = 'refunded';
+    if (dto.status === 'cancelled') patch.payment_status = 'failed';
 
     const updated = await this.orderModel
       .findByIdAndUpdate(id, patch, { new: true })
@@ -338,6 +384,81 @@ export class CommerceService {
         }),
       ]);
     }
+  }
+
+  private async findReusablePendingCheckout(userId: string) {
+    const pendingOrder = await this.orderModel
+      .findOne({
+        user_id: userId,
+        status: 'pending_payment',
+        payment_status: { $in: [...PENDING_PAYMENT_STATUSES] },
+      })
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec();
+    if (!pendingOrder) return null;
+
+    const attempt = await this.paymentAttemptModel
+      .findOne({
+        order_id: pendingOrder._id,
+        user_id: userId,
+        status: { $in: ['created', 'pending'] },
+        checkout_url: { $exists: true, $ne: '' },
+      })
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec();
+    if (!attempt?.checkout_url) return null;
+
+    return {
+      order_id: String(pendingOrder._id),
+      order_number: pendingOrder.order_number,
+      checkout_url: attempt.checkout_url,
+      provider: attempt.provider,
+      reused: true,
+    };
+  }
+
+  private async releasePendingOrderInventory(orderId: Types.ObjectId) {
+    const releasedReservations = await this.transitionActiveReservations(
+      orderId,
+      'released',
+    );
+    await this.releaseReservedInventory(releasedReservations);
+  }
+
+  private async restoreInventoryForRefund(order: {
+    _id: Types.ObjectId;
+    payment_status: CommerceOrder['payment_status'];
+    items: ReservationItem[];
+  }) {
+    if (order.payment_status === 'paid') {
+      await this.restoreCommittedInventory(order.items);
+      return;
+    }
+
+    await this.releasePendingOrderInventory(order._id as Types.ObjectId);
+  }
+
+  private async restoreCommittedInventory(items: ReservationItem[]) {
+    await Promise.all(
+      items.map(async (item) => {
+        const variantResult = await this.productModel
+          .updateOne(
+            { _id: item.product_id, 'variants.sku': item.variant_sku },
+            { $inc: { 'variants.$.inventory_quantity': item.quantity } },
+          )
+          .exec();
+        if (variantResult.modifiedCount > 0) return;
+
+        await this.productModel
+          .updateOne(
+            { _id: item.product_id, default_sku: item.variant_sku },
+            { $inc: { inventory_quantity: item.quantity } },
+          )
+          .exec();
+      }),
+    );
   }
 
   private async getOrCreateActiveCart(userId: string) {
