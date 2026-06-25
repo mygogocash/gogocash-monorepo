@@ -32,7 +32,7 @@ export class PaymentAttempt {
   @Prop({ trim: true })
   checkout_url?: string;
 
-  @Prop({ required: true, unique: true, index: true, trim: true })
+  @Prop({ required: true, index: true, trim: true })
   idempotency_key!: string;
 
   @Prop({ required: true, min: 0 })
@@ -56,3 +56,4 @@ export const PaymentAttemptSchema =
   SchemaFactory.createForClass(PaymentAttempt);
 
 PaymentAttemptSchema.index({ provider: 1, provider_session_id: 1 });
+PaymentAttemptSchema.index({ user_id: 1, idempotency_key: 1 }, { unique: true });

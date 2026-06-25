@@ -6,6 +6,7 @@ import { AuthAdminGuard } from '../admin/jwt-auth-admin.guard';
 import { RolesGuard } from '../admin/roles.guard';
 import { Brand, BrandSchema } from '../brand/schemas/brand.schema';
 import { FirebaseAuthGuard } from '../auth/firebase-auth.guard';
+import { RateLimitGuard } from '../auth/rate-limit.guard';
 import { User, UserSchema } from '../user/schemas/user.schema';
 import {
   AdminCatalogController,
@@ -66,6 +67,7 @@ import {
     AuthAdminGuard,
     RolesGuard,
     FirebaseAuthGuard,
+    RateLimitGuard,
     {
       provide: COMMERCE_PAYMENT_PROVIDER,
       useClass: StripeCommercePaymentProvider,
