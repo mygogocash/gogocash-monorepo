@@ -12,13 +12,53 @@ export type CustomerAccountResourceId =
   | "billing"
   | "brandCatalog"
   | "catalog"
+  | "categoryList"
   | "homeBanner"
   | "merchant"
   | "offers"
+  | "policyCategory"
   | "profile"
   | "referral"
   | "topBrand"
   | "wallet";
+
+/** Public, no-auth resources whose live admin config should load even in fixtures mode. */
+export const PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS = ["topBrand", "homeBanner"] as const satisfies readonly CustomerAccountResourceId[];
+
+export type PublicAdminConfiguredResourceId =
+  (typeof PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS)[number];
+
+export function isPublicAdminConfiguredResource(
+  resourceId: CustomerAccountResourceId,
+): resourceId is PublicAdminConfiguredResourceId {
+  return (PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS as readonly string[]).includes(resourceId);
+}
+
+export function shouldFetchCustomerAccountResourceFromBackend({
+  accountDataSource,
+  apiUrl,
+  enabled = true,
+  resourceId,
+}: {
+  accountDataSource: AccountDataSource;
+  apiUrl: string;
+  enabled?: boolean;
+  resourceId: CustomerAccountResourceId;
+}): boolean {
+  if (!enabled || !apiUrl) {
+    return false;
+  }
+
+  if (accountDataSource === "backend") {
+    return true;
+  }
+
+  if (accountDataSource === "fixtures") {
+    return isPublicAdminConfiguredResource(resourceId);
+  }
+
+  return false;
+}
 
 export type CustomerAccountResourceStatus =
   | "disabled"
@@ -81,6 +121,10 @@ export function resolveCustomerAccountResourceEndpoint({
     return "/offer?limit=80&page=1";
   }
 
+  if (resourceId === "categoryList") {
+    return "/offer/get-category/list";
+  }
+
   if (resourceId === "homeBanner") {
     // Public home banners (no auth) — admin sets them via POST /admin/banner-home
     // (one Banner doc, image_1..5 + link_1..5); mapped by mapBackendHomeBanners.
@@ -95,6 +139,10 @@ export function resolveCustomerAccountResourceEndpoint({
 
   if (resourceId === "merchant") {
     return merchantEndpointTemplate.replace("${merchantId}", encodeURIComponent(merchantId));
+  }
+
+  if (resourceId === "policyCategory") {
+    return `/policy/category/${encodeURIComponent(merchantId)}`;
   }
 
   return "/customer-billing/subscription";
@@ -134,9 +182,14 @@ export function useCustomerAccountResource<TFixture, TBackend = unknown>({
 }: CustomerAccountResourceOptions<TFixture>): CustomerAccountResourceResult<TFixture | TBackend> {
   const env = useMemo(() => getMobileEnv(), []);
   const endpoint = resolveCustomerAccountResourceEndpoint({ merchantId, resourceId });
-  const shouldUseBackend = enabled && env.accountDataSource === "backend";
+  const shouldFetch = shouldFetchCustomerAccountResourceFromBackend({
+    accountDataSource: env.accountDataSource,
+    apiUrl: env.apiUrl,
+    enabled,
+    resourceId,
+  });
   const query = useQuery<TBackend, Error>({
-    enabled: shouldUseBackend,
+    enabled: shouldFetch,
     queryFn: async () => {
       // Shared singleton: the session store + client are built once per
       // baseUrl, not per fetch (the client re-reads the session each request,
@@ -157,23 +210,15 @@ export function useCustomerAccountResource<TFixture, TBackend = unknown>({
   });
 
   const retry = () => {
-    if (shouldUseBackend) {
+    if (shouldFetch) {
       void query.refetch();
     }
   };
 
-  if (!enabled) {
-    return {
-      data: fixtureData,
-      endpoint,
-      error: null,
-      retry,
-      source: env.accountDataSource,
-      status: "ready",
-    };
-  }
+  const fixturesHybridFetch =
+    env.accountDataSource === "fixtures" && isPublicAdminConfiguredResource(resourceId);
 
-  if (env.accountDataSource === "fixtures") {
+  if (!enabled) {
     return {
       data: fixtureData,
       endpoint,
@@ -195,7 +240,29 @@ export function useCustomerAccountResource<TFixture, TBackend = unknown>({
     };
   }
 
+  if (!shouldFetch) {
+    return {
+      data: fixtureData,
+      endpoint,
+      error: null,
+      retry,
+      source: env.accountDataSource,
+      status: "ready",
+    };
+  }
+
   if (query.isPending) {
+    if (fixturesHybridFetch) {
+      return {
+        data: fixtureData,
+        endpoint,
+        error: null,
+        retry,
+        source: "fixtures",
+        status: "ready",
+      };
+    }
+
     return {
       data: null,
       endpoint,
@@ -207,6 +274,17 @@ export function useCustomerAccountResource<TFixture, TBackend = unknown>({
   }
 
   if (query.isError) {
+    if (fixturesHybridFetch) {
+      return {
+        data: fixtureData,
+        endpoint,
+        error: query.error,
+        retry,
+        source: "fixtures",
+        status: "ready",
+      };
+    }
+
     return {
       data: null,
       endpoint,
@@ -223,7 +301,7 @@ export function useCustomerAccountResource<TFixture, TBackend = unknown>({
       endpoint,
       error: null,
       retry,
-      source: env.accountDataSource,
+      source: "backend",
       status: "empty",
     };
   }
@@ -233,7 +311,7 @@ export function useCustomerAccountResource<TFixture, TBackend = unknown>({
     endpoint,
     error: null,
     retry,
-    source: env.accountDataSource,
+    source: "backend",
     status: "ready",
   };
 }

@@ -8,7 +8,9 @@ import {
   getMissingOrders,
   getMissingOrderStats,
   postMissingOrderNote,
+  putMissingOrderApprove,
   putMissingOrderAssign,
+  putMissingOrderReject,
 } from "@/lib/api/adminModulesApi";
 import type { MissingOrderClaim } from "@/types/adminModules";
 import type { DashboardInsightRangeValue } from "@/types/api";
@@ -134,6 +136,22 @@ export default function MissingOrdersManagement() {
       });
     },
   });
+  const approveClaim = useMutation({
+    mutationFn: (id: string) => putMissingOrderApprove(id),
+    onSuccess: () => {
+      toast.success("Claim approved");
+      void qc.invalidateQueries({ queryKey: ["admin", "mo"] });
+      setClaimId(null);
+    },
+  });
+  const rejectClaim = useMutation({
+    mutationFn: (id: string) => putMissingOrderReject(id),
+    onSuccess: () => {
+      toast.success("Claim rejected");
+      void qc.invalidateQueries({ queryKey: ["admin", "mo"] });
+      setClaimId(null);
+    },
+  });
 
   // Rejection notes are client-side only for now (no backend field yet) — the
   // connected system will own these later, like the claim result/status.
@@ -207,6 +225,43 @@ export default function MissingOrdersManagement() {
             >
               Back to claims
             </Button>
+            {detailQ.data?.status === "pending" ||
+            detailQ.data?.status === "under_review" ? (
+              <>
+                <Button
+                  size="sm"
+                  type="button"
+                  onClick={() => void approveClaim.mutateAsync(claimId!)}
+                >
+                  Approve
+                </Button>
+                <SecondaryButton
+                  onClick={() => void rejectClaim.mutateAsync(claimId!)}
+                >
+                  Reject
+                </SecondaryButton>
+              </>
+            ) : null}
+            {detailQ.data &&
+            (detailQ.data.status === "pending" ||
+              detailQ.data.status === "under_review") ? (
+              <>
+                <Button
+                  size="sm"
+                  type="button"
+                  onClick={() => void approveClaim.mutateAsync(claimId!)}
+                >
+                  Approve
+                </Button>
+                <SecondaryButton
+                  size="sm"
+                  type="button"
+                  onClick={() => void rejectClaim.mutateAsync(claimId!)}
+                >
+                  Reject
+                </SecondaryButton>
+              </>
+            ) : null}
           </div>
 
           {detailQ.data ? (
@@ -580,6 +635,28 @@ export default function MissingOrdersManagement() {
                                   className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
                                 >
                                   Open
+                                </button>
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  onClick={() => {
+                                    void approveClaim.mutateAsync(c.id);
+                                    setOpenActionsId(null);
+                                  }}
+                                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  onClick={() => {
+                                    void rejectClaim.mutateAsync(c.id);
+                                    setOpenActionsId(null);
+                                  }}
+                                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+                                >
+                                  Reject
                                 </button>
                                 <button
                                   type="button"

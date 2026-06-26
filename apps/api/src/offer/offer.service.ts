@@ -8,7 +8,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
-import { Offer } from 'src/offer/schemas/offer.schema';
+import { Offer, OfferDocument } from 'src/offer/schemas/offer.schema';
 import { User } from 'src/user/schemas/user.schema';
 import { GetMyOfferDto, SaveMissingOrderDto } from './dto/create-offer.dto';
 import { join } from 'path';
@@ -22,6 +22,9 @@ import { UpdateCouponDto } from './dto/update-offer.dto';
 import { MissionOrder } from './schemas/missing-order.schema';
 import { GoogleDriveService } from 'src/google-drive/google-drive.service';
 import { Quest, QuestTask } from 'src/point/schemas/quest.schema';
+import { FeaturedSearchTerm } from 'src/admin/search/schemas/featured-term.schema';
+import { SearchBoostRule } from 'src/admin/search/schemas/boost-rule.schema';
+import { SearchBlacklist } from 'src/admin/search/schemas/blacklist.schema';
 
 const ACTIVE_OFFER_FILTER = {
   disabled: { $ne: true },
@@ -81,6 +84,9 @@ const PUBLIC_OFFER_DETAIL_FIELDS = [
   'brand_id',
   'is_global',
   'default_country',
+  'policy_category_id',
+  'custom_terms',
+  'note_to_user',
 ] as const;
 const PUBLIC_OFFER_DETAIL_SELECT = PUBLIC_OFFER_DETAIL_FIELDS.join(' ');
 
@@ -158,6 +164,12 @@ export class OfferService implements OnApplicationBootstrap {
     @InjectModel(MissionOrder.name)
     private missionOrderModel: Model<MissionOrder>,
     @InjectModel(Quest.name) private questModel: Model<Quest>,
+    @InjectModel(FeaturedSearchTerm.name)
+    private featuredSearchModel: Model<FeaturedSearchTerm>,
+    @InjectModel(SearchBoostRule.name)
+    private searchBoostModel: Model<SearchBoostRule>,
+    @InjectModel(SearchBlacklist.name)
+    private searchBlacklistModel: Model<SearchBlacklist>,
     private readonly googleDriveService: GoogleDriveService,
   ) {}
 
@@ -194,7 +206,12 @@ export class OfferService implements OnApplicationBootstrap {
   ) {
     const filter: any = {};
     if (search) {
-      filter['offer_name'] = { $regex: search, $options: 'i' };
+      const safeSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      filter.$or = [
+        { offer_name: { $regex: safeSearch, $options: 'i' } },
+        { offer_name_display: { $regex: safeSearch, $options: 'i' } },
+        { categories: { $regex: safeSearch, $options: 'i' } },
+      ];
     }
     if (categories) {
       // const categoriesArray = categories.split(',').map((cat) => cat.trim());
@@ -223,9 +240,80 @@ export class OfferService implements OnApplicationBootstrap {
       .skip((page - 1) * limit)
       .limit(limit)
       .exec();
+    const rankedData =
+      !admin && search
+        ? await this.rankPublicSearchResults(search, data)
+        : data;
     const total = await this.offerModel.countDocuments(filter);
     const totalPages = Math.ceil(total / limit);
-    return { page, limit, total, totalPages, data };
+    return { page, limit, total, totalPages, data: rankedData };
+  }
+
+  private async rankPublicSearchResults(search: string, offers: OfferDocument[]) {
+    const normalizedQuery = search.trim().toLowerCase();
+    if (!normalizedQuery) {
+      return offers;
+    }
+
+    const [blacklist, boosts, featured] = await Promise.all([
+      this.searchBlacklistModel.find().lean(),
+      this.searchBoostModel.find({ is_active: { $ne: false } }).lean(),
+      this.featuredSearchModel
+        .find({ is_active: { $ne: false } })
+        .sort({ sort_order: 1 })
+        .lean(),
+    ]);
+
+    if (
+      blacklist.some((entry) =>
+        normalizedQuery.includes(String(entry.term).toLowerCase()),
+      )
+    ) {
+      return [];
+    }
+
+    const filtered = offers.filter((offer) => {
+      const haystack =
+        `${offer.offer_name_display ?? ''} ${offer.offer_name ?? ''} ${offer.categories ?? ''}`.toLowerCase();
+      if (!haystack.includes(normalizedQuery)) {
+        return false;
+      }
+      return !blacklist.some((entry) =>
+        haystack.includes(String(entry.term).toLowerCase()),
+      );
+    });
+
+    const boostMap = new Map(
+      boosts.map((rule) => [String(rule.offer_id), Number(rule.boost_weight ?? 1)]),
+    );
+    const featuredTerms = featured.map((entry) => String(entry.term).toLowerCase());
+
+    return [...filtered].sort((left, right) => {
+      const scoreFor = (offer: OfferDocument) => {
+        const id = String(offer._id);
+        const haystack =
+          `${offer.offer_name_display ?? ''} ${offer.offer_name ?? ''}`.toLowerCase();
+        let score = boostMap.get(id) ?? 0;
+        if (
+          featuredTerms.some(
+            (term) => normalizedQuery.includes(term) && haystack.includes(term),
+          )
+        ) {
+          score += 1000;
+        }
+        return score;
+      };
+
+      return scoreFor(right) - scoreFor(left);
+    });
+  }
+
+  async getFeaturedSearchTerms() {
+    const data = await this.featuredSearchModel
+      .find({ is_active: { $ne: false } })
+      .sort({ sort_order: 1 })
+      .lean();
+    return { data };
   }
 
   async findAllExtra() {

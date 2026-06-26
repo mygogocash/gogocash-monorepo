@@ -507,7 +507,7 @@ describe("Expo home design parity", () => {
     expect(homeFile).toContain("onPressIn={openSearchPopover}");
     expect(homeFile).toContain("HomeSearchPopularPopover");
     expect(homeFile).toContain("query={searchQuery}");
-    expect(homeFile).toContain("getHomeSearchMatches(query)");
+    expect(homeFile).toContain("useOfferSearch");
     expect(homeFile).toContain("searchNoMatchCard");
     expect(homeFile).toContain("searchResultsHeading");
     expect(homeFile).toContain('variant="compact"');

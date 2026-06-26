@@ -1,0 +1,248 @@
+import type { AccountDataSource } from "@mobile/auth/routeGuard";
+import {
+  mapOffersToCatalogBrands,
+  type CatalogBrand,
+} from "@mobile/api/catalogMapper";
+import { isOfferListResponse } from "@mobile/api/catalogTypes";
+import type { BrandDirectoryStore } from "@mobile/screens/discovery/discoveryTypes";
+import {
+  getBrandDirectoryResults,
+  getCategoryExploreResults,
+  getShopDirectoryResults,
+  type WebBrandDirectorySort,
+  type WebShopDirectorySort,
+  type WebShopType,
+} from "@mobile/design/webDesignParity";
+
+const GRAB_COUPON_LABEL = "Grab Coupon";
+
+function getCashbackValue(cashback: string) {
+  return Number.parseFloat(cashback.replace("%", "")) || 0;
+}
+
+export function mapCatalogBrandsToDirectoryStores(
+  brands: readonly CatalogBrand[],
+): BrandDirectoryStore[] {
+  return brands.map((brand, index) => ({
+    addedAt: "",
+    brand: brand.name,
+    cashback: brand.cashback,
+    category: brand.category,
+    href: brand.href,
+    id: brand.id,
+    label: GRAB_COUPON_LABEL,
+    logoUri: brand.logo ?? "",
+    popularity: index + 1,
+    position: index + 1,
+    showGrabCoupon: brand.showGrabCoupon,
+    shopType: "normal" as const,
+    tint: brand.tint,
+  }));
+}
+
+export function filterDirectoryStores<T extends BrandDirectoryStore>({
+  category = "All",
+  query = "",
+  sortBy = "highest_cashback",
+  stores,
+}: {
+  category?: string;
+  query?: string;
+  sortBy?: WebBrandDirectorySort | WebShopDirectorySort | string;
+  stores: readonly T[];
+}): T[] {
+  const normalizedCategory = category.trim().toLowerCase();
+  const normalizedQuery = query.trim().toLowerCase();
+  const activeCategory = normalizedCategory && normalizedCategory !== "all";
+
+  return [...stores]
+    .filter((store) => {
+      const matchesCategory =
+        !activeCategory || store.category.toLowerCase() === normalizedCategory;
+      const matchesQuery =
+        !normalizedQuery ||
+        [store.brand, store.cashback, store.category, store.label].some((value) =>
+          value.toLowerCase().includes(normalizedQuery)
+        );
+
+      return matchesCategory && matchesQuery;
+    })
+    .sort((a, b) => {
+      if (sortBy === "popular") {
+        return a.popularity - b.popularity || a.position - b.position;
+      }
+
+      if (sortBy === "newest") {
+        return b.addedAt.localeCompare(a.addedAt) || a.position - b.position;
+      }
+
+      const cashbackDifference =
+        sortBy === "lowest_cashback"
+          ? getCashbackValue(a.cashback) - getCashbackValue(b.cashback)
+          : getCashbackValue(b.cashback) - getCashbackValue(a.cashback);
+
+      return cashbackDifference || a.position - b.position;
+    });
+}
+
+export function filterShopDirectoryStores({
+  category = "All",
+  query = "",
+  shopType = "all",
+  sortBy = "highest_cashback",
+  stores,
+}: {
+  category?: string;
+  query?: string;
+  shopType?: WebShopType | string;
+  sortBy?: WebShopDirectorySort | string;
+  stores: readonly BrandDirectoryStore[];
+}): BrandDirectoryStore[] {
+  const normalizedShopType = shopType.trim().toLowerCase();
+  const filtered = filterDirectoryStores({ category, query, sortBy, stores });
+
+  if (!normalizedShopType || normalizedShopType === "all") {
+    return filtered;
+  }
+
+  return filtered.filter((store) => {
+    const storeShopType = "shopType" in store ? String(store.shopType).toLowerCase() : "normal";
+    return storeShopType === normalizedShopType;
+  });
+}
+
+export function resolveLiveDirectoryStores(
+  source: AccountDataSource,
+  data: unknown,
+  fallback: readonly BrandDirectoryStore[],
+): readonly BrandDirectoryStore[] {
+  if (source === "backend" && isOfferListResponse(data)) {
+    return mapCatalogBrandsToDirectoryStores(mapOffersToCatalogBrands(data));
+  }
+
+  return fallback;
+}
+
+export function getFixtureBrandDirectoryResults(args: {
+  category?: string;
+  query?: string;
+  sortBy?: WebBrandDirectorySort | string;
+}) {
+  return getBrandDirectoryResults(args);
+}
+
+export function getFixtureShopDirectoryResults(args: {
+  category?: string;
+  query?: string;
+  shopType?: WebShopType | string;
+  sortBy?: WebShopDirectorySort | string;
+}) {
+  return getShopDirectoryResults(args);
+}
+
+export type CategoryListPayload = {
+  data?: { _id?: string; name?: string }[];
+};
+
+export function mapBackendCategoryList(payload: CategoryListPayload | null | undefined): string[] {
+  const names =
+    payload?.data
+      ?.map((item) => item.name?.trim())
+      .filter((name): name is string => Boolean(name)) ?? [];
+
+  return ["All", ...names];
+}
+
+export function resolveCategoryList(
+  source: AccountDataSource,
+  data: unknown,
+  fallback: readonly string[],
+): readonly string[] {
+  if (source === "backend" && data && typeof data === "object" && "data" in data) {
+    return mapBackendCategoryList(data as CategoryListPayload);
+  }
+
+  return fallback;
+}
+
+export type CategoryDirectoryCard = {
+  href: string;
+  imageAsset: string;
+  title: string;
+};
+
+export function mapBackendCategoryDirectoryCards(
+  categories: readonly string[],
+): CategoryDirectoryCard[] {
+  return categories
+    .filter((title) => title !== "All")
+    .map((title) => ({
+      href: `/category/${encodeURIComponent(title)}`,
+      imageAsset: "popular-dinner",
+      title,
+    }));
+}
+
+export function resolveCategoryDirectoryCards(
+  source: AccountDataSource,
+  data: unknown,
+  fallback: readonly CategoryDirectoryCard[],
+): readonly CategoryDirectoryCard[] {
+  if (source === "backend" && data && typeof data === "object" && "data" in data) {
+    return mapBackendCategoryDirectoryCards(
+      mapBackendCategoryList(data as CategoryListPayload),
+    );
+  }
+
+  return fallback;
+}
+
+export type CategoryExploreStore = {
+  addedAt?: string;
+  brand: string;
+  cashback: string;
+  href?: string;
+  logoUri: string;
+  tint: string;
+};
+
+export function mapDirectoryStoresToCategoryExplore(
+  stores: readonly BrandDirectoryStore[],
+): CategoryExploreStore[] {
+  return stores.map((store) => ({
+    addedAt: store.addedAt,
+    brand: store.brand,
+    cashback: store.cashback,
+    href: store.href,
+    logoUri: store.logoUri,
+    tint: store.tint,
+  }));
+}
+
+export function resolveCategoryExploreStores({
+  category,
+  data,
+  query = "",
+  sortBy = "highest_cashback",
+  source,
+}: {
+  category: string;
+  data: unknown;
+  query?: string;
+  sortBy?: WebBrandDirectorySort | string;
+  source: AccountDataSource;
+}): CategoryExploreStore[] {
+  if (source === "backend" && isOfferListResponse(data)) {
+    const stores = mapCatalogBrandsToDirectoryStores(mapOffersToCatalogBrands(data));
+    return mapDirectoryStoresToCategoryExplore(
+      filterDirectoryStores({
+        category,
+        query,
+        sortBy,
+        stores,
+      }),
+    );
+  }
+
+  return getCategoryExploreResults({ category, query, sortBy });
+}

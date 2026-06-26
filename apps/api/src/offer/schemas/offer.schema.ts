@@ -181,6 +181,18 @@ export class Offer {
    */
   @Prop()
   default_country?: string;
+
+  /** Category whose authored policy seeds T&C when custom_terms is empty. */
+  @Prop()
+  policy_category_id?: string;
+
+  /** Merchant-specific terms shown on the shop detail page. */
+  @Prop()
+  custom_terms?: string;
+
+  /** Optional note surfaced to end users on the shop detail page. */
+  @Prop()
+  note_to_user?: string;
 }
 
 export const OfferSchema = SchemaFactory.createForClass(Offer);

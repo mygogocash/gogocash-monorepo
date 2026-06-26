@@ -31,6 +31,18 @@ import {
 } from './schemas/missing-order.schema';
 import { GoogleDriveService } from 'src/google-drive/google-drive.service';
 import { Quest, QuestSchema } from 'src/point/schemas/quest.schema';
+import {
+  FeaturedSearchTerm,
+  FeaturedSearchTermSchema,
+} from 'src/admin/search/schemas/featured-term.schema';
+import {
+  SearchBoostRule,
+  SearchBoostRuleSchema,
+} from 'src/admin/search/schemas/boost-rule.schema';
+import {
+  SearchBlacklist,
+  SearchBlacklistSchema,
+} from 'src/admin/search/schemas/blacklist.schema';
 
 @Module({
   imports: [
@@ -51,6 +63,9 @@ import { Quest, QuestSchema } from 'src/point/schemas/quest.schema';
       { name: FeeRate.name, schema: FeeRateSchema },
       { name: MissionOrder.name, schema: MissionOrderSchema },
       { name: Quest.name, schema: QuestSchema },
+      { name: FeaturedSearchTerm.name, schema: FeaturedSearchTermSchema },
+      { name: SearchBoostRule.name, schema: SearchBoostRuleSchema },
+      { name: SearchBlacklist.name, schema: SearchBlacklistSchema },
     ]),
   ],
   controllers: [OfferController],

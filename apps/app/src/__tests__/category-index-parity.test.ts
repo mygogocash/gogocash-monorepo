@@ -134,9 +134,9 @@ describe("Category index parity", () => {
     const screenFile = readDiscoverySources(mobileRoot);
 
     expect(screenFile).toContain("CustomerCategoryDirectoryScreen");
-    expect(screenFile).toContain("getCategoryDirectoryMatches");
+    expect(screenFile).toContain("resolveCategoryDirectoryCards");
+    expect(screenFile).toContain("useCustomerAccountResource");
     expect(screenFile).toContain("getCategoryDirectoryGridMetrics");
-    expect(screenFile).toContain("getCategoryDirectoryPage");
     expect(screenFile).toContain("CustomerMobileBottomNav");
     expect(screenFile).toContain("category-directory-card");
     expect(screenFile).toContain("CategoryDirectoryPagination");

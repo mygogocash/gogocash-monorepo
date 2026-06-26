@@ -25,7 +25,21 @@ export async function getSharedMobileApiClient(
     return null;
   }
 
-  cached = { baseUrl, client: createMobileApiClient({ baseUrl, sessionStore }) };
+  cached = {
+    baseUrl,
+    client: createMobileApiClient({
+      baseUrl,
+      getPreferredAuthToken: async () => {
+        try {
+          const { getFirebaseIdToken } = await import("@mobile/auth/firebaseClient");
+          return await getFirebaseIdToken();
+        } catch {
+          return null;
+        }
+      },
+      sessionStore,
+    }),
+  };
   return cached.client;
 }
 

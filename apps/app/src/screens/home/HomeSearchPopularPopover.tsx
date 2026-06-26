@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { Animated, Pressable, ScrollView, Text, View } from "react-native";
-import { getHomeSearchMatches, webHomeSearchPopularPanel } from "@mobile/design/webDesignParity";
+import { useOfferSearch } from "@mobile/account/useOfferSearch";
+import { webHomeSearchPopularPanel } from "@mobile/design/webDesignParity";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { motion } from "@mobile/theme/motion";
 import { HomeSearchIntro } from "./HomeSearchIntro";
@@ -24,7 +25,8 @@ export function HomeSearchPopularPopover({
 }) {
   const styles = useHomeScreenStyles();
   const tc = useCopy();
-  const searchMatches = getHomeSearchMatches(query);
+  const { matches: searchMatches } = useOfferSearch(query);
+  const popularItems = webHomeSearchPopularPanel.items;
   const hasSearchQuery = query.trim().length > 0;
   const popoverOpacity = useMemo(() => new Animated.Value(0), []);
   const popoverTranslateY = useMemo(() => new Animated.Value(-8), []);
@@ -132,8 +134,8 @@ export function HomeSearchPopularPopover({
                 )}
                 <HomeSearchIntro variant="compact" />
                 <View style={styles.searchResultListCompact}>
-                  {webHomeSearchPopularPanel.items.map((item) => (
-                    <HomeSearchResultRow item={item} key={item.brand} variant="compact" />
+                  {popularItems.map((item) => (
+                    <HomeSearchResultRow item={item} key={`${item.brand}-${item.cashback}`} variant="compact" />
                   ))}
                 </View>
               </View>
@@ -141,8 +143,8 @@ export function HomeSearchPopularPopover({
               <>
                 <HomeSearchIntro variant="large" />
                 <View style={styles.searchResultList}>
-                  {webHomeSearchPopularPanel.items.map((item) => (
-                    <HomeSearchResultRow item={item} key={item.brand} variant="large" />
+                  {popularItems.map((item) => (
+                    <HomeSearchResultRow item={item} key={`${item.brand}-${item.cashback}`} variant="large" />
                   ))}
                 </View>
               </>

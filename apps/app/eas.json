@@ -11,7 +11,7 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://api-staging.gogocash.co",
         "EXPO_PUBLIC_APP_ENV": "staging",
-        "EXPO_PUBLIC_ACCOUNT_DATA_SOURCE": "fixtures",
+        "EXPO_PUBLIC_ACCOUNT_DATA_SOURCE": "backend",
         "EXPO_PUBLIC_FRONTEND_URL": "https://app-staging.gogocash.co"
       }
     },
@@ -21,7 +21,7 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://api-staging.gogocash.co",
         "EXPO_PUBLIC_APP_ENV": "staging",
-        "EXPO_PUBLIC_ACCOUNT_DATA_SOURCE": "fixtures",
+        "EXPO_PUBLIC_ACCOUNT_DATA_SOURCE": "backend",
         "EXPO_PUBLIC_FRONTEND_URL": "https://app-staging.gogocash.co"
       }
     },

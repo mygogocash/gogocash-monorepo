@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { resolveCustomerAccountResourceRequest } from "../account/customerAccountResource";
+import {
+  PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS,
+  resolveCustomerAccountResourceRequest,
+  shouldFetchCustomerAccountResourceFromBackend,
+} from "../account/customerAccountResource";
 
 describe("resolveCustomerAccountResourceRequest", () => {
   it("offers > then describes the real backend contract: POST /offer/my-offers with a paged body", () => {
@@ -24,5 +28,92 @@ describe("resolveCustomerAccountResourceRequest", () => {
       method: "GET",
       path: "/offer/brand%20a",
     });
+  });
+});
+
+describe("PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS", () => {
+  it("includes topBrand and homeBanner as public admin-curated resources", () => {
+    expect(PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS).toEqual(["topBrand", "homeBanner"]);
+  });
+});
+
+describe("shouldFetchCustomerAccountResourceFromBackend", () => {
+  const apiUrl = "http://localhost:8080";
+
+  it("fixtures mode + topBrand + apiUrl > then fetches from backend", () => {
+    expect(
+      shouldFetchCustomerAccountResourceFromBackend({
+        accountDataSource: "fixtures",
+        resourceId: "topBrand",
+        enabled: true,
+        apiUrl,
+      }),
+    ).toBe(true);
+  });
+
+  it("fixtures mode + homeBanner + apiUrl > then fetches from backend", () => {
+    expect(
+      shouldFetchCustomerAccountResourceFromBackend({
+        accountDataSource: "fixtures",
+        resourceId: "homeBanner",
+        enabled: true,
+        apiUrl,
+      }),
+    ).toBe(true);
+  });
+
+  it("fixtures mode + profile > then stays on fixtures only", () => {
+    expect(
+      shouldFetchCustomerAccountResourceFromBackend({
+        accountDataSource: "fixtures",
+        resourceId: "profile",
+        enabled: true,
+        apiUrl,
+      }),
+    ).toBe(false);
+  });
+
+  it("fixtures mode + topBrand + empty apiUrl > then does not fetch", () => {
+    expect(
+      shouldFetchCustomerAccountResourceFromBackend({
+        accountDataSource: "fixtures",
+        resourceId: "topBrand",
+        enabled: true,
+        apiUrl: "",
+      }),
+    ).toBe(false);
+  });
+
+  it("backend mode + profile + apiUrl > then fetches from backend", () => {
+    expect(
+      shouldFetchCustomerAccountResourceFromBackend({
+        accountDataSource: "backend",
+        resourceId: "profile",
+        enabled: true,
+        apiUrl,
+      }),
+    ).toBe(true);
+  });
+
+  it("disabled mode > then never fetches", () => {
+    expect(
+      shouldFetchCustomerAccountResourceFromBackend({
+        accountDataSource: "disabled",
+        resourceId: "topBrand",
+        enabled: true,
+        apiUrl,
+      }),
+    ).toBe(false);
+  });
+
+  it("enabled false > then never fetches", () => {
+    expect(
+      shouldFetchCustomerAccountResourceFromBackend({
+        accountDataSource: "backend",
+        resourceId: "topBrand",
+        enabled: false,
+        apiUrl,
+      }),
+    ).toBe(false);
   });
 });

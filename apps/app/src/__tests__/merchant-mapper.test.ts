@@ -31,6 +31,9 @@ const liveOffer = {
   source: "involve",
   status: "active",
   tracking_link: "https://tracking.example/lazada",
+  custom_terms: "1. Custom merchant term\n2. No stacking",
+  note_to_user: "Flash sale this week only.",
+  policy_category_id: "68345f00aa11bb22cc33dd99",
 };
 
 describe("isMerchantOfferResponse", () => {
@@ -61,7 +64,10 @@ describe("mapMerchantOfferToShopDetail", () => {
     expect(shop.logoText).toBe("LT");
     expect(shop.extraCashback).toBe("5.6%");
     expect(shop.productRates).toEqual([{ name: "Lazada TH", rate: "5.6%" }]);
-    expect(shop.note).toContain("Lazada TH");
+    expect(shop.note).toBe("Flash sale this week only.");
+    expect(shop.noteToUser).toBe("Flash sale this week only.");
+    expect(shop.customTerms).toBe("1. Custom merchant term\n2. No stacking");
+    expect(shop.policyCategoryId).toBe("68345f00aa11bb22cc33dd99");
     expect(shop.disclaimer).toContain("Lazada TH");
     expect(shop.disclaimer).not.toBe("static legal copy");
     expect(shop.shopNowLabel).toBe("Shop Now");

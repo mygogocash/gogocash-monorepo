@@ -27,6 +27,10 @@ import questBannerImage from "../../assets/quest-banner-en.png";
 import walletNoDataImage from "../../assets/wallet-no-data.png";
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
+import {
+  resolveShopTerms,
+  type CategoryPolicyPayload,
+} from "@mobile/account/policyResource";
 import { mapMerchantOfferToShopDetail } from "@mobile/api/merchantMapper";
 import { isMerchantOfferResponse } from "@mobile/api/merchantTypes";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
@@ -64,8 +68,11 @@ type ShopDetail = Omit<typeof webShopDetailGroceryGalaxy, "brand" | "cashback" |
   brand: string;
   cashback: string;
   category: string;
+  customTerms?: string;
   id: string;
   logoUri?: string;
+  noteToUser?: string;
+  policyCategoryId?: string;
   trackingUrl?: string;
 };
 type TrackingStep = ShopDetail["trackingPeriod"][number];
@@ -91,6 +98,19 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
   const shop: ShopDetail = isMerchantOfferResponse(merchantResource.data)
     ? mapMerchantOfferToShopDetail(merchantResource.data, fixtureShop)
     : fixtureShop;
+  const policyResource = useCustomerAccountResource<CategoryPolicyPayload | null>({
+    enabled: Boolean(shop.policyCategoryId) && merchantResource.source === "backend",
+    fixtureData: null,
+    merchantId: shop.policyCategoryId ?? "policy-unset",
+    resourceId: "policyCategory",
+  });
+  const shopTerms = resolveShopTerms({
+    customTerms: shop.customTerms,
+    fallback: shop.terms,
+    noteToUser: shop.noteToUser,
+    policyPayload: policyResource.data,
+    source: merchantResource.source,
+  });
 
   // Share the merchant referral link, then confirm with a transient toast + success haptic.
   // Reuses the existing translated "Copied to clipboard" string (tc reverse-looks it up to
@@ -142,7 +162,7 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
               <ShopCashbackRail shop={shop} />
               <ShopTrackingPeriod shop={shop} />
               <ShopReferralCard onShare={handleShareReferral} shop={shop} />
-              {isDesktop ? <ShopTermsPanel shop={shop} /> : null}
+              {isDesktop ? <ShopTermsPanel terms={shopTerms} /> : null}
             </View>
             <View style={[styles.rightColumn, isDesktop ? styles.rightColumnDesktop : null]}>
               <ShopQuestBanner shop={shop} />
@@ -150,7 +170,7 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
               <ShopCashbackTipsPanel shop={shop} />
             </View>
           </View>
-          {!isDesktop ? <ShopTermsPanel shop={shop} /> : null}
+          {!isDesktop ? <ShopTermsPanel terms={shopTerms} /> : null}
           <ShopExploreRelated />
           <CustomerDesktopFooterSlot
             horizontalPadding={homeLayout.contentHorizontalPadding}
@@ -405,22 +425,22 @@ function ShopDealsEmptyState({ shop }: { shop: ShopDetail }) {
   );
 }
 
-function ShopTermsPanel({ shop }: { shop: ShopDetail }) {
+function ShopTermsPanel({ terms }: { terms: ShopDetail["terms"] }) {
   const styles = useThemedStyles(createShopDetailScreenStyles);
   const { colors } = useTheme();
   return (
     <View style={styles.termsPanel}>
       <View style={styles.termsHeader}>
-        <Text style={styles.termsEmoji}>{shop.terms.eyebrow}</Text>
+        <Text style={styles.termsEmoji}>{terms.eyebrow}</Text>
         <View style={styles.termsTitleWrap}>
-          <Text style={styles.sectionTitle}>{shop.terms.title}</Text>
-          <Text style={styles.termsSubtitle}>{shop.terms.subtitle}</Text>
+          <Text style={styles.sectionTitle}>{terms.title}</Text>
+          <Text style={styles.termsSubtitle}>{terms.subtitle}</Text>
         </View>
         <InfoIcon color={colors.primaryDark} size={20} strokeWidth={typography.iconStrokeWidth} />
       </View>
-      <Text style={styles.termsSectionTitle}>{shop.terms.exclusionsTitle}</Text>
+      <Text style={styles.termsSectionTitle}>{terms.exclusionsTitle}</Text>
       <View style={styles.termsList}>
-        {shop.terms.bullets.map((bullet) => (
+        {terms.bullets.map((bullet) => (
           <View key={bullet} style={styles.termBulletRow}>
             <Text style={styles.termBulletDot}>•</Text>
             <Text style={styles.termBulletText}>{bullet}</Text>

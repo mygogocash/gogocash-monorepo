@@ -14,11 +14,14 @@ export type MerchantOfferResponse = {
   categories?: string;
   commission_store?: number | string;
   commissions?: MerchantCommission[];
+  custom_terms?: string;
   logo?: string;
   logo_circle?: string;
   logo_desktop?: string;
   logo_mobile?: string;
+  note_to_user?: string;
   offer_name_display?: string;
+  policy_category_id?: string;
   tracking_link?: string;
 };
 
