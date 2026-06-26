@@ -6,13 +6,16 @@ import { can, isRole, permissionForRoute } from "@/lib/rbac";
 const PUBLIC_PREFIXES = [
   "/signin",
   "/signup",
+  "/forgot-password",
+  "/reset-password",
+  "/accept-invite",
   "/error-404",
   "/api/auth",
   "/_next",
   "/images",
 ] as const;
 
-function isPublicPath(pathname: string): boolean {
+export function isPublicPath(pathname: string): boolean {
   if (
     pathname === "/favicon.ico" ||
     pathname === "/site.webmanifest" ||
