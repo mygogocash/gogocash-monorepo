@@ -52,7 +52,9 @@ export function validateAdminOrderStatusTransition(
       return;
     default: {
       const exhaustive: never = next;
-      throw new BadRequestException(`Unsupported status transition: ${exhaustive}`);
+      throw new BadRequestException(
+        `Unsupported status transition: ${exhaustive}`,
+      );
     }
   }
 }

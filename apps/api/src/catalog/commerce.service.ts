@@ -164,7 +164,9 @@ export class CommerceService {
       .lean()
       .exec();
     if (foreignAttempt) {
-      throw new ConflictException('Idempotency key already used by another user');
+      throw new ConflictException(
+        'Idempotency key already used by another user',
+      );
     }
 
     const reusedPending = await this.findReusablePendingCheckout(userId);
@@ -201,7 +203,9 @@ export class CommerceService {
       cart.items,
     );
 
-    const { successUrl, cancelUrl } = buildCheckoutRedirectUrls(String(order._id));
+    const { successUrl, cancelUrl } = buildCheckoutRedirectUrls(
+      String(order._id),
+    );
     const checkout = await this.paymentProvider.createCheckoutSession({
       orderId: String(order._id),
       orderNumber: order.order_number,

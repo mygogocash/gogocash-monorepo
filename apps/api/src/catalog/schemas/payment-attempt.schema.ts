@@ -56,4 +56,7 @@ export const PaymentAttemptSchema =
   SchemaFactory.createForClass(PaymentAttempt);
 
 PaymentAttemptSchema.index({ provider: 1, provider_session_id: 1 });
-PaymentAttemptSchema.index({ user_id: 1, idempotency_key: 1 }, { unique: true });
+PaymentAttemptSchema.index(
+  { user_id: 1, idempotency_key: 1 },
+  { unique: true },
+);
