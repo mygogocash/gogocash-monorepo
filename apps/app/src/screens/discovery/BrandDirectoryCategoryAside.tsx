@@ -12,11 +12,13 @@ import { createDiscoveryScreenStyles } from "./customerDiscoveryStyles";
 
 export function BrandDirectoryCategoryAside({
   activeCategory,
+  categories = webBrandDirectory.categories,
   isDesktop,
   onSelectCategory,
   width,
 }: {
   activeCategory: string;
+  categories?: readonly string[];
   isDesktop: boolean;
   onSelectCategory: (category: string) => void;
   width: number;
@@ -49,7 +51,7 @@ export function BrandDirectoryCategoryAside({
         horizontal={!isDesktop}
         showsHorizontalScrollIndicator={false}
       >
-        {webBrandDirectory.categories.map((category) => {
+        {categories.map((category) => {
           const active = activeCategory === category;
           const CategoryIcon = getCategoryIcon(category);
 

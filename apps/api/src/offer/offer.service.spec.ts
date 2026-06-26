@@ -13,6 +13,9 @@ import { Deeplink } from 'src/involve/schemas/deeplink.schema';
 import { User } from 'src/user/schemas/user.schema';
 import { GoogleDriveService } from 'src/google-drive/google-drive.service';
 import { Quest } from 'src/point/schemas/quest.schema';
+import { FeaturedSearchTerm } from 'src/admin/search/schemas/featured-term.schema';
+import { SearchBoostRule } from 'src/admin/search/schemas/boost-rule.schema';
+import { SearchBlacklist } from 'src/admin/search/schemas/blacklist.schema';
 
 /**
  * A chainable Mongoose query stub. Each builder method returns `this` so that
@@ -43,6 +46,9 @@ describe('OfferService', () => {
   let topBrandConfigModel: any;
   let missionOrderModel: any;
   let questModel: any;
+  let featuredSearchModel: any;
+  let searchBoostModel: any;
+  let searchBlacklistModel: any;
   let googleDriveService: { uploadFile: jest.Mock };
 
   beforeEach(async () => {
@@ -81,6 +87,15 @@ describe('OfferService', () => {
     missionOrderModel.find = jest.fn().mockReturnValue(makeQuery([]));
     missionOrderModel.countDocuments = jest.fn().mockResolvedValue(0);
     questModel = { findOne: jest.fn().mockReturnValue(makeQuery(null)) };
+    featuredSearchModel = {
+      find: jest.fn().mockReturnValue({ sort: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue([]) }) }),
+    };
+    searchBoostModel = {
+      find: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue([]) }),
+    };
+    searchBlacklistModel = {
+      find: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue([]) }),
+    };
     googleDriveService = { uploadFile: jest.fn() };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
@@ -105,6 +120,18 @@ describe('OfferService', () => {
           useValue: missionOrderModel,
         },
         { provide: getModelToken(Quest.name), useValue: questModel },
+        {
+          provide: getModelToken(FeaturedSearchTerm.name),
+          useValue: featuredSearchModel,
+        },
+        {
+          provide: getModelToken(SearchBoostRule.name),
+          useValue: searchBoostModel,
+        },
+        {
+          provide: getModelToken(SearchBlacklist.name),
+          useValue: searchBlacklistModel,
+        },
         { provide: GoogleDriveService, useValue: googleDriveService },
       ],
     }).compile();
@@ -131,9 +158,65 @@ describe('OfferService', () => {
       await service.findAll(1, 10, 'shopee', 'fashion', 'Thailand');
 
       const filter = offerModel.find.mock.calls[0][0];
-      expect(filter.offer_name).toEqual({ $regex: 'shopee', $options: 'i' });
+      expect(filter.$or).toEqual([
+        { offer_name: { $regex: 'shopee', $options: 'i' } },
+        { offer_name_display: { $regex: 'shopee', $options: 'i' } },
+        { categories: { $regex: 'shopee', $options: 'i' } },
+      ]);
       expect(filter.categories).toEqual({ $regex: 'fashion', $options: 'i' });
       expect(filter.countries).toEqual({ $regex: 'Thailand', $options: 'i' });
+    });
+
+    it('findAll > given a blacklisted search query > then returns no ranked results', async () => {
+      searchBlacklistModel.find.mockReturnValue({
+        lean: jest.fn().mockResolvedValue([{ term: 'banned' }]),
+      });
+      offerModel.find.mockReturnValue(
+        makeQuery([
+          {
+            _id: 'offer-1',
+            offer_name: 'Banned Shop',
+            offer_name_display: 'Banned Shop',
+          },
+        ]),
+      );
+
+      const result = await service.findAll(1, 10, 'banned shop', '');
+
+      expect(result.data).toEqual([]);
+    });
+
+    it('findAll > given boost rules > then boosted offers sort ahead of others', async () => {
+      searchBlacklistModel.find.mockReturnValue({
+        lean: jest.fn().mockResolvedValue([]),
+      });
+      searchBoostModel.find.mockReturnValue({
+        lean: jest.fn().mockResolvedValue([{ offer_id: 'offer-b', boost_weight: 5 }]),
+      });
+      featuredSearchModel.find.mockReturnValue({
+        sort: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue([]) }),
+      });
+      offerModel.find.mockReturnValue(
+        makeQuery([
+          {
+            _id: 'offer-a',
+            offer_name: 'Alpha Market',
+            offer_name_display: 'Alpha Market',
+          },
+          {
+            _id: 'offer-b',
+            offer_name: 'Beta Market',
+            offer_name_display: 'Beta Market',
+          },
+        ]),
+      );
+
+      const result = await service.findAll(1, 10, 'market', '');
+
+      expect(result.data.map((offer) => String(offer._id))).toEqual([
+        'offer-b',
+        'offer-a',
+      ]);
     });
 
     it('findAll > given total and limit > then it paginates and computes totalPages', async () => {

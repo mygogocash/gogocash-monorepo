@@ -164,6 +164,11 @@ export class OfferController {
     return this.offerService.findAllExtra();
   }
 
+  @Get('search/featured')
+  getFeaturedSearchTerms() {
+    return this.offerService.getFeaturedSearchTerms();
+  }
+
   @UseGuards(AuthAdminGuard)
   @ApiSecurity('access-token')
   @ApiBearerAuth()

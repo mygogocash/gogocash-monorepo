@@ -11,7 +11,7 @@ import {
   ShoppingBag as ShoppingIcon,
 } from "@mobile/theme/icons";
 import type { ReactNode } from "react";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   Image,
   Modal,
@@ -27,6 +27,11 @@ import {
 import type { LayoutRectangle, ViewStyle } from "react-native";
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
+import { saveMissingOrderClaim } from "@mobile/account/offerActionsApi";
+import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
+import { mapOffersToCatalogBrands } from "@mobile/api/catalogMapper";
+import { isOfferListResponse } from "@mobile/api/catalogTypes";
+import { getMobileEnv } from "@mobile/config/env";
 import { BirthDateField } from "@mobile/components/BirthDateField";
 import { KeyboardAwareScreen } from "@mobile/components/KeyboardAwareScreen";
 import { MotionPressable } from "@mobile/components/MotionPressable";
@@ -147,22 +152,38 @@ function MissingOrdersFormPanel() {
   const styles = useThemedStyles(createMissingOrdersScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
+  const env = getMobileEnv();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
-  // The copy declares screenshots/receipts as the one REQUIRED input ("Required — add at
-  // least 1 image"). The rest of this screen simulates entry with static values, so we
-  // mirror that: a single attachment flag the add-image field toggles. Submit validates
-  // it — the smallest honest validation the form's own copy demands.
+  const catalogResource = useCustomerAccountResource({
+    fixtureData: { data: [], limit: 80, page: 1, total: 0, totalPages: 0 },
+    resourceId: "brandCatalog",
+  });
+  const profileResource = useCustomerAccountResource({
+    fixtureData: { id: MISSING_ORDERS_USER_ID },
+    resourceId: "profile",
+  });
+  const shopOptions = useMemo(() => {
+    if (catalogResource.source === "backend" && isOfferListResponse(catalogResource.data)) {
+      return mapOffersToCatalogBrands(catalogResource.data).map((brand) => ({
+        label: brand.name,
+        offerId: brand.id,
+      }));
+    }
+
+    return MISSING_ORDERS_SHOPS.map((label) => ({ label, offerId: "" }));
+  }, [catalogResource.data, catalogResource.source]);
   const [attachments, setAttachments] = useState<readonly MissingOrderImage[]>([]);
   const [submitError, setSubmitError] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [submittedOpen, setSubmittedOpen] = useState(false);
   const [shop, setShop] = useState("");
+  const [selectedOfferId, setSelectedOfferId] = useState("");
   const [orderId, setOrderId] = useState("");
   const [amount, setAmount] = useState("");
   const [purchaseDate, setPurchaseDate] = useState("");
   const [note, setNote] = useState("");
   const [shopOpen, setShopOpen] = useState(false);
-  // Anchor rect of the shop field so the dropdown opens directly under it (web parity).
   const [shopAnchor, setShopAnchor] = useState<LayoutRectangle | null>(null);
 
   const hasAttachment = attachments.length > 0;
@@ -176,13 +197,42 @@ function MissingOrdersFormPanel() {
 
   const handleSubmit = () => {
     if (!hasAttachment) {
-      // Validation failure: a screenshot/receipt is required → error buzz + inline message.
       setSubmitError(true);
       haptics.error();
       return;
     }
 
-    // Claim is ready → success haptic + the "Order Tracking Submitted!" confirmation.
+    if (env.accountDataSource === "backend") {
+      if (!selectedOfferId || !orderId.trim() || !amount.trim() || !purchaseDate.trim()) {
+        setSubmitError(true);
+        haptics.error();
+        return;
+      }
+
+      setSubmitting(true);
+      void (async () => {
+        try {
+          await saveMissingOrderClaim(env.apiUrl, {
+            amount: amount.trim(),
+            attachments,
+            note: note.trim(),
+            offerId: selectedOfferId,
+            orderId: orderId.trim(),
+            purchaseDate: purchaseDate.trim(),
+          });
+          setSubmitError(false);
+          haptics.success();
+          setSubmittedOpen(true);
+        } catch {
+          setSubmitError(true);
+          haptics.error();
+        } finally {
+          setSubmitting(false);
+        }
+      })();
+      return;
+    }
+
     setSubmitError(false);
     haptics.success();
     setSubmittedOpen(true);
@@ -239,7 +289,14 @@ function MissingOrdersFormPanel() {
           <MissingOrdersUserIdField
             helper={accountSection.fields[0].helper}
             label={accountSection.fields[0].label}
-            userId={MISSING_ORDERS_USER_ID}
+            userId={
+              profileResource.data &&
+              typeof profileResource.data === "object" &&
+              "id" in profileResource.data &&
+              typeof profileResource.data.id === "string"
+                ? profileResource.data.id
+                : MISSING_ORDERS_USER_ID
+            }
           />
         </MissingOrdersFormSection>
         <MissingOrdersFormSection section={extraSection}>
@@ -287,7 +344,9 @@ function MissingOrdersFormPanel() {
           pressScale={0.98}
           style={[styles.submitButton, isDesktop ? styles.submitButtonDesktop : null]}
         >
-          <Text style={styles.submitButtonText}>{tc(webMissingOrdersPage.submitActionLabel)}</Text>
+          <Text style={styles.submitButtonText}>
+            {submitting ? tc("Loading…") : tc(webMissingOrdersPage.submitActionLabel)}
+          </Text>
         </MotionPressable>
       </View>
 
@@ -312,15 +371,16 @@ function MissingOrdersFormPanel() {
             ]}
           >
             <ScrollView style={styles.dropdownScroll}>
-              {MISSING_ORDERS_SHOPS.map((option) => {
-                const selected = shop === option;
+              {shopOptions.map((option) => {
+                const selected = shop === option.label;
                 return (
                   <Pressable
                     accessibilityRole="button"
                     accessibilityState={{ selected }}
-                    key={option}
+                    key={option.label}
                     onPress={() => {
-                      setShop(option);
+                      setShop(option.label);
+                      setSelectedOfferId(option.offerId);
                       setShopOpen(false);
                     }}
                     style={styles.dropdownOption}
@@ -331,7 +391,7 @@ function MissingOrdersFormPanel() {
                         selected ? styles.dropdownOptionTextSelected : null,
                       ]}
                     >
-                      {option}
+                      {option.label}
                     </Text>
                     {selected ? (
                       <CheckIcon

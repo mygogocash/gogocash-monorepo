@@ -135,8 +135,8 @@ describe("Category detail parity", () => {
     );
 
     expect(screenFile).toContain("webCategoryExploreHealthBeauty");
-    expect(screenFile).toContain("getCategoryExploreResults");
-    expect(screenFile).toContain("category: category");
+    expect(screenFile).toContain("resolveCategoryExploreStores");
+    expect(screenFile).toContain("useCustomerAccountResource");
     expect(screenFile).toContain("CustomerMobileBottomNav");
     expect(screenFile).toContain("category-result-card");
     expect(screenFile).not.toContain("Compare shops and cashback options");

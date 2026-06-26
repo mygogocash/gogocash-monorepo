@@ -9,6 +9,16 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Search as SearchIcon } from "@mobile/theme/icons";
+import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
+import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
+import { useDirectoryOfferSearch } from "@mobile/account/useDirectoryOfferSearch";
+import {
+  filterDirectoryStores,
+  getFixtureBrandDirectoryResults,
+  resolveCategoryList,
+  resolveLiveDirectoryStores,
+} from "@mobile/account/directoryCatalogResource";
+import type { OfferListResponse } from "@mobile/api/catalogTypes";
 import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
@@ -25,7 +35,6 @@ import { webSearchInputFocusReset } from "./directoryAssets";
 
 import {
   getBrandDirectoryGridMetrics,
-  getBrandDirectoryResults,
   getDesktopShellOffset,
   getResponsiveHomeLayoutMetrics,
   webBrandDirectory,
@@ -66,15 +75,65 @@ export function CustomerBrandDirectoryScreen() {
     contentWidth: gridContentWidth,
     viewportWidth: width,
   });
-  const brandResults = useMemo(
-    () =>
-      getBrandDirectoryResults({
+  const catalogResource = useCustomerAccountResource<OfferListResponse, OfferListResponse>({
+    fixtureData: { data: [], limit: 80, page: 1, total: 0, totalPages: 0 },
+    resourceId: "brandCatalog",
+  });
+  const categoryResource = useCustomerAccountResource({
+    fixtureData: webBrandDirectory.categories,
+    resourceId: "categoryList",
+  });
+  const directoryCategories = resolveCategoryList(
+    categoryResource.source,
+    categoryResource.data,
+    webBrandDirectory.categories
+  );
+  const liveStores = resolveLiveDirectoryStores(
+    catalogResource.source,
+    catalogResource.data,
+    webBrandDirectory.stores
+  );
+  const directorySearch = useDirectoryOfferSearch(
+    searchQuery,
+    catalogResource.source === "backend",
+  );
+  const brandResults = useMemo(() => {
+    if (catalogResource.source === "backend" && searchQuery.trim()) {
+      if (directorySearch.status !== "ready" || !directorySearch.stores) {
+        return [];
+      }
+
+      return filterDirectoryStores({
+        category: selectedCategory,
+        query: "",
+        sortBy,
+        stores: directorySearch.stores,
+      });
+    }
+
+    if (catalogResource.source === "backend") {
+      return filterDirectoryStores({
         category: selectedCategory,
         query: searchQuery,
         sortBy,
-      }),
-    [searchQuery, selectedCategory, sortBy]
-  );
+        stores: liveStores,
+      });
+    }
+
+    return getFixtureBrandDirectoryResults({
+      category: selectedCategory,
+      query: searchQuery,
+      sortBy,
+    });
+  }, [
+    catalogResource.source,
+    directorySearch.status,
+    directorySearch.stores,
+    liveStores,
+    searchQuery,
+    selectedCategory,
+    sortBy,
+  ]);
   const totalPages = Math.max(1, Math.ceil(brandResults.length / pageSize));
   const activePage = Math.min(currentPage, totalPages);
   const visibleBrands = brandResults.slice((activePage - 1) * pageSize, activePage * pageSize);
@@ -95,8 +154,10 @@ export function CustomerBrandDirectoryScreen() {
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     setCurrentPage(1);
+    catalogResource.retry();
+    categoryResource.retry();
     requestAnimationFrame(() => setRefreshing(false));
-  }, []);
+  }, [catalogResource, categoryResource]);
   const brandDirectoryRowHeight = getDirectoryStoreCardHeight(gridMetrics.cardWidth);
   const renderBrandDirectoryCard = useCallback(
     (store: BrandDirectoryStore) => (
@@ -163,6 +224,7 @@ export function CustomerBrandDirectoryScreen() {
       >
         <BrandDirectoryCategoryAside
           activeCategory={selectedCategory}
+          categories={directoryCategories}
           isDesktop={homeLayout.isDesktop}
           onSelectCategory={updateCategory}
           width={sidebarWidth}

@@ -150,7 +150,9 @@ describe("Brand directory parity", () => {
 
     expect(screenFile).toContain("CustomerBrandDirectoryScreen");
     expect(screenFile).toContain("webBrandDirectory");
-    expect(screenFile).toContain("getBrandDirectoryResults");
+    expect(screenFile).toContain("filterDirectoryStores");
+    expect(screenFile).toContain("useCustomerAccountResource");
+    expect(screenFile).toContain("resolveLiveDirectoryStores");
     expect(screenFile).toContain("getBrandDirectoryGridMetrics");
     expect(screenFile).toContain("BrandDirectoryStoreCard");
     expect(screenFile).toContain("brandDirectoryGrid");

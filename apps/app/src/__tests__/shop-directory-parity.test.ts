@@ -149,7 +149,8 @@ describe("Shops directory parity", () => {
 
     expect(screenFile).toContain("CustomerShopDirectoryScreen");
     expect(screenFile).toContain("webShopDirectory");
-    expect(screenFile).toContain("getShopDirectoryResults");
+    expect(screenFile).toContain("filterShopDirectoryStores");
+    expect(screenFile).toContain("useCustomerAccountResource");
     expect(screenFile).toContain("shopDirectoryPromo");
     expect(screenFile).toContain("shopDirectoryCategoryAside");
     expect(screenFile).toContain("shopDirectoryGrid");

@@ -9,6 +9,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Search as SearchIcon } from "@mobile/theme/icons";
+import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
+import { resolveCategoryDirectoryCards } from "@mobile/account/directoryCatalogResource";
 import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
@@ -26,8 +28,6 @@ import { webSearchInputFocusReset } from "./directoryAssets";
 import {
   getCategoryDirectoryCountLabel,
   getCategoryDirectoryGridMetrics,
-  getCategoryDirectoryMatches,
-  getCategoryDirectoryPage,
   getDesktopShellOffset,
   getResponsiveHomeLayoutMetrics,
   mobileShellLayout,
@@ -49,30 +49,48 @@ export function CustomerCategoryDirectoryScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [refreshing, setRefreshing] = useState(false);
-  const matchingCategories = useMemo(() => getCategoryDirectoryMatches(searchQuery), [searchQuery]);
-  const categoryPage = useMemo(
-    () => getCategoryDirectoryPage(searchQuery, currentPage),
-    [currentPage, searchQuery]
+  const categoryResource = useCustomerAccountResource({
+    fixtureData: webCategoryDirectory.cards,
+    resourceId: "categoryList",
+  });
+  const allCategoryCards = resolveCategoryDirectoryCards(
+    categoryResource.source,
+    categoryResource.data,
+    webCategoryDirectory.cards
   );
-  const categories = categoryPage.cards;
+  const matchingCategories = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    if (!normalizedQuery) {
+      return [...allCategoryCards];
+    }
+    return allCategoryCards.filter((category) =>
+      category.title.toLowerCase().includes(normalizedQuery)
+    );
+  }, [allCategoryCards, searchQuery]);
+  const pageSize = webCategoryDirectory.pagination.pageSize;
+  const totalPages = Math.max(1, Math.ceil(matchingCategories.length / pageSize));
+  const activePage = Math.min(currentPage, totalPages);
+  const categories = matchingCategories.slice((activePage - 1) * pageSize, activePage * pageSize);
+  const categoryPage = { cards: categories, page: activePage, totalPages };
   const gridMetrics = getCategoryDirectoryGridMetrics({
     contentWidth: homeLayout.contentWidth,
     viewportWidth: width,
   });
   const availableLabel = searchQuery.trim().length > 0
     ? getCategoryDirectoryCountLabel(matchingCategories.length)
-    : webCategoryDirectory.countLabel;
+    : categoryResource.source === "backend"
+      ? getCategoryDirectoryCountLabel(allCategoryCards.length)
+      : webCategoryDirectory.countLabel;
   const updateSearchQuery = (value: string) => {
     setSearchQuery(value);
     setCurrentPage(1);
   };
-  // Pull-to-refresh re-seeds the directory (synchronous parity data, no network refetch):
-  // reset to the first page and clear the spinner on the next frame.
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     setCurrentPage(1);
+    categoryResource.retry();
     requestAnimationFrame(() => setRefreshing(false));
-  }, []);
+  }, [categoryResource]);
 
   const categoryDirectoryContent = (
     <>

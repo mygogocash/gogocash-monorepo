@@ -5,7 +5,9 @@ type ShopDetailIdentity = {
   brand: string;
   cashback: string;
   category: string;
+  customTerms?: string;
   id: string;
+  policyCategoryId?: string;
   trackingUrl?: string;
 };
 
@@ -16,11 +18,14 @@ type ProductRate = {
 
 type LiveShopDetailFields = {
   bannerUri?: string;
+  customTerms?: string;
   disclaimer: string;
   extraCashback: string;
   logoText: string;
   logoUri?: string;
   note: string;
+  noteToUser?: string;
+  policyCategoryId?: string;
   productRates: ProductRate[];
 };
 
@@ -79,6 +84,7 @@ export function mapMerchantOfferToShopDetail<TShop extends ShopDetailIdentity>(
     brand,
     cashback,
     category: offer.categories?.trim() || fixtureShop.category,
+    customTerms: offer.custom_terms?.trim() || undefined,
     disclaimer:
       `${brand} cashback rates, tracking windows, exclusions, and availability can change. ` +
       "Final approval remains subject to the merchant and partner network.",
@@ -86,7 +92,11 @@ export function mapMerchantOfferToShopDetail<TShop extends ShopDetailIdentity>(
     id: offer._id,
     logoText: initialsFromBrand(brand),
     logoUri: firstImageUri(offer.logo_circle, offer.logo, offer.logo_desktop, offer.logo_mobile),
-    note: `${brand} cashback is tracked through GoGoCash after you open the merchant link and complete an eligible order.`,
+    note:
+      offer.note_to_user?.trim() ||
+      `${brand} cashback is tracked through GoGoCash after you open the merchant link and complete an eligible order.`,
+    noteToUser: offer.note_to_user?.trim() || undefined,
+    policyCategoryId: offer.policy_category_id?.trim() || undefined,
     productRates: [{ name: brand, rate: cashback }],
     trackingUrl: offer.tracking_link?.trim() || fixtureShop.trackingUrl,
   };

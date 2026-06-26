@@ -163,6 +163,21 @@ describe("GoGoCash mobile launch contract", () => {
     expect(JSON.stringify(easConfig.build.production.env)).not.toContain("staging");
   });
 
+  it("staging launch contract > given EAS development and preview profiles > then they use backend account data against staging API", () => {
+    const easConfig = JSON.parse(fs.readFileSync(path.join(mobileRoot, "eas.json"), "utf8")) as {
+      build: Record<string, { env?: Record<string, string> }>;
+    };
+
+    for (const profile of ["development", "preview"] as const) {
+      expect(easConfig.build[profile].env).toMatchObject({
+        EXPO_PUBLIC_ACCOUNT_DATA_SOURCE: "backend",
+        EXPO_PUBLIC_API_URL: "https://api-staging.gogocash.co",
+        EXPO_PUBLIC_APP_ENV: "staging",
+        EXPO_PUBLIC_FRONTEND_URL: "https://app-staging.gogocash.co",
+      });
+    }
+  });
+
   it("production env guard > given cleartext production URLs > then startup rejects the config", () => {
     expect(() =>
       validateMobileEnv({

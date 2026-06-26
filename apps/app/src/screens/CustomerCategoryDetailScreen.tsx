@@ -14,6 +14,9 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
+import { resolveCategoryExploreStores } from "@mobile/account/directoryCatalogResource";
+import type { OfferListResponse } from "@mobile/api/catalogTypes";
 import { BrandCard } from "@mobile/components/BrandCard";
 import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
@@ -22,7 +25,6 @@ import { MotionPressable } from "@mobile/components/MotionPressable";
 import { haptics } from "@mobile/lib/haptics";
 import { useCopy } from "@mobile/i18n/useCopy";
 import {
-  getCategoryExploreResults,
   getDesktopShellOffset,
   getResponsiveHomeLayoutMetrics,
   getScaledCompactBrandCardMetrics,
@@ -130,9 +132,20 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
   const category = safeDecodeCategoryName(categoryName);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<WebCategoryExploreSort>("highest_cashback");
+  const catalogResource = useCustomerAccountResource<OfferListResponse, OfferListResponse>({
+    fixtureData: { data: [], limit: 80, page: 1, total: 0, totalPages: 0 },
+    resourceId: "brandCatalog",
+  });
   const stores = useMemo(
-    () => getCategoryExploreResults({ category: category, query: searchQuery, sortBy }),
-    [category, searchQuery, sortBy]
+    () =>
+      resolveCategoryExploreStores({
+        category,
+        data: catalogResource.data,
+        query: searchQuery,
+        sortBy,
+        source: catalogResource.source,
+      }),
+    [catalogResource.data, catalogResource.source, category, searchQuery, sortBy]
   );
   const gridMetrics = getCategoryGridMetrics({
     contentWidth: homeLayout.contentWidth,

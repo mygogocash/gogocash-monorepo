@@ -6,7 +6,7 @@ import {
   ShoppingCart as ShoppingCartIcon,
 } from "@mobile/theme/icons";
 import type { ReactNode } from "react";
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
@@ -17,6 +17,9 @@ import { isOfferListResponse } from "@mobile/api/catalogTypes";
 import type { OfferListResponse } from "@mobile/api/catalogTypes";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
+import { toggleFavoriteOffer } from "@mobile/account/offerActionsApi";
+import { fetchFavoriteOfferIds } from "@mobile/account/favoriteResource";
+import { getMobileEnv } from "@mobile/config/env";
 import { mobileShellLayout, webFavoriteBrandsPage } from "@mobile/design/webDesignParity";
 import {
   DirectoryVirtualizedGrid,
@@ -65,9 +68,25 @@ export function CustomerFavoriteBrandsScreen() {
   const tc = useCopy();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
+  const env = getMobileEnv();
   const [favoriteIds, setFavoriteIds] = useState<readonly string[]>(INITIAL_FAVORITE_IDS);
-  const toggleFavorite = (id: string) =>
+  useEffect(() => {
+    if (env.accountDataSource !== "backend" || !env.apiUrl) {
+      return;
+    }
+
+    void fetchFavoriteOfferIds({ apiUrl: env.apiUrl }).then((ids) => {
+      if (ids.length > 0) {
+        setFavoriteIds(ids);
+      }
+    });
+  }, [env.accountDataSource, env.apiUrl]);
+  const toggleFavorite = (id: string) => {
     setFavoriteIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    if (env.accountDataSource === "backend") {
+      void toggleFavoriteOffer(env.apiUrl, id).catch(() => undefined);
+    }
+  };
 
   // Fixtures mode (default) renders the parity rows synchronously; backend mode
   // pulls the live public catalog (GET /offer) and maps it into the same row shape —

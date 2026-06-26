@@ -1,5 +1,5 @@
 import { Link } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import { Image, StyleSheet, Text, View } from "react-native";
 import { webHomeSearchPopularPanel } from "@mobile/design/webDesignParity";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
@@ -8,19 +8,25 @@ import { brandHref } from "./homeHelpers";
 import { useHomeScreenStyles } from "./homeScreenHooks";
 import { type HomeSearchPanelItem } from "./homeTypes";
 
+type SearchResultItem = HomeSearchPanelItem & {
+  href?: string;
+  logoUri?: string;
+};
+
 export function HomeSearchResultRow({
   item,
   variant,
 }: {
-  item: HomeSearchPanelItem;
+  item: SearchResultItem;
   variant: "compact" | "large";
 }) {
   const styles = useHomeScreenStyles();
   const tc = useCopy();
   const compact = variant === "compact";
+  const href = item.href ?? brandHref(item.brand);
 
   return (
-    <Link asChild href={brandHref(item.brand) as never}>
+    <Link asChild href={href as never}>
       <MotionPressable
         pressScale={motion.scale.subtlePress}
         style={StyleSheet.flatten([
@@ -35,15 +41,24 @@ export function HomeSearchResultRow({
             { backgroundColor: item.logoBackground },
           ]}
         >
-          <Text
-            style={[
-              styles.searchResultLogoText,
-              compact ? styles.searchResultLogoTextCompact : null,
-              { color: item.logoTextColor },
-            ]}
-          >
-            {item.logoText}
-          </Text>
+          {item.logoUri ? (
+            <Image
+              alt={`${item.brand} logo`}
+              resizeMode="contain"
+              source={{ uri: item.logoUri }}
+              style={{ height: "70%", width: "70%" }}
+            />
+          ) : (
+            <Text
+              style={[
+                styles.searchResultLogoText,
+                compact ? styles.searchResultLogoTextCompact : null,
+                { color: item.logoTextColor },
+              ]}
+            >
+              {item.logoText}
+            </Text>
+          )}
         </View>
         <View style={styles.searchResultCopy}>
           <Text

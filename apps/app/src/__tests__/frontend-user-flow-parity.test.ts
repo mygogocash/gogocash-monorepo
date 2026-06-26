@@ -54,7 +54,7 @@ const frontendFlowContracts: FrontendFlowContract[] = [
   },
   {
     appFile: "app/category/index.tsx",
-    landmarks: ["CustomerCategoryDirectoryScreen", "webCategoryDirectory", "getCategoryDirectoryMatches"],
+    landmarks: ["CustomerCategoryDirectoryScreen", "webCategoryDirectory", "resolveCategoryDirectoryCards"],
     routeId: "category",
     routeMarkers: ["CustomerDiscoveryScreen", 'routeId="category"'],
     screenFiles: ["src/screens/CustomerDiscoveryScreen.tsx"],
@@ -66,7 +66,7 @@ const frontendFlowContracts: FrontendFlowContract[] = [
     landmarks: [
       "Explore your Favorite",
       "webCategoryExploreHealthBeauty",
-      "getCategoryExploreResults",
+      "resolveCategoryExploreStores",
     ],
     routeId: "categoryDetail",
     routeMarkers: ["useLocalSearchParams", "CustomerCategoryDetailScreen", "categoryName"],
@@ -76,7 +76,7 @@ const frontendFlowContracts: FrontendFlowContract[] = [
   },
   {
     appFile: "app/(tabs)/shops.tsx",
-    landmarks: ["CustomerShopDirectoryScreen", "webShopDirectory", "getShopDirectoryResults"],
+    landmarks: ["CustomerShopDirectoryScreen", "webShopDirectory", "filterShopDirectoryStores"],
     routeId: "shops",
     routeMarkers: ["CustomerDiscoveryScreen", 'routeId="shops"'],
     screenFiles: ["src/screens/CustomerDiscoveryScreen.tsx"],
