@@ -106,7 +106,7 @@ const CREATE_BRAND_INITIAL_SNAPSHOT = {
   countries: "Thailand",
   currency: "THB",
   lookupValue: "",
-  syncLookupFromBrandCountry: false,
+  syncLookupFromBrandCountry: true,
   description: "",
   disabledOffer: false,
   topBrands: false,
@@ -154,7 +154,7 @@ export default function CreateBrandForm() {
   const [currency, setCurrency] = useState("THB");
   const [lookupValue, setLookupValue] = useState("");
   const [syncLookupFromBrandCountry, setSyncLookupFromBrandCountry] =
-    useState(false);
+    useState(true);
   const [description, setDescription] = useState("");
   const [disabledOffer, setDisabledOffer] = useState(false);
   const [topBrands, setTopBrands] = useState(false);
@@ -189,7 +189,7 @@ export default function CreateBrandForm() {
     setTrackingLink("");
     setAppDeeplink("");
     setLookupValue("");
-    setSyncLookupFromBrandCountry(false);
+    setSyncLookupFromBrandCountry(true);
     setCommissionEntryMode("manual");
     setCommissionPercentInput("");
     setMaxCapInput("");
@@ -494,7 +494,10 @@ export default function CreateBrandForm() {
       </p>
       <form onSubmit={handleSubmit} className="mt-6 max-w-4xl space-y-4">
         <FormSectionJumpNav
-          links={[...CREATE_BRAND_JUMP_LINKS]}
+          links={CREATE_BRAND_JUMP_LINKS.filter(
+            (link) =>
+              link.id !== "create-brand-section-product" || !allProductTypes,
+          )}
           ariaLabel="Jump to create brand sections"
           className="border-b border-gray-200/90 pb-3 dark:border-gray-700/90"
         />
@@ -597,45 +600,23 @@ export default function CreateBrandForm() {
             </p>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label
-                htmlFor="create-brand-country"
-                className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                Country
-              </label>
-              <select
-                id="create-brand-country"
-                value={countries}
-                onChange={(e) => setCountries(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-              >
-                {COUNTRY_OPTIONS.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label
-                htmlFor="create-brand-currency"
-                className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                Currency
-              </label>
-              <input
-                id="create-brand-currency"
-                type="text"
-                value={currency}
-                onChange={(e) =>
-                  setCurrency(e.target.value.toUpperCase().slice(0, 8))
-                }
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-                placeholder="THB"
-              />
-            </div>
+          <div className="sm:max-w-xs">
+            <label
+              htmlFor="create-brand-currency"
+              className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
+            >
+              Currency
+            </label>
+            <input
+              id="create-brand-currency"
+              type="text"
+              value={currency}
+              onChange={(e) =>
+                setCurrency(e.target.value.toUpperCase().slice(0, 8))
+              }
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+              placeholder="THB"
+            />
           </div>
 
           {/* Brand visibility — controls whether this brand is shown to customers in other countries. */}
@@ -664,6 +645,28 @@ export default function CreateBrandForm() {
                   </span>
                 </span>
               </label>
+              {!isGlobal && (
+                <div className="mt-2 ml-7">
+                  <label
+                    htmlFor="create-brand-country"
+                    className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    Country (which country this brand applies to)
+                  </label>
+                  <select
+                    id="create-brand-country"
+                    value={countries}
+                    onChange={(e) => setCountries(e.target.value)}
+                    className="w-full max-w-sm rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                  >
+                    {COUNTRY_OPTIONS.map((c) => (
+                      <option key={c.value} value={c.value}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <label className="flex cursor-pointer items-start gap-3 rounded-md p-2 hover:bg-gray-100/50 dark:hover:bg-gray-800/40">
                 <input
                   type="radio"
@@ -796,13 +799,13 @@ export default function CreateBrandForm() {
           <div className="flex flex-col gap-5 sm:flex-row sm:flex-wrap sm:items-start sm:gap-6">
             <div className="min-w-0 sm:max-w-md">
               <Switch
-                key="create-brand-disabled"
-                label="Disabled offer"
-                defaultChecked={disabledOffer}
-                onChange={setDisabledOffer}
+                key="create-brand-active"
+                label="Active offer"
+                defaultChecked={!disabledOffer}
+                onChange={(checked) => setDisabledOffer(!checked)}
               />
               <p className="mt-0.5 ml-6 text-xs text-gray-500 dark:text-gray-400">
-                Hide this offer from users.
+                Show this offer to users. Turn off to hide it.
               </p>
             </div>
             <div className="min-w-0 sm:max-w-md">
@@ -846,7 +849,7 @@ export default function CreateBrandForm() {
                 onClick={() => setCommissionEntryMode("auto")}
                 className="touch-manipulation"
               >
-                From partner (-30%)
+                Auto applying with 30% fee
               </Button>
             </div>
             <Input
@@ -877,7 +880,9 @@ export default function CreateBrandForm() {
 
         <section
           id="create-brand-section-product"
-          className={`space-y-4 ${SCROLL_CLASS}`}
+          className={`space-y-4 ${SCROLL_CLASS}${
+            allProductTypes ? "hidden" : ""
+          }`}
         >
           <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             <h2 className="text-sm font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
@@ -961,7 +966,7 @@ export default function CreateBrandForm() {
                         htmlFor={`${baseId}-commission`}
                         className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
                       >
-                        Commission info (-30% from affiliate partner)
+                        Manually commission input
                       </label>
                       <TextArea
                         id={`${baseId}-commission`}
