@@ -266,6 +266,25 @@ describe('OfferService', () => {
       expect(result).toEqual({ _id: 'created-offer' });
     });
 
+    it('createAdminOffer > given a failing Drive upload > then surfaces a clear asset-specific error', async () => {
+      googleDriveService.uploadFile.mockRejectedValueOnce(
+        new Error('drive quota exceeded'),
+      );
+      await expect(
+        service.createAdminOffer(
+          {
+            brand_name: 'Logo Brand',
+            affiliate_tracking_link: 'https://track.example/x',
+          },
+          { logo_desktop: [{} as any] },
+        ),
+      ).rejects.toMatchObject({
+        status: 500,
+        message: expect.stringContaining('Failed to upload logo (desktop)'),
+      });
+      expect(offerModel.create).not.toHaveBeenCalled();
+    });
+
     it('createAdminOffer > given no tracking link > then it rejects without creating an offer', async () => {
       await expect(
         service.createAdminOffer({ brand_name: 'Missing Link' }),
