@@ -600,45 +600,23 @@ export default function CreateBrandForm() {
             </p>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label
-                htmlFor="create-brand-country"
-                className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                Country
-              </label>
-              <select
-                id="create-brand-country"
-                value={countries}
-                onChange={(e) => setCountries(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-              >
-                {COUNTRY_OPTIONS.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label
-                htmlFor="create-brand-currency"
-                className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                Currency
-              </label>
-              <input
-                id="create-brand-currency"
-                type="text"
-                value={currency}
-                onChange={(e) =>
-                  setCurrency(e.target.value.toUpperCase().slice(0, 8))
-                }
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-                placeholder="THB"
-              />
-            </div>
+          <div className="sm:max-w-xs">
+            <label
+              htmlFor="create-brand-currency"
+              className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
+            >
+              Currency
+            </label>
+            <input
+              id="create-brand-currency"
+              type="text"
+              value={currency}
+              onChange={(e) =>
+                setCurrency(e.target.value.toUpperCase().slice(0, 8))
+              }
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+              placeholder="THB"
+            />
           </div>
 
           {/* Brand visibility — controls whether this brand is shown to customers in other countries. */}
@@ -667,6 +645,28 @@ export default function CreateBrandForm() {
                   </span>
                 </span>
               </label>
+              {!isGlobal && (
+                <div className="mt-2 ml-7">
+                  <label
+                    htmlFor="create-brand-country"
+                    className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    Country (which country this brand applies to)
+                  </label>
+                  <select
+                    id="create-brand-country"
+                    value={countries}
+                    onChange={(e) => setCountries(e.target.value)}
+                    className="w-full max-w-sm rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                  >
+                    {COUNTRY_OPTIONS.map((c) => (
+                      <option key={c.value} value={c.value}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <label className="flex cursor-pointer items-start gap-3 rounded-md p-2 hover:bg-gray-100/50 dark:hover:bg-gray-800/40">
                 <input
                   type="radio"
