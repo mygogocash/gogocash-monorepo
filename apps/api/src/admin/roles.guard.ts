@@ -39,7 +39,11 @@ export class RolesGuard implements CanActivate {
     // `@Roles('approver')` means "approver or higher".
     const ok = required.some((r) => roleHasAccess(user?.role, r));
     if (!ok) {
-      throw new ForbiddenException('Insufficient admin role');
+      throw new ForbiddenException(
+        `Insufficient admin role: this action requires ${required.join(
+          ' or ',
+        )}${user?.role ? ` (your role: ${user.role})` : ''}.`,
+      );
     }
     return true;
   }
