@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  InternalServerErrorException,
   Logger,
   OnApplicationBootstrap,
 } from '@nestjs/common';
@@ -277,15 +278,27 @@ export class OfferService implements OnApplicationBootstrap {
     }
 
     const folderId = '1CliPCEtpvH8e8--EflAZ6NdCMuBSddpR';
-    const upload = async (file?: Express.Multer.File) =>
-      file ? (await this.googleDriveService.uploadFile(file, folderId)).id : '';
+    // Surface a clear, asset-specific reason when a Drive upload fails instead of
+    // letting an opaque 500 bubble up — combined with the admin client now reading
+    // the error message, the toast shows e.g. "Failed to upload logo (desktop): ...".
+    const upload = async (label: string, file?: Express.Multer.File) => {
+      if (!file) return '';
+      try {
+        return (await this.googleDriveService.uploadFile(file, folderId)).id;
+      } catch (err) {
+        const reason = err instanceof Error ? err.message : String(err);
+        throw new InternalServerErrorException(
+          `Failed to upload ${label}: ${reason}`,
+        );
+      }
+    };
     const [logoDesktop, logoMobile, banner, bannerMobile, logoCircle] =
       await Promise.all([
-        upload(files.logo_desktop?.[0]),
-        upload(files.logo_mobile?.[0]),
-        upload(files.banner?.[0]),
-        upload(files.banner_mobile?.[0]),
-        upload(files.logo_circle?.[0]),
+        upload('logo (desktop)', files.logo_desktop?.[0]),
+        upload('logo (mobile)', files.logo_mobile?.[0]),
+        upload('banner', files.banner?.[0]),
+        upload('banner (mobile)', files.banner_mobile?.[0]),
+        upload('logo (circle)', files.logo_circle?.[0]),
       ]);
 
     const now = new Date();
