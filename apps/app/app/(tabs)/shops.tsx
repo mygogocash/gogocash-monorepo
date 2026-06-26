@@ -1,6 +1,5 @@
-import { CustomerCatalogHomeScreen } from "@mobile/screens/CustomerCatalogScreens";
+import { CustomerDiscoveryScreen } from "@mobile/screens/CustomerDiscoveryScreen";
 
 export default function ShopsRoute() {
-  // CustomerDiscoveryScreen route-contract marker retained for legacy parity gates: routeId="shops".
-  return <CustomerCatalogHomeScreen />;
+  return <CustomerDiscoveryScreen routeId="shops" />;
 }
