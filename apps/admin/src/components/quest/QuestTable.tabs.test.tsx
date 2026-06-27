@@ -73,6 +73,40 @@ vi.mock("@/components/form/date-picker", () => ({
   ),
 }));
 
+vi.mock("./QuestTaskBrandSelect", () => ({
+  QuestTaskBrandSelect: ({
+    id,
+    disabled,
+    onSelect,
+    selectedOffer,
+    valueOfferId,
+  }: {
+    id: string;
+    disabled?: boolean;
+    onSelect: (offer: Offer) => void;
+    selectedOffer: Offer | null | undefined;
+    valueOfferId: string;
+  }) => (
+    <select
+      id={id}
+      aria-label="Brand"
+      disabled={disabled}
+      value={valueOfferId}
+      onChange={(event) => {
+        if (selectedOffer && event.currentTarget.value === selectedOffer._id) {
+          onSelect(selectedOffer);
+        }
+      }}
+    >
+      {selectedOffer ? (
+        <option value={selectedOffer._id}>
+          {selectedOffer.offer_name_display || selectedOffer.offer_name}
+        </option>
+      ) : null}
+    </select>
+  ),
+}));
+
 vi.mock("@/lib/query/questQueries", () => ({
   fetchAdminQuests: questQueries.fetchAdminQuests,
   fetchQuestLeaderboard: questQueries.fetchQuestLeaderboard,

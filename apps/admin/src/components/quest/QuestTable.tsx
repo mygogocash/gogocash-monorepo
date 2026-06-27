@@ -24,6 +24,7 @@ import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import { appLinks } from "@/lib/appLinks";
 import { formatDate } from "@/lib/dateFormat";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
+import { isActiveGoGoCashOffer } from "@/lib/isActiveGoGoCashOffer";
 import {
   QUEST_STATUS_VALUES,
   questStatusBadgeColor,
@@ -67,6 +68,7 @@ import {
   type TaskDraft,
   validateQuestTasks,
 } from "./questTaskEditor";
+import { QuestTaskBrandSelect } from "./QuestTaskBrandSelect";
 
 type CampaignDraft = {
   startDate: string;
@@ -407,6 +409,7 @@ export default function QuestTable() {
     useState<RewardDistributionDraft>(makeRewardDistributionDraft(null));
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [offerLookup, setOfferLookup] = useState<Record<string, Offer>>({});
   const [activeDetailTab, setActiveDetailTab] =
     useState<QuestDetailTab>("tasks");
 
@@ -432,10 +435,26 @@ export default function QuestTable() {
     staleTime: 30_000,
   });
   const offers = offersQuery.data?.data ?? EMPTY_OFFERS;
-  const offersById = useMemo(
-    () => new Map(offers.map((offer) => [offer._id, offer])),
+  const activeOffers = useMemo(
+    () => offers.filter(isActiveGoGoCashOffer),
     [offers],
   );
+  const offersById = useMemo(() => {
+    const map = new Map<string, Offer>();
+    for (const offer of offers) {
+      map.set(offer._id, offer);
+    }
+    for (const offer of Object.values(offerLookup)) {
+      map.set(offer._id, offer);
+    }
+    for (const task of selectedQuest?.tasks ?? []) {
+      const embedded = getTaskOffer(task);
+      if (embedded) {
+        map.set(embedded._id, embedded);
+      }
+    }
+    return map;
+  }, [offerLookup, offers, selectedQuest]);
 
   const deeplinkSummaryQuery = useQuery({
     queryKey: questTaskDeeplinkSummaryQueryKey(selectedQuest?._id ?? ""),
@@ -590,7 +609,7 @@ export default function QuestTable() {
 
   const addTask = () => {
     const used = new Set(taskDrafts.map((task) => task.offer));
-    const offer = offers.find((item) => !used.has(item._id));
+    const offer = activeOffers.find((item) => !used.has(item._id));
     if (!offer) return;
     setTaskDrafts((current) => [
       ...current,
@@ -608,9 +627,8 @@ export default function QuestTable() {
     ]);
   };
 
-  const updateTaskOffer = (index: number, offerId: string) => {
-    const offer = offersById.get(offerId);
-    if (!offer) return;
+  const updateTaskOffer = (index: number, offer: Offer) => {
+    setOfferLookup((current) => ({ ...current, [offer._id]: offer }));
     setTaskDrafts((current) =>
       current.map((task, i) => {
         if (i !== index) return task;
@@ -1056,7 +1074,7 @@ export default function QuestTable() {
                     type="button"
                     size="sm"
                     variant="outline"
-                    disabled={!canEditTasks || offers.length === 0}
+                    disabled={!canEditTasks || activeOffers.length === 0}
                     onClick={addTask}
                   >
                     Add brand
@@ -1113,22 +1131,15 @@ export default function QuestTable() {
                             >
                               Brand
                             </label>
-                            <select
+                            <QuestTaskBrandSelect
                               id={brandFieldId}
-                              name={brandFieldId}
-                              value={task.offer}
                               disabled={!canEditTasks}
-                              onChange={(e) =>
-                                updateTaskOffer(index, e.target.value)
+                              valueOfferId={task.offer}
+                              selectedOffer={offer}
+                              onSelect={(nextOffer) =>
+                                updateTaskOffer(index, nextOffer)
                               }
-                              className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-800 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                            >
-                              {offers.map((item) => (
-                                <option key={item._id} value={item._id}>
-                                  {offerLabel(item)}
-                                </option>
-                              ))}
-                            </select>
+                            />
                             <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
                               <span>Offer {task.offer_id}</span>
                               <span>Brand {task.merchant_id}</span>
