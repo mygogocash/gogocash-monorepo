@@ -1,12 +1,13 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "expo-router";
 import {
-  ChevronDown as ChevronDownIcon,
   ChevronUp as ChevronUpIcon,
   Search as SearchIcon,
 } from "@mobile/theme/icons";
-import { ScrollView, Text, TextInput, useWindowDimensions, View } from "react-native";
+import { Animated, ScrollView, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import { useReducedMotion } from "@mobile/hooks/useReducedMotion";
 
 import {
   CustomerGoLinkScreen,
@@ -31,6 +32,7 @@ import {
   webHomeSectionOrder,
 } from "@mobile/design/webDesignParity";
 import { useCopy } from "@mobile/i18n/useCopy";
+import { normalizeSearchQuery } from "@mobile/search/searchHistoryCore";
 import { getThemeSurfaces } from "@mobile/theme/themeSurfaces";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
@@ -59,6 +61,8 @@ export function CustomerHomeScreen() {
   const mobileTabletGreetingName =
     typeof session?.username === "string" ? session.username.trim() || undefined : undefined;
   const [mobileTabletGoLinkCovered, setMobileTabletGoLinkCovered] = useState(false);
+  const reducedMotion = useReducedMotion();
+  const goLinkToggleProgress = useRef(new Animated.Value(0)).current;
   const tc = useCopy();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -82,6 +86,14 @@ export function CustomerHomeScreen() {
   );
   const searchTopPadding = Math.max(8, insets.top + 8);
   const searchPopoverTop = searchTopPadding + 62;
+  const openMobileSearch = useCallback(() => {
+    const normalizedQuery = normalizeSearchQuery(searchQuery);
+    router.push(
+      normalizedQuery
+        ? ({ pathname: "/search", params: { q: normalizedQuery } } as never)
+        : ("/search" as never)
+    );
+  }, [router, searchQuery]);
   const openSearchPopover = useCallback(() => {
     setSearchPopoverMounted(true);
     setSearchPopoverOpen(true);
@@ -96,6 +108,21 @@ export function CustomerHomeScreen() {
     setDesktopGoLinkResultHref("");
     router.push(homeGoLinkShopNowRoute as never);
   }, [router]);
+
+  useEffect(() => {
+    goLinkToggleProgress.stopAnimation();
+    Animated.timing(goLinkToggleProgress, {
+      duration: reducedMotion ? 0 : motion.duration.accordionChevron,
+      easing: motion.easing.standard,
+      toValue: mobileTabletGoLinkCovered ? 1 : 0,
+      useNativeDriver: motion.useNativeDriver,
+    }).start();
+  }, [goLinkToggleProgress, mobileTabletGoLinkCovered, reducedMotion]);
+
+  const goLinkToggleChevronRotate = goLinkToggleProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "180deg"],
+  });
 
   const homeSections = (
     <>
@@ -207,7 +234,7 @@ export function CustomerHomeScreen() {
               isGoLinkCovered={mobileTabletGoLinkCovered}
               onGoLinkResultHref={setDesktopGoLinkResultHref}
               onOpenGoLinkGuideline={() => setDesktopGoLinkGuidelineOpen(true)}
-              onOpenSearchPopover={openSearchPopover}
+              onOpenSearchPopover={openMobileSearch}
             />
             <View
               style={[
@@ -221,9 +248,9 @@ export function CustomerHomeScreen() {
               ]}
             >
               <MotionPressable
-                onPress={openSearchPopover}
+                onPress={openMobileSearch}
                 pressScale={motion.scale.subtlePress}
-                style={[styles.searchPill, searchPopoverOpen ? styles.searchPillActive : null]}
+                style={styles.searchPill}
               >
                 <SearchIcon color={colors.primaryDark} size={20} strokeWidth={homeIconStrokeWidth} />
                 <TextInput
@@ -231,8 +258,8 @@ export function CustomerHomeScreen() {
                   nativeID="home-search-input-hidden"
                   onBlur={() => undefined}
                   onChangeText={setSearchQuery}
-                  onFocus={openSearchPopover}
-                  onPressIn={openSearchPopover}
+                  onFocus={openMobileSearch}
+                  onPressIn={openMobileSearch}
                   placeholder={tc(webHomeSearchPlaceholder)}
                   placeholderTextColor={colors.muted}
                   style={[styles.searchInput, webSearchInputFocusReset]}
@@ -263,11 +290,9 @@ export function CustomerHomeScreen() {
                 pressScale={motion.scale.subtlePress}
                 style={styles.mobileTabletSheetToggleButton}
               >
-                {mobileTabletGoLinkCovered ? (
-                  <ChevronDownIcon color="#111827" size={18} strokeWidth={homeIconStrokeWidth} />
-                ) : (
-                  <ChevronUpIcon color="#111827" size={18} strokeWidth={homeIconStrokeWidth} />
-                )}
+                <Animated.View style={{ transform: [{ rotate: goLinkToggleChevronRotate }] }}>
+                  <ChevronUpIcon color={colors.ink} size={18} strokeWidth={homeIconStrokeWidth} />
+                </Animated.View>
               </MotionPressable>
               {homeSections}
             </View>
@@ -277,16 +302,6 @@ export function CustomerHomeScreen() {
             <CustomerMobileBottomNav
               bottomInset={insets.bottom}
               onGoLinkPress={() => setGoLinkSheetOpen(true)}
-            />
-          ) : null}
-          {searchPopoverMounted ? (
-            <HomeSearchPopularPopover
-              horizontalPadding={homeLayout.contentHorizontalPadding}
-              onClose={closeSearchPopover}
-              onExited={handleSearchPopoverExited}
-              query={searchQuery}
-              top={searchPopoverTop}
-              visible={searchPopoverOpen}
             />
           ) : null}
           {goLinkSheetOpen ? (

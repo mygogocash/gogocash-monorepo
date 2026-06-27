@@ -171,6 +171,11 @@ describe("Expo auth design parity", () => {
       "fontSize: 13",
       'fontWeight: "600"',
     ]);
+    expectStyleBlock(authFile, "modeLinkText", [
+      "color: colors.primaryDark",
+      "fontSize: typography.body",
+      "fontWeight: typography.bodyWeight",
+    ]);
   });
 
   it("auth mobile cosmetic parity > given the Next mobile form > then Expo uses vertical fields and a two-column social grid", () => {
@@ -188,7 +193,7 @@ describe("Expo auth design parity", () => {
     expect(authFile).toContain("styles.socialGridMobile");
     expect(authFile).toContain("styles.socialButtonMobile");
     expect(authFile).toContain("authSocialProviders.map");
-    expect(authFile).toContain("isDesktopShell ? dividerText : dividerText.toUpperCase()");
+    expect(authFile).toContain("usesMobileFormLayout ? dividerText.toUpperCase() : dividerText");
     expect(authFile).toContain("<CustomerCookieConsentBanner isDesktop={isDesktopShell} />");
     expectStyleBlock(authFile, "pageAuthMobile", ["paddingHorizontal: 24"]);
     expectStyleBlock(authFile, "cardInnerMobile", ["paddingHorizontal: 16", "paddingTop: 24"]);
@@ -206,5 +211,26 @@ describe("Expo auth design parity", () => {
       'justifyContent: "space-between"',
     ]);
     expectStyleBlock(authFile, "socialButtonMobile", ["height: 72", 'width: "48%"']);
+  });
+
+  it("auth tablet parity > given the 768-1023 band > then Expo uses the centered tablet frame and desktop social rows", () => {
+    const authFile = readMobileFile("src/screens/CustomerAuthScreen.tsx");
+
+    expect(authFile).toContain("getDeviceClass");
+    expect(authFile).toContain("getTabletContentFrame");
+    expect(authFile).toContain("styles.tabletFrame");
+    expect(authFile).toContain("styles.pageAuthTablet");
+    expect(authFile).toContain("styles.cardInnerTablet");
+    expect(authFile).toContain("styles.cardStackedTablet");
+    expect(authFile).toContain("usesDesktopSocialLayout");
+    expect(authFile).toContain("usesFullWidthPrimaryAction");
+    expectStyleBlock(authFile, "tabletFrame", [
+      "maxWidth: mobileShellLayout.tabletContentMaxWidth",
+      'alignSelf: "center"',
+    ]);
+    expectStyleBlock(authFile, "pageAuthTablet", [
+      "paddingHorizontal: mobileShellLayout.tabletContentHorizontalPadding",
+    ]);
+    expectStyleBlock(authFile, "cardInnerTablet", ["paddingHorizontal: 32", "paddingTop: 28"]);
   });
 });

@@ -1,12 +1,14 @@
 import { Text, View } from "react-native";
-import { ChevronDown as ChevronDownIcon, Search as SearchIcon } from "@mobile/theme/icons";
+import { Search as SearchIcon } from "@mobile/theme/icons";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
+import { pickThemed } from "@mobile/theme/colorPalettes";
+import { useTheme } from "@mobile/theme/ThemeProvider";
 import { motion } from "@mobile/theme/motion";
 import { BrowseShortcuts } from "./BrowseShortcuts";
-import { DesktopGoLinkBanner } from "./DesktopGoLinkBanner";
 import { homeIconStrokeWidth, mobileTabletHeaderGradient } from "./homeAssets";
 import { useHomeScreenStyles } from "./homeScreenHooks";
+import { MobileTabletGoLinkBannerCollapse } from "./MobileTabletGoLinkBannerCollapse";
 import { type MobileTabletHomeHeaderProps } from "./homeTypes";
 
 export function MobileTabletHomeHeader({
@@ -18,6 +20,7 @@ export function MobileTabletHomeHeader({
   onOpenSearchPopover,
 }: MobileTabletHomeHeaderProps) {
   const styles = useHomeScreenStyles();
+  const { colors } = useTheme();
   const tc = useCopy();
   const isTabletFrame = homeLayout.contentWidth === 768;
   const horizontalPadding = isTabletFrame ? homeLayout.contentHorizontalPadding : 16;
@@ -50,18 +53,20 @@ export function MobileTabletHomeHeader({
               !isTabletFrame ? styles.mobileHeaderIconButtonSmall : null,
             ]}
           >
-            <SearchIcon color="#303846" size={headerActionIconSize} strokeWidth={homeIconStrokeWidth} />
+            <SearchIcon
+              color={pickThemed(colors, "#303846", "rgba(255, 255, 255, 0.92)")}
+              size={headerActionIconSize}
+              strokeWidth={homeIconStrokeWidth}
+            />
           </MotionPressable>
         </View>
       </View>
 
-      {isGoLinkCovered ? null : (
-        <DesktopGoLinkBanner
-          onOpenGuideline={onOpenGoLinkGuideline}
-          onResultHref={onGoLinkResultHref}
-          variant="mobileTabletHeader"
-        />
-      )}
+      <MobileTabletGoLinkBannerCollapse
+        isCovered={isGoLinkCovered}
+        onOpenGuideline={onOpenGoLinkGuideline}
+        onResultHref={onGoLinkResultHref}
+      />
 
       <View style={styles.mobileTabletHeaderShortcutDock}>
         <BrowseShortcuts />

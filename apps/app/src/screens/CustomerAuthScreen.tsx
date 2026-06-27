@@ -35,6 +35,8 @@ import { getMobileEnv } from "@mobile/config/env";
 import type { ConfirmationResult } from "firebase/auth";
 import {
   getDesktopShellHorizontalPadding,
+  getDeviceClass,
+  getTabletContentFrame,
   mobileShellLayout,
   webAuthPage,
 } from "@mobile/design/webDesignParity";
@@ -205,8 +207,15 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
       document.removeEventListener("keydown", onKeyDown);
     };
   }, [countryMenuOpen]);
-  const isDesktopShell = width >= mobileShellLayout.desktopBreakpoint;
-  const isWideDesktop = width >= 1280;
+  const deviceClass = getDeviceClass(width);
+  const isMobileShell = deviceClass === "mobile";
+  const isTabletShell = deviceClass === "tablet";
+  const isDesktopShell = deviceClass === "desktop";
+  const isWideDesktop = isDesktopShell && width >= 1280;
+  const tabletFrame = isTabletShell ? getTabletContentFrame(width) : null;
+  const usesMobileFormLayout = isMobileShell;
+  const usesFullWidthPrimaryAction = isMobileShell || isTabletShell;
+  const usesDesktopSocialLayout = isTabletShell || isDesktopShell;
   // Match the auth content to the header's content box (row max width minus the same gutters) so
   // the hero/form never extend past the navbar's logo and actions.
   const desktopContentWidth =
@@ -386,7 +395,14 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
 
   return (
     <View style={styles.viewport}>
-      <View style={[styles.shell, isDesktopShell ? styles.desktopShell : styles.phoneFrame]}>
+      <View
+        style={[
+          styles.shell,
+          isDesktopShell ? styles.desktopShell : null,
+          isMobileShell ? styles.phoneFrame : null,
+          isTabletShell ? styles.tabletFrame : null,
+        ]}
+      >
         {isDesktopShell ? <CustomerDesktopHeader viewportWidth={width} /> : null}
         {/* A4 — KeyboardAwareScreen wraps the phone/OTP form so the on-screen keyboard
             never covers the focused field (the #1 bug-hunt finding). It supplies the
@@ -396,7 +412,8 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
           contentContainerStyle={[
             styles.page,
             isDesktopShell ? styles.pageDesktop : styles.pageMobile,
-            !isDesktopShell ? styles.pageAuthMobile : null,
+            usesMobileFormLayout ? styles.pageAuthMobile : null,
+            isTabletShell ? styles.pageAuthTablet : null,
             {
               paddingTop: isDesktopShell ? 80 : Math.max(64, insets.top + 40),
             },
@@ -407,6 +424,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
               styles.authLayout,
               isWideDesktop ? styles.authLayoutDesktop : null,
               isDesktopShell ? { maxWidth: desktopContentWidth } : null,
+              isTabletShell && tabletFrame ? { maxWidth: tabletFrame.maxWidth } : null,
             ]}
           >
             {isWideDesktop ? (
@@ -424,23 +442,47 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
 
             <View
               accessibilityLabel={`${title} form`}
-              style={[styles.card, isWideDesktop ? styles.cardDesktop : styles.cardStacked]}
+              style={[
+                styles.card,
+                isWideDesktop ? styles.cardDesktop : null,
+                !isWideDesktop ? styles.cardStacked : null,
+                isTabletShell ? styles.cardStackedTablet : null,
+              ]}
               testID="auth-card"
             >
-              <View style={[styles.cardInner, !isDesktopShell ? styles.cardInnerMobile : null]}>
-                <View style={[styles.brandBlock, !isDesktopShell ? styles.brandBlockMobile : null]}>
+              <View
+                style={[
+                  styles.cardInner,
+                  usesMobileFormLayout ? styles.cardInnerMobile : null,
+                  isTabletShell ? styles.cardInnerTablet : null,
+                ]}
+              >
+                <View
+                  style={[
+                    styles.brandBlock,
+                    usesMobileFormLayout ? styles.brandBlockMobile : null,
+                  ]}
+                >
                   <Image
                     alt="GoGoCash logo"
                     accessibilityLabel="GoGoCash logo"
                     source={logoMarkImage}
-                    style={[styles.formLogo, !isDesktopShell ? styles.formLogoMobile : null]}
+                    style={[
+                      styles.formLogo,
+                      usesMobileFormLayout ? styles.formLogoMobile : null,
+                    ]}
                   />
                   <Text style={styles.formTitle}>{title}</Text>
                   <Text style={styles.formSubtitle}>{tc(webAuthPage.subtitle)}</Text>
                 </View>
 
                 {authPhase === "phone" ? (
-                  <View style={[styles.formStack, !isDesktopShell ? styles.formStackMobile : null]}>
+                  <View
+                    style={[
+                      styles.formStack,
+                      usesMobileFormLayout ? styles.formStackMobile : null,
+                    ]}
+                  >
                     {countryMenuOpen && Platform.OS !== "web" ? (
                       <Pressable
                         accessibilityLabel="Close country menu"
@@ -450,14 +492,17 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                       />
                     ) : null}
                     <View
-                      style={[styles.countryRow, !isDesktopShell ? styles.countryRowMobile : null]}
+                      style={[
+                        styles.countryRow,
+                        usesMobileFormLayout ? styles.countryRowMobile : null,
+                      ]}
                     >
                       <Text style={styles.fieldLabel}>{tc(webAuthPage.selectCountryLabel)}</Text>
                       <View
                         ref={countryWrapRef}
                         style={[
                           styles.countrySelectWrap,
-                          !isDesktopShell ? styles.countrySelectWrapMobile : null,
+                          usesMobileFormLayout ? styles.countrySelectWrapMobile : null,
                         ]}
                       >
                         <MotionPressable
@@ -469,7 +514,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                           pressScale={motion.scale.subtlePress}
                           style={[
                             styles.countrySelect,
-                            !isDesktopShell ? styles.countrySelectMobile : null,
+                            usesMobileFormLayout ? styles.countrySelectMobile : null,
                             countryMenuOpen ? styles.countrySelectOpen : null,
                           ]}
                         >
@@ -556,7 +601,10 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                       hoverLift={false}
                       onPress={() => setPrivacyAccepted((accepted) => !accepted)}
                       pressScale={motion.scale.subtlePress}
-                      style={[styles.privacyWrap, !isDesktopShell ? styles.privacyWrapMobile : null]}
+                      style={[
+                        styles.privacyWrap,
+                        usesMobileFormLayout ? styles.privacyWrapMobile : null,
+                      ]}
                     >
                       <View style={styles.checkboxHitArea}>
                         <View
@@ -589,7 +637,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                       pressScale={motion.scale.subtlePress}
                       style={[
                         styles.primaryAction,
-                        !isDesktopShell ? styles.primaryActionMobile : null,
+                        usesFullWidthPrimaryAction ? styles.primaryActionMobile : null,
                         !canSubmitPhone ? styles.primaryActionDisabled : null,
                       ]}
                     >
@@ -675,7 +723,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                       pressScale={motion.scale.subtlePress}
                       style={[
                         styles.primaryAction,
-                        !isDesktopShell ? styles.primaryActionMobile : null,
+                        usesFullWidthPrimaryAction ? styles.primaryActionMobile : null,
                       ]}
                     >
                       <Text style={styles.primaryActionText}>{tc(webAuthPage.otp.next)}</Text>
@@ -684,21 +732,24 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                 )}
 
                 <View
-                  style={[styles.socialBlock, !isDesktopShell ? styles.socialBlockMobile : null]}
+                  style={[
+                    styles.socialBlock,
+                    usesMobileFormLayout ? styles.socialBlockMobile : null,
+                  ]}
                 >
                   <View style={styles.dividerRow}>
                     <View style={styles.dividerLine} />
                     <Text
                       style={[
                         styles.dividerText,
-                        !isDesktopShell ? styles.dividerTextMobile : null,
+                        usesMobileFormLayout ? styles.dividerTextMobile : null,
                       ]}
                     >
-                      {isDesktopShell ? dividerText : dividerText.toUpperCase()}
+                      {usesMobileFormLayout ? dividerText.toUpperCase() : dividerText}
                     </Text>
                     <View style={styles.dividerLine} />
                   </View>
-                  {isDesktopShell ? (
+                  {usesDesktopSocialLayout ? (
                     <View style={styles.socialRows}>
                       <View style={styles.socialRow}>
                         {primarySocialProviders.map((provider) => (
@@ -984,6 +1035,11 @@ function createAuthScreenStyles(colors: ThemeColors) {
   phoneFrame: {
     maxWidth: mobileShellLayout.bottomNavMaxWidth,
   },
+  tabletFrame: {
+    alignSelf: "center",
+    maxWidth: mobileShellLayout.tabletContentMaxWidth,
+    width: "100%",
+  },
   page: {
     flexGrow: 1,
   },
@@ -997,6 +1053,9 @@ function createAuthScreenStyles(colors: ThemeColors) {
   },
   pageAuthMobile: {
     paddingHorizontal: 24,
+  },
+  pageAuthTablet: {
+    paddingHorizontal: mobileShellLayout.tabletContentHorizontalPadding,
   },
   authLayout: {
     alignItems: "center",
@@ -1047,6 +1106,10 @@ function createAuthScreenStyles(colors: ThemeColors) {
     maxWidth: webAuthPage.desktop.formCardWidth,
     width: "100%",
   },
+  cardStackedTablet: {
+    maxWidth: "100%",
+    width: "100%",
+  },
   cardInner: {
     alignItems: "center",
     flex: 1,
@@ -1057,6 +1120,10 @@ function createAuthScreenStyles(colors: ThemeColors) {
   cardInnerMobile: {
     paddingHorizontal: 16,
     paddingTop: 24,
+  },
+  cardInnerTablet: {
+    paddingHorizontal: 32,
+    paddingTop: 28,
   },
   brandBlock: {
     alignItems: "center",
@@ -1552,7 +1619,7 @@ function createAuthScreenStyles(colors: ThemeColors) {
     color: colors.primaryDark,
     fontFamily: typography.family,
     fontSize: typography.body,
-    fontWeight: "800",
+    fontWeight: typography.bodyWeight,
   },
 });
 }

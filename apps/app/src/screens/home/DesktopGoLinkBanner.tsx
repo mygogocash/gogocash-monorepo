@@ -151,35 +151,38 @@ export function DesktopGoLinkBanner({
             isMobileTabletHeader ? styles.mobileTabletGoLinkControls : null,
           ]}
         >
-          <View
-            style={[
-              styles.desktopGoLinkInputShell,
-              goLinkError ? styles.desktopGoLinkInputShellError : null,
-            ]}
-          >
-            <LinkIcon
-              color={pickThemed(colors, "rgba(0, 170, 128, 0.48)", colors.primaryDark)}
-              size={18}
-              strokeWidth={homeIconStrokeWidth}
-            />
-            <TextInput
-              accessibilityLabel={tc(webGoLinkFeature.inputLabel)}
-              autoCapitalize="none"
-              autoCorrect={false}
-              inputMode="url"
-              onChangeText={(nextValue) => {
-                setGoLinkInput(nextValue);
-                if (goLinkError) {
-                  setGoLinkError("");
-                }
-              }}
-              onSubmitEditing={handlePasteAndGo}
-              placeholder={tc(webGoLinkFeature.inputPlaceholder)}
-              placeholderTextColor={pickThemed(colors, "rgba(92, 114, 107, 0.55)", colors.muted)}
-              returnKeyType="go"
-              style={[styles.desktopGoLinkInput, webSearchInputFocusReset]}
-              value={goLinkInput}
-            />
+          <View style={styles.desktopGoLinkInputField}>
+            <View
+              style={[
+                styles.desktopGoLinkInputShell,
+                goLinkError ? styles.desktopGoLinkInputShellError : null,
+              ]}
+            >
+              <LinkIcon
+                color={pickThemed(colors, "rgba(0, 170, 128, 0.48)", colors.primaryDark)}
+                size={18}
+                strokeWidth={homeIconStrokeWidth}
+              />
+              <TextInput
+                accessibilityLabel={tc(webGoLinkFeature.inputLabel)}
+                autoCapitalize="none"
+                autoCorrect={false}
+                inputMode="url"
+                onChangeText={(nextValue) => {
+                  setGoLinkInput(nextValue);
+                  if (goLinkError) {
+                    setGoLinkError("");
+                  }
+                }}
+                onSubmitEditing={handlePasteAndGo}
+                placeholder={tc(webGoLinkFeature.inputPlaceholder)}
+                placeholderTextColor={pickThemed(colors, "rgba(92, 114, 107, 0.55)", colors.muted)}
+                returnKeyType="go"
+                style={[styles.desktopGoLinkInput, webSearchInputFocusReset]}
+                value={goLinkInput}
+              />
+            </View>
+            {goLinkError ? <Text style={styles.desktopGoLinkError}>{tc(goLinkError)}</Text> : null}
           </View>
           <MotionPressable
             accessibilityRole="button"
@@ -193,7 +196,6 @@ export function DesktopGoLinkBanner({
             <Text style={styles.desktopGoLinkActionText}>{tc(webGoLinkFeature.ctaLabel)}</Text>
           </MotionPressable>
         </View>
-        {goLinkError ? <Text style={styles.desktopGoLinkError}>{tc(goLinkError)}</Text> : null}
       </View>
     </View>
   );

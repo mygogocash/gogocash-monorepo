@@ -1,34 +1,22 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
-import { mapOffersToCatalogBrands } from "@mobile/api/catalogMapper";
-import { isOfferListResponse, type OfferListResponse } from "@mobile/api/catalogTypes";
+import { type OfferListResponse } from "@mobile/api/catalogTypes";
 import { buildOfferSearchPath } from "@mobile/account/searchResource";
+import { resolveOfferSearchResult } from "@mobile/account/resolveOfferSearchResult";
 import { getSharedMobileApiClient } from "@mobile/api/sharedClient";
 import { getMobileEnv } from "@mobile/config/env";
-import { getHomeSearchMatches } from "@mobile/design/webDesignParity";
 
 export type OfferSearchMatch = {
-  brand: string;
-  cashback: string;
-  href?: string;
-  logoBackground: string;
-  logoText: string;
-  logoTextColor: string;
+  readonly brand: string;
+  readonly cashback: string;
+  readonly href?: string;
+  readonly id?: string;
+  readonly logoBackground: string;
+  readonly logoText: string;
+  readonly logoTextColor: string;
+  readonly logoUri?: string;
 };
-
-function mapCatalogToSearchMatches(response: OfferListResponse) {
-  return mapOffersToCatalogBrands(response).map((brand) => ({
-    brand: brand.name,
-    cashback: brand.cashback,
-    href: brand.href,
-    id: brand.id,
-    logoBackground: brand.tint,
-    logoText: brand.name.slice(0, 2).toUpperCase(),
-    logoTextColor: "#EAF3FB",
-    logoUri: brand.logo,
-  }));
-}
 
 export function useOfferSearch(query: string) {
   const env = useMemo(() => getMobileEnv(), []);
@@ -48,23 +36,5 @@ export function useOfferSearch(query: string) {
     retry: false,
   });
 
-  if (!shouldSearch) {
-    return {
-      matches: getHomeSearchMatches(query),
-      status: "ready" as const,
-    };
-  }
-
-  if (searchQuery.isPending) {
-    return { matches: [] as OfferSearchMatch[], status: "loading" as const };
-  }
-
-  if (searchQuery.isError || !isOfferListResponse(searchQuery.data)) {
-    return { matches: getHomeSearchMatches(query), status: "ready" as const };
-  }
-
-  return {
-    matches: mapCatalogToSearchMatches(searchQuery.data),
-    status: "ready" as const,
-  };
+  return resolveOfferSearchResult(query, env.accountDataSource, searchQuery);
 }

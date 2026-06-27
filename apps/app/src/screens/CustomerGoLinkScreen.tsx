@@ -851,7 +851,9 @@ function createGoLinkScreenStyles(colors: ThemeColors) {
   input: {
     color: colors.ink,
     flex: 1,
+    fontFamily: typography.family,
     fontSize: typography.body,
+    fontWeight: typography.bodyWeight,
     minHeight: webGoLinkModalLayout.inputHeight - 2,
     // Web: suppress the orange OS-accent UA focus outline; focus is conveyed by the green border.
     outlineColor: "transparent",
@@ -863,7 +865,7 @@ function createGoLinkScreenStyles(colors: ThemeColors) {
   errorText: {
     color: "#B91C1C",
     fontSize: typography.caption,
-    fontWeight: "600",
+    fontWeight: typography.bodyWeight,
     marginTop: -spacing.sm,
   },
   primaryAction: {
