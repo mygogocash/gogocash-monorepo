@@ -5,6 +5,11 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import {
+  mongoCaseInsensitiveRegex,
+  requireObjectId,
+  requireOneOf,
+} from 'src/common/mongo-query';
 import { User } from 'src/user/schemas/user.schema';
 import { SubscriptionPlan } from './schemas/subscription-plan.schema';
 import { Subscription } from './schemas/subscription.schema';
@@ -73,12 +78,20 @@ export class SubscriptionsService {
   }
 
   async updatePlan(id: string, data: UpdateSubscriptionPlanDto) {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new NotFoundException(`Plan ${id} not found`);
-    }
+    const planId = requireObjectId(id, 'plan id');
+    const patch: Partial<UpdateSubscriptionPlanDto> = {};
+    if (data.name !== undefined) patch.name = data.name;
+    if (data.description !== undefined) patch.description = data.description;
+    if (data.price !== undefined) patch.price = data.price;
+    if (data.currency !== undefined) patch.currency = data.currency;
+    if (data.billing_cycle !== undefined)
+      patch.billing_cycle = data.billing_cycle;
+    if (data.features !== undefined) patch.features = data.features;
+    if (data.trial_days !== undefined) patch.trial_days = data.trial_days;
+    if (data.is_active !== undefined) patch.is_active = data.is_active;
 
     const plan = await this.subscriptionPlanModel
-      .findByIdAndUpdate(id, { $set: data }, { new: true })
+      .findByIdAndUpdate(planId, { $set: patch }, { new: true })
       .lean()
       .exec();
 
@@ -90,11 +103,11 @@ export class SubscriptionsService {
   }
 
   async deletePlan(id: string) {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new NotFoundException(`Plan ${id} not found`);
-    }
+    const planId = requireObjectId(id, 'plan id');
 
-    const plan = await this.subscriptionPlanModel.findByIdAndDelete(id).exec();
+    const plan = await this.subscriptionPlanModel
+      .findByIdAndDelete(planId)
+      .exec();
     if (!plan) {
       throw new NotFoundException(`Plan ${id} not found`);
     }
@@ -116,20 +129,22 @@ export class SubscriptionsService {
     const filter: Record<string, any> = {};
 
     if (query.status) {
-      filter.status = query.status;
+      filter.status = requireOneOf(
+        query.status,
+        ['active', 'paused', 'cancelled', 'expired'] as const,
+        'status',
+      );
     }
 
-    if (query.planId && Types.ObjectId.isValid(query.planId)) {
-      filter.plan_id = new Types.ObjectId(query.planId);
+    if (query.planId) {
+      filter.plan_id = requireObjectId(query.planId, 'plan id');
     }
 
     if (query.search) {
+      const searchRegex = mongoCaseInsensitiveRegex(query.search);
       const matchingUsers = await this.userModel
         .find({
-          $or: [
-            { email: { $regex: query.search, $options: 'i' } },
-            { username: { $regex: query.search, $options: 'i' } },
-          ],
+          $or: [{ email: searchRegex }, { username: searchRegex }],
         })
         .select('_id')
         .lean()
@@ -165,12 +180,10 @@ export class SubscriptionsService {
   }
 
   async getDetail(id: string) {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new NotFoundException(`Subscription ${id} not found`);
-    }
+    const subscriptionId = requireObjectId(id, 'subscription id');
 
     const subscription = await this.subscriptionModel
-      .findById(id)
+      .findById(subscriptionId)
       .populate('user_id', 'email username')
       .populate(
         'plan_id',
@@ -187,16 +200,21 @@ export class SubscriptionsService {
   }
 
   async performAction(id: string, action: string, days?: number) {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new NotFoundException(`Subscription ${id} not found`);
-    }
+    const subscriptionId = requireObjectId(id, 'subscription id');
+    const normalizedAction = requireOneOf(
+      action,
+      ['cancel', 'pause', 'resume', 'extend'] as const,
+      'action',
+    );
 
-    const subscription = await this.subscriptionModel.findById(id).exec();
+    const subscription = await this.subscriptionModel
+      .findById(subscriptionId)
+      .exec();
     if (!subscription) {
       throw new NotFoundException(`Subscription ${id} not found`);
     }
 
-    switch (action) {
+    switch (normalizedAction) {
       case 'cancel': {
         if (subscription.status === 'cancelled') {
           throw new BadRequestException('Subscription is already cancelled');
@@ -232,8 +250,10 @@ export class SubscriptionsService {
         subscription.current_period_end = currentEnd;
         break;
       }
-      default:
-        throw new BadRequestException(`Unknown action: ${action}`);
+      default: {
+        const _exhaustive: never = normalizedAction;
+        throw new BadRequestException(`Unknown action: ${_exhaustive}`);
+      }
     }
 
     await subscription.save();

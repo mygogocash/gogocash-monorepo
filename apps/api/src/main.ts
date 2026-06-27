@@ -16,10 +16,22 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     rawBody: true,
   });
-  // Security headers. CSP is disabled because the app serves Swagger UI
-  // (inline scripts/styles) and is API-only otherwise. Re-enable CSP only
-  // if/when this server starts serving HTML to end-user browsers.
-  app.use(helmet({ contentSecurityPolicy: false }));
+  // Security headers. CSP allows Swagger UI and the Telegram verify page inline
+  // scripts; JSON API responses are unaffected.
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        useDefaults: true,
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'"],
+          styleSrc: ["'self'", "'unsafe-inline'", 'https:'],
+          imgSrc: ["'self'", 'data:', 'https:'],
+          connectSrc: ["'self'"],
+        },
+      },
+    }),
+  );
   // Body size limits — defends against memory-exhaustion DoS via huge JSON.
   // File uploads use Multer (multipart) which is unaffected by these caps.
   app.use(json({ limit: '256kb' }));

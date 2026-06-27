@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Model } from 'mongoose';
+import { requireObjectId, requireOneOf } from 'src/common/mongo-query';
 import { MissingOrder } from './schemas/missing-order.schema';
 
 @Injectable()
@@ -55,7 +56,11 @@ export class MissingOrdersService {
 
     const filter: Record<string, any> = {};
     if (query.status) {
-      filter.status = query.status;
+      filter.status = requireOneOf(
+        query.status,
+        ['pending', 'investigating', 'approved', 'rejected'] as const,
+        'status',
+      );
     }
 
     const [data, total] = await Promise.all([
@@ -81,11 +86,9 @@ export class MissingOrdersService {
   }
 
   async findOne(id: string) {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new NotFoundException(`Missing order ${id} not found`);
-    }
+    const orderId = requireObjectId(id, 'missing order id');
 
-    const order = await this.missingOrderModel.findById(id).lean().exec();
+    const order = await this.missingOrderModel.findById(orderId).lean().exec();
     if (!order) {
       throw new NotFoundException(`Missing order ${id} not found`);
     }
@@ -94,9 +97,7 @@ export class MissingOrdersService {
   }
 
   async approve(id: string, note?: string) {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new NotFoundException(`Missing order ${id} not found`);
-    }
+    const orderId = requireObjectId(id, 'missing order id');
 
     const update: Record<string, any> = {
       status: 'approved',
@@ -107,7 +108,7 @@ export class MissingOrdersService {
     }
 
     const order = await this.missingOrderModel
-      .findByIdAndUpdate(id, update, { new: true })
+      .findByIdAndUpdate(orderId, { $set: update }, { new: true })
       .lean()
       .exec();
 
@@ -119,9 +120,7 @@ export class MissingOrdersService {
   }
 
   async reject(id: string, note?: string) {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new NotFoundException(`Missing order ${id} not found`);
-    }
+    const orderId = requireObjectId(id, 'missing order id');
 
     const update: Record<string, any> = {
       status: 'rejected',
@@ -132,7 +131,7 @@ export class MissingOrdersService {
     }
 
     const order = await this.missingOrderModel
-      .findByIdAndUpdate(id, update, { new: true })
+      .findByIdAndUpdate(orderId, { $set: update }, { new: true })
       .lean()
       .exec();
 
@@ -144,14 +143,17 @@ export class MissingOrdersService {
   }
 
   async assign(id: string, adminId: string) {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new NotFoundException(`Missing order ${id} not found`);
-    }
+    const orderId = requireObjectId(id, 'missing order id');
 
     const order = await this.missingOrderModel
       .findByIdAndUpdate(
-        id,
-        { assigned_to: adminId, status: 'investigating' },
+        orderId,
+        {
+          $set: {
+            assigned_to: adminId,
+            status: 'investigating',
+          },
+        },
         { new: true },
       )
       .lean()
@@ -165,13 +167,11 @@ export class MissingOrdersService {
   }
 
   async addNote(id: string, adminId: string, adminName: string, text: string) {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new NotFoundException(`Missing order ${id} not found`);
-    }
+    const orderId = requireObjectId(id, 'missing order id');
 
     const order = await this.missingOrderModel
       .findByIdAndUpdate(
-        id,
+        orderId,
         {
           $push: {
             notes: {

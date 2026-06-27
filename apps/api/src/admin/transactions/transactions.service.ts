@@ -4,6 +4,7 @@ import { Model, Types } from 'mongoose';
 import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 import { Withdraw } from 'src/withdraw/schemas/withdraw.schema';
 import { escapeRegexLiteral } from 'src/common/escape-regex';
+import { requireObjectId, requireOneOf } from 'src/common/mongo-query';
 
 export interface UnifiedTransaction {
   _id: string;
@@ -157,12 +158,18 @@ export class TransactionsService {
     if (!Types.ObjectId.isValid(id)) {
       throw new NotFoundException(`Transaction ${id} not found`);
     }
+    const objectId = requireObjectId(id);
+    const txType = requireOneOf(
+      type,
+      ['conversion', 'withdrawal'] as const,
+      'transaction type',
+    );
 
     const update = { flagged, flag_reason: reason };
 
-    if (type === 'conversion') {
+    if (txType === 'conversion') {
       const result = await this.conversionModel
-        .findByIdAndUpdate(id, update, { new: true })
+        .findByIdAndUpdate(objectId, update, { new: true })
         .lean()
         .exec();
       if (!result) {
@@ -171,9 +178,9 @@ export class TransactionsService {
       return this.mapConversion(result);
     }
 
-    if (type === 'withdrawal') {
+    if (txType === 'withdrawal') {
       const result = await this.withdrawModel
-        .findByIdAndUpdate(id, update, { new: true })
+        .findByIdAndUpdate(objectId, update, { new: true })
         .lean()
         .exec();
       if (!result) {

@@ -1629,41 +1629,69 @@ export class WithdrawService {
     if (!user) {
       throw new UnauthorizedException({ message: 'User not found' });
     }
-    // V-2: hard server-side balance gate BEFORE any on-chain call or DB write.
-    // The client's amount_net is never trusted as the payout ceiling.
-    await this.assertWithinBalance(
-      id,
-      createWithdrawDto.amount_net,
-      createWithdrawDto.currency,
-    );
-    //TODO create record shop on contract
-    const hash_record = await this.createRecordOnChain(
-      user._id.toString(),
-      createWithdrawDto.chain,
-      createWithdrawDto.conversion_ids || [],
-    );
-    const dt = await this.withdrawModel.create({
-      user_id: new Types.ObjectId(user._id),
-      // V-2b: always 'pending'. The server no longer self-approves from a
-      // client-supplied tx_hash — an admin confirms on-chain settlement via
-      // approveWithdrawRequest. Balance is already reserved either way:
-      // checkWithdraw counts 'pending' against available, same as 'approved'.
-      status: 'pending',
-      address: createWithdrawDto.address || '',
-      account_name: createWithdrawDto.account_name || '',
-      bank_name: createWithdrawDto.bank_name || '',
-      account_number: createWithdrawDto.account_number || '',
-      tx_hash: createWithdrawDto.tx_hash || '',
-      tx_hash_record: hash_record || '',
-      percent_fee: createWithdrawDto.percent_fee || 0,
-      amount_total: createWithdrawDto.amount_net || 0,
-      amount_net: createWithdrawDto.amount_net || 0,
-      method: createWithdrawDto.method || '',
-      currency: createWithdrawDto.currency || '',
-      conversion_id: createWithdrawDto.conversion_ids || [],
-      rate: createWithdrawDto?.rate || 0,
-      mycashback_id: [],
+    // P1-TX + #41: reserve balance in a per-user serialized transaction BEFORE
+    // any on-chain call. Two concurrent on-chain withdraw requests contend on
+    // withdraw_lock_seq; the loser retries and re-evaluates balance against the
+    // now-committed pending record from the winner — closing the TOCTOU where
+    // both pass assertWithinBalance then both call createRecordOnChain.
+    const dt = await this.runSerializedWithdraw(id, async (session) => {
+      await this.assertWithinBalance(
+        id,
+        createWithdrawDto.amount_net,
+        createWithdrawDto.currency,
+      );
+      const [record] = await this.withdrawModel.create(
+        [
+          {
+            user_id: new Types.ObjectId(user._id),
+            // V-2b: always 'pending'. The server no longer self-approves from a
+            // client-supplied tx_hash — an admin confirms on-chain settlement via
+            // approveWithdrawRequest. Balance is already reserved either way:
+            // checkWithdraw counts 'pending' against available, same as 'approved'.
+            status: 'pending',
+            address: createWithdrawDto.address || '',
+            account_name: createWithdrawDto.account_name || '',
+            bank_name: createWithdrawDto.bank_name || '',
+            account_number: createWithdrawDto.account_number || '',
+            tx_hash: createWithdrawDto.tx_hash || '',
+            tx_hash_record: '',
+            percent_fee: createWithdrawDto.percent_fee || 0,
+            amount_total: createWithdrawDto.amount_net || 0,
+            amount_net: createWithdrawDto.amount_net || 0,
+            method: createWithdrawDto.method || '',
+            currency: createWithdrawDto.currency || '',
+            conversion_id: createWithdrawDto.conversion_ids || [],
+            rate: createWithdrawDto?.rate || 0,
+            mycashback_id: [],
+          },
+        ],
+        { session },
+      );
+      return record;
     });
+
+    try {
+      const hash_record = await this.createRecordOnChain(
+        user._id.toString(),
+        createWithdrawDto.chain,
+        createWithdrawDto.conversion_ids || [],
+      );
+      await this.withdrawModel.findByIdAndUpdate(dt._id, {
+        $set: { tx_hash_record: hash_record || '' },
+      });
+    } catch {
+      await this.withdrawModel.findByIdAndUpdate(dt._id, {
+        $set: {
+          status: 'rejected',
+          flag_reason: 'on_chain_record_failed',
+        },
+      });
+      throw new HttpException(
+        { message: 'Failed to record withdrawal on chain' },
+        502,
+      );
+    }
+
     const MCBCashback = await this.checkWithdrawMyCashback(id);
     let availableMCB = 0;
 
@@ -2132,7 +2160,8 @@ export class WithdrawService {
   }
 
   async update(id: string, updateWithdrawDto: UpdateWithdrawDto) {
-    console.log(updateWithdrawDto, id);
+    void updateWithdrawDto;
+    void id;
     // const dt = await this.withdrawModel.findByIdAndUpdate(
     //   new Types.ObjectId(id),
     //   updateWithdrawDto,
@@ -2227,9 +2256,25 @@ export class WithdrawService {
     updateData: Partial<CreateWithdrawMethod>,
   ) {
     if (!isValidObjectId(id)) return null;
+    const patch: Partial<CreateWithdrawMethod> = {};
+    if (updateData.account_no !== undefined) {
+      patch.account_no = updateData.account_no;
+    }
+    if (updateData.account_name !== undefined) {
+      patch.account_name = updateData.account_name;
+    }
+    if (updateData.bank_name !== undefined) {
+      patch.bank_name = updateData.bank_name;
+    }
+    if (updateData.bank_code !== undefined) {
+      patch.bank_code = updateData.bank_code;
+    }
+    if (updateData.is_default !== undefined) {
+      patch.is_default = updateData.is_default;
+    }
     return this.withdrawMethodModel.findOneAndUpdate(
       { _id: new Types.ObjectId(id), user_id: new Types.ObjectId(userId) },
-      updateData,
+      patch,
       { new: true },
     );
   }

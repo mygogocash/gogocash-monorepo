@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { QueryFilter, Model, Types } from 'mongoose';
+import { requireObjectId } from 'src/common/mongo-query';
 import { Brand, BrandDocument } from './schemas/brand.schema';
 import { Offer, OfferDocument } from '../offer/schemas/offer.schema';
 import { CreateBrandDto } from './dto/create-brand.dto';
@@ -211,12 +212,11 @@ export class BrandService {
   }
 
   async update(id: string, dto: UpdateBrandDto): Promise<BrandDocument> {
-    if (!Types.ObjectId.isValid(id))
-      throw new BadRequestException('Invalid brand id.');
+    const brandId = requireObjectId(id, 'brand id');
     if (dto.brand_slug) {
       const slug = dto.brand_slug.trim();
       const conflict = await this.brandModel
-        .findOne({ brand_slug: slug, _id: { $ne: id } })
+        .findOne({ brand_slug: slug, _id: { $ne: brandId } })
         .lean();
       if (conflict) {
         throw new ConflictException(
@@ -229,7 +229,33 @@ export class BrandService {
         'Cannot enable is_global without a default_country. Set the fallback country first.',
       );
     }
-    const updated = await this.brandModel.findByIdAndUpdate(id, dto, {
+    const patch: Partial<UpdateBrandDto> = {};
+    if (dto.brand_name !== undefined) patch.brand_name = dto.brand_name;
+    if (dto.brand_slug !== undefined) patch.brand_slug = dto.brand_slug;
+    if (dto.default_country !== undefined)
+      patch.default_country = dto.default_country;
+    if (dto.is_global !== undefined) patch.is_global = dto.is_global;
+    if (dto.logo !== undefined) patch.logo = dto.logo;
+    if (dto.logo_circle !== undefined) patch.logo_circle = dto.logo_circle;
+    if (dto.banner !== undefined) patch.banner = dto.banner;
+    if (dto.description !== undefined) patch.description = dto.description;
+    if (dto.categories !== undefined) patch.categories = dto.categories;
+    if (dto.shop_slug !== undefined) patch.shop_slug = dto.shop_slug;
+    if (dto.shop_status !== undefined) patch.shop_status = dto.shop_status;
+    if (dto.shop_visible !== undefined) patch.shop_visible = dto.shop_visible;
+    if (dto.fulfillment_owner !== undefined) {
+      patch.fulfillment_owner = dto.fulfillment_owner;
+    }
+    if (dto.support_email !== undefined)
+      patch.support_email = dto.support_email;
+    if (dto.support_url !== undefined) patch.support_url = dto.support_url;
+    if (dto.return_policy !== undefined)
+      patch.return_policy = dto.return_policy;
+    if (dto.shipping_policy !== undefined) {
+      patch.shipping_policy = dto.shipping_policy;
+    }
+
+    const updated = await this.brandModel.findByIdAndUpdate(brandId, patch, {
       new: true,
       runValidators: true,
     });
@@ -256,9 +282,8 @@ export class BrandService {
    * Variants stay in the offers collection so historical orders/conversions remain valid.
    */
   async softDelete(id: string): Promise<{ id: string; disabled: true }> {
-    if (!Types.ObjectId.isValid(id))
-      throw new BadRequestException('Invalid brand id.');
-    const brand = await this.brandModel.findById(id);
+    const brandId = requireObjectId(id, 'brand id');
+    const brand = await this.brandModel.findById(brandId);
     if (!brand) throw new NotFoundException('Brand not found.');
     brand.disabled = true;
     await brand.save();

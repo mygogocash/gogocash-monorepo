@@ -1,6 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Model } from 'mongoose';
+import {
+  mongoCaseInsensitiveRegex,
+  requireObjectId,
+} from 'src/common/mongo-query';
 import { ReferralConfig } from './schemas/referral-config.schema';
 import { User } from 'src/user/schemas/user.schema';
 import { Point } from 'src/point/schemas/point.schema';
@@ -38,8 +42,22 @@ export class ReferralsService {
   }
 
   async updateConfig(data: UpdateReferralConfigDto) {
+    const patch: Partial<UpdateReferralConfigDto> = {};
+    if (data.enabled !== undefined) patch.enabled = data.enabled;
+    if (data.reward_type !== undefined) patch.reward_type = data.reward_type;
+    if (data.referrer_reward !== undefined)
+      patch.referrer_reward = data.referrer_reward;
+    if (data.referee_reward !== undefined)
+      patch.referee_reward = data.referee_reward;
+    if (data.currency !== undefined) patch.currency = data.currency;
+    if (data.max_referrals_per_user !== undefined) {
+      patch.max_referrals_per_user = data.max_referrals_per_user;
+    }
+    if (data.require_approval !== undefined)
+      patch.require_approval = data.require_approval;
+
     const config = await this.referralConfigModel
-      .findOneAndUpdate({}, { $set: data }, { new: true, upsert: true })
+      .findOneAndUpdate({}, { $set: patch }, { new: true, upsert: true })
       .lean()
       .exec();
 
@@ -56,10 +74,8 @@ export class ReferralsService {
     };
 
     if (query.search) {
-      filter.$or = [
-        { email: { $regex: query.search, $options: 'i' } },
-        { username: { $regex: query.search, $options: 'i' } },
-      ];
+      const searchRegex = mongoCaseInsensitiveRegex(query.search);
+      filter.$or = [{ email: searchRegex }, { username: searchRegex }];
     }
 
     const [users, total] = await Promise.all([
@@ -119,17 +135,15 @@ export class ReferralsService {
   }
 
   async getTree(userId: string) {
-    if (!Types.ObjectId.isValid(userId)) {
-      throw new NotFoundException(`User ${userId} not found`);
-    }
+    const userObjectId = requireObjectId(userId, 'user id');
 
-    const user = await this.userModel.findById(userId).lean().exec();
+    const user = await this.userModel.findById(userObjectId).lean().exec();
     if (!user) {
       throw new NotFoundException(`User ${userId} not found`);
     }
 
     const referredUsers = await this.userModel
-      .find({ referred_by: userId })
+      .find({ referred_by: userObjectId.toHexString() })
       .select('email username referral_code createdAt')
       .sort({ createdAt: -1 })
       .lean()
@@ -154,14 +168,11 @@ export class ReferralsService {
   }
 
   async approve(id: string) {
-    // Placeholder: approve a referral-based point record if applicable
-    if (!Types.ObjectId.isValid(id)) {
-      throw new NotFoundException(`Record ${id} not found`);
-    }
+    const pointId = requireObjectId(id, 'record id');
 
     const point = await this.pointModel
       .findOneAndUpdate(
-        { _id: new Types.ObjectId(id), action: 'referral' },
+        { _id: pointId, action: 'referral' },
         { $set: { type: 'add' } },
         { new: true },
       )
@@ -176,14 +187,11 @@ export class ReferralsService {
   }
 
   async reject(id: string) {
-    // Placeholder: reject a referral-based point record if applicable
-    if (!Types.ObjectId.isValid(id)) {
-      throw new NotFoundException(`Record ${id} not found`);
-    }
+    const pointId = requireObjectId(id, 'record id');
 
     const point = await this.pointModel
       .findOneAndUpdate(
-        { _id: new Types.ObjectId(id), action: 'referral' },
+        { _id: pointId, action: 'referral' },
         { $set: { type: 'remove' } },
         { new: true },
       )

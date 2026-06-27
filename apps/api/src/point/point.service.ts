@@ -30,6 +30,7 @@ import {
 import { SocialReward } from './schemas/social-reward.schema';
 import { GoogleDriveService } from 'src/google-drive/google-drive.service';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
+import { requireObjectId, requireOneOf } from 'src/common/mongo-query';
 
 const ACTIVE_OFFER_FILTER = {
   disabled: { $ne: true },
@@ -1208,10 +1209,8 @@ export class PointService {
       sub_banner_th?: Express.Multer.File[];
     },
   ) {
-    const questUpdate = { ...createQuestDto };
-    delete questUpdate._id;
     const filter = createQuestDto._id
-      ? { _id: new Types.ObjectId(createQuestDto._id) }
+      ? { _id: requireObjectId(createQuestDto._id, 'quest id') }
       : { status: 'open' };
 
     const existingOpenQuest = await this.questModel.findOne(filter);
@@ -1268,27 +1267,41 @@ export class PointService {
       {},
       {
         ...(existingOpenQuest?.toObject?.() ?? existingOpenQuest ?? {}),
-        end_date: questUpdate.end_date ?? existingOpenQuest?.end_date,
+        end_date: createQuestDto.end_date ?? existingOpenQuest?.end_date,
       },
     );
+    const questPatch: Record<string, unknown> = {
+      start_date: createQuestDto.start_date,
+      end_date: createQuestDto.end_date,
+      status: requireOneOf(
+        createQuestDto.status,
+        ['open', 'close'] as const,
+        'status',
+      ),
+      facebook_post: createQuestDto.facebook_post,
+      facebook_page: createQuestDto.facebook_page,
+      line: createQuestDto.line,
+      ...rewardDistribution,
+      banner_en: banner_en
+        ? banner_en?.id
+        : existingOpenQuest?.banner_en || null,
+      banner_th: banner_th
+        ? banner_th?.id
+        : existingOpenQuest?.banner_th || null,
+      sub_banner_en: sub_banner_en
+        ? sub_banner_en?.id
+        : existingOpenQuest?.sub_banner_en || null,
+      sub_banner_th: sub_banner_th
+        ? sub_banner_th?.id
+        : existingOpenQuest?.sub_banner_th || null,
+    };
+    if (createQuestDto.reward_status !== undefined) {
+      questPatch.reward_status = createQuestDto.reward_status;
+    }
+
     return this.questModel.findOneAndUpdate(
       filter,
-      {
-        ...questUpdate,
-        ...rewardDistribution,
-        banner_en: banner_en
-          ? banner_en?.id
-          : existingOpenQuest?.banner_en || null,
-        banner_th: banner_th
-          ? banner_th?.id
-          : existingOpenQuest?.banner_th || null,
-        sub_banner_en: sub_banner_en
-          ? sub_banner_en?.id
-          : existingOpenQuest?.sub_banner_en || null,
-        sub_banner_th: sub_banner_th
-          ? sub_banner_th?.id
-          : existingOpenQuest?.sub_banner_th || null,
-      },
+      { $set: questPatch },
       {
         upsert: true,
         new: true,
@@ -1299,7 +1312,15 @@ export class PointService {
   async closeQuest(closeQuestDto: CloseQuestDto) {
     return this.questModel.updateOne(
       { status: 'open' },
-      { ...closeQuestDto },
+      {
+        $set: {
+          status: requireOneOf(
+            closeQuestDto.status,
+            ['open', 'close'] as const,
+            'status',
+          ),
+        },
+      },
       {
         upsert: true,
       },

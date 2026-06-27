@@ -10,6 +10,10 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 import { LoginType, TelegramBotService } from './telegram-bot.service';
+import { escapeJsStringLiteral, requireOneOf } from 'src/common/mongo-query';
+
+const TELEGRAM_SESSION_ID_RE = /^[a-f0-9-]{8,128}$/i;
+const TELEGRAM_LOGIN_TYPES = ['email', 'mobile', 'password'] as const;
 
 @Controller('telegram-auth')
 export class TelegramAuthController {
@@ -50,6 +54,15 @@ export class TelegramAuthController {
 </body>
 </html>`);
       }
+
+      if (!TELEGRAM_SESSION_ID_RE.test(sessionId)) {
+        return res.status(HttpStatus.BAD_REQUEST).send(`
+<!DOCTYPE html>
+<html><head><title>Error</title></head><body><p>Invalid session id</p></body></html>`);
+      }
+      const loginType = requireOneOf(type, TELEGRAM_LOGIN_TYPES, 'login type');
+      const safeSessionId = escapeJsStringLiteral(sessionId);
+      const safeLoginType = escapeJsStringLiteral(loginType);
 
       const html = `
 <!DOCTYPE html>
@@ -153,8 +166,8 @@ export class TelegramAuthController {
   </div>
 
   <script>
-    const sessionId = '${sessionId}';
-    const loginType = '${type}';
+    const sessionId = '${safeSessionId}';
+    const loginType = '${safeLoginType}';
     const apiUrl = '${process.env.API_BASE_URL || 'http://localhost:8080'}';
 
     // Simulate verification (in production, verify with backend)

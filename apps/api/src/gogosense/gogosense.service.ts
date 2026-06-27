@@ -1,6 +1,7 @@
 import { BadRequestException, HttpException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { requireObjectId } from 'src/common/mongo-query';
 import { AnalyticsService } from 'src/analytics/analytics.service';
 import { InvolveService } from 'src/involve/involve.service';
 import { ActivationRequestDto } from './dto/activation-request.dto';
@@ -310,18 +311,19 @@ export class GogosenseService {
     userId: string,
     request: ActivationRequestDto,
   ): Promise<ActivationResponse> {
+    const validatedUserId = this.validatedUserId(userId);
     if (request.source === 'gogosense') {
-      const settings = await this.getSettings(userId);
+      const settings = await this.getSettings(validatedUserId);
       if (settings?.enabled === false) {
         throw new BadRequestException('GoGoSense tracking is disabled');
       }
     }
-    await this.assertDetectionEventMatchesActivation(userId, request);
+    await this.assertDetectionEventMatchesActivation(validatedUserId, request);
 
     if (request.detectionEventId) {
       const existingActivation = await this.activationEventModel
         .findOne({
-          user_id: userId,
+          user_id: validatedUserId,
           detection_event_id: request.detectionEventId,
         })
         .lean();
@@ -341,7 +343,7 @@ export class GogosenseService {
           merchant_id: request.networkMerchantId,
           deeplink: '',
         },
-        userId,
+        validatedUserId,
       );
     } catch (error) {
       const upstreamStatusCode = getAffiliateNetworkStatusCode(error);
@@ -366,7 +368,7 @@ export class GogosenseService {
       '';
 
     const activation = await this.activationEventModel.create({
-      user_id: userId,
+      user_id: validatedUserId,
       detection_event_id: request.detectionEventId,
       merchant_id: request.merchantId,
       offer_id: request.offerId,
@@ -406,9 +408,14 @@ export class GogosenseService {
       return;
     }
 
+    const detectionEventId = requireObjectId(
+      request.detectionEventId,
+      'detection event id',
+    );
+
     const detectionEvent = await this.detectionEventModel
       .findOne({
-        _id: request.detectionEventId,
+        _id: detectionEventId,
         user_id: userId,
         merchant_id: request.merchantId,
         network_merchant_id: request.networkMerchantId,
@@ -459,10 +466,12 @@ export class GogosenseService {
   }
 
   async getScreenshotJob(userId: string, jobId: string) {
+    const validatedUserId = this.validatedUserId(userId);
+    const validatedJobId = requireObjectId(jobId, 'screenshot job id');
     return this.screenshotJobModel
       .findOne({
-        _id: jobId,
-        user_id: userId,
+        _id: validatedJobId,
+        user_id: validatedUserId,
         expires_at: { $gt: new Date() },
       })
       .lean();
@@ -498,5 +507,9 @@ export class GogosenseService {
         { new: true, upsert: true },
       )
       .lean();
+  }
+
+  private validatedUserId(userId: string): string {
+    return requireObjectId(userId, 'user id').toHexString();
   }
 }

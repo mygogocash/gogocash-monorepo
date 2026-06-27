@@ -26,6 +26,7 @@ import { FeaturedSearchTerm } from 'src/admin/search/schemas/featured-term.schem
 import { SearchBoostRule } from 'src/admin/search/schemas/boost-rule.schema';
 import { SearchBlacklist } from 'src/admin/search/schemas/blacklist.schema';
 import { escapeRegexLiteral } from 'src/common/escape-regex';
+import { requireObjectId } from 'src/common/mongo-query';
 
 const ACTIVE_OFFER_FILTER = {
   disabled: { $ne: true },
@@ -608,30 +609,34 @@ export class OfferService implements OnApplicationBootstrap {
   }
 
   async updateCoupon(body: UpdateCouponDto) {
-    // console.log('body', body);
-    body.offer_id = new Types.ObjectId(body.offer_id);
-    body.discount = body.discount ? Number(body.discount) : 0;
-    body.quantity = body.quantity ? Number(body.quantity) : 0;
-    body.disabled = body.disabled == 'true' ? true : false;
+    const offerId = requireObjectId(String(body.offer_id), 'offer_id');
+    const discount = body.discount ? Number(body.discount) : 0;
+    const quantity = body.quantity ? Number(body.quantity) : 0;
+    const disabled = body.disabled == 'true' ? true : false;
+    const patch = {
+      offer_id: offerId,
+      discount,
+      quantity,
+      disabled,
+      name: body.name,
+      code: body.code,
+      description: body.description,
+      start_date: body.start_date,
+      end_date: body.end_date,
+    };
     if (body?.id) {
-      // const { id, ...updateData } = body;
       return this.couponModel.findByIdAndUpdate(
-        new Types.ObjectId(body.id),
-        body,
+        requireObjectId(body.id),
+        patch,
         {
           new: true,
         },
       );
-    } else {
-      delete body.id;
-      // mongoose 9 types create() strictly; `disabled` is string|boolean on the
-      // DTO but boolean on the schema. Assert (do NOT coerce — Boolean("false")
-      // is true); mongoose casts the raw "false"/"true" value correctly at save.
-      return this.couponModel.create({
-        ...body,
-        disabled: body.disabled as boolean,
-      });
     }
+    return this.couponModel.create({
+      ...patch,
+      disabled: disabled as boolean,
+    });
   }
 
   async getCoupon(page: number, limit: number, search: string) {

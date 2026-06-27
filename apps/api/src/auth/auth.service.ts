@@ -592,7 +592,7 @@ export class AuthService {
     }
 
     // Pull `Issued At` out of the SIWE message (EIP-4361 field order is stable).
-    const issuedAtMatch = /^Issued At:\s*(.+)$/m.exec(message);
+    const issuedAtMatch = /^Issued At:\s*(\S+)/m.exec(message.slice(0, 4096));
     if (!issuedAtMatch) {
       throw new UnauthorizedException('Missing Issued At in SIWE message');
     }

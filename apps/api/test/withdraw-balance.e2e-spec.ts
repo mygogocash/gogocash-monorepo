@@ -253,4 +253,43 @@ suite('checkWithdraw — real Mongo aggregation (#36)', () => {
       expect(count).toBe(1); // and only one record was actually written
     },
   );
+
+  rsOnly(
+    'serializes two concurrent on-chain withdrawals so only one passes the balance gate (#41)',
+    async () => {
+      jest
+        .spyOn(service, 'createRecordOnChain')
+        .mockResolvedValue('0xonchainhash');
+
+      const user = await userModel.create({
+        id_firebase: 'int-fb-onchain-tx',
+        email: 'onchain-tx@gogocash.co',
+      });
+      const userId = user._id.toString();
+      await seedApprovedThb(userId, 105, 1); // ~99.75 available after the 5% fee
+
+      const dto = {
+        amount_net: 60,
+        amount_total: 60,
+        currency: 'THB',
+        chain: 137,
+        conversion_ids: [1],
+      };
+      const results = await Promise.allSettled([
+        service.create(dto as never, userId),
+        service.create(dto as never, userId),
+      ]);
+
+      const fulfilled = results.filter((r) => r.status === 'fulfilled');
+      const rejected = results.filter((r) => r.status === 'rejected');
+      expect(fulfilled).toHaveLength(1);
+      expect(rejected).toHaveLength(1);
+
+      const count = await withdrawModel.countDocuments({
+        user_id: new Types.ObjectId(userId),
+        status: { $in: ['pending', 'approved', 'paid'] },
+      });
+      expect(count).toBe(1);
+    },
+  );
 });

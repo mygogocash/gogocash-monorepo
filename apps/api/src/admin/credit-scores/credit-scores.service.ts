@@ -1,6 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import {
+  mongoCaseInsensitiveRegex,
+  requireObjectId,
+} from 'src/common/mongo-query';
 import { User } from 'src/user/schemas/user.schema';
 import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 import { CreditScoreConfig } from './schemas/credit-score-config.schema';
@@ -48,10 +52,8 @@ export class CreditScoresService {
     const filter: Record<string, any> = {};
 
     if (query.search) {
-      filter.$or = [
-        { email: { $regex: query.search, $options: 'i' } },
-        { username: { $regex: query.search, $options: 'i' } },
-      ];
+      const searchRegex = mongoCaseInsensitiveRegex(query.search);
+      filter.$or = [{ email: searchRegex }, { username: searchRegex }];
     }
 
     if (query.tier) {
@@ -162,8 +164,13 @@ export class CreditScoresService {
   }
 
   async updateConfig(data: UpdateCreditScoreConfigDto) {
+    const patch: Partial<UpdateCreditScoreConfigDto> = {};
+    if (data.tiers !== undefined) patch.tiers = data.tiers;
+    if (data.weights !== undefined) patch.weights = data.weights;
+    if (data.max_score !== undefined) patch.max_score = data.max_score;
+
     const config = await this.creditScoreConfigModel
-      .findOneAndUpdate({}, { $set: data }, { new: true, upsert: true })
+      .findOneAndUpdate({}, { $set: patch }, { new: true, upsert: true })
       .lean()
       .exec();
 
@@ -171,16 +178,14 @@ export class CreditScoresService {
   }
 
   async getUserDetail(userId: string) {
-    if (!Types.ObjectId.isValid(userId)) {
-      throw new NotFoundException(`User ${userId} not found`);
-    }
+    const userObjectId = requireObjectId(userId, 'user id');
 
-    const user = await this.userModel.findById(userId).lean().exec();
+    const user = await this.userModel.findById(userObjectId).lean().exec();
     if (!user) {
       throw new NotFoundException(`User ${userId} not found`);
     }
 
-    const breakdown = await this.calculateScore(userId);
+    const breakdown = await this.calculateScore(userObjectId.toHexString());
 
     return {
       user: {
@@ -196,12 +201,10 @@ export class CreditScoresService {
   }
 
   async getAudit(userId: string) {
-    if (!Types.ObjectId.isValid(userId)) {
-      throw new NotFoundException(`User ${userId} not found`);
-    }
+    const userObjectId = requireObjectId(userId, 'user id');
 
     return this.creditScoreAuditModel
-      .find({ user_id: new Types.ObjectId(userId) })
+      .find({ user_id: userObjectId })
       .sort({ createdAt: -1 })
       .lean()
       .exec();
@@ -213,11 +216,9 @@ export class CreditScoresService {
     reason: string,
     adminId: string,
   ) {
-    if (!Types.ObjectId.isValid(userId)) {
-      throw new NotFoundException(`User ${userId} not found`);
-    }
+    const userObjectId = requireObjectId(userId, 'user id');
 
-    const user = await this.userModel.findById(userId).lean().exec();
+    const user = await this.userModel.findById(userObjectId).lean().exec();
     if (!user) {
       throw new NotFoundException(`User ${userId} not found`);
     }
@@ -228,14 +229,16 @@ export class CreditScoresService {
     const newTier = this.determineTier(newScore, config.tiers);
 
     await this.userModel
-      .findByIdAndUpdate(userId, {
-        credit_score: newScore,
-        credit_tier: newTier,
+      .findByIdAndUpdate(userObjectId, {
+        $set: {
+          credit_score: newScore,
+          credit_tier: newTier,
+        },
       })
       .exec();
 
     const audit = await this.creditScoreAuditModel.create({
-      user_id: new Types.ObjectId(userId),
+      user_id: userObjectId,
       previous_score: previousScore,
       new_score: newScore,
       previous_tier: previousTier,
