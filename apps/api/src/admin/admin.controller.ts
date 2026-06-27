@@ -555,7 +555,7 @@ export class AdminController {
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
   @ApiBody({ type: UpdateBannerHomeDto })
-  @Roles('superadmin')
+  @Roles('support')
   @Post('banner-home')
   updateBannerHome(
     @UploadedFiles()
