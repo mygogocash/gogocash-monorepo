@@ -35,6 +35,7 @@ import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFoo
 import { KeyboardAwareScreen } from "@mobile/components/KeyboardAwareScreen";
 import { haptics } from "@mobile/lib/haptics";
 import { useCopy } from "@mobile/i18n/useCopy";
+import { toastErrorMessages, userErrorMessageFromUnknown } from "@mobile/i18n/toastMessages";
 import { mobileShellLayout, webWithdrawMethodPage } from "@mobile/design/webDesignParity";
 import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
@@ -470,11 +471,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
           );
         } catch (error) {
           haptics.error();
-          setErrors([
-            error instanceof Error
-              ? error.message
-              : "Withdrawal failed. Please try again.",
-          ]);
+          setErrors([tc(userErrorMessageFromUnknown(error, toastErrorMessages.withdrawalFailed))]);
         } finally {
           setWithdrawing(false);
         }

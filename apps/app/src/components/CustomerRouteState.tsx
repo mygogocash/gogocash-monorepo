@@ -13,6 +13,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { mobileShellLayout } from "@mobile/design/webDesignParity";
+import { toastErrorMessages } from "@mobile/i18n/toastMessages";
 import type { ThemeColors } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
@@ -54,7 +55,7 @@ const routeStateCopy = {
   },
   error: {
     body: {
-      defaultMessage: "Something went wrong. Please try again.",
+      defaultMessage: toastErrorMessages.generic,
       id: "mobileStateErrorBody",
     },
     title: { defaultMessage: "We could not load this page", id: "mobileStateErrorTitle" },

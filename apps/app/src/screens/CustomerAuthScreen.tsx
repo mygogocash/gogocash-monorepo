@@ -1,4 +1,5 @@
 import { Link, useRouter } from "expo-router";
+import { authSendErrorMessages } from "@mobile/i18n/toastMessages";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { Check, ChevronDown as ChevronDownIcon } from "@mobile/theme/icons";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -88,9 +89,9 @@ type AuthCountry = (typeof webAuthPage.countries)[number];
 type SendErrorKind = "rate-limit" | "security-check" | "generic";
 
 const sendErrorCopy: Record<SendErrorKind, string> = {
-  "rate-limit": "Too many attempts. Please wait a few minutes and try again.",
-  "security-check": "Security check failed. Please refresh the page and try again.",
-  generic: "Request failed. Please try again.",
+  "rate-limit": authSendErrorMessages.rateLimit,
+  "security-check": authSendErrorMessages.securityCheck,
+  generic: authSendErrorMessages.generic,
 };
 
 function toSendErrorKind(error: unknown): SendErrorKind {

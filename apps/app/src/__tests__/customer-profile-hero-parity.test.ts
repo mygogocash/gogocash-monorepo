@@ -34,7 +34,7 @@ describe("Customer profile hero parity (web CardProfile)", () => {
     expect(designFile).toContain("inviteLink: webReferralPage.earn.displayLink");
     expect(designFile).toContain('inviteLinkCopyAria: "Copy invite link"');
     expect(designFile).toContain('inviteLinkCopiedToast: "Invite link copied"');
-    expect(designFile).toContain('copyFailedToast: "Copy failed. Please try again."');
+    expect(designFile).toContain("toastErrorMessages.copyFailed");
   });
 
   it("hero card > given the User ID row > then it renders the id, a copy button, and copies via copyToClipboard", () => {

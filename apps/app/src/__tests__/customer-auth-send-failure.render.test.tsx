@@ -22,6 +22,7 @@ vi.mock("@mobile/auth/firebaseLogin", () => ({
   exchangeFirebaseIdToken: vi.fn(),
 }));
 
+import { authSendErrorMessages, toastErrorMessages } from "@mobile/i18n/toastMessages";
 import { CustomerAuthScreen } from "@mobile/screens/CustomerAuthScreen";
 
 describe("CustomerAuthScreen — live send failure is visible", () => {
@@ -47,7 +48,7 @@ describe("CustomerAuthScreen — live send failure is visible", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
     await waitFor(() => {
-      expect(screen.getByText("Request failed. Please try again.")).toBeTruthy();
+      expect(screen.getByText(toastErrorMessages.requestFailed)).toBeTruthy();
     });
     // Still on the phone step — the OTP input never mounted, nothing navigated.
     expect(screen.queryByLabelText("Verification code")).toBeNull();
@@ -68,10 +69,10 @@ describe("CustomerAuthScreen — live send failure is visible", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText("Too many attempts. Please wait a few minutes and try again.")
+        screen.getByText(authSendErrorMessages.rateLimit)
       ).toBeTruthy();
     });
-    expect(screen.queryByText("Request failed. Please try again.")).toBeNull();
+    expect(screen.queryByText(toastErrorMessages.requestFailed)).toBeNull();
   });
 
   it("given sendPhoneOtp rejects with auth/invalid-app-credential > then shows the security-check copy", async () => {
@@ -88,10 +89,10 @@ describe("CustomerAuthScreen — live send failure is visible", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText("Security check failed. Please refresh the page and try again.")
+        screen.getByText(authSendErrorMessages.securityCheck)
       ).toBeTruthy();
     });
-    expect(screen.queryByText("Request failed. Please try again.")).toBeNull();
+    expect(screen.queryByText(toastErrorMessages.requestFailed)).toBeNull();
   });
 
   it("given the user edits the phone after a failure > then the failure notice clears", async () => {
@@ -104,13 +105,13 @@ describe("CustomerAuthScreen — live send failure is visible", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: "I have read and understand" }));
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
     await waitFor(() => {
-      expect(screen.getByText("Request failed. Please try again.")).toBeTruthy();
+      expect(screen.getByText(toastErrorMessages.requestFailed)).toBeTruthy();
     });
 
     fireEvent.change(screen.getByPlaceholderText("Phone Number"), {
       target: { value: "0812346788" },
     });
 
-    expect(screen.queryByText("Request failed. Please try again.")).toBeNull();
+    expect(screen.queryByText(toastErrorMessages.requestFailed)).toBeNull();
   });
 });

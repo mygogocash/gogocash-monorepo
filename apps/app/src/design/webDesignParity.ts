@@ -1,3 +1,5 @@
+import { toastErrorMessages } from "@mobile/i18n/toastMessages";
+
 export const webHomeSectionOrder = [
   "stickySearch",
   "browseShortcuts",
@@ -1149,7 +1151,7 @@ export const webProfileHeroCard = {
   inviteLink: webReferralPage.earn.displayLink,
   inviteLinkCopyAria: "Copy invite link",
   inviteLinkCopiedToast: "Invite link copied",
-  copyFailedToast: "Copy failed. Please try again.",
+  copyFailedToast: toastErrorMessages.copyFailed,
 } as const;
 
 export const webMembershipLanding = {

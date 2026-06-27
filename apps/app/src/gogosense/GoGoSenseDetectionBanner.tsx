@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Linking, StyleSheet, Text, View } from "react-native";
 
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { toastErrorMessages } from "@mobile/i18n/toastMessages";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { haptics } from "@mobile/lib/haptics";
 import { motion } from "@mobile/theme/motion";
@@ -126,7 +127,7 @@ export function GoGoSenseDetectionBanner({
         </Text>
       </MotionPressable>
       {activationError ? (
-        <Text style={styles.error}>{tc("Cashback activation failed. Please try again.")}</Text>
+        <Text style={styles.error}>{tc(toastErrorMessages.cashbackActivationFailed)}</Text>
       ) : null}
     </View>
   );
