@@ -699,8 +699,12 @@ export class CommerceService {
     filter: QueryFilter<CatalogProduct> = {},
   ): QueryFilter<CatalogProduct> {
     const now = new Date();
-    return {
-      ...filter,
+    const safeFilter = { ...filter };
+    if (safeFilter._id !== undefined) {
+      safeFilter._id = requireObjectId(String(safeFilter._id), 'product id');
+    }
+    return mongoFilter({
+      ...safeFilter,
       status: 'published',
       $and: [
         {
@@ -716,7 +720,7 @@ export class CommerceService {
           ],
         },
       ],
-    };
+    });
   }
 
   private createOrderNumber() {

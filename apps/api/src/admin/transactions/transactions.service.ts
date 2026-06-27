@@ -6,8 +6,9 @@ import { Withdraw } from 'src/withdraw/schemas/withdraw.schema';
 import { escapeRegexLiteral } from 'src/common/escape-regex';
 import {
   requireObjectId,
-  mongoUpdate,
+  mongoSetUpdate,
   requireOneOf,
+  requireTrimmedString,
 } from 'src/common/mongo-query';
 
 export interface UnifiedTransaction {
@@ -169,7 +170,10 @@ export class TransactionsService {
       'transaction type',
     );
 
-    const update = mongoUpdate({ flagged, flag_reason: reason });
+    const update = mongoSetUpdate({
+      flagged,
+      flag_reason: requireTrimmedString(reason, 500, 'flag reason'),
+    });
 
     if (txType === 'conversion') {
       const result = await this.conversionModel

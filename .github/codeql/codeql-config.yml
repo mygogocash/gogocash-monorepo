@@ -1,0 +1,7 @@
+name: gogocash-codeql
+packs:
+  - mygogocash/gogocash-mongo-sanitizers
+paths-ignore:
+  - '**/node_modules/**'
+  - '**/*.test.ts'
+  - '**/*.spec.ts'

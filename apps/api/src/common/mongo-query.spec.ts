@@ -9,9 +9,11 @@ import {
   mongoSetUpdate,
   mongoUpdate,
   normalizeSlugSegment,
+  requireFiniteNumber,
   requireObjectId,
   requireObjectIdHex,
   requireOneOf,
+  requireTrimmedString,
 } from './mongo-query';
 
 describe('mongo-query helpers', () => {
@@ -65,5 +67,17 @@ describe('mongo-query helpers', () => {
     expect(mongoSetUpdate({ status: 'approved' })).toEqual({
       $set: { status: 'approved' },
     });
+  });
+
+  it('requireTrimmedString > given blank input > then throws', () => {
+    expect(() => requireTrimmedString('   ', 10, 'name')).toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('requireFiniteNumber > given NaN > then throws', () => {
+    expect(() => requireFiniteNumber('abc', 'score')).toThrow(
+      BadRequestException,
+    );
   });
 });

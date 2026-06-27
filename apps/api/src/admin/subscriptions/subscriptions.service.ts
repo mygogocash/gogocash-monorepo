@@ -144,9 +144,11 @@ export class SubscriptionsService {
     if (query.search) {
       const searchRegex = mongoCaseInsensitiveRegex(query.search);
       const matchingUsers = await this.userModel
-        .find({
-          $or: [{ email: searchRegex }, { username: searchRegex }],
-        })
+        .find(
+          mongoFilter({
+            $or: [{ email: searchRegex }, { username: searchRegex }],
+          }),
+        )
         .select('_id')
         .lean()
         .exec();

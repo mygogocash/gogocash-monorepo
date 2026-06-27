@@ -5,6 +5,7 @@ import {
   mongoCaseInsensitiveRegex,
   mongoEq,
   mongoFilter,
+  requireFiniteNumber,
   requireObjectId,
 } from 'src/common/mongo-query';
 import { User } from 'src/user/schemas/user.schema';
@@ -62,14 +63,20 @@ export class CreditScoresService {
       filter.credit_tier = mongoEq(query.tier.trim());
     }
 
-    const minScore = Number(query.minScore);
-    const maxScore = Number(query.maxScore);
+    const minScore =
+      query.minScore !== undefined && query.minScore !== ''
+        ? requireFiniteNumber(query.minScore, 'min score')
+        : undefined;
+    const maxScore =
+      query.maxScore !== undefined && query.maxScore !== ''
+        ? requireFiniteNumber(query.maxScore, 'max score')
+        : undefined;
 
-    if (!isNaN(minScore) && !isNaN(maxScore)) {
+    if (minScore !== undefined && maxScore !== undefined) {
       filter.credit_score = { $gte: minScore, $lte: maxScore };
-    } else if (!isNaN(minScore)) {
+    } else if (minScore !== undefined) {
       filter.credit_score = { $gte: minScore };
-    } else if (!isNaN(maxScore)) {
+    } else if (maxScore !== undefined) {
       filter.credit_score = { $lte: maxScore };
     }
 

@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { QueryFilter, Model, Types } from 'mongoose';
-import { requireObjectId, mongoUpdate } from 'src/common/mongo-query';
+import { requireObjectId, mongoSetUpdate } from 'src/common/mongo-query';
 import { Brand, BrandDocument } from './schemas/brand.schema';
 import { Offer, OfferDocument } from '../offer/schemas/offer.schema';
 import { CreateBrandDto } from './dto/create-brand.dto';
@@ -257,7 +257,7 @@ export class BrandService {
 
     const updated = await this.brandModel.findByIdAndUpdate(
       brandId,
-      mongoUpdate(patch),
+      mongoSetUpdate(patch),
       {
         new: true,
         runValidators: true,

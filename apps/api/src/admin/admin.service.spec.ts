@@ -237,7 +237,7 @@ describe('AdminService', () => {
       const [arg0, arg1] = withdrawModel.findByIdAndUpdate.mock.calls[0];
       expect(arg0).toBeInstanceOf(Types.ObjectId);
       expect(arg0.toString()).toBe(id);
-      expect(arg1).toEqual({ status: 'APPROVED' });
+      expect(arg1).toEqual({ $set: { status: 'APPROVED' } });
       expect(googleDriveService.uploadFile).not.toHaveBeenCalled();
     });
 
@@ -253,8 +253,7 @@ describe('AdminService', () => {
 
       expect(googleDriveService.uploadFile).toHaveBeenCalledWith(file);
       expect(withdrawModel.findByIdAndUpdate.mock.calls[0][1]).toEqual({
-        status: 'PAID',
-        slip_file: 'drive-file-1',
+        $set: { status: 'PAID', slip_file: 'drive-file-1' },
       });
     });
   });
@@ -305,7 +304,7 @@ describe('AdminService', () => {
 
       const pipeline = conversionModel.aggregate.mock.calls[0][0];
       const match = pipeline.find((s: any) => s.$match).$match;
-      expect(match.conversion_id).toBe('CV123');
+      expect(match.conversion_id).toEqual({ $eq: 'CV123' });
     });
   });
 
@@ -376,7 +375,7 @@ describe('AdminService', () => {
 
       expect(feeRateModel.findOneAndUpdate).toHaveBeenCalledWith(
         { _id: expect.any(Types.ObjectId) },
-        { system: 7 },
+        { $set: { system: 7 } },
         { upsert: true, new: true },
       );
     });
@@ -431,7 +430,7 @@ describe('AdminService', () => {
       });
 
       expect(googleDriveService.deleteFile).toHaveBeenCalledWith('old-logo');
-      const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1];
+      const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1].$set;
       expect(persisted.logo_desktop).toBe('new-logo');
       expect(persisted.logo_mobile).toBe('keep-mobile');
     });
@@ -444,7 +443,7 @@ describe('AdminService', () => {
         product_type: '[{"name":"game","minimum":"1"}]' as never,
       });
 
-      const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1];
+      const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1].$set;
       expect(persisted.product_type).toEqual([{ name: 'game', minimum: '1' }]);
     });
 
@@ -462,7 +461,7 @@ describe('AdminService', () => {
         tracking_link: ' https://track.example/new ',
       });
 
-      const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1];
+      const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1].$set;
       expect(persisted.tracking_link).toBe('https://track.example/new');
     });
 
@@ -484,7 +483,7 @@ describe('AdminService', () => {
         product_type: [],
       });
 
-      const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1];
+      const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1].$set;
       expect(persisted.disabled).toBe(true);
       expect(persisted.extra_store).toBe(true);
       expect(persisted.commission_store).toBe(0);
