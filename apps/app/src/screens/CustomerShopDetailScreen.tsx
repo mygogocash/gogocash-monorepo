@@ -205,6 +205,7 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
 
 function ShopHero({ onShopNow, shop }: { onShopNow: () => void; shop: ShopDetail }) {
   const styles = useThemedStyles(createShopDetailScreenStyles);
+  // Banner image is the only brand visual on the hero; logo badge removed for web parity.
   return (
     <View style={styles.heroWrap}>
       <View style={styles.heroBanner}>
