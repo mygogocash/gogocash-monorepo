@@ -47,6 +47,8 @@ describe("toast error messages — canonical patterns", () => {
     expect(authSendErrorMessages.generic).toBe(toastErrorMessages.requestFailed);
     expect(isApprovedUserErrorMessage(authSendErrorMessages.rateLimit)).toBe(true);
     expect(isApprovedUserErrorMessage(authSendErrorMessages.securityCheck)).toBe(true);
+    expect(isApprovedUserErrorMessage(authSendErrorMessages.invalidPhone)).toBe(true);
+    expect(isApprovedUserErrorMessage(authSendErrorMessages.notConfigured)).toBe(true);
   });
 
   it("given userErrorMessageFromUnknown > then it never returns raw provider error text", () => {

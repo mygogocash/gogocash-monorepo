@@ -24,6 +24,8 @@ export type ToastErrorMessage = (typeof toastErrorMessages)[keyof typeof toastEr
 export const authSendErrorMessages = {
   rateLimit: "Too many attempts. Please wait a few minutes and try again.",
   securityCheck: "Security check failed. Please refresh the page and try again.",
+  invalidPhone: "That phone number doesn't look valid. Check it and try again.",
+  notConfigured: "Sign-in is temporarily unavailable. Please try again later.",
   generic: toastErrorMessages.requestFailed,
 } as const;
 
@@ -31,6 +33,8 @@ export const authSendErrorMessages = {
 export const approvedNonStandardErrorMessages = [
   authSendErrorMessages.rateLimit,
   authSendErrorMessages.securityCheck,
+  authSendErrorMessages.invalidPhone,
+  authSendErrorMessages.notConfigured,
 ] as const;
 
 /** Validates a user-facing error string follows the house pattern. */

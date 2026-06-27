@@ -41,7 +41,7 @@ export function getFirebaseClientConfig(): FirebaseClientConfig {
 
 export function isFirebaseConfigured(): boolean {
   const config = getFirebaseClientConfig();
-  return Boolean(config.apiKey && config.appId && config.projectId);
+  return Boolean(config.apiKey && config.appId && config.projectId && config.authDomain);
 }
 
 let cachedApp: FirebaseApp | null = null;
