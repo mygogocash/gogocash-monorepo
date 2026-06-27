@@ -238,7 +238,10 @@ export class UpdateBannerHomeDto {
   @IsOptional()
   end_date_5?: string;
 
-  @ApiProperty({ required: false, description: 'When true, removes the stored image for slot 1.' })
+  @ApiProperty({
+    required: false,
+    description: 'When true, removes the stored image for slot 1.',
+  })
   @IsOptional()
   clear_image_1?: boolean | string;
 
