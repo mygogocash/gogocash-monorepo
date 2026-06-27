@@ -4,8 +4,13 @@ import { Types } from 'mongoose';
 import {
   escapeJsStringLiteral,
   mongoCaseInsensitiveRegex,
+  mongoEq,
+  mongoFilter,
+  mongoSetUpdate,
+  mongoUpdate,
   normalizeSlugSegment,
   requireObjectId,
+  requireObjectIdHex,
   requireOneOf,
 } from './mongo-query';
 
@@ -17,6 +22,11 @@ describe('mongo-query helpers', () => {
   it('requireObjectId > given valid id > then returns ObjectId', () => {
     const id = new Types.ObjectId().toHexString();
     expect(requireObjectId(id).toHexString()).toBe(id);
+  });
+
+  it('requireObjectIdHex > given valid id > then returns hex string', () => {
+    const id = new Types.ObjectId().toHexString();
+    expect(requireObjectIdHex(id)).toBe(id);
   });
 
   it('mongoCaseInsensitiveRegex > given metacharacters > then escapes input', () => {
@@ -35,5 +45,25 @@ describe('mongo-query helpers', () => {
 
   it('escapeJsStringLiteral > given quotes and backslashes > then escapes', () => {
     expect(escapeJsStringLiteral(`a\\'b`)).toBe(`a\\\\\\'b`);
+  });
+
+  it('mongoEq > given validated scalar > then wraps with $eq', () => {
+    expect(mongoEq('pending')).toEqual({ $eq: 'pending' });
+  });
+
+  it('mongoFilter > given validated filter > then returns same object', () => {
+    const filter = { status: mongoEq('active') };
+    expect(mongoFilter(filter)).toBe(filter);
+  });
+
+  it('mongoUpdate > given validated update > then returns same object', () => {
+    const update = { status: 'approved' };
+    expect(mongoUpdate(update)).toBe(update);
+  });
+
+  it('mongoSetUpdate > given validated fields > then wraps with $set', () => {
+    expect(mongoSetUpdate({ status: 'approved' })).toEqual({
+      $set: { status: 'approved' },
+    });
   });
 });

@@ -27,6 +27,8 @@ import { Deeplink } from 'src/involve/schemas/deeplink.schema';
 import { escapeRegexLiteral } from 'src/common/escape-regex';
 import {
   mongoCaseInsensitiveRegex,
+  mongoFilter,
+  mongoUpdate,
   requireObjectId,
   requireOneOf,
 } from 'src/common/mongo-query';
@@ -94,7 +96,7 @@ export class AdminService {
 
   update(id: string, updateAdminDto: UpdateAdminDto) {
     return this.userAdminModel
-      .findByIdAndUpdate(requireObjectId(id), updateAdminDto)
+      .findByIdAndUpdate(requireObjectId(id), mongoUpdate(updateAdminDto))
       .exec();
   }
 
@@ -109,16 +111,20 @@ export class AdminService {
     if (file) {
       const res = await this.googleDriveService.uploadFile(file);
       return this.withdrawModel
-        .findByIdAndUpdate(withdrawId, {
-          status: updateRequestWithdrawDto.status,
-          slip_file: res.id,
-        })
+        .findByIdAndUpdate(
+          withdrawId,
+          mongoUpdate({
+            status: updateRequestWithdrawDto.status,
+            slip_file: res.id,
+          }),
+        )
         .exec();
     }
     return this.withdrawModel
-      .findByIdAndUpdate(withdrawId, {
-        status: updateRequestWithdrawDto.status,
-      })
+      .findByIdAndUpdate(
+        withdrawId,
+        mongoUpdate({ status: updateRequestWithdrawDto.status }),
+      )
       .exec();
   }
 
@@ -233,7 +239,7 @@ export class AdminService {
         'search key',
       );
       if (searchKey === 'conversion_id') {
-        filter.conversion_id = search;
+        filter.conversion_id = search.trim();
       } else {
         filter.$or = [
           {
@@ -252,7 +258,7 @@ export class AdminService {
     const allConversions = await this.conversionModel
       .aggregate([
         {
-          $match: filter,
+          $match: mongoFilter(filter),
         },
         {
           $lookup: {
@@ -349,7 +355,7 @@ export class AdminService {
       //   .sort({ datetime_conversion: -1 })
       //   .exec(),
       allConversions,
-      this.conversionModel.countDocuments(filter).exec(),
+      this.conversionModel.countDocuments(mongoFilter(filter)).exec(),
     ]);
 
     const totalPages = Math.ceil(total / limit);
@@ -385,7 +391,7 @@ export class AdminService {
     const feeRate = await this.feeRateModel.findOne({ _id: objectId }).exec();
     if (feeRate) {
       return this.feeRateModel
-        .findOneAndUpdate({ _id: objectId }, updateFeeRateDto, {
+        .findOneAndUpdate({ _id: objectId }, mongoUpdate(updateFeeRateDto), {
           upsert: true,
           new: true,
         })
@@ -478,7 +484,7 @@ export class AdminService {
     return this.offerModel
       .findByIdAndUpdate(
         requireObjectId(id),
-        {
+        mongoUpdate({
           ...updateData,
           logo_desktop: file1 ? file1.id : offer.logo_desktop,
           logo_mobile: file2 ? file2.id : offer.logo_mobile,
@@ -499,7 +505,7 @@ export class AdminService {
             typeof updateData.product_type === 'string'
               ? JSON.parse(updateData.product_type)
               : updateData.product_type,
-        },
+        }),
         { new: true },
       )
       .exec();

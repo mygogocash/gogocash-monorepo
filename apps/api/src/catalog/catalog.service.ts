@@ -18,6 +18,9 @@ import {
 } from './dto/catalog.dto';
 import {
   mongoCaseInsensitiveRegex,
+  mongoEq,
+  mongoFilter,
+  mongoUpdate,
   normalizeSlugSegment,
   requireObjectId,
   requireOneOf,
@@ -77,7 +80,7 @@ export class CatalogService {
     }
 
     return this.bannerModel
-      .find(filter)
+      .find(mongoFilter(filter))
       .sort({ priority: -1, createdAt: -1 })
       .limit(Math.min(query.limit || 10, 50))
       .lean()
@@ -86,13 +89,14 @@ export class CatalogService {
 
   async listPublishedProducts(query: ListCatalogDto = {}) {
     const filter = this.publishedProductFilter();
-    if (query.shop_slug) filter.shop_slug = query.shop_slug;
+    if (query.shop_slug)
+      filter.shop_slug = mongoEq(normalizeSlugSegment(query.shop_slug));
     if (query.search) {
       filter.title = mongoCaseInsensitiveRegex(query.search);
     }
 
     return this.productModel
-      .find(filter)
+      .find(mongoFilter(filter))
       .sort({ published_at: -1, createdAt: -1 })
       .limit(Math.min(query.limit || 20, 100))
       .lean()
@@ -119,7 +123,7 @@ export class CatalogService {
     }
 
     return this.brandModel
-      .find(filter)
+      .find(mongoFilter(filter))
       .sort({ brand_name: 1 })
       .limit(Math.min(query.limit || 20, 100))
       .lean()
@@ -131,7 +135,7 @@ export class CatalogService {
     if (query.placement)
       filter.placement = this.toBannerPlacement(query.placement);
     return this.bannerModel
-      .find(filter)
+      .find(mongoFilter(filter))
       .sort({ updatedAt: -1 })
       .limit(Math.min(query.limit || 50, 100))
       .lean()
@@ -154,13 +158,13 @@ export class CatalogService {
     this.assertValidSchedule(dto.starts_at, dto.ends_at);
     const updated = await this.bannerModel
       .findByIdAndUpdate(
-        id,
-        {
+        requireObjectId(id),
+        mongoUpdate({
           ...dto,
           updated_by: actor?.email || actor?.userId,
           starts_at: dto.starts_at ? new Date(dto.starts_at) : undefined,
           ends_at: dto.ends_at ? new Date(dto.ends_at) : undefined,
-        },
+        }),
         { new: true },
       )
       .lean()
@@ -179,12 +183,13 @@ export class CatalogService {
 
   listAdminProducts(query: ListCatalogDto = {}) {
     const filter: QueryFilter<CatalogProduct> = {};
-    if (query.shop_slug) filter.shop_slug = query.shop_slug;
+    if (query.shop_slug)
+      filter.shop_slug = mongoEq(normalizeSlugSegment(query.shop_slug));
     if (query.search) {
       filter.title = mongoCaseInsensitiveRegex(query.search);
     }
     return this.productModel
-      .find(filter)
+      .find(mongoFilter(filter))
       .sort({ updatedAt: -1 })
       .limit(Math.min(query.limit || 50, 100))
       .lean()
@@ -234,7 +239,7 @@ export class CatalogService {
       patch.scheduled_end_at = new Date(dto.scheduled_end_at);
 
     const updated = await this.productModel
-      .findByIdAndUpdate(id, patch, { new: true })
+      .findByIdAndUpdate(requireObjectId(id), mongoUpdate(patch), { new: true })
       .lean()
       .exec();
     if (!updated) throw new NotFoundException('Product not found');
@@ -255,7 +260,7 @@ export class CatalogService {
       filter.brand_name = mongoCaseInsensitiveRegex(query.search);
     }
     return this.brandModel
-      .find(filter)
+      .find(mongoFilter(filter))
       .sort({ updatedAt: -1, brand_name: 1 })
       .limit(Math.min(query.limit || 50, 100))
       .lean()
@@ -270,7 +275,12 @@ export class CatalogService {
     this.assertObjectId(brandId);
     if (dto.shop_slug) {
       const existing = await this.brandModel
-        .findOne({ shop_slug: dto.shop_slug, _id: { $ne: brandId } })
+        .findOne(
+          mongoFilter({
+            shop_slug: mongoEq(this.normalizeSlug(dto.shop_slug)),
+            _id: { $ne: requireObjectId(brandId) },
+          }),
+        )
         .lean()
         .exec();
       if (existing) throw new ConflictException('Shop slug already exists');
@@ -278,15 +288,15 @@ export class CatalogService {
 
     const updated = await this.brandModel
       .findByIdAndUpdate(
-        brandId,
-        {
+        requireObjectId(brandId),
+        mongoUpdate({
           ...dto,
           shop_slug: dto.shop_slug
             ? this.normalizeSlug(dto.shop_slug)
             : dto.shop_slug,
           fulfillment_owner: dto.fulfillment_owner || 'gogocash',
           updated_by: actor?.email || actor?.userId,
-        },
+        }),
         { new: true },
       )
       .lean()
@@ -298,7 +308,9 @@ export class CatalogService {
 
   private async assertBrandExists(id: string) {
     this.assertObjectId(id);
-    const exists = await this.brandModel.exists({ _id: id, disabled: false });
+    const exists = await this.brandModel.exists(
+      mongoFilter({ _id: requireObjectId(id), disabled: false }),
+    );
     if (!exists) throw new BadRequestException('Brand does not exist');
   }
 

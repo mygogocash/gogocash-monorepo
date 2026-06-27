@@ -1,7 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { requireObjectId, requireOneOf } from 'src/common/mongo-query';
+import {
+  requireObjectId,
+  mongoFilter,
+  requireOneOf,
+} from 'src/common/mongo-query';
 import { MissingOrder } from './schemas/missing-order.schema';
 
 @Injectable()
@@ -65,13 +69,13 @@ export class MissingOrdersService {
 
     const [data, total] = await Promise.all([
       this.missingOrderModel
-        .find(filter)
+        .find(mongoFilter(filter))
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .lean()
         .exec(),
-      this.missingOrderModel.countDocuments(filter).exec(),
+      this.missingOrderModel.countDocuments(mongoFilter(filter)).exec(),
     ]);
 
     return {

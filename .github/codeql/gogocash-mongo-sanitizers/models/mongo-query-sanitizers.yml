@@ -1,0 +1,14 @@
+extensions:
+  - addsTo:
+      pack: codeql/javascript-all
+      extensible: barrierModel
+    data:
+      - ["src/common/mongo-query", "Member[requireObjectId].ReturnValue", "nosql-injection"]
+      - ["src/common/mongo-query", "Member[requireObjectIdHex].ReturnValue", "nosql-injection"]
+      - ["src/common/mongo-query", "Member[requireOneOf].ReturnValue", "nosql-injection"]
+      - ["src/common/mongo-query", "Member[mongoCaseInsensitiveRegex].ReturnValue", "nosql-injection"]
+      - ["src/common/mongo-query", "Member[normalizeSlugSegment].ReturnValue", "nosql-injection"]
+      - ["src/common/mongo-query", "Member[mongoEq].ReturnValue", "nosql-injection"]
+      - ["src/common/mongo-query", "Member[mongoFilter].ReturnValue", "nosql-injection"]
+      - ["src/common/mongo-query", "Member[mongoUpdate].ReturnValue", "nosql-injection"]
+      - ["src/common/mongo-query", "Member[mongoSetUpdate].ReturnValue", "nosql-injection"]

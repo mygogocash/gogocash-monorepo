@@ -44,6 +44,11 @@ import {
   buildApprovedUserConversionsFilter,
   buildUserConversionScopeFilter,
 } from './conversion-user-id.util';
+import {
+  mongoFilter,
+  mongoUpdate,
+  requireObjectId,
+} from 'src/common/mongo-query';
 
 @Injectable()
 export class WithdrawService {
@@ -2273,8 +2278,11 @@ export class WithdrawService {
       patch.is_default = updateData.is_default;
     }
     return this.withdrawMethodModel.findOneAndUpdate(
-      { _id: new Types.ObjectId(id), user_id: new Types.ObjectId(userId) },
-      patch,
+      mongoFilter({
+        _id: requireObjectId(id),
+        user_id: requireObjectId(userId, 'user id'),
+      }),
+      mongoUpdate(patch),
       { new: true },
     );
   }

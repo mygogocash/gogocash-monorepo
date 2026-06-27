@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { QueryFilter, Model, Types } from 'mongoose';
-import { requireObjectId } from 'src/common/mongo-query';
+import { requireObjectId, mongoUpdate } from 'src/common/mongo-query';
 import { Brand, BrandDocument } from './schemas/brand.schema';
 import { Offer, OfferDocument } from '../offer/schemas/offer.schema';
 import { CreateBrandDto } from './dto/create-brand.dto';
@@ -255,10 +255,14 @@ export class BrandService {
       patch.shipping_policy = dto.shipping_policy;
     }
 
-    const updated = await this.brandModel.findByIdAndUpdate(brandId, patch, {
-      new: true,
-      runValidators: true,
-    });
+    const updated = await this.brandModel.findByIdAndUpdate(
+      brandId,
+      mongoUpdate(patch),
+      {
+        new: true,
+        runValidators: true,
+      },
+    );
     if (!updated) throw new NotFoundException('Brand not found.');
 
     // Mirror visibility fields onto every variant so the customer-side filter stays
