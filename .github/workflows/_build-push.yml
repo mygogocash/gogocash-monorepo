@@ -10,7 +10,6 @@ name: _build-push (reusable)
 
 on:
   workflow_call:
-    secrets: inherit
     inputs:
       service_name:
         description: Cloud Run service / image name (also the Artifact Registry image)
@@ -42,6 +41,15 @@ on:
         required: false
         type: string
         default: gogocash
+    secrets:
+      EXPO_PUBLIC_FIREBASE_API_KEY:
+        required: false
+      EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN:
+        required: false
+      EXPO_PUBLIC_FIREBASE_PROJECT_ID:
+        required: false
+      EXPO_PUBLIC_FIREBASE_APP_ID:
+        required: false
 
 permissions:
   contents: read
