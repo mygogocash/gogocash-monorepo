@@ -249,7 +249,10 @@ export class OfferService implements OnApplicationBootstrap {
     return { page, limit, total, totalPages, data: rankedData };
   }
 
-  private async rankPublicSearchResults(search: string, offers: OfferDocument[]) {
+  private async rankPublicSearchResults(
+    search: string,
+    offers: OfferDocument[],
+  ) {
     const normalizedQuery = search.trim().toLowerCase();
     if (!normalizedQuery) {
       return offers;
@@ -284,9 +287,14 @@ export class OfferService implements OnApplicationBootstrap {
     });
 
     const boostMap = new Map(
-      boosts.map((rule) => [String(rule.offer_id), Number(rule.boost_weight ?? 1)]),
+      boosts.map((rule) => [
+        String(rule.offer_id),
+        Number(rule.boost_weight ?? 1),
+      ]),
     );
-    const featuredTerms = featured.map((entry) => String(entry.term).toLowerCase());
+    const featuredTerms = featured.map((entry) =>
+      String(entry.term).toLowerCase(),
+    );
 
     return [...filtered].sort((left, right) => {
       const scoreFor = (offer: OfferDocument) => {
