@@ -27,7 +27,7 @@ import {
 import type { LayoutRectangle, ViewStyle } from "react-native";
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
-import { saveMissingOrderClaim } from "@mobile/account/offerActionsApi";
+import { submitMissingOrder } from "@mobile/account/missingOrderResource";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { mapOffersToCatalogBrands } from "@mobile/api/catalogMapper";
 import { isOfferListResponse } from "@mobile/api/catalogTypes";
@@ -212,9 +212,10 @@ function MissingOrdersFormPanel() {
       setSubmitting(true);
       void (async () => {
         try {
-          await saveMissingOrderClaim(env.apiUrl, {
+          await submitMissingOrder({
             amount: amount.trim(),
-            attachments,
+            apiUrl: env.apiUrl,
+            files: attachments,
             note: note.trim(),
             offerId: selectedOfferId,
             orderId: orderId.trim(),

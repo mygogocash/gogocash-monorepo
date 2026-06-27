@@ -39,6 +39,11 @@ import { Quest } from 'src/point/schemas/quest.schema';
 import { RequestCreateConversionReward } from 'src/user/dto/create-conversion-reward.dto';
 import { CustomerIoService } from 'src/customer-io/customer-io.service';
 import { CIO_EVENTS } from 'src/customer-io/customer-io.types';
+import {
+  affSub1ForUserId,
+  buildApprovedUserConversionsFilter,
+  buildUserConversionScopeFilter,
+} from './conversion-user-id.util';
 
 @Injectable()
 export class WithdrawService {
@@ -359,23 +364,34 @@ export class WithdrawService {
   }
 
   async checkWithdraw(id: string) {
-    const user = await this.userModel.findOne({
-      _id: new Types.ObjectId(id),
-    });
+    const [user, fee] = await Promise.all([
+      this.userModel.findOne({
+        _id: new Types.ObjectId(id),
+      }),
+      this.feeRateModel.findOne().exec(),
+    ]);
     if (!user) {
       throw new UnauthorizedException({ message: 'User not found' });
     }
-    const fee = await this.feeRateModel.findOne().exec();
     if (!fee) {
       throw new HttpException({ message: 'Fee rate not found' }, 400);
     }
 
-    const allConversions = await this.conversionModel
-      .find({
-        conversion_status: 'approved',
-        aff_sub1: { $regex: `user_id:${user._id.toString()}` },
-      })
-      .lean();
+    const [allConversions, withdrawList] = await Promise.all([
+      this.conversionModel
+        .find(buildApprovedUserConversionsFilter(user._id))
+        .lean(),
+      this.withdrawModel
+        .find({
+          user_id: new Types.ObjectId(user._id),
+          mycashback_id: [],
+          // 'paid' MUST stay in the deduction set: once markWithdrawPaid flips a
+          // withdrawal to 'paid', dropping it here re-credits the balance and
+          // allows a second withdrawal of the same funds (double-withdraw).
+          status: { $in: ['pending', 'approved', 'paid'] },
+        })
+        .lean(),
+    ]);
 
     const payoutConversionGroupCurrency = allConversions.reduce(
       (acc, item) => {
@@ -403,17 +419,6 @@ export class WithdrawService {
     );
 
     // get withdrawn ---------------------
-
-    const withdrawList = await this.withdrawModel
-      .find({
-        user_id: new Types.ObjectId(user._id),
-        mycashback_id: [],
-        // 'paid' MUST stay in the deduction set: once markWithdrawPaid flips a
-        // withdrawal to 'paid', dropping it here re-credits the balance and
-        // allows a second withdrawal of the same funds (double-withdraw).
-        status: { $in: ['pending', 'approved', 'paid'] },
-      })
-      .lean();
 
     const withdrawnAmountByCurrency = withdrawList.reduce(
       (acc, withdraw) => {
@@ -538,7 +543,7 @@ export class WithdrawService {
       ? 0
       : _totalPayoutTHB - _sumWithdrawInTHB;
 
-    const MCBCashback = await this.checkWithdrawMyCashback(id);
+    const MCBCashback = await this.checkWithdrawMyCashback(id, user);
 
     // Calculate total amount after fee deduction
     // const fee_withdraw_thb = fee.fee_withdraw_thb;
@@ -616,9 +621,7 @@ export class WithdrawService {
       .sort({ createdAt: -1 })
       .lean();
     const allConversions = await this.conversionModel
-      .find({
-        aff_sub1: { $regex: `user_id:${user._id.toString()}` },
-      })
+      .find(buildUserConversionScopeFilter(user._id))
       .sort({ createdAt: -1 })
       .lean();
 
@@ -895,9 +898,7 @@ export class WithdrawService {
     const allConversions = await this.conversionModel
       .aggregate([
         {
-          $match: {
-            aff_sub1: { $regex: `user_id:${user._id.toString()}` },
-          },
+          $match: buildUserConversionScopeFilter(user._id),
         },
         {
           $lookup: {
@@ -1266,10 +1267,7 @@ export class WithdrawService {
     // );
     // return conversationByUser;
     const allConversions = await this.conversionModel
-      .find({
-        conversion_status: 'approved',
-        aff_sub1: { $regex: `user_id:${id}` },
-      })
+      .find(buildApprovedUserConversionsFilter(id))
       .lean();
     return allConversions;
   }
@@ -1311,10 +1309,15 @@ export class WithdrawService {
       .lean();
   }
 
-  async checkWithdrawMyCashback(id: string) {
-    const user = await this.userModel.findOne({
-      _id: new Types.ObjectId(id),
-    });
+  async checkWithdrawMyCashback(
+    id: string,
+    existingUser?: { _id: Types.ObjectId; email?: string; mobile?: string },
+  ) {
+    const user =
+      existingUser ??
+      (await this.userModel.findOne({
+        _id: new Types.ObjectId(id),
+      }));
 
     if (!user) {
       throw new UnauthorizedException({ message: 'User not found' });
@@ -2366,9 +2369,7 @@ export class WithdrawService {
       affiliate_remarks: '',
       base_payout: 0,
       bonus_payout: 0,
-      aff_sub1: user_id?.startsWith('user_id:')
-        ? user_id
-        : `user_id:${user_id}`, // "user_id:68bf99fed9667685c1637607"
+      aff_sub1: affSub1ForUserId(user_id),
       // P1-COLLSCAN: persist the indexed user_id alongside the legacy aff_sub1.
       user_id: userData._id,
       currency: reward_currency || 'THB',

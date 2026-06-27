@@ -1,17 +1,25 @@
-export type WithdrawMethodKind = "promptpay" | "bank";
+import type { CheckWithdrawResponse } from "@mobile/api/walletTypes";
 
-export type WithdrawSubmitRequest = {
-  methodId: string;
-  amount: number;
+export type WithdrawMethodRecord = {
+  _id: string;
+  account_name: string;
+  account_no: number | string;
+  bank_name: string;
+  bank_code?: string;
+  is_default?: boolean;
 };
 
-export type WithdrawSubmitResponse = {
-  withdrawalId: string;
+export type WithdrawBankTransferRequest = {
+  accountName: string;
+  accountNumber: string;
+  amountNet: number;
+  bankName: string;
+  currency?: "THB" | "USD";
+};
+
+export type WithdrawBankTransferResponse = {
+  _id: string;
   status: string;
-};
-
-export type WithdrawMethodListResponse = {
-  methods: Array<{ id: string; kind: WithdrawMethodKind; label: string }>;
 };
 
 export type WithdrawBaseClient = {
@@ -19,27 +27,41 @@ export type WithdrawBaseClient = {
   post<TResponse = unknown>(
     path: string,
     body?: unknown,
-    headers?: Record<string, string>
+    headers?: Record<string, string>,
   ): Promise<TResponse>;
 };
 
-// A withdrawal moves money, so every submit MUST carry a caller-generated
-// Idempotency-Key. Reusing the same key when retrying the same logical submission
-// (a double tap, a network retry) lets the backend settle it to one payout instead
-// of paying out twice. The client refuses to submit without a key.
+// Wired by CustomerMoneyActionScreen in backend mode. Real Nest paths:
+// POST /withdraw/check, GET /withdraw/methods-list, POST /withdraw/bank-transfer.
 export function createWithdrawApi(client: WithdrawBaseClient) {
   return {
-    listMethods() {
-      return client.get<WithdrawMethodListResponse>("/withdraw/methods");
+    checkBalance() {
+      return client.post<CheckWithdrawResponse>("/withdraw/check");
     },
-    submitWithdrawal(request: WithdrawSubmitRequest, idempotencyKey: string) {
+    listMethods() {
+      return client.get<WithdrawMethodRecord[]>("/withdraw/methods-list");
+    },
+    async submitBankTransfer(request: WithdrawBankTransferRequest, idempotencyKey: string) {
       if (!idempotencyKey) {
-        throw new Error("submitWithdrawal requires an Idempotency-Key");
+        throw new Error("submitBankTransfer requires an Idempotency-Key");
       }
 
-      return client.post<WithdrawSubmitResponse>("/withdraw/submit", request, {
-        "Idempotency-Key": idempotencyKey,
-      });
+      return client.post<WithdrawBankTransferResponse>(
+        "/withdraw/bank-transfer",
+        {
+          account_name: request.accountName,
+          account_number: request.accountNumber,
+          amount_net: request.amountNet,
+          amount_total: request.amountNet,
+          bank_name: request.bankName,
+          conversion_ids: [],
+          currency: request.currency ?? "THB",
+          percent_fee: 0,
+        },
+        {
+          "Idempotency-Key": idempotencyKey,
+        },
+      );
     },
   };
 }

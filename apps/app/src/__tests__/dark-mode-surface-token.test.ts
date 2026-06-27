@@ -21,6 +21,7 @@ const phaseTwoScreenFiles = [
   "src/screens/CustomerQuestScreen.tsx",
   "src/screens/CustomerReferralScreen.tsx",
   "src/screens/CustomerShopDetailScreen.tsx",
+  "src/screens/CustomerWithdrawMethodScreen.tsx",
 ];
 
 const phaseThreeScreenFiles = [

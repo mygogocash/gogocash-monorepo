@@ -53,4 +53,30 @@ describe("perf wave 4 — query cache, carousel driver, expo-image", () => {
       /import\s*\{[^}]*\bImage\b[^}]*\}\s*from\s*"react-native"/
     );
   });
+
+  it("HomeHeroBanners > given remote hero art > then expo-image caches banner URLs", () => {
+    const heroBanners = readMobileFile("src/screens/home/HomeHeroBanners.tsx");
+
+    expect(heroBanners).toContain('from "expo-image"');
+    expect(heroBanners).toContain('cachePolicy="memory-disk"');
+    expect(heroBanners).toContain("prefetchRemoteImages");
+  });
+
+  it("HomeSearchResultRow > given remote brand logos > then expo-image caches search hits", () => {
+    const searchRow = readMobileFile("src/screens/home/HomeSearchResultRow.tsx");
+
+    expect(searchRow).toContain('from "expo-image"');
+    expect(searchRow).toContain('contentFit="contain"');
+    expect(searchRow).toContain('cachePolicy="memory-disk"');
+    expect(searchRow).not.toMatch(
+      /import\s*\{[^}]*\bImage\b[^}]*\}\s*from\s*"react-native"/
+    );
+  });
+
+  it("AppProviders > given startup gate > then QueryClientProvider wraps the loading shell", () => {
+    const providers = readMobileFile("src/providers/AppProviders.tsx");
+
+    expect(providers).toContain("<QueryClientProvider client={queryClient}>");
+    expect(providers).toContain("AccountResourceWarmup");
+  });
 });

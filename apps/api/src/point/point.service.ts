@@ -15,6 +15,9 @@ import { GroupedConversion } from './interface/point.interface';
 import { Offer } from 'src/offer/schemas/offer.schema';
 import { AnalyticsService } from 'src/analytics/analytics.service';
 import {
+  buildApprovedUserConversionsFilter,
+} from 'src/withdraw/conversion-user-id.util';
+import {
   Quest,
   QuestReward,
   QuestRewardDistributionMode,
@@ -231,16 +234,13 @@ export class PointService {
   }
 
   async getQuestRankList(startDate: string, endDate: string, userId?: string) {
-    let filter = {};
+    let filter: Record<string, unknown> = {};
     if (userId) {
-      filter = {
-        aff_sub1: { $regex: `user_id:${userId}` },
-        conversion_status: 'approved',
-      };
+      filter = buildApprovedUserConversionsFilter(userId);
     } else {
       filter = {
         conversion_status: 'approved',
-        aff_sub1: { $regex: '^user_id' },
+        user_id: { $exists: true, $ne: null },
       };
     }
 
@@ -279,8 +279,7 @@ export class PointService {
         });
         const conversion = await this.conversionModel
           .find({
-            aff_sub1: `user_id:${userId}`,
-            conversion_status: 'approved',
+            ...buildApprovedUserConversionsFilter(userId),
             datetime_conversion: {
               $gte: new Date(startDate),
               $lte: new Date(endDate),

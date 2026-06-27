@@ -445,8 +445,8 @@ describe("Account hub route parity", () => {
     expect(methodFile).toContain("withdrawMethodSurfaceBleed");
     expect(methodFile).toContain("methodGrid");
     expect(methodFile).toContain("minHeight: 183");
-    expect(methodFile).toContain('borderColor: "#D8EDE4"');
-    expect(methodFile).toContain('boxShadow: "0 4px 24px rgba(0,204,153,0.08)"');
+    expect(methodFile).toContain('pickThemed(colors, "#D8EDE4", colors.border)');
+    expect(methodFile).toContain("boxShadow: shadows.cardCss");
     expect(methodFile).not.toContain("Payout Methods");
     expect(methodFile).not.toContain("Add Payout Method");
     expect(methodFile).not.toContain("0891234567");

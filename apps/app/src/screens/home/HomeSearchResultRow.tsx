@@ -1,5 +1,6 @@
+import { Image } from "expo-image";
 import { Link } from "expo-router";
-import { Image, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { webHomeSearchPopularPanel } from "@mobile/design/webDesignParity";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
@@ -43,8 +44,10 @@ export function HomeSearchResultRow({
         >
           {item.logoUri ? (
             <Image
-              alt={`${item.brand} logo`}
-              resizeMode="contain"
+              accessibilityLabel={`${item.brand} logo`}
+              cachePolicy="memory-disk"
+              contentFit="contain"
+              recyclingKey={item.logoUri}
               source={{ uri: item.logoUri }}
               style={{ height: "70%", width: "70%" }}
             />

@@ -95,3 +95,6 @@ export class Conversion {
 }
 
 export const ConversionSchema = SchemaFactory.createForClass(Conversion);
+
+/** Hot path: checkWithdraw approved conversions by indexed user_id. */
+ConversionSchema.index({ user_id: 1, conversion_status: 1 });

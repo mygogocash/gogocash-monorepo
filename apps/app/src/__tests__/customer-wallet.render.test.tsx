@@ -139,7 +139,14 @@ describe("CustomerWalletScreen — Wave B foundations adopted (source signals)",
     expect(walletSource).toContain("hitSlop=");
   });
 
-  it("passes WalletSkeleton to the shared resource state's opt-in loadingSkeleton", () => {
+  it("renders an in-shell wallet skeleton while the backend resource is loading", () => {
+    expect(walletSource).toContain("walletShellWhileLoading");
+    expect(walletSource).toContain('walletResource.status === "loading"');
+    expect(walletSource).toContain("AccountPageShell");
+    expect(walletSource).toContain("<WalletSkeleton />");
+  });
+
+  it("passes WalletSkeleton to the shared resource state's opt-in loadingSkeleton for non-loading errors", () => {
     // The status !== "ready" guard still delegates to CustomerAccountResourceState (owned
     // centrally), but that shared component now accepts an opt-in loadingSkeleton prop (B3
     // enhancement). The wallet hands it <WalletSkeleton /> so the loading state renders a

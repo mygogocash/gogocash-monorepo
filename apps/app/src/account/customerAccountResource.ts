@@ -3,36 +3,33 @@ import { useMemo } from "react";
 
 import { ApiError } from "@mobile/api/client";
 import { getSharedMobileApiClient } from "@mobile/api/sharedClient";
+import {
+  isPublicAdminConfiguredResource,
+  PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS,
+  type CustomerAccountResourceId,
+  type PublicAdminConfiguredResourceId,
+} from "@mobile/account/customerAccountResourceIds";
+import {
+  resolveCustomerAccountResourceQueryKey,
+  resolveCustomerAccountResourceSessionScope,
+} from "@mobile/account/customerAccountResourceQueryKey";
 import type { AccountDataSource } from "@mobile/auth/routeGuard";
+import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
 import { getMobileEnv } from "@mobile/config/env";
 
+export {
+  isPublicAdminConfiguredResource,
+  PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS,
+  type CustomerAccountResourceId,
+  type PublicAdminConfiguredResourceId,
+} from "@mobile/account/customerAccountResourceIds";
+export {
+  AUTH_SCOPED_CUSTOMER_ACCOUNT_RESOURCE_IDS,
+  resolveCustomerAccountResourceQueryKey,
+  resolveCustomerAccountResourceSessionScope,
+} from "@mobile/account/customerAccountResourceQueryKey";
+
 export const accountDataSourceEnvName = "EXPO_PUBLIC_ACCOUNT_DATA_SOURCE";
-
-export type CustomerAccountResourceId =
-  | "billing"
-  | "brandCatalog"
-  | "catalog"
-  | "categoryList"
-  | "homeBanner"
-  | "merchant"
-  | "offers"
-  | "policyCategory"
-  | "profile"
-  | "referral"
-  | "topBrand"
-  | "wallet";
-
-/** Public, no-auth resources whose live admin config should load even in fixtures mode. */
-export const PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS = ["topBrand", "homeBanner"] as const satisfies readonly CustomerAccountResourceId[];
-
-export type PublicAdminConfiguredResourceId =
-  (typeof PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS)[number];
-
-export function isPublicAdminConfiguredResource(
-  resourceId: CustomerAccountResourceId,
-): resourceId is PublicAdminConfiguredResourceId {
-  return (PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS as readonly string[]).includes(resourceId);
-}
 
 export function shouldFetchCustomerAccountResourceFromBackend({
   accountDataSource,
@@ -86,6 +83,9 @@ type CustomerAccountResourceOptions<TFixture> = {
 
 const merchantEndpointTemplate = "/offer/${merchantId}";
 
+/** Initial home brand-catalog page size — keep modest to shorten first paint payload. */
+export const BRAND_CATALOG_PAGE_LIMIT = 20;
+
 export function resolveCustomerAccountResourceEndpoint({
   merchantId = "brand-grocery-galaxy-1001",
   resourceId,
@@ -118,7 +118,7 @@ export function resolveCustomerAccountResourceEndpoint({
   if (resourceId === "brandCatalog") {
     // Public live brand catalog (no auth): Brand Management controls create/edit,
     // tracking/deeplink, commission, status, and hidden/live visibility on offers.
-    return "/offer?limit=80&page=1";
+    return `/offer?limit=${BRAND_CATALOG_PAGE_LIMIT}&page=1`;
   }
 
   if (resourceId === "categoryList") {
@@ -171,6 +171,10 @@ export function resolveCustomerAccountResourceRequest({
     return { body: { limit: 10, page: 1 }, method: "POST", path: "/offer/my-offers" };
   }
 
+  if (resourceId === "wallet") {
+    return { method: "POST", path: "/withdraw/check" };
+  }
+
   return { method: "GET", path: resolveCustomerAccountResourceEndpoint({ merchantId, resourceId }) };
 }
 
@@ -181,7 +185,9 @@ export function useCustomerAccountResource<TFixture, TBackend = unknown>({
   resourceId,
 }: CustomerAccountResourceOptions<TFixture>): CustomerAccountResourceResult<TFixture | TBackend> {
   const env = useMemo(() => getMobileEnv(), []);
+  const session = useMobileSessionSnapshot();
   const endpoint = resolveCustomerAccountResourceEndpoint({ merchantId, resourceId });
+  const sessionScope = resolveCustomerAccountResourceSessionScope(resourceId, session);
   const shouldFetch = shouldFetchCustomerAccountResourceFromBackend({
     accountDataSource: env.accountDataSource,
     apiUrl: env.apiUrl,
@@ -205,7 +211,12 @@ export function useCustomerAccountResource<TFixture, TBackend = unknown>({
         ? client.post<TBackend>(request.path, request.body)
         : client.get<TBackend>(request.path);
     },
-    queryKey: ["customer-account-resource", resourceId, endpoint, env.apiUrl],
+    queryKey: resolveCustomerAccountResourceQueryKey({
+      apiUrl: env.apiUrl,
+      endpoint,
+      resourceId,
+      sessionScope,
+    }),
     retry: false,
   });
 

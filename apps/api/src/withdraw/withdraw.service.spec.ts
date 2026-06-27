@@ -797,6 +797,39 @@ describe('WithdrawService', () => {
     });
   });
 
+  describe('checkWithdraw user lookup', () => {
+    it('checkWithdraw > given a loaded user > then passes the user doc into checkWithdrawMyCashback', async () => {
+      const userDoc = {
+        _id: new Types.ObjectId(VALID_USER_ID),
+        mobile: '+66812345678',
+      };
+      mocks.userModel.findOne.mockResolvedValue(userDoc);
+      mocks.feeRateModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ system: 30, max_cap: 1000 }),
+      });
+      mocks.conversionModel.find.mockReturnValue({
+        lean: jest.fn().mockResolvedValue([]),
+      });
+      mocks.withdrawModel.find.mockReturnValue({
+        lean: jest.fn().mockResolvedValue([]),
+      });
+      const mcbSpy = jest
+        .spyOn(mocks.service, 'checkWithdrawMyCashback')
+        .mockResolvedValue({
+          totalMyCashbackTHB: 0,
+          totalMyCashbackUSD: 0,
+          availableUSD: 0,
+          availableTHB: 0,
+          conversionIdMyCashback: [],
+        });
+
+      await mocks.service.checkWithdraw(VALID_USER_ID);
+
+      expect(mcbSpy).toHaveBeenCalledWith(VALID_USER_ID, userDoc);
+      expect(mocks.userModel.findOne).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('adminAddRewardConversionForQuest', () => {
     it('adminAddRewardConversionForQuest > given quest-level rewards > then it uses them instead of the legacy global reward list', async () => {
       const questId = new Types.ObjectId();

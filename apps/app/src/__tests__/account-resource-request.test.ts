@@ -21,6 +21,20 @@ describe("resolveCustomerAccountResourceRequest", () => {
     });
   });
 
+  it("wallet > then describes the real backend contract: POST /withdraw/check", () => {
+    expect(resolveCustomerAccountResourceRequest({ resourceId: "wallet" })).toEqual({
+      method: "POST",
+      path: "/withdraw/check",
+    });
+  });
+
+  it("brandCatalog > then requests a modest first page for faster home paint", () => {
+    expect(resolveCustomerAccountResourceRequest({ resourceId: "brandCatalog" })).toEqual({
+      method: "GET",
+      path: "/offer?limit=20&page=1",
+    });
+  });
+
   it("merchant > then keeps the encoded merchant id in the GET path", () => {
     expect(
       resolveCustomerAccountResourceRequest({ merchantId: "brand a", resourceId: "merchant" })

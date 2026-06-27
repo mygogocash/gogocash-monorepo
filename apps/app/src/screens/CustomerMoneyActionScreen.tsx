@@ -26,7 +26,11 @@ import {
   resolvePayoutMethodTabs,
   type PayoutMethodTab,
 } from "@mobile/api/backendIntegrationScope";
+import { isCheckWithdrawResponse } from "@mobile/api/walletTypes";
+import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
+import { getSharedMobileApiClient } from "@mobile/api/sharedClient";
 import { getMobileEnv } from "@mobile/config/env";
+import { createWithdrawApi } from "@mobile/withdraw/api";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { KeyboardAwareScreen } from "@mobile/components/KeyboardAwareScreen";
 import { haptics } from "@mobile/lib/haptics";
@@ -233,9 +237,10 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
+  const env = getMobileEnv();
   const payoutMethodTabs = useMemo(
-    () => resolvePayoutMethodTabs(getMobileEnv().accountDataSource),
-    [],
+    () => resolvePayoutMethodTabs(env.accountDataSource),
+    [env.accountDataSource],
   );
   const showCryptoPayoutTab = payoutMethodTabs.includes("crypto");
   // Edit mode: the /method list links here as /method/create?id=<id>. Look the method up in the shared
@@ -255,6 +260,21 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
   const [withdrawMethod, setWithdrawMethod] = useState("bank_transfer");
   const [helpOpen, setHelpOpen] = useState(false);
   const [balance, setBalance] = useState(3180.24);
+  const [withdrawing, setWithdrawing] = useState(false);
+  const walletResource = useCustomerAccountResource({
+    fixtureData: { netAmountTHB: 3180.24 },
+    resourceId: "wallet",
+    enabled: mode === "withdraw" && env.accountDataSource === "backend",
+  });
+
+  useEffect(() => {
+    if (env.accountDataSource !== "backend") {
+      return;
+    }
+    if (isCheckWithdrawResponse(walletResource.data)) {
+      setBalance(walletResource.data.netAmountTHB);
+    }
+  }, [env.accountDataSource, walletResource.data]);
 
   // Form states (methodCreate)
   const [createTab, setCreateTab] = useState<PayoutMethodTab>("bank");
@@ -424,6 +444,44 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
       return;
     }
 
+    if (env.accountDataSource === "backend") {
+      setWithdrawing(true);
+      void (async () => {
+        try {
+          const client = await getSharedMobileApiClient(env.apiUrl);
+          if (!client) {
+            throw new Error("No mobile session store is available.");
+          }
+          const withdrawApi = createWithdrawApi(client);
+          await withdrawApi.submitBankTransfer(
+            {
+              accountName: selectedMethod.accountName,
+              accountNumber: selectedMethod.accountNo,
+              amountNet: decision.amount,
+              bankName: selectedMethod.bankName,
+            },
+            globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${decision.amount}`,
+          );
+          haptics.success();
+          setErrors([]);
+          setBalance((current) => Math.max(0, current - decision.amount));
+          setSuccessMsg(
+            `Cashback withdrawal of ${decision.amount.toFixed(2)} THB to ${selectedMethod.bankName} submitted successfully!`,
+          );
+        } catch (error) {
+          haptics.error();
+          setErrors([
+            error instanceof Error
+              ? error.message
+              : "Withdrawal failed. Please try again.",
+          ]);
+        } finally {
+          setWithdrawing(false);
+        }
+      })();
+      return;
+    }
+
     // Success haptic on a confirmed withdrawal, then commit the deduction + receipt.
     haptics.success();
     setErrors([]);
@@ -583,7 +641,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
               </Link>
               <Pressable
                 accessibilityRole="button"
-                disabled={!!successMsg}
+                disabled={!!successMsg || withdrawing}
                 onPress={handleWithdraw}
                 style={[styles.withdrawPrimary, successMsg ? styles.primaryActionDisabled : null]}
               >

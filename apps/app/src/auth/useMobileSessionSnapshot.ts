@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 
 import {
-  createAvailableSessionStore,
   subscribeMobileSessionChange,
   type MobileSession,
 } from "@mobile/auth/session";
+import { getSharedSessionStore } from "@mobile/auth/sharedSessionStore";
 
 /**
  * Live snapshot of the mobile session. Reads on mount AND re-reads whenever the
@@ -19,7 +19,7 @@ export function useMobileSessionSnapshot(): MobileSession | null {
     let cancelled = false;
 
     async function readSession() {
-      const sessionStore = await createAvailableSessionStore();
+      const sessionStore = await getSharedSessionStore();
       const nextSession = await sessionStore?.getSession();
 
       if (!cancelled) {

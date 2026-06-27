@@ -2,6 +2,9 @@ import { HttpException, UnauthorizedException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
+import {
+  buildApprovedUserConversionsFilter,
+} from 'src/withdraw/conversion-user-id.util';
 import { PointService } from './point.service';
 import { User } from 'src/user/schemas/user.schema';
 import { Point } from './schemas/point.schema';
@@ -675,6 +678,39 @@ describe('PointService', () => {
   });
 
   describe('getQuestRankList currency conversion', () => {
+    // P1-COLLSCAN: user-scoped leaderboard queries must not use aff_sub1 $regex.
+    it('getQuestRankList > given a user id > then aggregate $match uses indexed scope filter (no $regex)', async () => {
+      const scopedUserId = new Types.ObjectId().toHexString();
+      conversionModel.aggregate.mockResolvedValue([]);
+      userModel.findOne.mockResolvedValue({ username: 'u', email: 'e' });
+      conversionModel.find.mockReturnValue(makeQuery([]));
+
+      await service.getQuestRankList('2026-01-01', '2026-01-31', scopedUserId);
+
+      const matchStage = conversionModel.aggregate.mock.calls[0][0][0].$match;
+      expect(matchStage).toEqual(
+        expect.objectContaining(buildApprovedUserConversionsFilter(scopedUserId)),
+      );
+      expect(JSON.stringify(matchStage)).not.toContain('$regex');
+    });
+
+    it('getQuestRankList > given no user id > then aggregate $match scopes by indexed user_id (no $regex)', async () => {
+      conversionModel.aggregate.mockResolvedValue([]);
+      userModel.findOne.mockResolvedValue({ username: 'u', email: 'e' });
+      conversionModel.find.mockReturnValue(makeQuery([]));
+
+      await service.getQuestRankList('2026-01-01', '2026-01-31');
+
+      const matchStage = conversionModel.aggregate.mock.calls[0][0][0].$match;
+      expect(matchStage).toEqual(
+        expect.objectContaining({
+          conversion_status: 'approved',
+          user_id: { $exists: true, $ne: null },
+        }),
+      );
+      expect(JSON.stringify(matchStage)).not.toContain('$regex');
+    });
+
     // Cross-currency leaderboards: USD sales must be normalized to THB via the
     // FX helper before they enter the point total, or USD buyers would be
     // ranked on raw foreign-currency amounts.

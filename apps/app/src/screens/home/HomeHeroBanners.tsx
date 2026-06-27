@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Image, ScrollView, View } from "react-native";
+import { Animated, ScrollView, View } from "react-native";
+import { Image } from "expo-image";
 import {
   type BannerHomeDocument,
   type HomeHeroBanner,
@@ -8,6 +9,7 @@ import {
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { CarouselDots } from "@mobile/components/CarouselDots";
 import { useReducedMotion } from "@mobile/hooks/useReducedMotion";
+import { prefetchRemoteImages } from "@mobile/lib/prefetchRemoteImages";
 import { motion } from "@mobile/theme/motion";
 import { webHomeHeroBanners } from "@mobile/design/webDesignParity";
 import { HeroBannerLink } from "./HeroBannerLink";
@@ -36,6 +38,10 @@ export function HomeHeroBanners({ homeLayout }: { homeLayout: HomeLayoutMetrics 
   const reducedMotion = useReducedMotion();
   const heroScrollRef = useRef<ScrollView>(null);
   const heroInteractingRef = useRef(false);
+
+  useEffect(() => {
+    prefetchRemoteImages(heroBanners.map((banner) => banner.imageUri));
+  }, [heroBanners]);
 
   // Premium auto-advance: cycle the main hero banners on a gentle interval, but stay out of the way —
   // pause while the user is actively dragging, and disable entirely under reduce-motion.
@@ -103,9 +109,9 @@ export function HomeHeroBanners({ homeLayout }: { homeLayout: HomeLayoutMetrics 
               style={[styles.heroBannerLink, styles.heroSlide, { width: heroBannerWidth }]}
             >
               <Image
-                alt={`${banner.id} promotion banner`}
                 accessibilityLabel={`${banner.id} promotion banner`}
-                resizeMode="cover"
+                cachePolicy="memory-disk"
+                contentFit="cover"
                 source={heroBannerSource(banner)}
                 style={styles.heroImage}
               />
@@ -135,9 +141,9 @@ export function HomeHeroBanners({ homeLayout }: { homeLayout: HomeLayoutMetrics 
             ]}
           >
             <Image
-              alt={`${banner.id} promotion banner`}
               accessibilityLabel={`${banner.id} promotion banner`}
-              resizeMode="cover"
+              cachePolicy="memory-disk"
+              contentFit="cover"
               source={heroBannerSource(banner)}
               style={styles.heroImage}
             />

@@ -5,6 +5,7 @@ import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useLocale } from "@mobile/i18n/LocaleProvider";
 import { Globe } from "@mobile/theme/icons";
 import { webLocaleRegionPanel } from "@mobile/design/webDesignParity";
+import { resolveLocaleGlobeColor } from "@mobile/theme/localeGlobeColor";
 import { motion } from "@mobile/theme/motion";
 import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
@@ -122,7 +123,7 @@ export function CustomerLocaleRegionControl({
       >
         <Animated.View style={desktopLocaleIconMotion}>
           <Globe
-            color={localePanelOpen ? colors.primary : colors.ink}
+            color={resolveLocaleGlobeColor(colors, localePanelOpen)}
             size={22}
             weight="regular"
           />
@@ -215,7 +216,11 @@ function createLocaleRegionControlStyles(colors: ThemeColors, surfaces: ThemeSur
     borderColor: surfaces.localeButtonBorder,
     borderRadius: radii.chip,
     borderWidth: 1,
-    boxShadow: "0 2px 8px rgba(15, 23, 42, 0.12)",
+    boxShadow: pickThemed(
+      colors,
+      "0 2px 8px rgba(15, 23, 42, 0.12)",
+      "0 2px 8px rgba(0, 0, 0, 0.35)",
+    ),
     height: 44,
     justifyContent: "center",
     width: 44,

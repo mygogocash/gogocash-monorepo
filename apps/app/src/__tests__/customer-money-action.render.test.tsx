@@ -142,4 +142,11 @@ describe("CustomerMoneyActionScreen — Wave B foundations adopted (source signa
     expect(moneyActionSource).toContain('toLocaleString("en-US"');
     expect(moneyActionSource).toContain("minimumFractionDigits: 2");
   });
+
+  it("backend mode > submits bank transfer through createWithdrawApi (not local-only deduction)", () => {
+    expect(moneyActionSource).toContain('from "@mobile/withdraw/api"');
+    expect(moneyActionSource).toContain("createWithdrawApi");
+    expect(moneyActionSource).toContain("submitBankTransfer");
+    expect(moneyActionSource).toContain('resourceId: "wallet"');
+  });
 });

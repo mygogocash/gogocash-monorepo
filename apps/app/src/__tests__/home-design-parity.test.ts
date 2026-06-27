@@ -180,6 +180,10 @@ describe("Expo home design parity", () => {
     expect(localeControlFile).toContain("setLocalePanelMounted(false)");
     expect(localeControlFile).toContain("webLocaleRegionPanel");
     expect(localeControlFile).toContain("accessibilityLabel={webLocaleRegionPanel.ariaLabel}");
+    expect(localeControlFile).toContain("resolveLocaleGlobeColor");
+    expect(fs.readFileSync(path.join(mobileRoot, "src/theme/localeGlobeColor.ts"), "utf8")).toContain(
+      "pickThemed(colors, colors.accent, colors.white)",
+    );
     expect(localeControlFile).toContain("color: colors.ink");
     expect(localeControlFile).toContain('pickThemed(colors, "#E8FAF5", colors.primarySoft)');
     expect(localeControlFile).toContain("color: colors.primary");

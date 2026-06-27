@@ -952,8 +952,8 @@ export function createHomeScreenStyles(colors: ThemeColors, surfaces: ThemeSurfa
   },
   desktopGoLinkStep: {
     alignItems: "center",
-    backgroundColor: pickThemed(colors, "rgba(255, 255, 255, 0.6)", "rgba(255, 255, 255, 0.08)"),
-    borderColor: pickThemed(colors, "rgba(255, 255, 255, 0.75)", "rgba(255, 255, 255, 0.14)"),
+    backgroundColor: pickThemed(colors, "rgba(255, 255, 255, 0.6)", colors.fieldMuted),
+    borderColor: pickThemed(colors, "rgba(255, 255, 255, 0.75)", colors.borderStrong),
     borderRadius: 999,
     borderWidth: 1,
     flexDirection: "row",
@@ -977,13 +977,13 @@ export function createHomeScreenStyles(colors: ThemeColors, surfaces: ThemeSurfa
     lineHeight: 12,
   },
   desktopGoLinkStepText: {
-    color: pickThemed(colors, "#0A5C4A", colors.primaryDark),
+    color: pickThemed(colors, "#0A5C4A", colors.accent),
     fontFamily: typography.family,
     fontSize: 13,
     fontWeight: "600",
   },
   desktopGoLinkStepArrow: {
-    color: pickThemed(colors, "rgba(10, 92, 74, 0.45)", colors.muted),
+    color: pickThemed(colors, "rgba(10, 92, 74, 0.45)", colors.accentSoft),
     fontFamily: typography.family,
     fontSize: 16,
     fontWeight: "700",

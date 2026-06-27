@@ -134,13 +134,21 @@ suite('checkWithdraw — real Mongo aggregation (#36)', () => {
     });
   });
 
-  const seedApprovedThb = async (userId: string, payout: number, n: number) => {
+  const seedApprovedThb = async (
+    userId: string,
+    payout: number,
+    n: number,
+    withIndexedUserId = false,
+  ) => {
     const docs = Array.from({ length: n }, (_, i) => ({
       conversion_id: Date.now() + i,
       offer_id: 1,
       offer_name: 'shopee',
       merchant_id: 1,
       aff_sub1: `user_id:${userId}`,
+      ...(withIndexedUserId
+        ? { user_id: new Types.ObjectId(userId) }
+        : undefined),
       conversion_status: 'approved',
       currency: 'THB',
       payout,
@@ -197,6 +205,19 @@ suite('checkWithdraw — real Mongo aggregation (#36)', () => {
     const result = await service.checkWithdraw(me._id.toString());
 
     expect(result.netAmountTHB).toBeCloseTo(95, 5);
+  });
+
+  it('reconciles balances when conversions are indexed by user_id (P1-COLLSCAN read path)', async () => {
+    const user = await userModel.create({
+      id_firebase: 'int-fb-indexed',
+      email: 'indexed@gogocash.co',
+    });
+    const userId = user._id.toString();
+    await seedApprovedThb(userId, 100, 2, true);
+
+    const result = await service.checkWithdraw(userId);
+
+    expect(result.netAmountTHB).toBeCloseTo(190, 5);
   });
 
   // Transactions require a replica set. Gated on MONGO_REPLICA_SET so the

@@ -31,8 +31,8 @@ export async function getSharedMobileApiClient(
       baseUrl,
       getPreferredAuthToken: async () => {
         try {
-          const { getFirebaseIdToken } = await import("@mobile/auth/firebaseClient");
-          return await getFirebaseIdToken();
+          const { getCachedFirebaseIdToken } = await import("@mobile/auth/firebaseIdTokenCache");
+          return await getCachedFirebaseIdToken();
         } catch {
           return null;
         }
