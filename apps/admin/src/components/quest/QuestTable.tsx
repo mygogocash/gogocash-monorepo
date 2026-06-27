@@ -14,6 +14,10 @@ import Button from "@/components/ui/button/Button";
 import Label from "@/components/form/Label";
 import Input from "@/components/form/input/InputField";
 import DatePicker from "@/components/form/date-picker";
+import {
+  ADMIN_DATETIME_ALT_FORMAT,
+  ADMIN_DATETIME_VALUE_FORMAT,
+} from "@/lib/adminDateTimeFormat";
 import { Modal } from "@/components/ui/modal";
 import NoData from "@/components/common/NoData";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
@@ -835,10 +839,9 @@ export default function QuestTable() {
                   hint={BANGKOK_TIMEZONE_LABEL}
                   enableTime
                   altInput
-                  dateFormat="Y-m-d\\TH:i"
-                  altFormat="d/m/Y, h:i K"
+                  dateFormat={ADMIN_DATETIME_VALUE_FORMAT}
+                  altFormat={ADMIN_DATETIME_ALT_FORMAT}
                   minuteIncrement={1}
-                  time_24hr={false}
                   value={campaignDraft.startDate}
                   disabled={!canEditCampaign}
                   onValueChange={(value) =>
@@ -857,10 +860,9 @@ export default function QuestTable() {
                   hint={BANGKOK_TIMEZONE_LABEL}
                   enableTime
                   altInput
-                  dateFormat="Y-m-d\\TH:i"
-                  altFormat="d/m/Y, h:i K"
+                  dateFormat={ADMIN_DATETIME_VALUE_FORMAT}
+                  altFormat={ADMIN_DATETIME_ALT_FORMAT}
                   minuteIncrement={1}
-                  time_24hr={false}
                   value={campaignDraft.endDate}
                   disabled={!canEditCampaign}
                   onValueChange={(value) =>

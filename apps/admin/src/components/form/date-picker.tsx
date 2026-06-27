@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import flatpickr from "flatpickr";
 import "flatpickr/dist/flatpickr.css";
+import { resolveDatePickerTimeOptions } from "@/lib/adminDateTimeFormat";
 import Label from "./Label";
 import { CalenderIcon } from "../../icons";
 import Hook = flatpickr.Options.Hook;
@@ -21,6 +22,7 @@ type PropsType = {
   altFormat?: string;
   altInput?: boolean;
   staticPosition?: boolean;
+  /** @deprecated Ignored when `enableTime` is true — datetime pickers always use 24-hour English format. */
   time_24hr?: boolean;
   minuteIncrement?: number;
   label?: string;
@@ -50,7 +52,6 @@ export default function DatePicker({
   altFormat,
   altInput = false,
   staticPosition,
-  time_24hr = true,
   minuteIncrement = 5,
   placeholder,
   className,
@@ -63,6 +64,8 @@ export default function DatePicker({
   const pickerRef = useRef<Instance | null>(null);
   const onChangeRef = useRef<PropsType["onChange"]>(onChange);
   const onValueChangeRef = useRef<PropsType["onValueChange"]>(onValueChange);
+  const { altFormat: resolvedAltFormat, time_24hr: resolvedTime24hr } =
+    resolveDatePickerTimeOptions(enableTime, altFormat);
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -119,9 +122,9 @@ export default function DatePicker({
       monthSelectorType: "static",
       enableTime,
       dateFormat,
-      altFormat,
+      altFormat: resolvedAltFormat,
       altInput,
-      time_24hr,
+      time_24hr: resolvedTime24hr,
       minuteIncrement,
       defaultDate: value ?? defaultDate,
       minDate,
@@ -190,8 +193,9 @@ export default function DatePicker({
     minDate,
     minuteIncrement,
     mode,
+    resolvedAltFormat,
+    resolvedTime24hr,
     staticPosition,
-    time_24hr,
     value,
   ]);
 
