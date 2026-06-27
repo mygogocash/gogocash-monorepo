@@ -10,13 +10,25 @@ export function getApiErrorMessage(
   fallback = "Something went wrong",
 ): string {
   if (error && typeof error === "object" && "response" in error) {
-    const res = (error as { response?: { data?: { message?: string } } })
+    const res = (error as { response?: { data?: { message?: string | string[] } } })
       .response;
     const msg = res?.data?.message;
+    if (Array.isArray(msg)) {
+      const joined = msg
+        .filter((part): part is string => typeof part === "string" && part.trim())
+        .join(", ");
+      if (joined) return joined;
+    }
     if (typeof msg === "string" && msg.trim()) return msg;
   }
   if (error && typeof error === "object" && "data" in error) {
-    const data = (error as { data?: { message?: string } }).data;
+    const data = (error as { data?: { message?: string | string[] } }).data;
+    if (data && Array.isArray(data.message)) {
+      const joined = data.message
+        .filter((part): part is string => typeof part === "string" && part.trim())
+        .join(", ");
+      if (joined) return joined;
+    }
     if (data && typeof data.message === "string" && data.message.trim()) {
       return data.message;
     }

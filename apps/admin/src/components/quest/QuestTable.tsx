@@ -23,6 +23,7 @@ import NoData from "@/components/common/NoData";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import { appLinks } from "@/lib/appLinks";
 import { formatDate } from "@/lib/dateFormat";
+import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import {
   QUEST_STATUS_VALUES,
   questStatusBadgeColor,
@@ -391,8 +392,8 @@ function summaryForTask(
 
 export default function QuestTable() {
   const queryClient = useQueryClient();
-  const { role, can } = usePermissions();
-  const canEditCampaign = can("quest:manage");
+  const { role } = usePermissions();
+  const canEditCampaign = role === "super_admin";
   const canEditTasks = role === "super_admin";
 
   const [selectedQuestId, setSelectedQuestId] = useState<string | null>(null);
@@ -535,7 +536,7 @@ export default function QuestTable() {
       setSaveError(null);
     },
     onError: (error) => {
-      setSaveError(error instanceof Error ? error.message : "Save failed");
+      setSaveError(getApiErrorMessage(error, "Save failed"));
     },
   });
 
@@ -555,7 +556,7 @@ export default function QuestTable() {
       }
     },
     onError: (error) => {
-      setSaveError(error instanceof Error ? error.message : "Save failed");
+      setSaveError(getApiErrorMessage(error, "Save failed"));
     },
   });
 
@@ -572,7 +573,7 @@ export default function QuestTable() {
       }
     },
     onError: (error) => {
-      setSaveError(error instanceof Error ? error.message : "Save failed");
+      setSaveError(getApiErrorMessage(error, "Save failed"));
     },
   });
 
@@ -807,7 +808,7 @@ export default function QuestTable() {
                 {selectedQuestLabel}
               </h4>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Task point values are saved by superadmin only.
+                Campaign saves and task point values require super admin access.
               </p>
             </div>
             {selectedQuest && (

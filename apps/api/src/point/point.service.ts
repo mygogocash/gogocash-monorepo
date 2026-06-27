@@ -1209,11 +1209,11 @@ export class PointService {
       sub_banner_th?: Express.Multer.File[];
     },
   ) {
-    const filter = createQuestDto._id
-      ? { _id: requireObjectId(createQuestDto._id, 'quest id') }
-      : { status: 'open' };
+    const questId = createQuestDto._id
+      ? requireObjectId(String(createQuestDto._id), 'quest id')
+      : new Types.ObjectId();
 
-    const existingOpenQuest = await this.questModel.findOne(filter);
+    const existingQuest = await this.questModel.findById(questId);
 
     const folderId = '1YQtWms0kVZOs-1W2AA3m8rGnxO5EJoQX';
     let banner_en;
@@ -1222,8 +1222,8 @@ export class PointService {
         files.banner_en[0],
         folderId,
       );
-      if (existingOpenQuest?.banner_en) {
-        await this.googleDriveService.deleteFile(existingOpenQuest.banner_en);
+      if (existingQuest?.banner_en) {
+        await this.googleDriveService.deleteFile(existingQuest.banner_en);
       }
     }
 
@@ -1233,8 +1233,8 @@ export class PointService {
         files.banner_th[0],
         folderId,
       );
-      if (existingOpenQuest?.banner_th) {
-        await this.googleDriveService.deleteFile(existingOpenQuest.banner_th);
+      if (existingQuest?.banner_th) {
+        await this.googleDriveService.deleteFile(existingQuest.banner_th);
       }
     }
 
@@ -1244,10 +1244,8 @@ export class PointService {
         files.sub_banner_en[0],
         folderId,
       );
-      if (existingOpenQuest?.sub_banner_en) {
-        await this.googleDriveService.deleteFile(
-          existingOpenQuest.sub_banner_en,
-        );
+      if (existingQuest?.sub_banner_en) {
+        await this.googleDriveService.deleteFile(existingQuest.sub_banner_en);
       }
     }
 
@@ -1257,17 +1255,15 @@ export class PointService {
         files.sub_banner_th[0],
         folderId,
       );
-      if (existingOpenQuest?.sub_banner_th) {
-        await this.googleDriveService.deleteFile(
-          existingOpenQuest.sub_banner_th,
-        );
+      if (existingQuest?.sub_banner_th) {
+        await this.googleDriveService.deleteFile(existingQuest.sub_banner_th);
       }
     }
     const rewardDistribution = this.normalizeQuestRewardDistribution(
       {},
       {
-        ...(existingOpenQuest?.toObject?.() ?? existingOpenQuest ?? {}),
-        end_date: createQuestDto.end_date ?? existingOpenQuest?.end_date,
+        ...(existingQuest?.toObject?.() ?? existingQuest ?? {}),
+        end_date: createQuestDto.end_date ?? existingQuest?.end_date,
       },
     );
     const questPatch: Record<string, unknown> = {
@@ -1284,27 +1280,28 @@ export class PointService {
       ...rewardDistribution,
       banner_en: banner_en
         ? banner_en?.id
-        : existingOpenQuest?.banner_en || null,
+        : existingQuest?.banner_en || null,
       banner_th: banner_th
         ? banner_th?.id
-        : existingOpenQuest?.banner_th || null,
+        : existingQuest?.banner_th || null,
       sub_banner_en: sub_banner_en
         ? sub_banner_en?.id
-        : existingOpenQuest?.sub_banner_en || null,
+        : existingQuest?.sub_banner_en || null,
       sub_banner_th: sub_banner_th
         ? sub_banner_th?.id
-        : existingOpenQuest?.sub_banner_th || null,
+        : existingQuest?.sub_banner_th || null,
     };
     if (createQuestDto.reward_status !== undefined) {
       questPatch.reward_status = createQuestDto.reward_status;
     }
 
-    return this.questModel.findOneAndUpdate(
-      filter,
+    return this.questModel.findByIdAndUpdate(
+      questId,
       { $set: questPatch },
       {
         upsert: true,
         new: true,
+        setDefaultsOnInsert: true,
       },
     );
   }

@@ -1102,9 +1102,9 @@ async function handleMockPOST(
 
   if (joined === "point/create-quest") {
     const id = mockBodyField(body, "_id");
-    const existing =
-      (id ? mockQuestStore.find((q) => q._id === id) : undefined) ??
-      mockQuestStore.find((q) => q.status === "open");
+    const existing = id
+      ? mockQuestStore.find((q) => q._id === id)
+      : undefined;
     const now = new Date().toISOString();
     const quest: MockQuest = existing ?? {
       _id: `q_${Date.now()}`,
