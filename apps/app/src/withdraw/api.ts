@@ -46,14 +46,24 @@ export function createWithdrawApi(client: WithdrawBaseClient) {
         throw new Error("submitBankTransfer requires an Idempotency-Key");
       }
 
+      const accountName = request.accountName.trim();
+      const accountNumber = request.accountNumber.trim();
+      const bankName = request.bankName.trim();
+      if (!accountName || !accountNumber || !bankName) {
+        throw new Error("submitBankTransfer requires account name, number, and bank");
+      }
+      if (!(request.amountNet > 0)) {
+        throw new Error("submitBankTransfer requires a positive amount");
+      }
+
       return client.post<WithdrawBankTransferResponse>(
         "/withdraw/bank-transfer",
         {
-          account_name: request.accountName,
-          account_number: request.accountNumber,
+          account_name: accountName,
+          account_number: accountNumber,
           amount_net: request.amountNet,
           amount_total: request.amountNet,
-          bank_name: request.bankName,
+          bank_name: bankName,
           conversion_ids: [],
           currency: request.currency ?? "THB",
           percent_fee: 0,

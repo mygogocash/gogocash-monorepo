@@ -27,7 +27,6 @@ const phaseTwoScreenFiles = [
 const phaseThreeScreenFiles = [
   "src/screens/CustomerHomeScreen.tsx",
   "src/screens/CustomerCategoryDetailScreen.tsx",
-  "src/screens/NativeParityScreen.tsx",
 ];
 
 function readPhaseThreeSource(relativePath: string) {

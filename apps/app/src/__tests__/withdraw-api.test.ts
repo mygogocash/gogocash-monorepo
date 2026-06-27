@@ -78,4 +78,40 @@ describe("createWithdrawApi", () => {
     ).rejects.toThrow(/Idempotency-Key/);
     expect(client.post).not.toHaveBeenCalled();
   });
+
+  it("submitBankTransfer > given non-positive amount > throws before post", async () => {
+    const client = createBaseClient();
+    const api = createWithdrawApi(client);
+
+    await expect(
+      api.submitBankTransfer(
+        {
+          accountName: "A",
+          accountNumber: "1",
+          amountNet: 0,
+          bankName: "Bank",
+        },
+        "idem-123",
+      ),
+    ).rejects.toThrow(/positive amount/);
+    expect(client.post).not.toHaveBeenCalled();
+  });
+
+  it("submitBankTransfer > given blank bank fields > throws before post", async () => {
+    const client = createBaseClient();
+    const api = createWithdrawApi(client);
+
+    await expect(
+      api.submitBankTransfer(
+        {
+          accountName: "  ",
+          accountNumber: "1",
+          amountNet: 100,
+          bankName: "Bank",
+        },
+        "idem-123",
+      ),
+    ).rejects.toThrow(/account name, number, and bank/);
+    expect(client.post).not.toHaveBeenCalled();
+  });
 });

@@ -11,10 +11,21 @@ describe('UserService', () => {
 
   beforeEach(async () => {
     findByIdAndUpdate = jest.fn().mockResolvedValue({});
+    const userModel = {
+      findByIdAndUpdate,
+      find: jest.fn().mockReturnValue({
+        skip: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockResolvedValue([]),
+      }),
+      countDocuments: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(0),
+      }),
+    };
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
         UserService,
-        { provide: getModelToken(User.name), useValue: { findByIdAndUpdate } },
+        { provide: getModelToken(User.name), useValue: userModel },
         { provide: getModelToken(UserMyCashback.name), useValue: {} },
       ],
     }).compile();
@@ -93,6 +104,41 @@ describe('UserService', () => {
       >;
       expect(persisted).toMatchObject({ username: 'bob' });
       expect(persisted).not.toHaveProperty('privilege');
+    });
+  });
+
+  describe('findAll', () => {
+    it('findAll > given regex metacharacters > then search input is escaped literally', async () => {
+      const find = jest.fn().mockReturnValue({
+        skip: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockResolvedValue([]),
+      });
+      const countDocuments = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(0),
+      });
+      const moduleRef = await Test.createTestingModule({
+        providers: [
+          UserService,
+          {
+            provide: getModelToken(User.name),
+            useValue: { find, countDocuments, findByIdAndUpdate },
+          },
+          { provide: getModelToken(UserMyCashback.name), useValue: {} },
+        ],
+      }).compile();
+      const scoped = moduleRef.get<UserService>(UserService);
+
+      await scoped.findAll(1, 10, 'a.*');
+
+      expect(find).toHaveBeenCalledWith({
+        $or: [
+          { username: { $regex: 'a\\.\\*', $options: 'i' } },
+          { email: { $regex: 'a\\.\\*', $options: 'i' } },
+          { address: { $regex: 'a\\.\\*', $options: 'i' } },
+          { mobile: { $regex: 'a\\.\\*', $options: 'i' } },
+        ],
+      });
     });
   });
 });

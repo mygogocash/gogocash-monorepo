@@ -28,7 +28,6 @@ const secondaryCopyFiles = [
   "src/screens/CustomerProfilePhoneScreen.tsx",
   "src/screens/CustomerQuestScreen.tsx",
   "src/screens/CustomerWalletScreen.tsx",
-  "src/screens/NativeParityScreen.tsx",
   "src/screens/discovery/customerDiscoveryStyles.ts",
   "src/screens/discovery/ShopDirectoryPagination.tsx",
 ];

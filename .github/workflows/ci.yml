@@ -300,3 +300,17 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=4096
           MONGO_URI: mongodb://localhost:27017/inttest
         run: npx jest --config ./test/jest-e2e.json withdraw-balance --runInBand
+
+  # ── dead-code scan (informational; does not block merges) ─────────────────
+  knip:
+    name: dead-code scan (informational)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx knip --no-progress

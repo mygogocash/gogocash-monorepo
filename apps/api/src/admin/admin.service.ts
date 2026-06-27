@@ -24,6 +24,7 @@ import { TopBrandConfig } from 'src/offer/schemas/top-brand-config.schema';
 import { UserService } from 'src/user/user.service';
 import { JobService } from 'src/withdraw/cronjob/job.service';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
+import { escapeRegexLiteral } from 'src/common/escape-regex';
 
 @Injectable()
 export class AdminService {
@@ -58,8 +59,8 @@ export class AdminService {
     const query = search
       ? {
           $or: [
-            { username: { $regex: search, $options: 'i' } },
-            { email: { $regex: search, $options: 'i' } },
+            { username: { $regex: escapeRegexLiteral(search), $options: 'i' } },
+            { email: { $regex: escapeRegexLiteral(search), $options: 'i' } },
           ],
         }
       : {};
@@ -120,9 +121,9 @@ export class AdminService {
     const query = search
       ? {
           $or: [
-            { method: { $regex: search, $options: 'i' } },
-            { status: { $regex: search, $options: 'i' } },
-            { address: { $regex: search, $options: 'i' } },
+            { method: { $regex: escapeRegexLiteral(search), $options: 'i' } },
+            { status: { $regex: escapeRegexLiteral(search), $options: 'i' } },
+            { address: { $regex: escapeRegexLiteral(search), $options: 'i' } },
           ],
         }
       : {};
@@ -206,37 +207,27 @@ export class AdminService {
     if (!fee) {
       throw new HttpException({ message: 'Fee rate not found' }, 400);
     }
-    const filter = {};
+    const filter: Record<string, unknown> = {};
     if (search && key) {
       if (key === 'conversion_id') {
-        filter['$or'] = [
-          { conversion_id: search },
-          // { aff_sub1: { $regex: search, $options: 'i' } },
-          // { offer_name: { $regex: search, $options: 'i' } },
-          // { adv_sub1: { $regex: search, $options: 'i' } },
-          // { adv_sub2: { $regex: search, $options: 'i' } },
-          // { adv_sub3: { $regex: search, $options: 'i' } },
-          // { adv_sub4: { $regex: search, $options: 'i' } },
-          // { adv_sub5: { $regex: search, $options: 'i' } },
-          // { conversion_id: { $regex: search, $options: 'i' } },
-        ];
+        filter.conversion_id = search;
       } else {
-        filter['$or'] = [
-          { [key]: { $regex: search, $options: 'i' } },
-          // { aff_sub1: { $regex: search, $options: 'i' } },
-          // { offer_name: { $regex: search, $options: 'i' } },
-          // { adv_sub1: { $regex: search, $options: 'i' } },
-          // { adv_sub2: { $regex: search, $options: 'i' } },
-          // { adv_sub3: { $regex: search, $options: 'i' } },
-          // { adv_sub4: { $regex: search, $options: 'i' } },
-          // { adv_sub5: { $regex: search, $options: 'i' } },
-          // { conversion_id: { $regex: search, $options: 'i' } },
+        filter.$or = [
+          {
+            [key]: {
+              $regex: escapeRegexLiteral(search),
+              $options: 'i',
+            },
+          },
         ];
       }
     }
 
     if (status) {
-      filter['conversion_status'] = { $regex: status, $options: 'i' };
+      filter.conversion_status = {
+        $regex: escapeRegexLiteral(status),
+        $options: 'i',
+      };
     }
 
     const skip = (page - 1) * limit;

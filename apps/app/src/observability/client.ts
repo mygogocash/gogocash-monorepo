@@ -44,6 +44,19 @@ export function resetObservabilityIdentity() {
   Sentry.setUser(null);
 }
 
+/** Log a handled failure for diagnostics while showing canonical user copy. */
+export function captureHandledException(
+  error: unknown,
+  context?: Record<string, unknown>,
+): void {
+  if (error instanceof Error) {
+    Sentry.captureException(error, { extra: context });
+    return;
+  }
+
+  Sentry.captureMessage(String(error), { extra: context, level: "error" });
+}
+
 export function redactTelemetryEvent(event: Sentry.ErrorEvent): Sentry.ErrorEvent {
   return redactTelemetryValue(event) as Sentry.ErrorEvent;
 }

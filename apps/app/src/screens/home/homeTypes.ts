@@ -44,14 +44,12 @@ export type DesktopGoLinkBannerProps = {
 };
 
 export type MobileTabletHomeHeaderProps = {
-  greetingName?: string;
+  readonly greetingName?: string;
   readonly homeLayout: HomeLayoutMetrics;
   readonly isGoLinkCovered: boolean;
   readonly onOpenGoLinkGuideline: () => void;
   readonly onOpenSearchPopover: () => void;
   readonly onGoLinkResultHref: (href: string) => void;
 };
-
-export type HeroBannerAssetKey = string;
 
 export type HeroBannerSource = ImageSourcePropType | undefined;

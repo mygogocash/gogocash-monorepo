@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 import { Withdraw } from 'src/withdraw/schemas/withdraw.schema';
+import { escapeRegexLiteral } from 'src/common/escape-regex';
 
 export interface UnifiedTransaction {
   _id: string;
@@ -195,9 +196,10 @@ export class TransactionsService {
     }
 
     if (search) {
+      const safeSearch = escapeRegexLiteral(search);
       filter.$or = [
-        { offer_name: { $regex: search, $options: 'i' } },
-        { aff_sub1: { $regex: search, $options: 'i' } },
+        { offer_name: { $regex: safeSearch, $options: 'i' } },
+        { aff_sub1: { $regex: safeSearch, $options: 'i' } },
       ];
     }
 
@@ -215,9 +217,10 @@ export class TransactionsService {
     }
 
     if (search) {
+      const safeSearch = escapeRegexLiteral(search);
       filter.$or = [
-        { account_name: { $regex: search, $options: 'i' } },
-        { bank_name: { $regex: search, $options: 'i' } },
+        { account_name: { $regex: safeSearch, $options: 'i' } },
+        { bank_name: { $regex: safeSearch, $options: 'i' } },
       ];
     }
 
