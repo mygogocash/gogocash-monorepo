@@ -1,9 +1,11 @@
 import { Metadata } from "next";
-import Detail from "@/components/offer/Detail";
+import BrandDetailRouteClient from "@/components/offer/BrandDetailRouteClient";
 import { mockOffers } from "@/app/api/mock/data";
+import { Suspense } from "react";
+import { awaitPageDynamicProps, type DefaultAppPageProps } from "@/lib/nextAppPageProps";
 
 export const metadata: Metadata = {
-  title: "Brands | TailAdmin - Next.js Dashboard Template",
+  title: "Brand detail | GoGoCash Admin",
 };
 
 /** Pre-render offer detail paths for static export (Firebase Hosting). */
@@ -14,15 +16,23 @@ export function generateStaticParams() {
   return mockOffers.map((o) => ({ id: o._id }));
 }
 
-export default async function OffersDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  await params;
+function BrandDetailFallback() {
   return (
     <div className="space-y-6">
-      <Detail />
+      <div className="h-8 w-64 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" />
+      <div className="h-96 animate-pulse rounded-2xl bg-gray-100 dark:bg-gray-800" />
     </div>
+  );
+}
+
+export default async function BrandDetailPage(props: DefaultAppPageProps) {
+  await awaitPageDynamicProps(props);
+  const params = await props.params;
+  const rawId = params.id;
+  const id = Array.isArray(rawId) ? (rawId[0] ?? "") : (rawId ?? "");
+  return (
+    <Suspense fallback={<BrandDetailFallback />}>
+      <BrandDetailRouteClient offerId={id} />
+    </Suspense>
   );
 }

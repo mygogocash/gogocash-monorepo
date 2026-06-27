@@ -620,10 +620,13 @@ export class OfferService implements OnApplicationBootstrap {
       quantity,
       disabled,
       name: body.name,
-      code: body.code,
-      description: body.description,
+      code: body.code ?? '',
+      description: body.description ?? '',
       start_date: body.start_date,
       end_date: body.end_date,
+      eligibility: body.eligibility ?? '',
+      min_spend: body.min_spend ?? '',
+      link: body.link ?? '',
     };
     if (body?.id) {
       return this.couponModel.findByIdAndUpdate(
@@ -723,18 +726,27 @@ export class OfferService implements OnApplicationBootstrap {
           if (!offerId) return null;
           const offer = offerById.get(offerId.toHexString());
           if (!offer) return null;
+          const brand =
+            (offer as any).offer_name_display ||
+            (offer as any).offer_name ||
+            'this merchant';
+          const wordingEn =
+            typeof task.wording_en === 'string' && task.wording_en.trim()
+              ? task.wording_en.trim()
+              : typeof task.wording === 'string' && task.wording.trim()
+                ? task.wording.trim()
+                : `Make an order on ${brand}`;
+          const wordingTh =
+            typeof task.wording_th === 'string' && task.wording_th.trim()
+              ? task.wording_th.trim()
+              : `สั่งซื้อที่ ${brand}`;
           return {
             ...offer,
             extra_point: Number(task.extra_point),
             quest_task_sort_order: Number(task.sort_order ?? 0),
-            quest_task_wording:
-              typeof task.wording === 'string' && task.wording.trim()
-                ? task.wording.trim()
-                : `Make an order on ${
-                    (offer as any).offer_name_display ||
-                    (offer as any).offer_name ||
-                    'this merchant'
-                  }`,
+            quest_task_wording: wordingEn,
+            quest_task_wording_en: wordingEn,
+            quest_task_wording_th: wordingTh,
           };
         })
         .filter((offer) => offer !== null);

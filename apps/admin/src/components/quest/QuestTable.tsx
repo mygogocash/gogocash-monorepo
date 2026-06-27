@@ -14,11 +14,28 @@ import Button from "@/components/ui/button/Button";
 import Label from "@/components/form/Label";
 import Input from "@/components/form/input/InputField";
 import DatePicker from "@/components/form/date-picker";
+import {
+  ADMIN_DATETIME_ALT_FORMAT,
+  ADMIN_DATETIME_VALUE_FORMAT,
+} from "@/lib/adminDateTimeFormat";
 import { Modal } from "@/components/ui/modal";
 import NoData from "@/components/common/NoData";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import { appLinks } from "@/lib/appLinks";
 import { formatDate } from "@/lib/dateFormat";
+import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
+import { isActiveGoGoCashOffer } from "@/lib/isActiveGoGoCashOffer";
+import {
+  defaultQuestTaskWording,
+  normalizeQuestTaskWordingDraft,
+  resolveQuestTaskWording,
+  shouldReplaceQuestWording,
+} from "@/lib/questTaskWording";
+import {
+  QUEST_STATUS_VALUES,
+  questStatusBadgeColor,
+  questStatusLabel,
+} from "@/lib/questStatus";
 import { usePermissions } from "@/hooks/usePermissions";
 import { fetchOffersList, offersListQueryKey } from "@/lib/query/offersQueries";
 import {
@@ -56,7 +73,11 @@ import {
   sameJson,
   type TaskDraft,
   validateQuestTasks,
+  defaultQuestTaskPoints,
+  normalizeQuestTaskPoints,
 } from "./questTaskEditor";
+import { QuestTaskBrandSelect } from "./QuestTaskBrandSelect";
+import { QuestTaskWordingFields } from "./QuestTaskWordingFields";
 
 type CampaignDraft = {
   startDate: string;
@@ -128,12 +149,6 @@ function detailTabButtonClass(active: boolean): string {
       ? "bg-white text-gray-900 shadow-theme-xs dark:bg-gray-800 dark:text-white"
       : "text-gray-500 hover:bg-white/70 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800/70 dark:hover:text-white"
   }`;
-}
-
-function questStatusLabel(status: string): string {
-  if (status === "open") return "opening for now";
-  if (status === "close" || status === "closed") return "quest already closed";
-  return status;
 }
 
 function rewardDistributionLabel(
@@ -266,15 +281,12 @@ function offerLogo(offer: Offer | null | undefined): string {
   );
 }
 
-function defaultTaskWording(offer: Offer | null | undefined): string {
-  return offer ? `Make an order on ${offerLabel(offer)}` : "";
-}
-
 function customerTaskWording(
-  task: Pick<TaskDraft, "wording">,
+  task: Pick<TaskDraft, "wording" | "wording_en" | "wording_th">,
   offer: Offer | null | undefined,
+  locale: "en" | "th" = "en",
 ) {
-  return task.wording?.trim() || defaultTaskWording(offer);
+  return resolveQuestTaskWording(task, offer, locale);
 }
 
 function makeCampaignDraft(quest?: ResponseQuestDate | null): CampaignDraft {
@@ -295,17 +307,25 @@ function makeCampaignDraft(quest?: ResponseQuestDate | null): CampaignDraft {
 function makeTaskDrafts(quest?: ResponseQuestDate | null): TaskDraft[] {
   return [...(quest?.tasks ?? [])]
     .sort((a, b) => Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0))
-    .map((task, index) => ({
-      clientId: `${getTaskOfferId(task)}-${index}`,
-      offer: getTaskOfferId(task),
-      offer_id: Number(task.offer_id),
-      merchant_id: Number(task.merchant_id),
-      extra_point: Number(task.extra_point),
-      sort_order: index,
-      enabled: task.enabled !== false,
-      wording: task.wording ?? defaultTaskWording(getTaskOffer(task)),
-      notes: task.notes ?? "",
-    }));
+    .map((task, index) => {
+      const offer = getTaskOffer(task);
+      const wording = normalizeQuestTaskWordingDraft(task);
+      return {
+        clientId: `${getTaskOfferId(task)}-${index}`,
+        offer: getTaskOfferId(task),
+        offer_id: Number(task.offer_id),
+        merchant_id: Number(task.merchant_id),
+        extra_point: normalizeQuestTaskPoints(
+          Number(task.extra_point),
+          offer,
+        ),
+        sort_order: index,
+        enabled: task.enabled !== false,
+        wording_en: wording.wording_en,
+        wording_th: wording.wording_th,
+        notes: task.notes ?? "",
+      };
+    });
 }
 
 function makeRewardDrafts(quest?: ResponseQuestDate | null): RewardDraft[] {
@@ -388,8 +408,8 @@ function summaryForTask(
 
 export default function QuestTable() {
   const queryClient = useQueryClient();
-  const { role, can } = usePermissions();
-  const canEditCampaign = can("quest:manage");
+  const { role } = usePermissions();
+  const canEditCampaign = role === "super_admin";
   const canEditTasks = role === "super_admin";
 
   const [selectedQuestId, setSelectedQuestId] = useState<string | null>(null);
@@ -403,6 +423,7 @@ export default function QuestTable() {
     useState<RewardDistributionDraft>(makeRewardDistributionDraft(null));
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [offerLookup, setOfferLookup] = useState<Record<string, Offer>>({});
   const [activeDetailTab, setActiveDetailTab] =
     useState<QuestDetailTab>("tasks");
 
@@ -428,10 +449,26 @@ export default function QuestTable() {
     staleTime: 30_000,
   });
   const offers = offersQuery.data?.data ?? EMPTY_OFFERS;
-  const offersById = useMemo(
-    () => new Map(offers.map((offer) => [offer._id, offer])),
+  const activeOffers = useMemo(
+    () => offers.filter(isActiveGoGoCashOffer),
     [offers],
   );
+  const offersById = useMemo(() => {
+    const map = new Map<string, Offer>();
+    for (const offer of offers) {
+      map.set(offer._id, offer);
+    }
+    for (const offer of Object.values(offerLookup)) {
+      map.set(offer._id, offer);
+    }
+    for (const task of selectedQuest?.tasks ?? []) {
+      const embedded = getTaskOffer(task);
+      if (embedded) {
+        map.set(embedded._id, embedded);
+      }
+    }
+    return map;
+  }, [offerLookup, offers, selectedQuest]);
 
   const deeplinkSummaryQuery = useQuery({
     queryKey: questTaskDeeplinkSummaryQueryKey(selectedQuest?._id ?? ""),
@@ -532,7 +569,7 @@ export default function QuestTable() {
       setSaveError(null);
     },
     onError: (error) => {
-      setSaveError(error instanceof Error ? error.message : "Save failed");
+      setSaveError(getApiErrorMessage(error, "Save failed"));
     },
   });
 
@@ -552,7 +589,7 @@ export default function QuestTable() {
       }
     },
     onError: (error) => {
-      setSaveError(error instanceof Error ? error.message : "Save failed");
+      setSaveError(getApiErrorMessage(error, "Save failed"));
     },
   });
 
@@ -569,7 +606,7 @@ export default function QuestTable() {
       }
     },
     onError: (error) => {
-      setSaveError(error instanceof Error ? error.message : "Save failed");
+      setSaveError(getApiErrorMessage(error, "Save failed"));
     },
   });
 
@@ -586,7 +623,7 @@ export default function QuestTable() {
 
   const addTask = () => {
     const used = new Set(taskDrafts.map((task) => task.offer));
-    const offer = offers.find((item) => !used.has(item._id));
+    const offer = activeOffers.find((item) => !used.has(item._id));
     if (!offer) return;
     setTaskDrafts((current) => [
       ...current,
@@ -595,34 +632,43 @@ export default function QuestTable() {
         offer: offer._id,
         offer_id: offer.offer_id,
         merchant_id: offer.merchant_id,
-        extra_point: Number(offer.extra_point ?? 50),
+        extra_point: defaultQuestTaskPoints(offer),
         sort_order: current.length,
         enabled: true,
-        wording: defaultTaskWording(offer),
+        wording_en: "",
+        wording_th: "",
         notes: "",
       },
     ]);
   };
 
-  const updateTaskOffer = (index: number, offerId: string) => {
-    const offer = offersById.get(offerId);
-    if (!offer) return;
+  const updateTaskOffer = (index: number, offer: Offer) => {
+    setOfferLookup((current) => ({ ...current, [offer._id]: offer }));
     setTaskDrafts((current) =>
       current.map((task, i) => {
         if (i !== index) return task;
         const previousOffer = offersById.get(task.offer);
-        const previousDefault = defaultTaskWording(previousOffer);
-        const shouldReplaceWording =
-          !task.wording?.trim() || task.wording.trim() === previousDefault;
+        const previousEnDefault = defaultQuestTaskWording(previousOffer, "en");
+        const previousThDefault = defaultQuestTaskWording(previousOffer, "th");
+        const replaceEn = shouldReplaceQuestWording(
+          task.wording_en,
+          previousEnDefault,
+        );
+        const replaceTh = shouldReplaceQuestWording(
+          task.wording_th,
+          previousThDefault,
+        );
         return {
           ...task,
           offer: offer._id,
           offer_id: offer.offer_id,
           merchant_id: offer.merchant_id,
-          extra_point: Number(task.extra_point || offer.extra_point || 50),
-          wording: shouldReplaceWording
-            ? defaultTaskWording(offer)
-            : task.wording,
+          extra_point:
+            Number(task.extra_point) >= 2 && Number(task.extra_point) <= 10000
+              ? Number(task.extra_point)
+              : defaultQuestTaskPoints(offer),
+          wording_en: replaceEn ? "" : (task.wording_en ?? ""),
+          wording_th: replaceTh ? "" : (task.wording_th ?? ""),
         };
       }),
     );
@@ -775,7 +821,7 @@ export default function QuestTable() {
                       </div>
                       <Badge
                         size="sm"
-                        color={quest.status === "open" ? "success" : "warning"}
+                        color={questStatusBadgeColor(quest.status)}
                       >
                         {questStatusLabel(quest.status)}
                       </Badge>
@@ -804,7 +850,7 @@ export default function QuestTable() {
                 {selectedQuestLabel}
               </h4>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Task point values are saved by superadmin only.
+                Campaign saves and task point values require super admin access.
               </p>
             </div>
             {selectedQuest && (
@@ -835,10 +881,9 @@ export default function QuestTable() {
                   hint={BANGKOK_TIMEZONE_LABEL}
                   enableTime
                   altInput
-                  dateFormat="Y-m-d\\TH:i"
-                  altFormat="d/m/Y, h:i K"
+                  dateFormat={ADMIN_DATETIME_VALUE_FORMAT}
+                  altFormat={ADMIN_DATETIME_ALT_FORMAT}
                   minuteIncrement={1}
-                  time_24hr={false}
                   value={campaignDraft.startDate}
                   disabled={!canEditCampaign}
                   onValueChange={(value) =>
@@ -857,10 +902,9 @@ export default function QuestTable() {
                   hint={BANGKOK_TIMEZONE_LABEL}
                   enableTime
                   altInput
-                  dateFormat="Y-m-d\\TH:i"
-                  altFormat="d/m/Y, h:i K"
+                  dateFormat={ADMIN_DATETIME_VALUE_FORMAT}
+                  altFormat={ADMIN_DATETIME_ALT_FORMAT}
                   minuteIncrement={1}
-                  time_24hr={false}
                   value={campaignDraft.endDate}
                   disabled={!canEditCampaign}
                   onValueChange={(value) =>
@@ -886,8 +930,11 @@ export default function QuestTable() {
                   }
                   className="focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-800 focus:ring-3 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
                 >
-                  <option value="open">{questStatusLabel("open")}</option>
-                  <option value="close">{questStatusLabel("close")}</option>
+                  {QUEST_STATUS_VALUES.map((status) => (
+                    <option key={status} value={status}>
+                      {questStatusLabel(status)}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -1051,7 +1098,7 @@ export default function QuestTable() {
                     type="button"
                     size="sm"
                     variant="outline"
-                    disabled={!canEditTasks || offers.length === 0}
+                    disabled={!canEditTasks || activeOffers.length === 0}
                     onClick={addTask}
                   >
                     Add brand
@@ -1081,7 +1128,6 @@ export default function QuestTable() {
                   const taskFieldPrefix = `quest-task-${index}`;
                   const brandFieldId = `${taskFieldPrefix}-brand`;
                   const pointsFieldId = `${taskFieldPrefix}-points`;
-                  const wordingFieldId = `${taskFieldPrefix}-wording`;
                   const enabledFieldId = `${taskFieldPrefix}-enabled`;
                   const notesFieldId = `${taskFieldPrefix}-notes`;
                   return (
@@ -1108,22 +1154,15 @@ export default function QuestTable() {
                             >
                               Brand
                             </label>
-                            <select
+                            <QuestTaskBrandSelect
                               id={brandFieldId}
-                              name={brandFieldId}
-                              value={task.offer}
                               disabled={!canEditTasks}
-                              onChange={(e) =>
-                                updateTaskOffer(index, e.target.value)
+                              valueOfferId={task.offer}
+                              selectedOffer={offer}
+                              onSelect={(nextOffer) =>
+                                updateTaskOffer(index, nextOffer)
                               }
-                              className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-800 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                            >
-                              {offers.map((item) => (
-                                <option key={item._id} value={item._id}>
-                                  {offerLabel(item)}
-                                </option>
-                              ))}
-                            </select>
+                            />
                             <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
                               <span>Offer {task.offer_id}</span>
                               <span>Brand {task.merchant_id}</span>
@@ -1197,32 +1236,31 @@ export default function QuestTable() {
                         </div>
 
                         <div>
-                          <label
-                            htmlFor={wordingFieldId}
-                            className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400"
-                          >
+                          <div className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
                             Customer wording
-                          </label>
-                          <Input
-                            id={wordingFieldId}
-                            name={wordingFieldId}
-                            value={task.wording ?? ""}
+                          </div>
+                          <QuestTaskWordingFields
+                            idPrefix={taskFieldPrefix}
                             disabled={!canEditTasks}
-                            placeholder={defaultTaskWording(offer)}
-                            onChange={(e) =>
+                            offer={offer}
+                            value={{
+                              wording_en: task.wording_en ?? "",
+                              wording_th: task.wording_th ?? "",
+                            }}
+                            onChange={(next) =>
                               setTaskDrafts((current) =>
                                 current.map((row, i) =>
                                   i === index
-                                    ? { ...row, wording: e.target.value }
+                                    ? {
+                                        ...row,
+                                        wording_en: next.wording_en,
+                                        wording_th: next.wording_th,
+                                      }
                                     : row,
                                 ),
                               )
                             }
                           />
-                          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                            Shown on the customer Quest page. Leave blank to use
-                            the brand default.
-                          </div>
                         </div>
 
                         <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-300">

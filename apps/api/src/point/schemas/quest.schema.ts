@@ -31,6 +31,12 @@ export class QuestTask {
   @Prop({ required: false, default: '', maxlength: 140 })
   wording: string;
 
+  @Prop({ required: false, default: '', maxlength: 140 })
+  wording_en: string;
+
+  @Prop({ required: false, default: '', maxlength: 140 })
+  wording_th: string;
+
   @Prop({ required: false, default: '' })
   notes: string;
 }
@@ -65,7 +71,7 @@ export class Quest {
   end_date: Date;
 
   @Prop({ required: true })
-  status: string; // 'open' | 'close' — cron matches 'close' (TasksService.getSpacialPointNextRound)
+  status: string; // 'open' | 'close' | 'scheduled'
 
   @Prop({ required: true, default: false })
   reward_status: boolean;

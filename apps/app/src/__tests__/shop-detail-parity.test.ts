@@ -139,6 +139,7 @@ describe("Shop detail parity", () => {
     expect(shopFile).toContain("CustomerMobileBottomNav");
     expect(shopFile).toContain("activeRouteId={undefined}");
     expect(shopFile).toContain("home-side-watch");
+    expect(shopFile).not.toContain("logoBadge");
     expect(shopFile).toContain("Cashback upto");
     expect(shopFile).toContain("Extra Cashback");
     expect(shopFile).toContain("Cashback starting from");

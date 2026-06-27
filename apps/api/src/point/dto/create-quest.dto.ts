@@ -22,7 +22,7 @@ export class CreateQuestDto {
   start_date: Date;
   @ApiProperty({ example: '2024-01-31' })
   end_date: Date;
-  @ApiProperty({ example: 'open|close' })
+  @ApiProperty({ example: 'open|close|scheduled' })
   status: string;
 
   @ApiProperty({ example: false, required: false })
@@ -45,7 +45,7 @@ export class CreateQuestDto {
 }
 
 export class CloseQuestDto {
-  @ApiProperty({ example: 'open|close' })
+  @ApiProperty({ example: 'open|close|scheduled' })
   status: string;
 }
 
@@ -87,6 +87,24 @@ export class QuestTaskDto {
   @IsString()
   @MaxLength(140)
   wording?: string;
+
+  @ApiProperty({
+    example: 'Make an order on Klook Travel',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(140)
+  wording_en?: string;
+
+  @ApiProperty({
+    example: 'สั่งซื้อที่ Klook Travel',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(140)
+  wording_th?: string;
 
   @ApiProperty({ example: 'June Klook campaign', required: false })
   @IsOptional()

@@ -87,6 +87,7 @@ describe('PointService', () => {
       findOne: jest.fn(),
       find: jest.fn(),
       findOneAndUpdate: jest.fn(),
+      findByIdAndUpdate: jest.fn(),
       updateOne: jest.fn(),
       findById: jest.fn(),
     };
@@ -387,6 +388,8 @@ describe('PointService', () => {
               sort_order: 0,
               enabled: true,
               wording: 'Make an order on Klook Travel',
+              wording_en: 'Make an order on Klook Travel',
+              wording_th: '',
               notes: '',
             },
             {
@@ -397,6 +400,8 @@ describe('PointService', () => {
               sort_order: 1,
               enabled: false,
               wording: '',
+              wording_en: '',
+              wording_th: '',
               notes: 'hold',
             },
           ],
@@ -979,6 +984,44 @@ describe('PointService', () => {
         social_bonus: 0,
         spend_bonus: 30,
       });
+    });
+  });
+
+  describe('createQuest', () => {
+    it('createQuest > given no _id > then upserts on a fresh ObjectId instead of matching status open', async () => {
+      questModel.findById.mockResolvedValue(null);
+      const saved = { _id: new Types.ObjectId().toHexString(), status: 'open' };
+      questModel.findByIdAndUpdate.mockResolvedValue(saved);
+
+      const result = await service.createQuest(
+        {
+          start_date: new Date('2026-06-27'),
+          end_date: new Date('2026-06-30'),
+          status: 'open',
+          facebook_post: '',
+          facebook_page: '',
+          line: '',
+        } as never,
+        {},
+      );
+
+      expect(questModel.findById).toHaveBeenCalledTimes(1);
+      expect(questModel.findOne).not.toHaveBeenCalled();
+      const [questId, update, options] =
+        questModel.findByIdAndUpdate.mock.calls[0];
+      expect(questId).toBeInstanceOf(Types.ObjectId);
+      expect(update).toEqual({
+        $set: expect.objectContaining({
+          status: 'open',
+          facebook_post: '',
+        }),
+      });
+      expect(options).toMatchObject({
+        upsert: true,
+        new: true,
+        setDefaultsOnInsert: true,
+      });
+      expect(result).toBe(saved);
     });
   });
 });

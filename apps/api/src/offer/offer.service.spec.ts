@@ -679,6 +679,20 @@ describe('OfferService', () => {
       const opts = couponModel.findByIdAndUpdate.mock.calls[0][2];
       expect(opts).toEqual({ new: true });
     });
+
+    it('updateCoupon > given link and eligibility > then they are persisted on create', async () => {
+      await service.updateCoupon({
+        ...baseBody(),
+        link: 'https://example.com/promo',
+        eligibility: 'all users',
+        min_spend: '500',
+      });
+
+      const created = couponModel.create.mock.calls[0][0];
+      expect(created.link).toBe('https://example.com/promo');
+      expect(created.eligibility).toBe('all users');
+      expect(created.min_spend).toBe('500');
+    });
   });
 
   describe('getMissingOrder', () => {

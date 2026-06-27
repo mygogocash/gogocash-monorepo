@@ -46,6 +46,14 @@ describe("getApiErrorMessage", () => {
     expect(getApiErrorMessage(new Error("kaboom"))).toBe("kaboom");
   });
 
+  it("joins validation message arrays from the interceptor-rejected shape", () => {
+    expect(
+      getApiErrorMessage({
+        data: { message: ["start_date must be a string", "status is invalid"] },
+      }),
+    ).toBe("start_date must be a string, status is invalid");
+  });
+
   it("falls back when there is no usable message", () => {
     expect(getApiErrorMessage({ status: 500 }, "fallback")).toBe("fallback");
     expect(getApiErrorMessage(null, "fallback")).toBe("fallback");

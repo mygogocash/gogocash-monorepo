@@ -73,6 +73,77 @@ vi.mock("@/components/form/date-picker", () => ({
   ),
 }));
 
+vi.mock("./QuestTaskBrandSelect", () => ({
+  QuestTaskBrandSelect: ({
+    id,
+    disabled,
+    onSelect,
+    selectedOffer,
+    valueOfferId,
+  }: {
+    id: string;
+    disabled?: boolean;
+    onSelect: (offer: Offer) => void;
+    selectedOffer: Offer | null | undefined;
+    valueOfferId: string;
+  }) => (
+    <select
+      id={id}
+      aria-label="Brand"
+      disabled={disabled}
+      value={valueOfferId}
+      onChange={(event) => {
+        if (selectedOffer && event.currentTarget.value === selectedOffer._id) {
+          onSelect(selectedOffer);
+        }
+      }}
+    >
+      {selectedOffer ? (
+        <option value={selectedOffer._id}>
+          {selectedOffer.offer_name_display || selectedOffer.offer_name}
+        </option>
+      ) : null}
+    </select>
+  ),
+}));
+
+vi.mock("./QuestTaskWordingFields", () => ({
+  QuestTaskWordingFields: ({
+    idPrefix,
+    disabled,
+    onChange,
+    value,
+  }: {
+    idPrefix: string;
+    disabled?: boolean;
+    onChange: (next: { wording_en: string; wording_th: string }) => void;
+    value: { wording_en: string; wording_th: string };
+  }) => (
+    <div>
+      <label htmlFor={`${idPrefix}-wording-en`}>English</label>
+      <input
+        id={`${idPrefix}-wording-en`}
+        aria-label="English"
+        disabled={disabled}
+        value={value.wording_en}
+        onChange={(event) =>
+          onChange({ ...value, wording_en: event.currentTarget.value })
+        }
+      />
+      <label htmlFor={`${idPrefix}-wording-th`}>Thai</label>
+      <input
+        id={`${idPrefix}-wording-th`}
+        aria-label="Thai"
+        disabled={disabled}
+        value={value.wording_th}
+        onChange={(event) =>
+          onChange({ ...value, wording_th: event.currentTarget.value })
+        }
+      />
+    </div>
+  ),
+}));
+
 vi.mock("@/lib/query/questQueries", () => ({
   fetchAdminQuests: questQueries.fetchAdminQuests,
   fetchQuestLeaderboard: questQueries.fetchQuestLeaderboard,
@@ -423,10 +494,8 @@ describe("QuestTable management tabs", () => {
     renderQuestTable();
 
     const selector = await screen.findByTestId("quest-campaign-selector");
-    expect(await within(selector).findByText("opening for now")).toBeVisible();
-    expect(
-      within(selector).getByText("quest already closed"),
-    ).toBeInTheDocument();
+    expect(await within(selector).findByText("Active")).toBeVisible();
+    expect(within(selector).getByText("Closed")).toBeInTheDocument();
     expect(within(selector).queryByText("open")).not.toBeInTheDocument();
     expect(within(selector).queryByText("close")).not.toBeInTheDocument();
   });

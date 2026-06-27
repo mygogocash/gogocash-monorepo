@@ -694,6 +694,41 @@ class ApiClient {
     );
   }
 
+  async createConversionReward(
+    body: {
+      reward_type: string;
+      reward_amount: number;
+      reward_currency: string;
+      user: string;
+    },
+    token: string,
+  ): Promise<unknown> {
+    return this.request(`/withdraw/create-conversion-reward`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body),
+    });
+  }
+
+  async createAdminPoint(
+    body: {
+      point_name: string;
+      point_amount: number;
+      user: string;
+    },
+    token: string,
+  ): Promise<unknown> {
+    return this.request(`/point/admin-create-point`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body),
+    });
+  }
+
   async getConversion(
     query: ConversionQuery = {},
     token: string,

@@ -1,0 +1,78 @@
+import {
+  normalizeOfferDisplayTags,
+  normalizeOfferProductTypes,
+  type Offer,
+  type OfferRequestForm,
+} from "@/types/api";
+import { resolveDeeplinkStoreId } from "@/data/deeplinkStores";
+import { resolveAffiliateNetworkIdForOffer } from "@/data/affiliateNetworks";
+
+export function emptyOfferRequestForm(): OfferRequestForm {
+  return {
+    logo_desktop: null,
+    logo_mobile: null,
+    banner: null,
+    logo_circle: null,
+    offer_name_display: "",
+    lookup_value: "",
+    disabled: false,
+    max_cap: null,
+    commission_store: null,
+    commission_entry_mode: "auto",
+    id: "",
+    banner_mobile: null,
+    extra_store: false,
+    upsize_start_date: null,
+    upsize_end_date: null,
+    upsize_start_time: null,
+    upsize_end_time: null,
+    upsize_all_product_types: true,
+    upsize_special_commission: null,
+    upsize_max_cap: null,
+    upsize_product_types: [],
+    product_types: [],
+    all_product_types: true,
+    admin_commission_info: [],
+    policy_category_id: "",
+    custom_terms: "",
+    note_to_user: "",
+    affiliate_network_id: "involve_asia",
+    deeplink_store_id: "global",
+    offer_display_tags: normalizeOfferDisplayTags(undefined),
+  };
+}
+
+export function offerToEditForm(offer: Offer): OfferRequestForm {
+  return {
+    logo_desktop: null,
+    logo_mobile: null,
+    id: offer._id,
+    offer_name_display: offer.offer_name_display || offer.offer_name,
+    lookup_value: offer.lookup_value ?? "",
+    banner: null,
+    logo_circle: null,
+    disabled: offer.disabled,
+    max_cap: offer.max_cap,
+    commission_store: offer.commission_store,
+    commission_entry_mode: "auto",
+    banner_mobile: null,
+    extra_store: offer.extra_store || false,
+    upsize_start_date: offer.upsize_start_date ?? null,
+    upsize_end_date: offer.upsize_end_date ?? null,
+    upsize_start_time: offer.upsize_start_time ?? null,
+    upsize_end_time: offer.upsize_end_time ?? null,
+    upsize_all_product_types: offer.upsize_all_product_types ?? true,
+    upsize_special_commission: offer.upsize_special_commission ?? null,
+    upsize_max_cap: offer.upsize_max_cap ?? null,
+    upsize_product_types: normalizeOfferProductTypes(offer.upsize_product_types),
+    product_types: normalizeOfferProductTypes(offer.product_types),
+    all_product_types: offer.all_product_types ?? true,
+    admin_commission_info: offer.admin_commission_info ?? [],
+    policy_category_id: offer.policy_category_id ?? "",
+    custom_terms: offer.custom_terms ?? "",
+    note_to_user: offer.note_to_user ?? "",
+    affiliate_network_id: resolveAffiliateNetworkIdForOffer(offer),
+    deeplink_store_id: resolveDeeplinkStoreId(offer),
+    offer_display_tags: normalizeOfferDisplayTags(offer.offer_display_tags),
+  };
+}

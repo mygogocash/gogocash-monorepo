@@ -1,7 +1,13 @@
 import { PartialType } from '@nestjs/swagger';
-import { CreateOfferDto } from './create-offer.dto';
-import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 import { Types } from 'mongoose';
+import { CreateOfferDto } from './create-offer.dto';
 
 export class UpdateOfferDto extends PartialType(CreateOfferDto) {}
 
@@ -10,12 +16,14 @@ export class UpdateCouponDto {
   @IsNotEmpty()
   name: string;
 
+  @IsOptional()
   @IsString()
-  description: string;
+  description?: string;
 
-  @IsNotEmpty()
+  /** Optional when coupons are issued without a redeem code. */
+  @IsOptional()
   @IsString()
-  code: string;
+  code?: string;
 
   @IsNotEmpty()
   @IsString()
@@ -29,24 +37,32 @@ export class UpdateCouponDto {
   @IsString()
   end_date: string;
 
+  @IsOptional()
   @IsString()
-  eligibility: string;
+  eligibility?: string;
 
+  @IsOptional()
   @IsString()
-  min_spend: string;
+  min_spend?: string;
 
+  @IsOptional()
+  @Type(() => Number)
   @IsNumber()
-  discount: number;
+  discount?: number;
 
+  @IsOptional()
   @IsString()
-  id: string;
+  id?: string;
 
-  @IsString()
-  disabled: string | boolean;
+  @IsOptional()
+  disabled?: string | boolean;
 
+  @IsOptional()
+  @Type(() => Number)
   @IsNumber()
-  quantity: number;
+  quantity?: number;
 
+  @IsOptional()
   @IsString()
-  link: string;
+  link?: string;
 }

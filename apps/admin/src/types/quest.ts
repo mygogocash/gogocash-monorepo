@@ -8,6 +8,8 @@ export interface QuestTask {
   sort_order: number;
   enabled: boolean;
   wording?: string;
+  wording_en?: string;
+  wording_th?: string;
   notes?: string;
 }
 
@@ -19,6 +21,8 @@ export interface QuestTaskPayload {
   sort_order?: number;
   enabled?: boolean;
   wording?: string;
+  wording_en?: string;
+  wording_th?: string;
   notes?: string;
 }
 

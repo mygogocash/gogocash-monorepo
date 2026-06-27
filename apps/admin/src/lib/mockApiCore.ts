@@ -1102,9 +1102,9 @@ async function handleMockPOST(
 
   if (joined === "point/create-quest") {
     const id = mockBodyField(body, "_id");
-    const existing =
-      (id ? mockQuestStore.find((q) => q._id === id) : undefined) ??
-      mockQuestStore.find((q) => q.status === "open");
+    const existing = id
+      ? mockQuestStore.find((q) => q._id === id)
+      : undefined;
     const now = new Date().toISOString();
     const quest: MockQuest = existing ?? {
       _id: `q_${Date.now()}`,
@@ -1311,6 +1311,77 @@ async function handleMockPOST(
 
   if (path[0] === "withdraw" && path[1] === "check-my-cashback-admin") {
     return ok(mockMCBDetail);
+  }
+
+  if (path[0] === "withdraw" && path[1] === "create-conversion-reward") {
+    const b = (body && typeof body === "object" ? body : {}) as {
+      reward_type?: string;
+      reward_amount?: number | string;
+      reward_currency?: string;
+      user?: string;
+    };
+    const userInput = String(b.user ?? "").trim();
+    const rewardType = String(b.reward_type ?? "").trim();
+    if (!userInput || !rewardType) {
+      return jsonErr(400, { message: "Invalid request" });
+    }
+    let mobileLookup = userInput;
+    if (!userInput.includes("@") && userInput.startsWith("0")) {
+      mobileLookup = `+66${userInput.slice(1)}`;
+    }
+    const found = mockUsers.find(
+      (u) =>
+        u.email === userInput ||
+        u.mobile === userInput ||
+        u.mobile === mobileLookup,
+    );
+    if (!found) {
+      return jsonErr(400, { message: "User not found" });
+    }
+    const currency = String(b.reward_currency ?? "THB")
+      .trim()
+      .toUpperCase();
+    if (currency !== "THB" && currency !== "USD") {
+      return jsonErr(400, { message: "Invalid currency" });
+    }
+    return ok({
+      conversion_id: Date.now(),
+      offer_name: "reward_conversion_quest",
+      currency,
+      payout: Number(b.reward_amount) || 0,
+    });
+  }
+
+  if (path[0] === "point" && path[1] === "admin-create-point") {
+    const b = (body && typeof body === "object" ? body : {}) as {
+      point_name?: string;
+      point_amount?: number | string;
+      user?: string;
+    };
+    const userInput = String(b.user ?? "").trim();
+    const pointName = String(b.point_name ?? "").trim();
+    if (!userInput || !pointName) {
+      return jsonErr(400, { message: "Invalid request" });
+    }
+    let mobileLookup = userInput;
+    if (!userInput.includes("@") && userInput.startsWith("0")) {
+      mobileLookup = `+66${userInput.slice(1)}`;
+    }
+    const found = mockUsers.find(
+      (u) =>
+        u.email === userInput ||
+        u.mobile === userInput ||
+        u.mobile === mobileLookup,
+    );
+    if (!found) {
+      return jsonErr(400, { message: "User not found" });
+    }
+    return ok({
+      point_id: Date.now(),
+      point_name: pointName,
+      point: Number(b.point_amount) || 0,
+      user_id: found._id,
+    });
   }
 
   if (joined === "admin/getConversionInWithdraw") {
@@ -2019,6 +2090,8 @@ async function handleMockPATCH(
         sort_order: tasks.length,
         enabled: raw.enabled !== false,
         wording: String(raw.wording ?? ""),
+        wording_en: String(raw.wording_en ?? raw.wording ?? ""),
+        wording_th: String(raw.wording_th ?? ""),
         notes: String(raw.notes ?? ""),
       });
     }

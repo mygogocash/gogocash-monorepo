@@ -105,7 +105,7 @@ const Input: FC<InputProps> = ({
         accept={accept}
         aria-label={ariaLabel}
         title={title}
-        lang={lang}
+        lang={lang ?? (type === "time" ? "en-GB" : undefined)}
       />
 
       {/* Optional Hint Text */}
