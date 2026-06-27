@@ -57,10 +57,11 @@ jobs:
     needs: ci
     if: ${{ needs.ci.outputs.app == 'true' }}
     uses: ./.github/workflows/_build-push.yml
+    secrets: inherit
     with:
       service_name: gogocash-app-web-staging
       dockerfile: apps/app/Dockerfile.web
       build_context: apps/app
-      # Expo web export runs before the image build; EXPO_PUBLIC_* (all
-      # non-secret) are baked into the static bundle here.
-      prebuild_command: "EXPO_PUBLIC_API_URL=https://api-staging.gogocash.co EXPO_PUBLIC_APP_ENV=staging EXPO_PUBLIC_ACCOUNT_DATA_SOURCE=fixtures EXPO_PUBLIC_FRONTEND_URL=https://app-staging.gogocash.co npm run export:web -w @gogocash/mobile"
+      # Expo web export runs before the image build; EXPO_PUBLIC_* env is set in
+      # _build-push.yml Prebuild (backend mode + Firebase secrets).
+      prebuild_command: npm run export:web -w @gogocash/mobile
