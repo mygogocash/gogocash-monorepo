@@ -251,8 +251,8 @@ export default function CommissionManagementClient({
           Pull the strongest partner cashback for the selected merchant, surface
           the partner&apos;s max cap vs what you publish in-app, then align the
           GoGoCash tracking link. Turn on auto-optimization to re-run whenever
-          you change network or merchant. Mock data only; wire your backend to
-          the same routes for production.
+          you change network or merchant. Involve Asia offers refresh live from
+          the partner API when credentials are configured.
         </p>
 
         <div className="mt-6 space-y-6">

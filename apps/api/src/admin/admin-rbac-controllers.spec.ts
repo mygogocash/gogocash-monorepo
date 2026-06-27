@@ -9,6 +9,7 @@ import { TransactionsController } from './transactions/transactions.controller';
 import { SubscriptionsController } from './subscriptions/subscriptions.controller';
 import { MembershipController } from './membership/membership.controller';
 import { DiscoverController } from './discover/discover.controller';
+import { CommissionManagementController } from './commission-management/commission-management.controller';
 import { SearchController } from './search/search.controller';
 import { AdminController } from './admin.controller';
 import { PointController } from 'src/point/point.controller';
@@ -46,6 +47,7 @@ describe('Admin money/sensitive controllers enforce roles', () => {
     MembershipController,
     DiscoverController,
     SearchController,
+    CommissionManagementController,
   ];
 
   it('all attach RolesGuard at the class level', () => {
@@ -84,6 +86,7 @@ describe('Admin money/sensitive controllers enforce roles', () => {
     expect(rolesOnClass(MembershipController)).toContain('superadmin');
     expect(rolesOnClass(DiscoverController)).toContain('support');
     expect(rolesOnClass(SearchController)).toContain('support');
+    expect(rolesOnClass(CommissionManagementController)).toContain('support');
   });
 });
 
@@ -187,6 +190,15 @@ describe('Admin Phase-2 RBAC gap closures', () => {
     expect(rolesOnMethod(OfferController, 'createOffer')).toContain('approver');
     expect(rolesOnMethod(OfferController, 'createOffer')).not.toContain(
       'superadmin',
+    );
+  });
+
+  it('commission fetch-best and deeplink updates require approver+', () => {
+    expect(rolesOnMethod(CommissionManagementController, 'fetchBest')).toContain(
+      'approver',
+    );
+    expect(rolesOnMethod(CommissionManagementController, 'updateDeeplink')).toContain(
+      'approver',
     );
   });
 });

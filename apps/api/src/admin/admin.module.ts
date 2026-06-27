@@ -47,6 +47,8 @@ import { DiscoverController } from './discover/discover.controller';
 import { DiscoverService } from './discover/discover.service';
 import { SearchController } from './search/search.controller';
 import { SearchService } from './search/search.service';
+import { CommissionManagementController } from './commission-management/commission-management.controller';
+import { CommissionManagementService } from './commission-management/commission-management.service';
 
 import {
   UserAdmin,
@@ -209,6 +211,7 @@ import { AnalyticsModule } from 'src/analytics/analytics.module';
     SubscriptionsController,
     DiscoverController,
     SearchController,
+    CommissionManagementController,
   ],
   providers: [
     AdminService,
@@ -224,6 +227,7 @@ import { AnalyticsModule } from 'src/analytics/analytics.module';
     SubscriptionsService,
     DiscoverService,
     SearchService,
+    CommissionManagementService,
     JwtService,
     InvolveService,
     UserService,
