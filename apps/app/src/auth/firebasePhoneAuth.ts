@@ -2,7 +2,8 @@ import { RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
 import type { ConfirmationResult } from "firebase/auth";
 import { Platform } from "react-native";
 
-import { getClientAuth } from "@mobile/auth/firebaseClient";
+import { FIREBASE_NOT_CONFIGURED_CODE } from "@mobile/auth/authSendErrorKind";
+import { getClientAuth, isFirebaseConfigured } from "@mobile/auth/firebaseClient";
 
 // Phone OTP via Firebase — the only sign-in provider enabled on gogocash-staging.
 // Mirrors the web's src/features/profile/firebase/fc.ts: invisible reCAPTCHA +
@@ -30,6 +31,11 @@ function getInvisibleRecaptcha(): RecaptchaVerifier {
 export async function sendPhoneOtp(phoneE164: string): Promise<ConfirmationResult> {
   if (Platform.OS !== "web" || typeof document === "undefined") {
     throw new Error("Firebase phone sign-in currently supports Expo web only.");
+  }
+  if (!isFirebaseConfigured()) {
+    throw Object.assign(new Error("Firebase is not configured"), {
+      code: FIREBASE_NOT_CONFIGURED_CODE,
+    });
   }
   try {
     return await signInWithPhoneNumber(getClientAuth(), phoneE164, getInvisibleRecaptcha());

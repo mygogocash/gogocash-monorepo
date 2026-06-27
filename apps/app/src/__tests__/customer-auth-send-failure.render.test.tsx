@@ -95,6 +95,61 @@ describe("CustomerAuthScreen — live send failure is visible", () => {
     expect(screen.queryByText(toastErrorMessages.requestFailed)).toBeNull();
   });
 
+  it("given sendPhoneOtp rejects with auth/captcha-check-failed > then shows the security-check copy", async () => {
+    sendPhoneOtp.mockRejectedValue(
+      Object.assign(new Error("rejected"), { code: "auth/captcha-check-failed" })
+    );
+
+    render(createElement(CustomerAuthScreen, { mode: "login" }));
+    fireEvent.change(screen.getByPlaceholderText("Phone Number"), {
+      target: { value: "0812346789" },
+    });
+    fireEvent.click(screen.getByRole("checkbox", { name: "I have read and understand" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(authSendErrorMessages.securityCheck)
+      ).toBeTruthy();
+    });
+  });
+
+  it("given sendPhoneOtp rejects with auth/invalid-phone-number > then shows the invalid-phone copy", async () => {
+    sendPhoneOtp.mockRejectedValue(
+      Object.assign(new Error("invalid"), { code: "auth/invalid-phone-number" })
+    );
+
+    render(createElement(CustomerAuthScreen, { mode: "login" }));
+    fireEvent.change(screen.getByPlaceholderText("Phone Number"), {
+      target: { value: "0812346789" },
+    });
+    fireEvent.click(screen.getByRole("checkbox", { name: "I have read and understand" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(authSendErrorMessages.invalidPhone)).toBeTruthy();
+    });
+  });
+
+  it("given sendPhoneOtp rejects because Firebase is not configured > then shows the not-configured copy", async () => {
+    sendPhoneOtp.mockRejectedValue(
+      Object.assign(new Error("Firebase is not configured"), {
+        code: "gogocash/firebase-not-configured",
+      })
+    );
+
+    render(createElement(CustomerAuthScreen, { mode: "login" }));
+    fireEvent.change(screen.getByPlaceholderText("Phone Number"), {
+      target: { value: "0812346789" },
+    });
+    fireEvent.click(screen.getByRole("checkbox", { name: "I have read and understand" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(authSendErrorMessages.notConfigured)).toBeTruthy();
+    });
+  });
+
   it("given the user edits the phone after a failure > then the failure notice clears", async () => {
     sendPhoneOtp.mockRejectedValue(new Error("network"));
 

@@ -1,5 +1,5 @@
 import { Link, useRouter } from "expo-router";
-import { authSendErrorMessages } from "@mobile/i18n/toastMessages";
+import { sendErrorCopy, toSendErrorKind, type SendErrorKind } from "@mobile/auth/authSendErrorKind";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { Check, ChevronDown as ChevronDownIcon } from "@mobile/theme/icons";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -84,24 +84,6 @@ const webCountryMenuShadowStyle = {
 type AuthPhase = "phone" | "otp";
 type SocialProvider = (typeof webAuthPage.socialProviders)[number];
 type AuthCountry = (typeof webAuthPage.countries)[number];
-
-// OTP-send failures keep the user on the phone step; the notice copy depends on
-// the Firebase error code so rate limits and security rejections are
-// distinguishable from generic failures (never expose provider internals).
-type SendErrorKind = "rate-limit" | "security-check" | "generic";
-
-const sendErrorCopy: Record<SendErrorKind, string> = {
-  "rate-limit": authSendErrorMessages.rateLimit,
-  "security-check": authSendErrorMessages.securityCheck,
-  generic: authSendErrorMessages.generic,
-};
-
-function toSendErrorKind(error: unknown): SendErrorKind {
-  const code = (error as { code?: unknown } | null)?.code;
-  if (code === "auth/too-many-requests") return "rate-limit";
-  if (code === "auth/invalid-app-credential") return "security-check";
-  return "generic";
-}
 
 function formatOtpCountdown(totalSeconds: number) {
   const clampedSeconds = Math.max(0, totalSeconds);
