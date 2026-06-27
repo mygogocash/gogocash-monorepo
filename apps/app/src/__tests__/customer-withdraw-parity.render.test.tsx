@@ -1,4 +1,5 @@
 import { createElement } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -11,13 +12,24 @@ vi.mock("expo-localization", () => ({
 
 import { CustomerMoneyActionScreen } from "@mobile/screens/CustomerMoneyActionScreen";
 
+function renderWithdrawScreen() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      createElement(CustomerMoneyActionScreen, { mode: "withdraw" }),
+    ),
+  );
+}
+
 // The Expo /withdraw screen (mode="withdraw") must mirror the web MyWalletWithdraw form step:
 // a centered amount with a green underline + "Available Amount", a "Withdrawal Method" + a
 // "Select your bank" selector, "Minimum withdrawal" + "Manage Method", and a "Total Withdrawal
 // Amount" breakdown (Active Balance / Withdraw Fee / You will receive). CTA is "Withdraw".
 describe("CustomerMoneyActionScreen — withdraw web parity (form step)", () => {
   it("withdraw form > renders the web Withdraw page copy + structure", () => {
-    render(createElement(CustomerMoneyActionScreen, { mode: "withdraw" }));
+    renderWithdrawScreen();
 
     expect(screen.getByText("Withdraw Your Cashback Earnings")).toBeTruthy();
     expect(screen.getByText("Enter Amount to Withdraw")).toBeTruthy();
@@ -37,7 +49,7 @@ describe("CustomerMoneyActionScreen — withdraw web parity (form step)", () => 
   });
 
   it("withdraw form > 'You will receive' reflects the entered amount minus the withdraw fee", () => {
-    render(createElement(CustomerMoneyActionScreen, { mode: "withdraw" }));
+    renderWithdrawScreen();
 
     const amountInput = screen.getByPlaceholderText("0.00");
     fireEvent.change(amountInput, { target: { value: "1000" } });
@@ -47,7 +59,7 @@ describe("CustomerMoneyActionScreen — withdraw web parity (form step)", () => 
   });
 
   it("withdraw form > given no amount entered > then 'You will receive' shows an em dash, not 0.00", () => {
-    render(createElement(CustomerMoneyActionScreen, { mode: "withdraw" }));
+    renderWithdrawScreen();
 
     // The empty form must not imply a 0.00 payout before anything is typed.
     expect(screen.getByText("—")).toBeTruthy();
