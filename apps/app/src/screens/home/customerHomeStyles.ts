@@ -712,7 +712,7 @@ export function createHomeScreenStyles(colors: ThemeColors, surfaces: ThemeSurfa
     color: pickThemed(colors, "#0A5C4A", colors.accent),
     fontFamily: typography.family,
     fontSize: 11,
-    fontWeight: "700",
+    fontWeight: typography.bodyWeight,
     letterSpacing: 1.3,
     textTransform: "uppercase",
   },
@@ -770,7 +770,7 @@ export function createHomeScreenStyles(colors: ThemeColors, surfaces: ThemeSurfa
     color: pickThemed(colors, "#0A5C4A", colors.accent),
     fontFamily: typography.family,
     fontSize: 13,
-    fontWeight: "600",
+    fontWeight: typography.bodyWeight,
   },
   desktopGoLinkStepArrow: {
     color: pickThemed(colors, "rgba(10, 92, 74, 0.45)", colors.accentSoft),

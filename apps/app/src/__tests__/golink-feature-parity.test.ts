@@ -124,6 +124,10 @@ describe("GoGoLink feature parity", () => {
     expect(homeFile).toMatch(
       /desktopGoLinkEyebrow:\s*\{[\s\S]*?backgroundColor: pickThemed\(colors/,
     );
+    const desktopGoLinkEyebrowTextBlock =
+      homeFile.match(/desktopGoLinkEyebrowText:\s*\{[\s\S]*?\n  \},/)?.[0] ?? "";
+    expect(desktopGoLinkEyebrowTextBlock).toContain("fontWeight: typography.bodyWeight");
+    expect(desktopGoLinkEyebrowTextBlock).not.toContain('fontWeight: "700"');
     expect(homeFile).toMatch(
       /desktopGoLinkIllustrationWrap:\s*\{[\s\S]*?backgroundColor: pickThemed\(colors/,
     );

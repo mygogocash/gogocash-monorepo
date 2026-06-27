@@ -5,3 +5,7 @@ paths-ignore:
   - '**/node_modules/**'
   - '**/*.test.ts'
   - '**/*.spec.ts'
+  # Expo local module Kotlin — no repo-root Gradle project; built only in EAS Android
+  # dev-client builds. Excluded from JS/TS CodeQL paths; java-kotlin is not in the
+  # workflow matrix (see .github/workflows/codeql.yml).
+  - 'apps/app/modules/**/android/**'
