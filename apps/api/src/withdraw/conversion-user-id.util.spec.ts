@@ -88,7 +88,9 @@ describe('resolveBackfillUserObjectId (P1-COLLSCAN)', () => {
   const HEX24 = '68bf99fed9667685c1637607';
 
   it('given parseable aff_sub1 > then returns ObjectId for backfill', () => {
-    expect(resolveBackfillUserObjectId(`user_id:${HEX24}`)?.toString()).toBe(HEX24);
+    expect(resolveBackfillUserObjectId(`user_id:${HEX24}`)?.toString()).toBe(
+      HEX24,
+    );
   });
 
   it('given unparseable aff_sub1 > then returns null', () => {

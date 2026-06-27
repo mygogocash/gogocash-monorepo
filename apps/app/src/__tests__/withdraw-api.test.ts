@@ -1,11 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createWithdrawApi } from "@mobile/withdraw/api";
+import { createWithdrawApi, type WithdrawBaseClient } from "@mobile/withdraw/api";
 
 function createBaseClient() {
   return {
     get: vi.fn(async () => []),
     post: vi.fn(async () => ({ _id: "withdraw-1", status: "pending" })),
+  } as WithdrawBaseClient & {
+    get: ReturnType<typeof vi.fn>;
+    post: ReturnType<typeof vi.fn>;
   };
 }
 

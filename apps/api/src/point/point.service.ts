@@ -14,9 +14,7 @@ import { convertToTHB } from 'src/utils/helper';
 import { GroupedConversion } from './interface/point.interface';
 import { Offer } from 'src/offer/schemas/offer.schema';
 import { AnalyticsService } from 'src/analytics/analytics.service';
-import {
-  buildApprovedUserConversionsFilter,
-} from 'src/withdraw/conversion-user-id.util';
+import { buildApprovedUserConversionsFilter } from 'src/withdraw/conversion-user-id.util';
 import {
   Quest,
   QuestReward,

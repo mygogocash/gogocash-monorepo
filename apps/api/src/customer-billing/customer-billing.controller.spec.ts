@@ -12,9 +12,15 @@ function reqWithUser(sub: string): Request {
 describe('CustomerBillingController', () => {
   let controller: CustomerBillingController;
   const service = {
-    createCheckoutSession: jest.fn().mockResolvedValue({ url: 'https://checkout.test' }),
-    createBillingPortalSession: jest.fn().mockResolvedValue({ url: 'https://portal.test' }),
-    getSubscriptionStatus: jest.fn().mockResolvedValue({ enabled: true, status: 'active' }),
+    createCheckoutSession: jest
+      .fn()
+      .mockResolvedValue({ url: 'https://checkout.test' }),
+    createBillingPortalSession: jest
+      .fn()
+      .mockResolvedValue({ url: 'https://portal.test' }),
+    getSubscriptionStatus: jest
+      .fn()
+      .mockResolvedValue({ enabled: true, status: 'active' }),
   };
 
   beforeEach(async () => {

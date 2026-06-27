@@ -35,7 +35,9 @@ describe('Point TasksService', () => {
         user_id: { $exists: true, $ne: null },
       }),
     );
-    expect(JSON.stringify(conversionModel.find.mock.calls[0][0])).not.toContain('$regex');
+    expect(JSON.stringify(conversionModel.find.mock.calls[0][0])).not.toContain(
+      '$regex',
+    );
     expect(pointService.addPointsToUser).not.toHaveBeenCalled();
   });
 });

@@ -2,9 +2,7 @@ import { HttpException, UnauthorizedException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
-import {
-  buildApprovedUserConversionsFilter,
-} from 'src/withdraw/conversion-user-id.util';
+import { buildApprovedUserConversionsFilter } from 'src/withdraw/conversion-user-id.util';
 import { PointService } from './point.service';
 import { User } from 'src/user/schemas/user.schema';
 import { Point } from './schemas/point.schema';
@@ -689,7 +687,9 @@ describe('PointService', () => {
 
       const matchStage = conversionModel.aggregate.mock.calls[0][0][0].$match;
       expect(matchStage).toEqual(
-        expect.objectContaining(buildApprovedUserConversionsFilter(scopedUserId)),
+        expect.objectContaining(
+          buildApprovedUserConversionsFilter(scopedUserId),
+        ),
       );
       expect(JSON.stringify(matchStage)).not.toContain('$regex');
     });

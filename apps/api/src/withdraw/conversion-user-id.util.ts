@@ -31,7 +31,9 @@ export function affSub1ForUserId(userId: string | Types.ObjectId): string {
  * populated and falls back to an exact `aff_sub1` match for legacy rows — never
  * `$regex`, which forces a collection scan on every balance check.
  */
-export function buildUserConversionScopeFilter(userId: string | Types.ObjectId) {
+export function buildUserConversionScopeFilter(
+  userId: string | Types.ObjectId,
+) {
   const oid = toUserObjectId(userId);
   return {
     $or: [{ user_id: oid }, { aff_sub1: affSub1ForUserId(oid) }],
