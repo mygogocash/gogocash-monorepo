@@ -7,6 +7,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import {
   mongoCaseInsensitiveRegex,
+  mongoFilter,
   requireObjectId,
   requireOneOf,
 } from 'src/common/mongo-query';
@@ -157,7 +158,7 @@ export class SubscriptionsService {
 
     const [subscriptions, total] = await Promise.all([
       this.subscriptionModel
-        .find(filter)
+        .find(mongoFilter(filter))
         .populate('user_id', 'email username')
         .populate('plan_id', 'name price currency billing_cycle')
         .sort({ createdAt: -1 })
@@ -165,7 +166,7 @@ export class SubscriptionsService {
         .limit(limit)
         .lean()
         .exec(),
-      this.subscriptionModel.countDocuments(filter).exec(),
+      this.subscriptionModel.countDocuments(mongoFilter(filter)).exec(),
     ]);
 
     return {

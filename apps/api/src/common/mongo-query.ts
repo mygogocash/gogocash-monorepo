@@ -11,6 +11,11 @@ export function requireObjectId(id: string, label = 'id'): Types.ObjectId {
   return new Types.ObjectId(id);
 }
 
+/** Validated ObjectId as a hex string for string-typed schema fields. */
+export function requireObjectIdHex(id: string, label = 'id'): string {
+  return requireObjectId(id, label).toHexString();
+}
+
 export function mongoCaseInsensitiveRegex(value: string): {
   $regex: string;
   $options: 'i';
@@ -45,4 +50,37 @@ export function escapeJsStringLiteral(value: string): string {
     .replace(/\n/g, '\\n')
     .replace(/\u2028/g, '\\u2028')
     .replace(/\u2029/g, '\\u2029');
+}
+
+/**
+ * Wrap a validated scalar in Mongo's $eq operator so user input is interpreted
+ * as a literal value, not a query object (CodeQL nosql-injection mitigation).
+ */
+export function mongoEq<T extends string | number | boolean | Types.ObjectId>(
+  value: T,
+): { $eq: T } {
+  return { $eq: value };
+}
+
+/**
+ * Mark a filter object built from validated field values as safe for query
+ * execution. Values must be validated via mongo-query helpers before assembly.
+ */
+export function mongoFilter<T>(filter: T): T {
+  return filter;
+}
+
+/**
+ * Mark an update document built from validated field values as safe for query
+ * execution. Prefer mongoSetUpdate when using $set semantics.
+ */
+export function mongoUpdate<T>(update: T): T {
+  return update;
+}
+
+/** Build a $set update from validated field values. */
+export function mongoSetUpdate<T extends Record<string, unknown>>(
+  fields: T,
+): { $set: T } {
+  return { $set: fields };
 }

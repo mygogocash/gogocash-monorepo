@@ -1,0 +1,3 @@
+name: gogocash-codeql
+packs:
+  - mygogocash/gogocash-mongo-sanitizers

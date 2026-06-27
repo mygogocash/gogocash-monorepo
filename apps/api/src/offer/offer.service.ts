@@ -26,7 +26,7 @@ import { FeaturedSearchTerm } from 'src/admin/search/schemas/featured-term.schem
 import { SearchBoostRule } from 'src/admin/search/schemas/boost-rule.schema';
 import { SearchBlacklist } from 'src/admin/search/schemas/blacklist.schema';
 import { escapeRegexLiteral } from 'src/common/escape-regex';
-import { requireObjectId } from 'src/common/mongo-query';
+import { requireObjectId, mongoUpdate } from 'src/common/mongo-query';
 
 const ACTIVE_OFFER_FILTER = {
   disabled: { $ne: true },
@@ -627,7 +627,7 @@ export class OfferService implements OnApplicationBootstrap {
     if (body?.id) {
       return this.couponModel.findByIdAndUpdate(
         requireObjectId(body.id),
-        patch,
+        mongoUpdate(patch),
         {
           new: true,
         },

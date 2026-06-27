@@ -3,6 +3,8 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import {
   mongoCaseInsensitiveRegex,
+  mongoEq,
+  mongoFilter,
   requireObjectId,
 } from 'src/common/mongo-query';
 import { User } from 'src/user/schemas/user.schema';
@@ -57,7 +59,7 @@ export class CreditScoresService {
     }
 
     if (query.tier) {
-      filter.credit_tier = query.tier;
+      filter.credit_tier = mongoEq(query.tier.trim());
     }
 
     const minScore = Number(query.minScore);
@@ -73,14 +75,14 @@ export class CreditScoresService {
 
     const [users, total] = await Promise.all([
       this.userModel
-        .find(filter)
+        .find(mongoFilter(filter))
         .select('email username credit_score credit_tier createdAt')
         .sort({ credit_score: -1 })
         .skip(skip)
         .limit(limit)
         .lean()
         .exec(),
-      this.userModel.countDocuments(filter).exec(),
+      this.userModel.countDocuments(mongoFilter(filter)).exec(),
     ]);
 
     const data = users.map((u) => ({

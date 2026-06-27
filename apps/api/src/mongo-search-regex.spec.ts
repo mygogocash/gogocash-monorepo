@@ -12,19 +12,23 @@ const mongoSearchSources = [
 
 /** Services flagged by CodeQL that must route regex/search through mongo-query helpers. */
 const mongoQueryHelperSources = [
+  'src/admin/admin.service.ts',
   'src/admin/credit-scores/credit-scores.service.ts',
   'src/admin/membership/membership.service.ts',
   'src/admin/missing-orders/missing-orders.service.ts',
   'src/admin/referrals/referrals.service.ts',
   'src/admin/search/search.service.ts',
   'src/admin/subscriptions/subscriptions.service.ts',
+  'src/admin/transactions/transactions.service.ts',
   'src/brand/brand.service.ts',
   'src/catalog/catalog.service.ts',
   'src/catalog/commerce.service.ts',
   'src/catalog/media.service.ts',
   'src/gogosense/gogosense.service.ts',
+  'src/offer/offer.service.ts',
   'src/point/point.service.ts',
   'src/telegram-bot/telegram-auth.controller.ts',
+  'src/withdraw/withdraw.service.ts',
 ] as const;
 
 describe('mongo search regex safety', () => {

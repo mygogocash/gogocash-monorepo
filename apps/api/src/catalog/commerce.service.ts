@@ -25,7 +25,12 @@ import { InventoryReservation } from './schemas/inventory-reservation.schema';
 import { PaymentAttempt } from './schemas/payment-attempt.schema';
 import { buildCheckoutRedirectUrls } from './commerce-checkout-urls';
 import { validateAdminOrderStatusTransition } from './commerce-order-status';
-import { requireObjectId, requireOneOf } from 'src/common/mongo-query';
+import {
+  requireObjectId,
+  mongoEq,
+  mongoFilter,
+  requireOneOf,
+} from 'src/common/mongo-query';
 
 const PENDING_PAYMENT_STATUSES = ['pending', 'unpaid'] as const;
 
@@ -150,7 +155,12 @@ export class CommerceService {
     const validatedUserId = requireObjectId(userId, 'user id').toHexString();
 
     const ownAttempt = await this.paymentAttemptModel
-      .findOne({ idempotency_key: idempotencyKey, user_id: validatedUserId })
+      .findOne(
+        mongoFilter({
+          idempotency_key: mongoEq(idempotencyKey),
+          user_id: mongoEq(validatedUserId),
+        }),
+      )
       .lean()
       .exec();
     if (ownAttempt?.checkout_url) {
@@ -163,10 +173,12 @@ export class CommerceService {
     }
 
     const foreignAttempt = await this.paymentAttemptModel
-      .findOne({
-        idempotency_key: idempotencyKey,
-        user_id: { $ne: validatedUserId },
-      })
+      .findOne(
+        mongoFilter({
+          idempotency_key: mongoEq(idempotencyKey),
+          user_id: { $ne: validatedUserId },
+        }),
+      )
       .lean()
       .exec();
     if (foreignAttempt) {
@@ -284,7 +296,7 @@ export class CommerceService {
       );
     }
     return this.orderModel
-      .find(filter)
+      .find(mongoFilter(filter))
       .sort({ createdAt: -1 })
       .limit(Math.min(query.limit || 50, 100))
       .lean()

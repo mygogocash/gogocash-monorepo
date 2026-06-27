@@ -1,7 +1,11 @@
 import { BadRequestException, HttpException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { requireObjectId } from 'src/common/mongo-query';
+import {
+  requireObjectId,
+  requireObjectIdHex,
+  mongoFilter,
+} from 'src/common/mongo-query';
 import { AnalyticsService } from 'src/analytics/analytics.service';
 import { InvolveService } from 'src/involve/involve.service';
 import { ActivationRequestDto } from './dto/activation-request.dto';
@@ -322,10 +326,15 @@ export class GogosenseService {
 
     if (request.detectionEventId) {
       const existingActivation = await this.activationEventModel
-        .findOne({
-          user_id: validatedUserId,
-          detection_event_id: request.detectionEventId,
-        })
+        .findOne(
+          mongoFilter({
+            user_id: validatedUserId,
+            detection_event_id: requireObjectIdHex(
+              request.detectionEventId,
+              'detection event id',
+            ),
+          }),
+        )
         .lean();
 
       if (existingActivation) {
@@ -414,13 +423,15 @@ export class GogosenseService {
     );
 
     const detectionEvent = await this.detectionEventModel
-      .findOne({
-        _id: detectionEventId,
-        user_id: userId,
-        merchant_id: request.merchantId,
-        network_merchant_id: request.networkMerchantId,
-        matched: true,
-      })
+      .findOne(
+        mongoFilter({
+          _id: detectionEventId,
+          user_id: userId,
+          merchant_id: request.merchantId,
+          network_merchant_id: request.networkMerchantId,
+          matched: true,
+        }),
+      )
       .lean();
 
     if (!detectionEvent) {

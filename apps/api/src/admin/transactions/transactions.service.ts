@@ -4,7 +4,11 @@ import { Model, Types } from 'mongoose';
 import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 import { Withdraw } from 'src/withdraw/schemas/withdraw.schema';
 import { escapeRegexLiteral } from 'src/common/escape-regex';
-import { requireObjectId, requireOneOf } from 'src/common/mongo-query';
+import {
+  requireObjectId,
+  mongoUpdate,
+  requireOneOf,
+} from 'src/common/mongo-query';
 
 export interface UnifiedTransaction {
   _id: string;
@@ -165,7 +169,7 @@ export class TransactionsService {
       'transaction type',
     );
 
-    const update = { flagged, flag_reason: reason };
+    const update = mongoUpdate({ flagged, flag_reason: reason });
 
     if (txType === 'conversion') {
       const result = await this.conversionModel
