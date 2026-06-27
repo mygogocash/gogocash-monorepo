@@ -1,6 +1,7 @@
 import type { DataSession } from "@/types/authSession";
 import { handleMockApiRequest } from "@/lib/mockApiCore";
 import { isStaticHostingClient } from "@/lib/isStaticHostingClient";
+import { stripDefaultJsonContentTypeForFormData } from "@/lib/multipartFormHeaders";
 import axios, {
   AxiosRequestConfig,
   type AxiosAdapter,
@@ -84,6 +85,10 @@ client.interceptors.request.use(
     if (session?.accessToken) {
       config.headers.Authorization = `Bearer ${session.accessToken}`;
     }
+    stripDefaultJsonContentTypeForFormData(
+      config.headers as Record<string, unknown>,
+      config.data,
+    );
     return config;
   },
   (error) => Promise.reject(error),

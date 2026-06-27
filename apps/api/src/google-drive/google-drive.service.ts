@@ -5,6 +5,7 @@ import {
 } from './dto/create-google-drive.dto';
 import { UpdateGoogleDriveDto } from './dto/update-google-drive.dto';
 import { google } from 'googleapis';
+import { readFile } from 'fs/promises';
 import { Readable } from 'stream';
 @Injectable()
 export class GoogleDriveService {
@@ -27,13 +28,29 @@ export class GoogleDriveService {
       auth: oauth2Client,
     });
   }
+  private async resolveUploadBuffer(
+    file: Express.Multer.File,
+  ): Promise<Buffer> {
+    if (file.buffer?.length) {
+      return file.buffer;
+    }
+    if (file.path) {
+      const fromDisk = await readFile(file.path);
+      if (fromDisk.length > 0) {
+        return fromDisk;
+      }
+    }
+    throw new Error('Upload file is empty: no buffer or readable path');
+  }
+
   async uploadFile(
     file: Express.Multer.File,
     folderId?: string,
   ): Promise<FileGoogleDriveDto> {
     try {
+      const buffer = await this.resolveUploadBuffer(file);
       const bufferStream = new Readable();
-      bufferStream.push(file.buffer);
+      bufferStream.push(buffer);
       bufferStream.push(null);
 
       const response = await this.driveClient.files.create({

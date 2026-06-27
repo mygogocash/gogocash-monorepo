@@ -1436,6 +1436,19 @@ async function handleMockPOST(
       return undefined;
     };
 
+    const isUploadBlob = (value: unknown): value is Blob | File =>
+      (typeof Blob !== "undefined" && value instanceof Blob) ||
+      (typeof File !== "undefined" && value instanceof File);
+
+    const mockDriveIdFromUpload = (key: string, file: Blob | File): string => {
+      const name =
+        typeof File !== "undefined" && file instanceof File
+          ? file.name
+          : "upload";
+      const safeName = name.replace(/[^a-zA-Z0-9._-]/g, "_") || "upload";
+      return `mock-drive-${key}-${Date.now()}-${safeName}`;
+    };
+
     for (let i = 1; i <= 5; i++) {
       const lk = `link_${i}`;
       const linkValue = readBodyField(lk);
@@ -1448,6 +1461,9 @@ async function handleMockPOST(
       const imageValue = readBodyField(ik);
       if (clearImageValue) {
         (target as Record<string, unknown>)[ik] = null;
+      } else if (isUploadBlob(imageValue)) {
+        (target as Record<string, unknown>)[ik] =
+          mockDriveIdFromUpload(ik, imageValue);
       } else if (typeof imageValue === "string") {
         const s = imageValue.trim();
         (target as Record<string, unknown>)[ik] = s.length > 0 ? s : null;

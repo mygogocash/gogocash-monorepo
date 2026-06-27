@@ -95,6 +95,30 @@ describe("banner slot updates", () => {
     expect(updated.link_2).toBe("");
     expect(updated.enabled_2).toBe(false);
   });
+
+  it("persists uploaded File blobs from FormData bodies", async () => {
+    const formData = new FormData();
+    formData.append("link_3", "https://slot-3-file.example");
+    formData.append("enabled_3", "true");
+    formData.append("start_date_3", "");
+    formData.append("end_date_3", "");
+    formData.append(
+      "image_3",
+      new File(["banner-bytes"], "slot-3.png", { type: "image/png" }),
+    );
+
+    const update = await call("POST", ["admin", "banner-home"], {
+      body: formData,
+    });
+    expect(update.status).toBe(200);
+
+    const updated = (await call("GET", ["admin", "banner-home"])).body as Record<
+      string,
+      unknown
+    >;
+    expect(updated.link_3).toBe("https://slot-3-file.example");
+    expect(String(updated.image_3)).toMatch(/^mock-drive-image_3-/);
+  });
 });
 
 describe("top-brands config", () => {

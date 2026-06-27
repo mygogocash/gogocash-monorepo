@@ -14,12 +14,12 @@ import { BannerRequestForm } from "@/types/banner";
 import { devError } from "@/lib/devConsole";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import { isDirty } from "@/lib/isDirty";
-import { multipartAuthHeaders } from "@/lib/multipartFormHeaders";
+import { multipartPostConfig } from "@/lib/multipartFormHeaders";
 import Switch from "../form/switch/Switch";
 import { useEffect, useMemo, useRef } from "react";
 import { buildBannerSlotFormData } from "./bannerFormPayload";
 interface IProp {
-  fetchData: () => void;
+  fetchData: () => void | Promise<unknown>;
   openModal: boolean;
   setOpenModal: React.Dispatch<React.SetStateAction<boolean>>;
   form: BannerRequestForm;
@@ -136,27 +136,27 @@ const FormUpdate = ({
     setForm((prev) => ({ ...prev, [key]: file }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!canManageBanners) return;
     const formData = buildBannerSlotFormData(form);
     if (!formData) return;
 
     setIsLoading(true);
-    client
-      .post(savePath, formData, {
-        headers: multipartAuthHeaders(session?.accessToken),
-      })
-      .then(() => {
-        fetchData();
-        setOpenModal(false);
-        setIsLoading(false);
-        toast.success("Banner saved successfully");
-      })
-      .catch((err: unknown) => {
-        setIsLoading(false);
-        devError("Banner update failed:", err);
-        toast.error(getApiErrorMessage(err, "Update failed"));
-      });
+    try {
+      await client.post(
+        savePath,
+        formData,
+        multipartPostConfig(session?.accessToken),
+      );
+      await Promise.resolve(fetchData());
+      setOpenModal(false);
+      toast.success("Banner saved successfully");
+    } catch (err: unknown) {
+      devError("Banner update failed:", err);
+      toast.error(getApiErrorMessage(err, "Update failed"));
+    } finally {
+      setIsLoading(false);
+    }
   };
   const slotImage = form[`image_${form.id}` as keyof BannerRequestForm];
   const slotEnabledKey = `enabled_${form.id}` as keyof BannerRequestForm;
