@@ -215,19 +215,6 @@ function ShopHero({ onShopNow, shop }: { onShopNow: () => void; shop: ShopDetail
           source={shop.bannerUri ? { uri: shop.bannerUri } : shopBannerAssets[shop.bannerAsset]}
           style={styles.heroImage}
         />
-        <View style={styles.logoBadge}>
-          {shop.logoUri ? (
-            <Image
-              accessibilityLabel={`${shop.brand} logo`}
-              alt={`${shop.brand} logo`}
-              resizeMode="contain"
-              source={{ uri: shop.logoUri }}
-              style={styles.logoImage}
-            />
-          ) : (
-            <Text style={styles.logoText}>{shop.logoText}</Text>
-          )}
-        </View>
       </View>
       <ShopHeroSummaryCard onShopNow={onShopNow} shop={shop} />
     </View>
@@ -576,29 +563,6 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
   heroImage: {
     height: "100%",
     width: "100%",
-  },
-  logoBadge: {
-    alignItems: "center",
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    boxShadow: "0 8px 22px rgba(0,0,0,0.12)",
-    height: 58,
-    justifyContent: "center",
-    left: 34,
-    position: "absolute",
-    top: 72,
-    width: 64,
-  },
-  logoText: {
-    color: colors.primary,
-    fontFamily: typography.family,
-    fontSize: 30,
-    fontWeight: "700",
-    letterSpacing: 0,
-  },
-  logoImage: {
-    height: 44,
-    width: 50,
   },
   summaryCard: {
     alignItems: "center",

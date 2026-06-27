@@ -31,6 +31,12 @@ export class QuestTask {
   @Prop({ required: false, default: '', maxlength: 140 })
   wording: string;
 
+  @Prop({ required: false, default: '', maxlength: 140 })
+  wording_en: string;
+
+  @Prop({ required: false, default: '', maxlength: 140 })
+  wording_th: string;
+
   @Prop({ required: false, default: '' })
   notes: string;
 }

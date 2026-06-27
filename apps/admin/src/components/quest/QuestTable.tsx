@@ -26,6 +26,12 @@ import { formatDate } from "@/lib/dateFormat";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import { isActiveGoGoCashOffer } from "@/lib/isActiveGoGoCashOffer";
 import {
+  defaultQuestTaskWording,
+  normalizeQuestTaskWordingDraft,
+  resolveQuestTaskWording,
+  shouldReplaceQuestWording,
+} from "@/lib/questTaskWording";
+import {
   QUEST_STATUS_VALUES,
   questStatusBadgeColor,
   questStatusLabel,
@@ -67,8 +73,11 @@ import {
   sameJson,
   type TaskDraft,
   validateQuestTasks,
+  defaultQuestTaskPoints,
+  normalizeQuestTaskPoints,
 } from "./questTaskEditor";
 import { QuestTaskBrandSelect } from "./QuestTaskBrandSelect";
+import { QuestTaskWordingFields } from "./QuestTaskWordingFields";
 
 type CampaignDraft = {
   startDate: string;
@@ -272,15 +281,12 @@ function offerLogo(offer: Offer | null | undefined): string {
   );
 }
 
-function defaultTaskWording(offer: Offer | null | undefined): string {
-  return offer ? `Make an order on ${offerLabel(offer)}` : "";
-}
-
 function customerTaskWording(
-  task: Pick<TaskDraft, "wording">,
+  task: Pick<TaskDraft, "wording" | "wording_en" | "wording_th">,
   offer: Offer | null | undefined,
+  locale: "en" | "th" = "en",
 ) {
-  return task.wording?.trim() || defaultTaskWording(offer);
+  return resolveQuestTaskWording(task, offer, locale);
 }
 
 function makeCampaignDraft(quest?: ResponseQuestDate | null): CampaignDraft {
@@ -301,17 +307,25 @@ function makeCampaignDraft(quest?: ResponseQuestDate | null): CampaignDraft {
 function makeTaskDrafts(quest?: ResponseQuestDate | null): TaskDraft[] {
   return [...(quest?.tasks ?? [])]
     .sort((a, b) => Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0))
-    .map((task, index) => ({
-      clientId: `${getTaskOfferId(task)}-${index}`,
-      offer: getTaskOfferId(task),
-      offer_id: Number(task.offer_id),
-      merchant_id: Number(task.merchant_id),
-      extra_point: Number(task.extra_point),
-      sort_order: index,
-      enabled: task.enabled !== false,
-      wording: task.wording ?? defaultTaskWording(getTaskOffer(task)),
-      notes: task.notes ?? "",
-    }));
+    .map((task, index) => {
+      const offer = getTaskOffer(task);
+      const wording = normalizeQuestTaskWordingDraft(task);
+      return {
+        clientId: `${getTaskOfferId(task)}-${index}`,
+        offer: getTaskOfferId(task),
+        offer_id: Number(task.offer_id),
+        merchant_id: Number(task.merchant_id),
+        extra_point: normalizeQuestTaskPoints(
+          Number(task.extra_point),
+          offer,
+        ),
+        sort_order: index,
+        enabled: task.enabled !== false,
+        wording_en: wording.wording_en,
+        wording_th: wording.wording_th,
+        notes: task.notes ?? "",
+      };
+    });
 }
 
 function makeRewardDrafts(quest?: ResponseQuestDate | null): RewardDraft[] {
@@ -618,10 +632,11 @@ export default function QuestTable() {
         offer: offer._id,
         offer_id: offer.offer_id,
         merchant_id: offer.merchant_id,
-        extra_point: Number(offer.extra_point ?? 50),
+        extra_point: defaultQuestTaskPoints(offer),
         sort_order: current.length,
         enabled: true,
-        wording: defaultTaskWording(offer),
+        wording_en: "",
+        wording_th: "",
         notes: "",
       },
     ]);
@@ -633,18 +648,27 @@ export default function QuestTable() {
       current.map((task, i) => {
         if (i !== index) return task;
         const previousOffer = offersById.get(task.offer);
-        const previousDefault = defaultTaskWording(previousOffer);
-        const shouldReplaceWording =
-          !task.wording?.trim() || task.wording.trim() === previousDefault;
+        const previousEnDefault = defaultQuestTaskWording(previousOffer, "en");
+        const previousThDefault = defaultQuestTaskWording(previousOffer, "th");
+        const replaceEn = shouldReplaceQuestWording(
+          task.wording_en,
+          previousEnDefault,
+        );
+        const replaceTh = shouldReplaceQuestWording(
+          task.wording_th,
+          previousThDefault,
+        );
         return {
           ...task,
           offer: offer._id,
           offer_id: offer.offer_id,
           merchant_id: offer.merchant_id,
-          extra_point: Number(task.extra_point || offer.extra_point || 50),
-          wording: shouldReplaceWording
-            ? defaultTaskWording(offer)
-            : task.wording,
+          extra_point:
+            Number(task.extra_point) >= 2 && Number(task.extra_point) <= 10000
+              ? Number(task.extra_point)
+              : defaultQuestTaskPoints(offer),
+          wording_en: replaceEn ? "" : (task.wording_en ?? ""),
+          wording_th: replaceTh ? "" : (task.wording_th ?? ""),
         };
       }),
     );
@@ -1104,7 +1128,6 @@ export default function QuestTable() {
                   const taskFieldPrefix = `quest-task-${index}`;
                   const brandFieldId = `${taskFieldPrefix}-brand`;
                   const pointsFieldId = `${taskFieldPrefix}-points`;
-                  const wordingFieldId = `${taskFieldPrefix}-wording`;
                   const enabledFieldId = `${taskFieldPrefix}-enabled`;
                   const notesFieldId = `${taskFieldPrefix}-notes`;
                   return (
@@ -1213,32 +1236,31 @@ export default function QuestTable() {
                         </div>
 
                         <div>
-                          <label
-                            htmlFor={wordingFieldId}
-                            className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400"
-                          >
+                          <div className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
                             Customer wording
-                          </label>
-                          <Input
-                            id={wordingFieldId}
-                            name={wordingFieldId}
-                            value={task.wording ?? ""}
+                          </div>
+                          <QuestTaskWordingFields
+                            idPrefix={taskFieldPrefix}
                             disabled={!canEditTasks}
-                            placeholder={defaultTaskWording(offer)}
-                            onChange={(e) =>
+                            offer={offer}
+                            value={{
+                              wording_en: task.wording_en ?? "",
+                              wording_th: task.wording_th ?? "",
+                            }}
+                            onChange={(next) =>
                               setTaskDrafts((current) =>
                                 current.map((row, i) =>
                                   i === index
-                                    ? { ...row, wording: e.target.value }
+                                    ? {
+                                        ...row,
+                                        wording_en: next.wording_en,
+                                        wording_th: next.wording_th,
+                                      }
                                     : row,
                                 ),
                               )
                             }
                           />
-                          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                            Shown on the customer Quest page. Leave blank to use
-                            the brand default.
-                          </div>
                         </div>
 
                         <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-300">

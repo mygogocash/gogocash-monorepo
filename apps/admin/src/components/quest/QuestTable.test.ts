@@ -9,7 +9,7 @@ import {
   bangkokDateTimeInputToISOString,
   toBangkokDateTimeInput,
 } from "./questDateTime";
-import { buildQuestTaskPayloads, validateQuestTasks } from "./questTaskEditor";
+import { buildQuestTaskPayloads, defaultQuestTaskPoints, normalizeQuestTaskPoints, validateQuestTasks } from "./questTaskEditor";
 
 describe("QuestTable task helpers", () => {
   it("buildQuestTaskPayloads preserves UI order as sort_order", () => {
@@ -33,7 +33,8 @@ describe("QuestTable task helpers", () => {
         extra_point: 50,
         sort_order: 2,
         enabled: false,
-        wording: " ",
+        wording_en: " ",
+        wording_th: "",
         notes: "",
       },
     ]);
@@ -43,8 +44,10 @@ describe("QuestTable task helpers", () => {
         offer: "offer-b",
         sort_order: 0,
         wording: "Make an order on Klook Travel",
+        wording_en: "Make an order on Klook Travel",
+        wording_th: "",
       }),
-      expect.objectContaining({ offer: "offer-a", sort_order: 1, wording: "" }),
+      expect.objectContaining({ offer: "offer-a", sort_order: 1, wording: "", wording_en: "", wording_th: "" }),
     ]);
   });
 
@@ -79,7 +82,18 @@ describe("QuestTable task helpers", () => {
       validateQuestTasks([
         { ...duplicate[0], offer: "offer-c", extra_point: 1 },
       ]),
-    ).toContain("between 2 and 10,000");
+    ).toContain("2–10,000");
+  });
+
+  it("defaultQuestTaskPoints > given catalog extra_point 1 > then uses fallback bonus", () => {
+    expect(defaultQuestTaskPoints({ extra_point: 1 })).toBe(50);
+    expect(defaultQuestTaskPoints({ extra_point: 25 })).toBe(25);
+    expect(defaultQuestTaskPoints(null, 100)).toBe(100);
+  });
+
+  it("normalizeQuestTaskPoints > given invalid stored value > then repairs to valid default", () => {
+    expect(normalizeQuestTaskPoints(1, { extra_point: 1 })).toBe(50);
+    expect(normalizeQuestTaskPoints(50, { extra_point: 1 })).toBe(50);
   });
 
   it("buildQuestRewardPayloads sorts rewards by rank", () => {

@@ -388,6 +388,8 @@ describe('PointService', () => {
               sort_order: 0,
               enabled: true,
               wording: 'Make an order on Klook Travel',
+              wording_en: 'Make an order on Klook Travel',
+              wording_th: '',
               notes: '',
             },
             {
@@ -398,6 +400,8 @@ describe('PointService', () => {
               sort_order: 1,
               enabled: false,
               wording: '',
+              wording_en: '',
+              wording_th: '',
               notes: 'hold',
             },
           ],

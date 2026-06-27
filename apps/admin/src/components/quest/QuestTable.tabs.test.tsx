@@ -107,6 +107,43 @@ vi.mock("./QuestTaskBrandSelect", () => ({
   ),
 }));
 
+vi.mock("./QuestTaskWordingFields", () => ({
+  QuestTaskWordingFields: ({
+    idPrefix,
+    disabled,
+    onChange,
+    value,
+  }: {
+    idPrefix: string;
+    disabled?: boolean;
+    onChange: (next: { wording_en: string; wording_th: string }) => void;
+    value: { wording_en: string; wording_th: string };
+  }) => (
+    <div>
+      <label htmlFor={`${idPrefix}-wording-en`}>English</label>
+      <input
+        id={`${idPrefix}-wording-en`}
+        aria-label="English"
+        disabled={disabled}
+        value={value.wording_en}
+        onChange={(event) =>
+          onChange({ ...value, wording_en: event.currentTarget.value })
+        }
+      />
+      <label htmlFor={`${idPrefix}-wording-th`}>Thai</label>
+      <input
+        id={`${idPrefix}-wording-th`}
+        aria-label="Thai"
+        disabled={disabled}
+        value={value.wording_th}
+        onChange={(event) =>
+          onChange({ ...value, wording_th: event.currentTarget.value })
+        }
+      />
+    </div>
+  ),
+}));
+
 vi.mock("@/lib/query/questQueries", () => ({
   fetchAdminQuests: questQueries.fetchAdminQuests,
   fetchQuestLeaderboard: questQueries.fetchQuestLeaderboard,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { mapBackendQuestTasks, questTaskEndpoint } from "@mobile/quest/questTaskResource";
+import { mapBackendQuestTasks, questTaskEndpoint } from "@mobile/quest/questTaskMapper";
 
 describe("quest task resource", () => {
   it("maps admin-managed extra point offers to customer quest rows with shop links", () => {
@@ -55,5 +55,26 @@ describe("quest task resource", () => {
 
   it("returns an empty task list for invalid backend payloads instead of demo tasks", () => {
     expect(mapBackendQuestTasks({ data: [] })).toEqual([]);
+  });
+
+  it("mapBackendQuestTasks > given Thai locale > then prefers Thai quest wording", () => {
+    const rows = mapBackendQuestTasks(
+      [
+        {
+          _id: "offer-mongo-id",
+          offer_id: 900101,
+          offer_name: "Klook Local Demo - CPS",
+          offer_name_display: "Klook",
+          extra_point: 50,
+          quest_task_sort_order: 0,
+          quest_task_wording_en: "Make an order on Klook Travel",
+          quest_task_wording_th: "สั่งซื้อที่ Klook Travel",
+        },
+      ],
+      [],
+      "th",
+    );
+
+    expect(rows[0]?.title).toBe("สั่งซื้อที่ Klook Travel");
   });
 });

@@ -48,6 +48,8 @@ type NormalizedQuestTask = {
   sort_order: number;
   enabled: boolean;
   wording: string;
+  wording_en: string;
+  wording_th: string;
   notes: string;
 };
 
@@ -718,7 +720,9 @@ export class PointService {
         extra_point: extraPoint,
         sort_order: index,
         enabled: task.enabled ?? true,
-        wording: task.wording?.trim() ?? '',
+        wording: task.wording_en?.trim() ?? task.wording?.trim() ?? '',
+        wording_en: task.wording_en?.trim() ?? task.wording?.trim() ?? '',
+        wording_th: task.wording_th?.trim() ?? '',
         notes: task.notes?.trim() ?? '',
       };
     });

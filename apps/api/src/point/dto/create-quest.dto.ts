@@ -88,6 +88,24 @@ export class QuestTaskDto {
   @MaxLength(140)
   wording?: string;
 
+  @ApiProperty({
+    example: 'Make an order on Klook Travel',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(140)
+  wording_en?: string;
+
+  @ApiProperty({
+    example: 'สั่งซื้อที่ Klook Travel',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(140)
+  wording_th?: string;
+
   @ApiProperty({ example: 'June Klook campaign', required: false })
   @IsOptional()
   @IsString()
