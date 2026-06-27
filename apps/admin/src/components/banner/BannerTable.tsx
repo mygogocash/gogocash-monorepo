@@ -150,23 +150,26 @@ export default function BannerTable({ variant = "home" }: BannerTableProps) {
 
   useEffect(() => {
     if (!openActionsId) return;
-    const handleClick = (e: MouseEvent) => {
-      if (actionsDropdownRef.current && !actionsDropdownRef.current.contains(e.target as Node))
-        setOpenActionsId(null);
+    const handlePointerDown = (e: PointerEvent) => {
+      if (actionsDropdownRef.current?.contains(e.target as Node)) return;
+      setOpenActionsId(null);
     };
-    document.addEventListener("click", handleClick);
-    return () => document.removeEventListener("click", handleClick);
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, [openActionsId]);
 
   const rowActionKey = (slot: number) => `${variant}-banner-${slot}`;
 
-  const openBannerSlotQuickView = useCallback((slot: BannerSlotId) => {
-    setOpenActionsId(null);
-    setForm(buildBannerSlotFormState(bannerData, slot));
-    setOpenModal(true);
-  }, [bannerData]);
+  const handleEditSlot = useCallback(
+    (slot: BannerSlotId) => {
+      setOpenActionsId(null);
+      setForm(buildBannerSlotFormState(bannerData, slot));
+      setOpenModal(true);
+    },
+    [bannerData],
+  );
 
-  const clearBannerSlot = useCallback(async (slot: BannerSlotId) => {
+  const handleClearSlot = useCallback(async (slot: BannerSlotId) => {
     if (!canManageBanners) {
       toast.error("You do not have permission to clear banner slots.");
       return;
@@ -194,16 +197,6 @@ export default function BannerTable({ variant = "home" }: BannerTableProps) {
       setClearingSlot(null);
     }
   }, [canManageBanners, cfg.savePath, refetch, session?.accessToken]);
-
-  const runMenuAction = (
-    e: React.MouseEvent,
-    action: () => void,
-  ) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setOpenActionsId(null);
-    action();
-  };
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
@@ -332,7 +325,7 @@ export default function BannerTable({ variant = "home" }: BannerTableProps) {
                         key={item}
                         title="Click row for quick view"
                         className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
-                        onClick={() => openBannerSlotQuickView(item)}
+                        onClick={() => handleEditSlot(item)}
                       >
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                           {item}
@@ -380,11 +373,14 @@ export default function BannerTable({ variant = "home" }: BannerTableProps) {
                             </span>
                           )}
                         </td>
-                        <td className="relative px-6 py-4 text-sm font-medium whitespace-nowrap">
+                        <td
+                          className="relative px-6 py-4 text-sm font-medium whitespace-nowrap"
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.stopPropagation()}
+                        >
                           <div
                             ref={openActionsId === actionKey ? actionsDropdownRef : undefined}
                             className="relative inline-block"
-                            onClick={(e) => e.stopPropagation()}
                           >
                             <button
                               type="button"
@@ -402,11 +398,18 @@ export default function BannerTable({ variant = "home" }: BannerTableProps) {
                               </svg>
                             </button>
                             {openActionsId === actionKey && (
-                              <div className="absolute left-0 right-auto top-full z-50 mt-1 min-w-[10rem] max-w-[min(18rem,calc(100vw-1.5rem))] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800 sm:left-auto sm:right-0 sm:max-w-none" role="menu">
+                              <div
+                                className="absolute left-0 right-auto top-full z-50 mt-1 min-w-[10rem] max-w-[min(18rem,calc(100vw-1.5rem))] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800 sm:left-auto sm:right-0 sm:max-w-none"
+                                role="menu"
+                                onClick={(e) => e.stopPropagation()}
+                              >
                                 <button
                                   type="button"
                                   role="menuitem"
-                                  onMouseDown={(e) => runMenuAction(e, () => openBannerSlotQuickView(item))}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditSlot(item);
+                                  }}
                                   className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
                                 >
                                   Edit
@@ -415,7 +418,10 @@ export default function BannerTable({ variant = "home" }: BannerTableProps) {
                                   type="button"
                                   role="menuitem"
                                   disabled={!canManageBanners || clearingSlot === item}
-                                  onMouseDown={(e) => runMenuAction(e, () => void clearBannerSlot(item))}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    void handleClearSlot(item);
+                                  }}
                                   className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-900/20"
                                 >
                                   {clearingSlot === item ? "Clearing…" : "Clear"}
