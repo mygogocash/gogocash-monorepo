@@ -171,6 +171,11 @@ describe("Expo auth design parity", () => {
       "fontSize: 13",
       'fontWeight: "600"',
     ]);
+    expectStyleBlock(authFile, "modeLinkText", [
+      "color: colors.primaryDark",
+      "fontSize: typography.body",
+      "fontWeight: typography.bodyWeight",
+    ]);
   });
 
   it("auth mobile cosmetic parity > given the Next mobile form > then Expo uses vertical fields and a two-column social grid", () => {

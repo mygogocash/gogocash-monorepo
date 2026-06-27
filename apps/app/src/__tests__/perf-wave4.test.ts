@@ -54,6 +54,13 @@ describe("perf wave 4 — query cache, carousel driver, expo-image", () => {
     );
   });
 
+  it("BrandCard > given custom onPress > then it skips Link so search suggestions stay on-screen", () => {
+    const brandCard = readMobileFile("src/components/BrandCard.tsx");
+
+    expect(brandCard).toContain("if (props.onPress)");
+    expect(brandCard).toMatch(/if \(props\.onPress\) \{[\s\S]*?return card;/);
+  });
+
   it("HomeHeroBanners > given remote hero art > then expo-image caches banner URLs", () => {
     const heroBanners = readMobileFile("src/screens/home/HomeHeroBanners.tsx");
 

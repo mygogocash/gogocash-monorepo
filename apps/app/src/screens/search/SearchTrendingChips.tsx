@@ -29,11 +29,11 @@ export function SearchTrendingChips({ onSelect, terms }: SearchTrendingChipsProp
         showsHorizontalScrollIndicator={false}
       >
         <View style={styles.trendingRow}>
-          {terms.map((term) => (
+          {terms.map((term, index) => (
             <MotionPressable
               accessibilityLabel={term}
               accessibilityRole="button"
-              key={term}
+              key={`${term}-${index}`}
               onPress={() => onSelect(term)}
               pressScale={motion.scale.subtlePress}
               style={styles.trendingChip}

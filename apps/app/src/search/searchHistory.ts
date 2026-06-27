@@ -1,15 +1,24 @@
 import { Platform } from "react-native";
 
 import {
+  createSerializedRunner,
   parseSearchHistoryPayload,
   pushSearchHistory,
   removeSearchHistoryItem as removeSearchHistoryItemCore,
   SEARCH_HISTORY_MAX,
 } from "@mobile/search/searchHistoryCore";
 
-export { normalizeSearchQuery, pushSearchHistory, SEARCH_HISTORY_MAX } from "@mobile/search/searchHistoryCore";
+export {
+  createSerializedRunner,
+  dedupeSearchTerms,
+  normalizeSearchQuery,
+  pushSearchHistory,
+  SEARCH_HISTORY_MAX,
+} from "@mobile/search/searchHistoryCore";
 
 export const SEARCH_HISTORY_STORAGE_KEY = "gogocash.search.recent.v1";
+
+const runSerialized = createSerializedRunner();
 
 export async function readSearchHistory(): Promise<string[]> {
   try {
@@ -40,19 +49,25 @@ export async function writeSearchHistory(history: readonly string[]): Promise<vo
 }
 
 export async function clearSearchHistory(): Promise<void> {
-  await writeSearchHistory([]);
+  await runSerialized(async () => {
+    await writeSearchHistory([]);
+  });
 }
 
 export async function recordSearchQuery(query: string): Promise<string[]> {
-  const current = await readSearchHistory();
-  const next = pushSearchHistory(current, query);
-  await writeSearchHistory(next);
-  return next;
+  return runSerialized(async () => {
+    const current = await readSearchHistory();
+    const next = pushSearchHistory(current, query);
+    await writeSearchHistory(next);
+    return next;
+  });
 }
 
 export async function removeSearchHistoryItem(query: string): Promise<string[]> {
-  const current = await readSearchHistory();
-  const next = removeSearchHistoryItemCore(current, query);
-  await writeSearchHistory(next);
-  return next;
+  return runSerialized(async () => {
+    const current = await readSearchHistory();
+    const next = removeSearchHistoryItemCore(current, query);
+    await writeSearchHistory(next);
+    return next;
+  });
 }

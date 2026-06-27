@@ -14,6 +14,7 @@ import {
   recordSearchQuery,
   removeSearchHistoryItem,
 } from "@mobile/search/searchHistory";
+import { dedupeSearchTerms } from "@mobile/search/searchHistoryCore";
 import { spacing } from "@mobile/theme/tokens";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 
@@ -34,8 +35,8 @@ export function CustomerSearchScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ q?: string }>();
-  const initialQuery = typeof params.q === "string" ? params.q : "";
-  const [query, setQuery] = useState(initialQuery);
+  const paramQuery = typeof params.q === "string" ? params.q : "";
+  const [query, setQuery] = useState(paramQuery);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [showAllSuggestions, setShowAllSuggestions] = useState(false);
   const { width } = useWindowDimensions();
@@ -46,6 +47,17 @@ export function CustomerSearchScreen() {
   const hasQuery = trimmedQuery.length > 0;
   const { matches, status } = useOfferSearch(trimmedQuery);
   const previewCount = columnCount * SUGGESTION_PREVIEW_ROWS;
+
+  useEffect(() => {
+    if (!homeLayout.isDesktop) {
+      return;
+    }
+    router.replace("/" as never);
+  }, [homeLayout.isDesktop, router]);
+
+  useEffect(() => {
+    setQuery(paramQuery);
+  }, [paramQuery]);
 
   useEffect(() => {
     let active = true;
@@ -99,22 +111,27 @@ export function CustomerSearchScreen() {
   }, []);
 
   const trendingTerms = useMemo(
-    () => suggestionTerms.slice(0, TRENDING_TERM_LIMIT),
+    () => dedupeSearchTerms(suggestionTerms).slice(0, TRENDING_TERM_LIMIT),
     [suggestionTerms]
   );
 
   const suggestionGridTerms = useMemo(() => {
+    const uniqueTerms = dedupeSearchTerms(suggestionTerms);
     if (hasQuery) {
-      return suggestionTerms;
+      return uniqueTerms;
     }
     if (showAllSuggestions) {
-      return suggestionTerms;
+      return uniqueTerms;
     }
-    return suggestionTerms.slice(0, previewCount);
+    return uniqueTerms.slice(0, previewCount);
   }, [hasQuery, previewCount, showAllSuggestions, suggestionTerms]);
 
+  if (homeLayout.isDesktop) {
+    return null;
+  }
+
   const showIdleHint = !hasQuery && recentSearches.length === 0;
-  const showPopularBelowQuery = hasQuery && status === "ready";
+  const showPopularBelowQuery = hasQuery && status !== "loading";
   const showIdleSuggestions = !hasQuery;
   const showSuggestionsGrid =
     (showIdleSuggestions && suggestionGridTerms.length > 0) ||

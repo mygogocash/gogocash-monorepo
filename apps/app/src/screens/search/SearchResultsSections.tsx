@@ -16,8 +16,12 @@ import { createSearchScreenStyles } from "./createSearchScreenStyles";
 type SearchResultsSectionsProps = {
   readonly matches: readonly OfferSearchMatch[];
   readonly query: string;
-  readonly status: "loading" | "ready";
+  readonly status: "error" | "loading" | "ready";
 };
+
+function searchResultKey(item: OfferSearchMatch, index: number) {
+  return item.id ?? `${item.brand}-${item.cashback}-${index}`;
+}
 
 export function SearchResultsSections({ matches, query, status }: SearchResultsSectionsProps) {
   const styles = useThemedStyles(createSearchScreenStyles);
@@ -42,14 +46,19 @@ export function SearchResultsSections({ matches, query, status }: SearchResultsS
       {status === "loading" ? (
         <Text style={styles.resultsSubheading}>{tc("Searching brands and shops…")}</Text>
       ) : null}
-      {status !== "loading" && matches.length === 0 ? (
+      {status === "error" ? (
+        <Text style={styles.noMatchCard}>
+          {tc("Search is temporarily unavailable. Try again in a moment.")}
+        </Text>
+      ) : null}
+      {status === "ready" && matches.length === 0 ? (
         <Text style={styles.noMatchCard}>{tc(webHomeSearchPopularPanel.noMatches)}</Text>
       ) : null}
       {matches.length > 0 ? (
         <HomeScreenThemeProvider value={homeTheme}>
           <View style={styles.resultList}>
-            {matches.map((item) => (
-              <HomeSearchResultRow item={item} key={`${item.brand}-${item.cashback}`} variant="compact" />
+            {matches.map((item, index) => (
+              <HomeSearchResultRow item={item} key={searchResultKey(item, index)} variant="compact" />
             ))}
           </View>
         </HomeScreenThemeProvider>

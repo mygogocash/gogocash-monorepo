@@ -358,5 +358,7 @@
   "mobileAppearanceDark": "มืด",
   "mobileHomeGreetingHi": "สวัสดี!",
   "mobileHomeGoLinkSubcopy": "รับเงินคืนด้วย GoGoLink",
-  "mobileHomeGoLinkLead": "รับเงินคืนง่ายๆ แค่"
+  "mobileHomeGoLinkLead": "รับเงินคืนง่ายๆ แค่",
+  "mobileSearchLoading": "กำลังค้นหาแบรนด์และร้านค้า…",
+  "mobileSearchUnavailable": "การค้นหาไม่พร้อมใช้งานชั่วคราว โปรดลองอีกครั้งในอีกสักครู่"
 }

@@ -37,7 +37,9 @@ export function MobileTabletGoLinkBannerCollapse({
           inputRange: [0, 1],
           outputRange: [0, contentHeight],
         })
-      : undefined;
+      : isCovered
+        ? 0
+        : undefined;
 
   return (
     <Animated.View

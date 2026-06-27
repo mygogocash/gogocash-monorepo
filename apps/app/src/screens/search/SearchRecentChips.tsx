@@ -46,8 +46,8 @@ export function SearchRecentChips({ items, onClear, onRemove, onSelect }: Search
         showsHorizontalScrollIndicator={false}
       >
         <View style={styles.recentRow}>
-          {items.map((item) => (
-            <View key={item} style={styles.recentChip}>
+          {items.map((item, index) => (
+            <View key={`${item}-${index}`} style={styles.recentChip}>
               <ClockIcon color={colors.muted} size={14} strokeWidth={2} />
               <MotionPressable
                 accessibilityLabel={item}

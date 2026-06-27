@@ -1,12 +1,11 @@
 import { Text, View } from "react-native";
-import { ChevronDown as ChevronDownIcon, Search as SearchIcon } from "@mobile/theme/icons";
+import { Search as SearchIcon } from "@mobile/theme/icons";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { pickThemed } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { motion } from "@mobile/theme/motion";
 import { BrowseShortcuts } from "./BrowseShortcuts";
-import { DesktopGoLinkBanner } from "./DesktopGoLinkBanner";
 import { homeIconStrokeWidth, mobileTabletHeaderGradient } from "./homeAssets";
 import { useHomeScreenStyles } from "./homeScreenHooks";
 import { MobileTabletGoLinkBannerCollapse } from "./MobileTabletGoLinkBannerCollapse";

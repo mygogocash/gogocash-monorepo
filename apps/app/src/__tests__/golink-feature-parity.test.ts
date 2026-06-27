@@ -130,7 +130,46 @@ describe("GoGoLink feature parity", () => {
     expect(homeFile).toMatch(
       /desktopGoLinkInputShell:\s*\{[\s\S]*?backgroundColor: pickThemed\(colors/,
     );
+    const desktopGoLinkInputBlock =
+      homeFile.match(/desktopGoLinkInput:\s*\{[\s\S]*?\n  \},/)?.[0] ?? "";
+    expect(desktopGoLinkInputBlock).toContain("fontWeight: typography.bodyWeight");
+    expect(desktopGoLinkInputBlock).not.toContain("fontWeight: typography.labelWeight");
+    const desktopGoLinkErrorBlock =
+      homeFile.match(/desktopGoLinkError:\s*\{[\s\S]*?\n  \},/)?.[0] ?? "";
+    expect(desktopGoLinkErrorBlock).toContain("fontWeight: typography.bodyWeight");
+    expect(desktopGoLinkErrorBlock).not.toContain('fontWeight: "600"');
+    expect(desktopGoLinkErrorBlock).not.toContain("marginTop: -14");
+    const bannerFile = fs.readFileSync(
+      path.join(mobileRoot, "src/screens/home/DesktopGoLinkBanner.tsx"),
+      "utf8"
+    );
+    expect(homeFile).toContain("desktopGoLinkInputField");
+    expect(bannerFile).toContain("styles.desktopGoLinkInputField");
+    expect(bannerFile).toMatch(
+      /desktopGoLinkInputField[\s\S]*?desktopGoLinkInputShell[\s\S]*?desktopGoLinkError[\s\S]*?desktopGoLinkAction/
+    );
+    expect(homeFile).toMatch(
+      /mobileTabletGoLinkControls:\s*\{[\s\S]*?alignItems: "stretch"[\s\S]*?width: "100%"/
+    );
     expect(homeFile).toContain('pickThemed(colors, "rgba(10, 92, 74, 0.55)"');
+  });
+
+  it("golink modal input > given paste field > then Expo uses normal body weight like the home banner", () => {
+    const screenFile = fs.readFileSync(
+      path.join(mobileRoot, "src/screens/CustomerGoLinkScreen.tsx"),
+      "utf8"
+    );
+    const inputBlock =
+      screenFile.match(/input:\s*\{[\s\S]*?\n  \},/)?.[0] ?? "";
+
+    expect(inputBlock).toContain("fontWeight: typography.bodyWeight");
+    expect(inputBlock).toContain("fontFamily: typography.family");
+    expect(inputBlock).not.toContain("fontWeight: typography.labelWeight");
+    expect(inputBlock).not.toContain('fontWeight: "600"');
+    const errorTextBlock =
+      screenFile.match(/errorText:\s*\{[\s\S]*?\n  \},/)?.[0] ?? "";
+    expect(errorTextBlock).toContain("fontWeight: typography.bodyWeight");
+    expect(errorTextBlock).not.toContain('fontWeight: "600"');
   });
 
   it("golink home modal > given selected Next home sheet > then Expo keeps measured first viewport layout and close contract", () => {

@@ -98,18 +98,17 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
     setLogoFailed(true);
   };
 
-  return (
-    <Link asChild href={(href ?? brandHref(brand)) as never}>
-      <MotionPressable
-        accessibilityLabel={props.accessibilityLabel ?? brand}
-        accessibilityRole="button"
-        onPress={props.onPress}
-        style={StyleSheet.flatten([
-          props.size === "L" ? styles.brandCard : styles.compactBrandCard,
-          { height: props.cardHeight, width: props.cardWidth },
-        ])}
-        testID={props.testID}
-      >
+  const card = (
+    <MotionPressable
+      accessibilityLabel={props.accessibilityLabel ?? brand}
+      accessibilityRole="button"
+      onPress={props.onPress}
+      style={StyleSheet.flatten([
+        props.size === "L" ? styles.brandCard : styles.compactBrandCard,
+        { height: props.cardHeight, width: props.cardWidth },
+      ])}
+      testID={props.testID}
+    >
         {props.size === "L" ? (
           <View style={[styles.brandVisual, { backgroundColor: tint }]}>
             {props.showGrabCoupon ? (
@@ -197,6 +196,15 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
           </Text>
         </View>
       </MotionPressable>
+  );
+
+  if (props.onPress) {
+    return card;
+  }
+
+  return (
+    <Link asChild href={(href ?? brandHref(brand)) as never}>
+      {card}
     </Link>
   );
 });

@@ -518,7 +518,8 @@ describe("Expo home design parity", () => {
     expect(homeFile).toContain("searchPopoverOpen");
     expect(homeFile).toContain("openSearchPopover");
     expect(homeFile).toContain("openMobileSearch");
-    expect(homeFile).toContain('router.push("/search"');
+    expect(homeFile).toContain('pathname: "/search"');
+    expect(homeFile).toContain("params: { q: normalizedQuery }");
     expect(homeFile).toContain("onPress={openMobileSearch}");
     expect(homeFile).toContain("onPressIn={openMobileSearch}");
     expect(homeFile).toContain("HomeSearchPopularPopover");
@@ -842,7 +843,8 @@ describe("Expo home design parity", () => {
     expect(homeScreenSource).toContain("!isTabletFrame ? styles.mobileHeaderIconButtonSmall : null");
     expect(homeScreenSource).toMatch(/mobileHeaderIconButtonSmall:\s*\{[\s\S]*?height:\s*40,[\s\S]*?width:\s*40,/);
     expect(homeScreenSource).toContain('accessibilityLabel={tc("Search")}');
-    expect(homeScreenSource).toContain('router.push("/search"');
+    expect(homeScreenSource).toContain('pathname: "/search"');
+    expect(homeScreenSource).toContain("params: { q: normalizedQuery }");
     expect(homeScreenSource).toContain("onOpenSearchPopover={openMobileSearch}");
     expect(homeScreenSource).not.toContain('accessibilityLabel={tc("GoLink")}');
     expect(homeScreenSource).not.toContain("isGoLinkBannerVisible");
@@ -886,6 +888,16 @@ describe("Expo home design parity", () => {
     expect(homeSource).toContain('pickThemed(colors, "#303846", "rgba(255, 255, 255, 0.92)")');
   });
 
+  it("mobile/tablet GoLink banner collapse > given covered before layout > then height stays zero", () => {
+    const collapseSource = fs.readFileSync(
+      path.resolve(mobileRoot, "src/screens/home/MobileTabletGoLinkBannerCollapse.tsx"),
+      "utf8"
+    );
+
+    expect(collapseSource).toContain("isCovered");
+    expect(collapseSource).toMatch(/isCovered[\s\S]*\?\s*0/);
+  });
+
   it("mobile search screen > given suggestion cards > then it renders the shared compact BrandCard", () => {
     const searchSource = fs.readFileSync(
       path.resolve(mobileRoot, "src/screens/search/SearchSuggestionsGrid.tsx"),
@@ -915,6 +927,8 @@ describe("Expo home design parity", () => {
     expect(searchScreenSource).toContain("SearchTrendingChips");
     expect(searchScreenSource).toContain("showPopularBelowQuery");
     expect(searchScreenSource).toContain("removeSearchHistoryItem");
+    expect(searchScreenSource).toContain("homeLayout.isDesktop");
+    expect(searchScreenSource).toContain("setQuery(paramQuery)");
   });
 
   it("mobile/tablet colored header > given it meets the white content sheet > then the header bottom corners stay square", () => {

@@ -25,7 +25,7 @@ export function HomeSearchPopularPopover({
 }) {
   const styles = useHomeScreenStyles();
   const tc = useCopy();
-  const { matches: searchMatches } = useOfferSearch(query);
+  const { matches: searchMatches, status: searchStatus } = useOfferSearch(query);
   const popularItems = webHomeSearchPopularPanel.items;
   const hasSearchQuery = query.trim().length > 0;
   const popoverOpacity = useMemo(() => new Animated.Value(0), []);
@@ -110,7 +110,17 @@ export function HomeSearchPopularPopover({
           >
             {hasSearchQuery ? (
               <View style={styles.searchTypedContent}>
-                {searchMatches.length > 0 ? (
+                {searchStatus === "loading" ? (
+                  <Text style={styles.searchResultsSubtitle}>
+                    {tc("Searching brands and shops…")}
+                  </Text>
+                ) : null}
+                {searchStatus === "error" ? (
+                  <Text style={styles.searchNoMatchCard}>
+                    {tc("Search is temporarily unavailable. Try again in a moment.")}
+                  </Text>
+                ) : null}
+                {searchStatus === "ready" && searchMatches.length > 0 ? (
                   <>
                     <View style={styles.searchResultsHeading}>
                       <Text style={styles.searchResultsTitle}>
@@ -121,17 +131,22 @@ export function HomeSearchPopularPopover({
                       </Text>
                     </View>
                     <View style={styles.searchResultListCompact}>
-                      {searchMatches.map((item) => (
-                        <HomeSearchResultRow item={item} key={item.brand} variant="compact" />
+                      {searchMatches.map((item, index) => (
+                        <HomeSearchResultRow
+                          item={item}
+                          key={item.id ?? `${item.brand}-${index}`}
+                          variant="compact"
+                        />
                       ))}
                     </View>
                     <View style={styles.searchDivider} />
                   </>
-                ) : (
+                ) : null}
+                {searchStatus === "ready" && searchMatches.length === 0 ? (
                   <Text style={styles.searchNoMatchCard}>
                     {tc(webHomeSearchPopularPanel.noMatches)}
                   </Text>
-                )}
+                ) : null}
                 <HomeSearchIntro variant="compact" />
                 <View style={styles.searchResultListCompact}>
                   {popularItems.map((item) => (

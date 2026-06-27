@@ -5,7 +5,6 @@ import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
 import {
   getScaledCompactBrandCardMetrics,
-  getTopBrandHref,
   webHomeSearchPopularPanel,
 } from "@mobile/design/webDesignParity";
 import { pickThemed } from "@mobile/theme/colorPalettes";
@@ -72,7 +71,7 @@ export function SearchSuggestionsGrid({
       <Text style={styles.sectionTitle}>{sectionTitle}</Text>
       <Text style={styles.sectionSubtitle}>{tc(webHomeSearchPopularPanel.subtitle)}</Text>
       <View style={[styles.suggestionsGrid, { gap }]}>
-        {terms.map((term) => {
+        {terms.map((term, index) => {
           const item = resolveSuggestionItem(term, fallbackTint);
           const logoFallbackText =
             item.logoText.trim().length > 0 ? item.logoText : item.brand.slice(0, 2).toUpperCase();
@@ -84,8 +83,7 @@ export function SearchSuggestionsGrid({
               cardHeight={scaledCard.cardHeight}
               cardWidth={cardWidth}
               cashback={item.cashback}
-              href={getTopBrandHref(item.brand)}
-              key={term}
+              key={`${term}-${index}`}
               logoFallbackText={logoFallbackText}
               logoVisualHeight={scaledCard.logoVisualHeight}
               onPress={() => onSelectTerm(item.brand)}

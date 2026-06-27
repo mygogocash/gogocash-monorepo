@@ -1619,7 +1619,7 @@ function createAuthScreenStyles(colors: ThemeColors) {
     color: colors.primaryDark,
     fontFamily: typography.family,
     fontSize: typography.body,
-    fontWeight: "800",
+    fontWeight: typography.bodyWeight,
   },
 });
 }

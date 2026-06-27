@@ -32,6 +32,7 @@ import {
   webHomeSectionOrder,
 } from "@mobile/design/webDesignParity";
 import { useCopy } from "@mobile/i18n/useCopy";
+import { normalizeSearchQuery } from "@mobile/search/searchHistoryCore";
 import { getThemeSurfaces } from "@mobile/theme/themeSurfaces";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
@@ -86,8 +87,13 @@ export function CustomerHomeScreen() {
   const searchTopPadding = Math.max(8, insets.top + 8);
   const searchPopoverTop = searchTopPadding + 62;
   const openMobileSearch = useCallback(() => {
-    router.push("/search" as never);
-  }, [router]);
+    const normalizedQuery = normalizeSearchQuery(searchQuery);
+    router.push(
+      normalizedQuery
+        ? ({ pathname: "/search", params: { q: normalizedQuery } } as never)
+        : ("/search" as never)
+    );
+  }, [router, searchQuery]);
   const openSearchPopover = useCallback(() => {
     setSearchPopoverMounted(true);
     setSearchPopoverOpen(true);
@@ -244,7 +250,7 @@ export function CustomerHomeScreen() {
               <MotionPressable
                 onPress={openMobileSearch}
                 pressScale={motion.scale.subtlePress}
-                style={[styles.searchPill, searchPopoverOpen ? styles.searchPillActive : null]}
+                style={styles.searchPill}
               >
                 <SearchIcon color={colors.primaryDark} size={20} strokeWidth={homeIconStrokeWidth} />
                 <TextInput
@@ -252,8 +258,8 @@ export function CustomerHomeScreen() {
                   nativeID="home-search-input-hidden"
                   onBlur={() => undefined}
                   onChangeText={setSearchQuery}
-                onFocus={openMobileSearch}
-                onPressIn={openMobileSearch}
+                  onFocus={openMobileSearch}
+                  onPressIn={openMobileSearch}
                   placeholder={tc(webHomeSearchPlaceholder)}
                   placeholderTextColor={colors.muted}
                   style={[styles.searchInput, webSearchInputFocusReset]}

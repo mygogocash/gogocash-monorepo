@@ -91,7 +91,7 @@ export function createHomeScreenStyles(colors: ThemeColors, surfaces: ThemeSurfa
     color: "rgba(255, 255, 255, 0.88)",
     fontFamily: typography.family,
     fontSize: 14,
-    fontWeight: "700",
+    fontWeight: typography.bodyWeight,
     lineHeight: 20,
     marginTop: 2,
   },
@@ -779,14 +779,24 @@ export function createHomeScreenStyles(colors: ThemeColors, surfaces: ThemeSurfa
     fontWeight: "700",
   },
   desktopGoLinkControls: {
-    alignItems: "stretch",
+    alignItems: "flex-start",
     flexDirection: "row",
     gap: 12,
   },
   mobileTabletGoLinkControls: {
+    alignItems: "stretch",
     flexDirection: "column",
+    width: "100%",
+  },
+  desktopGoLinkInputField: {
+    alignSelf: "stretch",
+    flex: 1,
+    gap: 4,
+    minWidth: 0,
+    width: "100%",
   },
   desktopGoLinkInputShell: {
+    alignSelf: "stretch",
     alignItems: "center",
     backgroundColor: pickThemed(colors, "rgba(255, 255, 255, 0.95)", colors.field),
     borderColor: pickThemed(colors, "rgba(0, 170, 128, 0.35)", "rgba(0, 204, 153, 0.35)"),
@@ -797,6 +807,7 @@ export function createHomeScreenStyles(colors: ThemeColors, surfaces: ThemeSurfa
     gap: 10,
     height: 48,
     minWidth: 0,
+    width: "100%",
     // Clip to the radius so the rounded corners don't rasterize "horns" under the focus layer.
     overflow: "hidden",
     paddingLeft: 16,
@@ -844,9 +855,8 @@ export function createHomeScreenStyles(colors: ThemeColors, surfaces: ThemeSurfa
     color: "#B91C1C",
     fontFamily: typography.family,
     fontSize: 13,
-    fontWeight: "600",
+    fontWeight: typography.bodyWeight,
     lineHeight: 17,
-    marginTop: -14,
   },
   section: {
     gap: mobileShellLayout.homePromoSectionGap,
