@@ -403,6 +403,20 @@ describe('OfferService', () => {
       expect(result).toEqual({ _id: 'created-offer' });
     });
 
+    it('createAdminOffer > given app_deeplink > then persists it on the offer', async () => {
+      await service.createAdminOffer({
+        brand_name: 'Deeplink Brand',
+        affiliate_tracking_link: 'https://track.example/deeplink',
+        app_deeplink: 'https://gogocash.app/open/deeplink-brand?bestRate=5',
+      });
+
+      expect(offerModel.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          app_deeplink: 'https://gogocash.app/open/deeplink-brand?bestRate=5',
+        }),
+      );
+    });
+
     it('createAdminOffer > given a failing Drive upload > then surfaces a clear asset-specific error', async () => {
       googleDriveService.uploadFile.mockRejectedValueOnce(
         new Error('drive quota exceeded'),

@@ -456,6 +456,7 @@ export class OfferService implements OnApplicationBootstrap {
       status: 'approved',
       is_global: parseBoolean(body.is_global, false),
       default_country: String(body.default_country ?? '').trim() || undefined,
+      app_deeplink: String(body.app_deeplink ?? '').trim() || undefined,
     });
   }
 

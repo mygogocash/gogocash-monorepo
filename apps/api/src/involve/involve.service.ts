@@ -180,6 +180,52 @@ export class InvolveService {
     }
   }
 
+  /** Live lookup of a single Involve offer (used by admin commission fetch-best). */
+  async findOfferByOfferId(
+    offerId: number,
+  ): Promise<Record<string, unknown> | null> {
+    if (!Number.isFinite(offerId)) {
+      return null;
+    }
+    try {
+      let token = await this.cacheManager.get('access_token_involve');
+      if (!token) {
+        await this.signIn();
+        token = await this.cacheManager.get('access_token_involve');
+      }
+      const res = await axios.post(
+        `${this.endpoint}/offers/all`,
+        {
+          page: 1,
+          limit: 1,
+          filter: {
+            offer_id: offerId,
+            application_status: 'Approved',
+            offer_status: 'Active',
+            offer_type: 'cps',
+          },
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      const row = res.data?.data?.data?.[0];
+      return row ?? null;
+    } catch (error: any) {
+      console.error(
+        'Error findOfferByOfferId:',
+        error.response?.data || error.message,
+      );
+      if (error.response?.data?.status_code === 401) {
+        await this.signIn();
+        return this.findOfferByOfferId(offerId);
+      }
+      return null;
+    }
+  }
+
   async getOfferAll(pageFilter?: { page?: number; limit?: number }) {
     try {
       let token = await this.cacheManager.get('access_token_involve');

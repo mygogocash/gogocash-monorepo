@@ -193,6 +193,10 @@ export class Offer {
   /** Optional note surfaced to end users on the shop detail page. */
   @Prop()
   note_to_user?: string;
+
+  /** GoGoCash app tracking link (Commission Management / Create Brand). */
+  @Prop()
+  app_deeplink?: string;
 }
 
 export const OfferSchema = SchemaFactory.createForClass(Offer);
