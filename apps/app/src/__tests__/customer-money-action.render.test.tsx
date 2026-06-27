@@ -3,6 +3,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createElement } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -36,6 +37,17 @@ const moneyActionSource = readFileSync(
   resolve(dirname(fileURLToPath(import.meta.url)), "../screens/CustomerMoneyActionScreen.tsx"),
   "utf8"
 );
+
+function renderWithdrawScreen() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      createElement(CustomerMoneyActionScreen, { mode: "withdraw" }),
+    ),
+  );
+}
 
 describe("parseWithdrawAmount", () => {
   it("parses a plain decimal", () => {
@@ -100,24 +112,20 @@ describe("evaluateWithdraw", () => {
 });
 
 describe("withdraw confirm button is guarded after success (source)", () => {
-  const src = readFileSync(
-    resolve(dirname(fileURLToPath(import.meta.url)), "../screens/CustomerMoneyActionScreen.tsx"),
-    "utf8"
-  );
   it("disables the Confirm & Dispatch action once a withdrawal has succeeded", () => {
-    expect(src).toContain("disabled={!!successMsg}");
+    expect(moneyActionSource).toContain("disabled={!!successMsg || withdrawing}");
   });
 });
 
 describe("CustomerMoneyActionScreen (render)", () => {
   it("mounts the withdraw form without throwing", () => {
-    expect(() => render(createElement(CustomerMoneyActionScreen, { mode: "withdraw" }))).not.toThrow();
+    expect(() => renderWithdrawScreen()).not.toThrow();
     // The web-parity "Withdraw" CTA proves the withdraw surface rendered.
     expect(screen.getByRole("button", { name: "Withdraw" })).toBeTruthy();
   });
 
   it("renders the withdrawal amount field so the keyboard-avoidance wrapper has a target", () => {
-    render(createElement(CustomerMoneyActionScreen, { mode: "withdraw" }));
+    renderWithdrawScreen();
     expect(screen.getAllByPlaceholderText("0.00").length).toBeGreaterThan(0);
   });
 });
@@ -141,5 +149,12 @@ describe("CustomerMoneyActionScreen — Wave B foundations adopted (source signa
     // group too — guard against a regression back to a bare balance.toFixed(2).
     expect(moneyActionSource).toContain('toLocaleString("en-US"');
     expect(moneyActionSource).toContain("minimumFractionDigits: 2");
+  });
+
+  it("backend mode > submits bank transfer through createWithdrawApi (not local-only deduction)", () => {
+    expect(moneyActionSource).toContain('from "@mobile/withdraw/api"');
+    expect(moneyActionSource).toContain("createWithdrawApi");
+    expect(moneyActionSource).toContain("submitBankTransfer");
+    expect(moneyActionSource).toContain('resourceId: "wallet"');
   });
 });

@@ -124,7 +124,7 @@ export function DesktopGoLinkBanner({
               <View style={styles.desktopGoLinkStepNum}>
                 <Text style={styles.desktopGoLinkStepNumText}>1</Text>
               </View>
-              <CopyIcon color={colors.primaryDark} size={15} strokeWidth={homeIconStrokeWidth} />
+              <CopyIcon color={pickThemed(colors, colors.primaryDark, colors.accent)} size={15} strokeWidth={homeIconStrokeWidth} />
               <Text style={styles.desktopGoLinkStepText}>{tc("Copy link")}</Text>
             </View>
             <Text style={styles.desktopGoLinkStepArrow}>›</Text>
@@ -132,7 +132,7 @@ export function DesktopGoLinkBanner({
               <View style={styles.desktopGoLinkStepNum}>
                 <Text style={styles.desktopGoLinkStepNumText}>2</Text>
               </View>
-              <ClipboardIcon color={colors.primaryDark} size={15} strokeWidth={homeIconStrokeWidth} />
+              <ClipboardIcon color={pickThemed(colors, colors.primaryDark, colors.accent)} size={15} strokeWidth={homeIconStrokeWidth} />
               <Text style={styles.desktopGoLinkStepText}>{tc("Paste here")}</Text>
             </View>
             <Text style={styles.desktopGoLinkStepArrow}>›</Text>
@@ -140,7 +140,7 @@ export function DesktopGoLinkBanner({
               <View style={styles.desktopGoLinkStepNum}>
                 <Text style={styles.desktopGoLinkStepNumText}>3</Text>
               </View>
-              <ShoppingBagIcon color={colors.primaryDark} size={15} strokeWidth={homeIconStrokeWidth} />
+              <ShoppingBagIcon color={pickThemed(colors, colors.primaryDark, colors.accent)} size={15} strokeWidth={homeIconStrokeWidth} />
               <Text style={styles.desktopGoLinkStepText}>{tc("Shop & earn")}</Text>
             </View>
           </View>

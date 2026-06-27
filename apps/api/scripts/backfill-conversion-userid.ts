@@ -20,12 +20,12 @@
  */
 
 import 'dotenv/config';
-import mongoose, { Model, Types } from 'mongoose';
+import mongoose, { Model } from 'mongoose';
 import {
   Conversion,
   ConversionSchema,
 } from '../src/withdraw/schemas/conversion.schema';
-import { parseUserIdFromAffSub1 } from '../src/withdraw/conversion-user-id.util';
+import { resolveBackfillUserObjectId } from '../src/withdraw/conversion-user-id.util';
 
 async function main() {
   const dryRun = process.argv.includes('--dry-run');
@@ -53,7 +53,7 @@ async function main() {
   for await (const doc of cursor) {
     scanned += 1;
     const id = String((doc as { _id: unknown })._id);
-    const parsed = parseUserIdFromAffSub1(
+    const parsed = resolveBackfillUserObjectId(
       (doc as { aff_sub1?: string }).aff_sub1,
     );
     if (!parsed) {
@@ -67,7 +67,7 @@ async function main() {
     try {
       await ConversionModel.updateOne(
         { _id: id },
-        { $set: { user_id: new Types.ObjectId(parsed) } },
+        { $set: { user_id: parsed } },
       );
       updated += 1;
     } catch (err) {

@@ -1,4 +1,5 @@
-import { Image, StyleSheet, Text, View, type ViewStyle } from "react-native";
+import { Image } from "expo-image";
+import { StyleSheet, Text, View, type ViewStyle } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
 import type { MobileSession } from "@mobile/auth/session";
@@ -76,7 +77,8 @@ export function CustomerProfileBar({ open, session }: { open?: boolean; session:
       <GoGoPassAvatar ringWidth={2} size={AVATAR_SIZE} tier={tier}>
         <Image
           accessibilityLabel="Avatar"
-          resizeMode="cover"
+          cachePolicy="memory-disk"
+          contentFit="cover"
           source={avatarUrl ? { uri: avatarUrl } : profileAvatarImage}
           style={styles.avatarImage}
         />

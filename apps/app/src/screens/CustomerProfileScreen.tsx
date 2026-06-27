@@ -59,7 +59,10 @@ export function CustomerProfileScreen() {
     ? mapUserProfileToWalletSummary(profileResource.data, sessionWalletSummary)
     : sessionWalletSummary;
 
-  if (profileResource.status !== "ready") {
+  const profileShellWhileLoading =
+    profileResource.status === "loading" && Boolean(session?.access_token);
+
+  if (profileResource.status !== "ready" && !profileShellWhileLoading) {
     return (
       <CustomerAccountResourceState
         emptyBody={tc("Complete your profile setup to unlock account actions.")}

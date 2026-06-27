@@ -83,6 +83,19 @@ describe("Customer profile hero parity (web CardProfile)", () => {
     expect(heroFile).toContain("profileAvatarImage");
   });
 
+  it("hero card > given dark mode > then banner skips light-only gradient and adapts surface tokens", () => {
+    const heroFile = readMobileFile("src/components/ProfileHeroCard.tsx");
+
+    // Light web SVG gradient must not apply unconditionally in dark mode.
+    expect(heroFile).toContain("colors.isDark");
+    expect(heroFile).not.toContain("<View style={[styles.banner, bannerGradient]}>");
+    expect(heroFile).toMatch(/colors\.isDark\s*\?\s*null\s*:\s*bannerGradient/);
+    // Dark banner uses themed mint surface + border instead of the bright radial sheen.
+    expect(heroFile).toContain("colors.primarySoft");
+    expect(heroFile).toContain("colors.borderStrong");
+    expect(heroFile).toContain("pickThemed(");
+  });
+
   it("shared panel > given the rich profile panel > then it composes the hero above the cashback + personal sections", () => {
     // The hero is mounted by the shared ProfileInfoPanel (used by both /profile desktop
     // and /profile/info), so a refactor that drops it from the panel is caught here.

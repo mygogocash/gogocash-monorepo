@@ -121,8 +121,22 @@ describe("CustomerCreditScoreScreen — Wave B (B5) foundations adopted (source 
     expect(creditScoreSource).toContain("monthConnector");
     expect(creditScoreSource).toContain("monthStatusPill");
     expect(creditScoreSource).toContain('"#FEF3C7"');
-    // Mint card borders use the web --gc-border-mint token.
-    expect(creditScoreSource).toContain('"#B7E7DB"');
+    // Mint card borders use the web --gc-border-mint token (light) with themed dark fallback.
+    expect(creditScoreSource).toContain('pickThemed(colors, "#B7E7DB", colors.borderStrong)');
     expect(creditScoreSource).not.toContain('"#B7F0DC"');
+  });
+});
+
+describe("CustomerCreditScoreScreen — dark mode streak card surfaces (source signals)", () => {
+  it("themes streak card labels, status pills, and borders with pickThemed for dark readability", () => {
+    expect(creditScoreSource).toContain('pickThemed(colors, "#B7E7DB", colors.borderStrong)');
+    expect(creditScoreSource).toContain('pickThemed(colors, colors.muted, colors.ink)');
+    expect(creditScoreSource).toContain('pickThemed(colors, "#B45309", "#FBBF24")');
+    expect(creditScoreSource).toMatch(
+      /monthStatusPillLocked:[\s\S]*?pickThemed\(colors, colors\.background, colors\.fieldMuted\)/,
+    );
+    expect(creditScoreSource).not.toMatch(/monthStatusProgress:[\s\S]*?color:\s*"#B45309"/);
+    expect(creditScoreSource).not.toMatch(/streakCard:[\s\S]*?borderColor:\s*"#B7E7DB"/);
+    expect(creditScoreSource).not.toMatch(/boostCard:[\s\S]*?borderColor:\s*"#B7E7DB"/);
   });
 });

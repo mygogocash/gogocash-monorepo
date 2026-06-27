@@ -7,7 +7,8 @@ import {
 } from "@mobile/theme/icons";
 import type { ReactNode } from "react";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import { Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { Image } from "expo-image";
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
@@ -360,8 +361,10 @@ const FavoriteBrandCard = memo(function FavoriteBrandCard({
             ) : null}
             {brand.logo ? (
               <Image
-                alt={`${brand.name} logo`}
-                resizeMode="contain"
+                accessibilityLabel={`${brand.name} logo`}
+                cachePolicy="memory-disk"
+                contentFit="contain"
+                recyclingKey={brand.logo}
                 source={{ uri: brand.logo }}
                 style={styles.brandLogoImage}
               />

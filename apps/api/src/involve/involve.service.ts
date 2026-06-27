@@ -17,6 +17,7 @@ import { convertToTHB, convertToUSD } from 'src/utils/helper';
 import { Category } from 'src/offer/schemas/category.schema';
 import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 import { FeeRate } from 'src/withdraw/schemas/feeRate.schema';
+import { buildUserConversionScopeFilter } from 'src/withdraw/conversion-user-id.util';
 
 @Injectable()
 export class InvolveService {
@@ -565,9 +566,7 @@ export class InvolveService {
     const allConversions = await this.conversionModel
       .aggregate([
         {
-          $match: {
-            aff_sub1: { $regex: `user_id:${user._id.toString()}` },
-          },
+          $match: buildUserConversionScopeFilter(user._id),
         },
         {
           // Source-constrained lookup: offer_id is only unique WITHIN a source

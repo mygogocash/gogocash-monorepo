@@ -99,10 +99,28 @@ export class CustomerBillingService {
       };
     }
 
-    const user = await this.getBillingUser(userId);
+    let user: (User & { _id?: unknown }) | null;
+    try {
+      user = await this.userModel.findById(userId).lean();
+    } catch {
+      throw new UnauthorizedException('User not found');
+    }
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const email = user.email?.trim();
+    if (!email) {
+      return {
+        enabled: false,
+        status: 'email_required',
+      };
+    }
+
     return this.provider.getSubscriptionStatus({
-      customerEmail: user.email,
-      userId: user.userId,
+      customerEmail: email,
+      userId: String(user._id ?? userId),
     });
   }
 

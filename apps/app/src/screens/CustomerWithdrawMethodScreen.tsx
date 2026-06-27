@@ -225,11 +225,11 @@ function createWithdrawMethodScreenStyles(colors: ThemeColors) {
   },
   methodCard: {
     alignItems: "flex-start",
-    backgroundColor: "#F6FDFB",
-    borderColor: "#D8EDE4",
+    backgroundColor: pickThemed(colors, "#F6FDFB", colors.primarySoft),
+    borderColor: pickThemed(colors, "#D8EDE4", colors.border),
     borderRadius: radii.md,
     borderWidth: 1,
-    boxShadow: "0 4px 24px rgba(0,204,153,0.08)",
+    boxShadow: shadows.cardCss,
     justifyContent: "space-between",
     minHeight: 183,
     overflow: "visible",
@@ -259,7 +259,7 @@ function createWithdrawMethodScreenStyles(colors: ThemeColors) {
     lineHeight: 28,
   },
   methodMeta: {
-    color: "#3D6B5C",
+    color: pickThemed(colors, "#3D6B5C", colors.muted),
     flexWrap: "wrap",
     fontFamily: typography.family,
     fontSize: 14,
@@ -267,7 +267,7 @@ function createWithdrawMethodScreenStyles(colors: ThemeColors) {
     lineHeight: 20,
   },
   methodAccountTail: {
-    color: "#2D6A4F",
+    color: pickThemed(colors, "#2D6A4F", colors.accentSoft),
     fontWeight: "500",
   },
   defaultBadge: {

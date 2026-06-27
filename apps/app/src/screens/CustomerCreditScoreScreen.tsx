@@ -615,7 +615,7 @@ function createCreditScoreScreenStyles(colors: ThemeColors) {
   },
   streakCard: {
     backgroundColor: colors.primarySoft,
-    borderColor: "#B7E7DB",
+    borderColor: pickThemed(colors, "#B7E7DB", colors.borderStrong),
     borderRadius: radii.md,
     borderWidth: 1,
     padding: 20,
@@ -663,7 +663,7 @@ function createCreditScoreScreenStyles(colors: ThemeColors) {
     width: 36,
   },
   monthLabel: {
-    color: colors.muted,
+    color: pickThemed(colors, colors.muted, colors.ink),
     fontFamily: typography.family,
     fontSize: 12,
     fontWeight: "500",
@@ -690,13 +690,13 @@ function createCreditScoreScreenStyles(colors: ThemeColors) {
     fontWeight: "600",
   },
   monthStatus: {
-    color: colors.muted,
+    color: pickThemed(colors, colors.muted, colors.ink),
     fontFamily: typography.family,
     fontSize: 12,
     fontWeight: "700",
   },
   monthStatusProgress: {
-    color: "#B45309",
+    color: pickThemed(colors, "#B45309", "#FBBF24"),
   },
   monthStatusPill: {
     borderRadius: radii.chip,
@@ -707,11 +707,11 @@ function createCreditScoreScreenStyles(colors: ThemeColors) {
     backgroundColor: pickThemed(colors, "#FEF3C7", colors.warningSoft),
   },
   monthStatusPillLocked: {
-    backgroundColor: colors.background,
+    backgroundColor: pickThemed(colors, colors.background, colors.fieldMuted),
   },
   boostCard: {
     backgroundColor: colors.primarySoft,
-    borderColor: "#B7E7DB",
+    borderColor: pickThemed(colors, "#B7E7DB", colors.borderStrong),
     borderRadius: radii.md,
     borderWidth: 1,
     padding: 20,

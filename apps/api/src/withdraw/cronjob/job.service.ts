@@ -5,6 +5,7 @@ import { InvolveService } from 'src/involve/involve.service';
 import { Model } from 'mongoose';
 import { delay } from 'rxjs';
 import { AnalyticsService } from 'src/analytics/analytics.service';
+import { enrichConversionWithUserId } from '../conversion-user-id.util';
 
 @Injectable()
 export class JobService {
@@ -75,7 +76,7 @@ export class JobService {
         {
           conversion_id: conversion.conversion_id,
         },
-        conversion,
+        enrichConversionWithUserId(conversion),
         { upsert: true, new: true },
       );
 
@@ -171,7 +172,7 @@ export class JobService {
         {
           conversion_id: conversion.conversion_id,
         },
-        conversion,
+        enrichConversionWithUserId(conversion),
         { upsert: true, new: true },
       );
 
@@ -257,7 +258,7 @@ export class JobService {
         {
           conversion_id: conversion.conversion_id,
         },
-        conversion,
+        enrichConversionWithUserId(conversion),
         { upsert: true, new: true },
       );
       delay(1000);

@@ -11,6 +11,7 @@ import { CustomerRouteState } from "@mobile/components/CustomerRouteState";
 import { ToastProvider } from "@mobile/components/Toast";
 import { LocaleProvider } from "@mobile/i18n/LocaleProvider";
 import { getObservabilityConfig, initObservability } from "@mobile/observability/client";
+import { AccountResourceWarmup } from "@mobile/providers/AccountResourceWarmup";
 import { customerQueryDefaults } from "@mobile/query/queryDefaults";
 import { PrivacyScreenGuard } from "@mobile/security/PrivacyScreenGuard";
 import { gogoCashRuntimeFonts } from "@mobile/theme/appFonts";
@@ -47,6 +48,8 @@ export function AppProviders({ children }: PropsWithChildren) {
     []
   );
   const posthogConfig = useMemo(() => getObservabilityConfig(), []);
+  const fontsReady = fontsLoaded || Boolean(fontError);
+  const appReady = fontsReady && sessionReady;
 
   useEffect(() => {
     initObservability();
@@ -58,33 +61,34 @@ export function AppProviders({ children }: PropsWithChildren) {
     [queryClient]
   );
 
-  if ((!fontsLoaded && !fontError) || !sessionReady) {
-    return (
-      <ThemeProvider>
-        <LocaleProvider>
-          <CustomerRouteState
-            body="Preparing your GoGoCash experience."
-            title="Loading GoGoCash"
-            variant="loading"
-          />
-        </LocaleProvider>
-      </ThemeProvider>
-    );
-  }
+  const routedContent = appReady ? (
+    <>
+      <RouteAnalyticsTracker />
+      <AccountResourceWarmup />
+      <ToastProvider>{children}</ToastProvider>
+    </>
+  ) : (
+    <CustomerRouteState
+      body="Preparing your GoGoCash experience."
+      title="Loading GoGoCash"
+      variant="loading"
+    />
+  );
 
   const appTree = (
-    <ThemeProvider>
-      <LocaleProvider>
-        <SafeAreaProvider>
-          <PrivacyScreenGuard>
-            <QueryClientProvider client={queryClient}>
-              <RouteAnalyticsTracker />
-              <ToastProvider>{children}</ToastProvider>
-            </QueryClientProvider>
-          </PrivacyScreenGuard>
-        </SafeAreaProvider>
-      </LocaleProvider>
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <LocaleProvider>
+          {appReady ? (
+            <SafeAreaProvider>
+              <PrivacyScreenGuard>{routedContent}</PrivacyScreenGuard>
+            </SafeAreaProvider>
+          ) : (
+            routedContent
+          )}
+        </LocaleProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 
   // Keyless (local/web dev): still mount the provider with a no-op client and

@@ -46,7 +46,7 @@ Screen
 ```
 
 - **Session store:** `src/auth/session.ts` — key `gogocash.mobile.session.v1`, SecureStore on native / localStorage on Expo-web, **exactly 15 pinned fields** (`src/config/mobileAppConfig.ts`).
-- **Resource → endpoint map** (in `customerAccountResource.ts`): `profile → /user/profile`, `wallet → /withdraw/check`, `referral → /point/referral-list`, `offers → /offer/my-offers?limit=10&page=1`, `merchant → /offer/:id`, `catalog → /offer?limit=4&page=1` (public), `billing → /customer-billing/subscription` (**does not exist on the backend — see §4**).
+- **Resource → endpoint map** (in `customerAccountResource.ts`): `profile → /user/profile`, `wallet → /withdraw/check`, `referral → /point/referral-list`, `offers → /offer/my-offers?limit=10&page=1`, `merchant → /offer/:id`, `catalog → /offer?limit=4&page=1` (public), `billing → /customer-billing/subscription` (returns `{ enabled, status }`; phone-only users get `status: "email_required"` without 401).
 - **Env:** `src/config/env.ts` (`getMobileEnv()`), resolution order `process.env.EXPO_PUBLIC_* → expo-constants extra → defaults`. Production **forbids** `fixtures` (runtime throw) and the EAS prod profile currently pins `disabled`.
 
 ## 2. Running against the live API (verify recipe)
@@ -76,7 +76,8 @@ To bring another resource live: write the DTO from a real response → TDD a map
 
 - **Production (`api.gogocash.co`) is live.** NestJS; errors are `{message, error, statusCode}`. CORS is wide open (`*`, `Authorization` allowed) — Expo-web calls it directly.
 - **Verified to exist** (401 "Missing token" without auth): `/user/profile`, `/point/referral-list`, `/withdraw/check`, `/withdraw/methods-list`, `/offer/my-offers`, `/auth/firebase`. **Public** (200 with data): `GET /offer`, `GET /offer/get-category/list`.
-- **Verified to NOT exist** (404): `/customer-billing/subscription` (the mobile `billing` resource must be repointed or stay fixtures), `/auth/mobile/callback` (the `CustomerAuthCallbackScreen` exchange endpoint is fictional), and `/auth/send-otp` + `/auth/verify-otp` + `/auth/siwe-nonce` — **the web's phone-OTP and SIWE flows are mock-only**; they exist solely in the web's mock adapter.
+- **Verified to NOT exist** (404): `/auth/mobile/callback` (the `CustomerAuthCallbackScreen` exchange endpoint is fictional), and `/auth/send-otp` + `/auth/verify-otp` + `/auth/siwe-nonce` — **the web's phone-OTP and SIWE flows are mock-only**; they exist solely in the web's mock adapter.
+- **Verified to exist** (401 without auth): `/customer-billing/subscription` (GET; billing disabled or email-required statuses are returned as 200 payloads, not 404).
 - **Auth requirement is explicit:** `POST /auth/log-in` replies *"Firebase token is required in Authorization header or body"*. There is no Firebase-free login path.
 - **Staging (`api-staging.gogocash.co` + `app-staging.gogocash.co`) is down** at the infrastructure level (Google Frontend 503 / TLS failure). Until it's redeployed, the only live backend is production — fine for public reads, **not** for auth/write testing (real accounts/data).
 

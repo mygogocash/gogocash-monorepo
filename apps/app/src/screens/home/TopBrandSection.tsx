@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Link } from "expo-router";
 import { Animated, Text, View } from "react-native";
 import {
@@ -10,6 +10,7 @@ import { BrandCard } from "@mobile/components/BrandCard";
 import { CarouselDots } from "@mobile/components/CarouselDots";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
+import { prefetchRemoteImages } from "@mobile/lib/prefetchRemoteImages";
 import { getCarouselDotCount, webTopBrandCards } from "@mobile/design/webDesignParity";
 import { motion } from "@mobile/theme/motion";
 import { viewAllLabel } from "./homeAssets";
@@ -49,6 +50,11 @@ export function TopBrandSection({
   const topBrandMaxPageIndex = Math.max(0, topBrandPages.length - 1);
   const activeTopBrandDot = Math.min(activeTopBrandPage, topBrandDotCount - 1);
   const topBrandScrollX = useMemo(() => new Animated.Value(0), []);
+
+  useEffect(() => {
+    prefetchRemoteImages(topBrands.map((brand) => brand.logoUri));
+  }, [topBrands]);
+
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>

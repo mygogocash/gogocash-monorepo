@@ -1,6 +1,7 @@
 import { Link } from "expo-router";
 import { memo } from "react";
-import { Image, StyleSheet, Text, View } from "react-native";
+import { Image } from "expo-image";
+import { StyleSheet, Text, View } from "react-native";
 import {
   ArrowRight as ArrowRightIcon,
   Heart as HeartIcon,
@@ -35,9 +36,10 @@ export const ProductDiscoveryCard = memo(function ProductDiscoveryCard({
     <View style={[styles.productDiscoveryCard, { width: cardWidth }]}>
       <View style={[styles.productDiscoveryImageFrame, { backgroundColor: product.tint }]}>
         <Image
-          alt={`${product.title} product image`}
           accessibilityLabel={`${product.title} product image`}
-          resizeMode="cover"
+          cachePolicy="memory-disk"
+          contentFit="cover"
+          recyclingKey={product.imageAsset}
           source={imageSource}
           style={styles.productDiscoveryImage}
         />

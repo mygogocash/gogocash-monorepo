@@ -67,7 +67,9 @@ export function CustomerWalletScreen() {
     ? mapCheckWithdrawToWalletMetrics(walletResource.data, webWalletCashbackSummary.metrics)
     : null;
 
-  if (walletResource.status !== "ready") {
+  const walletShellWhileLoading = walletResource.status === "loading";
+
+  if (walletResource.status !== "ready" && !walletShellWhileLoading) {
     return (
       <CustomerAccountResourceState
         emptyBody={tc("Your cashback wallet does not have any backend activity yet.")}
@@ -76,6 +78,16 @@ export function CustomerWalletScreen() {
         resource={walletResource}
         resourceLabel="wallet"
       />
+    );
+  }
+
+  if (walletShellWhileLoading) {
+    return (
+      <AccountPageShell activeRouteId="wallet" showProfileRail showTitle={false} title={tc("My Wallet")}>
+        {isDesktop ? null : <WalletHeader />}
+        <WalletSupportBanner />
+        <WalletSkeleton />
+      </AccountPageShell>
     );
   }
 

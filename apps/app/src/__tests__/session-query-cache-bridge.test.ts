@@ -1,10 +1,16 @@
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@mobile/auth/firebaseIdTokenCache", () => ({
+  clearFirebaseIdTokenCache: vi.fn(),
+}));
+
 import { createSessionQueryCacheBridge } from "../account/sessionQueryCacheBridge";
+import { resolveCustomerAccountResourceQueryKey } from "../account/customerAccountResourceQueryKey";
 
 function seedAccountQuery(queryClient: QueryClient) {
   queryClient.setQueryData(
-    ["customer-account-resource", "profile", "/user/profile", "https://api"],
+    ["customer-account-resource", "profile", "/user/profile", "https://api", "user-a"],
     { name: "cached-user" }
   );
 }
@@ -39,5 +45,25 @@ describe("createSessionQueryCacheBridge", () => {
     teardown();
 
     expect(unsubscribe).toHaveBeenCalledOnce();
+  });
+
+  it("given wallet cache entries for two users > when keys differ by session scope > then data does not collide", () => {
+    const queryClient = new QueryClient();
+    const userAKey = resolveCustomerAccountResourceQueryKey({
+      apiUrl: "https://api.test",
+      endpoint: "/withdraw/check",
+      resourceId: "wallet",
+      sessionScope: "user-a",
+    });
+    const userBKey = resolveCustomerAccountResourceQueryKey({
+      apiUrl: "https://api.test",
+      endpoint: "/withdraw/check",
+      resourceId: "wallet",
+      sessionScope: "user-b",
+    });
+
+    queryClient.setQueryData(userAKey, { availableTHB: 100 });
+
+    expect(queryClient.getQueryData(userBKey)).toBeUndefined();
   });
 });

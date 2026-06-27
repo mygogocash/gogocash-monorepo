@@ -10,6 +10,7 @@ import {
 } from 'src/point/schemas/quest.schema';
 import { PointService } from 'src/point/point.service';
 import { Point } from 'src/point/schemas/point.schema';
+import { enrichConversionWithUserId } from 'src/withdraw/conversion-user-id.util';
 
 @Injectable()
 export class TasksService {
@@ -95,7 +96,7 @@ export class TasksService {
           batch.map((conversion) =>
             this.conversionModel.findOneAndUpdate(
               { conversion_id: conversion.conversion_id },
-              conversion,
+              enrichConversionWithUserId(conversion),
               { upsert: true, new: true },
             ),
           ),

@@ -64,6 +64,16 @@ describe("CustomerWithdrawMethodScreen (render)", () => {
   });
 });
 
+describe("CustomerWithdrawMethodScreen — dark mode method card surfaces (source signals)", () => {
+  it("themes method card surfaces with pickThemed instead of light-only hex literals", () => {
+    expect(withdrawMethodSource).toContain('pickThemed(colors, "#F6FDFB", colors.primarySoft)');
+    expect(withdrawMethodSource).toContain('pickThemed(colors, "#D8EDE4", colors.border)');
+    expect(withdrawMethodSource).toContain('pickThemed(colors, "#3D6B5C", colors.muted)');
+    expect(withdrawMethodSource).toContain('pickThemed(colors, "#2D6A4F", colors.accentSoft)');
+    expect(withdrawMethodSource).not.toMatch(/methodCard:[\s\S]*backgroundColor:\s*"#F6FDFB"/);
+  });
+});
+
 describe("CustomerWithdrawMethodScreen — Wave B foundations adopted (source signals)", () => {
   it("imports haptics and fires a medium-impact cue when a method option is selected", () => {
     expect(withdrawMethodSource).toContain('from "@mobile/lib/haptics"');

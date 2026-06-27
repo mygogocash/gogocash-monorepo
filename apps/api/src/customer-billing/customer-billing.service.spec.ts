@@ -156,3 +156,41 @@ describe('CustomerBillingService portal', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 });
+
+describe('CustomerBillingService subscription status', () => {
+  it('customer billing subscription > given billing disabled > returns disabled status without provider call', async () => {
+    const { provider, service } = makeService({ enabled: false });
+
+    await expect(service.getSubscriptionStatus('user-1')).resolves.toEqual({
+      enabled: false,
+      status: 'disabled',
+    });
+    expect(provider.getSubscriptionStatus).not.toHaveBeenCalled();
+  });
+
+  it('customer billing subscription > given authenticated user without email > returns email_required (not 401)', async () => {
+    const { provider, service } = makeService({
+      user: { _id: 'user-1', email: '' },
+    });
+
+    await expect(service.getSubscriptionStatus('user-1')).resolves.toEqual({
+      enabled: false,
+      status: 'email_required',
+    });
+    expect(provider.getSubscriptionStatus).not.toHaveBeenCalled();
+  });
+
+  it('customer billing subscription > given configured provider > returns provider status', async () => {
+    const { provider, service } = makeService();
+
+    await expect(service.getSubscriptionStatus('user-1')).resolves.toEqual({
+      enabled: true,
+      status: 'active',
+      currentPeriodEnd: '2026-06-23T00:00:00.000Z',
+    });
+    expect(provider.getSubscriptionStatus).toHaveBeenCalledWith({
+      customerEmail: 'member@gogocash.co',
+      userId: 'user-1',
+    });
+  });
+});

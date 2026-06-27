@@ -9,13 +9,15 @@ import { WithdrawService } from './withdraw.service';
 function buildService({
   user,
   myCashbackFind,
+  userFindOne,
 }: {
   user: Record<string, unknown>;
   myCashbackFind: jest.Mock;
+  userFindOne?: jest.Mock;
 }): WithdrawService {
   const service = Object.create(WithdrawService.prototype) as WithdrawService;
   (service as unknown as Record<string, unknown>).userModel = {
-    findOne: jest.fn().mockResolvedValue(user),
+    findOne: userFindOne ?? jest.fn().mockResolvedValue(user),
   };
   (service as unknown as Record<string, unknown>).userMyCashbackModel = {
     find: myCashbackFind,
@@ -66,5 +68,26 @@ describe('WithdrawService.checkWithdrawMyCashback', () => {
     expect(myCashbackFind).toHaveBeenCalledWith({
       email: { $regex: 'user@example.com' },
     });
+  });
+
+  it('given an already-loaded user doc > then skips userModel.findOne', async () => {
+    const userFindOne = jest.fn();
+    const myCashbackFind = jest.fn(() => ({
+      lean: jest.fn().mockResolvedValue([]),
+    }));
+    const loadedUser = {
+      _id: new Types.ObjectId(userId),
+      email: 'user@example.com',
+      provider: 'google.com',
+    };
+    const service = buildService({
+      user: loadedUser,
+      myCashbackFind,
+      userFindOne,
+    });
+
+    await service.checkWithdrawMyCashback(userId, loadedUser as never);
+
+    expect(userFindOne).not.toHaveBeenCalled();
   });
 });

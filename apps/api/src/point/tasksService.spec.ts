@@ -30,10 +30,13 @@ describe('Point TasksService', () => {
 
     expect(conversionModel.find).toHaveBeenCalledWith(
       expect.objectContaining({
-        aff_sub1: { $regex: '^user_id:' },
         conversion_status: 'approved',
         add_point: { $ne: true },
+        user_id: { $exists: true, $ne: null },
       }),
+    );
+    expect(JSON.stringify(conversionModel.find.mock.calls[0][0])).not.toContain(
+      '$regex',
     );
     expect(pointService.addPointsToUser).not.toHaveBeenCalled();
   });

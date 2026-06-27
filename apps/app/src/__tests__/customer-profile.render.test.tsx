@@ -123,6 +123,12 @@ describe("CustomerProfileScreen — Wave B foundations adopted (source signals)"
     // hitSlop expands the tappable area to a comfortable touch target.
     expect(profileSource).toContain("hitSlop=");
   });
+
+  it("renders the profile shell from session balance while the backend resource is loading", () => {
+    expect(profileSource).toContain("profileShellWhileLoading");
+    expect(profileSource).toContain('profileResource.status === "loading"');
+    expect(profileSource).toContain("session?.access_token");
+  });
 });
 
 describe("CustomerProfileScreen — responsive desktop panel (render)", () => {

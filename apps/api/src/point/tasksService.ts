@@ -7,6 +7,7 @@ import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { rateCurrencyUSD } from 'src/utils/helper';
+import { parseUserIdFromAffSub1 } from 'src/withdraw/conversion-user-id.util';
 
 @Injectable()
 export class TasksService {
@@ -46,9 +47,9 @@ export class TasksService {
     // });
     const filterApproved = await this.conversionModel
       .find({
-        aff_sub1: { $regex: '^user_id:' },
         conversion_status: 'approved',
         add_point: { $ne: true },
+        user_id: { $exists: true, $ne: null },
         datetime_conversion: {
           $gte: new Date(new Date().setDate(new Date().getDate() - 10)),
           $lt: new Date(),
@@ -58,7 +59,12 @@ export class TasksService {
     const rate = await rateCurrencyUSD();
 
     for (const conversion of filterApproved) {
-      const userId = conversion.aff_sub1.split('user_id:')[1];
+      const userId =
+        conversion.user_id?.toString() ??
+        parseUserIdFromAffSub1(conversion.aff_sub1);
+      if (!userId) {
+        continue;
+      }
       // console.log('conversion', conversion.datetime_conversion);
       // const calculatedPoints = Math.floor(conversion.sale_amount / 100);
       let calculatedPoints = 0;

@@ -107,7 +107,19 @@ describe("GoGoLink feature parity", () => {
     const homeFile = readHomeSources(mobileRoot);
 
     expect(homeFile).toMatch(
-      /desktopGoLinkStep:\s*\{[\s\S]*?backgroundColor: pickThemed\(colors, "rgba\(255, 255, 255, 0\.6\)"/,
+      /desktopGoLinkStep:\s*\{[\s\S]*?backgroundColor: pickThemed\(colors, "rgba\(255, 255, 255, 0\.6\)", colors\.fieldMuted\)/,
+    );
+    expect(homeFile).toMatch(
+      /desktopGoLinkStep:\s*\{[\s\S]*?borderColor: pickThemed\(colors, "rgba\(255, 255, 255, 0\.75\)", colors\.borderStrong\)/,
+    );
+    expect(homeFile).toMatch(
+      /desktopGoLinkStepText:\s*\{[\s\S]*?color: pickThemed\(colors, "#0A5C4A", colors\.accent\)/,
+    );
+    expect(homeFile).toMatch(
+      /desktopGoLinkStepArrow:\s*\{[\s\S]*?color: pickThemed\(colors, "rgba\(10, 92, 74, 0\.45\)", colors\.accentSoft\)/,
+    );
+    expect(homeFile).toContain(
+      "pickThemed(colors, colors.primaryDark, colors.accent)",
     );
     expect(homeFile).toMatch(
       /desktopGoLinkEyebrow:\s*\{[\s\S]*?backgroundColor: pickThemed\(colors/,

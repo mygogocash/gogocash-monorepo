@@ -1,4 +1,5 @@
-import { Image, Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
+import { Image } from "expo-image";
+import { Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import { Copy as CopyIcon } from "@mobile/theme/icons";
 
 import type { MobileSession } from "@mobile/auth/session";
@@ -8,7 +9,7 @@ import { webProfileHeroCard, webProfileWalletSummary } from "@mobile/design/webD
 import { useCopy } from "@mobile/i18n/useCopy";
 import { copyToClipboard } from "@mobile/lib/clipboard";
 import { useToast } from "@mobile/hooks/useToast";
-import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, spacing, typography } from "@mobile/theme/tokens";
@@ -52,11 +53,12 @@ export function ProfileHeroCard({ session }: { session: MobileSession }) {
   };
 
   return (
-    <View style={[styles.banner, bannerGradient]}>
+    <View style={[styles.banner, colors.isDark ? null : bannerGradient]}>
       <GoGoPassAvatar ringWidth={4} size={AVATAR_SIZE} tier={tier}>
         <Image
           accessibilityLabel={tc("Avatar")}
-          resizeMode="cover"
+          cachePolicy="memory-disk"
+          contentFit="cover"
           source={avatarUrl ? { uri: avatarUrl } : profileAvatarImage}
           style={styles.avatarImage}
         />
@@ -83,7 +85,11 @@ export function ProfileHeroCard({ session }: { session: MobileSession }) {
             }
             style={styles.userIdCopyButton}
           >
-            <CopyIcon color={colors.ink} size={18} strokeWidth={typography.iconStrokeWidth} />
+            <CopyIcon
+              color={pickThemed(colors, colors.ink, colors.accent)}
+              size={18}
+              strokeWidth={typography.iconStrokeWidth}
+            />
           </Pressable>
         </View>
 
@@ -122,8 +128,10 @@ function createProfileHeroCardStyles(colors: ThemeColors) {
   return StyleSheet.create({
   banner: {
     alignItems: "center",
-    backgroundColor: colors.primary,
+    backgroundColor: pickThemed(colors, colors.primary, colors.primarySoft),
+    borderColor: colors.isDark ? colors.borderStrong : "transparent",
     borderRadius: radii.lg,
+    borderWidth: colors.isDark ? 1 : 0,
     flexDirection: "row",
     gap: spacing.lg,
     overflow: "hidden",
@@ -179,9 +187,13 @@ function createProfileHeroCardStyles(colors: ThemeColors) {
   inviteRow: {
     alignItems: "center",
     alignSelf: "flex-start",
-    backgroundColor: colors.primary,
+    backgroundColor: pickThemed(colors, colors.primary, colors.accentSoft),
     borderRadius: 12,
-    boxShadow: "inset 0 0 0 1px rgba(255, 255, 255, 0.22)",
+    boxShadow: pickThemed(
+      colors,
+      "inset 0 0 0 1px rgba(255, 255, 255, 0.22)",
+      "inset 0 0 0 1px rgba(255, 255, 255, 0.12)",
+    ),
     flexDirection: "row",
     gap: spacing.sm,
     maxWidth: "100%",

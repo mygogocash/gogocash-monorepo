@@ -5,6 +5,7 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Types } from 'mongoose';
 import axios from 'axios';
 import { InvolveService } from './involve.service';
+import { buildUserConversionScopeFilter } from 'src/withdraw/conversion-user-id.util';
 import { Offer } from '../offer/schemas/offer.schema';
 import { Deeplink } from './schemas/deeplink.schema';
 import { User } from '../user/schemas/user.schema';
@@ -504,6 +505,26 @@ describe('InvolveService', () => {
         totalPages: 1,
       });
       expect(result.data).toBe(rows);
+    });
+
+    it('getConversationAllPage > given a user > then aggregate $match uses indexed scope filter (no $regex)', async () => {
+      const user = { _id: new Types.ObjectId() };
+      userModel.findOne.mockResolvedValue(user);
+      feeRateModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ system: 30, max_cap: 1000 }),
+      });
+      conversionModel.aggregate.mockReturnValue({
+        exec: jest.fn().mockResolvedValue([]),
+      });
+
+      await service.getConversationAllPage(
+        { page: 1, limit: 10 } as never,
+        user._id.toString(),
+      );
+
+      const matchStage = conversionModel.aggregate.mock.calls[0][0][0].$match;
+      expect(matchStage).toEqual(buildUserConversionScopeFilter(user._id));
+      expect(JSON.stringify(matchStage)).not.toContain('$regex');
     });
 
     // The legacy frontend wraps the payload as { data: {...} }; the service must
