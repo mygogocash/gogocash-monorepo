@@ -175,6 +175,25 @@ describe('OfferService', () => {
       expect(filter.countries).toEqual({ $regex: 'Thailand', $options: 'i' });
     });
 
+    it('findAll > given regex metacharacters in filters > then user input is escaped literally', async () => {
+      await service.findAll(1, 10, 'a.*', 'fashion+', 'Thailand?');
+
+      const filter = offerModel.find.mock.calls[0][0];
+      expect(filter.$or).toEqual([
+        { offer_name: { $regex: 'a\\.\\*', $options: 'i' } },
+        { offer_name_display: { $regex: 'a\\.\\*', $options: 'i' } },
+        { categories: { $regex: 'a\\.\\*', $options: 'i' } },
+      ]);
+      expect(filter.categories).toEqual({
+        $regex: 'fashion\\+',
+        $options: 'i',
+      });
+      expect(filter.countries).toEqual({
+        $regex: 'Thailand\\?',
+        $options: 'i',
+      });
+    });
+
     it('findAll > given a blacklisted search query > then returns no ranked results', async () => {
       searchBlacklistModel.find.mockReturnValue({
         lean: jest.fn().mockResolvedValue([{ term: 'banned' }]),
@@ -267,6 +286,29 @@ describe('OfferService', () => {
       const filter = offerModel.find.mock.calls[0][0];
       expect(filter.status).toBe('pending_review');
       expect(filter.source).toBe('optimise');
+    });
+  });
+
+  describe('getCategoryList', () => {
+    it('getCategoryList > given regex metacharacters > then search is escaped literally', async () => {
+      await service.getCategoryList('food+');
+
+      const filter = categoryModel.find.mock.calls[0][0];
+      expect(filter).toEqual({ name: { $regex: 'food\\+', $options: 'i' } });
+    });
+  });
+
+  describe('getCoupon', () => {
+    it('getCoupon > given regex metacharacters > then search is escaped literally', async () => {
+      await service.getCoupon(1, 10, 'save.*');
+
+      const filter = couponModel.find.mock.calls[0][0];
+      expect(filter).toEqual({
+        $or: [
+          { name: { $regex: 'save\\.\\*', $options: 'i' } },
+          { code: { $regex: 'save\\.\\*', $options: 'i' } },
+        ],
+      });
     });
   });
 

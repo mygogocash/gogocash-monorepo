@@ -6,6 +6,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { User } from './schemas/user.schema';
 import { Model, Types } from 'mongoose';
 import { UserMyCashback } from './schemas/user-my-cashback.schema';
+import { escapeRegexLiteral } from 'src/common/escape-regex';
 import { toIso2Server } from 'src/utils/country';
 
 /**
@@ -88,10 +89,10 @@ export class UserService {
     const query = search
       ? {
           $or: [
-            { username: { $regex: search, $options: 'i' } },
-            { email: { $regex: search, $options: 'i' } },
-            { address: { $regex: search, $options: 'i' } },
-            { mobile: { $regex: search, $options: 'i' } },
+            { username: { $regex: escapeRegexLiteral(search), $options: 'i' } },
+            { email: { $regex: escapeRegexLiteral(search), $options: 'i' } },
+            { address: { $regex: escapeRegexLiteral(search), $options: 'i' } },
+            { mobile: { $regex: escapeRegexLiteral(search), $options: 'i' } },
           ],
         }
       : {};

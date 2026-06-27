@@ -15,7 +15,8 @@
     "lint": "turbo run lint",
     "postinstall": "npm run postinstall -w apps/admin",
     "typecheck": "turbo run typecheck",
-    "test": "turbo run test"
+    "test": "turbo run test",
+    "knip": "knip --no-progress"
   },
   "devDependencies": {
     "@nestjs/common": "11.1.27",

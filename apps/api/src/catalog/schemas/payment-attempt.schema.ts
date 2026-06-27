@@ -1,14 +1,17 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
 
+export const PAYMENT_ATTEMPT_STATUSES = [
+  'created',
+  'pending',
+  'succeeded',
+  'failed',
+  'expired',
+  'refunded',
+] as const;
+
 export type PaymentAttemptDocument = HydratedDocument<PaymentAttempt>;
-export type PaymentAttemptStatus =
-  | 'created'
-  | 'pending'
-  | 'succeeded'
-  | 'failed'
-  | 'expired'
-  | 'refunded';
+export type PaymentAttemptStatus = (typeof PAYMENT_ATTEMPT_STATUSES)[number];
 
 @Schema({ collection: 'commerce_payment_attempts', timestamps: true })
 export class PaymentAttempt {
@@ -43,7 +46,7 @@ export class PaymentAttempt {
 
   @Prop({
     default: 'created',
-    enum: ['created', 'pending', 'succeeded', 'failed', 'expired', 'refunded'],
+    enum: PAYMENT_ATTEMPT_STATUSES,
     index: true,
   })
   status!: PaymentAttemptStatus;

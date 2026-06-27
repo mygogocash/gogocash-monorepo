@@ -25,6 +25,7 @@ import { Quest, QuestTask } from 'src/point/schemas/quest.schema';
 import { FeaturedSearchTerm } from 'src/admin/search/schemas/featured-term.schema';
 import { SearchBoostRule } from 'src/admin/search/schemas/boost-rule.schema';
 import { SearchBlacklist } from 'src/admin/search/schemas/blacklist.schema';
+import { escapeRegexLiteral } from 'src/common/escape-regex';
 
 const ACTIVE_OFFER_FILTER = {
   disabled: { $ne: true },
@@ -206,7 +207,7 @@ export class OfferService implements OnApplicationBootstrap {
   ) {
     const filter: any = {};
     if (search) {
-      const safeSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const safeSearch = escapeRegexLiteral(search);
       filter.$or = [
         { offer_name: { $regex: safeSearch, $options: 'i' } },
         { offer_name_display: { $regex: safeSearch, $options: 'i' } },
@@ -214,19 +215,22 @@ export class OfferService implements OnApplicationBootstrap {
       ];
     }
     if (categories) {
-      // const categoriesArray = categories.split(',').map((cat) => cat.trim());
-      filter['categories'] = { $regex: categories, $options: 'i' };
+      filter['categories'] = {
+        $regex: escapeRegexLiteral(categories),
+        $options: 'i',
+      };
     }
     if (country) {
-      // const countryArray = country.split(',').map((c) => c.trim());
-      filter['countries'] = { $regex: country, $options: 'i' };
+      filter['countries'] = {
+        $regex: escapeRegexLiteral(country),
+        $options: 'i',
+      };
     }
     if (!admin) {
       filter.disabled = { $ne: true };
       // Hide pending/rejected offers from the customer app. Legacy Involve docs
       // default to `status: 'approved'` via the Offer schema, so they remain visible.
       filter.status = { $nin: ['pending_review', 'rejected'] };
-      // filter.countries = { $regex: 'Thailand', $options: 'i' };
     } else {
       if (adminFilters.status) {
         filter.status = adminFilters.status;
@@ -329,7 +333,6 @@ export class OfferService implements OnApplicationBootstrap {
     filter.disabled = { $ne: true };
     filter.status = { $nin: ['pending_review', 'rejected'] };
     filter.extra_store = true;
-    // filter.countries = { $regex: 'Thailand', $options: 'i' };
 
     const dataExtra = await this.offerModel
       .find(filter)
@@ -458,7 +461,10 @@ export class OfferService implements OnApplicationBootstrap {
   async getCategoryList(search: string) {
     const filter = {};
     if (search) {
-      filter['name'] = { $regex: search, $options: 'i' };
+      filter['name'] = {
+        $regex: escapeRegexLiteral(search),
+        $options: 'i',
+      };
     }
     const categoriesAll = await this.categoryModel.find(filter).lean();
     return categoriesAll;
@@ -629,12 +635,25 @@ export class OfferService implements OnApplicationBootstrap {
   }
 
   async getCoupon(page: number, limit: number, search: string) {
-    const filter = {
-      $or: [
-        { name: { $regex: search, $options: 'i' } },
-        { code: { $regex: search, $options: 'i' } },
-      ],
-    };
+    const filter =
+      search.trim().length > 0
+        ? {
+            $or: [
+              {
+                name: {
+                  $regex: escapeRegexLiteral(search),
+                  $options: 'i',
+                },
+              },
+              {
+                code: {
+                  $regex: escapeRegexLiteral(search),
+                  $options: 'i',
+                },
+              },
+            ],
+          }
+        : {};
     const data = await this.couponModel
       .find(filter)
       .populate('offer_id', ['offer_name'])
@@ -759,7 +778,7 @@ export class OfferService implements OnApplicationBootstrap {
     user_id: string,
   ) {
     // Escape user input before using it as a regex (ReDoS / injection guard).
-    const safeSearch = (search ?? '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const safeSearch = escapeRegexLiteral(search ?? '');
     const filter = {
       user_id: new Types.ObjectId(user_id),
       $or: [{ orderId: { $regex: safeSearch, $options: 'i' } }],

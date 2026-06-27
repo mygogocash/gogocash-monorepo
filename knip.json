@@ -1,0 +1,26 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "workspaces": {
+    "apps/api": {
+      "entry": ["src/main.ts", "scripts/*.ts", "test/**/*.ts"],
+      "project": ["src/**/*.ts", "test/**/*.ts", "scripts/**/*.ts"],
+      "ignore": ["dist/**"]
+    },
+    "apps/app": {
+      "entry": ["expo-router/entry", "app/**/*.{ts,tsx}", "src/**/*.{ts,tsx}"],
+      "project": ["src/**/*.{ts,tsx}", "app/**/*.{ts,tsx}", "scripts/**/*.{mjs,js}"],
+      "ignore": [
+        "babel.config.js",
+        "playwright.config.ts",
+        "e2e/**",
+        "plugins/**",
+        "src/test-support/**"
+      ]
+    },
+    "apps/admin": {
+      "entry": ["src/app/**/*.{ts,tsx}"],
+      "project": ["src/**/*.{ts,tsx}"]
+    }
+  },
+  "ignoreDependencies": ["@nestjs/common", "@nestjs/core", "reflect-metadata", "rxjs"]
+}

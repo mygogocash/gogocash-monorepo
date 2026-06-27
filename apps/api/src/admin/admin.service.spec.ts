@@ -179,6 +179,20 @@ describe('AdminService', () => {
       });
     });
 
+    it('findAll > given regex metacharacters > then search input is escaped literally', async () => {
+      userAdminModel.find.mockReturnValue(makeQuery([{ _id: 'a' }]));
+      userAdminModel.countDocuments.mockReturnValue(makeQuery(1));
+
+      await service.findAll(1, 10, 'a.*');
+
+      expect(userAdminModel.find).toHaveBeenCalledWith({
+        $or: [
+          { username: { $regex: 'a\\.\\*', $options: 'i' } },
+          { email: { $regex: 'a\\.\\*', $options: 'i' } },
+        ],
+      });
+    });
+
     // Pagination math (skip + totalPages) feeds admin table navigation; an off-by-one
     // here silently drops or duplicates rows across pages.
     it('findAll > given page 3 with limit 10 and 25 total > then skip is 20 and totalPages is 3', async () => {
@@ -291,7 +305,7 @@ describe('AdminService', () => {
 
       const pipeline = conversionModel.aggregate.mock.calls[0][0];
       const match = pipeline.find((s: any) => s.$match).$match;
-      expect(match.$or).toEqual([{ conversion_id: 'CV123' }]);
+      expect(match.conversion_id).toBe('CV123');
     });
   });
 

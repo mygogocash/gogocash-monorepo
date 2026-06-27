@@ -20,7 +20,6 @@ const FILES = [
   "src/screens/CustomerLinkCashbackScreen.tsx",
   "src/components/CustomerProfileMenu.tsx",
   "src/screens/CustomerWithdrawMethodScreen.tsx",
-  "src/screens/CustomerUtilityScreen.tsx",
   "src/screens/CustomerProfileOffersScreen.tsx",
   "src/screens/CustomerAccountSettingsScreen.tsx",
   "src/screens/CustomerPrivacyCenterScreen.tsx",

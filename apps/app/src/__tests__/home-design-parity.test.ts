@@ -54,6 +54,10 @@ describe("Expo home design parity", () => {
 
   it("home desktop shell parity > given desktop Expo web > then renders the Next header, category nav, and cookie banner contract", () => {
     const homeFile = readHomeFile();
+    const desktopHeaderFile = fs.readFileSync(
+      path.join(mobileRoot, "src/components/CustomerDesktopHeader.tsx"),
+      "utf8"
+    );
 
     expect(webDesktopHeaderNavItems.map((item) => item.label)).toEqual([
       "Top Brands",
@@ -65,11 +69,15 @@ describe("Expo home design parity", () => {
       "Health & Beauty",
     ]);
     expect(webCookieConsentBanner.title).toBe("We use cookies in the delivery of our services.");
-    expect(homeFile).toContain("DesktopHeader");
-    expect(homeFile).toContain("DesktopCategoryNav");
+    expect(homeFile).toContain("CustomerDesktopHeader");
     expect(homeFile).toContain("CustomerCookieConsentBanner");
     expect(homeFile).toContain("LineOfficialFab");
-    expect(homeFile).toContain("logoMarkImage");
+    expect(desktopHeaderFile).toContain("CustomerDesktopBrandLink");
+    const desktopBrandLinkFile = fs.readFileSync(
+      path.join(mobileRoot, "src/components/CustomerDesktopBrandLink.tsx"),
+      "utf8"
+    );
+    expect(desktopBrandLinkFile).toContain("logoMarkImage");
     const lineFabFile = fs.readFileSync(
       path.join(mobileRoot, "src/components/CustomerLineOfficialFab.tsx"),
       "utf8"
@@ -77,11 +85,11 @@ describe("Expo home design parity", () => {
 
     expect(lineFabFile).toContain("lineOfficialFabImage");
     expect(lineFabFile).toContain("webLineOfficialFab.href");
-    expect(homeFile).toContain("questHeaderImage");
-    expect(homeFile).toContain("menuFireImage");
+    expect(desktopHeaderFile).toContain("questHeaderImage");
+    expect(desktopHeaderFile).toContain("menuFireImage");
     expect(homeFile).toContain("StyleSheet.flatten([");
-    expect(homeFile).toContain("styles.desktopCategoryNavItem");
-    expect(homeFile).toContain("styles.desktopCategoryNavItemLead");
+    expect(desktopHeaderFile).toContain("styles.desktopCategoryNavItem");
+    expect(desktopHeaderFile).toContain("styles.desktopCategoryNavItemLead");
     // Desktop home renders a full-bleed header inside the `homeLayout.isDesktop`
     // branch so the header bar spans the full viewport (content stays capped at 1440).
     expect(homeFile).toContain("if (homeLayout.isDesktop) {");
@@ -113,7 +121,7 @@ describe("Expo home design parity", () => {
     // library directly. The desktop category nav uses phosphor glyph components
     // (via the adapter), not the legacy PNG menu-bar icons.
     expect(packageJson.dependencies?.["phosphor-react-native"]).toBe("^3.0.6");
-    for (const sourceFile of [homeFile, desktopHeaderFile]) {
+    for (const sourceFile of [desktopHeaderFile]) {
       expect(sourceFile).toContain('from "@mobile/theme/icons"');
       expect(sourceFile).not.toContain("lucide-react-native");
       expect(sourceFile).not.toContain('from "phosphor-react-native');
@@ -187,7 +195,7 @@ describe("Expo home design parity", () => {
     expect(localeControlFile).toContain("color: colors.ink");
     expect(localeControlFile).toContain('pickThemed(colors, "#E8FAF5", colors.primarySoft)');
     expect(localeControlFile).toContain("color: colors.primary");
-    for (const sourceFile of [homeFile, desktopHeaderFile]) {
+    for (const sourceFile of [desktopHeaderFile]) {
       expect(sourceFile).toContain("CustomerLocaleRegionControl");
       expect(sourceFile).toContain("CustomerProfileNav");
       expect(sourceFile).toContain(
@@ -197,7 +205,6 @@ describe("Expo home design parity", () => {
   });
 
   it("desktop sign-in button parity > given Next header uses a vector pill > then Expo does not render live text with mismatched font", () => {
-    const homeFile = readHomeFile();
     const desktopHeaderFile = fs.readFileSync(
       path.join(mobileRoot, "src/components/CustomerDesktopHeader.tsx"),
       "utf8"
@@ -213,7 +220,7 @@ describe("Expo home design parity", () => {
     expect(signInGraphicFile).toContain("backgroundColor: colors.primary");
     expect(signInGraphicFile).toContain("color: colors.white");
     expect(signInGraphicFile).toContain("height: 48");
-    for (const sourceFile of [homeFile, desktopHeaderFile]) {
+    for (const sourceFile of [desktopHeaderFile]) {
       expect(sourceFile).toContain("CustomerSignInNavGraphic");
       // The sign-in a11y label may be a literal or i18n-wrapped (tc("Sign in")) — both are valid.
       expect(sourceFile).toMatch(/accessibilityLabel=(?:"Sign in"|\{tc\("Sign in"\)\})/);
@@ -381,7 +388,10 @@ describe("Expo home design parity", () => {
   });
 
   it("home design parity > given dark mode > then Top Brands coupon chip adapts via pickThemed", () => {
-    const homeFile = readHomeFile();
+    const desktopHeaderFile = fs.readFileSync(
+      path.join(mobileRoot, "src/components/CustomerDesktopHeader.tsx"),
+      "utf8",
+    );
     const brandCardFile = fs.readFileSync(
       path.join(mobileRoot, "src/components/BrandCard.tsx"),
       "utf8",
@@ -393,7 +403,7 @@ describe("Expo home design parity", () => {
     expect(brandCardFile).toMatch(
       /heartCircle:\s*\{[\s\S]*?backgroundColor: pickThemed\(colors, "rgba\(255,255,255,0\.92\)", colors\.card\)/,
     );
-    expect(homeFile).toContain("backgroundColor: surfaces.localeButtonBackground");
+    expect(desktopHeaderFile).toContain("backgroundColor: surfaces.localeButtonBackground");
   });
 
   it("home design parity > given staging top brands carousel > then Expo uses a two-row grid instead of a single horizontal row", () => {
