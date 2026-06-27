@@ -423,10 +423,8 @@ describe("QuestTable management tabs", () => {
     renderQuestTable();
 
     const selector = await screen.findByTestId("quest-campaign-selector");
-    expect(await within(selector).findByText("opening for now")).toBeVisible();
-    expect(
-      within(selector).getByText("quest already closed"),
-    ).toBeInTheDocument();
+    expect(await within(selector).findByText("Active")).toBeVisible();
+    expect(within(selector).getByText("Closed")).toBeInTheDocument();
     expect(within(selector).queryByText("open")).not.toBeInTheDocument();
     expect(within(selector).queryByText("close")).not.toBeInTheDocument();
   });

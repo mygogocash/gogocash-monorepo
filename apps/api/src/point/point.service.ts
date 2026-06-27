@@ -1275,7 +1275,7 @@ export class PointService {
       end_date: createQuestDto.end_date,
       status: requireOneOf(
         createQuestDto.status,
-        ['open', 'close'] as const,
+        ['open', 'close', 'scheduled'] as const,
         'status',
       ),
       facebook_post: createQuestDto.facebook_post,
@@ -1316,7 +1316,7 @@ export class PointService {
         $set: {
           status: requireOneOf(
             closeQuestDto.status,
-            ['open', 'close'] as const,
+            ['open', 'close', 'scheduled'] as const,
             'status',
           ),
         },

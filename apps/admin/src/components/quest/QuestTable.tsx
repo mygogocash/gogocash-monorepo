@@ -23,6 +23,11 @@ import NoData from "@/components/common/NoData";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import { appLinks } from "@/lib/appLinks";
 import { formatDate } from "@/lib/dateFormat";
+import {
+  QUEST_STATUS_VALUES,
+  questStatusBadgeColor,
+  questStatusLabel,
+} from "@/lib/questStatus";
 import { usePermissions } from "@/hooks/usePermissions";
 import { fetchOffersList, offersListQueryKey } from "@/lib/query/offersQueries";
 import {
@@ -132,12 +137,6 @@ function detailTabButtonClass(active: boolean): string {
       ? "bg-white text-gray-900 shadow-theme-xs dark:bg-gray-800 dark:text-white"
       : "text-gray-500 hover:bg-white/70 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800/70 dark:hover:text-white"
   }`;
-}
-
-function questStatusLabel(status: string): string {
-  if (status === "open") return "opening for now";
-  if (status === "close" || status === "closed") return "quest already closed";
-  return status;
 }
 
 function rewardDistributionLabel(
@@ -779,7 +778,7 @@ export default function QuestTable() {
                       </div>
                       <Badge
                         size="sm"
-                        color={quest.status === "open" ? "success" : "warning"}
+                        color={questStatusBadgeColor(quest.status)}
                       >
                         {questStatusLabel(quest.status)}
                       </Badge>
@@ -888,8 +887,11 @@ export default function QuestTable() {
                   }
                   className="focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-800 focus:ring-3 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
                 >
-                  <option value="open">{questStatusLabel("open")}</option>
-                  <option value="close">{questStatusLabel("close")}</option>
+                  {QUEST_STATUS_VALUES.map((status) => (
+                    <option key={status} value={status}>
+                      {questStatusLabel(status)}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
