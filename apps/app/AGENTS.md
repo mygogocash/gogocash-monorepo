@@ -10,7 +10,7 @@ Concise guidance for AI coding agents and contributors working in `apps/app/`. *
 - **Routing:** **expo-router** ~56.2.5 (file-based, `app/`). Auth gating via `Stack.Protected` in `app/_layout.tsx`, driven by `useAuthGuardSession` (synchronous-on-first-render so the guard is correct on first paint).
 - **i18n:** `tc()` from `src/i18n/useCopy.ts` — a **text-based reverse-lookup** into the reused web ICU catalogs, falling back to the English in `src/design/webDesignParity.ts`. Render copy inline as `tc("English string")`; do not invent new keys.
 - **Design tokens:** `src/theme/colorPalettes.ts` (`lightColors` / `darkColors`) via `ThemeProvider` + `useTheme()` / `useThemeColors()` / `useThemedStyles()`; `src/theme/tokens.ts` holds `radii`, `spacing`, `typography` and a **legacy** static `colors` (= `lightColors`); icons `src/theme/icons.tsx` (phosphor adapters), motion `src/theme/motion.ts`. See [docs/dark-mode.md](./docs/dark-mode.md).
-- **Data:** fixture-driven by default, with a live-API seam: `src/account/customerAccountResource.ts` switches on `EXPO_PUBLIC_ACCOUNT_DATA_SOURCE` (`fixtures` default | `backend` | `disabled`). In **fixtures** mode, `topBrand` and `homeBanner` still fetch live admin config when `EXPO_PUBLIC_API_URL` is set (fixtures as placeholder until the query resolves; success uses `source: "backend"`). Other resources stay on fixtures. The public offer catalog is already wired live (Favorite Brands screen); auth-gated resources pend real auth. See [docs/api-integration.md](./docs/api-integration.md).
+- **Data:** `EXPO_PUBLIC_ACCOUNT_DATA_SOURCE` (`backend` default in `.env.example` + EAS `development`/`preview`; `fixtures` for offline parity; `disabled` in production EAS). `customerAccountResource.ts` routes each resource. In **fixtures** mode, `topBrand` and `homeBanner` still fetch live admin config when `EXPO_PUBLIC_API_URL` is set (fixtures placeholder until resolve; success uses `source: "backend"`). **Backend** wires directories, ranked search, shop policy/terms, missing orders, favorites, and my-offers; auth-gated writes need Firebase session. **Out of scope for backend:** Crossmint auth, Customer.io, Web3/ethers (Connect Wallet login, MiniPay SIWE, on-chain withdraw, crypto payout tab) — see `src/api/backendIntegrationScope.ts` and [docs/api-integration.md](./docs/api-integration.md).
 - **Imports:** path alias `@mobile/*` → `src/*` (`tsconfig.json`, both vitest configs).
 
 ## Where to start (by task)
@@ -83,6 +83,8 @@ When in doubt, search `apps/app/src` for an existing pattern before introducing 
 - No Next.js customer-web dark tokens exist — draft palette in-repo (`colorPalettes.ts`, `docs/dark-mode.md`).
 - Category/store grids should reuse home compact **`BrandCard` (`size="S"`)**, not bespoke per-screen card layouts.
 - Keep Expo web preview console clean on main routes — no RN Web deprecation warnings, no broken fixture logo CDN 404s.
+- Verify admin **Brands Management** against the customer app on **real API** (shared host) — admin mock mode does not persist to the customer app.
+- Do not wire **Crossmint**, **Customer.io**, or **Web3/ethers** flows under mobile `backend` mode — Firebase phone OTP + bank/PromptPay only.
 
 ## Learned Workspace Facts
 
@@ -97,4 +99,4 @@ When in doubt, search `apps/app/src` for an existing pattern before introducing 
 - Desktop home brand rails (Top Brands, Trending, Travel, Makeup): **2 rows** via **`getDesktopBrandColumnsPerRow()`**; carousel page width = **`brandSectionFrameWidth`** (not the old fixed 8-column strip). Mobile/tablet keep 3-column × 2-row sliding groups.
 - Cashback card label copy is **`Cashback upto`** (no space) — `webDesignParity.cashbackLabel` + i18n; do not revert to "Cashback up to".
 - Home desktop spacing tokens: `desktopHomeTopGap` (64), `desktopHomeStackGap` (40), `desktopFooterTopMargin` (40), `desktopFooterTopPadding` (56) — do not also gap the scroll container before the footer (that stacks empty space).
-- Optional bundle budget check: `npm --prefix apps/app run measure:bundle` (`scripts/measure-web-bundle.mjs`).
+- Admin ↔ customer E2E: admin `NEXT_PUBLIC_API_URL` must match customer `EXPO_PUBLIC_API_URL` (otherwise admin mock `/api/mock`, ids like `o1`); public `GET /offer/top-brands` omits **disabled** offers until enabled in Brands Management.

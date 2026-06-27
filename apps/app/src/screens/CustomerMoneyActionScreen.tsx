@@ -1,5 +1,5 @@
 import { Link, useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Pressable,
   StyleSheet,
@@ -22,6 +22,11 @@ import {
 } from "@mobile/theme/icons";
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
+import {
+  resolvePayoutMethodTabs,
+  type PayoutMethodTab,
+} from "@mobile/api/backendIntegrationScope";
+import { getMobileEnv } from "@mobile/config/env";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { KeyboardAwareScreen } from "@mobile/components/KeyboardAwareScreen";
 import { haptics } from "@mobile/lib/haptics";
@@ -228,6 +233,11 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
+  const payoutMethodTabs = useMemo(
+    () => resolvePayoutMethodTabs(getMobileEnv().accountDataSource),
+    [],
+  );
+  const showCryptoPayoutTab = payoutMethodTabs.includes("crypto");
   // Edit mode: the /method list links here as /method/create?id=<id>. Look the method up in the shared
   // withdraw-method fixture (display-only mock) to prefill the form + switch to "edit" copy.
   const { id: editMethodId } = useLocalSearchParams<{ id?: string }>();
@@ -247,7 +257,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
   const [balance, setBalance] = useState(3180.24);
 
   // Form states (methodCreate)
-  const [createTab, setCreateTab] = useState<"promptpay" | "bank" | "crypto">("bank");
+  const [createTab, setCreateTab] = useState<PayoutMethodTab>("bank");
   const [ppIdType, setPpIdType] = useState<"phone" | "citizen">("phone");
   const [ppCode, setPpCode] = useState("");
   const [ppThaiName, setPpThaiName] = useState("");
@@ -261,6 +271,12 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
 
   const [cryptoAddress, setCryptoAddress] = useState("");
   const [cryptoIsDefault, setCryptoIsDefault] = useState(false);
+
+  useEffect(() => {
+    if (!showCryptoPayoutTab && createTab === "crypto") {
+      setCreateTab("bank");
+    }
+  }, [createTab, showCryptoPayoutTab]);
 
   // Notifications
   const [errors, setErrors] = useState<string[]>([]);
@@ -650,16 +666,18 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                   <PhoneIcon color={createTab === "promptpay" ? colors.primaryDark : colors.muted} size={16} />
                   <Text style={[styles.tabText, createTab === "promptpay" && styles.tabTextActive]}>PromptPay</Text>
                 </Pressable>
-                <Pressable
-                  onPress={() => {
-                    setCreateTab("crypto");
-                    setFocusedField(null);
-                  }}
-                  style={[styles.tabPill, createTab === "crypto" && styles.tabPillActive]}
-                >
-                  <CryptoIcon color={createTab === "crypto" ? colors.primaryDark : colors.muted} size={16} />
-                  <Text style={[styles.tabText, createTab === "crypto" && styles.tabTextActive]}>{tc("Crypto")}</Text>
-                </Pressable>
+                {showCryptoPayoutTab ? (
+                  <Pressable
+                    onPress={() => {
+                      setCreateTab("crypto");
+                      setFocusedField(null);
+                    }}
+                    style={[styles.tabPill, createTab === "crypto" && styles.tabPillActive]}
+                  >
+                    <CryptoIcon color={createTab === "crypto" ? colors.primaryDark : colors.muted} size={16} />
+                    <Text style={[styles.tabText, createTab === "crypto" && styles.tabTextActive]}>{tc("Crypto")}</Text>
+                  </Pressable>
+                ) : null}
               </View>
 
               {/* Notifications */}

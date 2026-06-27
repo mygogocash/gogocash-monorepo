@@ -8,6 +8,7 @@ Backend API for GoGoCash affiliate cashback, points, withdrawals, admin operatio
 2. Install dependencies with `yarn install`.
 3. Run the API with `yarn start:dev`.
 4. Confirm the server at `http://localhost:8080` and Swagger at `http://localhost:8080/doc_68bf99fed9667685c1637607`.
+5. When using the admin dashboard against this local API (not mock auth), seed a superadmin: `npm run seed:local-admin -- --email you@example.com --password your-password --username you` (defaults: `admin@gogocash.co` / `1234` / `admin`; local MongoDB only unless `--force`).
 
 ## Connected Workspaces
 

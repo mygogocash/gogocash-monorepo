@@ -10,14 +10,26 @@
 
 | Piece | Status |
 | --- | --- |
-| Data-source seam (`fixtures \| backend \| disabled`) | ✅ Built and shipped (pre-existing); default `fixtures` |
+| Data-source seam (`fixtures \| backend \| disabled`) | ✅ Built and shipped; `backend` default in `.env.example` + EAS dev/preview |
 | Live catalog (public `GET /offer`) → Favorite Brands screen | ✅ **Shipped + verified against production** (commit `e645186`) |
+| Brands Management → customer surfaces (directories, top brands, search, policy, missing orders, favorites) | ✅ Wired under `backend` (PR #110) |
 | API DTOs + mapper pattern | ✅ `src/api/catalogTypes.ts` + `src/api/catalogMapper.ts` (the template for all other resources) |
-| Firebase project setup | ✅ Web app "GoGoCash Mobile" registered in `gogocash-staging`; client config in `apps/app/.env` (untracked — ask a teammate, or re-fetch from Firebase console → Project settings → Your apps) |
-| Firebase auth plumbing (SDK, phone OTP, `/auth/log-in` exchange, session mapping) | ✅ Built + unit-tested (`src/auth/firebase*.ts`), **not yet wired into the login screen** |
-| Login-screen wiring | ⛔ Pending — `CustomerAuthScreen.tsx` still uses the demo-session stub (see §5) |
-| Auth-gated resources live (profile/wallet/referral/offers/merchant) | ⛔ Pending — endpoints verified to exist; need auth + per-resource mappers |
-| Staging backend (`api-staging.gogocash.co`) | ❌ **Down** (infra-level 503 on every path, web frontend too) — needs an ops redeploy |
+| Firebase project setup | ✅ Web app "GoGoCash Mobile" registered in `gogocash-staging`; client config in `apps/app/.env` (untracked) |
+| Firebase auth plumbing (SDK, phone OTP, `/auth/log-in` exchange, session mapping) | ✅ Built + wired in `CustomerAuthScreen` when `accountDataSource=backend` |
+| Auth-gated resources live (profile/wallet/referral/offers/merchant) | ✅ Wired where mappers exist; demo session kept for `fixtures` tests |
+| **Out of scope (backend)** | ⛔ Crossmint (`/auth/sign-in`), Customer.io (server-side only), Web3/ethers (MiniPay SIWE, Connect Wallet, on-chain withdraw, crypto payout) — see `src/api/backendIntegrationScope.ts` |
+
+## 0b. Backend integration exclusions
+
+Mobile **`backend`** mode uses **Firebase phone OTP → `POST /auth/log-in` only**. Do not wire:
+
+| Area | Why excluded |
+| --- | --- |
+| **Crossmint** | Legacy `/auth/sign-in` + `CrossmintAuthGuard`; deprecated on API — use Firebase |
+| **Customer.io** | Server-side lifecycle email in `apps/api`; no mobile client integration |
+| **Web3 / ethers** | On-chain withdraw (`ethers` in API withdraw service), MiniPay SIWE (`/auth/minipay-siwe`, `/auth/siwe-nonce`), auth **Connect Wallet** button, payout-method **Crypto** tab |
+
+Helpers: `resolveAuthSocialProviders()` hides Connect Wallet on login; `resolvePayoutMethodTabs()` hides Crypto under backend. Fixtures mode keeps parity UI for offline dev.
 
 ## 1. Architecture (how data flows)
 

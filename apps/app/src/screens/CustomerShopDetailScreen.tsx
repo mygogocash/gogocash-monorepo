@@ -30,6 +30,7 @@ import { useCustomerAccountResource } from "@mobile/account/customerAccountResou
 import {
   resolveShopTerms,
   type CategoryPolicyPayload,
+  type ShopTermsViewModel,
 } from "@mobile/account/policyResource";
 import { mapMerchantOfferToShopDetail } from "@mobile/api/merchantMapper";
 import { isMerchantOfferResponse } from "@mobile/api/merchantTypes";
@@ -98,7 +99,10 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
   const shop: ShopDetail = isMerchantOfferResponse(merchantResource.data)
     ? mapMerchantOfferToShopDetail(merchantResource.data, fixtureShop)
     : fixtureShop;
-  const policyResource = useCustomerAccountResource<CategoryPolicyPayload | null>({
+  const policyResource = useCustomerAccountResource<
+    CategoryPolicyPayload | null,
+    CategoryPolicyPayload
+  >({
     enabled: Boolean(shop.policyCategoryId) && merchantResource.source === "backend",
     fixtureData: null,
     merchantId: shop.policyCategoryId ?? "policy-unset",
@@ -425,7 +429,7 @@ function ShopDealsEmptyState({ shop }: { shop: ShopDetail }) {
   );
 }
 
-function ShopTermsPanel({ terms }: { terms: ShopDetail["terms"] }) {
+function ShopTermsPanel({ terms }: { terms: ShopTermsViewModel }) {
   const styles = useThemedStyles(createShopDetailScreenStyles);
   const { colors } = useTheme();
   return (

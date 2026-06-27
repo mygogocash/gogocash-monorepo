@@ -20,7 +20,18 @@ export type CompactBrandLogoOfferCardProps = {
   readonly tint: string;
 };
 
-export type HomeSearchPanelItem = (typeof webHomeSearchPopularPanel.items)[number];
+type FixtureHomeSearchPanelItem = (typeof webHomeSearchPopularPanel.items)[number];
+/** Widened so backend search matches share the same row shape as fixtures. */
+export type HomeSearchPanelItem = Omit<
+  FixtureHomeSearchPanelItem,
+  "brand" | "cashback" | "logoBackground" | "logoText" | "logoTextColor"
+> & {
+  brand: string;
+  cashback: string;
+  logoBackground: string;
+  logoText: string;
+  logoTextColor: string;
+};
 
 // Widened to TopBrandCard so backend-resolved cards (non-literal strings) and the
 // `as const` fixture both satisfy it.

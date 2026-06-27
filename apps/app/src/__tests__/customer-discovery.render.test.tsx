@@ -2,6 +2,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createElement } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -16,6 +17,17 @@ vi.mock("expo-localization", () => ({
 
 import { CustomerDiscoveryScreen } from "@mobile/screens/CustomerDiscoveryScreen";
 import { readDiscoverySources } from "../test-support/discoverySource";
+
+function renderDiscovery(routeId: "brand" | "category" | "discover" | "shops") {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      createElement(CustomerDiscoveryScreen, { routeId }),
+    ),
+  );
+}
 
 // Wave B (B4) per-screen UX adoption for the discovery DIRECTORY (categories, brand/shop/
 // product cards). RENDER suite: it MOUNTS each directory variant (react-native ->
@@ -47,23 +59,19 @@ const discoverySource = readDiscoverySources(
 
 describe("CustomerDiscoveryScreen (render)", () => {
   it("mounts the brand directory without throwing", () => {
-    expect(() => render(createElement(CustomerDiscoveryScreen, { routeId: "brand" }))).not.toThrow();
+    expect(() => renderDiscovery("brand")).not.toThrow();
   });
 
   it("mounts the category directory without throwing", () => {
-    expect(() =>
-      render(createElement(CustomerDiscoveryScreen, { routeId: "category" }))
-    ).not.toThrow();
+    expect(() => renderDiscovery("category")).not.toThrow();
   });
 
   it("mounts the product discovery directory without throwing", () => {
-    expect(() =>
-      render(createElement(CustomerDiscoveryScreen, { routeId: "discover" }))
-    ).not.toThrow();
+    expect(() => renderDiscovery("discover")).not.toThrow();
   });
 
   it("mounts the shop directory without throwing", () => {
-    expect(() => render(createElement(CustomerDiscoveryScreen, { routeId: "shops" }))).not.toThrow();
+    expect(() => renderDiscovery("shops")).not.toThrow();
   });
 });
 
