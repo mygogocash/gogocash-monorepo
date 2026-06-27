@@ -21,6 +21,7 @@ import {
   getOfferDisplayName,
 } from "@/lib/offerDisplay";
 import { parseAmount, validateOptionalAmount } from "@/lib/formValidation";
+import { buildCouponSubmitPayload } from "@/lib/couponSubmitPayload";
 import { isDirty } from "@/lib/isDirty";
 import { toDateInputValue } from "@/lib/dateFormat";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
@@ -306,77 +307,34 @@ const FormCoupon = ({
       return;
     }
 
-    const formData = new FormData();
-    formData.append("name", form.name);
-    formData.append("description", form.description);
-    formData.append("code", form.code_enabled ? form.code : "");
-    formData.append("code_enabled", String(Boolean(form.code_enabled)));
-    formData.append(
-      "usage_per_user",
-      form.one_time_use_enabled ? "1" : String(usagePerUser),
-    );
-    formData.append(
-      "one_time_use_enabled",
-      String(Boolean(form.one_time_use_enabled)),
-    );
-    formData.append("offer_id", form.offer_id);
-    formData.append("start_date", form.start_date);
-    formData.append("end_date", form.end_date);
-    formData.append("start_time", form.start_time || "");
-    formData.append("end_time", form.end_time || "");
-    formData.append("eligibility", form.eligibility);
-    formData.append(
-      "min_spend",
-      form.min_spend_enabled ? form.min_spend : "",
-    );
-    formData.append(
-      "min_spend_enabled",
-      String(Boolean(form.min_spend_enabled)),
-    );
-    formData.append("min_spend_currency", form.min_spend_currency || "THB");
-    formData.append(
-      "max_cap",
-      form.max_cap_enabled ? form.max_cap || "" : "",
-    );
-    formData.append(
-      "max_cap_enabled",
-      String(Boolean(form.max_cap_enabled)),
-    );
-    formData.append("max_cap_currency", form.max_cap_currency || "THB");
-    formData.append("quantity", String(quantity));
-    formData.append(
-      "unlimited_amount_enabled",
-      String(Boolean(form.unlimited_amount_enabled)),
-    );
-    formData.append(
-      "available_code_amount",
-      form.unlimited_amount_enabled ? "" : String(quantity),
-    );
-    formData.append("discount", String(discount));
-    formData.append("discount_type", form.discount_type || "percent");
-    formData.append("discount_currency", form.discount_currency || "THB");
-    formData.append("id", form.id || "");
-    formData.append("disabled", form.disabled?.toString() || "false");
-    formData.append("link", form.link || "");
+    const payload = buildCouponSubmitPayload(form, { discount, quantity });
 
     setIsLoading(true);
     client
-      .post(`/offer/update-coupon`, formData, {
+      .post(`/offer/update-coupon`, payload, {
         headers: {
           Authorization: `Bearer ${session?.accessToken}`,
-          //   "Content-Type": "multipart/form-data",
         },
       })
       .then(() => {
         fetchData();
         closeModal();
         setIsLoading(false);
-        toast.success("updated successfully");
+        toast.success("Coupon saved successfully");
       })
       .catch((err) => {
         setIsLoading(false);
-        devError("Failed to update coupon:", err);
-        toast.error("updated error");
+        devError("Failed to save coupon:", err);
+        const message =
+          err?.response?.data?.message ??
+          (Array.isArray(err?.response?.data?.message)
+            ? err.response.data.message.join(", ")
+            : null);
+        toast.error(
+          typeof message === "string" && message.trim()
+            ? message
+            : "Could not save coupon. Please try again.",
+        );
       });
   };
 

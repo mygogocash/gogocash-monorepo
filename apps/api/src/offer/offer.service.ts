@@ -620,10 +620,13 @@ export class OfferService implements OnApplicationBootstrap {
       quantity,
       disabled,
       name: body.name,
-      code: body.code,
-      description: body.description,
+      code: body.code ?? '',
+      description: body.description ?? '',
       start_date: body.start_date,
       end_date: body.end_date,
+      eligibility: body.eligibility ?? '',
+      min_spend: body.min_spend ?? '',
+      link: body.link ?? '',
     };
     if (body?.id) {
       return this.couponModel.findByIdAndUpdate(
