@@ -236,25 +236,6 @@ export default function MissingOrdersManagement() {
                   Approve
                 </Button>
                 <SecondaryButton
-                  onClick={() => void rejectClaim.mutateAsync(claimId!)}
-                >
-                  Reject
-                </SecondaryButton>
-              </>
-            ) : null}
-            {detailQ.data &&
-            (detailQ.data.status === "pending" ||
-              detailQ.data.status === "under_review") ? (
-              <>
-                <Button
-                  size="sm"
-                  type="button"
-                  onClick={() => void approveClaim.mutateAsync(claimId!)}
-                >
-                  Approve
-                </Button>
-                <SecondaryButton
-                  size="sm"
                   type="button"
                   onClick={() => void rejectClaim.mutateAsync(claimId!)}
                 >

@@ -88,13 +88,21 @@ describe('OfferService', () => {
     missionOrderModel.countDocuments = jest.fn().mockResolvedValue(0);
     questModel = { findOne: jest.fn().mockReturnValue(makeQuery(null)) };
     featuredSearchModel = {
-      find: jest.fn().mockReturnValue({ sort: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue([]) }) }),
+      find: jest.fn().mockReturnValue({
+        sort: jest
+          .fn()
+          .mockReturnValue({ lean: jest.fn().mockResolvedValue([]) }),
+      }),
     };
     searchBoostModel = {
-      find: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue([]) }),
+      find: jest
+        .fn()
+        .mockReturnValue({ lean: jest.fn().mockResolvedValue([]) }),
     };
     searchBlacklistModel = {
-      find: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue([]) }),
+      find: jest
+        .fn()
+        .mockReturnValue({ lean: jest.fn().mockResolvedValue([]) }),
     };
     googleDriveService = { uploadFile: jest.fn() };
 
@@ -191,10 +199,14 @@ describe('OfferService', () => {
         lean: jest.fn().mockResolvedValue([]),
       });
       searchBoostModel.find.mockReturnValue({
-        lean: jest.fn().mockResolvedValue([{ offer_id: 'offer-b', boost_weight: 5 }]),
+        lean: jest
+          .fn()
+          .mockResolvedValue([{ offer_id: 'offer-b', boost_weight: 5 }]),
       });
       featuredSearchModel.find.mockReturnValue({
-        sort: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue([]) }),
+        sort: jest
+          .fn()
+          .mockReturnValue({ lean: jest.fn().mockResolvedValue([]) }),
       });
       offerModel.find.mockReturnValue(
         makeQuery([
