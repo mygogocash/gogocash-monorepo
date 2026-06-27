@@ -40,7 +40,7 @@ export function MobileTabletHomeHeader({
           <Text style={styles.mobileTabletHeaderGreeting}>
             {greetingName ? `Hi ${greetingName}!` : tc("Hi!")}
           </Text>
-          <Text style={styles.mobileTabletHeaderSubcopy}>{tc("Earn cashback with GoLink")}</Text>
+          <Text style={styles.mobileTabletHeaderSubcopy}>{tc("Earn cashback with GoGoLink")}</Text>
         </View>
         <View style={styles.mobileTabletHeaderActions}>
           <MotionPressable
