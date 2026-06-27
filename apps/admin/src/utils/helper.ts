@@ -39,6 +39,14 @@ export const pathImage = (
     return trimmed;
   }
 
+  if (/^[A-Za-z0-9_-]{10,}$/.test(trimmed)) {
+    return `https://drive.google.com/uc?export=view&id=${encodeURIComponent(trimmed)}`;
+  }
+
+  if (trimmed.startsWith("uploads/")) {
+    return trimmed;
+  }
+
   if (variant === "banner") {
     return "https://placehold.co/640x200.png/e2e8f0/64748b?text=Category+banner";
   }

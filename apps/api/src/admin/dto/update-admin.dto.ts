@@ -127,16 +127,11 @@ export class UpdateUserDto {
   mobile: string;
 }
 
-export class UpdateBannerHomeDto {
+export class UpdateBannerHomeBodyDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
   link_1?: string;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsString()
-  image_1?: string | File | null;
 
   @ApiProperty({ required: false })
   @IsOptional()
@@ -146,17 +141,7 @@ export class UpdateBannerHomeDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
-  image_2?: string | File | null;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsString()
   link_3?: string;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsString()
-  image_3?: string | File | null;
 
   @ApiProperty({ required: false })
   @IsOptional()
@@ -166,17 +151,7 @@ export class UpdateBannerHomeDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
-  image_4?: string | File | null;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsString()
   link_5?: string;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsString()
-  image_5?: string | File | null;
 
   @ApiProperty({ required: false })
   @IsOptional()
@@ -271,6 +246,15 @@ export class UpdateBannerHomeDto {
   @IsOptional()
   clear_image_5?: boolean | string;
 }
+
+/** Merged multipart payload (body fields + uploaded files). Not validated on @Body(). */
+export type UpdateBannerHomeDto = UpdateBannerHomeBodyDto & {
+  image_1?: string | File | null;
+  image_2?: string | File | null;
+  image_3?: string | File | null;
+  image_4?: string | File | null;
+  image_5?: string | File | null;
+};
 
 /**
  * Payload for approving a pending offer. No body fields are required today;

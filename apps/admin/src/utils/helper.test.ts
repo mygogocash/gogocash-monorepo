@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatPrice } from "@/utils/helper";
+import { formatPrice, pathImage } from "@/utils/helper";
 
 describe("formatPrice", () => {
   it("formats a positive amount with 2 decimals", () => {
@@ -16,5 +16,19 @@ describe("formatPrice", () => {
 
   it("returns N/A for NaN", () => {
     expect(formatPrice(Number("abc"))).toBe("N/A");
+  });
+});
+
+describe("pathImage", () => {
+  it("given a Google Drive file id > then returns a viewable URL", () => {
+    expect(pathImage("1wqlSrCi2LQ2Q6NohLnWbtpvbvO17_yKh")).toBe(
+      "https://drive.google.com/uc?export=view&id=1wqlSrCi2LQ2Q6NohLnWbtpvbvO17_yKh",
+    );
+  });
+
+  it("given an https URL > then returns it unchanged", () => {
+    expect(pathImage("https://cdn.example/banner.png")).toBe(
+      "https://cdn.example/banner.png",
+    );
   });
 });

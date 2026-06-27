@@ -26,6 +26,7 @@ import {
   ApproveOfferDto,
   RejectOfferDto,
   UpdateAdminDto,
+  UpdateBannerHomeBodyDto,
   UpdateBannerHomeDto,
   UpdateFeeRateDto,
   UpdateOfferAdminDto,
@@ -554,7 +555,7 @@ export class AdminController {
   @UseGuards(AuthAdminGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
-  @ApiBody({ type: UpdateBannerHomeDto })
+  @ApiBody({ type: UpdateBannerHomeBodyDto })
   @Roles('support')
   @Post('banner-home')
   updateBannerHome(
@@ -566,7 +567,7 @@ export class AdminController {
       image_4?: Express.Multer.File[];
       image_5?: Express.Multer.File[];
     },
-    @Body() body: UpdateBannerHomeDto,
+    @Body() body: UpdateBannerHomeBodyDto,
   ) {
     const filesDto: UpdateBannerHomeDto = {
       image_1: files?.image_1 ? (files?.image_1?.[0] as any) : null,
