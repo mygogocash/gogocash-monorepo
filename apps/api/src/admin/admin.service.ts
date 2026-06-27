@@ -564,8 +564,27 @@ export class AdminService {
     const current = data as Record<string, any>;
 
     const folderId = '16AmK8RlgEYa16LbPYEgtGBL4U1ouDhiS';
+    const clearImageFlags = [1, 2, 3, 4, 5].map((slot) =>
+      Boolean(
+        updateData[`clear_image_${slot}` as keyof UpdateBannerHomeDto],
+      ),
+    );
+
+    const maybeClearImage = async (slot: number, existingId: unknown) => {
+      if (!clearImageFlags[slot - 1] || !existingId) return;
+      await this.googleDriveService.deleteFile(String(existingId));
+    };
+
+    await Promise.all([
+      maybeClearImage(1, current.image_1),
+      maybeClearImage(2, current.image_2),
+      maybeClearImage(3, current.image_3),
+      maybeClearImage(4, current.image_4),
+      maybeClearImage(5, current.image_5),
+    ]);
+
     let file1;
-    if (updateData.image_1) {
+    if (updateData.image_1 && !clearImageFlags[0]) {
       file1 = await this.googleDriveService.uploadFile(
         updateData.image_1 as unknown as Express.Multer.File,
         folderId,
@@ -575,7 +594,7 @@ export class AdminService {
       }
     }
     let file2;
-    if (updateData.image_2) {
+    if (updateData.image_2 && !clearImageFlags[1]) {
       file2 = await this.googleDriveService.uploadFile(
         updateData.image_2 as unknown as Express.Multer.File,
         folderId,
@@ -586,7 +605,7 @@ export class AdminService {
     }
 
     let file3;
-    if (updateData.image_3) {
+    if (updateData.image_3 && !clearImageFlags[2]) {
       file3 = await this.googleDriveService.uploadFile(
         updateData.image_3 as unknown as Express.Multer.File,
         folderId,
@@ -596,7 +615,7 @@ export class AdminService {
       }
     }
     let file4;
-    if (updateData.image_4) {
+    if (updateData.image_4 && !clearImageFlags[3]) {
       file4 = await this.googleDriveService.uploadFile(
         updateData.image_4 as unknown as Express.Multer.File,
         folderId,
@@ -607,7 +626,7 @@ export class AdminService {
     }
 
     let file5;
-    if (updateData.image_5) {
+    if (updateData.image_5 && !clearImageFlags[4]) {
       file5 = await this.googleDriveService.uploadFile(
         updateData.image_5 as unknown as Express.Multer.File,
         folderId,
@@ -625,11 +644,11 @@ export class AdminService {
     };
 
     const payload: Record<string, any> = {
-      image_1: file1 ? file1.id : current.image_1,
-      image_2: file2 ? file2.id : current.image_2,
-      image_3: file3 ? file3.id : current.image_3,
-      image_4: file4 ? file4.id : current.image_4,
-      image_5: file5 ? file5.id : current.image_5,
+      image_1: clearImageFlags[0] ? null : file1 ? file1.id : current.image_1,
+      image_2: clearImageFlags[1] ? null : file2 ? file2.id : current.image_2,
+      image_3: clearImageFlags[2] ? null : file3 ? file3.id : current.image_3,
+      image_4: clearImageFlags[3] ? null : file4 ? file4.id : current.image_4,
+      image_5: clearImageFlags[4] ? null : file5 ? file5.id : current.image_5,
       link_1: resolveSlotLink(updateData.link_1, current.link_1),
       link_2: resolveSlotLink(updateData.link_2, current.link_2),
       link_3: resolveSlotLink(updateData.link_3, current.link_3),

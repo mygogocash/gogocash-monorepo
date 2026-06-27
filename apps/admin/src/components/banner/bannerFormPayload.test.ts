@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { BannerRequestForm } from "@/types/banner";
 import {
+  buildBannerClearSlotFormData,
   buildBannerSlotFormData,
   buildBannerSlotFormState,
 } from "./bannerFormPayload";
@@ -116,5 +117,18 @@ describe("buildBannerSlotFormData", () => {
     expect(payload?.get("end_date_3")).toBe("2026-07-31");
     expect(payload?.has("link_1")).toBe(false);
     expect(payload?.has("end_date_1")).toBe(false);
+  });
+});
+
+describe("buildBannerClearSlotFormData", () => {
+  it("given slot 2 > then submits empty link, disabled, and clear_image flag", () => {
+    const payload = buildBannerClearSlotFormData(2);
+
+    expect(payload.get("link_2")).toBe("");
+    expect(payload.get("enabled_2")).toBe("false");
+    expect(payload.get("start_date_2")).toBe("");
+    expect(payload.get("end_date_2")).toBe("");
+    expect(payload.get("clear_image_2")).toBe("true");
+    expect(payload.has("link_1")).toBe(false);
   });
 });

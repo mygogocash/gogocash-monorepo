@@ -126,3 +126,16 @@ export function buildBannerSlotFormData(
 
   return formData;
 }
+
+/** Empty a single slot (image, link, schedule) without touching other slots. */
+export function buildBannerClearSlotFormData(
+  slot: BannerSlotId,
+): FormData {
+  const formData = new FormData();
+  formData.append(`link_${slot}`, "");
+  formData.append(`enabled_${slot}`, "false");
+  formData.append(`start_date_${slot}`, "");
+  formData.append(`end_date_${slot}`, "");
+  formData.append(`clear_image_${slot}`, "true");
+  return formData;
+}

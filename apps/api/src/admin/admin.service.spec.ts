@@ -644,6 +644,35 @@ describe('AdminService', () => {
       const [, update] = bannerModel.findOneAndUpdate.mock.calls[0];
       expect(update.$set.link_1).toBe('');
     });
+
+    it('updateBannerHome > given clear_image for a slot > then removes the stored image id', async () => {
+      bannerModel.findOne.mockReturnValue(
+        makeQuery({
+          _id: 'banner-doc',
+          image_2: 'drive-file-2',
+          link_2: '/promo',
+        }),
+      );
+      bannerModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({ _id: 'banner-doc' }),
+      );
+
+      await service.updateBannerHome({
+        clear_image_2: true,
+        link_2: '',
+        enabled_2: false,
+        image_1: null,
+        image_2: null,
+        image_3: null,
+        image_4: null,
+        image_5: null,
+      } as never);
+
+      expect(googleDriveService.deleteFile).toHaveBeenCalledWith('drive-file-2');
+      const [, update] = bannerModel.findOneAndUpdate.mock.calls[0];
+      expect(update.$set.image_2).toBeNull();
+      expect(update.$set.link_2).toBe('');
+    });
   });
 
   describe('updateUser', () => {

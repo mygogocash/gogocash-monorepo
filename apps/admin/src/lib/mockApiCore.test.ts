@@ -75,6 +75,26 @@ describe("banner slot updates", () => {
       },
     });
   });
+
+  it("clears a slot image when clear_image flag is sent", async () => {
+    await call("POST", ["admin", "banner-home"], {
+      body: {
+        link_2: "",
+        enabled_2: false,
+        start_date_2: "",
+        end_date_2: "",
+        clear_image_2: true,
+      },
+    });
+
+    const updated = (await call("GET", ["admin", "banner-home"])).body as Record<
+      string,
+      unknown
+    >;
+    expect(updated.image_2).toBeNull();
+    expect(updated.link_2).toBe("");
+    expect(updated.enabled_2).toBe(false);
+  });
 });
 
 describe("top-brands config", () => {
