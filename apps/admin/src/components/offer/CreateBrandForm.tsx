@@ -9,6 +9,7 @@ import { AFFILIATE_NETWORKS } from "@/data/affiliateNetworks";
 import { DEEPLINK_STORE_OPTIONS } from "@/data/deeplinkStores";
 import toast from "react-hot-toast";
 import { useDataSession } from "@/hooks/useDataSession";
+import { usePermissions } from "@/hooks/usePermissions";
 import { DEFAULT_MOCK_ACCESS_TOKEN } from "@/lib/authTokens";
 import { defaultLookupFromBrandAndCountry } from "@/lib/createBrandLookupSlug";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
@@ -143,6 +144,8 @@ export default function CreateBrandForm() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const session = useDataSession();
+  const { can } = usePermissions();
+  const canManageBrands = can("brands:manage");
   const accessToken = session.accessToken ?? DEFAULT_MOCK_ACCESS_TOKEN;
 
   const [brandName, setBrandName] = useState("");
@@ -352,6 +355,7 @@ export default function CreateBrandForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canManageBrands) return;
     const name = brandName.trim();
     const link = trackingLink.trim();
     if (!name) {
@@ -492,7 +496,14 @@ export default function CreateBrandForm() {
         store used in tracking links (same as offer edit / Commission
         Management).
       </p>
+      {!canManageBrands ? (
+        <p className="mt-4 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+          You do not have permission to create brands. Ask an admin with
+          Brands Management access to create or update offers.
+        </p>
+      ) : null}
       <form onSubmit={handleSubmit} className="mt-6 max-w-4xl space-y-4">
+        <fieldset disabled={!canManageBrands} className="space-y-4 disabled:opacity-60">
         <FormSectionJumpNav
           links={CREATE_BRAND_JUMP_LINKS.filter(
             (link) =>
@@ -826,7 +837,7 @@ export default function CreateBrandForm() {
               label="Commission (%)"
               description={
                 commissionEntryMode === "auto"
-                  ? "Uses the partner rate for this network after the offer exists: open the new offer and use “Fetch from partner & apply −30%”, or switch to Manual to type the user-facing % now."
+                  ? "Auto applying with 30% fee: partner rate is fetched after the offer exists (open the new offer and sync), or switch to Manual to type the user-facing % now."
                   : "Maximum % offered to users. Enter the value already reduced by 30% from the affiliate partner rate."
               }
             />
@@ -1491,6 +1502,7 @@ export default function CreateBrandForm() {
             />
           </div>
         </section>
+        </fieldset>
 
         <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
           <label
@@ -1522,7 +1534,7 @@ export default function CreateBrandForm() {
           </Link>
           <button
             type="submit"
-            disabled={submitting || !formDirty}
+            disabled={submitting || !formDirty || !canManageBrands}
             className="bg-brand-500 hover:bg-brand-600 dark:bg-brand-600 dark:hover:bg-brand-500 rounded-full px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50"
           >
             {submitting

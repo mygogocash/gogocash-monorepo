@@ -59,7 +59,7 @@ export class OfferController {
     ]),
   )
   @UseGuards(AuthAdminGuard, RolesGuard)
-  @Roles('superadmin')
+  @Roles('approver')
   @ApiSecurity('access-token')
   @ApiBearerAuth()
   @Post()

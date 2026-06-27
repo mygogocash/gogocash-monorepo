@@ -72,7 +72,7 @@ export const navItems: NavItem[] = [
     icon: <ShootingStarIcon />,
     name: "Brands Management",
     subItems: [
-      { name: "Create brand", path: "/brands/create-brand", pro: false, permission: "brands:view" },
+      { name: "Create brand", path: "/brands/create-brand", pro: false, permission: "brands:manage" },
       { name: "Brands", path: "/brands", pro: false, permission: "brands:view" },
       { name: "Commission Management", path: "/brands?tab=commission", pro: false, permission: "brands:view" },
       { name: "Policy Management", path: "/brands?tab=policy", pro: false, permission: "brands:view" },
