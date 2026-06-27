@@ -7,6 +7,11 @@ import {
   formatSubmitted,
 } from "@/components/offer/PendingOfferReviewContent";
 import { getMockPendingOffers, type PendingOfferRow } from "@/data/mockPendingOffers";
+import {
+  loadDismissedNotificationKeys,
+  mergeDismissedNotificationKeys,
+  saveDismissedNotificationKeys,
+} from "@/lib/notificationInboxStorage";
 import NoData from "@/components/common/NoData";
 import { Dropdown } from "../ui/dropdown/Dropdown";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
@@ -43,16 +48,21 @@ function NotificationItem({
   time,
   read,
   onClose,
+  onMarkRead,
 }: {
   user: string;
   amount: string;
   time: string;
   read?: boolean;
   onClose: () => void;
+  onMarkRead: () => void;
 }) {
   return (
     <DropdownItem
-      onItemClick={onClose}
+      onItemClick={() => {
+        onMarkRead();
+        onClose();
+      }}
       className={`flex gap-3 rounded-lg border-b border-gray-100 p-3 px-4.5 py-3 hover:bg-gray-100 dark:border-gray-800 dark:hover:bg-white/5 ${
         read ? "opacity-80" : ""
       }`}
@@ -91,10 +101,12 @@ function PendingOfferNotificationItem({
   offer,
   read,
   onClose,
+  onMarkRead,
 }: {
   offer: PendingOfferRow;
   read?: boolean;
   onClose: () => void;
+  onMarkRead: () => void;
 }) {
   const title = offer.offer_name_display?.trim() || offer.offer_name;
   const partner = displayAffiliatePartner(offer);
@@ -103,7 +115,10 @@ function PendingOfferNotificationItem({
     <DropdownItem
       tag="a"
       href={`/brands/pending/${offer._id}`}
-      onItemClick={onClose}
+      onItemClick={() => {
+        onMarkRead();
+        onClose();
+      }}
       className={`flex gap-3 rounded-lg border-b border-gray-100 p-3 px-4.5 py-3 hover:bg-gray-100 dark:border-gray-800 dark:hover:bg-white/5 ${
         read ? "opacity-80" : ""
       }`}
@@ -147,12 +162,15 @@ type NotificationInboxFilter = "unread" | "all";
 
 export default function NotificationDropdown() {
   const [isOpen, setIsOpen] = useState(false);
-  const [notifying, setNotifying] = useState(true);
-  /** Dismissed from the inbox (read / cleared). */
+  /** Dismissed from the inbox (read / cleared), persisted per browser. */
   const [dismissedKeys, setDismissedKeys] = useState<string[]>([]);
   const [inboxFilter, setInboxFilter] = useState<NotificationInboxFilter>("unread");
   /** Match SSR; sync session pending queue after mount. */
   const [pendingOffers, setPendingOffers] = useState<PendingOfferRow[]>([]);
+
+  useEffect(() => {
+    queueMicrotask(() => setDismissedKeys(loadDismissedNotificationKeys()));
+  }, []);
 
   useEffect(() => {
     const load = () => setPendingOffers(getMockPendingOffers());
@@ -160,6 +178,15 @@ export default function NotificationDropdown() {
     window.addEventListener("focus", load);
     return () => window.removeEventListener("focus", load);
   }, []);
+
+  const markKeysRead = (keys: string[]) => {
+    if (keys.length === 0) return;
+    setDismissedKeys((prev) => {
+      const next = mergeDismissedNotificationKeys(prev, keys);
+      saveDismissedNotificationKeys(next);
+      return next;
+    });
+  };
 
   const dismissed = useMemo(() => new Set(dismissedKeys), [dismissedKeys]);
   const unreadWithdrawals = MOCK_WITHDRAWAL_NOTIFICATIONS.filter(
@@ -169,7 +196,7 @@ export default function NotificationDropdown() {
   const hasPendingOffers = pendingOffers.length > 0;
   const unreadTotal = unreadWithdrawals.length + unreadOffers.length;
   const hasUnreadInPanel = unreadTotal > 0;
-  const showDot = notifying && hasUnreadInPanel;
+  const showDot = hasUnreadInPanel;
 
   const withdrawalRows =
     inboxFilter === "unread" ? unreadWithdrawals : MOCK_WITHDRAWAL_NOTIFICATIONS;
@@ -184,19 +211,15 @@ export default function NotificationDropdown() {
   }
 
   function markAllRead() {
-    const keys = [
+    markKeysRead([
       ...unreadWithdrawals.map((n) => notificationKey("w", n.id)),
       ...unreadOffers.map((o) => notificationKey("o", o._id)),
-    ];
-    if (keys.length === 0) return;
-    setDismissedKeys((prev) => Array.from(new Set([...prev, ...keys])));
-    setNotifying(false);
+    ]);
   }
 
   const handleClick = () => {
     setPendingOffers(getMockPendingOffers());
     toggleDropdown();
-    setNotifying(false);
   };
 
   return (
@@ -319,7 +342,8 @@ export default function NotificationDropdown() {
             {withdrawalRows.length > 0 ? (
               <ul className="flex flex-col">
                 {withdrawalRows.map((n) => {
-                  const read = dismissed.has(notificationKey("w", n.id));
+                  const key = notificationKey("w", n.id);
+                  const read = dismissed.has(key);
                   return (
                     <li key={n.id}>
                       <NotificationItem
@@ -328,6 +352,7 @@ export default function NotificationDropdown() {
                         time={n.time}
                         read={read}
                         onClose={closeDropdown}
+                        onMarkRead={() => markKeysRead([key])}
                       />
                     </li>
                   );
@@ -345,10 +370,16 @@ export default function NotificationDropdown() {
                 </p>
                 <ul className="flex flex-col">
                   {offerRows.map((offer) => {
-                    const read = dismissed.has(notificationKey("o", offer._id));
+                    const key = notificationKey("o", offer._id);
+                    const read = dismissed.has(key);
                     return (
                       <li key={offer._id}>
-                        <PendingOfferNotificationItem offer={offer} read={read} onClose={closeDropdown} />
+                        <PendingOfferNotificationItem
+                          offer={offer}
+                          read={read}
+                          onClose={closeDropdown}
+                          onMarkRead={() => markKeysRead([key])}
+                        />
                       </li>
                     );
                   })}
