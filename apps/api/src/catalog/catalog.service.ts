@@ -24,6 +24,7 @@ import {
   normalizeSlugSegment,
   requireObjectId,
   requireOneOf,
+  requireTrimmedString,
 } from 'src/common/mongo-query';
 import { CatalogBanner } from './schemas/catalog-banner.schema';
 import type { CatalogBannerPlacement } from './schemas/catalog-banner.schema';
@@ -165,12 +166,7 @@ export class CatalogService {
     const updated = await this.bannerModel
       .findByIdAndUpdate(
         requireObjectId(id),
-        mongoSetUpdate({
-          ...dto,
-          updated_by: actor?.email || actor?.userId,
-          starts_at: dto.starts_at ? new Date(dto.starts_at) : undefined,
-          ends_at: dto.ends_at ? new Date(dto.ends_at) : undefined,
-        }),
+        mongoSetUpdate(this.buildBannerSetFields(dto, actor)),
         { new: true },
       )
       .lean()
@@ -230,24 +226,12 @@ export class CatalogService {
     if (dto.slug) await this.assertSlugAvailable(dto.slug, id);
     this.assertValidSchedule(dto.scheduled_start_at, dto.scheduled_end_at);
 
-    const patch: Record<string, unknown> = {
-      ...dto,
-      updated_by: actor?.email || actor?.userId,
-    };
-    if (dto.brand_id) patch.brand_id = new Types.ObjectId(dto.brand_id);
-    if (dto.offer_id) patch.offer_id = new Types.ObjectId(dto.offer_id);
-    if (dto.slug) patch.slug = this.normalizeSlug(dto.slug);
-    if (dto.currency) patch.currency = dto.currency.toUpperCase();
-    if (dto.status === 'published') patch.published_at = new Date();
-    if (dto.scheduled_start_at)
-      patch.scheduled_start_at = new Date(dto.scheduled_start_at);
-    if (dto.scheduled_end_at)
-      patch.scheduled_end_at = new Date(dto.scheduled_end_at);
-
     const updated = await this.productModel
-      .findByIdAndUpdate(requireObjectId(id), mongoSetUpdate(patch), {
-        new: true,
-      })
+      .findByIdAndUpdate(
+        requireObjectId(id),
+        mongoSetUpdate(this.buildProductSetFields(dto, actor)),
+        { new: true },
+      )
       .lean()
       .exec();
     if (!updated) throw new NotFoundException('Product not found');
@@ -297,14 +281,7 @@ export class CatalogService {
     const updated = await this.brandModel
       .findByIdAndUpdate(
         requireObjectId(brandId),
-        mongoSetUpdate({
-          ...dto,
-          shop_slug: dto.shop_slug
-            ? this.normalizeSlug(dto.shop_slug)
-            : dto.shop_slug,
-          fulfillment_owner: dto.fulfillment_owner || 'gogocash',
-          updated_by: actor?.email || actor?.userId,
-        }),
+        mongoSetUpdate(this.buildShopSetFields(dto, actor)),
         { new: true },
       )
       .lean()
@@ -391,5 +368,153 @@ export class CatalogService {
       throw new BadRequestException('Invalid banner placement');
     }
     return value as CatalogBannerPlacement;
+  }
+
+  private buildBannerSetFields(
+    dto: UpdateCatalogBannerDto,
+    actor?: Actor,
+  ): Record<string, unknown> {
+    const fields: Record<string, unknown> = {
+      updated_by: actor?.email || actor?.userId,
+    };
+    if (dto.title !== undefined) {
+      fields.title = requireTrimmedString(dto.title, 140, 'title');
+    }
+    if (dto.subtitle !== undefined) {
+      fields.subtitle = requireTrimmedString(dto.subtitle, 280, 'subtitle');
+    }
+    if (dto.image_url !== undefined) {
+      fields.image_url = requireTrimmedString(dto.image_url, 500, 'image url');
+    }
+    if (dto.image_alt !== undefined) {
+      fields.image_alt = requireTrimmedString(dto.image_alt, 160, 'image alt');
+    }
+    if (dto.placement !== undefined) {
+      fields.placement = this.toBannerPlacement(dto.placement);
+    }
+    if (dto.locale !== undefined) {
+      fields.locale = requireTrimmedString(dto.locale, 40, 'locale');
+    }
+    if (dto.device !== undefined) fields.device = dto.device;
+    if (dto.cta_type !== undefined) fields.cta_type = dto.cta_type;
+    if (dto.cta_value !== undefined) {
+      fields.cta_value = requireTrimmedString(dto.cta_value, 500, 'cta value');
+    }
+    if (dto.priority !== undefined) fields.priority = dto.priority;
+    if (dto.status !== undefined) fields.status = dto.status;
+    if (dto.starts_at !== undefined) {
+      fields.starts_at = new Date(dto.starts_at);
+    }
+    if (dto.ends_at !== undefined) {
+      fields.ends_at = new Date(dto.ends_at);
+    }
+    return fields;
+  }
+
+  private buildProductSetFields(
+    dto: UpdateCatalogProductDto,
+    actor?: Actor,
+  ): Record<string, unknown> {
+    const fields: Record<string, unknown> = {
+      updated_by: actor?.email || actor?.userId,
+    };
+    if (dto.title !== undefined) {
+      fields.title = requireTrimmedString(dto.title, 160, 'title');
+    }
+    if (dto.slug !== undefined) {
+      fields.slug = this.normalizeSlug(dto.slug);
+    }
+    if (dto.description !== undefined) {
+      fields.description = requireTrimmedString(
+        dto.description,
+        2000,
+        'description',
+      );
+    }
+    if (dto.brand_id !== undefined) {
+      fields.brand_id = requireObjectId(dto.brand_id, 'brand id');
+    }
+    if (dto.offer_id !== undefined) {
+      fields.offer_id = requireObjectId(dto.offer_id, 'offer id');
+    }
+    if (dto.shop_slug !== undefined) {
+      fields.shop_slug = normalizeSlugSegment(dto.shop_slug);
+    }
+    if (dto.default_sku !== undefined) {
+      fields.default_sku = requireTrimmedString(dto.default_sku, 120, 'sku');
+    }
+    if (dto.price_amount !== undefined) fields.price_amount = dto.price_amount;
+    if (dto.currency !== undefined) {
+      fields.currency = dto.currency.toUpperCase();
+    }
+    if (dto.inventory_quantity !== undefined) {
+      fields.inventory_quantity = dto.inventory_quantity;
+    }
+    if (dto.images !== undefined) fields.images = dto.images;
+    if (dto.variants !== undefined) fields.variants = dto.variants;
+    if (dto.tags !== undefined) fields.tags = dto.tags;
+    if (dto.status !== undefined) fields.status = dto.status;
+    if (dto.status === 'published') fields.published_at = new Date();
+    if (dto.scheduled_start_at !== undefined) {
+      fields.scheduled_start_at = new Date(dto.scheduled_start_at);
+    }
+    if (dto.scheduled_end_at !== undefined) {
+      fields.scheduled_end_at = new Date(dto.scheduled_end_at);
+    }
+    if (dto.seo_title !== undefined) {
+      fields.seo_title = requireTrimmedString(dto.seo_title, 80, 'seo title');
+    }
+    if (dto.seo_description !== undefined) {
+      fields.seo_description = requireTrimmedString(
+        dto.seo_description,
+        180,
+        'seo description',
+      );
+    }
+    return fields;
+  }
+
+  private buildShopSetFields(
+    dto: UpdateShopDto,
+    actor?: Actor,
+  ): Record<string, unknown> {
+    const fields: Record<string, unknown> = {
+      updated_by: actor?.email || actor?.userId,
+    };
+    if (dto.shop_slug !== undefined) {
+      fields.shop_slug = this.normalizeSlug(dto.shop_slug);
+    }
+    if (dto.shop_status !== undefined) fields.shop_status = dto.shop_status;
+    if (dto.shop_visible !== undefined) fields.shop_visible = dto.shop_visible;
+    fields.fulfillment_owner = dto.fulfillment_owner || 'gogocash';
+    if (dto.support_email !== undefined) {
+      fields.support_email = requireTrimmedString(
+        dto.support_email,
+        180,
+        'support email',
+      );
+    }
+    if (dto.support_url !== undefined) {
+      fields.support_url = requireTrimmedString(
+        dto.support_url,
+        500,
+        'support url',
+      );
+    }
+    if (dto.return_policy !== undefined) {
+      fields.return_policy = requireTrimmedString(
+        dto.return_policy,
+        2000,
+        'return policy',
+      );
+    }
+    if (dto.shipping_policy !== undefined) {
+      fields.shipping_policy = requireTrimmedString(
+        dto.shipping_policy,
+        2000,
+        'shipping policy',
+      );
+    }
+    return fields;
   }
 }

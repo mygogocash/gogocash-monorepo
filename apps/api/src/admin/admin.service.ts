@@ -29,6 +29,7 @@ import {
   mongoCaseInsensitiveRegex,
   mongoEq,
   mongoFilter,
+  mongoIn,
   mongoSetUpdate,
   requireFiniteNumber,
   requireObjectId,
@@ -97,12 +98,10 @@ export class AdminService {
     return this.userAdminModel.findById(requireObjectId(id)).exec();
   }
 
-  update(id: string, updateAdminDto: UpdateAdminDto) {
+  update(id: string, _updateAdminDto: UpdateAdminDto) {
+    void _updateAdminDto;
     return this.userAdminModel
-      .findByIdAndUpdate(
-        requireObjectId(id),
-        mongoSetUpdate(updateAdminDto as Record<string, unknown>),
-      )
+      .findByIdAndUpdate(requireObjectId(id), mongoSetUpdate({}))
       .exec();
   }
 
@@ -240,43 +239,14 @@ export class AdminService {
     if (!fee) {
       throw new HttpException({ message: 'Fee rate not found' }, 400);
     }
-    const filter: Record<string, unknown> = {};
-    if (search && key) {
-      const searchKey = requireOneOf(
-        key,
-        [
-          'aff_sub1',
-          'conversion_id',
-          'adv_sub1',
-          'adv_sub2',
-          'adv_sub3',
-          'adv_sub4',
-        ] as const,
-        'search key',
-      );
-      if (searchKey === 'conversion_id') {
-        filter.conversion_id = mongoEq(
-          requireTrimmedString(search, 200, 'conversion id'),
-        );
-      } else {
-        filter.$or = [
-          {
-            [searchKey]: mongoCaseInsensitiveRegex(search),
-          },
-        ];
-      }
-    }
-
-    if (status) {
-      filter.conversion_status = mongoCaseInsensitiveRegex(status);
-    }
+    const filter = this.buildConversionListFilter(search, key, status);
 
     const skip = (page - 1) * limit;
 
     const allConversions = await this.conversionModel
       .aggregate([
         {
-          $match: mongoFilter(filter),
+          $match: filter,
         },
         {
           $lookup: {
@@ -373,7 +343,7 @@ export class AdminService {
       //   .sort({ datetime_conversion: -1 })
       //   .exec(),
       allConversions,
-      this.conversionModel.countDocuments(mongoFilter(filter)).exec(),
+      this.conversionModel.countDocuments(filter).exec(),
     ]);
 
     const totalPages = Math.ceil(total / limit);
@@ -390,16 +360,13 @@ export class AdminService {
   }
 
   async getConversionInWithdraw(body: number[]) {
-    // return this.involveService.getConversionAll(
-    //   { page: 1, limit: 10 },
-    //   { conversion_id: body?.join('|') },
-    // );
+    const conversionIds = body.map((id) =>
+      requireFiniteNumber(id, 'conversion id'),
+    );
     return this.conversionModel
       .find(
         mongoFilter({
-          conversion_id: {
-            $in: body.map((id) => requireFiniteNumber(id, 'conversion id')),
-          },
+          conversion_id: mongoIn(conversionIds),
         }),
       )
       .sort({ datetime_conversion: -1 })
@@ -931,5 +898,42 @@ export class AdminService {
       }
     }
     return fields;
+  }
+
+  private buildConversionListFilter(
+    search?: string,
+    key?: string,
+    status?: string,
+  ): Record<string, unknown> {
+    const filter: Record<string, unknown> = {};
+    if (search && key) {
+      const searchKey = requireOneOf(
+        key,
+        [
+          'aff_sub1',
+          'conversion_id',
+          'adv_sub1',
+          'adv_sub2',
+          'adv_sub3',
+          'adv_sub4',
+        ] as const,
+        'search key',
+      );
+      if (searchKey === 'conversion_id') {
+        filter.conversion_id = mongoEq(
+          requireTrimmedString(search, 200, 'conversion id'),
+        );
+      } else {
+        filter.$or = [
+          {
+            [searchKey]: mongoCaseInsensitiveRegex(search),
+          },
+        ];
+      }
+    }
+    if (status) {
+      filter.conversion_status = mongoCaseInsensitiveRegex(status);
+    }
+    return mongoFilter(filter);
   }
 }

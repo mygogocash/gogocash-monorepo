@@ -6,6 +6,7 @@ import {
   mongoCaseInsensitiveRegex,
   mongoEq,
   mongoFilter,
+  mongoIn,
   mongoSetUpdate,
   mongoUpdate,
   normalizeSlugSegment,
@@ -51,6 +52,10 @@ describe('mongo-query helpers', () => {
 
   it('mongoEq > given validated scalar > then wraps with $eq', () => {
     expect(mongoEq('pending')).toEqual({ $eq: 'pending' });
+  });
+
+  it('mongoIn > given validated values > then wraps with $in', () => {
+    expect(mongoIn([1, 2, 3])).toEqual({ $in: [1, 2, 3] });
   });
 
   it('mongoFilter > given validated filter > then returns same object', () => {
