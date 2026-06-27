@@ -6,6 +6,7 @@ vi.mock("expo-localization", () => ({
   getLocales: () => [{ languageTag: "en-US", languageCode: "en" }],
 }));
 
+import { toastErrorMessages } from "@mobile/i18n/toastMessages";
 import type { GoGoSenseDetector } from "@mobile/gogosense/detector";
 import { GoGoSenseDetectionBanner } from "@mobile/gogosense/GoGoSenseDetectionBanner";
 import type { GoGoSenseHookApi } from "@mobile/gogosense/useGoGoSense";
@@ -111,7 +112,7 @@ describe("GoGoSenseDetectionBanner incomplete activation matches", () => {
 
     expect(api.activate).not.toHaveBeenCalled();
     expect(openUrl).not.toHaveBeenCalled();
-    expect(await screen.findByText("Cashback activation failed. Please try again.")).toBeTruthy();
+    expect(await screen.findByText(toastErrorMessages.cashbackActivationFailed)).toBeTruthy();
   });
 });
 
@@ -153,7 +154,7 @@ describe("GoGoSenseDetectionBanner activation failures", () => {
 
     expect(api.activate).toHaveBeenCalledTimes(1);
     expect(openUrl).not.toHaveBeenCalled();
-    expect(await screen.findByText("Cashback activation failed. Please try again.")).toBeTruthy();
+    expect(await screen.findByText(toastErrorMessages.cashbackActivationFailed)).toBeTruthy();
 
     await act(async () => {
       fireEvent.click(button);
@@ -161,7 +162,7 @@ describe("GoGoSenseDetectionBanner activation failures", () => {
 
     expect(api.activate).toHaveBeenCalledTimes(2);
     expect(openUrl).toHaveBeenCalledWith("https://track.gogocash.co/retry");
-    expect(screen.queryByText("Cashback activation failed. Please try again.")).toBeNull();
+    expect(screen.queryByText(toastErrorMessages.cashbackActivationFailed)).toBeNull();
   });
 
   it("activation in flight > ignores rapid duplicate taps until the request settles", async () => {

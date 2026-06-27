@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { IntlProvider } from "react-intl";
 import { describe, expect, it } from "vitest";
 
+import { toastErrorMessages } from "@mobile/i18n/toastMessages";
 import { CustomerRouteState } from "@mobile/components/CustomerRouteState";
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
 import type { CustomerAccountResourceResult } from "@mobile/account/customerAccountResource";
@@ -23,7 +24,7 @@ const ENGLISH_THAT_MUST_NOT_LEAK = [
   "No activity yet",
   "Nothing is available here yet.",
   "We could not load this page",
-  "Something went wrong. Please try again.",
+  toastErrorMessages.generic,
   "Loading GoGoCash",
   "Preparing your GoGoCash experience.",
   "You are offline",

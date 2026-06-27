@@ -11,6 +11,7 @@ import {
   getCommerceOrders,
 } from "@mobile/catalog/api";
 import type { CustomerCart, CustomerCatalogHome, CustomerCatalogProduct, CustomerOrder } from "@mobile/catalog/types";
+import { toastErrorMessages, userErrorMessageFromUnknown } from "@mobile/i18n/toastMessages";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 
 function formatMoney(amount: number, currency: string) {
@@ -28,7 +29,7 @@ function useAsyncData<T>(load: () => Promise<T>, fallback: T) {
     try {
       setData(await load());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load catalog.");
+      setError(userErrorMessageFromUnknown(err, toastErrorMessages.loadCatalogFailed));
     } finally {
       setLoading(false);
     }
