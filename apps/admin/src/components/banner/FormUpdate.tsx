@@ -281,7 +281,7 @@ const FormUpdate = ({
                     event.target.value,
                   )
                 }
-                defaultValue={
+                value={
                   (form[
                     `link_${form.id}` as keyof BannerRequestForm
                   ] as string) || ""

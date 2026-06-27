@@ -128,45 +128,55 @@ export class UpdateUserDto {
 }
 
 export class UpdateBannerHomeDto {
-  @ApiProperty()
+  @ApiProperty({ required: false })
+  @IsOptional()
   @IsString()
-  link_1: string;
+  link_1?: string;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
+  @IsOptional()
   @IsString()
-  image_1: string | File | null;
+  image_1?: string | File | null;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
+  @IsOptional()
   @IsString()
-  link_2: string;
+  link_2?: string;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
+  @IsOptional()
   @IsString()
-  image_2: string | File | null;
+  image_2?: string | File | null;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
+  @IsOptional()
   @IsString()
-  link_3: string;
+  link_3?: string;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
+  @IsOptional()
   @IsString()
-  image_3: string | File | null;
+  image_3?: string | File | null;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
+  @IsOptional()
   @IsString()
-  link_4: string;
+  link_4?: string;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
+  @IsOptional()
   @IsString()
-  image_4: string | File | null;
+  image_4?: string | File | null;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
+  @IsOptional()
   @IsString()
-  link_5: string;
+  link_5?: string;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
+  @IsOptional()
   @IsString()
-  image_5: string | File | null;
+  image_5?: string | File | null;
 
   @ApiProperty({ required: false })
   @IsOptional()
