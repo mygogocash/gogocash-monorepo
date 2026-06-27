@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { requireObjectId } from 'src/common/mongo-query';
 import { FeaturedSearchTerm } from './schemas/featured-term.schema';
 import { SearchBoostRule } from './schemas/boost-rule.schema';
 import { SearchBlacklist } from './schemas/blacklist.schema';
@@ -28,22 +29,28 @@ export class SearchService {
   }
 
   async updateFeaturedTerm(id: string, data: Partial<FeaturedSearchTerm>) {
+    const patch: Partial<FeaturedSearchTerm> = {};
+    if (data.term !== undefined) patch.term = data.term;
+    if (data.sort_order !== undefined) patch.sort_order = data.sort_order;
+    if (data.is_active !== undefined) patch.is_active = data.is_active;
     return this.featuredModel.findByIdAndUpdate(
-      id,
-      { $set: data },
+      requireObjectId(id, 'featured term id'),
+      { $set: patch },
       { new: true },
     );
   }
 
   async deleteFeaturedTerm(id: string) {
-    await this.featuredModel.findByIdAndDelete(id);
+    await this.featuredModel.findByIdAndDelete(
+      requireObjectId(id, 'featured term id'),
+    );
     return { success: true };
   }
 
   async reorderFeaturedTerms(order: string[]) {
     const ops = order.map((id, i) => ({
       updateOne: {
-        filter: { _id: id },
+        filter: { _id: requireObjectId(id, 'featured term id') },
         update: { $set: { sort_order: i } },
       },
     }));
@@ -63,11 +70,22 @@ export class SearchService {
   }
 
   async updateBoostRule(id: string, data: Partial<SearchBoostRule>) {
-    return this.boostModel.findByIdAndUpdate(id, { $set: data }, { new: true });
+    const patch: Partial<SearchBoostRule> = {};
+    if (data.offer_id !== undefined) patch.offer_id = data.offer_id;
+    if (data.boost_weight !== undefined) patch.boost_weight = data.boost_weight;
+    if (data.reason !== undefined) patch.reason = data.reason;
+    if (data.is_active !== undefined) patch.is_active = data.is_active;
+    return this.boostModel.findByIdAndUpdate(
+      requireObjectId(id, 'boost rule id'),
+      { $set: patch },
+      { new: true },
+    );
   }
 
   async deleteBoostRule(id: string) {
-    await this.boostModel.findByIdAndDelete(id);
+    await this.boostModel.findByIdAndDelete(
+      requireObjectId(id, 'boost rule id'),
+    );
     return { success: true };
   }
 
@@ -83,7 +101,9 @@ export class SearchService {
   }
 
   async deleteBlacklistEntry(id: string) {
-    await this.blacklistModel.findByIdAndDelete(id);
+    await this.blacklistModel.findByIdAndDelete(
+      requireObjectId(id, 'blacklist id'),
+    );
     return { success: true };
   }
 

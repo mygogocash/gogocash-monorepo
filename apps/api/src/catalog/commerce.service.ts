@@ -25,6 +25,7 @@ import { InventoryReservation } from './schemas/inventory-reservation.schema';
 import { PaymentAttempt } from './schemas/payment-attempt.schema';
 import { buildCheckoutRedirectUrls } from './commerce-checkout-urls';
 import { validateAdminOrderStatusTransition } from './commerce-order-status';
+import { requireObjectId, requireOneOf } from 'src/common/mongo-query';
 
 const PENDING_PAYMENT_STATUSES = ['pending', 'unpaid'] as const;
 
@@ -146,8 +147,10 @@ export class CommerceService {
     if (!idempotencyKey)
       throw new BadRequestException('Idempotency-Key header is required');
 
+    const validatedUserId = requireObjectId(userId, 'user id').toHexString();
+
     const ownAttempt = await this.paymentAttemptModel
-      .findOne({ idempotency_key: idempotencyKey, user_id: userId })
+      .findOne({ idempotency_key: idempotencyKey, user_id: validatedUserId })
       .lean()
       .exec();
     if (ownAttempt?.checkout_url) {
@@ -160,7 +163,10 @@ export class CommerceService {
     }
 
     const foreignAttempt = await this.paymentAttemptModel
-      .findOne({ idempotency_key: idempotencyKey, user_id: { $ne: userId } })
+      .findOne({
+        idempotency_key: idempotencyKey,
+        user_id: { $ne: validatedUserId },
+      })
       .lean()
       .exec();
     if (foreignAttempt) {
@@ -169,11 +175,12 @@ export class CommerceService {
       );
     }
 
-    const reusedPending = await this.findReusablePendingCheckout(userId);
+    const reusedPending =
+      await this.findReusablePendingCheckout(validatedUserId);
     if (reusedPending) return reusedPending;
 
     const pendingCount = await this.orderModel.countDocuments({
-      user_id: userId,
+      user_id: validatedUserId,
       status: 'pending_payment',
       payment_status: { $in: [...PENDING_PAYMENT_STATUSES] },
     });
@@ -183,12 +190,12 @@ export class CommerceService {
       );
     }
 
-    const cart = await this.getOrCreateActiveCart(userId);
+    const cart = await this.getOrCreateActiveCart(validatedUserId);
     if (!cart.items.length) throw new BadRequestException('Cart is empty');
 
     const order = await this.orderModel.create({
       order_number: this.createOrderNumber(),
-      user_id: userId,
+      user_id: validatedUserId,
       items: cart.items,
       currency: cart.currency,
       subtotal_amount: cart.subtotal_amount,
@@ -199,7 +206,7 @@ export class CommerceService {
 
     await this.reserveInventory(
       order._id as Types.ObjectId,
-      userId,
+      validatedUserId,
       cart.items,
     );
 
@@ -209,7 +216,7 @@ export class CommerceService {
     const checkout = await this.paymentProvider.createCheckoutSession({
       orderId: String(order._id),
       orderNumber: order.order_number,
-      userId,
+      userId: validatedUserId,
       amount: order.total_amount,
       currency: order.currency,
       successUrl,
@@ -231,7 +238,7 @@ export class CommerceService {
         .exec(),
       this.paymentAttemptModel.create({
         order_id: order._id,
-        user_id: userId,
+        user_id: validatedUserId,
         provider: checkout.provider,
         provider_session_id: checkout.providerSessionId,
         checkout_url: checkout.checkoutUrl,
@@ -262,7 +269,20 @@ export class CommerceService {
 
   listAdminOrders(query: { status?: string; limit?: number } = {}) {
     const filter: Record<string, string> = {};
-    if (query.status) filter.status = query.status;
+    if (query.status) {
+      filter.status = requireOneOf(
+        query.status,
+        [
+          'pending_payment',
+          'paid',
+          'processing',
+          'fulfilled',
+          'cancelled',
+          'refunded',
+        ] as const,
+        'status',
+      );
+    }
     return this.orderModel
       .find(filter)
       .sort({ createdAt: -1 })
@@ -272,10 +292,9 @@ export class CommerceService {
   }
 
   async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
-    if (!Types.ObjectId.isValid(id))
-      throw new BadRequestException('Invalid order id');
+    const orderId = requireObjectId(id, 'order id');
 
-    const order = await this.orderModel.findById(id).lean().exec();
+    const order = await this.orderModel.findById(orderId).lean().exec();
     if (!order) throw new NotFoundException('Order not found');
 
     validateAdminOrderStatusTransition(
@@ -308,7 +327,7 @@ export class CommerceService {
     if (dto.status === 'cancelled') patch.payment_status = 'failed';
 
     const updated = await this.orderModel
-      .findByIdAndUpdate(id, patch, { new: true })
+      .findByIdAndUpdate(orderId, { $set: patch }, { new: true })
       .lean()
       .exec();
     if (!updated) throw new NotFoundException('Order not found');

@@ -342,6 +342,9 @@ describe('WithdrawService', () => {
       mocks.userModel.findOne.mockResolvedValue({
         _id: new Types.ObjectId(VALID_USER_ID),
       });
+      mocks.userModel.findOneAndUpdate.mockResolvedValue({
+        _id: new Types.ObjectId(VALID_USER_ID),
+      });
       jest
         .spyOn(mocks.service, 'checkWithdraw')
         .mockResolvedValue({ netAmount: 1000, netAmountTHB: 1000 } as never);
@@ -351,7 +354,11 @@ describe('WithdrawService', () => {
       jest
         .spyOn(mocks.service, 'checkWithdrawMyCashback')
         .mockResolvedValue({ availableTHB: 0, availableUSD: 0 } as never);
-      mocks.withdrawModel.create.mockResolvedValue({ _id: 'w1' });
+      mocks.withdrawModel.create.mockResolvedValue([{ _id: 'w1' }]);
+      mocks.withdrawModel.findByIdAndUpdate.mockResolvedValue({
+        _id: 'w1',
+        status: 'pending',
+      });
     };
 
     it('create > given a client tx_hash > then persists status "pending" (no client self-approval)', async () => {
@@ -367,7 +374,7 @@ describe('WithdrawService', () => {
         VALID_USER_ID,
       );
 
-      const persisted = mocks.withdrawModel.create.mock.calls[0][0];
+      const persisted = mocks.withdrawModel.create.mock.calls[0][0][0];
       expect(persisted.status).toBe('pending');
     });
 
@@ -429,6 +436,93 @@ describe('WithdrawService', () => {
         approved_by: 'admin-7',
       });
       expect(update.$set.approved_at).toBeInstanceOf(Date);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // create reserve-then-settle (#41) — balance reserved in serialized txn
+  // before any on-chain call; on-chain failure marks the record rejected so
+  // the reserved balance is released (checkWithdraw excludes rejected).
+  // ---------------------------------------------------------------------------
+  describe('create reserve-then-settle (#41)', () => {
+    const setupCreate = () => {
+      mocks.userModel.findOne.mockResolvedValue({
+        _id: new Types.ObjectId(VALID_USER_ID),
+      });
+      mocks.userModel.findOneAndUpdate.mockResolvedValue({
+        _id: new Types.ObjectId(VALID_USER_ID),
+      });
+      jest
+        .spyOn(mocks.service, 'checkWithdraw')
+        .mockResolvedValue({ netAmount: 1000, netAmountTHB: 1000 } as never);
+      jest
+        .spyOn(mocks.service, 'checkWithdrawMyCashback')
+        .mockResolvedValue({ availableTHB: 0, availableUSD: 0 } as never);
+      mocks.withdrawModel.create.mockResolvedValue([{ _id: 'w1' }]);
+      mocks.withdrawModel.findByIdAndUpdate.mockResolvedValue({
+        _id: 'w1',
+        status: 'pending',
+      });
+    };
+
+    it('create > given valid balance > then persists pending record before on-chain call', async () => {
+      setupCreate();
+      const callOrder: string[] = [];
+      mocks.withdrawModel.create.mockImplementation(async () => {
+        callOrder.push('create');
+        return [{ _id: 'w1' }];
+      });
+      jest
+        .spyOn(mocks.service, 'createRecordOnChain')
+        .mockImplementation(async () => {
+          callOrder.push('onChain');
+          return '0xrecord';
+        });
+
+      await mocks.service.create(
+        {
+          amount_net: 10,
+          amount_total: 10,
+          currency: 'USD',
+          chain: 137,
+          conversion_ids: [1],
+        } as never,
+        VALID_USER_ID,
+      );
+
+      expect(callOrder).toEqual(['create', 'onChain']);
+      const persisted = mocks.withdrawModel.create.mock.calls[0][0][0];
+      expect(persisted.tx_hash_record).toBe('');
+      expect(mocks.withdrawModel.findByIdAndUpdate).toHaveBeenCalledWith('w1', {
+        $set: { tx_hash_record: '0xrecord' },
+      });
+    });
+
+    it('create > given on-chain failure > then marks record rejected and throws HTTP 502', async () => {
+      setupCreate();
+      jest
+        .spyOn(mocks.service, 'createRecordOnChain')
+        .mockRejectedValue(new Error('rpc down') as never);
+
+      await expect(
+        mocks.service.create(
+          {
+            amount_net: 10,
+            amount_total: 10,
+            currency: 'USD',
+            chain: 137,
+            conversion_ids: [1],
+          } as never,
+          VALID_USER_ID,
+        ),
+      ).rejects.toMatchObject({ status: 502 });
+
+      expect(mocks.withdrawModel.findByIdAndUpdate).toHaveBeenCalledWith('w1', {
+        $set: {
+          status: 'rejected',
+          flag_reason: 'on_chain_record_failed',
+        },
+      });
     });
   });
 

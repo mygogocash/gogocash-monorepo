@@ -1,14 +1,14 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { createHmac } from 'crypto';
 
+import { normalizeSlugSegment } from 'src/common/mongo-query';
+
 import { CreateMediaUploadDto } from './dto/catalog.dto';
 
 @Injectable()
 export class CatalogMediaService {
   createSignedUpload(dto: CreateMediaUploadDto) {
-    const safeName = dto.filename
-      .replace(/[^a-zA-Z0-9._-]+/g, '-')
-      .replace(/^-+|-+$/g, '');
+    const safeName = normalizeSlugSegment(dto.filename, 120);
     if (!safeName) {
       throw new BadRequestException('Invalid media filename');
     }

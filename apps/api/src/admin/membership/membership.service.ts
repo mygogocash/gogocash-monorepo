@@ -1,6 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import {
+  mongoCaseInsensitiveRegex,
+  requireObjectId,
+  requireOneOf,
+} from 'src/common/mongo-query';
 import { User } from 'src/user/schemas/user.schema';
 import { MembershipTier } from './schemas/membership-tier.schema';
 import { Membership } from './schemas/membership.schema';
@@ -54,12 +59,20 @@ export class MembershipService {
   }
 
   async updateTier(id: string, data: UpdateMembershipTierDto) {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new NotFoundException(`Tier ${id} not found`);
+    const tierId = requireObjectId(id, 'tier id');
+    const patch: Partial<UpdateMembershipTierDto> = {};
+    if (data.name !== undefined) patch.name = data.name;
+    if (data.price !== undefined) patch.price = data.price;
+    if (data.currency !== undefined) patch.currency = data.currency;
+    if (data.benefits !== undefined) patch.benefits = data.benefits;
+    if (data.cashback_bonus_percent !== undefined) {
+      patch.cashback_bonus_percent = data.cashback_bonus_percent;
     }
+    if (data.is_active !== undefined) patch.is_active = data.is_active;
+    if (data.sort_order !== undefined) patch.sort_order = data.sort_order;
 
     const tier = await this.membershipTierModel
-      .findByIdAndUpdate(id, { $set: data }, { new: true })
+      .findByIdAndUpdate(tierId, { $set: patch }, { new: true })
       .lean()
       .exec();
 
@@ -71,11 +84,11 @@ export class MembershipService {
   }
 
   async deleteTier(id: string) {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new NotFoundException(`Tier ${id} not found`);
-    }
+    const tierId = requireObjectId(id, 'tier id');
 
-    const tier = await this.membershipTierModel.findByIdAndDelete(id).exec();
+    const tier = await this.membershipTierModel
+      .findByIdAndDelete(tierId)
+      .exec();
     if (!tier) {
       throw new NotFoundException(`Tier ${id} not found`);
     }
@@ -97,22 +110,24 @@ export class MembershipService {
     const filter: Record<string, any> = {};
 
     if (query.status) {
-      filter.status = query.status;
+      filter.status = requireOneOf(
+        query.status,
+        ['active', 'cancelled', 'expired'] as const,
+        'status',
+      );
     }
 
-    if (query.tierId && Types.ObjectId.isValid(query.tierId)) {
-      filter.tier_id = new Types.ObjectId(query.tierId);
+    if (query.tierId) {
+      filter.tier_id = requireObjectId(query.tierId, 'tier id');
     }
 
     // If searching by email/username, we need to find matching user IDs first
     let userFilter: Types.ObjectId[] | null = null;
     if (query.search) {
+      const searchRegex = mongoCaseInsensitiveRegex(query.search);
       const matchingUsers = await this.userModel
         .find({
-          $or: [
-            { email: { $regex: query.search, $options: 'i' } },
-            { username: { $regex: query.search, $options: 'i' } },
-          ],
+          $or: [{ email: searchRegex }, { username: searchRegex }],
         })
         .select('_id')
         .lean()
@@ -149,22 +164,21 @@ export class MembershipService {
   }
 
   async changeTier(userId: string, tierId: string) {
-    if (!Types.ObjectId.isValid(userId)) {
-      throw new NotFoundException(`User ${userId} not found`);
-    }
-    if (!Types.ObjectId.isValid(tierId)) {
-      throw new NotFoundException(`Tier ${tierId} not found`);
-    }
+    const userObjectId = requireObjectId(userId, 'user id');
+    const tierObjectId = requireObjectId(tierId, 'tier id');
 
-    const tier = await this.membershipTierModel.findById(tierId).lean().exec();
+    const tier = await this.membershipTierModel
+      .findById(tierObjectId)
+      .lean()
+      .exec();
     if (!tier) {
       throw new NotFoundException(`Tier ${tierId} not found`);
     }
 
     const membership = await this.membershipModel
       .findOneAndUpdate(
-        { user_id: new Types.ObjectId(userId) },
-        { $set: { tier_id: new Types.ObjectId(tierId) } },
+        { user_id: userObjectId },
+        { $set: { tier_id: tierObjectId } },
         { new: true },
       )
       .populate('tier_id', 'name price currency')
@@ -179,13 +193,11 @@ export class MembershipService {
   }
 
   async cancelMembership(userId: string, reason: string) {
-    if (!Types.ObjectId.isValid(userId)) {
-      throw new NotFoundException(`User ${userId} not found`);
-    }
+    const userObjectId = requireObjectId(userId, 'user id');
 
     const membership = await this.membershipModel
       .findOneAndUpdate(
-        { user_id: new Types.ObjectId(userId) },
+        { user_id: userObjectId },
         {
           $set: {
             status: 'cancelled',

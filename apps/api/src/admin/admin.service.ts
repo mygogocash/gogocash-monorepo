@@ -25,6 +25,11 @@ import { UserService } from 'src/user/user.service';
 import { JobService } from 'src/withdraw/cronjob/job.service';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
 import { escapeRegexLiteral } from 'src/common/escape-regex';
+import {
+  mongoCaseInsensitiveRegex,
+  requireObjectId,
+  requireOneOf,
+} from 'src/common/mongo-query';
 
 @Injectable()
 export class AdminService {
@@ -84,28 +89,34 @@ export class AdminService {
   }
 
   findOne(id: string) {
-    return this.userAdminModel.findById(id).exec();
+    return this.userAdminModel.findById(requireObjectId(id)).exec();
   }
 
   update(id: string, updateAdminDto: UpdateAdminDto) {
-    return this.userAdminModel.findByIdAndUpdate(id, updateAdminDto).exec();
+    return this.userAdminModel
+      .findByIdAndUpdate(requireObjectId(id), updateAdminDto)
+      .exec();
   }
 
   async updateRequestWithdraw(
     updateRequestWithdrawDto: UpdateRequestWithdrawDto,
     file: Express.Multer.File,
   ) {
+    const withdrawId = requireObjectId(
+      updateRequestWithdrawDto.id,
+      'withdraw id',
+    );
     if (file) {
       const res = await this.googleDriveService.uploadFile(file);
       return this.withdrawModel
-        .findByIdAndUpdate(new Types.ObjectId(updateRequestWithdrawDto.id), {
+        .findByIdAndUpdate(withdrawId, {
           status: updateRequestWithdrawDto.status,
           slip_file: res.id,
         })
         .exec();
     }
     return this.withdrawModel
-      .findByIdAndUpdate(new Types.ObjectId(updateRequestWithdrawDto.id), {
+      .findByIdAndUpdate(withdrawId, {
         status: updateRequestWithdrawDto.status,
       })
       .exec();
@@ -209,25 +220,31 @@ export class AdminService {
     }
     const filter: Record<string, unknown> = {};
     if (search && key) {
-      if (key === 'conversion_id') {
+      const searchKey = requireOneOf(
+        key,
+        [
+          'aff_sub1',
+          'conversion_id',
+          'adv_sub1',
+          'adv_sub2',
+          'adv_sub3',
+          'adv_sub4',
+        ] as const,
+        'search key',
+      );
+      if (searchKey === 'conversion_id') {
         filter.conversion_id = search;
       } else {
         filter.$or = [
           {
-            [key]: {
-              $regex: escapeRegexLiteral(search),
-              $options: 'i',
-            },
+            [searchKey]: mongoCaseInsensitiveRegex(search),
           },
         ];
       }
     }
 
     if (status) {
-      filter.conversion_status = {
-        $regex: escapeRegexLiteral(status),
-        $options: 'i',
-      };
+      filter.conversion_status = mongoCaseInsensitiveRegex(status);
     }
 
     const skip = (page - 1) * limit;
@@ -364,10 +381,11 @@ export class AdminService {
   }
 
   async updateFeeRate(updateFeeRateDto: UpdateFeeRateDto, id: string) {
-    const feeRate = await this.feeRateModel.findOne({ _id: id }).exec();
+    const objectId = requireObjectId(id);
+    const feeRate = await this.feeRateModel.findOne({ _id: objectId }).exec();
     if (feeRate) {
       return this.feeRateModel
-        .findOneAndUpdate({ _id: feeRate._id }, updateFeeRateDto, {
+        .findOneAndUpdate({ _id: objectId }, updateFeeRateDto, {
           upsert: true,
           new: true,
         })
@@ -394,7 +412,7 @@ export class AdminService {
       product_type: ProductTypeDto[];
     },
   ) {
-    const offer = await this.offerModel.findById(id).exec();
+    const offer = await this.offerModel.findById(requireObjectId(id)).exec();
     if (!offer) {
       throw new Error('Offer not found');
     }
@@ -459,7 +477,7 @@ export class AdminService {
         : offer.tracking_link;
     return this.offerModel
       .findByIdAndUpdate(
-        id,
+        requireObjectId(id),
         {
           ...updateData,
           logo_desktop: file1 ? file1.id : offer.logo_desktop,
@@ -510,7 +528,7 @@ export class AdminService {
     }
     return this.categoryModel
       .findByIdAndUpdate(
-        id,
+        requireObjectId(id),
         {
           ...updateData,
           image: file1 ? file1.id : data.image,
@@ -521,12 +539,16 @@ export class AdminService {
   }
 
   async updateUser(id: string, mobile: string) {
-    const userMobile = await this.userModel.findOne({ mobile }).lean();
-    if (userMobile && userMobile._id.toString() !== id.toString()) {
+    const userId = requireObjectId(id);
+    const normalizedMobile = mobile.trim();
+    const userMobile = await this.userModel
+      .findOne({ mobile: normalizedMobile })
+      .lean();
+    if (userMobile && userMobile._id.toString() !== userId.toString()) {
       throw new HttpException({ message: 'Mobile number already in use' }, 400);
     }
     return this.userModel
-      .findByIdAndUpdate(id, { mobile }, { new: true })
+      .findByIdAndUpdate(userId, { mobile: normalizedMobile }, { new: true })
       .exec();
   }
 

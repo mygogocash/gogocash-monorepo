@@ -5,6 +5,9 @@ import { validateAdminOrderStatusTransition } from './commerce-order-status';
 import { escapeRegexLiteral } from './escape-regex';
 import { CommerceService } from './commerce.service';
 
+const TEST_USER_A = '507f1f77bcf86cd799439011';
+const TEST_USER_B = '507f1f77bcf86cd799439012';
+
 describe('escapeRegexLiteral', () => {
   it('escapes regex metacharacters so catastrophic patterns are literal', () => {
     expect(escapeRegexLiteral('(a+)+b')).toBe('\\(a\\+\\)\\+b');
@@ -148,7 +151,10 @@ describe('CommerceService.createCheckoutSession security', () => {
           attemptLookup += 1;
           if (attemptLookup === 1) return null;
           if (attemptLookup === 2) {
-            return { user_id: 'other-user', idempotency_key: 'shared-key' };
+            return {
+              user_id: TEST_USER_B,
+              idempotency_key: 'shared-key',
+            };
           }
           return null;
         }),
@@ -156,7 +162,7 @@ describe('CommerceService.createCheckoutSession security', () => {
     }));
 
     await expect(
-      service.createCheckoutSession('user-a', {}, 'shared-key'),
+      service.createCheckoutSession(TEST_USER_A, {}, 'shared-key'),
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
@@ -176,7 +182,7 @@ describe('CommerceService.createCheckoutSession security', () => {
     process.env.CUSTOMER_APP_URL = 'https://app.example.test';
 
     await service.createCheckoutSession(
-      'user-a',
+      TEST_USER_A,
       {
         success_url: 'https://evil.example/phish',
         cancel_url: 'https://evil.example/cancel',

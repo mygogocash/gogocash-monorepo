@@ -1,9 +1,14 @@
 import { HttpException } from '@nestjs/common';
+import { Types } from 'mongoose';
 
 import { GogosenseService } from './gogosense.service';
 import type { ActivationRequestDto } from './dto/activation-request.dto';
 import type { DetectionRequestDto } from './dto/detection-request.dto';
 import { defaultGogosenseMerchants } from './seeds/default-gogosense-merchants';
+
+const TEST_USER_ID = '507f1f77bcf86cd799439011';
+const TEST_DETECTION_EVENT_ID = '507f1f77bcf86cd799439012';
+const TEST_SCREENSHOT_JOB_ID = '507f1f77bcf86cd799439013';
 
 const shopeeMerchant = {
   merchant_id: 'merchant-shopee',
@@ -52,12 +57,15 @@ function makeService() {
       .mockReturnValue(makeQueryResult([shopeeMerchant, lazadaMerchant])),
   };
   const detectionEventModel = {
-    create: jest.fn(async (doc) => ({ _id: 'detection-1', ...doc })),
+    create: jest.fn(async (doc) => ({
+      _id: '507f1f77bcf86cd799439012',
+      ...doc,
+    })),
     find: jest.fn().mockReturnValue(makeQueryResult([])),
     findOne: jest.fn().mockReturnValue(
       makeQueryResult({
-        _id: 'detection-1',
-        user_id: 'user-1',
+        _id: '507f1f77bcf86cd799439012',
+        user_id: '507f1f77bcf86cd799439011',
         merchant_id: 'merchant-shopee',
         network_merchant_id: 201,
         matched: true,
@@ -70,7 +78,10 @@ function makeService() {
     find: jest.fn().mockReturnValue(makeQueryResult([])),
   };
   const screenshotJobModel = {
-    create: jest.fn(async (doc) => ({ _id: 'screenshot-1', ...doc })),
+    create: jest.fn(async (doc) => ({
+      _id: '507f1f77bcf86cd799439013',
+      ...doc,
+    })),
     findOne: jest.fn().mockReturnValue(makeQueryResult(null)),
   };
   const userSettingsModel = {
@@ -168,19 +179,19 @@ describe('GogosenseService detection and activation', () => {
     const { detectionEventModel, service } = makeService();
 
     await expect(
-      service.detect('user-1', {
+      service.detect('507f1f77bcf86cd799439011', {
         ...baseDetectionRequest,
         packageName: 'com.shopee.th',
       } as DetectionRequestDto),
     ).resolves.toMatchObject({
-      detectionEventId: 'detection-1',
+      detectionEventId: '507f1f77bcf86cd799439012',
       matched: true,
       merchantId: 'merchant-shopee',
     });
 
     expect(detectionEventModel.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        user_id: 'user-1',
+        user_id: '507f1f77bcf86cd799439011',
         detection_method: 'android_package',
         merchant_id: 'merchant-shopee',
         package_name: 'com.shopee.th',
@@ -193,14 +204,14 @@ describe('GogosenseService detection and activation', () => {
     const userSettingsModel = (service as any).userSettingsModel;
     userSettingsModel.findOne.mockReturnValueOnce(
       makeQueryResult({
-        user_id: 'user-1',
+        user_id: '507f1f77bcf86cd799439011',
         enabled: false,
         usage_stats_enabled: true,
       }),
     );
 
     await expect(
-      service.detect('user-1', {
+      service.detect('507f1f77bcf86cd799439011', {
         ...baseDetectionRequest,
         packageName: 'com.shopee.th',
       }),
@@ -214,14 +225,14 @@ describe('GogosenseService detection and activation', () => {
     const userSettingsModel = (service as any).userSettingsModel;
     userSettingsModel.findOne.mockReturnValueOnce(
       makeQueryResult({
-        user_id: 'user-1',
+        user_id: '507f1f77bcf86cd799439011',
         enabled: true,
         usage_stats_enabled: false,
       }),
     );
 
     await expect(
-      service.detect('user-1', {
+      service.detect('507f1f77bcf86cd799439011', {
         ...baseDetectionRequest,
         packageName: 'com.shopee.th',
       }),
@@ -235,7 +246,7 @@ describe('GogosenseService detection and activation', () => {
     const screenshotJobModel = (service as any).screenshotJobModel;
 
     await expect(
-      service.detect('user-1', {
+      service.detect('507f1f77bcf86cd799439011', {
         ...baseDetectionRequest,
         method: 'screenshot_ocr',
       }),
@@ -252,26 +263,26 @@ describe('GogosenseService detection and activation', () => {
     const screenshotJobModel = (service as any).screenshotJobModel;
     screenshotJobModel.findOne.mockReturnValueOnce(
       makeQueryResult({
-        _id: 'screenshot-1',
-        user_id: 'user-1',
+        _id: '507f1f77bcf86cd799439013',
+        user_id: '507f1f77bcf86cd799439011',
         expires_at: new Date('2026-05-24T09:00:00.000Z'),
       }),
     );
 
-    await service.detect('user-1', {
+    await service.detect('507f1f77bcf86cd799439011', {
       ...baseDetectionRequest,
       packageName: 'com.shopee.th',
-      screenshotJobId: 'screenshot-1',
+      screenshotJobId: '507f1f77bcf86cd799439013',
     });
 
     expect(screenshotJobModel.findOne).toHaveBeenCalledWith({
-      _id: 'screenshot-1',
-      user_id: 'user-1',
+      _id: new Types.ObjectId(TEST_SCREENSHOT_JOB_ID),
+      user_id: TEST_USER_ID,
       expires_at: { $gt: expect.any(Date) },
     });
     expect(detectionEventModel.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        screenshot_job_id: 'screenshot-1',
+        screenshot_job_id: TEST_SCREENSHOT_JOB_ID,
       }),
     );
   });
@@ -281,16 +292,16 @@ describe('GogosenseService detection and activation', () => {
     const screenshotJobModel = (service as any).screenshotJobModel;
 
     await expect(
-      service.detect('user-1', {
+      service.detect('507f1f77bcf86cd799439011', {
         ...baseDetectionRequest,
         packageName: 'com.shopee.th',
-        screenshotJobId: 'screenshot-1',
+        screenshotJobId: '507f1f77bcf86cd799439013',
       }),
     ).rejects.toThrow('Screenshot recovery job is invalid or expired');
 
     expect(screenshotJobModel.findOne).toHaveBeenCalledWith({
-      _id: 'screenshot-1',
-      user_id: 'user-1',
+      _id: new Types.ObjectId(TEST_SCREENSHOT_JOB_ID),
+      user_id: TEST_USER_ID,
       expires_at: { $gt: expect.any(Date) },
     });
     expect(detectionEventModel.create).not.toHaveBeenCalled();
@@ -304,21 +315,23 @@ describe('GogosenseService detection and activation', () => {
       service,
     } = makeService();
     const request = {
-      detectionEventId: 'detection-1',
+      detectionEventId: '507f1f77bcf86cd799439012',
       merchantId: 'merchant-shopee',
       offerId: 101,
       networkMerchantId: 201,
       source: 'gogosense',
     } satisfies ActivationRequestDto;
 
-    await expect(service.activate('user-1', request)).resolves.toEqual({
+    await expect(
+      service.activate('507f1f77bcf86cd799439011', request),
+    ).resolves.toEqual({
       activationEventId: 'activation-1',
       deeplink: 'https://track.gogocash.co/shopee',
     });
 
     expect(detectionEventModel.findOne).toHaveBeenCalledWith({
-      _id: 'detection-1',
-      user_id: 'user-1',
+      _id: new Types.ObjectId(TEST_DETECTION_EVENT_ID),
+      user_id: TEST_USER_ID,
       merchant_id: 'merchant-shopee',
       network_merchant_id: 201,
       matched: true,
@@ -330,12 +343,12 @@ describe('GogosenseService detection and activation', () => {
         merchant_id: 201,
         deeplink: '',
       },
-      'user-1',
+      '507f1f77bcf86cd799439011',
     );
     expect(activationEventModel.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        user_id: 'user-1',
-        detection_event_id: 'detection-1',
+        user_id: '507f1f77bcf86cd799439011',
+        detection_event_id: '507f1f77bcf86cd799439012',
         merchant_id: 'merchant-shopee',
         deeplink: 'https://track.gogocash.co/shopee',
       }),
@@ -356,8 +369,8 @@ describe('GogosenseService detection and activation', () => {
     involveService.createAffiliate.mockRejectedValueOnce(error);
 
     try {
-      await service.activate('user-1', {
-        detectionEventId: 'detection-1',
+      await service.activate('507f1f77bcf86cd799439011', {
+        detectionEventId: '507f1f77bcf86cd799439012',
         merchantId: 'merchant-shopee',
         offerId: 101,
         networkMerchantId: 201,
@@ -376,8 +389,8 @@ describe('GogosenseService detection and activation', () => {
     }
 
     expect(detectionEventModel.findOne).toHaveBeenCalledWith({
-      _id: 'detection-1',
-      user_id: 'user-1',
+      _id: new Types.ObjectId(TEST_DETECTION_EVENT_ID),
+      user_id: TEST_USER_ID,
       merchant_id: 'merchant-shopee',
       network_merchant_id: 201,
       matched: true,
@@ -390,14 +403,14 @@ describe('GogosenseService detection and activation', () => {
     activationEventModel.findOne.mockReturnValueOnce(
       makeQueryResult({
         _id: 'activation-existing',
-        detection_event_id: 'detection-1',
-        user_id: 'user-1',
+        detection_event_id: '507f1f77bcf86cd799439012',
+        user_id: '507f1f77bcf86cd799439011',
       }),
     );
 
     await expect(
-      service.activate('user-1', {
-        detectionEventId: 'detection-1',
+      service.activate('507f1f77bcf86cd799439011', {
+        detectionEventId: '507f1f77bcf86cd799439012',
         merchantId: 'merchant-shopee',
         offerId: 101,
         networkMerchantId: 201,
@@ -406,8 +419,8 @@ describe('GogosenseService detection and activation', () => {
     ).rejects.toThrow('GoGoSense detection event has already been activated');
 
     expect(activationEventModel.findOne).toHaveBeenCalledWith({
-      user_id: 'user-1',
-      detection_event_id: 'detection-1',
+      user_id: '507f1f77bcf86cd799439011',
+      detection_event_id: '507f1f77bcf86cd799439012',
     });
     expect(involveService.createAffiliate).not.toHaveBeenCalled();
     expect(activationEventModel.create).not.toHaveBeenCalled();
@@ -418,14 +431,14 @@ describe('GogosenseService detection and activation', () => {
     const userSettingsModel = (service as any).userSettingsModel;
     userSettingsModel.findOne.mockReturnValueOnce(
       makeQueryResult({
-        user_id: 'user-1',
+        user_id: '507f1f77bcf86cd799439011',
         enabled: false,
       }),
     );
 
     await expect(
-      service.activate('user-1', {
-        detectionEventId: 'detection-1',
+      service.activate('507f1f77bcf86cd799439011', {
+        detectionEventId: '507f1f77bcf86cd799439012',
         merchantId: 'merchant-shopee',
         networkMerchantId: 201,
         offerId: 101,
@@ -447,8 +460,8 @@ describe('GogosenseService detection and activation', () => {
     detectionEventModel.findOne.mockReturnValueOnce(makeQueryResult(null));
 
     await expect(
-      service.activate('user-1', {
-        detectionEventId: 'detection-1',
+      service.activate('507f1f77bcf86cd799439011', {
+        detectionEventId: '507f1f77bcf86cd799439012',
         merchantId: 'merchant-shopee',
         offerId: 101,
         networkMerchantId: 201,
@@ -469,7 +482,7 @@ describe('GogosenseService detection and activation', () => {
     } = makeService();
 
     await expect(
-      service.activate('user-1', {
+      service.activate('507f1f77bcf86cd799439011', {
         merchantId: 'merchant-shopee',
         offerId: 101,
         networkMerchantId: 201,
@@ -486,7 +499,7 @@ describe('GogosenseService detection and activation', () => {
 it('detect > minimizes URL and notification text before storing detection event', async () => {
   const { detectionEventModel, service } = makeService();
 
-  await service.detect('user-1', {
+  await service.detect('507f1f77bcf86cd799439011', {
     method: 'notification',
     notificationText:
       'Shopee order 123456789 for +66 81 234 5678 user test@example.com https://shopee.co.th/orders?token=secret',
@@ -509,10 +522,10 @@ describe('GogosenseService settings and timeline', () => {
     const { service } = makeService();
     const userSettingsModel = (service as any).userSettingsModel;
 
-    await service.updateSettings('user-1', { enabled: true });
+    await service.updateSettings('507f1f77bcf86cd799439011', { enabled: true });
 
     expect(userSettingsModel.findOneAndUpdate).toHaveBeenCalledWith(
-      { user_id: 'user-1' },
+      { user_id: '507f1f77bcf86cd799439011' },
       {
         $set: {
           enabled: true,
@@ -526,13 +539,13 @@ describe('GogosenseService settings and timeline', () => {
     const { activationEventModel, detectionEventModel, service } =
       makeService();
 
-    await service.getTimeline('user-1');
+    await service.getTimeline('507f1f77bcf86cd799439011');
 
     expect(detectionEventModel.find).toHaveBeenCalledWith({
-      user_id: 'user-1',
+      user_id: '507f1f77bcf86cd799439011',
     });
     expect(activationEventModel.find).toHaveBeenCalledWith({
-      user_id: 'user-1',
+      user_id: '507f1f77bcf86cd799439011',
     });
   });
 
@@ -543,13 +556,13 @@ describe('GogosenseService settings and timeline', () => {
     const screenshotJobModel = (service as any).screenshotJobModel;
 
     try {
-      await service.createScreenshotJob('user-1');
+      await service.createScreenshotJob('507f1f77bcf86cd799439011');
     } finally {
       dateNowSpy.mockRestore();
     }
 
     expect(screenshotJobModel.create).toHaveBeenCalledWith({
-      user_id: 'user-1',
+      user_id: '507f1f77bcf86cd799439011',
       status: 'pending',
       expires_at: new Date('2026-05-24T09:00:00.000Z'),
     });
@@ -561,15 +574,15 @@ describe('GogosenseService settings and timeline', () => {
     const userSettingsModel = (service as any).userSettingsModel;
     userSettingsModel.findOne.mockReturnValueOnce(
       makeQueryResult({
-        user_id: 'user-1',
+        user_id: '507f1f77bcf86cd799439011',
         enabled: true,
         screenshot_recovery_enabled: false,
       }),
     );
 
-    await expect(service.createScreenshotJob('user-1')).rejects.toThrow(
-      'Screenshot recovery is disabled',
-    );
+    await expect(
+      service.createScreenshotJob('507f1f77bcf86cd799439011'),
+    ).rejects.toThrow('Screenshot recovery is disabled');
 
     expect(screenshotJobModel.create).not.toHaveBeenCalled();
   });
@@ -578,11 +591,14 @@ describe('GogosenseService settings and timeline', () => {
     const { service } = makeService();
     const screenshotJobModel = (service as any).screenshotJobModel;
 
-    await service.getScreenshotJob('user-1', 'screenshot-1');
+    await service.getScreenshotJob(
+      '507f1f77bcf86cd799439011',
+      '507f1f77bcf86cd799439013',
+    );
 
     expect(screenshotJobModel.findOne).toHaveBeenCalledWith({
-      _id: 'screenshot-1',
-      user_id: 'user-1',
+      _id: new Types.ObjectId(TEST_SCREENSHOT_JOB_ID),
+      user_id: TEST_USER_ID,
       expires_at: { $gt: expect.any(Date) },
     });
   });

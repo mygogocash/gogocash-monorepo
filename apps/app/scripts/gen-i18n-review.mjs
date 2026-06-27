@@ -12,7 +12,11 @@ const en = JSON.parse(readFileSync(msg("mobile-overlay.en.json"), "utf8"));
 const th = JSON.parse(readFileSync(msg("mobile-overlay.th.json"), "utf8"));
 
 const rows = Object.keys(en).map((key) => ({ key, en: en[key], th: th[key] ?? "" }));
-const esc = (s) => String(s).replace(/\|/g, "\\|").replace(/\n/g, " ");
+const esc = (s) =>
+  String(s)
+    .replace(/\\/g, "\\\\")
+    .replace(/\|/g, "\\|")
+    .replace(/\n/g, " ");
 
 const lines = [];
 lines.push("# Mobile i18n — Thai review checklist");

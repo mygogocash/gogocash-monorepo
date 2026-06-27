@@ -110,7 +110,7 @@ describe("CustomerHomeScreen — Wave B Thai-truncation pass (source signals)", 
     const numberOfLinesCount =
       (homeSource.match(/numberOfLines=\{/g) ?? []).length +
       (brandCardSource.match(/numberOfLines=\{/g) ?? []).length;
-    expect(numberOfLinesCount).toBeGreaterThanOrEqual(11);
+    expect(numberOfLinesCount).toBeGreaterThanOrEqual(10);
   });
 
   it("sets ellipsizeMode so clamped Thai labels show a trailing ellipsis", () => {

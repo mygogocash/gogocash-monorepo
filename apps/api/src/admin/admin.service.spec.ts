@@ -366,15 +366,16 @@ describe('AdminService', () => {
     // An existing fee-rate row must be upserted in place (not duplicated), since the
     // service reads the single fee row everywhere for payout math.
     it('updateFeeRate > given an existing fee rate > then it upserts the existing document', async () => {
-      const existing = { _id: 'fee-1' };
+      const feeId = new Types.ObjectId().toHexString();
+      const existing = { _id: feeId };
       feeRateModel.findOne.mockReturnValue(makeQuery(existing));
-      const updateQuery = makeQuery({ _id: 'fee-1', system: 7 });
+      const updateQuery = makeQuery({ _id: feeId, system: 7 });
       feeRateModel.findOneAndUpdate.mockReturnValue(updateQuery);
 
-      await service.updateFeeRate({ system: 7 } as never, 'fee-1');
+      await service.updateFeeRate({ system: 7 } as never, feeId);
 
       expect(feeRateModel.findOneAndUpdate).toHaveBeenCalledWith(
-        { _id: 'fee-1' },
+        { _id: expect.any(Types.ObjectId) },
         { system: 7 },
         { upsert: true, new: true },
       );
@@ -386,7 +387,10 @@ describe('AdminService', () => {
       // The service does `new this.feeRateModel(dto)`, so the model ctor must be callable.
       (feeRateModel as jest.Mock).mockImplementation(() => ({ save }));
 
-      const result = await service.updateFeeRate({ system: 3 } as never, 'x');
+      const result = await service.updateFeeRate(
+        { system: 3 } as never,
+        new Types.ObjectId().toHexString(),
+      );
 
       expect(feeRateModel).toHaveBeenCalledWith({ system: 3 });
       expect(save).toHaveBeenCalledTimes(1);
@@ -396,11 +400,15 @@ describe('AdminService', () => {
   });
 
   describe('updateOffer', () => {
+    const offerId = new Types.ObjectId().toHexString();
+
     it('updateOffer > given an unknown offer id > then it throws "Offer not found"', async () => {
       offerModel.findById.mockReturnValue(makeQuery(null));
 
       await expect(
-        service.updateOffer('missing', { product_type: [] }),
+        service.updateOffer(new Types.ObjectId().toHexString(), {
+          product_type: [],
+        }),
       ).rejects.toThrow('Offer not found');
     });
 
@@ -409,15 +417,15 @@ describe('AdminService', () => {
     it('updateOffer > given a new desktop logo > then it uploads the new file, deletes the old, and persists the new id', async () => {
       offerModel.findById.mockReturnValue(
         makeQuery({
-          _id: 'o1',
+          _id: offerId,
           logo_desktop: 'old-logo',
           logo_mobile: 'keep-mobile',
         }),
       );
       googleDriveService.uploadFile.mockResolvedValue({ id: 'new-logo' });
-      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: 'o1' }));
+      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: offerId }));
 
-      await service.updateOffer('o1', {
+      await service.updateOffer(offerId, {
         logo_desktop: { originalname: 'logo.png' } as Express.Multer.File,
         product_type: [],
       });
@@ -429,10 +437,10 @@ describe('AdminService', () => {
     });
 
     it('updateOffer > given a stringified product_type > then it is JSON-parsed before persistence', async () => {
-      offerModel.findById.mockReturnValue(makeQuery({ _id: 'o1' }));
-      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: 'o1' }));
+      offerModel.findById.mockReturnValue(makeQuery({ _id: offerId }));
+      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: offerId }));
 
-      await service.updateOffer('o1', {
+      await service.updateOffer(offerId, {
         product_type: '[{"name":"game","minimum":"1"}]' as never,
       });
 
@@ -443,13 +451,13 @@ describe('AdminService', () => {
     it('updateOffer > given a tracking_link > then it persists the customer redirect link', async () => {
       offerModel.findById.mockReturnValue(
         makeQuery({
-          _id: 'o1',
+          _id: offerId,
           tracking_link: 'https://track.example/old',
         }),
       );
-      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: 'o1' }));
+      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: offerId }));
 
-      await service.updateOffer('o1', {
+      await service.updateOffer(offerId, {
         product_type: [],
         tracking_link: ' https://track.example/new ',
       });
@@ -461,16 +469,16 @@ describe('AdminService', () => {
     it('updateOffer > given omitted booleans and zero economics > then it preserves flags and persists zeros', async () => {
       offerModel.findById.mockReturnValue(
         makeQuery({
-          _id: 'o1',
+          _id: offerId,
           disabled: true,
           extra_store: true,
           commission_store: 15,
           max_cap: 500,
         }),
       );
-      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: 'o1' }));
+      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: offerId }));
 
-      await service.updateOffer('o1', {
+      await service.updateOffer(offerId, {
         commission_store: 0,
         max_cap: 0,
         product_type: [],
@@ -666,20 +674,21 @@ describe('AdminService', () => {
       await service.updateUser(id.toString(), '0812');
 
       expect(userModel.findByIdAndUpdate).toHaveBeenCalledWith(
-        id.toString(),
+        expect.any(Types.ObjectId),
         { mobile: '0812' },
         { new: true },
       );
     });
 
     it('updateUser > given no user owns the mobile > then it persists the update', async () => {
+      const userId = new Types.ObjectId().toHexString();
       userModel.findOne.mockReturnValue(makeQuery(null));
-      userModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: 'u1' }));
+      userModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: userId }));
 
-      await service.updateUser('u1', '0899999999');
+      await service.updateUser(userId, '0899999999');
 
       expect(userModel.findByIdAndUpdate).toHaveBeenCalledWith(
-        'u1',
+        expect.any(Types.ObjectId),
         { mobile: '0899999999' },
         { new: true },
       );

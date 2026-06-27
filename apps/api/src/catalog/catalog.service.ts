@@ -16,7 +16,12 @@ import {
   UpdateCatalogProductDto,
   UpdateShopDto,
 } from './dto/catalog.dto';
-import { escapeRegexLiteral } from './escape-regex';
+import {
+  mongoCaseInsensitiveRegex,
+  normalizeSlugSegment,
+  requireObjectId,
+  requireOneOf,
+} from 'src/common/mongo-query';
 import { CatalogBanner } from './schemas/catalog-banner.schema';
 import type { CatalogBannerPlacement } from './schemas/catalog-banner.schema';
 import { CatalogProduct } from './schemas/catalog-product.schema';
@@ -62,7 +67,14 @@ export class CatalogService {
     };
     if (query.placement)
       filter.placement = this.toBannerPlacement(query.placement);
-    if (query.locale) filter.locale = { $in: ['all', query.locale] };
+    if (query.locale) {
+      const locale = requireOneOf(
+        query.locale,
+        ['en', 'th', 'all'] as const,
+        'locale',
+      );
+      filter.locale = { $in: ['all', locale] };
+    }
 
     return this.bannerModel
       .find(filter)
@@ -76,10 +88,7 @@ export class CatalogService {
     const filter = this.publishedProductFilter();
     if (query.shop_slug) filter.shop_slug = query.shop_slug;
     if (query.search) {
-      filter.title = {
-        $regex: escapeRegexLiteral(query.search),
-        $options: 'i',
-      };
+      filter.title = mongoCaseInsensitiveRegex(query.search);
     }
 
     return this.productModel
@@ -106,10 +115,7 @@ export class CatalogService {
       shop_status: 'published',
     };
     if (query.search) {
-      filter.brand_name = {
-        $regex: escapeRegexLiteral(query.search),
-        $options: 'i',
-      };
+      filter.brand_name = mongoCaseInsensitiveRegex(query.search);
     }
 
     return this.brandModel
@@ -175,10 +181,7 @@ export class CatalogService {
     const filter: QueryFilter<CatalogProduct> = {};
     if (query.shop_slug) filter.shop_slug = query.shop_slug;
     if (query.search) {
-      filter.title = {
-        $regex: escapeRegexLiteral(query.search),
-        $options: 'i',
-      };
+      filter.title = mongoCaseInsensitiveRegex(query.search);
     }
     return this.productModel
       .find(filter)
@@ -249,10 +252,7 @@ export class CatalogService {
   listAdminShops(query: ListCatalogDto = {}) {
     const filter: QueryFilter<Brand> = { disabled: false };
     if (query.search) {
-      filter.brand_name = {
-        $regex: escapeRegexLiteral(query.search),
-        $options: 'i',
-      };
+      filter.brand_name = mongoCaseInsensitiveRegex(query.search);
     }
     return this.brandModel
       .find(filter)
@@ -311,11 +311,7 @@ export class CatalogService {
   }
 
   private normalizeSlug(slug: string) {
-    return slug
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '');
+    return normalizeSlugSegment(slug, 120);
   }
 
   private assertValidSchedule(startsAt?: string, endsAt?: string) {
@@ -329,9 +325,7 @@ export class CatalogService {
   }
 
   private assertObjectId(id: string) {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new BadRequestException('Invalid id');
-    }
+    requireObjectId(id);
   }
 
   private publishedProductFilter(
