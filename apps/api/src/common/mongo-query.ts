@@ -74,6 +74,13 @@ export function escapeJsStringLiteral(value: string): string {
     .replace(/\u2029/g, '\\u2029');
 }
 
+/** Build a validated `$in` clause for Mongo queries. */
+export function mongoIn<T extends string | number | Types.ObjectId>(
+  values: readonly T[],
+): { $in: readonly T[] } {
+  return { $in: values };
+}
+
 /**
  * Wrap a validated scalar in Mongo's $eq operator so user input is interpreted
  * as a literal value, not a query object (CodeQL nosql-injection mitigation).

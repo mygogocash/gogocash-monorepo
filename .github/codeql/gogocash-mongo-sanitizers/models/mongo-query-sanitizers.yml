@@ -11,6 +11,7 @@ extensions:
       - ["src/common/mongo-query", "Member[mongoCaseInsensitiveRegex].ReturnValue", "nosql-injection"]
       - ["src/common/mongo-query", "Member[normalizeSlugSegment].ReturnValue", "nosql-injection"]
       - ["src/common/mongo-query", "Member[mongoEq].ReturnValue", "nosql-injection"]
+      - ["src/common/mongo-query", "Member[mongoIn].ReturnValue", "nosql-injection"]
       - ["src/common/mongo-query", "Member[mongoFilter].ReturnValue", "nosql-injection"]
       - ["src/common/mongo-query", "Member[mongoFilter].Parameter[0]", "nosql-injection"]
       - ["src/common/mongo-query", "Member[mongoUpdate].ReturnValue", "nosql-injection"]
