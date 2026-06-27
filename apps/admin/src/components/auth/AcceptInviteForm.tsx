@@ -6,6 +6,7 @@ import React, { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { apiClient } from "@/lib/api";
 import { devError } from "@/lib/devConsole";
+import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import { AuthShell } from "@/components/auth/ForgotPasswordForm";
 import { PasswordField } from "@/components/auth/ResetPasswordForm";
 
@@ -13,8 +14,8 @@ const MIN_PASSWORD = 8;
 
 export default function AcceptInviteForm() {
   const params = useSearchParams();
-  const token = params.get("token") ?? "";
-  const email = params.get("email") ?? "";
+  const token = (params.get("token") ?? "").trim();
+  const email = (params.get("email") ?? "").trim();
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -42,7 +43,12 @@ export default function AcceptInviteForm() {
       await apiClient.acceptInvite({ email, token, password, username: username.trim() || undefined });
       setDone(true);
     } catch (err) {
-      setError("This invitation is invalid or has expired. Ask an admin to re-send it.");
+      setError(
+        getApiErrorMessage(
+          err,
+          "This invitation is invalid or has expired. Ask an admin to re-send it.",
+        ),
+      );
       devError("accept-invite error:", err);
     } finally {
       setIsLoading(false);

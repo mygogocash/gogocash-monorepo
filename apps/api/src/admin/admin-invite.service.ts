@@ -7,6 +7,10 @@ import * as bcrypt from 'bcrypt';
 import { UserAdmin } from './user-admin/schemas/user-admin.schema';
 import { AdminToken } from './schemas/admin-token.schema';
 import { EmailService } from 'src/email/email.service';
+import {
+  adminEmailEquals,
+  normalizeAdminEmail,
+} from './normalize-admin-email';
 
 const BCRYPT_ROUNDS = 10;
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -49,30 +53,41 @@ export class AdminInviteService {
 
   /** Issue an invite for `email` with `role` and email an accept-invite link. */
   async invite(email: string, role: string): Promise<{ message: string }> {
-    const existing = await this.userAdminModel.findOne({ email }).exec();
+    const normalizedEmail = normalizeAdminEmail(email);
+    if (!normalizedEmail) {
+      throw new BadRequestException('Email is required');
+    }
+
+    const existing = await this.userAdminModel
+      .findOne({ email: normalizedEmail })
+      .collation({ locale: 'en', strength: 2 })
+      .exec();
     if (existing) {
       throw new BadRequestException('An admin with this email already exists');
     }
 
     const raw = this.freshToken();
+    // Drop any prior invite rows for this mailbox (including legacy mixed-case).
     await this.tokenModel
-      .findOneAndUpdate(
-        { email, purpose: 'invite' },
-        {
-          email,
-          purpose: 'invite',
-          role,
-          tokenHash: this.hash(raw),
-          expiresAt: new Date(Date.now() + INVITE_TTL_MS),
-          usedAt: null,
-        },
-        { upsert: true, new: true, setDefaultsOnInsert: true },
-      )
+      .deleteMany({
+        purpose: 'invite',
+        email: normalizedEmail,
+      })
+      .collation({ locale: 'en', strength: 2 })
       .exec();
 
-    const url = this.link('/accept-invite', raw, email);
+    await this.tokenModel.create({
+      email: normalizedEmail,
+      purpose: 'invite',
+      role,
+      tokenHash: this.hash(raw),
+      expiresAt: new Date(Date.now() + INVITE_TTL_MS),
+      usedAt: null,
+    });
+
+    const url = this.link('/accept-invite', raw, normalizedEmail);
     await this.emailService.sendEmail({
-      to: email,
+      to: normalizedEmail,
       subject: "You're invited to GoGoCash Admin",
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -96,31 +111,38 @@ export class AdminInviteService {
     username?: string;
     password: string;
   }): Promise<{ message: string }> {
+    const normalizedEmail = normalizeAdminEmail(input.email);
+    const token = input.token.trim();
+    if (!token || !normalizedEmail) {
+      throw new BadRequestException('Invalid or expired invitation');
+    }
+
     const rec = await this.tokenModel
       .findOne({
-        tokenHash: this.hash(input.token),
+        tokenHash: this.hash(token),
         purpose: 'invite',
         usedAt: null,
         expiresAt: { $gt: new Date() },
       })
       .exec();
 
-    if (!rec || rec.email !== input.email) {
+    if (!rec || !adminEmailEquals(rec.email, normalizedEmail)) {
       throw new BadRequestException('Invalid or expired invitation');
     }
 
     const existing = await this.userAdminModel
-      .findOne({ email: rec.email })
+      .findOne({ email: normalizedEmail })
+      .collation({ locale: 'en', strength: 2 })
       .exec();
     if (existing) {
       throw new BadRequestException('An admin with this email already exists');
     }
 
-    const username = input.username?.trim() || rec.email.split('@')[0];
+    const username = input.username?.trim() || normalizedEmail.split('@')[0];
     const password = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
     await this.userAdminModel.create({
       username,
-      email: rec.email,
+      email: normalizedEmail,
       password,
       role: rec.role,
     });
@@ -133,27 +155,33 @@ export class AdminInviteService {
 
   /** Email a reset link to an existing admin. Always returns generic success. */
   async forgotPassword(email: string): Promise<{ message: string }> {
-    const admin = await this.userAdminModel.findOne({ email }).exec();
+    const normalizedEmail = normalizeAdminEmail(email);
+    const admin = await this.userAdminModel
+      .findOne({ email: normalizedEmail })
+      .collation({ locale: 'en', strength: 2 })
+      .exec();
     if (admin) {
       const raw = this.freshToken();
       await this.tokenModel
-        .findOneAndUpdate(
-          { email, purpose: 'reset' },
-          {
-            email,
-            purpose: 'reset',
-            role: null,
-            tokenHash: this.hash(raw),
-            expiresAt: new Date(Date.now() + RESET_TTL_MS),
-            usedAt: null,
-          },
-          { upsert: true, new: true, setDefaultsOnInsert: true },
-        )
+        .deleteMany({
+          purpose: 'reset',
+          email: normalizedEmail,
+        })
+        .collation({ locale: 'en', strength: 2 })
         .exec();
 
-      const url = this.link('/reset-password', raw, email);
+      await this.tokenModel.create({
+        email: normalizedEmail,
+        purpose: 'reset',
+        role: null,
+        tokenHash: this.hash(raw),
+        expiresAt: new Date(Date.now() + RESET_TTL_MS),
+        usedAt: null,
+      });
+
+      const url = this.link('/reset-password', raw, normalizedEmail);
       await this.emailService.sendEmail({
-        to: email,
+        to: normalizedEmail,
         subject: 'Reset your GoGoCash Admin password',
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -179,21 +207,28 @@ export class AdminInviteService {
     email: string;
     password: string;
   }): Promise<{ message: string }> {
+    const normalizedEmail = normalizeAdminEmail(input.email);
+    const token = input.token.trim();
+    if (!token || !normalizedEmail) {
+      throw new BadRequestException('Invalid or expired reset link');
+    }
+
     const rec = await this.tokenModel
       .findOne({
-        tokenHash: this.hash(input.token),
+        tokenHash: this.hash(token),
         purpose: 'reset',
         usedAt: null,
         expiresAt: { $gt: new Date() },
       })
       .exec();
 
-    if (!rec || rec.email !== input.email) {
+    if (!rec || !adminEmailEquals(rec.email, normalizedEmail)) {
       throw new BadRequestException('Invalid or expired reset link');
     }
 
     const admin = await this.userAdminModel
-      .findOne({ email: rec.email })
+      .findOne({ email: normalizedEmail })
+      .collation({ locale: 'en', strength: 2 })
       .exec();
     if (!admin) {
       throw new BadRequestException('Invalid or expired reset link');
