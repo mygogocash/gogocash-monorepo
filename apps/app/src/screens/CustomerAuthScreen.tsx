@@ -29,6 +29,7 @@ import { haptics } from "@mobile/lib/haptics";
 import { markIntroModalPending } from "@mobile/features/introModal/introModalSession";
 import { toPhoneE164 } from "@mobile/auth/phoneE164";
 import { buildDemoMobileSession, persistMobileSession } from "@mobile/auth/session";
+import { resolveAuthSocialProviders } from "@mobile/api/backendIntegrationScope";
 import { getMobileEnv } from "@mobile/config/env";
 import type { ConfirmationResult } from "firebase/auth";
 import {
@@ -212,12 +213,17 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   // i18n: all auth copy resolves through useCopy — a reverse-lookup into the reused web ICU catalogs
   // that falls back to the webDesignParity English when no catalog key matches the string.
   const tc = useCopy();
+  const env = useMemo(() => getMobileEnv(), []);
+  const authSocialProviders = useMemo(
+    () => resolveAuthSocialProviders(webAuthPage.socialProviders, env.accountDataSource),
+    [env.accountDataSource],
+  );
   const title = tc(webAuthPage.titleByMode[mode]);
   const phoneDigits = phoneLocal.replace(/\D/g, "");
   const canSubmitPhone = privacyAccepted && phoneDigits.length >= 9;
   const dividerText = webAuthPage.socialDividerByMode[mode];
-  const primarySocialProviders = webAuthPage.socialProviders.slice(0, 4);
-  const secondarySocialProviders = webAuthPage.socialProviders.slice(4);
+  const primarySocialProviders = authSocialProviders.slice(0, 4);
+  const secondarySocialProviders = authSocialProviders.slice(4);
   const resendCountdownLabel = formatOtpCountdown(resendSecondsRemaining);
   const maskedPhone = useMemo(() => {
     if (!phoneDigits) {
@@ -706,7 +712,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                     </View>
                   ) : (
                     <View style={styles.socialGridMobile}>
-                      {webAuthPage.socialProviders.map((provider) => (
+                      {authSocialProviders.map((provider) => (
                         <SocialProviderButton isMobile provider={provider} key={provider.id} />
                       ))}
                     </View>

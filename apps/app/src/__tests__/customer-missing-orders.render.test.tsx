@@ -3,6 +3,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createElement } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -31,20 +32,31 @@ const missingOrdersSource = readFileSync(
   "utf8"
 );
 
+function renderMissingOrders() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      createElement(CustomerMissingOrdersScreen),
+    ),
+  );
+}
+
 describe("CustomerMissingOrdersScreen (render)", () => {
   it("mounts the claim form without throwing", () => {
-    expect(() => render(createElement(CustomerMissingOrdersScreen))).not.toThrow();
+    expect(() => renderMissingOrders()).not.toThrow();
     // The page title appears as the top-bar label + the form panel heading.
     expect(screen.getAllByText("Missing Orders").length).toBeGreaterThan(0);
   });
 
   it("renders the submit action so the keyboard-avoidance wrapper has a real CTA", () => {
-    render(createElement(CustomerMissingOrdersScreen));
+    renderMissingOrders();
     expect(screen.getAllByText("Submit claim").length).toBeGreaterThan(0);
   });
 
   it("FAQ accordion (web parity): first answer open; tapping another question reveals its answer", () => {
-    render(createElement(CustomerMissingOrdersScreen));
+    renderMissingOrders();
     // The first FAQ is expanded by default → its answer is visible.
     expect(screen.getByText(/GoGoCash is a cashback platform/)).toBeTruthy();
     // The second FAQ's answer stays hidden until its question is tapped.
@@ -54,7 +66,7 @@ describe("CustomerMissingOrdersScreen (render)", () => {
   });
 
   it("store field is a dropdown select (web parity): opening it and picking a shop fills the field", () => {
-    render(createElement(CustomerMissingOrdersScreen));
+    renderMissingOrders();
     // The store field shows its label as the placeholder while empty.
     fireEvent.click(screen.getByText("Store or marketplace"));
     // Pick a shop from the dropdown menu.
@@ -64,14 +76,14 @@ describe("CustomerMissingOrdersScreen (render)", () => {
   });
 
   it("order id is a real editable text input (web parity), not a static value row", () => {
-    render(createElement(CustomerMissingOrdersScreen));
+    renderMissingOrders();
     const input = screen.getByPlaceholderText("Order ID *");
     fireEvent.change(input, { target: { value: "GC-2026-0001" } });
     expect(screen.getByDisplayValue("GC-2026-0001")).toBeTruthy();
   });
 
   it("user id is masked with an eye toggle that reveals it (web parity)", () => {
-    render(createElement(CustomerMissingOrdersScreen));
+    renderMissingOrders();
     // Masked by default; the real id is hidden.
     expect(screen.getByText("******")).toBeTruthy();
     expect(screen.queryByText("mock-user-001")).toBeNull();
@@ -81,7 +93,7 @@ describe("CustomerMissingOrdersScreen (render)", () => {
   });
 
   it("submitting with no screenshot shows the required-attachment validation error", () => {
-    render(createElement(CustomerMissingOrdersScreen));
+    renderMissingOrders();
     // No image added yet → submit surfaces the inline validation alert (web parity: required).
     fireEvent.click(screen.getAllByText("Submit claim")[0]);
     expect(screen.getByRole("alert")).toBeTruthy();

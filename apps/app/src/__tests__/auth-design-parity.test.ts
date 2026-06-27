@@ -58,8 +58,9 @@ describe("Expo auth design parity", () => {
     expect(authFile).toContain("const authDesktopPageHorizontalPadding = 56;");
     expect(authFile).toContain("horizontalPadding={authDesktopPageHorizontalPadding}");
     expect(authFile).toContain("authHeroImage");
-    expect(authFile).toContain("webAuthPage.socialProviders.slice(0, 4)");
-    expect(authFile).toContain("webAuthPage.socialProviders.slice(4)");
+    expect(authFile).toContain("resolveAuthSocialProviders");
+    expect(authFile).toContain("authSocialProviders.slice(0, 4)");
+    expect(authFile).toContain("authSocialProviders.slice(4)");
     expect(authFile).toContain("PhoneOtpBoxes");
     expect(authFile).not.toContain('placeholder="Email"');
     expect(authFile).not.toContain('placeholder="Password"');
@@ -186,7 +187,7 @@ describe("Expo auth design parity", () => {
     expect(authFile).toContain("styles.socialBlockMobile");
     expect(authFile).toContain("styles.socialGridMobile");
     expect(authFile).toContain("styles.socialButtonMobile");
-    expect(authFile).toContain("webAuthPage.socialProviders.map");
+    expect(authFile).toContain("authSocialProviders.map");
     expect(authFile).toContain("isDesktopShell ? dividerText : dividerText.toUpperCase()");
     expect(authFile).toContain("<CustomerCookieConsentBanner isDesktop={isDesktopShell} />");
     expectStyleBlock(authFile, "pageAuthMobile", ["paddingHorizontal: 24"]);

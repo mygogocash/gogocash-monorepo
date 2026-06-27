@@ -82,6 +82,7 @@ Backend and mobile app contracts may live in sibling repos (see README **Related
 
 - UI and layout feedback is often anchored to a specific DOM node or browser preview selection; expect iterative, viewport-aware tweaks (modals, dashboard charts, sidebar).
 - The primary operational entry should stay **one click** from the sidebar (**Platform Dashboard**), not buried in a submenu.
+- Prefer **real API** (`NEXT_PUBLIC_API_URL`) over mock when verifying admin Brands Management changes on the customer app.
 
 ## Learned Workspace Facts
 
@@ -95,3 +96,5 @@ Backend and mobile app contracts may live in sibling repos (see README **Related
 - **Node version:** some tooling may warn **EBADENGINE** on very new Node; prefer **20 or 22** if installs or Firebase-related deps misbehave.
 - **Next.js 16:** `params` and `searchParams` are async; client `page`/`layout` components that receive them may need **`React.use()`** or a thin async server wrapper to avoid dev enumeration warnings (see Next.js “sync dynamic APIs” message).
 - **Cashback wallet UI** lives in the **Conversions** tab of the user detail page (`/withdraw/:id`, `src/components/withdraw/WithdrawDetail.tsx`): a “Cashback Wallet” section with an **Adjust Wallet** panel (`src/components/wallet/UserWalletPanel.tsx`, freeze/unfreeze + add-extra-cashback) and an inline approval notice (`src/components/wallet/CashbackApprovalNotice.tsx`, Approve / Reject). Adding extra cashback files a **pending** request rather than crediting immediately; approval credits the balance. Mock routes (`POST /admin/wallets/:uid/adjust`, `GET /admin/wallets/:uid`, `PUT .../freeze`|`/unfreeze`, `POST /admin/wallets/cashback-request/:id`) live in `src/lib/mockAdminFeatures.ts` and are write-gated by `users:manage` in `mockApiCore.ts`; the approval UI itself is **not** yet `usePermissions()`/`<Can>`-gated.
+- Without **`NEXT_PUBLIC_API_URL`** in `.env.local`, admin uses in-memory **`/api/mock`** (offer ids like `o1`, `o2`); set `https://api-staging.gogocash.co` or `http://localhost:8080` to match the customer app for real E2E. Mock sign-in (`admin@gogocash.co` / `1234`) is disabled when a real API URL is set.
+- **Top brands** (`TopBrandManagementPanel`): reorder/cashback edits are draft until **Save top brands** (`PUT /admin/top-brands`); public `GET /offer/top-brands` drops disabled offers even if they remain in the admin list.

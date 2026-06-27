@@ -16,11 +16,14 @@ describe("createMobileApiClient auth token selection", () => {
   });
 
   it("given a fresh Firebase ID token > then prefers it over the stored backend JWT", async () => {
-    const fetchImpl = vi.fn(async () => ({
-      ok: true,
-      status: 200,
-      text: async () => JSON.stringify({ ok: true }),
-    }));
+    const fetchImpl = vi.fn(
+      async (_url: RequestInfo | URL, _init?: RequestInit): Promise<Response> =>
+        ({
+          ok: true,
+          status: 200,
+          text: async () => JSON.stringify({ ok: true }),
+        }) as Response,
+    );
     const getPreferredAuthToken = vi.fn(async () => "firebase-id-token");
 
     const client = createMobileApiClient({
@@ -39,11 +42,14 @@ describe("createMobileApiClient auth token selection", () => {
   });
 
   it("given no Firebase token > then falls back to the session access_token", async () => {
-    const fetchImpl = vi.fn(async () => ({
-      ok: true,
-      status: 200,
-      text: async () => JSON.stringify({ ok: true }),
-    }));
+    const fetchImpl = vi.fn(
+      async (_url: RequestInfo | URL, _init?: RequestInit): Promise<Response> =>
+        ({
+          ok: true,
+          status: 200,
+          text: async () => JSON.stringify({ ok: true }),
+        }) as Response,
+    );
 
     const client = createMobileApiClient({
       baseUrl: "https://api-staging.gogocash.co",

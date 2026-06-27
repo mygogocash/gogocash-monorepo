@@ -3,6 +3,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createElement } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -41,9 +42,14 @@ const categorySource = readFileSync(
 );
 
 function renderScreen() {
-  // categoryName drives the dynamic header; pass the shared catalog category so the
-  // title/subtitle resolve via the existing webCategoryExploreHealthBeauty entries.
-  return render(createElement(CustomerCategoryDetailScreen, { categoryName: "Health & Beauty" }));
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      createElement(CustomerCategoryDetailScreen, { categoryName: "Health & Beauty" }),
+    ),
+  );
 }
 
 describe("CustomerCategoryDetailScreen (render)", () => {

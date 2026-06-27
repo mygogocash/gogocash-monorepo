@@ -10,6 +10,7 @@ import {
   getCategoryExploreResults,
   getShopDirectoryResults,
   type WebBrandDirectorySort,
+  type WebCategoryExploreSort,
   type WebShopDirectorySort,
   type WebShopType,
 } from "@mobile/design/webDesignParity";
@@ -244,5 +245,10 @@ export function resolveCategoryExploreStores({
     );
   }
 
-  return getCategoryExploreResults({ category, query, sortBy });
+  const exploreSort: WebCategoryExploreSort =
+    sortBy === "popular" || sortBy === "newest" || sortBy === "lowest_cashback"
+      ? sortBy
+      : "highest_cashback";
+
+  return getCategoryExploreResults({ category, query, sortBy: exploreSort });
 }

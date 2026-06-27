@@ -166,7 +166,7 @@ export function CustomerCategoryDirectoryScreen() {
       )}
 
       <CategoryDirectoryPagination
-        activePage={categoryPage.activePage}
+        activePage={categoryPage.page}
         onChangePage={setCurrentPage}
         totalPages={categoryPage.totalPages}
       />
