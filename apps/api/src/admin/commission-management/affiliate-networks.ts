@@ -40,16 +40,16 @@ export function sourceForAffiliateNetwork(
   }
 }
 
-export function affiliateNetworkIdForSource(source: string): AffiliateNetworkId {
+export function affiliateNetworkIdForSource(
+  source: string,
+): AffiliateNetworkId {
   if (source === 'optimise') return 'optimise';
   if (source === 'involve') return 'involve_asia';
   return 'involve_asia';
 }
 
 export function affiliateNetworkName(networkId: string): string {
-  return (
-    AFFILIATE_NETWORKS.find((n) => n.id === networkId)?.name ?? networkId
-  );
+  return AFFILIATE_NETWORKS.find((n) => n.id === networkId)?.name ?? networkId;
 }
 
 export function listAffiliateNetworks(): AffiliateNetworkDto[] {

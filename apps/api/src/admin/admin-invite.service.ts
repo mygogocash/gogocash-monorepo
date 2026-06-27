@@ -7,10 +7,7 @@ import * as bcrypt from 'bcrypt';
 import { UserAdmin } from './user-admin/schemas/user-admin.schema';
 import { AdminToken } from './schemas/admin-token.schema';
 import { EmailService } from 'src/email/email.service';
-import {
-  adminEmailEquals,
-  normalizeAdminEmail,
-} from './normalize-admin-email';
+import { adminEmailEquals, normalizeAdminEmail } from './normalize-admin-email';
 
 const BCRYPT_ROUNDS = 10;
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days

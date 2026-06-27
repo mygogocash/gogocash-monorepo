@@ -10,7 +10,9 @@ function parseCommissionPercentString(value: unknown): number | null {
 }
 
 /** Best partner % from Involve-style commission rows or string arrays. */
-export function bestPercentFromPartnerRates(commissions: CommissionRow[]): number {
+export function bestPercentFromPartnerRates(
+  commissions: CommissionRow[],
+): number {
   let max = 0;
   for (const row of commissions) {
     if (row != null && typeof row === 'object' && !Array.isArray(row)) {
@@ -26,7 +28,9 @@ export function bestPercentFromPartnerRates(commissions: CommissionRow[]): numbe
   return max;
 }
 
-export function formatPartnerRateLabels(commissions: CommissionRow[]): string[] {
+export function formatPartnerRateLabels(
+  commissions: CommissionRow[],
+): string[] {
   const labels: string[] = [];
   for (const row of commissions) {
     if (row != null && typeof row === 'object' && !Array.isArray(row)) {

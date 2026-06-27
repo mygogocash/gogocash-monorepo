@@ -37,7 +37,11 @@ describe('CommissionManagementService', () => {
         source: 'involve',
       },
     ]);
-    offerModel.find.mockReturnValue({ sort: jest.fn().mockReturnValue({ limit: jest.fn().mockReturnValue({ lean }) }) });
+    offerModel.find.mockReturnValue({
+      sort: jest
+        .fn()
+        .mockReturnValue({ limit: jest.fn().mockReturnValue({ lean }) }),
+    });
 
     const result = await service.listBrands('involve_asia');
 

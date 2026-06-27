@@ -68,9 +68,7 @@ describe('AdminInviteService', () => {
       const mail = sendEmail.mock.calls[0][0];
       expect(mail.to).toBe('new@gogocash.co');
       expect(`${mail.html} ${mail.text}`).toContain('/accept-invite?token=');
-      expect(`${mail.html} ${mail.text}`).toContain(
-        'email=new%40gogocash.co',
-      );
+      expect(`${mail.html} ${mail.text}`).toContain('email=new%40gogocash.co');
       expect(res).toEqual(
         expect.objectContaining({ message: expect.any(String) }),
       );

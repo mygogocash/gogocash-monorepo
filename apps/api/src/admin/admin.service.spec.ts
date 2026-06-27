@@ -668,7 +668,9 @@ describe('AdminService', () => {
         image_5: null,
       } as never);
 
-      expect(googleDriveService.deleteFile).toHaveBeenCalledWith('drive-file-2');
+      expect(googleDriveService.deleteFile).toHaveBeenCalledWith(
+        'drive-file-2',
+      );
       const [, update] = bannerModel.findOneAndUpdate.mock.calls[0];
       expect(update.$set.image_2).toBeNull();
       expect(update.$set.link_2).toBe('');

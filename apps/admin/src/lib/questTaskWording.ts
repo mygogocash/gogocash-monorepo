@@ -1,5 +1,4 @@
-import { getOfferDisplayName } from "@/lib/offerDisplay";
-import type { Offer } from "@/types/api";
+import { getOfferDisplayName, type OfferLike } from "@/lib/offerDisplay";
 
 export type QuestWordingLocale = "en" | "th";
 
@@ -12,8 +11,6 @@ export const QUEST_TASK_WORDING_TEMPLATES: ReadonlyArray<{
   { en: "Complete a purchase on {brand}", th: "ทำการซื้อที่ {brand}" },
 ];
 
-type OfferLike = Pick<Offer, "offer_name" | "offer_name_display"> | null | undefined;
-
 export function expandQuestWordingTemplate(
   template: string,
   brandLabel: string,
@@ -22,7 +19,7 @@ export function expandQuestWordingTemplate(
 }
 
 export function defaultQuestTaskWording(
-  offer: OfferLike,
+  offer: OfferLike | null | undefined,
   locale: QuestWordingLocale,
 ): string {
   const brand = getOfferDisplayName(offer);
@@ -63,7 +60,7 @@ export type QuestTaskWordingFields = {
 
 export function resolveQuestTaskWording(
   task: QuestTaskWordingFields,
-  offer: OfferLike,
+  offer: OfferLike | null | undefined,
   locale: QuestWordingLocale,
 ): string {
   const en = task.wording_en?.trim() || task.wording?.trim() || "";

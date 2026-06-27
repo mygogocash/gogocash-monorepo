@@ -307,7 +307,18 @@ const FormCoupon = ({
       return;
     }
 
-    const payload = buildCouponSubmitPayload(form, { discount, quantity });
+    let resolvedQuantity: number;
+    if (form.unlimited_amount_enabled) {
+      resolvedQuantity = 0;
+    } else if (quantity == null) {
+      return;
+    } else {
+      resolvedQuantity = quantity;
+    }
+    const payload = buildCouponSubmitPayload(form, {
+      discount,
+      quantity: resolvedQuantity,
+    });
 
     setIsLoading(true);
     client

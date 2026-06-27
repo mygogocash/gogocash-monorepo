@@ -6,6 +6,8 @@ type OfferLike = Pick<
   "_id" | "offer_name" | "offer_name_display" | "countries"
 >;
 
+export type { OfferLike };
+
 /** Comma-separated country codes → display string, or em dash when empty. */
 export function formatOfferCountries(
   countries: string | null | undefined,

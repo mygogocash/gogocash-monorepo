@@ -1282,12 +1282,8 @@ export class PointService {
       facebook_page: createQuestDto.facebook_page,
       line: createQuestDto.line,
       ...rewardDistribution,
-      banner_en: banner_en
-        ? banner_en?.id
-        : existingQuest?.banner_en || null,
-      banner_th: banner_th
-        ? banner_th?.id
-        : existingQuest?.banner_th || null,
+      banner_en: banner_en ? banner_en?.id : existingQuest?.banner_en || null,
+      banner_th: banner_th ? banner_th?.id : existingQuest?.banner_th || null,
       sub_banner_en: sub_banner_en
         ? sub_banner_en?.id
         : existingQuest?.sub_banner_en || null,

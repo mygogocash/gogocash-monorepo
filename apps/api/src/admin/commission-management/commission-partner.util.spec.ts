@@ -16,10 +16,7 @@ describe('commission-partner.util', () => {
 
   it('formatPartnerRateLabels > given mixed rows > flattens to display strings', () => {
     expect(
-      formatPartnerRateLabels([
-        { Commission: '3.5%' },
-        'Flat 10 THB',
-      ]),
+      formatPartnerRateLabels([{ Commission: '3.5%' }, 'Flat 10 THB']),
     ).toEqual(['3.5%', 'Flat 10 THB']);
   });
 

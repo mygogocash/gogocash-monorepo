@@ -2,9 +2,11 @@ import type { Locale } from "@mobile/i18n/locales";
 
 export const questTaskEndpoint = "/offer/extra-point";
 
+export type QuestTaskIcon = "go" | "glow" | "orbit" | "pixel" | "watchAds";
+
 export type QuestTaskRow = {
   href?: string;
-  icon: "go";
+  icon: QuestTaskIcon;
   key: string;
   logoUri?: string;
   points: string;

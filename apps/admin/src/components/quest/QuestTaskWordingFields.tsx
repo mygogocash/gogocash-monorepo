@@ -83,9 +83,10 @@ function WordingAutocomplete({
           {...params}
           label={label}
           placeholder={defaultQuestTaskWording(offer, locale)}
-          inputProps={{
-            ...params.inputProps,
-            maxLength: 140,
+          slotProps={{
+            htmlInput: {
+              maxLength: 140,
+            },
           }}
         />
       )}

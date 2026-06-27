@@ -565,9 +565,7 @@ export class AdminService {
 
     const folderId = '16AmK8RlgEYa16LbPYEgtGBL4U1ouDhiS';
     const clearImageFlags = [1, 2, 3, 4, 5].map((slot) =>
-      Boolean(
-        updateData[`clear_image_${slot}` as keyof UpdateBannerHomeDto],
-      ),
+      Boolean(updateData[`clear_image_${slot}` as keyof UpdateBannerHomeDto]),
     );
 
     const maybeClearImage = async (slot: number, existingId: unknown) => {

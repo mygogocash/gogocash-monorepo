@@ -8,8 +8,8 @@ describe('normalizeAdminEmail', () => {
   });
 
   it('compares mailbox addresses case-insensitively', () => {
-    expect(adminEmailEquals('Lady.Kirsah@gmail.com', 'lady.kirsah@gmail.com')).toBe(
-      true,
-    );
+    expect(
+      adminEmailEquals('Lady.Kirsah@gmail.com', 'lady.kirsah@gmail.com'),
+    ).toBe(true);
   });
 });

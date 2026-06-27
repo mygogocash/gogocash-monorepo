@@ -121,9 +121,10 @@ export function QuestTaskBrandSelect({
         <TextField
           {...params}
           placeholder="Search active brands…"
-          inputProps={{
-            ...params.inputProps,
-            "aria-label": "Brand",
+          slotProps={{
+            htmlInput: {
+              "aria-label": "Brand",
+            },
           }}
         />
       )}

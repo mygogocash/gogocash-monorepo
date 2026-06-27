@@ -15,7 +15,10 @@ export function getApiErrorMessage(
     const msg = res?.data?.message;
     if (Array.isArray(msg)) {
       const joined = msg
-        .filter((part): part is string => typeof part === "string" && part.trim())
+        .filter(
+          (part): part is string =>
+            typeof part === "string" && part.trim().length > 0,
+        )
         .join(", ");
       if (joined) return joined;
     }
@@ -25,7 +28,10 @@ export function getApiErrorMessage(
     const data = (error as { data?: { message?: string | string[] } }).data;
     if (data && Array.isArray(data.message)) {
       const joined = data.message
-        .filter((part): part is string => typeof part === "string" && part.trim())
+        .filter(
+          (part): part is string =>
+            typeof part === "string" && part.trim().length > 0,
+        )
         .join(", ");
       if (joined) return joined;
     }

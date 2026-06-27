@@ -47,9 +47,13 @@ export class CommissionManagementService {
     return { data: listAffiliateNetworks() };
   }
 
-  async listBrands(networkId?: string): Promise<{ data: CommissionBrandRowDto[] }> {
+  async listBrands(
+    networkId?: string,
+  ): Promise<{ data: CommissionBrandRowDto[] }> {
     const filterNetwork = networkId?.trim() || null;
-    const source = filterNetwork ? sourceForAffiliateNetwork(filterNetwork) : null;
+    const source = filterNetwork
+      ? sourceForAffiliateNetwork(filterNetwork)
+      : null;
     if (filterNetwork && !source) {
       return { data: [] };
     }
@@ -201,7 +205,10 @@ export class CommissionManagementService {
     offer: Record<string, any>,
     affiliateNetworkId: string,
   ) {
-    if (affiliateNetworkId !== 'involve_asia' || !process.env.INVOLVE_SECRET?.trim()) {
+    if (
+      affiliateNetworkId !== 'involve_asia' ||
+      !process.env.INVOLVE_SECRET?.trim()
+    ) {
       return offer;
     }
 
@@ -216,7 +223,10 @@ export class CommissionManagementService {
     if (Array.isArray(refreshed.commissions)) {
       patch.commissions = refreshed.commissions;
     }
-    if (typeof refreshed.tracking_link === 'string' && refreshed.tracking_link) {
+    if (
+      typeof refreshed.tracking_link === 'string' &&
+      refreshed.tracking_link
+    ) {
       patch.tracking_link = refreshed.tracking_link;
     }
     if (typeof refreshed.commission_tracking === 'string') {

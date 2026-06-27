@@ -194,11 +194,11 @@ describe('Admin Phase-2 RBAC gap closures', () => {
   });
 
   it('commission fetch-best and deeplink updates require approver+', () => {
-    expect(rolesOnMethod(CommissionManagementController, 'fetchBest')).toContain(
-      'approver',
-    );
-    expect(rolesOnMethod(CommissionManagementController, 'updateDeeplink')).toContain(
-      'approver',
-    );
+    expect(
+      rolesOnMethod(CommissionManagementController, 'fetchBest'),
+    ).toContain('approver');
+    expect(
+      rolesOnMethod(CommissionManagementController, 'updateDeeplink'),
+    ).toContain('approver');
   });
 });
