@@ -20,7 +20,7 @@ import {
   mongoCaseInsensitiveRegex,
   mongoEq,
   mongoFilter,
-  mongoUpdate,
+  mongoSetUpdate,
   normalizeSlugSegment,
   requireObjectId,
   requireOneOf,
@@ -105,7 +105,13 @@ export class CatalogService {
 
   async getPublishedProduct(slug: string) {
     const product = await this.productModel
-      .findOne(this.publishedProductFilter({ slug }))
+      .findOne(
+        mongoFilter(
+          this.publishedProductFilter({
+            slug: mongoEq(normalizeSlugSegment(slug)),
+          }),
+        ),
+      )
       .lean()
       .exec();
     if (!product) throw new NotFoundException('Product not found');
@@ -159,7 +165,7 @@ export class CatalogService {
     const updated = await this.bannerModel
       .findByIdAndUpdate(
         requireObjectId(id),
-        mongoUpdate({
+        mongoSetUpdate({
           ...dto,
           updated_by: actor?.email || actor?.userId,
           starts_at: dto.starts_at ? new Date(dto.starts_at) : undefined,
@@ -239,7 +245,9 @@ export class CatalogService {
       patch.scheduled_end_at = new Date(dto.scheduled_end_at);
 
     const updated = await this.productModel
-      .findByIdAndUpdate(requireObjectId(id), mongoUpdate(patch), { new: true })
+      .findByIdAndUpdate(requireObjectId(id), mongoSetUpdate(patch), {
+        new: true,
+      })
       .lean()
       .exec();
     if (!updated) throw new NotFoundException('Product not found');
@@ -289,7 +297,7 @@ export class CatalogService {
     const updated = await this.brandModel
       .findByIdAndUpdate(
         requireObjectId(brandId),
-        mongoUpdate({
+        mongoSetUpdate({
           ...dto,
           shop_slug: dto.shop_slug
             ? this.normalizeSlug(dto.shop_slug)
@@ -316,9 +324,16 @@ export class CatalogService {
 
   private async assertSlugAvailable(slug: string, exceptId?: string) {
     const normalized = this.normalizeSlug(slug);
-    const filter: QueryFilter<CatalogProduct> = { slug: normalized };
-    if (exceptId) filter._id = { $ne: exceptId };
-    const existing = await this.productModel.findOne(filter).lean().exec();
+    const filter: QueryFilter<CatalogProduct> = {
+      slug: mongoEq(normalized),
+    };
+    if (exceptId) {
+      filter._id = { $ne: requireObjectId(exceptId) };
+    }
+    const existing = await this.productModel
+      .findOne(mongoFilter(filter))
+      .lean()
+      .exec();
     if (existing) throw new ConflictException('Product slug already exists');
   }
 

@@ -46,7 +46,7 @@ import {
 } from './conversion-user-id.util';
 import {
   mongoFilter,
-  mongoUpdate,
+  mongoSetUpdate,
   requireObjectId,
 } from 'src/common/mongo-query';
 
@@ -2282,7 +2282,7 @@ export class WithdrawService {
         _id: requireObjectId(id),
         user_id: requireObjectId(userId, 'user id'),
       }),
-      mongoUpdate(patch),
+      mongoSetUpdate(patch),
       { new: true },
     );
   }

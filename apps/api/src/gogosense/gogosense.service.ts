@@ -5,6 +5,8 @@ import {
   requireObjectId,
   requireObjectIdHex,
   mongoFilter,
+  requireFiniteNumber,
+  requireTrimmedString,
 } from 'src/common/mongo-query';
 import { AnalyticsService } from 'src/analytics/analytics.service';
 import { InvolveService } from 'src/involve/involve.service';
@@ -427,8 +429,15 @@ export class GogosenseService {
         mongoFilter({
           _id: detectionEventId,
           user_id: userId,
-          merchant_id: request.merchantId,
-          network_merchant_id: request.networkMerchantId,
+          merchant_id: requireTrimmedString(
+            request.merchantId,
+            128,
+            'merchant id',
+          ),
+          network_merchant_id: requireFiniteNumber(
+            request.networkMerchantId,
+            'network merchant id',
+          ),
           matched: true,
         }),
       )

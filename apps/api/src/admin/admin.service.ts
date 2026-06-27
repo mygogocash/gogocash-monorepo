@@ -27,10 +27,13 @@ import { Deeplink } from 'src/involve/schemas/deeplink.schema';
 import { escapeRegexLiteral } from 'src/common/escape-regex';
 import {
   mongoCaseInsensitiveRegex,
+  mongoEq,
   mongoFilter,
-  mongoUpdate,
+  mongoSetUpdate,
+  requireFiniteNumber,
   requireObjectId,
   requireOneOf,
+  requireTrimmedString,
 } from 'src/common/mongo-query';
 
 @Injectable()
@@ -96,7 +99,10 @@ export class AdminService {
 
   update(id: string, updateAdminDto: UpdateAdminDto) {
     return this.userAdminModel
-      .findByIdAndUpdate(requireObjectId(id), mongoUpdate(updateAdminDto))
+      .findByIdAndUpdate(
+        requireObjectId(id),
+        mongoSetUpdate(updateAdminDto as Record<string, unknown>),
+      )
       .exec();
   }
 
@@ -113,8 +119,12 @@ export class AdminService {
       return this.withdrawModel
         .findByIdAndUpdate(
           withdrawId,
-          mongoUpdate({
-            status: updateRequestWithdrawDto.status,
+          mongoSetUpdate({
+            status: requireTrimmedString(
+              updateRequestWithdrawDto.status,
+              64,
+              'withdraw status',
+            ),
             slip_file: res.id,
           }),
         )
@@ -123,7 +133,13 @@ export class AdminService {
     return this.withdrawModel
       .findByIdAndUpdate(
         withdrawId,
-        mongoUpdate({ status: updateRequestWithdrawDto.status }),
+        mongoSetUpdate({
+          status: requireTrimmedString(
+            updateRequestWithdrawDto.status,
+            64,
+            'withdraw status',
+          ),
+        }),
       )
       .exec();
   }
@@ -239,7 +255,9 @@ export class AdminService {
         'search key',
       );
       if (searchKey === 'conversion_id') {
-        filter.conversion_id = search.trim();
+        filter.conversion_id = mongoEq(
+          requireTrimmedString(search, 200, 'conversion id'),
+        );
       } else {
         filter.$or = [
           {
@@ -377,7 +395,13 @@ export class AdminService {
     //   { conversion_id: body?.join('|') },
     // );
     return this.conversionModel
-      .find({ conversion_id: { $in: body } })
+      .find(
+        mongoFilter({
+          conversion_id: {
+            $in: body.map((id) => requireFiniteNumber(id, 'conversion id')),
+          },
+        }),
+      )
       .sort({ datetime_conversion: -1 })
       .lean();
   }
@@ -391,10 +415,14 @@ export class AdminService {
     const feeRate = await this.feeRateModel.findOne({ _id: objectId }).exec();
     if (feeRate) {
       return this.feeRateModel
-        .findOneAndUpdate({ _id: objectId }, mongoUpdate(updateFeeRateDto), {
-          upsert: true,
-          new: true,
-        })
+        .findOneAndUpdate(
+          { _id: objectId },
+          mongoSetUpdate(this.buildFeeRateUpdate(updateFeeRateDto)),
+          {
+            upsert: true,
+            new: true,
+          },
+        )
         .exec();
     }
     const newFeeRate = new this.feeRateModel(updateFeeRateDto);
@@ -484,8 +512,7 @@ export class AdminService {
     return this.offerModel
       .findByIdAndUpdate(
         requireObjectId(id),
-        mongoUpdate({
-          ...updateData,
+        mongoSetUpdate({
           logo_desktop: file1 ? file1.id : offer.logo_desktop,
           logo_mobile: file2 ? file2.id : offer.logo_mobile,
           banner: bannerFile ? bannerFile.id : offer.banner,
@@ -884,5 +911,25 @@ export class AdminService {
       throw new HttpException('Offer not found', 404);
     }
     return updated;
+  }
+
+  private buildFeeRateUpdate(dto: UpdateFeeRateDto): Record<string, number> {
+    const fields: Record<string, number> = {};
+    const entries: Array<[keyof UpdateFeeRateDto, string]> = [
+      ['system', 'system fee'],
+      ['store', 'store fee'],
+      ['minimum_withdraw', 'minimum withdraw'],
+      ['minimum_withdraw_thb', 'minimum withdraw thb'],
+      ['minimum_withdraw_usd', 'minimum withdraw usd'],
+      ['fee_withdraw_thb', 'fee withdraw thb'],
+      ['fee_withdraw_usd', 'fee withdraw usd'],
+    ];
+    for (const [key, label] of entries) {
+      const value = dto[key];
+      if (value !== undefined && value !== null) {
+        fields[key] = requireFiniteNumber(value, label);
+      }
+    }
+    return fields;
   }
 }

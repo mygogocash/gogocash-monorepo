@@ -34,6 +34,28 @@ export function requireOneOf<T extends string>(
   return value as T;
 }
 
+/** Non-empty trimmed string safe for Mongo literal comparisons. */
+export function requireTrimmedString(
+  value: string,
+  maxLength = 500,
+  label = 'value',
+): string {
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > maxLength) {
+    throw new BadRequestException(`Invalid ${label}`);
+  }
+  return trimmed;
+}
+
+/** Finite numeric literal safe for Mongo range operators. */
+export function requireFiniteNumber(value: unknown, label = 'value'): number {
+  const num = Number(value);
+  if (!Number.isFinite(num)) {
+    throw new BadRequestException(`Invalid ${label}`);
+  }
+  return num;
+}
+
 /** Strip leading/trailing hyphens without overlapping-alternation ReDoS patterns. */
 export function normalizeSlugSegment(value: string, maxLength = 120): string {
   const trimmed = value.trim().toLowerCase().slice(0, maxLength);
