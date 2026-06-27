@@ -77,13 +77,51 @@ export function mapBackendHomeBanners(doc: BannerHomeDocument): HomeHeroBanner[]
   const now = new Date();
   const slots = [1, 2, 3, 4, 5] as const;
 
-  const parseDate = (value: unknown): Date | null => {
+  const parseScheduleDate = (
+    value: unknown,
+  ): { instant: Date; dateOnly: boolean } | null => {
     if (typeof value !== "string" && typeof value !== "number") {
       return null;
     }
 
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      const dateOnly = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (dateOnly) {
+        const local = new Date(
+          Number(dateOnly[1]),
+          Number(dateOnly[2]) - 1,
+          Number(dateOnly[3]),
+        );
+        return Number.isNaN(local.getTime())
+          ? null
+          : { instant: local, dateOnly: true };
+      }
+    }
+
     const parsed = new Date(value);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
+    return Number.isNaN(parsed.getTime())
+      ? null
+      : { instant: parsed, dateOnly: false };
+  };
+
+  const startOfLocalDay = (date: Date) =>
+    new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+  const endOfLocalDay = (date: Date) =>
+    new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
+
+  const isBeforeStart = (
+    start: { instant: Date; dateOnly: boolean },
+    at: Date,
+  ) => {
+    const threshold = start.dateOnly ? startOfLocalDay(start.instant) : start.instant;
+    return threshold.getTime() > at.getTime();
+  };
+
+  const isAfterEnd = (end: { instant: Date; dateOnly: boolean }, at: Date) => {
+    const threshold = end.dateOnly ? endOfLocalDay(end.instant) : end.instant;
+    return threshold.getTime() < at.getTime();
   };
 
   const isEnabled = (docSlotValue: unknown): boolean => {
@@ -118,11 +156,11 @@ export function mapBackendHomeBanners(doc: BannerHomeDocument): HomeHeroBanner[]
         link: doc[`link_${n}` as keyof BannerHomeDocument],
         enabledRaw: doc[enabledKey as keyof BannerHomeDocument],
         start: hasField(startKey)
-          ? parseDate(doc[startKey as keyof BannerHomeDocument])
-          : parseDate(doc.start_date),
+          ? parseScheduleDate(doc[startKey as keyof BannerHomeDocument])
+          : parseScheduleDate(doc.start_date),
         end: hasField(endKey)
-          ? parseDate(doc[endKey as keyof BannerHomeDocument])
-          : parseDate(doc.end_date),
+          ? parseScheduleDate(doc[endKey as keyof BannerHomeDocument])
+          : parseScheduleDate(doc.end_date),
       };
     })
     .filter((slot) => {
@@ -136,11 +174,11 @@ export function mapBackendHomeBanners(doc: BannerHomeDocument): HomeHeroBanner[]
         }
       }
 
-      if (slot.start && slot.start.getTime() > now.getTime()) {
+      if (slot.start && isBeforeStart(slot.start, now)) {
         return false;
       }
 
-      if (slot.end && slot.end.getTime() < now.getTime()) {
+      if (slot.end && isAfterEnd(slot.end, now)) {
         return false;
       }
 

@@ -17,6 +17,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import toast from "react-hot-toast";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import { devError } from "@/lib/devConsole";
+import { multipartAuthHeaders } from "@/lib/multipartFormHeaders";
 
 export type { BannerTableVariant } from "@/types/banner";
 
@@ -183,10 +184,7 @@ export default function BannerTable({ variant = "home" }: BannerTableProps) {
     setClearingSlot(slot);
     try {
       await client.post(cfg.savePath, buildBannerClearSlotFormData(slot), {
-        headers: {
-          Authorization: `Bearer ${session?.accessToken}`,
-          "Content-Type": "multipart/form-data",
-        },
+        headers: multipartAuthHeaders(session?.accessToken),
       });
       await refetch();
       toast.success(`Slot ${slot} cleared`);

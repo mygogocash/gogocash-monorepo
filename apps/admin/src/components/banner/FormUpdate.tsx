@@ -14,6 +14,7 @@ import { BannerRequestForm } from "@/types/banner";
 import { devError } from "@/lib/devConsole";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import { isDirty } from "@/lib/isDirty";
+import { multipartAuthHeaders } from "@/lib/multipartFormHeaders";
 import Switch from "../form/switch/Switch";
 import { useEffect, useMemo, useRef } from "react";
 import { buildBannerSlotFormData } from "./bannerFormPayload";
@@ -143,16 +144,13 @@ const FormUpdate = ({
     setIsLoading(true);
     client
       .post(savePath, formData, {
-        headers: {
-          Authorization: `Bearer ${session?.accessToken}`,
-          "Content-Type": "multipart/form-data",
-        },
+        headers: multipartAuthHeaders(session?.accessToken),
       })
       .then(() => {
-        // setOpenModal(false);
         fetchData();
+        setOpenModal(false);
         setIsLoading(false);
-        toast.success("updated successfully");
+        toast.success("Banner saved successfully");
       })
       .catch((err: unknown) => {
         setIsLoading(false);

@@ -108,6 +108,22 @@ describe("mapBackendHomeBanners", () => {
     ]);
   });
 
+  it("given a start date on the current local day > then includes the banner immediately", () => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const dd = String(today.getDate()).padStart(2, "0");
+    const doc: BannerHomeDocument = {
+      image_1: "https://cdn/b1.png",
+      link_1: "/shop/1",
+      start_date_1: `${yyyy}-${mm}-${dd}`,
+    };
+
+    expect(mapBackendHomeBanners(doc)).toEqual([
+      { id: "home-banner-1", href: "/shop/1", placement: "main", imageUri: "https://cdn/b1.png" },
+    ]);
+  });
+
   it("given per-slot date windows > then includes only active slots", () => {
     const now = new Date();
     const soonStarted = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
