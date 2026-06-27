@@ -45,6 +45,7 @@ export type BrandCardProps =
       readonly cardHeight: number;
       readonly cardWidth: number;
       readonly accessibilityLabel?: string;
+      readonly onPress?: () => void;
       readonly testID?: string;
     })
   | (CompactBrandCardContent & {
@@ -53,6 +54,7 @@ export type BrandCardProps =
       readonly cardWidth: number;
       readonly logoVisualHeight: number;
       readonly accessibilityLabel?: string;
+      readonly onPress?: () => void;
       readonly testID?: string;
     });
 
@@ -101,6 +103,7 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
       <MotionPressable
         accessibilityLabel={props.accessibilityLabel ?? brand}
         accessibilityRole="button"
+        onPress={props.onPress}
         style={StyleSheet.flatten([
           props.size === "L" ? styles.brandCard : styles.compactBrandCard,
           { height: props.cardHeight, width: props.cardWidth },

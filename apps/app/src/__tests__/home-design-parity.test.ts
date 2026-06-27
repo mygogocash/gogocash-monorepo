@@ -517,8 +517,10 @@ describe("Expo home design parity", () => {
     expect(homeFile).toContain("TextInput");
     expect(homeFile).toContain("searchPopoverOpen");
     expect(homeFile).toContain("openSearchPopover");
-    expect(homeFile).toContain("onPress={openSearchPopover}");
-    expect(homeFile).toContain("onPressIn={openSearchPopover}");
+    expect(homeFile).toContain("openMobileSearch");
+    expect(homeFile).toContain('router.push("/search"');
+    expect(homeFile).toContain("onPress={openMobileSearch}");
+    expect(homeFile).toContain("onPressIn={openMobileSearch}");
     expect(homeFile).toContain("HomeSearchPopularPopover");
     expect(homeFile).toContain("query={searchQuery}");
     expect(homeFile).toContain("useOfferSearch");
@@ -829,20 +831,25 @@ describe("Expo home design parity", () => {
     expect(homeScreenSource).toContain("const [mobileTabletGoLinkCovered, setMobileTabletGoLinkCovered] = useState(false)");
     expect(homeScreenSource).toContain("isGoLinkCovered={mobileTabletGoLinkCovered}");
     expect(homeScreenSource).toContain("setMobileTabletGoLinkCovered((covered) => !covered)");
-    expect(homeScreenSource).toContain("isGoLinkCovered ? null : (");
+    expect(homeScreenSource).toContain("MobileTabletGoLinkBannerCollapse");
+    expect(homeScreenSource).toContain("motion.duration.accordionExpand");
+    expect(homeScreenSource).toContain("motion.duration.accordionChevron");
+    expect(homeScreenSource).toContain("goLinkToggleChevronRotate");
     expect(homeScreenSource).toContain('"Cover GoLink banner"');
     expect(homeScreenSource).toContain('"Show GoLink banner"');
     expect(homeScreenSource).toContain("<ChevronUpIcon");
-    expect(homeScreenSource).toContain("<ChevronDownIcon");
+    expect(homeScreenSource).not.toContain("<ChevronDownIcon");
     expect(homeScreenSource).toContain("!isTabletFrame ? styles.mobileHeaderIconButtonSmall : null");
     expect(homeScreenSource).toMatch(/mobileHeaderIconButtonSmall:\s*\{[\s\S]*?height:\s*40,[\s\S]*?width:\s*40,/);
     expect(homeScreenSource).toContain('accessibilityLabel={tc("Search")}');
+    expect(homeScreenSource).toContain('router.push("/search"');
+    expect(homeScreenSource).toContain("onOpenSearchPopover={openMobileSearch}");
     expect(homeScreenSource).not.toContain('accessibilityLabel={tc("GoLink")}');
     expect(homeScreenSource).not.toContain("isGoLinkBannerVisible");
     expect(homeScreenSource).not.toContain("setGoLinkBannerVisible");
     expect(homeScreenSource).toContain('variant="mobileTabletHeader"');
     expect(homeScreenSource).toMatch(
-      /<DesktopGoLinkBanner[\s\S]*?variant="mobileTabletHeader"[\s\S]*?\/>/,
+      /<MobileTabletGoLinkBannerCollapse[\s\S]*?\/>/,
     );
     expect(homeScreenSource).not.toContain("mobileTabletGoLinkBackdropHidden");
     expect(homeScreenSource).not.toContain('backgroundColor: "rgba(255, 255, 255, 0.96)"');
@@ -862,6 +869,52 @@ describe("Expo home design parity", () => {
     expect(toggleButtonStyle).toContain("height: 24");
     expect(toggleButtonStyle).toContain("width: 24");
     expect(toggleButtonStyle).toContain("top: -12");
+  });
+
+  it("mobile/tablet GoLink sheet toggle > given dark mode > then chevron and pill use themed contrast", () => {
+    const homeScreenSource = readHomeRouter(mobileRoot);
+    const homeSource = readHomeFile();
+    const toggleButtonStyle =
+      homeSource.match(/mobileTabletSheetToggleButton:\s*\{[\s\S]*?\n  \}/)?.[0] ?? "";
+
+    expect(homeScreenSource).toContain("<ChevronUpIcon color={colors.ink}");
+    expect(homeScreenSource).toContain("goLinkToggleChevronRotate");
+    expect(homeScreenSource).not.toContain("<ChevronDownIcon");
+    expect(homeScreenSource).not.toContain('color="#111827"');
+    expect(toggleButtonStyle).toContain("pickThemed(colors, colors.card, colors.borderStrong)");
+    expect(toggleButtonStyle).toContain("borderWidth: 1");
+    expect(homeSource).toContain('pickThemed(colors, "#303846", "rgba(255, 255, 255, 0.92)")');
+  });
+
+  it("mobile search screen > given suggestion cards > then it renders the shared compact BrandCard", () => {
+    const searchSource = fs.readFileSync(
+      path.resolve(mobileRoot, "src/screens/search/SearchSuggestionsGrid.tsx"),
+      "utf8"
+    );
+    const brandCardSource = fs.readFileSync(
+      path.resolve(mobileRoot, "src/components/BrandCard.tsx"),
+      "utf8"
+    );
+
+    expect(searchSource).toContain('import { BrandCard } from "@mobile/components/BrandCard"');
+    expect(searchSource).toContain("getScaledCompactBrandCardMetrics");
+    expect(searchSource).toContain('size="S"');
+    expect(brandCardSource).toContain("onPress={props.onPress}");
+  });
+
+  it("mobile search screen > given idle and active states > then it centers content and shows popular fallback", () => {
+    const searchScreenSource = fs.readFileSync(
+      path.resolve(mobileRoot, "src/screens/CustomerSearchScreen.tsx"),
+      "utf8"
+    );
+
+    expect(searchScreenSource).toContain("homeLayout.contentMaxWidth");
+    expect(searchScreenSource).toContain("homeLayout.contentHorizontalPadding");
+    expect(searchScreenSource).toContain('keyboardDismissMode="on-drag"');
+    expect(searchScreenSource).toContain("SearchPopularIntro");
+    expect(searchScreenSource).toContain("SearchTrendingChips");
+    expect(searchScreenSource).toContain("showPopularBelowQuery");
+    expect(searchScreenSource).toContain("removeSearchHistoryItem");
   });
 
   it("mobile/tablet colored header > given it meets the white content sheet > then the header bottom corners stay square", () => {

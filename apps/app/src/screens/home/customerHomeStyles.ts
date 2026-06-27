@@ -168,9 +168,15 @@ export function createHomeScreenStyles(colors: ThemeColors, surfaces: ThemeSurfa
   },
   mobileTabletSheetToggleButton: {
     alignItems: "center",
-    backgroundColor: colors.card,
+    backgroundColor: pickThemed(colors, colors.card, colors.borderStrong),
+    borderColor: pickThemed(colors, "rgba(15, 23, 42, 0.08)", colors.border),
     borderRadius: 12,
-    boxShadow: "0 6px 18px rgba(15, 23, 42, 0.12)",
+    borderWidth: 1,
+    boxShadow: pickThemed(
+      colors,
+      "0 6px 18px rgba(15, 23, 42, 0.12)",
+      "0 6px 18px rgba(0, 0, 0, 0.45)",
+    ),
     height: 24,
     justifyContent: "center",
     left: "50%",

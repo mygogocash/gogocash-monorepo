@@ -73,6 +73,8 @@ const isWebRuntime =
 
 export const motion = {
   useNativeDriver: !isWebRuntime,
+  /** Height/width/layout animations cannot use the native driver. */
+  useLayoutNativeDriver: false,
   cssTransition: {
     duration: "220ms",
     property: "transform, box-shadow, opacity, background-color, border-color, color",
