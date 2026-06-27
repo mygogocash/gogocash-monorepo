@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
-import { fetcher } from "@/lib/axios/client";
+import client, { fetcher } from "@/lib/axios/client";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import FormUpdate from "./FormUpdate";
@@ -10,8 +10,13 @@ import { BANNER_ADMIN_SURFACES } from "@/lib/bannerAdminSurfaces";
 import { getBannerSlotRowFields, getBannerTableStatusCell } from "@/lib/bannerSlotStatus";
 import NoData from "@/components/common/NoData";
 import { pathImage } from "@/utils/helper";
-import { buildBannerSlotFormState } from "./bannerFormPayload";
-import { type BannerRequestForm, type BannerTableVariant } from "@/types/banner";
+import { buildBannerClearSlotFormData, buildBannerSlotFormState } from "./bannerFormPayload";
+import { type BannerRequestForm, type BannerTableVariant, type BannerSlotId, type BannerData } from "@/types/banner";
+import { useDataSession } from "@/hooks/useDataSession";
+import { usePermissions } from "@/hooks/usePermissions";
+import toast from "react-hot-toast";
+import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
+import { devError } from "@/lib/devConsole";
 
 export type { BannerTableVariant } from "@/types/banner";
 
@@ -76,8 +81,12 @@ type BannerTableProps = {
 
 export default function BannerTable({ variant = "home" }: BannerTableProps) {
   const cfg = VARIANT_CONFIG[variant];
+  const session = useDataSession();
+  const { can } = usePermissions();
+  const canManageBanners = can("banner:manage");
   const [openModal, setOpenModal] = useState<boolean>(false);
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
+  const [clearingSlot, setClearingSlot] = useState<BannerSlotId | null>(null);
   const actionsDropdownRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [form, setForm] = useState<BannerRequestForm>({
@@ -145,16 +154,55 @@ export default function BannerTable({ variant = "home" }: BannerTableProps) {
       if (actionsDropdownRef.current && !actionsDropdownRef.current.contains(e.target as Node))
         setOpenActionsId(null);
     };
-    document.addEventListener("click", handleClick, true);
-    return () => document.removeEventListener("click", handleClick, true);
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
   }, [openActionsId]);
 
   const rowActionKey = (slot: number) => `${variant}-banner-${slot}`;
 
-  const openBannerSlotQuickView = (slot: number) => {
+  const openBannerSlotQuickView = useCallback((slot: BannerSlotId) => {
     setOpenActionsId(null);
+    setForm(buildBannerSlotFormState(bannerData, slot));
     setOpenModal(true);
-    setForm(() => buildBannerSlotFormState(bannerData, slot));
+  }, [bannerData]);
+
+  const clearBannerSlot = useCallback(async (slot: BannerSlotId) => {
+    if (!canManageBanners) {
+      toast.error("You do not have permission to clear banner slots.");
+      return;
+    }
+    const confirmed = window.confirm(
+      `Clear banner slot ${slot}? This removes the image, link, and schedule for this position.`,
+    );
+    if (!confirmed) return;
+
+    setOpenActionsId(null);
+    setClearingSlot(slot);
+    try {
+      await client.post(cfg.savePath, buildBannerClearSlotFormData(slot), {
+        headers: {
+          Authorization: `Bearer ${session?.accessToken}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      await refetch();
+      toast.success(`Slot ${slot} cleared`);
+    } catch (err: unknown) {
+      devError("Banner clear failed:", err);
+      toast.error(getApiErrorMessage(err, "Failed to clear slot"));
+    } finally {
+      setClearingSlot(null);
+    }
+  }, [canManageBanners, cfg.savePath, refetch, session?.accessToken]);
+
+  const runMenuAction = (
+    e: React.MouseEvent,
+    action: () => void,
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setOpenActionsId(null);
+    action();
   };
 
   return (
@@ -358,16 +406,19 @@ export default function BannerTable({ variant = "home" }: BannerTableProps) {
                                 <button
                                   type="button"
                                   role="menuitem"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    openBannerSlotQuickView(item);
-                                  }}
+                                  onMouseDown={(e) => runMenuAction(e, () => openBannerSlotQuickView(item))}
                                   className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
                                 >
                                   Edit
                                 </button>
-                                <button type="button" role="menuitem" className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20">
-                                  Delete
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  disabled={!canManageBanners || clearingSlot === item}
+                                  onMouseDown={(e) => runMenuAction(e, () => void clearBannerSlot(item))}
+                                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                                >
+                                  {clearingSlot === item ? "Clearing…" : "Clear"}
                                 </button>
                               </div>
                             )}

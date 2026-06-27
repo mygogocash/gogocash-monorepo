@@ -594,6 +594,11 @@ export class AdminController {
       end_date_3: body.end_date_3,
       end_date_4: body.end_date_4,
       end_date_5: body.end_date_5,
+      clear_image_1: coerceOptionalBoolean(body.clear_image_1),
+      clear_image_2: coerceOptionalBoolean(body.clear_image_2),
+      clear_image_3: coerceOptionalBoolean(body.clear_image_3),
+      clear_image_4: coerceOptionalBoolean(body.clear_image_4),
+      clear_image_5: coerceOptionalBoolean(body.clear_image_5),
     };
     return this.adminService.updateBannerHome(filesDto);
   }

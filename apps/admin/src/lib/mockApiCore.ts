@@ -1369,9 +1369,13 @@ async function handleMockPOST(
       if (typeof linkValue === "string") {
         (target as Record<string, unknown>)[lk] = linkValue;
       }
+      const clearImageKey = `clear_image_${i}`;
+      const clearImageValue = readBodyBoolean(clearImageKey);
       const ik = `image_${i}`;
       const imageValue = readBodyField(ik);
-      if (typeof imageValue === "string") {
+      if (clearImageValue) {
+        (target as Record<string, unknown>)[ik] = null;
+      } else if (typeof imageValue === "string") {
         const s = imageValue.trim();
         (target as Record<string, unknown>)[ik] = s.length > 0 ? s : null;
       }
