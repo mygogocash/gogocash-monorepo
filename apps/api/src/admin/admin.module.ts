@@ -141,7 +141,7 @@ import {
   SearchBlacklistSchema,
 } from './search/schemas/blacklist.schema';
 
-import { InvolveService } from 'src/involve/involve.service';
+import { InvolveModule } from 'src/involve/involve.module';
 import { UserService } from 'src/user/user.service';
 import { MediaModule } from 'src/media/media.module';
 import { JobService } from 'src/withdraw/cronjob/job.service';
@@ -156,6 +156,7 @@ import { AnalyticsModule } from 'src/analytics/analytics.module';
     EmailModule,
     MediaModule,
     PointModule,
+    InvolveModule,
     MongooseModule.forFeature([
       { name: UserAdmin.name, schema: UserAdminSchema },
       { name: AdminToken.name, schema: AdminTokenSchema },
@@ -231,7 +232,6 @@ import { AnalyticsModule } from 'src/analytics/analytics.module';
     SearchService,
     CommissionManagementService,
     JwtService,
-    InvolveService,
     UserService,
     JobService,
     WithdrawService,
