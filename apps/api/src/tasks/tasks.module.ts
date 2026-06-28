@@ -39,10 +39,13 @@ import {
   RewardList,
   RewardListSchema,
 } from 'src/withdraw/schemas/rewardList.schema';
+import { MediaModule } from 'src/media/media.module';
+import { AnalyticsService } from 'src/analytics/analytics.service';
 
 @Module({
   imports: [
     CacheModule.register(),
+    MediaModule,
     // TasksController is guarded by AuthAdminGuard, which injects JwtService.
     // Without this registration Nest cannot resolve the guard's dependency and
     // the whole app fails to boot (UnknownDependenciesException). Mirrors the
@@ -72,6 +75,7 @@ import {
     GoogleDriveService,
     JobService,
     WithdrawService,
+    AnalyticsService,
   ],
 })
 export class TasksModule {}

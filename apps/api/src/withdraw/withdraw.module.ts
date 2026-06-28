@@ -32,10 +32,12 @@ import { RewardList, RewardListSchema } from './schemas/rewardList.schema';
 import { PointService } from 'src/point/point.service';
 import { GoogleDriveService } from 'src/google-drive/google-drive.service';
 import { AnalyticsService } from 'src/analytics/analytics.service';
+import { MediaModule } from 'src/media/media.module';
 
 @Module({
   imports: [
     CacheModule.register(),
+    MediaModule,
     MongooseModule.forFeature([
       { name: Offer.name, schema: OfferSchema },
       { name: Deeplink.name, schema: DeeplinkSchema },
