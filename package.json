@@ -28,14 +28,15 @@
     "@nestjs/core": "11.1.27",
     "@nestjs/platform-express": "11.1.27",
     "@playwright/test": "^1.55.0",
+    "cache-manager": "^7.2.9",
     "expo": "^56.0.12",
-    "mongoose": "9.7.1",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
-    "react-test-renderer": "19.2.3",
+    "mongoose": "9.7.3",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "react-test-renderer": "19.2.7",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2",
-    "turbo": "^2.3.0"
+    "turbo": "^2.10.0"
   },
   "overrides": {
     "undici": "^6.27.0",

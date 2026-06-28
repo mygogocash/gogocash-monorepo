@@ -6,7 +6,8 @@ import * as crypto from 'crypto';
 import { InjectModel } from '@nestjs/mongoose';
 import { User } from 'src/user/schemas/user.schema';
 import { Model } from 'mongoose';
-import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 
 export type LoginType = 'email' | 'mobile' | 'password' | null;
 interface LoginSession {
