@@ -7,9 +7,10 @@ build/test. (The landing site is a separate repo, not in this monorepo.)
 
 ## What runs
 
-`ci.yml` — runs on pull requests and pushes targeting `staging` and `main`.
-The `migrate/monorepo` integration branch has been **retired** now that the
-migration has landed on `main`.
+`ci.yml` — runs on pull requests targeting `dev`, `staging`, or `production`, and
+on pushes to `dev` (default integration branch).
+
+Promotion flow: **dev → staging → production** (merge PRs between branches).
 
 A `changes` job (using `dorny/paths-filter`) detects which app changed, then
 gates each app's job. A change confined to `apps/<X>/**` runs only `<X>`'s
@@ -57,8 +58,8 @@ private free-plan repo (tracked in #44), so nothing is enforced. The old
 `ci-gate` aggregator (which existed only to make path-filtered checks
 requirable) has been **removed**.
 
-When the plan allows protection, target **`main`** and require the per-app
-checks (or re-introduce a small aggregator): `enforce_admins: false` (owner can
+When the plan allows protection, target **`dev`**, **`staging`**, and **`production`**
+and require the per-app checks (or re-introduce a small aggregator): `enforce_admins: false` (owner can
 bypass in an emergency), no required reviews (solo maintainer).
 
 > ⚠️ Separately, GitHub Actions is currently **blocked org-wide by a billing /
@@ -74,7 +75,7 @@ in one place.
 
 | Workflow | Trigger | Does |
 |----------|---------|------|
-| **`build-staging.yml`** | push to `main` + manual (`workflow_dispatch`) | reuses `ci.yml` as the gate, then builds + pushes a `:staging-candidate` image for each **changed** app (path-filtered). **No deploy.** |
+| **`build-staging.yml`** | push to `staging` + manual (`workflow_dispatch`) | reuses `ci.yml` as the gate, then builds + pushes a `:staging-candidate` image for each **changed** app (path-filtered). **No deploy.** |
 | **`release-staging.yml`** | manual `workflow_dispatch` (pick app + tag) | deploys the chosen candidate image to Cloud Run, then **health-smokes** the new revision. API releases smoke `/gogosense/merchants` so stale deployments without the GoGoSense module fail before device acceptance. The dispatch **is** the approval. |
 | `_build-push.yml` | `workflow_call` | reusable: WIF auth → optional prebuild → docker build → push `:sha` + `:staging-candidate`. |
 | `_deploy-cloudrun.yml` | `workflow_call` | reusable: WIF auth → `gcloud run deploy` a given tag → post-deploy `curl` health check. |

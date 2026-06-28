@@ -1,17 +1,11 @@
 # Dependabot — keeps dependencies patched continuously, CI-gated, with low PR
-# noise via grouping. Targets `migrate/monorepo` (the active integration branch
-# that becomes `main` at the prod cutover), so update PRs run the real CI gate.
-#
-# NOTE on the security tab: Dependabot *alerts* are evaluated against the
-# DEFAULT branch (`main` = old pre-modernization code), so most current alerts
-# are already fixed on `migrate/monorepo` and will close when it merges to main.
-# This config drives ongoing *update PRs* against the active branch.
+# noise via grouping. Targets `dev` (default integration branch).
 version: 2
 updates:
   # ── npm (single root lockfile covers all workspaces) ──────────────────────
   - package-ecosystem: npm
     directory: "/"
-    target-branch: main
+    target-branch: dev
     schedule:
       interval: weekly
       day: monday
@@ -41,7 +35,7 @@ updates:
   # ── GitHub Actions (also addresses #50) ───────────────────────────────────
   - package-ecosystem: github-actions
     directory: "/"
-    target-branch: main
+    target-branch: dev
     schedule:
       interval: weekly
       day: monday
