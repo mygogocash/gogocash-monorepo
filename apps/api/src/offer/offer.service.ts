@@ -181,8 +181,14 @@ export class OfferService implements OnApplicationBootstrap {
    * a compound `{ source, offer_id }` after the Optimise integration. Drop the
    * legacy index on startup if it still exists so Mongoose can create the new
    * compound index cleanly. Idempotent — a no-op once the migration has run.
+   *
+   * Deferred so Cloud Run can bind PORT before the first Mongo round-trip.
    */
-  async onApplicationBootstrap(): Promise<void> {
+  onApplicationBootstrap(): void {
+    void this.migrateLegacyOfferIndex();
+  }
+
+  private async migrateLegacyOfferIndex(): Promise<void> {
     try {
       const indexes = await this.offerModel.collection.indexes();
       const legacy = indexes.find((idx) => idx.name === 'offer_id_1');

@@ -927,6 +927,13 @@ describe('OfferService', () => {
   });
 
   describe('onApplicationBootstrap (index migration)', () => {
+    const runMigration = () =>
+      (
+        service as unknown as {
+          migrateLegacyOfferIndex: () => Promise<void>;
+        }
+      ).migrateLegacyOfferIndex();
+
     // The legacy single-field unique index must be dropped exactly once so
     // Mongoose can build the new compound index. Idempotent thereafter.
     it('onApplicationBootstrap > given the legacy offer_id_1 index exists > then it is dropped', async () => {
@@ -935,7 +942,8 @@ describe('OfferService', () => {
         { name: '_id_' },
       ]);
 
-      await service.onApplicationBootstrap();
+      service.onApplicationBootstrap();
+      await runMigration();
 
       expect(offerModel.collection.dropIndex).toHaveBeenCalledWith(
         'offer_id_1',
@@ -945,7 +953,8 @@ describe('OfferService', () => {
     it('onApplicationBootstrap > given the legacy index is absent > then it is a no-op', async () => {
       offerModel.collection.indexes.mockResolvedValue([{ name: '_id_' }]);
 
-      await service.onApplicationBootstrap();
+      service.onApplicationBootstrap();
+      await runMigration();
 
       expect(offerModel.collection.dropIndex).not.toHaveBeenCalled();
     });
@@ -954,7 +963,8 @@ describe('OfferService', () => {
     it('onApplicationBootstrap > given indexes() rejects > then the error is swallowed (no throw)', async () => {
       offerModel.collection.indexes.mockRejectedValue(new Error('no perms'));
 
-      await expect(service.onApplicationBootstrap()).resolves.toBeUndefined();
+      service.onApplicationBootstrap();
+      await expect(runMigration()).resolves.toBeUndefined();
       expect(offerModel.collection.dropIndex).not.toHaveBeenCalled();
     });
   });
