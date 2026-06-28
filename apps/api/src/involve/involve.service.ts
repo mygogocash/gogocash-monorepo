@@ -6,7 +6,8 @@ import {
 } from './dto/create-involve.dto';
 import { UpdateInvolveDto } from './dto/update-involve.dto';
 import axios from 'axios';
-import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { InjectModel } from '@nestjs/mongoose';
 import { Offer } from '../offer/schemas/offer.schema';
 import { isValidObjectId, Model, Types } from 'mongoose';
