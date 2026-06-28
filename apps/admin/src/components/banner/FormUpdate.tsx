@@ -16,7 +16,7 @@ import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import { isDirty } from "@/lib/isDirty";
 import { multipartPostConfig } from "@/lib/multipartFormHeaders";
 import Switch from "../form/switch/Switch";
-import { useEffect, useMemo, useRef } from "react";
+import { startTransition, useEffect, useMemo, useState } from "react";
 import { buildBannerSlotFormData } from "./bannerFormPayload";
 interface IProp {
   fetchData: () => void | Promise<unknown>;
@@ -101,22 +101,24 @@ const FormUpdate = ({
     end_forever_5: f.end_forever_5,
     id: f.id,
   });
-  const initialSnapshot = useRef<ReturnType<typeof snapshotForm> | null>(null);
+  const [initialSnapshot, setInitialSnapshot] = useState<
+    ReturnType<typeof snapshotForm> | null
+  >(null);
   useEffect(() => {
-    if (openModal) {
-      initialSnapshot.current = snapshotForm(form);
-    } else {
-      initialSnapshot.current = null;
-    }
+    if (!openModal) return;
+    startTransition(() => {
+      setInitialSnapshot(snapshotForm(form));
+    });
     // Re-snapshot only when the modal open state changes; `form` is populated
     // synchronously alongside `openModal` by the parent.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openModal]);
   const dirty = useMemo(
     () =>
-      initialSnapshot.current != null &&
-      isDirty(snapshotForm(form), initialSnapshot.current),
-    [form],
+      openModal &&
+      initialSnapshot != null &&
+      isDirty(snapshotForm(form), initialSnapshot),
+    [openModal, form, initialSnapshot],
   );
 
   const setSlotField = <K extends keyof BannerRequestForm>(

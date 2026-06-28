@@ -14,7 +14,7 @@ import { UserMyCashback } from 'src/user/schemas/user-my-cashback.schema';
 import { Banner } from 'src/offer/schemas/banner.schema';
 import { TopBrandConfig } from 'src/offer/schemas/top-brand-config.schema';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
-import { GoogleDriveService } from 'src/google-drive/google-drive.service';
+import { StoredMediaService } from 'src/media/stored-media.service';
 import { InvolveService } from 'src/involve/involve.service';
 import { UserService } from 'src/user/user.service';
 import { JobService } from 'src/withdraw/cronjob/job.service';
@@ -56,7 +56,12 @@ describe('AdminService', () => {
   let bannerModel: any;
   let topBrandConfigModel: any;
   let deeplinkModel: any;
-  let googleDriveService: { uploadFile: jest.Mock; deleteFile: jest.Mock };
+  let storedMediaService: {
+    upload: jest.Mock;
+    replace: jest.Mock;
+    deleteStored: jest.Mock;
+    getReadableStream: jest.Mock;
+  };
   let involveService: { getConversionAll: jest.Mock };
   let userService: { getBalanceMyCashback: jest.Mock };
   let jobService: { syncConversionByConversionId: jest.Mock };
@@ -104,9 +109,15 @@ describe('AdminService', () => {
     };
     topBrandConfigModel = { updateOne: jest.fn(), findOne: jest.fn() };
     deeplinkModel = { aggregate: jest.fn() };
-    googleDriveService = {
-      uploadFile: jest.fn(),
-      deleteFile: jest.fn().mockResolvedValue(undefined),
+    storedMediaService = {
+      upload: jest.fn().mockResolvedValue(
+        'https://storage.googleapis.com/gogocash-catalog-staging/withdraw-slips/slip.png',
+      ),
+      replace: jest.fn().mockResolvedValue(
+        'https://storage.googleapis.com/gogocash-catalog-staging/banner-home/new.png',
+      ),
+      deleteStored: jest.fn().mockResolvedValue(undefined),
+      getReadableStream: jest.fn(),
     };
     involveService = { getConversionAll: jest.fn() };
     userService = { getBalanceMyCashback: jest.fn() };
@@ -132,7 +143,7 @@ describe('AdminService', () => {
           useValue: topBrandConfigModel,
         },
         { provide: getModelToken(Deeplink.name), useValue: deeplinkModel },
-        { provide: GoogleDriveService, useValue: googleDriveService },
+        { provide: StoredMediaService, useValue: storedMediaService },
         { provide: InvolveService, useValue: involveService },
         { provide: UserService, useValue: userService },
         { provide: JobService, useValue: jobService },
@@ -238,22 +249,29 @@ describe('AdminService', () => {
       expect(arg0).toBeInstanceOf(Types.ObjectId);
       expect(arg0.toString()).toBe(id);
       expect(arg1).toEqual({ $set: { status: 'APPROVED' } });
-      expect(googleDriveService.uploadFile).not.toHaveBeenCalled();
+      expect(storedMediaService.upload).not.toHaveBeenCalled();
     });
 
-    // When a payout slip is attached it must be persisted to Drive and the returned
-    // file id recorded on the withdraw — losing this breaks the payout audit trail.
-    it('updateRequestWithdraw > given a slip file > then it uploads to Drive and stores the returned file id', async () => {
+    it('updateRequestWithdraw > given a slip file > then it uploads to GCS and stores the public URL', async () => {
       const id = new Types.ObjectId().toString();
-      googleDriveService.uploadFile.mockResolvedValue({ id: 'drive-file-1' });
+      storedMediaService.upload.mockResolvedValue(
+        'https://storage.googleapis.com/gogocash-catalog-staging/withdraw-slips/slip.png',
+      );
       withdrawModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: id }));
       const file = { originalname: 'slip.png' } as Express.Multer.File;
 
       await service.updateRequestWithdraw({ id, status: 'PAID' }, file);
 
-      expect(googleDriveService.uploadFile).toHaveBeenCalledWith(file);
+      expect(storedMediaService.upload).toHaveBeenCalledWith(
+        file,
+        'withdraw-slips',
+      );
       expect(withdrawModel.findByIdAndUpdate.mock.calls[0][1]).toEqual({
-        $set: { status: 'PAID', slip_file: 'drive-file-1' },
+        $set: {
+          status: 'PAID',
+          slip_file:
+            'https://storage.googleapis.com/gogocash-catalog-staging/withdraw-slips/slip.png',
+        },
       });
     });
   });
@@ -411,9 +429,7 @@ describe('AdminService', () => {
       ).rejects.toThrow('Offer not found');
     });
 
-    // Replacing a logo must upload the new asset AND delete the prior one, or orphaned
-    // Drive files accumulate; new ids must be written, untouched assets preserved.
-    it('updateOffer > given a new desktop logo > then it uploads the new file, deletes the old, and persists the new id', async () => {
+    it('updateOffer > given a new desktop logo > then it uploads the new file, deletes the old, and persists the new URL', async () => {
       offerModel.findById.mockReturnValue(
         makeQuery({
           _id: offerId,
@@ -421,7 +437,9 @@ describe('AdminService', () => {
           logo_mobile: 'keep-mobile',
         }),
       );
-      googleDriveService.uploadFile.mockResolvedValue({ id: 'new-logo' });
+      storedMediaService.replace.mockResolvedValue(
+        'https://storage.googleapis.com/gogocash-catalog-staging/brands/new-logo.png',
+      );
       offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: offerId }));
 
       await service.updateOffer(offerId, {
@@ -429,9 +447,15 @@ describe('AdminService', () => {
         product_type: [],
       });
 
-      expect(googleDriveService.deleteFile).toHaveBeenCalledWith('old-logo');
+      expect(storedMediaService.replace).toHaveBeenCalledWith(
+        expect.objectContaining({ originalname: 'logo.png' }),
+        'brands',
+        'old-logo',
+      );
       const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1].$set;
-      expect(persisted.logo_desktop).toBe('new-logo');
+      expect(persisted.logo_desktop).toBe(
+        'https://storage.googleapis.com/gogocash-catalog-staging/brands/new-logo.png',
+      );
       expect(persisted.logo_mobile).toBe('keep-mobile');
     });
 
@@ -534,7 +558,7 @@ describe('AdminService', () => {
         }),
       );
       expect(update.$set.image_1).toBeUndefined();
-      expect(googleDriveService.deleteFile).not.toHaveBeenCalled();
+      expect(storedMediaService.deleteStored).not.toHaveBeenCalled();
       expect(bannerModel.findOneAndUpdate).toHaveBeenCalledWith(
         {},
         expect.any(Object),
@@ -668,12 +692,74 @@ describe('AdminService', () => {
         image_5: null,
       } as never);
 
-      expect(googleDriveService.deleteFile).toHaveBeenCalledWith(
+      expect(storedMediaService.deleteStored).toHaveBeenCalledWith(
         'drive-file-2',
       );
       const [, update] = bannerModel.findOneAndUpdate.mock.calls[0];
       expect(update.$set.image_2).toBeNull();
       expect(update.$set.link_2).toBe('');
+    });
+
+    it('updateBannerHome > given a new image upload > then stores the GCS public URL and deletes legacy Drive file', async () => {
+      bannerModel.findOne.mockReturnValue(
+        makeQuery({
+          _id: 'banner-doc',
+          image_1: 'legacy-drive-id',
+        }),
+      );
+      bannerModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({ _id: 'banner-doc' }),
+      );
+
+      await service.updateBannerHome({
+        image_1: {
+          originalname: 'hero.png',
+          mimetype: 'image/png',
+          buffer: Buffer.from('png'),
+        },
+        image_2: null,
+        image_3: null,
+        image_4: null,
+        image_5: null,
+      } as never);
+
+      expect(storedMediaService.replace).toHaveBeenCalledWith(
+        expect.objectContaining({ originalname: 'hero.png' }),
+        'banner-home',
+        'legacy-drive-id',
+      );
+      const [, update] = bannerModel.findOneAndUpdate.mock.calls[0];
+      expect(update.$set.image_1).toBe(
+        'https://storage.googleapis.com/gogocash-catalog-staging/banner-home/new.png',
+      );
+    });
+
+    it('updateBannerHome > given clear_image for a GCS URL > then deletes from GCS', async () => {
+      bannerModel.findOne.mockReturnValue(
+        makeQuery({
+          _id: 'banner-doc',
+          image_3:
+            'https://storage.googleapis.com/gogocash-catalog-staging/banner-home/old.png',
+        }),
+      );
+      bannerModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({ _id: 'banner-doc' }),
+      );
+
+      await service.updateBannerHome({
+        clear_image_3: true,
+        image_1: null,
+        image_2: null,
+        image_3: null,
+        image_4: null,
+        image_5: null,
+      } as never);
+
+      expect(storedMediaService.deleteStored).toHaveBeenCalledWith(
+        'https://storage.googleapis.com/gogocash-catalog-staging/banner-home/old.png',
+      );
+      const [, update] = bannerModel.findOneAndUpdate.mock.calls[0];
+      expect(update.$set.image_3).toBeNull();
     });
   });
 

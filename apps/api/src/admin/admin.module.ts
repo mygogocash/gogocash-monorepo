@@ -143,7 +143,7 @@ import {
 
 import { InvolveService } from 'src/involve/involve.service';
 import { UserService } from 'src/user/user.service';
-import { GoogleDriveService } from 'src/google-drive/google-drive.service';
+import { MediaModule } from 'src/media/media.module';
 import { JobService } from 'src/withdraw/cronjob/job.service';
 import { PointService } from 'src/point/point.service';
 import { WithdrawService } from 'src/withdraw/withdraw.service';
@@ -154,6 +154,7 @@ import { AnalyticsModule } from 'src/analytics/analytics.module';
     CacheModule.register(),
     AnalyticsModule,
     EmailModule,
+    MediaModule,
     MongooseModule.forFeature([
       { name: UserAdmin.name, schema: UserAdminSchema },
       { name: AdminToken.name, schema: AdminTokenSchema },
@@ -231,7 +232,6 @@ import { AnalyticsModule } from 'src/analytics/analytics.module';
     JwtService,
     InvolveService,
     UserService,
-    GoogleDriveService,
     JobService,
     PointService,
     WithdrawService,

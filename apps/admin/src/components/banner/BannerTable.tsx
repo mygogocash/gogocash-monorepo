@@ -196,7 +196,7 @@ export default function BannerTable({ variant = "home" }: BannerTableProps) {
     } finally {
       setClearingSlot(null);
     }
-  }, [canManageBanners, cfg.savePath, refetch, session?.accessToken]);
+  }, [canManageBanners, cfg.savePath, refetch, session]);
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">

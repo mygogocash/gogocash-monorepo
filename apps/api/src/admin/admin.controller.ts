@@ -14,8 +14,9 @@ import {
   UploadedFile,
   UploadedFiles,
   ValidationPipe,
+  Res,
 } from '@nestjs/common';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { AdminService } from './admin.service';
 import {
   CreateAdminDto,
@@ -610,6 +611,17 @@ export class AdminController {
   @Get('banner-home')
   getBannerHome() {
     return this.adminService.getBannerHome();
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Get('stored-media/stream')
+  async streamStoredMedia(@Query('ref') ref: string, @Res() res: Response) {
+    const { stream, contentType } =
+      await this.adminService.streamStoredMedia(ref);
+    res.setHeader('Content-Type', contentType);
+    stream.pipe(res);
   }
 
   @UseGuards(AuthAdminGuard)

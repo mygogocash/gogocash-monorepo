@@ -133,6 +133,7 @@ describe("Banner FormUpdate save", () => {
       Authorization: "Bearer test-token",
     });
     expect(config?.headers).not.toHaveProperty("Content-Type");
+    expect(config?.timeout).toBe(120_000);
     expect(onSaved).toHaveBeenCalledTimes(1);
   });
 });

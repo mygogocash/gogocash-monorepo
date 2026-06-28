@@ -29,7 +29,7 @@ import {
   MissionOrder,
   MissionOrderSchema,
 } from './schemas/missing-order.schema';
-import { GoogleDriveService } from 'src/google-drive/google-drive.service';
+import { MediaModule } from 'src/media/media.module';
 import { Quest, QuestSchema } from 'src/point/schemas/quest.schema';
 import {
   FeaturedSearchTerm,
@@ -47,6 +47,7 @@ import {
 @Module({
   imports: [
     CacheModule.register(),
+    MediaModule,
     MongooseModule.forFeature([
       { name: Offer.name, schema: OfferSchema },
       {
@@ -74,7 +75,6 @@ import {
     JwtService,
     TasksService,
     InvolveService,
-    GoogleDriveService,
   ],
 })
 export class OfferModule {}

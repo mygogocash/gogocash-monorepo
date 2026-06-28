@@ -1,3 +1,4 @@
+import { HttpException, HttpStatus } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { mkdtemp, writeFile, rm } from 'fs/promises';
 import { tmpdir } from 'os';
@@ -29,6 +30,10 @@ describe('GoogleDriveService', () => {
   let service: GoogleDriveService;
 
   beforeEach(async () => {
+    process.env.GOOGLE_CLIENT_ID = 'test-client-id';
+    process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
+    process.env.GOOGLE_REFRESH_TOKEN = 'test-refresh-token';
+
     filesCreate.mockReset();
     permissionsCreate.mockReset();
     filesCreate.mockResolvedValue({
@@ -81,6 +86,41 @@ describe('GoogleDriveService', () => {
       expect(result.id).toBe('drive-file-id');
     } finally {
       await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('uploadFile > given missing Google credentials > then throws HttpException before calling Drive', async () => {
+    const prev = {
+      GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+      GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+      GOOGLE_REFRESH_TOKEN: process.env.GOOGLE_REFRESH_TOKEN,
+    };
+    delete process.env.GOOGLE_CLIENT_ID;
+    delete process.env.GOOGLE_CLIENT_SECRET;
+    delete process.env.GOOGLE_REFRESH_TOKEN;
+
+    const file = {
+      originalname: 'banner.png',
+      mimetype: 'image/png',
+      buffer: Buffer.from('banner-bytes'),
+    } as Express.Multer.File;
+
+    try {
+      await service.uploadFile(file);
+      throw new Error('expected uploadFile to reject');
+    } catch (err) {
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+      expect((err as HttpException).message).toContain(
+        'Google Drive is not configured',
+      );
+      expect(filesCreate).not.toHaveBeenCalled();
+    } finally {
+      process.env.GOOGLE_CLIENT_ID = prev.GOOGLE_CLIENT_ID;
+      process.env.GOOGLE_CLIENT_SECRET = prev.GOOGLE_CLIENT_SECRET;
+      process.env.GOOGLE_REFRESH_TOKEN = prev.GOOGLE_REFRESH_TOKEN;
     }
   });
 

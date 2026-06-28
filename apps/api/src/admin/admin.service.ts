@@ -14,7 +14,8 @@ import { Withdraw } from 'src/withdraw/schemas/withdraw.schema';
 import { InvolveService } from 'src/involve/involve.service';
 import { User } from 'src/user/schemas/user.schema';
 import { FeeRate } from 'src/withdraw/schemas/feeRate.schema';
-import { GoogleDriveService } from 'src/google-drive/google-drive.service';
+import { StoredMediaService } from 'src/media/stored-media.service';
+import { MEDIA_FOLDER } from 'src/media/media-folders.config';
 import { Offer } from 'src/offer/schemas/offer.schema';
 import { Category } from 'src/offer/schemas/category.schema';
 import { Conversion } from 'src/withdraw/schemas/conversion.schema';
@@ -54,7 +55,7 @@ export class AdminService {
     private topBrandConfigModel: Model<TopBrandConfig>,
     @InjectModel(Deeplink.name) private deeplinkModel: Model<Deeplink>,
 
-    private readonly googleDriveService: GoogleDriveService,
+    private readonly storedMediaService: StoredMediaService,
     private involveService: InvolveService,
     private userService: UserService,
     private readonly jobService: JobService,
@@ -114,7 +115,10 @@ export class AdminService {
       'withdraw id',
     );
     if (file) {
-      const res = await this.googleDriveService.uploadFile(file);
+      const slipFile = await this.storedMediaService.upload(
+        file,
+        MEDIA_FOLDER.WITHDRAW_SLIPS,
+      );
       return this.withdrawModel
         .findByIdAndUpdate(
           withdrawId,
@@ -124,7 +128,7 @@ export class AdminService {
               64,
               'withdraw status',
             ),
-            slip_file: res.id,
+            slip_file: slipFile,
           }),
         )
         .exec();
@@ -417,59 +421,49 @@ export class AdminService {
     if (!offer) {
       throw new Error('Offer not found');
     }
-    const folderId = '1CliPCEtpvH8e8--EflAZ6NdCMuBSddpR';
+    const folder = MEDIA_FOLDER.BRANDS;
     let file1;
     if (updateData.logo_desktop) {
-      file1 = await this.googleDriveService.uploadFile(
+      file1 = await this.storedMediaService.replace(
         updateData.logo_desktop,
-        folderId,
+        folder,
+        offer.logo_desktop,
       );
-      if (offer.logo_desktop) {
-        await this.googleDriveService.deleteFile(offer.logo_desktop);
-      }
     }
     let file2;
     if (updateData.logo_mobile) {
-      file2 = await this.googleDriveService.uploadFile(
+      file2 = await this.storedMediaService.replace(
         updateData.logo_mobile,
-        folderId,
+        folder,
+        offer.logo_mobile,
       );
-      if (offer.logo_mobile) {
-        await this.googleDriveService.deleteFile(offer.logo_mobile);
-      }
     }
 
     let bannerFile;
     if (updateData.banner) {
-      bannerFile = await this.googleDriveService.uploadFile(
+      bannerFile = await this.storedMediaService.replace(
         updateData.banner,
-        folderId,
+        folder,
+        offer.banner,
       );
-      if (offer.banner) {
-        await this.googleDriveService.deleteFile(offer.banner);
-      }
     }
 
     let bannerMobileFile;
     if (updateData.banner_mobile) {
-      bannerMobileFile = await this.googleDriveService.uploadFile(
+      bannerMobileFile = await this.storedMediaService.replace(
         updateData.banner_mobile,
-        folderId,
+        folder,
+        offer.banner_mobile,
       );
-      if (offer.banner_mobile) {
-        await this.googleDriveService.deleteFile(offer.banner_mobile);
-      }
     }
 
     let logoCircleFile;
     if (updateData.logo_circle) {
-      logoCircleFile = await this.googleDriveService.uploadFile(
+      logoCircleFile = await this.storedMediaService.replace(
         updateData.logo_circle,
-        folderId,
+        folder,
+        offer.logo_circle,
       );
-      if (offer.logo_circle) {
-        await this.googleDriveService.deleteFile(offer.logo_circle);
-      }
     }
     const trackingLink =
       typeof updateData.tracking_link === 'string' &&
@@ -480,13 +474,11 @@ export class AdminService {
       .findByIdAndUpdate(
         requireObjectId(id),
         mongoSetUpdate({
-          logo_desktop: file1 ? file1.id : offer.logo_desktop,
-          logo_mobile: file2 ? file2.id : offer.logo_mobile,
-          banner: bannerFile ? bannerFile.id : offer.banner,
-          banner_mobile: bannerMobileFile
-            ? bannerMobileFile.id
-            : offer.banner_mobile,
-          logo_circle: logoCircleFile ? logoCircleFile.id : offer.logo_circle,
+          logo_desktop: file1 ?? offer.logo_desktop,
+          logo_mobile: file2 ?? offer.logo_mobile,
+          banner: bannerFile ?? offer.banner,
+          banner_mobile: bannerMobileFile ?? offer.banner_mobile,
+          logo_circle: logoCircleFile ?? offer.logo_circle,
           offer_name_display:
             updateData.offer_name_display ?? offer.offer_name_display,
           disabled: Boolean(updateData.disabled ?? offer.disabled),
@@ -515,23 +507,20 @@ export class AdminService {
     if (!data) {
       throw new Error('data not found');
     }
-    const folderId = '1Liu0dk5mo5cnGnFKJWOpnvV6eBHV_sii';
     let file1;
     if (updateData.image) {
-      file1 = await this.googleDriveService.uploadFile(
+      file1 = await this.storedMediaService.replace(
         updateData.image,
-        folderId,
+        MEDIA_FOLDER.CATEGORIES,
+        data.image,
       );
-      if (data.image) {
-        await this.googleDriveService.deleteFile(data.image);
-      }
     }
     return this.categoryModel
       .findByIdAndUpdate(
         requireObjectId(id),
         {
           ...updateData,
-          image: file1 ? file1.id : data.image,
+          image: file1 ?? data.image,
         },
         { new: true },
       )
@@ -558,79 +547,37 @@ export class AdminService {
   }
 
   async updateBannerHome(updateData: UpdateBannerHomeDto) {
-    // logic update banner home
     const data = (await this.bannerModel.findOne().exec()) ?? {};
-
     const current = data as Record<string, any>;
 
-    const folderId = '16AmK8RlgEYa16LbPYEgtGBL4U1ouDhiS';
-    const clearImageFlags = [1, 2, 3, 4, 5].map((slot) =>
-      Boolean(updateData[`clear_image_${slot}` as keyof UpdateBannerHomeDto]),
-    );
-
-    const maybeClearImage = async (slot: number, existingId: unknown) => {
-      if (!clearImageFlags[slot - 1] || !existingId) return;
-      await this.googleDriveService.deleteFile(String(existingId));
-    };
-
-    await Promise.all([
-      maybeClearImage(1, current.image_1),
-      maybeClearImage(2, current.image_2),
-      maybeClearImage(3, current.image_3),
-      maybeClearImage(4, current.image_4),
-      maybeClearImage(5, current.image_5),
-    ]);
-
-    let file1;
-    if (updateData.image_1 && !clearImageFlags[0]) {
-      file1 = await this.googleDriveService.uploadFile(
-        updateData.image_1 as unknown as Express.Multer.File,
-        folderId,
+    const imageUpdates: Record<string, string | null> = {};
+    for (let slot = 1; slot <= 5; slot += 1) {
+      const imageKey = `image_${slot}` as const;
+      const clearFlag = Boolean(
+        updateData[`clear_image_${slot}` as keyof UpdateBannerHomeDto],
       );
-      if (current.image_1) {
-        await this.googleDriveService.deleteFile(current.image_1);
+      const existing = current[imageKey];
+      const upload = updateData[imageKey as keyof UpdateBannerHomeDto];
+
+      if (clearFlag) {
+        if (existing) {
+          await this.storedMediaService.deleteStored(String(existing));
+        }
+        imageUpdates[imageKey] = null;
+        continue;
       }
-    }
-    let file2;
-    if (updateData.image_2 && !clearImageFlags[1]) {
-      file2 = await this.googleDriveService.uploadFile(
-        updateData.image_2 as unknown as Express.Multer.File,
-        folderId,
-      );
-      if (current.image_2) {
-        await this.googleDriveService.deleteFile(current.image_2);
-      }
-    }
 
-    let file3;
-    if (updateData.image_3 && !clearImageFlags[2]) {
-      file3 = await this.googleDriveService.uploadFile(
-        updateData.image_3 as unknown as Express.Multer.File,
-        folderId,
-      );
-      if (current.image_3) {
-        await this.googleDriveService.deleteFile(current.image_3);
+      if (this.isMulterUploadFile(upload)) {
+        imageUpdates[imageKey] = await this.storedMediaService.replace(
+          upload,
+          MEDIA_FOLDER.BANNER_HOME,
+          existing,
+        );
+        continue;
       }
-    }
-    let file4;
-    if (updateData.image_4 && !clearImageFlags[3]) {
-      file4 = await this.googleDriveService.uploadFile(
-        updateData.image_4 as unknown as Express.Multer.File,
-        folderId,
-      );
-      if (current.image_4) {
-        await this.googleDriveService.deleteFile(current.image_4);
-      }
-    }
 
-    let file5;
-    if (updateData.image_5 && !clearImageFlags[4]) {
-      file5 = await this.googleDriveService.uploadFile(
-        updateData.image_5 as unknown as Express.Multer.File,
-        folderId,
-      );
-      if (current.image_5) {
-        await this.googleDriveService.deleteFile(current.image_5);
+      if (existing !== undefined) {
+        imageUpdates[imageKey] = existing;
       }
     }
 
@@ -642,11 +589,7 @@ export class AdminService {
     };
 
     const payload: Record<string, any> = {
-      image_1: clearImageFlags[0] ? null : file1 ? file1.id : current.image_1,
-      image_2: clearImageFlags[1] ? null : file2 ? file2.id : current.image_2,
-      image_3: clearImageFlags[2] ? null : file3 ? file3.id : current.image_3,
-      image_4: clearImageFlags[3] ? null : file4 ? file4.id : current.image_4,
-      image_5: clearImageFlags[4] ? null : file5 ? file5.id : current.image_5,
+      ...imageUpdates,
       link_1: resolveSlotLink(updateData.link_1, current.link_1),
       link_2: resolveSlotLink(updateData.link_2, current.link_2),
       link_3: resolveSlotLink(updateData.link_3, current.link_3),
@@ -725,8 +668,11 @@ export class AdminService {
   }
 
   async getBannerHome() {
-    // logic get banner home
     return this.bannerModel.findOne().exec();
+  }
+
+  async streamStoredMedia(stored: string) {
+    return this.storedMediaService.getReadableStream(stored);
   }
 
   async updateConversionDataByConversionId(id: string) {
@@ -952,5 +898,12 @@ export class AdminService {
       filter.conversion_status = mongoCaseInsensitiveRegex(status);
     }
     return mongoFilter(filter);
+  }
+
+  private isMulterUploadFile(value: unknown): value is Express.Multer.File {
+    if (value == null || typeof value !== 'object') {
+      return false;
+    }
+    return 'buffer' in value || 'path' in value;
   }
 }

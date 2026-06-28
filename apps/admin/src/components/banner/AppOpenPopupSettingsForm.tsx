@@ -3,9 +3,9 @@
 import React, {
   useState,
   useEffect,
-  useRef,
   useCallback,
   startTransition,
+  useMemo,
 } from "react";
 import Button from "@/components/ui/button/Button";
 import toast from "react-hot-toast";
@@ -107,7 +107,9 @@ export default function AppOpenPopupSettingsForm({
   const [banners, setBanners] = useState<AppOpenPopupBannerItem[]>([]);
   const [saving, setSaving] = useState(false);
   /** Snapshot of the editable fields as loaded; baseline for unsaved-changes. */
-  const initialSnapshot = useRef<ReturnType<typeof bannersSnapshot>>([]);
+  const [initialSnapshot, setInitialSnapshot] = useState<
+    ReturnType<typeof bannersSnapshot>
+  >([]);
 
   const hydrate = useCallback(() => {
     const stored = loadPopupConfig();
@@ -115,9 +117,9 @@ export default function AppOpenPopupSettingsForm({
       stored.length > 0
         ? stored.map(storedToItem).slice(0, MAX_MODAL_POPUPS)
         : [defaultBanner()];
-    initialSnapshot.current = bannersSnapshot(initial);
     startTransition(() => {
       setBanners(initial);
+      setInitialSnapshot(bannersSnapshot(initial));
     });
   }, []);
 
@@ -167,7 +169,7 @@ export default function AppOpenPopupSettingsForm({
         endDate: b.endForever ? "" : b.endDate.trim(),
       }));
       savePopupConfig(toStore);
-      initialSnapshot.current = bannersSnapshot(banners);
+      setInitialSnapshot(bannersSnapshot(banners));
       toast.success(`Saved ${toStore.length} modal popup(s). History updated.`);
       onSaved?.();
     } finally {
@@ -176,7 +178,10 @@ export default function AppOpenPopupSettingsForm({
   };
 
   const canAdd = banners.length < MAX_MODAL_POPUPS;
-  const dirty = isDirty(bannersSnapshot(banners), initialSnapshot.current);
+  const dirty = useMemo(
+    () => isDirty(bannersSnapshot(banners), initialSnapshot),
+    [banners, initialSnapshot],
+  );
 
   return (
     <div className={className}>

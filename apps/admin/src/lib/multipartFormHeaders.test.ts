@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   multipartAuthHeaders,
+  MULTIPART_UPLOAD_TIMEOUT_MS,
   multipartPostConfig,
   stripDefaultJsonContentTypeForFormData,
 } from "./multipartFormHeaders";
@@ -23,7 +24,20 @@ describe("multipartAuthHeaders", () => {
 describe("multipartPostConfig", () => {
   it("given an access token > then returns auth headers only", () => {
     expect(multipartPostConfig("token-123")).toEqual({
+      timeout: MULTIPART_UPLOAD_TIMEOUT_MS,
       headers: { Authorization: "Bearer token-123" },
+    });
+  });
+
+  it("given extra config > then merges timeout override and headers", () => {
+    expect(
+      multipartPostConfig("token-123", { timeout: 30_000, headers: { "X-Test": "1" } }),
+    ).toEqual({
+      timeout: 30_000,
+      headers: {
+        "X-Test": "1",
+        Authorization: "Bearer token-123",
+      },
     });
   });
 });

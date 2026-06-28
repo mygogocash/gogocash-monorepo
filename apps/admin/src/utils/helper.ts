@@ -19,7 +19,8 @@ export function normalizeE164(phone: string, country?: CountryCode) {
 /**
  * Resolves image URLs for admin previews.
  * - `http(s)://`, `/public` paths, `blob:`, `data:` — returned as-is.
- * - Other values fall back to placeholders (legacy mock asset ids).
+ * - Private GCS objects — proxied through the authenticated admin API stream.
+ * - Bare legacy Drive ids — mapped to the public Drive view URL.
  */
 export const pathImage = (
   path?: string | null,
@@ -36,6 +37,12 @@ export const pathImage = (
     trimmed.startsWith("blob:") ||
     trimmed.startsWith("data:")
   ) {
+    if (isPrivateGcsMediaUrl(trimmed)) {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "");
+      if (apiBase) {
+        return `${apiBase}/admin/stored-media/stream?ref=${encodeURIComponent(trimmed)}`;
+      }
+    }
     return trimmed;
   }
 
@@ -52,6 +59,12 @@ export const pathImage = (
   }
   return "https://placehold.co/96x96.png/e2e8f0/64748b?text=Image";
 };
+
+function isPrivateGcsMediaUrl(url: string): boolean {
+  return /storage\.googleapis\.com\/[^/]+\/(withdraw-slips|missing-orders)\//.test(
+    url,
+  );
+}
 
 export const formatPrice = (price?: number) => {
   if (price == null || Number.isNaN(price)) return "N/A";

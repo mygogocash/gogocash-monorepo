@@ -31,4 +31,19 @@ describe("pathImage", () => {
       "https://cdn.example/banner.png",
     );
   });
+
+  it("given a private GCS URL > then proxies through admin API stream", () => {
+    process.env.NEXT_PUBLIC_API_URL = "http://localhost:8080";
+    expect(
+      pathImage(
+        "https://storage.googleapis.com/gogocash-catalog-staging/withdraw-slips/slip.png",
+      ),
+    ).toBe(
+      "http://localhost:8080/admin/stored-media/stream?ref=" +
+        encodeURIComponent(
+          "https://storage.googleapis.com/gogocash-catalog-staging/withdraw-slips/slip.png",
+        ),
+    );
+    delete process.env.NEXT_PUBLIC_API_URL;
+  });
 });

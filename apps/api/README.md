@@ -488,7 +488,7 @@ Core behavior:
 
 - Uses bcrypt for admin password hashing and comparison.
 - Uses JWT admin token for protected routes.
-- Manages Google Drive upload/delete for offers/categories/banner assets with hardcoded folder IDs.
+- Manages **GCS** uploads via `StoredMediaService` for banners, brands, categories, quests, withdraw slips, and missing-order attachments. Legacy Google Drive ids are still deleted/streamed via `GoogleDriveService` until migrated.
 
 ---
 

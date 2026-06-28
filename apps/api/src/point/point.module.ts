@@ -21,12 +21,13 @@ import {
   SocialReward,
   SocialRewardSchema,
 } from './schemas/social-reward.schema';
-import { GoogleDriveService } from 'src/google-drive/google-drive.service';
+import { MediaModule } from 'src/media/media.module';
 import { AnalyticsService } from 'src/analytics/analytics.service';
 
 @Module({
   imports: [
     CacheModule.register(),
+    MediaModule,
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: Point.name, schema: PointSchema },
@@ -46,7 +47,6 @@ import { AnalyticsService } from 'src/analytics/analytics.service';
     TasksService,
     InvolveService,
     JwtService,
-    GoogleDriveService,
     AnalyticsService,
   ],
 })

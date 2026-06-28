@@ -1,5 +1,8 @@
 import type { AxiosRequestConfig } from "axios";
 
+/** Banner / media multipart uploads — fail fast instead of hanging on slow Drive uploads. */
+export const MULTIPART_UPLOAD_TIMEOUT_MS = 120_000;
+
 /** Auth headers for multipart FormData uploads. Do not set Content-Type — axios adds the boundary. */
 export function multipartAuthHeaders(
   accessToken?: string | null,
@@ -17,6 +20,7 @@ export function multipartPostConfig(
   extra?: AxiosRequestConfig,
 ): AxiosRequestConfig {
   return {
+    timeout: MULTIPART_UPLOAD_TIMEOUT_MS,
     ...extra,
     headers: {
       ...extra?.headers,

@@ -39,4 +39,15 @@ Copy from `.env.example` and adjust for each environment.
 5. **Quest** — page loads; create modal; task logo preview (file + offer).
 6. **Category / Banner** — tables and form image previews.
 7. Toggle **light/dark** theme — no long flash on hard refresh.
-8. If using real image URLs: confirm they load and add hosts to `NEXT_PUBLIC_IMAGE_OPT_HOSTS` if optimization is desired.
+8. If using real image URLs: confirm they load and add hosts to `NEXT_PUBLIC_IMAGE_OPT_HOSTS` if optimization is desired (`storage.googleapis.com` for GCS banners/logos).
+9. **Banner Home** — upload slot 1 with image; confirm table preview + customer home hero (`GET /offer/banner-home` returns `https://storage.googleapis.com/.../banner-home/...`). See [`docs/GCS_MEDIA_MAINTENANCE_PLAN.md`](./GCS_MEDIA_MAINTENANCE_PLAN.md).
+
+## GCS media storage
+
+All admin image uploads (banners, brands, categories, quests, withdraw slips, missing-order receipts) use **GCS** (`apps/api/src/media/`). Drive OAuth is **not** required for new uploads.
+
+- **Public assets:** direct `https://storage.googleapis.com/...` URLs in Mongo.
+- **Private assets:** `withdraw-slips/`, `missing-orders/` — admin previews via `/admin/stored-media/stream?ref=...`.
+- **Legacy Drive ids:** still supported until migrated (`npm run media:migrate-to-gcs -w gogocash-api`).
+
+Local API: set `GCS_CATALOG_BUCKET` + `GOOGLE_APPLICATION_CREDENTIALS` in `apps/api/.env`.

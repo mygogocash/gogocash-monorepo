@@ -20,7 +20,8 @@ import { TopBrandConfig } from './schemas/top-brand-config.schema';
 import { Coupon } from './schemas/coupon.schema';
 import { UpdateCouponDto } from './dto/update-offer.dto';
 import { MissionOrder } from './schemas/missing-order.schema';
-import { GoogleDriveService } from 'src/google-drive/google-drive.service';
+import { StoredMediaService } from 'src/media/stored-media.service';
+import { MEDIA_FOLDER } from 'src/media/media-folders.config';
 import { Quest, QuestTask } from 'src/point/schemas/quest.schema';
 import { FeaturedSearchTerm } from 'src/admin/search/schemas/featured-term.schema';
 import { SearchBoostRule } from 'src/admin/search/schemas/boost-rule.schema';
@@ -172,7 +173,7 @@ export class OfferService implements OnApplicationBootstrap {
     private searchBoostModel: Model<SearchBoostRule>,
     @InjectModel(SearchBlacklist.name)
     private searchBlacklistModel: Model<SearchBlacklist>,
-    private readonly googleDriveService: GoogleDriveService,
+    private readonly storedMediaService: StoredMediaService,
   ) {}
 
   /**
@@ -377,14 +378,10 @@ export class OfferService implements OnApplicationBootstrap {
       throw new BadRequestException('affiliate_tracking_link is required');
     }
 
-    const folderId = '1CliPCEtpvH8e8--EflAZ6NdCMuBSddpR';
-    // Surface a clear, asset-specific reason when a Drive upload fails instead of
-    // letting an opaque 500 bubble up — combined with the admin client now reading
-    // the error message, the toast shows e.g. "Failed to upload logo (desktop): ...".
     const upload = async (label: string, file?: Express.Multer.File) => {
       if (!file) return '';
       try {
-        return (await this.googleDriveService.uploadFile(file, folderId)).id;
+        return await this.storedMediaService.upload(file, MEDIA_FOLDER.BRANDS);
       } catch (err) {
         const reason = err instanceof Error ? err.message : String(err);
         throw new InternalServerErrorException(
@@ -767,13 +764,14 @@ export class OfferService implements OnApplicationBootstrap {
     // console.log('files', files);
     // console.log('user_id', user_id);
     // return true;
-    const folderId = '17kyG-ASOfywnANw4IHegvUcRAi8ZYO8k';
     const fileId = [];
     if (files.length > 0) {
       for (const file of files) {
-        // console.log('file', file);
-        const upload = await this.googleDriveService.uploadFile(file, folderId);
-        fileId.push(upload.id);
+        const upload = await this.storedMediaService.upload(
+          file,
+          MEDIA_FOLDER.MISSING_ORDERS,
+        );
+        fileId.push(upload);
       }
     }
     const missingOrder = new this.missionOrderModel({

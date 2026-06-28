@@ -11,7 +11,7 @@ import { TopBrandConfig } from './schemas/top-brand-config.schema';
 import { MissionOrder } from './schemas/missing-order.schema';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
 import { User } from 'src/user/schemas/user.schema';
-import { GoogleDriveService } from 'src/google-drive/google-drive.service';
+import { StoredMediaService } from 'src/media/stored-media.service';
 import { Quest } from 'src/point/schemas/quest.schema';
 import { FeaturedSearchTerm } from 'src/admin/search/schemas/featured-term.schema';
 import { SearchBoostRule } from 'src/admin/search/schemas/boost-rule.schema';
@@ -49,7 +49,7 @@ describe('OfferService', () => {
   let featuredSearchModel: any;
   let searchBoostModel: any;
   let searchBlacklistModel: any;
-  let googleDriveService: { uploadFile: jest.Mock };
+  let storedMediaService: { upload: jest.Mock };
 
   beforeEach(async () => {
     offerModel = {
@@ -104,7 +104,11 @@ describe('OfferService', () => {
         .fn()
         .mockReturnValue({ lean: jest.fn().mockResolvedValue([]) }),
     };
-    googleDriveService = { uploadFile: jest.fn() };
+    storedMediaService = {
+      upload: jest.fn().mockResolvedValue(
+        'https://storage.googleapis.com/gogocash-catalog-staging/brands/logo.png',
+      ),
+    };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
@@ -140,7 +144,7 @@ describe('OfferService', () => {
           provide: getModelToken(SearchBlacklist.name),
           useValue: searchBlacklistModel,
         },
-        { provide: GoogleDriveService, useValue: googleDriveService },
+        { provide: StoredMediaService, useValue: storedMediaService },
       ],
     }).compile();
 
@@ -417,9 +421,9 @@ describe('OfferService', () => {
       );
     });
 
-    it('createAdminOffer > given a failing Drive upload > then surfaces a clear asset-specific error', async () => {
-      googleDriveService.uploadFile.mockRejectedValueOnce(
-        new Error('drive quota exceeded'),
+    it('createAdminOffer > given a failing media upload > then surfaces a clear asset-specific error', async () => {
+      storedMediaService.upload.mockRejectedValueOnce(
+        new Error('gcs quota exceeded'),
       );
       await expect(
         service.createAdminOffer(
@@ -896,13 +900,15 @@ describe('OfferService', () => {
       expect(doc.attachments).toEqual([]);
     });
 
-    // Each uploaded receipt is pushed to Drive and only the returned file ids
-    // are stored — raw buffers never hit the DB.
-    it('saveMissingOrder > given files > then each is uploaded and only the drive ids are stored', async () => {
+    it('saveMissingOrder > given files > then each is uploaded and only the stored URLs are persisted', async () => {
       const { getCaptured } = wireMissionOrderCtor();
-      googleDriveService.uploadFile
-        .mockResolvedValueOnce({ id: 'drive-a' })
-        .mockResolvedValueOnce({ id: 'drive-b' });
+      storedMediaService.upload
+        .mockResolvedValueOnce(
+          'https://storage.googleapis.com/gogocash-catalog-staging/missing-orders/r1.png',
+        )
+        .mockResolvedValueOnce(
+          'https://storage.googleapis.com/gogocash-catalog-staging/missing-orders/r2.png',
+        );
       const files = [
         { originalname: 'r1.png' },
         { originalname: 'r2.png' },
@@ -910,8 +916,11 @@ describe('OfferService', () => {
 
       await service.saveMissingOrder(userId, payload, files);
 
-      expect(googleDriveService.uploadFile).toHaveBeenCalledTimes(2);
-      expect(getCaptured().attachments).toEqual(['drive-a', 'drive-b']);
+      expect(storedMediaService.upload).toHaveBeenCalledTimes(2);
+      expect(getCaptured().attachments).toEqual([
+        'https://storage.googleapis.com/gogocash-catalog-staging/missing-orders/r1.png',
+        'https://storage.googleapis.com/gogocash-catalog-staging/missing-orders/r2.png',
+      ]);
     });
   });
 

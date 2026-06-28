@@ -100,6 +100,11 @@ client.interceptors.response.use(
     if (error.response) {
       return Promise.reject(error.response);
     }
+    if (error.code === "ECONNABORTED") {
+      throw new Error(
+        "Request timed out. The server may still be processing the upload — try again or check API connectivity.",
+      );
+    }
     if (error.request) {
       throw new Error("No response from server");
     }

@@ -28,7 +28,8 @@ import {
   UpdateQuestTasksDto,
 } from './dto/create-quest.dto';
 import { SocialReward } from './schemas/social-reward.schema';
-import { GoogleDriveService } from 'src/google-drive/google-drive.service';
+import { StoredMediaService } from 'src/media/stored-media.service';
+import { MEDIA_FOLDER } from 'src/media/media-folders.config';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
 import { requireObjectId, requireOneOf } from 'src/common/mongo-query';
 
@@ -77,7 +78,7 @@ export class PointService {
     @InjectModel(SocialReward.name)
     private socialRewardModel: Model<SocialReward>,
     @InjectModel(Deeplink.name) private deeplinkModel: Model<Deeplink>,
-    private readonly googleDriveService: GoogleDriveService,
+    private readonly storedMediaService: StoredMediaService,
   ) {}
 
   private activeQuestFilter(now = new Date()) {
@@ -1219,49 +1220,41 @@ export class PointService {
 
     const existingQuest = await this.questModel.findById(questId);
 
-    const folderId = '1YQtWms0kVZOs-1W2AA3m8rGnxO5EJoQX';
+    const questFolder = MEDIA_FOLDER.QUESTS;
     let banner_en;
     if (files.banner_en?.length > 0) {
-      banner_en = await this.googleDriveService.uploadFile(
+      banner_en = await this.storedMediaService.replace(
         files.banner_en[0],
-        folderId,
+        questFolder,
+        existingQuest?.banner_en,
       );
-      if (existingQuest?.banner_en) {
-        await this.googleDriveService.deleteFile(existingQuest.banner_en);
-      }
     }
 
     let banner_th;
     if (files.banner_th?.length > 0) {
-      banner_th = await this.googleDriveService.uploadFile(
+      banner_th = await this.storedMediaService.replace(
         files.banner_th[0],
-        folderId,
+        questFolder,
+        existingQuest?.banner_th,
       );
-      if (existingQuest?.banner_th) {
-        await this.googleDriveService.deleteFile(existingQuest.banner_th);
-      }
     }
 
     let sub_banner_en;
     if (files.sub_banner_en?.length > 0) {
-      sub_banner_en = await this.googleDriveService.uploadFile(
+      sub_banner_en = await this.storedMediaService.replace(
         files.sub_banner_en[0],
-        folderId,
+        questFolder,
+        existingQuest?.sub_banner_en,
       );
-      if (existingQuest?.sub_banner_en) {
-        await this.googleDriveService.deleteFile(existingQuest.sub_banner_en);
-      }
     }
 
     let sub_banner_th;
     if (files.sub_banner_th?.length > 0) {
-      sub_banner_th = await this.googleDriveService.uploadFile(
+      sub_banner_th = await this.storedMediaService.replace(
         files.sub_banner_th[0],
-        folderId,
+        questFolder,
+        existingQuest?.sub_banner_th,
       );
-      if (existingQuest?.sub_banner_th) {
-        await this.googleDriveService.deleteFile(existingQuest.sub_banner_th);
-      }
     }
     const rewardDistribution = this.normalizeQuestRewardDistribution(
       {},
@@ -1282,14 +1275,10 @@ export class PointService {
       facebook_page: createQuestDto.facebook_page,
       line: createQuestDto.line,
       ...rewardDistribution,
-      banner_en: banner_en ? banner_en?.id : existingQuest?.banner_en || null,
-      banner_th: banner_th ? banner_th?.id : existingQuest?.banner_th || null,
-      sub_banner_en: sub_banner_en
-        ? sub_banner_en?.id
-        : existingQuest?.sub_banner_en || null,
-      sub_banner_th: sub_banner_th
-        ? sub_banner_th?.id
-        : existingQuest?.sub_banner_th || null,
+      banner_en: banner_en ?? existingQuest?.banner_en ?? null,
+      banner_th: banner_th ?? existingQuest?.banner_th ?? null,
+      sub_banner_en: sub_banner_en ?? existingQuest?.sub_banner_en ?? null,
+      sub_banner_th: sub_banner_th ?? existingQuest?.sub_banner_th ?? null,
     };
     if (createQuestDto.reward_status !== undefined) {
       questPatch.reward_status = createQuestDto.reward_status;

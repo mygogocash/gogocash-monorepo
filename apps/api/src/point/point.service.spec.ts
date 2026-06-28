@@ -11,7 +11,7 @@ import { Offer } from 'src/offer/schemas/offer.schema';
 import { Quest } from './schemas/quest.schema';
 import { SocialReward } from './schemas/social-reward.schema';
 import { AnalyticsService } from 'src/analytics/analytics.service';
-import { GoogleDriveService } from 'src/google-drive/google-drive.service';
+import { StoredMediaService } from 'src/media/stored-media.service';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
 import * as helper from 'src/utils/helper';
 
@@ -53,7 +53,7 @@ describe('PointService', () => {
   let socialRewardModel: Record<string, jest.Mock>;
   let deeplinkModel: Record<string, jest.Mock>;
   let analytics: { capture: jest.Mock };
-  let googleDrive: { uploadFile: jest.Mock; deleteFile: jest.Mock };
+  let storedMediaService: { replace: jest.Mock; upload: jest.Mock };
 
   // Captures documents constructed via `new this.pointModel({...})` so we can
   // assert what gets persisted by addPointsToUser.
@@ -98,9 +98,11 @@ describe('PointService', () => {
     };
     deeplinkModel = { aggregate: jest.fn().mockResolvedValue([]) };
     analytics = { capture: jest.fn().mockResolvedValue(undefined) };
-    googleDrive = {
-      uploadFile: jest.fn(),
-      deleteFile: jest.fn().mockResolvedValue(undefined),
+    storedMediaService = {
+      replace: jest.fn().mockResolvedValue(
+        'https://storage.googleapis.com/gogocash-catalog-staging/quests/banner.png',
+      ),
+      upload: jest.fn(),
     };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
@@ -117,7 +119,7 @@ describe('PointService', () => {
         },
         { provide: getModelToken(Deeplink.name), useValue: deeplinkModel },
         { provide: AnalyticsService, useValue: analytics },
-        { provide: GoogleDriveService, useValue: googleDrive },
+        { provide: StoredMediaService, useValue: storedMediaService },
       ],
     }).compile();
 

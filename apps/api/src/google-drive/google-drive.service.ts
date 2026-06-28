@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import {
   CreateGoogleDriveDto,
   FileGoogleDriveDto,
@@ -28,6 +28,19 @@ export class GoogleDriveService {
       auth: oauth2Client,
     });
   }
+
+  private assertGoogleDriveConfigured(): void {
+    const missing = [
+      'GOOGLE_CLIENT_ID',
+      'GOOGLE_CLIENT_SECRET',
+      'GOOGLE_REFRESH_TOKEN',
+    ].filter((key) => !process.env[key]?.trim());
+    if (missing.length === 0) return;
+    throw new HttpException(
+      `Google Drive is not configured (missing: ${missing.join(', ')}). Brand/category/quest image uploads require GOOGLE_* credentials in the API environment.`,
+      HttpStatus.SERVICE_UNAVAILABLE,
+    );
+  }
   private async resolveUploadBuffer(
     file: Express.Multer.File,
   ): Promise<Buffer> {
@@ -47,6 +60,7 @@ export class GoogleDriveService {
     file: Express.Multer.File,
     folderId?: string,
   ): Promise<FileGoogleDriveDto> {
+    this.assertGoogleDriveConfigured();
     try {
       const buffer = await this.resolveUploadBuffer(file);
       const bufferStream = new Readable();
