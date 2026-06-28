@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 import NoData from "@/components/common/NoData";
 import { adminPayoutStatusClass } from "@/lib/adminPayoutStatus";
@@ -18,15 +18,18 @@ type RewardTransactionSummaryTableProps = {
 export function RewardTransactionSummaryTable({
   refreshToken = 0,
 }: RewardTransactionSummaryTableProps) {
-  const [entries, setEntries] = useState<RewardTransactionRecord[]>([]);
+  const [entries, setEntries] = useState<RewardTransactionRecord[]>(() =>
+    loadRewardTransactions(),
+  );
+  const [prevRefreshToken, setPrevRefreshToken] = useState(refreshToken);
+  if (refreshToken !== prevRefreshToken) {
+    setPrevRefreshToken(refreshToken);
+    setEntries(loadRewardTransactions());
+  }
 
   const refresh = useCallback(() => {
     setEntries(loadRewardTransactions());
   }, []);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh, refreshToken]);
 
   return (
     <div className="border-t border-gray-100 px-6 py-6 dark:border-gray-800">

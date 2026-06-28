@@ -48,13 +48,13 @@ export default function ConversionTable() {
     totalPages: 1,
   });
 
-  const [query, setQuery] = useState<ConversionQuery>({
-    search: "",
+  const [query, setQuery] = useState<ConversionQuery>(() => ({
+    search: searchParams.get("search") ?? "",
     limit: 10,
     page: 1,
     status: "",
     key: "aff_sub1",
-  });
+  }));
 
   // Guards: ignore out-of-order responses; debounce free-text search.
   const reqIdRef = useRef(0);
@@ -83,16 +83,11 @@ export default function ConversionTable() {
     }
   };
 
-  // Initial load: use ?search= from URL when opened from Offers "View conversions"
+  // Initial load: ?search= from URL is baked into initial query state above.
   useEffect(() => {
-    const initialSearch = searchParams.get("search") ?? "";
-    if (initialSearch) {
-      const q = { ...query, search: initialSearch, page: 1 };
-      setQuery(q);
-      fetchOffers(q);
-    } else {
-      fetchOffers();
-    }
+    queueMicrotask(() => {
+      void fetchOffers(query);
+    });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {

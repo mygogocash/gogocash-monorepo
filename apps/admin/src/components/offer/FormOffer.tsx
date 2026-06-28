@@ -508,18 +508,14 @@ const FormOffer = ({
     () => highestCashbackPercent(form.product_types ?? []),
     [form.product_types],
   );
-  useEffect(() => {
-    if (form.all_product_types) return;
-    if (highestRowCashback == null) return;
-    if (form.commission_store === highestRowCashback) return;
+  if (
+    !form.all_product_types &&
+    highestRowCashback != null &&
+    form.commission_store !== highestRowCashback
+  ) {
     setForm((prev) => ({ ...prev, commission_store: highestRowCashback }));
     setCommissionRaw(String(reverseThirtyPercentFee(highestRowCashback)));
-  }, [
-    form.all_product_types,
-    highestRowCashback,
-    form.commission_store,
-    setForm,
-  ]);
+  }
 
   // The single-commission controls are read-only when per-row rates drive the
   // value ("All product types" off) — it's auto-filled from the highest line.

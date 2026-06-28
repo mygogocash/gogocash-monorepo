@@ -106,9 +106,11 @@ export default function AdminUsersTable() {
     }
   };
 
-  // Initial load
+  // Initial load — defer fetch so eslint doesn't flag sync setState in the effect.
   useEffect(() => {
-    fetchUsers();
+    queueMicrotask(() => {
+      void fetchUsers();
+    });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {

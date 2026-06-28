@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 import NoData from "@/components/common/NoData";
 import { adminPayoutStatusClass } from "@/lib/adminPayoutStatus";
@@ -17,15 +17,18 @@ type PointTransactionSummaryTableProps = {
 export function PointTransactionSummaryTable({
   refreshToken = 0,
 }: PointTransactionSummaryTableProps) {
-  const [entries, setEntries] = useState<PointTransactionRecord[]>([]);
+  const [entries, setEntries] = useState<PointTransactionRecord[]>(() =>
+    loadPointTransactions(),
+  );
+  const [prevRefreshToken, setPrevRefreshToken] = useState(refreshToken);
+  if (refreshToken !== prevRefreshToken) {
+    setPrevRefreshToken(refreshToken);
+    setEntries(loadPointTransactions());
+  }
 
   const refresh = useCallback(() => {
     setEntries(loadPointTransactions());
   }, []);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh, refreshToken]);
 
   return (
     <div className="border-t border-gray-100 px-6 py-6 dark:border-gray-800">

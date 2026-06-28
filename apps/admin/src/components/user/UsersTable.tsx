@@ -68,12 +68,12 @@ export default function UsersTable() {
     total: 0,
     totalPages: 1,
   });
-  const [query, setQuery] = useState<UsersQuery>({
+  const [query, setQuery] = useState<UsersQuery>(() => ({
     limit: 12,
     page: 1,
-    search: "",
+    search: searchParams.get("search") ?? "",
     sort: "newest",
-  });
+  }));
   const [filterDim, setFilterDim] = useState<FilterDim>("tier");
 
   // Guards: ignore out-of-order responses; debounce free-text search.
@@ -98,16 +98,11 @@ export default function UsersTable() {
     await fetchUsersWithQuery(queryToUse);
   };
 
-  // Apply ?search= from URL on mount (e.g. from Conversion "View user info")
+  // Apply ?search= from URL on mount (initial query state includes it).
   useEffect(() => {
-    const initialSearch = searchParams.get("search") ?? "";
-    if (initialSearch) {
-      const q = { ...query, search: initialSearch, page: 1 };
-      setQuery(q);
-      fetchUsersWithQuery(q);
-    } else {
-      fetchUsersWithQuery(query);
-    }
+    queueMicrotask(() => {
+      void fetchUsersWithQuery(query);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

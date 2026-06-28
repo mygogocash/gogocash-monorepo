@@ -112,11 +112,9 @@ jobs:
       - name: Install (root, workspace-aware)
         run: npm ci
       # Test + Build are GATES (P2-CI: admin unit suite verified green). LINT
-      # stays informational — ~54 React-Compiler/react-hooks warnings-as-errors
-      # (setState-synchronously-in-effect, refs-during-render) are real
-      # pre-existing component debt, not auto-fixable; tracked for a focused
-      # cleanup before flipping this last step to a gate.
-      - name: Lint (informational — react-hooks debt, see comment)
+      # stays informational for now — admin ESLint is clean (0 warnings as of
+      # PR #138); keep continue-on-error until lint is promoted to a gate.
+      - name: Lint (informational — promote to gate when ready)
         continue-on-error: true
         run: npx turbo run lint --filter=gogocash-admin
       - name: Test (gate)
@@ -307,9 +305,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          node-version-file: .nvmrc
+          node-version: "22"
           cache: npm
       - run: npm ci
       - run: npx knip --no-progress

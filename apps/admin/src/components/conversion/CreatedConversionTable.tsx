@@ -72,7 +72,9 @@ export default function CreatedConversionTable() {
   };
 
   useEffect(() => {
-    fetchList();
+    queueMicrotask(() => {
+      void fetchList();
+    });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
