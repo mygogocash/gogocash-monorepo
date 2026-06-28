@@ -72,7 +72,7 @@ export default function CatalogManagementClient({ section }: Props) {
   const banners = bannersQuery.data ?? [];
   const shops = shopsQuery.data ?? [];
   const products = productsQuery.data ?? [];
-  const orders = ordersQuery.data ?? [];
+  const orders = useMemo(() => ordersQuery.data ?? [], [ordersQuery.data]);
 
   const createBanner = useMutation({
     mutationFn: () =>
