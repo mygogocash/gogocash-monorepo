@@ -53,17 +53,11 @@ if [[ ! -f "$ENV_FILE" ]]; then
   exit 1
 fi
 
-# Load KEY=VALUE pairs into the environment WITHOUT printing them.
-# `set -a` exports every assignment; we source the file in a subshell-safe way.
 set -a
 # shellcheck disable=SC1090
 source "$ENV_FILE"
 set +a
 
-# set_var SERVICE KEY
-#   Sets $KEY on $SERVICE only if the variable is defined and non-empty.
-#   Uses Railway's KEY=VALUE form; the value is taken from the loaded env so it
-#   is never expanded onto the command line in logs.
 set_var() {
   local service="$1" key="$2"
   local value="${!key:-}"
@@ -89,50 +83,41 @@ echo
 # ───────────────────────────────────────────────────────────────────────────
 # gogocash-api  (NestJS)
 # ───────────────────────────────────────────────────────────────────────────
-# MINIMAL-TO-USABLE secrets (auth + Mongo-touching routes function).
-#   JWT_SECRET        customer JWT signing  (apps/api/src/auth/auth.service.ts:482)
-#   JWT_ADMIN_SECRET  admin   JWT signing   (apps/api/src/admin/admin.module.ts:201)
-#   CROSSMINT_SECRET  Crossmint backend JWT (apps/api/src/auth/auth.module.ts:40)
+set_var gogocash-api MONGO_URI
 set_var gogocash-api JWT_SECRET
 set_var gogocash-api JWT_ADMIN_SECRET
 set_var gogocash-api CROSSMINT_SECRET
-
-# FULL-FUNCTIONALITY secrets (feature-gated; safe to omit a feature you don't run).
-#   Spelling matters: code reads INVOLVE_* (NOT the .env.example INVOVLE_* typo).
 set_var gogocash-api CROSSMINT_AUTH_BASE
 set_var gogocash-api CROSSMINT_PROJECT_ID
 set_var gogocash-api FIREBASE_PROJECT_ID
 set_var gogocash-api INVOLVE_SECRET
-set_var gogocash-api INVOLVE_POSTBACK_SECRET   # FAILS CLOSED if empty (involve-postback-token.guard.ts:20)
-set_var gogocash-api INVOLVE_AI_API_KEY        # FAILS CLOSED on /involve/create-affiliate-ai (api-key.guard.ts:23)
-set_var gogocash-api RESEND_API_KEY            # email OTP / admin invites / password reset
-set_var gogocash-api POSTHOG_KEY               # empty = analytics disabled (no crash)
-set_var gogocash-api TELEGRAM_BOT_TOKEN        # CHANGES MODULE GRAPH: loads TelegramBotModule only when set & != PLACEHOLDER (app.module.ts:51)
-
-# Cross-origin browser access from the admin's Railway host (exact-match list,
-# comma-separated, no wildcards — apps/api/src/main.ts ~line 92). Needed so the
-# admin BROWSER calls (not the server-side login) are not CORS-blocked.
+set_var gogocash-api INVOLVE_POSTBACK_SECRET
+set_var gogocash-api INVOLVE_AI_API_KEY
+set_var gogocash-api RESEND_API_KEY
+set_var gogocash-api POSTHOG_KEY
+set_var gogocash-api TELEGRAM_BOT_TOKEN
+set_var gogocash-api OPTIMISE_API_KEY
 set_var gogocash-api CORS_EXTRA_ORIGINS
+# optional media (GCS JSON one-liner or R2 — see runbook)
+set_var gogocash-api GOOGLE_APPLICATION_CREDENTIALS_JSON
+set_var gogocash-api GCS_CATALOG_PUBLIC_BASE_URL
+set_var gogocash-api MEDIA_STORAGE_DRIVER
+set_var gogocash-api R2_BUCKET
+set_var gogocash-api R2_ENDPOINT
+set_var gogocash-api R2_PUBLIC_BASE_URL
+set_var gogocash-api R2_ACCESS_KEY_ID
+set_var gogocash-api R2_SECRET_ACCESS_KEY
 
 # ───────────────────────────────────────────────────────────────────────────
 # gogocash-admin  (Next.js standalone)
 # ───────────────────────────────────────────────────────────────────────────
-# BUILD-TIME: NEXT_PUBLIC_API_URL is inlined at build (Dockerfile ARG). Setting
-# it triggers a rebuild. If unset, the Dockerfile default points at STAGING API
-# (so it will NOT silently fall back to /api/mock — the fallback only triggers
-# when the baked value is empty).
 set_var gogocash-admin NEXT_PUBLIC_API_URL
-
-# RUNTIME (Node server): without NEXTAUTH_SECRET every protected route loops back
-# to /signin even though the port binds. NEXTAUTH_URL must be the exact public
-# HTTPS origin, no trailing slash.
 set_var gogocash-admin NEXTAUTH_SECRET
 set_var gogocash-admin NEXTAUTH_URL
 
 # ───────────────────────────────────────────────────────────────────────────
 # app-web  (@gogocash/mobile — Expo web static export)
 # ───────────────────────────────────────────────────────────────────────────
-# ALL build-time. Must exist BEFORE the export; any change triggers a rebuild.
 set_var app-web EXPO_PUBLIC_API_URL
 set_var app-web EXPO_PUBLIC_APP_ENV
 set_var app-web EXPO_PUBLIC_ACCOUNT_DATA_SOURCE
@@ -141,7 +126,6 @@ set_var app-web EXPO_PUBLIC_FIREBASE_API_KEY
 set_var app-web EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN
 set_var app-web EXPO_PUBLIC_FIREBASE_PROJECT_ID
 set_var app-web EXPO_PUBLIC_FIREBASE_APP_ID
-# optional analytics/telemetry (set only if used)
 set_var app-web EXPO_PUBLIC_POSTHOG_KEY
 set_var app-web EXPO_PUBLIC_POSTHOG_HOST
 set_var app-web EXPO_PUBLIC_SENTRY_DSN

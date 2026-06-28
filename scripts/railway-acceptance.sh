@@ -11,8 +11,16 @@
 #   ADMIN_URL=https://gogocash-admin-production.up.railway.app \
 #     ./scripts/railway-acceptance.sh
 #
+# Staging custom domains (optional — warn-only until DNS cutover):
+#   STAGING_API_URL=https://api-staging.gogocash.co \
+#   STAGING_ADMIN_URL=https://admin-staging.gogocash.co \
+#     ./scripts/railway-acceptance.sh
+#
 # Optional (enables the cron force-trigger / break-glass check, D2):
 #   ADMIN_JWT=<a valid admin Bearer token>   ./scripts/railway-acceptance.sh
+#
+# Optional admin login probe (A2):
+#   ADMIN_EMAIL=... ADMIN_PASSWORD=... ./scripts/railway-acceptance.sh
 #
 # This script is READ-ONLY against the platform. It performs HTTP GETs only.
 # The admin /tasks/* routes it can call are idempotent re-syncs (guarded by
@@ -20,20 +28,21 @@
 
 set -uo pipefail
 
-# ─── Config (override via env) ───────────────────────────────────────────────
 API_URL="${API_URL:-https://gogocash-api-production.up.railway.app}"
 ADMIN_URL="${ADMIN_URL:-https://gogocash-admin-production.up.railway.app}"
+STAGING_API_URL="${STAGING_API_URL:-https://api-staging.gogocash.co}"
+STAGING_ADMIN_URL="${STAGING_ADMIN_URL:-https://admin-staging.gogocash.co}"
 ADMIN_JWT="${ADMIN_JWT:-}"
-# curl timeouts: fail fast rather than hang a CI job.
 CONNECT_TIMEOUT="${CONNECT_TIMEOUT:-10}"
 MAX_TIME="${MAX_TIME:-30}"
 
 PASS_COUNT=0
 FAIL_COUNT=0
+WARN_COUNT=0
 
-# ─── Helpers ─────────────────────────────────────────────────────────────────
 c_green() { printf '\033[0;32m%s\033[0m' "$1"; }
 c_red()   { printf '\033[0;31m%s\033[0m' "$1"; }
+c_yellow(){ printf '\033[0;33m%s\033[0m' "$1"; }
 c_dim()   { printf '\033[2m%s\033[0m' "$1"; }
 
 pass() {
@@ -50,14 +59,19 @@ fail() {
   return 0
 }
 
-# http_status URL -> prints the numeric HTTP status (000 on connection failure)
+warn() {
+  WARN_COUNT=$((WARN_COUNT + 1))
+  printf '[%s] %s\n' "$(c_yellow WARN)" "$1"
+  [ -n "${2:-}" ] && printf '       %s\n' "$(c_dim "$2")"
+  return 0
+}
+
 http_status() {
   curl -s -o /dev/null -w '%{http_code}' \
     --connect-timeout "$CONNECT_TIMEOUT" --max-time "$MAX_TIME" \
     "$1" 2>/dev/null || echo "000"
 }
 
-# http_body URL -> prints the response body (empty on failure)
 http_body() {
   curl -s --connect-timeout "$CONNECT_TIMEOUT" --max-time "$MAX_TIME" \
     "$1" 2>/dev/null || true
@@ -70,8 +84,6 @@ echo " ADMIN_URL = $ADMIN_URL"
 echo " $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 echo "================================================================"
 
-# ─── Check 1: API liveness (/health => 200 {"status":"ok"}) ──────────────────
-# Phase: cross-phase. Proves the API container is up and serving.
 body="$(http_body "$API_URL/health")"
 status="$(http_status "$API_URL/health")"
 if [ "$status" = "200" ] && printf '%s' "$body" | grep -q '"status":"ok"'; then
@@ -80,10 +92,6 @@ else
   fail "API /health did not return 200 ok" "status=$status body=$body"
 fi
 
-# ─── Check 2: API DB-backed route (offer/top-brands => 200, JSON) ────────────
-# Phase 2/3. Public route that reads MongoDB (getDisplayTopBrands). A 200 with a
-# JSON body proves the app connected to Mongo and a query succeeded — this is the
-# real "DB route" check (the lazy Mongo connection has handshaked).
 status="$(http_status "$API_URL/offer/top-brands")"
 body="$(http_body "$API_URL/offer/top-brands" | head -c 200)"
 if [ "$status" = "200" ] && printf '%s' "$body" | grep -qE '^\s*[\[{]'; then
@@ -94,8 +102,6 @@ else
        "status=$status body[0:120]=$body"
 fi
 
-# ─── Check 3: Admin app signin page (=> 200) ─────────────────────────────────
-# Phase 2. Proves the Next.js standalone admin is serving (HOSTNAME=0.0.0.0 fix).
 status="$(http_status "$ADMIN_URL/signin")"
 if [ "$status" = "200" ]; then
   pass "Admin /signin returns 200" "status=$status"
@@ -103,10 +109,6 @@ else
   fail "Admin /signin did not return 200" "status=$status"
 fi
 
-# ─── Check 4: Admin auth fails CLOSED on /tasks/* without a token (=> 401) ───
-# Phase 3 security. The cron break-glass routes are behind AuthAdminGuard. An
-# unauthenticated call MUST be rejected (proves the public FIREBASE_API_KEY gate
-# is gone and money mutation is not exposed).
 status="$(http_status "$API_URL/tasks/update-conversions/anything")"
 if [ "$status" = "401" ]; then
   pass "Admin /tasks/* rejects unauthenticated calls (401)" "status=$status"
@@ -115,10 +117,20 @@ else
        "status=$status — money-mutation routes may be exposed"
 fi
 
-# ─── Check 5 (optional): cron force-trigger / break-glass (=> 200/201) ───────
-# Phase 3 (D2). Only runs when ADMIN_JWT is provided. Force-fires the conversion
-# sync cron via its admin HTTP route; a 2xx proves the cron code path executes on
-# demand. Pair this with `railway logs` grep (see runbook) to confirm the log line.
+if [ -n "${ADMIN_EMAIL:-}" ] && [ -n "${ADMIN_PASSWORD:-}" ]; then
+  login_body="$(curl -s --connect-timeout "$CONNECT_TIMEOUT" --max-time "$MAX_TIME" \
+    -X POST "$API_URL/admin/login" \
+    -H 'Content-Type: application/json' \
+    -d "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$ADMIN_PASSWORD\"}" 2>/dev/null || true)"
+  if printf '%s' "$login_body" | grep -q '"token"'; then
+    pass "POST /admin/login returns token (A2)"
+  else
+    fail "POST /admin/login did not return token (A2)" "body[0:120]=$(printf '%s' "$login_body" | head -c 120)"
+  fi
+else
+  printf '[%s] Admin login skipped (set ADMIN_EMAIL + ADMIN_PASSWORD for A2)\n' "$(c_dim SKIP)"
+fi
+
 if [ -n "$ADMIN_JWT" ]; then
   status="$(curl -s -o /dev/null -w '%{http_code}' \
     --connect-timeout "$CONNECT_TIMEOUT" --max-time 120 \
@@ -136,10 +148,28 @@ else
     "$(c_dim SKIP)"
 fi
 
-# ─── Summary ─────────────────────────────────────────────────────────────────
+staging_health="$(http_status "$STAGING_API_URL/health")"
+if [ "$staging_health" = "200" ]; then
+  pass "Staging custom domain /health returns 200" "url=$STAGING_API_URL"
+elif curl -sSI --max-time "$MAX_TIME" "$STAGING_API_URL/health" 2>/dev/null | grep -qi 'server: railway'; then
+  pass "Staging custom domain served by Railway" "url=$STAGING_API_URL"
+else
+  warn "Staging custom domain not yet on Railway (DNS cutover pending?)" \
+       "url=$STAGING_API_URL status=$staging_health"
+fi
+
+merchants="$(http_body "$API_URL/gogosense/merchants" | head -c 500)"
+if [ -n "$merchants" ] && [ "$merchants" != "[]" ]; then
+  pass "gogosense/merchants has data (external Mongo seeded)"
+else
+  warn "gogosense/merchants empty — point MONGO_URI at Atlas staging for real data"
+fi
+
 echo "----------------------------------------------------------------"
-printf 'RESULT: %s passed, %s failed\n' \
-  "$(c_green "$PASS_COUNT")" "$([ "$FAIL_COUNT" -gt 0 ] && c_red "$FAIL_COUNT" || c_green "$FAIL_COUNT")"
+printf 'RESULT: %s passed, %s failed, %s warnings\n' \
+  "$(c_green "$PASS_COUNT")" \
+  "$([ "$FAIL_COUNT" -gt 0 ] && c_red "$FAIL_COUNT" || c_green "$FAIL_COUNT")" \
+  "$([ "$WARN_COUNT" -gt 0 ] && c_yellow "$WARN_COUNT" || c_green "$WARN_COUNT")"
 echo "================================================================"
 
 [ "$FAIL_COUNT" -eq 0 ]

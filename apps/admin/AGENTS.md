@@ -86,6 +86,7 @@ Backend and mobile app contracts may live in sibling repos (see README **Related
 - Use **24-hour English time** in admin date/time pickers (flatpickr `HH:mm` + native `type=time`); do not show AM/PM.
 - Surface **real API error messages** in admin forms/toasts via `getApiErrorMessage()` — avoid generic “Save failed” when the API returns a specific reason.
 - Stay on **MongoDB Atlas** for database infrastructure — do not plan GCP Cloud SQL/Firestore migration unless explicitly requested.
+- Involve Asia postback URL in the affiliate portal must be a **plain HTTPS URL** with `{macros}` — never paste a `curl` command or shell syntax into the postback field.
 
 ## Learned Workspace Facts
 
@@ -100,3 +101,4 @@ Backend and mobile app contracts may live in sibling repos (see README **Related
 - **All admin media uploads** (banner home, brand logos, categories, quests, withdraw slips, missing-order attachments) use **GCS** via `StoredMediaService` (`apps/api/src/media/`). Legacy Google Drive file ids still render and delete on replace. Local API needs `GOOGLE_APPLICATION_CREDENTIALS`; Drive OAuth (`GOOGLE_*`) is only needed for legacy delete/stream until data is migrated. See `apps/admin/docs/GCS_MEDIA_MAINTENANCE_PLAN.md`.
 - **Quest campaigns:** create/save requires **super_admin** (API rejects editors with `quest:manage`). **Admin team vs customers:** invite admins via **Users Admin** (`/admin-users`); **GoGoCash Users** (`/users`) lists customer app accounts.
 - **Top brands** (`TopBrandManagementPanel`): reorder/cashback edits are draft until **Save top brands** (`PUT /admin/top-brands`); public `GET /offer/top-brands` drops disabled offers even if they remain in the admin list.
+- **Involve Asia + API DI:** postbacks `GET /involve/postback?token=` (`INVOLVE_POSTBACK_SECRET`, separate from `INVOLVE_SECRET`; fail-closed when unset); brand sync uses `INVOLVE_SECRET`. Nest modules must import `PointModule`/`InvolveModule` for `PointService`/`JobService` — never re-register those providers (Cloud Run `UnknownDependenciesException`).

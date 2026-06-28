@@ -112,3 +112,38 @@ See [railway-mongo-replica-set.md](railway-mongo-replica-set.md). Summary: backu
 - **UBLA** — if the bucket has uniform bucket-level access ON, `makePublic()` throws → 503.
 - **Build-time inlining** — `*_API_URL` take effect only on rebuild; API flips last.
 - **Reversibility** — every cutover step is DNS-reversible only while Cloud Run is scaled-to-zero (not deleted) — keep the ≥7-day window.
+
+## Appendix A — Staging DNS cutover (current)
+
+Staging hostnames are registered on Railway but may still CNAME to `ghs.googlehosted.com` (GCP/Firebase). Until DNS flips, use `*.up.railway.app` URLs for acceptance.
+
+| Host | CNAME target (Railway) |
+|------|------------------------|
+| `api-staging.gogocash.co` | `i313nfy0.up.railway.app` |
+| `admin-staging.gogocash.co` | `hs31ua3b.up.railway.app` |
+| `app-staging.gogocash.co` | `cs1bxvuq.up.railway.app` |
+
+**Point API at external Atlas staging data:**
+
+```bash
+railway variables --set 'MONGO_URI=<atlas-staging-uri>' --service gogocash-api
+```
+
+Atlas → Network Access → allow `0.0.0.0/0` (Railway egress is dynamic).
+
+**After `api-staging` resolves to Railway**, rebuild front-ends (API URL is build-time):
+
+```bash
+railway variables --service gogocash-admin \
+  --set 'NEXT_PUBLIC_API_URL=https://api-staging.gogocash.co' \
+  --set 'NEXTAUTH_URL=https://admin-staging.gogocash.co'
+railway redeploy --service gogocash-admin
+
+railway variables --service app-web \
+  --set 'EXPO_PUBLIC_API_URL=https://api-staging.gogocash.co'
+railway redeploy --service app-web
+```
+
+**Media (Cloudflare R2):** `MEDIA_STORAGE_DRIVER=r2` and `R2_*` vars are documented in `.env.railway.production.example` but the R2 upload driver is not wired in the API yet — use GCS credentials (Phase 2c) or `GOOGLE_APPLICATION_CREDENTIALS` until R2 support lands.
+
+**Common blockers:** empty `[]` merchants (wrong/empty Mongo), missing JWT secrets (login fails), DNS still on Google Frontend (custom domain 500).

@@ -4,8 +4,37 @@ function parseCommissionPercentString(s: unknown): number | null {
   if (s == null) return null;
   const str = typeof s === "string" ? s : String(s);
   const m = str.trim().match(/([\d.]+)\s*%/);
-  if (m) return parseFloat(m[1]);
-  return null;
+  if (!m) return null;
+  const parsed = parseFloat(m[1]);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function collectPercentsFromPartnerRates(commissions: unknown[]): number[] {
+  const percents: number[] = [];
+  for (const row of commissions) {
+    if (row != null && typeof row === "object" && !Array.isArray(row)) {
+      for (const value of Object.values(row as Record<string, unknown>)) {
+        const percent = parseCommissionPercentString(value);
+        if (percent != null) percents.push(percent);
+      }
+    } else {
+      const percent = parseCommissionPercentString(row);
+      if (percent != null) percents.push(percent);
+    }
+  }
+  return percents;
+}
+
+/** Min / max % across partner rate strings or Involve-style commission rows. */
+export function formatPartnerRatesMinMax(
+  offer: Pick<Offer, "commissions"> | null,
+): string {
+  const percents = collectPercentsFromPartnerRates(offer?.commissions ?? []);
+  if (percents.length === 0) return "—";
+  const min = Math.min(...percents);
+  const max = Math.max(...percents);
+  if (min === max) return `${min}%`;
+  return `Min ${min}% · Max ${max}%`;
 }
 
 /**

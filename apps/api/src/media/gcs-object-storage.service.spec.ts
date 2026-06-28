@@ -1,4 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { mkdtemp, readFile, rm } from 'fs/promises';
+import os from 'os';
+import path from 'path';
 
 import { GcsObjectStorageService } from './gcs-object-storage.service';
 
@@ -24,6 +27,7 @@ jest.mock('@google-cloud/storage', () => ({
 
 describe('GcsObjectStorageService', () => {
   let service: GcsObjectStorageService;
+  const originalNodeEnv = process.env.NODE_ENV;
 
   beforeEach(async () => {
     saveMock.mockReset().mockResolvedValue(undefined);
@@ -41,6 +45,11 @@ describe('GcsObjectStorageService', () => {
     }).compile();
 
     service = moduleRef.get(GcsObjectStorageService);
+  });
+
+  afterEach(() => {
+    process.env.NODE_ENV = originalNodeEnv;
+    delete process.env.GCS_LOCAL_STORAGE_DIR;
   });
 
   it('uploadFile > given a public folder > then saves and makes object public', async () => {
@@ -76,6 +85,46 @@ describe('GcsObjectStorageService', () => {
 
   it('uploadFile > given uploads disabled > then throws 503', async () => {
     process.env.GCS_MEDIA_UPLOAD_DISABLED = 'true';
+
+    await expect(
+      service.uploadFile(
+        {
+          originalname: 'x.png',
+          mimetype: 'image/png',
+          buffer: Buffer.from('x'),
+        } as Express.Multer.File,
+        'banner-home',
+      ),
+    ).rejects.toMatchObject({ status: 503 });
+  });
+
+  it('uploadFile > given GCS failure in non-production > then falls back to local media', async () => {
+    process.env.NODE_ENV = 'development';
+    const tempDir = await mkdtemp(path.join(os.tmpdir(), 'gogocash-local-media-'));
+    process.env.GCS_LOCAL_STORAGE_DIR = tempDir;
+    saveMock.mockRejectedValueOnce(new Error('invalid_grant'));
+
+    const result = await service.uploadFile(
+      {
+        originalname: 'Hero Banner.png',
+        mimetype: 'image/png',
+        buffer: Buffer.from('png-bytes'),
+      } as Express.Multer.File,
+      'banner-home',
+      'public',
+    );
+
+    expect(result.publicUrl).toMatch(/^local-media:banner-home\//);
+    expect(result.bucket).toBe('local');
+    const objectKey = result.publicUrl.replace(/^local-media:/, '');
+    const stored = await readFile(path.join(tempDir, objectKey));
+    expect(stored.toString()).toBe('png-bytes');
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('uploadFile > given GCS failure in production > then throws 503', async () => {
+    process.env.NODE_ENV = 'production';
+    saveMock.mockRejectedValueOnce(new Error('invalid_grant'));
 
     await expect(
       service.uploadFile(

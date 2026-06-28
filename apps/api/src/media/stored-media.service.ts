@@ -11,8 +11,13 @@ import {
 } from './media-folders.config';
 import {
   isLegacyGoogleDriveFileId,
+  isLocalMediaRef,
   parseGcsPublicUrl,
 } from './stored-media.util';
+import {
+  deleteLocalMediaRef,
+  getLocalMediaReadStream,
+} from './local-object-storage';
 
 @Injectable()
 export class StoredMediaService {
@@ -78,6 +83,11 @@ export class StoredMediaService {
       return;
     }
 
+    if (isLocalMediaRef(trimmed)) {
+      await deleteLocalMediaRef(trimmed);
+      return;
+    }
+
     if (isLegacyGoogleDriveFileId(trimmed)) {
       await this.googleDriveService.deleteFile(trimmed);
     }
@@ -98,6 +108,17 @@ export class StoredMediaService {
 
     if (parseGcsPublicUrl(trimmed)) {
       return this.gcsObjectStorage.getFileStream(trimmed);
+    }
+
+    if (isLocalMediaRef(trimmed)) {
+      try {
+        return getLocalMediaReadStream(trimmed);
+      } catch {
+        throw new HttpException(
+          'Local media file not found',
+          HttpStatus.NOT_FOUND,
+        );
+      }
     }
 
     if (isLegacyGoogleDriveFileId(trimmed)) {

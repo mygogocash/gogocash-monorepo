@@ -29,6 +29,26 @@ export function multipartPostConfig(
   };
 }
 
+function deleteContentTypeHeader(
+  headers: Record<string, unknown>,
+): void {
+  const axiosHeaders = headers as {
+    delete?: (name: string) => boolean;
+    setContentType?: (value: false | string | null | undefined) => void;
+  };
+  if (typeof axiosHeaders.setContentType === "function") {
+    axiosHeaders.setContentType(false);
+    return;
+  }
+  if (typeof axiosHeaders.delete === "function") {
+    axiosHeaders.delete("Content-Type");
+    axiosHeaders.delete("content-type");
+    return;
+  }
+  delete headers["Content-Type"];
+  delete headers["content-type"];
+}
+
 /** Remove default JSON Content-Type so axios/browser can set multipart boundary. */
 export function stripDefaultJsonContentTypeForFormData(
   headers: Record<string, unknown> | undefined,
@@ -37,6 +57,5 @@ export function stripDefaultJsonContentTypeForFormData(
   if (typeof FormData === "undefined" || !(data instanceof FormData) || !headers) {
     return;
   }
-  delete headers["Content-Type"];
-  delete headers["content-type"];
+  deleteContentTypeHeader(headers);
 }

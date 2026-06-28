@@ -11,6 +11,7 @@ import {
 import type { PendingOfferRow } from "@/data/mockPendingOffers";
 import type { Offer } from "@/types/api";
 import { pathImage } from "@/utils/helper";
+import { formatPartnerRatesMinMax } from "@/lib/offerDeeplink";
 import { hasNonEmptyString, OFFER_REVIEW_MEDIA_SIZES } from "./offerMedia";
 import { FormSectionJumpNav } from "@/components/form/FormSectionJumpNav";
 import { OfferFullscreenCardShell } from "./OfferFullscreenCardShell";
@@ -41,27 +42,6 @@ function formatPartnerMaxCap(offer: Offer | null): string {
   const cur = offer?.currency?.trim();
   const formatted = Number.isFinite(raw) ? raw.toLocaleString() : String(raw);
   return cur ? `${formatted} ${cur}` : formatted;
-}
-
-function parsePercentFromPartnerRateString(s: unknown): number | null {
-  if (typeof s !== "string") return null;
-  const m = s.trim().match(/([\d.]+)\s*%/);
-  if (m) return parseFloat(m[1]);
-  return null;
-}
-
-function formatPartnerRatesMinMax(offer: Offer | null): string {
-  const list = offer?.commissions ?? [];
-  const percents: number[] = [];
-  for (const c of list) {
-    const p = parsePercentFromPartnerRateString(c);
-    if (p != null && !Number.isNaN(p)) percents.push(p);
-  }
-  if (percents.length === 0) return "—";
-  const min = Math.min(...percents);
-  const max = Math.max(...percents);
-  if (min === max) return `${min}%`;
-  return `Min ${min}% · Max ${max}%`;
 }
 
 function FieldLabel({
