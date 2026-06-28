@@ -19,7 +19,7 @@ const DEFAULT_FOLDER_BY_ENV: Record<string, MediaFolder> = {
 };
 
 /** Folders whose objects are not world-readable; admin streams via /admin/stored-media/stream. */
-export const PRIVATE_MEDIA_FOLDERS = new Set<MediaFolder>([
+const PRIVATE_MEDIA_FOLDERS = new Set<MediaFolder>([
   MEDIA_FOLDER.MISSING_ORDERS,
   MEDIA_FOLDER.WITHDRAW_SLIPS,
 ]);
@@ -41,26 +41,11 @@ export function isPrivateMediaFolder(folder: MediaFolder): boolean {
   return PRIVATE_MEDIA_FOLDERS.has(folder);
 }
 
-export function isPrivateStoredMediaUrl(stored: string): boolean {
-  const trimmed = stored.trim();
-  if (!trimmed.startsWith('https://storage.googleapis.com/')) {
-    return false;
-  }
-  try {
-    const pathname = new URL(trimmed).pathname.replace(/^\/+/, '');
-    const objectKey = pathname.slice(pathname.indexOf('/') + 1);
-    return [...PRIVATE_MEDIA_FOLDERS].some((folder) => {
-      const prefix = resolveMediaFolder(folder);
-      return objectKey.startsWith(`${prefix}/`);
-    });
-  } catch {
-    return false;
-  }
-}
+const DEFAULT_MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
-export const DEFAULT_MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
-
-export function resolveMaxUploadBytes(env: NodeJS.ProcessEnv = process.env): number {
+export function resolveMaxUploadBytes(
+  env: NodeJS.ProcessEnv = process.env,
+): number {
   const raw = env.GCS_MAX_UPLOAD_BYTES?.trim();
   if (!raw) {
     return DEFAULT_MAX_UPLOAD_BYTES;

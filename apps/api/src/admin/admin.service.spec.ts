@@ -110,12 +110,16 @@ describe('AdminService', () => {
     topBrandConfigModel = { updateOne: jest.fn(), findOne: jest.fn() };
     deeplinkModel = { aggregate: jest.fn() };
     storedMediaService = {
-      upload: jest.fn().mockResolvedValue(
-        'https://storage.googleapis.com/gogocash-catalog-staging/withdraw-slips/slip.png',
-      ),
-      replace: jest.fn().mockResolvedValue(
-        'https://storage.googleapis.com/gogocash-catalog-staging/banner-home/new.png',
-      ),
+      upload: jest
+        .fn()
+        .mockResolvedValue(
+          'https://storage.googleapis.com/gogocash-catalog-staging/withdraw-slips/slip.png',
+        ),
+      replace: jest
+        .fn()
+        .mockResolvedValue(
+          'https://storage.googleapis.com/gogocash-catalog-staging/banner-home/new.png',
+        ),
       deleteStored: jest.fn().mockResolvedValue(undefined),
       getReadableStream: jest.fn(),
     };

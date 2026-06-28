@@ -2,7 +2,7 @@ import { Link, useRouter } from "expo-router";
 import { sendErrorCopy, toSendErrorKind, type SendErrorKind } from "@mobile/auth/authSendErrorKind";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { Check, ChevronDown as ChevronDownIcon } from "@mobile/theme/icons";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Image,
@@ -25,6 +25,7 @@ import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter"
 import { CustomerDesktopHeader } from "@mobile/components/CustomerDesktopHeader";
 import { KeyboardAwareScreen } from "@mobile/components/KeyboardAwareScreen";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { ToastContext } from "@mobile/hooks/useToast";
 import { useReducedMotion } from "@mobile/hooks/useReducedMotion";
 import { haptics } from "@mobile/lib/haptics";
 import { markIntroModalPending } from "@mobile/features/introModal/introModalSession";
@@ -38,6 +39,7 @@ import {
   getDeviceClass,
   getTabletContentFrame,
   mobileShellLayout,
+  webAccountSettingsPage,
   webAuthPage,
 } from "@mobile/design/webDesignParity";
 import { motion } from "@mobile/theme/motion";
@@ -842,12 +844,20 @@ function SocialProviderButton({
 }) {
   const styles = useThemedStyles(createAuthScreenStyles);
   const [hovered, setHovered] = useState(false);
+  const toastCtx = useContext(ToastContext);
+  const tc = useCopy();
+
+  const handlePress = () => {
+    toastCtx?.show(tc(webAccountSettingsPage.notifications.comingSoonLabel));
+  };
+
   return (
     <MotionPressable
       accessibilityLabel={provider.label}
       accessibilityRole="button"
       onHoverIn={() => setHovered(true)}
       onHoverOut={() => setHovered(false)}
+      onPress={handlePress}
       pressScale={motion.scale.subtlePress}
       style={[
         styles.socialButton,

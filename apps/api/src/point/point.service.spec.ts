@@ -99,9 +99,11 @@ describe('PointService', () => {
     deeplinkModel = { aggregate: jest.fn().mockResolvedValue([]) };
     analytics = { capture: jest.fn().mockResolvedValue(undefined) };
     storedMediaService = {
-      replace: jest.fn().mockResolvedValue(
-        'https://storage.googleapis.com/gogocash-catalog-staging/quests/banner.png',
-      ),
+      replace: jest
+        .fn()
+        .mockResolvedValue(
+          'https://storage.googleapis.com/gogocash-catalog-staging/quests/banner.png',
+        ),
       upload: jest.fn(),
     };
 

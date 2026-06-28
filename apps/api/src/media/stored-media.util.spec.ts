@@ -25,9 +25,9 @@ describe('stored-media.util', () => {
 
   describe('isLegacyGoogleDriveFileId', () => {
     it('isLegacyGoogleDriveFileId > given a bare drive id > then returns true', () => {
-      expect(isLegacyGoogleDriveFileId('1wqlSrCi2LQ2Q6NohLnWbtpvbvO17_yKh')).toBe(
-        true,
-      );
+      expect(
+        isLegacyGoogleDriveFileId('1wqlSrCi2LQ2Q6NohLnWbtpvbvO17_yKh'),
+      ).toBe(true);
     });
 
     it('isLegacyGoogleDriveFileId > given a GCS public URL > then returns false', () => {
@@ -60,9 +60,9 @@ describe('stored-media.util', () => {
           'https://storage.googleapis.com/gogocash-catalog-staging/banner-home/x.png',
         ),
       ).toBe('gcs');
-      expect(classifyStoredMediaValue('1wqlSrCi2LQ2Q6NohLnWbtpvbvO17_yKh')).toBe(
-        'drive_id',
-      );
+      expect(
+        classifyStoredMediaValue('1wqlSrCi2LQ2Q6NohLnWbtpvbvO17_yKh'),
+      ).toBe('drive_id');
       expect(classifyStoredMediaValue('uploads/mock.png')).toBe('other');
     });
   });

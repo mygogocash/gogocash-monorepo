@@ -8,7 +8,10 @@ import {
   MediaFolder,
   resolveMediaFolder,
 } from './media-folders.config';
-import { isLegacyGoogleDriveFileId, parseGcsPublicUrl } from './stored-media.util';
+import {
+  isLegacyGoogleDriveFileId,
+  parseGcsPublicUrl,
+} from './stored-media.util';
 
 @Injectable()
 export class StoredMediaService {
@@ -62,7 +65,10 @@ export class StoredMediaService {
   async getReadableStream(stored: string) {
     const trimmed = stored.trim();
     if (!trimmed) {
-      throw new HttpException('Missing media reference', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'Missing media reference',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     if (parseGcsPublicUrl(trimmed)) {
@@ -77,6 +83,9 @@ export class StoredMediaService {
       };
     }
 
-    throw new HttpException('Unsupported media reference', HttpStatus.BAD_REQUEST);
+    throw new HttpException(
+      'Unsupported media reference',
+      HttpStatus.BAD_REQUEST,
+    );
   }
 }

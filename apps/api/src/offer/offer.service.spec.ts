@@ -105,9 +105,11 @@ describe('OfferService', () => {
         .mockReturnValue({ lean: jest.fn().mockResolvedValue([]) }),
     };
     storedMediaService = {
-      upload: jest.fn().mockResolvedValue(
-        'https://storage.googleapis.com/gogocash-catalog-staging/brands/logo.png',
-      ),
+      upload: jest
+        .fn()
+        .mockResolvedValue(
+          'https://storage.googleapis.com/gogocash-catalog-staging/brands/logo.png',
+        ),
     };
 
     const moduleRef: TestingModule = await Test.createTestingModule({

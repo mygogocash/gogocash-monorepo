@@ -70,11 +70,6 @@ import {
     ]),
   ],
   controllers: [OfferController],
-  providers: [
-    OfferService,
-    JwtService,
-    TasksService,
-    InvolveService,
-  ],
+  providers: [OfferService, JwtService, TasksService, InvolveService],
 })
 export class OfferModule {}
