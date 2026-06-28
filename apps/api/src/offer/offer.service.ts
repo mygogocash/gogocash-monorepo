@@ -616,7 +616,7 @@ export class OfferService implements OnApplicationBootstrap {
     const offerId = requireObjectId(String(body.offer_id), 'offer_id');
     const discount = body.discount ? Number(body.discount) : 0;
     const quantity = body.quantity ? Number(body.quantity) : 0;
-    const disabled = body.disabled == 'true' ? true : false;
+    const disabled = parseBoolean(body.disabled);
     const patch = {
       offer_id: offerId,
       discount,

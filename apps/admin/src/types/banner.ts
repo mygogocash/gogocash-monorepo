@@ -7,33 +7,22 @@ export type BannerSlotId = (typeof BANNER_SLOT_IDS)[number];
 
 type SlotSuffix = `_${BannerSlotId}`;
 
-const slotImageKey = (slot: BannerSlotId): `image${SlotSuffix}` =>
-  `image_${slot}`;
-const slotLinkKey = (slot: BannerSlotId): `link${SlotSuffix}` =>
-  `link_${slot}`;
-const slotEnabledKey = (slot: BannerSlotId): `enabled${SlotSuffix}` =>
-  `enabled_${slot}`;
-const slotStartDateKey = (slot: BannerSlotId): `start_date${SlotSuffix}` =>
-  `start_date_${slot}`;
-const slotEndDateKey = (slot: BannerSlotId): `end_date${SlotSuffix}` =>
-  `end_date_${slot}`;
-
 type SlotImageFields = {
-  [K in BannerSlotId as ReturnType<typeof slotImageKey>]: File | string | null;
+  [K in BannerSlotId as `image${SlotSuffix}`]: File | string | null;
 };
 
 type SlotLinkFields = {
-  [K in BannerSlotId as ReturnType<typeof slotLinkKey>]: string;
+  [K in BannerSlotId as `link${SlotSuffix}`]: string;
 };
 
 type SlotEnabledFields = {
-  [K in BannerSlotId as ReturnType<typeof slotEnabledKey>]: boolean;
+  [K in BannerSlotId as `enabled${SlotSuffix}`]: boolean;
 };
 
 type SlotDateFields = {
-  [K in BannerSlotId as ReturnType<typeof slotStartDateKey>]: string;
+  [K in BannerSlotId as `start_date${SlotSuffix}`]: string;
 } & {
-  [K in BannerSlotId as ReturnType<typeof slotEndDateKey>]: string;
+  [K in BannerSlotId as `end_date${SlotSuffix}`]: string;
 };
 
 type SlotForeverFields = {
@@ -60,9 +49,9 @@ export type BannerData = {
 } & SlotImageFields &
   SlotLinkFields &
   {
-    [K in ReturnType<typeof slotEnabledKey>]?: boolean | null;
+    [K in BannerSlotId as `enabled${SlotSuffix}`]?: boolean | null;
   } & {
-    [K in ReturnType<typeof slotStartDateKey>]?: string | null;
+    [K in BannerSlotId as `start_date${SlotSuffix}`]?: string | null;
   } & {
-    [K in ReturnType<typeof slotEndDateKey>]?: string | null;
+    [K in BannerSlotId as `end_date${SlotSuffix}`]?: string | null;
   };

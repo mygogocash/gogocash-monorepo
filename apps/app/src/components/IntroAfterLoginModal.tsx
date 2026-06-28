@@ -4,7 +4,6 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { consumeIntroModalPending } from "@mobile/features/introModal/introModalSession";
 import { webIntroModal } from "@mobile/design/webDesignParity";
 import type { ThemeColors } from "@mobile/theme/colorPalettes";
-import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { spacing, typography } from "@mobile/theme/tokens";
 

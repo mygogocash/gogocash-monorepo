@@ -52,7 +52,6 @@ import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 type WalletMetric = WalletMetricView;
 
 export function CustomerWalletScreen() {
-  const styles = useThemedStyles(createWalletScreenStyles);
   const tc = useCopy();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;

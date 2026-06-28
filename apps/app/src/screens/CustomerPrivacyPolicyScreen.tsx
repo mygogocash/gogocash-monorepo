@@ -14,7 +14,6 @@ import { useCopy } from "@mobile/i18n/useCopy";
 import { mobileShellLayout, webPrivacyPolicyPage } from "@mobile/design/webDesignParity";
 import { privacyPolicyMarkdown } from "@mobile/legal/privacyPolicyMarkdown";
 import type { ThemeColors } from "@mobile/theme/colorPalettes";
-import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, spacing, typography } from "@mobile/theme/tokens";
 

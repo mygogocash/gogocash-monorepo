@@ -14,10 +14,7 @@ import { resolveCategoryDirectoryCards } from "@mobile/account/directoryCatalogR
 import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
-import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
-import { haptics } from "@mobile/lib/haptics";
-import { motion } from "@mobile/theme/motion";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { typography } from "@mobile/theme/tokens";

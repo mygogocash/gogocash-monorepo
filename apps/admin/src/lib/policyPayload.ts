@@ -59,8 +59,6 @@ export const POLICY_TRANSLATION_LOCALES: { value: string; label: string }[] = [
   { value: "zh", label: "Chinese" },
 ];
 
-const POLICY_LOCALE_KEYS = POLICY_TRANSLATION_LOCALES.map((l) => l.value);
-
 /** Empty-state factory — used when opening the editor for a category
  *  that has no policy document yet. */
 export function emptyParsedPolicy(): ParsedPolicy {

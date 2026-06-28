@@ -12,7 +12,6 @@ import type {
   ExecutiveFilters,
   FunnelStage,
   KpiTarget,
-  LeaderboardRow,
   MerchantPartner,
   RevenueWaterfallStep,
   RoadmapMilestone,

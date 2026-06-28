@@ -601,7 +601,6 @@ export function tryMockAdminFeaturesRequest(
 ): MockApiResult | null {
   const { method, path, searchParams, body } = input;
   const m = method.toUpperCase();
-  const joined = path.join("/");
   if (path[0] !== "admin") return null;
 
   const page = parseInt(searchParams.get("page") || "1", 10);

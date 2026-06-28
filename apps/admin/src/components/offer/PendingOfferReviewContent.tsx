@@ -108,7 +108,7 @@ function DetailRow({
   );
 }
 
-export function PendingOfferDetailBody({ offer }: { offer: PendingOfferRow }) {
+function PendingOfferDetailBody({ offer }: { offer: PendingOfferRow }) {
   const logoDesktopSrc = pathImage(offer.logo_desktop);
   const logoMobileSrc = pathImage(offer.logo_mobile);
   const bannerSrc = pathImage(offer.banner, "banner");

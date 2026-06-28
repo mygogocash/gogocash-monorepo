@@ -1,6 +1,6 @@
 import { readFile, realpath } from 'fs/promises';
 import { tmpdir } from 'os';
-import { resolve, sep } from 'path';
+import { isAbsolute, relative, resolve, sep } from 'path';
 
 const allowedUploadRoots = new Set<string>();
 
@@ -16,10 +16,12 @@ async function getAllowedUploadRoots(): Promise<string[]> {
   }
 
   for (const root of roots) {
+    const resolved = resolve(root);
+    allowedUploadRoots.add(resolved);
     try {
-      allowedUploadRoots.add(await realpath(root));
+      allowedUploadRoots.add(await realpath(resolved));
     } catch {
-      allowedUploadRoots.add(resolve(root));
+      // keep unresolved root only
     }
   }
 
@@ -30,6 +32,18 @@ function isPathWithinRoot(resolvedPath: string, root: string): boolean {
   return resolvedPath === root || resolvedPath.startsWith(`${root}${sep}`);
 }
 
+function isRelativePathWithinRoot(relativePath: string): boolean {
+  if (!relativePath || relativePath === '.') {
+    return true;
+  }
+
+  if (isAbsolute(relativePath)) {
+    return false;
+  }
+
+  return !relativePath.split(sep).includes('..');
+}
+
 export async function resolveSafeMulterDiskPath(
   filePath: string,
 ): Promise<string> {
@@ -38,19 +52,31 @@ export async function resolveSafeMulterDiskPath(
     throw new Error('Invalid upload file path');
   }
 
-  let resolvedPath: string;
-  try {
-    resolvedPath = await realpath(trimmed);
-  } catch {
-    throw new Error('Invalid upload file path');
-  }
-
   const allowedRoots = await getAllowedUploadRoots();
-  if (!allowedRoots.some((root) => isPathWithinRoot(resolvedPath, root))) {
-    throw new Error('Invalid upload file path');
+  for (const root of allowedRoots) {
+    const rel = relative(root, resolve(trimmed));
+    if (!isRelativePathWithinRoot(rel)) {
+      continue;
+    }
+
+    const candidate = resolve(root, rel);
+    let resolvedPath: string;
+    try {
+      resolvedPath = await realpath(candidate);
+    } catch {
+      continue;
+    }
+
+    if (
+      allowedRoots.some((allowedRoot) =>
+        isPathWithinRoot(resolvedPath, allowedRoot),
+      )
+    ) {
+      return resolvedPath;
+    }
   }
 
-  return resolvedPath;
+  throw new Error('Invalid upload file path');
 }
 
 export async function readMulterUploadBuffer(

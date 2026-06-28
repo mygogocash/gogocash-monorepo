@@ -6,12 +6,8 @@ import Button from "../ui/button/Button";
 import Input from "../form/input/InputField";
 import Label from "../form/Label";
 import Image from "next/image";
-import { isDirty } from "@/lib/isDirty";
 
 const DEFAULT_AVATAR = "/images/user/owner.jpg";
-
-// Baseline editable values when the modal opens (no profile image chosen yet).
-const INITIAL_FORM = { pendingFileName: null as string | null };
 
 export default function UserMetaCard() {
   const { isOpen, openModal, closeModal } = useModal();
@@ -31,11 +27,6 @@ export default function UserMetaCard() {
 
   const displayAvatar = profileImage ?? DEFAULT_AVATAR;
   const modalPreviewUrl = pendingPreviewUrl ?? profileImage ?? DEFAULT_AVATAR;
-
-  const dirty = isDirty(
-    { pendingFileName: pendingFile?.name ?? null },
-    INITIAL_FORM,
-  );
 
   const handleCloseModal = () => {
     setPendingFile(null);

@@ -9,7 +9,6 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Search as SearchIcon } from "@mobile/theme/icons";
-import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { useDirectoryOfferSearch } from "@mobile/account/useDirectoryOfferSearch";
 import {

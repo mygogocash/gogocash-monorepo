@@ -18,7 +18,6 @@ import { parseCustomRange, parseIsoDateLocal } from "@/lib/insightRange";
 import type {
   DashboardAlert,
   DashboardCommissionHealth,
-  DashboardInsightRange,
   DashboardInsightRangeValue,
   DashboardInsightsResponse,
   DashboardKpiBlock,
@@ -623,7 +622,7 @@ function offerByNumericId(
 }
 
 function buildWithdrawBuckets(
-  now: Date,
+  _now: Date,
 ): DashboardSummaryResponse["withdrawByStatus"] {
   const buckets = {
     pending: { count: 0, total: 0, oldestAt: null as string | null },

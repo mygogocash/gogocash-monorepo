@@ -24,10 +24,6 @@ import {
   emptyOfferRequestForm,
   offerToEditForm,
 } from "@/lib/offerEditForm";
-import {
-  affiliateNetworkName,
-  resolveAffiliateNetworkIdForOffer,
-} from "@/data/affiliateNetworks";
 import { pathImage } from "@/utils/helper";
 import { devError } from "@/lib/devConsole";
 import { useDataSession } from "@/hooks/useDataSession";
@@ -37,12 +33,6 @@ import SearchBar from "@/components/ui/button/SearchBar";
 import SortByDropdown from "@/components/ui/button/SortByDropdown";
 import { OFFER_THUMB_SIZES } from "./offerMedia";
 import { OFFERS_COUNTRY_FILTER_OPTIONS } from "@/lib/offerCountries";
-
-function displayAffiliatePartner(offer: Offer): string {
-  const raw = offer.affiliate_partner?.trim();
-  if (raw) return raw;
-  return affiliateNetworkName(resolveAffiliateNetworkIdForOffer(offer));
-}
 
 export function offerVisibilityStatusLabel(
   disabled: boolean,
@@ -450,9 +440,6 @@ export default function OffersTable({
                   <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
                     {offers.map((offer, index) => {
                       const logoDesktopSrc = pathImage(offer.logo_desktop);
-                      const logoMobileSrc = pathImage(offer.logo_mobile);
-                      const bannerSrc = pathImage(offer.banner);
-                      const logoCircleSrc = pathImage(offer.logo_circle);
                       const has = (s: string) =>
                         typeof s === "string" && s.length > 0;
                       const rowNumber =

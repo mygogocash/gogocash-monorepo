@@ -15,8 +15,6 @@ import {
 export { mapBackendQuestTasks, questTaskEndpoint };
 export type { QuestTaskRow };
 
-type FixtureQuestTask = (typeof webQuestTaskRows)[number];
-
 export type QuestTaskResourceStatus = "error" | "loading" | "ready";
 
 export type QuestTaskResourceResult = {

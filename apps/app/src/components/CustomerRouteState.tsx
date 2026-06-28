@@ -38,8 +38,6 @@ export type CustomerRouteStateAction = {
 // else fall back to the descriptor's English `defaultMessage`. Reading IntlContext directly (rather
 // than useIntl()) is non-throwing, so the component still renders when mounted in isolation.
 function useSafeFormatMessage(): (descriptor: MessageDescriptor) => string {
-  const styles = useThemedStyles(createRouteStateStyles);
-  const { colors } = useTheme();
   const intl = useContext(IntlContext);
   return (descriptor: MessageDescriptor): string =>
     intl ? intl.formatMessage(descriptor) : (descriptor.defaultMessage as string);

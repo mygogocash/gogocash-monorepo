@@ -105,7 +105,6 @@ function LinkOtpBoxes({
   value: string;
 }) {
   const styles = useThemedStyles(createMyCashbackSignInScreenStyles);
-  const { colors } = useTheme();
   const [isFocused, setIsFocused] = useState(false);
   const otpDigits = Array.from({ length: 6 }, (_, index) => value[index] ?? "");
   const activeIndex = isFocused && value.length < otpDigits.length ? value.length : -1;

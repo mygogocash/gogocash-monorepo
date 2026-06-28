@@ -74,8 +74,6 @@ function useDismissableOverlayMotion({
   exitTranslateY = 24,
   onDismiss,
 }: DismissableOverlayMotionOptions) {
-  const styles = useThemedStyles(createGoLinkScreenStyles);
-  const { colors } = useTheme();
   // Wave B (B5): reduce-motion gate for the sheet/popover/overlay motion. When the platform
   // "reduce motion" flag is on, every enter/exit Animated.timing collapses to a 0ms duration so
   // overlays appear/dismiss instantly with the SAME end state (opacity 1/0, translateY 0/exit). The

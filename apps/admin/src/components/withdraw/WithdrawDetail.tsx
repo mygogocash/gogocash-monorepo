@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import client, { fetcher, fetcherPost } from "@/lib/axios/client";
+import { fetcher, fetcherPost } from "@/lib/axios/client";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import StackedDateTime from "@/components/common/StackedDateTime";
 import { planCycle, CYCLE_LABEL, CYCLE_BADGE } from "@/lib/subscriptionCycle";

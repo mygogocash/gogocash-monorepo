@@ -3,7 +3,6 @@ import { StyleSheet, Text, View } from "react-native";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
 import type { ThemeColors } from "@mobile/theme/colorPalettes";
-import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, spacing, typography } from "@mobile/theme/tokens";
 

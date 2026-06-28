@@ -1,7 +1,6 @@
 import { type ViewStyle } from "react-native";
 
 import {
-  webBrandDirectory,
   webCategoryDirectory,
   webShopDirectory,
 } from "@mobile/design/webDesignParity";

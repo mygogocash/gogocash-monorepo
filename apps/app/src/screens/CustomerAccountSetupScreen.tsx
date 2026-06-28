@@ -42,7 +42,6 @@ import {
 } from "@mobile/features/accountSetup";
 import { motion } from "@mobile/theme/motion";
 import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
-import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, spacing, typography } from "@mobile/theme/tokens";
 

@@ -3,7 +3,6 @@ import { AppState, type AppStateStatus, Image, StyleSheet, View } from "react-na
 
 import logoMarkImage from "../../assets/nav/logo.png";
 import type { ThemeColors } from "@mobile/theme/colorPalettes";
-import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 
 // Device-lifecycle privacy: when the app leaves the foreground — the iOS app

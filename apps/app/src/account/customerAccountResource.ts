@@ -5,9 +5,7 @@ import { ApiError } from "@mobile/api/client";
 import { getSharedMobileApiClient } from "@mobile/api/sharedClient";
 import {
   isPublicAdminConfiguredResource,
-  PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS,
   type CustomerAccountResourceId,
-  type PublicAdminConfiguredResourceId,
 } from "@mobile/account/customerAccountResourceIds";
 import {
   resolveCustomerAccountResourceQueryKey,
