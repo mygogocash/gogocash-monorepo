@@ -485,8 +485,16 @@ export function createDiscoveryScreenStyles(colors: ThemeColors) {
   },
   shopDirectoryPromoSlide: {
     borderRadius: 24,
+    boxShadow: shadows.cardCss,
     overflow: "hidden",
     position: "relative",
+  },
+  shopDirectoryPromoSlideLink: {
+    flex: 1,
+    height: "100%",
+    overflow: "hidden",
+    position: "relative",
+    width: "100%",
   },
   shopDirectoryPromoImage: {
     height: "100%",
@@ -504,19 +512,8 @@ export function createDiscoveryScreenStyles(colors: ThemeColors) {
   shopDirectoryPromoDots: {
     alignItems: "center",
     flexDirection: "row",
-    gap: spacing.xs,
     justifyContent: "center",
     minHeight: 12,
-  },
-  shopDirectoryPromoDot: {
-    backgroundColor: "#D4D9D5",
-    borderRadius: radii.chip,
-    height: 8,
-    width: 8,
-  },
-  shopDirectoryPromoDotActive: {
-    backgroundColor: colors.primary,
-    width: 18,
   },
   shopDirectoryHeader: {
     gap: spacing.md,

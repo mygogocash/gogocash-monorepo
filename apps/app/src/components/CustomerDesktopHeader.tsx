@@ -1,12 +1,13 @@
 import { Link, usePathname } from "expo-router";
 import { useMemo, useState } from "react";
-import { Image, ScrollView, StyleSheet, Text, TextInput, View, type ViewStyle } from "react-native";
+import { Image, ScrollView, StyleSheet, Text, View, type ViewStyle } from "react-native";
 
 import menuFireImage from "../../assets/nav/menu-fire.png";
 import questHeaderImage from "../../assets/nav/quest-header.png";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { CustomerDesktopBrandLink } from "@mobile/components/CustomerDesktopBrandLink";
+import { DesktopHeaderSearch } from "@mobile/components/DesktopHeaderSearch";
 import { CustomerLocaleRegionControl } from "@mobile/components/CustomerLocaleRegionControl";
 import { CustomerSignInNavGraphic } from "@mobile/components/CustomerSignInNavGraphic";
 import { CustomerProfileNav } from "@mobile/components/CustomerProfileNav";
@@ -15,13 +16,11 @@ import {
   getDesktopShellHorizontalPadding,
   mobileShellLayout,
   webDesktopHeaderNavItems,
-  webHomeSearchPlaceholder,
 } from "@mobile/design/webDesignParity";
 import {
   AirplaneTilt,
   DeviceMobile,
   Heartbeat,
-  Search,
   SquaresFour,
   Storefront,
   Tag,
@@ -31,7 +30,7 @@ import { motion } from "@mobile/theme/motion";
 import type { ThemeColors } from "@mobile/theme/colorPalettes";
 import { getThemeSurfaces, type ThemeSurfaces } from "@mobile/theme/themeSurfaces";
 import { useTheme } from "@mobile/theme/ThemeProvider";
-import { radii, spacing, typography } from "@mobile/theme/tokens";
+import { radii, typography } from "@mobile/theme/tokens";
 
 const desktopNavIcons: Partial<
   Record<(typeof webDesktopHeaderNavItems)[number]["icon"], IconComponent>
@@ -82,14 +81,23 @@ function useDesktopHeaderStyles() {
   );
 }
 
-export function CustomerDesktopHeader({ viewportWidth }: { viewportWidth: number }) {
+export function CustomerDesktopHeader({
+  onSearchFocus,
+  onSearchQueryChange,
+  searchQuery,
+  viewportWidth,
+}: {
+  onSearchFocus?: () => void;
+  onSearchQueryChange?: (value: string) => void;
+  searchQuery?: string;
+  viewportWidth: number;
+}) {
   const shellPadding = getDesktopShellHorizontalPadding(viewportWidth);
   const shellContentWidth = Math.min(viewportWidth, mobileShellLayout.desktopContentMaxWidth);
   const [localePanelOpen, setLocalePanelOpen] = useState(false);
   const [profilePanelOpen, setProfilePanelOpen] = useState(false);
   const tc = useCopy();
   const session = useMobileSessionSnapshot();
-  const { colors } = useTheme();
   const styles = useDesktopHeaderStyles();
 
   return (
@@ -107,20 +115,11 @@ export function CustomerDesktopHeader({ viewportWidth }: { viewportWidth: number
           ]}
         >
           <CustomerDesktopBrandLink />
-          <View style={styles.desktopHeaderSearch}>
-            <Search
-              color={colors.primaryDark}
-              size={20}
-              strokeWidth={typography.iconStrokeWidth}
-            />
-            <TextInput
-              accessibilityLabel={tc(webHomeSearchPlaceholder)}
-              nativeID="desktop-header-search-input"
-              placeholder={tc(webHomeSearchPlaceholder)}
-              placeholderTextColor={colors.muted}
-              style={StyleSheet.flatten([styles.desktopHeaderSearchInput, webPressableFocusReset])}
-            />
-          </View>
+          <DesktopHeaderSearch
+            onSearchFocus={onSearchFocus}
+            onSearchQueryChange={onSearchQueryChange}
+            searchQuery={searchQuery}
+          />
           <View style={styles.desktopHeaderActions}>
             <Link asChild href="/quest">
               <MotionPressable
@@ -312,29 +311,6 @@ function createDesktopHeaderStyles(colors: ThemeColors, surfaces: ThemeSurfaces)
     alignItems: "center",
     flexDirection: "row",
     gap: 16,
-  },
-  desktopHeaderSearch: {
-    alignItems: "center",
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: radii.chip,
-    borderWidth: 1,
-    flex: 1,
-    flexDirection: "row",
-    gap: spacing.sm,
-    maxWidth: 560,
-    minHeight: 44,
-    minWidth: 0,
-    // Clip to the radius so the rounded corners don't rasterize "horns" under the focus layer.
-    overflow: "hidden",
-    paddingHorizontal: spacing.md,
-  },
-  desktopHeaderSearchInput: {
-    color: colors.ink,
-    flex: 1,
-    fontFamily: typography.family,
-    fontSize: 15,
-    minWidth: 0,
   },
   desktopQuestPill: {
     alignItems: "center",

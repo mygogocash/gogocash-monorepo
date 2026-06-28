@@ -1,6 +1,7 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Image, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Rect } from "react-native-svg";
 
+import logoMarkImage from "../../../assets/nav/logo.png";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { ArrowRight, Link2, Share2 } from "@mobile/theme/icons";
 import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
@@ -26,7 +27,11 @@ export function GoLinkGuidelineFlowIllustration() {
       <ArrowRight color={colors.muted} size={22} strokeWidth={typography.iconStrokeWidth} />
       <View style={styles.item}>
         <View style={styles.pasteSquare}>
-          <Text style={styles.goMark}>GO</Text>
+          <Image
+            accessibilityLabel="GoGoCash logo"
+            source={logoMarkImage}
+            style={styles.pasteLogo}
+          />
           <View style={styles.pasteLinkBadge}>
             <Link2 color={colors.white} size={14} strokeWidth={2.4} />
           </View>
@@ -143,19 +148,16 @@ function createFlowStyles(colors: ThemeColors) {
     },
     pasteSquare: {
       alignItems: "center",
-      backgroundColor: colors.primary,
       borderRadius: 16,
       height: 64,
       justifyContent: "center",
       position: "relative",
       width: 64,
     },
-    goMark: {
-      color: colors.white,
-      fontFamily: typography.family,
-      fontSize: 22,
-      fontWeight: "800",
-      letterSpacing: 0,
+    pasteLogo: {
+      borderRadius: 16,
+      height: 64,
+      width: 64,
     },
     pasteLinkBadge: {
       alignItems: "center",

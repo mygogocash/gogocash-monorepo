@@ -20,6 +20,8 @@ export const ANALYTICS_EVENTS = {
   questStarted: "quest_started",
   cashbackWithdrawSuccess: "cashback_withdraw_success",
   completeRegistration: "complete_registration",
+  searchOpen: "search_open",
+  searchSubmit: "search_submit",
 } as const;
 
 export type AnalyticsEventName = (typeof ANALYTICS_EVENTS)[keyof typeof ANALYTICS_EVENTS];
@@ -126,6 +128,25 @@ export function trackCompleteRegistration(
     auth_provider: args.authProvider,
     source_section: args.source,
     login_state: "authenticated",
+  });
+}
+
+export function trackSearchOpen(
+  client: MobileAnalyticsClient | null | undefined,
+  args: { source: string },
+): void {
+  capture(client, ANALYTICS_EVENTS.searchOpen, {
+    source_section: args.source,
+  });
+}
+
+export function trackSearchSubmit(
+  client: MobileAnalyticsClient | null | undefined,
+  args: { query: string; source: string },
+): void {
+  capture(client, ANALYTICS_EVENTS.searchSubmit, {
+    search_term: args.query,
+    source_section: args.source,
   });
 }
 

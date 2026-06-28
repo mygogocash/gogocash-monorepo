@@ -1,8 +1,14 @@
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Animated, Pressable, ScrollView, Text, View } from "react-native";
 import { useOfferSearch } from "@mobile/account/useOfferSearch";
 import { webHomeSearchPopularPanel } from "@mobile/design/webDesignParity";
 import { useCopy } from "@mobile/i18n/useCopy";
+import {
+  clearSearchHistory,
+  readSearchHistory,
+  removeSearchHistoryItem,
+} from "@mobile/search/searchHistory";
+import { SearchRecentChips } from "@mobile/screens/search/SearchRecentChips";
 import { motion } from "@mobile/theme/motion";
 import { HomeSearchIntro } from "./HomeSearchIntro";
 import { HomeSearchResultRow } from "./HomeSearchResultRow";
@@ -12,6 +18,7 @@ export function HomeSearchPopularPopover({
   horizontalPadding,
   onClose,
   onExited,
+  onSelectRecent,
   query,
   top,
   visible,
@@ -19,6 +26,7 @@ export function HomeSearchPopularPopover({
   horizontalPadding: number;
   onClose: () => void;
   onExited: () => void;
+  onSelectRecent: (term: string) => void;
   query: string;
   top: number;
   visible: boolean;
@@ -28,8 +36,36 @@ export function HomeSearchPopularPopover({
   const { matches: searchMatches, status: searchStatus } = useOfferSearch(query);
   const popularItems = webHomeSearchPopularPanel.items;
   const hasSearchQuery = query.trim().length > 0;
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const popoverOpacity = useMemo(() => new Animated.Value(0), []);
   const popoverTranslateY = useMemo(() => new Animated.Value(-8), []);
+
+  useEffect(() => {
+    if (!visible) {
+      return;
+    }
+
+    let active = true;
+    void readSearchHistory().then((history) => {
+      if (active) {
+        setRecentSearches(history);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [visible]);
+
+  const handleClearHistory = useCallback(async () => {
+    await clearSearchHistory();
+    setRecentSearches([]);
+  }, []);
+
+  const handleRemoveRecent = useCallback(async (term: string) => {
+    const history = await removeSearchHistoryItem(term);
+    setRecentSearches(history);
+  }, []);
 
   useEffect(() => {
     popoverOpacity.stopAnimation();
@@ -156,6 +192,16 @@ export function HomeSearchPopularPopover({
               </View>
             ) : (
               <>
+                <SearchRecentChips
+                  items={recentSearches}
+                  onClear={() => {
+                    void handleClearHistory();
+                  }}
+                  onRemove={(term) => {
+                    void handleRemoveRecent(term);
+                  }}
+                  onSelect={onSelectRecent}
+                />
                 <HomeSearchIntro variant="large" />
                 <View style={styles.searchResultList}>
                   {popularItems.map((item) => (

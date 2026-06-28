@@ -1,4 +1,3 @@
-import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -33,8 +32,12 @@ describe("Brand directory parity", () => {
         pagination: { pageSize: number };
         promo: {
           aspectRatio: number;
-          imageAsset: string;
-          slideCount: number;
+          slides: readonly {
+            accessibilityLabel: string;
+            href: string;
+            id: string;
+            imageAsset: string;
+          }[];
           title: string;
         };
         resultsUnit: string;
@@ -56,9 +59,12 @@ describe("Brand directory parity", () => {
       pagination: { pageSize: 24 },
       promo: {
         aspectRatio: 800 / 450,
-        imageAsset: "shop-promo-gogoquest",
-        slideCount: 3,
         title: "Promotion by Brands",
+        slides: [
+          expect.objectContaining({ id: "gogoquest", imageAsset: "shop-promo-gogoquest" }),
+          expect.objectContaining({ id: "health-beauty", imageAsset: "popular-beauty" }),
+          expect.objectContaining({ id: "travel", imageAsset: "home-banner" }),
+        ],
       },
       resultsUnit: "brands",
       searchLabel: "Search partners",

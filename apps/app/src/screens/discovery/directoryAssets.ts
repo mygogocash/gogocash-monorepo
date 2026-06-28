@@ -30,6 +30,8 @@ export const categoryDirectoryImageAssets: Record<string, ImageSourcePropType> =
 };
 
 export const shopDirectoryImageAssets: Record<string, ImageSourcePropType> = {
+  "home-banner": homeBannerImage,
+  "popular-beauty": popularBeautyImage,
   "shop-promo-gogoquest": shopPromoGogoQuestImage,
 };
 

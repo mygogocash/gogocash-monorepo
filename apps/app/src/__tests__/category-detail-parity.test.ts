@@ -162,21 +162,15 @@ describe("Category detail parity", () => {
     expect(brandCardFile).toContain("compactBrandLogoFallback");
   });
 
-  it("category detail grid > given lg desktop width 1024-1279 > then it uses a 5-column tier matching web List.tsx", () => {
+  it("category detail grid > given desktop width >= 1024 > then it uses 5 columns matching brand/shop directories", () => {
     const screenFile = fs.readFileSync(
       path.join(mobileRoot, "src/screens/CustomerCategoryDetailScreen.tsx"),
       "utf8"
     );
 
-    // Web category grid (gogocash_app-staging List.tsx:254) is grid-cols-2 sm:3 md:4 lg:5 xl:6.
-    // isDesktop flips true at viewportWidth >= 1024 (mobileShellLayout.desktopBreakpoint),
-    // so the desktop branch must give 5 columns for 1024-1279 before 6 at xl (>=1280).
-    expect(screenFile).toContain("viewportWidth >= 1024");
-    expect(screenFile).toMatch(
-      /viewportWidth >= 1280[\s\S]*?6[\s\S]*?viewportWidth >= 1024[\s\S]*?5/
-    );
-    // Guard against regression to the old 4 -> 6 jump that skipped the lg 5-col tier.
-    expect(screenFile).not.toMatch(/viewportWidth >= 1280\s*\?\s*6\s*:\s*4\b/);
+    expect(screenFile).toContain("isDesktop");
+    expect(screenFile).toMatch(/isDesktop\s*\?\s*5/);
+    expect(screenFile).not.toMatch(/viewportWidth >= 1280[\s\S]*?6/);
   });
 
   it("category detail copy > given the rendered subtitle and count > then they say 'brands' (not 'stores') and the subtitle matches the fixture", () => {

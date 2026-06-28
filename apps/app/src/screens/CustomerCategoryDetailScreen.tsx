@@ -93,11 +93,7 @@ function getCategoryGridMetrics({
   const gridWidth = Math.max(0, contentWidth - sidebarWidth - layoutGap);
   const gap = isDesktop || viewportWidth >= 640 ? 16 : 12;
   const preferredColumns = isDesktop
-    ? viewportWidth >= 1280
-      ? 6
-      : viewportWidth >= 1024
-        ? 5
-        : 4
+    ? 5
     : viewportWidth >= 768
       ? 4
       : viewportWidth >= 640
