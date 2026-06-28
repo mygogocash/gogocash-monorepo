@@ -28,14 +28,14 @@
 name: CI
 
 on:
-  # Validate PRs into integration / promotion branches (dev → staging → production).
+  # Validate PRs into promotion branches (main → dev → staging → production).
   pull_request:
-    branches: [dev, staging, production]
+    branches: [main, dev, staging, production]
   # Pushes to staging are handled by build-staging.yml (which calls this
   # workflow as its gate via workflow_call), so staging is intentionally NOT in
   # the push list here — otherwise a merge would run CI twice.
   push:
-    branches: [dev]
+    branches: [main, dev]
   # Reusable: build-staging.yml calls this as its deploy gate AND reuses the
   # per-app change outputs to decide which images to build (no duplicated tests
   # or path-filter).
@@ -211,7 +211,8 @@ jobs:
   # a real boot of the compiled artifact against an ephemeral Mongo, probing /.
   # Catches DI / bootstrap crashes that tsc and the unit specs both miss.
   #
-  # Branch protection (Settings → Branches, rules for dev, staging, production):
+  # Branch protection (Settings → Branches): production is locked; require CI on
+  # main / dev / staging when you add rules there.
   #   Require status checks:  "api build + boot smoke (required)", "api lint",
   #   and "api unit tests" — all three are now gates.
   api-build-smoke:

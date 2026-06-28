@@ -7,9 +7,9 @@ name: CodeQL
 
 on:
   push:
-    branches: [dev, staging, production]
+    branches: [main, dev, staging, production]
   pull_request:
-    branches: [dev, staging, production]
+    branches: [main, dev, staging, production]
   schedule:
     # Weekly — same cadence as GitHub Default setup.
     - cron: "30 1 * * 0"

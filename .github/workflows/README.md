@@ -7,10 +7,12 @@ build/test. (The landing site is a separate repo, not in this monorepo.)
 
 ## What runs
 
-`ci.yml` — runs on pull requests targeting `dev`, `staging`, or `production`, and
-on pushes to `dev` (default integration branch).
+`ci.yml` — runs on pull requests targeting `main`, `dev`, `staging`, or
+`production`, and on pushes to `main` and `dev`.
 
-Promotion flow: **dev → staging → production** (merge PRs between branches).
+Promotion flow: **main → dev → staging → production** (merge PRs between branches,
+one step at a time). `production` is **locked** in branch protection until the
+Railway/GCP cutover is deliberate.
 
 A `changes` job (using `dorny/paths-filter`) detects which app changed, then
 gates each app's job. A change confined to `apps/<X>/**` runs only `<X>`'s
@@ -52,15 +54,13 @@ Notes:
 
 ### Branch protection
 
-There is **no branch protection** today — classic protection *and* rulesets both
-return `403 — Upgrade to GitHub Pro or make this repository public` on this
-private free-plan repo (tracked in #44), so nothing is enforced. The old
-`ci-gate` aggregator (which existed only to make path-filtered checks
-requirable) has been **removed**.
+| Branch | Status |
+|--------|--------|
+| **`production`** | **Locked** — no pushes or merges until unlocked in repo Settings → Branches |
+| `main`, `dev`, `staging` | Open (add PR + required CI checks when ready) |
 
-When the plan allows protection, target **`dev`**, **`staging`**, and **`production`**
-and require the per-app checks (or re-introduce a small aggregator): `enforce_admins: false` (owner can
-bypass in an emergency), no required reviews (solo maintainer).
+Dependabot opens PRs against **`main`**; promote dependency bumps down the chain
+with the same PR flow as feature work.
 
 > ⚠️ Separately, GitHub Actions is currently **blocked org-wide by a billing /
 > spending-limit issue** (jobs fail at "Set up job" with 0 steps). Resolve it in
