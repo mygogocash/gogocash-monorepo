@@ -341,7 +341,9 @@ export default function CreateBrandForm() {
 
   useEffect(() => {
     if (!syncLookupFromBrandCountry) return;
-    setLookupValue(defaultLookupFromBrandAndCountry(brandName, countries));
+    queueMicrotask(() => {
+      setLookupValue(defaultLookupFromBrandAndCountry(brandName, countries));
+    });
   }, [syncLookupFromBrandCountry, brandName, countries]);
 
   const applyLookupDefaultOnce = () => {

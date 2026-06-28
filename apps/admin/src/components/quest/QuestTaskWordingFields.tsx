@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
 
@@ -47,10 +47,11 @@ function WordingAutocomplete({
 }) {
   const brandLabel = getOfferDisplayName(offer);
   const [inputValue, setInputValue] = useState(value);
-
-  useEffect(() => {
+  const [prevValue, setPrevValue] = useState(value);
+  if (value !== prevValue) {
+    setPrevValue(value);
     setInputValue(value);
-  }, [value]);
+  }
 
   const options = useMemo(
     () => buildQuestWordingOptions(locale, brandLabel),

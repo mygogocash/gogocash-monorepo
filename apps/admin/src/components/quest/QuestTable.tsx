@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Table,
@@ -487,14 +487,18 @@ export default function QuestTable() {
   const isLatestAvailableLeaderboard =
     leaderboardQuery.data?.data_source === "latest_available";
 
-  useEffect(() => {
-    if (creatingNew) return;
+  const activeQuestId = selectedQuest?._id ?? null;
+  const [draftSourceQuestId, setDraftSourceQuestId] = useState<string | null>(
+    null,
+  );
+  if (!creatingNew && activeQuestId && activeQuestId !== draftSourceQuestId) {
+    setDraftSourceQuestId(activeQuestId);
     setCampaignDraft(makeCampaignDraft(selectedQuest));
     setTaskDrafts(makeTaskDrafts(selectedQuest));
     setRewardDrafts(makeRewardDrafts(selectedQuest));
     setRewardDistributionDraft(makeRewardDistributionDraft(selectedQuest));
     setSaveError(null);
-  }, [creatingNew, selectedQuest]);
+  }
 
   const campaignBaseline = useMemo(
     () => makeCampaignDraft(selectedQuest),

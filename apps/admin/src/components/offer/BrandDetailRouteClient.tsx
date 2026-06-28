@@ -10,7 +10,7 @@ import {
 import type { Offer } from "@/types/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 type BrandDetailRouteClientProps = {
   offerId: string;
@@ -23,6 +23,7 @@ export default function BrandDetailRouteClient({
   const queryClient = useQueryClient();
   const [form, setForm] = useState(emptyOfferRequestForm);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadedOfferId, setLoadedOfferId] = useState<string | null>(null);
 
   const {
     data: offer,
@@ -34,11 +35,10 @@ export default function BrandDetailRouteClient({
     enabled: Boolean(offerId),
   });
 
-  useEffect(() => {
-    if (offer) {
-      setForm(offerToEditForm(offer));
-    }
-  }, [offer]);
+  if (offer && offer._id !== loadedOfferId) {
+    setLoadedOfferId(offer._id);
+    setForm(offerToEditForm(offer));
+  }
 
   const invalidateOffer = () => {
     void queryClient.invalidateQueries({ queryKey: ["getOffersDetailData", offerId] });

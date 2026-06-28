@@ -161,6 +161,30 @@ const buildUserEditSnapshot = (
   gogopassActive: draft.gogopassActive,
 });
 
+/** One-time migration for drafts persisted before contact rows gained clientId. */
+const ensureLegacyContactRowShape = (
+  draft: WithdrawUserEditDraft,
+): WithdrawUserEditDraft => {
+  const emailsOk =
+    Array.isArray(draft.emailRows) &&
+    draft.emailRows.length > 0 &&
+    typeof draft.emailRows[0] === "object" &&
+    draft.emailRows[0] !== null &&
+    "clientId" in draft.emailRows[0];
+  const mobilesOk =
+    Array.isArray(draft.mobileRows) &&
+    draft.mobileRows.length > 0 &&
+    typeof draft.mobileRows[0] === "object" &&
+    draft.mobileRows[0] !== null &&
+    "clientId" in draft.mobileRows[0];
+  if (emailsOk && mobilesOk) return draft;
+  return {
+    ...draft,
+    emailRows: emailsOk ? draft.emailRows : [createContactRow("")],
+    mobileRows: mobilesOk ? draft.mobileRows : [createContactRow("")],
+  };
+};
+
 const WithdrawDetail = () => {
   const queryClient = useQueryClient();
   const { id } = useParams();
@@ -195,39 +219,19 @@ const WithdrawDetail = () => {
     null,
   );
   const [userDraft, setUserDraft] = useState<WithdrawUserEditDraft>(() =>
-    emptyWithdrawUserEditDraft(),
+    ensureLegacyContactRowShape(emptyWithdrawUserEditDraft()),
   );
 
   const showMockOtpHint = useMemo(() => shouldShowMockOtpHint(), []);
 
-  const initialEmailsRef = useRef<Set<string>>(new Set());
-  const initialMobilesRef = useRef<Set<string>>(new Set());
-  // Snapshot of the saveable User Info fields taken when an edit session opens
-  // (after loaded data populates the draft). Drives "disable Save until changed".
-  const userEditSnapshotRef = useRef<UserEditSnapshot | null>(null);
-
-  useEffect(() => {
-    setUserDraft((d) => {
-      const emailsOk =
-        Array.isArray(d.emailRows) &&
-        d.emailRows.length > 0 &&
-        typeof d.emailRows[0] === "object" &&
-        d.emailRows[0] !== null &&
-        "clientId" in d.emailRows[0];
-      const mobilesOk =
-        Array.isArray(d.mobileRows) &&
-        d.mobileRows.length > 0 &&
-        typeof d.mobileRows[0] === "object" &&
-        d.mobileRows[0] !== null &&
-        "clientId" in d.mobileRows[0];
-      if (emailsOk && mobilesOk) return d;
-      return {
-        ...d,
-        emailRows: emailsOk ? d.emailRows : [createContactRow("")],
-        mobileRows: mobilesOk ? d.mobileRows : [createContactRow("")],
-      };
-    });
-  }, []);
+  const [editInitialEmails, setEditInitialEmails] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [editInitialMobiles, setEditInitialMobiles] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [userEditSnapshot, setUserEditSnapshot] =
+    useState<UserEditSnapshot | null>(null);
 
   const { data: withdrawDetail, refetch: fetchWithdrawDetail } =
     useQuery<ResDataWithdrawsListByUser>({
@@ -613,11 +617,11 @@ const WithdrawDetail = () => {
     }
     const emails = normalizeUserEmails(u);
     const mobiles = normalizeUserMobiles(u);
-    initialEmailsRef.current = new Set(
-      emails.map((e) => e.trim().toLowerCase()).filter(Boolean),
+    setEditInitialEmails(
+      new Set(emails.map((e) => e.trim().toLowerCase()).filter(Boolean)),
     );
-    initialMobilesRef.current = new Set(
-      mobiles.map((m) => m.trim()).filter(Boolean),
+    setEditInitialMobiles(
+      new Set(mobiles.map((m) => m.trim()).filter(Boolean)),
     );
     const emailRows =
       emails.length > 0
@@ -637,7 +641,7 @@ const WithdrawDetail = () => {
       gogopassActive: u.gogopassActive === true,
     };
     setUserDraft(loadedDraft);
-    userEditSnapshotRef.current = buildUserEditSnapshot(loadedDraft);
+    setUserEditSnapshot(buildUserEditSnapshot(loadedDraft));
     setUserSaveError(null);
     setEditingUser(true);
   }, [withdrawDetail?.user]);
@@ -667,8 +671,8 @@ const WithdrawDetail = () => {
     if (
       !withdrawUserContactsReady(
         userDraft,
-        initialEmailsRef.current,
-        initialMobilesRef.current,
+        editInitialEmails,
+        editInitialMobiles,
       )
     ) {
       setUserSaveError(
@@ -706,15 +710,15 @@ const WithdrawDetail = () => {
 
   const userContactsReadyForSave = withdrawUserContactsReady(
     userDraft,
-    initialEmailsRef.current,
-    initialMobilesRef.current,
+    editInitialEmails,
+    editInitialMobiles,
   );
 
   // Unsaved-changes guard: enabled only once a saveable field differs from the
   // snapshot captured when the edit session opened. Falls back to not-dirty
   // when no snapshot exists yet (edit form not opened).
-  const userEditDirty = userEditSnapshotRef.current
-    ? isDirty(buildUserEditSnapshot(userDraft), userEditSnapshotRef.current)
+  const userEditDirty = userEditSnapshot
+    ? isDirty(buildUserEditSnapshot(userDraft), userEditSnapshot)
     : false;
 
   const isUserDataDeleted =
@@ -946,8 +950,8 @@ const WithdrawDetail = () => {
                       showMockOtpHint={showMockOtpHint}
                       userDraft={userDraft}
                       setUserDraft={setUserDraft}
-                      initialEmails={initialEmailsRef.current}
-                      initialMobiles={initialMobilesRef.current}
+                      initialEmails={editInitialEmails}
+                      initialMobiles={editInitialMobiles}
                       initialEmailVerified={
                         withdrawDetail?.user?.emailVerified === true
                       }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { SUPPORT_BUTTON_CLASS } from "@/components/ui/button/SupportButton";
 import { clampPage } from "@/lib/pagination";
 
@@ -38,10 +38,11 @@ export function AdminPaginationBar({
   const rangeEnd = Math.min(page * limit, total);
   // Editable "jump to page" input, kept in sync with the active page.
   const [pageInput, setPageInput] = useState(String(page));
-
-  useEffect(() => {
+  const [prevPage, setPrevPage] = useState(page);
+  if (page !== prevPage) {
+    setPrevPage(page);
     setPageInput(String(page));
-  }, [page]);
+  }
 
   // Commit a typed page number: clamp to a valid page and navigate if it changed.
   const commitPageInput = () => {
