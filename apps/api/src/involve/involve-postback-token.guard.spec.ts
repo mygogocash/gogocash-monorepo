@@ -27,9 +27,9 @@ describe('InvolvePostbackTokenGuard', () => {
 
   it('throws when token query param is missing', () => {
     process.env.INVOLVE_POSTBACK_SECRET = 'postback-secret';
-    expect(() => new InvolvePostbackTokenGuard().canActivate(ctxWith())).toThrow(
-      UnauthorizedException,
-    );
+    expect(() =>
+      new InvolvePostbackTokenGuard().canActivate(ctxWith()),
+    ).toThrow(UnauthorizedException);
   });
 
   it('throws when token does not match', () => {

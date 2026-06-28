@@ -67,11 +67,6 @@ import { PointModule } from 'src/point/point.module';
     ]),
   ],
   controllers: [TasksController],
-  providers: [
-    TasksService,
-    GoogleDriveService,
-    JobService,
-    WithdrawService,
-  ],
+  providers: [TasksService, GoogleDriveService, JobService, WithdrawService],
 })
 export class TasksModule {}

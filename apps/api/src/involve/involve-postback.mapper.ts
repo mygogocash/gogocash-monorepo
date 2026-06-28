@@ -1,7 +1,6 @@
 export type InvolvePostbackQuery = Record<string, string | undefined>;
 
-const INVOLVE_DATETIME =
-  /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/;
+const INVOLVE_DATETIME = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/;
 
 /** Express query values may be string | string[]; keep only scalar strings. */
 export function sanitizePostbackQuery(
@@ -121,13 +120,12 @@ export function mapPostbackQueryToConversion(
     datetime_conversion: parseConversionDatetime(
       firstQueryValue(query, 'datetime_conversion'),
     ),
-    currency: firstQueryValue(query, 'currency', 'conversion_currency') ?? 'THB',
+    currency:
+      firstQueryValue(query, 'currency', 'conversion_currency') ?? 'THB',
     sale_amount: parseFloatAmount(
       firstQueryValue(query, 'sale_amount', 'sale_amount_local'),
     ),
-    payout: parseFloatAmount(
-      firstQueryValue(query, 'payout', 'payout_local'),
-    ),
+    payout: parseFloatAmount(firstQueryValue(query, 'payout', 'payout_local')),
     raw: { ...query, source: 'involve_postback' },
   };
 

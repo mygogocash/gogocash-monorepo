@@ -69,9 +69,7 @@ describe('mapPostbackQueryToConversion', () => {
   });
 
   it('given missing conversion_id > then returns null', () => {
-    expect(
-      mapPostbackQueryToConversion({ offer_id: '1' }, 0),
-    ).toBeNull();
+    expect(mapPostbackQueryToConversion({ offer_id: '1' }, 0)).toBeNull();
   });
 
   it('given unknown offer (merchant_id 0) > then flags missing_merchant_id', () => {
