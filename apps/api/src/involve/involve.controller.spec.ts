@@ -315,9 +315,11 @@ describe('InvolveController', () => {
 
       const result = await controller.handlePostback(req);
 
-      expect(conversionIngestService.upsertFromPostback).toHaveBeenCalledWith(
-        req.query,
-      );
+      expect(conversionIngestService.upsertFromPostback).toHaveBeenCalledWith({
+        token: 'secret',
+        conversion_id: '123',
+        offer_id: '45',
+      });
       expect(result).toBe('OK');
     });
   });

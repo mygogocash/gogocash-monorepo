@@ -9,6 +9,7 @@ import {
   InvolvePostbackQuery,
   mapPostbackQueryToConversion,
   normalizeConversionStatus,
+  sanitizePostbackQuery,
 } from './involve-postback.mapper';
 
 @Injectable()
@@ -28,9 +29,13 @@ export class ConversionIngestService {
   }
 
   async upsertFromPostback(
-    query: InvolvePostbackQuery,
+    query: InvolvePostbackQuery | Record<string, unknown>,
   ): Promise<'upserted' | 'skipped'> {
-    const offerIdRaw = firstQueryValue(query, 'offer_id');
+    const sanitized =
+      typeof query === 'object' && query !== null && !Array.isArray(query)
+        ? sanitizePostbackQuery(query as Record<string, unknown>)
+        : {};
+    const offerIdRaw = firstQueryValue(sanitized, 'offer_id');
     let merchantId = 0;
     if (offerIdRaw) {
       const offerId = Number.parseInt(offerIdRaw, 10);
@@ -39,7 +44,7 @@ export class ConversionIngestService {
       }
     }
 
-    const payload = mapPostbackQueryToConversion(query, merchantId);
+    const payload = mapPostbackQueryToConversion(sanitized, merchantId);
     if (!payload) {
       return 'skipped';
     }

@@ -12,7 +12,7 @@ import {
 import { InvolveService } from './involve.service';
 import { ConversionIngestService } from './conversion-ingest.service';
 import { InvolvePostbackTokenGuard } from './involve-postback-token.guard';
-import { InvolvePostbackQuery } from './involve-postback.mapper';
+import { sanitizePostbackQuery } from './involve-postback.mapper';
 import {
   // ConversionData,
   CreateAffiliateAiDto,
@@ -67,7 +67,7 @@ export class InvolveController {
   @Get('postback')
   async handlePostback(@Req() req: Request): Promise<string> {
     await this.conversionIngestService.upsertFromPostback(
-      req.query as InvolvePostbackQuery,
+      sanitizePostbackQuery(req.query as Record<string, unknown>),
     );
     return 'OK';
   }

@@ -1,5 +1,25 @@
 export type InvolvePostbackQuery = Record<string, string | undefined>;
 
+const INVOLVE_DATETIME =
+  /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/;
+
+/** Express query values may be string | string[]; keep only scalar strings. */
+export function sanitizePostbackQuery(
+  raw: Record<string, unknown>,
+): InvolvePostbackQuery {
+  const out: InvolvePostbackQuery = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (typeof value === 'string') {
+      out[key] = value;
+      continue;
+    }
+    if (Array.isArray(value) && typeof value[0] === 'string') {
+      out[key] = value[0];
+    }
+  }
+  return out;
+}
+
 export function normalizeConversionStatus(status: string | undefined): string {
   const normalized = (status ?? 'pending').trim().toLowerCase();
   if (normalized === 'paid') {
@@ -14,7 +34,7 @@ export function firstQueryValue(
 ): string | undefined {
   for (const key of keys) {
     const value = query[key];
-    if (value !== undefined && value !== '') {
+    if (typeof value === 'string' && value !== '') {
       return value;
     }
   }
@@ -38,12 +58,33 @@ function parseFloatAmount(value: string | undefined): number {
 }
 
 function parseConversionDatetime(value: string | undefined): Date {
-  if (!value) {
+  if (typeof value !== 'string' || !value.trim()) {
     return new Date();
   }
-  const normalized = value.includes('T') ? value : value.replace(' ', 'T');
-  const parsed = new Date(normalized);
+
+  const match = INVOLVE_DATETIME.exec(value.trim());
+  if (!match) {
+    return new Date();
+  }
+
+  const [, year, month, day, hour, minute, second] = match;
+  const parsed = new Date(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hour),
+    Number(minute),
+    Number(second),
+  );
   return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+}
+
+function safeDecodeOfferName(value: string): string {
+  try {
+    return decodeURIComponent(value.replace(/\+/g, ' '));
+  } catch {
+    return value.replace(/\+/g, ' ');
+  }
 }
 
 export function mapPostbackQueryToConversion(
@@ -57,7 +98,7 @@ export function mapPostbackQueryToConversion(
   }
 
   const offerNameRaw = firstQueryValue(query, 'offer_name') ?? '';
-  const offerName = decodeURIComponent(offerNameRaw.replace(/\+/g, ' '));
+  const offerName = safeDecodeOfferName(offerNameRaw);
 
   const payload: Record<string, unknown> = {
     conversion_id: conversionId,
