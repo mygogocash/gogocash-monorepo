@@ -1,10 +1,13 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { Storage } from '@google-cloud/storage';
 import { readMulterUploadBuffer } from 'src/common/multer-upload-buffer';
-import { normalizeSlugSegment } from 'src/common/mongo-query';
 
 import { resolveMaxUploadBytes } from './media-folders.config';
-import { buildGcsPublicUrl, parseGcsPublicUrl } from './stored-media.util';
+import {
+  buildGcsPublicUrl,
+  buildMediaObjectKey,
+  parseGcsPublicUrl,
+} from './stored-media.util';
 
 export type GcsUploadAccess = 'public' | 'private';
 
@@ -73,16 +76,7 @@ export class GcsObjectStorageService {
   }
 
   buildObjectKey(folder: string, originalName: string): string {
-    const trimmed = (originalName || 'upload.bin').trim();
-    const dotIndex = trimmed.lastIndexOf('.');
-    const baseName = dotIndex > 0 ? trimmed.slice(0, dotIndex) : trimmed;
-    const extension =
-      dotIndex > 0 ? trimmed.slice(dotIndex + 1).toLowerCase() : '';
-    const safeBase = normalizeSlugSegment(baseName, 120) || 'upload';
-    const safeExtension = extension.replace(/[^a-z0-9]+/gi, '').slice(0, 10);
-    const safeName = safeExtension ? `${safeBase}.${safeExtension}` : safeBase;
-    const safeFolder = normalizeSlugSegment(folder, 80) || 'uploads';
-    return `${safeFolder}/${Date.now()}-${safeName}`;
+    return buildMediaObjectKey(folder, originalName);
   }
 
   async uploadFile(

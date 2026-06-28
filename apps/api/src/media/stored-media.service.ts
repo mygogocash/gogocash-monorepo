@@ -3,6 +3,7 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { GoogleDriveService } from 'src/google-drive/google-drive.service';
 
 import { GcsObjectStorageService } from './gcs-object-storage.service';
+import { R2ObjectStorageService } from './r2-object-storage.service';
 import {
   isPrivateMediaFolder,
   MediaFolder,
@@ -17,8 +18,21 @@ import {
 export class StoredMediaService {
   constructor(
     private readonly gcsObjectStorage: GcsObjectStorageService,
+    private readonly r2ObjectStorage: R2ObjectStorageService,
     private readonly googleDriveService: GoogleDriveService,
   ) {}
+
+  /**
+   * The backend NEW uploads are written to. Selected by MEDIA_STORAGE_DRIVER
+   * (`r2` → Cloudflare R2, anything else → GCS). Defaults to GCS so the swap
+   * ships dormant and is flipped on per-environment by setting the var to `r2`
+   * once the R2_* config is in place. Read/delete still route per-URL across
+   * BOTH backends so existing GCS objects keep serving after the flip.
+   */
+  private activeStorage(): GcsObjectStorageService | R2ObjectStorageService {
+    const driver = process.env.MEDIA_STORAGE_DRIVER?.trim().toLowerCase();
+    return driver === 'r2' ? this.r2ObjectStorage : this.gcsObjectStorage;
+  }
 
   async upload(
     file: Express.Multer.File,
@@ -26,7 +40,7 @@ export class StoredMediaService {
   ): Promise<string> {
     const prefix = resolveMediaFolder(folder);
     const access = isPrivateMediaFolder(folder) ? 'private' : 'public';
-    const uploaded = await this.gcsObjectStorage.uploadFile(
+    const uploaded = await this.activeStorage().uploadFile(
       file,
       prefix,
       access,
@@ -52,6 +66,13 @@ export class StoredMediaService {
       return;
     }
 
+    // Route by where the object actually lives: new R2 objects, legacy GCS
+    // objects (still public), then legacy Google Drive ids.
+    if (this.r2ObjectStorage.ownsUrl(trimmed)) {
+      await this.r2ObjectStorage.deletePublicUrl(trimmed);
+      return;
+    }
+
     if (parseGcsPublicUrl(trimmed)) {
       await this.gcsObjectStorage.deletePublicUrl(trimmed);
       return;
@@ -69,6 +90,10 @@ export class StoredMediaService {
         'Missing media reference',
         HttpStatus.BAD_REQUEST,
       );
+    }
+
+    if (this.r2ObjectStorage.ownsUrl(trimmed)) {
+      return this.r2ObjectStorage.getFileStream(trimmed);
     }
 
     if (parseGcsPublicUrl(trimmed)) {
