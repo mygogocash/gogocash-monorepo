@@ -59,7 +59,6 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "cookie-parser": "^1.4.7",
-    "customerio-node": "^5.0.1",
     "ethers": "^6.17.0",
     "express": "^5.1.0",
     "firebase-admin": "^14.0.0",

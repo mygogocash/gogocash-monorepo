@@ -253,7 +253,7 @@ jobs:
         # Dummy secrets are fine: nothing validates them at boot EXCEPT Resend,
         # whose client constructor throws on an empty key — so RESEND_API_KEY
         # must be a non-empty dummy. (Firebase uses applicationDefault() lazily;
-        # PostHog/Customer.io stay disabled with no keys.) No real credentials
+        # PostHog stays disabled with no keys.) No real credentials
         # are referenced; the smoke test never sends email.
         working-directory: apps/api
         env:

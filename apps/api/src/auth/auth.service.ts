@@ -24,8 +24,6 @@ import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
 import { SiweNonce, SiweNonceDocument } from './schemas/siwe-nonce.schema';
 import { UserDocument } from 'src/user/schemas/user.schema';
-import { CustomerIoService } from 'src/customer-io/customer-io.service';
-import { CIO_EVENTS } from 'src/customer-io/customer-io.types';
 import { toIso2Server } from 'src/utils/country';
 @Injectable()
 export class AuthService {
@@ -43,7 +41,6 @@ export class AuthService {
     @InjectModel(Point.name) private pointModel: Model<PointDocument>,
     @InjectModel(SiweNonce.name)
     private siweNonceModel: Model<SiweNonceDocument>,
-    private readonly customerIo: CustomerIoService,
   ) {
     this.baseUrl = this.config.get<string>('env.CROSSMINT_BASE_URL') ?? '';
     this.projectId = this.config.get<string>('env.CROSSMINT_PROJECT_ID') ?? '';
@@ -175,14 +172,6 @@ export class AuthService {
           userId: user._id.toString(),
           firebaseId: user.id_firebase,
         });
-        // Fire-and-forget — keep marketing's profile fresh on every login.
-        // Failures log a warning, never block the login response.
-        void this.customerIo.identify(user);
-        void this.customerIo.track(
-          user._id.toString(),
-          CIO_EVENTS.login_completed,
-          { provider: data?.firebase?.sign_in_provider },
-        );
         return {
           user,
           token: accessToken,
@@ -228,18 +217,6 @@ export class AuthService {
         userId: user._id.toString(),
         firebaseId: user.id_firebase,
       });
-      // Identify first so the signup_completed event fires against a profile
-      // that already has its core traits set — onboarding journeys read them
-      // immediately.
-      void this.customerIo.identify(user);
-      void this.customerIo.track(
-        user._id.toString(),
-        CIO_EVENTS.signup_completed,
-        {
-          provider: data?.firebase?.sign_in_provider,
-          referral_id: payload?.referral_id || undefined,
-        },
-      );
       return {
         user,
         token: accessToken,
@@ -321,12 +298,6 @@ export class AuthService {
           userId: user._id.toString(),
           firebaseId: user.id_firebase,
         });
-        void this.customerIo.identify(user, { provider: 'telegram' });
-        void this.customerIo.track(
-          user._id.toString(),
-          CIO_EVENTS.login_completed,
-          { provider: 'telegram' },
-        );
         return {
           user,
           token: accessToken,
@@ -367,15 +338,6 @@ export class AuthService {
         userId: user._id.toString(),
         firebaseId: user.id_firebase,
       });
-      void this.customerIo.identify(user, { provider: 'telegram' });
-      void this.customerIo.track(
-        user._id.toString(),
-        CIO_EVENTS.signup_completed,
-        {
-          provider: 'telegram',
-          referral_id: payload?.referral_id || undefined,
-        },
-      );
       return {
         user,
         token: accessToken,
@@ -676,16 +638,6 @@ export class AuthService {
       userId: user._id.toString(),
       firebaseId: syntheticFirebaseId,
     });
-
-    void this.customerIo.identify(user, { provider: 'minipay' });
-    void this.customerIo.track(
-      user._id.toString(),
-      isNewUser ? CIO_EVENTS.signup_completed : CIO_EVENTS.login_completed,
-      {
-        provider: 'minipay',
-        referral_id: isNewUser ? referral_id || undefined : undefined,
-      },
-    );
 
     return {
       user,

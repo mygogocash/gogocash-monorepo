@@ -10,9 +10,8 @@ import * as path from 'path';
 import { SanitisedExceptionFilter } from './common/sanitised-exception.filter';
 
 async function bootstrap() {
-  // rawBody is required by the Customer.io webhook controller for HMAC
-  // signature verification — NestJS preserves the unparsed buffer on
-  // request.rawBody for any route that needs it.
+  // rawBody preserves the unparsed buffer on request.rawBody for routes that
+  // verify HMAC signatures (e.g. catalog webhooks).
   const app = await NestFactory.create(AppModule, {
     rawBody: true,
   });

@@ -17,7 +17,7 @@
 | Firebase project setup | ✅ Web app "GoGoCash Mobile" registered in `gogocash-staging`; client config in `apps/app/.env` (untracked) |
 | Firebase auth plumbing (SDK, phone OTP, `/auth/log-in` exchange, session mapping) | ✅ Built + wired in `CustomerAuthScreen` when `accountDataSource=backend` |
 | Auth-gated resources live (profile/wallet/referral/offers/merchant) | ✅ Wired where mappers exist; demo session kept for `fixtures` tests |
-| **Out of scope (backend)** | ⛔ Crossmint (`/auth/sign-in`), Customer.io (server-side only), Web3/ethers (MiniPay SIWE, Connect Wallet, on-chain withdraw, crypto payout) — see `src/api/backendIntegrationScope.ts` |
+| **Out of scope (backend)** | ⛔ Crossmint (`/auth/sign-in`), Web3/ethers (MiniPay SIWE, Connect Wallet, on-chain withdraw, crypto payout) — see `src/api/backendIntegrationScope.ts` |
 
 ## 0b. Backend integration exclusions
 
@@ -26,7 +26,6 @@ Mobile **`backend`** mode uses **Firebase phone OTP → `POST /auth/log-in` only
 | Area | Why excluded |
 | --- | --- |
 | **Crossmint** | Legacy `/auth/sign-in` + `CrossmintAuthGuard`; deprecated on API — use Firebase |
-| **Customer.io** | Server-side lifecycle email in `apps/api`; no mobile client integration |
 | **Web3 / ethers** | On-chain withdraw (`ethers` in API withdraw service), MiniPay SIWE (`/auth/minipay-siwe`, `/auth/siwe-nonce`), auth **Connect Wallet** button, payout-method **Crypto** tab |
 
 Helpers: `resolveAuthSocialProviders()` hides Connect Wallet on login; `resolvePayoutMethodTabs()` hides Crypto under backend. Fixtures mode keeps parity UI for offline dev.

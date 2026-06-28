@@ -36,7 +36,6 @@ jest.mock('./firebase-admin.provider', () => ({
 
 import axios from 'axios';
 import { AuthService } from './auth.service';
-import { CIO_EVENTS } from 'src/customer-io/customer-io.types';
 
 // Mongo ObjectId-ish strings the service feeds into `new Types.ObjectId(...)`.
 const REF_ID = '507f1f77bcf86cd799439011';
@@ -105,11 +104,6 @@ function makeService(
     findOneAndDelete: jest.fn(),
   };
 
-  const customerIo = {
-    identify: jest.fn().mockResolvedValue(undefined),
-    track: jest.fn().mockResolvedValue(undefined),
-  };
-
   const configStore: Record<string, string> = {
     'env.JWT_SECRET': 'test-jwt-secret',
     ...overrides.config,
@@ -124,7 +118,6 @@ function makeService(
     jwtService as any,
     pointModel as any,
     siweNonceModel as any,
-    customerIo as any,
   );
 
   return {
@@ -133,7 +126,6 @@ function makeService(
     jwtService,
     pointModel,
     siweNonceModel,
-    customerIo,
     config,
   };
 }
@@ -174,7 +166,7 @@ describe('AuthService', () => {
   describe('signInFirebase', () => {
     it('signInFirebase > given a new user > then it registers and returns the register envelope with a token', async () => {
       const created = makeUser({ id_firebase: 'fb-new' });
-      const { service, userService, jwtService, customerIo } = makeService({
+      const { service, userService, jwtService } = makeService({
         userService: {
           findOne: jest.fn().mockResolvedValue(null),
           createFromFirebase: jest.fn().mockResolvedValue(created),
@@ -197,18 +189,12 @@ describe('AuthService', () => {
       expect(result.user).toBe(created);
       expect(userService.createFromFirebase).toHaveBeenCalledTimes(1);
       expect(jwtService.sign).toHaveBeenCalledTimes(1);
-      // New signups fire signup_completed (not login_completed) for onboarding.
-      expect(customerIo.track).toHaveBeenCalledWith(
-        USER_ID,
-        CIO_EVENTS.signup_completed,
-        expect.objectContaining({ provider: 'password' }),
-      );
     });
 
     it('signInFirebase > given an existing user > then it logs in and returns the login envelope', async () => {
       const existing = makeUser({ id_firebase: 'fb-old' });
       const updated = makeUser({ id_firebase: 'fb-old', username: 'member' });
-      const { service, userService, customerIo } = makeService({
+      const { service, userService } = makeService({
         userService: {
           findOne: jest.fn().mockResolvedValue(existing),
           update: jest.fn().mockResolvedValue(updated),
@@ -229,11 +215,6 @@ describe('AuthService', () => {
       expect(result.auth_flow).toBe('login');
       expect(userService.createFromFirebase).not.toHaveBeenCalled();
       expect(userService.update).toHaveBeenCalledTimes(1);
-      expect(customerIo.track).toHaveBeenCalledWith(
-        USER_ID,
-        CIO_EVENTS.login_completed,
-        expect.objectContaining({ provider: 'google.com' }),
-      );
     });
 
     // A disabled account must never receive a session token, even with a valid
@@ -482,7 +463,7 @@ describe('AuthService', () => {
       const created = makeUser({
         id_firebase: `minipay:${ADDRESS.toLowerCase()}`,
       });
-      const { service, userService, siweNonceModel, customerIo } = makeService({
+      const { service, userService, siweNonceModel } = makeService({
         userService: {
           findOne: jest.fn().mockResolvedValue(null),
           createFromFirebase: jest.fn().mockResolvedValue(created),
@@ -508,11 +489,6 @@ describe('AuthService', () => {
           id_firebase: `minipay:${ADDRESS.toLowerCase()}`,
           provider: 'minipay',
         }),
-      );
-      expect(customerIo.track).toHaveBeenCalledWith(
-        USER_ID,
-        CIO_EVENTS.signup_completed,
-        expect.objectContaining({ provider: 'minipay' }),
       );
     });
   });
