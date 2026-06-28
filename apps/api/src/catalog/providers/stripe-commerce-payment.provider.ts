@@ -95,7 +95,7 @@ export class StripeCommercePaymentProvider implements CommercePaymentProvider {
           'Stripe commerce is not configured',
         );
       }
-      this.stripe = new Stripe(apiKey, { apiVersion: '2026-05-27.dahlia' });
+      this.stripe = new Stripe(apiKey, { apiVersion: '2026-06-24.dahlia' });
     }
     return this.stripe;
   }
