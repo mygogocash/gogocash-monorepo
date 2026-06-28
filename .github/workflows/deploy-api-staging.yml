@@ -145,11 +145,23 @@ jobs:
             --project ${{ vars.GCP_PROJECT_ID }} \
             --format "value(status.url)")
 
-          code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "${URL}/gogosense/merchants" || echo 000)
-          case "$code" in
-            2*|3*) echo "GoGoSense merchant catalog route is reachable ($code)." ;;
-            *)
-              echo "::error::GoGoSense merchant catalog smoke failed (HTTP $code)"
-              exit 1
-              ;;
-          esac
+          # lazyConnection defers the first Mongo handshake; retry until the
+          # catalog route responds (empty [] is fine — we only need liveness).
+          attempts=12
+          sleep_seconds=5
+          for attempt in $(seq 1 "$attempts"); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "${URL}/gogosense/merchants" || echo 000)
+            case "$code" in
+              2*|3*)
+                echo "GoGoSense merchant catalog route is reachable ($code) on attempt ${attempt}/${attempts}."
+                exit 0
+                ;;
+              *)
+                echo "Attempt ${attempt}/${attempts}: HTTP $code — waiting ${sleep_seconds}s for Mongo lazy connect…"
+                sleep "$sleep_seconds"
+                ;;
+            esac
+          done
+
+          echo "::error::GoGoSense merchant catalog smoke failed after ${attempts} attempts (last HTTP $code)"
+          exit 1
